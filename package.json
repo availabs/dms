@@ -1,0 +1,57 @@
+{
+  "name": "@availabs/dms",
+  "version": "0.0.1",
+  "description": "AVAIL Data Management System",
+  "main": "dist/index.js",
+  "scripts": {
+    "test": "node test.js",
+    "build": "npx eslint src && babel src -d dist",
+    "publish-it": "npm run build && npm publish --access public",
+    "watch": "nodemon --exec npm run build"
+  },
+  "nodemonConfig": {
+    "ignore": [
+      "dist/*",
+      ".git"
+    ],
+    "ext": "js, jsx"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/availabs/dms.git"
+  },
+  "author": "AVAIL",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/availabs/dms/issues"
+  },
+  "homepage": "https://github.com/availabs/dms#readme",
+  "devDependencies": {
+    "@babel/cli": "^7.12.1",
+    "@babel/core": "^7.12.3",
+    "@babel/plugin-proposal-class-properties": "^7.12.1",
+    "@babel/plugin-proposal-object-rest-spread": "^7.12.1",
+    "@babel/plugin-transform-spread": "^7.12.1",
+    "@babel/preset-env": "^7.12.1",
+    "@babel/preset-react": "^7.12.5",
+    "eslint-config-react-app": "^6.0.0",
+    "@typescript-eslint/eslint-plugin": "^4.0.0",
+    "@typescript-eslint/parser": "^4.0.0",
+    "babel-eslint": "^10.0.0",
+    "eslint": "^7.5.0",
+    "eslint-plugin-flowtype": "^5.2.0",
+    "eslint-plugin-import": "^2.22.0",
+    "eslint-plugin-jest": "^24.0.0",
+    "eslint-plugin-jsx-a11y": "^6.3.1",
+    "eslint-plugin-react": "^7.20.3",
+    "eslint-plugin-react-hooks": "^4.0.8",
+    "eslint-plugin-testing-library": "^3.9.0"
+  },
+  "dependencies": {
+    "lodash": "4.x",
+    "match-sorter": "5.x",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.9.0"
+  }
+}
