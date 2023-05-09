@@ -1,7 +1,7 @@
 import { falcor } from '~/main'
 //import { useFalcor } from '~/modules/avl-falcor'
-import { getActiveConfig, filterParams } from '../dms-manager/_utils'
-import { redirect } from "react-router-dom";
+import { getActiveConfig /*, filterParams*/ } from '../dms-manager/_utils'
+// import { redirect } from "react-router-dom";
 import get from 'lodash/get'
 
 
@@ -79,10 +79,10 @@ export async function dmsDataEditor ( config, data={}, requestType, path='/' ) {
 
 	
 
-	const updateData = attributeKeys.reduce((out,key) => {
-		out[key] = data[key]
-		return out
-	},{})
+	// const updateData = attributeKeys.reduce((out,key) => {
+	// 	out[key] = data[key]
+	// 	return out
+	// },{})
 	
 	//console.log('dmsDataEditor', id, attributeKeys, updateData, requestType, path)
 
@@ -107,8 +107,7 @@ export async function dmsDataEditor ( config, data={}, requestType, path='/' ) {
 		*/
 		
       	// to do - data verification
-
-      	let newData = await falcor.call(
+      	await falcor.call(
       		["dms", "data", "create"], 
       		[app, type, data]
       	);

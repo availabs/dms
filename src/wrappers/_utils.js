@@ -33,7 +33,7 @@ export function getAttributes (format, options={}, mode='') {
 		
 	Object.keys(attributes)
 		.filter(attributeKey => attributeKeys.includes(attributeKey))
-		.map(attributeKey => {		
+		.forEach(attributeKey => {		
 			attributes[attributeKey].ViewComp = getViewComp(
 				get(attributes, `${attributeKey}`, {})
 			)
