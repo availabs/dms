@@ -3,6 +3,7 @@ import Landing from './landing'
 import Table from './table'
 import Card from './card'
 import Edit from './edit'
+import Lexical from './lexical'
 
 function InvalidConfig ({config}) {
 	return (
@@ -31,6 +32,7 @@ export default {
 	'dms-table': Table,
 	'dms-card': Card,
 	'dms-edit': Edit,
+	'lexical': Lexical,
 	InvalidConfig,
 	NoRouteMatch
 
