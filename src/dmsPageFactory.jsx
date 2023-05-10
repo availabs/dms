@@ -5,7 +5,7 @@ import {
   DmsManager, 
   dmsDataLoader,
   dmsDataEditor, 
-} from '~/modules/dms'
+} from './index'
 
 //const noAuth = Component => Component
 

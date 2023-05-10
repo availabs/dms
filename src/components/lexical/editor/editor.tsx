@@ -25,7 +25,6 @@ import {useEffect, useState} from 'react';
 import {CAN_USE_DOM} from './shared/canUseDOM';
 
 //import {createWebsocketProvider} from './collaboration';
-import {useSettings} from './context/SettingsContext';
 import {useSharedHistoryContext} from './context/SharedHistoryContext';
 import TableCellNodes from './nodes/TableCellNodes';
 import ActionsPlugin from './plugins/ActionsPlugin';

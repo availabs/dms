@@ -1,4 +1,4 @@
-import { falcor } from '~/main'
+import { falcor } from '~/index'
 //import { useFalcor } from '~/modules/avl-falcor'
 import { getActiveConfig /*, filterParams*/ } from '../dms-manager/_utils'
 // import { redirect } from "react-router-dom";

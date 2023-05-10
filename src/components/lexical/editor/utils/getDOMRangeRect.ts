@@ -6,9 +6,9 @@
  *
  */
 export function getDOMRangeRect(
-  nativeSelection: Selection,
-  rootElement: HTMLElement,
-): DOMRect {
+  nativeSelection,
+  rootElement,
+) {
   const domRange = nativeSelection.getRangeAt(0);
 
   let rect;
@@ -16,7 +16,7 @@ export function getDOMRangeRect(
   if (nativeSelection.anchorNode === rootElement) {
     let inner = rootElement;
     while (inner.firstElementChild != null) {
-      inner = inner.firstElementChild as HTMLElement;
+      inner = inner.firstElementChild;
     }
     rect = inner.getBoundingClientRect();
   } else {
