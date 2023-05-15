@@ -5,7 +5,7 @@ import boolean from './boolean'
 
 import dmsFormat from './dms-format'
 import Array from './array'
-import Lexical from '../components/lexical'
+import Lexical from './lexical'
 
 import get from 'lodash/get'
 let i = 0
