@@ -70,7 +70,7 @@ const theme: EditorThemeClasses = {
       listitem: 'PlaygroundEditorTheme__nestedListItem',
     },
     olDepth: [
-      'PlaygroundEditorTheme__ol1',
+      'PlaygroundEditorTheme__ol1 list-decimal',
       'PlaygroundEditorTheme__ol2',
       'PlaygroundEditorTheme__ol3',
       'PlaygroundEditorTheme__ol4',
