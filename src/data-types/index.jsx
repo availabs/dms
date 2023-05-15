@@ -5,6 +5,7 @@ import boolean from './boolean'
 
 import dmsFormat from './dms-format'
 import Array from './array'
+import Lexical from '../components/lexical'
 
 import get from 'lodash/get'
 let i = 0
@@ -15,6 +16,7 @@ const DmsDataTypes = {
 	'textarea': textarea,
 	'boolean': boolean,
 	'dms-format': dmsFormat,
+	'lexical': Lexical,
 	'default': text
 }
 
