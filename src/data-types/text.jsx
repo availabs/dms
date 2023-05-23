@@ -4,6 +4,7 @@ const Edit = ({value, onChange}) => {
     return (
         <input
             value={value}
+            className='w-full p-2'
             onChange={(e) => onChange(e.target.value)}
         />
     )
