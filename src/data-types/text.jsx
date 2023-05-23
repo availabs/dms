@@ -3,7 +3,7 @@ import React from "react"
 const Edit = ({value, onChange, className, placeholder}) => {
     return (
         <input
-            className={className}
+            className={className || 'w-full p-2'}
             value={value}
             placeholder={placeholder}
             onChange={(e) => onChange(e.target.value)}
