@@ -10,7 +10,6 @@ const Edit = ({Component, value, onChange, attr}) => {
         onChange([...value, newValue])
         setNewValue('')
     } 
-    // console.log('array edit', value, onChange)
     return (
         <>
             {value.map((v,i) => 

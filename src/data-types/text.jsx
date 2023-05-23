@@ -1,9 +1,11 @@
 import React from "react"
 
-const Edit = ({value, onChange}) => {
+const Edit = ({value, onChange, className, placeholder}) => {
     return (
         <input
+            className={className}
             value={value}
+            placeholder={placeholder}
             onChange={(e) => onChange(e.target.value)}
         />
     )
