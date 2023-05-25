@@ -1,6 +1,6 @@
 import React from "react"
 
-const Edit = ({value, onChange, className, placeholder}) => {
+const Edit = ({value = '', onChange, className, placeholder}) => {
     return (
         <input
             className={className || 'w-full p-2'}
