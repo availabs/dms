@@ -65,7 +65,7 @@ export type SerializedImageNode = Spread<
 export class ImageNode extends DecoratorNode<JSX.Element> {
   __src: string;
   __altText: string;
-  __width: 'inherit' | number;
+  __width: '100%' | number;
   __height: 'inherit' | number;
   __maxWidth: number;
   __showCaption: boolean;
@@ -132,7 +132,7 @@ export class ImageNode extends DecoratorNode<JSX.Element> {
     src: string,
     altText: string,
     maxWidth: number,
-    width?: 'inherit' | number,
+    width?: '100%' | number,
     height?: 'inherit' | number,
     showCaption?: boolean,
     caption?: LexicalEditor,
@@ -143,7 +143,7 @@ export class ImageNode extends DecoratorNode<JSX.Element> {
     this.__src = src;
     this.__altText = altText;
     this.__maxWidth = maxWidth;
-    this.__width = width || 'inherit';
+    this.__width = width || '100%';
     this.__height = height || 'inherit';
     this.__showCaption = showCaption || false;
     this.__caption = caption || createEditor();
@@ -160,12 +160,12 @@ export class ImageNode extends DecoratorNode<JSX.Element> {
       src: this.getSrc(),
       type: 'image',
       version: 1,
-      width: this.__width === 'inherit' ? 0 : this.__width,
+      width: this.__width === '100%' ? 0 : this.__width,
     };
   }
 
   setWidthAndHeight(
-    width: 'inherit' | number,
+    width: '100%' | number,
     height: 'inherit' | number,
   ): void {
     const writable = this.getWritable();
@@ -225,7 +225,7 @@ export class ImageNode extends DecoratorNode<JSX.Element> {
 export function $createImageNode({
   altText,
   height,
-  maxWidth = 700,
+  maxWidth = 950,
   captionsEnabled,
   src,
   width,
