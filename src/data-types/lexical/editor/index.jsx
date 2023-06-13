@@ -20,7 +20,7 @@ import './lexical.css';
 export default function Lexicals ({value, onChange, editable=false}) {
   
   const initialConfig = {
-    editorState: value || null,
+    editorState: JSON.parse(value || '{}')?.root ? value : null,
     namespace: 'dms-lexical',
     nodes: [...PlaygroundNodes],
     editable: editable,
@@ -31,7 +31,7 @@ export default function Lexicals ({value, onChange, editable=false}) {
     theme: PlaygroundEditorTheme
   };
 
-  //console.log('initialConfig', initialConfig)
+  console.log('initialConfig', initialConfig)
 
   return (
     <LexicalComposer initialConfig={initialConfig}>
