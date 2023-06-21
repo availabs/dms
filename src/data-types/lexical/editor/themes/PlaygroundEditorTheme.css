@@ -16,16 +16,7 @@
   margin: 0;
   position: relative;
 }
-.toolbar {
-  overflow: hidden;
-  margin-bottom: 10px;
-  flex-wrap: wrap;
-}
 
-.editor-container {
-  min-height: 50px;
-  border: #6c757d;
-}
 
 .PlaygroundEditorTheme__quote {
   margin: 0;
