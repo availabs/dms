@@ -1371,6 +1371,7 @@ button.action-button:disabled {
 .toolbar {
   display: flex;
   flex-wrap: wrap;
+  height: fit-content;
   overflow: hidden;
   margin-bottom: 1px;
 /*  background: #fff;*/
@@ -1378,7 +1379,6 @@ button.action-button:disabled {
   border-top-left-radius: 10px;
   border-top-right-radius: 10px;
   vertical-align: middle;
-  height: 36px;
   position: sticky;
   top: 0;
   z-index: 2;
