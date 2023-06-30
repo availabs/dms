@@ -16,24 +16,26 @@ function parseValue (value) {
         JSON.stringify(value) : (isJsonString(value) ? value : null)
 } 
 
-const Edit = ({value, onChange}) => {
+const Edit = ({value, onChange, ...rest}) => {
     return (
         <div className="editor-shell">
           <Editor 
             value={parseValue(value)}
             onChange={(d) => { onChange(d) }}
             editable={true}
+            {...rest}
           />
         </div>
     )
 }
 
-const View = ({value}) => {
+const View = ({value, ...rest}) => {
     return (
         <div className="editor-shell">
           <Editor 
             value={parseValue(value)}
             editable={false}
+            {...rest}
           />
         </div>
     )

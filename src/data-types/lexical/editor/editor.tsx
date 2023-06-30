@@ -86,7 +86,8 @@ export default function Editor(props): JSX.Element {
       showComments,
       showActionBar,
       placeholderText='',
-      editable=true
+      editable=true,
+      bgColor
   } = props;
   const placeholder = <Placeholder>{placeholderText}</Placeholder>;
   const [floatingAnchorElem, setFloatingAnchorElem] =
@@ -132,7 +133,9 @@ export default function Editor(props): JSX.Element {
       <div
         className={`editor-container ${showTreeView ? 'tree-view' : ''} ${
           !isRichText ? 'plain-text' : ''
-        }`}>
+        }`}
+        style={{backgroundColor: bgColor}}
+      >
         {isMaxLength && <MaxLengthPlugin maxLength={30} />}
         <DragDropPaste />
         {/*<AutoFocusPlugin />*/}

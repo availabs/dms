@@ -17,7 +17,7 @@ import './lexical.css';
 
 
 
-export default function Lexicals ({value, onChange, editable=false}) {
+export default function Lexicals ({value, onChange, bgColor, editable=false}) {
   
   const initialConfig = {
     editorState: JSON.parse(value || '{}')?.root ? value : null,
@@ -36,7 +36,7 @@ export default function Lexicals ({value, onChange, editable=false}) {
   return (
     <LexicalComposer initialConfig={initialConfig}>
       <div className="editor-shell">
-        <Editor editable={editable} />
+        <Editor editable={editable} bgColor={bgColor}/>
         <OnChangePlugin onChange={onChange} />
       </div>
     </LexicalComposer>
