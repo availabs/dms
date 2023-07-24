@@ -23,13 +23,18 @@ export async function dmsDataLoader ( config, path='/') {
   	
   	// console.log('dmsApiController - path, params', path, params)
   	// console.log('falcorCache', JSON.stringify(falcor.getCache(),null,3))
-  	
+  	console.time(`dmsDataLoader ${ app }+${ type } ${length}`)
+	const reqData = length ? await falcor.get([
+		...itemReq, 
+		{from: 0, to: length-1}, 
+		["id", "data", "updated_at", "created_at"] //"app", "type",
+	]) : {}
+	console.timeEnd(`dmsDataLoader ${ app }+${ type } ${length}`)
+  	  		
+
+
   	const data = length ? Object.values(get(
-  		await falcor.get([
-			...itemReq, 
-			{from: 0, to: length-1}, 
-			["id", "data", "updated_at", "created_at"] //"app", "type",
-		]), 
+  		reqData, 
   		['json', ...itemReq],
   		{}
   	))

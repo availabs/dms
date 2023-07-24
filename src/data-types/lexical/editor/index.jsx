@@ -31,7 +31,7 @@ export default function Lexicals ({value, onChange, bgColor, editable=false}) {
     theme: PlaygroundEditorTheme
   };
 
-  console.log('initialConfig', initialConfig)
+  //console.log('initialConfig', initialConfig)
 
   return (
     <LexicalComposer initialConfig={initialConfig}>
