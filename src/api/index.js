@@ -9,7 +9,7 @@ export async function dmsDataLoader ( config, path='/') {
 	const { app , type } = config.format
 	const activeConfigs = getActiveConfig(config.children, path)
 	const activeConfig = activeConfigs[0] || {} //
-	// console.log('dmsDataLoader', activeConfig, path, activeConfigs)
+	console.log('dmsDataLoader', activeConfig, path, activeConfigs)
 	const attributeFilter = get(activeConfig,'options.attributes', [])
 	
 	//let params = activeConfig.params
