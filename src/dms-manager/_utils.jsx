@@ -71,11 +71,18 @@ export function getActiveView(config, path, format, depth=0) {
 export function getActiveConfig (config=[], path='/', depth = 0) {
 	
 	let configs = cloneDeep(configMatcher(config,path, depth))
-	
-	configs.forEach(out => {
-		out.children = getActiveConfig(out.children, path, depth+1)
-	})
-	return configs || []
+	let childConfigs = configs
+		.reduce((out,conf) => {
+			let childConf = getActiveConfig(conf.children, path, depth+1)
+			if(childConf.length) {
+				return [...out, ...childConf]
+			}
+			return out
+		},[])
+		
+    //console.log(childConfigs)
+
+	return [...configs,...childConfigs] || []
 }
 
 

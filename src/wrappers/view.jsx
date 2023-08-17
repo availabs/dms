@@ -1,5 +1,5 @@
 import React, {useEffect} from 'react'
-import {/* useFetcher, useLocation,*/ useLoaderData } from "react-router-dom";
+import { useLoaderData } from "react-router-dom";
 import { filterParams } from '../dms-manager/_utils'
 import { getAttributes } from './_utils'
 
@@ -9,9 +9,10 @@ export default function ViewWrapper({ Component, format, options, params, ...pro
 	const { data, user } = useLoaderData()
 	const {defaultSort = (d) => d } = format
 
-	const item = defaultSort(data).filter(d => filterParams(d,params,format))[0] || data[0]
 
-	//console.log('ViewWrapper', attributes, data)
+	const item = defaultSort(data)
+		.filter(d => filterParams(d,params,format))[0] || data[0]
+
 	return (
 		<Component 
 			{...props} 

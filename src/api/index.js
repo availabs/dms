@@ -4,18 +4,34 @@ import { getActiveConfig /*, filterParams*/ } from '../dms-manager/_utils'
 // import { redirect } from "react-router-dom";
 import get from 'lodash/get'
 
+function rand(min, max) { // min and max included 
+  return Math.floor(Math.random() * (max - min + 1) + min)
+}
+
+let fullDataLoad = {}
+
 
 export async function dmsDataLoader ( config, path='/') {
-	const { app , type } = config.format
+	const runId = rand(0,10000)
+	console.time(`dmsDataLoader ${runId}`)
+	const { format } = config
+	const { app , type, defaultSearch } = format
+
 	const activeConfigs = getActiveConfig(config.children, path)
 	const activeConfig = activeConfigs[0] || {} //
-	console.log('dmsDataLoader', activeConfig, path, activeConfigs)
 	const attributeFilter = get(activeConfig,'options.attributes', [])
 	
+	const wildKey = format?.attributes?.reduce((out,attr) => {
+		if(attr.matchWildcard){
+			out = attr.key
+		}
+		return out
+	},'') || ''
 	//let params = activeConfig.params
 
-	//console.log('dmsDataLoader', activeConfig, params, 'path:',path)
-	
+	// console.log('dmsDataLoader', activeConfig, 'path:',path)
+
+
 	const lengthReq = ['dms', 'data', `${ app }+${ type }`, 'length' ]
   	const length = get(await falcor.get(lengthReq), ['json',...lengthReq], 0)
   	const itemReq = ['dms', 'data', `${ app }+${ type }`, 'byIndex'] 
@@ -23,43 +39,131 @@ export async function dmsDataLoader ( config, path='/') {
   	
   	// console.log('dmsApiController - path, params', path, params)
   	// console.log('falcorCache', JSON.stringify(falcor.getCache(),null,3))
-  	console.time(`dmsDataLoader ${ app }+${ type } ${length}`)
-	const reqData = length ? await falcor.get([
-		...itemReq, 
-		{from: 0, to: length-1}, 
-		["id", "data", "updated_at", "created_at"] //"app", "type",
-	]) : {}
-	console.timeEnd(`dmsDataLoader ${ app }+${ type } ${length}`)
-  	  		
+  	const createRequest = (wrapperConfig) => {
+  		//console.log('createRequest',wrapperConfig)
+  		let filterAttrs = wrapperConfig?.filter?.attributes || []
+  		let dataAttrs = filterAttrs.length > 0 ? 
+  			filterAttrs.map(attr =>  `data ->> '${attr}'` ) : ['data']
 
+  		switch (wrapperConfig.action) {
+  			case 'list': 
+  				return [
+  					...itemReq,
+  					{from: 0, to: length-1},
+  					[ "id", "updated_at", "created_at","app", "type",...dataAttrs]
+  				]
+  			break;
+  			case 'view':
+  			case 'edit':
+  				return [
+  					'dms', 'data', `${ app }+${ type }`,
+  					'searchOne',
+  					[JSON.stringify({
+  						wildKey: `data ->> '${wildKey}'`, 
+  						params: activeConfig?.params['*'] || '', 
+  						defaultSearch
+  					})],
+  					[ "id", "updated_at", "created_at","app", "type", ...dataAttrs]
+  				]
+  			break;
+  			default:
+  			return []
 
-  	const data = length ? Object.values(get(
-  		reqData, 
-  		['json', ...itemReq],
+  		}
+  		
+  	}
+
+  	const newRequests = activeConfigs
+  		.map(c => createRequest(c))
+
+  	//--------- New Data Loading ------------------------
+  	//console.log('newRequests', newRequests)
+	if(fullDataLoad[`${ app }+${ type }`] !== 'finished') {
+		console.time(`----dmsDataLoader new ${runId}----`)
+		const newReqData = length ? await falcor.get(...newRequests) : {}
+		console.timeEnd(`----dmsDataLoader new ${runId}----`)
+	}
+	//console.time('falcor Cache')
+	let newReqFalcor = falcor.getCache()
+	//console.timeEnd('falcor Cache')
+
+	//---------------------------------------------------
+	
+	// --------------- Old data loading -------------------
+  	// console.time(`dmsDataLoader ${ app }+${ type } ${length}`)
+	
+	// console.timeEnd(`dmsDataLoader ${ app }+${ type } ${length}`)
+	// -------------------------------------------------------
+  	
+
+	console.time(`process new data ${runId}`)
+	const newData = Object.values(get(
+  		newReqFalcor, 
+  		['dms', 'data', 'byId'],
   		{}
   	))
-  	.filter(d => d.id)
+  	.filter(d => d.id && d.app === app && d.type === type)
   	.map(d => {
   		// flatten data into single object
-  		d.data.id = d.id
-  		d.data.updated_at = d.updated_at
-  		d.data.created_at = d.created_at
+  		let out = d?.data?.value || {}
+  		Object.keys(d)
+  			.filter(k => k !== 'data')
+  			.forEach(col => {
+  				if(col.includes('data ->> ')){
+		          let attr = col.split('->>')[1].trim().replace(/[']/g, '')
+		          out[attr] = d[col]
+		        } else {
+		        	out[col] = d[col]
+		        }
+
+  			})
+  		return out
+  	})
+  	console.time(`process new data ${runId}`)
+
+  	// console.log('newData', newData)
+  	if( !fullDataLoad[`${ app }+${ type }`] ){
+  		console.time(`fullDataLoad ${runId}`)
+  		fullDataLoad[`${ app }+${ type }`] = 'started';
+  		falcor.get([
+			...itemReq, 
+			{from: 0, to: length-1}, 
+			["id", "data", "updated_at", "created_at"] //"app", "type",
+		]).then(d => {
+  			console.timeEnd(`fullDataLoad ${runId}`)
+  			fullDataLoad[`${ app }+${ type }`] = 'finished';
+		})
+  	}
+  	console.timeEnd(`dmsDataLoader ${runId}`)
+  	return newData
+
+  	// const data = length ? Object.values(get(
+  	// 	reqData, 
+  	// 	['json', ...itemReq],
+  	// 	{}
+  	// ))
+  	// .filter(d => d.id)
+  	// .map(d => {
+  	// 	// flatten data into single object
+  	// 	d.data.id = d.id
+  	// 	d.data.updated_at = d.updated_at
+  	// 	d.data.created_at = d.created_at
   		
-  		/* 
-  		   if the config has attributes filter
-  		   only select listed attributes
-  		   otherwise send all attributes
-  		*/
-  		return attributeFilter.length ? 
-  		attributeFilter.reduce((out, attr) => {
-  			out[attr] = d.data[attr]
-  			return out
-  		},{}) : 
-  		d.data
-  	}) : []
+  	// 	/* 
+  	// 	   if the config has attributes filter
+  	// 	   only select listed attributes
+  	// 	   otherwise send all attributes
+  	// 	*/
+  	// 	return attributeFilter.length ? 
+  	// 	attributeFilter.reduce((out, attr) => {
+  	// 		out[attr] = d.data[attr]
+  	// 		return out
+  	// 	},{}) : 
+  	// 	d.data
+  	// }) : []
   	
   	//console.log('data', data, activeConfig)
-  	return data 
+  	// return data 
   	// switch (activeConfig.action) {
   	// 	case 'list': 
   	// 		return data
