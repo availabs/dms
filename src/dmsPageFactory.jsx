@@ -16,6 +16,7 @@ export default function dmsPageFactory (
 ) {
 
   async function loader ({ request, params }) {
+    //console.log('loader', request, params)
     let data = await dmsDataLoader(dmsConfig, `/${params['*'] || ''}`)
     return { 
       data,
@@ -34,7 +35,6 @@ export default function dmsPageFactory (
 
   function DMS() {
     const params = useParams();
-    
     const AuthedManager = authWrapper(DmsManager)
     return (
       <AuthedManager 
@@ -57,7 +57,11 @@ export default function dmsPageFactory (
     path: `${dmsPath}*`,
     component: (props) =>  <DMS {...props} />,
     loader: loader,
-    action: action
+    action: action,
+    shouldRevalidate: () =>  {
+      console.log('should shouldRevalidate')
+      return false
+    }
   }
 }
 

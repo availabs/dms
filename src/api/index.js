@@ -9,11 +9,13 @@ function rand(min, max) { // min and max included
 }
 
 let fullDataLoad = {}
-
+let runCount = 0
 
 export async function dmsDataLoader ( config, path='/') {
-	const runId = rand(0,10000)
-	console.time(`dmsDataLoader ${runId}`)
+	runCount += 1
+	const runId = runCount  //rand(0,10000)
+	console.log(`----------START API RUN ${runId}----------`)
+	console.time(`----------dmsDataLoader ${runId}----------`)
 	const { format } = config
 	const { app , type, defaultSearch } = format
 
@@ -27,61 +29,66 @@ export async function dmsDataLoader ( config, path='/') {
 		}
 		return out
 	},'') || ''
-	//let params = activeConfig.params
 
+	// let params = activeConfig.params
 	// console.log('dmsDataLoader', activeConfig, 'path:',path)
 
 
 	const lengthReq = ['dms', 'data', `${ app }+${ type }`, 'length' ]
-  	const length = get(await falcor.get(lengthReq), ['json',...lengthReq], 0)
-  	const itemReq = ['dms', 'data', `${ app }+${ type }`, 'byIndex'] 
+	const length = get(await falcor.get(lengthReq), ['json',...lengthReq], 0)
+	const itemReq = ['dms', 'data', `${ app }+${ type }`, 'byIndex'] 
 
-  	
-  	// console.log('dmsApiController - path, params', path, params)
-  	// console.log('falcorCache', JSON.stringify(falcor.getCache(),null,3))
-  	const createRequest = (wrapperConfig) => {
-  		//console.log('createRequest',wrapperConfig)
-  		let filterAttrs = wrapperConfig?.filter?.attributes || []
-  		let dataAttrs = filterAttrs.length > 0 ? 
-  			filterAttrs.map(attr =>  `data ->> '${attr}'` ) : ['data']
+	// console.log('dmsApiController - path, params', path, params)
+	// console.log('falcorCache', JSON.stringify(falcor.getCache(),null,3))
+	const createRequest = (wrapperConfig) => {
+		let filterAttrs = wrapperConfig?.filter?.attributes || []
+		let dataAttrs = filterAttrs.length > 0 ? 
+			filterAttrs.map(attr =>  `data ->> '${attr}'` ) : ['data']
 
-  		switch (wrapperConfig.action) {
-  			case 'list': 
-  				return [
-  					...itemReq,
-  					{from: 0, to: length-1},
-  					[ "id", "updated_at", "created_at","app", "type",...dataAttrs]
-  				]
-  			break;
-  			case 'view':
-  			case 'edit':
-  				return [
-  					'dms', 'data', `${ app }+${ type }`,
-  					'searchOne',
-  					[JSON.stringify({
-  						wildKey: `data ->> '${wildKey}'`, 
-  						params: activeConfig?.params['*'] || '', 
-  						defaultSearch
-  					})],
-  					[ "id", "updated_at", "created_at","app", "type", ...dataAttrs]
-  				]
-  			break;
-  			default:
-  			return []
+		switch (wrapperConfig.action) {
+			case 'list': 
+				return [
+					...itemReq,
+					{from: 0, to: length-1},
+					[ "id", "updated_at", "created_at","app", "type",...dataAttrs]
+				]
+			break;
+			case 'view':
+			case 'edit':
+				
+				return wildKey ? [
+					'dms', 'data', `${ app }+${ type }`,
+					'searchOne',
+					[JSON.stringify({
+						wildKey: `data ->> '${wildKey}'`, 
+						params: activeConfig?.params['*'] || '', 
+						defaultSearch
+					})],
+					[ "id", "updated_at", "created_at","app", "type", ...dataAttrs]
+				] : [
+					...itemReq,
+					{from: 0, to: length-1},
+					[ "id", "updated_at", "created_at","app", "type",...dataAttrs]
+				]
+			break;
+			default:
+				return []
+		}
+		
+	}
 
-  		}
-  		
-  	}
-
-  	const newRequests = activeConfigs
-  		.map(c => createRequest(c))
+	const newRequests = activeConfigs
+		.map(c => createRequest(c))
 
   	//--------- New Data Loading ------------------------
   	//console.log('newRequests', newRequests)
+  	// console.log(fullDataLoad[`${ app }+${ type }`],
+  	// 	fullDataLoad[`${ app }+${ type }`] !== 'finished')
 	if(fullDataLoad[`${ app }+${ type }`] !== 'finished') {
-		console.time(`----dmsDataLoader new ${runId}----`)
-		const newReqData = length ? await falcor.get(...newRequests) : {}
-		console.timeEnd(`----dmsDataLoader new ${runId}----`)
+		//console.time(`fetch data ${runId}`)
+		const newReqData = newRequests.length > 0 
+			? await falcor.get(...newRequests) : {}
+		//console.timeEnd(`fetch data ${runId}`)
 	}
 	//console.time('falcor Cache')
 	let newReqFalcor = falcor.getCache()
@@ -96,7 +103,7 @@ export async function dmsDataLoader ( config, path='/') {
 	// -------------------------------------------------------
   	
 
-	console.time(`process new data ${runId}`)
+	//console.time(`process new data ${runId}`)
 	const newData = Object.values(get(
   		newReqFalcor, 
   		['dms', 'data', 'byId'],
@@ -119,22 +126,23 @@ export async function dmsDataLoader ( config, path='/') {
   			})
   		return out
   	})
-  	console.time(`process new data ${runId}`)
+  	//console.timeEnd(`process new data ${runId}`)
 
   	// console.log('newData', newData)
   	if( !fullDataLoad[`${ app }+${ type }`] ){
-  		console.time(`fullDataLoad ${runId}`)
+  		//console.time(`fullDataLoad ${runId}`)
   		fullDataLoad[`${ app }+${ type }`] = 'started';
   		falcor.get([
 			...itemReq, 
 			{from: 0, to: length-1}, 
 			["id", "data", "updated_at", "created_at"] //"app", "type",
 		]).then(d => {
-  			console.timeEnd(`fullDataLoad ${runId}`)
+  			//console.timeEnd(`fullDataLoad ${runId}`)
   			fullDataLoad[`${ app }+${ type }`] = 'finished';
 		})
   	}
-  	console.timeEnd(`dmsDataLoader ${runId}`)
+  	console.timeEnd(`----------dmsDataLoader ${runId}----------`)
+  	// console.log(`----------START API RUN ${runId}----------`)
   	return newData
 
   	// const data = length ? Object.values(get(

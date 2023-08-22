@@ -1,7 +1,8 @@
 import React from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLoaderData} from 'react-router-dom'
 import comps from '../components'
 import { getActiveView, getActiveConfig, validFormat } from './_utils'
+
 import ThemeContext from '../theme'
 import defaultTheme from '../theme/default-theme'
 
@@ -33,7 +34,16 @@ const DmsManager = (props) => {
 	// 	enhanceFormat(config.format)
 	// ,[config.format])
 
-	const RenderView = getActiveView(config.children, path, config.format)
+	console.log('load data', config, path)
+	const apiData = useLoaderData()
+	
+	const RenderView = getActiveView(
+		config.children, 
+		path, 
+		config.format, 
+		apiData
+	)
+
 	if(!RenderView) {
 		return <NoRouteMatch path={path} />
 	}

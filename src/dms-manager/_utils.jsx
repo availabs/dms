@@ -34,7 +34,7 @@ function configMatcher (config, path ) {
 }
 
 
-export function getActiveView(config, path, format, depth=0) {
+export function getActiveView(config, path, format, apiData, depth=0) {
 	// add '' to params array to allow root (/) route  matching
 	let activeConfigs = configMatcher(config,path)
 
@@ -53,7 +53,13 @@ export function getActiveView(config, path, format, depth=0) {
 		// if there are children 
 		let children = []
 		if(activeConfig.children) {
-			children = getActiveView(activeConfig.children, path,format, depth+1)
+			children = getActiveView(
+				activeConfig.children,
+				path,
+				format,
+				apiData,
+				depth+1
+			)
 		}
 
 		//console.log('wrapper', activeConfig.action, activeConfig.type)
@@ -61,6 +67,7 @@ export function getActiveView(config, path, format, depth=0) {
 			Component={comp}
 			format={format}
 			key={childKey++}
+			apiData={apiData}
 			{...activeConfig}
 			children={children}
 		/>

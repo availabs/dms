@@ -4,10 +4,10 @@ import { filterParams } from '../dms-manager/_utils'
 import { getAttributes } from './_utils'
 import get from 'lodash/get'
 
-export default function EditWrapper({ Component, format, options, params, ...props}) {
+export default function EditWrapper({ Component, format, options, params, apiData, ...props}) {
 	const attributes = getAttributes(format, options, 'edit')
 	const submit = useSubmit();
-	const { data, user } = useLoaderData()
+	const { data, user } = apiData
 	let status = useActionData()
 	const {defaultSort = (d) => d } = format
 
