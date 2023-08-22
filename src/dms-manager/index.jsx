@@ -1,5 +1,5 @@
 import React from 'react'
-import { useNavigate, useLoaderData} from 'react-router-dom'
+import { useNavigate} from 'react-router-dom'
 import comps from '../components'
 import { getActiveView, getActiveConfig, validFormat } from './_utils'
 
@@ -34,14 +34,11 @@ const DmsManager = (props) => {
 	// 	enhanceFormat(config.format)
 	// ,[config.format])
 
-	console.log('load data', config, path)
-	const apiData = useLoaderData()
 	
 	const RenderView = getActiveView(
 		config.children, 
 		path, 
-		config.format, 
-		apiData
+		config.format
 	)
 
 	if(!RenderView) {

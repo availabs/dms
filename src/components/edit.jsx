@@ -2,7 +2,7 @@ import React from 'react'
 import { useTheme } from '../theme'
 import get from 'lodash/get'
 
-export default function EditCard({item, updateAttribute ,attributes, status}) {
+export default function EditCard({item, updateAttribute ,attributes, status, submit}) {
 	const theme = useTheme()
 	
 	return (
@@ -27,7 +27,7 @@ export default function EditCard({item, updateAttribute ,attributes, status}) {
 						)
 					})
 				}
-				<button type='submit'> Save </button>
+				<button onClick={() => submit()}> Save </button>
 		</div>
 	)	
 }

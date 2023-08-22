@@ -6,6 +6,7 @@ export default function ErrorWrapper({ Component, format, options, ...props}) {
 	let attributes = getAttributes(format,options)
 	// const { data, user } = useLoaderData()
 	// console.log('DMS Error Wrapper ', props)
+	
 	return (
 
 		<Component 

@@ -14,7 +14,6 @@ let runCount = 0
 export async function dmsDataLoader ( config, path='/') {
 	runCount += 1
 	const runId = runCount  //rand(0,10000)
-	console.log(`----------START API RUN ${runId}----------`)
 	console.time(`----------dmsDataLoader ${runId}----------`)
 	const { format } = config
 	const { app , type, defaultSearch } = format

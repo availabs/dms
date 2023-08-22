@@ -57,11 +57,7 @@ export default function dmsPageFactory (
     path: `${dmsPath}*`,
     component: (props) =>  <DMS {...props} />,
     loader: loader,
-    action: action,
-    shouldRevalidate: () =>  {
-      console.log('should shouldRevalidate')
-      return false
-    }
+    action: action
   }
 }
 

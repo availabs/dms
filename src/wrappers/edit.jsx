@@ -1,13 +1,22 @@
 import React, {useEffect} from 'react'
-import { useLoaderData, useActionData, useParams, Form, useSubmit } from "react-router-dom";
+import { useLoaderData, useActionData, useParams, Form, useSubmit, useLocation } from "react-router-dom";
 import { filterParams } from '../dms-manager/_utils'
 import { getAttributes } from './_utils'
 import get from 'lodash/get'
 
-export default function EditWrapper({ Component, format, options, params, apiData, ...props}) {
+const json2DmsForm = (data,requestType='update') => {
+  let out = new FormData()
+  out.append('data', JSON.stringify(data))
+  out.append('requestType', requestType)
+  //console.log(out)
+  return out
+}
+
+export default function EditWrapper({ Component, format, options, params, ...props}) {
 	const attributes = getAttributes(format, options, 'edit')
 	const submit = useSubmit();
-	const { data, user } = apiData
+	const { pathname } = useLocation()
+	const { data, user } = useLoaderData()
 	let status = useActionData()
 	const {defaultSort = (d) => d } = format
 
@@ -25,6 +34,10 @@ export default function EditWrapper({ Component, format, options, params, apiDat
 		setItem({...item, [attr]: value })
 	}
 
+	const submitForm = () => {
+		submit(json2DmsForm(item), { method: "post", action: pathname })
+	}
+
 	return (
 		<Component 
 			{...props} 
@@ -37,7 +50,7 @@ export default function EditWrapper({ Component, format, options, params, apiDat
 			options={options}
 			status={status}
 			user={user}
-			submit={submit}
+			submit={submitForm}
 		/>
 	)	
 } 
