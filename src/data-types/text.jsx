@@ -1,9 +1,12 @@
 import React from "react"
+import { useTheme } from '../theme'
+
 
 const Edit = ({value = '', onChange, className, placeholder}) => {
+    const theme = useTheme()
     return (
         <input
-            className={className || 'w-full p-2'}
+            className={theme?.text?.input || 'w-full border p-2'}
             value={value}
             placeholder={placeholder}
             onChange={(e) => onChange(e.target.value)}

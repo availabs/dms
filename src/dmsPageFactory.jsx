@@ -7,12 +7,14 @@ import {
   dmsDataEditor, 
 } from './index'
 
+import defaultTheme from './theme/default-theme'
 //const noAuth = Component => Component
 
 export default function dmsPageFactory (
   dmsConfig,
   dmsPath='/',
-  authWrapper = Component => Component 
+  authWrapper = Component => Component,
+  dmsTheme = defaultTheme
 ) {
 
   async function loader ({ request, params }) {
@@ -40,6 +42,7 @@ export default function dmsPageFactory (
       <AuthedManager 
         path={ `/${params['*'] || ''}` }
         config={dmsConfig}
+        theme={dmsTheme}
       />
     )
   }
