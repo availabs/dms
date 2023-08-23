@@ -24,6 +24,9 @@ const DmsManager = (props) => {
 		}
 	},[path])
 
+	//React.useEffect(() => console.log('dms manager unmount') , [])
+    
+
 	// check for valid config
 	if(!config.children || !validFormat(config.format)) {
 		return <InvalidConfig config={config} />
@@ -33,23 +36,20 @@ const DmsManager = (props) => {
 	// const enhancedFormat = React.useMemo(() => 
 	// 	enhanceFormat(config.format)
 	// ,[config.format])
-
 	
-	const RenderView = getActiveView(
-		config.children, 
-		path, 
-		config.format
-	)
+	const RenderView = React.useMemo(() => {
+		return getActiveView(config.children, path, config.format)
+	}, [path])
 
 	if(!RenderView) {
 		return <NoRouteMatch path={path} />
 	}
 
-	return (
+	return React.useMemo(() => (
 		<ThemeContext.Provider value={theme}>
 			{RenderView}
 		</ThemeContext.Provider>
-	)	
+	),[RenderView])	
 }
 
 export default DmsManager

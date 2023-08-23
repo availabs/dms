@@ -83,12 +83,12 @@ export async function dmsDataLoader ( config, path='/') {
   	//console.log('newRequests', newRequests)
   	// console.log(fullDataLoad[`${ app }+${ type }`],
   	// 	fullDataLoad[`${ app }+${ type }`] !== 'finished')
-	if(fullDataLoad[`${ app }+${ type }`] !== 'finished') {
+	//if(fullDataLoad[`${ app }+${ type }`] !== 'finished') {
 		//console.time(`fetch data ${runId}`)
 		const newReqData = newRequests.length > 0 
 			? await falcor.get(...newRequests) : {}
 		//console.timeEnd(`fetch data ${runId}`)
-	}
+	//}
 	//console.time('falcor Cache')
 	let newReqFalcor = falcor.getCache()
 	//console.timeEnd('falcor Cache')
@@ -143,44 +143,6 @@ export async function dmsDataLoader ( config, path='/') {
   	console.timeEnd(`----------dmsDataLoader ${runId}----------`)
   	// console.log(`----------START API RUN ${runId}----------`)
   	return newData
-
-  	// const data = length ? Object.values(get(
-  	// 	reqData, 
-  	// 	['json', ...itemReq],
-  	// 	{}
-  	// ))
-  	// .filter(d => d.id)
-  	// .map(d => {
-  	// 	// flatten data into single object
-  	// 	d.data.id = d.id
-  	// 	d.data.updated_at = d.updated_at
-  	// 	d.data.created_at = d.created_at
-  		
-  	// 	/* 
-  	// 	   if the config has attributes filter
-  	// 	   only select listed attributes
-  	// 	   otherwise send all attributes
-  	// 	*/
-  	// 	return attributeFilter.length ? 
-  	// 	attributeFilter.reduce((out, attr) => {
-  	// 		out[attr] = d.data[attr]
-  	// 		return out
-  	// 	},{}) : 
-  	// 	d.data
-  	// }) : []
-  	
-  	//console.log('data', data, activeConfig)
-  	// return data 
-  	// switch (activeConfig.action) {
-  	// 	case 'list': 
-  	// 		return data
-  	// 	case 'view':
-  	// 		return data.filter(d => filterParams(d,params,config.format))
-  	// 	case 'edit':
-  	// 		return data.filter(d => filterParams(d,params,config.format))
-  	// 	default:
-  	// 		return data
-  	// }
 }
 
 export async function dmsDataEditor ( config, data={}, requestType, path='/' ) {
@@ -207,15 +169,20 @@ export async function dmsDataEditor ( config, data={}, requestType, path='/' ) {
 			["dms", "data", "delete"], 
 			[app, type, id]
 		)
+		await falcor.invalidate(['dms', 'data', `${ app }+${ type }`, 'length' ])
+      	
 		return {response: `Deleted item ${id}`}
 	} else if(id && attributeKeys.length > 0) {
 		/*  if there is an id and data 
 		    do update               
 		*/
 
+		console.log('falcor update data', data, JSON.stringify(data).length)
 		// todo - data verification 
-		
+		console.time(`falcor update data ${id}`)
 		await falcor.call(["dms", "data", "edit"], [id, data]);
+		await falcor.invalidate(['dms', 'data', 'byId', id])
+		console.timeEnd(`falcor update data ${id}`)
 		return {message: "Update successful."}
 	} else if ( attributeKeys.length > 0 ) {
 		/*  if there is only data 
@@ -227,6 +194,7 @@ export async function dmsDataEditor ( config, data={}, requestType, path='/' ) {
       		["dms", "data", "create"], 
       		[app, type, data]
       	);
+      	await falcor.invalidate(['dms', 'data', `${ app }+${ type }`, 'length' ])
       	
       	return {response: 'Item created.'} // activeConfig.redirect ? redirect(activeConfig.redirect) : 
 	}

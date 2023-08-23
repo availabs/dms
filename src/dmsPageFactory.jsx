@@ -38,13 +38,13 @@ export default function dmsPageFactory (
   function DMS() {
     const params = useParams();
     const AuthedManager = authWrapper(DmsManager)
-    return (
+    return React.useMemo(() => (
       <AuthedManager 
         path={ `/${params['*'] || ''}` }
         config={dmsConfig}
         theme={dmsTheme}
       />
-    )
+    ),[params['*']])
   }
 
   function ErrorBoundary({ error }) {
