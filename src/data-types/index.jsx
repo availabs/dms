@@ -8,6 +8,9 @@ import Array from './array'
 import Lexical from './lexical'
 
 import get from 'lodash/get'
+import Select from "./select";
+import Multiselect from "./multiselect";
+import Radio from "./radio";
 let i = 0
 
 export const dmsDataTypes = {
@@ -17,6 +20,9 @@ export const dmsDataTypes = {
 	'boolean': boolean,
 	'dms-format': dmsFormat,
 	'lexical': Lexical,
+	'select': Select,
+	'multiselect': Multiselect,
+	'radio': Radio,
 	'default': text
 }
 

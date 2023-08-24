@@ -14,10 +14,13 @@ const Edit = ({value = '', onChange, className, placeholder}) => {
     )
 }
 
-const View = ({value}) => {
+const View = ({value, className}) => {
     if (!value) return false
+    const theme = useTheme()
     return (
-        <div>
+        <div
+            className={ className || (theme?.text?.view)}
+        >
             {value}
         </div>
     )
