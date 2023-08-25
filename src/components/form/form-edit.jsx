@@ -38,15 +38,15 @@ const RenderCard = ({item, status, attributes, sectionId, updateAttribute, theme
 		</div>
 	)
 }
-export default function EditCard({item, updateAttribute, attributes, sections, status, submit, ...props}) {
+export default function EditCard({item, updateAttribute, attributes, status, submit, format, ...props}) {
 
-	const [activeIndex, setActiveIndex] = useState(sections ? 0 : undefined) ;
+	const [activeIndex, setActiveIndex] = useState(format?.sections ? 0 : undefined) ;
 	const theme = useTheme();
 
 	return (
 		<>
 			<TabPanel
-				tabs={sections}
+				tabs={format?.sections}
 				activeIndex={activeIndex}
 				setActiveIndex={setActiveIndex}
 				theme={theme.form}
@@ -55,7 +55,7 @@ export default function EditCard({item, updateAttribute, attributes, sections, s
 				item={item}
 				status={status}
 				attributes={attributes}
-				sectionId={sections?.[activeIndex]?.id}
+				sectionId={format?.sections?.[activeIndex]?.id}
 				updateAttribute={updateAttribute}
 				theme={theme}
 			/>
