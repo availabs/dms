@@ -43,6 +43,7 @@ export default function EditWrapper({ Component, format, options, params, ...pro
 			{...props} 
 			format={format}
 			attributes={attributes}
+			sections={format?.sections}
 			item={item}
 			dataItems={data}
 			updateAttribute={updateAttribute}

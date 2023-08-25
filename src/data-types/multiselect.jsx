@@ -1,4 +1,4 @@
-import React, {useRef, useState} from "react"
+import React, {useEffect, useRef, useState} from "react"
 import {useTheme} from '../theme'
 
 const inputWrapper = 'flex px-2 py-1 w-full text-sm font-light border focus:border-blue-300 bg-white hover:bg-gray-100 transition ease-in';
@@ -41,18 +41,48 @@ const RenderMenu = ({options, isSearching, setIsSearching, searchKeyword, value,
         </div>
     )
 }
+
+function useComponentVisible(initial) {
+    const [isSearching, setIsSearching] = useState(initial);
+    const ref = useRef(null);
+
+    const handleHideDropdown = (event) => {
+        if (event.key === "Escape" || event.key === "Tab") {
+            setIsSearching(false);
+        }
+    };
+
+    const handleClickOutside = event => {
+        if (ref.current && !ref.current.contains(event.target)) {
+            setIsSearching(false);
+        }
+    };
+
+    useEffect(() => {
+        document.addEventListener("keydown", handleHideDropdown, true);
+        document.addEventListener("click", handleClickOutside, true);
+        return () => {
+            document.removeEventListener("keydown", handleHideDropdown, true);
+            document.removeEventListener("click", handleClickOutside, true);
+        };
+    });
+
+    return { ref, isSearching, setIsSearching };
+}
+
+
 const Edit = ({value = [], onChange, className, options = []}) => {
     // options: ['1', 's', 't'] || [{label: '1', value: '1'}, {label: 's', value: '2'}, {label: 't', value: '3'}]
-    const [isSearching, setIsSearching] = useState(false);
     const [searchKeyword, setSearchKeyword] = useState('');
-
     const theme = useTheme();
-
+    const {
+        ref,
+        isSearching,
+        setIsSearching
+    } = useComponentVisible(false);
     return (
-        <div>
-            <div
-                className={className || (theme?.multiselect?.inputWrapper) || inputWrapper}
-            >
+        <div ref={ref}>
+            <div className={className || (theme?.multiselect?.inputWrapper) || inputWrapper}>
                 {value.map((v, i) => <RenderToken key={i} token={v} value={value} onChange={onChange} theme={theme}/>)}
                 <input
                     key={'input'}
