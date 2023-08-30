@@ -81,8 +81,14 @@ const Edit = ({value = [], onChange, className, options = []}) => {
         isSearching,
         setIsSearching
     } = useComponentVisible(false);
+
+    const invalidValues = typeSafeValue.filter(v => (v.value || v) && !options.filter(o => (o.value || o) === (v.value || v))?.length);
+
     return (
         <div ref={ref}>
+            {
+                invalidValues.length ? <div className={theme?.multiselect?.error}>Invalid Values: {JSON.stringify(invalidValues)}</div> : null
+            }
             <div className={className || (theme?.multiselect?.inputWrapper) || inputWrapper}>
                 {
                     typeSafeValue
@@ -127,7 +133,7 @@ const View = ({className, value, options = []}) => {
 
     return (
         <div className={className || (theme?.text?.view)}>
-            {option}
+            {option || JSON.stringify(mappedValue)}
         </div>
     )
 }
