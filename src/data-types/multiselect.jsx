@@ -74,6 +74,7 @@ function useComponentVisible(initial) {
 const Edit = ({value = [], onChange, className, options = []}) => {
     // options: ['1', 's', 't'] || [{label: '1', value: '1'}, {label: 's', value: '2'}, {label: 't', value: '3'}]
     const [searchKeyword, setSearchKeyword] = useState('');
+    const typeSafeValue = Array.isArray(value) ? value : [value];
     const theme = useTheme();
     const {
         ref,
@@ -83,7 +84,17 @@ const Edit = ({value = [], onChange, className, options = []}) => {
     return (
         <div ref={ref}>
             <div className={className || (theme?.multiselect?.inputWrapper) || inputWrapper}>
-                {value.map((v, i) => <RenderToken key={i} token={v} value={value} onChange={onChange} theme={theme}/>)}
+                {
+                    typeSafeValue
+                        .map((v, i) =>
+                            <RenderToken
+                                key={i}
+                                token={v}
+                                value={typeSafeValue}
+                                onChange={onChange}
+                                theme={theme}
+                            />)
+                }
                 <input
                     key={'input'}
                     className={theme?.multiselect?.input || input}
@@ -96,7 +107,7 @@ const Edit = ({value = [], onChange, className, options = []}) => {
                 isSearching={isSearching}
                 setIsSearching={setIsSearching}
                 searchKeyword={searchKeyword}
-                value={value}
+                value={typeSafeValue}
                 onChange={onChange}
                 options={options}
                 theme={theme}
@@ -107,9 +118,8 @@ const Edit = ({value = [], onChange, className, options = []}) => {
 
 const View = ({className, value, options = []}) => {
     if (!value) return false
-
     const theme = useTheme();
-    const mappedValue = value.map(v => v.value || v)
+    const mappedValue = (Array.isArray(value) ? value : [value]).map(v => v.value || v)
     const option =
         options
             .filter(o => mappedValue.includes(o.value || o))

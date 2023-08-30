@@ -35,20 +35,33 @@ export async function dmsDataLoader ( config, path='/') {
 
 	const lengthReq = ['dms', 'data', `${ app }+${ type }`, 'length' ]
 	const length = get(await falcor.get(lengthReq), ['json',...lengthReq], 0)
-	const itemReq = ['dms', 'data', `${ app }+${ type }`, 'byIndex'] 
+	const itemReqByIndex = ['dms', 'data', `${ app }+${ type }`, 'byIndex']
+	const itemReqById = ['dms', 'data', `${ app }+${ type }`, 'byId']
 
 	// console.log('dmsApiController - path, params', path, params)
 	// console.log('falcorCache', JSON.stringify(falcor.getCache(),null,3))
 	const createRequest = (wrapperConfig) => {
 		let filterAttrs = wrapperConfig?.filter?.attributes || []
 		let dataAttrs = filterAttrs.length > 0 ? 
-			filterAttrs.map(attr =>  `data ->> '${attr}'` ) : ['data']
+			filterAttrs.map(attr =>  `data ->> '${attr}'` ) : ['data'];
+
+		// id is given priority for edit and view
+		let id = wrapperConfig.params?.id;
+
+		let fromIndex =
+			typeof wrapperConfig?.filter?.fromIndex === 'function' ?
+				wrapperConfig?.filter?.fromIndex(path) :
+			(+wrapperConfig.params?.[wrapperConfig?.filter?.fromIndex] || 0);
+		let toIndex =
+			typeof wrapperConfig?.filter?.toIndex === "function" ?
+				wrapperConfig?.filter?.toIndex(path) :
+				(+wrapperConfig.params?.[wrapperConfig?.filter?.toIndex] || length - 1);
 
 		switch (wrapperConfig.action) {
 			case 'list': 
 				return [
-					...itemReq,
-					{from: 0, to: length-1},
+					...itemReqByIndex,
+					{from: fromIndex, to: toIndex - 1},
 					[ "id", "updated_at", "created_at","app", "type",...dataAttrs]
 				]
 			break;
@@ -64,9 +77,12 @@ export async function dmsDataLoader ( config, path='/') {
 						defaultSearch
 					})],
 					[ "id", "updated_at", "created_at","app", "type", ...dataAttrs]
-				] : [
-					...itemReq,
-					{from: 0, to: length-1},
+				] :
+					id ?
+						[...itemReqById, id, [ "id", "updated_at", "created_at","app", "type",...dataAttrs]] :
+					[
+					...itemReqByIndex,
+					{from: fromIndex, to: toIndex - 1},
 					[ "id", "updated_at", "created_at","app", "type",...dataAttrs]
 				]
 			break;
@@ -103,12 +119,26 @@ export async function dmsDataLoader ( config, path='/') {
   	
 
 	//console.time(`process new data ${runId}`)
-	const newData = Object.values(get(
-  		newReqFalcor, 
-  		['dms', 'data', 'byId'],
-  		{}
-  	))
-  	.filter(d => d.id && d.app === app && d.type === type)
+
+	let id = activeConfig.params?.id;
+
+	let fromIndex =
+		typeof activeConfig?.filter?.fromIndex === 'function' ?
+			activeConfig?.filter?.fromIndex(path) :
+			(+activeConfig.params?.[activeConfig?.filter?.fromIndex]);
+	let toIndex =
+		typeof activeConfig?.filter?.toIndex === "function" ?
+			activeConfig?.filter?.toIndex(path) :
+			(+activeConfig.params?.[activeConfig?.filter?.toIndex]);
+
+	const filteredIds = !id && fromIndex && toIndex &&
+		Object.keys(get(newReqFalcor, [...itemReqByIndex], {}))
+			.filter(index => +index >= +fromIndex && +index <= +toIndex - 1)
+			.map(index => get(newReqFalcor, [...itemReqByIndex, index, 'value', 3], {})) // ['dms', 'data', 'byId', id]
+
+	const newData =
+		Object.values(get(newReqFalcor, ['dms', 'data', 'byId'], {}))
+  	.filter(d => d.id && d.app === app && d.type === type && (!filteredIds || filteredIds.includes(d.id)))
   	.map(d => {
   		// flatten data into single object
   		let out = d?.data?.value || {}
@@ -132,7 +162,7 @@ export async function dmsDataLoader ( config, path='/') {
   		//console.time(`fullDataLoad ${runId}`)
   		fullDataLoad[`${ app }+${ type }`] = 'started';
   		falcor.get([
-			...itemReq, 
+			...itemReqByIndex,
 			{from: 0, to: length-1}, 
 			["id", "data", "updated_at", "created_at"] //"app", "type",
 		]).then(d => {
