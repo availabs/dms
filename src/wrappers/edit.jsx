@@ -25,7 +25,7 @@ export default function EditWrapper({ Component, format, options, params, ...pro
 		|| {}
 	)
 	
-	//console.log('EditWrapper', params)
+	// console.log('EditWrapper', params)
 	useEffect(() => {
 		setItem(data.filter(d => filterParams(d,params,format))[0] || {})
 	},[params])
