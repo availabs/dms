@@ -131,16 +131,16 @@ export async function dmsDataLoader ( config, path='/') {
 
     //console.time(`process new data ${runId}`)
 
-    let id = activeConfig.params?.id;
+    let id = activeConfigs[0].params?.id;
 
     let fromIndex =
-        typeof activeConfig?.filter?.fromIndex === 'function' ?
-            activeConfig?.filter?.fromIndex(path) :
-            (+activeConfig.params?.[activeConfig?.filter?.fromIndex]);
+        typeof activeConfigs[0]?.filter?.fromIndex === 'function' ?
+            activeConfigs[0]?.filter?.fromIndex(path) :
+            (+activeConfigs[0].params?.[activeConfigs[0]?.filter?.fromIndex]);
     let toIndex =
-        typeof activeConfig?.filter?.toIndex === "function" ?
-            activeConfig?.filter?.toIndex(path) :
-            (+activeConfig.params?.[activeConfig?.filter?.toIndex]);
+        typeof activeConfigs[0]?.filter?.toIndex === "function" ?
+            activeConfigs[0]?.filter?.toIndex(path) :
+            (+activeConfigs[0].params?.[activeConfigs[0]?.filter?.toIndex]);
 
     const filteredIds = !id && fromIndex && toIndex &&
         Object.keys(get(newReqFalcor, [...itemReqByIndex], {}))
