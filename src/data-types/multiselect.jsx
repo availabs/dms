@@ -74,16 +74,33 @@ function useComponentVisible(initial) {
 const Edit = ({value = [], onChange, className,placeholder, options = []}) => {
     // options: ['1', 's', 't'] || [{label: '1', value: '1'}, {label: 's', value: '2'}, {label: 't', value: '3'}]
     const [searchKeyword, setSearchKeyword] = useState('');
+    const typeSafeValue = Array.isArray(value) ? value : [value];
     const theme = useTheme();
     const {
         ref,
         isSearching,
         setIsSearching
     } = useComponentVisible(false);
+
+    const invalidValues = typeSafeValue.filter(v => (v.value || v) && !options.filter(o => (o.value || o) === (v.value || v))?.length);
+
     return (
         <div ref={ref}>
+            {
+                invalidValues.length ? <div className={theme?.multiselect?.error}>Invalid Values: {JSON.stringify(invalidValues)}</div> : null
+            }
             <div className={className || (theme?.multiselect?.inputWrapper) || inputWrapper}>
-                {value.map((v, i) => <RenderToken key={i} token={v} value={value} onChange={onChange} theme={theme}/>)}
+                {
+                    typeSafeValue
+                        .map((v, i) =>
+                            <RenderToken
+                                key={i}
+                                token={v}
+                                value={typeSafeValue}
+                                onChange={onChange}
+                                theme={theme}
+                            />)
+                }
                 <input
                     key={'input'}
                     placeholder={placeholder}
@@ -97,7 +114,7 @@ const Edit = ({value = [], onChange, className,placeholder, options = []}) => {
                 isSearching={isSearching}
                 setIsSearching={setIsSearching}
                 searchKeyword={searchKeyword}
-                value={value}
+                value={typeSafeValue}
                 onChange={onChange}
                 options={options}
                 theme={theme}
@@ -108,9 +125,8 @@ const Edit = ({value = [], onChange, className,placeholder, options = []}) => {
 
 const View = ({className, value, options = []}) => {
     if (!value) return false
-
     const theme = useTheme();
-    const mappedValue = value.map(v => v.value || v)
+    const mappedValue = (Array.isArray(value) ? value : [value]).map(v => v.value || v)
     const option =
         options
             .filter(o => mappedValue.includes(o.value || o))
@@ -118,7 +134,7 @@ const View = ({className, value, options = []}) => {
 
     return (
         <div className={className || (theme?.text?.view)}>
-            {option}
+            {option || JSON.stringify(mappedValue)}
         </div>
     )
 }

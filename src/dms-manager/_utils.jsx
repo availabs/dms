@@ -128,7 +128,7 @@ export function filterParams (data, params,format) {
 	
 	let filter = false
 	Object.keys(params).forEach(k => {
-		if(data[k] == params[k] || data[wildKey] === params['*']) {
+		if(data[k] == params[k] || (Boolean(data[wildKey]) && data[wildKey] === params['*'])) {
 			filter = true
 		} else {
 			filter = false

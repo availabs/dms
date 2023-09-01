@@ -1,64 +1,33 @@
 import React, {useState} from 'react';
-import { useTheme } from '../../theme';
-import { TabPanel }  from './TabPanel';
-import get from 'lodash/get';
+import {useTheme} from '../../theme';
+import {TabPanel} from './TabPanel';
+import EditCard from "../edit";
 
-const RenderCard = ({item, status, attributes, sectionId, updateAttribute, theme}) => {
-	return (
-		<div key={item.id} className={get(theme,'card.wrapper', '')}>
-			{status ? <div>{JSON.stringify(status)}</div> : ''}
+export default function FormEdit({item, updateAttribute, attributes, status, submit, format, ...props}) {
 
-			{Object.keys(attributes)
-				.filter(attrKey => !sectionId || attributes[attrKey].section === sectionId)
-				.map((attrKey,i) => {
-					let EditComp = attributes[attrKey].EditComp
-					return(
-						<div key={`${attrKey}-${i}`} className={get(theme,'card.row', '')}>
+    const [activeIndex, setActiveIndex] = useState(format?.sections ? 0 : undefined);
+    const theme = useTheme();
 
-							<div className={get(theme,'card.rowHeader', '')}>
-								<div className={get(theme,'card.rowLabel', '')}>{attributes[attrKey]?.label || attrKey}</div>
-								{attributes[attrKey]?.prompt &&
-									<i title={attributes[attrKey]?.prompt} className={get(theme, 'card.infoIcon', 'fad fa-info')} />
-								}
-							</div>
-
-							<div className={get(theme,'card.rowContent', '')}>
-								<EditComp
-									key={`${attrKey}-${i}`}
-									value={item[attrKey]}
-									onChange={(v) => updateAttribute(attrKey, v)}
-									{...attributes[attrKey]}
-								/>
-							</div>
-						</div>
-					)
-				})
-			}
-			<button onClick={() => submit()}> Save </button>
-		</div>
-	)
-}
-export default function EditCard({item, updateAttribute, attributes, status, submit, format, ...props}) {
-
-	const [activeIndex, setActiveIndex] = useState(format?.sections ? 0 : undefined) ;
-	const theme = useTheme();
-
-	return (
-		<>
-			<TabPanel
-				tabs={format?.sections}
-				activeIndex={activeIndex}
-				setActiveIndex={setActiveIndex}
-				theme={theme.form}
-				/>
-			<RenderCard
-				item={item}
-				status={status}
-				attributes={attributes}
-				sectionId={format?.sections?.[activeIndex]?.id}
-				updateAttribute={updateAttribute}
-				theme={theme}
-			/>
-		</>
-	)
+    return (
+        <>
+            <TabPanel
+                tabs={format?.sections}
+                activeIndex={activeIndex}
+                setActiveIndex={setActiveIndex}
+                theme={theme.form}
+            />
+            <EditCard
+                item={item}
+                status={status}
+                attributes={attributes}
+                sectionId={format?.sections?.[activeIndex]?.id}
+                updateAttribute={updateAttribute}
+                submit={submit}
+				next={() => setActiveIndex(activeIndex + 1)} // continue
+				nextDisabled={activeIndex === format?.sections?.length - 1}
+				prev={() => setActiveIndex(activeIndex - 1)} // back
+				prevDisabled={activeIndex === 0}
+            />
+        </>
+    )
 }
