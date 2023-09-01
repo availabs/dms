@@ -96,112 +96,101 @@ export async function dmsDataLoader ( config, path='/') {
 	const newRequests = activeConfigs
 		.map(c => createRequest(c))
 
-  //--------- New Data Loading ------------------------
-  // console.log('newRequests', newRequests)
-  // console.log(fullDataLoad[`${ app }+${ type }`],
-  // 	fullDataLoad[`${ app }+${ type }`] !== 'finished')
-	// if(fullDataLoad[`${ app }+${ type }`] !== 'finished') {
-	// console.time(`fetch data ${runId}`)
+  //--------- Route Data Loading ------------------------
 	const newReqData = newRequests.length > 0 
 		? await falcor.get(...newRequests) : {}
-	// console.timeEnd(`fetch data ${runId}`)
-	// }
 	
-	// console.time('falcor Cache')
+	//console.time('falcor Cache')
 	let newReqFalcor = falcor.getCache()
 	// console.log('newReqFalcor', newReqFalcor)
-	// console.timeEnd('falcor Cache')
+	//console.timeEnd('falcor Cache')
 
 
   	
 
-	//console.time(`process new data ${runId}`)
-	let newData = []
-	const newDataVals = Object.values(get(
-  		newReqFalcor, 
-  		['dms', 'data', 'byId'],
-  		{}
-  	))
-  	.filter(d => d.id && d.app === app && d.type === type)
+	async function processNewData (dataCache) {
+		let newData = []
+		const newDataVals = Object.values(get(
+	  		dataCache, 
+	  		['dms', 'data', 'byId'],
+	  		{}
+	  	))
+	  	.filter(d => d.id && d.app === app && d.type === type)
 
-  
-  	for(const k in newDataVals) {
-  		// flatten data into single object
-  		let d = newDataVals[k]
-  		let out = d?.data?.value || {}
-  		//console.log('d', d, out, )
-  		
-  		Object.keys(d)
-  			.filter(k => k !== 'data')
-  			.forEach(col => {
-  				if(col.includes('data ->> ')){
-		          let attr = col.split('->>')[1].trim().replace(/[']/g, '')
-		          out[attr] = d[col]
-		        } else {
-		        	out[col] = d[col]
-		        }
+	  
+	  	for(const k in newDataVals) {
+	  		// flatten data into single object
+	  		let d = newDataVals[k]
+	  		let out = d?.data?.value || {}
+	  		//console.log('d', d, out, )
+	  		
+	  		Object.keys(d)
+	  			.filter(k => k !== 'data')
+	  			.forEach(col => {
+	  				if(col.includes('data ->> ')){
+			          let attr = col.split('->>')[1].trim().replace(/[']/g, '')
+			          out[attr] = d[col]
+			        } else {
+			        	out[col] = d[col]
+			        }
 
-  			})
+	  			})
 
-  		// ----------------------------------------
-  		// if attrs are format and have refs
-  		// load that data
-  		// to do: make this non-blocking / lazy load
-  		// ----------------------------------------
-  		let dmsKeys = Object.keys(out)
-  			.filter(d => Object.keys(dmsAttrsConfigs).includes(d))
+	  		// ----------------------------------------
+	  		// if attrs are format and have refs
+	  		// load that data
+	  		// to do: make this non-blocking / lazy load
+	  		// ----------------------------------------
+	  		let dmsKeys = Object.keys(out)
+	  			.filter(d => Object.keys(dmsAttrsConfigs).includes(d))
 
-  		for (const key of dmsKeys) {
-  			
-  			const dmsFormatRequests = []
-  			for (let ref of out[key]) {
-  				if(ref.id) {
-	  				//let newData = await falcor.get()
-	  				dmsFormatRequests.push(['dms','data', 'byId', ref.id, 'data'])
-	  			}
-  			}
-  			
-  			if(dmsFormatRequests.length > 0) {
-	  			let newData = await falcor.get(...dmsFormatRequests)
-	  			let index = 0
+	  		for (const key of dmsKeys) {
+	  			
+	  			const dmsFormatRequests = []
 	  			for (let ref of out[key]) {
 	  				if(ref.id) {
-		  				let value = get(newData, ['json','dms','data', 'byId', ref.id, 'data'])
-		  				out[key][index]= {...ref,...value}
-		  				index += 1
+		  				//let newData = await falcor.get()
+		  				dmsFormatRequests.push(['dms','data', 'byId', ref.id, 'data'])
 		  			}
 	  			}
+	  			
+	  			if(dmsFormatRequests.length > 0) {
+		  			let newData = await falcor.get(...dmsFormatRequests)
+		  			let index = 0
+		  			for (let ref of out[key]) {
+		  				if(ref.id) {
+			  				let value = get(newData, ['json','dms','data', 'byId', ref.id, 'data'])
+			  				out[key][index]= {...ref,...value}
+			  				index += 1
+			  			}
+		  			}
+		  		}
 	  		}
-  		}
-  		newData.push(out)
-  	}
-
-  	//console.log('newData', newData)
-  	// let dmsFormatRequests = dmsFormats.map(d => {
-  	// 	return ['dms','data', 'byId', +d.id, 'data']
-  	// })
-  	// falcor.get(...dmsFormatRequests).then(res => {
-  	// 	console.log('get dmsFormatRequests', res)
-  	// })
-  	// console.log('dmsKeys', dmsFormatRequests )
-  	//console.timeEnd(`process new data ${runId}`)
+	  		newData.push(out)
+	  	}
+	  	return newData
+	  }
+	  //console.time(`- processNewData ${runId}-`)
+	  const out = await processNewData(newReqFalcor)
+	  // console.timeEnd(`- processNewData ${runId}-`)
 
   	// console.log('newData', newData)
-  	if( !fullDataLoad[`${ app }+${ type }`] ){
-  		//console.time(`fullDataLoad ${runId}`)
+  	if( !fullDataLoad[`${ app }+${ type }`] ) {
+  		console.time(`fullDataLoad ${runId}`)
   		fullDataLoad[`${ app }+${ type }`] = 'started';
-  		falcor.get([
-			...itemReq, 
-			{from: 0, to: length-1}, 
-			["id", "data", "updated_at", "created_at"] //"app", "type",
-		]).then(d => {
-  			//console.timeEnd(`fullDataLoad ${runId}`)
-  			fullDataLoad[`${ app }+${ type }`] = 'finished';
-		})
+  		await falcor.get([
+  			...itemReq, 
+  			{from: 0, to: length-1}, 
+				["id", "data", "updated_at", "created_at"] 
+			])
+  		await processNewData(falcor.getCache())
+  		console.timeEnd(`fullDataLoad ${runId}`)	
+  		fullDataLoad[`${ app }+${ type }`] = 'finished';
+			
   	}
   	console.timeEnd(`----------dmsDataLoader ${runId}----------`)
   	// console.log(`----------START API RUN ${runId}----------`)
-  	return newData
+  	return out
 }
 
 export async function dmsDataEditor ( config, data={}, requestType, path='/' ) {

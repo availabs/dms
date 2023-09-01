@@ -2,9 +2,10 @@ import React from "react"
 import { useTheme } from '../theme'
 
 
-const Edit = ({value = '', onChange, className, placeholder = 'Please select an option', options = []}) => {
+const Edit = ({value = '', onChange, className, placeholder, options = []}) => {
     // options: ['1', 's', 't'] || [{label: '1', value: '1'}, {label: 's', value: '2'}, {label: 't', value: '3'}]
     const theme = useTheme();
+    // console.log('select', placeholder, options)
 
     return (
         <select
@@ -12,7 +13,7 @@ const Edit = ({value = '', onChange, className, placeholder = 'Please select an 
             value={value}
             onChange={(e) => onChange(e.target.value)}
         >
-            <option value={''}>{placeholder}</option>
+            {placeholder ? <option value={''}>{placeholder}</option> : ''}
             {
                 options.map((o, i) => <option key={i} value={o.value || o}>{o.label || o}</option>)
             }

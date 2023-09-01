@@ -71,7 +71,7 @@ function useComponentVisible(initial) {
 }
 
 
-const Edit = ({value = [], onChange, className, options = []}) => {
+const Edit = ({value = [], onChange, className,placeholder, options = []}) => {
     // options: ['1', 's', 't'] || [{label: '1', value: '1'}, {label: 's', value: '2'}, {label: 't', value: '3'}]
     const [searchKeyword, setSearchKeyword] = useState('');
     const theme = useTheme();
@@ -86,6 +86,7 @@ const Edit = ({value = [], onChange, className, options = []}) => {
                 {value.map((v, i) => <RenderToken key={i} token={v} value={value} onChange={onChange} theme={theme}/>)}
                 <input
                     key={'input'}
+                    placeholder={placeholder}
                     className={theme?.multiselect?.input || input}
                     onChange={e => setSearchKeyword(e.target.value)}
                     onFocus={() => setIsSearching(true)}
