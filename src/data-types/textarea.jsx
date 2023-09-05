@@ -18,9 +18,9 @@ const View = ({value}) => {
     const theme = useTheme()
     if (!value) return false
     return (
-        <pre className={get(theme,'textarea.viewWrapper','')}>
-            {JSON.stringify(value,null,3)}
-        </pre>
+        <div className={get(theme,'textarea.viewWrapper','')}>
+            {value}
+        </div>
     )
 }
 
