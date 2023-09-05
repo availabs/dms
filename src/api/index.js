@@ -47,6 +47,7 @@ export async function dmsDataLoader ( config, path='/') {
 	// -----------------------------------------------------------
 	const newRequests = activeConfigs
 		.map(config => createRequest(config, format, path, length))
+		.filter(routes => routes?.length)
 
   //--------- Route Data Loading ------------------------
 	const newReqData = newRequests.length > 0 
@@ -171,7 +172,7 @@ export async function dmsDataLoader ( config, path='/') {
   		fullDataLoad[`${ app }+${ type }`] = 'finished';
 	}
   	
-  	if( !fullDataLoad[`${ app }+${ type }`] ) {
+  	if( !fullDataLoad[`${ app }+${ type }`] && !activeConfigs?.[0]?.filter?.stopFullDataLoad) {
   		loadFullData()
   	}
 

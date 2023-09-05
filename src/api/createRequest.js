@@ -2,7 +2,7 @@ const createRequest = (wrapperConfig,format, path, length) => {
 
 	const { app , type, defaultSearch, attributes = {} } = format
 	const itemReqByIndex = ['dms', 'data', `${ app }+${ type }`, 'byIndex']
-	const itemReqById = ['dms', 'data', `${ app }+${ type }`, 'byId']
+	const itemReqById = ['dms', 'data', 'byId']
 	//---------------------------------------------------------
 	// generate requests for config based on TYPE and FILTERS
 	//---------------------------------------------------------
@@ -22,6 +22,8 @@ const createRequest = (wrapperConfig,format, path, length) => {
 
 	// id is given priority for edit and view
 	let id = wrapperConfig.params?.id;
+	let stopFullDataLoad = wrapperConfig?.filter?.stopFullDataLoad;
+
 
 	let fromIndex =
 		typeof wrapperConfig?.filter?.fromIndex === 'function' ?
@@ -31,6 +33,8 @@ const createRequest = (wrapperConfig,format, path, length) => {
 		typeof wrapperConfig?.filter?.toIndex === "function" ?
 			wrapperConfig?.filter?.toIndex(path) :
 			(+wrapperConfig.params?.[wrapperConfig?.filter?.toIndex] || length - 1);
+
+	if (!id && stopFullDataLoad) return [];
 
 	switch (wrapperConfig.action) {
 		case 'list': 
