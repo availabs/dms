@@ -32,10 +32,15 @@ export default function Card({
 				})
 			}
 
-			<div className={theme?.card?.btnWrapper}>
-				{ prev && sectionId && <button className={theme?.card?.backBtn} disabled={prevDisabled} onClick={() => prev()}> Back </button> }
-				{ next && sectionId && <button className={theme?.card?.continueBtn} disabled={nextDisabled} onClick={() => next()}> Continue </button> }
-			</div>
+			{
+				(prev || next) && sectionId &&
+				<div className={theme?.card?.btnWrapper}>
+					{prev && sectionId && <button className={theme?.card?.backBtn} disabled={prevDisabled}
+											  onClick={() => prev()}> Back </button>}
+					{next && sectionId && <button className={theme?.card?.continueBtn} disabled={nextDisabled}
+											  onClick={() => next()}> Continue </button>}
+				</div>
+			}
 		</div>
 	)	
 }
