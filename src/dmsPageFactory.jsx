@@ -38,6 +38,12 @@ export default function dmsPageFactory (
   function DMS() {
     const params = useParams();
     const AuthedManager = authWrapper(DmsManager)
+    React.useEffect(() => {
+      console.log('DMS Wrapper load', params)
+    },[])
+
+    console.log('DMS Wrapper render', params)
+
     return React.useMemo(() => (
       <AuthedManager 
         path={ `/${params['*'] || ''}` }

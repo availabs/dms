@@ -5,7 +5,7 @@ import { getActiveConfig /*, filterParams*/ } from '../dms-manager/_utils'
 import get from 'lodash/get'
 import isEqual from 'lodash/isEqual'
 
-import createRequest from './createRequest'
+import createRequest, {getIdPath} from './createRequest'
 
 function rand(min, max) { // min and max included 
   return Math.floor(Math.random() * (max - min + 1) + min)
@@ -18,6 +18,7 @@ export async function dmsDataLoader ( config, path='/') {
 	//---- Testing stuff to delete ----------
 	runCount += 1
 	const runId = runCount
+	
 	console.time(`----------dmsDataLoader ${runId}----------`)
 	//-------------------------------------
 	const { format } = config
@@ -28,7 +29,6 @@ export async function dmsDataLoader ( config, path='/') {
 			out[curr.key] = curr
 			return out
 		},{})
-
 
 	//---------------------------------------------------------
 	// Pages can have many configs active at one time
@@ -49,45 +49,41 @@ export async function dmsDataLoader ( config, path='/') {
 		.map(config => createRequest(config, format, path, length))
 		.filter(routes => routes?.length)
 
-  //--------- Route Data Loading ------------------------
+	
+
+	//console.log('newRequests', newRequests)
+    //--------- Route Data Loading ------------------------
 	const newReqData = newRequests.length > 0 
 		? await falcor.get(...newRequests) : {}
-	
-	//console.time('falcor Cache')
+	// get api response
 	let newReqFalcor = falcor.getCache()
-	// console.log('newReqFalcor', newReqFalcor)
-	// console.timeEnd('falcor Cache')
+	
+	// get active ids 
+	const activeIds =  activeConfigs
+		.map(config => getIdPath(config, format))
+		.filter(routes => routes?.length)
+		.map(path => {
+			let v = get(newReqFalcor, path.slice(0, -1), false)
+			if(v?.$type === 'ref') {
+				return v.value[3]
+			}
+			return null
+		})
+		.filter(d => d)
 
 
-    //console.time(`process new data ${runId}`)
 
-    let id = activeConfigs[0].params?.id;
-
-    let fromIndex =
-        typeof activeConfigs[0]?.filter?.fromIndex === 'function' ?
-            activeConfigs[0]?.filter?.fromIndex(path) :
-            (+activeConfigs[0].params?.[activeConfigs[0]?.filter?.fromIndex]);
-    
-    let toIndex =
-        typeof activeConfigs[0]?.filter?.toIndex === "function" ?
-            activeConfigs[0]?.filter?.toIndex(path) :
-            (+activeConfigs[0].params?.[activeConfigs[0]?.filter?.toIndex]);
-
-    const filteredIds = !id && fromIndex && toIndex &&
-        Object.keys(get(newReqFalcor, [...itemReqByIndex], {}))
-            .filter(index => +index >= +fromIndex && +index <= +toIndex - 1)
-            .map(index => get(newReqFalcor, [...itemReqByIndex, index, 'value', 3], {})) // ['dms', 'data', 'byId', id]
-
-
-	async function processNewData (dataCache) {
+	async function processNewData (dataCache,activeIds) {
 		let newData = []
+		
 		const newDataVals = Object.values(get(
 	  		dataCache, 
 	  		['dms', 'data', 'byId'],
 	  		{}
 	  	))
 	  	.filter(d => d.id && d.app === app && d.type === type)
-	  
+
+	  	
 	  	for(const k in newDataVals) {
 	  		// flatten data into single object
 	  		let d = newDataVals[k]
@@ -111,51 +107,55 @@ export async function dmsDataLoader ( config, path='/') {
 	  		// load that data
 	  		// to do: make this non-blocking / lazy load
 	  		// ----------------------------------------
-	  		let dmsKeys = Object.keys(out)
-	  			.filter(d => Object.keys(dmsAttrsConfigs).includes(d))
+	  		if(activeIds === 'loadAll' || activeIds.includes(+d.id)) { 
+	  			//console.log( d.id, activeIds)
+	  		
+		  		let dmsKeys = Object.keys(out)
+		  			.filter(d => Object.keys(dmsAttrsConfigs).includes(d))
 
 
-	  		for (const key of dmsKeys) {
+		  		for (const key of dmsKeys) {
 
-	  			const dmsFormatRequests = []
-	  			for (let ref of out[key]) {
-	  				if(ref.id) {
-		  				//let newData = await falcor.get()
-		  				dmsFormatRequests.push(['dms','data', 'byId', ref.id, 'data'])
-		  			}
-	  			}
-
-	  			if(dmsFormatRequests.length > 0) {
-		  			let newData = await falcor.get(...dmsFormatRequests)
-		  			let index = 0
+		  			const dmsFormatRequests = []
 		  			for (let ref of out[key]) {
 		  				if(ref.id) {
 			  				//let newData = await falcor.get()
 			  				dmsFormatRequests.push(['dms','data', 'byId', ref.id, 'data'])
 			  			}
 		  			}
-		  			
+
 		  			if(dmsFormatRequests.length > 0) {
 			  			let newData = await falcor.get(...dmsFormatRequests)
 			  			let index = 0
 			  			for (let ref of out[key]) {
 			  				if(ref.id) {
-				  				let value = get(newData, ['json','dms','data', 'byId', ref.id, 'data'])
-				  				out[key][index]= {...ref,...value}
-				  				index += 1
+				  				//let newData = await falcor.get()
+				  				dmsFormatRequests.push(['dms','data', 'byId', ref.id, 'data'])
 				  			}
 			  			}
+			  			
+			  			if(dmsFormatRequests.length > 0) {
+				  			let newData = await falcor.get(...dmsFormatRequests)
+				  			let index = 0
+				  			for (let ref of out[key]) {
+				  				if(ref.id) {
+					  				let value = get(newData, ['json','dms','data', 'byId', ref.id, 'data'])
+					  				out[key][index]= {...ref,...value}
+					  				index += 1
+					  			}
+				  			}
+				  		}
 			  		}
-		  		}
-		  	}
+			  	}
+			 }
 		  	newData.push(out)
 	  	}
 	  	return newData
 	  }
 
 	  //console.time(`- processNewData ${runId}-`)
-	  const out = await processNewData(newReqFalcor)
-	  // console.timeEnd(`- processNewData ${runId}-`)
+	  const out = await processNewData(newReqFalcor, activeIds)
+	  //console.timeEnd(`- processNewData ${runId}-`)
 
   	// console.log('newData', newData)
 	async function loadFullData () {
@@ -167,12 +167,13 @@ export async function dmsDataLoader ( config, path='/') {
   			{from: 0, to: length-1}, 
 				["id", "data", "updated_at", "created_at"] 
 		])
-  		await processNewData(falcor.getCache())
+  		await processNewData(falcor.getCache(), 'loadAll')
   		console.timeEnd(`fullDataLoad ${runId}`)	
   		fullDataLoad[`${ app }+${ type }`] = 'finished';
 	}
   	
-  	if( !fullDataLoad[`${ app }+${ type }`] && !activeConfigs?.[0]?.filter?.stopFullDataLoad) {
+  	if( activeConfigs?.[0]?.lazyLoad && !fullDataLoad[`${ app }+${ type }`]) {
+  		console.log('lazy loading')
   		loadFullData()
   	}
 
@@ -256,8 +257,6 @@ export async function dmsDataEditor ( config, data={}, requestType, path='/' ) {
 		return updates
 	}
 
-	// guard rails so I don't mess up other data.
-	//if(type === 'dev-page') {
 		const dmsAttrsConfigs = (Object.values(config?.format?.attributes || {}))
 			.filter(d => d.type === 'dms-format')
 			.reduce((out,curr) => {
@@ -277,8 +276,7 @@ export async function dmsDataEditor ( config, data={}, requestType, path='/' ) {
 
 		let updates = await updateDMSAttrs(dmsAttrsData, dmsAttrsConfigs)
 		data = {...data, ...updates}
-	//}
-
+	
 	console.log('dmsDataEditor', data  )
 
 
@@ -297,7 +295,6 @@ export async function dmsDataEditor ( config, data={}, requestType, path='/' ) {
 			[app, type, id]
 		)
 		await falcor.invalidate(['dms', 'data', `${ app }+${ type }`, 'length' ])
-      	
 		return {response: `Deleted item ${id}`}
 	} else if(id && attributeKeys.length > 0) {
 		/*  if there is an id and data 
