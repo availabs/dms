@@ -65,6 +65,12 @@ const createRequest = (wrapperConfig,format, path, length) => {
 				[ "id", "updated_at", "created_at","app", "type",...dataAttrs]
 			]
 		break;
+		case 'load': // use a new route that can accept filter
+			return [
+				...itemReqByIndex,
+				{from: fromIndex, to: toIndex - 1},
+				[ "id", "updated_at", "created_at","app", "type",...dataAttrs]
+			]
 		default:
 			return []
 	}
