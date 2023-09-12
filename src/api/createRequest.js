@@ -18,7 +18,7 @@ const createRequest = (wrapperConfig,format, path, length) => {
 	let toIndex = typeof wrapperConfig?.filter?.toIndex === "function" ?
 			wrapperConfig?.filter?.toIndex(path) :
 			(+wrapperConfig.params?.[wrapperConfig?.filter?.toIndex] || length - 1);
-
+	let options = wrapperConfig?.filter?.options || JSON.stringify({})
 	// wrapperConfig.action === 'edit' makes it pull either by id or full data. this makes 'new' slow, as there's no id.
 	// this fixes that.
 	if(wrapperConfig?.filter?.type === 'new') return [];
@@ -41,10 +41,11 @@ const createRequest = (wrapperConfig,format, path, length) => {
 				[ "id", "updated_at", "created_at","app", "type",...dataAttrs]
 			]
 		break;
-		case 'load': // use a new route that can accept filter
+		case 'load': // use a new route that can accept filter and calculate length
 			return [
-				'dms', 'data', `${ app }+${ type }`, 'byIndex',
-				{from: fromIndex, to: toIndex - 1},
+				'dms', 'data', `${ app }+${ type }`,
+				'options', options,
+				'byIndex', {from: fromIndex, to: toIndex - 1},
 				[ "id", "updated_at", "created_at","app", "type",...dataAttrs]
 			]
 		default:
