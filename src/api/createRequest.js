@@ -46,7 +46,7 @@ const createRequest = (wrapperConfig,format, path, length) => {
 			return [
 				'dms', 'data', `${ app }+${ type }`,
 				'options', options,
-				'byIndex', {from: fromIndex, to: toIndex - 1},
+				'byIndex', {from: fromIndex, to: toIndex },
 				[ "id", "updated_at", "created_at","app", "type",...dataAttrs]
 			]
 		default:
