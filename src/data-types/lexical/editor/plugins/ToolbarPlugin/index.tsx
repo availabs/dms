@@ -883,7 +883,7 @@ export default function ToolbarPlugin(): JSX.Element {
               <i className="icon image" />
               <span className="text">Image</span>
             </DropDownItem>
-            <DropDownItem
+            {/*<DropDownItem
               onClick={() =>
                 insertGifOnClick({
                   altText: 'Cat typing on a laptop',
@@ -893,7 +893,7 @@ export default function ToolbarPlugin(): JSX.Element {
               className="item">
               <i className="icon gif" />
               <span className="text">GIF</span>
-            </DropDownItem>
+            </DropDownItem>*/}
             {/*<DropDownItem
               onClick={() => {
                 activeEditor.dispatchCommand(
@@ -931,7 +931,7 @@ export default function ToolbarPlugin(): JSX.Element {
               <i className="icon table" />
               <span className="text">Table (Experimental)</span>
             </DropDownItem>
-            <DropDownItem
+            {/*<DropDownItem
               onClick={() => {
                 showModal('Insert Poll', (onClose) => (
                   <InsertPollDialog
@@ -943,7 +943,7 @@ export default function ToolbarPlugin(): JSX.Element {
               className="item">
               <i className="icon poll" />
               <span className="text">Poll</span>
-            </DropDownItem>
+            </DropDownItem>*/}
 
            {/* <DropDownItem
               onClick={() => {
@@ -958,7 +958,7 @@ export default function ToolbarPlugin(): JSX.Element {
               <i className="icon equation" />
               <span className="text">Equation</span>
             </DropDownItem>*/}
-            <DropDownItem
+            {/*<DropDownItem
               onClick={() => {
                 editor.update(() => {
                   const root = $getRoot();
@@ -969,7 +969,7 @@ export default function ToolbarPlugin(): JSX.Element {
               className="item">
               <i className="icon sticky" />
               <span className="text">Sticky Note</span>
-            </DropDownItem>
+            </DropDownItem> */}
             <DropDownItem
               onClick={() => {
                 editor.dispatchCommand(INSERT_COLLAPSIBLE_COMMAND, undefined);
@@ -978,7 +978,7 @@ export default function ToolbarPlugin(): JSX.Element {
               <i className="icon caret-right" />
               <span className="text">Collapsible container</span>
             </DropDownItem>
-            {EmbedConfigs.map((embedConfig) => (
+            {/*EmbedConfigs.map((embedConfig) => (
               <DropDownItem
                 key={embedConfig.type}
                 onClick={() => {
@@ -991,7 +991,7 @@ export default function ToolbarPlugin(): JSX.Element {
                 {embedConfig.icon}
                 <span className="text">{embedConfig.contentName}</span>
               </DropDownItem>
-            ))}
+            )) */} 
           </DropDown>
         </>
       )}

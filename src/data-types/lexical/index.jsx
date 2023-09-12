@@ -31,7 +31,7 @@ const Edit = ({value, onChange, ...rest}) => {
 
 const View = ({value, ...rest}) => {
     return (
-        <div className="editor-shell tracking-wider leading-8">
+        <div className="editor-shell tracking-wider leading-7">
           <Editor 
             value={parseValue(value)}
             editable={false}

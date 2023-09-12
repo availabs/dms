@@ -24,7 +24,7 @@ const createRequest = (wrapperConfig,format, path, length) => {
 		case 'list': 
 			return [
 				'dms', 'data', `${ app }+${ type }`, 'byIndex',
-				{from: fromIndex, to: toIndex - 1},
+				{from: fromIndex, to: toIndex },
 				[ "id", "updated_at", "created_at","app", "type",...dataAttrs]
 			]
 		break;
@@ -32,9 +32,10 @@ const createRequest = (wrapperConfig,format, path, length) => {
 		case 'edit':
 			// if 
 			const idPath = getIdPath(wrapperConfig,format)
-			return  idPath ? idPath : [
+			return  idPath ? idPath : 
+				[
 				'dms', 'data', `${ app }+${ type }`, 'byIndex',
-				{from: fromIndex, to: toIndex - 1},
+				{from: fromIndex, to: toIndex },
 				[ "id", "updated_at", "created_at","app", "type",...dataAttrs]
 			]
 		break;

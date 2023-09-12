@@ -40,6 +40,7 @@ export async function dmsDataLoader ( config, path='/') {
 	// -- Always want to know how many data items of a type we have
 	const lengthReq = ['dms', 'data', `${ app }+${ type }`, 'length' ]
 	const length = get(await falcor.get(lengthReq), ['json',...lengthReq], 0)
+	console.log('length',length)
 	const itemReqByIndex = ['dms', 'data', `${ app }+${ type }`, 'byIndex']
 	
 	// -- --------------------------------------------------------
