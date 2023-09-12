@@ -3,7 +3,7 @@ import {useTheme} from '../theme'
 import get from 'lodash/get'
 
 export default function EditCard({
-                                     item,
+                                     item={},
                                      attributes,
                                      updateAttribute,
                                      status,
@@ -40,7 +40,7 @@ export default function EditCard({
                             <div className={get(theme, 'card.rowContent', '')}>
                                 <EditComp
                                     key={`${attrKey}-${i}`}
-                                    value={item[attrKey]}
+                                    value={item?.[attrKey]}
                                     onChange={(v) => updateAttribute(attrKey, v)}
                                     {...attributes[attrKey]}
                                 />
