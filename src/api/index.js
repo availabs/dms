@@ -40,7 +40,7 @@ export async function dmsDataLoader ( config, path='/') {
 	// -- Always want to know how many data items of a type we have
 	const lengthReq = ['dms', 'data', `${ app }+${ type }`, 'length' ]
 	const length = get(await falcor.get(lengthReq), ['json',...lengthReq], 0)
-	console.log('length',length)
+	// console.log('length',length)
 	const itemReqByIndex = ['dms', 'data', `${ app }+${ type }`, 'byIndex']
 	
 	// -- --------------------------------------------------------
@@ -50,9 +50,7 @@ export async function dmsDataLoader ( config, path='/') {
 		.map(config => createRequest(config, format, path, length))
 		.filter(routes => routes?.length)
 
-	
-
-	//console.log('newRequests', newRequests)
+		//console.log('newRequests', newRequests)
     //--------- Route Data Loading ------------------------
 	const newReqData = newRequests.length > 0 
 		? await falcor.get(...newRequests) : {}
@@ -65,13 +63,16 @@ export async function dmsDataLoader ( config, path='/') {
 		.filter(routes => routes?.length)
 		.map(path => {
 			let v = get(newReqFalcor, path.slice(0, -1), false)
+			//console.log(v)
 			if(v?.$type === 'ref') {
-				return v.value[3]
+				return +v.value[3]
 			}
-			return null
+			//console.log('id',v?.id)
+			return +(v?.id)
 		})
 		.filter(d => d)
 
+	//console.log('activeIds', activeIds)
 
 
 	async function processNewData (dataCache,activeIds) {
@@ -108,9 +109,9 @@ export async function dmsDataLoader ( config, path='/') {
 	  		// load that data
 	  		// to do: make this non-blocking / lazy load
 	  		// ----------------------------------------
+	  		// console.log('activeIds', activeIds, d.id)
 	  		if(activeIds === 'loadAll' || activeIds.includes(+d.id)) { 
-	  			//console.log( d.id, activeIds)
-	  		
+	  			
 		  		let dmsKeys = Object.keys(out)
 		  			.filter(d => Object.keys(dmsAttrsConfigs).includes(d))
 
@@ -120,7 +121,6 @@ export async function dmsDataLoader ( config, path='/') {
 		  			const dmsFormatRequests = []
 		  			for (let ref of out[key]) {
 		  				if(ref.id) {
-			  				//let newData = await falcor.get()
 			  				dmsFormatRequests.push(['dms','data', 'byId', ref.id, 'data'])
 			  			}
 		  			}

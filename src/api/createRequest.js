@@ -10,7 +10,7 @@ const createRequest = (wrapperConfig,format, path, length) => {
 
 	//---------------------------------------------------
 	//----------- Param mathcing from filters
-	//----------- 
+	//----------- ---------------------------------------
 	let fromIndex =	typeof wrapperConfig?.filter?.fromIndex === 'function' ?
 			wrapperConfig?.filter?.fromIndex(path) :
 		(+wrapperConfig.params?.[wrapperConfig?.filter?.fromIndex] || 0);
@@ -19,8 +19,9 @@ const createRequest = (wrapperConfig,format, path, length) => {
 			wrapperConfig?.filter?.toIndex(path) :
 			(+wrapperConfig.params?.[wrapperConfig?.filter?.toIndex] || length - 1);
 	let options = wrapperConfig?.filter?.options || JSON.stringify({})
-	// wrapperConfig.action === 'edit' makes it pull either by id or full data. this makes 'new' slow, as there's no id.
-	// this fixes that.
+	
+	// wrapperConfig.action === 'edit' makes it pull either by id or full data. 
+	// this makes 'new' slow, as there's no id this fixes that.
 	if(wrapperConfig?.filter?.type === 'new') return [];
 
 	switch (wrapperConfig.action) {
@@ -70,6 +71,8 @@ export function getIdPath (wrapperConfig,format) {
 	},'') || ''
 
 	let id = wrapperConfig.params?.id;
+
+	//console.log('hola', id , wildKey)
 
 	return wildKey ? [
 		'dms', 'data', `${ app }+${ type }`,
