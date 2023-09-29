@@ -20,7 +20,10 @@ import './lexical.css';
 export default function Lexicals ({value, onChange, bgColor, editable=false}) {
   
   const initialConfig = {
-    editorState: JSON.parse(value || '{}')?.root ? value : null,
+    editorState:
+        JSON.parse(value || '{}')?.root &&
+        JSON.parse(value || '{}')?.root?.children?.length
+            ? value : null,
     namespace: 'dms-lexical',
     nodes: [...PlaygroundNodes],
     editable: editable,
