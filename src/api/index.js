@@ -297,13 +297,22 @@ export async function dmsDataEditor ( config, data={}, requestType, path='/' ) {
 		)
 		await falcor.invalidate(['dms', 'data', `${ app }+${ type }`, 'length' ])
 		return {response: `Deleted item ${id}`}
-	} else if(id && attributeKeys.length > 0) {
-		/*  if there is an id and data 
-		    do update               
+	} else if(requestType === 'updateType' && id) {
+		// update type column
+		console.log('falcor update type', requestType, id, data)
+		if(!data.type) 	return {message: "No type found."}
+
+		await falcor.call(["dms", "type", "edit"], [id, data.type]);
+		await falcor.invalidate(['dms', 'data', 'byId', id])
+		return {message: "Update successful."}
+	}
+	else if(id && attributeKeys.length > 0) {
+		/*  if there is an id and data
+		    do update
 		*/
 
-		console.log('falcor update data', data, JSON.stringify(data).length)
-		// todo - data verification 
+		console.log('falcor update data', requestType, data, JSON.stringify(data).length)
+		// todo - data verification
 		console.time(`falcor update data ${id}`)
 		await falcor.call(["dms", "data", "edit"], [id, data]);
 		await falcor.invalidate(['dms', 'data', 'byId', id])
