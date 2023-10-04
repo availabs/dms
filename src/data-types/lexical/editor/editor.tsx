@@ -131,7 +131,7 @@ export default function Editor(props): JSX.Element {
     <>
       {isRichText && editable && <ToolbarPlugin />}
       <div
-        className={`editor-container ${showTreeView ? 'tree-view' : ''} ${
+        className={`${editable ? `editor-container` : `view-container`} ${showTreeView ? 'tree-view' : ''} ${
           !isRichText ? 'plain-text' : ''
         }`}
         style={{backgroundColor: bgColor}}
@@ -165,7 +165,7 @@ export default function Editor(props): JSX.Element {
             <HistoryPlugin externalHistoryState={historyState} />
             <RichTextPlugin
               contentEditable={
-                <div className="editor-scroller">
+                <div className={editable ? "editor-scroller" : "view-scroller"}>
                   <div className="editor" ref={onRef}>
                     <ContentEditable />
                   </div>

@@ -177,7 +177,7 @@ export default function ComponentPickerMenuPlugin(): JSX.Element {
             }
           }),
       }),
-      ...Array.from({length: 3}, (_, i) => i + 1).map(
+      ...Array.from({length: 4}, (_, i) => i + 1).map(
         (n) =>
           new ComponentPickerOption(`Heading ${n}`, {
             icon: <i className={`icon h${n}`} />,
