@@ -47,6 +47,7 @@ import {
 //   EquationNode,
 // } from '../../nodes/EquationNode';
 import {$createImageNode, $isImageNode, ImageNode} from '../../nodes/ImageNode';
+// import {$createInlineImageNode, $isInlineImageNode, InlineImageNode} from '../../nodes/InlineImageNode';
 import {$createTweetNode, $isTweetNode, TweetNode} from '../../nodes/TweetNode';
 import emojiList from '../../utils/emoji-list';
 

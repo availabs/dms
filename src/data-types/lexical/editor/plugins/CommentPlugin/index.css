@@ -51,7 +51,7 @@ i.add-comment {
 
 .CommentPlugin_CommentInputBox {
   display: block;
-  position: fixed;
+  position: absolute;
   width: 250px;
   min-height: 80px;
   background-color: #fff;
@@ -147,11 +147,10 @@ i.add-comment {
 
 .CommentPlugin_ShowCommentsButton {
   position: fixed;
-  top: 56px;
+  top: 10px;
   right: 10px;
   background-color: #ddd;
   border-radius: 10px;
-  z-index: 20;
 }
 
 i.comments {
@@ -183,13 +182,13 @@ i.comments {
   position: fixed;
   right: 0;
   width: 300px;
-  height: calc(100% - 50px);
-  top: 50px;
+  height: calc(100% - 88px);
+  top: 88px;
   background-color: #fff;
   border-top-left-radius: 10px;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
   animation: show-comments 0.2s ease;
-  z-index: 10;
+  z-index: 25;
 }
 
 @keyframes show-comments {
