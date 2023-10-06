@@ -160,11 +160,7 @@ export function InsertInlineImageDialog({
   );
 }
 
-export default function InlineImagePlugin({
-                                            editable,
-                                          }: {
-  editable?: boolean;
-}): JSX.Element | null {
+export default function InlineImagePlugin(): JSX.Element | null {
   const [editor] = useLexicalComposerContext();
 
   useEffect(() => {
@@ -176,7 +172,7 @@ export default function InlineImagePlugin({
       editor.registerCommand<InsertInlineImagePayload>(
         INSERT_INLINE_IMAGE_COMMAND,
         (payload) => {
-          const imageNode = $createInlineImageNode({...payload, editable: editable});
+          const imageNode = $createInlineImageNode(payload);
           $insertNodes([imageNode]);
           if ($isRootOrShadowRoot(imageNode.getParentOrThrow())) {
             $wrapNodeInElement(imageNode, $createParagraphNode).selectEnd();

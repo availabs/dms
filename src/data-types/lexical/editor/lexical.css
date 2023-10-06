@@ -1180,7 +1180,7 @@ i.prettier-error {
   user-select: none;
 }
 
-.editor-shell .inline-editor-image .image-view-button {
+.editor-shell .view-scroller .inline-editor-image .image-edit-button {
   display: none;
 }
 

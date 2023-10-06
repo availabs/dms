@@ -192,7 +192,6 @@ export default function InlineImageComponent({
   showCaption,
   caption,
   position,
-    editable
 }: {
   altText: string;
   caption: LexicalEditor;
@@ -391,7 +390,7 @@ export default function InlineImageComponent({
       <>
         <div draggable={draggable}>
           <button
-            className={editable ? "image-edit-button" : 'image-view-button'}
+            className={'image-edit-button'}
             ref={buttonRef}
             onClick={() => {
               showModal('Update Inline Image', (onClose) => (
