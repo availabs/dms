@@ -41,7 +41,7 @@ import {EmbedConfigs} from '../AutoEmbedPlugin';
 import {INSERT_COLLAPSIBLE_COMMAND} from '../CollapsiblePlugin';
 //import {InsertEquationDialog} from '../EquationsPlugin';
 // import {INSERT_EXCALIDRAW_COMMAND} from '../ExcalidrawPlugin';
-import {INSERT_IMAGE_COMMAND, InsertImageDialog} from '../ImagesPlugin';
+import {INSERT_INLINE_IMAGE_COMMAND, InsertInlineImageDialog} from '../InlineImagePlugin';
 import {InsertPollDialog} from '../PollPlugin';
 import {InsertNewTableDialog, InsertTableDialog} from '../TablePlugin';
 
@@ -280,7 +280,7 @@ function getBaseOptions(editor: LexicalEditor, showModal: ShowModal) {
       icon: <i className="icon gif" />,
       keywords: ['gif', 'animate', 'image', 'file'],
       onSelect: () =>
-        editor.dispatchCommand(INSERT_IMAGE_COMMAND, {
+        editor.dispatchCommand(INSERT_INLINE_IMAGE_COMMAND, {
           altText: 'Cat typing on a laptop',
           src: catTypingGif,
         }),
@@ -290,7 +290,7 @@ function getBaseOptions(editor: LexicalEditor, showModal: ShowModal) {
       keywords: ['image', 'photo', 'picture', 'file'],
       onSelect: () =>
         showModal('Insert Image', (onClose) => (
-          <InsertImageDialog activeEditor={editor} onClose={onClose} />
+          <InsertInlineImageDialog activeEditor={editor} onClose={onClose} />
         )),
     }),
     new ComponentPickerOption('Collapsible', {

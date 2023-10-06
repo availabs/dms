@@ -46,7 +46,7 @@ import EmojisPlugin from './plugins/EmojisPlugin';
 // import FigmaPlugin from './plugins/FigmaPlugin';
 import FloatingLinkEditorPlugin from './plugins/FloatingLinkEditorPlugin';
 import FloatingTextFormatToolbarPlugin from './plugins/FloatingTextFormatToolbarPlugin';
-import ImagesPlugin from './plugins/ImagesPlugin';
+// import ImagesPlugin from './plugins/ImagesPlugin';
 import KeywordsPlugin from './plugins/KeywordsPlugin';
 import LinkPlugin from './plugins/LinkPlugin';
 import ListMaxIndentLevelPlugin from './plugins/ListMaxIndentLevelPlugin';
@@ -193,7 +193,7 @@ export default function Editor(props): JSX.Element {
               />
               
               <HistoryPlugin />
-              <ImagesPlugin captionsEnabled={false} />
+              {/*<ImagesPlugin captionsEnabled={false} />*/}
               <LinkPlugin />
               <ClickableLinkPlugin />
               <FloatingTextFormatToolbarPlugin />

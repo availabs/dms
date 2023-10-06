@@ -84,7 +84,7 @@ export class InlineImageNode extends DecoratorNode<JSX.Element> {
   __editable: boolean
 
   static getType(): string {
-    return 'inline-image';
+    return 'image';
   }
 
   static clone(node: InlineImageNode): InlineImageNode {
@@ -169,7 +169,7 @@ export class InlineImageNode extends DecoratorNode<JSX.Element> {
       position: this.__position,
       showCaption: this.__showCaption,
       src: this.getSrc(),
-      type: 'inline-image',
+      type: 'image',
       version: 1,
       width: this.__width === 'inherit' ? 0 : this.__width,
     };

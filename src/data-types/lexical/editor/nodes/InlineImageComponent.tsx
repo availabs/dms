@@ -34,7 +34,7 @@ import {
   KEY_BACKSPACE_COMMAND,
   KEY_DELETE_COMMAND,
   KEY_ENTER_COMMAND,
-  KEY_ESCAPE_COMMAND,
+  KEY_ESCAPE_COMMAND, LexicalNode,
   SELECTION_CHANGE_COMMAND,
 } from 'lexical';
 import * as React from 'react';
@@ -52,7 +52,6 @@ import Select from '../ui/Select';
 import TextInput from '../ui/TextInput';
 import {$isInlineImageNode, InlineImageNode} from './InlineImageNode';
 import ImageResizer from "../ui/ImageResizer";
-import {$isImageNode} from "./ImageNode";
 
 const imageCache = new Set();
 
@@ -375,7 +374,7 @@ export default function InlineImageComponent({
 
     editor.update(() => {
       const node = $getNodeByKey(nodeKey);
-      if ($isImageNode(node)) {
+      if ($isInlineImageNode(node)) {
         node.setWidthAndHeight(nextWidth, nextHeight);
       }
     });

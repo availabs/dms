@@ -46,8 +46,7 @@ import {
 //   $isEquationNode,
 //   EquationNode,
 // } from '../../nodes/EquationNode';
-import {$createImageNode, $isImageNode, ImageNode} from '../../nodes/ImageNode';
-// import {$createInlineImageNode, $isInlineImageNode, InlineImageNode} from '../../nodes/InlineImageNode';
+import {$createInlineImageNode, $isInlineImageNode, InlineImageNode} from '../../nodes/InlineImageNode';
 import {$createTweetNode, $isTweetNode, TweetNode} from '../../nodes/TweetNode';
 import emojiList from '../../utils/emoji-list';
 
@@ -73,9 +72,9 @@ export const HR: ElementTransformer = {
 };
 
 export const IMAGE: TextMatchTransformer = {
-  dependencies: [ImageNode],
+  dependencies: [InlineImageNode],
   export: (node) => {
-    if (!$isImageNode(node)) {
+    if (!$isInlineImageNode(node)) {
       return null;
     }
 
@@ -85,7 +84,7 @@ export const IMAGE: TextMatchTransformer = {
   regExp: /!(?:\[([^[]*)\])(?:\(([^(]+)\))$/,
   replace: (textNode, match) => {
     const [, altText, src] = match;
-    const imageNode = $createImageNode({
+    const imageNode = $createInlineImageNode({
       altText,
       maxWidth: 800,
       src,
