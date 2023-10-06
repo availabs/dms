@@ -1127,7 +1127,7 @@ i.prettier-error {
 }
 
 .editor-shell .inline-editor-image img {
-  max-width: 100%;
+  /*max-width: 100%;*/
   cursor: default;
 }
 

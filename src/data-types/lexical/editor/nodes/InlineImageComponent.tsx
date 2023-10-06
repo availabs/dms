@@ -448,7 +448,7 @@ export default function InlineImageComponent({
                 editor={editor}
                 buttonRef={buttonRef}
                 imageRef={imageRef}
-                maxWidth={500}
+                maxWidth={1080}
                 onResizeStart={onResizeStart}
                 onResizeEnd={onResizeEnd}
                 captionsEnabled={false}
