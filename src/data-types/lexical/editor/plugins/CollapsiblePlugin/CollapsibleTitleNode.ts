@@ -47,7 +47,7 @@ export class CollapsibleTitleNode extends ElementNode {
     const dom = document.createElement('summary');
     dom.classList.add('Collapsible__title');
     dom.classList.add('w-full', 'font-sans', 'font-medium', 'text-md', 'uppercase');
-    dom.classList.add('text-blue-500', 'font-bold', 'text-xl', 'tracking-wider', 'py-1', 'pl-5');
+    dom.classList.add('tracking-wider', 'py-1', 'pl-5');
     return dom;
   }
 
