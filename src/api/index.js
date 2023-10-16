@@ -38,7 +38,12 @@ export async function dmsDataLoader ( config, path='/') {
 	
 
 	// -- Always want to know how many data items of a type we have
-	const lengthReq = ['dms', 'data', `${ app }+${ type }`, 'length' ]
+	let lengthReq = ['dms', 'data', `${ app }+${ type }`, 'length' ]
+
+	if(activeConfigs.find(ac => ac.action === 'load')){
+		const options = activeConfigs.find(ac => ac.action === 'load')?.filter?.options;
+		if(options) lengthReq = ['dms', 'data', `${ app }+${ type }`, 'options', options, 'length' ];
+	}
 	const length = get(await falcor.get(lengthReq), ['json',...lengthReq], 0)
 	// console.log('length',length)
 	const itemReqByIndex = ['dms', 'data', `${ app }+${ type }`, 'byIndex']
@@ -56,9 +61,13 @@ export async function dmsDataLoader ( config, path='/') {
 		? await falcor.get(...newRequests) : {}
 	// get api response
 	let newReqFalcor = falcor.getCache()
-	
+	if(activeConfigs.find(ac => ac.action === 'load')){
+		const path=  newRequests[0].filter((r, i) => i <= newRequests[0].indexOf('byIndex'));
+		return Object.values(get(newReqFalcor, path, {}));
+	}
 	// get active ids 
 	const activeIds =  activeConfigs
+		.filter(config => config.action !== 'load')
 		.map(config => getIdPath(config, format))
 		.filter(routes => routes?.length)
 		.map(path => {

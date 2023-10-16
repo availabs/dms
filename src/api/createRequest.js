@@ -48,7 +48,10 @@ const createRequest = (wrapperConfig,format, path, length) => {
 				'dms', 'data', `${ app }+${ type }`,
 				'options', options,
 				'byIndex', {from: fromIndex, to: toIndex },
-				[ "id", "updated_at", "created_at","app", "type",...dataAttrs]
+				[
+					//due to group by, simple data->>'col_name' is not sufficient.
+					...(filterAttrs.length > 0 ? filterAttrs : ['data'])
+				]
 			]
 		default:
 			return []
