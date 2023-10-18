@@ -785,6 +785,10 @@ export default function ToolbarPlugin({
   const onBgColorSelect = useCallback(
     (value: string) => {
       applyStyleText({'background-color': value});
+      applyStyleText({'padding': '4px 12px'});
+      applyStyleText({'border': '1px solid'});
+      applyStyleText({'border-color': '#60a5fa'});
+      applyStyleText({'border-radius': '8px'});
     },
     [applyStyleText],
   );
