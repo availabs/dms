@@ -1,6 +1,6 @@
 import get from "lodash/get";
 
-export async function processNewData (dataCache, activeIdsIntOrStr, app, type, dmsAttrsConfigs, falcor) {
+export async function processNewData (dataCache, activeIdsIntOrStr, filteredIdsLength, app, type, dmsAttrsConfigs, falcor) {
     const activeIds = activeIdsIntOrStr.map(id => +id)
     let newData = []
 
@@ -10,7 +10,7 @@ export async function processNewData (dataCache, activeIdsIntOrStr, app, type, d
         ['dms', 'data', 'byId'],
         {}
     ))
-        .filter(d => (!activeIds?.length || activeIds.includes(+d.id)) && d.id && d.app === app && d.type === type)
+        .filter(d => (!filteredIdsLength || activeIds.includes(+d.id)) && d.id && d.app === app && d.type === type)
 
     for(const k in newDataVals) {
         // flatten data into single object
