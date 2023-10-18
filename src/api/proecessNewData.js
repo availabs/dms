@@ -9,7 +9,7 @@ export async function processNewData (dataCache, activeIds, app, type, dmsAttrsC
         ['dms', 'data', 'byId'],
         {}
     ))
-        .filter(d => (!activeIds?.length || activeIds.includes(d.id)) && d.id && d.app === app && d.type === type)
+        .filter(d => (!activeIds?.length || activeIds.includes(+d.id)) && d.id && d.app === app && d.type === type)
 
     for(const k in newDataVals) {
         // flatten data into single object

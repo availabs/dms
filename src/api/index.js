@@ -105,7 +105,8 @@ export async function dmsDataLoader ( config, path='/') {
 	const filteredIds = !id && fromIndex && toIndex &&
 		Object.keys(get(newReqFalcor, [...itemReqByIndex], {}))
 			.filter(index => +index >= +fromIndex && +index <= +toIndex - 1)
-			.map(index => get(newReqFalcor, [...itemReqByIndex, index, 'value', 3], {})) // ['dms', 'data', 'byId', id]
+			.map(index => get(newReqFalcor, [...itemReqByIndex, index, 'value', 3])) // ['dms', 'data', 'byId', id]
+			.filter(d => d)
 
 	activeIds.push(...(filteredIds || []))
 	// ---------------------------------------------------------------------------------------------------
