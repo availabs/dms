@@ -6,7 +6,7 @@ export function getAttributes (format, options={}, mode='') {
 	//console.log('getAttributes', format, options)
 	
 	const formats = processFormat(format)
-	
+	const accessor = options?.accessor || 'key'
 	// const attributeFilter = get(options, 'attributes', [])
 	// console.log('getAttributes', format.attributes)
 	const attributes = format.attributes
@@ -17,12 +17,12 @@ export function getAttributes (format, options={}, mode='') {
 		)
 		.reduce((out,attr) => {
 			if(attr.format && formats[attr.format]) {
-				out[attr.key] = {
+				out[attr[accessor]] = {
 					...attr,
 					attributes: getAttributes(formats[attr.format])
 				}
 			} else {
-				out[attr.key] = attr
+				out[attr[accessor]] = attr
 			}
 			return out
 		},{})
