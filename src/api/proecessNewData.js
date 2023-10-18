@@ -1,6 +1,7 @@
 import get from "lodash/get";
 
-export async function processNewData (dataCache, activeIds, app, type, dmsAttrsConfigs, falcor) {
+export async function processNewData (dataCache, activeIdsIntOrStr, app, type, dmsAttrsConfigs, falcor) {
+    const activeIds = activeIdsIntOrStr.map(id => +id)
     let newData = []
 
     // -----------------------------------------------------------------------------------------------------

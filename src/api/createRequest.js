@@ -60,7 +60,7 @@ const createRequest = (wrapperConfig,format, path, length) => {
 }
 
 export function getIdPath (wrapperConfig,format) {
-	const { app , type, defaultSearch, attributes = {} } = format
+	const { app , type, defaultSearch, attributes = [] } = format
 	
 	let filterAttrs = wrapperConfig?.filter?.attributes || []
 	let dataAttrs = filterAttrs.length > 0 ? 
