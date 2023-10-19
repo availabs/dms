@@ -93,6 +93,7 @@ export default function Editor(props): JSX.Element {
     const placeholder = <Placeholder>{placeholderText}</Placeholder>;
     const [floatingAnchorElem, setFloatingAnchorElem] =
         useState<HTMLDivElement | null>(null);
+    const [isLinkEditMode, setIsLinkEditMode] = useState(false);
     const [isSmallWidthViewport, setIsSmallWidthViewport] =
         useState<boolean>(false);
 
@@ -213,7 +214,7 @@ export default function Editor(props): JSX.Element {
                             <>
                                 <DraggableBlockPlugin anchorElem={floatingAnchorElem}/>
                                 <CodeActionMenuPlugin anchorElem={floatingAnchorElem}/>
-                                <FloatingLinkEditorPlugin anchorElem={floatingAnchorElem}/>
+                                <FloatingLinkEditorPlugin anchorElem={floatingAnchorElem} isLinkEditMode={isLinkEditMode} setIsLinkEditMode={setIsLinkEditMode}/>
                                 <TableCellActionMenuPlugin
                                     anchorElem={floatingAnchorElem}
                                     cellMerge={true}
