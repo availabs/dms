@@ -534,7 +534,7 @@ export default function ToolbarPlugin({
   );
   const [fontSize, setFontSize] = useState<string>('15px');
   const [fontColor, setFontColor] = useState<string>('#000');
-  const [bgColor, setBgColor] = useState<string>('#fff');
+  const [bgColor, setBgColor] = useState<string>('#dfe6ef');
   const [fontFamily, setFontFamily] = useState<string>('Arial');
   const [elementFormat, setElementFormat] = useState<ElementFormatType>('left');
   const [isLink, setIsLink] = useState(false);
@@ -636,7 +636,7 @@ export default function ToolbarPlugin({
         $getSelectionStyleValueForProperty(
           selection,
           'background-color',
-          '#fff',
+          '#dfe6ef',
         ),
       );
       setFontFamily(
