@@ -18,7 +18,7 @@ export async function processNewData (dataCache, activeIdsIntOrStr, filteredIdsL
         d.type === type
     ))
     
-    console.log('test', activeIds, newDataVals[0],  newDataVals.length)
+    // console.log('test', activeIds, newDataVals[0],  newDataVals.length)
     
     for(const k in newDataVals) {
         // flatten data into single object
@@ -44,7 +44,6 @@ export async function processNewData (dataCache, activeIdsIntOrStr, filteredIdsL
     if(format?.defaultSort) {
         newData = format.defaultSort(newData)
     }
-    // console.log('newData', newData[0], dmsAttrsConfigs)
     let i = 0 
     for(const d in newData) { 
         if(activeIds === 'loadAll' || activeIds.includes(+newData[d].id) || i === 0) {
@@ -64,9 +63,6 @@ async function loadDmsFormats (item,dmsAttrsConfigs,falcor) {
     // load that data
     // to do: make this non-blocking / lazy load
     // ----------------------------------------
-    // console.log('activeIds', activeIds, d.id)
-   
-    //console.log('loading subdata',  Object.keys(item))
 
     let dmsKeys = Object.keys(item)
         .filter(d => Object.keys(dmsAttrsConfigs).includes(d))
