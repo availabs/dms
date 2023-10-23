@@ -38,7 +38,7 @@ export async function dmsDataLoader ( config, path='/') {
 	// Because any config can have children
 	//---------------------------------------------------------
 	const activeConfigs = getActiveConfig(config.children, path)
-	
+	//console.log('activeConfigs', format)
 
 	// -- Always want to know how many data items of a type we have
 	let lengthReq = ['dms', 'data', `${ app }+${ type }`, 'length' ]
@@ -72,7 +72,6 @@ export async function dmsDataLoader ( config, path='/') {
 	}
 
 
-
 	// get active ids 
 	const activeIds =  activeConfigs
 		.filter(config => config.action !== 'load')
@@ -91,6 +90,8 @@ export async function dmsDataLoader ( config, path='/') {
 
 	// if from and to index are passed, filter ids based on them to avoid returning wrong number of rows
 	let id = activeConfigs[0]?.params?.id;
+
+	//console.log('loading data id', id,activeIds)
 
 	let fromIndex =
 		typeof activeConfigs?.[0]?.filter?.fromIndex === 'function' ?
@@ -116,13 +117,14 @@ export async function dmsDataLoader ( config, path='/') {
   	activeIds, 
   	filteredIds?.length, 
   	app, type, 
-  	dmsAttrsConfigs, 
+  	dmsAttrsConfigs,
+  	format,
   	falcor
   )
 	
 	if( activeConfigs?.[0]?.lazyLoad && !fullDataLoad[`${ app }+${ type }`]) {
 		console.log('lazy loading')
-		loadFullData(fullDataLoad, app, type, itemReqByIndex, runId, falcor)
+		loadFullData(fullDataLoad, app, type, itemReqByIndex, runId, dmsAttrsConfigs, format, falcor)
 	}
 
 	return out
@@ -138,7 +140,7 @@ export async function dmsDataEditor ( config, data={}, requestType, path='/' ) {
 	const attributeKeys = Object.keys(data)
 		.filter(k => !['id', 'updated_at', 'created_at'].includes(k))
 
-	console.log('dmsDataEditor',config)
+	// console.log('dmsDataEditor',config)
 
 	// --------------------------------------------------------------
 	// ----- Code for Saving Dms Format in separate rows
