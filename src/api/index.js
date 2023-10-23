@@ -33,6 +33,7 @@ export async function dmsDataLoader ( config, path='/') {
 			return out
 		},{})
 
+	//console.log('dmsAttrsConfigs', dmsAttrsConfigs)
 	//---------------------------------------------------------
 	// Pages can have many configs active at one time
 	// Because any config can have children
@@ -123,8 +124,8 @@ export async function dmsDataLoader ( config, path='/') {
   )
 	
 	if( activeConfigs?.[0]?.lazyLoad && !fullDataLoad[`${ app }+${ type }`]) {
-		console.log('lazy loading')
-		loadFullData(fullDataLoad, app, type, itemReqByIndex, runId, dmsAttrsConfigs, format, falcor)
+		// console.log('lazy loading')
+		// loadFullData(fullDataLoad, app, type, itemReqByIndex, runId, length, dmsAttrsConfigs, format, falcor)
 	}
 
 	return out
@@ -166,7 +167,7 @@ export async function dmsDataEditor ( config, data={}, requestType, path='/' ) {
 		let updates = await updateDMSAttrs(dmsAttrsData, dmsAttrsConfigs, falcor)
 		data = {...data, ...updates}
 	
-	console.log('dmsDataEditor', data  )
+	//console.log('dmsDataEditor', data  )
 
 	//--------------------------------------------------
 
