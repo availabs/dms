@@ -111,14 +111,21 @@ export async function dmsDataLoader ( config, path='/') {
 	activeIds.push(...(filteredIds || []))
 	// ---------------------------------------------------------------------------------------------------
 
-	  const out = await processNewData(newReqFalcor, activeIds, filteredIds?.length, app, type, dmsAttrsConfigs, falcor)
-  	
-  	if( activeConfigs?.[0]?.lazyLoad && !fullDataLoad[`${ app }+${ type }`]) {
-  		console.log('lazy loading')
-  		loadFullData(fullDataLoad, app, type, itemReqByIndex, runId, falcor)
-  	}
+  const out = await processNewData(
+  	newReqFalcor, 
+  	activeIds, 
+  	filteredIds?.length, 
+  	app, type, 
+  	dmsAttrsConfigs, 
+  	falcor
+  )
+	
+	if( activeConfigs?.[0]?.lazyLoad && !fullDataLoad[`${ app }+${ type }`]) {
+		console.log('lazy loading')
+		loadFullData(fullDataLoad, app, type, itemReqByIndex, runId, falcor)
+	}
 
-  	return out
+	return out
 }
 
 export async function dmsDataEditor ( config, data={}, requestType, path='/' ) {
