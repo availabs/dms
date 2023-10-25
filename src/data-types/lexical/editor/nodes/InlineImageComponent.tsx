@@ -213,6 +213,7 @@ export default function InlineImageComponent({
   >(null);
   const activeEditorRef = useRef<LexicalEditor | null>(null);
   const [isResizing, setIsResizing] = useState<boolean>(false);
+  const [isLinkEditMode, setIsLinkEditMode] = useState<boolean>(false);
 
   const onDelete = useCallback(
     (payload: KeyboardEvent) => {
@@ -423,8 +424,7 @@ export default function InlineImageComponent({
               <AutoFocusPlugin />
               <LinkPlugin />
               <FloatingLinkEditorPlugin
-                isLinkEditMode={false}
-                setIsLinkEditMode={() => {}}
+                  isLinkEditMode={isLinkEditMode} setIsLinkEditMode={setIsLinkEditMode}
               />
               <FloatingTextFormatToolbarPlugin />
               <RichTextPlugin
