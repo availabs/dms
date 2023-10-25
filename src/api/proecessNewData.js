@@ -2,7 +2,7 @@ import get from "lodash/get";
 
 export async function processNewData (dataCache, activeIdsIntOrStr, filteredIdsLength, app, type, dmsAttrsConfigs,format,falcor) {
     const activeIds = Array.isArray(activeIdsIntOrStr) ? activeIdsIntOrStr.map(id => +id) : activeIdsIntOrStr;
-    console.log('activeIds', activeIds)
+    // console.log('activeIds', activeIds)
     let newData = []
 
     // -----------------------------------------------------------------------------------------------------
@@ -12,12 +12,13 @@ export async function processNewData (dataCache, activeIdsIntOrStr, filteredIdsL
         {}
     ))
     .filter(d => (
-        (!filteredIdsLength || activeIds.includes(+d.id)) 
-        && d.id 
-        && d.app === app 
-        && d.type === type
+        //(!filteredIdsLength || activeIds.includes(+d.id)) && 
+        d.id &&
+        d.app === app &&
+        d.type === type
     ))
     
+    // console.log('test', activeIds, newDataVals[0],  newDataVals.length)
     
     for(const k in newDataVals) {
         // flatten data into single object
@@ -43,8 +44,7 @@ export async function processNewData (dataCache, activeIdsIntOrStr, filteredIdsL
     if(format?.defaultSort) {
         newData = format.defaultSort(newData)
     }
-    console.log('newData', newData[0], dmsAttrsConfigs)
-    let i = 0
+    let i = 0 
     for(const d in newData) { 
         if(activeIds === 'loadAll' || activeIds.includes(+newData[d].id) || i === 0) {
             await loadDmsFormats(newData[d],dmsAttrsConfigs,falcor);
@@ -63,9 +63,6 @@ async function loadDmsFormats (item,dmsAttrsConfigs,falcor) {
     // load that data
     // to do: make this non-blocking / lazy load
     // ----------------------------------------
-    // console.log('activeIds', activeIds, d.id)
-   
-    console.log('loading subdata',  item)
 
     let dmsKeys = Object.keys(item)
         .filter(d => Object.keys(dmsAttrsConfigs).includes(d))
@@ -73,7 +70,7 @@ async function loadDmsFormats (item,dmsAttrsConfigs,falcor) {
 
     for (const key of dmsKeys) {
 
-        console.log('key', key)
+        //console.log('key', key)
 
         const dmsFormatRequests = []
         for (let ref of item[key]) {
@@ -105,7 +102,7 @@ async function loadDmsFormats (item,dmsAttrsConfigs,falcor) {
             }
         }
     }
-    console.log('item', item)
+    //console.log('item', item)
 }
 
 
