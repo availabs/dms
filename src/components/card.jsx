@@ -20,7 +20,7 @@ export default function Card({
 					let ViewComp = attributes[attrKey].ViewComp
 					return(
 						<div key={i} className={get(theme,'card.row', '')}>  
-							<div className={get(theme,'card.rowLabel', '')}>{attributes[attrKey]?.label || attrKey}</div>
+							<div className={get(theme,'card.rowLabel', '')}>{attributes[attrKey]?.display_name || attributes[attrKey]?.label || attrKey}</div>
 							<div className={get(theme,'card.rowContent', '')}> 
 								<ViewComp 
 									value={item[attrKey]} 

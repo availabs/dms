@@ -28,7 +28,7 @@ export default function EditCard({
                             <div className={get(theme, 'card.rowHeader', '')}>
 
                                 <div className={get(theme, 'card.rowLabel', '')}>
-                                    {attributes[attrKey]?.label || attrKey}
+                                    {attributes[attrKey]?.display_name || attributes[attrKey]?.label || attrKey}
                                 </div>
 
                                 {attributes[attrKey]?.prompt &&
