@@ -204,13 +204,13 @@ export async function dmsDataEditor ( config, data={}, requestType, path='/' ) {
 		    create new                
 		*/
       	// to do - data verification
-      	await falcor.call(
-      		["dms", "data", "create"], 
+      	const res = await falcor.call(
+      		["dms", "data", "create"],
       		[app, type, data]
       	);
       	await falcor.invalidate(['dms', 'data', `${ app }+${ type }`, 'length' ])
-      	
-      	return {response: 'Item created.'} // activeConfig.redirect ? redirect(activeConfig.redirect) : 
+
+      	return {response: 'Item created.', id: Object.keys(res?.json?.dms?.data?.byId || {})[0]} // activeConfig.redirect ? redirect(activeConfig.redirect) :
 	}
 
 	return { message: "Not sure how I got here."}
