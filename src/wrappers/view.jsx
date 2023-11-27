@@ -4,9 +4,9 @@ import { filterParams } from '../dms-manager/_utils'
 import { getAttributes } from './_utils'
 
 
-export default function ViewWrapper({ Component, format, options, params, ...props}) {
+export default function ViewWrapper({ Component, format, options, params, user, ...props}) {
 	let attributes = getAttributes(format,options)
-	const { data, user } = useLoaderData()
+	const { data } = useLoaderData()
 	const {defaultSort = (d) => d } = format
 
 

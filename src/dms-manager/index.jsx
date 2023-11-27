@@ -12,7 +12,8 @@ const DmsManager = (props) => {
 	const { 
 		config,
 		path = '',
-		theme = defaultTheme
+		theme = defaultTheme,
+		user
 	} = props
 	
 	const navigate = useNavigate()
@@ -36,9 +37,10 @@ const DmsManager = (props) => {
 	// const enhancedFormat = React.useMemo(() => 
 	// 	enhanceFormat(config.format)
 	// ,[config.format])
+	console.log('dms manager user', user)
 	
 	const RenderView = React.useMemo(() => {
-		return getActiveView(config.children, path, config.format)
+		return getActiveView(config.children, path, config.format, user)
 	}, [path])
 
 	if(!RenderView) {

@@ -2,7 +2,7 @@ import React, {useEffect} from 'react'
 import {/* useFetcher, useLocation,*/ useLoaderData } from "react-router-dom";
 import { getAttributes } from './_utils'
 
-export default function ErrorWrapper({ Component, format, options, ...props}) {
+export default function ErrorWrapper({ Component, format, options,user, ...props}) {
 	let attributes = getAttributes(format,options)
 	// const { data, user } = useLoaderData()
 	// console.log('DMS Error Wrapper ', props)
@@ -15,7 +15,7 @@ export default function ErrorWrapper({ Component, format, options, ...props}) {
 			attributes={attributes}
 			dataItems={[]}
 			options={options}
-			user={{}}
+			user={user}
 		/>
 	
 	)	

@@ -2,9 +2,9 @@ import React, {useEffect} from 'react'
 import { useLoaderData, /*useActionData,*/ useParams } from "react-router-dom";
 import { getAttributes } from './_utils'
 
-export default function ListWrapper({ Component, format, options, ...props}) {
+export default function ListWrapper({ Component, format, options, user, ...props}) {
 	const attributes = getAttributes(format,options)
-	const { data, user } = useLoaderData()
+	const { data } = useLoaderData()
 	// console.log('list wrapper', data)
 	return (
 		<Component
