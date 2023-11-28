@@ -22,7 +22,7 @@ type LinkFilter = (event: MouseEvent, linkNode: LinkNode) => boolean;
 
 export default function ClickableLinkPlugin({
   filter,
-  newTab = true,
+  newTab = false,
 }: {
   filter?: LinkFilter;
   newTab?: boolean;
