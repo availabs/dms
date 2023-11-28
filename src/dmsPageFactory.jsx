@@ -18,11 +18,9 @@ export default function dmsPageFactory (
 ) {
 
   async function loader ({ request, params }) {
-    //console.log('loader', request, params)
     let data = await dmsDataLoader(dmsConfig, `/${params['*'] || ''}`)
     return { 
-      data,
-      user: {id: 5, authLevel: 5}
+      data
     }
   }
 
