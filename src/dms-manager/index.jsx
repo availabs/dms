@@ -25,7 +25,7 @@ const DmsManager = (props) => {
 		}
 	},[path])
 
-	//React.useEffect(() => console.log('dms manager unmount') , [])
+	// React.useEffect(() => console.log('dms manager unmount') , [])
     
 
 	// check for valid config
@@ -37,7 +37,7 @@ const DmsManager = (props) => {
 	// const enhancedFormat = React.useMemo(() => 
 	// 	enhanceFormat(config.format)
 	// ,[config.format])
-	console.log('dms manager user', user)
+	// console.log('dms manager user', user)
 	
 	const RenderView = React.useMemo(() => {
 		return getActiveView(config.children, path, config.format, user)
