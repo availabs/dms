@@ -100,8 +100,8 @@ function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, o
                         <ReqsComp 
                             className='p-2 flex-0'
                             value={value?.['requirements']}
-                            placeholder={'Add Reqs...'} 
-                            options={attributes.requirements.options}
+                            placeholder={'Add Reqs...'}
+                            options={attributes?.requirements?.options}
                             onChange={(v) => updateAttribute('requirements', v)}
                         />
                     </div>
