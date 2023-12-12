@@ -55,7 +55,7 @@ function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, o
     let TitleComp = attributes?.title?.EditComp
     let LevelComp = attributes?.level?.EditComp
     let TagsComp = attributes?.tags?.EditComp
-    let ReqsComp = attributes?.requirements?.EditComp 
+    //let ReqsComp = attributes?.requirements?.EditComp 
     let ElementComp = attributes?.element?.EditComp
     let HelpComp = attributes?.helpText?.EditComp
 
@@ -96,7 +96,7 @@ function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, o
                             onChange={(v) => updateAttribute('tags', v)}
                         />
                     </div>
-                    <div>
+                   {/* <div>
                         <ReqsComp 
                             className='p-2 flex-0'
                             value={value?.['requirements']}
@@ -104,7 +104,7 @@ function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, o
                             options={attributes.requirements.options}
                             onChange={(v) => updateAttribute('requirements', v)}
                         />
-                    </div>
+                    </div>*/}
                 </div>
                 <div className='flex flex-wrap border-y justify-end items-center'>
                     
