@@ -1,0 +1,1 @@
+export const pgEnv = 'hazmit_dama'
