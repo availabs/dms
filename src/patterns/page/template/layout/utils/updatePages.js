@@ -64,6 +64,7 @@ export const updatePages = async ({submit, item, url, destination, id_column, ge
 
                 section.title = templateSection.title;
                 section.level = templateSection.level;
+                section.size = templateSection.size;
                 section.tags = templateSection.tags;
                 section.element['element-data'] = JSON.stringify(data);
                 section.element['element-type'] = type;

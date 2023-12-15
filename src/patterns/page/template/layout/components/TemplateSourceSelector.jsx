@@ -6,7 +6,9 @@ import {SectionListControls} from "./SectionListControls.jsx";
 import React from "react";
 
 export const TemplateSourceSelector = ({
-                                           item, dataControls, setDataControls, saveDataControls, baseUrl
+                                           item, dataControls, setDataControls, saveDataControls, baseUrl,
+                                           loadingStatus,
+                                           setLoadingStatus
                                        }) => {
     const updateDataControls = (k, v) => {
         setDataControls({...dataControls, [k]: v})
@@ -58,6 +60,8 @@ export const TemplateSourceSelector = ({
                                 setDataControls({...dataControls, ...v})
                             }
                         }}
+                        loadingStatus={loadingStatus}
+                        setLoadingStatus={setLoadingStatus}
                         baseUrl={baseUrl}
                     />
                     <PathControl/>

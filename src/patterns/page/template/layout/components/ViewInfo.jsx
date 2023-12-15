@@ -8,7 +8,7 @@ import {updatePages} from "../utils/updatePages.js";
 import {generatePages} from "../utils/generatePages.js";
 import {pgEnv} from "../constants.js";
 
-export const ViewInfo = ({submit, item, url, destination, source,view, id_column, active_row, onChange, loadingStatus, setLoadingStatus}) => {
+export const ViewInfo = ({submit, item, url, destination, source,view, id_column, active_row, onChange, loadingStatus, setLoadingStatus=() => {}}) => {
 
     // console.log('ViewInfo', id_column, active_id)
     const { falcor, falcorCache } = useFalcor();
@@ -30,6 +30,7 @@ export const ViewInfo = ({submit, item, url, destination, source,view, id_column
 
             if(!item.data_controls?.sectionControls) return;
             const sectionIds = pages.map(page => page.data.value.sections.map(section => section.id));
+            const templateSectionIds = item.sections.map(s => s.id)
             const sections = await sectionIds.reduce(async (acc, sectionId) => {
                 const prevSections = await acc;
                 const currentSections = await dmsDataLoader(
@@ -37,7 +38,7 @@ export const ViewInfo = ({submit, item, url, destination, source,view, id_column
                         app: 'dms-site',
                         type: 'cms-section',
                         filter: {
-                            [`data->'element'->>'template-section-id'`]: item.sections.map(s => s.id),
+                            ...templateSectionIds?.length && {[`data->'element'->>'template-section-id'`]: templateSectionIds},
                             'id': sectionId // [] of ids
                         }
                     }), '/');
