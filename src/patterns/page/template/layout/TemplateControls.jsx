@@ -241,6 +241,8 @@ export function PageControls({item, dataItems, updateAttribute, attributes, edit
                             dataControls={dataControls}
                             setDataControls={setDataControls}
                             saveDataControls={saveDataControls}
+                            loadingStatus={loadingStatus}
+                            setLoadingStatus={setLoadingStatus}
                             baseUrl={baseUrl}
                         />
                     </div>

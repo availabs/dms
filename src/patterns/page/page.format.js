@@ -30,6 +30,10 @@ export const cmsSection = {
       type: "text",
       required: false
     },
+    { key: "requirements",
+      type: "text",
+      required: false
+    },
     {
       key: "size",
       type: "text"
