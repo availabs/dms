@@ -10,7 +10,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import DataControls from './TemplateDataControls'
 import {parseJSON} from "./utils/parseJSON.js";
 import {ViewInfo} from "./components/ViewInfo.jsx";
-import ComponentRegistry from '~/sites/www/pages/cms/dms/ComponentRegistry'
+import ComponentRegistry from '~/component_registry'
 import {useFalcor} from '~/modules/avl-falcor';
 
 
