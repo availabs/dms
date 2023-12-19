@@ -3,6 +3,7 @@ import { Link, useSubmit, useLocation } from "react-router-dom";
 import { Dialog  } from '@headlessui/react'
 import { Modal } from "~/modules/dms/src/patterns/page/layout/page-controls"
 import { json2DmsForm } from "~/modules/dms/src/patterns/page/layout/nav"
+import {toSnakeCase} from "~/modules/dms/src/patterns/page/layout/nav";
 
 function TemplateRow ({ item={} }) {
   const [showDelete, setShowDelete] = useState(false)
@@ -110,7 +111,8 @@ function NewTemplateModal ({ open, setOpen})  {
             
             
             const newItem = {
-              title
+              title,
+                url_slug: toSnakeCase(title)
             }
             setLoading(true)
             await submit(json2DmsForm(newItem), { method: "post", action: pathname })

@@ -29,7 +29,7 @@ export function getCurrentDataItem(dataItems, baseUrl) {
 
     return location === '' ?
         dataItems.find(d => d.index === 0 && d.parent === '') :
-        dataItems.find((d, i) => d.url_slug === location);
+        dataItems.find((d, i) => d.url_slug === location || d.id === location);
 }
 
 export function detectNavLevel(dataItems, baseUrl) {
