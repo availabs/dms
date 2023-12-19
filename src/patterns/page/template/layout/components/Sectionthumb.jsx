@@ -2,7 +2,7 @@ import {parseJSON} from "../utils/parseJSON.js";
 import React from "react";
 import get from "lodash/get.js";
 import Selector from "../Selector.jsx";
-import ComponentRegistry from "~/sites/www/pages/cms/dms/ComponentRegistry.js";
+import ComponentRegistry from "~/component_registry";
 
 export const SectionThumb =({section,source,sectionControl={},updateSectionControl}) => {
 

@@ -1,6 +1,6 @@
 import {dmsDataEditor} from "~/modules/dms/src/index.js";
 import {parseJSON} from "./parseJSON.js";
-import ComponentRegistry from "~/sites/www/pages/cms/dms/ComponentRegistry.js";
+import ComponentRegistry from "~/component_registry";
 import cloneDeep from "lodash/cloneDeep";
 import {json2DmsForm} from "~/modules/dms/src/patterns/page/layout/nav.jsx";
 
