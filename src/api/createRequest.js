@@ -55,7 +55,7 @@ const createRequest = (wrapperConfig,format, path, length) => {
 				]
 			]
 		case 'search':
-			return ['dms', 'search', 'byTag', tags];
+			return ['dms', 'search', `${ app }+${ type }`,'byTag', tags];
 		default:
 			return []
 	}
