@@ -66,6 +66,11 @@ export async function dmsDataLoader ( config, path='/') {
 	// get api response
 	let newReqFalcor = falcor.getCache()
 
+	if(activeConfigs.find(ac => ac.action === 'search')){
+		const path =  newRequests[0].filter((r, i) => i <= newRequests[0].indexOf('byTag'));
+
+		return get(newReqFalcor, path, {});
+	}
 	if(activeConfigs.find(ac => ac.action === 'load')){
 		// special return for 'load' action
 		const path =  newRequests[0].filter((r, i) => i <= newRequests[0].indexOf('byIndex'));

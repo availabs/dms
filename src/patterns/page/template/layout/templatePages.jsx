@@ -11,7 +11,7 @@ export const locationNameMap = {
 }
 
 
-const locationUrlMap = {
+export const locationUrlMap = {
     'docs-play': 'playground',
     'docs-page': '',
     'docs-draft': 'drafts'
@@ -49,7 +49,7 @@ function TemplateRow ({ id, app, type, data={} }) {
     )
 }
 
-export const getConfig = ({app, type, filter}) => ({
+export const getConfig = ({app, type, filter, action = 'load', tags}) => ({
     format: {
         app: app,
         type: type,
@@ -73,11 +73,12 @@ export const getConfig = ({app, type, filter}) => ({
             type: () => {
 
             },
-            action: 'load',
+            action,
             filter: {
                 options: JSON.stringify({
-                    filter
+                    filter,
                 }),
+                tags,
                 attributes: ['id', 'app', 'type', 'data']
             },
             path: '/'

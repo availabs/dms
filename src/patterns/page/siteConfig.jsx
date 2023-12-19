@@ -2,6 +2,7 @@ import { PageView, PageEdit } from "./layout/page"
 import Layout from "./layout/layout"
 import cmsFormat from "./page.format.js"
 import cloneDeep from 'lodash/cloneDeep'
+import {Search} from "./layout/search";
 
 // sideNav = {size: 'miniPad'}
 
@@ -18,6 +19,13 @@ const siteConfig = ({
   const format = cloneDeep(cmsFormat)
   format.app = app
   format.type = type
+
+  const rightMenuWithSearch = (
+      <div className={'flex flex-col md:flex-row'}>
+        <Search />
+        {rightMenu}
+      </div>
+  )
   return {
     format: format,
     check: ({user}, activeConfig, navigate) =>  {
@@ -52,7 +60,7 @@ const siteConfig = ({
             type: (props) => <PageView 
               {...props} 
               logo={logo} 
-              rightMenu={rightMenu}
+              rightMenu={rightMenuWithSearch}
             />,
             path: "/*",
             action: "view"
@@ -79,7 +87,7 @@ const siteConfig = ({
             type: (props) => <PageEdit 
               {...props}
               logo={logo}
-              rightMenu={rightMenu}
+              rightMenu={rightMenuWithSearch}
             />,
             action: "edit",
             path: "/edit/*"

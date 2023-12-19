@@ -1,0 +1,185 @@
+import {Fragment, useEffect, useRef, useState} from "react";
+import {Combobox, Dialog, Transition} from '@headlessui/react'
+import {getConfig, locationNameMap, locationUrlMap} from "../template/layout/templatePages";
+import {dmsDataLoader} from "../../../api";
+
+export const Search = ({}) => {
+    const [open, setOpen] = useState(false)
+
+    return (
+        <>
+            <button
+                className={"bg-white w-full flex items-center text-sm leading-6 text-slate-400 hover:text-slate-600 rounded-md shadow-sm py-1.5 pl-3 pr-6 transition ease-in"}
+                onClick={() => setOpen(true)}
+            >
+                <i className={'fa-light fa-search pr-2 '}/> Search
+            </button>
+
+            <SearchPallet open={open} setOpen={setOpen}/>
+        </>
+    )
+}
+
+function classNames(...classes) {
+    return classes.filter(Boolean).join(' ')
+}
+
+const SearchPallet = ({open, setOpen}) => {
+    const [query, setQuery] = useState('');
+    const [tmpQuery, setTmpQuery] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [items, setItems] = useState([])
+    // change it so that query is only set when whole tag is searched from typeahead
+
+    useEffect(() => {
+        setTimeout(() => setQuery(tmpQuery), 500)
+    }, [tmpQuery]);
+
+    useEffect(() => {
+        if (!query) return;
+        // search for sections matching query.
+
+        const config = getConfig({
+            app: 'dms-site',
+            // type: 'cms-section',
+            action: 'search',
+            tags: [query]
+        })
+
+        async function getData() {
+            setLoading(true)
+            const data = await dmsDataLoader(config, '/');
+            console.log('cs', Object.keys(data).find(searchTerm => searchTerm === query),
+                query, data
+            )
+            const tmpItems = data[Object.keys(data).find(searchTerm => searchTerm === query)]?.value?.map(value => {
+                return ({
+                    id: value.section_id,
+                    name: value.section_title,
+                    tags: value.tags,
+                    description: value.page_title,
+                    url: `/${locationUrlMap[value.type]}/${value.url_slug}`,
+                    type: value.type,
+                    color: 'bg-indigo-500',
+                    icon: () => <i className={'fa-light fa-memo text-white'}/>,
+                })
+            })
+
+            console.log('setting items', query, tmpItems)
+            setItems(tmpItems || [])
+            setLoading(false)
+        }
+
+        getData();
+        // search for page title and url for matched sections
+    }, [query]);
+
+    return (
+        <Transition.Root show={open} as={Fragment} afterLeave={() => setQuery('')} appear>
+            <Dialog as="div" className="relative z-20" onClose={setOpen}>
+                <Transition.Child
+                    as={Fragment}
+                    enter="ease-out duration-300"
+                    enterFrom="opacity-0"
+                    enterTo="opacity-100"
+                    leave="ease-in duration-200"
+                    leaveFrom="opacity-100"
+                    leaveTo="opacity-0"
+                >
+                    <div className="fixed inset-0 bg-gray-500 bg-opacity-25 transition-opacity"/>
+                </Transition.Child>
+
+                <div className="fixed inset-0 z-20 w-screen overflow-y-auto p-4 sm:p-6 md:p-20">
+                    <Transition.Child
+                        as={Fragment}
+                        enter="ease-out duration-300"
+                        enterFrom="opacity-0 scale-95"
+                        enterTo="opacity-100 scale-100"
+                        leave="ease-in duration-200"
+                        leaveFrom="opacity-100 scale-100"
+                        leaveTo="opacity-0 scale-95"
+                    >
+                        <Dialog.Panel
+                            className="mx-auto max-w-xl transform divide-y divide-gray-100 overflow-hidden rounded-xl bg-white shadow-2xl ring-1 ring-black ring-opacity-5 transition-all">
+                            <Combobox onChange={(item) => {
+                                window.location = item.url
+                            }}>
+                                <div className="relative">
+                                    <i
+                                        className="fa-light fa-search pointer-events-none absolute left-4 top-3.5 h-5 w-5 text-gray-400"
+                                    />
+                                    <Combobox.Input
+                                        className="h-12 w-full border-0 bg-transparent pl-11 pr-4 text-gray-900 placeholder:text-gray-400 focus:ring-0 sm:text-sm"
+                                        placeholder="Search..."
+                                        onChange={(event) => setTmpQuery(event.target.value)}
+                                    />
+                                </div>
+
+                                {items.length > 0 && (
+                                    <Combobox.Options static
+                                                      className="max-h-96 transform-gpu scroll-py-3 overflow-y-auto p-3">
+                                        {items.map((item) => (
+                                            <Combobox.Option
+                                                key={item.id}
+                                                value={item}
+                                                className={({active}) =>
+                                                    classNames('flex cursor-pointer select-none rounded-xl p-3', active && 'bg-gray-100')
+                                                }
+                                            >
+                                                {({active}) => (
+                                                    <>
+                                                        <div
+                                                            className={classNames(
+                                                                'flex h-10 w-10 flex-none items-center justify-center rounded-lg',
+                                                                item.color
+                                                            )}
+                                                        >
+                                                            <item.icon className="h-6 w-6 text-white"
+                                                                       aria-hidden="true"/>
+                                                        </div>
+                                                        <div className="ml-4 flex-auto">
+                                                            <p
+                                                                className={classNames(
+                                                                    'text-sm font-medium',
+                                                                    active ? 'text-gray-900' : 'text-gray-700'
+                                                                )}
+                                                            >
+                                                                {item.name || item.id}
+                                                            </p>
+                                                            <p className={classNames('text-sm', active ? 'text-gray-700' : 'text-gray-500')}>
+                                                                {item.description} ({locationNameMap[item.type]})
+                                                            </p>
+                                                            <span className={'tracking-wide p-1 bg-red-400 text-xs text-white font-semibold rounded-md border'}>{item.tags}</span>
+                                                        </div>
+                                                    </>
+                                                )}
+                                            </Combobox.Option>
+                                        ))}
+                                    </Combobox.Options>
+                                )}
+
+                                {
+                                    loading ? (
+                                            <div className="p-2 mx-auto w-1/4 h-full flex items-center justify-middle">
+                                                <i className="px-2 fa fa-loader text-gray-400" />
+                                                <p className="font-semibold text-gray-900">Loading...</p>
+                                            </div>
+                                        ) :
+                                        query !== '' && items.length === 0 && (
+                                            <div className="px-6 py-14 text-center text-sm sm:px-14">
+                                                <i
+                                                    className="fa fa-exclamation mx-auto h-6 w-6 text-gray-400"
+                                                />
+                                                <p className="mt-4 font-semibold text-gray-900">No results found</p>
+                                                <p className="mt-2 text-gray-500">No components found for this search term.
+                                                    Please try again.</p>
+                                            </div>
+                                        )}
+                            </Combobox>
+                        </Dialog.Panel>
+                    </Transition.Child>
+                </div>
+            </Dialog>
+        </Transition.Root>
+    )
+}
