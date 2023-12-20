@@ -96,6 +96,7 @@ export const updatePages = async ({submit, item, url, destination, id_column, ge
 
                 const newPage = {
                     id: page.id,
+                    sidebar: item.sidebar,
                     ...cloneDeep(page.data.value),
                     url_slug: `${url || id_column.name}/${page.data.value.id_column_value}`,
                     sections: [
@@ -103,13 +104,11 @@ export const updatePages = async ({submit, item, url, destination, id_column, ge
                             "id": section.id || newSectionIds[i]?.id,
                             "ref": "dms-site+cms-section"
                         })),
-                        //
-                        // ...newSectionIds
-                        //     .filter(s => s.id)
-                        //     .map(sectionRes => ({
-                        //         "id": sectionRes.id,
-                        //         "ref": "dms-site+cms-section"
-                        //     }))
+                        ...sections.filter(section => !section.data.value.element['template-section-id']) // non-template sections
+                            .map((section, i) => ({
+                                "id": section.id,
+                                "ref": "dms-site+cms-section"
+                            })),
                     ]
                 }
                 const resPage = await dmsDataEditor(pageConfig, newPage);
