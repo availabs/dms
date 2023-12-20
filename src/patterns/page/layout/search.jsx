@@ -3,7 +3,7 @@ import {Combobox, Dialog, Transition} from '@headlessui/react'
 import {getConfig, locationNameMap, locationUrlMap} from "../template/layout/templatePages";
 import {dmsDataLoader} from "../../../api";
 
-export const Search = ({}) => {
+export const Search = ({app, type}) => {
     const [open, setOpen] = useState(false)
 
     return (
@@ -15,7 +15,7 @@ export const Search = ({}) => {
                 <i className={'fa-light fa-search pr-2 '}/> Search
             </button>
 
-            <SearchPallet open={open} setOpen={setOpen}/>
+            <SearchPallet open={open} setOpen={setOpen} app={app} type={type}/>
         </>
     )
 }
@@ -24,7 +24,7 @@ function classNames(...classes) {
     return classes.filter(Boolean).join(' ')
 }
 
-const SearchPallet = ({open, setOpen}) => {
+const SearchPallet = ({open, setOpen, app, type}) => {
     const [query, setQuery] = useState('');
     const [tmpQuery, setTmpQuery] = useState('');
     const [loading, setLoading] = useState(false);
@@ -40,8 +40,8 @@ const SearchPallet = ({open, setOpen}) => {
         // search for sections matching query.
 
         const config = getConfig({
-            app: 'dms-site',
-            // type: 'cms-section',
+            app,
+            type,
             action: 'search',
             tags: [query]
         })
