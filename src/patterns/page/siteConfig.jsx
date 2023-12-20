@@ -22,7 +22,7 @@ const siteConfig = ({
 
   const rightMenuWithSearch = (
       <div className={'flex flex-col md:flex-row'}>
-        <Search />
+        {/*<Search />*/}
         {rightMenu}
       </div>
   )
