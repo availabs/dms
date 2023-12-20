@@ -38,7 +38,7 @@ export const ViewInfo = ({submit, item, url, destination, source,view, id_column
                         app: 'dms-site',
                         type: 'cms-section',
                         filter: {
-                            ...templateSectionIds?.length && {[`data->'element'->>'template-section-id'`]: templateSectionIds},
+                            // ...templateSectionIds?.length && {[`data->'element'->>'template-section-id'`]: templateSectionIds}, // not needed as we need to pull extra sections
                             'id': sectionId // [] of ids
                         }
                     }), '/');
