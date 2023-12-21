@@ -454,7 +454,7 @@ const Edit = ({Component, value, onChange, attr}) => {
 
                         {/* add section below */}
                         { edit.index == -1 && v !== '' ? 
-                            <div className='-mt-[36px]'>
+                            <div className='-mt-[12px]'>
                                 <AddSectionButton onClick={() => setEditIndex(i+1)}/> 
                             </div>  : <div className='h-[36px] -mt-[36px]' />
                             
@@ -474,10 +474,8 @@ const View = ({Component, value, attr}) => {
         centered: 'md:grid-cols-[1fr_repeat(6,_minmax(_100px,_170px))_1fr]',
         fullwidth:'md:grid-cols-[_minmax(_0px,0px)_repeat(6,_1fr)_minmax(_0px,0px)]'
     }
+    const hideSectionCondition = section => !JSON.parse(section?.element?.['element-data'] || '{}')?.hideSection;
 
-    const hideSectionCondition = section =>
-        section?.element?.['element-type'] !== 'Data Text Box' ||
-        (section?.element?.['element-type'] === 'Data Text Box' && !JSON.parse(section?.element?.['element-data'] || '{}')?.hideSection)
     return (
         <div className={`mb-12 grid grid-cols-6 ${layouts['centered']} gap-1`}>
         
