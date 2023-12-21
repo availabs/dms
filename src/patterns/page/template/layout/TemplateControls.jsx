@@ -58,62 +58,64 @@ export function PageControls({item, dataItems, updateAttribute, attributes, edit
         }
     }
 
-    useEffect(() => {
-        async function loadUpdates() {
-            const totalSections = Object.keys(dataControls.sectionControls)?.filter((id, i) => id && id !== 'undefined')?.length;
-            setLoadingStatus('Loading sections...');
+    async function loadUpdates(dataControls) {
+        const totalSections = Object.keys(dataControls.sectionControls)?.filter((id, i) => id && id !== 'undefined')?.length;
+        setLoadingStatus('Loading sections...');
 
-            const updates = await Object.keys(dataControls.sectionControls)
-                .filter((id, i) => id && id !== 'undefined')
-                .reduce(async (acc, section_id, i) => {
-                    const prev = await acc;
-                    setLoadingStatus(`Updating section ${i+1}/${totalSections}`)
-                    let section = item.sections.filter(d => d.id === section_id)?.[0] || {}
-                    let data = parseJSON(section?.element?.['element-data']) || {}
-                    let type = section?.element?.['element-type'] || ''
-                    let comp = ComponentRegistry[type] || {}
+        const updates = await Object.keys(dataControls.sectionControls)
+            .filter((id, i) => id && id !== 'undefined')
+            .reduce(async (acc, section_id, i) => {
+                const prev = await acc;
+                setLoadingStatus(`Updating section ${i+1}/${totalSections}`)
+                let section = item.sections.filter(d => d.id === section_id)?.[0] || {}
+                let data = parseJSON(section?.element?.['element-data']) || {}
+                let type = section?.element?.['element-type'] || ''
+                let comp = ComponentRegistry[type] || {}
 
-                    let controlVars = (comp?.variables || []).reduce((out, curr) => {
-                        out[curr.name] = data[curr.name]
+                let controlVars = (comp?.variables || []).reduce((out, curr) => {
+                    out[curr.name] = data[curr.name]
+                    return out
+                }, {})
+
+                let updateVars = Object.keys(dataControls.sectionControls[section_id])
+                    .reduce((out, curr) => {
+                        out[curr] = dataControls?.active_row?.[dataControls?.sectionControls?.[section_id]?.[curr]?.name] ||
+                            dataControls?.active_row?.[dataControls?.sectionControls?.[section_id]?.[curr]] || null
+
                         return out
                     }, {})
 
-                    let updateVars = Object.keys(dataControls.sectionControls[section_id])
-                        .reduce((out, curr) => {
-                            out[curr] = dataControls?.active_row?.[dataControls?.sectionControls?.[section_id]?.[curr]?.name] ||
-                                dataControls?.active_row?.[dataControls?.sectionControls?.[section_id]?.[curr]] || null
+                let args = {...controlVars, ...updateVars}
+                const curr = comp?.getData ? await comp.getData(args, falcor).then(data => ({section_id, data})) : null
+                return curr ? [...prev, curr] : prev
+            }, Promise.resolve([]))
 
-                            return out
-                        }, {})
-
-                    let args = {...controlVars, ...updateVars}
-                    const curr = comp?.getData ? await comp.getData(args, falcor).then(data => ({section_id, data})) : null
-                    return curr ? [...prev, curr] : prev
-                }, Promise.resolve([]))
-
-            // console.log('updates', updates)
-            if (updates.length > 0) {
-                let newSections = cloneDeep(item.sections)
-                updates.forEach(({section_id, data}) => {
-                    let section = newSections.filter(d => d.id === section_id)?.[0] || {}
-                    section.element['element-data'] = JSON.stringify(data)
-                    // console.log('updating section', section_id, data)
-                })
-                updateAttribute('sections', newSections)
-            }
-
-            setLoadingStatus(undefined)
-
-
-
+        // console.log('updates', updates)
+        if (updates.length > 0) {
+            let newSections = cloneDeep(item.sections)
+            updates.forEach(({section_id, data}) => {
+                let section = newSections.filter(d => d.id === section_id)?.[0] || {}
+                section.element['element-data'] = JSON.stringify(data)
+                // console.log('updating section', section_id, data)
+            })
+            updateAttribute('sections', newSections)
         }
 
-        console.log('x-----------------x')
-        loadUpdates()
-        console.log('y-----------------y')
+        setLoadingStatus(undefined)
 
 
-    }, [dataControls?.active_row])
+
+    }
+
+    // useEffect(() => {
+    //
+    //
+    //     console.log('x-----------------x')
+    //     loadUpdates()
+    //     console.log('y-----------------y')
+    //
+    //
+    // }, [dataControls?.active_row])
 
     //console.log('render', showDataControls)
 
@@ -239,7 +241,10 @@ export function PageControls({item, dataItems, updateAttribute, attributes, edit
                             open={showDataControls}
                             setOpen={setShowDataControls}
                             dataControls={dataControls}
-                            setDataControls={setDataControls}
+                            setDataControls={e => {
+                                setDataControls(e)
+                                return loadUpdates(e)
+                            }}
                             saveDataControls={saveDataControls}
                             loadingStatus={loadingStatus}
                             setLoadingStatus={setLoadingStatus}
