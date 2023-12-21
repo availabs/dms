@@ -126,7 +126,7 @@ export const ViewInfo = ({submit, item, url, destination, source,view, id_column
                 <Selector
                     options={dataRows}
                     value={active_row}
-                    nameAccessor={d => d?.[id_column?.name] }
+                    nameAccessor={d => id_column?.name === 'geoid' ? d?.['county'] : d?.[id_column?.name] }
                     onChange={d => onChange('active_row',{
                             active_row:d
                         }
