@@ -5,6 +5,7 @@ import { getSizeClass, sizeOptionsSVG } from './utils/sizes.jsx'
 import { Popover, Transition } from '@headlessui/react'
 import { Link } from "react-router-dom";
 import { usePopper } from 'react-popper'
+import {isJson} from "../../../../../../utils/macros";
 
 function SizeSelect ({size='1', setSize, onChange}) {
     
@@ -474,7 +475,8 @@ const View = ({Component, value, attr}) => {
         centered: 'md:grid-cols-[1fr_repeat(6,_minmax(_100px,_170px))_1fr]',
         fullwidth:'md:grid-cols-[_minmax(_0px,0px)_repeat(6,_1fr)_minmax(_0px,0px)]'
     }
-    const hideSectionCondition = section => !JSON.parse(section?.element?.['element-data'] || '{}')?.hideSection;
+    const hideSectionCondition = section => isJson(section?.element?.['element-data'] || '{}') &&
+        !JSON.parse(section?.element?.['element-data'] || '{}')?.hideSection;
 
     return (
         <div className={`mb-12 grid grid-cols-6 ${layouts['centered']} gap-1`}>
