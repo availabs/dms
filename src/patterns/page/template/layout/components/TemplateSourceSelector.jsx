@@ -30,7 +30,7 @@ export const TemplateSourceSelector = ({
 
             {dataControls?.source?.source_id ? <ViewsSelect
                 source_id={dataControls?.source?.source_id}
-                value={dataControls.view}
+                value={dataControls.view?.view_id}
                 onChange={(v) => {
                     updateDataControls('view', v)
                 }}

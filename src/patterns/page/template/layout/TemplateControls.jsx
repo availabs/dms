@@ -243,7 +243,6 @@ export function PageControls({item, dataItems, updateAttribute, attributes, edit
                             dataControls={dataControls}
                             setDataControls={e => {
                                 setDataControls(e)
-                                return loadUpdates(e)
                             }}
                             saveDataControls={saveDataControls}
                             loadingStatus={loadingStatus}
@@ -262,12 +261,16 @@ export function PageControls({item, dataItems, updateAttribute, attributes, edit
                             url={url}
                             destination={destination}
                             onChange={(k, v) => {
+                                let tmpDataControls;
                                 if (k === 'id_column') {
-                                    setDataControls({...dataControls, ...{id_column: v, active_row: {}}})
+                                    tmpDataControls = {...dataControls, ...{id_column: v, active_row: {}}};
                                 }
                                 if (k === 'active_row') {
-                                    setDataControls({...dataControls, ...v})
+                                    tmpDataControls = {...dataControls, ...v}
                                 }
+
+                                setDataControls(tmpDataControls);
+                                return loadUpdates(tmpDataControls);
                             }}
                             loadingStatus={loadingStatus}
                             setLoadingStatus={setLoadingStatus}

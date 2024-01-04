@@ -26,6 +26,8 @@ const siteConfig = ({
         {rightMenu}
       </div>
   )
+
+  // const rightMenuWithSearch = rightMenu; // for live site
   return {
     format: format,
     check: ({user}, activeConfig, navigate) =>  {

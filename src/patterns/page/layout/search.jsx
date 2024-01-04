@@ -7,16 +7,16 @@ export const Search = ({app, type}) => {
     const [open, setOpen] = useState(false)
 
     return (
-        <>
+        <div className='w-full h-full p-2'>
             <button
-                className={"bg-white w-full flex items-center text-sm leading-6 text-slate-400 hover:text-slate-600 rounded-md shadow-sm py-1.5 pl-3 pr-6 transition ease-in"}
+                className={"bg-white h-full w-full flex items-center text-sm leading-6 text-slate-400 hover:text-slate-600 rounded-lg shadow-sm py-1.5 pl-4 pr-8 transition ease-in"}
                 onClick={() => setOpen(true)}
             >
                 <i className={'fa-light fa-search pr-2 '}/> Search
             </button>
 
             <SearchPallet open={open} setOpen={setOpen} app={app} type={type}/>
-        </>
+        </div>
     )
 }
 
