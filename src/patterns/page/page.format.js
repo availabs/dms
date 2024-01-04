@@ -99,7 +99,11 @@ const cmsPageFormat = {
       type: "text",
       hidden: true
     },
-
+    {
+      key: 'draft',
+      type: 'text',
+      default: "draft"
+    },
     {
       key: 'sections',
       type: 'dms-format',
