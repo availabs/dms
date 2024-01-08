@@ -1,4 +1,6 @@
-import { PageView, PageEdit } from "./layout/page"
+import PageView from "./layout/view"
+import PageEdit from "./layout/edit"
+
 import Layout from "./layout/layout"
 import cmsFormat from "./page.format.js"
 import cloneDeep from 'lodash/cloneDeep'

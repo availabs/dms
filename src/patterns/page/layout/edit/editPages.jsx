@@ -1,19 +1,16 @@
 import React, {Fragment, useState, useEffect} from 'react'
 import { NavLink, Link, useSubmit, useLocation } from "react-router-dom";
-import Nestable from './nestable';
+import Nestable from '../components/nestable';
 
 import cloneDeep from 'lodash/cloneDeep'
 import isEqual from 'lodash/isEqual'
 
-import { CMSContext } from './layout'
-
-//export const baseUrl = ''
-
+import { CMSContext } from '../layout'
 
 import { Dialog, Transition } from '@headlessui/react'
 
 
-export default function NavExample ({items,dataItems, edit}) {
+export default function EditPagesNav ({items,dataItems, edit}) {
   const { baseUrl, open, setOpen } = React.useContext(CMSContext)
 
   return (

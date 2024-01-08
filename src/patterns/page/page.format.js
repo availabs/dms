@@ -59,6 +59,7 @@ const cmsPageFormat = {
       required: true,
       default: "New Page"
     },
+    //nav settings
     {
       key: "show_in_nav",
       type: "text",
@@ -84,6 +85,7 @@ const cmsPageFormat = {
       matchWildcard: true,
       hidden: true
     },
+    //display settings
     {
       key: 'sidebar',
       type: "text",
@@ -99,18 +101,21 @@ const cmsPageFormat = {
       type: "text",
       hidden: true
     },
-    {
-      key: 'draft',
-      type: 'text',
-      default: "draft"
-    },
+    //content
     {
       key: 'sections',
       type: 'dms-format',
       isArray: true,
       format: 'dms-site+cms-section',
       DisplayComp: SectionArray
-    }
+    },
+    // 
+    {
+      key: 'published',
+      type: 'text',
+      default: "draft"
+    },
+
   ]
 }
 

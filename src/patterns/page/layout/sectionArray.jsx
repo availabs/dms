@@ -1,11 +1,21 @@
 import React, { Fragment, useState } from "react"
 import isEqual from 'lodash/isEqual'
 import cloneDeep from 'lodash/cloneDeep'
-import { getSizeClass, sizeOptionsSVG } from './utils/sizes.jsx'
 import { Popover, Transition } from '@headlessui/react'
 import { Link } from "react-router-dom";
 import { usePopper } from 'react-popper'
-import {isJson} from "../../../../../../utils/macros";
+
+import { getSizeClass, sizeOptionsSVG } from './components/utils/sizes.jsx'
+
+
+const isJson = (str)  => {
+    try {
+        JSON.parse(str);
+    } catch (e) {
+        return false;
+    }
+    return true;
+}
 
 function SizeSelect ({size='1', setSize, onChange}) {
     
