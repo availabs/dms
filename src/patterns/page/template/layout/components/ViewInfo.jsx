@@ -33,7 +33,7 @@ export const ViewInfo = ({submit, item, url, destination, source,view, id_column
             }
 
             const sectionIds = pages.map(page => page.data.value.sections.map(section => section.id));
-            const templateSectionIds = item.sections.map(s => s.id)
+            const templateSectionIds = item.sections?.map(s => s.id)
             const sections = await sectionIds.reduce(async (acc, sectionId) => {
                 const prevSections = await acc;
                 const currentSections = await dmsDataLoader(
