@@ -58,7 +58,7 @@ const SearchPallet = ({open, setOpen, app, type}) => {
                     name: value.section_title,
                     tags: value.tags,
                     description: value.page_title,
-                    url: `/${locationUrlMap[value.type]}/${value.url_slug}`,
+                    url: `${locationUrlMap[value.type]}/${value.url_slug}`,
                     type: value.type,
                     color: 'bg-indigo-500',
                     icon: () => <i className={'fa-light fa-memo text-white'}/>,

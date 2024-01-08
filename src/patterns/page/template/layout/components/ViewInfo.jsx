@@ -36,7 +36,7 @@ export const ViewInfo = ({submit, item, url, destination, source,view, id_column
             md = [];
         }
 
-        return md
+        return md.filter(col => !['geom', 'wkb_geometry'].includes(col?.name))
 
     }, [source]);
 
@@ -160,12 +160,7 @@ export const ViewInfo = ({submit, item, url, destination, source,view, id_column
                         {loadingStatus || 'Generate Pages'}
                     </button> :
                         <button className={`mt-4 p-2 rounded-lg text-white bg-gray-500 cursor-not-allowed`}
-                                disabled={loadingStatus}
-                                onClick={e =>
-                                    generatePages({
-                                        item, url, destination, id_column,
-                                        dataRows, falcor, setLoadingStatus
-                                    })}
+                                disabled={true}
                         >
                             No template data available.
                         </button>

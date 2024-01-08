@@ -218,6 +218,9 @@ export function PageControls({item, dataItems, updateAttribute, attributes, edit
                             <option key={'playground'} value={'docs-play'}
                                     className={theme.pageControls.selectOption}>Playground
                             </option>
+                            <option key={'playground'} value={'docs-ctp'}
+                                    className={theme.pageControls.selectOption}>CTP Live
+                            </option>
                         </select>
                     </div>
 
