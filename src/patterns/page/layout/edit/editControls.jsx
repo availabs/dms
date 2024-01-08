@@ -4,9 +4,9 @@ import { ExclamationTriangleIcon } from '@heroicons/react/24/outline'
 import cloneDeep from 'lodash/cloneDeep'
 import { ToastContainer, toast, Slide } from 'react-toastify';
 import { useSubmit, useLocation } from "react-router-dom";
-import {json2DmsForm, getUrlSlug, toSnakeCase} from './nav'
+import {json2DmsForm, getUrlSlug, toSnakeCase} from '../components/utils/navItems'
 import 'react-toastify/dist/ReactToastify.css';
-import { CMSContext } from './layout'
+import { CMSContext } from '../layout'
 
 const theme = {
   pageControls: {
@@ -17,9 +17,7 @@ const theme = {
   }
 }
 
-
-
-export function PageControls({ item, dataItems, updateAttribute,attributes, edit, status, setItem }) {
+export function EditControls({ item, dataItems, updateAttribute,attributes, edit, status, setItem }) {
   const submit = useSubmit()
   const { pathname = '/edit' } = useLocation()
   const [showDelete, setShowDelete] = useState(false)
@@ -76,7 +74,8 @@ export function PageControls({ item, dataItems, updateAttribute,attributes, edit
     const newItem = {
       title: 'New Page',
       parent: item.id,
-      index: highestIndex + 1
+      index: highestIndex + 1,
+      published: 'draft'
     }
     newItem.url_slug = `${getUrlSlug(newItem,dataItems)}`
 
