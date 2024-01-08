@@ -4,7 +4,7 @@ import PageEdit from "./layout/edit"
 import Layout from "./layout/layout"
 import cmsFormat from "./page.format.js"
 import cloneDeep from 'lodash/cloneDeep'
-import {Search} from "./layout/search";
+import {Search} from "./search";
 
 // sideNav = {size: 'miniPad'}
 

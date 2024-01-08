@@ -9,10 +9,11 @@ import Layout from '../components/avail-layout'
 import { dataItemsNav, detectNavLevel } from '../components/utils/navItems'
 import { getInPageNav } from "../components/utils/inPageNavItems.js";
 import { Header } from '../components/header'
+import { json2DmsForm, getUrlSlug, toSnakeCase } from '../components/utils/navItems'
 import theme from '../components/theme'
 
 
-import Nav, {json2DmsForm, getUrlSlug, toSnakeCase}  from './editPages'
+import EditPagesNav  from './editPages'
 import EditHistory from './editHistory'
 import { EditControls } from './editControls'
 
@@ -68,7 +69,7 @@ function PageEdit ({
           <div className={theme.layout.container}>
             {/* PAGE EDIT */}
             <div className='flex flex-1 h-full w-full px-1 md:px-6 py-6'>
-              <Nav dataItems={dataItems}  edit={true} />
+              <EditPagesNav dataItems={dataItems}  edit={true} />
               <EditHistory item={item} />
               {item?.sidebar === 'show' ? 
                   (<div className='w-64 hidden xl:block'>

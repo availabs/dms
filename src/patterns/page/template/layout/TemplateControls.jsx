@@ -5,7 +5,7 @@ import cloneDeep from 'lodash/cloneDeep'
 import isEqual from 'lodash/isEqual'
 import {ToastContainer, toast, Slide} from 'react-toastify';
 import {useSubmit, useLocation} from "react-router-dom";
-import {json2DmsForm, getUrlSlug, toSnakeCase} from '~/modules/dms/src/patterns/page/layout/nav'
+import {json2DmsForm, getUrlSlug, toSnakeCase} from '~/modules/dms/src/patterns/page/layout/components/utils/navItems'
 import 'react-toastify/dist/ReactToastify.css';
 import DataControls from './TemplateDataControls'
 import {parseJSON} from "./utils/parseJSON.js";

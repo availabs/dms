@@ -1,12 +1,9 @@
 import React, {Fragment, useState, useEffect} from 'react'
-import { NavLink, Link, useSubmit, useLocation } from "react-router-dom";
-import Nestable from '../components/nestable';
-
-import cloneDeep from 'lodash/cloneDeep'
-import isEqual from 'lodash/isEqual'
+import { NavLink, useSubmit, useLocation } from "react-router-dom";
 
 import { CMSContext } from '../layout'
-
+import Nestable from '../components/nestable';
+import { json2DmsForm, getUrlSlug } from '../components/utils/navItems'
 import { Dialog, Transition } from '@headlessui/react'
 
 
@@ -263,37 +260,4 @@ function AddItemButton ({dataItems}) {
 }
 
 
-export const json2DmsForm = (data,requestType='update') => {
-  let out = new FormData()
-  out.append('data', JSON.stringify(data))
-  out.append('requestType', requestType)
-  //console.log(out)
-  return out
-}
-
-const getParentSlug = (item, dataItems) => {
-  
-
-  if(!item.parent) {
-    return ''
-  }
-  let parent = dataItems.filter(d => d.id === item.parent)[0]
-  return `${parent.url_slug}/`
-}
-
-export const getUrlSlug = (item, dataItems) => {
-  let slug =  `${getParentSlug(item, dataItems)}${toSnakeCase(item.title)}`
-
-  if((item.url_slug && item.url_slug === slug) || !dataItems.map(d => d.url_slug).includes(slug)) {
-    return slug
-  }
-  return `${slug}_${item.index}`
-}
-
-export const toSnakeCase = str =>
-  str &&
-  str
-    .match(/[A-Z]{2,}(?=[A-Z][a-z]+[0-9]*|\b)|[A-Z]?[a-z]+[0-9]*|[A-Z]|[0-9]+/g)
-    .map(x => x.toLowerCase())
-    .join('_');
 

@@ -5,7 +5,7 @@ import { Popover, Transition } from '@headlessui/react'
 import { Link } from "react-router-dom";
 import { usePopper } from 'react-popper'
 
-import { getSizeClass, sizeOptionsSVG } from './components/utils/sizes.jsx'
+import { getSizeClass, sizeOptionsSVG } from './sizes.jsx'
 
 
 const isJson = (str)  => {

@@ -4,7 +4,7 @@ import { ExclamationTriangleIcon } from '@heroicons/react/24/outline'
 import cloneDeep from 'lodash/cloneDeep'
 import { ToastContainer, toast, Slide } from 'react-toastify';
 import { useSubmit, useLocation } from "react-router-dom";
-import {json2DmsForm, getUrlSlug, toSnakeCase} from './editPages'
+import {json2DmsForm, getUrlSlug, toSnakeCase} from '../components/utils/navItems'
 import 'react-toastify/dist/ReactToastify.css';
 import { CMSContext } from '../layout'
 

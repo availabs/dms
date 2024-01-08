@@ -1,4 +1,4 @@
-import SectionArray from './layout/sectionArray'
+import SectionArray from './sections/sectionArray'
 //import femaReqs from './data/fema-requirement-tags'
 
 export const cmsSection = {
