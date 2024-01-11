@@ -3,8 +3,8 @@ import { NavLink, Link, useSubmit, useNavigate, useLocation, useParams} from "re
 import cloneDeep from 'lodash/cloneDeep'
 
 import { SideNav } from '~/modules/avl-components/src'
-import { getInPageNav } from "~/modules/dms/src/patterns/page/layout/utils/inPageNavItems.js";
-import { json2DmsForm }  from '~/modules/dms/src/patterns/page/layout/nav'
+import { getInPageNav } from "~/modules/dms/src/patterns/page/layout/components/utils/inPageNavItems.js";
+import { json2DmsForm }  from '~/modules/dms/src/patterns/page/layout/components/utils/navItems.js'
 
 import { PageControls } from './TemplateControls'
 
