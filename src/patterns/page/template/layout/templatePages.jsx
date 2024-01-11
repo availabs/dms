@@ -7,14 +7,16 @@ import {DeleteModal} from "./TemplateList.jsx";
 export const locationNameMap = {
     'docs-play': 'Playground',
     'docs-page': 'Live',
-    'docs-draft': 'Draft'
+    'docs-draft': 'Draft',
+    'docs-ctp': 'CTP Live'
 }
 
 
 export const locationUrlMap = {
-    'docs-play': 'playground',
+    'docs-play': '/playground',
     'docs-page': '',
-    'docs-draft': 'drafts'
+    'docs-ctp': '',
+    'docs-draft': '/drafts'
 }
 
 const NoPages = ({}) => (<div className={'p-4'}>No Pages have been generated for this template.</div>)
@@ -25,7 +27,7 @@ function TemplateRow ({ id, app, type, data={} }) {
     return (
         <div className='grid grid-cols-3 px-2 py-3 border-b hover:bg-blue-50'>
             <div>
-                <Link to={`/${locationUrlMap[type]}/${data?.value?.url_slug}`} >
+                <Link to={`${locationUrlMap[type]}/${data?.value?.url_slug}`} >
                     <div className='px-2 font-medium text-lg text-slate-700'>
                         {data?.value?.title}
                     </div>
@@ -36,11 +38,11 @@ function TemplateRow ({ id, app, type, data={} }) {
                 {locationNameMap[type]}
             </div>
             <div className={'text-right px-2'}>
-                <Link to={`/${locationUrlMap[type]}/${data?.value?.url_slug}`}
+                <Link to={`${locationUrlMap[type]}/${data?.value?.url_slug}`}
                       className={'fa-thin fa-eye px-2 py-1 mx-2 text-bold cursor-pointer'}
                       title={'view'}
                 />
-                <Link to={`/${locationUrlMap[type]}/edit/${data?.value?.url_slug}`}
+                <Link to={`${locationUrlMap[type]}/edit/${data?.value?.url_slug}`}
                       className={'fa-thin fa-pencil px-2 py-1 mx-2 text-bold cursor-pointer'}
                       title={'edit'}
                 />

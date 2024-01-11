@@ -59,3 +59,37 @@ export function dataItemsNav(dataItems, baseUrl = '', edit = false) {
             return item
         })
 }
+
+export const json2DmsForm = (data,requestType='update') => {
+  let out = new FormData()
+  out.append('data', JSON.stringify(data))
+  out.append('requestType', requestType)
+  //console.log(out)
+  return out
+}
+
+const getParentSlug = (item, dataItems) => {
+  
+
+  if(!item.parent) {
+    return ''
+  }
+  let parent = dataItems.filter(d => d.id === item.parent)[0]
+  return `${parent.url_slug}/`
+}
+
+export const getUrlSlug = (item, dataItems) => {
+  let slug =  `${getParentSlug(item, dataItems)}${toSnakeCase(item.title)}`
+
+  if((item.url_slug && item.url_slug === slug) || !dataItems.map(d => d.url_slug).includes(slug)) {
+    return slug
+  }
+  return `${slug}_${item.index}`
+}
+
+export const toSnakeCase = str =>
+  str &&
+  str
+    .match(/[A-Z]{2,}(?=[A-Z][a-z]+[0-9]*|\b)|[A-Z]?[a-z]+[0-9]*|[A-Z]|[0-9]+/g)
+    .map(x => x.toLowerCase())
+    .join('_');

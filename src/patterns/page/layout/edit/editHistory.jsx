@@ -1,12 +1,7 @@
-import React, {Fragment, useState, useEffect} from 'react'
+import React, { Fragment } from 'react'
+import { Dialog, Transition } from '@headlessui/react'
 
-import { Dialog, Listbox, Transition } from '@headlessui/react'
-import { NavLink, Link, useSubmit, useLocation } from "react-router-dom";
-
-import cloneDeep from 'lodash/cloneDeep'
-import isEqual from 'lodash/isEqual'
-
-import { CMSContext } from './layout'
+import { CMSContext } from '../layout'
 
 
 export default function EditHistory ({items,dataItems, edit}) {
