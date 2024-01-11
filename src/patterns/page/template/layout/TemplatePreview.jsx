@@ -16,8 +16,8 @@ const theme = {
   }
 }
 
-export function TemplateEdit ({
-  item, dataItems, updateAttribute ,attributes, setItem, status, params
+export function TemplatePreview ({
+  item, dataItems, updateAttribute ,attributes,  params
 }) {
   const navigate = useNavigate()
   const submit = useSubmit()
@@ -25,9 +25,8 @@ export function TemplateEdit ({
   const { pathname = '/edit' } = useLocation()
   //const { baseUrl } = React.useContext(CMSContext)
   const baseUrl = '/admin/templates'
-  const { id } = params
-  
-  
+  const {id} = params;
+
   const inPageNav = getInPageNav(dataItems, baseUrl);
 
 
@@ -41,11 +40,11 @@ export function TemplateEdit ({
   }
 
   //console.log('page edit', attributes['sections'])
-  const ContentEdit = attributes['sections'].EditComp
+  const ContentView = attributes['sections'].ViewComp;
  
   return (
     <div key={id} className='flex flex-1 h-full w-full px-1 md:px-6 py-6'>
-      {item?.sidebar === 'show' ?
+      {item?.sidebar === 'show' ? 
           (<div className='w-64 hidden xl:block'>
             <div className='w-64 fixed hidden xl:block h-screen'> 
               <div className='h-[calc(100%_-_8rem)] overflow-y-auto overflow-x-hidden'>
@@ -58,11 +57,11 @@ export function TemplateEdit ({
         <div className={theme.page.container}>
           <div className='text-base font-light leading-7'>
             <div className='w-full text-right relative py-2 z-10 h-[40px]'>
-                <Link to={`${baseUrl}/view/${id}`}>
-                  <i className='fad fa-eye fa-fw flex-shrink-0  pr-1 text-blue-500'/>
-                </Link>
+              <Link to={`${baseUrl}/edit/${id}`}>
+                <i className='fad fa-pencil fa-fw flex-shrink-0  pr-1 text-blue-500'/>
+              </Link>
             </div>
-            <ContentEdit
+            <ContentView
                 value={item['sections']}
                 onChange={saveSection}
                 {...attributes['sections']}
@@ -70,21 +69,8 @@ export function TemplateEdit ({
           </div>
         </div>
       </div>
-      <div className='w-52 hidden xl:block'>
-        <div className='w-52 fixed hidden xl:block h-screen'>
-          <PageControls
-              item={item}
-              dataItems={dataItems}
-              setItem={setItem}
-              edit={true}
-              status={status}
-              attributes={attributes}
-            updateAttribute={updateAttribute}
-          />
-        </div>
-      </div>
-    </div>   
-  ) 
+    </div>
+  )
 }
 
 
