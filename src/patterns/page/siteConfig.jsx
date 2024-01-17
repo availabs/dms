@@ -57,7 +57,7 @@ const siteConfig = ({
         path: "/*",
         filter: {
           mainNav: true, 
-          attributes:['title', 'index', 'url_slug', 'parent','published', 'hide_in_nav' ]
+          attributes:['title', 'index', 'url_slug', 'parent','published', 'hide_in_nav']
         },
         children: [
           { 
@@ -66,6 +66,9 @@ const siteConfig = ({
               logo={logo} 
               rightMenu={rightMenuWithSearch}
             />,
+            filter: {
+              attributes:['title', 'index', 'url_slug', 'parent', 'published', 'hide_in_nav' ,'sections','sidebar','header','footer', 'full_width']
+            },
             path: "/*",
             action: "view"
           },

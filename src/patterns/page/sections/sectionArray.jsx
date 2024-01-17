@@ -212,10 +212,10 @@ function SectionView ({value,i, attributes, edit, onEdit, moveItem}) {
     let interactCondition = typeof onEdit !== 'function' && value?.element?.['element-type']?.includes('Map:');
     let isTemplateSectionCondition = value?.element?.['template-section-id'];
     return (
-        <div className={`${i === 0 ? '-m' : ''} border border-dashed border-blue-500`}>
+        <div className={`${i === 0 ? '-m' : ''} ${true ? '' : 'border border-dashed border-blue-500'}`}>
                 {
                     (sectionTitleCondition || helpTextCondition || interactCondition) &&
-                    <div className={`flex w-full h-[50px] items-center ${(value?.['level']) === '1' ? `border-b` : ``} border border-pink-500 border-dashed`}>
+                    <div className={`flex w-full h-[50px] items-center ${(value?.['level']) === '1' ? `border-b` : ``} ${true ? '' : 'border border-dashed border-pink-500'}`}>
 
                         <div id={`#${value?.title?.replace(/ /g, '_')}`}
                              className={`flex-1 flex-row py-2  font-display font-medium uppercase scroll-mt-36 ${sectionTitleCondition ? '' : 'invisible'}`}>
@@ -437,7 +437,7 @@ const Edit = ({Component, value, onChange, attr}) => {
                 const sizeClass = getSizeClass(size, requiredSpace, availableSpace, runningColTotal);
 
                 return (
-                    <div key={i} className={`${sizeClass} border border-dashed border-green-500`}>
+                    <div key={i} className={`${sizeClass} ${true ? '' : 'border border-dashed border-green-500'}`}>
                         {/* add to top */}
                         { edit.index === -1 && i === 0 ? 
                             <AddSectionButton onClick={() => setEditIndex(0)}/> : 

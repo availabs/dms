@@ -71,6 +71,9 @@ async function loadDmsFormats (item,dmsAttrsConfigs,falcor) {
 
     for (const key of dmsKeys) {
         const dmsFormatRequests = []
+        if(typeof item?.[key] === 'string') {
+            item[key] = JSON.parse(item[key]) 
+        } 
         // if dmstype isArray
         if(typeof item?.[key]?.[Symbol.iterator] === 'function') {
             for (let ref of item[key]) {

@@ -32,7 +32,7 @@ function PageEdit ({
   const level = detectNavLevel(dataItems, baseUrl);
   const inPageNav = getInPageNav(dataItems, baseUrl);
   
-  console.log('page edit', item)
+  //console.log('page edit', item)
   //console.log('page edit', open, setOpen)
   //if(!dataItems[0]) return <div/>
 
@@ -70,9 +70,15 @@ function PageEdit ({
     }
 
     let history = item.history ? cloneDeep(item.history) : []
-    history.push(edit)
-    updateAttribute('history', history)
-    updateAttribute('draft_sections', v)
+    if(action){
+      history.push(edit)
+    }
+    updateAttribute('','',{
+      'has_changes': true,
+      'history': history,
+      'draft_sections': v
+    })
+
     // ----------------
     // only need to send id, and data to update, not whole 
     // --------------------

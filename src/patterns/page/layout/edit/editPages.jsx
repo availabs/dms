@@ -16,7 +16,7 @@ export default function EditPagesNav ({ item, dataItems, edit, open, setOpen}) {
   //   return items
   // }, [dataItems])  
 
-  console.log('edit pages in nav', dataItems)
+  // console.log('edit pages in nav', dataItems)
 
   return (
     <Transition.Root show={open} as={Fragment}>
@@ -163,7 +163,7 @@ function Nav ({item, dataItems, edit, open, setOpen}) {
     Promise.all(updates.map((item) => {
       submit(json2DmsForm(item), { method: "post", action: pathname })
     })).then(values => {
-      console.log('updating nav', values)
+      //console.log('updating nav', values)
     })
 
   }, []);

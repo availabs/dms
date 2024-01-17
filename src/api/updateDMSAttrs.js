@@ -3,9 +3,9 @@ import isEqual from "lodash/isEqual";
 
 export 	async function updateDMSAttrs(data, configs, falcor) {
     let updates = {}
-    console.log('updateDMSAttrs', data, configs)
+    //console.log('updateDMSAttrs', data, configs)
     for( const attr of Object.keys(data) ) {
-        console.log('updateDMSAttrs 1 attr', attr )
+        //console.log('updateDMSAttrs 1 attr', attr )
         updates[attr] = []
         let [app,type] = configs[attr]?.format.split('+')
         //console.log('create requests', app, type, attr)

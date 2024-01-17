@@ -74,7 +74,7 @@ const cmsPageFormat = {
   app: "dms-site",
   type: "docs-page",
   registerFormats: [cmsSection,pageEdit],
-  defaultSearch: `data ->> 'index' = '0' and data ->> 'parent' = ''`,
+  defaultSearch: `data ->> 'index' = '0' and (data ->> 'parent' = '' or data ->> 'parent' is null)`,
   defaultSort: (d) => d.sort((a,b) => {
    return (b.parent===null)-(a.parent===null) || a.index - b.index || +a.parent - +b.parent
   }),

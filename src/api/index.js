@@ -85,11 +85,9 @@ export async function dmsDataLoader ( config, path='/') {
 		.filter(routes => routes?.length)
 		.map(path => {
 			let v = get(newReqFalcor, path.slice(0, -1), false)
-
 			if(v?.$type === 'ref') {
 				return +v.value[3]
 			}
-
 			return +(v?.id)
 		})
 		.filter(d => d)
@@ -97,7 +95,7 @@ export async function dmsDataLoader ( config, path='/') {
 	// if from and to index are passed, filter ids based on them to avoid returning wrong number of rows
 	let id = activeConfigs[0]?.params?.id;
 
-	//console.log('loading data id', id,activeIds)
+	console.log('loading data id', id,activeIds)
 
 	let fromIndex =
 		typeof activeConfigs?.[0]?.filter?.fromIndex === 'function' ?

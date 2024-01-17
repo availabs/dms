@@ -78,7 +78,7 @@ export function getIdPath (wrapperConfig,format) {
 
 	let id = wrapperConfig.params?.id;
 
-	//console.log('hola', id , wildKey)
+	console.log('hola', id , wildKey, defaultSearch)
 
 	return wildKey ? [
 		'dms', 'data', `${ app }+${ type }`,

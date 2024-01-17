@@ -24,9 +24,12 @@ function PageView ({item, dataItems, attributes, user, logo, rightMenu}) {
     return items
   }, [dataItems])
 
+  // console.log('page view', item)
+
   const level = detectNavLevel(dataItems, baseUrl);
 
   const inPageNav = getInPageNav(dataItems, baseUrl);
+
 
   
   return (

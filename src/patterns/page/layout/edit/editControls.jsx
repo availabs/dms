@@ -4,7 +4,7 @@ import { usePopper } from 'react-popper'
 
 import { ExclamationTriangleIcon } from '@heroicons/react/24/outline'
 import cloneDeep from 'lodash/cloneDeep'
-import { ToastContainer, toast, Slide } from 'react-toastify';
+// import { ToastContainer, toast, Slide } from 'react-toastify';
 import { useSubmit, useLocation } from "react-router-dom";
 import {json2DmsForm, getUrlSlug, toSnakeCase} from '../components/utils/navItems'
 import 'react-toastify/dist/ReactToastify.css';
@@ -49,6 +49,8 @@ export function EditControls({ item, dataItems, updateAttribute,attributes, edit
   //   })
   // },[status])
 
+  //console.log('edit controls item',item)
+
   const duplicateItem = () => {
     const highestIndex = dataItems
     .filter(d => !d.parent)
@@ -69,6 +71,8 @@ export function EditControls({ item, dataItems, updateAttribute,attributes, edit
     submit(json2DmsForm(newItem), { method: "post", action: pathname })
   }
 
+
+
   const insertSubPage = async () => {
     const highestIndex = dataItems
     .filter(d => d.parent === item.id)
@@ -81,13 +85,41 @@ export function EditControls({ item, dataItems, updateAttribute,attributes, edit
       title: 'New Page',
       parent: item.id,
       index: highestIndex + 1,
-      published: 'draft'
+      published: 'draft',
+      history: [{
+        type:' created Page.',
+        user: user.email, 
+        time: new Date().toString()
+      }]
     }
     newItem.url_slug = `${getUrlSlug(newItem,dataItems)}`
 
-    submit(json2DmsForm(newItem), { method: "post", action: pathname })
+    submit(json2DmsForm(newItem), { method: "post", action: `${baseUrl}/edit/${newItem.url_slug}` })
   }
-    
+  
+  const newPage = async () => {
+    const highestIndex = dataItems
+    .filter(d => !d.parent)
+    .reduce((out,d) => {
+      return Math.max(isNaN(d.index) ? 0 : d.index  , out)
+    },0)
+
+    //console.log(highestIndex, dataItems)
+    const newItem = {
+      title: 'New Page',
+      parent: item.id,
+      index: highestIndex + 1,
+      published: 'draft',
+      history: [{
+        type:' created Page.',
+        user: user.email, 
+        time: new Date().toString()
+      }]
+    }
+    newItem.url_slug = `${getUrlSlug(newItem,dataItems)}`
+
+    submit(json2DmsForm(newItem), { method: "post", action: `${baseUrl}/edit/${newItem.url_slug}` })
+  } 
 
   const saveItem = async () => {
     const newItem = cloneDeep(item)
@@ -149,8 +181,48 @@ export function EditControls({ item, dataItems, updateAttribute,attributes, edit
   }
 
   const publish = async () => {
-    const newItem = cloneDeep(item)
-     
+    let edit = {
+      type: 'published changes.',
+      user: user.email, 
+      time: new Date().toString()
+    }
+
+    let history = item.history ? cloneDeep(item.history) : []
+    history.push(edit)
+
+    const newItem = {
+      id: item.id,
+      has_changes: false,
+      published: '',
+      history
+    }
+    let sectionsByDraftId = cloneDeep(item.sections || [])
+      .reduce((o,s) => { 
+        if(s.draft_id){
+          o[s.draft_id] = s;
+        }
+        return o
+      },{})
+
+    newItem.sections = cloneDeep(item.draft_sections)
+      .reduce((sections, draft) => {
+        if(sectionsByDraftId[draft.id]) {
+          draft.id = sectionsByDraftId[draft.id].id
+        } else {
+          delete draft.id
+        }
+        sections.push(draft)
+        return sections
+      },[])
+
+    updateAttribute('','',{
+      has_changes:false,
+      published: '',
+      history
+    })
+
+    submit(json2DmsForm(newItem), { method: "post", action: pathname })
+
   }
  
   return (
@@ -160,16 +232,7 @@ export function EditControls({ item, dataItems, updateAttribute,attributes, edit
         {edit &&
           <div className='p-4'>
             <div className='w-full flex justify-center pb-6'>
-              <div 
-                onClick={saveItem}
-                className='inline-flex w-36 justify-center rounded-lg cursor-pointer text-sm font-semibold py-2 px-4 bg-blue-600 text-white hover:bg-blue-500 shadow-lg border border-b-4 border-blue-800 hover:border-blue-700 active:border-b-2 active:mb-[2px] active:shadow-none'>
-                <span className='flex items-center'>
-                  <span className='pr-2'>Save</span>
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </span>
-              </div>
+              <PublishButton item={item} onClick={publish} />
             </div>
             <div className='pl-4 pb-2'>
               <TitleEditComp
@@ -200,7 +263,11 @@ export function EditControls({ item, dataItems, updateAttribute,attributes, edit
                         </select>
                       </div>
                   }
-
+                  <div onClick={insertSubPage}
+                    className={theme.pageControls.controlItem}
+                  >
+                    {'☲ New Page'}
+                  </div>
                   
                   <div onClick={insertSubPage}
                     className={theme.pageControls.controlItem}
@@ -215,12 +282,7 @@ export function EditControls({ item, dataItems, updateAttribute,attributes, edit
                   <div onClick={() => setShowDelete(true)}
                     className={theme.pageControls.controlItem}
                   >
-                    { '☵ Delete' }
-                    <DeleteModal
-                      item={item}
-                      open={showDelete}
-                      setOpen={setShowDelete}
-                    />
+                    {'☵ Delete'}
                   </div>
                 </div>
               </IconPopover>
@@ -273,11 +335,15 @@ export function EditControls({ item, dataItems, updateAttribute,attributes, edit
               />
 
             </div>
-
+            <DeleteModal
+                item={item}
+                open={showDelete}
+                setOpen={setShowDelete}
+              />
             
           </div>
         }
-        <ToastContainer />
+        {/*<ToastContainer />*/}
     </>
   )
 }
@@ -286,7 +352,7 @@ function TitleEditComp({item, onChange}) {
   const [editing, setEditing] = React.useState(false)
   const [newTitle, setNewTitle] = React.useState(item['title'])
 
-  console.log('new title', newTitle)
+  //console.log('new title', newTitle)
 
   return (
     <div  className='flex justify-between group'>
@@ -332,17 +398,23 @@ function TitleEditComp({item, onChange}) {
   )
 }
 
-function PublishButton({item}) {
+function PublishButton({item, onClick}) {
+
+  const hasChanges = item.published === 'draft' || item.has_changes
 
   return (
     <div 
-      onClick={saveItem}
-      className='inline-flex w-36 justify-center rounded-lg cursor-pointer text-sm font-semibold py-2 px-4 bg-blue-600 text-white hover:bg-blue-500 shadow-lg border border-b-4 border-blue-800 hover:border-blue-700 active:border-b-2 active:mb-[2px] active:shadow-none'>
+      onClick={() => hasChanges ? onClick() : null}
+      className={`${ hasChanges ? 
+        'inline-flex w-36 justify-center rounded-lg cursor-pointer text-sm font-semibold py-2 px-2 bg-blue-600 text-white hover:bg-blue-500 shadow-lg border border-b-4 border-blue-800 hover:border-blue-700 active:border-b-2 active:mb-[2px] active:shadow-none':
+        'inline-flex w-36 justify-center rounded-lg cursor-not-allowed text-sm font-semibold py-2 px-2 bg-slate-300 text-white shadow border border-slate-400 border-b-4'
+      }`}
+    >
       <span className='flex items-center'>
-        <span className='pr-2'>Save</span>
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+        <span className='pr-2'>{hasChanges ? `Publish` : `No Changes`}</span>
+        {hasChanges ? <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
+        </svg> : ''}
 
       </span>
     </div>
@@ -354,7 +426,8 @@ function IconPopover({icon,children}) {
   let [popperElement, setPopperElement] = useState()
   let { styles, attributes:popperAttributes } = usePopper(referenceElement, popperElement)
 
-   return (<Popover className="relative">
+   return (
+    <Popover className="relative">
         <Popover.Button
             ref={setReferenceElement}
             className={'text-md cursor-pointer hover:text-blue-800 text-blue-500'}>
