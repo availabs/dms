@@ -1,6 +1,7 @@
 import Layout from "~/modules/dms/src/patterns/page/layout/layout"
 import TemplateList from './layout/TemplateList'
 import { TemplateEdit } from './layout/TemplateEdit'
+import { TemplatePreview } from './layout/TemplatePreview'
 import { TemplatePages } from './layout/templatePages'
 import cloneDeep from 'lodash/cloneDeep'
 
@@ -51,6 +52,11 @@ const siteConfig = ({
         type: TemplateEdit,
         action: "edit",
         path: "/edit/:id"
+      },
+      {
+        type: TemplatePreview,
+        action: "edit",
+        path: "/view/:id"
       },
       { 
           type: TemplatePages,
