@@ -3,10 +3,12 @@ import isEqual from "lodash/isEqual";
 
 export 	async function updateDMSAttrs(data, configs, falcor) {
     let updates = {}
+    console.log('updateDMSAttrs', data, configs)
     for( const attr of Object.keys(data) ) {
+        console.log('updateDMSAttrs 1 attr', attr )
         updates[attr] = []
         let [app,type] = configs[attr]?.format.split('+')
-        console.log('create requests', app, type, attr)
+        //console.log('create requests', app, type, attr)
 
         const toUpdate = Array.isArray(data[attr]) ?
             data[attr] : [data[attr]]
@@ -26,7 +28,7 @@ export 	async function updateDMSAttrs(data, configs, falcor) {
                 delete currentData.ref
                 delete currentData.id
                 // ---
-                console.log(currentData,d)
+                //console.log(currentData,d)
 
                 if(!isEqual(currentData,d)){
                     console.log('update', id )

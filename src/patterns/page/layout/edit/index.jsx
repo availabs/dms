@@ -1,32 +1,28 @@
 import React, {useEffect} from 'react'
 import { NavLink, Link, useSubmit, useNavigate, useLocation, useParams} from "react-router-dom";
 
+import Layout from '../components/avail-layout'
 import { SideNav } from '~/modules/avl-components/src'
+import { Header } from '../components/header'
+import { EditControls } from './editControls'
+
 import { CMSContext } from '../layout'
 
-
-import Layout from '../components/avail-layout'
 import { dataItemsNav, detectNavLevel } from '../components/utils/navItems'
 import { getInPageNav } from "../components/utils/inPageNavItems.js";
-import { Header } from '../components/header'
 import { json2DmsForm, getUrlSlug, toSnakeCase } from '../components/utils/navItems'
 import theme from '../components/theme'
-
-
-import EditPagesNav  from './editPages'
-import EditHistory from './editHistory'
-import { EditControls } from './editControls'
 
 import cloneDeep from 'lodash/cloneDeep'
 
 
 function PageEdit ({
-  item, dataItems, updateAttribute ,attributes, setItem, status, user, logo, rightMenu
+  item, dataItems, updateAttribute ,attributes, setItem, status, logo, rightMenu
 }) {
   const navigate = useNavigate()
   const submit = useSubmit()
   const { pathname = '/edit' } = useLocation()
-  const { baseUrl } = React.useContext(CMSContext)
+  const { baseUrl, user } = React.useContext(CMSContext)
   
   const menuItems = React.useMemo(() => {
     let items = dataItemsNav(dataItems,baseUrl,true)
@@ -36,7 +32,7 @@ function PageEdit ({
   const level = detectNavLevel(dataItems, baseUrl);
   const inPageNav = getInPageNav(dataItems, baseUrl);
   
-  // console.log('page edit', item)
+  console.log('page edit', item)
   //console.log('page edit', open, setOpen)
   //if(!dataItems[0]) return <div/>
 
@@ -49,15 +45,52 @@ function PageEdit ({
     }
   },[])
 
-  const saveSection = (v) => {
-    updateAttribute('sections', v)
-    const newItem = cloneDeep(item)
-    newItem.sections = v
-    submit(json2DmsForm(newItem), { method: "post", action: `${baseUrl}/edit/${newItem.url_slug}` })
+  React.useEffect(() => {
+    // ------------------------------------------------------------
+    // -- This on load effect backfills pages created before drafts
+    // -- will be removed after full adoption of draft / publish
+    // ------------------------------------------------------------
+    if(item.sections && item?.sections?.length > 0 && !item.draft_sections) {
+      const draftSections = cloneDeep(item.sections)
+      draftSections.forEach(d => delete d.id)
+      const newItem = cloneDeep(item)
+      newItem.draft_sections = draftSections
+      item.draft_sections = draftSections
+      updateAttribute('draft_sections', draftSections)
+      submit(json2DmsForm(newItem), { method: "post", action: `${baseUrl}/edit/${newItem.url_slug}` })
+    }
+  },[])
+
+  const saveSection = (v,action) => {
+    //console.log('save section', v,action)
+    let edit = {
+      type: action,
+      user: user.email, 
+      time: new Date().toString()
+    }
+
+    let history = item.history ? cloneDeep(item.history) : []
+    history.push(edit)
+    updateAttribute('history', history)
+    updateAttribute('draft_sections', v)
+    // ----------------
+    // only need to send id, and data to update, not whole 
+    // --------------------
+
+    const newItem = {
+      id: item.id, 
+      draft_sections: v,
+      has_changes: true,
+      history, 
+    }
+    submit(json2DmsForm(newItem), { method: "post", action: `${baseUrl}/edit/${item.url_slug}` })
+    //.then(d => console.log('on submit',d))
   }
 
-  const ContentEdit = attributes['sections'].EditComp
- 
+  const ContentEdit = attributes['draft_sections'].EditComp
+  
+  
+
   return (
     <div>
        {item?.header && <Header {...item.header}/>} 
@@ -69,8 +102,6 @@ function PageEdit ({
           <div className={theme.layout.container}>
             {/* PAGE EDIT */}
             <div className='flex flex-1 h-full w-full px-1 md:px-6 py-6'>
-              <EditPagesNav dataItems={dataItems}  edit={true} />
-              <EditHistory item={item} />
               {item?.sidebar === 'show' ? 
                   (<div className='w-64 hidden xl:block'>
                     <div className='w-64 fixed hidden xl:block h-screen'> 
@@ -90,9 +121,9 @@ function PageEdit ({
                 </div>
                 <div className='text-base font-light leading-7 -mt-[40px]'>
                     <ContentEdit
-                      value={item['sections']} 
+                      value={item['draft_sections']} 
                       onChange={saveSection}         
-                      {...attributes['sections']}
+                      {...attributes['draft_sections']}
                     />
                 </div>
               </div>
