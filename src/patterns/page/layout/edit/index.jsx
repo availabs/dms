@@ -117,7 +117,7 @@ function PageEdit ({
                     </div>
                   </div>)
                 : ''}
-              <div className='flex-1 flex border shadow bg-white px-4 '>
+              <div className={theme.page.content}>
                 <div className={theme.page.container}>
                   <div className='w-full text-right relative py-2 z-10 h-[40px]'>
                   {user?.authLevel >= 5 ?  
