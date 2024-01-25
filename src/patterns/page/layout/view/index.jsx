@@ -56,7 +56,7 @@ function PageView ({item, dataItems, attributes, user, logo, rightMenu}) {
                 </div>)
               : ''}
             
-            <div className='flex-1 flex border  shadow bg-white px-4'>
+            <div className={theme.page.content}>
               <div className={theme.page.container + ' '}>
                 {/*<div className='px-6 py-4 font-sans font-medium text-xl text-slate-700 uppercase max-w-5xl mx-auto'>
                   {item['title']}
