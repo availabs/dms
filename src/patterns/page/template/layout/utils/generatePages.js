@@ -9,7 +9,7 @@ export const generatePages = async ({
 }) => {
     // const disaster_numbers = ['4020', '4031']
     setLoadingStatus('Generating Pages...')
-    const idColAttr = dataRows.map(d => d[id_column.name]).filter((d,i) => (d && (i < 100)))
+    const idColAttr = dataRows.map(d => d[id_column.name]).filter((d,i) => (d && (i < 10000)))
 
     await idColAttr.reduce(async(acc, idColAttrVal, pageI) => {
         await acc;
