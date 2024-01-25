@@ -49,7 +49,7 @@ const RenderColorPicker = ({title, className, color, setColor}) => (
 const Edit = ({value, onChange}) => {
     const cachedData = parseJson(value)
     const emptyTextBlock = {text: '', size: '4xl', color: '000000'};
-    const [bgColor, setBgColor] = useState(cachedData?.bgColor || 'rgba(0,0,0,0)');
+    const [bgColor, setBgColor] = useState(cachedData?.bgColor || '#fff');
     const [text, setText] = useState(cachedData?.text || value || emptyTextBlock);
 
     useEffect(() => {

@@ -30,8 +30,12 @@ export default function EditWrapper({ Component, format, options, params, user, 
 		setItem(data.filter(d => filterParams(d,params,format))[0] || {})
 	},[params])
 
-	const updateAttribute = (attr, value) => {
-		setItem({...item, [attr]: value })
+	const updateAttribute = (attr, value, multi) => {
+		if(multi) {
+			setItem({...item, ...multi})
+		} else {
+			setItem({...item, [attr]: value })
+		}
 	}
 
 	const submitForm = () => {

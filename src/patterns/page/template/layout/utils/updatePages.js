@@ -8,8 +8,9 @@ import {json2DmsForm} from '~/modules/dms/src/patterns/page/layout/components/ut
 export const updatePages = async ({submit, item, url, destination, id_column, generatedPages, generatedSections, falcor, setLoadingStatus}) => {
     // while updating existing sections, keep in mind to not change the id_column attribute.
     setLoadingStatus('Updating Pages...')
-    await generatedPages.reduce(async(acc, page, pageI) => {
-        await acc;
+    console.time('pages updated in: ')
+    await Promise.all(generatedPages.map(async(page, pageI) => {
+        // await acc;
         setLoadingStatus(`Updating page ${pageI + 1}/${generatedPages?.length}`)
         const sections = generatedSections.filter(section => page.data.value.sections.map(s => s.id).includes(section.id));
 
@@ -117,6 +118,7 @@ export const updatePages = async ({submit, item, url, destination, id_column, ge
             // }
         }
 
-    }, Promise.resolve())
+    }))
+    console.timeEnd('pages updated in: ')
     setLoadingStatus(undefined)
 }

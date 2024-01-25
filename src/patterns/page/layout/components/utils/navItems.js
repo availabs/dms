@@ -44,11 +44,13 @@ export function dataItemsNav(dataItems, baseUrl = '', edit = false) {
     return dataItems
         .sort((a, b) => a.index - b.index)
         .filter(d => !d.parent)
+        .filter(d => (edit || d.published !== 'draft' ))
         .map((d, i) => {
+            //console.log(d)
             let item = {
                 id: d.id,
                 path: `${edit ? `${baseUrl}/edit` : baseUrl}/${/*i === 0 && !edit ? '' : */d.url_slug || d.id}`,
-                name: d.title,
+                name: `${d.title} ${d.published === 'draft' ? '*' : ''}`,
                 hideInNav: d.hide_in_nav
             }
 

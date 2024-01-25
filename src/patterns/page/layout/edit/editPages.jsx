@@ -3,12 +3,20 @@ import { NavLink, useSubmit, useLocation } from "react-router-dom";
 
 import { CMSContext } from '../layout'
 import Nestable from '../components/nestable';
+import { dataItemsNav } from '../components/utils/navItems'
 import { json2DmsForm, getUrlSlug } from '../components/utils/navItems'
 import { Dialog, Transition } from '@headlessui/react'
 
 
-export default function EditPagesNav ({items,dataItems, edit}) {
-  const { baseUrl, open, setOpen } = React.useContext(CMSContext)
+export default function EditPagesNav ({ item, dataItems, edit, open, setOpen}) {
+  const { baseUrl } = React.useContext(CMSContext)
+  
+  // const menuItems = React.useMemo(() => {
+  //   let items = dataItemsNav(dataItems,baseUrl,true)
+  //   return items
+  // }, [dataItems])  
+
+  // console.log('edit pages in nav', dataItems)
 
   return (
     <Transition.Root show={open} as={Fragment}>
@@ -48,7 +56,7 @@ export default function EditPagesNav ({items,dataItems, edit}) {
                       </div>
                     </div>
                     <div className="relative mt-6 flex-1 px-4 sm:px-6">
-                      <Nav items={items} dataItems={dataItems} edit={edit} />
+                      <Nav item={item} dataItems={dataItems} edit={edit} open={open} setOpen={setOpen} />
                     </div>
                   </div>
                 </Dialog.Panel>
@@ -63,7 +71,7 @@ export default function EditPagesNav ({items,dataItems, edit}) {
 
 const theme = {
   nav: {
-    container: (open) => `${open ? `w-[294px]` : 'hidden' } w-full `,
+    container: (open) => `w-full `,
     navItemContainer: 'h-full border-l overflow-y-auto overflow-x-hidden pt-3 scrollbar-xs',
     navItem: ({ isActive, isPending }) =>
       `block px-4 py-2 font-light ${isActive ?
@@ -108,10 +116,10 @@ function getChildNav(item, dataItems, baseUrl, edit) {
   
 }
 
-function Nav ({item, dataItems, edit}) {
+function Nav ({item, dataItems, edit, open, setOpen}) {
   const submit = useSubmit()
   const { pathname = '/edit' } = useLocation()
-  const { baseUrl, open, setOpen } = React.useContext(CMSContext)
+  const { baseUrl} = React.useContext(CMSContext)
   
   
   const onDragEnd = React.useCallback(result => {
@@ -155,7 +163,7 @@ function Nav ({item, dataItems, edit}) {
     Promise.all(updates.map((item) => {
       submit(json2DmsForm(item), { method: "post", action: pathname })
     })).then(values => {
-      console.log('updating nav', values)
+      //console.log('updating nav', values)
     })
 
   }, []);
@@ -229,7 +237,7 @@ function Nav ({item, dataItems, edit}) {
 function AddItemButton ({dataItems}) {
   const submit = useSubmit();
   const { pathname = '/edit' } = useLocation();
-  const { baseUrl } = React.useContext(CMSContext);
+  const { baseUrl, user } = React.useContext(CMSContext);
   
   const highestIndex = dataItems
     .filter(d => !d.parent)
@@ -240,7 +248,13 @@ function AddItemButton ({dataItems}) {
   //console.log(highestIndex, dataItems)
   const item = {
     title: 'New Page',
-    index: highestIndex + 1
+    index: highestIndex + 1,
+    published: 'draft',
+    history: [{
+      type:' created Page.',
+      user: user.email, 
+      time: new Date().toString()
+    }]
   }
   item.url_slug = getUrlSlug(item,dataItems)
 

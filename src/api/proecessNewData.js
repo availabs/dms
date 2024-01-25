@@ -18,7 +18,6 @@ export async function processNewData (dataCache, activeIdsIntOrStr, filteredIdsL
         d.type === type
     ))
     
-    // console.log('test', activeIds, newDataVals[0],  newDataVals.length)
     
     for(const k in newDataVals) {
         // flatten data into single object
@@ -47,7 +46,9 @@ export async function processNewData (dataCache, activeIdsIntOrStr, filteredIdsL
     let i = 0 
     for(const d in newData) { 
         if(activeIds === 'loadAll' || activeIds.includes(+newData[d].id) || i === 0) {
+            //console.time(`load dms formats ${newData[d].id}`)
             await loadDmsFormats(newData[d],dmsAttrsConfigs,falcor);
+            //console.timeEnd(`load dms formats ${newData[d].id}`)
         }
         i++;
     }
@@ -69,28 +70,27 @@ async function loadDmsFormats (item,dmsAttrsConfigs,falcor) {
 
 
     for (const key of dmsKeys) {
-
-        //console.log('key', key)
-
         const dmsFormatRequests = []
-        for (let ref of item[key]) {
-            if(ref.id) {
-                dmsFormatRequests.push(['dms','data', 'byId', ref.id, 'data'])
+        if(typeof item?.[key] === 'string') {
+            item[key] = JSON.parse(item[key]) 
+        } 
+        // if dmstype isArray
+        if(typeof item?.[key]?.[Symbol.iterator] === 'function') {
+            for (let ref of item[key]) {
+                if(ref.id) {
+                    dmsFormatRequests.push(['dms','data', 'byId', ref.id, 'data'])
+                }
             }
+        } else {
+            // if dmstype is single
+            dmsFormatRequests.push(['dms','data', 'byId', item[key].id, 'data'])
         }
 
         if(dmsFormatRequests.length > 0) {
             let newData = await falcor.get(...dmsFormatRequests)
-            let index = 0
-            for (let ref of item[key]) {
-                if(ref.id) {
-                    //let newData = await falcor.get()
-                    dmsFormatRequests.push(['dms','data', 'byId', ref.id, 'data'])
-                }
-            }
-
-            if(dmsFormatRequests.length > 0) {
-                let newData = await falcor.get(...dmsFormatRequests)
+            // console.log('testing dmsFormatRequests', newData)
+            // if dmstype isArray
+            if(typeof item?.[key]?.[Symbol.iterator] === 'function') {
                 let index = 0
                 for (let ref of item[key]) {
                     if(ref.id) {
@@ -99,7 +99,12 @@ async function loadDmsFormats (item,dmsAttrsConfigs,falcor) {
                         index += 1
                     }
                 }
+            // dmstype not array
+            } else {
+                let value = get(newData, ['json','dms','data', 'byId', item[key].id, 'data'])
+                item[key] = {...item[key], ...value}
             }
+            
         }
     }
     //console.log('item', item)

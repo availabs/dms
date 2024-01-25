@@ -76,7 +76,7 @@ function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, o
                 <div className='flex flex-wrap border-y justify-end items-center'>
                     <div className='flex-0 grow'>
                         <TitleComp //todo make it blue if H!
-                            className={`p-2 w-full font-sans font-medium text-md uppercase ${
+                            className={`p-2 w-full font-sans font-medium text-md  ${
                                 (value?.['level']) === '1' ?
                                     `text-blue-500 font-bold text-xl tracking-wider py-1 pl-1` :
                                     value?.['level'] === '2' ?
@@ -212,10 +212,10 @@ function SectionView ({value,i, attributes, edit, onEdit, moveItem}) {
     let interactCondition = typeof onEdit !== 'function' && value?.element?.['element-type']?.includes('Map:');
     let isTemplateSectionCondition = value?.element?.['template-section-id'];
     return (
-        <div className={`${i === 0 ? '-m' : ''} `}>
+        <div className={`${i === 0 ? '-m' : ''} ${true ? '' : 'border border-dashed border-blue-500'}`}>
                 {
                     (sectionTitleCondition || helpTextCondition || interactCondition) &&
-                    <div className={`flex w-full h-[50px] items-center ${(value?.['level']) === '1' ? `border-b` : ``}`}>
+                    <div className={`flex w-full h-[50px] items-center ${(value?.['level']) === '1' ? `border-b` : ``} ${true ? '' : 'border border-dashed border-pink-500'}`}>
 
                         <div id={`#${value?.title?.replace(/ /g, '_')}`}
                              className={`flex-1 flex-row py-2  font-display font-medium uppercase scroll-mt-36 ${sectionTitleCondition ? '' : 'invisible'}`}>
@@ -364,13 +364,19 @@ const Edit = ({Component, value, onChange, attr}) => {
 
     const save = () => {
         let cloneValue = cloneDeep(value)
+        let action = ''
+        edit.value.has_changes = true
         if(edit.type === 'update') {
             cloneValue[edit.index] = edit.value
+
+            action = `edited section ${edit?.value?.title ? `${edit?.value?.title} ${edit.index+1}` : edit.index+1}`
         } else {
             cloneValue.splice(edit.index, 0, edit.value)
+            action = `added section ${edit?.value?.title ? `${edit?.value?.title} ${edit.index+1}` : edit.index+1}`
         }
+        console.log('edit on save', edit)
         cancel()
-        onChange(cloneValue)
+        onChange(cloneValue,action)
     }
 
     const remove = () => {
@@ -379,9 +385,10 @@ const Edit = ({Component, value, onChange, attr}) => {
         if(edit.type === 'update') {
             cloneValue.splice(edit.index, 1)
         }
-        //console.log('value', value, cloneValue)
+        // console.log('value', value, cloneValue)
+        // console.log('edit on remove', edit)
         cancel()
-        onChange(cloneValue)
+        onChange(cloneValue, `removed section ${edit?.value?.title ? `${edit?.value?.title} ${edit.index+1}` : edit.index+1}`)
     }
 
     const update = (i) => {
@@ -430,7 +437,7 @@ const Edit = ({Component, value, onChange, attr}) => {
                 const sizeClass = getSizeClass(size, requiredSpace, availableSpace, runningColTotal);
 
                 return (
-                    <div key={i} className={`${sizeClass}`}>
+                    <div key={i} className={`${sizeClass} ${true ? '' : 'border border-dashed border-green-500'}`}>
                         {/* add to top */}
                         { edit.index === -1 && i === 0 ? 
                             <AddSectionButton onClick={() => setEditIndex(0)}/> : 

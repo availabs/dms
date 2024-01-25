@@ -1,11 +1,15 @@
 import React, { useEffect, Fragment, useRef, useState } from 'react'
-import { Dialog, Transition, Switch } from '@headlessui/react'
+import { Dialog, Transition, Switch,Popover } from '@headlessui/react'
+import { usePopper } from 'react-popper'
+
 import { ExclamationTriangleIcon } from '@heroicons/react/24/outline'
 import cloneDeep from 'lodash/cloneDeep'
-import { ToastContainer, toast, Slide } from 'react-toastify';
+// import { ToastContainer, toast, Slide } from 'react-toastify';
 import { useSubmit, useLocation } from "react-router-dom";
 import {json2DmsForm, getUrlSlug, toSnakeCase} from '../components/utils/navItems'
 import 'react-toastify/dist/ReactToastify.css';
+import EditPagesNav  from './editPages'
+import EditHistory from './editHistory'
 import { CMSContext } from '../layout'
 
 const theme = {
@@ -20,28 +24,32 @@ const theme = {
 export function EditControls({ item, dataItems, updateAttribute,attributes, edit, status, setItem }) {
   const submit = useSubmit()
   const { pathname = '/edit' } = useLocation()
-  const [showDelete, setShowDelete] = useState(false)
+  const [ open, setOpen ] = React.useState(false)
+  const [ historyOpen, setHistoryOpen] = React.useState(false)
+  const [ showDelete, setShowDelete] = useState(false)
   const [ statusMessage, setStatusMessage ] = useState(status?.message)
-  const [moving, setMoving] = useState(false);
-  const [type, setType] = useState(item.type);
-  const { baseUrl, setOpen, setHistoryOpen} = React.useContext(CMSContext)
+  const [ moving, setMoving ] = useState(false);
+  const [ type, setType] = useState(item.type);
+  const { baseUrl, user } = React.useContext(CMSContext)
   const NoOp = () => {}
 
-  useEffect(() => {
-    setStatusMessage(status?.message)
-    toast.success(status?.message, {
-      toastId: 'page-update-success',
-      position: "bottom-right",
-      autoClose: 5000,
-      transition: Slide,
-      hideProgressBar: false,
-      closeOnClick: true,
-      pauseOnHover: true,
-      draggable: true,
-      progress: undefined,
-      theme: "light",
-    })
-  },[status])
+  // useEffect(() => {
+  //   setStatusMessage(status?.message)
+  //   toast.success(status?.message, {
+  //     toastId: 'page-update-success',
+  //     position: "bottom-right",
+  //     autoClose: 5000,
+  //     transition: Slide,
+  //     hideProgressBar: false,
+  //     closeOnClick: true,
+  //     pauseOnHover: true,
+  //     draggable: true,
+  //     progress: undefined,
+  //     theme: "light",
+  //   })
+  // },[status])
+
+  //console.log('edit controls item',item)
 
   const duplicateItem = () => {
     const highestIndex = dataItems
@@ -63,6 +71,8 @@ export function EditControls({ item, dataItems, updateAttribute,attributes, edit
     submit(json2DmsForm(newItem), { method: "post", action: pathname })
   }
 
+
+
   const insertSubPage = async () => {
     const highestIndex = dataItems
     .filter(d => d.parent === item.id)
@@ -75,13 +85,41 @@ export function EditControls({ item, dataItems, updateAttribute,attributes, edit
       title: 'New Page',
       parent: item.id,
       index: highestIndex + 1,
-      published: 'draft'
+      published: 'draft',
+      history: [{
+        type:' created Page.',
+        user: user.email, 
+        time: new Date().toString()
+      }]
     }
     newItem.url_slug = `${getUrlSlug(newItem,dataItems)}`
 
-    submit(json2DmsForm(newItem), { method: "post", action: pathname })
+    submit(json2DmsForm(newItem), { method: "post", action: `${baseUrl}/edit/${newItem.url_slug}` })
   }
-    
+  
+  const newPage = async () => {
+    const highestIndex = dataItems
+    .filter(d => !d.parent)
+    .reduce((out,d) => {
+      return Math.max(isNaN(d.index) ? 0 : d.index  , out)
+    },0)
+
+    //console.log(highestIndex, dataItems)
+    const newItem = {
+      title: 'New Page',
+      parent: item.id,
+      index: highestIndex + 1,
+      published: 'draft',
+      history: [{
+        type:' created Page.',
+        user: user.email, 
+        time: new Date().toString()
+      }]
+    }
+    newItem.url_slug = `${getUrlSlug(newItem,dataItems)}`
+
+    submit(json2DmsForm(newItem), { method: "post", action: `${baseUrl}/edit/${newItem.url_slug}` })
+  } 
 
   const saveItem = async () => {
     const newItem = cloneDeep(item)
@@ -120,117 +158,300 @@ export function EditControls({ item, dataItems, updateAttribute,attributes, edit
     submit(json2DmsForm(newItem), { method: "post", action: pathname })
   }
 
-   const TitleEdit = attributes['title'].EditComp
-  
-  //console.log('showDelete', showDelete)
+  const updateTitle = async ( value='') => {
+    if(value !== item.title) {
+      let history = item.history ? cloneDeep(item.history) : []
+      let edit = {
+        type: `changed page title to ${value}`,
+        user: user.email, 
+        time: new Date().toString()
+      }
+      history.push(edit)
+      
+      const newItem = {
+        id: item.id,
+        title:value,
+        history
+      }
+
+      newItem.url_slug = getUrlSlug(newItem, dataItems)
+      updateAttribute('title', value)
+      submit(json2DmsForm(newItem), { method: "post", action: `${baseUrl}/edit/${newItem.url_slug}` })
+    }
+  }
+
+  const publish = async () => {
+    let edit = {
+      type: 'published changes.',
+      user: user.email, 
+      time: new Date().toString()
+    }
+
+    let history = item.history ? cloneDeep(item.history) : []
+    history.push(edit)
+
+    const newItem = {
+      id: item.id,
+      has_changes: false,
+      published: '',
+      history
+    }
+    let sectionsByDraftId = cloneDeep(item.sections || [])
+      .reduce((o,s) => { 
+        if(s.draft_id){
+          o[s.draft_id] = s;
+        }
+        return o
+      },{})
+
+    newItem.sections = cloneDeep(item.draft_sections)
+      .reduce((sections, draft) => {
+        if(sectionsByDraftId[draft.id]) {
+          draft.id = sectionsByDraftId[draft.id].id
+        } else {
+          delete draft.id
+        }
+        sections.push(draft)
+        return sections
+      },[])
+
+    updateAttribute('','',{
+      has_changes:false,
+      published: '',
+      history
+    })
+
+    submit(json2DmsForm(newItem), { method: "post", action: pathname })
+
+  }
+ 
   return (
     <>
+      <EditPagesNav item={item} dataItems={dataItems}  edit={true} open={open} setOpen={setOpen}/>
+      <EditHistory item={item}  historyOpen={historyOpen} setHistoryOpen={setHistoryOpen} />
         {edit &&
           <div className='p-4'>
             <div className='w-full flex justify-center pb-6'>
-              <div 
-                onClick={saveItem}
-                className='inline-flex w-36 justify-center rounded-lg cursor-pointer text-sm font-semibold py-2 px-4 bg-blue-600 text-white hover:bg-blue-500 shadow-lg border border-b-4 border-blue-800 hover:border-blue-700 active:border-b-2 active:mb-[2px] active:shadow-none'>
-                <span className='flex items-center'>
-                  <span className='pr-2'>Save</span>
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-
-                </span>
-              </div>
+              <PublishButton item={item} onClick={publish} />
             </div>
-            <div className='pl-4 pb-4'>
-              <TitleEdit
-                className='w-full px-2 py-1 text font-medium text-slate-500 focus:outline-none border-slate-300 border-b-2 focus:border-blue-500'
-                value={item['title']} 
-                onChange={(v) => updateAttribute('title', v)}        
-                {...attributes['title']}
+            <div className='pl-4 pb-2'>
+              <TitleEditComp
+                item={item}
+                onChange={updateTitle}
               />
             </div>
-            <div className='pl-6 pb-2 text-gray-500 text-xs'>{item['id']}</div>
-
-            {(!item?.parent || item?.parent === '') &&
-                <div className={theme.pageControls.controlItem}>
-                  <i className={'fa-solid fa-up-down-left-right text-sm'} />
-                  <select
-                      title={'Move Page'}
-                      className={theme.pageControls.select}
-                      value={type}
-                      onChange={e => {
-                        setMoving(true); // doesn't work yet
-                        return movePages(e.target.value);
-                      }}
+            
+            <div className='flex w-full h-12 px-4'>
+              <IconPopover icon='fad fa-wrench p-2 text-blue-300 hover:text-blue-500 cursor-pointer text-lg' >
+                <div className='py-2'>
+                  <div className='px-6 font-medium text-sm'> Page Controls </div>
+                  {(!item?.parent || item?.parent === '') &&
+                      <div className={theme.pageControls.controlItem}>
+                        <i className={'fa-solid fa-up-down-left-right text-sm'} />
+                        <select
+                            title={'Move Page'}
+                            className={theme.pageControls.select}
+                            value={type}
+                            onChange={e => {
+                              setMoving(true); // doesn't work yet
+                              return movePages(e.target.value);
+                            }}
+                        >
+                          <option key={'cms'} value={'docs-page'} className={theme.pageControls.selectOption}>Live</option>
+                          <option key={'draft'} value={'docs-draft'} className={theme.pageControls.selectOption}>Draft</option>
+                          <option key={'playground'} value={'docs-play'} className={theme.pageControls.selectOption}>Playground</option>
+                        </select>
+                      </div>
+                  }
+                  <div onClick={insertSubPage}
+                    className={theme.pageControls.controlItem}
                   >
-                    <option key={'cms'} value={'docs-page'} className={theme.pageControls.selectOption}>Live</option>
-                    <option key={'draft'} value={'docs-draft'} className={theme.pageControls.selectOption}>Draft</option>
-                    <option key={'playground'} value={'docs-play'} className={theme.pageControls.selectOption}>Playground</option>
-                  </select>
+                    {'☲ New Page'}
+                  </div>
+                  
+                  <div onClick={insertSubPage}
+                    className={theme.pageControls.controlItem}
+                  >
+                    {'☲ Insert Subpage'}
+                  </div>
+                  <div onClick={duplicateItem}
+                    className={theme.pageControls.controlItem}
+                  >
+                    {'☳ Duplicate'}
+                  </div>
+                  <div onClick={() => setShowDelete(true)}
+                    className={theme.pageControls.controlItem}
+                  >
+                    {'☵ Delete'}
+                  </div>
                 </div>
-            }
+              </IconPopover>
+              <IconPopover icon='fad fa-sliders-h p-2 text-blue-300 hover:text-blue-500 cursor-pointer text-lg'>
+                <div className='py-2'>
+                  <div className='px-6 font-medium text-sm'> Page Settings </div>
+                  <div className={theme.pageControls.controlItem } >
+                    <SidebarSwitch
+                      item={item}
+                      type='sidebar'
+                      toggleSidebar={toggleSidebar}
+                    />
+                    Show Sidebar
+                    
+                  </div>
+                  <div className={theme.pageControls.controlItem } >
+                    <SidebarSwitch
+                      type='header'
+                      item={item}
+                      toggleSidebar={toggleSidebar}
+                    />
+                    Show Header
+                    
+                  </div>
+                  <div className={theme.pageControls.controlItem } >
+                    <SidebarSwitch
+                      type='footer'
+                      item={item}
+                      toggleSidebar={toggleSidebar}
+                    />
+                    Show Footer
+                  </div>
+                  <div className={theme.pageControls.controlItem } >
+                    <SidebarSwitch
+                      type='fullwidth'
+                      item={item}
+                      toggleSidebar={toggleSidebar}
+                    />
+                    Full Width
+                  </div>
+                </div>
+              </IconPopover>
+              <div 
+                className='fad fa-file-alt p-2 text-blue-300 hover:text-blue-500 cursor-pointer text-lg' 
+                onClick={() => setOpen(true)}
+              />
+              <div 
+                className='fad fa-history p-2 text-blue-300 hover:text-blue-500 cursor-pointer text-lg' 
+                onClick={() => setHistoryOpen(true)}
+              />
 
-            <div onClick={() => setOpen(true)}
-              className={theme.pageControls.controlItem}
-            >
-              {'☲ Edit Pages'}
             </div>
-            <div onClick={() => setHistoryOpen(true)}
-              className={theme.pageControls.controlItem}
-            >
-              {'☲ History'}
-            </div>
-            <div onClick={insertSubPage}
-              className={theme.pageControls.controlItem}
-            >
-              {'☲ Insert Subpage'}
-            </div>
-            <div onClick={duplicateItem}
-              className={theme.pageControls.controlItem}
-            >
-              {'☳ Duplicate'}
-            </div>
-            <div onClick={() => setShowDelete(true)}
-              className={theme.pageControls.controlItem}
-            >
-              { '☵ Delete' }
-              <DeleteModal
+            <DeleteModal
                 item={item}
                 open={showDelete}
                 setOpen={setShowDelete}
               />
-            </div>
-            <div className='h-[20px]'/>
-            <div className={theme.pageControls.controlItem } >
-              <SidebarSwitch
-                item={item}
-                type='sidebar'
-                toggleSidebar={toggleSidebar}
-              />
-              Show Sidebar
-              
-            </div>
-            <div className={theme.pageControls.controlItem } >
-              <SidebarSwitch
-                type='header'
-                item={item}
-                toggleSidebar={toggleSidebar}
-              />
-              Show Header
-              
-            </div>
-            <div className={theme.pageControls.controlItem } >
-              <SidebarSwitch
-                type='footer'
-                item={item}
-                toggleSidebar={toggleSidebar}
-              />
-              Show Footer
-            </div>
+            
           </div>
         }
-        <ToastContainer />
+        {/*<ToastContainer />*/}
     </>
   )
+}
+
+function TitleEditComp({item, onChange}) {
+  const [editing, setEditing] = React.useState(false)
+  const [newTitle, setNewTitle] = React.useState(item['title'])
+
+  //console.log('new title', newTitle)
+
+  return (
+    <div  className='flex justify-between group'>
+      <div  className="flex-1">
+        <dd className=" text-sm text-gray-900 ">
+          {editing ?
+            <div className='flex group focus:outline-none border-slate-300 border-b-2 group-focus:border-blue-500'>
+              <input
+                className='w-full px-2 py-1 text font-medium text-slate-500 focus:outline-none focus:border-blue-500'
+                value={newTitle} 
+                onChange={v => setNewTitle(v.target.value)}
+              />
+              <div className='flex cursor-pointer' >
+                <span className=" pt-0.5 text-green-500 rounded hover:bg-green-500 hover:text-white " onClick={e => onChange(newTitle)}>
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-6 h-6">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                  </svg>
+                </span>
+                  
+                <span className="pt-0.5 text-slate-300  rounded  hover:text-red-300 " onClick={e =>  setEditing(false)}>
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-6 h-6">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m9.75 9.75 4.5 4.5m0-4.5-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                  </svg>
+                </span>
+
+              </div>
+            </div> :
+            <div className='w-full flex flex-row px-2 py-1 text font-medium text-slate-500 focus:outline-none border-slate-300 border-b-2 focus:border-blue-500'>
+              <div className='w-full'>{item['title']}</div>
+              <span className='hidden group-hover:block text-blue-300 hover:text-blue-500 cursor-pointer ' onClick={e => editing ? setEditing(false): setEditing(true)}>
+                  <i className="fad fa-pencil absolute -ml-4 -mt-0.5 p-1.5 rounded hover:bg-blue-500 hover:text-white"/>
+                  {/*<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 24" stroke-width="1.5" stroke="currentColor" className="w-5 h-5 ">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
+                  </svg>*/}
+
+              </span>
+            </div>
+          }
+        </dd>
+      </div> 
+     
+    </div>
+  )
+}
+
+function PublishButton({item, onClick}) {
+
+  const hasChanges = item.published === 'draft' || item.has_changes
+
+  return (
+    <div 
+      onClick={() => hasChanges ? onClick() : null}
+      className={`${ hasChanges ? 
+        'inline-flex w-36 justify-center rounded-lg cursor-pointer text-sm font-semibold py-2 px-2 bg-blue-600 text-white hover:bg-blue-500 shadow-lg border border-b-4 border-blue-800 hover:border-blue-700 active:border-b-2 active:mb-[2px] active:shadow-none':
+        'inline-flex w-36 justify-center rounded-lg cursor-not-allowed text-sm font-semibold py-2 px-2 bg-slate-300 text-white shadow border border-slate-400 border-b-4'
+      }`}
+    >
+      <span className='flex items-center'>
+        <span className='pr-2'>{hasChanges ? `Publish` : `No Changes`}</span>
+        {hasChanges ? <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg> : ''}
+
+      </span>
+    </div>
+  )
+}
+
+function IconPopover({icon,children}) {
+  let [referenceElement, setReferenceElement] = useState()
+  let [popperElement, setPopperElement] = useState()
+  let { styles, attributes:popperAttributes } = usePopper(referenceElement, popperElement)
+
+   return (
+    <Popover className="relative">
+        <Popover.Button
+            ref={setReferenceElement}
+            className={'text-md cursor-pointer hover:text-blue-800 text-blue-500'}>
+            <i className={icon} title="Help"/>
+        </Popover.Button>
+        <Transition
+            as={Fragment}
+            enter="transition ease-out duration-200"
+            enterFrom="opacity-0 translate-y-1"
+            enterTo="opacity-100 translate-y-0"
+            leave="transition ease-in duration-150"
+            leaveFrom="opacity-100 translate-y-0"
+            leaveTo="opacity-0 translate-y-1"
+        >
+            <Popover.Panel 
+                ref={setPopperElement}
+                style={styles.popper}
+                {...popperAttributes.popper}
+                className="shadow-lg bg-white rounded z-10 transform  border border-blue-200 w-[180px] ">
+                
+                {children}
+          </Popover.Panel>
+        </Transition>
+    </Popover>)
 }
 
 export function SidebarSwitch({type,item,toggleSidebar}) {

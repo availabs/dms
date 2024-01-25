@@ -66,8 +66,9 @@ export function PageControls({item, dataItems, updateAttribute, attributes, edit
             .filter((id, i) => id && id !== 'undefined')
             .reduce(async (acc, section_id, i) => {
                 const prev = await acc;
-                setLoadingStatus(`Updating section ${i+1}/${totalSections}`)
                 let section = item.sections.filter(d => d.id === section_id)?.[0] || {}
+                setLoadingStatus(`Updating section ${section?.title}  ${section?.element?.['element-type']}  ${i+1}/${totalSections}`)
+                
                 let data = parseJSON(section?.element?.['element-data']) || {}
                 let type = section?.element?.['element-type'] || ''
                 let comp = ComponentRegistry[type] || {}
@@ -96,7 +97,7 @@ export function PageControls({item, dataItems, updateAttribute, attributes, edit
             updates.forEach(({section_id, data}) => {
                 let section = newSections.filter(d => d.id === section_id)?.[0] || {}
                 section.element['element-data'] = JSON.stringify(data)
-                // console.log('updating section', section_id, data)
+                //console.log('updating section', section_id, data.title)
             })
             updateAttribute('sections', newSections)
         }
@@ -218,7 +219,7 @@ export function PageControls({item, dataItems, updateAttribute, attributes, edit
                             <option key={'playground'} value={'docs-play'}
                                     className={theme.pageControls.selectOption}>Playground
                             </option>
-                            <option key={'docs-ctp'} value={'docs-ctp'}
+                            <option key={'ctp_live'} value={'docs-ctp'}
                                     className={theme.pageControls.selectOption}>CTP Live
                             </option>
                         </select>

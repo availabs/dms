@@ -11,8 +11,8 @@ export const generatePages = async ({
     setLoadingStatus('Generating Pages...')
     const idColAttr = dataRows.map(d => d[id_column.name]).filter((d,i) => (d && (i < 10000)))
 
-    await idColAttr.reduce(async(acc, idColAttrVal, pageI) => {
-        await acc;
+    await Promise.all(idColAttr.map(async(idColAttrVal, pageI) => {
+        // await acc;
         setLoadingStatus(`Generating page ${pageI + 1}/${idColAttr?.length}`)
         const dataControls = item.data_controls;
         let dataFetchers = item.sections.map(s => s.id)
@@ -85,6 +85,6 @@ export const generatePages = async ({
 
         }
 
-    }, Promise.resolve())
+    }))
     setLoadingStatus(undefined)
 }
