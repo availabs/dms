@@ -11,6 +11,12 @@ export const cmsSection = {
       default: "Untitled Section"
     },
     {
+      key: 'is_header',
+      type: 'boolean',
+      hidden: 'true',
+      required: false
+    },
+    {
       key: "helpText",
       type: "lexical"
     },

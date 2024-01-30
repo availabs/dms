@@ -4,6 +4,7 @@ import cloneDeep from 'lodash/cloneDeep'
 import { Popover, Transition } from '@headlessui/react'
 import { Link } from "react-router-dom";
 import { usePopper } from 'react-popper'
+import { CMSContext } from '../layout/layout'
 
 import { getSizeClass, sizeOptionsSVG } from './sizes.jsx'
 
@@ -198,24 +199,72 @@ function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, o
     )
 }
 
-function SectionView ({value,i, attributes, edit, onEdit, moveItem}) {
+function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove,item}) {
     let [referenceElement, setReferenceElement] = useState()
     let [popperElement, setPopperElement] = useState()
     let { styles, attributes:popperAttributes } = usePopper(referenceElement, popperElement)
+    const { baseUrl, user } = React.useContext(CMSContext)
     
+    const hideDebug = true
     let TitleComp = attributes?.title?.ViewComp
     let TagsComp = attributes?.tags?.ViewComp 
     let ElementComp = attributes?.element?.ViewComp
     let HelpComp = attributes?.helpText?.ViewComp
-    let sectionTitleCondition = value?.['title'] || value?.['tags'] || edit;
+    let sectionTitleCondition = value?.['title'] || value?.['tags'] ;// edit
     let helpTextCondition = value?.['helpText'];
     let interactCondition = typeof onEdit !== 'function' && value?.element?.['element-type']?.includes('Map:');
     let isTemplateSectionCondition = value?.element?.['template-section-id'];
     return (
-        <div className={`${i === 0 ? '-m' : ''} ${true ? '' : 'border border-dashed border-blue-500'}`}>
+        <div className={`${i === 0 ? '-m' : ''} ${hideDebug ? '' : 'border border-dashed border-blue-500'}`}>
+            <div className='flex w-full'>
+                <div className='flex-1'/>
+                    {/* -------------------top line buttons ----------------------*/}
+                    <div className={`z-10 relative`}>
+                        <div className={`absolute mr-8 ${edit ? 'top-[-14px]' : '}top-[-6px]'} right-[-60px] flex`}> 
+                            {edit && typeof onEdit === 'function' && !isTemplateSectionCondition ? (
+                                <>
+                                    <button 
+                                        className={'flex items-center text-md cursor-pointer hover:text-blue-500 text-slate-400'}
+                                        onClick={ () => moveItem(i,-1) }
+                                    >
+                                        <i className="fa-light fa-angle-up text-xl fa-fw" title="Move Up" />
+                                        {/*☳ Edit*/}
+                                    </button>
+                                    <button className={'flex items-center text-md cursor-pointer hover:text-blue-500 text-slate-400'}
+                                        onClick={ () =>  moveItem(i,1) }
+                                    >
+                                        <i className="fa-light fa-angle-down text-xl fa-fw" title="Move Down"/>
+                                        {/*☳ Edit*/}
+                                    </button>
+                               
+                                    <button
+                                        className={' flex items-center text-md cursor-pointer hover:text-blue-500 text-slate-400'}
+                                        onClick={ onEdit }
+                                    >
+                                        <i className="fa-light fa-pencil text-xl fa-fw" title="Edit"></i>
+                                        {/*☳ Edit*/}
+                                    </button>
+                                    <button className={'text-lg cursor-pointer hover:text-blue-500 text-slate-400 pr-1'} onClick={addAbove}> 
+                                        <i className="fal fa-circle-plus text-lg fa-fw" title="Add Section"></i>
+                                    </button>
+                                </>
+                            ) : ''}
+                    
+                           
+                                {i === 0 && user.authLevel > 5 ?  
+                                  <Link to={`${baseUrl}/${edit ? '' : 'edit/'}${item.url_slug}`}>
+                                    <i className={`fad ${edit ? 'fa-eye' : 'fa-edit'}  fa-fw flex-shrink-0 text-lg text-slate-400 hover:text-blue-500`}/>
+                                  </Link> : ''    
+                                }
+                                 <div className='w-8'></div>
+                            </div>
+                        </div>
+                    </div>
+                    {/* -------------------top line buttons ----------------------*/}
+                    
                 {
                     (sectionTitleCondition || helpTextCondition || interactCondition) &&
-                    <div className={`flex w-full h-[50px] items-center ${(value?.['level']) === '1' ? `border-b` : ``} ${true ? '' : 'border border-dashed border-pink-500'}`}>
+                    <div className={`flex w-full h-[50px] items-center ${(value?.['level']) === '1' ? `border-b` : ``} ${hideDebug ? '' : 'border border-dashed border-pink-500'}`}>
 
                         <div id={`#${value?.title?.replace(/ /g, '_')}`}
                              className={`flex-1 flex-row py-2  font-display font-medium uppercase scroll-mt-36 ${sectionTitleCondition ? '' : 'invisible'}`}>
@@ -284,13 +333,13 @@ function SectionView ({value,i, attributes, edit, onEdit, moveItem}) {
 
                         { sectionTitleCondition && typeof onEdit === 'function' && !isTemplateSectionCondition ?
                             <>
-                                <div className='py-2'>
+                                {/*<div className='py-2'>
                                     <button
                                         className={'pl-3 flex items-center text-md cursor-pointer hover:text-blue-500 text-slate-400'}
                                         onClick={ () => moveItem(i,-1) }
                                     >
                                         <i className="fa-light fa-angle-up text-xl fa-fw" title="Move Up"></i>
-                                        {/*☳ Edit*/}
+                                        {
                                     </button>
 
                                 </div>
@@ -300,8 +349,7 @@ function SectionView ({value,i, attributes, edit, onEdit, moveItem}) {
                                         onClick={ () =>  moveItem(i,1) }
                                     >
                                         <i className="fa-light fa-angle-down text-xl fa-fw" title="Move Down"></i>
-                                        {/*☳ Edit*/}
-                                    </button>
+                                       
 
                                 </div>
                                 <div className='py-2'>
@@ -310,10 +358,10 @@ function SectionView ({value,i, attributes, edit, onEdit, moveItem}) {
                                         onClick={ onEdit }
                                     >
                                         <i className="fa-light fa-pencil text-xl fa-fw" title="Edit"></i>
-                                        {/*☳ Edit*/}
+                                        
                                     </button>
 
-                                </div>
+                                </div>*/}
                             </> :
                             isTemplateSectionCondition && typeof onEdit === 'function'?
                                 <i className={'pl-5 py-0.5 fa-light fa-lock p-2 text-slate-400'} title={'Template generated section'}/> : <></>
@@ -329,22 +377,32 @@ function SectionView ({value,i, attributes, edit, onEdit, moveItem}) {
 }  
 
 
-const AddSectionButton = ({onClick}) => (
-    <div className='flex w-full'>
-        <div className='flex-1'/>
-        <div className='z-10'>
-            <button 
-                className={'pl-6 py-0.5 text-lg cursor-pointer hover:text-blue-500 text-slate-400'}
-                onClick={onClick}
-            > 
-            <i className="fa-light fa-sharp fa-layer-plus text-2xl fa-fw" title="Add Section"></i>
-            {/*☷ Add Section*/}
-            </button>
+const AddSectionButton = ({onClick, showpageToggle}) => {
+    let item = {}
+    let baseUrl = ''
+    return (
+        <div className='flex w-full'>
+            <div className='flex-1'/>
+            <div className={`z-10 relative ${showpageToggle ? 'w-12' : 'w-8'}`}>
+                <div className='absolute mr-8 top-[-14px] flex'> 
+                    <button 
+                        className={'text-lg cursor-pointer hover:text-blue-500 text-slate-400'}
+                        onClick={onClick}
+                    > 
+                    <i className="fal fa-circle-plus text-lg fa-fw" title="Add Section"></i>
+                    {/*☷ Add Section*/}
+                    </button>
+                    {showpageToggle ?  
+                      <Link to={`${baseUrl}/${item.url_slug}`}>
+                        <i className='fad fa-eye fa-fw flex-shrink-0 text-lg text-slate-400 hover:text-blue-500'/>
+                      </Link> : ''    
+                    }
+                </div>
+            </div>
         </div>
-    </div>
-)
-
-const Edit = ({Component, value, onChange, attr}) => {
+    )
+}
+const Edit = ({Component, value, onChange, attr, item}) => {
     if (!value || !value.map) { 
         value = []
     }
@@ -374,7 +432,7 @@ const Edit = ({Component, value, onChange, attr}) => {
             cloneValue.splice(edit.index, 0, edit.value)
             action = `added section ${edit?.value?.title ? `${edit?.value?.title} ${edit.index+1}` : edit.index+1}`
         }
-        console.log('edit on save', edit)
+        //console.log('edit on save', edit)
         cancel()
         onChange(cloneValue,action)
     }
@@ -409,18 +467,22 @@ const Edit = ({Component, value, onChange, attr}) => {
         onChange(cloneValue)
     }
     let runningColTotal = 8;
-
+    const hideDebug = true
+    
     // each component should have md and lg col-start- class
     // 1 row can fit different components totaling in size 1 OR one component with size 1 or 2
     // col-start for md and lg depends upon previous components from the same row
     // every time component size total reaches 1, row changes
 
+
     const layouts = {
         centered: 'md:grid-cols-[1fr_repeat(6,_minmax(_100px,_170px))_1fr]',
         fullwidth:'md:grid-cols-[_minmax(_0px,0px)_repeat(6,_1fr)_minmax(_0px,0px)]'
     }
+
+
     return (
-        <div className={`mb-12 grid grid-cols-6 ${layouts['centered']} gap-1`}>
+        <div className={`mb-12 grid grid-cols-6 ${layouts[item.full_width === 'show' ? 'fullwidth' : 'centered']} gap-1`}>
             {values.map((v,i) => {
                 const size = (edit.index === i ? edit?.value?.size : v?.size) || "1";
                 const requiredSpace = sizeOptionsSVG.find(s => s.name === size)?.value;
@@ -437,16 +499,17 @@ const Edit = ({Component, value, onChange, attr}) => {
                 const sizeClass = getSizeClass(size, requiredSpace, availableSpace, runningColTotal);
 
                 return (
-                    <div key={i} className={`${sizeClass} ${true ? '' : 'border border-dashed border-green-500'}`}>
+                    <div key={i} className={`${sizeClass} ${hideDebug ? '' : 'border border-dashed border-green-500'}`}>
                         {/* add to top */}
-                        { edit.index === -1 && i === 0 ? 
-                            <AddSectionButton onClick={() => setEditIndex(0)}/> : 
-                                edit.index === -1 || i > 0 ? '' : <div className='h-[42px]' />
-                        }
+                        { /*edit.index === -1 && i === 0 ? 
+                            <AddSectionButton showpageToggle={true} onClick={() => setEditIndex(0)}/> : 
+                                edit.index === -1 || i > 0 ? '' : <div className='' />
+                        */ }
 
                         {/* edit new or existing section */}
                         {edit.index === i 
                             ? <SectionEdit 
+                                item={item}
                                 value={edit.value} 
                                 onChange={setEditValue}
                                 onSave={save}
@@ -464,18 +527,19 @@ const Edit = ({Component, value, onChange, attr}) => {
                             <SectionView 
                                 value={v} 
                                 i={i}
+                                item={item}
                                 moveItem={moveItem}
                                 attributes={attr.attributes}
                                 edit={true}
-                                onEdit={ edit.index === -1 ? (e) => update(i)  : null } 
+                                onEdit={ edit.index === -1 ? (e) => update(i)  : null }
+                                addAbove={() => setEditIndex(i)}
                             /> : ''}
 
-                        {/* add section below */}
-                        { edit.index == -1 && v !== '' ? 
-                            <div className='-mt-[12px]'>
-                                <AddSectionButton onClick={() => setEditIndex(i+1)}/> 
-                            </div>  : <div className='h-[36px] -mt-[36px]' />
-                            
+                        {/* add new section at end  */}
+                        { edit.index == -1 && i === values.length-1 ? 
+                            <div className=''>
+                                <AddSectionButton onClick={() => setEditIndex(i)}/> 
+                            </div>  : <div className='' />
                         }
                     </div>
                 )
@@ -485,7 +549,7 @@ const Edit = ({Component, value, onChange, attr}) => {
     )
 }
 
-const View = ({Component, value, attr}) => {
+const View = ({Component, value, attr, item}) => {
     if (!value || !value.map) { return '' }
     let runningColTotal = 8;
     let layouts = {
@@ -495,8 +559,10 @@ const View = ({Component, value, attr}) => {
     const hideSectionCondition = section => isJson(section?.element?.['element-data'] || '{}') &&
         !JSON.parse(section?.element?.['element-data'] || '{}')?.hideSection;
 
+
+
     return (
-        <div className={`mb-12 grid grid-cols-6 ${layouts['centered']} gap-1`}>
+        <div className={`mb-12 grid grid-cols-6 ${layouts[item.full_width === 'show' ? 'fullwidth' : 'centered']} gap-1`}>
         
         { 
             value.filter(v => hideSectionCondition(v))
@@ -520,6 +586,8 @@ const View = ({Component, value, attr}) => {
                         <SectionView
                             attributes={attr.attributes}
                             key={i}
+                            i={i}
+                            item={item}
                             value={v}
                         />
                     </div>

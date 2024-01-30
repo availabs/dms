@@ -4,6 +4,7 @@ import PageEdit from "./layout/edit"
 import Layout from "./layout/layout"
 import cmsFormat from "./page.format.js"
 import cloneDeep from 'lodash/cloneDeep'
+import defaultTheme from './theme/theme'
 import {Search} from "./search";
 
 // sideNav = {size: 'miniPad'}
@@ -15,9 +16,12 @@ const siteConfig = ({
   logo = null,
   rightMenu = <div />,
   baseUrl = '/',
-  checkAuth = () => {}
+  checkAuth = () => {},
+  theme = defaultTheme
 }) => {
-  // console.log('run config')
+  theme = theme || defaultTheme
+  console.log('run config', theme)
+  
   const format = cloneDeep(cmsFormat)
   format.app = app
   format.type = type
@@ -51,6 +55,7 @@ const siteConfig = ({
           <Layout 
             {...props}
             baseUrl={baseUrl}
+            theme={theme}
           />
         ),
         action: "list",
@@ -80,6 +85,7 @@ const siteConfig = ({
             {...props} 
             edit={true} 
             baseUrl={baseUrl}
+            theme={theme}
           />
         ),
         action: "list",

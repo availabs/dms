@@ -155,6 +155,10 @@ export function EditControls({ item, dataItems, updateAttribute,attributes, edit
     const newItem = cloneDeep(item)
     newItem[type] = value
     updateAttribute(type, value)
+    // console.log('item', newItem, value)
+    if(type === 'header' && !newItem.draft_sections.filter(d => d.is_header)?.[0]){
+      console.log('toggleHeader add header')
+    }
     submit(json2DmsForm(newItem), { method: "post", action: pathname })
   }
 
@@ -317,7 +321,7 @@ export function EditControls({ item, dataItems, updateAttribute,attributes, edit
                   </div>
                   <div className={theme.pageControls.controlItem } >
                     <SidebarSwitch
-                      type='fullwidth'
+                      type='full_width'
                       item={item}
                       toggleSidebar={toggleSidebar}
                     />

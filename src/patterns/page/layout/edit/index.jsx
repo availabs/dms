@@ -117,16 +117,12 @@ function PageEdit ({
                     </div>
                   </div>)
                 : ''}
-              <div className={theme.page.content}>
+              <div className={theme.page.content + ' border-r'}>
                 <div className={theme.page.container}>
-                  <div className='w-full text-right relative py-2 z-10 h-[40px]'>
-                  {user?.authLevel >= 5 ?  
-                    <Link to={`${baseUrl}/${item.url_slug}`}>
-                      <i className='fad fa-eye fa-fw flex-shrink-0  pr-1 text-blue-500'/>
-                    </Link> : ''}
-                </div>
-                <div className='text-base font-light leading-7 -mt-[40px]'>
+
+                <div className='text-base font-light leading-7'>
                     <ContentEdit
+                      item={item}
                       value={item['draft_sections']} 
                       onChange={saveSection}         
                       {...attributes['draft_sections']}

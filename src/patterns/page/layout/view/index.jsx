@@ -8,7 +8,6 @@ import Layout from '../components/avail-layout'
 import {dataItemsNav, detectNavLevel} from '../components/utils/navItems'
 import {getInPageNav} from "../components/utils/inPageNavItems.js";
 import { Header } from '../components/header'
-import theme from '../components/theme'
 
 import cloneDeep from 'lodash/cloneDeep'
 
@@ -17,7 +16,7 @@ import cloneDeep from 'lodash/cloneDeep'
 function PageView ({item, dataItems, attributes, user, logo, rightMenu}) {
   if(!item) return <div> No Pages </div>
 
-  const {baseUrl} = React.useContext(CMSContext)
+  const { baseUrl, theme } = React.useContext(CMSContext)
   const ContentView = attributes['sections'].ViewComp
   const menuItems = React.useMemo(() => {
     let items = dataItemsNav(dataItems,baseUrl,false)
@@ -61,15 +60,10 @@ function PageView ({item, dataItems, attributes, user, logo, rightMenu}) {
                 {/*<div className='px-6 py-4 font-sans font-medium text-xl text-slate-700 uppercase max-w-5xl mx-auto'>
                   {item['title']}
                 </div>*/}
-                <div className='w-full text-right relative py-2 z-10 h-[40px]'>
-                  {user?.authLevel >= 5 ?  
-                    <Link to={`${baseUrl}/edit/${item.url_slug}`}>
-                      <i className='fad fa-edit fa-fw flex-shrink-0  pr-1 text-blue-500'/>
-                    </Link> : ''}
-                </div>
-              
-                <div className='text-md font-light leading-7 -mt-[40px]'>
+                
+                <div className='text-md font-light leading-7'>
                   <ContentView 
+                    item={item}
                     value={item['sections']} 
                     {...attributes['sections']}
                   />
