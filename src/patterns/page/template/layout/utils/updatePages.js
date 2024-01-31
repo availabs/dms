@@ -50,7 +50,7 @@ export const updatePages = async ({submit, item, url, destination, id_column, ge
                 // console.log('awaiting for', comp, pageSection, templateSection)
 
                 return comp?.getData ? comp.getData(args,falcor).then(data => ({section_id, data, type})) : ({section_id, data});
-            }), {concurrency: 1})
+            }), {concurrency: 5})
 
         if(updates.length > 0) {
             const updatedSections = item.sections
