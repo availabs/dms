@@ -18,8 +18,7 @@ export const updatePages = async ({submit, item, url, destination, id_column, ge
 
         const dataControls = item.data_controls;
 
-        let dataFetchers = item.sections.map(s => s.id)
-            .map(section_id => {
+        let updates = await Promise.map(item.sections.map(s => s.id), (async section_id => {
                 let templateSection = item.sections.find(d => d.id === section_id)  || {};
                 let pageSection = sections.find(s => s.data.value.element['template-section-id'] === section_id);
                 let pageSectionData = parseJSON(pageSection?.data?.value?.element?.['element-data']) || {}
@@ -47,11 +46,11 @@ export const updatePages = async ({submit, item, url, destination, id_column, ge
                     },{})
 
                 let args = {...controlVars, ...updateVars}
-                return comp?.getData ? comp.getData(args,falcor).then(data => ({section_id, data, type})) : ({section_id, data})
-            }).filter(d => d)
 
+                // console.log('awaiting for', comp, pageSection, templateSection)
 
-        let updates = await Promise.all(dataFetchers)
+                return comp?.getData ? comp.getData(args,falcor).then(data => ({section_id, data, type})) : ({section_id, data});
+            }), {concurrency: 1})
 
         if(updates.length > 0) {
             const updatedSections = item.sections
@@ -85,7 +84,11 @@ export const updatePages = async ({submit, item, url, destination, id_column, ge
             const pageConfig = {format: {app, type}};
 
             //create all sections first, get their ids and then create the page.
-            const newSectionIds = await Promise.all(updatedSections.map((section) => dmsDataEditor(sectionConfig, section)));
+            const newSectionIds = await Promise.map(
+                updatedSections.map((section) => dmsDataEditor(sectionConfig, section)),
+                (p) => p,
+                {concurrency: 10}
+            );
 
             // a page should only be updated IF sections have been added or removed. to check this, just compare section ids and template-section-ids.
             // any pageSection that has template-section-id (if it doesn't, it means it was added to the page after page generation and should be left alone)

@@ -16,8 +16,7 @@ export const generatePages = async ({
         // await acc;
         setLoadingStatus(`Generating page ${++i}/${idColAttr?.length}`)
         const dataControls = item.data_controls;
-        let dataFetchers = item.sections.map(s => s.id)
-            .map(section_id => {
+        let updates = await Promise.map(item.sections.map(s => s.id), async section_id => {
                 let section = item.sections.filter(d => d.id === section_id)?.[0]  || {}
                 let data = parseJSON(section?.element?.['element-data']) || {}
                 let type = section?.element?.['element-type'] || ''
@@ -42,10 +41,8 @@ export const generatePages = async ({
 
                 let args = {...controlVars, ...updateVars}
                 return comp?.getData ? comp.getData(args,falcor).then(data => ({section_id, data})) : ({section_id, data})
-            }).filter(d => d)
+            }, {concurrency: 5})
 
-
-        let updates = await Promise.all(dataFetchers);
         console.log('updates', updates)
         if(updates.length > 0) {
             let newSections = cloneDeep(item.sections)
@@ -66,7 +63,10 @@ export const generatePages = async ({
             const pageConfig = {format: {app, type}};
 
             //create all sections first, get their ids and then create the page.
-            const newSectionIds = await Promise.all(sectionsToUpload.map((section) => dmsDataEditor(sectionConfig, section)));
+            const newSectionIds = await Promise.map(
+                sectionsToUpload.map((section) => dmsDataEditor(sectionConfig, section)),
+                p => p,
+                {concurrency: 5});
 
             const newPage = {
                 id_column_value: idColAttrVal,
