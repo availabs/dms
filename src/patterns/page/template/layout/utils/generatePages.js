@@ -1,8 +1,8 @@
 import cloneDeep from "lodash/cloneDeep.js";
 import {dmsDataEditor} from "~/modules/dms/src/index.js";
 import {parseJSON} from "./parseJSON.js";
-
 import ComponentRegistry from "~/component_registry";
+import {Promise} from "bluebird";
 
 export const generatePages = async ({
                                            item, url, destination, id_column, dataRows, falcor, setLoadingStatus
@@ -10,10 +10,11 @@ export const generatePages = async ({
     // const disaster_numbers = ['4020', '4031']
     setLoadingStatus('Generating Pages...')
     const idColAttr = dataRows.map(d => d[id_column.name]).filter((d,i) => (d && (i < 10)))
+    let i = 0;
 
-    await Promise.all(idColAttr.map(async(idColAttrVal, pageI) => {
+    await Promise.map(idColAttr, (async(idColAttrVal, pageI) => {
         // await acc;
-        setLoadingStatus(`Generating page ${pageI + 1}/${idColAttr?.length}`)
+        setLoadingStatus(`Generating page ${++i}/${idColAttr?.length}`)
         const dataControls = item.data_controls;
         let dataFetchers = item.sections.map(s => s.id)
             .map(section_id => {
@@ -85,6 +86,6 @@ export const generatePages = async ({
 
         }
 
-    }))
+    }), {concurrency: 5})
     setLoadingStatus(undefined)
 }

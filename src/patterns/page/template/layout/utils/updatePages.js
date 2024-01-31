@@ -3,15 +3,17 @@ import {parseJSON} from "./parseJSON.js";
 import ComponentRegistry from "~/component_registry";
 import cloneDeep from "lodash/cloneDeep";
 import {json2DmsForm} from '~/modules/dms/src/patterns/page/layout/components/utils/navItems'
-
+import {Promise} from 'bluebird'
 
 export const updatePages = async ({submit, item, url, destination, id_column, generatedPages, generatedSections, falcor, setLoadingStatus}) => {
     // while updating existing sections, keep in mind to not change the id_column attribute.
     setLoadingStatus('Updating Pages...')
+    let i = 0;
+
     console.time('pages updated in: ')
-    await Promise.all(generatedPages.map(async(page, pageI) => {
+    await Promise.map(generatedPages, (async(page, pageI) => {
         // await acc;
-        setLoadingStatus(`Updating page ${pageI + 1}/${generatedPages?.length}`)
+        setLoadingStatus(`Updating page ${++i}/${generatedPages?.length}`)
         const sections = generatedSections.filter(section => page.data.value.sections.map(s => s.id).includes(section.id));
 
         const dataControls = item.data_controls;
@@ -118,7 +120,7 @@ export const updatePages = async ({submit, item, url, destination, id_column, ge
             // }
         }
 
-    }))
+    }), {concurrency: 5})
     console.timeEnd('pages updated in: ')
     setLoadingStatus(undefined)
 }
