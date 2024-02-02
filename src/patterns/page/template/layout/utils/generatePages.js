@@ -8,36 +8,41 @@ export const generatePages = async ({
                                            item, url, destination, id_column, dataRows, falcor, setLoadingStatus
 }) => {
     // const disaster_numbers = ['4020', '4031']
-    setLoadingStatus('Generating Pages...')
-    const idColAttr = dataRows.map(d => d[id_column.name]).filter((d,i) => (d && (i < 10)))
+    setLoadingStatus('Generating Pages...', dataRows)
+    const idColAttr =
+        dataRows
+            .filter(d => !d?.state_fips || d.state_fips === '36')
+            .sort((a,b) => a?.state_fips ? +b[id_column.name] - +a[id_column.name] : true)
+            .map(d => d[id_column.name])
+            // .filter((d,i) => (d && (i < 10)))
     let i = 0;
-
+    console.time('Pages generated in:')
     await Promise.map(idColAttr, (async(idColAttrVal, pageI) => {
         // await acc;
         setLoadingStatus(`Generating page ${++i}/${idColAttr?.length}`)
         const dataControls = item.data_controls;
         let updates = await Promise.map(item.sections.map(s => s.id), async section_id => {
-                let section = item.sections.filter(d => d.id === section_id)?.[0]  || {}
-                let data = parseJSON(section?.element?.['element-data']) || {}
-                let type = section?.element?.['element-type'] || ''
-                let comp = ComponentRegistry[type] || {}
-                let controlVars = (comp?.variables || []).reduce((out,curr) => {
-                    out[curr.name] = data[curr.name]
+            let section = item.sections.filter(d => d.id === section_id)?.[0]  || {}
+            let data = parseJSON(section?.element?.['element-data']) || {}
+            let type = section?.element?.['element-type'] || ''
+            let comp = ComponentRegistry[type] || {}
+            let controlVars = (comp?.variables || []).reduce((out,curr) => {
+                out[curr.name] = data[curr.name]
+                return out
+            },{})
+
+            let updateVars = Object.keys(dataControls?.sectionControls?.[section_id] || {}) // check for id_col
+                .reduce((out,curr) => {
+                    const attrName = dataControls?.sectionControls?.[section_id]?.[curr]?.name || dataControls?.sectionControls?.[section_id]?.[curr];
+
+                    out[curr] = attrName === id_column.name ? idColAttrVal :
+                        (
+                            dataControls?.active_row?.[attrName] ||
+                            dataControls?.active_row?.[attrName] ||
+                            null
+                        )
                     return out
                 },{})
-
-                let updateVars = Object.keys(dataControls?.sectionControls?.[section_id] || {}) // check for id_col
-                    .reduce((out,curr) => {
-                        const attrName = dataControls?.sectionControls?.[section_id]?.[curr]?.name || dataControls?.sectionControls?.[section_id]?.[curr];
-
-                        out[curr] = attrName === id_column.name ? idColAttrVal :
-                            (
-                                dataControls?.active_row?.[attrName] ||
-                                dataControls?.active_row?.[attrName] ||
-                                null
-                            )
-                        return out
-                    },{})
 
                 let args = {...controlVars, ...updateVars}
                 return comp?.getData ? comp.getData(args,falcor).then(data => ({section_id, data})) : ({section_id, data})
