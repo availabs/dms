@@ -95,7 +95,7 @@ export async function dmsDataLoader ( config, path='/') {
 	// if from and to index are passed, filter ids based on them to avoid returning wrong number of rows
 	let id = activeConfigs[0]?.params?.id;
 
-	console.log('loading data id', id,activeIds)
+	// console.log('loading data id', id,activeIds)
 
 	let fromIndex =
 		typeof activeConfigs?.[0]?.filter?.fromIndex === 'function' ?
@@ -184,7 +184,7 @@ export async function dmsDataEditor ( config, data={}, requestType, path='/' ) {
 		return {response: `Deleted item ${id}`}
 	} else if(requestType === 'updateType' && id) {
 		// update type column
-		console.log('falcor update type', requestType, id, data)
+		// console.log('falcor update type', requestType, id, data)
 		if(!data.type) 	return {message: "No type found."}
 
 		await falcor.call(["dms", "type", "edit"], [id, data.type]);
@@ -195,7 +195,7 @@ export async function dmsDataEditor ( config, data={}, requestType, path='/' ) {
 		/*  if there is an id and data
 		    do update
 		*/
-		console.log('falcor update data', requestType, data, JSON.stringify(data).length)
+		// console.log('falcor update data', requestType, data, JSON.stringify(data).length)
 		// todo - data verification
 		console.time(`falcor update data ${id}`)
 		await falcor.call(["dms", "data", "edit"], [id, data]);
