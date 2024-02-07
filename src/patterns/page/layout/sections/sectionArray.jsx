@@ -4,7 +4,7 @@ import cloneDeep from 'lodash/cloneDeep'
 import { Popover, Transition } from '@headlessui/react'
 import { Link } from "react-router-dom";
 import { usePopper } from 'react-popper'
-import { CMSContext } from '../layout/layout'
+import { CMSContext } from '../layout'
 
 import { getSizeClass, sizeOptionsSVG } from './sizes.jsx'
 
@@ -51,7 +51,6 @@ function SizeSelect ({size='1', setSize, onChange}) {
 } 
 
 function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, onRemove}) {
-    // console.log('SectionEdit', value, attributes)
     let [referenceElement, setReferenceElement] = useState()
     let [popperElement, setPopperElement] = useState()
     let { styles, attributes:popperAttributes } = usePopper(referenceElement, popperElement)
@@ -60,19 +59,17 @@ function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, o
         if(!isEqual(value, {...value, [k]: v})) {
             onChange({...value, [k]: v})
         }
-        //console.log('updateAttribute', value, k, v, {...value, [k]: v})
     }
     
     
     let TitleComp = attributes?.title?.EditComp
     let LevelComp = attributes?.level?.EditComp
     let TagsComp = attributes?.tags?.EditComp
-    //let ReqsComp = attributes?.requirements?.EditComp 
     let ElementComp = attributes?.element?.EditComp
     let HelpComp = attributes?.helpText?.EditComp
 
     return (
-        <div className={`${i === 0 ? '-mt-5' : 'pt-4'}`}>
+        <div className={`${i === 0 ? '' : 'pt-4'}`}>
             <div className='flex flex-col'>
                 <div className='flex flex-wrap border-y justify-end items-center'>
                     <div className='flex-0 grow'>
@@ -215,12 +212,24 @@ function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove,ite
     let interactCondition = typeof onEdit !== 'function' && value?.element?.['element-type']?.includes('Map:');
     let isTemplateSectionCondition = value?.element?.['template-section-id'];
     return (
-        <div className={`${i === 0 ? '-m' : ''} ${hideDebug ? '' : 'border border-dashed border-blue-500'}`}>
+        <div className={`${hideDebug ? '' : 'border border-dashed border-blue-500'}`}>
             <div className='flex w-full'>
                 <div className='flex-1'/>
                     {/* -------------------top line buttons ----------------------*/}
+                    {value?.is_header && edit ?  <div className={`z-10 relative`}>
+                        <div className={`absolute mr-16 right-[-60px] flex`}>
+                            <button
+                                        className={' flex items-center text-md cursor-pointer hover:text-blue-500 text-slate-400'}
+                                        onClick={ onEdit }
+                                    >
+                                        <i className="fa-light fa-pencil text-xl fa-fw" title="Edit"></i>
+                                       
+                                    </button>
+                        </div>
+                    </div>
+                    :
                     <div className={`z-10 relative`}>
-                        <div className={`absolute mr-8 ${edit ? 'top-[-14px]' : '}top-[-6px]'} right-[-60px] flex`}> 
+                        <div className={`absolute mr-16 ${edit ? 'top-[-14px]' : '}top-[-6px]'} right-[-60px] flex`}> 
                             {edit && typeof onEdit === 'function' && !isTemplateSectionCondition ? (
                                 <>
                                     <button 
@@ -228,13 +237,13 @@ function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove,ite
                                         onClick={ () => moveItem(i,-1) }
                                     >
                                         <i className="fa-light fa-angle-up text-xl fa-fw" title="Move Up" />
-                                        {/*☳ Edit*/}
+                                       
                                     </button>
                                     <button className={'flex items-center text-md cursor-pointer hover:text-blue-500 text-slate-400'}
                                         onClick={ () =>  moveItem(i,1) }
                                     >
                                         <i className="fa-light fa-angle-down text-xl fa-fw" title="Move Down"/>
-                                        {/*☳ Edit*/}
+                                        
                                     </button>
                                
                                     <button
@@ -242,7 +251,7 @@ function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove,ite
                                         onClick={ onEdit }
                                     >
                                         <i className="fa-light fa-pencil text-xl fa-fw" title="Edit"></i>
-                                        {/*☳ Edit*/}
+                                       
                                     </button>
                                     <button className={'text-lg cursor-pointer hover:text-blue-500 text-slate-400 pr-1'} onClick={addAbove}> 
                                         <i className="fal fa-circle-plus text-lg fa-fw" title="Add Section"></i>
@@ -251,17 +260,17 @@ function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove,ite
                             ) : ''}
                     
                            
-                                {i === 0 && user.authLevel > 5 ?  
-                                  <Link to={`${baseUrl}/${edit ? '' : 'edit/'}${item.url_slug}`}>
-                                    <i className={`fad ${edit ? 'fa-eye' : 'fa-edit'}  fa-fw flex-shrink-0 text-lg text-slate-400 hover:text-blue-500`}/>
-                                  </Link> : ''    
-                                }
-                                 <div className='w-8'></div>
-                            </div>
+                            {i === 0 && user.authLevel > 5 && !value?.is_header ?  
+                              <Link to={`${baseUrl}/${edit ? '' : 'edit/'}${item.url_slug}`}>
+                                <i className={`fad ${edit ? 'fa-eye' : 'fa-edit'}  fa-fw flex-shrink-0 text-lg text-slate-400 hover:text-blue-500`}/>
+                              </Link> : ''    
+                            }
+                             {/*<div className='w-8'></div>*/}
                         </div>
                     </div>
+                    }
                     {/* -------------------top line buttons ----------------------*/}
-                    
+                </div>
                 {
                     (sectionTitleCondition || helpTextCondition || interactCondition) &&
                     <div className={`flex w-full h-[50px] items-center ${(value?.['level']) === '1' ? `border-b` : ``} ${hideDebug ? '' : 'border border-dashed border-pink-500'}`}>
@@ -423,7 +432,7 @@ const Edit = ({Component, value, onChange, attr, item}) => {
     const save = () => {
         let cloneValue = cloneDeep(value)
         let action = ''
-        edit.value.has_changes = true
+        // edit.value.has_changes = true
         if(edit.type === 'update') {
             cloneValue[edit.index] = edit.value
 
@@ -482,7 +491,7 @@ const Edit = ({Component, value, onChange, attr, item}) => {
 
 
     return (
-        <div className={`mb-12 grid grid-cols-6 ${layouts[item.full_width === 'show' ? 'fullwidth' : 'centered']} gap-1`}>
+        <div className={`grid grid-cols-6 ${layouts[item.full_width === 'show' ? 'fullwidth' : 'centered']} gap-1`}>
             {values.map((v,i) => {
                 const size = (edit.index === i ? edit?.value?.size : v?.size) || "1";
                 const requiredSpace = sizeOptionsSVG.find(s => s.name === size)?.value;
@@ -536,7 +545,7 @@ const Edit = ({Component, value, onChange, attr, item}) => {
                             /> : ''}
 
                         {/* add new section at end  */}
-                        { edit.index == -1 && i === values.length-1 ? 
+                        { !values[0]?.is_header && edit.index == -1 && i === values.length-1 ? 
                             <div className=''>
                                 <AddSectionButton onClick={() => setEditIndex(i)}/> 
                             </div>  : <div className='' />
@@ -562,7 +571,7 @@ const View = ({Component, value, attr, item}) => {
 
 
     return (
-        <div className={`mb-12 grid grid-cols-6 ${layouts[item.full_width === 'show' ? 'fullwidth' : 'centered']} gap-1`}>
+        <div className={`grid grid-cols-6 ${layouts[item.full_width === 'show' ? 'fullwidth' : 'centered']} gap-1`}>
         
         { 
             value.filter(v => hideSectionCondition(v))

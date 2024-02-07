@@ -2,12 +2,12 @@ import React, {useEffect} from 'react'
 import { Link } from "react-router-dom";
 
 import { SideNav } from '~/modules/avl-components/src'
-import { CMSContext } from '../layout'
+import { CMSContext } from './layout'
 
-import Layout from '../components/avail-layout'
-import {dataItemsNav, detectNavLevel} from '../components/utils/navItems'
-import {getInPageNav} from "../components/utils/inPageNavItems.js";
-import { Header } from '../components/header'
+import Layout from './components/avail-layout'
+import {dataItemsNav, detectNavLevel} from './components/utils/navItems'
+import {getInPageNav} from "./components/utils/inPageNavItems.js";
+import { Header } from './components/header'
 
 import cloneDeep from 'lodash/cloneDeep'
 
@@ -26,21 +26,22 @@ function PageView ({item, dataItems, attributes, user, logo, rightMenu}) {
   // console.log('page view', item)
 
   const level = detectNavLevel(dataItems, baseUrl);
-
   const inPageNav = getInPageNav(dataItems, baseUrl);
 
-
+  const headerSection = item['sections']?.filter(d => d.is_header)?.[0]
+  const sections = item['sections']?.filter(d => !d.is_header && !d.is_footer)
   
   return (
     <div>
     {/* Header */}
-    {item?.header && <Header {...item.header}/>} 
+    {(item?.header === 'above') && <ContentView item={item} value={[headerSection]} {...attributes['sections']}/>}
     {/* Layout */}
     <Layout 
       topNav={{menuItems, position: 'fixed', logo, rightMenu }}
       sideNav={item.sideNav ? item.sideNav : inPageNav}
     >
       <div className={`${theme.layout.page} ${theme.navPadding[level]}`}>
+        {(item?.header === 'below') && <ContentView item={item} value={[headerSection]} {...attributes['sections']}/>}
         <div className={theme.layout.container}>
           {/*----Page ---*/}
           <div className='flex flex-1 h-full w-full px-1 md:px-6 py-6'>
@@ -57,6 +58,8 @@ function PageView ({item, dataItems, attributes, user, logo, rightMenu}) {
             
             <div className={theme.page.content}>
               <div className={theme.page.container + ' '}>
+                {(item?.header === 'inpage') && <ContentView item={item} value={[headerSection]} {...attributes['sections']}/>}
+    
                 {/*<div className='px-6 py-4 font-sans font-medium text-xl text-slate-700 uppercase max-w-5xl mx-auto'>
                   {item['title']}
                 </div>*/}
@@ -64,7 +67,7 @@ function PageView ({item, dataItems, attributes, user, logo, rightMenu}) {
                 <div className='text-md font-light leading-7'>
                   <ContentView 
                     item={item}
-                    value={item['sections']} 
+                    value={sections} 
                     {...attributes['sections']}
                   />
                 </div>

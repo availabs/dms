@@ -1,4 +1,4 @@
-import SectionArray from '../sections/sectionArray'
+import SectionArray from '../layout/sections/sectionArray'
 import { cmsSection } from '../page.format.js'
 
 const cmsPageFormat = {

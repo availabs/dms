@@ -1,72 +1,35 @@
 import React, {useEffect} from 'react'
 import { NavLink, Link, useSubmit, useNavigate, useLocation, useParams} from "react-router-dom";
-
-import Layout from '../components/avail-layout'
-import { SideNav } from '~/modules/avl-components/src'
-import { Header } from '../components/header'
-import EditControls from './editControls'
-
-import { CMSContext } from '../layout'
-
-import { dataItemsNav, detectNavLevel } from '../components/utils/navItems'
-import { getInPageNav } from "../components/utils/inPageNavItems.js";
-import { json2DmsForm, getUrlSlug, toSnakeCase } from '../components/utils/navItems'
-//import theme from '../components/theme'
-
 import cloneDeep from 'lodash/cloneDeep'
 
 
-function PageEdit ({
-  item, dataItems, updateAttribute ,attributes, setItem, status, logo, rightMenu
+import Layout from '../../components/avail-layout'
+import { getInPageNav } from "../../components/utils/inPageNavItems.js";
+
+import { SideNav } from '~/modules/avl-components/src'
+import {json2DmsForm, getUrlSlug, toSnakeCase} from '../../components/utils/navItems'
+import { PageControls } from './templateControls'
+import EditControls from '../../edit/editControls'
+import { CMSContext } from '../../layout'
+
+
+
+function TemplateEdit ({
+  item, dataItems, updateAttribute ,attributes, setItem, status, params, logo, rightMenu
 }) {
   const navigate = useNavigate()
   const submit = useSubmit()
-  const { pathname = '/edit' } = useLocation()
   const { baseUrl, user, theme } = React.useContext(CMSContext)
+  // const { pathname = '/edit' } = useLocation()
+  //const { baseUrl } = React.useContext(CMSContext)
   
-  const menuItems = React.useMemo(() => {
-    let items = dataItemsNav(dataItems,baseUrl,true)
-    return items
-  }, [dataItems])
-
-  const level = detectNavLevel(dataItems, baseUrl);
+  const { id } = params
+  
+  const level = 1;
   const inPageNav = getInPageNav(dataItems, baseUrl);
-  
-  //console.log('page edit', item)
-  //console.log('page edit', open, setOpen)
-  //if(!dataItems[0]) return <div/>
-
-  React.useEffect(() => {
-    if(!item?.url_slug ) { 
-      let defaultUrl = dataItems
-        .sort((a,b) => a.index-b.index)
-        .filter(d=> !d.parent && d.url_slug)[0]
-      defaultUrl && defaultUrl.url_slug && navigate(`edit/${defaultUrl.url_slug}`)
-    }
-  },[])
-
-  React.useEffect(() => {
-    // ------------------------------------------------------------
-    // -- This on load effect backfills pages created before drafts
-    // -- will be removed after full adoption of draft / publish
-    // ------------------------------------------------------------
-    if(item.sections && item?.sections?.length > 0 && !item.draft_sections) {
-      const draftSections = cloneDeep(item.sections)
-      draftSections.forEach(d => delete d.id)
-      const newItem = cloneDeep(item)
-      newItem.draft_sections = draftSections
-      item.draft_sections = draftSections
-      updateAttribute('draft_sections', draftSections)
-      submit(json2DmsForm(newItem), { method: "post", action: `${baseUrl}/edit/${newItem.url_slug}` })
-    }
-  },[])
-
-  const headerSection = item['draft_sections']?.filter(d => d.is_header)?.[0]
-  // let headerElement = {} 
-  // try {
-  //   headerElement = JSON.parse(headerSection?.element?.['element-data']) || {}
-  // } catch (e) {/* console.log(e) */}
-  const draftSections = item['draft_sections']?.filter(d => !d.is_header && !d.is_footer)
+  const headerSection = item['sections']?.filter(d => d.is_header)?.[0]
+  const draftSections = item['sections']?.filter(d => !d.is_header && !d.is_footer)
+  const menuItems=[]
 
   const saveHeader = (v) => {
     
@@ -125,19 +88,17 @@ function PageEdit ({
     //.then(d => console.log('on submit',d))
   }
 
-  const ContentEdit = attributes['draft_sections'].EditComp
-
-  //console.log('headerSection', headerElement.position)
-  
-  // /img/landing_header2.png
+  //console.log('page edit', attributes['sections'])
+  const ContentEdit = attributes['sections'].EditComp
+ 
   return (
-    <div >
+    <div key={id}>
        {item?.header === 'above' && <div className='w-full'> 
          <ContentEdit
             item={item}
             value={[headerSection]} 
             onChange={saveHeader}         
-            {...attributes['draft_sections']}
+            {...attributes['sections']}
           />
         </div>
       } 
@@ -152,7 +113,7 @@ function PageEdit ({
                       item={item}
                       value={[headerSection]} 
                       onChange={saveHeader}         
-                      {...attributes['draft_sections']}
+                      {...attributes['sections']}
                     />
                   </div>
                 }
@@ -176,7 +137,7 @@ function PageEdit ({
                       item={item}
                       value={[headerSection]} 
                       onChange={saveHeader}         
-                      {...attributes['draft_sections']}
+                      {...attributes['sections']}
                     />
                   </div>
                 } 
@@ -185,21 +146,22 @@ function PageEdit ({
                       item={item}
                       value={draftSections} 
                       onChange={saveSection}         
-                      {...attributes['draft_sections']}
+                      {...attributes['sections']}
                     />
                 </div>
               </div>
               </div>
               <div className='w-52 hidden xl:block'>
                 <div className='w-52 fixed hidden xl:block h-screen'> 
-                  <EditControls 
-                    item={item} 
+                  <EditControls
+                    item={item}
                     dataItems={dataItems}
                     setItem={setItem}
                     edit={true}
                     status={status}
                     attributes={attributes}
                     updateAttribute={updateAttribute}
+                    pageType={'template'}
                   />
                 </div>
               </div>
@@ -209,8 +171,9 @@ function PageEdit ({
         </div>
       </Layout>
       {item?.footer && <div className='h-[300px] bg-slate-100' />} 
-    </div>
+    </div>   
   ) 
 }
 
-export default PageEdit
+
+export default TemplateEdit

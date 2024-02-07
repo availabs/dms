@@ -1,15 +1,16 @@
 import React, { useEffect, Fragment, useRef, useState } from 'react'
-import { Dialog, Transition, Switch,Popover } from '@headlessui/react'
+import { useSubmit, useLocation } from "react-router-dom";
+import { Dialog, Transition, Switch, Popover } from '@headlessui/react'
 import { usePopper } from 'react-popper'
-
 import { ExclamationTriangleIcon } from '@heroicons/react/24/outline'
 import cloneDeep from 'lodash/cloneDeep'
-// import { ToastContainer, toast, Slide } from 'react-toastify';
-import { useSubmit, useLocation } from "react-router-dom";
+
+import ButtonSelector from '../components/buttonSelector'
 import {json2DmsForm, getUrlSlug, toSnakeCase} from '../components/utils/navItems'
-import 'react-toastify/dist/ReactToastify.css';
+
 import EditPagesNav  from './editPages'
 import EditHistory from './editHistory'
+
 import { CMSContext } from '../layout'
 
 const theme = {
@@ -21,7 +22,7 @@ const theme = {
   }
 }
 
-export function EditControls({ item, dataItems, updateAttribute,attributes, edit, status, setItem }) {
+function EditControls({ item, dataItems, updateAttribute,attributes, edit, status, setItem, pageType = 'page' }) {
   const submit = useSubmit()
   const { pathname = '/edit' } = useLocation()
   const [ open, setOpen ] = React.useState(false)
@@ -32,24 +33,6 @@ export function EditControls({ item, dataItems, updateAttribute,attributes, edit
   const [ type, setType] = useState(item.type);
   const { baseUrl, user } = React.useContext(CMSContext)
   const NoOp = () => {}
-
-  // useEffect(() => {
-  //   setStatusMessage(status?.message)
-  //   toast.success(status?.message, {
-  //     toastId: 'page-update-success',
-  //     position: "bottom-right",
-  //     autoClose: 5000,
-  //     transition: Slide,
-  //     hideProgressBar: false,
-  //     closeOnClick: true,
-  //     pauseOnHover: true,
-  //     draggable: true,
-  //     progress: undefined,
-  //     theme: "light",
-  //   })
-  // },[status])
-
-  //console.log('edit controls item',item)
 
   const duplicateItem = () => {
     const highestIndex = dataItems
@@ -154,10 +137,26 @@ export function EditControls({ item, dataItems, updateAttribute,attributes, edit
   const toggleSidebar = async (type, value='') => {
     const newItem = cloneDeep(item)
     newItem[type] = value
-    updateAttribute(type, value)
+   
     // console.log('item', newItem, value)
-    if(type === 'header' && !newItem.draft_sections.filter(d => d.is_header)?.[0]){
-      console.log('toggleHeader add header')
+    let sectionType = pageType === 'template' ? 'sections' : 'draft_sections';
+    if(type === 'header' && !newItem?.[sectionType]?.filter(d => d.is_header)?.[0]){
+      console.log('toggleHeader add header', newItem[sectionType])
+      
+      newItem[sectionType].unshift({
+        is_header: true,
+        element : {
+          "element-type": "Header: Default Header",
+          "element-data": {}
+        }
+      })
+      //console.log('new item', newItem)
+      updateAttribute('','',{
+        header: value,
+        [sectionType]: newItem[sectionType]
+      })
+    } else {
+      updateAttribute(type, value)
     }
     submit(json2DmsForm(newItem), { method: "post", action: pathname })
   }
@@ -235,9 +234,9 @@ export function EditControls({ item, dataItems, updateAttribute,attributes, edit
       <EditHistory item={item}  historyOpen={historyOpen} setHistoryOpen={setHistoryOpen} />
         {edit &&
           <div className='p-4'>
-            <div className='w-full flex justify-center pb-6'>
+            {pageType === 'page' && <div className='w-full flex justify-center pb-6'>
               <PublishButton item={item} onClick={publish} />
-            </div>
+            </div>}
             <div className='pl-4 pb-2'>
               <TitleEditComp
                 item={item}
@@ -246,7 +245,7 @@ export function EditControls({ item, dataItems, updateAttribute,attributes, edit
             </div>
             
             <div className='flex w-full h-12 px-4'>
-              <IconPopover icon='fad fa-wrench p-2 text-blue-300 hover:text-blue-500 cursor-pointer text-lg' >
+              {pageType === 'page' && <IconPopover icon='fad fa-wrench p-2 text-blue-300 hover:text-blue-500 cursor-pointer text-lg' >
                 <div className='py-2'>
                   <div className='px-6 font-medium text-sm'> Page Controls </div>
                   {(!item?.parent || item?.parent === '') &&
@@ -289,7 +288,7 @@ export function EditControls({ item, dataItems, updateAttribute,attributes, edit
                     {'☵ Delete'}
                   </div>
                 </div>
-              </IconPopover>
+              </IconPopover>}
               <IconPopover icon='fad fa-sliders-h p-2 text-blue-300 hover:text-blue-500 cursor-pointer text-lg'>
                 <div className='py-2'>
                   <div className='px-6 font-medium text-sm'> Page Settings </div>
@@ -304,11 +303,25 @@ export function EditControls({ item, dataItems, updateAttribute,attributes, edit
                   </div>
                   <div className={theme.pageControls.controlItem } >
                     <SidebarSwitch
-                      type='header'
+                      type='full_width'
                       item={item}
                       toggleSidebar={toggleSidebar}
                     />
-                    Show Header
+                    Full Width
+                  </div>
+                  <div className={theme.pageControls.controlItem + ' pr-4' } >
+                    
+                    <ButtonSelector
+                      label={'Header:'}
+                      types={[{label: 'None', value: 'none'}, 
+                          {label: 'Above', value: 'above'},
+                          {label: 'Below', value: 'below'},
+                          {label: 'In page', value: 'inpage'}
+                        ]}
+                      type={item.header}
+                      setType={(e) => toggleSidebar('header',e)}
+                    />
+                    
                     
                   </div>
                   <div className={theme.pageControls.controlItem } >
@@ -319,20 +332,13 @@ export function EditControls({ item, dataItems, updateAttribute,attributes, edit
                     />
                     Show Footer
                   </div>
-                  <div className={theme.pageControls.controlItem } >
-                    <SidebarSwitch
-                      type='full_width'
-                      item={item}
-                      toggleSidebar={toggleSidebar}
-                    />
-                    Full Width
-                  </div>
+                  
                 </div>
               </IconPopover>
-              <div 
+              {pageType === 'page' && <div 
                 className='fad fa-file-alt p-2 text-blue-300 hover:text-blue-500 cursor-pointer text-lg' 
                 onClick={() => setOpen(true)}
-              />
+              />}
               <div 
                 className='fad fa-history p-2 text-blue-300 hover:text-blue-500 cursor-pointer text-lg' 
                 onClick={() => setHistoryOpen(true)}
@@ -351,6 +357,8 @@ export function EditControls({ item, dataItems, updateAttribute,attributes, edit
     </>
   )
 }
+
+export default EditControls
 
 function TitleEditComp({item, onChange}) {
   const [editing, setEditing] = React.useState(false)

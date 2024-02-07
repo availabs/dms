@@ -1,7 +1,13 @@
-import PageView from "./layout/view"
+// pages
+import Layout from "./layout/layout"
+import PageView from "./layout/view.jsx"
 import PageEdit from "./layout/edit"
 
-import Layout from "./layout/layout"
+// templates
+import TemplateList from './layout/template/list'
+import TemplatePages from './layout/template/pages'
+import TemplateEdit from './layout/template/edit'
+
 import cmsFormat from "./page.format.js"
 import cloneDeep from 'lodash/cloneDeep'
 import defaultTheme from './theme/theme'
@@ -61,10 +67,47 @@ const siteConfig = ({
         action: "list",
         path: "/*",
         filter: {
-          mainNav: true, 
+          options: JSON.stringify({
+            filter: {
+              "data->>'hide_in_nav'": ['null'],
+            }
+          }),
           attributes:['title', 'index', 'url_slug', 'parent','published', 'hide_in_nav']
         },
         children: [
+          { 
+            type: TemplateList,
+            action: "list",
+            path: "templates/*",
+            lazyLoad: true,
+            filter: {
+              options: JSON.stringify({
+                filter: {
+                  "data->>'template_id'": ['-99'],
+                }
+              }),
+              attributes:['title', 'index', 'url_slug', 'parent', 'hide_in_nav', 'template_id' ]
+            }
+          },
+          { 
+            type: (props) => <TemplateEdit 
+              logo={logo}
+              rightMenu={rightMenuWithSearch}
+              {...props}
+            />,
+            action: "edit",
+            path: "templates/edit/:id"
+          },
+          // {
+          //   type: TemplatePreview,
+          //   action: "edit",
+          //   path: "/view/:id"
+          // },
+          { 
+              type: TemplatePages,
+              action: "edit",
+              path: "templates/pages/:id"
+          },
           { 
             type: (props) => <PageView 
               {...props} 
@@ -92,7 +135,11 @@ const siteConfig = ({
         path: "/edit/*",
         authLevel: 5,
         filter: {
-          mainNav: true, 
+          options: JSON.stringify({
+            filter: {
+              "data->>'hide_in_nav'": ['null'],
+            }
+          }),
           attributes:['title', 'index', 'url_slug', 'parent', 'published', 'hide_in_nav' ]
         },
         children: [
