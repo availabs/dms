@@ -1,16 +1,17 @@
 import React, { useState, useRef } from 'react'
 import { Link, useSubmit, useLocation } from "react-router-dom";
 import { Dialog  } from '@headlessui/react'
-import { Modal } from "~/modules/dms/src/patterns/page/layout/components/editControls"
-import {json2DmsForm, getUrlSlug, toSnakeCase} from '~/modules/dms/src/patterns/page/layout/components/utils/navItems'
-
+import { Modal } from "../components/editControls"
+import {json2DmsForm, getUrlSlug, toSnakeCase} from '../components/utils/navItems'
+import { CMSContext } from '../layout'
 
 function TemplateRow ({ item={} }) {
+  const { baseUrl} = React.useContext(CMSContext)
   const [showDelete, setShowDelete] = useState(false)
   return (
     <div className='grid grid-cols-4 px-2 py-3 border-b hover:bg-blue-50'>
       <div>
-        <Link to={`/admin/templates/edit/${item.id}`} > 
+        <Link to={`${baseUrl}/templates/edit/${item.id}`} > 
           <div className='px-2 font-medium text-lg text-slate-700'>
             {item.title}
           </div>
@@ -20,7 +21,7 @@ function TemplateRow ({ item={} }) {
       <div></div>
       <div></div>
       <div className='text-right flex items-center flex-row justify-end px-2 '>
-          <Link to={`/admin/templates/pages/${item.id}`}
+          <Link to={`${baseUrl}/templates/pages/${item.id}`}
                 className={'fa-thin fa-memo px-2 py-1 mx-2 text-bold cursor-pointer'}
                 title={'pages'}
           />
@@ -50,14 +51,16 @@ export default function TemplateList ({children, dataItems, edit, baseUrl='', ..
           <div className='flex items-center'>
               <div className='text-2xl p-3 font-thin flex-1'>Templates</div>
               {
-                path === '/admin/templates' ? 
+                path === `${baseUrl}/templates` ? 
                    <div className='px-1'><Link to={`${baseUrl}`} className='inline-flex w-36 justify-center rounded-lg cursor-pointer text-sm font-semibold py-1 px-4 bg-blue-600 text-white hover:bg-blue-500 shadow-lg border border-b-4 border-blue-800 hover:border-blue-700 active:border-b-2 active:mb-[2px] active:shadow-none'> Templates </Link></div>
                 :  <div className='px-1' ><div onClick={()=> setShowNew(!showNew)} className='inline-flex w-36 justify-center rounded-lg cursor-pointer text-sm font-semibold py-1 px-4 bg-blue-600 text-white hover:bg-blue-500 shadow-lg border border-b-4 border-blue-800 hover:border-blue-700 active:border-b-2 active:mb-[2px] active:shadow-none'> New Template</div></div>
               }
           </div>
           <div className='px-6 pt-8'>
             <div className='shadow rounded border'>
-              {dataItems.map(item => (
+              {dataItems
+                .filter(item => item.template_id == '-99')
+                .map(item => (
                 <TemplateRow key={item.id} item={item} />
               ))}
             </div>
@@ -112,7 +115,10 @@ function NewTemplateModal ({ open, setOpen})  {
             
             const newItem = {
               title,
-                url_slug: toSnakeCase(title)
+              url_slug: toSnakeCase(title),
+              template_id: -99,
+              hide_in_nav: true,
+              index: 999
             }
             setLoading(true)
             await submit(json2DmsForm(newItem), { method: "post", action: pathname })

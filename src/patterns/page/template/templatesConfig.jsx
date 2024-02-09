@@ -59,9 +59,9 @@ const siteConfig = ({
         path: "/view/:id"
       },
       { 
-          type: TemplatePages,
-          action: "edit",
-          path: "/pages/:id"
+        type: TemplatePages,
+        action: "edit",
+        path: "/pages/:id"
     }
     ]
   }

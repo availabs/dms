@@ -1,17 +1,17 @@
 import React, {useEffect} from 'react'
 import { NavLink, Link, useSubmit, useNavigate, useLocation, useParams} from "react-router-dom";
 
-import Layout from '../components/avail-layout'
+import Layout from './components/avail-layout'
 import { SideNav } from '~/modules/avl-components/src'
-import { Header } from '../components/header'
-import { EditControls } from './editControls'
+import { Header } from './components/header'
+import EditControls from './components/editControls'
 
-import { CMSContext } from '../layout'
+import { CMSContext } from './layout'
 
-import { dataItemsNav, detectNavLevel } from '../components/utils/navItems'
-import { getInPageNav } from "../components/utils/inPageNavItems.js";
-import { json2DmsForm, getUrlSlug, toSnakeCase } from '../components/utils/navItems'
-import theme from '../components/theme'
+import { dataItemsNav, detectNavLevel } from './components/utils/navItems'
+import { getInPageNav } from "./components/utils/inPageNavItems.js";
+import { json2DmsForm, getUrlSlug, toSnakeCase } from './components/utils/navItems'
+
 
 import cloneDeep from 'lodash/cloneDeep'
 
@@ -22,12 +22,14 @@ function PageEdit ({
   const navigate = useNavigate()
   const submit = useSubmit()
   const { pathname = '/edit' } = useLocation()
-  const { baseUrl, user } = React.useContext(CMSContext)
+  const { baseUrl, user, theme } = React.useContext(CMSContext)
   
   const menuItems = React.useMemo(() => {
     let items = dataItemsNav(dataItems,baseUrl,true)
     return items
   }, [dataItems])
+
+  console.log('menuItems', menuItems)
 
   const level = detectNavLevel(dataItems, baseUrl);
   const inPageNav = getInPageNav(dataItems, baseUrl);
@@ -61,6 +63,38 @@ function PageEdit ({
     }
   },[])
 
+  const headerSection = item['draft_sections']?.filter(d => d.is_header)?.[0]
+  // let headerElement = {} 
+  // try {
+  //   headerElement = JSON.parse(headerSection?.element?.['element-data']) || {}
+  // } catch (e) {/* console.log(e) */}
+  const draftSections = item['draft_sections']?.filter(d => !d.is_header && !d.is_footer)
+
+  const saveHeader = (v) => {
+    
+    let history = item.history ? cloneDeep(item.history) : []
+  
+    history.push({
+      type: 'Header updated.',
+      user: user.email, 
+      time: new Date().toString()
+    })
+    
+    updateAttribute('','',{
+      'has_changes': true,
+      'history': history,
+      'draft_sections': [...v, ...draftSections].filter(d => d)
+    })
+    const newItem = {
+      id: item.id, 
+      draft_sections: [...v, ...draftSections].filter(d => d),
+      has_changes: true,
+      history, 
+    }
+    console.log('save header', newItem)
+    submit(json2DmsForm(newItem), { method: "post", action: `${baseUrl}/edit/${item.url_slug}` })
+  }
+
   const saveSection = (v,action) => {
     //console.log('save section', v,action)
     let edit = {
@@ -76,7 +110,7 @@ function PageEdit ({
     updateAttribute('','',{
       'has_changes': true,
       'history': history,
-      'draft_sections': v
+      'draft_sections': [headerSection, ...v].filter(d => d)
     })
 
     // ----------------
@@ -85,7 +119,7 @@ function PageEdit ({
 
     const newItem = {
       id: item.id, 
-      draft_sections: v,
+      draft_sections: [headerSection, ...v].filter(d => d),
       has_changes: true,
       history, 
     }
@@ -94,19 +128,38 @@ function PageEdit ({
   }
 
   const ContentEdit = attributes['draft_sections'].EditComp
-  
-  
 
+  //console.log('headerSection', headerElement.position)
+  
+  // /img/landing_header2.png
   return (
     <div>
-       {item?.header && <Header {...item.header}/>} 
+       {item?.header === 'above' && <div className='w-full'> 
+         <ContentEdit
+            item={item}
+            value={[headerSection]} 
+            onChange={saveHeader}         
+            {...attributes['draft_sections']}
+          />
+        </div>
+      } 
       <Layout 
         topNav={{menuItems, position: 'fixed', logo, rightMenu }} 
         sideNav={inPageNav}
       >
         <div className={`${theme.layout.page} ${theme.navPadding[level]}`}>
           <div className={theme.layout.container}>
+            {item?.header === 'below' && <div className='w-full'> 
+                   <ContentEdit
+                      item={item}
+                      value={[headerSection]} 
+                      onChange={saveHeader}         
+                      {...attributes['draft_sections']}
+                    />
+                  </div>
+                }
             {/* PAGE EDIT */}
+
             <div className='flex flex-1 h-full w-full px-1 md:px-6 py-6'>
               {item?.sidebar === 'show' ? 
                   (<div className='w-64 hidden xl:block'>
@@ -117,17 +170,22 @@ function PageEdit ({
                     </div>
                   </div>)
                 : ''}
-              <div className={theme.page.content}>
+              <div className={theme.page.content + ' border-r'}>
+
                 <div className={theme.page.container}>
-                  <div className='w-full text-right relative py-2 z-10 h-[40px]'>
-                  {user?.authLevel >= 5 ?  
-                    <Link to={`${baseUrl}/${item.url_slug}`}>
-                      <i className='fad fa-eye fa-fw flex-shrink-0  pr-1 text-blue-500'/>
-                    </Link> : ''}
-                </div>
-                <div className='text-base font-light leading-7 -mt-[40px]'>
+                {item?.header === 'inpage' && <div className='w-full'> 
+                   <ContentEdit
+                      item={item}
+                      value={[headerSection]} 
+                      onChange={saveHeader}         
+                      {...attributes['draft_sections']}
+                    />
+                  </div>
+                } 
+                <div className='text-base font-light leading-7'>
                     <ContentEdit
-                      value={item['draft_sections']} 
+                      item={item}
+                      value={draftSections} 
                       onChange={saveSection}         
                       {...attributes['draft_sections']}
                     />
@@ -135,7 +193,7 @@ function PageEdit ({
               </div>
               </div>
               <div className='w-52 hidden xl:block'>
-                <div className='w-52 fixed hidden xl:block h-screen'> 
+                <div className='w-52 sticky top-12 hidden xl:block h-screen'> 
                   <EditControls 
                     item={item} 
                     dataItems={dataItems}

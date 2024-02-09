@@ -18,7 +18,7 @@ const createRequest = (wrapperConfig,format, path, length) => {
 	let toIndex = typeof wrapperConfig?.filter?.toIndex === "function" ?
 			wrapperConfig?.filter?.toIndex(path) :
 			(+wrapperConfig.params?.[wrapperConfig?.filter?.toIndex] || length - 1);
-	let options = wrapperConfig?.filter?.options || JSON.stringify({});
+	let options = wrapperConfig?.filter?.options || '{}';
 	let tags = wrapperConfig?.filter?.tags || [];
 
 	// wrapperConfig.action === 'edit' makes it pull either by id or full data. 
@@ -27,16 +27,22 @@ const createRequest = (wrapperConfig,format, path, length) => {
 
 	switch (wrapperConfig.action) {
 		case 'list':
-			return [
-				'dms', 'data', `${ app }+${ type }`, 'byIndex',
-				{from: fromIndex, to: toIndex },
-				[ "id", "updated_at", "created_at","app", "type",...dataAttrs]
-			]
+			const listReq =  [
+				'dms', 'data', `${ app }+${ type }`, 
+				 options !== '{}' ? 'opts' : false,
+				 options !== '{}' ? options : false,
+				'byIndex', {from: fromIndex, to: toIndex },
+				[ "id", "app", "type",...dataAttrs]
+			].filter(d => d)
+			// console.log('listreq', listReq)
+			return listReq
+
 		break;
 		case 'view':
 		case 'edit':
 			// if
 			const idPath = getIdPath(wrapperConfig,format)
+			console.log('idPath', idPath)
 			return  idPath ? idPath : 
 				[
 				'dms', 'data', `${ app }+${ type }`, 'byIndex',
@@ -78,9 +84,14 @@ export function getIdPath (wrapperConfig,format) {
 
 	let id = wrapperConfig.params?.id;
 
-	console.log('hola', id , wildKey, defaultSearch)
+	//console.log('hola', id , wildKey, defaultSearch, wrapperConfig, format)
+	// if you have an id prefer that to a wildkey
 
-	return wildKey ? [
+	return id ? 
+	[
+			'dms', 'data', 'byId', id, 
+		[ "id", "updated_at", "created_at","app", "type",...dataAttrs]
+	] : wildKey ? [
 		'dms', 'data', `${ app }+${ type }`,
 		'searchOne',
 		[JSON.stringify({
@@ -89,11 +100,7 @@ export function getIdPath (wrapperConfig,format) {
 			defaultSearch
 		})],
 		[ "id", "updated_at", "created_at","app", "type", ...dataAttrs]
-	] : id ? 
-	[
-		'dms', 'data', 'byId', id, 
-		[ "id", "updated_at", "created_at","app", "type",...dataAttrs]
-	] : null
+	] :  null
 				
 
 	

@@ -95,20 +95,20 @@ export const IMAGE: TextMatchTransformer = {
   type: 'text-match',
 };
 
-export const EMOJI: TextMatchTransformer = {
-  dependencies: [],
-  export: () => null,
-  importRegExp: /:([a-z0-9_]+):/,
-  regExp: /:([a-z0-9_]+):/,
-  replace: (textNode, [, name]) => {
-    const emoji = emojiList.find((e) => e.aliases.includes(name))?.emoji;
-    if (emoji) {
-      textNode.replace($createTextNode(emoji));
-    }
-  },
-  trigger: ':',
-  type: 'text-match',
-};
+// export const EMOJI: TextMatchTransformer = {
+//   dependencies: [],
+//   export: () => null,
+//   importRegExp: /:([a-z0-9_]+):/,
+//   regExp: /:([a-z0-9_]+):/,
+//   replace: (textNode, [, name]) => {
+//     const emoji = emojiList.find((e) => e.aliases.includes(name))?.emoji;
+//     if (emoji) {
+//       textNode.replace($createTextNode(emoji));
+//     }
+//   },
+//   trigger: ':',
+//   type: 'text-match',
+// };
 
 // export const EQUATION: TextMatchTransformer = {
 //   dependencies: [EquationNode],
@@ -308,7 +308,7 @@ export const PLAYGROUND_TRANSFORMERS: Array<Transformer> = [
   TABLE,
   HR,
   IMAGE,
-  EMOJI,
+  // EMOJI,
   TWEET,
   CHECK_LIST,
   ...ELEMENT_TRANSFORMERS,

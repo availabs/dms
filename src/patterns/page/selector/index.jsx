@@ -8,7 +8,7 @@ import FilterableSearch from "./FilterableSearch.jsx";
 
 import ComponentRegistry from './ComponentRegistry'
 
-let Components = ComponentRegistry;
+export let RegisteredComponents = ComponentRegistry;
 
 const icons = {
     card: 'fa-thin fa-credit-card',
@@ -35,7 +35,7 @@ function EditComp(props) {
         }
     }, []);
 
-    let DataComp = (Components[get(value, "element-type", "lexical")] || Components['lexical']).EditComp
+    let DataComp = (RegisteredComponents[get(value, "element-type", "lexical")] || RegisteredComponents['lexical']).EditComp
 
     return (
         <div className="w-full">
@@ -45,11 +45,11 @@ function EditComp(props) {
                     className={'flex-row-reverse'}
                     placeholder={'Search for a Component...'}
                     options={
-                        Object.keys(Components)
-                            .filter(k => !Components[k].hideInSelector)
+                        Object.keys(RegisteredComponents)
+                            .filter(k => !RegisteredComponents[k].hideInSelector)
                             .map(k => (
                             {
-                                key: k, label: Components[k].name || k
+                                key: k, label: RegisteredComponents[k].name || k
                             }
                         ))
                     }
@@ -72,9 +72,9 @@ function EditComp(props) {
                             value: 'paste'
                         },
                         ...[...new Set(
-                            Object.keys(Components)
-                                .filter(k => !Components[k].hideInSelector)
-                                .map(key => (Components[key].name || key).split(':')[0]))]
+                            Object.keys(RegisteredComponents)
+                                .filter(k => !RegisteredComponents[k].hideInSelector)
+                                .map(key => (RegisteredComponents[key].name || key).split(':')[0]))]
                             .map(c => (
                                 {
                                     icon: `${icons[c.toLowerCase()] || c.toLowerCase()}`,
@@ -99,8 +99,8 @@ function EditComp(props) {
 function ViewComp({value}) {
     // if (!value) return false
 
-    let Comp = Components[get(value, "element-type", 'lexical')] ?
-        Components[get(value, "element-type", "lexical")].ViewComp :
+    let Comp = RegisteredComponents[get(value, "element-type", 'lexical')] ?
+        RegisteredComponents[get(value, "element-type", "lexical")].ViewComp :
         () => <div> Component {value["element-type"]} Not Registered </div>
 
     return (
@@ -118,6 +118,6 @@ const Selector = {
 export default Selector
 
 export const registerComponents = (comps = {}) => {
-    Components = {...Components, ...comps}
+    RegisteredComponents = {...RegisteredComponents, ...comps}
 } 
 

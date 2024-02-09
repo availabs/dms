@@ -32,15 +32,15 @@ import AutocompletePlugin from './plugins/AutocompletePlugin';
 import AutoEmbedPlugin from './plugins/AutoEmbedPlugin';
 import AutoLinkPlugin from './plugins/AutoLinkPlugin';
 import ClickableLinkPlugin from './plugins/ClickableLinkPlugin';
-import CodeActionMenuPlugin from './plugins/CodeActionMenuPlugin';
+//import CodeActionMenuPlugin from './plugins/CodeActionMenuPlugin';
 import CodeHighlightPlugin from './plugins/CodeHighlightPlugin';
 import CollapsiblePlugin from './plugins/CollapsiblePlugin';
 import CommentPlugin from './plugins/CommentPlugin';
 import ComponentPickerPlugin from './plugins/ComponentPickerPlugin';
 import DragDropPaste from './plugins/DragDropPastePlugin';
 import DraggableBlockPlugin from './plugins/DraggableBlockPlugin';
-import EmojiPickerPlugin from './plugins/EmojiPickerPlugin';
-import EmojisPlugin from './plugins/EmojisPlugin';
+// import EmojiPickerPlugin from './plugins/EmojiPickerPlugin';
+// import EmojisPlugin from './plugins/EmojisPlugin';
 // import EquationsPlugin from './plugins/EquationsPlugin';
 // import ExcalidrawPlugin from './plugins/ExcalidrawPlugin';
 // import FigmaPlugin from './plugins/FigmaPlugin';
@@ -143,9 +143,7 @@ export default function Editor(props): JSX.Element {
                 {/*<AutoFocusPlugin />*/}
                 <ClearEditorPlugin/>
                 <ComponentPickerPlugin/>
-                <EmojiPickerPlugin/>
                 <AutoEmbedPlugin/>
-                <EmojisPlugin/>
                 <HashtagPlugin/>
                 <KeywordsPlugin/>
                 <SpeechToTextPlugin/>
@@ -213,7 +211,7 @@ export default function Editor(props): JSX.Element {
                         {floatingAnchorElem && !isSmallWidthViewport && (
                             <>
                                 <DraggableBlockPlugin anchorElem={floatingAnchorElem}/>
-                                <CodeActionMenuPlugin anchorElem={floatingAnchorElem}/>
+                                {/*<CodeActionMenuPlugin anchorElem={floatingAnchorElem}/>*/}
                                 <FloatingLinkEditorPlugin anchorElem={floatingAnchorElem} isLinkEditMode={isLinkEditMode} setIsLinkEditMode={setIsLinkEditMode}/>
                                 <TableCellActionMenuPlugin
                                     anchorElem={floatingAnchorElem}

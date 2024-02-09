@@ -39,14 +39,14 @@ export async function dmsDataLoader ( config, path='/') {
 	// Because any config can have children
 	//---------------------------------------------------------
 	const activeConfigs = getActiveConfig(config.children, path)
-	//console.log('activeConfigs', format)
+	// console.log('activeConfigs', activeConfigs)
 
 	// -- Always want to know how many data items of a type we have
 	let lengthReq = ['dms', 'data', `${ app }+${ type }`, 'length' ]
 
-	if(activeConfigs.find(ac => ac.action === 'load')){
+	if(activeConfigs.find(ac => ['list','load'].includes(ac.action))){
 		// special routes for 'load' action
-		const options = activeConfigs.find(ac => ac.action === 'load')?.filter?.options;
+		const options = activeConfigs.find(ac => ['list','load'].includes(ac.action))?.filter?.options;
 		if(options) lengthReq = ['dms', 'data', `${ app }+${ type }`, 'options', options, 'length' ];
 	}
 
@@ -61,10 +61,13 @@ export async function dmsDataLoader ( config, path='/') {
 		.map(config => createRequest(config, format, path, length))
 		.filter(routes => routes?.length)
 
+	console.log('newRequests', newRequests)
+
     //--------- Route Data Loading ------------------------
 	newRequests.length > 0 ? await falcor.get(...newRequests) : {}
 	// get api response
 	let newReqFalcor = falcor.getCache()
+	// console.log('newReqFalcor', newReqFalcor)
 
 	if(activeConfigs.find(ac => ac.action === 'search')){
 		const path =  newRequests[0].filter((r, i) => i <= newRequests[0].indexOf('byTag'));

@@ -1,9 +1,16 @@
-import PageView from "./layout/view"
-import PageEdit from "./layout/edit"
+// pages
+import Layout from "./layout/layout.jsx"
+import PageView from "./layout/view.jsx"
+import PageEdit from "./layout/edit.jsx"
 
-import Layout from "./layout/layout"
+// templates
+import TemplateList from './layout/template/list'
+import TemplatePages from './layout/template/pages'
+import TemplateEdit from './layout/template/edit'
+
 import cmsFormat from "./page.format.js"
 import cloneDeep from 'lodash/cloneDeep'
+import defaultTheme from './theme/theme'
 import {Search} from "./search";
 
 // sideNav = {size: 'miniPad'}
@@ -15,9 +22,12 @@ const siteConfig = ({
   logo = null,
   rightMenu = <div />,
   baseUrl = '/',
-  checkAuth = () => {}
+  checkAuth = () => {},
+  theme = defaultTheme
 }) => {
-  // console.log('run config')
+  theme = theme || defaultTheme
+  console.log('run config', theme)
+  
   const format = cloneDeep(cmsFormat)
   format.app = app
   format.type = type
@@ -51,15 +61,53 @@ const siteConfig = ({
           <Layout 
             {...props}
             baseUrl={baseUrl}
+            theme={theme}
           />
         ),
         action: "list",
         path: "/*",
         filter: {
-          mainNav: true, 
+          options: JSON.stringify({
+            filter: {
+              "data->>'hide_in_nav'": ['null'],
+            }
+          }),
           attributes:['title', 'index', 'url_slug', 'parent','published', 'hide_in_nav']
         },
         children: [
+          { 
+            type: TemplateList,
+            action: "list",
+            path: "templates/*",
+            lazyLoad: true,
+            filter: {
+              options: JSON.stringify({
+                filter: {
+                  "data->>'template_id'": ['-99'],
+                }
+              }),
+              attributes:['title', 'index', 'url_slug', 'parent', 'hide_in_nav', 'template_id' ]
+            }
+          },
+          { 
+            type: (props) => <TemplateEdit 
+              logo={logo}
+              rightMenu={rightMenuWithSearch}
+              {...props}
+            />,
+            action: "edit",
+            path: "templates/edit/:id"
+          },
+          // {
+          //   type: TemplatePreview,
+          //   action: "edit",
+          //   path: "/view/:id"
+          // },
+          { 
+              type: TemplatePages,
+              action: "edit",
+              path: "templates/pages/:id"
+          },
           { 
             type: (props) => <PageView 
               {...props} 
@@ -80,13 +128,18 @@ const siteConfig = ({
             {...props} 
             edit={true} 
             baseUrl={baseUrl}
+            theme={theme}
           />
         ),
         action: "list",
         path: "/edit/*",
         authLevel: 5,
         filter: {
-          mainNav: true, 
+          options: JSON.stringify({
+            filter: {
+              "data->>'hide_in_nav'": ['null'],
+            }
+          }),
           attributes:['title', 'index', 'url_slug', 'parent', 'published', 'hide_in_nav' ]
         },
         children: [
