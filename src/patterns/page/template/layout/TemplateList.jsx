@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react'
 import { Link, useSubmit, useLocation } from "react-router-dom";
 import { Dialog  } from '@headlessui/react'
-import { Modal } from "~/modules/dms/src/patterns/page/layout/edit/editControls"
+import { Modal } from "~/modules/dms/src/patterns/page/layout/components/editControls"
 import {json2DmsForm, getUrlSlug, toSnakeCase} from '~/modules/dms/src/patterns/page/layout/components/utils/navItems'
 
 

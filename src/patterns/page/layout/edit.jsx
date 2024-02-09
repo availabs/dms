@@ -1,17 +1,17 @@
 import React, {useEffect} from 'react'
 import { NavLink, Link, useSubmit, useNavigate, useLocation, useParams} from "react-router-dom";
 
-import Layout from '../components/avail-layout'
+import Layout from './components/avail-layout'
 import { SideNav } from '~/modules/avl-components/src'
-import { Header } from '../components/header'
-import EditControls from './editControls'
+import { Header } from './components/header'
+import EditControls from './components/editControls'
 
-import { CMSContext } from '../layout'
+import { CMSContext } from './layout'
 
-import { dataItemsNav, detectNavLevel } from '../components/utils/navItems'
-import { getInPageNav } from "../components/utils/inPageNavItems.js";
-import { json2DmsForm, getUrlSlug, toSnakeCase } from '../components/utils/navItems'
-//import theme from '../components/theme'
+import { dataItemsNav, detectNavLevel } from './components/utils/navItems'
+import { getInPageNav } from "./components/utils/inPageNavItems.js";
+import { json2DmsForm, getUrlSlug, toSnakeCase } from './components/utils/navItems'
+
 
 import cloneDeep from 'lodash/cloneDeep'
 
@@ -28,6 +28,8 @@ function PageEdit ({
     let items = dataItemsNav(dataItems,baseUrl,true)
     return items
   }, [dataItems])
+
+  console.log('menuItems', menuItems)
 
   const level = detectNavLevel(dataItems, baseUrl);
   const inPageNav = getInPageNav(dataItems, baseUrl);
@@ -131,7 +133,7 @@ function PageEdit ({
   
   // /img/landing_header2.png
   return (
-    <div >
+    <div>
        {item?.header === 'above' && <div className='w-full'> 
          <ContentEdit
             item={item}
@@ -191,7 +193,7 @@ function PageEdit ({
               </div>
               </div>
               <div className='w-52 hidden xl:block'>
-                <div className='w-52 fixed hidden xl:block h-screen'> 
+                <div className='w-52 sticky top-12 hidden xl:block h-screen'> 
                   <EditControls 
                     item={item} 
                     dataItems={dataItems}

@@ -3,21 +3,22 @@ import {parseJSON} from "./parseJSON.js";
 import ComponentRegistry from "~/component_registry";
 import cloneDeep from "lodash/cloneDeep";
 import {json2DmsForm} from '~/modules/dms/src/patterns/page/layout/components/utils/navItems'
-
+import {Promise} from 'bluebird'
 
 export const updatePages = async ({submit, item, url, destination, id_column, generatedPages, generatedSections, falcor, setLoadingStatus}) => {
     // while updating existing sections, keep in mind to not change the id_column attribute.
     setLoadingStatus('Updating Pages...')
+    let i = 0;
+
     console.time('pages updated in: ')
-    await Promise.all(generatedPages.map(async(page, pageI) => {
+    await Promise.map(generatedPages, (async(page, pageI) => {
         // await acc;
-        setLoadingStatus(`Updating page ${pageI + 1}/${generatedPages?.length}`)
+        setLoadingStatus(`Updating page ${++i}/${generatedPages?.length}`)
         const sections = generatedSections.filter(section => page.data.value.sections.map(s => s.id).includes(section.id));
 
         const dataControls = item.data_controls;
 
-        let dataFetchers = item.sections.map(s => s.id)
-            .map(section_id => {
+        let updates = await Promise.map(item.sections.map(s => s.id), (async section_id => {
                 let templateSection = item.sections.find(d => d.id === section_id)  || {};
                 let pageSection = sections.find(s => s.data.value.element['template-section-id'] === section_id);
                 let pageSectionData = parseJSON(pageSection?.data?.value?.element?.['element-data']) || {}
@@ -45,11 +46,11 @@ export const updatePages = async ({submit, item, url, destination, id_column, ge
                     },{})
 
                 let args = {...controlVars, ...updateVars}
-                return comp?.getData ? comp.getData(args,falcor).then(data => ({section_id, data, type})) : ({section_id, data})
-            }).filter(d => d)
 
+                // console.log('awaiting for', comp, pageSection, templateSection)
 
-        let updates = await Promise.all(dataFetchers)
+                return comp?.getData ? comp.getData(args,falcor).then(data => ({section_id, data, type})) : ({section_id, data});
+            }), {concurrency: 5})
 
         if(updates.length > 0) {
             const updatedSections = item.sections
@@ -83,7 +84,11 @@ export const updatePages = async ({submit, item, url, destination, id_column, ge
             const pageConfig = {format: {app, type}};
 
             //create all sections first, get their ids and then create the page.
-            const newSectionIds = await Promise.all(updatedSections.map((section) => dmsDataEditor(sectionConfig, section)));
+            const newSectionIds = await Promise.map(
+                updatedSections.map((section) => dmsDataEditor(sectionConfig, section)),
+                (p) => p,
+                {concurrency: 10}
+            );
 
             // a page should only be updated IF sections have been added or removed. to check this, just compare section ids and template-section-ids.
             // any pageSection that has template-section-id (if it doesn't, it means it was added to the page after page generation and should be left alone)
@@ -118,7 +123,7 @@ export const updatePages = async ({submit, item, url, destination, id_column, ge
             // }
         }
 
-    }))
+    }), {concurrency: 5})
     console.timeEnd('pages updated in: ')
     setLoadingStatus(undefined)
 }

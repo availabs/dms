@@ -4,14 +4,23 @@ import { Dialog, Transition, Switch, Popover } from '@headlessui/react'
 import { usePopper } from 'react-popper'
 import { ExclamationTriangleIcon } from '@heroicons/react/24/outline'
 import cloneDeep from 'lodash/cloneDeep'
+import get from 'lodash/get'
+import isEqual from "lodash/isEqual"
 
-import ButtonSelector from '../components/buttonSelector'
-import {json2DmsForm, getUrlSlug, toSnakeCase} from '../components/utils/navItems'
+import ButtonSelector from './buttonSelector'
+import TemplateDataControls from './templateDataControls'
+import {ViewInfo} from "./template_components/ViewInfo.jsx";
+import {json2DmsForm, getUrlSlug, toSnakeCase} from './utils/navItems'
+import {parseJSON} from "./utils/parseJSON.js";
 
 import EditPagesNav  from './editPages'
 import EditHistory from './editHistory'
 
 import { CMSContext } from '../layout'
+import {RegisteredComponents} from '../../selector'
+
+import {useFalcor} from '~/modules/avl-falcor';
+
 
 const theme = {
   pageControls: {
@@ -25,14 +34,98 @@ const theme = {
 function EditControls({ item, dataItems, updateAttribute,attributes, edit, status, setItem, pageType = 'page' }) {
   const submit = useSubmit()
   const { pathname = '/edit' } = useLocation()
+  //console.log('pathname editcontrols', pathname)
+  const {falcor, falcorCache} = useFalcor()
   const [ open, setOpen ] = React.useState(false)
   const [ historyOpen, setHistoryOpen] = React.useState(false)
+  const [ showDataControls, setShowDataControls ] = useState(false)
   const [ showDelete, setShowDelete] = useState(false)
   const [ statusMessage, setStatusMessage ] = useState(status?.message)
   const [ moving, setMoving ] = useState(false);
   const [ type, setType] = useState(item.type);
+  const [loadingStatus, setLoadingStatus] = useState();
+  const [dataControls, setDataControls] = useState(item.data_controls || {
+        source: null,
+        view: null,
+        num_rows: null,
+        id_column: null,
+        active_row: {},
+        sectionControls: {}
+  })
+  const [url, setUrl] = useState(item.url || `${dataControls?.id_column?.name}/`);
+  const [destination, setDestination] = useState(item.destination || 'docs-play');
+
   const { baseUrl, user } = React.useContext(CMSContext)
   const NoOp = () => {}
+  
+  const saveItem = async () => {
+    const newItem = cloneDeep(item)
+    newItem.url_slug = getUrlSlug(newItem, dataItems)
+    submit(json2DmsForm(newItem), { method: "post", action:pageType  === 'template' ? pathname :`${baseUrl}/edit/${newItem.url_slug}` })
+  }
+
+
+
+  async function loadUpdates(dataControls) {
+        const totalSections = Object.keys(dataControls.sectionControls)?.filter((id, i) => id && id !== 'undefined')?.length;
+        setLoadingStatus('Loading sections...');
+
+        const updates = await Object.keys(dataControls.sectionControls)
+            .filter((id, i) => id && id !== 'undefined')
+            .reduce(async (acc, section_id, i) => {
+                const prev = await acc;
+                let section = item.sections.filter(d => d.id === section_id)?.[0] || {}
+                setLoadingStatus(`Updating section ${section?.title}  ${section?.element?.['element-type']}  ${i+1}/${totalSections}`)
+                
+                let data = parseJSON(section?.element?.['element-data']) || {}
+                let type = section?.element?.['element-type'] || ''
+                let comp = RegisteredComponents[type] || {}
+
+                let controlVars = (comp?.variables || []).reduce((out, curr) => {
+                    out[curr.name] = data[curr.name]
+                    return out
+                }, {})
+
+                let updateVars = Object.keys(dataControls.sectionControls[section_id])
+                    .reduce((out, curr) => {
+                        out[curr] = dataControls?.active_row?.[dataControls?.sectionControls?.[section_id]?.[curr]?.name] ||
+                            dataControls?.active_row?.[dataControls?.sectionControls?.[section_id]?.[curr]] || null
+
+                        return out
+                    }, {})
+
+                let args = {...controlVars, ...updateVars}
+                const curr = comp?.getData ? await comp.getData(args, falcor).then(data => ({section_id, data})) : null
+                return curr ? [...prev, curr] : prev
+            }, Promise.resolve([]))
+
+        // console.log('updates', updates)
+        if (updates.length > 0) {
+            let newSections = cloneDeep(item.sections)
+            updates.forEach(({section_id, data}) => {
+                let section = newSections.filter(d => d.id === section_id)?.[0] || {}
+                section.element['element-data'] = JSON.stringify(data)
+                //console.log('updating section', section_id, data.title)
+            })
+            updateAttribute('sections', newSections)
+            saveItem()
+        }
+
+        setLoadingStatus(undefined)
+
+
+
+    }
+
+  const saveDataControls = () => {
+      if (!isEqual(item.data_controls, dataControls)) {
+          const newItem = cloneDeep(item)
+          newItem.data_controls = dataControls
+          submit(json2DmsForm(newItem), {method: "post", action: pathname})
+      } else {
+          //console.log('equal', item.data_controls, dataControls)
+      }
+  }
 
   const duplicateItem = () => {
     const highestIndex = dataItems
@@ -104,12 +197,7 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
     submit(json2DmsForm(newItem), { method: "post", action: `${baseUrl}/edit/${newItem.url_slug}` })
   } 
 
-  const saveItem = async () => {
-    const newItem = cloneDeep(item)
-    newItem.url_slug = getUrlSlug(newItem, dataItems)
-    submit(json2DmsForm(newItem), { method: "post", action: `${baseUrl}/edit/${newItem.url_slug}` })
-
-  }
+  
 
   const getChildren = ({item, dataItems, children}) => {
     const currentChildren = dataItems.filter(di => di.parent === item.id);
@@ -232,6 +320,19 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
     <>
       <EditPagesNav item={item} dataItems={dataItems}  edit={true} open={open} setOpen={setOpen}/>
       <EditHistory item={item}  historyOpen={historyOpen} setHistoryOpen={setHistoryOpen} />
+      <TemplateDataControls
+          item={item}
+          open={showDataControls}
+          setOpen={setShowDataControls}
+          dataControls={dataControls}
+          setDataControls={e => {
+              setDataControls(e)
+          }}
+          saveDataControls={saveDataControls}
+          loadingStatus={loadingStatus}
+          setLoadingStatus={setLoadingStatus}
+          baseUrl={baseUrl}
+      />
         {edit &&
           <div className='p-4'>
             {pageType === 'page' && <div className='w-full flex justify-center pb-6'>
@@ -339,12 +440,60 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
                 className='fad fa-file-alt p-2 text-blue-300 hover:text-blue-500 cursor-pointer text-lg' 
                 onClick={() => setOpen(true)}
               />}
+              {pageType === 'template' && <div 
+                className='fad fa-sliders-h-square p-2 text-blue-300 hover:text-blue-500 cursor-pointer text-lg' 
+                onClick={() => setShowDataControls(true)}
+              />}
               <div 
                 className='fad fa-history p-2 text-blue-300 hover:text-blue-500 cursor-pointer text-lg' 
                 onClick={() => setHistoryOpen(true)}
               />
 
             </div>
+
+            <div className='pl-4 pb-2'>
+              <TitleEditComp
+                item={item}
+                onChange={(value) => {
+
+                    const newItem = {
+                      id: item.id,
+                      url: value
+                    }                   
+
+                    updateAttribute('url', value)
+                    submit(json2DmsForm(newItem), {method: "post", action: pathname})
+                }}
+              />
+            </div>
+            
+            {(pageType === 'template' && dataControls?.id_column) && <div>
+                        <ViewInfo
+                            submit={submit}
+                            item={item}
+                            source={dataControls?.source}
+                            view={dataControls?.view}
+                            id_column={dataControls?.id_column}
+                            active_row={dataControls?.active_row}
+                            url={url}
+                            destination={destination}
+                            onChange={(k, v) => {
+                                let tmpDataControls;
+                                if (k === 'id_column') {
+                                    tmpDataControls = {...dataControls, ...{id_column: v, active_row: {}}};
+                                }
+                                if (k === 'active_row') {
+                                    tmpDataControls = {...dataControls, ...v}
+                                }
+
+                                setDataControls(tmpDataControls);
+                                return loadUpdates(tmpDataControls);
+                            }}
+                            loadingStatus={loadingStatus}
+                            setLoadingStatus={setLoadingStatus}
+                            baseUrl={baseUrl}
+                        />
+            </div>}
             <DeleteModal
                 item={item}
                 open={showDelete}

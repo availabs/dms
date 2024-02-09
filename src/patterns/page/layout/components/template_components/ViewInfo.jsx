@@ -1,5 +1,5 @@
 import React, {useState} from "react";
-import {getConfig, locationNameMap} from "../../pages.jsx";
+import {getConfig, locationNameMap} from "../../template/pages.jsx";
 import {dmsDataLoader} from "~/modules/dms/src/index.js";
 import get from "lodash/get.js";
 import {useFalcor} from '~/modules/avl-falcor';
@@ -116,8 +116,8 @@ export const ViewInfo = ({submit, item, url, destination, source,view, id_column
     return (
         <div className='flex flex-col'>
             {/*<div>View Info</div>*/}
-            <div>Rows: {dataLength} </div>
-            <div>Attributes : {attributes?.length || 0}</div>
+          {/*  <div>Rows: {dataLength} </div>
+            <div>Attributes : {attributes?.length || 0}</div>*/}
             <Selector
                 options={['',...attributes]}
                 value={id_column}
@@ -136,6 +136,7 @@ export const ViewInfo = ({submit, item, url, destination, source,view, id_column
                     )}
                 /> : ''}
 
+            <div className='flex items-center p-4'>
             {
                 generatedPages?.length ?
                     <button className={`mt-4 p-2 rounded-lg text-white  ${loadingStatus ? `bg-gray-500 cursor-not-allowed` : `bg-blue-500 hover:bg-blue-300`}`}
@@ -149,7 +150,7 @@ export const ViewInfo = ({submit, item, url, destination, source,view, id_column
                         {loadingStatus || 'Update Pages'}
                     </button> :
                     dataRows?.length ?
-                    <button className={`mt-4 p-2 rounded-lg text-white ${loadingStatus ? `bg-gray-500 cursor-not-allowed` : `bg-blue-500 hover:bg-blue-300`}`}
+                    <button className={`inline-flex w-36 justify-center rounded-lg cursor-pointer text-sm font-semibold py-2 px-2 text-white shadow-lg border  active:border-b-2 active:mb-[2px] active:shadow-none' ${loadingStatus ? `bg-gray-500 border-b-2 border-gray-800 cursor-not-allowed` : `bg-blue-500 hover:bg-blue-400 border-b-4 border-blue-800 hover:border-blue-700`}`}
                             disabled={loadingStatus}
                             onClick={e =>
                                 generatePages({
@@ -159,12 +160,13 @@ export const ViewInfo = ({submit, item, url, destination, source,view, id_column
                     >
                         {loadingStatus || 'Generate Pages'}
                     </button> :
-                        <button className={`mt-4 p-2 rounded-lg text-white bg-gray-500 cursor-not-allowed`}
+                        <button className={`mt-4 p-2 rounded-lg text-white bg-gray-500 border border-b-2 border-gray-800 cursor-not-allowed`}
                                 disabled={true}
                         >
                             No template data available.
                         </button>
             }
+            </div>
         </div>
     );
 };

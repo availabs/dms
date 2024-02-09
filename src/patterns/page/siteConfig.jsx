@@ -1,7 +1,7 @@
 // pages
-import Layout from "./layout/layout"
+import Layout from "./layout/layout.jsx"
 import PageView from "./layout/view.jsx"
-import PageEdit from "./layout/edit"
+import PageEdit from "./layout/edit.jsx"
 
 // templates
 import TemplateList from './layout/template/list'

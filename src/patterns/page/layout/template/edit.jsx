@@ -3,14 +3,13 @@ import { NavLink, Link, useSubmit, useNavigate, useLocation, useParams} from "re
 import cloneDeep from 'lodash/cloneDeep'
 
 
-import Layout from '../../components/avail-layout'
-import { getInPageNav } from "../../components/utils/inPageNavItems.js";
+import Layout from '../components/avail-layout'
+import { getInPageNav } from "../components/utils/inPageNavItems.js";
 
 import { SideNav } from '~/modules/avl-components/src'
-import {json2DmsForm, getUrlSlug, toSnakeCase} from '../../components/utils/navItems'
-import { PageControls } from './templateControls'
-import EditControls from '../../edit/editControls'
-import { CMSContext } from '../../layout'
+import {json2DmsForm, getUrlSlug, toSnakeCase} from '../components/utils/navItems'
+import EditControls from '../components/editControls'
+import { CMSContext } from '../layout'
 
 
 
@@ -20,7 +19,7 @@ function TemplateEdit ({
   const navigate = useNavigate()
   const submit = useSubmit()
   const { baseUrl, user, theme } = React.useContext(CMSContext)
-  // const { pathname = '/edit' } = useLocation()
+  const { pathname = '/edit' } = useLocation()
   //const { baseUrl } = React.useContext(CMSContext)
   
   const { id } = params
@@ -29,7 +28,9 @@ function TemplateEdit ({
   const inPageNav = getInPageNav(dataItems, baseUrl);
   const headerSection = item['sections']?.filter(d => d.is_header)?.[0]
   const draftSections = item['sections']?.filter(d => !d.is_header && !d.is_footer)
-  const menuItems=[]
+  const menuItems=[
+    {path: `${baseUrl}/templates`, name: 'Templates'}
+  ]
 
   const saveHeader = (v) => {
     
@@ -44,16 +45,16 @@ function TemplateEdit ({
     updateAttribute('','',{
       'has_changes': true,
       'history': history,
-      'draft_sections': [...v, ...draftSections].filter(d => d)
+      'sections': [...v, ...draftSections].filter(d => d)
     })
     const newItem = {
       id: item.id, 
-      draft_sections: [...v, ...draftSections].filter(d => d),
+      sections: [...v, ...draftSections].filter(d => d),
       has_changes: true,
       history, 
     }
     console.log('save header', newItem)
-    submit(json2DmsForm(newItem), { method: "post", action: `${baseUrl}/edit/${item.url_slug}` })
+    submit(json2DmsForm(newItem), { method: "post", action: pathname })
   }
 
   const saveSection = (v,action) => {
@@ -71,7 +72,7 @@ function TemplateEdit ({
     updateAttribute('','',{
       'has_changes': true,
       'history': history,
-      'draft_sections': [headerSection, ...v].filter(d => d)
+      'sections': [headerSection, ...v].filter(d => d)
     })
 
     // ----------------
@@ -80,11 +81,11 @@ function TemplateEdit ({
 
     const newItem = {
       id: item.id, 
-      draft_sections: [headerSection, ...v].filter(d => d),
+      sections: [headerSection, ...v].filter(d => d),
       has_changes: true,
       history, 
     }
-    submit(json2DmsForm(newItem), { method: "post", action: `${baseUrl}/edit/${item.url_slug}` })
+    submit(json2DmsForm(newItem), { method: "post", action: pathname })
     //.then(d => console.log('on submit',d))
   }
 
@@ -152,7 +153,7 @@ function TemplateEdit ({
               </div>
               </div>
               <div className='w-52 hidden xl:block'>
-                <div className='w-52 fixed hidden xl:block h-screen'> 
+                <div className='w-52 sticky top-12 hidden xl:block h-screen'> 
                   <EditControls
                     item={item}
                     dataItems={dataItems}

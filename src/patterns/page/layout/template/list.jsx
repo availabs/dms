@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react'
 import { Link, useSubmit, useLocation } from "react-router-dom";
 import { Dialog  } from '@headlessui/react'
-import { Modal } from "../edit/editControls"
+import { Modal } from "../components/editControls"
 import {json2DmsForm, getUrlSlug, toSnakeCase} from '../components/utils/navItems'
 import { CMSContext } from '../layout'
 
@@ -117,7 +117,8 @@ function NewTemplateModal ({ open, setOpen})  {
               title,
               url_slug: toSnakeCase(title),
               template_id: -99,
-              hide_in_nav: true
+              hide_in_nav: true,
+              index: 999
             }
             setLoading(true)
             await submit(json2DmsForm(newItem), { method: "post", action: pathname })

@@ -32,7 +32,7 @@ export function getInPageNav(dataItems, baseUrl = '', edit = false) {
                                 // .__lexicalKey_cgviu
                                 elmntToView?.scrollIntoView({ behavior: "smooth"});
                             },
-                            className: `px-4 pb-1 text-sm text-slate-400 hover:text-slate-700 cursor-pointer border-r-2 mr-4
+                            className: `pl-2 pr-4 pb-1 text-sm text-slate-400 hover:text-slate-700 cursor-pointer border-r-2 mr-4
                             ${
                                 [...window.document.querySelectorAll(tag)]
                                     .find(headerElement => headerElement?.children[0]?.innerHTML === children[0]?.text)?.offsetParent 
