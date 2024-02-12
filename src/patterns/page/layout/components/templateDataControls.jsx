@@ -2,11 +2,9 @@ import React, {Fragment} from 'react'
 import {Dialog, Transition} from '@headlessui/react'
 import {TemplateSourceSelector} from "./template_components/TemplateSourceSelector.jsx";
 
-export default function DataControls({
-                                         open,
-                                         setOpen,
-                                         ...props
-                                     }) {
+export default function DataControls(props) {
+    // console.log('dataControls',props)
+    const {open, setOpen} = props
     return (
         <Transition.Root show={open} as={Fragment}>
             <Dialog as="div" className="relative z-20 " onClose={() => {

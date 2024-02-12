@@ -1,19 +1,34 @@
 import React, {useState} from "react";
-import {getConfig, locationNameMap} from "../../template/pages.jsx";
+import {getConfig} from "../../template/pages.jsx";
 import {dmsDataLoader} from "~/modules/dms/src/index.js";
 import get from "lodash/get.js";
 import {useFalcor} from '~/modules/avl-falcor';
 import Selector from "./Selector.jsx";
-import {updatePages} from "../utils/updatePages.js";
-import {generatePages} from "../utils/generatePages.js";
+import {updatePages} from "./updatePages.js";
+import {generatePages} from "./generatePages.js";
 import {pgEnv} from "../utils/constants.js";
 
-export const ViewInfo = ({submit, item, url, destination, source,view, id_column, active_row, onChange, loadingStatus, setLoadingStatus=() => {}}) => {
+export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatus=() => {}}) => {
 
     // console.log('ViewInfo', id_column, active_id)
     const { falcor, falcorCache } = useFalcor();
     const [generatedPages, setGeneratedPages] = useState([]);
     const [generatedSections, setGeneratedSections] = useState([]);
+
+    const {
+        url, 
+        destination = item.type,
+        source,
+        view,
+        view_id,
+        id_column,
+        active_row
+    } = item?.data_controls
+
+    const locationNameMap = [destination]
+    
+
+
 
     React.useEffect(() => {
         if(view.view_id){
@@ -36,9 +51,11 @@ export const ViewInfo = ({submit, item, url, destination, source,view, id_column
             md = [];
         }
 
-        return md.filter(col => !['geom', 'wkb_geometry'].includes(col?.name))
+        return md.filter(col => !['geom', 'wkb_geometry', 'ogc_fid'].includes(col?.name))
 
     }, [source]);
+
+    // console.log('attributes', attributes)
 
     React.useEffect(() =>{
         if(view?.view_id && id_column?.name && dataLength ) {
@@ -72,12 +89,13 @@ export const ViewInfo = ({submit, item, url, destination, source,view, id_column
         // get generated pages and sections
         (async function () {
             setLoadingStatus('Loading Pages...')
+            //console.log('locationNameMap', locationNameMap)
             const pages = await Object.keys(locationNameMap).reduce(async (acc, type) => {
-                const prevPages = await acc;
+                const prevPages = await acc;  
                 const currentPages = await dmsDataLoader(getConfig({app: 'dms-site', type, filter: {[`data->>'template_id'`]: [item.id]}}), '/');
-
                 return [...prevPages, ...currentPages];
             }, Promise.resolve([]));
+            //console.log('pages', pages)
             setGeneratedPages(pages);
             if(!item.data_controls?.sectionControls) {
                 setLoadingStatus(undefined)
@@ -106,7 +124,7 @@ export const ViewInfo = ({submit, item, url, destination, source,view, id_column
         })()
     }, [item.id, item.data_controls?.sectionControls])
 
-    // console.log('view info', id_column, active_row, dataRows)
+    console.log('view info', id_column, active_row, dataRows)
     // to update generated pages,check if:
     // 1. existing section has changed
     // 2. new sections have been added
@@ -125,6 +143,7 @@ export const ViewInfo = ({submit, item, url, destination, source,view, id_column
                 valueAccessor={d => d?.name}
                 onChange={d => onChange('id_column',d)}
             />
+
             {id_column?.name ?
                 <Selector
                     options={dataRows}

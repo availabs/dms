@@ -2,6 +2,7 @@ import React, {useEffect, useState} from 'react';
 import {Link, useNavigate, useParams} from "react-router-dom";
 import {dmsDataLoader} from "../../../../index.js";
 import {DeleteModal} from "./list.jsx";
+import Layout from '../components/avail-layout'
 
 
 export const locationNameMap = {
@@ -40,7 +41,7 @@ function TemplateRow ({ id, app, type, data={} }) {
             <div className={'text-right px-2'}>
                 <Link to={`${locationUrlMap[type]}/${data?.value?.url_slug}`}
                       className={'fa-thin fa-eye px-2 py-1 mx-2 text-bold cursor-pointer'}
-                      title={'view'}
+              locationNameMap           title={'view'}
                 />
                 <Link to={`${locationUrlMap[type]}/edit/${data?.value?.url_slug}`}
                       className={'fa-thin fa-pencil px-2 py-1 mx-2 text-bold cursor-pointer'}
@@ -88,46 +89,58 @@ export const getConfig = ({app, type, filter, action = 'load', tags}) => ({
     ]
 })
 
- const TemplatePages = ({params}) => {
+ const TemplatePages = ({item, params, logo, rightMenu, baseUrl=''}) => {
     const {id} = params;
+    //console.log('item', item)
+    const locations = [item.type]
+    const menuItems=[
+     {path: `${baseUrl}/templates`, name: 'Templates'}
+    ]
+
+    //console.log('locations', locations)
 
     if (!id) return null;
     const [value, setValue] = useState([]);
 
     useEffect(() => {
         (async function () {
-            const res = await Object.keys(locationNameMap).reduce(async (acc, type) => {
+            const res = await Object.keys(locations).reduce(async (acc, type) => {
                 const prevPages = await acc;
                 const currentPages = await dmsDataLoader(getConfig({app: 'dms-site', type, filter: {[`data->>'template_id'`]: [id]}}), '/');
 
                 return [...prevPages, ...currentPages];
             }, Promise.resolve([]));
-
+            console.log('res', res)
 
             setValue(res)
         })()
     }, [id]);
 
     return (
-        <div className='h-full flex-1 flex flex-col text-gray-900 bg-slate-100'>
-            <div className='py-6 h-full'>
-                <div className='bg-white h-full shadow border max-w-6xl mx-auto px-6'>
-                    <div className='flex items-center'>
-                        <div className='text-2xl p-3 font-thin flex-1'>Pages</div>
-                    </div>
-                    <div className='px-6 pt-8'>
-                        <div className='shadow rounded border'>
-                            {
-                                value?.length ?
-                                    value.map(item => (
-                                        <TemplateRow key={item.id} {...item} />
-                                    )) : <NoPages />
-                            }
+        <Layout 
+            topNav={{menuItems, position: 'fixed', logo, rightMenu }} 
+            sideNav={[]}
+       >
+            <div className='h-full flex-1 flex flex-col text-gray-900 bg-slate-100'>
+                <div className='py-6 h-full'>
+                    <div className='bg-white h-full shadow border max-w-6xl mx-auto px-6'>
+                        <div className='flex items-center'>
+                            <div className='text-2xl p-3 font-thin flex-1'>Pages</div>
+                        </div>
+                        <div className='px-6 pt-8'>
+                            <div className='shadow rounded border'>
+                                {
+                                    value?.length ?
+                                        value.map(item => (
+                                            <TemplateRow key={item.id} {...item} />
+                                        )) : <NoPages />
+                                }
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
+        </Layout>
     )
 }
 

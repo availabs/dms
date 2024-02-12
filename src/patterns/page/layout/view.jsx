@@ -7,10 +7,8 @@ import { CMSContext } from './layout'
 import Layout from './components/avail-layout'
 import {dataItemsNav, detectNavLevel} from './components/utils/navItems'
 import {getInPageNav} from "./components/utils/inPageNavItems.js";
-import { Header } from './components/header'
 
 import cloneDeep from 'lodash/cloneDeep'
-
 
 
 function PageView ({item, dataItems, attributes, user, logo, rightMenu}) {

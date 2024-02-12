@@ -3,7 +3,6 @@ import { NavLink, Link, useSubmit, useNavigate, useLocation, useParams} from "re
 
 import Layout from './components/avail-layout'
 import { SideNav } from '~/modules/avl-components/src'
-import { Header } from './components/header'
 import EditControls from './components/editControls'
 
 import { CMSContext } from './layout'
