@@ -124,7 +124,7 @@ export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatu
         })()
     }, [item.id, item.data_controls?.sectionControls])
 
-    console.log('view info', id_column, active_row, dataRows)
+    // console.log('view info', id_column, active_row, dataRows)
     // to update generated pages,check if:
     // 1. existing section has changed
     // 2. new sections have been added

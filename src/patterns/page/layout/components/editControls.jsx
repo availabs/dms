@@ -46,15 +46,19 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
   const [loadingStatus, setLoadingStatus] = useState();
   // const [dataControls, setDataControls] = useState(item.data_controls ||)
   
-  console.log('render', item?.data_controls)
   
 
   const { baseUrl, user } = React.useContext(CMSContext)
   const NoOp = () => {}
   
-  const saveItem = async () => {
-    const newItem = cloneDeep(item)
-    newItem.url_slug = getUrlSlug(newItem, dataItems)
+  const saveItem = async (newSections) => {
+    let newItem = {
+      id: item.id,
+      url_slug: getUrlSlug(newItem, dataItems)
+    }
+    if(newSections) {
+      newItem.sections = newSections
+    }
     submit(json2DmsForm(newItem), { method: "post", action: pageType  === 'template' ? pathname :`${baseUrl}/edit/${newItem.url_slug}` })
   }
 
@@ -102,13 +106,10 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
                 //console.log('updating section', section_id, data.title)
             })
             updateAttribute('sections', newSections)
-            saveItem()
+            saveItem(newSections)
         }
 
         setLoadingStatus(undefined)
-
-
-
     }
 
   
@@ -315,8 +316,11 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
           //console.log('equal', item.data_controls, dataControls)
       }
   }
-  console.log('nbool test', pageType === 'template', item?.data_controls?.id_column, pageType === 'template' && item?.data_controls?.id_column)
- 
+  // console.log('nbool test', pageType === 'template', item?.data_controls?.id_column, pageType === 'template' && item?.data_controls?.id_column)
+  // console.log('render', item?.data_controls)
+  
+
+
   return (
     <>
       <EditPagesNav item={item} dataItems={dataItems}  edit={true} open={open} setOpen={setOpen}/>
