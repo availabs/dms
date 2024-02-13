@@ -42,7 +42,7 @@ const createRequest = (wrapperConfig,format, path, length) => {
 		case 'edit':
 			// if
 			const idPath = getIdPath(wrapperConfig,format)
-			console.log('idPath', idPath)
+			// console.log('idPath', idPath)
 			return  idPath ? idPath : 
 				[
 				'dms', 'data', `${ app }+${ type }`, 'byIndex',

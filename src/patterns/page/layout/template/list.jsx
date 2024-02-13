@@ -4,6 +4,7 @@ import { Dialog  } from '@headlessui/react'
 import { Modal } from "../components/editControls"
 import {json2DmsForm, getUrlSlug, toSnakeCase} from '../components/utils/navItems'
 import { CMSContext } from '../layout'
+import Layout from '../components/avail-layout'
 
 function TemplateRow ({ item={} }) {
   const { baseUrl} = React.useContext(CMSContext)
@@ -40,12 +41,19 @@ function TemplateRow ({ item={} }) {
 }
 
 
-export default function TemplateList ({children, dataItems, edit, baseUrl='', ...props}) {
+export default function TemplateList ({children, dataItems, edit, baseUrl='', logo, rightMenu, ...props}) {
   const {path} = useLocation()
   const [showNew, setShowNew] = useState(false)
 
+  const menuItems=[
+    {path: `${baseUrl}/templates`, name: 'Templates'}
+  ]
   
   return (
+   <Layout 
+        topNav={{menuItems, position: 'fixed', logo, rightMenu }} 
+        sideNav={[]}
+   >
    <div className='py-6 h-full'>
      <div className='bg-white h-full shadow border max-w-6xl mx-auto px-6'>
           <div className='flex items-center'>
@@ -71,6 +79,7 @@ export default function TemplateList ({children, dataItems, edit, baseUrl='', ..
           />
       </div>
     </div>
+    </Layout>
   )
 }
 

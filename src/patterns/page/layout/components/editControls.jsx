@@ -17,7 +17,7 @@ import EditPagesNav  from './editPages'
 import EditHistory from './editHistory'
 
 import { CMSContext } from '../layout'
-import {RegisteredComponents} from '../../selector'
+import { RegisteredComponents } from '../../selector'
 
 import {useFalcor} from '~/modules/avl-falcor';
 
@@ -44,24 +44,22 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
   const [ moving, setMoving ] = useState(false);
   const [ type, setType] = useState(item.type);
   const [loadingStatus, setLoadingStatus] = useState();
-  const [dataControls, setDataControls] = useState(item.data_controls || {
-        source: null,
-        view: null,
-        num_rows: null,
-        id_column: null,
-        active_row: {},
-        sectionControls: {}
-  })
-  const [url, setUrl] = useState(item.url || `${dataControls?.id_column?.name}/`);
-  const [destination, setDestination] = useState(item.destination || 'docs-play');
+  // const [dataControls, setDataControls] = useState(item.data_controls ||)
+  
+  
 
   const { baseUrl, user } = React.useContext(CMSContext)
   const NoOp = () => {}
   
-  const saveItem = async () => {
-    const newItem = cloneDeep(item)
-    newItem.url_slug = getUrlSlug(newItem, dataItems)
-    submit(json2DmsForm(newItem), { method: "post", action:pageType  === 'template' ? pathname :`${baseUrl}/edit/${newItem.url_slug}` })
+  const saveItem = async (newSections) => {
+    let newItem = {
+      id: item.id,
+      url_slug: getUrlSlug(newItem, dataItems)
+    }
+    if(newSections) {
+      newItem.sections = newSections
+    }
+    submit(json2DmsForm(newItem), { method: "post", action: pageType  === 'template' ? pathname :`${baseUrl}/edit/${newItem.url_slug}` })
   }
 
 
@@ -108,24 +106,13 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
                 //console.log('updating section', section_id, data.title)
             })
             updateAttribute('sections', newSections)
-            saveItem()
+            saveItem(newSections)
         }
 
         setLoadingStatus(undefined)
-
-
-
     }
 
-  const saveDataControls = () => {
-      if (!isEqual(item.data_controls, dataControls)) {
-          const newItem = cloneDeep(item)
-          newItem.data_controls = dataControls
-          submit(json2DmsForm(newItem), {method: "post", action: pathname})
-      } else {
-          //console.log('equal', item.data_controls, dataControls)
-      }
-  }
+  
 
   const duplicateItem = () => {
     const highestIndex = dataItems
@@ -229,7 +216,7 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
     // console.log('item', newItem, value)
     let sectionType = pageType === 'template' ? 'sections' : 'draft_sections';
     if(type === 'header' && !newItem?.[sectionType]?.filter(d => d.is_header)?.[0]){
-      console.log('toggleHeader add header', newItem[sectionType])
+      //console.log('toggleHeader add header', newItem[sectionType])
       
       newItem[sectionType].unshift({
         is_header: true,
@@ -315,7 +302,25 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
     submit(json2DmsForm(newItem), { method: "post", action: pathname })
 
   }
- 
+
+  const setDataControls = (v) => {
+      if (!isEqual(item.data_controls, v)) {
+          const newItem = cloneDeep(item)
+          {
+            id:item.id,
+            newItem.data_controls = v
+          }
+          updateAttribute('data_controls',v)
+          submit(json2DmsForm(newItem), {method: "post", action: pathname})
+      } else {
+          //console.log('equal', item.data_controls, dataControls)
+      }
+  }
+  // console.log('nbool test', pageType === 'template', item?.data_controls?.id_column, pageType === 'template' && item?.data_controls?.id_column)
+  // console.log('render', item?.data_controls)
+  
+
+
   return (
     <>
       <EditPagesNav item={item} dataItems={dataItems}  edit={true} open={open} setOpen={setOpen}/>
@@ -324,11 +329,8 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
           item={item}
           open={showDataControls}
           setOpen={setShowDataControls}
-          dataControls={dataControls}
-          setDataControls={e => {
-              setDataControls(e)
-          }}
-          saveDataControls={saveDataControls}
+          dataControls={item?.data_controls}
+          setDataControls={setDataControls}
           loadingStatus={loadingStatus}
           setLoadingStatus={setLoadingStatus}
           baseUrl={baseUrl}
@@ -339,8 +341,9 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
               <PublishButton item={item} onClick={publish} />
             </div>}
             <div className='pl-4 pb-2'>
+              <span className='text-xs uppercase font-bold text-slate-400'> page name </span>
               <TitleEditComp
-                item={item}
+                value={item.title}
                 onChange={updateTitle}
               />
             </div>
@@ -451,43 +454,31 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
 
             </div>
 
-            <div className='pl-4 pb-2'>
+            {pageType  === 'template' && <div className='pl-4 pb-2'>
+              <span className='text-xs uppercase font-bold text-slate-400'> url prefix </span>
               <TitleEditComp
-                item={item}
-                onChange={(value) => {
-
-                    const newItem = {
-                      id: item.id,
-                      url: value
-                    }                   
-
-                    updateAttribute('url', value)
-                    submit(json2DmsForm(newItem), {method: "post", action: pathname})
-                }}
+                value={item?.data_controls?.url}
+                onChange={(value) => setDataControls({...item.data_controls, url:value})}
               />
-            </div>
+            </div>}
             
-            {(pageType === 'template' && dataControls?.id_column) && <div>
+            {(pageType === 'template' && item?.data_controls?.id_column) && <div>
                         <ViewInfo
-                            submit={submit}
                             item={item}
-                            source={dataControls?.source}
-                            view={dataControls?.view}
-                            id_column={dataControls?.id_column}
-                            active_row={dataControls?.active_row}
-                            url={url}
-                            destination={destination}
+                            submit={submit}
                             onChange={(k, v) => {
                                 let tmpDataControls;
+                                console.log('test123', k,v)
                                 if (k === 'id_column') {
-                                    tmpDataControls = {...dataControls, ...{id_column: v, active_row: {}}};
+                                    tmpDataControls = {...item?.data_controls, ...{id_column: v, active_row: {}}};
                                 }
                                 if (k === 'active_row') {
-                                    tmpDataControls = {...dataControls, ...v}
+                                    tmpDataControls = {...item?.data_controls, ...v }
                                 }
 
                                 setDataControls(tmpDataControls);
-                                return loadUpdates(tmpDataControls);
+                                loadUpdates(tmpDataControls);
+                                
                             }}
                             loadingStatus={loadingStatus}
                             setLoadingStatus={setLoadingStatus}
@@ -509,11 +500,10 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
 
 export default EditControls
 
-function TitleEditComp({item, onChange}) {
+function TitleEditComp({value, onChange}) {
   const [editing, setEditing] = React.useState(false)
-  const [newTitle, setNewTitle] = React.useState(item['title'])
+  const [newTitle, setNewTitle] = React.useState(value)
 
-  //console.log('new title', newTitle)
 
   return (
     <div  className='flex justify-between group'>
@@ -527,7 +517,11 @@ function TitleEditComp({item, onChange}) {
                 onChange={v => setNewTitle(v.target.value)}
               />
               <div className='flex cursor-pointer' >
-                <span className=" pt-0.5 text-green-500 rounded hover:bg-green-500 hover:text-white " onClick={e => onChange(newTitle)}>
+                <span className=" pt-0.5 text-green-500 rounded hover:bg-green-500 hover:text-white " onClick={e => { 
+                    
+                    onChange(newTitle);
+                    setEditing(false);
+                  }} >
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-6 h-6">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                   </svg>
@@ -542,7 +536,7 @@ function TitleEditComp({item, onChange}) {
               </div>
             </div> :
             <div className='w-full flex flex-row px-2 py-1 text font-medium text-slate-500 focus:outline-none border-slate-300 border-b-2 focus:border-blue-500'>
-              <div className='w-full'>{item['title']}</div>
+              <div className='w-full'>{value}</div>
               <span className='hidden group-hover:block text-blue-300 hover:text-blue-500 cursor-pointer ' onClick={e => editing ? setEditing(false): setEditing(true)}>
                   <i className="fad fa-pencil absolute -ml-4 -mt-0.5 p-1.5 rounded hover:bg-blue-500 hover:text-white"/>
                   {/*<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 24" stroke-width="1.5" stroke="currentColor" className="w-5 h-5 ">

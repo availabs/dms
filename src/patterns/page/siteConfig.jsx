@@ -76,7 +76,11 @@ const siteConfig = ({
         },
         children: [
           { 
-            type: TemplateList,
+            type: (props) => <TemplateList
+              logo={logo}
+              rightMenu={rightMenuWithSearch}
+              {...props}
+            />,
             action: "list",
             path: "templates/*",
             lazyLoad: true,
@@ -104,7 +108,11 @@ const siteConfig = ({
           //   path: "/view/:id"
           // },
           { 
-              type: TemplatePages,
+              type: (props) => <TemplatePages
+                logo={logo}
+                rightMenu={rightMenuWithSearch}
+                {...props}
+              />,
               action: "edit",
               path: "templates/pages/:id"
           },

@@ -17,7 +17,7 @@ import {
 import {useCollaborationContext} from '@lexical/react/LexicalCollaborationContext';
 import {useLexicalComposerContext} from '@lexical/react/LexicalComposerContext';
 import {mergeRegister} from '@lexical/utils';
-import {CONNECTED_COMMAND, TOGGLE_CONNECT_COMMAND} from '@lexical/yjs';
+// import {CONNECTED_COMMAND, TOGGLE_CONNECT_COMMAND} from '@lexical/yjs';
 import {
   $createTextNode,
   $getRoot,
@@ -87,22 +87,22 @@ export default function ActionsPlugin({
   const [modal, showModal] = useModal();
   const {isCollabActive} = useCollaborationContext();
 
-  useEffect(() => {
-    return mergeRegister(
-      editor.registerEditableListener((editable) => {
-        setIsEditable(editable);
-      }),
-      editor.registerCommand<boolean>(
-        CONNECTED_COMMAND,
-        (payload) => {
-          const isConnected = payload;
-          setConnected(isConnected);
-          return false;
-        },
-        COMMAND_PRIORITY_EDITOR,
-      ),
-    );
-  }, [editor]);
+  // useEffect(() => {
+  //   return mergeRegister(
+  //     editor.registerEditableListener((editable) => {
+  //       setIsEditable(editable);
+  //     }),
+  //     editor.registerCommand<boolean>(
+  //       CONNECTED_COMMAND,
+  //       (payload) => {
+  //         const isConnected = payload;
+  //         setConnected(isConnected);
+  //         return false;
+  //       },
+  //       COMMAND_PRIORITY_EDITOR,
+  //     ),
+  //   );
+  // }, [editor]);
 
   useEffect(() => {
     return editor.registerUpdateListener(
@@ -227,7 +227,7 @@ export default function ActionsPlugin({
         aria-label="Convert from markdown">
         <i className="markdown" />
       </button>
-      {isCollabActive && (
+      {/*isCollabActive && (
         <button
           className="action-button connect"
           onClick={() => {
@@ -241,7 +241,7 @@ export default function ActionsPlugin({
           } a collaborative editing server`}>
           <i className={connected ? 'disconnect' : 'connect'} />
         </button>
-      )}
+      )*/}
       {modal}
     </div>
   );

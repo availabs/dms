@@ -37,7 +37,7 @@ const Layout = ({ children, menus, sideNav={}, topNav={}, title }) => {
 		logo: topNav.logo || (
 			<div className='flex items-center justify-center h-12'>
 				<div to="/" className={`${['none'].includes(sideNavOptions.size)  ? '' : 'md:hidden'}` }>
-					<Logo sideNav={sideNavOptions}/>
+					{/*<Logo sideNav={sideNavOptions}/>*/}
 				</div>
 				{title}
 			</div>

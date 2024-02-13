@@ -6,10 +6,11 @@ import {SectionListControls} from "./SectionListControls.jsx";
 import React from "react";
 
 export const TemplateSourceSelector = ({
-                                           item, dataControls, setDataControls, saveDataControls, baseUrl,
-                                           loadingStatus,
-                                           setLoadingStatus
-                                       }) => {
+       item, dataControls = {}, setDataControls, baseUrl,
+       loadingStatus,
+       setLoadingStatus
+    }) => {
+    // console.log('TemplateSourceSelector', dataControls)
     const updateDataControls = (k, v) => {
         setDataControls({...dataControls, [k]: v})
     }
@@ -18,15 +19,13 @@ export const TemplateSourceSelector = ({
         <div className="relative mt-6 flex-1 px-4 sm:px-6">
             <span className='text-sm text-gray-500 p-1'>Select Template Source:</span>
             <SourcesSelect
-                value={dataControls.source}
+                value={dataControls?.source}
                 onChange={(v) => {
-                    console.log('SourcesSelect onChange', v)
+                    // console.log('SourcesSelect onChange', v)
                     updateDataControls('source', v)
                 }}
             />
-            <div onClick={(e) => saveDataControls()}
-                 className='p-2 cursor-pointer bg-blue-500 text-white rounded-md my-4 text-center'> Save
-            </div>
+           
 
             {dataControls?.source?.source_id ? <ViewsSelect
                 source_id={dataControls?.source?.source_id}
