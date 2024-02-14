@@ -2,7 +2,7 @@ import React from "react";
 import {SectionThumb} from "./Sectionthumb.jsx";
 
 export const SectionListControls = ({sections=[], sectionControls, source, onChange}) => {
-    console.log('SectionListControls',sectionControls)
+    //console.log('SectionListControls',sectionControls)
     return (
         <div>
             {sections.map(s => (

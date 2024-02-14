@@ -90,13 +90,15 @@ function TemplateEdit ({
   }
 
   //console.log('page edit', attributes['sections'])
-  const ContentEdit = attributes['sections'].EditComp
+  const ContentEdit = React.useMemo(() => {
+    return attributes['sections'].EditComp
+  }, [])
  
   return (
     <div key={id}>
        {item?.header === 'above' && <div className='w-full'> 
          <ContentEdit
-            item={item}
+            full_width={item.full_width}
             value={[headerSection]} 
             onChange={saveHeader}         
             {...attributes['sections']}
@@ -111,7 +113,7 @@ function TemplateEdit ({
           <div className={theme.layout.container}>
             {item?.header === 'below' && <div className='w-full'> 
                    <ContentEdit
-                      item={item}
+                      full_width={item.full_width}
                       value={[headerSection]} 
                       onChange={saveHeader}         
                       {...attributes['sections']}
@@ -135,7 +137,7 @@ function TemplateEdit ({
                 <div className={theme.page.container}>
                 {item?.header === 'inpage' && <div className='w-full'> 
                    <ContentEdit
-                      item={item}
+                      full_width={item.full_width}
                       value={[headerSection]} 
                       onChange={saveHeader}         
                       {...attributes['sections']}
@@ -144,7 +146,7 @@ function TemplateEdit ({
                 } 
                 <div className='text-base font-light leading-7'>
                     <ContentEdit
-                      item={item}
+                      full_width={item.full_width}
                       value={draftSections} 
                       onChange={saveSection}         
                       {...attributes['sections']}

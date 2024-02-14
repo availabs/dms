@@ -126,7 +126,9 @@ function PageEdit ({
     //.then(d => console.log('on submit',d))
   }
 
-  const ContentEdit = attributes['draft_sections'].EditComp
+  const ContentEdit = React.useMemo(() => {
+    return attributes['sections'].EditComp
+  }, [])
 
   //console.log('headerSection', headerElement.position)
   
@@ -182,6 +184,15 @@ function PageEdit ({
                   </div>
                 } 
                 <div className='text-base font-light leading-7'>
+                  {user.authLevel > 5 ?  
+                    <div className='w-full flex relative'>
+                      <div className='flex-1' />
+                      <Link className='absolute -right-[15px] -top-[13px]' to={`${baseUrl}/${item.url_slug}`}>
+                        <i className={`fad fa-eye  fa-fw flex-shrink-0 text-lg text-slate-400 hover:text-blue-500`}/>
+                      </Link> 
+                    </div>
+                    : ''    
+                  }
                     <ContentEdit
                       item={item}
                       value={draftSections} 

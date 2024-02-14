@@ -54,7 +54,7 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
   const saveItem = async (newSections) => {
     let newItem = {
       id: item.id,
-      url_slug: getUrlSlug(newItem, dataItems)
+      url_slug: getUrlSlug(item, dataItems)
     }
     if(newSections) {
       newItem.sections = newSections
@@ -305,6 +305,7 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
 
   const setDataControls = (v) => {
       if (!isEqual(item.data_controls, v)) {
+          console.log('------setting data controls-------------')
           const newItem = cloneDeep(item)
           {
             id:item.id,

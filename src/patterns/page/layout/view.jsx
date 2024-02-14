@@ -15,7 +15,10 @@ function PageView ({item, dataItems, attributes, user, logo, rightMenu}) {
   if(!item) return <div> No Pages </div>
 
   const { baseUrl, theme } = React.useContext(CMSContext)
-  const ContentView = attributes['sections'].ViewComp
+  const ContentView = React.useMemo(() => {
+    return attributes['sections'].ViewComp
+  }, [])
+
   const menuItems = React.useMemo(() => {
     let items = dataItemsNav(dataItems,baseUrl,false)
     return items
@@ -63,6 +66,16 @@ function PageView ({item, dataItems, attributes, user, logo, rightMenu}) {
                 </div>*/}
                 
                 <div className='text-md font-light leading-7'>
+                  {user.authLevel > 5 ?  
+                    <div className='w-full flex relative'>
+                      <div className='flex-1' />
+                      <Link className='absolute -right-[15px] -top-[13px]' to={`${baseUrl}/edit/${item.url_slug}`}>
+                        <i className={`fad fa-edit  fa-fw flex-shrink-0 text-lg text-slate-400 hover:text-blue-500`}/>
+                      </Link> 
+                    </div>
+                    : ''    
+                  }
+                  
                   <ContentView 
                     item={item}
                     value={sections} 

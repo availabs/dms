@@ -1,6 +1,7 @@
 import React, { Fragment, useState } from "react"
 import isEqual from 'lodash/isEqual'
 import cloneDeep from 'lodash/cloneDeep'
+// import 
 import { Popover, Transition } from '@headlessui/react'
 import { Link } from "react-router-dom";
 import { usePopper } from 'react-popper'
@@ -196,7 +197,7 @@ function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, o
     )
 }
 
-function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove,item}) {
+function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove}) {
     let [referenceElement, setReferenceElement] = useState()
     let [popperElement, setPopperElement] = useState()
     let { styles, attributes:popperAttributes } = usePopper(referenceElement, popperElement)
@@ -212,11 +213,12 @@ function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove,ite
     let interactCondition = typeof onEdit !== 'function' && value?.element?.['element-type']?.includes('Map:');
     let isTemplateSectionCondition = value?.element?.['template-section-id'];
 
-    const element = React.useMemo(() => <ElementComp value={value?.['element']} />, 
-        (prev, next) => {
-            console.log('test', i, isEqual(prev.value, next.value))
-            return !isEqual(prev.value, next.value)
-        }
+    const element = React.useMemo(() => {
+        console.log('element',value.id, i)
+        return <ElementComp value={value?.['element']} />
+    }, 
+    [value?.element, value.id])
+        
     return (
         <div className={`${hideDebug ? '' : 'border border-dashed border-blue-500'}`}>
             <div className='flex w-full'>
@@ -266,11 +268,11 @@ function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove,ite
                             ) : ''}
                     
                            
-                            {i === 0 && user.authLevel > 5 && !value?.is_header ?  
+                            {/* i === 0 && user.authLevel > 5 && !value?.is_header ?  
                               <Link to={`${baseUrl}/${edit ? '' : 'edit/'}${item.url_slug}`}>
                                 <i className={`fad ${edit ? 'fa-eye' : 'fa-edit'}  fa-fw flex-shrink-0 text-lg text-slate-400 hover:text-blue-500`}/>
                               </Link> : ''    
-                            }
+                            */}
                              {/*<div className='w-8'></div>*/}
                         </div>
                     </div>
@@ -391,6 +393,12 @@ function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove,ite
     )
 }  
 
+const SectionViewMemo = React.memo(SectionView,
+    (prev, next) => {
+        console.log('svm', prev.value.id, prev.i, isEqual(prev.value, next.value))
+        return isEqual(prev.value, next.value)
+})
+
 
 const AddSectionButton = ({onClick, showpageToggle}) => {
     let item = {}
@@ -407,22 +415,24 @@ const AddSectionButton = ({onClick, showpageToggle}) => {
                     <i className="fal fa-circle-plus text-lg fa-fw" title="Add Section"></i>
                     {/*☷ Add Section*/}
                     </button>
-                    {showpageToggle ?  
+                    {/*showpageToggle ?  
                       <Link to={`${baseUrl}/${item.url_slug}`}>
                         <i className='fad fa-eye fa-fw flex-shrink-0 text-lg text-slate-400 hover:text-blue-500'/>
                       </Link> : ''    
-                    }
+                    */}
                 </div>
             </div>
         </div>
     )
 }
-const Edit = ({Component, value, onChange, attr, item}) => {
+const Edit = ({Component, value, onChange, attr, full_width = false }) => {
     if (!value || !value.map) { 
         value = []
     }
-    console.log('render SA view')
-    const [values, setValues] = React.useState([...value , ''] || [''])
+    console.log('---------------sa edit render-----------------')
+    // console.log('sa edit sections', value)
+    // const [values, setValues] = React.useState([...value , ''] || [''])
+    const values = [...value,'']
     const [edit, setEdit] = React.useState({
         index: -1,
         value: '',
@@ -498,8 +508,9 @@ const Edit = ({Component, value, onChange, attr, item}) => {
 
 
     return (
-        <div className={`grid grid-cols-6 ${layouts[item.full_width === 'show' ? 'fullwidth' : 'centered']} gap-1`}>
+        <div className={`grid grid-cols-6 ${layouts[full_width === 'show' ? 'fullwidth' : 'centered']} gap-1`}>
             {values.map((v,i) => {
+                //console.log()
                 const size = (edit.index === i ? edit?.value?.size : v?.size) || "1";
                 const requiredSpace = sizeOptionsSVG.find(s => s.name === size)?.value;
                 const availableSpace = 6 - runningColTotal;
@@ -525,7 +536,6 @@ const Edit = ({Component, value, onChange, attr, item}) => {
                         {/* edit new or existing section */}
                         {edit.index === i 
                             ? <SectionEdit 
-                                item={item}
                                 value={edit.value} 
                                 onChange={setEditValue}
                                 onSave={save}
@@ -534,18 +544,16 @@ const Edit = ({Component, value, onChange, attr, item}) => {
                                 attributes={attr.attributes}
                                 size={size}
                                 i={i}
-                                key={item.id}
+                               
                             />
                             : ''
                         }
                         
                         {/* show section if not being edited */}
                         { v !== '' && !(edit.index === i && edit.type === 'update') ? 
-                            <SectionView 
-                                key={item.id}
+                            <SectionView
                                 value={v} 
                                 i={i}
-                                item={item}
                                 moveItem={moveItem}
                                 attributes={attr.attributes}
                                 edit={true}
@@ -567,7 +575,7 @@ const Edit = ({Component, value, onChange, attr, item}) => {
     )
 }
 
-const View = ({Component, value, attr, item}) => {
+const View = ({Component, value, attr, full_width}) => {
     if (!value || !value.map) { return '' }
     let runningColTotal = 8;
     let layouts = {
@@ -580,7 +588,7 @@ const View = ({Component, value, attr, item}) => {
 
     console.log('render SA view')
     return (
-        <div className={`grid grid-cols-6 ${layouts[item.full_width === 'show' ? 'fullwidth' : 'centered']} gap-1`}>
+        <div className={`grid grid-cols-6 ${layouts[full_width === 'show' ? 'fullwidth' : 'centered']} gap-1`}>
         
         { 
             value.filter(v => hideSectionCondition(v))
@@ -605,7 +613,6 @@ const View = ({Component, value, attr, item}) => {
                             attributes={attr.attributes}
                             key={i}
                             i={i}
-                            item={item}
                             value={v}
                         />
                     </div>
