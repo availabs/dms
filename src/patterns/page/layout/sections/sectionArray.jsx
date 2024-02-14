@@ -211,6 +211,12 @@ function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove,ite
     let helpTextCondition = value?.['helpText'];
     let interactCondition = typeof onEdit !== 'function' && value?.element?.['element-type']?.includes('Map:');
     let isTemplateSectionCondition = value?.element?.['template-section-id'];
+
+    const element = React.useMemo(() => <ElementComp value={value?.['element']} />, 
+        (prev, next) => {
+            console.log('test', i, isEqual(prev.value, next.value))
+            return !isEqual(prev.value, next.value)
+        }
     return (
         <div className={`${hideDebug ? '' : 'border border-dashed border-blue-500'}`}>
             <div className='flex w-full'>
@@ -379,7 +385,7 @@ function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove,ite
 
                 }
             <div>
-                <ElementComp value={value?.['element']} />
+                {element}
             </div>
         </div>
     )
@@ -415,6 +421,7 @@ const Edit = ({Component, value, onChange, attr, item}) => {
     if (!value || !value.map) { 
         value = []
     }
+    console.log('render SA view')
     const [values, setValues] = React.useState([...value , ''] || [''])
     const [edit, setEdit] = React.useState({
         index: -1,
@@ -527,6 +534,7 @@ const Edit = ({Component, value, onChange, attr, item}) => {
                                 attributes={attr.attributes}
                                 size={size}
                                 i={i}
+                                key={item.id}
                             />
                             : ''
                         }
@@ -534,6 +542,7 @@ const Edit = ({Component, value, onChange, attr, item}) => {
                         {/* show section if not being edited */}
                         { v !== '' && !(edit.index === i && edit.type === 'update') ? 
                             <SectionView 
+                                key={item.id}
                                 value={v} 
                                 i={i}
                                 item={item}
@@ -569,7 +578,7 @@ const View = ({Component, value, attr, item}) => {
         !JSON.parse(section?.element?.['element-data'] || '{}')?.hideSection;
 
 
-
+    console.log('render SA view')
     return (
         <div className={`grid grid-cols-6 ${layouts[item.full_width === 'show' ? 'fullwidth' : 'centered']} gap-1`}>
         
