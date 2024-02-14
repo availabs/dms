@@ -42,8 +42,10 @@ export default function EditWrapper({ Component, format, options, params, user, 
 		submit(json2DmsForm(item), { method: "post", action: pathname })
 	}
 
+	const EditComponent = React.useMemo(() => Component, [])
+
 	return (
-		<Component 
+		<EditComponent 
 			{...props} 
 			format={format}
 			attributes={attributes}

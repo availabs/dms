@@ -6,8 +6,9 @@ export default function ListWrapper({ Component, format, options, user, ...props
 	const attributes = getAttributes(format,options)
 	const { data } = useLoaderData()
 	// console.log('list wrapper', data)
+	const ListComponent = React.useMemo(() => Component, [])
 	return (
-		<Component
+		<ListComponent
 			key={options?.path}
 			{...props} 
 			format={format}
