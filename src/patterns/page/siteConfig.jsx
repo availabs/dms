@@ -28,8 +28,6 @@ const siteConfig = ({
   theme = defaultTheme
 }) => {
   theme = theme || defaultTheme
- 
-  
   const format = cloneDeep(cmsFormat)
   format.app = app
   format.type = type

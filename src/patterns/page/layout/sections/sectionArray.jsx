@@ -428,7 +428,7 @@ const Edit = ({Component, value, onChange, attr, full_width = false }) => {
     if (!value || !value.map) { 
         value = []
     }
-    console.log('---------------sa edit render-----------------')
+    // console.log('---------------sa edit render-----------------')
     // console.log('sa edit sections', value)
     // const [values, setValues] = React.useState([...value , ''] || [''])
     const values = [...value,'']
@@ -585,6 +585,7 @@ const View = ({Component, value, attr, full_width}) => {
 
 
     // console.log('render SA view')
+
     return (
         <div className={`grid grid-cols-6 ${layouts[full_width === 'show' ? 'fullwidth' : 'centered']} gap-1`}>
         
