@@ -143,7 +143,8 @@ const NavItem = ({
 export default NavItem;
 
 const SubMenu = ({ i, showSubMenu, subMenus, type, hovering, subMenuActivate, active, themeOptions }) => {
-	const theme = useTheme()[type === 'side' ? 'sidenav' : 'topnav'](themeOptions);
+	const { theme: fullTheme  } = React.useContext(CMSContext)
+	const theme = fullTheme[type === 'side' ? 'sidenav' : 'topnav'](themeOptions);
 
 	const inactiveHoveing = !active && subMenuActivate !== 'onHover' && hovering;
 	if ((!showSubMenu || !subMenus.length) && !(inactiveHoveing)) {
