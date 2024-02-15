@@ -1,14 +1,25 @@
 import {useEffect} from "react";
 import get from "lodash/get"
 import isEqual from "lodash/isEqual"
-import {isJson} from "~/utils/macros.jsx";
-import {dmsDataTypes} from "~/modules/dms/src"
+
+import {dmsDataTypes} from "../../../index"
 
 import FilterableSearch from "./FilterableSearch.jsx";
 
 import ComponentRegistry from './ComponentRegistry'
 
 export let RegisteredComponents = ComponentRegistry;
+
+
+export const isJson = (str)  => {
+    try {
+        JSON.parse(str);
+    } catch (e) {
+        return false;
+    }
+    return true;
+}
+
 
 const icons = {
     card: 'fa-thin fa-credit-card',
@@ -34,6 +45,8 @@ function EditComp(props) {
             onChange({...value, 'element-type': 'lexical'})
         }
     }, []);
+
+    console.log('RegisteredComponents', RegisteredComponents)
 
     let DataComp = (RegisteredComponents[get(value, "element-type", "lexical")] || RegisteredComponents['lexical']).EditComp
 

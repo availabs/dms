@@ -1,6 +1,6 @@
 import React, {useState} from "react";
 import {getConfig} from "../../template/pages.jsx";
-import {dmsDataLoader} from "~/modules/dms/src/index.js";
+import {dmsDataLoader} from "../../../../../index.js";
 import get from "lodash/get.js";
 import {useFalcor} from '~/modules/avl-falcor';
 import Selector from "./Selector.jsx";

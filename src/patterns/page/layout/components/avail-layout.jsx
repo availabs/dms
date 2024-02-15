@@ -1,5 +1,9 @@
 import React from "react";
-import { useTheme, TopNav, SideNav } from "~/modules/avl-components/src/";
+//import { useTheme} from "~/modules/avl-components/src/index.js";
+import { CMSContext } from '../layout'
+import TopNav from './nav/Top.jsx'
+import SideNav from './nav/Side.jsx'
+
 import { Link, Outlet } from "react-router-dom";
 
 let marginSizes = {
@@ -21,7 +25,8 @@ let fixedSizes = {
 }
 
 const Layout = ({ children, menus, sideNav={}, topNav={}, title }) => {
-	const theme = useTheme()
+	//const theme = useTheme()
+	const { theme } = React.useContext(CMSContext)
 	const sideNavOptions = {
 		size: sideNav.size || 'none',
 		color: sideNav.color || 'dark',

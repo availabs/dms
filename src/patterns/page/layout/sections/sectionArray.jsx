@@ -61,8 +61,7 @@ function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, o
             onChange({...value, [k]: v})
         }
     }
-    
-    
+
     let TitleComp = attributes?.title?.EditComp
     let LevelComp = attributes?.level?.EditComp
     let TagsComp = attributes?.tags?.EditComp
@@ -214,7 +213,7 @@ function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove}) {
     let isTemplateSectionCondition = value?.element?.['template-section-id'];
 
     const element = React.useMemo(() => {
-        console.log('element',value.id, i)
+        // console.log('element',value.id, i)
         return <ElementComp value={value?.['element']} />
     }, 
     [value?.element, value.id])
@@ -395,7 +394,7 @@ function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove}) {
 
 const SectionViewMemo = React.memo(SectionView,
     (prev, next) => {
-        console.log('svm', prev.value.id, prev.i, isEqual(prev.value, next.value))
+        //console.log('svm', prev.value.id, prev.i, isEqual(prev.value, next.value))
         return isEqual(prev.value, next.value)
 })
 
@@ -506,7 +505,7 @@ const Edit = ({Component, value, onChange, attr, full_width = false }) => {
         fullwidth:'md:grid-cols-[_minmax(_0px,0px)_repeat(6,_1fr)_minmax(_0px,0px)]'
     }
 
-
+   
     return (
         <div className={`grid grid-cols-6 ${layouts[full_width === 'show' ? 'fullwidth' : 'centered']} gap-1`}>
             {values.map((v,i) => {
@@ -544,7 +543,6 @@ const Edit = ({Component, value, onChange, attr, full_width = false }) => {
                                 attributes={attr.attributes}
                                 size={size}
                                 i={i}
-                               
                             />
                             : ''
                         }
@@ -586,7 +584,7 @@ const View = ({Component, value, attr, full_width}) => {
         !JSON.parse(section?.element?.['element-data'] || '{}')?.hideSection;
 
 
-    console.log('render SA view')
+    // console.log('render SA view')
     return (
         <div className={`grid grid-cols-6 ${layouts[full_width === 'show' ? 'fullwidth' : 'centered']} gap-1`}>
         

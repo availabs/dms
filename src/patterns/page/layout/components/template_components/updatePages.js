@@ -1,6 +1,6 @@
 import { dmsDataEditor } from '../../../../../index'
 import {parseJSON} from "../utils/parseJSON.js";
-import ComponentRegistry from "~/component_registry";
+import { RegisteredComponents } from '../../../selector'
 import cloneDeep from "lodash/cloneDeep";
 import {json2DmsForm} from '../utils/navItems'
 import { Promise } from 'bluebird'
@@ -23,7 +23,7 @@ export const updatePages = async ({submit, item, url, destination, id_column, ge
                 let pageSectionData = parseJSON(pageSection?.data?.value?.element?.['element-data']) || {}
                 let data = parseJSON(templateSection?.element?.['element-data']) || {}
                 let type = templateSection?.element?.['element-type'] || ''
-                let comp = ComponentRegistry[type] || {}
+                let comp = RegisteredComponents[type] || {}
 
                 // update control variables
                 let controlVars = (comp?.variables || []).reduce((out,curr) => {

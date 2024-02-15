@@ -1,6 +1,6 @@
 import React, {useEffect, useState} from "react"
-import {isJson} from "~/utils/macros.jsx";
-import { dmsDataTypes } from "~/modules/dms/src"
+import {isJson} from "./index";
+import { dmsDataTypes } from "../../../index.js"
 
 export const RenderCalloutBox = ({text = {}, backgroundColor, ...rest}) => {
     return (
@@ -40,7 +40,7 @@ const RenderColorPicker = ({title, className, color, setColor}) => (
                     '#713f12', '#854d0e', '#a16207', '#ca8a04', '#eab308', '#facc15', '#fde047', '#fef08a', '#fef9c3', '#fefce8',
 
 
-                ].map(c => <option>{c}</option>)
+                ].map(c => <option key={c}>{c}</option>)
             }
         </datalist>
     </div>
@@ -61,9 +61,10 @@ const Edit = ({value, onChange}) => {
     return (
         <div className='w-full'>
             <div className='relative'>
-                <RenderColorPicker title={'Background: '}
-                                   className={'w-full px-2 py-1 flex flex-row text-sm items-center border border-dashed'}
-                                   color={bgColor} setColor={setBgColor}/>
+                <RenderColorPicker 
+                    title={'Background: '}
+                    className={'w-full px-2 py-1 flex flex-row text-sm items-center border border-dashed'}
+                    color={bgColor} setColor={setBgColor}/>
                     <LexicalComp value={text} onChange={setText} bgColor={bgColor}/>
             </div>
         </div>

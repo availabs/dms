@@ -12,6 +12,8 @@ import cmsFormat from "./page.format.js"
 import cloneDeep from 'lodash/cloneDeep'
 import defaultTheme from './theme/theme'
 import {Search} from "./search";
+import Selector from "./selector"
+import { registerDataType } from "../../index"
 
 // sideNav = {size: 'miniPad'}
 
@@ -26,7 +28,7 @@ const siteConfig = ({
   theme = defaultTheme
 }) => {
   theme = theme || defaultTheme
-  console.log('run config', theme)
+ 
   
   const format = cloneDeep(cmsFormat)
   format.app = app
@@ -57,13 +59,15 @@ const siteConfig = ({
     },
     children: [
       { 
-        type: (props) => (
-          <Layout 
-            {...props}
-            baseUrl={baseUrl}
-            theme={theme}
-          />
-        ),
+        type: (props) => {
+          return (
+            <Layout 
+              {...props}
+              baseUrl={baseUrl}
+              theme={theme}
+            />
+          )
+        },
         action: "list",
         path: "/*",
         filter: {

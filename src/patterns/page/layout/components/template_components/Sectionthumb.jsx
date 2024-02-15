@@ -2,13 +2,13 @@ import {parseJSON} from "../utils/parseJSON.js";
 import React from "react";
 import get from "lodash/get.js";
 import Selector from "./Selector.jsx";
-import ComponentRegistry from "~/component_registry";
+import { RegisteredComponents } from '../../../selector'
 
 export const SectionThumb =({section,source,sectionControl={},updateSectionControl}) => {
 
     let data = parseJSON(section?.element?.['element-data']) || {}
     let type = section?.element?.['element-type'] || ''
-    let comp = ComponentRegistry[type] || {}
+    let comp = RegisteredComponents[type] || {}
     let controlVars = comp?.variables || []
     // console.log('sc?', sectionControl)
     const attributes = React.useMemo(() => {

@@ -81,9 +81,10 @@ async function loadDmsFormats (item,dmsAttrsConfigs,falcor) {
                     dmsFormatRequests.push(['dms','data', 'byId', ref.id, 'data'])
                 }
             }
-        } else {
+        } else if(item[key]?.id) {
             // if dmstype is single
-            dmsFormatRequests.push(['dms','data', 'byId', item[key].id, 'data'])
+
+            dmsFormatRequests.push(['dms','data', 'byId', item[key]?.id, 'data'])
         }
 
         if(dmsFormatRequests.length > 0) {

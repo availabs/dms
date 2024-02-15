@@ -2,7 +2,6 @@ import React, { useEffect, Fragment, useRef, useState } from 'react'
 import { useSubmit, useLocation } from "react-router-dom";
 import { Dialog, Transition, Switch, Popover } from '@headlessui/react'
 import { usePopper } from 'react-popper'
-import { ExclamationTriangleIcon } from '@heroicons/react/24/outline'
 import cloneDeep from 'lodash/cloneDeep'
 import get from 'lodash/get'
 import isEqual from "lodash/isEqual"
@@ -344,7 +343,7 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
             <div className='pl-4 pb-2'>
               <span className='text-xs uppercase font-bold text-slate-400'> page name </span>
               <TitleEditComp
-                value={item.title}
+                value={item?.title}
                 onChange={updateTitle}
               />
             </div>
@@ -503,7 +502,7 @@ export default EditControls
 
 function TitleEditComp({value, onChange}) {
   const [editing, setEditing] = React.useState(false)
-  const [newTitle, setNewTitle] = React.useState(value)
+  const [newTitle, setNewTitle] = React.useState(value || '')
 
 
   return (
@@ -536,7 +535,7 @@ function TitleEditComp({value, onChange}) {
 
               </div>
             </div> :
-            <div className='w-full flex flex-row px-2 py-1 text font-medium text-slate-500 focus:outline-none border-slate-300 border-b-2 focus:border-blue-500'>
+            <div className='w-full min-h-[30px] flex flex-row px-2 py-1 text font-medium text-slate-500 focus:outline-none border-slate-300 border-b-2 focus:border-blue-500'>
               <div className='w-full'>{value}</div>
               <span className='hidden group-hover:block text-blue-300 hover:text-blue-500 cursor-pointer ' onClick={e => editing ? setEditing(false): setEditing(true)}>
                   <i className="fad fa-pencil absolute -ml-4 -mt-0.5 p-1.5 rounded hover:bg-blue-500 hover:text-white"/>
@@ -651,7 +650,7 @@ export function DeleteModal ({item, open, setOpen})  {
     >
       <div className="sm:flex sm:items-start">
         <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
-          <ExclamationTriangleIcon className="h-6 w-6 text-red-600" aria-hidden="true" />
+          <i className="fa fa-danger h-6 w-6 text-red-600" aria-hidden="true" />
         </div>
         <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left">
           <Dialog.Title as="h3" className="text-base font-semibold leading-6 text-gray-900">

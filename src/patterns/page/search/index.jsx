@@ -1,6 +1,6 @@
 import {Fragment, useEffect, useRef, useState} from "react";
 import {Combobox, Dialog, Transition} from '@headlessui/react'
-import {getConfig, locationNameMap, locationUrlMap} from "../template/layout/templatePages";
+import {getConfig} from "../layout/template/pages";
 import {dmsDataLoader} from "../../../api";
 
 export const Search = ({app, type}) => {
@@ -58,7 +58,7 @@ const SearchPallet = ({open, setOpen, app, type}) => {
                     name: value.section_title,
                     tags: value.tags,
                     description: value.page_title,
-                    url: `${locationUrlMap[value.type]}/${value.url_slug}`,
+                    url: `/${value.url_slug}`,
                     type: value.type,
                     color: 'bg-indigo-500',
                     icon: () => <i className={'fa-light fa-memo text-white'}/>,
@@ -147,7 +147,7 @@ const SearchPallet = ({open, setOpen, app, type}) => {
                                                                 {item.name || item.id}
                                                             </p>
                                                             <p className={classNames('text-sm', active ? 'text-gray-700' : 'text-gray-500')}>
-                                                                {item.description} ({locationNameMap[item.type]})
+                                                                {item.description}
                                                             </p>
                                                             <span className={'tracking-wide p-1 bg-red-400 text-xs text-white font-semibold rounded-md border'}>{item.tags}</span>
                                                         </div>

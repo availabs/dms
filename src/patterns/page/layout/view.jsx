@@ -1,7 +1,7 @@
 import React, {useEffect} from 'react'
 import { Link } from "react-router-dom";
 
-import { SideNav } from '~/modules/avl-components/src'
+import SideNav from './components/nav/Side'
 import { CMSContext } from './layout'
 
 import Layout from './components/avail-layout'
@@ -66,7 +66,7 @@ function PageView ({item, dataItems, attributes, user, logo, rightMenu}) {
                 </div>*/}
                 
                 <div className='text-md font-light leading-7'>
-                  {user.authLevel > 5 ?  
+                  {user?.authLevel > 5 ?  
                     <div className='w-full flex relative'>
                       <div className='flex-1' />
                       <Link className='absolute -right-[15px] -top-[13px]' to={`${baseUrl}/edit/${item.url_slug}`}>

@@ -6,7 +6,7 @@ import cloneDeep from 'lodash/cloneDeep'
 import Layout from '../components/avail-layout'
 import { getInPageNav } from "../components/utils/inPageNavItems.js";
 
-import { SideNav } from '~/modules/avl-components/src'
+import SideNav from '../components/nav/Side'
 import {json2DmsForm, getUrlSlug, toSnakeCase} from '../components/utils/navItems'
 import EditControls from '../components/editControls'
 import { CMSContext } from '../layout'

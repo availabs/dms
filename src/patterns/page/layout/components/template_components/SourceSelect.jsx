@@ -3,7 +3,7 @@ import get from "lodash/get.js";
 import {useFalcor} from '~/modules/avl-falcor';
 import Selector from "./Selector.jsx";
 import {pgEnv} from "../utils/constants.js";
-import {getAttributes} from '~/pages/DataManager/Source/attributes'
+import {getAttributes} from './ViewsSelect'
 
 export const SourcesSelect = ({value, onChange}) => {
 

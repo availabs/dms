@@ -2,7 +2,7 @@ import React, {useEffect} from 'react'
 import { NavLink, Link, useSubmit, useNavigate, useLocation, useParams} from "react-router-dom";
 
 import Layout from './components/avail-layout'
-import { SideNav } from '~/modules/avl-components/src'
+import SideNav from './components/nav/Side'
 import EditControls from './components/editControls'
 
 import { CMSContext } from './layout'
@@ -28,8 +28,7 @@ function PageEdit ({
     return items
   }, [dataItems])
 
-  console.log('menuItems', menuItems)
-
+  console.log('-----------render edit----------------')
   const level = detectNavLevel(dataItems, baseUrl);
   const inPageNav = getInPageNav(dataItems, baseUrl);
   
@@ -63,10 +62,6 @@ function PageEdit ({
   },[])
 
   const headerSection = item['draft_sections']?.filter(d => d.is_header)?.[0]
-  // let headerElement = {} 
-  // try {
-  //   headerElement = JSON.parse(headerSection?.element?.['element-data']) || {}
-  // } catch (e) {/* console.log(e) */}
   const draftSections = item['draft_sections']?.filter(d => !d.is_header && !d.is_footer)
 
   const saveHeader = (v) => {
@@ -75,7 +70,7 @@ function PageEdit ({
   
     history.push({
       type: 'Header updated.',
-      user: user.email, 
+      user: user?.email || 'user', 
       time: new Date().toString()
     })
     
@@ -98,7 +93,7 @@ function PageEdit ({
     //console.log('save section', v,action)
     let edit = {
       type: action,
-      user: user.email, 
+      user: user?.email || 'user', 
       time: new Date().toString()
     }
 
@@ -117,7 +112,7 @@ function PageEdit ({
     // --------------------
 
     const newItem = {
-      id: item.id, 
+      id: item?.id, 
       draft_sections: [headerSection, ...v].filter(d => d),
       has_changes: true,
       history, 
@@ -184,7 +179,7 @@ function PageEdit ({
                   </div>
                 } 
                 <div className='text-base font-light leading-7'>
-                  {user.authLevel > 5 ?  
+                  {user?.authLevel > 5 ?  
                     <div className='w-full flex relative'>
                       <div className='flex-1' />
                       <Link className='absolute -right-[15px] -top-[13px]' to={`${baseUrl}/${item.url_slug}`}>
@@ -194,7 +189,7 @@ function PageEdit ({
                     : ''    
                   }
                     <ContentEdit
-                      item={item}
+                      full_width={item.full_width}
                       value={draftSections} 
                       onChange={saveSection}         
                       {...attributes['draft_sections']}
@@ -212,6 +207,7 @@ function PageEdit ({
                     status={status}
                     attributes={attributes}
                     updateAttribute={updateAttribute}
+                    pageType={'page'}
                   />
                 </div>
               </div>
