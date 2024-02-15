@@ -26,7 +26,7 @@ const siteConfig = ({
   theme = defaultTheme
 }) => {
   theme = theme || defaultTheme
-  console.log('run config', theme)
+  //console.log('run config', theme)
   
   const format = cloneDeep(cmsFormat)
   format.app = app

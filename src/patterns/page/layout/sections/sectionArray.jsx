@@ -214,7 +214,7 @@ function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove}) {
     let isTemplateSectionCondition = value?.element?.['template-section-id'];
 
     const element = React.useMemo(() => {
-        console.log('element',value.id, i)
+        //console.log('element',value.id, i)
         return <ElementComp value={value?.['element']} />
     }, 
     [value?.element, value.id])
@@ -395,7 +395,7 @@ function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove}) {
 
 const SectionViewMemo = React.memo(SectionView,
     (prev, next) => {
-        console.log('svm', prev.value.id, prev.i, isEqual(prev.value, next.value))
+        //console.log('svm', prev.value.id, prev.i, isEqual(prev.value, next.value))
         return isEqual(prev.value, next.value)
 })
 
@@ -429,7 +429,7 @@ const Edit = ({Component, value, onChange, attr, full_width = false }) => {
     if (!value || !value.map) { 
         value = []
     }
-    console.log('---------------sa edit render-----------------')
+    // console.log('---------------sa edit render-----------------')
     // console.log('sa edit sections', value)
     // const [values, setValues] = React.useState([...value , ''] || [''])
     const values = [...value,'']
@@ -586,7 +586,7 @@ const View = ({Component, value, attr, full_width}) => {
         !JSON.parse(section?.element?.['element-data'] || '{}')?.hideSection;
 
 
-    console.log('render SA view')
+    //console.log('render SA view')
     return (
         <div className={`grid grid-cols-6 ${layouts[full_width === 'show' ? 'fullwidth' : 'centered']} gap-1`}>
         
