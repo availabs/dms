@@ -1,6 +1,7 @@
 import React, {useEffect, useState} from "react"
-import {isJson} from "./index";
-import { dmsDataTypes } from "../../../index.js"
+import {isJson} from "../index";
+import { dmsDataTypes } from "../../../../index.js"
+import Header from './header'
 
 export const RenderCalloutBox = ({text = {}, backgroundColor, ...rest}) => {
     return (
@@ -103,7 +104,8 @@ const lexical  = {
     "ViewComp": View
 }
  const ComponentRegistry = {
-    lexical
+    lexical,
+    "Header: Default Header": Header
 }
 
 

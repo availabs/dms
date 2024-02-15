@@ -8,7 +8,7 @@ const theme = {
   page: {
     container: 'flex-1 w-full h-full ',
     content: '',
-    content:'flex-1 flex border shadow bg-white px-4'
+    content:'flex-1 flex border shadow bg-white px-4 py-4'
   },
   layout: {
     page: 'h-full w-full bg-slate-100 flex flex-col',

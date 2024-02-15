@@ -179,10 +179,10 @@ function PageEdit ({
                   </div>
                 } 
                 <div className='text-base font-light leading-7'>
-                  {user?.authLevel > 5 ?  
+                  {user?.authLevel >= 5 ?  
                     <div className='w-full flex relative'>
                       <div className='flex-1' />
-                      <Link className='absolute -right-[15px] -top-[13px]' to={`${baseUrl}/${item.url_slug}`}>
+                      <Link className='absolute -right-[10px] -top-[13px]' to={`${baseUrl}/${item.url_slug}`}>
                         <i className={`fad fa-eye  fa-fw flex-shrink-0 text-lg text-slate-400 hover:text-blue-500`}/>
                       </Link> 
                     </div>
@@ -198,7 +198,7 @@ function PageEdit ({
               </div>
               </div>
               <div className='w-52 hidden xl:block'>
-                <div className='w-52 sticky top-12 hidden xl:block h-screen'> 
+                <div className='w-52 sticky top-24 hidden xl:block h-screen'> 
                   <EditControls 
                     item={item} 
                     dataItems={dataItems}
