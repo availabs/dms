@@ -45,6 +45,7 @@ export default function TemplateList ({children, dataItems, edit, baseUrl='', lo
   const {path} = useLocation()
   const [showNew, setShowNew] = useState(false)
 
+  console.log('template list', dataItems.filter(item => item ))
   const menuItems=[
     {path: `${baseUrl}/templates`, name: 'Templates'}
   ]
