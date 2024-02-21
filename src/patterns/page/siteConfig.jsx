@@ -20,6 +20,7 @@ import { registerDataType } from "../../index"
 const siteConfig = ({ 
   app = "dms-site",
   type = "docs-page",
+  useFalcor,
   sideNav = null,
   logo = null,
   rightMenu = <div />,
@@ -27,6 +28,7 @@ const siteConfig = ({
   checkAuth = () => {},
   theme = defaultTheme
 }) => {
+  console.log('test 123', useFalcor)
   theme = theme || defaultTheme
   const format = cloneDeep(cmsFormat)
   format.app = app
@@ -63,6 +65,7 @@ const siteConfig = ({
               {...props}
               baseUrl={baseUrl}
               theme={theme}
+              useFalcor={useFalcor}
             />
           )
         },
@@ -139,6 +142,7 @@ const siteConfig = ({
             edit={true} 
             baseUrl={baseUrl}
             theme={theme}
+            useFalcor={useFalcor}
           />
         ),
         action: "list",

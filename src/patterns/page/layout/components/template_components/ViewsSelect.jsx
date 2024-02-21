@@ -1,6 +1,6 @@
 import React, {useEffect, useMemo} from "react";
 import get from "lodash/get.js";
-import {useFalcor} from '~/modules/avl-falcor';
+import { CMSContext } from '../../layout'
 import Selector from "./Selector.jsx";
 import {pgEnv} from "../utils/constants.js";
 
@@ -17,7 +17,7 @@ export const getAttributes = (data) => {
 
 export const ViewsSelect = ({source_id, value, onChange}) => {
 
-    const { falcor, falcorCache } = useFalcor();
+    const { falcor, falcorCache} = React.useContext(CMSContext)
 
     useEffect(() => {
         async function fetchData() {

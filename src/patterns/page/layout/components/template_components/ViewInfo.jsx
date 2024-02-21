@@ -2,7 +2,7 @@ import React, {useState} from "react";
 import {getConfig} from "../../template/pages.jsx";
 import {dmsDataLoader} from "../../../../../index.js";
 import get from "lodash/get.js";
-import {useFalcor} from '~/modules/avl-falcor';
+import { CMSContext } from '../../layout'
 import Selector from "./Selector.jsx";
 import {updatePages} from "./updatePages.js";
 import {generatePages} from "./generatePages.js";
@@ -11,7 +11,7 @@ import {pgEnv} from "../utils/constants.js";
 export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatus=() => {}}) => {
 
     // console.log('ViewInfo', id_column, active_id)
-    const { falcor, falcorCache } = useFalcor();
+    const { falcor, falcorCache} = React.useContext(CMSContext)
     const [generatedPages, setGeneratedPages] = useState([]);
     const [generatedSections, setGeneratedSections] = useState([]);
 

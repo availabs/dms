@@ -18,7 +18,7 @@ import EditHistory from './editHistory'
 import { CMSContext } from '../layout'
 import { RegisteredComponents } from '../../selector'
 
-import {useFalcor} from '~/modules/avl-falcor';
+
 
 
 const theme = {
@@ -34,7 +34,6 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
   const submit = useSubmit()
   const { pathname = '/edit' } = useLocation()
   //console.log('pathname editcontrols', pathname)
-  const {falcor, falcorCache} = useFalcor()
   const [ open, setOpen ] = React.useState(false)
   const [ historyOpen, setHistoryOpen] = React.useState(false)
   const [ showDataControls, setShowDataControls ] = useState(false)
@@ -47,7 +46,7 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
   
   
 
-  const { baseUrl, user } = React.useContext(CMSContext)
+  const { baseUrl, user, falcor, falcorCache} = React.useContext(CMSContext)
   const NoOp = () => {}
   
   const saveItem = async (newSections) => {
