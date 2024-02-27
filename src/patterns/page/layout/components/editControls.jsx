@@ -251,6 +251,7 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
       }
 
       newItem.url_slug = getUrlSlug(newItem, dataItems)
+      console.log('create new item', newItem, baseUrl)
       updateAttribute('title', value)
       submit(json2DmsForm(newItem), { method: "post", action: `${baseUrl}/edit/${newItem.url_slug}` })
     }

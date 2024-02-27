@@ -22,6 +22,8 @@ function PageEdit ({
   const submit = useSubmit()
   const { pathname = '/edit' } = useLocation()
   const { baseUrl, user, theme } = React.useContext(CMSContext)
+
+  console.log('item', item)
   
   const menuItems = React.useMemo(() => {
     let items = dataItemsNav(dataItems,baseUrl,true)

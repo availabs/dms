@@ -28,7 +28,7 @@ const siteConfig = ({
   checkAuth = () => {},
   theme = defaultTheme
 }) => {
-  console.log('test 123', useFalcor)
+  //console.log('test 123', useFalcor)
   theme = theme || defaultTheme
   const format = cloneDeep(cmsFormat)
   format.app = app
