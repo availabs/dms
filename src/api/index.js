@@ -48,7 +48,7 @@ export async function dmsDataLoader ( config, path='/') {
 		const options = activeConfigs.find(ac => ['list','load'].includes(ac.action))?.filter?.options;
 		if(options) lengthReq = ['dms', 'data', `${ app }+${ type }`, 'options', options, 'length' ];
 	}
-	console.log('lengthReq', lengthReq)
+	// console.log('lengthReq', lengthReq)
 
 	const length = get(await falcor.get(lengthReq), ['json',...lengthReq], 0)
 	// console.log('length',length)
@@ -61,7 +61,7 @@ export async function dmsDataLoader ( config, path='/') {
 		.map(config => createRequest(config, format, path, length))
 		.filter(routes => routes?.length)
 
-	console.log('newRequests', newRequests)
+	// console.log('newRequests', newRequests)
 
     //--------- Route Data Loading ------------------------
 	newRequests.length > 0 ? await falcor.get(...newRequests) : {}
