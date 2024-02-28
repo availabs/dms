@@ -25,7 +25,10 @@ function TemplateEdit ({
   const { id } = params
   
   const level = 1;
-  const inPageNav = getInPageNav(dataItems, baseUrl);
+  const inPageNav = getInPageNav(item);
+
+  // console.log('in page nav', inPageNav)
+
   const headerSection = item['sections']?.filter(d => d.is_header)?.[0]
   const draftSections = item['sections']?.filter(d => !d.is_header && !d.is_footer)
   const menuItems=[
@@ -125,7 +128,7 @@ function TemplateEdit ({
             <div className='flex flex-1 h-full w-full px-1 md:px-6 py-6'>
               {item?.sidebar === 'show' ? 
                   (<div className='w-64 hidden xl:block'>
-                    <div className='w-64 fixed hidden xl:block h-screen'> 
+                    <div className='w-64 sticky top-16 hidden xl:block h-screen'> 
                       <div className='h-[calc(100%_-_8rem)] overflow-y-auto overflow-x-hidden'>
                         <SideNav {...inPageNav} /> 
                       </div>

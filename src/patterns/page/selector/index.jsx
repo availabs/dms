@@ -46,7 +46,7 @@ function EditComp(props) {
         }
     }, []);
 
-    console.log('RegisteredComponents', RegisteredComponents)
+    // console.log('RegisteredComponents', RegisteredComponents)
 
     let DataComp = (RegisteredComponents[get(value, "element-type", "lexical")] || RegisteredComponents['lexical']).EditComp
 

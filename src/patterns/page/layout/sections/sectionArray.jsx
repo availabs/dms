@@ -216,7 +216,7 @@ function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove}) {
         // console.log('element',value.id, i)
         return <ElementComp value={value?.['element']} />
     }, 
-    [value?.element, value.id])
+    [value?.element, value?.id])
         
     return (
         <div className={`${hideDebug ? '' : 'border border-dashed border-blue-500'}`}>

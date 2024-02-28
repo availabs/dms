@@ -23,18 +23,19 @@ function PageEdit ({
   const { pathname = '/edit' } = useLocation()
   const { baseUrl, user, theme } = React.useContext(CMSContext)
 
-  console.log('item', item)
+  //console.log('item', item)
   
   const menuItems = React.useMemo(() => {
     let items = dataItemsNav(dataItems,baseUrl,true)
     return items
   }, [dataItems])
 
-  console.log('-----------render edit----------------')
-  const level = detectNavLevel(dataItems, baseUrl);
-  const inPageNav = getInPageNav(dataItems, baseUrl);
+  // console.log('-----------render edit----------------')
+  const level = item?.index == '999' ? 1 : detectNavLevel(dataItems, baseUrl);
+  const inPageNav = getInPageNav(item);
+
   
-  //console.log('page edit', item)
+  console.log('page edit', item.index, level)
   //console.log('page edit', open, setOpen)
   //if(!dataItems[0]) return <div/>
 

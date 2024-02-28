@@ -24,10 +24,12 @@ function PageView ({item, dataItems, attributes, logo, rightMenu}) {
     return items
   }, [dataItems])
 
-  // console.log('page view', item)
+  console.log('page view', item.template_id)
 
-  const level = detectNavLevel(dataItems, baseUrl);
-  const inPageNav = getInPageNav(dataItems, baseUrl);
+  const level = item?.index === '999' ? 1 : detectNavLevel(dataItems, baseUrl);
+  const inPageNav = getInPageNav(item);
+
+  //console.log('page view', item.template_id, level)
 
   const headerSection = item['sections']?.filter(d => d.is_header)?.[0]
   const sections = item['sections']?.filter(d => !d.is_header && !d.is_footer)

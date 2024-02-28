@@ -10,9 +10,10 @@ const levelClasses = {
 
 const parseData = data => !data ? {} : typeof data === "object" ? data : JSON.parse(data)?.text
 
-export function getInPageNav(dataItems, baseUrl = '', edit = false) {
-    const currentDI = getCurrentDataItem(dataItems, baseUrl);
+export function getInPageNav(item, edit = false) {
+    const currentDI = item
 
+   
     const menuItems = (currentDI?.sections || []).reduce((acc, {title, element, level = '1', ...props}) => {
 
         if (!element || !title || level === '0' ) return acc;
