@@ -7,7 +7,6 @@ const accent =  'blue'
 const theme = {
   page: {
     container: 'flex-1 w-full h-full ',
-    content: '',
     content:'flex-1 flex border shadow bg-white px-4 py-4'
   },
   layout: {
@@ -128,19 +127,19 @@ const theme = {
           
 
       let subMenuStyles = {
-                inline: {
-                    indicatorIcon: 'fa fa-angle-right pt-2.5',
-                    indicatorIconOpen: 'fal fa-angle-down pt-2.5',
-                    subMenuWrapper: `pl-2 w-full`,
-                    subMenuParentWrapper: `flex flex-col w-full`
-                },
-                flyout: {
-                    indicatorIcon: 'fal fa-angle-down',
-                    indicatorIconOpen: 'fa fa-angle-right',
-                    subMenuWrapper: `absolute ml-${sizes[size].width - 8}`,
-                    subMenuParentWrapper: `flex flex-row`,
-                    subMenuWrapperTop: `absolute top-full`,
-                },
+            inline: {
+                indicatorIcon: 'fa fa-angle-right pt-2.5',
+                indicatorIconOpen: 'fal fa-angle-down pt-2.5',
+                subMenuWrapper: `pl-2 w-full`,
+                subMenuParentWrapper: `flex flex-col w-full`
+            },
+            flyout: {
+                indicatorIcon: 'fal fa-angle-down',
+                indicatorIconOpen: 'fa fa-angle-right',
+                subMenuWrapper: `absolute ml-${sizes[size].width - 8}`,
+                subMenuParentWrapper: `flex flex-row`,
+                subMenuWrapperTop: `absolute top-full`,
+            },
         }
 
         return {
