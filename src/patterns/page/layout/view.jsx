@@ -51,7 +51,7 @@ function PageView ({item, dataItems, attributes, logo, rightMenu}) {
             {/*<div className='w-[264px]' />*/}
             {item?.sidebar === 'show' ? 
                 (<div className='w-64 hidden xl:block'>
-                  <div className='w-64 fixed hidden xl:block h-screen'> 
+                  <div className='w-64 sticky top-20 hidden xl:block h-screen'> 
                     <div className='h-[calc(100%_-_5rem)] overflow-y-auto overflow-x-hidden font-display'>
                       <SideNav {...inPageNav} /> 
                     </div>

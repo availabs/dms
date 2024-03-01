@@ -162,7 +162,7 @@ function PageEdit ({
             <div className='flex flex-1 h-full w-full px-1 md:px-6 py-6'>
               {item?.sidebar === 'show' ? 
                   (<div className='w-64 hidden xl:block'>
-                    <div className='w-64 fixed hidden xl:block h-screen'> 
+                    <div className='w-64 sticky top-20 hidden xl:block h-screen'> 
                       <div className='h-[calc(100%_-_8rem)] overflow-y-auto overflow-x-hidden'>
                         <SideNav {...inPageNav} /> 
                       </div>
