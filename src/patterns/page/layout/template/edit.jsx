@@ -14,7 +14,7 @@ import { CMSContext } from '../layout'
 
 
 function TemplateEdit ({
-  item, dataItems, updateAttribute ,attributes, setItem, status, params, logo, rightMenu
+  item, dataItems, updateAttribute ,attributes, setItem, status, params, logo, rightMenu, sideNav=[]
 }) {
   const navigate = useNavigate()
   const submit = useSubmit()
@@ -110,7 +110,7 @@ function TemplateEdit ({
       } 
       <Layout 
         topNav={{menuItems, position: 'fixed', logo, rightMenu }} 
-        sideNav={inPageNav}
+        sideNav={sideNav}
       >
         <div className={`${theme.layout.page} ${theme.navPadding[level]}`}>
           <div className={theme.layout.container}>

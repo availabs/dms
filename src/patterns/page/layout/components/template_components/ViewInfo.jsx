@@ -90,7 +90,7 @@ export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatu
         (async function () {
             setLoadingStatus('Loading Pages...')
             //console.log('locationNameMap', locationNameMap)
-            const pages = await Object.keys(locationNameMap).reduce(async (acc, type) => {
+            const pages = await locationNameMap.reduce(async (acc, type) => {
                 const prevPages = await acc;  
                 const currentPages = await dmsDataLoader(getConfig({app: 'dms-site', type, filter: {[`data->>'template_id'`]: [item.id]}}), '/');
                 return [...prevPages, ...currentPages];

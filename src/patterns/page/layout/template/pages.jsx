@@ -67,15 +67,13 @@ export const getConfig = ({app, type, filter, action = 'load', tags}) => ({
                 key: 'type', label: 'type'
             },
             {
-                key: 'data', label: 'data'
+                key: "data->>'title'", label: 'data'
             }
         ]
     },
     children: [
         {
-            type: () => {
-
-            },
+            type: () => {},
             action,
             filter: {
                 options: JSON.stringify({
@@ -104,14 +102,14 @@ export const getConfig = ({app, type, filter, action = 'load', tags}) => ({
 
     useEffect(() => {
         (async function () {
-            const res = await Object.keys(locations).reduce(async (acc, type) => {
+            const res = await locations.reduce(async (acc, type) => {
                 const prevPages = await acc;
-                const currentPages = await dmsDataLoader(getConfig({app: 'dms-site', type, filter: {[`data->>'template_id'`]: [id]}}), '/');
-
+                const currentPages = await dmsDataLoader(getConfig({app: 'dms-site', type:type, filter: {[`data->>'template_id'`]: [id]}}), '/');
+                console.log('currentPages', currentPages, id)
                 return [...prevPages, ...currentPages];
             }, Promise.resolve([]));
-            console.log('res', res)
-
+            //console.log('res', res, id)
+            //if()
             setValue(res)
         })()
     }, [id]);

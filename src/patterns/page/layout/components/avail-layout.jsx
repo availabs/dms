@@ -24,14 +24,18 @@ let fixedSizes = {
 	full: 'w-64'
 }
 
+const Logos = () => <div className='h-12'/>
+
 const Layout = ({ children, menus, sideNav={}, topNav={}, title }) => {
 	//const theme = useTheme()
 	const { theme } = React.useContext(CMSContext)
 	const sideNavOptions = {
 		size: sideNav.size || 'none',
 		color: sideNav.color || 'dark',
-		menuItems: sideNav.menuItems || menus
+		menuItems: sideNav.menuItems || menus,
+		logo: sideNav?.logo || Logos
 	}
+
 
 	const topNavOptions = {
 		position: topNav.position || 'block',
@@ -50,7 +54,7 @@ const Layout = ({ children, menus, sideNav={}, topNav={}, title }) => {
 		rightMenu: topNav.rightMenu || <div />
 		
 	}
-
+	const Logo = sideNavOptions.logo
 	// console.log('layout', topNav)
 	
 	return (

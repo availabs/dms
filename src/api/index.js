@@ -38,7 +38,7 @@ export async function dmsDataLoader ( config, path='/') {
 	// Because any config can have children
 	//---------------------------------------------------------
 	const activeConfigs = getActiveConfig(config.children, path)
-	// console.log('activeConfigs', activeConfigs)
+	//console.log('activeConfigs', activeConfigs)
 
 	// -- Always want to know how many data items of a type we have
 	let lengthReq = ['dms', 'data', `${ app }+${ type }`, 'length' ]
@@ -48,10 +48,10 @@ export async function dmsDataLoader ( config, path='/') {
 		const options = activeConfigs.find(ac => ['list','load'].includes(ac.action))?.filter?.options;
 		if(options) lengthReq = ['dms', 'data', `${ app }+${ type }`, 'options', options, 'length' ];
 	}
-	// console.log('lengthReq', lengthReq)
+	console.log('lengthReq', lengthReq)
 
 	const length = get(await falcor.get(lengthReq), ['json',...lengthReq], 0)
-	// console.log('length',length)
+	console.log('length',length)
 	const itemReqByIndex = ['dms', 'data', `${ app }+${ type }`, 'byIndex']
 	
 	// -- --------------------------------------------------------
