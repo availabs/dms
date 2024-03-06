@@ -3,7 +3,8 @@ import {parseJSON} from "../utils/parseJSON.js";
 import { RegisteredComponents } from '../../../selector'
 import cloneDeep from "lodash/cloneDeep";
 import {json2DmsForm} from '../utils/navItems'
-import { Promise } from 'bluebird'
+//import { Promise } from 'bluebird'
+import { PromiseMap } from './generatePages'
 
 export const updatePages = async ({submit, item, url, destination, id_column, generatedPages, generatedSections, falcor, setLoadingStatus}) => {
     // while updating existing sections, keep in mind to not change the id_column attribute.
