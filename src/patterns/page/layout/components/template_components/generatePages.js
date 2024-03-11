@@ -26,6 +26,8 @@ export const generatePages = async ({
         // await acc;
         setLoadingStatus(`Generating page ${++i}/${idColAttr?.length}`)
         const dataControls = item.data_controls;
+        const activeDataRow = dataRows.find(dr => dr[id_column.name] === page.data.value.id_column_value) || {};
+
         let updates = await PromiseMap(item.sections.map(s => s.id), async section_id => {
             let section = item.sections.filter(d => d.id === section_id)?.[0]  || {}
             let data = parseJSON(section?.element?.['element-data']) || {}
@@ -41,8 +43,7 @@ export const generatePages = async ({
                     const attrName = dataControls?.sectionControls?.[section_id]?.[curr]?.name || dataControls?.sectionControls?.[section_id]?.[curr];
 
                     out[curr] = attrName === id_column.name ? idColAttrVal :
-                        (
-                            dataControls?.active_row?.[attrName] ||
+                        (   activeDataRow[attrName] ||
                             dataControls?.active_row?.[attrName] ||
                             null
                         )
