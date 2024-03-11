@@ -165,7 +165,7 @@ export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatu
                             onClick={e =>
                                 updatePages({
                                     submit, item, url, destination, id_column,
-                                    generatedPages, generatedSections, falcor, setLoadingStatus
+                                    generatedPages, sectionIds: generatedSections, falcor, setLoadingStatus
                                 })}
                     >
                         {loadingStatus || 'Update Pages'}
