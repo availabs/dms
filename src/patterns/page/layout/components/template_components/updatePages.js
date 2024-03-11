@@ -1,16 +1,34 @@
-import { dmsDataEditor } from '../../../../../index'
+import {dmsDataEditor, dmsDataLoader} from '../../../../../index'
 import {parseJSON} from "../utils/parseJSON.js";
 import { RegisteredComponents } from '../../../selector'
 import cloneDeep from "lodash/cloneDeep";
 import {json2DmsForm} from '../utils/navItems'
 //import { Promise } from 'bluebird'
 import { PromiseMap } from './generatePages'
+import {getConfig} from "../../template/pages";
 
-export const updatePages = async ({submit, item, url, destination, id_column, generatedPages, generatedSections, falcor, setLoadingStatus}) => {
+export const updatePages = async ({submit, item, url, destination, id_column, generatedPages, sectionIds, falcor, setLoadingStatus}) => {
     // while updating existing sections, keep in mind to not change the id_column attribute.
     setLoadingStatus('Updating Pages...')
     console.time('pages updated in: ')
-    await Promise.all(generatedPages.map(async(page, pageI) => {
+
+    const generatedSections = await sectionIds.reduce(async (acc, sectionId) => { //dont load data here?
+        const prevSections = await acc;
+        const currentSections = await dmsDataLoader(
+            getConfig({
+                app: 'dms-site',
+                type: 'cms-section',
+                filter: {
+                    // ...templateSectionIds?.length && {[`data->'element'->>'template-section-id'`]: templateSectionIds}, // not needed as we need to pull extra sections
+                    'id': sectionId // [] of ids
+                }
+            }), '/');
+
+        return [...prevSections, ...currentSections];
+    }, Promise.resolve([]));
+
+
+    await PromiseMap(generatedPages, (async(page, pageI) => {
         // await acc;
         setLoadingStatus(`Updating page ${pageI + 1}/${generatedPages?.length}`)
         const sections = generatedSections.filter(section => page.data.value.sections.map(s => s.id).includes(section.id));
@@ -119,7 +137,7 @@ export const updatePages = async ({submit, item, url, destination, id_column, ge
             // }
         }
 
-    }))
+    }), {concurrency: 5})
     console.timeEnd('pages updated in: ')
     setLoadingStatus(undefined)
 }

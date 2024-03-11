@@ -104,22 +104,24 @@ export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatu
 
             const sectionIds = pages.map(page => page.data.value.sections.map(section => section.id));
             const templateSectionIds = item.sections?.map(s => s.id)
-            const sections = await sectionIds.reduce(async (acc, sectionId) => {
-                const prevSections = await acc;
-                const currentSections = await dmsDataLoader(
-                    getConfig({
-                        app: 'dms-site',
-                        type: 'cms-section',
-                        filter: {
-                            // ...templateSectionIds?.length && {[`data->'element'->>'template-section-id'`]: templateSectionIds}, // not needed as we need to pull extra sections
-                            'id': sectionId // [] of ids
-                        }
-                    }), '/');
+            setGeneratedSections(sectionIds);
 
-                return [...prevSections, ...currentSections];
-            }, Promise.resolve([]));
+            // const sections = await sectionIds.reduce(async (acc, sectionId) => { //dont load data here?
+            //     const prevSections = await acc;
+            //     const currentSections = await dmsDataLoader(
+            //         getConfig({
+            //             app: 'dms-site',
+            //             type: 'cms-section',
+            //             filter: {
+            //                 // ...templateSectionIds?.length && {[`data->'element'->>'template-section-id'`]: templateSectionIds}, // not needed as we need to pull extra sections
+            //                 'id': sectionId // [] of ids
+            //             }
+            //         }), '/');
+            //
+            //     return [...prevSections, ...currentSections];
+            // }, Promise.resolve([]));
 
-            setGeneratedSections(sections);
+            // setGeneratedSections(sections);
             setLoadingStatus(undefined);
         })()
     }, [item.id, item.data_controls?.sectionControls])
