@@ -7,7 +7,7 @@ import {json2DmsForm} from '../utils/navItems'
 import { PromiseMap } from './generatePages'
 import {getConfig} from "../../template/pages";
 
-export const updatePages = async ({submit, item, url, destination, id_column, generatedPages, sectionIds, falcor, setLoadingStatus}) => {
+export const updatePages = async ({submit, item, url, destination, id_column, generatedPages, sectionIds, falcor, setLoadingStatus, dataRows}) => {
     // while updating existing sections, keep in mind to not change the id_column attribute.
     setLoadingStatus('Updating Pages...')
     console.time('pages updated in: ')
@@ -34,7 +34,7 @@ export const updatePages = async ({submit, item, url, destination, id_column, ge
         const sections = generatedSections.filter(section => page.data.value.sections.map(s => s.id).includes(section.id));
 
         const dataControls = item.data_controls;
-
+        const activeDataRow = dataRows.find(dr => dr[id_column.name] === page.data.value.id_column_value) || {};
         let dataFetchers = item.sections.map(s => s.id)
             .map(section_id => {
                 let templateSection = item.sections.find(d => d.id === section_id)  || {};
@@ -55,14 +55,12 @@ export const updatePages = async ({submit, item, url, destination, id_column, ge
                 let updateVars = Object.keys(dataControls?.sectionControls?.[section_id] || {}) // check for id_col
                     .reduce((out,curr) => {
                         const attrName = dataControls?.sectionControls?.[section_id]?.[curr]?.name || dataControls?.sectionControls?.[section_id]?.[curr];
+                        out[curr] = attrName === id_column.name ?
+                            page.data.value.id_column_value :
+                            (activeDataRow[attrName] || dataControls?.active_row?.[attrName] || null)
 
-                        out[curr] = attrName === id_column.name ? page.data.value.id_column_value :
-                            (
-                                dataControls?.active_row?.[attrName] || null
-                            )
                         return out
                     },{})
-
                 let args = {...controlVars, ...updateVars}
                 return comp?.getData ? comp.getData(args,falcor).then(data => ({section_id, data, type})) : ({section_id, data})
             }).filter(d => d)
