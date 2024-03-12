@@ -26,7 +26,7 @@ export const generatePages = async ({
         // await acc;
         setLoadingStatus(`Generating page ${++i}/${idColAttr?.length}`)
         const dataControls = item.data_controls;
-        const activeDataRow = dataRows.find(dr => dr[id_column.name] === page.data.value.id_column_value) || {};
+        const activeDataRow = dataRows.find(dr => dr[id_column.name] === idColAttrVal) || {};
 
         let updates = await PromiseMap(item.sections.map(s => s.id), async section_id => {
             let section = item.sections.filter(d => d.id === section_id)?.[0]  || {}
