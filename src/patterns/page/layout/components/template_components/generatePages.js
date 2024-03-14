@@ -18,7 +18,7 @@ export const generatePages = async ({
             // .filter(d => !d?.state_fips || d.state_fips === '36')
             .sort((a,b) => a?.state_fips ? +b[id_column.name] - +a[id_column.name] : true)
             .map(d => d[id_column.name])
-    .filter((d,i) => (d && (i <= 1)))
+    // .filter((d,i) => (d && (i <= 1)))
 
     let i = 0;
     // console.log('generatePages', idColAttr, dataRows)
