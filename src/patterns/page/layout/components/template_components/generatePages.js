@@ -8,24 +8,39 @@ import {getConfig} from "../../template/pages";
 
 
 export const generatePages = async ({
-                                        item, url, destination, id_column, dataRows, falcor, setLoadingStatus, generatedPages
+                                        item, url, destination, id_column, dataRows, falcor, setLoadingStatus, locationNameMap,
+                                        setGeneratedPages
                                     }) => {
-    // const disaster_numbers = ['4020', '4031']
-
     setLoadingStatus('Generating Pages...', dataRows)
     const idColAttr =
         dataRows
             // .filter(d => !d?.state_fips || d.state_fips === '36')
             .sort((a,b) => a?.state_fips ? +b[id_column.name] - +a[id_column.name] : true)
             .map(d => d[id_column.name])
-    // .filter((d,i) => (d && (i <= 1)))
+    .filter((d,i) => (d && (i <= 10)))
 
     let i = 0;
-    // console.log('generatePages', idColAttr, dataRows)
-    //console.time('Pages generated in:')
+
+    // add page ids to this variable to set generatedPages. mainly used to change button text to Update pages from Generate Pages.
+    const createdOrUpdatedPageIdStore = [];
     await PromiseMap(idColAttr, (async(idColAttrVal, pageI) => {
-        // await acc;
-        const existingPage = generatedPages?.find(page => page.data.value.id_column_value === idColAttrVal);
+
+        const existingPage = await locationNameMap.reduce(async (acc, type) => {
+            const prevPages = await acc;
+            const currentPages = await dmsDataLoader(getConfig({
+                app: 'dms-site',
+                type,
+                filter: {[`data->>'template_id'`]: [item.id], [`data->>'id_column_value'`]: [idColAttrVal]},
+            }), '/');
+            return currentPages[0];
+        }, Promise.resolve([]));
+
+        // if(existingPage?.length > 1){
+        //     console.warn('<generate page> More than one page found for', idColAttrVal)
+        // }
+
+        console.log('existing page', idColAttrVal, existingPage)
+
         const sectionIds =  existingPage?.data?.value?.sections?.map(section => section.id) || [];
         setLoadingStatus(`${existingPage ? `Updating` : 'Generating'} page ${++i}/${idColAttr?.length}`);
 
@@ -37,12 +52,11 @@ export const generatePages = async ({
                     type: 'cms-section',
                     filter: {
                         'id': [sectionId] // [] of ids
-                    }
+                    },
                 }), '/');
 
             return [...prevSections, ...currentSections];
         }, Promise.resolve([]));
-
 
         const dataControls = item.data_controls;
         const activeDataRow = dataRows.find(dr => dr[id_column.name] === idColAttrVal) || {};
@@ -117,7 +131,7 @@ export const generatePages = async ({
 
             const newPage = {
                 ...existingPage && {id: existingPage.id},
-                ...cloneDeep(existingPage?.data?.value || {}),
+                ...existingPage?.data?.value || {},
                 id_column_value: idColAttrVal,
                 template_id: item.id,
                 sidebar: item.sidebar,
@@ -141,12 +155,13 @@ export const generatePages = async ({
                 ]
             }
             const resPage = await dmsDataEditor(pageConfig, newPage);
-
+            createdOrUpdatedPageIdStore.push({id: resPage?.id})
             // console.log('created', resPage)
 
         }
 
     }), {concurrency: 5})
+    setGeneratedPages(createdOrUpdatedPageIdStore)
     setLoadingStatus(undefined)
 }
 

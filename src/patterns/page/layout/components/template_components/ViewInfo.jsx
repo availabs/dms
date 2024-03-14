@@ -13,7 +13,6 @@ export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatu
     // console.log('ViewInfo', id_column, active_id)
     const { falcor, falcorCache} = React.useContext(CMSContext)
     const [generatedPages, setGeneratedPages] = useState([]);
-    const [generatedSections, setGeneratedSections] = useState([]);
 
     const {
         url, 
@@ -89,39 +88,22 @@ export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatu
         // get generated pages and sections
         (async function () {
             setLoadingStatus('Loading Pages...')
-            //console.log('locationNameMap', locationNameMap)
+
             const pages = await locationNameMap.reduce(async (acc, type) => {
                 const prevPages = await acc;  
-                const currentPages = await dmsDataLoader(getConfig({app: 'dms-site', type, filter: {[`data->>'template_id'`]: [item.id]}}), '/');
+                const currentPages = await dmsDataLoader(getConfig({
+                    app: 'dms-site',
+                    type,
+                    filter: {[`data->>'template_id'`]: [item.id]},
+                    attributes: [
+                        {
+                            key: 'id', label: 'id'
+                        }
+                    ]
+                }), '/');
                 return [...prevPages, ...currentPages];
             }, Promise.resolve([]));
-            //console.log('pages', pages)
             setGeneratedPages(pages);
-            if(!item.data_controls?.sectionControls) {
-                setLoadingStatus(undefined)
-                return
-            }
-
-            const sectionIds = pages.map(page => page.data.value.sections.map(section => section.id));
-            const templateSectionIds = item.sections?.map(s => s.id)
-            setGeneratedSections(sectionIds);
-
-            // const sections = await sectionIds.reduce(async (acc, sectionId) => { //dont load data here?
-            //     const prevSections = await acc;
-            //     const currentSections = await dmsDataLoader(
-            //         getConfig({
-            //             app: 'dms-site',
-            //             type: 'cms-section',
-            //             filter: {
-            //                 // ...templateSectionIds?.length && {[`data->'element'->>'template-section-id'`]: templateSectionIds}, // not needed as we need to pull extra sections
-            //                 'id': sectionId // [] of ids
-            //             }
-            //         }), '/');
-            //
-            //     return [...prevSections, ...currentSections];
-            // }, Promise.resolve([]));
-
-            // setGeneratedSections(sections);
             setLoadingStatus(undefined);
         })()
     }, [item.id, item.data_controls?.sectionControls])
@@ -165,9 +147,8 @@ export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatu
                                 onClick={e =>
                                     generatePages({
                                         item, url, destination, id_column,
-                                        generatedPages,
-                                        // sectionIds: generatedSections,
-                                        dataRows, falcor, setLoadingStatus
+                                        dataRows, falcor, setLoadingStatus,
+                                        locationNameMap, setGeneratedPages
                                     })}
                         >
                             {loadingStatus || 'Update Pages'}
@@ -178,7 +159,8 @@ export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatu
                                     onClick={e =>
                                         generatePages({
                                             item, url, destination, id_column,
-                                            dataRows, falcor, setLoadingStatus
+                                            dataRows, falcor, setLoadingStatus,
+                                            locationNameMap, setGeneratedPages
                                         })}
                             >
                                 {loadingStatus || 'Generate Pages'}

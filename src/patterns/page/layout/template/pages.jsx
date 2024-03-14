@@ -52,24 +52,22 @@ function TemplateRow ({ id, app, type, data={} }) {
     )
 }
 
-export const getConfig = ({app, type, filter, action = 'load', tags}) => ({
+export const getConfig = ({
+                              app,
+                              type,
+                              filter,
+                              action = 'load',
+                              tags,
+                              attributes = [
+                                  {key: 'id', label: 'id'},
+                                  {key: 'app', label: 'app'},
+                                  {key: 'type', label: 'type'},
+                                  {key: 'data', label: 'data'}
+                              ]}) => ({
     format: {
         app: app,
         type: type,
-        attributes: [
-            {
-                key: 'id', label: 'id'
-            },
-            {
-                key: 'app', label: 'app'
-            },
-            {
-                key: 'type', label: 'type'
-            },
-            {
-                key: "data->>'title'", label: 'data'
-            }
-        ]
+        attributes
     },
     children: [
         {
@@ -80,7 +78,7 @@ export const getConfig = ({app, type, filter, action = 'load', tags}) => ({
                     filter,
                 }),
                 tags,
-                attributes: ['id', 'app', 'type', 'data']
+                attributes: attributes.map(a => a.key)
             },
             path: '/'
         }
