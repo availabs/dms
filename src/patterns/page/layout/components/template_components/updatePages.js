@@ -4,7 +4,7 @@ import { RegisteredComponents } from '../../../selector'
 import cloneDeep from "lodash/cloneDeep";
 import {json2DmsForm} from '../utils/navItems'
 //import { Promise } from 'bluebird'
-import { PromiseMap } from './generatePages'
+import {generatePages, PromiseMap} from './generatePages'
 import {getConfig} from "../../template/pages";
 
 export const updatePages = async ({submit, item, url, destination, id_column, generatedPages, sectionIds, falcor, setLoadingStatus, dataRows}) => {
@@ -73,25 +73,25 @@ export const updatePages = async ({submit, item, url, destination, id_column, ge
                 .map(s => updates.find(u => u.section_id === s.id)) // to preserve order
                 .filter(u => u)
                 .map(({section_id, data, type}) => {
-                let templateSection = item.sections.filter(d => d.id === section_id)?.[0]  || {};
-                let pageSection = sections.find(d => d.data.value.element['template-section-id'] === section_id)  || {};
-                let section = pageSection?.data?.value || {element:{}};
+                    let templateSection = item.sections.filter(d => d.id === section_id)?.[0]  || {};
+                    let pageSection = sections.find(d => d.data.value.element['template-section-id'] === section_id)  || {};
+                    let section = pageSection?.data?.value || {element:{}};
 
-                if(pageSection?.id){
-                    section.id = pageSection?.id; // to prevent creating new section
-                }
+                    if(pageSection?.id){
+                        section.id = pageSection?.id; // to prevent creating new section
+                    }
 
-                section.title = templateSection.title;
-                section.level = templateSection.level;
-                section.size = templateSection.size;
-                section.tags = templateSection.tags;
-                section.element['element-data'] = JSON.stringify(data);
-                section.element['element-type'] = type;
-                section.element['template-section-id'] = section_id; // to update sections in future
-                return section;
-            })
+                    section.title = templateSection.title;
+                    section.level = templateSection.level;
+                    section.size = templateSection.size;
+                    section.tags = templateSection.tags;
+                    section.element['element-data'] = JSON.stringify(data);
+                    section.element['element-type'] = type;
+                    section.element['template-section-id'] = section_id; // to update sections in future
+                    return section;
+                })
 
-            // genetate
+            // generate
             const app = 'dms-site'
             const type = destination || 'docs-play' // defaults to play
             const sectionType = 'cms-section'
@@ -110,32 +110,41 @@ export const updatePages = async ({submit, item, url, destination, id_column, ge
             // if(newSectionIds.find(nsi => nsi.id)){
             // console.log('page', page, page.data.value.sections, newSectionIds, updatedSections)
 
+            // update type of the page if changed.
             const newItem = {id: page.id, type}
             await submit(json2DmsForm(newItem, 'updateType'), { method: "post", action: `${window.location.pathname}` })
 
-                const newPage = {
-                    id: page.id,
-                    sidebar: item.sidebar,
-                    ...cloneDeep(page.data.value),
-                    url_slug: `${url || id_column.name}/${page.data.value.id_column_value}`,
-                    sections: [
-                        ...updatedSections.map((section, i) => ({ // updatedSections contains correct order
-                            "id": section.id || newSectionIds[i]?.id,
+            const newPage = {
+                id: page.id,
+                sidebar: item.sidebar,
+                ...cloneDeep(page.data.value),
+                url_slug: `${url || id_column.name}/${page.data.value.id_column_value}`,
+                sections: [
+                    ...updatedSections.map((section, i) => ({ // updatedSections contains correct order
+                        "id": section.id || newSectionIds[i]?.id,
+                        "ref": "dms-site+cms-section"
+                    })),
+                    ...sections.filter(section => !section.data.value.element['template-section-id']) // non-template sections
+                        .map((section, i) => ({
+                            "id": section.id,
                             "ref": "dms-site+cms-section"
                         })),
-                        ...sections.filter(section => !section.data.value.element['template-section-id']) // non-template sections
-                            .map((section, i) => ({
-                                "id": section.id,
-                                "ref": "dms-site+cms-section"
-                            })),
-                    ]
-                }
-                const resPage = await dmsDataEditor(pageConfig, newPage);
-                console.log('created', resPage)
+                ]
+            }
+            const resPage = await dmsDataEditor(pageConfig, newPage);
+            // console.log('created', resPage)
             // }
         }
 
     }), {concurrency: 5})
+
+    const generatedIdColValues = generatedPages.map(page => page.data.value.id_column_value); // values for which pages have been generated
+    const missingPages = dataRows.filter(dr => !generatedIdColValues.includes(dr[id_column.name]));
+
+    if(missingPages.length){
+        await generatePages({item, url, destination, id_column, dataRows: missingPages, falcor, setLoadingStatus});
+    }
+
     console.timeEnd('pages updated in: ')
     setLoadingStatus(undefined)
 }

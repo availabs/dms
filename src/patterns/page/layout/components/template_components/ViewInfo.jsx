@@ -158,35 +158,37 @@ export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatu
                 /> : ''}
 
             <div className='flex items-center p-4'>
-            {
-                generatedPages?.length ?
-                    <button className={`mt-4 p-2 rounded-lg text-white  ${loadingStatus ? `bg-gray-500 cursor-not-allowed` : `bg-blue-500 hover:bg-blue-300`}`}
-                            disabled={loadingStatus}
-                            onClick={e =>
-                                updatePages({
-                                    submit, item, url, destination, id_column,
-                                    generatedPages, sectionIds: generatedSections, falcor, setLoadingStatus, dataRows
-                                })}
-                    >
-                        {loadingStatus || 'Update Pages'}
-                    </button> :
-                    dataRows?.length ?
-                    <button className={`inline-flex w-36 justify-center rounded-lg cursor-pointer text-sm font-semibold py-2 px-2 text-white shadow-lg border  active:border-b-2 active:mb-[2px] active:shadow-none' ${loadingStatus ? `bg-gray-500 border-b-2 border-gray-800 cursor-not-allowed` : `bg-blue-500 hover:bg-blue-400 border-b-4 border-blue-800 hover:border-blue-700`}`}
-                            disabled={loadingStatus}
-                            onClick={e =>
-                                generatePages({
-                                    item, url, destination, id_column,
-                                    dataRows, falcor, setLoadingStatus
-                                })}
-                    >
-                        {loadingStatus || 'Generate Pages'}
-                    </button> :
-                        <button className={`mt-4 p-2 rounded-lg text-white bg-gray-500 border border-b-2 border-gray-800 cursor-not-allowed`}
-                                disabled={true}
+                {
+                    generatedPages?.length ?
+                        <button className={`mt-4 p-2 rounded-lg text-white  ${loadingStatus ? `bg-gray-500 cursor-not-allowed` : `bg-blue-500 hover:bg-blue-300`}`}
+                                disabled={loadingStatus}
+                                onClick={e =>
+                                    generatePages({
+                                        item, url, destination, id_column,
+                                        generatedPages,
+                                        // sectionIds: generatedSections,
+                                        dataRows, falcor, setLoadingStatus
+                                    })}
                         >
-                            No template data available.
-                        </button>
-            }
+                            {loadingStatus || 'Update Pages'}
+                        </button> :
+                        dataRows?.length ?
+                            <button className={`inline-flex w-36 justify-center rounded-lg cursor-pointer text-sm font-semibold py-2 px-2 text-white shadow-lg border  active:border-b-2 active:mb-[2px] active:shadow-none' ${loadingStatus ? `bg-gray-500 border-b-2 border-gray-800 cursor-not-allowed` : `bg-blue-500 hover:bg-blue-400 border-b-4 border-blue-800 hover:border-blue-700`}`}
+                                    disabled={loadingStatus}
+                                    onClick={e =>
+                                        generatePages({
+                                            item, url, destination, id_column,
+                                            dataRows, falcor, setLoadingStatus
+                                        })}
+                            >
+                                {loadingStatus || 'Generate Pages'}
+                            </button> :
+                            <button className={`mt-4 p-2 rounded-lg text-white bg-gray-500 border border-b-2 border-gray-800 cursor-not-allowed`}
+                                    disabled={true}
+                            >
+                                No template data available.
+                            </button>
+                }
             </div>
         </div>
     );
