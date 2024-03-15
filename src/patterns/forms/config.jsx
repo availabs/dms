@@ -48,7 +48,7 @@ const siteConfig = ({
     },
     children: [
         {
-            type: (props) => <Layout {...props} title={title} baseUrl={'/admin/forms/form'}/>,
+            type: (props) => <Layout {...props} title={title} baseUrl={baseUrl}/>,
             path: '/*',
             action: 'list',
             filter: {
