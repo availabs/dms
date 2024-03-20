@@ -1,7 +1,7 @@
 [type='checkbox']:checked,
 [type='checkbox']:not(:checked) {
   position: absolute;
-  left: -9999px;
+  /*left: -9999px;*/
 }
 
 [type='checkbox']:checked + label,

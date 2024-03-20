@@ -129,6 +129,13 @@ export const generatePages = async ({
                 p => p,
                 {concurrency: 5});
 
+            const formatNameForURL = name => name.toLowerCase().replace(' county', '').replace('.', '').replace(/ /g, '_');
+
+            const urlSuffix =
+                id_column?.name === 'geoid' ?
+                    formatNameForURL(activeDataRow?.['county']) || formatNameForURL(activeDataRow?.['name']) || idColAttrVal :
+                    idColAttrVal;
+
             const newPage = {
                 ...existingPage && {id: existingPage.id},
                 ...existingPage?.data?.value || {},
@@ -140,7 +147,7 @@ export const generatePages = async ({
                 full_width: item.full_width,
                 hide_in_nav: 'true', // not pulling though?
                 index: 999,
-                url_slug: `${url || id_column.name}/${idColAttrVal}`,
+                url_slug: `${url || id_column.name}/${urlSuffix}`,
                 title: `${id_column.name} ${idColAttrVal} Template`,
                 sections: [
                     ...updatedSections.map((section, i) => ({ // updatedSections contains correct order
