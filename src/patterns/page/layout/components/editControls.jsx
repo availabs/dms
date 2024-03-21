@@ -96,7 +96,9 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
 
                 let additionalVariables = data.additionalVariables?.map(variable => {
                     // update the defaultValue here
-                    variable.defaultValue = dataControls?.active_row?.[variable.name]
+                    const attrName = variable.name;
+                    const sectionControlMappedName = dataControls?.sectionControls?.[section_id]?.[attrName];
+                    variable.defaultValue = dataControls?.active_row?.[sectionControlMappedName]
                     return variable
                 })
 
