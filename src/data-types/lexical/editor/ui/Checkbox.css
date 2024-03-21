@@ -1,7 +1,7 @@
-[type='checkbox']:checked,
+/*[type='checkbox']:checked,
 [type='checkbox']:not(:checked) {
   position: absolute;
-  /*left: -9999px;*/
+  left: -9999px;
 }
 
 [type='checkbox']:checked + label,
@@ -50,3 +50,4 @@
   -webkit-transform: scale(1);
   transform: scale(1);
 }
+*/
