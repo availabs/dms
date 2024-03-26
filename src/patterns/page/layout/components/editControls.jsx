@@ -77,6 +77,10 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
                 let type = section?.element?.['element-type'] || ''
                 let comp = RegisteredComponents[type] || {}
 
+                // here, identify if any sectionControls are in data.additionalControls and pass them as additionalcontrols.
+                // this will let getData detect them as filters
+                // do the same for generate pages script as well
+
                 let controlVars = (comp?.variables || []).reduce((out, curr) => {
                     out[curr.name] = data[curr.name]
                     return out
@@ -90,7 +94,15 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
                         return out
                     }, {})
 
-                let args = {...controlVars, ...updateVars}
+                let additionalVariables = data.additionalVariables?.map(variable => {
+                    // update the defaultValue here
+                    const attrName = variable.name;
+                    const sectionControlMappedName = dataControls?.sectionControls?.[section_id]?.[attrName];
+                    variable.defaultValue = dataControls?.active_row?.[sectionControlMappedName]
+                    return variable
+                })
+
+                let args = {...controlVars, ...updateVars, additionalVariables}
                 const curr = comp?.getData ? await comp.getData(args, falcor).then(data => ({section_id, data})) : null
                 return curr ? [...prev, curr] : prev
             }, Promise.resolve([]))

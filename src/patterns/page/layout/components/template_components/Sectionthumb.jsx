@@ -9,8 +9,7 @@ export const SectionThumb =({section,source,sectionControl={},updateSectionContr
     let data = parseJSON(section?.element?.['element-data']) || {}
     let type = section?.element?.['element-type'] || ''
     let comp = RegisteredComponents[type] || {}
-    let controlVars = comp?.variables || []
-    // console.log('sc?', sectionControl)
+    let controlVars = [...(comp?.variables || []), ...(data?.additionalVariables || [])] // add filters here
     const attributes = React.useMemo(() => {
 
         let md = get(source, ["metadata", "columns"], get(source, "metadata", []));

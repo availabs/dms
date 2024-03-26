@@ -82,16 +82,25 @@ export const generatePages = async ({
                     return out
                 },{})
 
-            let args = {...controlVars, ...updateVars}
+            let additionalVariables = data.additionalVariables?.map(variable => {
+                // update the defaultValue here
+                const attrName = variable.name;
+                const sectionControlMappedName = dataControls?.sectionControls?.[section_id]?.[attrName];
+                variable.defaultValue = attrName === id_column.name ? idColAttrVal :
+                    (activeDataRow[attrName] ||
+                        dataControls?.active_row?.[sectionControlMappedName] ||
+                        null
+                    );
+
+                return variable
+            })
+
+            let args = {...controlVars, ...updateVars, additionalVariables}
             return comp?.getData ? comp.getData(args,falcor).then(data => ({section_id, data, type})) : ({section_id, data})
         }, {concurrency: 5})
 
         //console.log('updates', updates)
         if(updates.length > 0) {
-            // console.log('updates len', updates, idColAttrVal, item.sections)
-            // titles not updating once page gets created...
-            // check for data too, but resolve title first.
-            //     maybe update is not happening at all? compare code with updatePages.js
             const updatedSections = item.sections
                 .map(s => updates.find(u => u.section_id === s.id) || s) // to preserve order
                 .filter(u => u)
