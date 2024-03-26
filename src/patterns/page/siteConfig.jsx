@@ -74,7 +74,7 @@ const siteConfig = ({
         filter: {
           options: JSON.stringify({
             filter: {
-              "data->>'hide_in_nav'": ['null'],
+              "data->>'hide_in_nav'": ['']
             }
           }),
           attributes:['title', 'index', 'url_slug', 'parent','published', 'hide_in_nav']

@@ -109,7 +109,7 @@ const cmsPageFormat = {
     {
       key: "hide_in_nav",
       type: "text",
-      default: "true"
+      default: false
     },
     {
       key: "index",

@@ -413,6 +413,14 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
                     />
                     Full Width
                   </div>
+                  <div className={theme.pageControls.controlItem } >
+                    <SidebarSwitch
+                      type='hide_in_nav'
+                      item={item}
+                      toggleSidebar={toggleSidebar}
+                    />
+                    Hide In Nav
+                  </div>
                   <div className={theme.pageControls.controlItem + ' pr-4' } >
                     
                     <ButtonSelector
