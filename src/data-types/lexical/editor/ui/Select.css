@@ -1,4 +1,4 @@
-select {
+/*select {
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
@@ -13,7 +13,7 @@ select {
 
   z-index: 1;
   outline: none;
-}
+}*/
 
 :root {
   --select-border: #393939;
