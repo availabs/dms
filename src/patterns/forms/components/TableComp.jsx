@@ -5,15 +5,6 @@ import {FilterSelector} from "./filterSelector";
 import {DownloadModal} from "./download";
 
 import { fnum } from "~/utils/macros.jsx";
-
-
-import {
-    defaultOpenOutAttributes,
-    getAccessor,
-    getColAccessor,
-    getMeta,
-    setMeta
-} from "~/component_registry/FormsTable/utils.js";
 import {RenderColumnControls} from "~/component_registry/shared/columnControls.jsx";
 import {ButtonSelector} from "~/component_registry/shared/buttonSelector.jsx";
 import {Loading} from "~/utils/loading.jsx";
