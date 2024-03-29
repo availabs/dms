@@ -96,9 +96,10 @@ const icons = {
 }
 const dateOptions = { year: "numeric", month: "long", day: "numeric", hour: "numeric",  minute: "numeric"}
 
+const findNameCol = data => Object.keys(data).find(col => col.toLowerCase().includes('name') || col.toLowerCase().includes('title'))
 const getMetaName = (id_column, id, data) => id_column === 'geoid' ?
     data?.['county'] || data?.['name'] || id :
-    data?.['name'] || data?.['title'] || id
+    data?.[findNameCol(data)] || id
 const TemplatePages = ({item, params, logo, rightMenu, baseUrl=''}) => {
     const [pageSize, setPageSize] = useState(10);
     const { falcor, falcorCache} = React.useContext(CMSContext)
