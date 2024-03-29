@@ -1,6 +1,5 @@
 import {getAccessor, getColAccessor} from "./getColAccesor";
-import {getNestedValue} from "../../../../../../component_registry/utils/getNestedValue";
-import {defaultOpenOutAttributes} from "../../../../../../additional_components/FormsTable/utils";
+import {getNestedValue} from "./getNestedValue";
 
 const filterData = ({geoAttribute, geoid, data, actionType}) =>
     data.filter(d => {
@@ -14,7 +13,7 @@ const filterData = ({geoAttribute, geoid, data, actionType}) =>
 const handleExpandableRows = (data, attributes, openOutCols, columns) => {
     const openOutAttributes =
         attributes
-            .filter(attr => openOutCols?.includes(attr.name) || defaultOpenOutAttributes?.includes(attr.name))
+            .filter(attr => openOutCols?.includes(attr.name))
             .map(attr => attr.name);
     const expandableColumns = columns.filter(c => openOutAttributes.includes(c.name))
     if (expandableColumns?.length) {

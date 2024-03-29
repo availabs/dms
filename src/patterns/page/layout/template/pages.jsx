@@ -1,9 +1,10 @@
 import React, {useEffect, useState} from 'react';
 import {Link, useNavigate, useParams} from "react-router-dom";
-import {dmsDataLoader} from "../../../../index.js";
+import {dmsDataLoader} from "../../../../api";
 import {DeleteModal} from "./list.jsx";
 import Layout from '../components/avail-layout'
-
+import {Table} from "~/modules/avl-components/src";
+import {getNestedValue} from "../../../forms/utils/getNestedValue";
 
 export const locationNameMap = {
     'docs-play': 'Playground',
@@ -41,7 +42,7 @@ function TemplateRow ({ id, app, type, data={} }) {
             <div className={'text-right px-2'}>
                 <Link to={`${locationUrlMap[type]}/${data?.value?.url_slug}`}
                       className={'fa-thin fa-eye px-2 py-1 mx-2 text-bold cursor-pointer'}
-              locationNameMap           title={'view'}
+                      locationNameMap           title={'view'}
                 />
                 <Link to={`${locationUrlMap[type]}/edit/${data?.value?.url_slug}`}
                       className={'fa-thin fa-pencil px-2 py-1 mx-2 text-bold cursor-pointer'}
@@ -62,7 +63,8 @@ export const getConfig = ({
                                   {key: 'id', label: 'id'},
                                   {key: 'app', label: 'app'},
                                   {key: 'type', label: 'type'},
-                                  {key: 'data', label: 'data'}
+                                  {key: 'data', label: 'data'},
+                                  {key: 'updated_at', label: 'updated_at'},
                               ]}) => ({
     format: {
         app: app,
@@ -85,15 +87,18 @@ export const getConfig = ({
     ]
 })
 
- const TemplatePages = ({item, params, logo, rightMenu, baseUrl=''}) => {
+const icons = {
+    view: 'fa-eye',
+    edit: 'fa-pencil'
+}
+const dateOptions = { year: "numeric", month: "long", day: "numeric", hour: "numeric",  minute: "numeric"}
+const TemplatePages = ({item, params, logo, rightMenu, baseUrl=''}) => {
+    const [pageSize, setPageSize] = useState(10);
     const {id} = params;
-    //console.log('item', item)
     const locations = [item.type]
     const menuItems=[
-     {path: `${baseUrl}/templates`, name: 'Templates'}
+        {path: `${baseUrl}/templates`, name: 'Templates'}
     ]
-
-    //console.log('locations', locations)
 
     if (!id) return null;
     const [value, setValue] = useState([]);
@@ -102,35 +107,88 @@ export const getConfig = ({
         (async function () {
             const res = await locations.reduce(async (acc, type) => {
                 const prevPages = await acc;
-                const currentPages = await dmsDataLoader(getConfig({app: 'dms-site', type:type, filter: {[`data->>'template_id'`]: [id]}}), '/');
-                console.log('currentPages', currentPages, id)
+                const currentPages = await dmsDataLoader(
+                    getConfig({
+                        app: 'dms-site',
+                        type: type,
+                        filter: {[`data->>'template_id'`]: [id]}
+                    }), '/');
                 return [...prevPages, ...currentPages];
             }, Promise.resolve([]));
-            //console.log('res', res, id)
-            //if()
+
             setValue(res)
         })()
     }, [id]);
 
+    const actionColumns = ['view', 'edit'];
+    const columns = ['title', 'location', 'updated', ...actionColumns].map(col => ({
+        Header: actionColumns.includes(col) ? '' : col,
+        accessor: col,
+        ...actionColumns.includes(col) && {
+            Cell: cell => {
+                console.log('cell', cell)
+                return <Link to={cell.value}
+                             className={`fa-thin ${icons[col]} px-2 py-1 mx-2 text-bold cursor-pointer`}
+                             title={col}
+                />
+            },
+        },
+        // canFilter: !actionColumns.includes(col),
+        filter: actionColumns.includes(col) ? undefined : 'text',
+        disableSortBy: actionColumns.includes(col)
+    }))
+
+    const data = value.map(({type, data, updated_at}) => ({
+        title: data.value.title,
+        location: locationNameMap[type],
+        view: `${locationUrlMap[type]}/${data?.value?.url_slug}`,
+        edit: `${locationUrlMap[type]}/edit/${data?.value?.url_slug}`,
+        updated: new Date(getNestedValue(updated_at)).toLocaleDateString(undefined, dateOptions)
+
+    }))
+    console.log('ites', value)
     return (
-        <Layout 
-            topNav={{menuItems, position: 'fixed', logo, rightMenu }} 
+        <Layout
+            topNav={{menuItems, position: 'fixed', logo, rightMenu }}
             sideNav={[]}
-       >
+        >
             <div className='h-full flex-1 flex flex-col text-gray-900 bg-slate-100'>
                 <div className='py-6 h-full'>
                     <div className='bg-white h-full shadow border max-w-6xl mx-auto px-6'>
-                        <div className='flex items-center'>
-                            <div className='text-2xl p-3 font-thin flex-1'>Pages</div>
+                        <div className={'flex flex-col sm:flex-row justify-between'}>
+                            <div className='flex flex-col'>
+                                <label className='text-2xl pt-3 font-thin flex-1'><span
+                                    className={'font-semibold'}>{item.title}</span> / Generated Pages</label>
+                                <label className='text-sm font-thin flex-1 italic'>Showing {value?.length} items</label>
+                            </div>
+                            <div className={'text-xs'}>
+                                <label>show</label>
+                                <select
+                                    className={'p-2 m-2 h-fit'}
+                                    value={pageSize}
+                                    onChange={e => setPageSize(e.target.value)}
+                                >
+                                    {
+                                        [10, 25, 50, 75, 100].map(size => <option key={size}
+                                                                                  value={size}>{size}</option>)
+                                    }
+                                </select>
+                                <label>rows</label>
+                            </div>
                         </div>
                         <div className='px-6 pt-8'>
                             <div className='shadow rounded border'>
-                                {
-                                    value?.length ?
-                                        value.map(item => (
-                                            <TemplateRow key={item.id} {...item} />
-                                        )) : <NoPages />
-                                }
+                                <Table
+                                    data={data}
+                                    columns={columns}
+                                    pageSize={pageSize}
+                                />
+                                {/*{*/}
+                                {/*    value?.length ?*/}
+                                {/*        value.map(item => (*/}
+                                {/*            <TemplateRow key={item.id} {...item} />*/}
+                                {/*        )) : <NoPages />*/}
+                                {/*}*/}
                             </div>
                         </div>
                     </div>
