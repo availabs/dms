@@ -142,7 +142,7 @@ export const generatePages = async ({
 
             const urlSuffix =
                 id_column?.name === 'geoid' ?
-                    formatNameForURL(activeDataRow?.['county']) || formatNameForURL(activeDataRow?.['name']) || idColAttrVal :
+                    formatNameForURL(activeDataRow?.['county'] || activeDataRow?.['name']) || idColAttrVal :
                     idColAttrVal;
 
             const newPage = {
