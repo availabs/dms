@@ -112,74 +112,67 @@ function TemplateEdit ({
         topNav={{menuItems, position: 'fixed', logo, rightMenu }} 
         sideNav={sideNav}
       >
-        <div className={`${theme.layout.page} ${theme.navPadding[level]}`}>
-          <div className={theme.layout.container}>
-            {item?.header === 'below' && <div className='w-full'> 
-                   <ContentEdit
-                      full_width={item.full_width}
-                      value={[headerSection]} 
-                      onChange={saveHeader}         
-                      {...attributes['sections']}
-                    />
-                  </div>
-                }
+        <div className={`${theme.page.wrapper1} ${theme.navPadding[level]}`}>
+          {item?.header === 'below' && (
+            <div className='w-full'> 
+              <ContentEdit item={item} value={[headerSection]} onChange={saveHeader} {...attributes['sections']} />
+            </div>
+          )}
             {/* PAGE EDIT */}
 
-            <div className='flex flex-1 h-full w-full px-1 md:px-6 py-6'>
-              {item?.sidebar === 'show' ? 
-                  (<div className='w-64 hidden xl:block'>
-                    <div className='w-64 sticky top-16 hidden xl:block h-screen'> 
-                      <div className='h-[calc(100%_-_8rem)] overflow-y-auto overflow-x-hidden'>
-                        <SideNav {...inPageNav} /> 
-                      </div>
-                    </div>
-                  </div>)
-                : ''}
-              <div className={theme.page.content + ' border-r'}>
-
-                <div className={theme.page.container}>
-                {item?.header === 'inpage' && <div className='w-full'> 
-                   <ContentEdit
-                      full_width={item.full_width}
-                      value={[headerSection]} 
-                      onChange={saveHeader}         
-                      {...attributes['sections']}
-                    />
-                  </div>
-                } 
-                <div className='text-base font-light leading-7'>
-                    <ContentEdit
-                      full_width={item.full_width}
-                      value={draftSections} 
-                      onChange={saveSection}         
-                      {...attributes['sections']}
-                    />
+          <div className={`${theme.page.wrapper2}`}>
+            {item?.sidebar === 'show' && <RenderSideNav inPageNav={inPageNav} />}  
+            <div className={theme.page.wrapper3 + ' border-r'}>
+              {item?.header === 'inpage' && (
+                <div className='w-full'> 
+                 <ContentEdit item={item} value={[headerSection]} onChange={saveHeader} {...attributes['sections']}/>
                 </div>
+              )} 
+                
+              <ContentEdit
+                full_width={item.full_width}
+                value={draftSections} 
+                onChange={saveSection}         
+                {...attributes['sections']}
+              />
+                
+            </div>
+              
+            <div className='w-52 hidden xl:block'>
+              <div className='w-52 sticky top-12 hidden xl:block h-screen'> 
+                <EditControls
+                  item={item}
+                  dataItems={dataItems}
+                  setItem={setItem}
+                  edit={true}
+                  status={status}
+                  attributes={attributes}
+                  updateAttribute={updateAttribute}
+                  pageType={'template'}
+                />
               </div>
-              </div>
-              <div className='w-52 hidden xl:block'>
-                <div className='w-52 sticky top-12 hidden xl:block h-screen'> 
-                  <EditControls
-                    item={item}
-                    dataItems={dataItems}
-                    setItem={setItem}
-                    edit={true}
-                    status={status}
-                    attributes={attributes}
-                    updateAttribute={updateAttribute}
-                    pageType={'template'}
-                  />
-                </div>
-              </div>
-            </div>  
+            </div>
+          </div>  
             {/* PAGE EDIT END */}
-          </div>
         </div>
       </Layout>
       {item?.footer && <div className='h-[300px] bg-slate-100' />} 
     </div>   
   ) 
 }
+
+function RenderSideNav({inPageNav}) {
+  return (
+    <div className='w-64 hidden xl:block'>
+      <div className='w-64 sticky top-20 hidden xl:block h-screen'> 
+        <div className='h-[calc(100%_-_5rem)] overflow-y-auto overflow-x-hidden font-display'>
+          <SideNav {...inPageNav} /> 
+        </div>
+      </div>
+    </div>
+  )
+}
+
 
 
 export default TemplateEdit
