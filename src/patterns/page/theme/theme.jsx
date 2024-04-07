@@ -4,9 +4,9 @@ import topnav from './topnav'
 
 const theme = {
   page: {
-    wrapper1: 'w-full flex-1 flex flex-col', // first div inside Layout
-    wrapper2: 'w-full flex-1 flex flex-row px-1 md:px-6 py-6', // inside page header, wraps sidebar
-    wrapper3: 'flex flex-1 w-full h-full border shadow bg-white relative text-md font-light leading-7 p-4', // content wrapepr
+    wrapper1: 'w-full flex-1 flex flex-col  ', // first div inside Layout
+    wrapper2: 'w-full h-full flex-1 flex flex-row px-1 md:px-6 py-6', // inside page header, wraps sidebar
+    wrapper3: 'flex flex-1 w-full min-h-[calc(100vh_-_148px)] flex-col border shadow bg-white relative text-md font-light leading-7 p-4', // content wrapepr
   },
   navPadding: {
     1: 'pt-0 ',
