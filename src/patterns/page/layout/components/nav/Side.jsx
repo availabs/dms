@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 
-import { CMSContext } from '../../layout'
+import { CMSContext } from '../../../siteConfig'
 
 import get from "lodash/get";
 

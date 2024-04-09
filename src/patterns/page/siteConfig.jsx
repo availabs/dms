@@ -1,3 +1,4 @@
+import React from 'react'
 // pages
 import Layout from "./layout/layout.jsx"
 import PageView from "./layout/view.jsx"
@@ -17,6 +18,8 @@ import { registerDataType } from "../../index"
 
 // sideNav = {size: 'miniPad'}
 
+export const CMSContext = React.createContext(undefined);
+
 const siteConfig = ({ 
   app = "dms-site",
   type = "docs-page",
@@ -26,10 +29,12 @@ const siteConfig = ({
   rightMenu = <div />,
   baseUrl = '/',
   checkAuth = () => {},
-  theme = defaultTheme
+  theme = defaultTheme,
+  pgEnv
 }) => {
-  //console.log('test 123', useFalcor)
-  theme = theme || defaultTheme
+  theme = {...defaultTheme, ...theme}
+  // console.log('pattern siteConfig', app, type, pgEnv)
+  
   const format = cloneDeep(cmsFormat)
   format.app = app
   format.type = type
@@ -66,6 +71,7 @@ const siteConfig = ({
               baseUrl={baseUrl}
               theme={theme}
               useFalcor={useFalcor}
+              pgEnv={pgEnv}
             />
           )
         },
@@ -143,6 +149,7 @@ const siteConfig = ({
             baseUrl={baseUrl}
             theme={theme}
             useFalcor={useFalcor}
+            pgEnv={pgEnv}
           />
         ),
         action: "list",

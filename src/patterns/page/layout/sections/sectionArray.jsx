@@ -5,7 +5,8 @@ import cloneDeep from 'lodash/cloneDeep'
 import { Popover, Transition } from '@headlessui/react'
 import { Link } from "react-router-dom";
 import { usePopper } from 'react-popper'
-import { CMSContext } from '../layout'
+import { CMSContext } from '../../siteConfig'
+
 
 import { getSizeClass, sizeOptionsSVG } from './sizes.jsx'
 
@@ -524,7 +525,7 @@ const Edit = ({Component, value, onChange, attr, full_width = false }) => {
 
                 const sizeClass = getSizeClass(size, requiredSpace, availableSpace, runningColTotal);
 
-                console.log('section', v, v.size, )
+                // console.log('section', v, v.size, )
                 return (
                     <div key={i} className={`${v.size ? "h-full" : ""} ${sizeClass} ${hideDebug ? '' : 'border-2 border-dashed border-green-500'}`}>
                         {/* add to top */}

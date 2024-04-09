@@ -6,7 +6,7 @@ import get from "lodash/get";
 // import { MobileNav } from './awesomeNav/Top'
 import NavItem from "./Item";
 
-import { CMSContext } from '../../layout'
+import { CMSContext } from '../../../siteConfig'
 
 export const MobileMenu = ({ open, toggle, menuItems = [], rightMenu = null,themeOptions={}}) => {
   const { theme: fullTheme  } = React.useContext(CMSContext)

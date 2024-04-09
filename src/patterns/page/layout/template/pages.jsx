@@ -6,7 +6,7 @@ import Layout from '../components/avail-layout'
 import {Table} from "~/modules/avl-components/src";
 import {getNestedValue} from "../../../forms/utils/getNestedValue";
 import {pgEnv} from "../components/utils/constants";
-import {CMSContext} from "../layout";
+import { CMSContext } from "../../siteConfig";
 import get from "lodash/get";
 
 export const locationNameMap = {

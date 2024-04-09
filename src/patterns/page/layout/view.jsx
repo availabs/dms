@@ -2,7 +2,8 @@ import React, {useEffect} from 'react'
 import { Link } from "react-router-dom";
 
 import SideNav from './components/nav/Side'
-import { CMSContext } from './layout'
+
+import { CMSContext } from '../siteConfig'
 
 import Layout from './components/avail-layout'
 import {dataItemsNav, detectNavLevel} from './components/utils/navItems'

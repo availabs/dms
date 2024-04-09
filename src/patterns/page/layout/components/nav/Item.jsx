@@ -1,7 +1,7 @@
 import React, {useEffect} from "react";
 import { useMatch, useNavigate, Link } from "react-router-dom";
 
-import { CMSContext } from '../../layout'
+import { CMSContext } from '../../../siteConfig'
 
 function Icon ({ icon, className }) {
 	return (

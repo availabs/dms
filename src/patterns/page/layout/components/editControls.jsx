@@ -15,10 +15,9 @@ import {parseJSON} from "./utils/parseJSON.js";
 import EditPagesNav  from './editPages'
 import EditHistory from './editHistory'
 
-import { CMSContext } from '../layout'
 import { RegisteredComponents } from '../../selector'
 
-
+import { CMSContext } from '../../siteConfig'
 
 
 const theme = {
@@ -263,7 +262,7 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
       }
 
       newItem.url_slug = getUrlSlug(newItem, dataItems)
-      console.log('create new item', newItem, baseUrl)
+      // console.log('create new item', newItem, baseUrl)
       updateAttribute('title', value)
       submit(json2DmsForm(newItem), { method: "post", action: `${baseUrl}/edit/${newItem.url_slug}` })
     }

@@ -4,7 +4,8 @@ import get from "lodash/get.js";
 import Selector from "./Selector.jsx";
 import {pgEnv} from "../utils/constants.js";
 import {getAttributes} from './ViewsSelect'
-import { CMSContext } from '../../layout'
+
+import { CMSContext } from '../../../siteConfig'
 
 export const SourcesSelect = ({value, onChange}) => {
 

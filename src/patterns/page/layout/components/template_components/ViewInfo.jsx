@@ -2,7 +2,8 @@ import React, {useState} from "react";
 import {getConfig} from "../../template/pages.jsx";
 import {dmsDataLoader} from "../../../../../index.js";
 import get from "lodash/get.js";
-import { CMSContext } from '../../layout'
+
+import { CMSContext } from '../../../siteConfig'
 import Selector from "./Selector.jsx";
 import {updatePages} from "./updatePages.js";
 import {generatePages} from "./generatePages.js";
