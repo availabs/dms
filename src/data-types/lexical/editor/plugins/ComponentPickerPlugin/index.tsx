@@ -38,6 +38,9 @@ import useModal from '../../hooks/useModal';
 import {INSERT_COLLAPSIBLE_COMMAND} from '../CollapsiblePlugin';
 import {INSERT_INLINE_IMAGE_COMMAND, InsertInlineImageDialog} from '../InlineImagePlugin';
 import {InsertNewTableDialog, InsertTableDialog} from '../TablePlugin';
+import {INSERT_EMBED_COMMAND} from '@lexical/react/LexicalAutoEmbedPlugin';
+import {EmbedConfigs} from '../AutoEmbedPlugin';
+
 
 class ComponentPickerOption extends MenuOption {
     // What shows up in the editor
@@ -171,6 +174,15 @@ function getBaseOptions(editor: LexicalEditor, showModal: ShowModal) {
                     <InsertTableDialog activeEditor={editor} onClose={onClose}/>
                 )),
         }),
+        ...EmbedConfigs.map(
+            (embedConfig) =>
+                new ComponentPickerOption(`Embed ${embedConfig.contentName}`, {
+                    icon: embedConfig.icon,
+                    keywords: [...embedConfig.keywords, 'embed'],
+                    onSelect: () =>
+                        editor.dispatchCommand(INSERT_EMBED_COMMAND, embedConfig.type),
+                }),
+        ),
         new ComponentPickerOption('Numbered List', {
             icon: <i className="icon number"/>,
             keywords: ['numbered list', 'ordered list', 'ol'],
