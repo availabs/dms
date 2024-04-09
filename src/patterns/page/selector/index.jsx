@@ -117,9 +117,7 @@ function ViewComp({value}) {
         () => <div> Component {value["element-type"]} Not Registered </div>
 
     return (
-        <div className="relative w-full">
-            <Comp value={value?.['element-data'] || ''}/>
-        </div>
+        <Comp value={value?.['element-data'] || ''}/>
     )
 }
 

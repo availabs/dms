@@ -146,77 +146,48 @@ function PageEdit ({
         topNav={{menuItems, position: 'fixed', logo, rightMenu }} 
         sideNav={inPageNav}
       >
-        <div className={`${theme.layout.page} ${theme.navPadding[level]}`}>
-          <div className={theme.layout.container}>
-            {item?.header === 'below' && <div className='w-full'> 
-                   <ContentEdit
-                      item={item}
-                      value={[headerSection]} 
-                      onChange={saveHeader}         
-                      {...attributes['draft_sections']}
-                    />
-                  </div>
-                }
-            {/* PAGE EDIT */}
+        <div className={`${theme.page.wrapper1} ${theme.navPadding[level]}`}>
+          {item?.header === 'below' && (
+            <div className='w-full'> 
+              <ContentEdit item={item} value={[headerSection]} onChange={saveHeader} {...attributes['draft_sections']} />
+            </div>
+          )}
+          {/* PAGE EDIT */}
 
-            <div className='flex flex-1 h-full w-full px-1 md:px-6 py-6'>
-              {item?.sidebar === 'show' ? 
-                  (<div className='w-64 hidden xl:block'>
-                    <div className='w-64 sticky top-20 hidden xl:block h-screen'> 
-                      <div className='h-[calc(100%_-_8rem)] overflow-y-auto overflow-x-hidden'>
-                        <SideNav {...inPageNav} /> 
-                      </div>
-                    </div>
-                  </div>)
-                : ''}
-              <div className={theme.page.content + ' border-r'}>
-
-                <div className={theme.page.container}>
-                {item?.header === 'inpage' && <div className='w-full'> 
-                   <ContentEdit
-                      item={item}
-                      value={[headerSection]} 
-                      onChange={saveHeader}         
-                      {...attributes['draft_sections']}
-                    />
-                  </div>
-                } 
-                <div className='text-base font-light leading-7'>
-                  {user?.authLevel >= 5 ?  
-                    <div className='w-full flex relative'>
-                      <div className='flex-1' />
-                      <Link className='absolute -right-[10px] -top-[13px]' to={`${baseUrl}/${item.url_slug}`}>
-                        <i className={`fad fa-eye  fa-fw flex-shrink-0 text-lg text-slate-400 hover:text-blue-500`}/>
-                      </Link> 
-                    </div>
-                    : ''    
-                  }
-                    <ContentEdit
-                      full_width={item.full_width}
-                      value={draftSections} 
-                      onChange={saveSection}         
-                      {...attributes['draft_sections']}
-                    />
+          <div className={`${theme.page.wrapper2}`}>
+            {item?.sidebar === 'show' && <RenderSideNav inPageNav={inPageNav} />}  
+            <div className={theme.page.wrapper3 + ' border-r'}>
+              {item?.header === 'inpage' && (
+                <div className='w-full'> 
+                 <ContentEdit item={item} value={[headerSection]} onChange={saveHeader} {...attributes['draft_sections']}/>
                 </div>
+              )} 
+              
+              {user?.authLevel >= 5 && <ToggleView item={item} baseUrl={baseUrl} />}
+                
+              <ContentEdit
+                full_width={item.full_width}
+                value={draftSections} 
+                onChange={saveSection}         
+                {...attributes['draft_sections']}
+              />
+            </div>
+            <div className='w-52 hidden xl:block'>
+              <div className='w-52 sticky top-24 hidden xl:block'> 
+                <EditControls 
+                  item={item} 
+                  dataItems={dataItems}
+                  setItem={setItem}
+                  edit={true}
+                  status={status}
+                  attributes={attributes}
+                  updateAttribute={updateAttribute}
+                  pageType={'page'}
+                />
               </div>
-              </div>
-              <div className='w-52 hidden xl:block'>
-                <div className='w-52 sticky top-24 hidden xl:block h-screen'> 
-                  <EditControls 
-                    item={item} 
-                    dataItems={dataItems}
-                    setItem={setItem}
-                    edit={true}
-                    status={status}
-                    attributes={attributes}
-                    updateAttribute={updateAttribute}
-                    pageType={'page'}
-                  />
-                </div>
-              </div>
-            </div>  
-            {/* PAGE EDIT END */}
-          </div>
+            </div>
+          </div>  
+          {/* PAGE EDIT END */}
         </div>
       </Layout>
       {item?.footer && <div className='h-[300px] bg-slate-100' />} 
@@ -225,3 +196,23 @@ function PageEdit ({
 }
 
 export default PageEdit
+
+function ToggleView({baseUrl, item}) {
+  return (
+    <Link className='z-30 absolute right-[10px] top-[5px]' to={`${baseUrl}/${item.url_slug}`}>
+      <i className={`fad fa-eye fa-fw flex-shrink-0 text-lg text-slate-400 hover:text-blue-500`}/>
+    </Link> 
+  )
+}
+ 
+function RenderSideNav({inPageNav}) {
+  return (
+    <div className='w-64 hidden xl:block'>
+      <div className='w-64 sticky top-20 hidden xl:block h-screen'> 
+        <div className='h-[calc(100%_-_5rem)] overflow-y-auto overflow-x-hidden font-display'>
+          <SideNav {...inPageNav} /> 
+        </div>
+      </div>
+    </div>
+  )
+}

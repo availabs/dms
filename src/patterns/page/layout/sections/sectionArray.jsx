@@ -209,7 +209,7 @@ function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove}) {
     let HelpComp = attributes?.helpText?.ViewComp
     let sectionTitleCondition = value?.['title'] || value?.['tags'] ;// edit
     let helpTextCondition = value?.['helpText'];
-    let interactCondition = typeof onEdit !== 'function' && value?.element?.['element-type']?.includes('Map:');
+    let interactCondition = false //typeof onEdit !== 'function' && value?.element?.['element-type']?.includes('Map:');
     let isTemplateSectionCondition = value?.element?.['template-section-id'];
 
     const element = React.useMemo(() => {
@@ -219,8 +219,8 @@ function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove}) {
     [value?.element, value?.id])
         
     return (
-        <div className={`${hideDebug ? '' : 'border border-dashed border-blue-500'}`}>
-            <div className='flex w-full'>
+        <div className={`h-full ${hideDebug ? '' : 'border border-dashed border-blue-500'}`}>
+            <div className={`flex w-full ${hideDebug ? '' : 'border border-dashed border-orange-500'}`}>
                 <div className='flex-1'/>
                     {/* -------------------top line buttons ----------------------*/}
                     {value?.is_header && edit ?  <div className={`z-10 relative`}>
@@ -385,7 +385,7 @@ function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove}) {
                     </div>
 
                 }
-            <div>
+            <div className='h-full'>
                 {element}
             </div>
         </div>
@@ -505,9 +505,9 @@ const Edit = ({Component, value, onChange, attr, full_width = false }) => {
         fullwidth:'md:grid-cols-[_minmax(_0px,0px)_repeat(6,_1fr)_minmax(_0px,0px)]'
     }
 
-   
+    
     return (
-        <div className={`grid grid-cols-6 ${layouts[full_width === 'show' ? 'fullwidth' : 'centered']} gap-1`}>
+        <div className={`w-full grid grid-cols-6 ${layouts[full_width === 'show' ? 'fullwidth' : 'centered']} gap-1`}>
             {values.map((v,i) => {
                 //console.log()
                 const size = (edit.index === i ? edit?.value?.size : v?.size) || "1";
@@ -524,8 +524,9 @@ const Edit = ({Component, value, onChange, attr, full_width = false }) => {
 
                 const sizeClass = getSizeClass(size, requiredSpace, availableSpace, runningColTotal);
 
+                console.log('section', v, v.size, )
                 return (
-                    <div key={i} className={`${sizeClass} ${hideDebug ? '' : 'border border-dashed border-green-500'}`}>
+                    <div key={i} className={`${v.size ? "h-full" : ""} ${sizeClass} ${hideDebug ? '' : 'border-2 border-dashed border-green-500'}`}>
                         {/* add to top */}
                         { /*edit.index === -1 && i === 0 ? 
                             <AddSectionButton showpageToggle={true} onClick={() => setEditIndex(0)}/> : 
@@ -587,8 +588,7 @@ const View = ({Component, value, attr, full_width}) => {
     // console.log('render SA view')
 
     return (
-        <div className={`grid grid-cols-6 ${layouts[full_width === 'show' ? 'fullwidth' : 'centered']} gap-1`}>
-        
+        <div className={`w-full grid grid-cols-6 ${layouts[full_width === 'show' ? 'fullwidth' : 'centered']} gap-1`}>
         { 
             value.filter(v => hideSectionCondition(v))
                 .map((v,i) =>{

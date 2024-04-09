@@ -72,7 +72,7 @@ const Layout = ({ children, menus, sideNav={}, topNav={}, title }) => {
 					</div>
 				)
 			}
-			<div className={`flex-1 flex items-start flex-col items-stretch min-h-screen w-full`}>
+			<div className={`flex-1 flex items-start flex-col items-stretch w-full min-h-screen`}>
 				{
 					topNavOptions.size === 'none' ? '' : (<>
 						<div className={`${
@@ -91,7 +91,7 @@ const Layout = ({ children, menus, sideNav={}, topNav={}, title }) => {
 						</div>
 					</>)
 				}
-				<div id={'content'} className={`h-full flex-1 bg-slate-100`}>
+				<div id={'content'} className={`flex-1`}>
 					{children}
 				</div>
 			</div>
