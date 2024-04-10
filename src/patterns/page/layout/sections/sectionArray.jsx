@@ -198,10 +198,13 @@ function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, o
 }
 
 function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove}) {
+    console.log('sectionView 1')
     let [referenceElement, setReferenceElement] = useState()
     let [popperElement, setPopperElement] = useState()
     let { styles, attributes:popperAttributes } = usePopper(referenceElement, popperElement)
     const { baseUrl, user } = React.useContext(CMSContext)
+
+
     
     const hideDebug = true
     let TitleComp = attributes?.title?.ViewComp
@@ -218,6 +221,8 @@ function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove}) {
         return <ElementComp value={value?.['element']} />
     }, 
     [value?.element, value?.id])
+
+    //console.log('section view', value, element)
         
     return (
         <div className={`h-full ${hideDebug ? '' : 'border border-dashed border-blue-500'}`}>
@@ -582,11 +587,16 @@ const View = ({Component, value, attr, full_width}) => {
         centered: 'md:grid-cols-[1fr_repeat(6,_minmax(_100px,_170px))_1fr]',
         fullwidth:'md:grid-cols-[_minmax(_0px,0px)_repeat(6,_1fr)_minmax(_0px,0px)]'
     }
-    const hideSectionCondition = section => isJson(section?.element?.['element-data'] || '{}') &&
-        !JSON.parse(section?.element?.['element-data'] || '{}')?.hideSection;
+    const hideSectionCondition = section => {
+        //console.log('hideSectionCondition', section?.element?.['element-data'] || '{}')
+        let value = section?.element?.['element-data'] 
+        let elementData = typeof value === 'object' ? 
+            value : value && isJson(value) ? JSON.parse(value) : {} W
+        return !elementData?.hideSection
+    }
 
 
-    // console.log('render SA view')
+    //console.log('render SA view', Component, value)
 
     return (
         <div className={`w-full grid grid-cols-6 ${layouts[full_width === 'show' ? 'fullwidth' : 'centered']} gap-1`}>
