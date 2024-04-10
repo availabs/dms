@@ -591,7 +591,7 @@ const View = ({Component, value, attr, full_width}) => {
         //console.log('hideSectionCondition', section?.element?.['element-data'] || '{}')
         let value = section?.element?.['element-data'] 
         let elementData = typeof value === 'object' ? 
-            value : value && isJson(value) ? JSON.parse(value) : {} W
+            value : value && isJson(value) ? JSON.parse(value) : {}
         return !elementData?.hideSection
     }
 
