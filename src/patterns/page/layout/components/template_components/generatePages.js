@@ -96,7 +96,15 @@ export const generatePages = async ({
             })
 
             let args = {...controlVars, ...updateVars, additionalVariables}
-            return comp?.getData ? comp.getData(args,falcor).then(data => ({section_id, data, type})) : ({section_id, data})
+
+            try {
+                // if(pageI > 1){
+                //     throw new Error(`custom error for section id ${section_id} page ${idColAttrVal}`)
+                // }
+                return comp?.getData ? comp.getData(args,falcor).then(data => ({section_id, data, type})) : ({section_id, data, type})
+            }catch (err){
+                return ({section_id, data, err, type})
+            }
         }, {concurrency: 5})
 
         //console.log('updates', updates)
@@ -104,7 +112,7 @@ export const generatePages = async ({
             const updatedSections = item.sections
                 .map(s => updates.find(u => u.section_id === s.id) || s) // to preserve order
                 .filter(u => u)
-                .map(({section_id, data, type}) => {
+                .map(({section_id, data, err, type}) => {
                     let templateSection = item.sections.find(d => d.id === section_id)  || {};
                     let pageSection = generatedSections.find(d => d.data.value.element['template-section-id'] === section_id)  || {};
                     let section = pageSection?.data?.value || {element:{}};
@@ -117,7 +125,8 @@ export const generatePages = async ({
                     section.level = templateSection.level;
                     section.size = templateSection.size;
                     section.tags = templateSection.tags;
-                    section.element['element-data'] = JSON.stringify(data);
+                    section.status = err ? JSON.stringify(err, Object.getOwnPropertyNames(err)) : 'success';
+                    section.element['element-data'] = data;
                     section.element['element-type'] = type;
                     section.element['template-section-id'] = section_id; // to update sections in future
                     // console.log('section', section, templateSection)
@@ -158,7 +167,19 @@ export const generatePages = async ({
                 index: 999,
                 url_slug: `${url || id_column.name}/${urlSuffix}`,
                 title: `${id_column.name} ${idColAttrVal} Template`,
+                num_errors: updatedSections.filter(section => section.status !== 'success').length,
                 sections: [
+                    ...updatedSections.map((section, i) => ({ // updatedSections contains correct order
+                        "id": section.id || newSectionIds[i]?.id,
+                        "ref": "dms-site+cms-section"
+                    })),
+                    ...generatedSections.filter(section => !section.data.value.element['template-section-id']) // non-template sections
+                        .map((section, i) => ({
+                            "id": section.id,
+                            "ref": "dms-site+cms-section"
+                        })),
+                ],
+                draft_sections: [
                     ...updatedSections.map((section, i) => ({ // updatedSections contains correct order
                         "id": section.id || newSectionIds[i]?.id,
                         "ref": "dms-site+cms-section"

@@ -51,6 +51,11 @@ function SizeSelect ({size='1', setSize, onChange}) {
     )
 } 
 
+const RenderError = ({data}) => (
+    <div className={'p-2 rounded-md bg-red-300 border-red-500 text-white min-h-[50px]'}>
+        Error: {data.status}
+    </div>)
+
 function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, onRemove}) {
     let [referenceElement, setReferenceElement] = useState()
     let [popperElement, setPopperElement] = useState()
@@ -524,7 +529,7 @@ const Edit = ({Component, value, onChange, attr, full_width = false }) => {
 
                 const sizeClass = getSizeClass(size, requiredSpace, availableSpace, runningColTotal);
 
-                console.log('section', v, v.size, )
+                console.log('section', v, v.error)
                 return (
                     <div key={i} className={`${v.size ? "h-full" : ""} ${sizeClass} ${hideDebug ? '' : 'border-2 border-dashed border-green-500'}`}>
                         {/* add to top */}
@@ -549,7 +554,7 @@ const Edit = ({Component, value, onChange, attr, full_width = false }) => {
                         }
                         
                         {/* show section if not being edited */}
-                        { v !== '' && !(edit.index === i && edit.type === 'update') ? 
+                        { v !== '' && !(edit.index === i && edit.type === 'update') && (!v.status || v.status === 'success') ?
                             <SectionView
                                 value={v} 
                                 i={i}
@@ -558,7 +563,7 @@ const Edit = ({Component, value, onChange, attr, full_width = false }) => {
                                 edit={true}
                                 onEdit={ edit.index === -1 ? (e) => update(i)  : null }
                                 addAbove={() => setEditIndex(i)}
-                            /> : ''}
+                            /> : v.status?.length > 1 ? <RenderError data={v} /> : ''}
 
                         {/* add new section at end  */}
                         { !values[0]?.is_header && edit.index == -1 && i === values.length-1 ? 
@@ -581,8 +586,11 @@ const View = ({Component, value, attr, full_width}) => {
         centered: 'md:grid-cols-[1fr_repeat(6,_minmax(_100px,_170px))_1fr]',
         fullwidth:'md:grid-cols-[_minmax(_0px,0px)_repeat(6,_1fr)_minmax(_0px,0px)]'
     }
-    const hideSectionCondition = section => isJson(section?.element?.['element-data'] || '{}') &&
-        !JSON.parse(section?.element?.['element-data'] || '{}')?.hideSection;
+    const hideSectionCondition = section =>
+        isJson(section?.element?.['element-data'] || '{}') ?
+            !JSON.parse(section?.element?.['element-data'] || '{}')?.hideSection :
+            typeof section?.element?.['element-data'] === 'object' ?
+                !section?.element?.['element-data']?.hideSection : true
 
 
     // console.log('render SA view')

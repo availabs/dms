@@ -13,7 +13,7 @@ export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatu
     // console.log('ViewInfo', id_column, active_id)
     const { falcor, falcorCache} = React.useContext(CMSContext)
     const [generatedPages, setGeneratedPages] = useState([]);
-
+    const [showAdditionalOptions, setShowAdditionalOptions] = useState(false);
     const {
         url, 
         destination = item.type,
@@ -90,17 +90,26 @@ export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatu
             setLoadingStatus('Loading Pages...')
 
             const pages = await locationNameMap.reduce(async (acc, type) => {
-                const prevPages = await acc;  
-                const currentPages = await dmsDataLoader(getConfig({
+                const prevPages = await acc;
+                const attributes = [
+                    { key: 'id', label: 'id'},
+                    { key: `data->>'id_column_value' as id_column_value`, label: 'id_column_value'},
+                    { key: `data->>'num_errors' as num_errors`, label: 'num_errors'}
+                ];
+
+                let currentPages = await dmsDataLoader(getConfig({
                     app: 'dms-site',
                     type,
                     filter: {[`data->>'template_id'`]: [item.id]},
-                    attributes: [
-                        {
-                            key: 'id', label: 'id'
-                        }
-                    ]
+                    attributes
                 }), '/');
+
+                currentPages = currentPages.map(page => attributes.reduce((acc, curr) => {
+                        acc[curr.label] = page[curr.key]
+                        return acc;
+                    }, {})
+                );
+
                 return [...prevPages, ...currentPages];
             }, Promise.resolve([]));
             setGeneratedPages(pages);
@@ -114,6 +123,10 @@ export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatu
     // 2. new sections have been added
     // 3. existing section has been deleted
 
+    const errorIdColValues = generatedPages.filter(page => typeof +page.num_errors === 'number' && +page.num_errors > 0).map(page => page.id_column_value.toString());
+    const generatedIdColValues = generatedPages.filter(page => page.id_column_value && typeof page.id_column_value !== 'object').map(page => page.id_column_value.toString());
+    const missingPagesDataRows = dataRows.filter(row => !generatedIdColValues.includes(row[id_column.name]));
+    const errorPagesDataRows = dataRows.filter(row => errorIdColValues.includes(row[id_column.name]));
 
     return (
         <div className='flex flex-col'>
@@ -141,35 +154,78 @@ export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatu
 
             <div className='flex items-center p-4'>
                 {
-                    generatedPages?.length ?
-                        <button className={`mt-4 p-2 rounded-lg text-white  ${loadingStatus ? `bg-gray-500 cursor-not-allowed` : `bg-blue-500 hover:bg-blue-300`}`}
-                                disabled={loadingStatus}
-                                onClick={e =>
-                                    generatePages({
-                                        item, url, destination, id_column,
-                                        dataRows, falcor, setLoadingStatus,
-                                        locationNameMap, setGeneratedPages
-                                    })}
-                        >
-                            {loadingStatus || 'Update Pages'}
-                        </button> :
-                        dataRows?.length ?
-                            <button className={`inline-flex w-36 justify-center rounded-lg cursor-pointer text-sm font-semibold py-2 px-2 text-white shadow-lg border  active:border-b-2 active:mb-[2px] active:shadow-none' ${loadingStatus ? `bg-gray-500 border-b-2 border-gray-800 cursor-not-allowed` : `bg-blue-500 hover:bg-blue-400 border-b-4 border-blue-800 hover:border-blue-700`}`}
+                    generatedPages?.length || dataRows?.length ?
+                        <div className={'flex flex-col'}>
+                            <div className={'flex flex-row'}>
+                                <button className={`inline-flex w-36 justify-center rounded-lg cursor-pointer text-sm font-semibold 
+                                            py-2 px-2 text-white shadow-lg border active:border-b-2 active:mb-[2px] active:shadow-none 
+                                            ${loadingStatus ? `bg-gray-500 border-b-2 border-gray-800 cursor-not-allowed` :
+                                    `bg-blue-500 hover:bg-blue-400 border-b-4 border-blue-800 hover:border-blue-700`}`}
+                                        disabled={loadingStatus}
+                                        onClick={e =>
+                                            generatePages({
+                                                item, url, destination, id_column,
+                                                dataRows, falcor, setLoadingStatus,
+                                                locationNameMap, setGeneratedPages
+                                            })}
+                                >
+                                    {loadingStatus || (generatedPages?.length ? 'Update Pages' : 'Generate Pages')}
+                                </button>
+                                <button
                                     disabled={loadingStatus}
-                                    onClick={e =>
-                                        generatePages({
-                                            item, url, destination, id_column,
-                                            dataRows, falcor, setLoadingStatus,
-                                            locationNameMap, setGeneratedPages
-                                        })}
-                            >
-                                {loadingStatus || 'Generate Pages'}
-                            </button> :
-                            <button className={`mt-4 p-2 rounded-lg text-white bg-gray-500 border border-b-2 border-gray-800 cursor-not-allowed`}
-                                    disabled={true}
-                            >
-                                No template data available.
-                            </button>
+                                    className={`inline-flex rounded-lg cursor-pointer text-white text-bold px-2 py-2.5 shadow-lg
+                                border active:border-b-2 active:mb-[2px] active:shadow-none 
+                                ${loadingStatus ? `bg-gray-500 border-b-2 border-gray-800 cursor-not-allowed` :
+                                        `bg-blue-500 hover:bg-blue-400 border-b-4 border-blue-800 hover:border-blue-700`}`}
+                                    onClick={() => setShowAdditionalOptions(!showAdditionalOptions)}
+                                >
+                                    <i className={showAdditionalOptions ? 'fa fa-caret-up' : 'fa fa-caret-down'}/>
+                                </button>
+
+                            </div>
+
+                            {/*additional options*/}
+                            <div className={showAdditionalOptions ? `flex flex-col` : 'hidden'}>
+                                {/*generate missing pages*/}
+                                <button className={`inline-flex w-36 justify-center rounded-lg text-sm font-semibold 
+                                            py-2 px-2 text-white shadow-lg border active:border-b-2 active:mb-[2px] active:shadow-none' 
+                                            ${loadingStatus || !missingPagesDataRows?.length ? `bg-gray-500 border-b-2 border-gray-800 cursor-not-allowed` :
+                                    `bg-blue-500 hover:bg-blue-400 border-b-4 border-blue-800 hover:border-blue-700 cursor-pointer`}`}
+                                        disabled={loadingStatus || !missingPagesDataRows?.length}
+                                        onClick={e =>
+                                            generatePages({
+                                                item, url, destination, id_column,
+                                                dataRows: missingPagesDataRows, falcor, setLoadingStatus,
+                                                locationNameMap, setGeneratedPages
+                                            })}
+                                >
+                                    {loadingStatus || `Generate missing pages (${missingPagesDataRows?.length})`}
+                                </button>
+
+                                {/*update errored pages*/}
+                                <button className={`inline-flex w-36 justify-center rounded-lg text-sm font-semibold 
+                                            py-2 px-2 text-white shadow-lg border active:border-b-2 active:mb-[2px] active:shadow-none' 
+                                            ${loadingStatus || !errorPagesDataRows?.length ? `bg-gray-500 border-b-2 border-gray-800 cursor-not-allowed` :
+                                    `bg-blue-500 hover:bg-blue-400 border-b-4 border-blue-800 hover:border-blue-700 cursor-pointer`}`}
+                                        disabled={loadingStatus || !errorPagesDataRows?.length}
+                                        onClick={e =>
+                                            generatePages({
+                                                item, url, destination, id_column,
+                                                dataRows: errorPagesDataRows, falcor, setLoadingStatus,
+                                                locationNameMap, setGeneratedPages
+                                            })}
+                                >
+                                    {loadingStatus || `Update errored pages (${errorPagesDataRows?.length})`}
+                                </button>
+                            </div>
+                            {/*additional options end*/}
+                        </div> :
+                        <button
+                            className={`mt-4 p-2 rounded-lg text-white bg-gray-500 border border-b-2 border-gray-800 cursor-not-allowed`}
+                            disabled={true}
+                        >
+                            No template data available.
+                        </button>
                 }
             </div>
         </div>

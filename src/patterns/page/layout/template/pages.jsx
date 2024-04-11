@@ -91,9 +91,21 @@ export const getConfig = ({
 })
 
 const icons = {
-    view: 'fa-eye',
-    edit: 'fa-pencil'
+    view: 'fa-thin fa-eye',
+    edit: 'fa-thin fa-pencil'
 }
+
+const statusConfig = {
+    success: {
+        textColor: 'text-green-400',
+        icon: 'fa-thin fa-check'
+    },
+    error: {
+        textColor: 'text-red-400',
+        icon: 'fa-thin fa-warning'
+    }
+}
+
 const dateOptions = { year: "numeric", month: "long", day: "numeric", hour: "numeric",  minute: "numeric"}
 
 const findNameCol = data => Object.keys(data).find(col => col.toLowerCase().includes('name') || col.toLowerCase().includes('title'))
@@ -179,20 +191,38 @@ const TemplatePages = ({item, params, logo, rightMenu, baseUrl=''}) => {
     },[id, id_column, view_id, falcorCache])
 
     const actionColumns = ['view', 'edit'];
-    const columns = ['title', 'location', 'updated', ...actionColumns].map(col => ({
+    const statusColumns = ['status'];
+    const columns = ['title', 'location', 'updated', 'status', ...actionColumns].map(col => ({
         Header: actionColumns.includes(col) ? '' : col,
         accessor: col,
         ...actionColumns.includes(col) && {
             Cell: cell => {
                 return <Link to={cell.value}
-                             className={`fa-thin ${icons[col]} px-2 py-1 mx-2 text-bold cursor-pointer`}
+                             className={` ${icons[col]} px-2 py-1 mx-2 text-bold cursor-pointer`}
                              title={col}
                 />
             },
         },
+        ...statusColumns.includes(col) && {
+            Cell: cell => {
+                return <i
+                    className={`${statusConfig[cell.value].icon} ${statusConfig[cell.value].textColor} font-bold`}
+                    title={cell.value}
+                />
+
+            },
+        },
+        ...['updated'].includes(col) && {
+            Cell: cell => {
+                return new Date(cell.value).toLocaleDateString(undefined, dateOptions)
+
+            },
+        },
         // canFilter: !actionColumns.includes(col),
-        filter: actionColumns.includes(col) ? undefined : 'text',
-        disableSortBy: actionColumns.includes(col)
+        filter: actionColumns.includes(col) || statusColumns.includes(col) ? undefined : 'text',
+        disableSortBy: actionColumns.includes(col),
+        align: actionColumns.includes(col) || statusColumns.includes(col) ? 'center' : 'left',
+        width: actionColumns.includes(col) || statusColumns.includes(col) ? '5%' : '20%'
     }))
 
     const data = value.map(({type, data, updated_at}) => {
@@ -202,7 +232,8 @@ const TemplatePages = ({item, params, logo, rightMenu, baseUrl=''}) => {
             location: locationNameMap[type],
             view: `${locationUrlMap[type]}/${data?.value?.url_slug}`,
             edit: `${locationUrlMap[type]}/edit/${data?.value?.url_slug}`,
-            updated: new Date(getNestedValue(updated_at)).toLocaleDateString(undefined, dateOptions)
+            updated: getNestedValue(updated_at),
+            status: data?.value?.num_errors > 0 ? 'error' : 'success'
 
         }
     })
