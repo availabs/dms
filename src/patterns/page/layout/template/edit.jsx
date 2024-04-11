@@ -9,7 +9,8 @@ import { getInPageNav } from "../components/utils/inPageNavItems.js";
 import SideNav from '../components/nav/Side'
 import {json2DmsForm, getUrlSlug, toSnakeCase} from '../components/utils/navItems'
 import EditControls from '../components/editControls'
-import { CMSContext } from '../layout'
+import { CMSContext } from '../../siteConfig'
+
 
 
 

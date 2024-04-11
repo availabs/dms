@@ -5,7 +5,8 @@ import cloneDeep from 'lodash/cloneDeep'
 import { Popover, Transition } from '@headlessui/react'
 import { Link } from "react-router-dom";
 import { usePopper } from 'react-popper'
-import { CMSContext } from '../layout'
+import { CMSContext } from '../../siteConfig'
+
 
 import { getSizeClass, sizeOptionsSVG } from './sizes.jsx'
 
@@ -529,7 +530,7 @@ const Edit = ({Component, value, onChange, attr, full_width = false }) => {
 
                 const sizeClass = getSizeClass(size, requiredSpace, availableSpace, runningColTotal);
 
-                console.log('section', v, v.error)
+                // console.log('section', v, v.error)
                 return (
                     <div key={i} className={`${v.size ? "h-full" : ""} ${sizeClass} ${hideDebug ? '' : 'border-2 border-dashed border-green-500'}`}>
                         {/* add to top */}
@@ -586,14 +587,16 @@ const View = ({Component, value, attr, full_width}) => {
         centered: 'md:grid-cols-[1fr_repeat(6,_minmax(_100px,_170px))_1fr]',
         fullwidth:'md:grid-cols-[_minmax(_0px,0px)_repeat(6,_1fr)_minmax(_0px,0px)]'
     }
-    const hideSectionCondition = section =>
-        isJson(section?.element?.['element-data'] || '{}') ?
-            !JSON.parse(section?.element?.['element-data'] || '{}')?.hideSection :
-            typeof section?.element?.['element-data'] === 'object' ?
-                !section?.element?.['element-data']?.hideSection : true
+    const hideSectionCondition = section => {
+        //console.log('hideSectionCondition', section?.element?.['element-data'] || '{}')
+        let value = section?.element?.['element-data']
+        let elementData = typeof value === 'object' ?
+            value : value && isJson(value) ? JSON.parse(value) : {}
+        return !elementData?.hideSection
+    }
 
 
-    // console.log('render SA view')
+    //console.log('render SA view', Component, value)
 
     return (
         <div className={`w-full grid grid-cols-6 ${layouts[full_width === 'show' ? 'fullwidth' : 'centered']} gap-1`}>

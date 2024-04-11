@@ -5,7 +5,8 @@ import Layout from './components/avail-layout'
 import SideNav from './components/nav/Side'
 import EditControls from './components/editControls'
 
-import { CMSContext } from './layout'
+
+import { CMSContext } from '../siteConfig'
 
 import { dataItemsNav, detectNavLevel } from './components/utils/navItems'
 import { getInPageNav } from "./components/utils/inPageNavItems.js";
@@ -35,7 +36,7 @@ function PageEdit ({
   const inPageNav = getInPageNav(item);
 
   
-  console.log('page edit', item.index, level)
+  // console.log('page edit', item.index, level)
   //console.log('page edit', open, setOpen)
   //if(!dataItems[0]) return <div/>
 

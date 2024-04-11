@@ -1,6 +1,7 @@
 import React, {useEffect, useMemo} from "react";
 import get from "lodash/get.js";
-import { CMSContext } from '../../layout'
+
+import { CMSContext } from '../../../siteConfig'
 import Selector from "./Selector.jsx";
 import {pgEnv} from "../utils/constants.js";
 

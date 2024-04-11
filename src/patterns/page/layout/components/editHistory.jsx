@@ -1,7 +1,8 @@
 import React, { Fragment } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
 
-import { CMSContext } from '../layout'
+import { CMSContext } from '../../siteConfig'
+
 
 
 export default function EditHistory ({item , dataItems, historyOpen, setHistoryOpen}) {

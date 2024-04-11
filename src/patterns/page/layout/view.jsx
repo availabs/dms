@@ -2,7 +2,8 @@ import React, {useEffect} from 'react'
 import { Link } from "react-router-dom";
 
 import SideNav from './components/nav/Side'
-import { CMSContext } from './layout'
+
+import { CMSContext } from '../siteConfig'
 
 import Layout from './components/avail-layout'
 import {dataItemsNav, detectNavLevel} from './components/utils/navItems'
@@ -29,6 +30,8 @@ function PageView ({item, dataItems, attributes, logo, rightMenu}) {
 
   const headerSection = item['sections']?.filter(d => d.is_header)?.[0]
   const sections = item['sections']?.filter(d => !d.is_header && !d.is_footer)
+
+  //console.log('page view', sections)
   
   return (
     <div id='page_view'>
