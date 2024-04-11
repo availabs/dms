@@ -98,7 +98,7 @@ export const generatePages = async ({
             let args = {...controlVars, ...updateVars, additionalVariables}
 
             try {
-                // if(pageI > 1){
+                // if(pageI > 8){
                 //     throw new Error(`custom error for section id ${section_id} page ${idColAttrVal}`)
                 // }
                 return comp?.getData ? comp.getData(args,falcor).then(data => ({section_id, data, type})) : ({section_id, data, type})
@@ -126,7 +126,7 @@ export const generatePages = async ({
                     section.size = templateSection.size;
                     section.tags = templateSection.tags;
                     section.status = err ? JSON.stringify(err, Object.getOwnPropertyNames(err)) : 'success';
-                    section.element['element-data'] = data;
+                    section.element['element-data'] = JSON.stringify(data);
                     section.element['element-type'] = type;
                     section.element['template-section-id'] = section_id; // to update sections in future
                     // console.log('section', section, templateSection)
