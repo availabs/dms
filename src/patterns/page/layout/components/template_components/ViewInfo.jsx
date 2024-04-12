@@ -15,6 +15,7 @@ export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatu
     const { falcor, falcorCache} = React.useContext(CMSContext)
     const [generatedPages, setGeneratedPages] = useState([]);
     const [showAdditionalOptions, setShowAdditionalOptions] = useState(false);
+    const [urlSuffixCol, setUrlSuffixCol] = useState('geoid');
     const {
         url, 
         destination = item.type,
@@ -132,8 +133,19 @@ export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatu
     return (
         <div className='flex flex-col'>
             {/*<div>View Info</div>*/}
-          {/*  <div>Rows: {dataLength} </div>
+            {/*  <div>Rows: {dataLength} </div>
             <div>Attributes : {attributes?.length || 0}</div>*/}
+
+            <span className='text-xs uppercase font-bold text-slate-400 ml-4'> url suffix </span>
+            <Selector
+                className={'ml-2.5 relative w-full cursor-default overflow-hidden bg-transparent border-b-2 border-slate-300 text-slate-500 text-left sm:text-sm'}
+                options={attributes.map(d => d.name)}
+                value={urlSuffixCol}
+                nameAccessor={d => d?.name}
+                valueAccessor={d => d?.name}
+                onChange={d => setUrlSuffixCol(d)}
+            />
+
             <Selector
                 options={['',...attributes]}
                 value={id_column}
@@ -153,7 +165,7 @@ export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatu
                     )}
                 /> : ''}
 
-            <div className='flex items-center p-4'>
+            <div className='flex items-center pt-2'>
                 {
                     generatedPages?.length || dataRows?.length ?
                         <div className={'flex flex-col'}>
@@ -167,7 +179,8 @@ export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatu
                                             generatePages({
                                                 item, url, destination, id_column,
                                                 dataRows, falcor, setLoadingStatus,
-                                                locationNameMap, setGeneratedPages
+                                                locationNameMap, setGeneratedPages,
+                                                urlSuffixCol
                                             })}
                                 >
                                     {loadingStatus || (generatedPages?.length ? 'Update Pages' : 'Generate Pages')}
@@ -194,10 +207,12 @@ export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatu
                                     `bg-blue-500 hover:bg-blue-400 border-b-4 border-blue-800 hover:border-blue-700 cursor-pointer`}`}
                                         disabled={loadingStatus || !missingPagesDataRows?.length}
                                         onClick={e =>
+                                            setShowAdditionalOptions(false) &&
                                             generatePages({
                                                 item, url, destination, id_column,
                                                 dataRows: missingPagesDataRows, falcor, setLoadingStatus,
-                                                locationNameMap, setGeneratedPages
+                                                locationNameMap, setGeneratedPages,
+                                                urlSuffixCol
                                             })}
                                 >
                                     {loadingStatus || `Generate missing pages (${missingPagesDataRows?.length})`}
@@ -210,10 +225,12 @@ export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatu
                                     `bg-blue-500 hover:bg-blue-400 border-b-4 border-blue-800 hover:border-blue-700 cursor-pointer`}`}
                                         disabled={loadingStatus || !errorPagesDataRows?.length}
                                         onClick={e =>
+                                            setShowAdditionalOptions(false) &&
                                             generatePages({
                                                 item, url, destination, id_column,
                                                 dataRows: errorPagesDataRows, falcor, setLoadingStatus,
-                                                locationNameMap, setGeneratedPages
+                                                locationNameMap, setGeneratedPages,
+                                                urlSuffixCol
                                             })}
                                 >
                                     {loadingStatus || `Update errored pages (${errorPagesDataRows?.length})`}

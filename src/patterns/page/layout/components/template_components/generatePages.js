@@ -9,7 +9,7 @@ import {getConfig} from "../../template/pages";
 
 export const generatePages = async ({
                                         item, url, destination, id_column, dataRows, falcor, setLoadingStatus, locationNameMap,
-                                        setGeneratedPages
+                                        setGeneratedPages, urlSuffixCol='geoid'
                                     }) => {
     setLoadingStatus('Generating Pages...', dataRows)
     const idColAttr =
@@ -150,7 +150,7 @@ export const generatePages = async ({
             const formatNameForURL = name => name.toLowerCase().replace(' county', '').replace('.', '').replace(/ /g, '_');
 
             const urlSuffix =
-                id_column?.name === 'geoid' ?
+                urlSuffixCol === 'county' ?
                     formatNameForURL(activeDataRow?.['county'] || activeDataRow?.['name']) || idColAttrVal :
                     idColAttrVal;
 
