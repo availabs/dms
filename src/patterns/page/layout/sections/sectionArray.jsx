@@ -54,7 +54,7 @@ function SizeSelect ({size='1', setSize, onChange}) {
 
 const RenderError = ({data}) => (
     <div className={'p-2 rounded-md bg-red-300 border-red-500 text-white min-h-[50px]'}>
-        Error: {data.status}
+        Error: {data?.status}
     </div>)
 
 function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, onRemove}) {
@@ -532,7 +532,7 @@ const Edit = ({Component, value, onChange, attr, full_width = false }) => {
 
                 // console.log('section', v, v.error)
                 return (
-                    <div key={i} className={`${v.size ? "h-full" : ""} ${sizeClass} ${hideDebug ? '' : 'border-2 border-dashed border-green-500'}`}>
+                    <div key={i} className={`${v?.size ? "h-full" : ""} ${sizeClass} ${hideDebug ? '' : 'border-2 border-dashed border-green-500'}`}>
                         {/* add to top */}
                         { /*edit.index === -1 && i === 0 ? 
                             <AddSectionButton showpageToggle={true} onClick={() => setEditIndex(0)}/> : 
@@ -555,7 +555,7 @@ const Edit = ({Component, value, onChange, attr, full_width = false }) => {
                         }
                         
                         {/* show section if not being edited */}
-                        { v !== '' && !(edit.index === i && edit.type === 'update') && (!v.status || v.status === 'success') ?
+                        { v !== '' && !(edit.index === i && edit.type === 'update') && (!v?.status || v?.status === 'success') ?
                             <SectionView
                                 value={v} 
                                 i={i}
@@ -564,7 +564,7 @@ const Edit = ({Component, value, onChange, attr, full_width = false }) => {
                                 edit={true}
                                 onEdit={ edit.index === -1 ? (e) => update(i)  : null }
                                 addAbove={() => setEditIndex(i)}
-                            /> : v.status?.length > 1 ? <RenderError data={v} /> : ''}
+                            /> : v?.status?.length > 1 ? <RenderError data={v} /> : ''}
 
                         {/* add new section at end  */}
                         { !values[0]?.is_header && edit.index == -1 && i === values.length-1 ? 
