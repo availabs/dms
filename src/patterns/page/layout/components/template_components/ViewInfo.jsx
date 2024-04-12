@@ -1,4 +1,4 @@
-import React, {useState} from "react";
+import React, {useMemo, useState} from "react";
 import {getConfig} from "../../template/pages.jsx";
 import {dmsDataLoader} from "../../../../../index.js";
 import get from "lodash/get.js";
@@ -125,10 +125,10 @@ export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatu
     // 2. new sections have been added
     // 3. existing section has been deleted
 
-    const errorIdColValues = generatedPages.filter(page => typeof +page.num_errors === 'number' && +page.num_errors > 0).map(page => page.id_column_value.toString());
-    const generatedIdColValues = generatedPages.filter(page => page.id_column_value && typeof page.id_column_value !== 'object').map(page => page.id_column_value.toString());
-    const missingPagesDataRows = dataRows.filter(row => !generatedIdColValues.includes(row[id_column.name]));
-    const errorPagesDataRows = dataRows.filter(row => errorIdColValues.includes(row[id_column.name]));
+    const errorIdColValues = useMemo(() => generatedPages.filter(page => typeof +page.num_errors === 'number' && +page.num_errors > 0).map(page => page.id_column_value.toString()), [generatedPages]);
+    const generatedIdColValues = useMemo(() => generatedPages.filter(page => page.id_column_value && typeof page.id_column_value !== 'object').map(page => page.id_column_value.toString()), [generatedPages]);
+    const missingPagesDataRows = useMemo(() => dataRows.filter(row => !generatedIdColValues.includes(row[id_column.name])), [generatedIdColValues, dataRows, id_column.name]);
+    const errorPagesDataRows = useMemo(() => dataRows.filter(row => errorIdColValues.includes(row[id_column.name])), [errorIdColValues, dataRows, id_column.name]);
 
     return (
         <div className='flex flex-col'>
@@ -206,14 +206,15 @@ export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatu
                                             ${loadingStatus || !missingPagesDataRows?.length ? `bg-gray-500 border-b-2 border-gray-800 cursor-not-allowed` :
                                     `bg-blue-500 hover:bg-blue-400 border-b-4 border-blue-800 hover:border-blue-700 cursor-pointer`}`}
                                         disabled={loadingStatus || !missingPagesDataRows?.length}
-                                        onClick={e =>
-                                            setShowAdditionalOptions(false) &&
-                                            generatePages({
+                                        onClick={e => {
+                                            setShowAdditionalOptions(false);
+                                            return generatePages({
                                                 item, url, destination, id_column,
                                                 dataRows: missingPagesDataRows, falcor, setLoadingStatus,
                                                 locationNameMap, setGeneratedPages,
                                                 urlSuffixCol
-                                            })}
+                                            })
+                                        }}
                                 >
                                     {loadingStatus || `Generate missing pages (${missingPagesDataRows?.length})`}
                                 </button>
@@ -224,14 +225,15 @@ export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatu
                                             ${loadingStatus || !errorPagesDataRows?.length ? `bg-gray-500 border-b-2 border-gray-800 cursor-not-allowed` :
                                     `bg-blue-500 hover:bg-blue-400 border-b-4 border-blue-800 hover:border-blue-700 cursor-pointer`}`}
                                         disabled={loadingStatus || !errorPagesDataRows?.length}
-                                        onClick={e =>
-                                            setShowAdditionalOptions(false) &&
-                                            generatePages({
+                                        onClick={e => {
+                                            setShowAdditionalOptions(false);
+                                            return generatePages({
                                                 item, url, destination, id_column,
                                                 dataRows: errorPagesDataRows, falcor, setLoadingStatus,
                                                 locationNameMap, setGeneratedPages,
                                                 urlSuffixCol
-                                            })}
+                                            })
+                                        }}
                                 >
                                     {loadingStatus || `Update errored pages (${errorPagesDataRows?.length})`}
                                 </button>

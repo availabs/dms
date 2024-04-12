@@ -192,7 +192,7 @@ export const generatePages = async ({
                 ]
             }
             const resPage = await dmsDataEditor(pageConfig, newPage);
-            createdOrUpdatedPageIdStore.push({id: resPage?.id})
+            createdOrUpdatedPageIdStore.push({id: resPage?.id, num_errors: newPage.num_errors, id_column_value: newPage.id_column_value})
             // console.log('created', resPage)
 
         }
