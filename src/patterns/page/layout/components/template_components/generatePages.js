@@ -86,12 +86,7 @@ export const generatePages = async ({
                 // update the defaultValue here
                 const attrName = variable.name;
                 const sectionControlMappedName = dataControls?.sectionControls?.[section_id]?.[attrName];
-                variable.defaultValue = attrName === id_column.name ? idColAttrVal :
-                    (activeDataRow[attrName] ||
-                        dataControls?.active_row?.[sectionControlMappedName] ||
-                        null
-                    );
-
+                variable.defaultValue = activeDataRow?.[sectionControlMappedName];
                 return variable
             })
 
