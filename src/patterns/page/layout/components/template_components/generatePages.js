@@ -38,7 +38,10 @@ export const generatePages = async ({
         // if(existingPage?.length > 1){
         //     console.warn('<generate page> More than one page found for', idColAttrVal)
         // }
-
+        // if(new Date(existingPage?.updated_at?.value) > new Date("2024-04-12T00:00:00.000Z")){
+        //     setLoadingStatus(`skipping ${idColAttrVal}`)
+        //     return Promise.resolve()
+        // }
         console.log('existing page', idColAttrVal, existingPage)
 
         const sectionIds =  existingPage?.data?.value?.sections?.map(section => section.id) || [];
