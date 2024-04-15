@@ -1,7 +1,8 @@
 import React from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate} from 'react-router-dom'
 import comps from '../components'
 import { getActiveView, getActiveConfig, validFormat } from './_utils'
+
 import ThemeContext from '../theme'
 import defaultTheme from '../theme/default-theme'
 
@@ -11,7 +12,8 @@ const DmsManager = (props) => {
 	const { 
 		config,
 		path = '',
-		theme = defaultTheme
+		theme = defaultTheme,
+		user
 	} = props
 	
 	const navigate = useNavigate()
@@ -23,6 +25,9 @@ const DmsManager = (props) => {
 		}
 	},[path])
 
+	// React.useEffect(() => console.log('dms manager unmount') , [])
+    
+
 	// check for valid config
 	if(!config.children || !validFormat(config.format)) {
 		return <InvalidConfig config={config} />
@@ -32,17 +37,21 @@ const DmsManager = (props) => {
 	// const enhancedFormat = React.useMemo(() => 
 	// 	enhanceFormat(config.format)
 	// ,[config.format])
+	// console.log('dms manager user', user)
+	
+	const RenderView = React.useMemo(() => {
+		return getActiveView(config.children, path, config.format, user)
+	}, [path])
 
-	const RenderView = getActiveView(config.children, path, config.format)
 	if(!RenderView) {
 		return <NoRouteMatch path={path} />
 	}
 
-	return (
+	return React.useMemo(() => (
 		<ThemeContext.Provider value={theme}>
 			{RenderView}
 		</ThemeContext.Provider>
-	)	
+	),[RenderView])	
 }
 
 export default DmsManager

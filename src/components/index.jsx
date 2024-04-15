@@ -3,6 +3,8 @@ import Landing from './landing'
 import Table from './table'
 import Card from './card'
 import Edit from './edit'
+import FormEdit from './form/form-edit'
+import FormView from './form/form-view'
 
 
 function InvalidConfig ({config}) {
@@ -32,6 +34,8 @@ export default {
 	'dms-table': Table,
 	'dms-card': Card,
 	'dms-edit': Edit,
+	'dms-form-edit': FormEdit,
+	'dms-form-view': FormView,
 	InvalidConfig,
 	NoRouteMatch
 

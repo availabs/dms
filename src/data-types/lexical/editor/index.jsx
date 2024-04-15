@@ -17,10 +17,13 @@ import './lexical.css';
 
 
 
-export default function Lexicals ({value, onChange, editable=false}) {
+export default function Lexicals ({value, onChange, bgColor, editable=false, id}) {
   
   const initialConfig = {
-    editorState: value || null,
+    editorState:
+        JSON.parse(value || '{}')?.root &&
+        JSON.parse(value || '{}')?.root?.children?.length
+            ? value : null,
     namespace: 'dms-lexical',
     nodes: [...PlaygroundNodes],
     editable: editable,
@@ -34,9 +37,9 @@ export default function Lexicals ({value, onChange, editable=false}) {
   //console.log('initialConfig', initialConfig)
 
   return (
-    <LexicalComposer initialConfig={initialConfig}>
+    <LexicalComposer key={id} initialConfig={initialConfig}>
       <div className="editor-shell">
-        <Editor editable={editable} />
+        <Editor editable={editable} bgColor={bgColor}/>
         <OnChangePlugin onChange={onChange} />
       </div>
     </LexicalComposer>

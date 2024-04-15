@@ -46,6 +46,8 @@ export class CollapsibleTitleNode extends ElementNode {
   createDOM(config: EditorConfig, editor: LexicalEditor): HTMLElement {
     const dom = document.createElement('summary');
     dom.classList.add('Collapsible__title');
+    dom.classList.add('w-full', 'font-sans', 'font-medium', 'text-md', 'uppercase');
+    dom.classList.add('tracking-wider', 'py-1', 'pl-5');
     return dom;
   }
 

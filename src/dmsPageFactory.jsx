@@ -7,19 +7,20 @@ import {
   dmsDataEditor, 
 } from './index'
 
+import defaultTheme from './theme/default-theme'
 //const noAuth = Component => Component
 
 export default function dmsPageFactory (
   dmsConfig,
   dmsPath='/',
-  authWrapper = Component => Component 
+  authWrapper = Component => Component,
+  dmsTheme = defaultTheme
 ) {
 
   async function loader ({ request, params }) {
     let data = await dmsDataLoader(dmsConfig, `/${params['*'] || ''}`)
     return { 
-      data,
-      user: {id: 5, authLevel: 5}
+      data
     }
   }
 
@@ -34,14 +35,23 @@ export default function dmsPageFactory (
 
   function DMS() {
     const params = useParams();
-    
     const AuthedManager = authWrapper(DmsManager)
-    return (
+    
+    /*
+    React.useEffect(() => {
+      console.log('DMS Wrapper load', params)
+    },[])
+
+    console.log('DMS Wrapper render', params)
+    */
+
+    return React.useMemo(() => (
       <AuthedManager 
         path={ `/${params['*'] || ''}` }
         config={dmsConfig}
+        theme={dmsTheme}
       />
-    )
+    ),[params['*']])
   }
 
   function ErrorBoundary({ error }) {
@@ -55,7 +65,7 @@ export default function dmsPageFactory (
 
   return {
     path: `${dmsPath}*`,
-    component: (props) =>  <DMS {...props} />,
+    element: (props) =>  <DMS {...props} />,
     loader: loader,
     action: action
   }

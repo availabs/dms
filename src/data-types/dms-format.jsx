@@ -6,13 +6,14 @@ import isEqual from "lodash/isEqual"
 
 function Edit({value, onChange, attributes={}}) {
     //const item
+    console.log('dms-format', value, attributes)
     const updateAttribute = (k, v) => {
         if(!isEqual(value, {...value, [k]: v})){
             onChange({...value, [k]: v})
         }
-        //console.log('updateAttribute', value, k, v, {...value, [k]: v})
+        
     }
-    //console.log('dmsformat EDIT', attributes)
+    
                     
     return (
         <div>

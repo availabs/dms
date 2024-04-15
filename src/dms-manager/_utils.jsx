@@ -34,7 +34,7 @@ function configMatcher (config, path ) {
 }
 
 
-export function getActiveView(config, path, format, depth=0) {
+export function getActiveView(config, path, format, user, depth=0) {
 	// add '' to params array to allow root (/) route  matching
 	let activeConfigs = configMatcher(config,path)
 
@@ -53,16 +53,23 @@ export function getActiveView(config, path, format, depth=0) {
 		// if there are children 
 		let children = []
 		if(activeConfig.children) {
-			children = getActiveView(activeConfig.children, path,format, depth+1)
+			children = getActiveView(
+				activeConfig.children,
+				path,
+				format,
+				user,
+				depth+1
+			)
 		}
 
-		//console.log('wrapper', activeConfig.action, activeConfig.type)
+		//console.log('wrapper', activeConfig.action, activeConfig.type, user)
 		return <Wrapper
 			Component={comp}
 			format={format}
 			key={childKey++}
 			{...activeConfig}
 			children={children}
+			user={user}
 		/>
 	})
 }
@@ -71,11 +78,18 @@ export function getActiveView(config, path, format, depth=0) {
 export function getActiveConfig (config=[], path='/', depth = 0) {
 	
 	let configs = cloneDeep(configMatcher(config,path, depth))
-	
-	configs.forEach(out => {
-		out.children = getActiveConfig(out.children, path, depth+1)
-	})
-	return configs || []
+	let childConfigs = configs
+		.reduce((out,conf) => {
+			let childConf = getActiveConfig(conf.children, path, depth+1)
+			if(childConf.length) {
+				return [...out, ...childConf]
+			}
+			return out
+		},[])
+		
+    //console.log(childConfigs)
+
+	return [...configs,...childConfigs] || []
 }
 
 
@@ -116,7 +130,7 @@ export function filterParams (data, params,format) {
 	
 	let filter = false
 	Object.keys(params).forEach(k => {
-		if(data[k] == params[k] || data[wildKey] === params['*']) {
+		if(data[k] == params[k] || (Boolean(data[wildKey]) && data[wildKey] === params['*'])) {
 			filter = true
 		} else {
 			filter = false

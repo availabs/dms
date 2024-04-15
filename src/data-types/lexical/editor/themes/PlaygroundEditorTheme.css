@@ -16,6 +16,8 @@
   margin: 0;
   position: relative;
 }
+
+
 .PlaygroundEditorTheme__quote {
   margin: 0;
   margin-left: 20px;
@@ -84,6 +86,7 @@
 .PlaygroundEditorTheme__link {
   color: rgb(33, 111, 219);
   text-decoration: none;
+  display: inline-block;
 }
 .PlaygroundEditorTheme__link:hover {
   text-decoration: underline;

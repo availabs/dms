@@ -1,6 +1,6 @@
 import { dmsDataLoader, dmsDataEditor } from './api'
 import DmsManager from './dms-manager'
-import { registerDataType } from './data-types'
+import { dmsDataTypes, registerDataType } from './data-types'
 import dmsPageFactory from './dmsPageFactory'
 
 export {
@@ -8,5 +8,6 @@ export {
 	dmsDataLoader,
 	dmsDataEditor,
 	dmsPageFactory,
-	registerDataType
+	registerDataType,
+	dmsDataTypes
 }

@@ -46,7 +46,7 @@ import {
 //   $isEquationNode,
 //   EquationNode,
 // } from '../../nodes/EquationNode';
-import {$createImageNode, $isImageNode, ImageNode} from '../../nodes/ImageNode';
+import {$createInlineImageNode, $isInlineImageNode, InlineImageNode} from '../../nodes/InlineImageNode';
 import {$createTweetNode, $isTweetNode, TweetNode} from '../../nodes/TweetNode';
 import emojiList from '../../utils/emoji-list';
 
@@ -72,9 +72,9 @@ export const HR: ElementTransformer = {
 };
 
 export const IMAGE: TextMatchTransformer = {
-  dependencies: [ImageNode],
+  dependencies: [InlineImageNode],
   export: (node) => {
-    if (!$isImageNode(node)) {
+    if (!$isInlineImageNode(node)) {
       return null;
     }
 
@@ -84,7 +84,7 @@ export const IMAGE: TextMatchTransformer = {
   regExp: /!(?:\[([^[]*)\])(?:\(([^(]+)\))$/,
   replace: (textNode, match) => {
     const [, altText, src] = match;
-    const imageNode = $createImageNode({
+    const imageNode = $createInlineImageNode({
       altText,
       maxWidth: 800,
       src,
@@ -95,20 +95,20 @@ export const IMAGE: TextMatchTransformer = {
   type: 'text-match',
 };
 
-export const EMOJI: TextMatchTransformer = {
-  dependencies: [],
-  export: () => null,
-  importRegExp: /:([a-z0-9_]+):/,
-  regExp: /:([a-z0-9_]+):/,
-  replace: (textNode, [, name]) => {
-    const emoji = emojiList.find((e) => e.aliases.includes(name))?.emoji;
-    if (emoji) {
-      textNode.replace($createTextNode(emoji));
-    }
-  },
-  trigger: ':',
-  type: 'text-match',
-};
+// export const EMOJI: TextMatchTransformer = {
+//   dependencies: [],
+//   export: () => null,
+//   importRegExp: /:([a-z0-9_]+):/,
+//   regExp: /:([a-z0-9_]+):/,
+//   replace: (textNode, [, name]) => {
+//     const emoji = emojiList.find((e) => e.aliases.includes(name))?.emoji;
+//     if (emoji) {
+//       textNode.replace($createTextNode(emoji));
+//     }
+//   },
+//   trigger: ':',
+//   type: 'text-match',
+// };
 
 // export const EQUATION: TextMatchTransformer = {
 //   dependencies: [EquationNode],
@@ -308,7 +308,7 @@ export const PLAYGROUND_TRANSFORMERS: Array<Transformer> = [
   TABLE,
   HR,
   IMAGE,
-  EMOJI,
+  // EMOJI,
   TWEET,
   CHECK_LIST,
   ...ELEMENT_TRANSFORMERS,

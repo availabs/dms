@@ -1,13 +1,22 @@
 import React, {useEffect} from 'react'
-import { useLoaderData, useActionData, useParams, Form, useSubmit } from "react-router-dom";
+import { useLoaderData, useActionData, useParams, Form, useSubmit, useLocation } from "react-router-dom";
 import { filterParams } from '../dms-manager/_utils'
 import { getAttributes } from './_utils'
 import get from 'lodash/get'
 
-export default function EditWrapper({ Component, format, options, params, ...props}) {
+const json2DmsForm = (data,requestType='update') => {
+  let out = new FormData()
+  out.append('data', JSON.stringify(data))
+  out.append('requestType', requestType)
+  //console.log(out)
+  return out
+}
+
+export default function EditWrapper({ Component, format, options, params, user, ...props}) {
 	const attributes = getAttributes(format, options, 'edit')
 	const submit = useSubmit();
-	const { data, user } = useLoaderData()
+	const { pathname } = useLocation()
+	const { data } = useLoaderData()
 	let status = useActionData()
 	const {defaultSort = (d) => d } = format
 
@@ -16,28 +25,39 @@ export default function EditWrapper({ Component, format, options, params, ...pro
 		|| {}
 	)
 	
-	//console.log('EditWrapper', params)
+	// console.log('EditWrapper', params, item, data)
 	useEffect(() => {
 		setItem(data.filter(d => filterParams(d,params,format))[0] || {})
 	},[params])
 
-	const updateAttribute = (attr, value) => {
-		setItem({...item, [attr]: value })
+	const updateAttribute = (attr, value, multi) => {
+		if(multi) {
+			setItem({...item, ...multi})
+		} else {
+			setItem({...item, [attr]: value })
+		}
 	}
 
+	const submitForm = () => {
+		submit(json2DmsForm(item), { method: "post", action: pathname })
+	}
+
+	const EditComponent = React.useMemo(() => Component, [])
+
 	return (
-		<Component 
+		<EditComponent 
 			{...props} 
 			format={format}
 			attributes={attributes}
 			item={item}
 			dataItems={data}
+			params={params}
 			updateAttribute={updateAttribute}
 			setItem={setItem}
 			options={options}
 			status={status}
 			user={user}
-			submit={submit}
+			submit={submitForm}
 		/>
 	)	
 } 
