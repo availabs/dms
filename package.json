@@ -1,12 +1,12 @@
 {
   "name": "@availabs/dms",
-  "version": "0.0.2",
+  "version": "0.0.4",
   "description": "AVAIL Data Management System",
   "main": "dist/index.js",
   "private": false,
   "scripts": {
     "test": "node test.js",
-    "build": "npx eslint src && babel src -d dist",
+    "build": "npx eslint src && babel src -d dist --extensions '.ts,.tsx,.js,.jsx'",
     "publish-it": "npm run build && npm publish --access public",
     "watch": "nodemon --exec npm run build"
   },
@@ -31,7 +31,9 @@
     "@babel/cli": "^7.24.1",
     "@babel/core": "^7.24.4",
     "@babel/preset-env": "^7.24.4",
+    "@babel/preset-flow": "^7.24.1",
     "@babel/preset-react": "^7.24.1",
+    "@babel/preset-typescript": "^7.24.1",
     "@eslint/js": "^9.0.0",
     "eslint": "^8.57.0",
     "eslint-plugin-react": "^7.34.1",
