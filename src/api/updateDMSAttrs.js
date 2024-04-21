@@ -7,7 +7,7 @@ export 	async function updateDMSAttrs(data, configs, falcor) {
     for( const attr of Object.keys(data) ) {
         //console.log('updateDMSAttrs 1 attr', attr )
         updates[attr] = []
-        let [app,type] = configs[attr]?.format.split('+')
+        let [app,type] = configs[attr].format.split('+')
         //console.log('create requests', app, type, attr)
 
         const toUpdate = Array.isArray(data[attr]) ?

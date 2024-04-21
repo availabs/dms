@@ -34,7 +34,7 @@ import {
   KEY_BACKSPACE_COMMAND,
   KEY_DELETE_COMMAND,
   KEY_ENTER_COMMAND,
-  KEY_ESCAPE_COMMAND, LexicalNode,
+  KEY_ESCAPE_COMMAND, /*LexicalNode,*/
   SELECTION_CHANGE_COMMAND,
 } from 'lexical';
 import * as React from 'react';

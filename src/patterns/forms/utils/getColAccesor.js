@@ -1,5 +1,6 @@
 export const getAccessor = (col, form) => {
-    return array_columns[form]?.find(array_col => col.includes(array_col)) ? jsonAccessor : textAccessor;
+    //return array_columns[form]?.find(array_col => col.includes(array_col)) ? jsonAccessor : textAccessor;
+    return (d) => d
 }
 export const getColAccessor = (fn, col, origin, form) => (origin === 'calculated-column' || !col) ? (fn[col] || col):
     fn[col] && fn[col].includes('data->') ? fn[col] :

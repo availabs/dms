@@ -69,14 +69,14 @@ import ContentEditable from './ui/ContentEditable';
 import Placeholder from './ui/Placeholder';
 import InlineImagePlugin from "./plugins/InlineImagePlugin";
 
-const skipCollaborationInit =
-    // @ts-ignore
-    window.parent != null && window.parent.frames.right === window;
+// const skipCollaborationInit =
+//     // @ts-expect-error
+//     window.parent != null && window.parent.frames.right === window;
 
 export default function Editor(props): JSX.Element {
     const {historyState} = useSharedHistoryContext();
     const {
-        isCollab,
+        /*isCollab,*/
         isAutocomplete,
         isMaxLength,
         isCharLimit,
@@ -84,7 +84,7 @@ export default function Editor(props): JSX.Element {
         isRichText = true,
         showTreeView,
         showTableOfContents,
-        showComments,
+        /*showComments,*/
         showActionBar,
         placeholderText = '',
         editable = true,
