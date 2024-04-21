@@ -1,6 +1,6 @@
 {
   "name": "@availabs/dms",
-  "version": "0.0.4",
+  "version": "0.0.6",
   "description": "AVAIL Data Management System",
   "main": "dist/index.js",
   "private": false,
@@ -22,7 +22,7 @@
     "url": "git+https://github.com/availabs/dms.git"
   },
   "author": "AVAIL",
-  "license": "ISC",
+  "license": "GPLv3",
   "bugs": {
     "url": "https://github.com/availabs/dms/issues"
   },
@@ -41,6 +41,7 @@
     "typescript-eslint": "^7.7.0"
   },
   "dependencies": {
+    "@headlessui/react": "^1.7.19",
     "@lexical/clipboard": "^0.13.1",
     "@lexical/code": "^0.13.1",
     "@lexical/file": "^0.13.1",
@@ -57,10 +58,8 @@
     "@lexical/utils": "^0.13.1",
     "lexical": "^0.13.1",
     "lodash": "4.x",
-    "match-sorter": "5.x",
-    "prettier": "^2.8.7",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0",
+    "react-bootstrap-typeahead": "^6.3.2",
     "react-router-dom": "^6.9.0"
   }
 }
