@@ -14,7 +14,7 @@ export default [
   pluginJs.configs.recommended,
   ...tseslint.configs.recommended,
   pluginReactConfig,
-  // overwrite recommeneded rules
+  // overwrite of recommeneded rules cause nah
   {
     "rules": {
       "@typescript-eslint/no-unused-vars": "off",
