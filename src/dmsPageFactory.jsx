@@ -8,17 +8,24 @@ import {
 } from './index'
 
 import defaultTheme from './theme/default-theme'
+
+import {
+  falcorGraph
+} from "@availabs/avl-falcor"
 //const noAuth = Component => Component
 
 export default function dmsPageFactory (
   dmsConfig,
   dmsPath='/',
   authWrapper = Component => Component,
-  dmsTheme = defaultTheme
+  dmsTheme = defaultTheme,
+  API_HOST = 'https://graph.availabs.org'
 ) {
+  //const {falcor, falcorCache} = useFalcor()
+  const falcor = falcorGraph(API_HOST)
 
   async function loader ({ request, params }) {
-    let data = await dmsDataLoader(dmsConfig, `/${params['*'] || ''}`)
+    let data = await dmsDataLoader(falcor, dmsConfig, `/${params['*'] || ''}`)
     return { 
       data
     }
@@ -26,7 +33,8 @@ export default function dmsPageFactory (
 
   async function action ({ request, params }) {
     const form = await request.formData();
-    return dmsDataEditor(dmsConfig, 
+    return dmsDataEditor(falcor,
+      dmsConfig, 
       JSON.parse(form.get("data")), 
       form.get("requestType"), 
       params['*']
@@ -65,7 +73,7 @@ export default function dmsPageFactory (
 
   return {
     path: `${dmsPath}*`,
-    element: (props) =>  <DMS {...props} />,
+    element: <DMS />,//(props) =>  <DMS {...props} />,
     loader: loader,
     action: action
   }

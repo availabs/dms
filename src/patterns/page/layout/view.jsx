@@ -13,6 +13,7 @@ import cloneDeep from 'lodash/cloneDeep'
 
 
 function PageView ({item, dataItems, attributes, logo, rightMenu}) {
+  console.log('page_view')
   if(!item) return <div> No Pages </div>
 
   const { baseUrl, theme, user } = React.useContext(CMSContext)

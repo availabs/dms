@@ -1,4 +1,4 @@
-import { falcor } from '~/index'
+// import { falcor } from '~/index'
 import { getActiveConfig /*, filterParams*/ } from '../dms-manager/_utils'
 import get from 'lodash/get'
 import createRequest, {getIdPath} from './createRequest'
@@ -10,10 +10,12 @@ import {updateDMSAttrs} from "./updateDMSAttrs";
 //   return Math.floor(Math.random() * (max - min + 1) + min)
 // }
 
+
+
 let fullDataLoad = {}
 // let runCount = 0
 
-export async function dmsDataLoader ( config, path='/') {
+export async function dmsDataLoader (falcor, config, path='/') {
 	//---- Testing stuff to delete ----------
 	// runCount += 1
 	// const runId = runCount
@@ -139,7 +141,7 @@ export async function dmsDataLoader ( config, path='/') {
 	return out
 }
 
-export async function dmsDataEditor ( config, data={}, requestType, /*path='/'*/ ) {
+export async function dmsDataEditor (falcor, config, data={}, requestType, /*path='/'*/ ) {
 	//console.log('API - dmsDataEditor', config,data,path)
 	const { app , type } = config.format
 	//const activeConfig = getActiveConfig(config.children, path)
