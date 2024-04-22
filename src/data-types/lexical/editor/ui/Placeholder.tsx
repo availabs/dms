@@ -6,7 +6,7 @@
  *
  */
 
-import './Placeholder.css';
+// import './Placeholder.css';
 
 import * as React from 'react';
 import {ReactNode} from 'react';
@@ -18,5 +18,5 @@ export default function Placeholder({
   children: ReactNode;
   className?: string;
 }): JSX.Element {
-  return <div className={className || 'Placeholder__root'}>{children}</div>;
+  return <div className={className || 'text-[15px] text-[#999] overflow-hidden absolute overflow-ellipsis top-[8px] left-[8px] lg:left-[28px] right-[28px] select-none whitespace-nowrap inline-block pointer-events-none'}>{children}</div>;
 }

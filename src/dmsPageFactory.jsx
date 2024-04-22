@@ -10,7 +10,8 @@ import {
 import defaultTheme from './theme/default-theme'
 
 import {
-  falcorGraph
+  falcorGraph,
+  FalcorProvider
 } from "@availabs/avl-falcor"
 //const noAuth = Component => Component
 
@@ -54,11 +55,13 @@ export default function dmsPageFactory (
     */
 
     return React.useMemo(() => (
-      <AuthedManager 
+      <FalcorProvider falcor={falcor}>
+        <AuthedManager 
         path={ `/${params['*'] || ''}` }
         config={dmsConfig}
         theme={dmsTheme}
-      />
+        />
+      </FalcorProvider>
     ),[params['*']])
   }
 

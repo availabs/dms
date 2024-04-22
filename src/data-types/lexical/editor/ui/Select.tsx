@@ -6,7 +6,7 @@
  *
  */
 
-import './Select.css';
+// import './Select.css';
 
 import * as React from 'react';
 
@@ -26,7 +26,7 @@ export default function Select({
       <label style={{marginTop: '-1em'}} className="Input__label">
         {label}
       </label>
-      <select {...other} className={className || 'select'}>
+      <select {...other} className={className || 'min-w-[160px] max-w-[290px] border-[1px] border-[solid] border-[#393939] rounded-[0.25em] px-[0.5em] py-[0.25em] text-[1rem] cursor-pointer leading-[1.4] bg-[linear-gradient(to_bottom,_#ffffff_0%,_#e5e5e5_100%)]'}>
         {children}
       </select>
     </div>

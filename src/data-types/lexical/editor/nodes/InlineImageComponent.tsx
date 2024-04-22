@@ -14,8 +14,6 @@ import type {
   RangeSelection,
 } from 'lexical';
 
-import './InlineImageNode.css';
-
 import {AutoFocusPlugin} from '@lexical/react/LexicalAutoFocusPlugin';
 import {useLexicalComposerContext} from '@lexical/react/LexicalComposerContext';
 import LexicalErrorBoundary from '@lexical/react/LexicalErrorBoundary';
@@ -429,10 +427,10 @@ export default function InlineImageComponent({
               <FloatingTextFormatToolbarPlugin />
               <RichTextPlugin
                 contentEditable={
-                  <ContentEditable className="InlineImageNode__contentEditable" />
+                  <ContentEditable className="min-h-[20px] border-[0px] resize-none cursor-text block relative [tab-size:1] outline-[0px] p-[10px] select-text text-[14px] leading-[1.4em] w-[calc(100% - 20px)] whitespace-pre-wrap" />
                 }
                 placeholder={
-                  <Placeholder className="InlineImageNode__placeholder">
+                  <Placeholder className="text-[12px] text-[#888] overflow-hidden absolute overflow-ellipsis bottom-[10px] left-[10px] select-none whitespace-nowrap inline-block pointer-events-none">
                     Enter a caption...
                   </Placeholder>
                 }

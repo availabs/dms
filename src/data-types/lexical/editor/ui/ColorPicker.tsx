@@ -6,7 +6,7 @@
  *
  */
 
-import './ColorPicker.css';
+// import './ColorPicker.css';
 
 import {useEffect, useMemo, useRef, useState} from 'react';
 import * as React from 'react';
@@ -38,6 +38,27 @@ const basicColors = [
 
 const WIDTH = 214;
 const HEIGHT = 150;
+
+
+const colorPickerStyles = {
+"color-picker-wrapper": "p-[20px]",
+
+"color-picker-basic-color": "flex flex-wrap gap-[10px] m-0 p-0",
+
+"color-picker-basic-color-button": "border-[1px] border-[solid] border-[#ccc] rounded-[4px] h-[16px] w-[16px] cursor-pointer list-none",
+
+"color-picker-basic-color-button.active": "[box-shadow:0px_0px_2px_2px_rgba(0,_0,_0,_0.3)]",
+
+"color-picker-saturation": "w-full relative mt-[15px] h-[150px] bg-[linear-gradient(transparent,_black),_linear-gradient(to_right,_white,_transparent)] select-none",
+
+"color-picker-saturation_cursor": "absolute w-[20px] h-[20px] border-[2px] border-[solid] border-[#ffffff] rounded-[50%] [box-shadow:0_0_15px_#00000026] box-border -translate-x-[10px] -translate-y-[10px]",
+
+"color-picker-hue": "w-full relative mt-[15px] h-[12px] bg-[linear-gradient(_to_right,_rgb(255,_0,_0),_rgb(255,_255,_0),_rgb(0,_255,_0),_rgb(0,_255,_255),_rgb(0,_0,_255),_rgb(255,_0,_255),_rgb(255,_0,_0)_)] select-none rounded-[12px]",
+
+"color-picker-hue_cursor": "absolute w-[20px] h-[20px] border-[2px] border-[solid] border-[#ffffff] rounded-full [box-shadow:#0003_0_0_0_0.5px] box-border -translate-x-[10px] -translate-y-[4px]",
+
+"color-picker-color": "border-[1px] border-[solid] border-[#ccc] mt-[15px] w-full h-[20px]"
+}
 
 export default function ColorPicker({
   color,
@@ -106,14 +127,15 @@ export default function ColorPicker({
 
   return (
     <div
-      className="color-picker-wrapper"
+      className={`${colorPickerStyles[`color-picker-wrapper`]}`}
       style={{width: WIDTH}}
       ref={innerDivRef}>
       <TextInput label="Hex" onChange={onSetHex} value={inputColor} />
-      <div className="color-picker-basic-color">
+      <div className={`${colorPickerStyles[`color-picker-basic-color`]}`}>
         {basicColors.map((basicColor) => (
           <button
-            className={basicColor === selfColor.hex ? ' active' : ''}
+
+            className={`${colorPickerStyles[`color-picker-basic-color-button`]} ${basicColor === selfColor.hex ? colorPickerStyles[`color-picker-basic-color-button.active`] : ''}`}
             key={basicColor}
             style={{backgroundColor: basicColor}}
             onClick={() => {
@@ -124,11 +146,11 @@ export default function ColorPicker({
         ))}
       </div>
       <MoveWrapper
-        className="color-picker-saturation"
+        className={`${colorPickerStyles[`color-picker-saturation`]}`}
         style={{backgroundColor: `hsl(${selfColor.hsv.h}, 100%, 50%)`}}
         onChange={onMoveSaturation}>
         <div
-          className="color-picker-saturation_cursor"
+          className={`${colorPickerStyles[`color-picker-saturation_cursor`]}`}
           style={{
             backgroundColor: selfColor.hex,
             left: saturationPosition.x,
@@ -136,9 +158,9 @@ export default function ColorPicker({
           }}
         />
       </MoveWrapper>
-      <MoveWrapper className="color-picker-hue" onChange={onMoveHue}>
+      <MoveWrapper className={`${colorPickerStyles[`color-picker-hue`]}`} onChange={onMoveHue}>
         <div
-          className="color-picker-hue_cursor"
+          className={`${colorPickerStyles[`color-picker-hue_cursor`]}`}
           style={{
             backgroundColor: `hsl(${selfColor.hsv.h}, 100%, 50%)`,
             left: huePosition.x,
@@ -146,7 +168,7 @@ export default function ColorPicker({
         />
       </MoveWrapper>
       <div
-        className="color-picker-color"
+        className={`${colorPickerStyles["color-picker-color"]}`}
         style={{backgroundColor: selfColor.hex}}
       />
     </div>
