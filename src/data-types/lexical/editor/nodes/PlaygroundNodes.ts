@@ -40,7 +40,7 @@ const PlaygroundNodes: Array<Klass<LexicalNode>> = [
   HeadingNode,
   ListNode,
   ListItemNode,
-  // QuoteNode,
+  QuoteNode,
   CodeNode,
   NewTableNode,
   TableNode,
