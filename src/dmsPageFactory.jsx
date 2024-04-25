@@ -76,7 +76,7 @@ export default function dmsPageFactory (
 
   return {
     path: `${dmsPath}*`,
-    element: <DMS />,//(props) =>  <DMS {...props} />,
+    element: (props) =>  <DMS {...props} />,
     loader: loader,
     action: action
   }

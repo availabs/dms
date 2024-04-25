@@ -69,7 +69,7 @@ var Context = /** @class */ (function () {
         this.commands[directive] = fn;
     };
     Context.prototype.update = function (object, $spec) {
-        //var this = this;
+        // this = this;
         var spec = (typeof $spec === 'function') ? { $apply: $spec } : $spec;
         if (!(Array.isArray(object) && Array.isArray(spec))) {
             invariant(!Array.isArray(spec), function () { return "update(): You provided an invalid spec to update(). The spec may " +
@@ -80,7 +80,7 @@ var Context = /** @class */ (function () {
             "every included key path must be plain objects containing one of the " +
             "following commands: ".concat(Object.keys(this.commands).join(', '), "."); });
         var nextObject = object;
-        getAllKeys(spec).forEach(function (key) {
+        getAllKeys(spec).forEach((key) => {
             if (hasOwnProperty.call(this.commands, key)) {
                 var objectWasNextObject = object === nextObject;
                 nextObject = this.commands[key](spec[key], nextObject, spec, object);
