@@ -13,7 +13,11 @@ import cloneDeep from 'lodash/cloneDeep'
 
 
 function PageView ({item, dataItems, attributes, logo, rightMenu}) {
-  if(!item) return <div> No Pages </div>
+  // console.log('page_view')
+  // if(!item) return <div> No Pages </div>
+  if(!item) {
+    item = {} // create a default item to set up first time experience.
+  }
 
   const { baseUrl, theme, user } = React.useContext(CMSContext)
   const ContentView = React.useMemo(() => {

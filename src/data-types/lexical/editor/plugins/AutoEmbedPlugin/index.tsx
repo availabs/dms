@@ -24,7 +24,7 @@ import useModal from '../../hooks/useModal';
 import Button from '../../ui/Button';
 import {DialogActions} from '../../ui/Dialog';
 //import {INSERT_FIGMA_COMMAND} from '../FigmaPlugin';
-import {INSERT_TWEET_COMMAND} from '../TwitterPlugin';
+// import {INSERT_TWEET_COMMAND} from '../TwitterPlugin';
 import {INSERT_YOUTUBE_COMMAND} from '../YouTubePlugin';
 
 interface PlaygroundEmbedConfig extends EmbedConfig {
@@ -78,40 +78,40 @@ export const YoutubeEmbedConfig: PlaygroundEmbedConfig = {
   type: 'youtube-video',
 };
 
-export const TwitterEmbedConfig: PlaygroundEmbedConfig = {
-  // e.g. Tweet or Google Map.
-  contentName: 'Tweet',
+// export const TwitterEmbedConfig: PlaygroundEmbedConfig = {
+//   // e.g. Tweet or Google Map.
+//   contentName: 'Tweet',
 
-  exampleUrl: 'https://twitter.com/jack/status/20',
+//   exampleUrl: 'https://twitter.com/jack/status/20',
 
-  // Icon for display.
-  icon: <i className="icon tweet" />,
+//   // Icon for display.
+//   icon: <i className="icon tweet" />,
 
-  // Create the Lexical embed node from the url data.
-  insertNode: (editor: LexicalEditor, result: EmbedMatchResult) => {
-    editor.dispatchCommand(INSERT_TWEET_COMMAND, result.id);
-  },
+//   // Create the Lexical embed node from the url data.
+//   insertNode: (editor: LexicalEditor, result: EmbedMatchResult) => {
+//     editor.dispatchCommand(INSERT_TWEET_COMMAND, result.id);
+//   },
 
-  // For extra searching.
-  keywords: ['tweet', 'twitter'],
+//   // For extra searching.
+//   keywords: ['tweet', 'twitter'],
 
-  // Determine if a given URL is a match and return url data.
-  parseUrl: (text: string) => {
-    const match =
-      /^https:\/\/twitter\.com\/(#!\/)?(\w+)\/status(es)*\/(\d+)$/.exec(text);
+//   // Determine if a given URL is a match and return url data.
+//   parseUrl: (text: string) => {
+//     const match =
+//       /^https:\/\/twitter\.com\/(#!\/)?(\w+)\/status(es)*\/(\d+)$/.exec(text);
 
-    if (match != null) {
-      return {
-        id: match[4],
-        url: match[0],
-      };
-    }
+//     if (match != null) {
+//       return {
+//         id: match[4],
+//         url: match[0],
+//       };
+//     }
 
-    return null;
-  },
+//     return null;
+//   },
 
-  type: 'tweet',
-};
+//   type: 'tweet',
+// };
 
 // export const FigmaEmbedConfig: PlaygroundEmbedConfig = {
 //   contentName: 'Figma Document',
@@ -147,7 +147,8 @@ export const TwitterEmbedConfig: PlaygroundEmbedConfig = {
 // };
 
 export const EmbedConfigs = [
-  TwitterEmbedConfig,
+  // FigmaEmbedConfig,
+  // TwitterEmbedConfig,
   YoutubeEmbedConfig
 ];
 

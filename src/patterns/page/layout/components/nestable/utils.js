@@ -112,7 +112,7 @@ export function cx() {
         classes.push(arg);
       } else if (Array.isArray(arg)) {
         if (arg.length) {
-          var inner = classNames.apply(null, arg);
+          var inner = cx.apply(null, arg);
           if (inner) {
             classes.push(inner);
           }

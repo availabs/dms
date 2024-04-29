@@ -10,7 +10,7 @@ import type {Spread} from 'lexical';
 
 import {
   DecoratorNode,
-  EditorConfig,
+  // EditorConfig,
   NodeKey,
   SerializedLexicalNode,
 } from 'lexical';
@@ -68,14 +68,14 @@ export class AutocompleteNode extends DecoratorNode<JSX.Element | null> {
   }
 
   updateDOM(
-    prevNode: unknown,
-    dom: HTMLElement,
-    config: EditorConfig,
+    // prevNode: unknown,
+    // dom: HTMLElement,
+    // config: EditorConfig,
   ): boolean {
     return false;
   }
 
-  createDOM(config: EditorConfig): HTMLElement {
+  createDOM(/*config: EditorConfig*/): HTMLElement {
     return document.createElement('span');
   }
 

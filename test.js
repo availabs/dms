@@ -1,3 +1,3 @@
-const AMS = require("./dist");
+const DMS = require("./dist");
 
-console.log("AMS:", AMS);
+console.log("DMS:", DMS);

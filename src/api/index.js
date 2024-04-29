@@ -1,22 +1,24 @@
-import { falcor } from '~/index'
+// import { falcor } from '~/index'
 import { getActiveConfig /*, filterParams*/ } from '../dms-manager/_utils'
 import get from 'lodash/get'
 import createRequest, {getIdPath} from './createRequest'
 import {processNewData} from "./proecessNewData";
-import {loadFullData} from "./loadFullData";
+// import {loadFullData} from "./loadFullData";
 import {updateDMSAttrs} from "./updateDMSAttrs";
 
-function rand(min, max) { // min and max included 
-  return Math.floor(Math.random() * (max - min + 1) + min)
-}
+// function rand(min, max) { // min and max included 
+//   return Math.floor(Math.random() * (max - min + 1) + min)
+// }
+
+
 
 let fullDataLoad = {}
-let runCount = 0
+// let runCount = 0
 
-export async function dmsDataLoader ( config, path='/') {
+export async function dmsDataLoader (falcor, config, path='/') {
 	//---- Testing stuff to delete ----------
-	runCount += 1
-	const runId = runCount
+	// runCount += 1
+	// const runId = runCount
 	//-------------------------------------
 
 	if(config.formatFn){
@@ -24,7 +26,7 @@ export async function dmsDataLoader ( config, path='/') {
 	}
 
 	const { format } = config
-	const { app , type, defaultSearch, attributes = {} } = format
+	const { app , type, /*defaultSearch,*/ attributes = {} } = format
 	const dmsAttrsConfigs = (Object.values(attributes))
 		.filter(d => d.type === 'dms-format')
 		.reduce((out,curr) => {
@@ -64,7 +66,9 @@ export async function dmsDataLoader ( config, path='/') {
 	// console.log('newRequests', newRequests)
 
     //--------- Route Data Loading ------------------------
-	newRequests.length > 0 ? await falcor.get(...newRequests) : {}
+	if (newRequests.length > 0 ) {
+		await falcor.get(...newRequests)
+	}
 	// get api response
 	let newReqFalcor = falcor.getCache()
 	// console.log('newReqFalcor', newReqFalcor)
@@ -142,7 +146,7 @@ export async function dmsDataLoader ( config, path='/') {
 	return out
 }
 
-export async function dmsDataEditor ( config, data={}, requestType, path='/' ) {
+export async function dmsDataEditor (falcor, config, data={}, requestType, /*path='/'*/ ) {
 	//console.log('API - dmsDataEditor', config,data,path)
 	const { app , type } = config.format
 	//const activeConfig = getActiveConfig(config.children, path)

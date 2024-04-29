@@ -235,7 +235,7 @@ export default function CollapsiblePlugin(): null {
       editor.registerCommand(
         INSERT_PARAGRAPH_COMMAND,
         () => {
-          // @ts-ignore
+          // @ts-expect-error test
           const windowEvent: KeyboardEvent | undefined = editor._window?.event;
 
           if (

@@ -26,7 +26,7 @@ export const parseJSON = (d, fallback={}) => {
  */
 export function getObjectDiff(obj1, obj2) {
     const diff = Object.keys(obj1).reduce((result, key) => {
-        if (!obj2.hasOwnProperty(key)) {
+        if (!Object.hasOwn(obj2,key)) { //
             result.push(key);
         } else if (isEqual(obj1[key], obj2[key])) {
             const resultKeyIndex = result.indexOf(key);
@@ -47,7 +47,7 @@ export function compare (a, b) {
   };
 
   reduce(a, function (result, value, key) {
-    if (b.hasOwnProperty(key)) {
+    if (Object.hasOwn(b,key)) {
       if (isEqual(value, b[key])) {
         return result;
       } else {
@@ -78,7 +78,7 @@ export function compare (a, b) {
   }, result);
 
   reduce(b, function (result, value, key) {
-    if (a.hasOwnProperty(key)) {
+    if (Object.hasOwn(a,key)) {
       return result;
     } else {
       result.missing_from_first.push(key);

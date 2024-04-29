@@ -24,7 +24,7 @@ import * as React from 'react';
 import {Suspense} from 'react';
 
 const ImageComponent = React.lazy(
-  // @ts-ignore
+  // @@ts-expect-error test
   () => import('./ImageComponent'),
 );
 

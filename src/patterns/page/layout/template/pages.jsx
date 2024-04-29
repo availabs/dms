@@ -3,7 +3,7 @@ import {Link, useNavigate, useParams} from "react-router-dom";
 import {dmsDataLoader} from "../../../../api";
 import {DeleteModal} from "./list.jsx";
 import Layout from '../components/avail-layout'
-import {Table} from "~/modules/avl-components/src";
+// import {Table} from "~/modules/avl-components/src";
 import {getNestedValue} from "../../../forms/utils/getNestedValue";
 import {pgEnv} from "../components/utils/constants";
 import { CMSContext } from "../../siteConfig";
@@ -57,18 +57,18 @@ function TemplateRow ({ id, app, type, data={} }) {
 }
 
 export const getConfig = ({
-                              app,
-                              type,
-                              filter,
-                              action = 'load',
-                              tags,
-                              attributes = [
-                                  {key: 'id', label: 'id'},
-                                  {key: 'app', label: 'app'},
-                                  {key: 'type', label: 'type'},
-                                  {key: 'data', label: 'data'},
-                                  {key: 'updated_at', label: 'updated_at'},
-                              ]}) => ({
+      app,
+      type,
+      filter,
+      action = 'load',
+      tags,
+      attributes = [
+          {key: 'id', label: 'id'},
+          {key: 'app', label: 'app'},
+          {key: 'type', label: 'type'},
+          {key: 'data', label: 'data'},
+          {key: 'updated_at', label: 'updated_at'},
+      ]}) => ({
     format: {
         app: app,
         type: type,
@@ -269,11 +269,11 @@ const TemplatePages = ({item, params, logo, rightMenu, baseUrl=''}) => {
                         </div>
                         <div className='px-6 pt-8'>
                             <div className='shadow rounded border'>
-                                <Table
+                                {/*<Table
                                     data={data}
                                     columns={columns}
                                     pageSize={pageSize}
-                                />
+                                />*/}
                                 {/*{*/}
                                 {/*    value?.length ?*/}
                                 {/*        value.map(item => (*/}

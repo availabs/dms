@@ -25,10 +25,10 @@ type HookShape = [suggestion: Suggestion, setSuggestion: PublishFn];
 
 const Context: React.Context<ContextShape> = createContext([
   (_cb) => () => {
-    return;
+    return _cb;
   },
   (_newSuggestion: Suggestion) => {
-    return;
+    return _newSuggestion;
   },
 ]);
 

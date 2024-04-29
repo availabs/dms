@@ -6,13 +6,13 @@ function stringifiable(obj) {
         Object.prototype.toString.call(obj).slice(8, -1) :
         obj;
 }
-var isProduction = typeof process === 'object' && process.env.NODE_ENV === 'production';
+//var isProduction = typeof process === 'object' && process.env.NODE_ENV === 'production';
 function invariant(condition, message) {
     if (!condition) {
         /* istanbul ignore next */
-        if (isProduction) {
-            throw new Error('Invariant failed');
-        }
+        // if (isProduction) {
+        //     throw new Error('Invariant failed');
+        // }
         throw new Error(message());
     }
 }
@@ -69,7 +69,7 @@ var Context = /** @class */ (function () {
         this.commands[directive] = fn;
     };
     Context.prototype.update = function (object, $spec) {
-        var _this = this;
+        // this = this;
         var spec = (typeof $spec === 'function') ? { $apply: $spec } : $spec;
         if (!(Array.isArray(object) && Array.isArray(spec))) {
             invariant(!Array.isArray(spec), function () { return "update(): You provided an invalid spec to update(). The spec may " +
@@ -78,24 +78,24 @@ var Context = /** @class */ (function () {
         }
         invariant(typeof spec === 'object' && spec !== null, function () { return "update(): You provided an invalid spec to update(). The spec and " +
             "every included key path must be plain objects containing one of the " +
-            "following commands: ".concat(Object.keys(_this.commands).join(', '), "."); });
+            "following commands: ".concat(Object.keys(this.commands).join(', '), "."); });
         var nextObject = object;
-        getAllKeys(spec).forEach(function (key) {
-            if (hasOwnProperty.call(_this.commands, key)) {
+        getAllKeys(spec).forEach((key) => {
+            if (hasOwnProperty.call(this.commands, key)) {
                 var objectWasNextObject = object === nextObject;
-                nextObject = _this.commands[key](spec[key], nextObject, spec, object);
-                if (objectWasNextObject && _this.isEquals(nextObject, object)) {
+                nextObject = this.commands[key](spec[key], nextObject, spec, object);
+                if (objectWasNextObject && this.isEquals(nextObject, object)) {
                     nextObject = object;
                 }
             }
             else {
                 var nextValueForKey = type(object) === 'Map'
-                    ? _this.update(object.get(key), spec[key])
-                    : _this.update(object[key], spec[key]);
+                    ? this.update(object.get(key), spec[key])
+                    : this.update(object[key], spec[key]);
                 var nextObjectValue = type(nextObject) === 'Map'
                     ? nextObject.get(key)
                     : nextObject[key];
-                if (!_this.isEquals(nextValueForKey, nextObjectValue)
+                if (!this.isEquals(nextValueForKey, nextObjectValue)
                     || typeof nextValueForKey === 'undefined'
                         && !hasOwnProperty.call(object, key)) {
                     if (nextObject === object) {
