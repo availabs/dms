@@ -28,12 +28,27 @@ const SearchPallet = ({open, setOpen, app, type}) => {
     const [query, setQuery] = useState('');
     const [tmpQuery, setTmpQuery] = useState('');
     const [loading, setLoading] = useState(false);
-    const [items, setItems] = useState([])
+    const [tags, setTags] = useState([]);
+    const [items, setItems] = useState([]);
     // change it so that query is only set when whole tag is searched from typeahead
 
     useEffect(() => {
-        setTimeout(() => setQuery(tmpQuery), 500)
+        setTimeout(() => setQuery(tmpQuery), 0)
     }, [tmpQuery]);
+
+    useEffect(() => {
+        async function getTags() {
+            const config = getConfig({
+                app,
+                type,
+                action: 'searchTags'
+            });
+
+            return dmsDataLoader(config, '/');
+        }
+
+        getTags().then(tags => setTags(tags.value.map(t => t.tags).sort()));
+    }, []);
 
     useEffect(() => {
         if (!query) return;
@@ -49,10 +64,10 @@ const SearchPallet = ({open, setOpen, app, type}) => {
         async function getData() {
             setLoading(true)
             const data = await dmsDataLoader(config, '/');
-            console.log('cs', Object.keys(data).find(searchTerm => searchTerm === query),
-                query, data
-            )
-            const tmpItems = data[Object.keys(data).find(searchTerm => searchTerm === query)]?.value?.map(value => {
+            // console.log('cs', Object.keys(data).find(searchTerm => searchTerm === query),
+            //     query, data
+            // )
+            const tmpItems = data[query]?.value?.map(value => {
                 return ({
                     id: value.section_id,
                     name: value.section_title,
@@ -102,7 +117,9 @@ const SearchPallet = ({open, setOpen, app, type}) => {
                         <Dialog.Panel
                             className="mx-auto max-w-xl transform divide-y divide-gray-100 overflow-hidden rounded-xl bg-white shadow-2xl ring-1 ring-black ring-opacity-5 transition-all">
                             <Combobox onChange={(item) => {
-                                window.location = item.url
+                                if (item.url){
+                                    window.location = item.url
+                                }
                             }}>
                                 <div className="relative">
                                     <i
@@ -114,6 +131,41 @@ const SearchPallet = ({open, setOpen, app, type}) => {
                                         onChange={(event) => setTmpQuery(event.target.value)}
                                     />
                                 </div>
+
+                                {tags
+                                    .filter(tag => (!tmpQuery?.length || tag.toLowerCase().includes(tmpQuery.toLowerCase())))
+                                    .length > 0 && (
+                                    <Combobox.Options static
+                                                      className="max-h-96 transform-gpu scroll-py-3 overflow-y-auto p-3">
+                                        <span className={'text-xs italic'}>suggestions: </span>
+                                        {tags
+                                            .filter((tag, i) => i <= 5 && (!tmpQuery?.length || tag.toLowerCase().includes(tmpQuery.toLowerCase())))
+                                            .map((tag) => (
+                                            <Combobox.Option
+                                                key={tag}
+                                                value={tag}
+                                                onClick={() => setQuery(tag)}
+                                                className={({active}) =>
+                                                    classNames('flex cursor-pointer select-none rounded-xl p-1', active && 'bg-gray-100')
+                                                }
+                                            >
+                                                {({active}) => (
+                                                    <div>
+                                                        <i className="text-sm text-red-400 fa fa-tag" />
+                                                        <span
+                                                            className={classNames(
+                                                                'ml-2 text-sm font-medium',
+                                                                active ? 'text-gray-900' : 'text-gray-700'
+                                                            )}
+                                                        >
+                                                                {tag}
+                                                            </span>
+                                                    </div>
+                                                )}
+                                            </Combobox.Option>
+                                        ))}
+                                    </Combobox.Options>
+                                )}
 
                                 {items.length > 0 && (
                                     <Combobox.Options static

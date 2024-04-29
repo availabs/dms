@@ -11,6 +11,7 @@ import {Loading} from "~/utils/loading.jsx";
 import {falcor} from "~/modules/avl-falcor"
 import {pgEnv} from "~/utils/";
 import {Table} from "~/modules/avl-components/src"
+import {getColAccessor} from "../utils/getColAccesor";
 
 
 const mapColName = (columns, col) => columns.find(c => c.name === col)?.accessor;

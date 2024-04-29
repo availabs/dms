@@ -74,6 +74,11 @@ export async function dmsDataLoader ( config, path='/') {
 
 		return get(newReqFalcor, path, {});
 	}
+	if(activeConfigs.find(ac => ac.action === 'searchTags')){
+		const path =  newRequests[0].filter((r, i) => i <= newRequests[0].indexOf('tags'));
+
+		return get(newReqFalcor, path, {});
+	}
 	if(activeConfigs.find(ac => ac.action === 'load')){
 		// special return for 'load' action
 		const path =  newRequests[0].filter((r, i) => i <= newRequests[0].indexOf('byIndex'));
