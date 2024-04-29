@@ -26,6 +26,7 @@ export async function getData({
     });
     console.log('')
     const d = await dmsDataLoader(
+        falcor,
         {
             format: formsConfig,
             children: [

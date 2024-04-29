@@ -5,12 +5,14 @@ import {formsConfigFormat} from "./forms.format";
 import {Layout} from "./components/Layout.jsx";
 import {getData} from "./utils/getData.js";
 import {TableComp} from "./components/TableComp";
+import {falcor} from "~/modules/avl-falcor"
 
 const siteConfig = ({
     app, type, title, baseUrl, columns
                     }) => ({
     formatFn: async () => {
         const formConfigs = await dmsDataLoader(
+            falcor,
             {
                 format: formsConfigFormat,
                 children: [

@@ -2,6 +2,7 @@ import {Fragment, useEffect, useRef, useState} from "react";
 import {Combobox, Dialog, Transition} from '@headlessui/react'
 import {getConfig} from "../layout/template/pages";
 import {dmsDataLoader} from "../../../api";
+import {falcor} from "~/modules/avl-falcor"
 
 export const Search = ({app, type}) => {
     const [open, setOpen] = useState(false)
@@ -44,7 +45,7 @@ const SearchPallet = ({open, setOpen, app, type}) => {
                 action: 'searchTags'
             });
 
-            return dmsDataLoader(config, '/');
+            return dmsDataLoader(falcor, config, '/');
         }
 
         getTags().then(tags => setTags(tags.value.map(t => t.tags).sort()));
@@ -63,7 +64,7 @@ const SearchPallet = ({open, setOpen, app, type}) => {
 
         async function getData() {
             setLoading(true)
-            const data = await dmsDataLoader(config, '/');
+            const data = await dmsDataLoader(falcor, config, '/');
             // console.log('cs', Object.keys(data).find(searchTerm => searchTerm === query),
             //     query, data
             // )
