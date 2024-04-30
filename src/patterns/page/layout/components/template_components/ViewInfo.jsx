@@ -2,7 +2,7 @@ import React, {useMemo, useState} from "react";
 import {getConfig} from "../../template/pages.jsx";
 import {dmsDataLoader} from "../../../../../index.js";
 import get from "lodash/get.js";
-import {falcor} from "~/modules/avl-falcor"
+//import {falcor} from "~/modules/avl-falcor"
 import { CMSContext } from '../../../siteConfig'
 import Selector from "./Selector.jsx";
 import {updatePages} from "./updatePages.js";
