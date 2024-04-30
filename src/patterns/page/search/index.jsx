@@ -1,8 +1,9 @@
-import {Fragment, useEffect, useRef, useState} from "react";
+import {Fragment, useEffect, useContext, useState} from "react";
 import {Combobox, Dialog, Transition} from '@headlessui/react'
 import {getConfig} from "../layout/template/pages";
 import {dmsDataLoader} from "../../../api";
 import {falcor} from "~/modules/avl-falcor"
+import {CMSContext} from "../siteConfig";
 
 export const Search = ({app, type}) => {
     const [open, setOpen] = useState(false)
@@ -26,6 +27,7 @@ function classNames(...classes) {
 }
 
 const SearchPallet = ({open, setOpen, app, type}) => {
+    const { baseUrl } = useContext(CMSContext)
     const [query, setQuery] = useState('');
     const [tmpQuery, setTmpQuery] = useState('');
     const [loading, setLoading] = useState(false);
@@ -74,7 +76,7 @@ const SearchPallet = ({open, setOpen, app, type}) => {
                     name: value.section_title,
                     tags: value.tags,
                     description: value.page_title,
-                    url: `/${value.url_slug}`,
+                    url: `${baseUrl}/${value.url_slug}`,
                     type: value.type,
                     color: 'bg-indigo-500',
                     icon: () => <i className={'fa-light fa-memo text-white'}/>,
