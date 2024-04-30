@@ -2,7 +2,6 @@ import {Fragment, useEffect, useContext, useState} from "react";
 import {Combobox, Dialog, Transition} from '@headlessui/react'
 import {getConfig} from "../layout/template/pages";
 import {dmsDataLoader} from "../../../api";
-import {falcor} from "~/modules/avl-falcor"
 import {CMSContext} from "../siteConfig";
 
 export const Search = ({app, type}) => {
@@ -27,7 +26,7 @@ function classNames(...classes) {
 }
 
 const SearchPallet = ({open, setOpen, app, type}) => {
-    const { baseUrl } = useContext(CMSContext)
+    const { baseUrl, falcor, falcorCache } = useContext(CMSContext)
     const [query, setQuery] = useState('');
     const [tmpQuery, setTmpQuery] = useState('');
     const [loading, setLoading] = useState(false);

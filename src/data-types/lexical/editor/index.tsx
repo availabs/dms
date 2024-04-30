@@ -19,7 +19,7 @@ import './lexical.css';
 
 export default function Lexicals ({value, onChange, bgColor, editable=false, id}) {
   
-  console.log('lexical', value)
+  //console.log('lexical', value)
   const initialConfig = {
     editorState:
         JSON.parse(value || '{}')?.root &&
