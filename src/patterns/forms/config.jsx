@@ -5,7 +5,16 @@ import {formsConfigFormat} from "./forms.format";
 import {Layout} from "./components/Layout.jsx";
 import {getData} from "./utils/getData.js";
 import {TableComp} from "./components/TableComp";
-import {falcor} from "../../../dmsPageFactory"
+// import {falcor} from "../../../dmsPageFactory"
+
+const API_HOST = 'https://graph.availabs.org'
+
+import {
+  falcorGraph,
+  FalcorProvider
+} from "@availabs/avl-falcor"
+
+const falcor = falcorGraph(API_HOST)
 
 const siteConfig = ({
     app, type, title, baseUrl, columns
