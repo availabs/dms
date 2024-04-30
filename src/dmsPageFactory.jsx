@@ -23,7 +23,7 @@ export default function dmsPageFactory (
   API_HOST = 'https://graph.availabs.org'
 ) {
   //const {falcor, falcorCache} = useFalcor()
-  const falcor = falcorGraph(API_HOST)
+  export const falcor = falcorGraph(API_HOST)
 
   async function loader ({ request, params }) {
     let data = await dmsDataLoader(falcor, dmsConfig, `/${params['*'] || ''}`)

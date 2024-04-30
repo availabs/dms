@@ -5,7 +5,7 @@ import {formsConfigFormat} from "./forms.format";
 import {Layout} from "./components/Layout.jsx";
 import {getData} from "./utils/getData.js";
 import {TableComp} from "./components/TableComp";
-import {falcor} from "~/modules/avl-falcor"
+import {falcor} from "../../../dmsPageFactory"
 
 const siteConfig = ({
     app, type, title, baseUrl, columns
