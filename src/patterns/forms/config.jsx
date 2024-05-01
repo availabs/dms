@@ -7,7 +7,6 @@ import {getData} from "./utils/getData.js";
 import {TableComp} from "./components/TableComp";
 // import {falcor} from "../../../dmsPageFactory"
 
-const API_HOST = 'https://graph.availabs.org'
 
 import {
   falcorGraph,
