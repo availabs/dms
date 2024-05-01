@@ -7,13 +7,14 @@ import {getData} from "./utils/getData.js";
 import {TableComp} from "./components/TableComp";
 // import {falcor} from "../../../dmsPageFactory"
 
+//const //
 
 import {
   falcorGraph,
   FalcorProvider
 } from "@availabs/avl-falcor"
 
-const falcor = falcorGraph(API_HOST)
+const falcor = falcorGraph('https://graphs.availabs.org')
 
 const siteConfig = ({
     app, type, title, baseUrl, columns
