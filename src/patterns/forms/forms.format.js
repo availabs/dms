@@ -8,6 +8,11 @@ export const formsConfigFormat = {
             type: 'text'
         },
         {
+            key: 'url',
+            label: 'url',
+            type: 'text'
+        },
+        {
             key: 'config',
             label: 'Config',
             prompt: 'Paste full config here.',

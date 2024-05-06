@@ -14,7 +14,7 @@ import {
   FalcorProvider
 } from "@availabs/avl-falcor"
 
-const falcor = falcorGraph('https://graphs.availabs.org')
+const falcor = falcorGraph('https://graph.availabs.org')
 
 const siteConfig = ({
     app, type, title, baseUrl, columns
@@ -74,6 +74,8 @@ const siteConfig = ({
                             data={props.dataItems}
                             columns={columns}
                             baseUrl={baseUrl}
+                            app={app}
+                            type={type}
                             {...props}
                         />,
                     action: "",
