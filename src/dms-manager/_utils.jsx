@@ -101,6 +101,7 @@ export function validFormat(format) {
 }
 
 
+
 /*
 export function enhanceFormat(format) {
 	let out  = {...format}
@@ -126,7 +127,7 @@ export function filterParams (data, params,format) {
 		return out
 	},'') || ''
 
-	// console.log('filterParams', data, params, wildKey)
+	//console.log('filterParams', data, params, wildKey)
 	
 	let filter = false
 	Object.keys(params).forEach(k => {
@@ -136,5 +137,17 @@ export function filterParams (data, params,format) {
 			filter = false
 		}
 	})
+
+	if(params['id'] == data['id']) {
+		return true
+	}
+	
 	return filter
+}
+
+export const json2DmsForm = (data,requestType='update') => {
+  let out = new FormData()
+  out.append('data', JSON.stringify(data))
+  out.append('requestType', requestType)
+  return out
 }

@@ -1832,7 +1832,7 @@ hr.selected {
   z-index: 3;
 }
 
-.PlaygroundEditorTheme__blockCursor {
+/*.PlaygroundEditorTheme__blockCursor {
   display: block;
   pointer-events: none;
   position: absolute;
@@ -1853,3 +1853,4 @@ hr.selected {
     visibility: hidden;
   }
 }
+*/

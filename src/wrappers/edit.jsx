@@ -20,6 +20,8 @@ export default function EditWrapper({ Component, format, options, params, user, 
 	let status = useActionData()
 	const {defaultSort = (d) => d } = format
 
+
+	// console.log('EditWrapper', data , params, format, defaultSort(data).filter(d => filterParams(d,params,format))[0])
 	const [item, setItem] = React.useState(
 		defaultSort(data).filter(d => filterParams(d,params,format))[0] 
 		|| {}
@@ -27,8 +29,13 @@ export default function EditWrapper({ Component, format, options, params, user, 
 	
 	// console.log('EditWrapper', params, item, data)
 	useEffect(() => {
+		console.log('update item')
 		setItem(data.filter(d => filterParams(d,params,format))[0] || {})
-	},[params])
+	},[data,params])
+
+
+
+
 
 	const updateAttribute = (attr, value, multi) => {
 		if(multi) {
@@ -37,6 +44,8 @@ export default function EditWrapper({ Component, format, options, params, user, 
 			setItem({...item, [attr]: value })
 		}
 	}
+
+
 
 	const submitForm = () => {
 		submit(json2DmsForm(item), { method: "post", action: pathname })

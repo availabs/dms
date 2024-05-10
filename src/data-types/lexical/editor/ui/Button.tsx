@@ -34,9 +34,9 @@ export default function Button({
     <button
       disabled={disabled}
       className={joinClasses(
-        'Button__root',
-        disabled && 'Button__disabled',
-        small && 'Button__small',
+        'pt-[10px] pb-[10px] pl-[15px] pr-[15px] border-[0px] bg-[#eee] rounded-[5px] cursor-pointer text-[14px] hover:bg-[#ddd]',
+        disabled && 'cursor-not-allowed hover:bg-[#eee]',
+        small && 'pt-[5px] pb-[5px] pl-[10px] pr-[10px] text-[13px]',
         className,
       )}
       onClick={onClick}

@@ -17,13 +17,18 @@ import {
 
 export default function dmsPageFactory (
   dmsConfig,
-  dmsPath='/',
   authWrapper = Component => Component,
   dmsTheme = defaultTheme,
-  API_HOST = 'https://graph.availabs.org'
+  
 ) {
   //const {falcor, falcorCache} = useFalcor()
+  const { 
+    API_HOST = 'https://graph.availabs.org', 
+    baseUrl = "" 
+  } = dmsConfig
+  const dmsPath= `${baseUrl}/`
   const falcor = falcorGraph(API_HOST)
+
 
   async function loader ({ request, params }) {
     let data = await dmsDataLoader(falcor, dmsConfig, `/${params['*'] || ''}`)

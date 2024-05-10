@@ -47,7 +47,8 @@ export async function processNewData (dataCache, activeIdsIntOrStr, filteredIdsL
     for(const d in newData) { 
         if(activeIds === 'loadAll' || activeIds.includes(+newData[d].id) || i === 0) {
             //console.time(`load dms formats ${newData[d].id}`)
-            await loadDmsFormats(newData[d],dmsAttrsConfigs,falcor);
+            //console.log('load dms data', activeIds, newData[d].id)
+            await loadDmsFormats(newData[d],dmsAttrsConfigs, format, falcor);
             //console.timeEnd(`load dms formats ${newData[d].id}`)
         }
         i++;
@@ -57,20 +58,49 @@ export async function processNewData (dataCache, activeIdsIntOrStr, filteredIdsL
 }
 
 
-async function loadDmsFormats (item,dmsAttrsConfigs,falcor) {
+async function loadDmsFormats (item,dmsAttrsConfigs, format, falcor) {
 
     // ----------------------------------------
     // if attrs are dmsformat and have refs
     // load that data
+    // check if the data has dmsformats
+    // load that data
     // to do: make this non-blocking / lazy load
+    // 
     // ----------------------------------------
 
     let dmsKeys = Object.keys(item)
         .filter(d => Object.keys(dmsAttrsConfigs).includes(d))
 
+    // get the format/attributes of dms types to recurse
+    let dmsSubFormats = Object.keys(dmsAttrsConfigs)
+        .reduce((out, key) => {
+            let fmatch = format?.registerFormats?.filter(f => {
+                return f.type === dmsAttrsConfigs[key].format.split('+')[1]
+            })?.[0]
+            if(fmatch) {
+                out[key] = fmatch
+            }
+            return out
+        },{})
+
+
+
+    // console.log('loadDmsFormats item:', item.id, item.type , 'dmsKeys', dmsKeys, dmsAttrsConfigs, format, dmsSubFormats)
 
     for (const key of dmsKeys) {
         const dmsFormatRequests = []
+         
+        const dmsSubAttrsConfigs = (Object.values(dmsSubFormats?.[key]?.attributes|| {}))
+            //.filter(d => !Array.isArray(filter?.attributes) || filter.attributes.includes(d.key))
+            .filter(d => d.type === 'dms-format')
+            .reduce((out,curr) => {
+                out[curr.key] = curr
+                return out
+            },{})
+        // console.log('key', key, dmsSubFormats)
+        
+
         if(typeof item?.[key] === 'string') {
             item[key] = JSON.parse(item[key]) 
         } 
@@ -96,6 +126,11 @@ async function loadDmsFormats (item,dmsAttrsConfigs,falcor) {
                 for (let ref of item[key]) {
                     if(ref.id) {
                         let value = get(newData, ['json','dms','data', 'byId', ref.id, 'data'])
+
+                        // if new item has dms-format data, recursively fetch
+                        if(Object.keys(dmsSubAttrsConfigs).length > 0){
+                            await loadDmsFormats(value, dmsSubAttrsConfigs, dmsSubFormats[key], falcor)
+                        }
                         item[key][index]= {...ref,...value}
                         index += 1
                     }

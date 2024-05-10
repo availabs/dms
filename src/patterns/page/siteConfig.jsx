@@ -27,7 +27,7 @@ const siteConfig = ({
   sideNav = null,
   logo = null,
   rightMenu = <div />,
-  baseUrl = '/',
+  baseUrl = '',
   checkAuth = () => {},
   theme = defaultTheme,
   pgEnv
@@ -49,6 +49,7 @@ const siteConfig = ({
   // const rightMenuWithSearch = rightMenu; // for live site
   return {
     format: format,
+    baseUrl, 
     check: ({user}, activeConfig, navigate) =>  {
       const getReqAuth = (configs) => {
         return configs.reduce((out,config) => {
