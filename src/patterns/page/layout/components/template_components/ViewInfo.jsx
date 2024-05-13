@@ -127,9 +127,8 @@ export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatu
 
     const errorIdColValues = useMemo(() => generatedPages.filter(page => typeof +page.num_errors === 'number' && +page.num_errors > 0).map(page => page.id_column_value.toString()), [generatedPages]);
     const generatedIdColValues = useMemo(() => generatedPages.filter(page => page.id_column_value && typeof page.id_column_value !== 'object').map(page => page.id_column_value.toString()), [generatedPages]);
-    const missingPagesDataRows = useMemo(() => dataRows.filter(row => !generatedIdColValues.includes(row[id_column.name])), [generatedIdColValues, dataRows, id_column.name]);
-    const errorPagesDataRows = useMemo(() => dataRows.filter(row => errorIdColValues.includes(row[id_column.name])), [errorIdColValues, dataRows, id_column.name]);
-
+    const missingPagesDataRows = useMemo(() => dataRows.filter(row => !generatedIdColValues.includes(row[id_column.name]?.toString())), [generatedIdColValues, dataRows, id_column.name]);
+    const errorPagesDataRows = useMemo(() => dataRows.filter(row => errorIdColValues.includes(row[id_column.name]?.toString())), [errorIdColValues, dataRows, id_column.name]);
     return (
         <div className='flex flex-col'>
             {/*<div>View Info</div>*/}

@@ -589,10 +589,13 @@ const View = ({Component, value, attr, full_width}) => {
     }
     const hideSectionCondition = section => {
         //console.log('hideSectionCondition', section?.element?.['element-data'] || '{}')
-        let value = section?.element?.['element-data']
+        let value = section?.element?.['element-data'];
+        let type = section?.element?.['element-type'];
         let elementData = typeof value === 'object' ?
             value : value && isJson(value) ? JSON.parse(value) : {}
-        return !elementData?.hideSection
+        return ['Table: Cenrep', 'Table: Cenrep II'].includes(type) ?
+                    elementData?.data?.length !== 0 :
+                        !elementData?.hideSection;
     }
 
 
