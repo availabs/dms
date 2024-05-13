@@ -1,5 +1,6 @@
 import get from "lodash/get";
 import isEqual from "lodash/isEqual";
+import cloneDeep from "lodash/cloneDeep"
 
 export 	async function updateDMSAttrs(data, configs, falcor) {
     let updates = {}
@@ -8,12 +9,14 @@ export 	async function updateDMSAttrs(data, configs, falcor) {
         //console.log('updateDMSAttrs 1 attr', attr )
         updates[attr] = []
         let [app,type] = configs[attr].format.split('+')
-        //console.log('create requests', app, type, attr)
+        // console.log('create requests', app, type, attr)
 
         const toUpdate = Array.isArray(data[attr]) ?
             data[attr] : [data[attr]]
 
-        for (const d of toUpdate) {
+        // console.log('to Update', toUpdate)
+        for (const dU of toUpdate) {
+            let d = cloneDeep(dU)
             let id = d?.id || false
             if(id) {
                 // if id edit
@@ -25,8 +28,8 @@ export 	async function updateDMSAttrs(data, configs, falcor) {
                 // ---
                 delete d.ref
                 delete d.id
-                delete currentData.ref
-                delete currentData.id
+                currentData?.ref && delete currentData.ref
+                currentData?.id && delete currentData.id
                 // ---
                 //console.log(currentData,d)
 
@@ -36,6 +39,7 @@ export 	async function updateDMSAttrs(data, configs, falcor) {
                         ["dms", "data", "edit"],
                         [id, d]
                     )
+                    console.log('invalidate', id, dU)
                     await falcor.invalidate(['dms', 'data', 'byId', id])
                 }
                 updates[attr].push({ref:`${app}+${type}`, id})

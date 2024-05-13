@@ -1,4 +1,5 @@
 import get from "lodash/get";
+import cloneDeep from "lodash/cloneDeep"
 
 export async function processNewData (dataCache, activeIdsIntOrStr, filteredIdsLength, app, type, dmsAttrsConfigs,format,falcor) {
     const activeIds = Array.isArray(activeIdsIntOrStr) ? activeIdsIntOrStr.map(id => +id) : activeIdsIntOrStr;
@@ -21,7 +22,7 @@ export async function processNewData (dataCache, activeIdsIntOrStr, filteredIdsL
     
     for(const k in newDataVals) {
         // flatten data into single object
-        let d = newDataVals[k]
+        let d = cloneDeep(newDataVals[k])
         let out = d?.data?.value || {}
         //console.log('hola', k, out, i)
 
@@ -69,6 +70,8 @@ async function loadDmsFormats (item,dmsAttrsConfigs, format, falcor) {
     // 
     // ----------------------------------------
 
+    
+    //console.log('loadDmsFormats', item)
     let dmsKeys = Object.keys(item)
         .filter(d => Object.keys(dmsAttrsConfigs).includes(d))
 

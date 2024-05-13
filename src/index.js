@@ -3,6 +3,7 @@ import DmsManager from './dms-manager'
 import { dmsDataTypes, registerDataType } from './data-types'
 import dmsPageFactory from './dmsPageFactory'
 import { json2DmsForm } from './dms-manager/_utils'
+import { CMSContext } from './patterns/page/siteConfig'
 
 export {
 	DmsManager,
@@ -11,5 +12,6 @@ export {
 	dmsPageFactory,
 	registerDataType,
 	dmsDataTypes,
-	json2DmsForm
+	json2DmsForm,
+	CMSContext
 }

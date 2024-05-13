@@ -130,6 +130,7 @@ const TemplatePages = ({item, params, logo, rightMenu, baseUrl=''}) => {
             const res = await locations.reduce(async (acc, type) => {
                 const prevPages = await acc;
                 const currentPages = await dmsDataLoader(
+                    falcor,
                     getConfig({
                         app: 'dms-site',
                         type: type,

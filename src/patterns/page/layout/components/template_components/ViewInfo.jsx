@@ -2,7 +2,7 @@ import React, {useMemo, useState} from "react";
 import {getConfig} from "../../template/pages.jsx";
 import {dmsDataLoader} from "../../../../../index.js";
 import get from "lodash/get.js";
-
+//import {falcor} from "~/modules/avl-falcor"
 import { CMSContext } from '../../../siteConfig'
 import Selector from "./Selector.jsx";
 import {updatePages} from "./updatePages.js";
@@ -99,7 +99,7 @@ export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatu
                     { key: `data->>'num_errors' as num_errors`, label: 'num_errors'}
                 ];
 
-                let currentPages = await dmsDataLoader(getConfig({
+                let currentPages = await dmsDataLoader(falcor, getConfig({
                     app: 'dms-site',
                     type,
                     filter: {[`data->>'template_id'`]: [item.id]},

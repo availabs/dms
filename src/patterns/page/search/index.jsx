@@ -1,7 +1,8 @@
-import {Fragment, useEffect, useRef, useState} from "react";
+import {Fragment, useEffect, useContext, useState} from "react";
 import {Combobox, Dialog, Transition} from '@headlessui/react'
 import {getConfig} from "../layout/template/pages";
 import {dmsDataLoader} from "../../../api";
+import {CMSContext} from "../siteConfig";
 
 export const Search = ({app, type}) => {
     const [open, setOpen] = useState(false)
@@ -25,15 +26,31 @@ function classNames(...classes) {
 }
 
 const SearchPallet = ({open, setOpen, app, type}) => {
+    const { baseUrl, falcor, falcorCache } = useContext(CMSContext)
     const [query, setQuery] = useState('');
     const [tmpQuery, setTmpQuery] = useState('');
     const [loading, setLoading] = useState(false);
-    const [items, setItems] = useState([])
+    const [tags, setTags] = useState([]);
+    const [items, setItems] = useState([]);
     // change it so that query is only set when whole tag is searched from typeahead
 
     useEffect(() => {
-        setTimeout(() => setQuery(tmpQuery), 500)
+        setTimeout(() => setQuery(tmpQuery), 0)
     }, [tmpQuery]);
+
+    useEffect(() => {
+        async function getTags() {
+            const config = getConfig({
+                app,
+                type,
+                action: 'searchTags'
+            });
+
+            return dmsDataLoader(falcor, config, '/');
+        }
+
+        getTags().then(tags => setTags(tags.value.map(t => t.tags).sort()));
+    }, []);
 
     useEffect(() => {
         if (!query) return;
@@ -48,17 +65,17 @@ const SearchPallet = ({open, setOpen, app, type}) => {
 
         async function getData() {
             setLoading(true)
-            const data = await dmsDataLoader(config, '/');
-            console.log('cs', Object.keys(data).find(searchTerm => searchTerm === query),
-                query, data
-            )
-            const tmpItems = data[Object.keys(data).find(searchTerm => searchTerm === query)]?.value?.map(value => {
+            const data = await dmsDataLoader(falcor, config, '/');
+            // console.log('cs', Object.keys(data).find(searchTerm => searchTerm === query),
+            //     query, data
+            // )
+            const tmpItems = data[query]?.value?.map(value => {
                 return ({
                     id: value.section_id,
                     name: value.section_title,
                     tags: value.tags,
                     description: value.page_title,
-                    url: `/${value.url_slug}`,
+                    url: `${baseUrl}/${value.url_slug}`,
                     type: value.type,
                     color: 'bg-indigo-500',
                     icon: () => <i className={'fa-light fa-memo text-white'}/>,
@@ -102,7 +119,9 @@ const SearchPallet = ({open, setOpen, app, type}) => {
                         <Dialog.Panel
                             className="mx-auto max-w-xl transform divide-y divide-gray-100 overflow-hidden rounded-xl bg-white shadow-2xl ring-1 ring-black ring-opacity-5 transition-all">
                             <Combobox onChange={(item) => {
-                                window.location = item.url
+                                if (item.url){
+                                    window.location = item.url
+                                }
                             }}>
                                 <div className="relative">
                                     <i
@@ -111,9 +130,47 @@ const SearchPallet = ({open, setOpen, app, type}) => {
                                     <Combobox.Input
                                         className="h-12 w-full border-0 bg-transparent pl-11 pr-4 text-gray-900 placeholder:text-gray-400 focus:ring-0 sm:text-sm"
                                         placeholder="Search..."
-                                        onChange={(event) => setTmpQuery(event.target.value)}
+                                        onChange={(event) =>{
+                                            const match = tags.find(tag => tag.toLowerCase() === event.target.value.toLowerCase());
+                                            setTmpQuery(match || event.target.value)
+                                        }}
                                     />
                                 </div>
+
+                                {tags
+                                    .filter(tag => (!tmpQuery?.length || tag.toLowerCase().includes(tmpQuery.toLowerCase())))
+                                    .length > 0 && (
+                                    <Combobox.Options static
+                                                      className="max-h-96 transform-gpu scroll-py-3 overflow-y-auto p-3">
+                                        <span className={'text-xs italic'}>suggestions: </span>
+                                        {tags
+                                            .filter((tag, i) => i <= 5 && (!tmpQuery?.length || tag.toLowerCase().includes(tmpQuery.toLowerCase())))
+                                            .map((tag) => (
+                                            <Combobox.Option
+                                                key={tag}
+                                                value={tag}
+                                                onClick={() => setQuery(tag)}
+                                                className={({active}) =>
+                                                    classNames('flex cursor-pointer select-none rounded-xl p-1', active && 'bg-gray-100')
+                                                }
+                                            >
+                                                {({active}) => (
+                                                    <div>
+                                                        <i className="text-sm text-red-400 fa fa-tag" />
+                                                        <span
+                                                            className={classNames(
+                                                                'ml-2 text-sm font-medium',
+                                                                active ? 'text-gray-900' : 'text-gray-700'
+                                                            )}
+                                                        >
+                                                                {tag}
+                                                            </span>
+                                                    </div>
+                                                )}
+                                            </Combobox.Option>
+                                        ))}
+                                    </Combobox.Options>
+                                )}
 
                                 {items.length > 0 && (
                                     <Combobox.Options static

@@ -5,7 +5,7 @@ import {dmsDataLoader} from "~/modules/dms/src"
 
 export async function getData({
   formsConfig,
-  actionType, form,
+  actionType,
   metaLookupByViewId,
   setMetaLookupByViewId,
   visibleCols,
@@ -26,6 +26,7 @@ export async function getData({
     });
     console.log('')
     const d = await dmsDataLoader(
+        falcor,
         {
             format: formsConfig,
             children: [
@@ -39,9 +40,9 @@ export async function getData({
                         // toIndex: path => path.split('/')[2],
                         options: JSON.stringify({
                             aggregatedLen: groupBy?.length,
-                            filter: {
-                                ...form === 'Actions' && actionType && {[`data->>'idKey'`]: [actionType]}
-                            },
+                            // filter: {
+                            //     ...form === 'Actions' && actionType && {[`data->>'idKey'`]: [actionType]}
+                            // },
                             exclude: {
                                 ...notNull.length &&
                                 notNull.reduce((acc, col) => (
@@ -49,13 +50,13 @@ export async function getData({
                                         [
                                             formsConfig?.attributes?.find(attr =>
                                                 attr.name.toLowerCase().split(' as ')[0] === col.toLowerCase())?.origin === 'calculated-column' ? col :
-                                                `${getAccessor(col, form)}'${col}'`
+                                                `${getAccessor(col)}'${col}'`
                                             ]:
                                             ['number', 'integer'].includes(formsConfig?.attributes?.find(attr => attr.name.toLowerCase().split(' as ')[0] === col.toLowerCase())?.type) ? ['null'] : ['null', '', ' ']}) , {}) // , '', ' ' error out for numeric columns.
                             },
-                            groupBy: groupBy.map(gb => formsConfig?.attributes?.find(attr => attr.name.toLowerCase().split(' as ')[0] === gb.toLowerCase())?.origin === 'calculated-column' ? gb : `${getAccessor(gb, form)}'${gb}'`)
+                            groupBy: groupBy.map(gb => formsConfig?.attributes?.find(attr => attr.name.toLowerCase().split(' as ')[0] === gb.toLowerCase())?.origin === 'calculated-column' ? gb : `${getAccessor(gb)}'${gb}'`)
                         }),
-                        attributes: ['id', ...visibleCols.map(vc => getColAccessor(fn, vc, formsConfig?.attributes?.find(attr => attr.name === vc)?.origin, form))]
+                        attributes: ['id', ...visibleCols.map(vc => getColAccessor(fn, vc, formsConfig?.attributes?.find(attr => attr.name === vc)?.origin))]
                         // using id to get to view and edit pages. can't group now.
                     },
                 }
@@ -69,7 +70,7 @@ export async function getData({
         visibleCols,
         data: d,
         metaLookupByViewId,
-        geoAttribute, geoid, actionType, fn, form
+        geoAttribute, geoid, actionType, fn
     })
     setData && setData(data)
     return data;

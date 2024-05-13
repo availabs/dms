@@ -70,6 +70,7 @@ var Context = /** @class */ (function () {
     };
     Context.prototype.update = function (object, $spec) {
         var _this = this;
+
         var spec = (typeof $spec === 'function') ? { $apply: $spec } : $spec;
         if (!(Array.isArray(object) && Array.isArray(spec))) {
             invariant(!Array.isArray(spec), function () { return "update(): You provided an invalid spec to update(). The spec may " +
@@ -80,8 +81,8 @@ var Context = /** @class */ (function () {
             "every included key path must be plain objects containing one of the " +
             "following commands: ".concat(Object.keys(_this.commands).join(', '), "."); });
         var nextObject = object;
-        getAllKeys(spec).forEach(function (key) {
-            if (hasOwnProperty.call(_this.commands, key)) {
+        getAllKeys(spec).forEach((key) => {
+            if (hasOwnProperty.call(this.commands, key)) {
                 var objectWasNextObject = object === nextObject;
                 nextObject = _this.commands[key](spec[key], nextObject, spec, object);
                 if (objectWasNextObject && _this.isEquals(nextObject, object)) {

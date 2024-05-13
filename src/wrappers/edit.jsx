@@ -2,17 +2,22 @@ import React, {useEffect} from 'react'
 import { useLoaderData, useActionData, useParams, Form, useSubmit, useLocation } from "react-router-dom";
 import { filterParams } from '../dms-manager/_utils'
 import { getAttributes } from './_utils'
+import { dmsDataEditor } from '../index'
+import { useFalcor } from "@availabs/avl-falcor"
+import isEqual from 'lodash/isEqual'
+//import { useImmer } from "use-immer";
+
 import get from 'lodash/get'
 
 const json2DmsForm = (data,requestType='update') => {
   let out = new FormData()
   out.append('data', JSON.stringify(data))
   out.append('requestType', requestType)
-  //console.log(out)
   return out
 }
 
 export default function EditWrapper({ Component, format, options, params, user, ...props}) {
+	const { falcor } = useFalcor()
 	const attributes = getAttributes(format, options, 'edit')
 	const submit = useSubmit();
 	const { pathname } = useLocation()
@@ -21,21 +26,26 @@ export default function EditWrapper({ Component, format, options, params, user, 
 	const {defaultSort = (d) => d } = format
 
 
-	// console.log('EditWrapper', data , params, format, defaultSort(data).filter(d => filterParams(d,params,format))[0])
 	const [item, setItem] = React.useState(
 		defaultSort(data).filter(d => filterParams(d,params,format))[0] 
 		|| {}
 	)
 	
-	// console.log('EditWrapper', params, item, data)
 	useEffect(() => {
-		console.log('update item')
-		setItem(data.filter(d => filterParams(d,params,format))[0] || {})
+		let filteredItem = data.filter(d => filterParams(d,params,format))[0]
+		// update item on data update
+		if(!isEqual(item,filteredItem)){
+			setItem( filteredItem || {})
+		}
 	},[data,params])
 
 
-
-
+	const apiUpdate = async ({data, config={format}, requestType=''}) => {  
+			// update the data
+			await dmsDataEditor(falcor, config, data, requestType)
+			// reload page to refresh page data
+			submit(null, {action: pathname})
+	}
 
 	const updateAttribute = (attr, value, multi) => {
 		if(multi) {
@@ -44,8 +54,6 @@ export default function EditWrapper({ Component, format, options, params, user, 
 			setItem({...item, [attr]: value })
 		}
 	}
-
-
 
 	const submitForm = () => {
 		submit(json2DmsForm(item), { method: "post", action: pathname })
@@ -61,6 +69,7 @@ export default function EditWrapper({ Component, format, options, params, user, 
 			item={item}
 			dataItems={data}
 			params={params}
+			apiUpdate={apiUpdate}
 			updateAttribute={updateAttribute}
 			setItem={setItem}
 			options={options}

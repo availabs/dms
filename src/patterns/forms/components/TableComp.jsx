@@ -11,17 +11,17 @@ import {Loading} from "~/utils/loading.jsx";
 import {falcor} from "~/modules/avl-falcor"
 import {pgEnv} from "~/utils/";
 import {Table} from "~/modules/avl-components/src"
+import {getColAccessor} from "../utils/getColAccesor";
 
 
 const mapColName = (columns, col) => columns.find(c => c.name === col)?.accessor;
 const getNestedValue = (obj) => typeof obj?.value === 'object' ? getNestedValue(obj.value) : obj?.value || obj;
 
-export const TableComp = ({format, baseUrl, ...rest}) => {
+export const TableComp = ({format, baseUrl, app, type, ...rest}) => {
     const navigate = useNavigate();
     const params = useParams();
     const cachedData = rest;
     const [loading, setLoading] = useState(false);
-    const [form, setForm] = useState(cachedData?.form || 'Actions');
     const [geoAttribute, setGeoAttribute] = useState(cachedData?.geoAttribute);
     const [metaLookupByViewId, setMetaLookupByViewId] = useState(cachedData.metaLookupByViewId || {});
     const [geoid, setGeoid] = useState(cachedData?.geoid || '36');
@@ -42,15 +42,13 @@ export const TableComp = ({format, baseUrl, ...rest}) => {
     const [displayDownload, setDisplayDownload] = useState(false);
     const [manualFilters, setManualFilters] = useState({}); // {col-name:[]}
 
-    const app = "dms-site",
-        type = "forms-actions-test";
     const actionButtonClass = 'px-2 py-0.5 m-1 border border-blue-300 hover:bg-blue-600 text-sm text-blue-500 hover:text-white rounded-md transition ease-in shadow';
 
     useEffect(() => {
         setLoading(true)
         getData({
             formsConfig,
-            actionType, form,
+            actionType,
             metaLookupByViewId,
             setMetaLookupByViewId,
             visibleCols,
@@ -62,7 +60,7 @@ export const TableComp = ({format, baseUrl, ...rest}) => {
             setData
         }, falcor);
         setLoading(false)
-    }, [formsConfig, actionType, form,
+    }, [formsConfig, actionType,
         geoAttribute, geoid, metaLookupByViewId,
         pageSize, sortBy, groupBy, fn, notNull, colSizes,
         filters, filterValue, visibleCols, hiddenCols]);
@@ -72,7 +70,7 @@ export const TableComp = ({format, baseUrl, ...rest}) => {
         .map(c => formsConfig?.attributes?.find(md => md.name === c))
         .filter(c => c && !c.openOut && !hiddenCols.includes(c.name))
         .map(col => {
-            const acc = getColAccessor(fn, col.name, col.origin, form);
+            const acc = getColAccessor(fn, col.name, col.origin);
             return {
                 Header: col.display_name,
                 accessor: acc,
@@ -132,17 +130,6 @@ export const TableComp = ({format, baseUrl, ...rest}) => {
             </div>
         </div>
         <div className={`${displaySettings ? 'block' : 'hidden'} border rounded-md border-blue-600 bg-blue-50 p-2`}>
-            <ButtonSelector
-                label={'Action Level'}
-                types={[
-                    {label: 'State', value: 'shmp'},
-                    {label: 'Local', value: 'lhmp'},
-                    {label: 'NYRCR', value: 'nyrcr'}
-                ]}
-                type={actionType}
-                setType={setActionType}
-                autoSelect={true}
-            />
             <RenderColumnControls
                 cols={formsConfig?.attributes?.filter(c => ['data-variable', 'meta-variable', 'geoid-variable'].includes(c.display))?.map(c => c.name)}
                 metadata={formsConfig?.attributes}
@@ -170,7 +157,6 @@ export const TableComp = ({format, baseUrl, ...rest}) => {
             columns={formsConfig?.attributes?.filter(c => ['data-variable', 'meta-variable', 'geoid-variable'].includes(c.display))}
             data={data}
             filteredData={filteredData}
-            form={form}
 
             formsConfig={formsConfig}
             actionType={actionType}
@@ -196,13 +182,6 @@ export const TableComp = ({format, baseUrl, ...rest}) => {
                                Cell: d => {
                                    return (
                                        <div className={'flex flex-row flex-wrap justify-between'}>
-                                           {/*<Link*/}
-                                           {/*    className={actionButtonClass}*/}
-                                           {/*    to={`/admin/forms/form/134526/view/${d?.cell?.row?.original?.id}`}> view </Link>*/}
-                                           {/*<Link*/}
-                                           {/*    className={actionButtonClass}*/}
-                                           {/*    to={`/admin/forms/form/134526/edit/${d?.cell?.row?.original?.id}`}> edit </Link>*/}
-
                                            <Link
                                                className={actionButtonClass}
                                                to={`${baseUrl}view/${d?.cell?.row?.original?.id}`}> view </Link>
