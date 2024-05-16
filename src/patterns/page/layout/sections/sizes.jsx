@@ -40,7 +40,7 @@ const spans = {
     "1/2": 'col-span-6 md:col-span-3',
     "2/3": 'col-span-6 md:col-span-4',
     "1":   'col-span-6 md:col-span-6',
-    "2":   'col-span-6 lg:col-span-8',
+    "2":   'col-span-6 md:col-span-8',
 }
 
 export const sizeOptionsSVG = [

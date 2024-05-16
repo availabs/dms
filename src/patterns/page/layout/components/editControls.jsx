@@ -363,7 +363,7 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
               {pageType === 'page' && <IconPopover icon='fad fa-wrench p-2 text-blue-300 hover:text-blue-500 cursor-pointer text-lg' >
                 <div className='py-2'>
                   <div className='px-6 font-medium text-sm'> Page Controls </div>
-                  {(!item?.parent || item?.parent === '') &&
+                  {/*(!item?.parent || item?.parent === '') &&
                       <div className={theme.pageControls.controlItem}>
                         <i className={'fa-solid fa-up-down-left-right text-sm'} />
                         <select
@@ -380,7 +380,7 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
                           <option key={'playground'} value={'docs-play'} className={theme.pageControls.selectOption}>Playground</option>
                         </select>
                       </div>
-                  }
+                  */}
                   <div onClick={insertSubPage}
                     className={theme.pageControls.controlItem}
                   >

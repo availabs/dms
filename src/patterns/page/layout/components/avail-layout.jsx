@@ -32,7 +32,7 @@ const Layout = ({ children, menus, sideNav={}, topNav={}, title }) => {
 	const { theme } = React.useContext(CMSContext)
 	const sideNavOptions = {
 		size: sideNav.size || 'none',
-		color: sideNav.color || 'dark',
+		color: sideNav.color || 'white',
 		menuItems: sideNav.menuItems || menus,
 		logo: sideNav?.logo || Logos
 	}
