@@ -2,6 +2,7 @@ import { dmsDataLoader, dmsDataEditor } from './api'
 import DmsManager from './dms-manager'
 import { dmsDataTypes, registerDataType } from './data-types'
 import dmsPageFactory from './dmsPageFactory'
+import { json2DmsForm } from './dms-manager/_utils'
 import { CMSContext } from './patterns/page/siteConfig'
 
 export {
@@ -10,6 +11,7 @@ export {
 	dmsDataEditor,
 	dmsPageFactory,
 	registerDataType,
-	CMSContext,
-	dmsDataTypes
+	dmsDataTypes,
+	json2DmsForm,
+	CMSContext
 }

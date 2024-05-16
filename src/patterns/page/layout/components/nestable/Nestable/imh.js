@@ -69,7 +69,8 @@ var Context = /** @class */ (function () {
         this.commands[directive] = fn;
     };
     Context.prototype.update = function (object, $spec) {
-        // this = this;
+        var _this = this;
+
         var spec = (typeof $spec === 'function') ? { $apply: $spec } : $spec;
         if (!(Array.isArray(object) && Array.isArray(spec))) {
             invariant(!Array.isArray(spec), function () { return "update(): You provided an invalid spec to update(). The spec may " +
@@ -78,24 +79,24 @@ var Context = /** @class */ (function () {
         }
         invariant(typeof spec === 'object' && spec !== null, function () { return "update(): You provided an invalid spec to update(). The spec and " +
             "every included key path must be plain objects containing one of the " +
-            "following commands: ".concat(Object.keys(this.commands).join(', '), "."); });
+            "following commands: ".concat(Object.keys(_this.commands).join(', '), "."); });
         var nextObject = object;
         getAllKeys(spec).forEach((key) => {
             if (hasOwnProperty.call(this.commands, key)) {
                 var objectWasNextObject = object === nextObject;
-                nextObject = this.commands[key](spec[key], nextObject, spec, object);
-                if (objectWasNextObject && this.isEquals(nextObject, object)) {
+                nextObject = _this.commands[key](spec[key], nextObject, spec, object);
+                if (objectWasNextObject && _this.isEquals(nextObject, object)) {
                     nextObject = object;
                 }
             }
             else {
                 var nextValueForKey = type(object) === 'Map'
-                    ? this.update(object.get(key), spec[key])
-                    : this.update(object[key], spec[key]);
+                    ? _this.update(object.get(key), spec[key])
+                    : _this.update(object[key], spec[key]);
                 var nextObjectValue = type(nextObject) === 'Map'
                     ? nextObject.get(key)
                     : nextObject[key];
-                if (!this.isEquals(nextValueForKey, nextObjectValue)
+                if (!_this.isEquals(nextValueForKey, nextObjectValue)
                     || typeof nextValueForKey === 'undefined'
                         && !hasOwnProperty.call(object, key)) {
                     if (nextObject === object) {

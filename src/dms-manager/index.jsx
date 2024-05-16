@@ -48,9 +48,7 @@ const DmsManager = (props) => {
 	}
 
 	return React.useMemo(() => (
-		<ThemeContext.Provider value={theme}>
-			{RenderView}
-		</ThemeContext.Provider>
+		<>{RenderView}</>
 	),[RenderView])	
 }
 

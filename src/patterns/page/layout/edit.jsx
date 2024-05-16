@@ -17,7 +17,7 @@ import cloneDeep from 'lodash/cloneDeep'
 
 
 function PageEdit ({
-  item, dataItems, updateAttribute ,attributes, setItem, status, logo, rightMenu
+  item, dataItems, updateAttribute,attributes, setItem, status, logo, rightMenu
 }) {
   const navigate = useNavigate()
   const submit = useSubmit()

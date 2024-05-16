@@ -1,4 +1,3 @@
-import React from 'react'
 // pages
 import Layout from "./layout/layout.jsx"
 import PageView from "./layout/view.jsx"
@@ -18,23 +17,17 @@ import { registerDataType } from "../../index"
 
 // sideNav = {size: 'miniPad'}
 
-export const CMSContext = React.createContext(undefined);
-
 const siteConfig = ({ 
   app = "dms-site",
   type = "docs-page",
-  useFalcor,
   sideNav = null,
   logo = null,
   rightMenu = <div />,
-  baseUrl = '',
+  baseUrl = '/',
   checkAuth = () => {},
-  theme = defaultTheme,
-  pgEnv
+  theme = defaultTheme
 }) => {
-  theme = {...defaultTheme, ...theme}
-  // console.log('pattern siteConfig', app, type, pgEnv)
-  
+  theme = theme || defaultTheme
   const format = cloneDeep(cmsFormat)
   format.app = app
   format.type = type
@@ -49,7 +42,6 @@ const siteConfig = ({
   // const rightMenuWithSearch = rightMenu; // for live site
   return {
     format: format,
-    baseUrl, 
     check: ({user}, activeConfig, navigate) =>  {
       const getReqAuth = (configs) => {
         return configs.reduce((out,config) => {
@@ -71,8 +63,6 @@ const siteConfig = ({
               {...props}
               baseUrl={baseUrl}
               theme={theme}
-              useFalcor={useFalcor}
-              pgEnv={pgEnv}
             />
           )
         },
@@ -81,7 +71,7 @@ const siteConfig = ({
         filter: {
           options: JSON.stringify({
             filter: {
-              "data->>'hide_in_nav'": ['null']
+              "data->>'hide_in_nav'": ['null'],
             }
           }),
           attributes:['title', 'index', 'url_slug', 'parent','published', 'hide_in_nav']
@@ -149,8 +139,6 @@ const siteConfig = ({
             edit={true} 
             baseUrl={baseUrl}
             theme={theme}
-            useFalcor={useFalcor}
-            pgEnv={pgEnv}
           />
         ),
         action: "list",
