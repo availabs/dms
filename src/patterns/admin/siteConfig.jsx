@@ -1,18 +1,13 @@
+import React from 'react'
+
 // pages
-import Layout from "./layout/layout.jsx"
-import PageView from "./layout/view.jsx"
-import PageEdit from "./layout/edit.jsx"
+import Layout from "./layout/layout"
 
-// templates
-import TemplateList from './layout/template/list'
-import TemplatePages from './layout/template/pages'
-import TemplateEdit from './layout/template/edit'
-
-import cmsFormat from "./page.format.js"
+import cmsFormat from "./admin.format.js"
 import cloneDeep from 'lodash/cloneDeep'
-import defaultTheme from './theme/theme'
-import {Search} from "./search";
-import Selector from "./selector"
+import defaultTheme from '../page/layout/components/theme'
+import PatternList from "./layout/patternList";
+import SiteEdit from "./layout/siteEdit"
 import { registerDataType } from "../../index"
 
 // sideNav = {size: 'miniPad'}
@@ -68,100 +63,44 @@ const siteConfig = ({
         },
         action: "list",
         path: "/*",
-        filter: {
-          options: JSON.stringify({
-            filter: {
-              "data->>'hide_in_nav'": ['null'],
-            }
-          }),
-          attributes:['title', 'index', 'url_slug', 'parent','published', 'hide_in_nav']
-        },
         children: [
-          { 
-            type: (props) => <TemplateList
-              logo={logo}
-              rightMenu={rightMenuWithSearch}
-              {...props}
-            />,
+          {
+              type: (props) => <PatternList.ViewComp {...props} />,
             action: "list",
-            path: "templates/*",
-            lazyLoad: true,
-            filter: {
-              options: JSON.stringify({
-                filter: {
-                  "data->>'template_id'": ['-99'],
-                }
-              }),
-              attributes:['title', 'index', 'url_slug', 'parent', 'hide_in_nav', 'template_id' ]
-            }
-          },
-          { 
-            type: (props) => <TemplateEdit 
-              logo={logo}
-              rightMenu={rightMenuWithSearch}
-              {...props}
-            />,
-            action: "edit",
-            path: "templates/edit/:id"
-          },
-          // {
-          //   type: TemplatePreview,
-          //   action: "edit",
-          //   path: "/view/:id"
-          // },
-          { 
-              type: (props) => <TemplatePages
-                logo={logo}
-                rightMenu={rightMenuWithSearch}
-                {...props}
-              />,
-              action: "edit",
-              path: "templates/pages/:id"
-          },
-          { 
-            type: (props) => <PageView 
-              {...props} 
-              logo={logo} 
-              rightMenu={rightMenuWithSearch}
-            />,
-            filter: {
-              attributes:['title', 'index', 'url_slug', 'parent', 'published', 'hide_in_nav' ,'sections','sidebar','header','footer', 'full_width']
-            },
             path: "/*",
-            action: "view"
+            // todo: figure the 3rd level child not rendering bug, and then make this look pretty by using custom types.
+            // children: [
+            //
+            // ]
           },
-        ]
-      },
-      { 
-        type: (props) => (
-          <Layout 
-            {...props} 
-            edit={true} 
-            baseUrl={baseUrl}
-            theme={theme}
-          />
-        ),
-        action: "list",
-        path: "/edit/*",
-        authLevel: 5,
-        filter: {
-          options: JSON.stringify({
-            filter: {
-              "data->>'hide_in_nav'": ['null'],
+          {
+            type: "dms-form-view",
+            path: '/view/:id?',
+            action: 'view',
+            options: {
+              accessor: 'key'
             }
-          }),
-          attributes:['title', 'index', 'url_slug', 'parent', 'published', 'hide_in_nav' ]
-        },
-        children: [
-          { 
-            type: (props) => <PageEdit 
-              {...props}
-              logo={logo}
-              rightMenu={rightMenuWithSearch}
-            />,
-            action: "edit",
-            path: "/edit/*"
+
           },
+          {
+            type: props => <SiteEdit {...props} />,
+            action: 'edit',
+            options: {
+              accessor: 'key'
+            },
+            path: '/edit/:id',
+            // redirect: '/edit/:id?'
+          },
+          {
+            type: props => <SiteEdit {...props} />,
+            action: 'edit',
+            options: {
+              accessor: 'key'
+            },
+            filter: {type: 'new'},
+            path: '/new',
+            redirect: '/edit/:id?'
+          }
         ]
       }
     ]
