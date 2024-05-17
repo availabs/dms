@@ -1,19 +1,13 @@
-import React, {useEffect} from 'react'
-import { useParams } from "react-router-dom";
+import React from 'react'
 import {useFalcor} from '@availabs/avl-falcor'
-import {
-  DmsManager,
-  dmsDataLoader,
-  dmsDataEditor, dmsPageFactory, pageConfigNew,
-} from './index'
-
+import {dmsDataLoader, dmsPageFactory,} from './index'
+import pageConfigNew from './patterns/page/siteConfigNew'
 import defaultTheme from './theme/default-theme'
 
 import {
   falcorGraph,
   FalcorProvider
 } from "@availabs/avl-falcor"
-//const noAuth = Component => Component
 
 export default async function dmsSiteFactory (
   dmsConfig,
@@ -22,13 +16,11 @@ export default async function dmsSiteFactory (
   dmsTheme = defaultTheme,
   API_HOST = 'https://graph.availabs.org'
 ) {
-  console.log('dmsconf', dmsConfig)
-  //const {falcor, falcorCache} = useFalcor()
   const falcor = falcorGraph(API_HOST)
   let data = await dmsDataLoader(falcor, dmsConfig, `/`);
   const patterns = data.reduce((acc, curr) => [...acc, ...curr.patterns], []) || [];
 
-  // call dmsPageFactory here asuming patterns are page type
+  // call dmsPageFactory here assuming patterns are page type
   // export multiple routes based on patterns.
   return patterns.map(pattern => ({
     ...dmsPageFactory(pageConfigNew({
@@ -40,7 +32,6 @@ export default async function dmsSiteFactory (
       baseUrl: pattern.base_url,
     }), authWrapper, dmsTheme, API_HOST),
     path: `${pattern.base_url}/*`,
-    // element: (props) =>  <DMS {...props} />
   }))
 }
 

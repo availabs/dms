@@ -1,18 +1,12 @@
 import React from 'react'
-
-// pages
 import Layout from "./layout/layout"
-
-import cmsFormat from "./admin.format.js"
+import siteFormat from "./admin.format.js"
 import cloneDeep from 'lodash/cloneDeep'
 import defaultTheme from '../page/layout/components/theme'
 import PatternList from "./layout/patternList";
 import SiteEdit from "./layout/siteEdit"
-import { registerDataType } from "../../index"
 
-// sideNav = {size: 'miniPad'}
-
-const siteConfig = ({ 
+const adminConfig = ({ 
   app = "dms-site",
   type = "docs-page",
   sideNav = null,
@@ -23,18 +17,10 @@ const siteConfig = ({
   theme = defaultTheme
 }) => {
   theme = theme || defaultTheme
-  const format = cloneDeep(cmsFormat)
+  const format = cloneDeep(siteFormat)
   format.app = app
   format.type = type
 
-  const rightMenuWithSearch = (
-      <div className={'flex flex-col md:flex-row'}>
-        {/*<Search app={app} type={type}/>*/}
-        {rightMenu}
-      </div>
-  )
-
-  // const rightMenuWithSearch = rightMenu; // for live site
   return {
     format: format,
     check: ({user}, activeConfig, navigate) =>  {
@@ -80,7 +66,6 @@ const siteConfig = ({
             options: {
               accessor: 'key'
             }
-
           },
           {
             type: props => <SiteEdit {...props} />,
@@ -89,7 +74,6 @@ const siteConfig = ({
               accessor: 'key'
             },
             path: '/edit/:id',
-            // redirect: '/edit/:id?'
           },
           {
             type: props => <SiteEdit {...props} />,
@@ -107,4 +91,4 @@ const siteConfig = ({
   }
 }
 
-export default siteConfig
+export default adminConfig
