@@ -18,9 +18,9 @@ import {
 export default function dmsPageFactory (
   dmsConfig,
   authWrapper = Component => Component,
-  dmsTheme = defaultTheme,
-  
+  dmsTheme = defaultTheme
 ) {
+  //console.log('hola', dmsConfig, authWrapper)
   //const {falcor, falcorCache} = useFalcor()
   const { 
     API_HOST = 'https://graph.availabs.org', 
@@ -81,7 +81,7 @@ export default function dmsPageFactory (
 
   return {
     path: `${dmsPath}*`,
-    Component: (props) =>  <DMS {...props} />,
+    element: (props) =>  <DMS {...props} />,
     loader: loader,
     action: action
   }
