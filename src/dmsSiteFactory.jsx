@@ -12,6 +12,7 @@ import {
 export default async function dmsSiteFactory (
   dmsConfig,
   dmsPath='/',
+  adminPath='/list',
   authWrapper = Component => Component,
   dmsTheme = defaultTheme,
   API_HOST = 'https://graph.availabs.org'
@@ -22,7 +23,9 @@ export default async function dmsSiteFactory (
 
   // call dmsPageFactory here assuming patterns are page type
   // export multiple routes based on patterns.
-  return patterns.map(pattern => ({
+  return [
+    dmsPageFactory({...dmsConfig, baseUrl: adminPath}),
+    ...patterns.map(pattern => ({
     ...dmsPageFactory(pageConfigNew({
       app: dmsConfig.app,
       type: pattern.base_url.replace('/', ''),
@@ -32,6 +35,6 @@ export default async function dmsSiteFactory (
       baseUrl: pattern.base_url,
     }), authWrapper, dmsTheme, API_HOST),
     path: `${pattern.base_url}/*`,
-  }))
+  }))]
 }
 

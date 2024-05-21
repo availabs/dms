@@ -73,7 +73,7 @@ const adminConfig = ({
             options: {
               accessor: 'key'
             },
-            path: '/edit/:id',
+            path: `${baseUrl}/edit/:id`,
           },
           {
             type: props => <SiteEdit {...props} />,

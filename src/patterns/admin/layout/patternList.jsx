@@ -10,8 +10,8 @@ function PatternList (props) {
 			<div className={'text-2xl font-semibold text-gray-700'}>Patterns</div>
 			<Link to={`/edit/${siteId}`}>Edit Site</Link>
 		</div>
-		<div key={data.site_name} className={'font-semibold'}>
-			Site Name: {data.site_name || 'No Site Name'}
+		<div key={data?.site_name} className={'font-semibold'}>
+			Site Name: {data?.site_name || 'No Site Name'}
 		</div>
 
 		<div className={'py-5'}>
@@ -24,7 +24,7 @@ function PatternList (props) {
 					<div>Type</div>
 				</div>
 				{
-					data.patterns.map(pattern => (
+					(data?.patterns || []).map(pattern => (
 						<div key={pattern.id} className={'grid grid-cols-4 '}>
 							<div>{pattern.id}</div>
 							<div><Link to={pattern.base_url}>{pattern.base_url}</Link></div>
