@@ -1,15 +1,12 @@
-import React, { Fragment, useState } from "react"
+import React, { Fragment, useState, useLayoutEffect } from "react"
+import { useLocation } from 'react-router-dom';
 import isEqual from 'lodash/isEqual'
 import cloneDeep from 'lodash/cloneDeep'
-// import 
 import { Popover, Transition } from '@headlessui/react'
 import { Link } from "react-router-dom";
 import { usePopper } from 'react-popper'
 import { CMSContext } from '../../siteConfig'
-
-
 import { getSizeClass, sizeOptionsSVG } from './sizes.jsx'
-
 
 const isJson = (str)  => {
     try {
@@ -430,6 +427,33 @@ const AddSectionButton = ({onClick, showpageToggle}) => {
         </div>
     )
 }
+
+const ScrollToHashElement = () => {
+    const location = useLocation();
+
+    useLayoutEffect(() => {
+        const { hash } = location;
+        const removeHashCharacter = (str) => {
+            const result = str.slice(1);
+            return +result;
+        };
+
+        if (hash) {
+            const element = document.getElementById(removeHashCharacter(hash));
+            if (element) {
+                setTimeout(function () {
+                    element.scrollIntoView({
+                        behavior: "smooth",
+                        block: "nearest",
+                    });
+                }, 100);
+            }
+        }
+    }, [location]);
+
+    return null;
+};
+
 const Edit = ({Component, value, onChange, attr, full_width = false }) => {
     if (!value || !value.map) { 
         value = []
@@ -514,6 +538,7 @@ const Edit = ({Component, value, onChange, attr, full_width = false }) => {
     
     return (
         <div className={`w-full grid grid-cols-6 ${layouts[full_width === 'show' ? 'fullwidth' : 'centered']} gap-1`}>
+            <ScrollToHashElement />
             {values.map((v,i) => {
                 //console.log()
                 const size = (edit.index === i ? edit?.value?.size : v?.size) || "1";
@@ -532,7 +557,10 @@ const Edit = ({Component, value, onChange, attr, full_width = false }) => {
 
                 // console.log('section', v, v.error)
                 return (
-                    <div key={i} className={`${v?.size ? "h-full" : ""} ${sizeClass} ${hideDebug ? '' : 'border-2 border-dashed border-green-500'}`}>
+                    <div
+                        key={i}
+                        id={`${v.id}`}
+                        className={`${v?.size ? "h-full" : ""} ${sizeClass} ${hideDebug ? '' : 'border-2 border-dashed border-green-500'}`}>
                         {/* add to top */}
                         { /*edit.index === -1 && i === 0 ? 
                             <AddSectionButton showpageToggle={true} onClick={() => setEditIndex(0)}/> : 
@@ -618,7 +646,7 @@ const View = ({Component, value, attr, full_width}) => {
                 const sizeClass = getSizeClass(size, requiredSpace, availableSpace, runningColTotal);
 
                 return (
-                    <div key={i} className={`${sizeClass}`}>
+                    <div id={v.id} key={i} className={`${sizeClass}`}>
                         <SectionView
                             attributes={attr.attributes}
                             key={i}
@@ -629,6 +657,7 @@ const View = ({Component, value, attr, full_width}) => {
                 )
             })
         }
+        <ScrollToHashElement />
         </div>
     )
 }
