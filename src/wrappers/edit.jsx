@@ -21,7 +21,7 @@ export default function EditWrapper({ Component, format, options, params, user, 
 	const attributes = getAttributes(format, options, 'edit')
 	const submit = useSubmit();
 	const { pathname } = useLocation()
-	const { data } = useLoaderData()
+	const { data=[] } = useLoaderData() || []
 	let status = useActionData()
 	const {defaultSort = (d) => d } = format
 

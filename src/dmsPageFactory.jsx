@@ -18,9 +18,9 @@ import {
 export default function dmsPageFactory (
   dmsConfig,
   authWrapper = Component => Component,
-  dmsTheme = defaultTheme,
-  
+  dmsTheme = defaultTheme
 ) {
+  //console.log('hola', dmsConfig, authWrapper)
   //const {falcor, falcorCache} = useFalcor()
   const { 
     API_HOST = 'https://graph.availabs.org', 
