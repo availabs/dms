@@ -6,7 +6,8 @@
  *
  */
 
-import InputStyles from './InputStyles';
+//import InputStyles from './InputStyles';
+
 
 import * as React from 'react';
 import {HTMLInputTypeAttribute} from 'react';
@@ -19,7 +20,7 @@ type Props = Readonly<{
   value: string;
   type?: HTMLInputTypeAttribute;
 }>;
-
+const InputStyles = {}
 export default function TextInput({
   label,
   value,
@@ -29,11 +30,11 @@ export default function TextInput({
   type = 'text',
 }: Props): JSX.Element {
   return (
-    <div className={`${InputStylese["Input__wrapper"]}`}>
-      <label className={`${InputStylese["Input__label"]}`}>{label}</label>
+    <div className={`${InputStyles["Input__wrapper"]}`}>
+      <label className={`${InputStyles["Input__label"]}`}>{label}</label>
       <input
         type={type}
-        className={`${InputStylese["Input__input"]}`}
+        className={`${InputStyles["Input__input"]}`}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.files)}
         data-test-id={dataTestId}
