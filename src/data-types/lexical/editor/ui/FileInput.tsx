@@ -6,7 +6,7 @@
  *
  */
 
-import InputStyles from './InputStyles';
+//import InputStyles from './InputStyles';
 
 import * as React from 'react';
 
@@ -17,7 +17,7 @@ type Props = Readonly<{
   label: string;
   onChange: (files: FileList | null) => void;
 }>;
-
+const InputStyles = {}
 export default function FileInput({
   accept,
   label,
@@ -25,12 +25,12 @@ export default function FileInput({
   'data-test-id': dataTestId,
 }: Props): JSX.Element {
   return (
-    <div className={`${InputStylese["Input__wrapper"]}`}>
-      <label className={`${InputStylese["Input__label"]}`}>{label}</label>
+    <div className={`${InputStyles["Input__wrapper"]}`}>
+      <label className={`${InputStyles["Input__label"]}`}>{label}</label>
       <input
         type="file"
         accept={accept}
-        className={`${InputStylese["Input__input"]}`}
+        className={`${InputStyles["Input__input"]}`}
         onChange={(e) => onChange(e.target.files)}
         data-test-id={dataTestId}
       />

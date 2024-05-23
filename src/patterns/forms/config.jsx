@@ -19,6 +19,7 @@ const falcor = falcorGraph('https://graph.availabs.org')
 const siteConfig = ({
     app, type, title, baseUrl, columns
                     }) => ({
+    baseUrl,
     formatFn: async () => {
         const formConfigs = await dmsDataLoader(
             falcor,

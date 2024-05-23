@@ -29,6 +29,7 @@ const siteConfig = ({
   rightMenu = <div />,
   baseUrl = '',
   checkAuth = () => {},
+  authLevel = -1,
   theme = defaultTheme,
   pgEnv
 }) => {
@@ -51,6 +52,7 @@ const siteConfig = ({
     format: format,
     baseUrl, 
     check: ({user}, activeConfig, navigate) =>  {
+      
       const getReqAuth = (configs) => {
         return configs.reduce((out,config) => {
           let authLevel = config.authLevel || -1
@@ -61,6 +63,7 @@ const siteConfig = ({
         },-1)
       } 
       let requiredAuth = getReqAuth(activeConfig)
+      console.log('checking', user, activeConfig)
       checkAuth({user, authLevel:requiredAuth}, navigate)
     },
     children: [
@@ -76,6 +79,7 @@ const siteConfig = ({
             />
           )
         },
+        authLevel,
         action: "list",
         path: "/*",
         filter: {

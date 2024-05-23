@@ -120,7 +120,7 @@ const SearchPallet = ({open, setOpen, app, type}) => {
                             className="mx-auto max-w-xl transform divide-y divide-gray-100 overflow-hidden rounded-xl bg-white shadow-2xl ring-1 ring-black ring-opacity-5 transition-all">
                             <Combobox onChange={(item) => {
                                 if (item.url){
-                                    window.location = item.url
+                                    window.location = `${item.url}#${item.id}`
                                 }
                             }}>
                                 <div className="relative">
@@ -144,7 +144,8 @@ const SearchPallet = ({open, setOpen, app, type}) => {
                                                       className="max-h-96 transform-gpu scroll-py-3 overflow-y-auto p-3">
                                         <span className={'text-xs italic'}>suggestions: </span>
                                         {tags
-                                            .filter((tag, i) => i <= 5 && (!tmpQuery?.length || tag.toLowerCase().includes(tmpQuery.toLowerCase())))
+                                            .filter(tag => (!tmpQuery?.length || tag.toLowerCase().includes(tmpQuery.toLowerCase())))
+                                            .filter((tag, i) => i <= 5)
                                             .map((tag) => (
                                             <Combobox.Option
                                                 key={tag}
