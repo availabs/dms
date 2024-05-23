@@ -1,7 +1,7 @@
 import React from 'react'
 import {useFalcor} from '@availabs/avl-falcor'
 import {dmsDataLoader, dmsPageFactory,} from '../../index'
-import pageConfigNew from '../page/siteConfigNew'
+import pageConfigNew from '../page/siteConfigSimple'
 import defaultTheme from '../../theme/default-theme'
 
 import {

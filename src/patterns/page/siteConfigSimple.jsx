@@ -3,22 +3,10 @@ import React from 'react'
 import Layout from "./layout/layout.jsx"
 import PageView from "./layout/view.jsx"
 import PageEdit from "./layout/edit.jsx"
-
-// templates
-import TemplateList from './layout/template/list'
-import TemplatePages from './layout/template/pages'
-import TemplateEdit from './layout/template/edit'
-
 import cmsFormat from "./page.format.js"
 import cloneDeep from 'lodash/cloneDeep'
 import defaultTheme from './theme/theme'
 import {Search} from "./search";
-import Selector from "./selector"
-import { registerDataType } from "../../index"
-
-// sideNav = {size: 'miniPad'}
-
-export const CMSContext = React.createContext(undefined);
 
 const siteConfig = ({ 
   app = "dms-site",
@@ -33,7 +21,6 @@ const siteConfig = ({
   pgEnv
 }) => {
   theme = {...defaultTheme, ...theme}
-  // console.log('pattern siteConfig', app, type, pgEnv)
   
   const format = cloneDeep(cmsFormat)
   format.app = app
@@ -46,7 +33,6 @@ const siteConfig = ({
       </div>
   )
 
-  // const rightMenuWithSearch = rightMenu; // for live site
   return {
     format: format,
     baseUrl, 
@@ -124,7 +110,7 @@ const siteConfig = ({
           attributes:['title', 'index', 'url_slug', 'parent', 'published', 'hide_in_nav' ]
         },
         children: [
-          { //edit is rendering patternList view
+          {
             type: (props) => <PageEdit
               {...props}
               logo={logo}
