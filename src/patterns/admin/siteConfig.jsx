@@ -23,6 +23,7 @@ const adminConfig = ({
 
   return {
     format: format,
+    baseUrl,
     check: ({user}, activeConfig, navigate) =>  {
       const getReqAuth = (configs) => {
         return configs.reduce((out,config) => {
