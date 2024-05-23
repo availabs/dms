@@ -441,11 +441,13 @@ const ScrollToHashElement = () => {
         if (hash) {
             const element = document.getElementById(removeHashCharacter(hash));
             if (element) {
+                let position = element.getBoundingClientRect();
                 setTimeout(function () {
-                    element.scrollIntoView({
-                        behavior: "smooth",
-                        block: "nearest",
-                    });
+                    window.scrollTo(position.x, position.y - 170);
+                    // element.scrollIntoView({
+                    //     behavior: "smooth",
+                    //     block: "center",
+                    // });
                 }, 100);
             }
         }
