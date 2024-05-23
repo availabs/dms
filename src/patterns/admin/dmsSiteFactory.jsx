@@ -1,8 +1,8 @@
 import React from 'react'
 import {useFalcor} from '@availabs/avl-falcor'
-import {dmsDataLoader, dmsPageFactory,} from './index'
-import pageConfigNew from './patterns/page/siteConfigNew'
-import defaultTheme from './theme/default-theme'
+import {dmsDataLoader, dmsPageFactory,} from '../../index'
+import pageConfigNew from '../page/siteConfigNew'
+import defaultTheme from '../../theme/default-theme'
 
 import {
   falcorGraph,

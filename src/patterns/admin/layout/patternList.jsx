@@ -8,7 +8,7 @@ function PatternList (props) {
 	return <div className={'p-10 w-full h-dvh'}>
 		<div className={'w-full flex justify-between border-b-2 border-blue-400'}>
 			<div className={'text-2xl font-semibold text-gray-700'}>Patterns</div>
-			<Link to={`/edit/${siteId}`}>Edit Site</Link>
+			<Link to={`edit/${siteId}`}>Edit Site</Link>
 		</div>
 		<div key={data?.site_name} className={'font-semibold'}>
 			Site Name: {data?.site_name || 'No Site Name'}
