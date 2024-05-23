@@ -5,10 +5,10 @@ export default function SiteEdit ({
 					   attributes,
 					   updateAttribute,
 					   status,
-					   submit,
+					   submit, apiUpdate, format,
 				   }) {
 	const theme = useTheme()
-
+	const updateData = (data, attrKey) => apiUpdate({data: {...item, ...{[attrKey]: data}}, config: {format}})
 	return <div key={item.id} className={'w-full'}>
 		{status ? <div>{JSON.stringify(status)}</div> : ''}
 
@@ -21,15 +21,13 @@ export default function SiteEdit ({
 								key={`${attrKey}-${i}`}
 								value={item?.[attrKey]}
 								onChange={(v) => updateAttribute(attrKey, v)}
+								submit={data => updateData(data, attrKey)}
+								format={format}
 								{...attributes[attrKey]}
 							/>
 					</div>
 				)
 			})
 		}
-
-		<div className={theme?.card?.btnWrapper}>
-			<button className={theme?.card?.submitBtn} onClick={() => submit()}> Save</button>
-		</div>
 	</div>
 }

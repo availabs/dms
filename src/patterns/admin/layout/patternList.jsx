@@ -46,13 +46,16 @@ function PatternEdit({
 						 submit,
 						 onChange,
 						 value = [],
+						 format,
 						 ...rest
 					 }) {
 	const [newItem, setNewItem] = useState({});
 	const [editingIndex, setEditingIndex] = useState(undefined);
 	const [editingItem, setEditingItem] = useState(undefined);
 	const addNewValue = () => {
-		onChange([...value, newItem])
+		const newData = [...value, newItem];
+		onChange(newData)
+		submit(newData)
 		setNewItem({})
 	}
 	const numAttributes = Object.keys(attributes).length
@@ -109,6 +112,7 @@ function PatternEdit({
 										onChange(value)
 										setEditingIndex(editingIndex === index ? undefined : index);
 										setEditingItem(editingIndex === index ? undefined : pattern)
+										submit(value)
 									}}
 								>done
 								</button>
@@ -116,7 +120,11 @@ function PatternEdit({
 							<button
 								className={'bg-red-100 hover:bg-red-300 text-red-800 px-2 py-0.5 mx-1 rounded-lg w-fit h-fit'}
 								title={'remove item'}
-								onClick={() => onChange(value.filter((v, i) => i !== index))}
+								onClick={() => {
+									const newData = value.filter((v, i) => i !== index);
+									onChange(newData)
+									submit(newData)
+								}}
 							> remove
 							</button>
 						</div>
