@@ -2,7 +2,7 @@ import React, {useEffect} from 'react'
 import { useLoaderData, useActionData, useParams, Form, useSubmit, useLocation } from "react-router-dom";
 import { filterParams } from '../dms-manager/_utils'
 import { getAttributes } from './_utils'
-import { dmsDataEditor } from '../index'
+import { dmsDataEditor, dmsDataLoader } from '../index'
 import { useFalcor } from "@availabs/avl-falcor"
 import isEqual from 'lodash/isEqual'
 //import { useImmer } from "use-immer";
@@ -47,6 +47,10 @@ export default function EditWrapper({ Component, format, options, params, user, 
 			submit(null, {action: pathname})
 	}
 
+	const apiLoad = async (config) => {
+		return await dmsDataLoader(falcor, config)
+	}
+
 	const updateAttribute = (attr, value, multi) => {
 		if(multi) {
 			setItem({...item, ...multi})
@@ -70,6 +74,7 @@ export default function EditWrapper({ Component, format, options, params, user, 
 			dataItems={data}
 			params={params}
 			apiUpdate={apiUpdate}
+			apiLoad={apiLoad}
 			updateAttribute={updateAttribute}
 			setItem={setItem}
 			options={options}

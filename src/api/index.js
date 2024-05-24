@@ -20,6 +20,7 @@ export async function dmsDataLoader (falcor, config, path='/') {
 	// runCount += 1
 	// const runId = runCount
 	//-------------------------------------
+	// console.log('dmsDataLoader', config, path)
 
 	if(config.formatFn){
 		config.format = await config.formatFn();
