@@ -52,7 +52,7 @@ const adminConfig = ({
         path: "/*",
         children: [
           {
-              type: (props) => <PatternList.ViewComp {...props} />,
+            type: (props) => <PatternList.ViewComp {...props} />,
             action: "list",
             path: "/*",
             // todo: figure the 3rd level child not rendering bug, and then make this look pretty by using custom types.

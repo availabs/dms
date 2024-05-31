@@ -63,7 +63,6 @@ const siteConfig = ({
         },-1)
       } 
       let requiredAuth = getReqAuth(activeConfig)
-      console.log('checking', user, activeConfig)
       checkAuth({user, authLevel:requiredAuth}, navigate)
     },
     children: [
