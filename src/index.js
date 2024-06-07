@@ -7,7 +7,7 @@ import { CMSContext } from './patterns/page/siteConfig'
 import dmsSiteFactory from "./patterns/admin/dmsSiteFactory";
 import pageConfig from './patterns/page/siteConfig'
 import adminConfig from './patterns/admin/siteConfig'
-import Selector from "./patterns/page/selector"
+import Selector, { registerComponents } from "./patterns/page/components/selector"
 
 export {
 	DmsManager,
@@ -21,5 +21,6 @@ export {
 	dmsSiteFactory,
 	pageConfig,
 	adminConfig,
-	Selector
+	Selector,
+	registerComponents
 }

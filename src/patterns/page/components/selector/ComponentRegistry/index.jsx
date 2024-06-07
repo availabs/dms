@@ -1,6 +1,6 @@
 import React, {useEffect, useState} from "react"
 import {isJson} from "../index";
-import { dmsDataTypes } from "../../../../index.js"
+import { dmsDataTypes } from "../../../../../index.js"
 import Header from './header'
 
 export const RenderCalloutBox = ({text = {}, backgroundColor, ...rest}) => {

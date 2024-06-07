@@ -22,10 +22,11 @@ export default function dmsPageFactory (
 ) {
   //console.log('hola', dmsConfig, authWrapper)
   //const {falcor, falcorCache} = useFalcor()
-  const { 
+  let { 
     API_HOST = 'https://graph.availabs.org', 
     baseUrl = "" 
   } = dmsConfig
+  //baseUrl = baseUrl[0] === '/' ? baseUrl.slice(1) : baseUrl
   const dmsPath= `${baseUrl}/`
   const falcor = falcorGraph(API_HOST)
 
@@ -50,21 +51,13 @@ export default function dmsPageFactory (
   function DMS() {
     const params = useParams();
     const AuthedManager = authWrapper(DmsManager)
-    
-    /*
-    React.useEffect(() => {
-      console.log('DMS Wrapper load', params)
-    },[])
-
-    console.log('DMS Wrapper render', params)
-    */
 
     return React.useMemo(() => (
       <FalcorProvider falcor={falcor}>
         <AuthedManager 
-        path={ `/${params['*'] || ''}` }
-        config={dmsConfig}
-        theme={dmsTheme}
+          path={ `/${params['*'] || ''}` }
+          config={dmsConfig}
+          theme={dmsTheme}
         />
       </FalcorProvider>
     ),[params['*']])

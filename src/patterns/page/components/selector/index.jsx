@@ -2,7 +2,7 @@ import {useEffect} from "react";
 import get from "lodash/get"
 import isEqual from "lodash/isEqual"
 
-import {dmsDataTypes} from "../../../index"
+import {dmsDataTypes} from "../../../../index"
 
 import FilterableSearch from "./FilterableSearch.jsx";
 
