@@ -1,6 +1,6 @@
 import PatternList from './layout/patternList'
 
-const pattern = {
+export const pattern = {
   app: "dms-site",
   type: "pattern",
   attributes: [
@@ -11,7 +11,7 @@ const pattern = {
       default: "page",
         options: [
         {value: 'page', label: 'Page'},
-        {value: 'form', label: 'Custom'}
+        {value: 'form', label: 'Form'}
       ],
     },
     { key: "doc_type",
@@ -29,9 +29,13 @@ const pattern = {
       type: "text",
       required: true
     },
-    { key: 'theme',
-      placeholder: 'theme',
-      type: 'text'
+    // { key: 'theme',
+    //   placeholder: 'theme',
+    //   type: 'text'
+    // },
+    { key: 'config',
+      placeholder: 'please select a type',
+      type: 'config'
     },
   ] 
 }

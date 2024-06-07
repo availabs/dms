@@ -85,7 +85,7 @@ const adminConfig = ({
             filter: {type: 'new'},
             path: '/new',
             redirect: '/edit/:id?'
-          }
+          },
         ]
       }
     ]

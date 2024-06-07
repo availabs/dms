@@ -1,14 +1,8 @@
 import React, {useEffect, useState} from "react"
-import {dmsDataLoader, dmsPageFactory, registerDataType} from "~/modules/dms/src"
-import checkAuth from "~/layout/checkAuth"
+import {dmsDataLoader} from "../../api/index"
 import {formsConfigFormat} from "./forms.format";
 import {Layout} from "./components/Layout.jsx";
-import {getData} from "./utils/getData.js";
 import {TableComp} from "./components/TableComp";
-// import {falcor} from "../../../dmsPageFactory"
-
-//const //
-
 import {
   falcorGraph,
   FalcorProvider
@@ -16,8 +10,19 @@ import {
 
 const falcor = falcorGraph('https://graph.availabs.org')
 
+const defaultConfig = JSON.stringify({
+    app: 'dms-site',
+    type: 'test-forms',
+    attributes: [
+        {
+            "name": "name",
+            "display_name": "Name",
+            "type": "text"
+        },
+    ]
+})
 const siteConfig = ({
-    app, type, title, baseUrl, columns
+    app, type, title, baseUrl, columns, checkAuth = () => {}
                     }) => ({
     baseUrl,
     formatFn: async () => {
@@ -36,11 +41,11 @@ const siteConfig = ({
             }, '/');
 
         const config = formConfigs.find(fc => {
-            const config = JSON.parse(fc?.config) || {};
+            const config = JSON.parse(fc?.config || '{}');
             return config.app === app && config.type === type;
         });
 
-        return {...JSON.parse(config?.config), id: config.id};
+        return {...JSON.parse(config?.config || defaultConfig), id: config?.id};
     },
     check: ({user}, activeConfig, navigate) => {
 

@@ -2,13 +2,19 @@ import React from 'react'
 import {useFalcor} from '@availabs/avl-falcor'
 import {dmsDataLoader, dmsPageFactory,} from '../../index'
 import pageConfigNew from '../page/siteConfigSimple'
+import formsConfig from '../forms/metaFormsconfig'
 import defaultTheme from '../../theme/default-theme'
 
 import {
   falcorGraph,
   FalcorProvider
 } from "@availabs/avl-falcor"
+import patternConfig from "./patternConfig";
 
+const configs = {
+  page: pageConfigNew,
+  form: formsConfig
+}
 export default async function dmsSiteFactory (
   dmsConfig,
   dmsPath='/',
@@ -25,16 +31,31 @@ export default async function dmsSiteFactory (
   // export multiple routes based on patterns.
   return [
     dmsPageFactory({...dmsConfig, baseUrl: adminPath}),
-    ...patterns.map(pattern => ({
-    ...dmsPageFactory(pageConfigNew({
-      app: dmsConfig.app,
-      type: pattern.base_url.replace('/', ''),
-      logo: <div>LOGO</div>,
-      useFalcor,
-      rightMenu: <div>RIGHT</div>,
-      baseUrl: pattern.base_url,
-    }), authWrapper, dmsTheme, API_HOST),
-    path: `${pattern.base_url}/*`,
-  }))]
+
+    dmsPageFactory({
+      ...patternConfig({
+        app: 'dms-site',
+        type: 'pattern',
+        baseUrl: '/manage_pattern/'
+      }),
+      baseUrl: '/manage_pattern'
+    }),
+
+    ...patterns.map(pattern => {
+      const config = configs[pattern.pattern_type];
+      return {
+        ...dmsPageFactory(config({
+          app: dmsConfig?.format?.app,
+          type: pattern?.base_url?.replace(/\//g, ''),
+          format: pattern?.config,
+          logo: <div>LOGO</div>,
+          useFalcor,
+          rightMenu: <div>RIGHT</div>,
+          baseUrl: pattern.base_url,
+        }), authWrapper, dmsTheme, API_HOST),
+        path: `${pattern.base_url}/*`,
+      }
+    }),
+    ]
 }
 
