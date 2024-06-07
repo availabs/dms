@@ -38,6 +38,7 @@ function PatternList (props) {
 			</div>
 		</div>
 	</div>
+	)
 }
 
 function PatternEdit({
