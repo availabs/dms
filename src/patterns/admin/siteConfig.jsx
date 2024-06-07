@@ -21,6 +21,8 @@ const adminConfig = ({
   format.type = type
 
   return {
+    app,
+    type,
     format: format,
     baseUrl,
     children: [

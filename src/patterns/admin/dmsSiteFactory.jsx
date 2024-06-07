@@ -48,10 +48,9 @@ export default async function dmsSiteFactory (
 
         return ({
             ...dmsPageFactory(config({
-                app: dmsConfig.app,
-                // app: dmsConfig?.format?.app,
+                app: dmsConfig?.format?.app || dmsConfig.app,
                 // type: pattern.doc_type,
-                type: pattern?.base_url?.replace(/\//g, ''),
+                type: pattern.doc_type || pattern?.base_url?.replace(/\//g, ''),
                 format: pattern?.config,
                 theme: {
                     navOptions: {
