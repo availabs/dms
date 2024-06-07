@@ -48,10 +48,11 @@ export default async function dmsSiteFactory (
 
         return ({
             ...dmsPageFactory(config({
-                // app: dmsConfig.app,
-                app: dmsConfig?.format?.app,
-                type: pattern.doc_type,
-                // type: pattern?.base_url?.replace(/\//g, ''),
+                app: dmsConfig.app,
+                // app: dmsConfig?.format?.app,
+                // type: pattern.doc_type,
+                type: pattern?.base_url?.replace(/\//g, ''),
+                format: pattern?.config,
                 theme: {
                     navOptions: {
                       logo: (<Link to='/' className='h-12 flex px-4 items-center'>LOGO</Link>),
