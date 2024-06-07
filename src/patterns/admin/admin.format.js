@@ -1,4 +1,4 @@
-import PatternList from './layout/patternList'
+import PatternList from './components/patternList'
 
 const pattern = {
   app: "dms-site",

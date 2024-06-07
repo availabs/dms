@@ -18,7 +18,7 @@ const DmsManager = (props) => {
 		user
 	} = props
 
-	console.log('dms manager', props)
+	//console.log('dms manager', props)
 	
 	const {
 		check = defaultCheck,
@@ -28,7 +28,7 @@ const DmsManager = (props) => {
 	const navigate = useNavigate()
 
 	React.useEffect(()=>{
-		console.log('test 123', user)
+		// console.log('test 123', user)
 		if(check && user) {
 			let activeConfig = getActiveConfig(config.children, path, config.format)
 			check( checkAuth, props, activeConfig, navigate, path )
@@ -59,6 +59,7 @@ const DmsManager = (props) => {
 		return <NoRouteMatch path={path} />
 	}
 
+	// console.log('DMS Manager: render')
 	return React.useMemo(() => (
 		<>{RenderView}</>
 	),[RenderView])	

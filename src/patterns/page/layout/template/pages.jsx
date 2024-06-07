@@ -5,7 +5,6 @@ import {DeleteModal} from "./list.jsx";
 import Layout from '../components/avail-layout'
 // import {Table} from "~/modules/avl-components/src";
 import {getNestedValue} from "../../../forms/utils/getNestedValue";
-import {pgEnv} from "../components/utils/constants";
 import { CMSContext } from "../../siteConfig";
 import get from "lodash/get";
 
@@ -114,7 +113,7 @@ const getMetaName = (id_column, id, data) => id_column === 'geoid' ?
     data?.[findNameCol(data)] || id
 const TemplatePages = ({item, params, logo, rightMenu, baseUrl=''}) => {
     const [pageSize, setPageSize] = useState(10);
-    const { falcor, falcorCache} = React.useContext(CMSContext)
+    const { falcor, falcorCache, pgEnv } = React.useContext(CMSContext)
     const {id} = params;
     const view_id = item.data_controls?.view?.view_id;
     const id_column = item.data_controls?.id_column?.name;

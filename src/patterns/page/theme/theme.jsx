@@ -3,10 +3,34 @@ import topnav from './topnav'
 
 
 const theme = {
+  navOptions: {
+    logo: '',
+    sideNav: {
+      size: 'none',
+      search: 'none',
+      logo: 'top',
+      dropdown: 'none',
+      nav: 'none'
+    },
+    topNav: {
+      size: 'compact',
+      dropdown: 'right',
+      search: 'right',
+      logo: 'left',
+      nav: 'main' 
+    }
+  },
   page: {
-    wrapper1: 'w-full flex-1 flex flex-col bg-slate-100', // first div inside Layout
+    wrapper1: 'w-full h-full flex-1 flex flex-col bg-slate-100', // first div inside Layout
     wrapper2: 'w-full h-full flex-1 flex flex-row px-1 md:px-6 py-6', // inside page header, wraps sidebar
     wrapper3: 'flex flex-1 w-full  flex-col border shadow bg-white relative text-md font-light leading-7 p-4 min-h-[calc(100vh_-_102px)]' , // content wrapepr
+    iconWrapper : 'z-30 absolute right-[10px] top-[5px]',
+    icon: 'text-slate-400 hover:text-blue-500'
+  },
+  pageControls: {
+    controlItem: 'pl-6 py-0.5 text-md cursor-pointer hover:text-blue-500 text-slate-400 flex items-center',
+    select: 'bg-transparent border-none rounded-sm focus:ring-0 focus:border-0 pl-1',
+    selectOption: 'p-4 text-md cursor-pointer hover:text-blue-500 text-slate-400 hover:bg-blue-600',
   },
   navPadding: {
     1: 'pt-0 ',

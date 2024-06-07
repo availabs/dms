@@ -1,8 +1,8 @@
 import {Fragment, useEffect, useContext, useState} from "react";
 import {Combobox, Dialog, Transition} from '@headlessui/react'
-import {getConfig} from "../layout/template/pages";
-import {dmsDataLoader} from "../../../api";
-import {CMSContext} from "../siteConfig";
+// import {getConfig} from "../layout/template/pages";
+import {dmsDataLoader} from "../../../../api";
+import {CMSContext} from "../../siteConfig";
 
 export const Search = ({app, type}) => {
     const [open, setOpen] = useState(false)
@@ -26,7 +26,7 @@ function classNames(...classes) {
 }
 
 const SearchPallet = ({open, setOpen, app, type}) => {
-    const { baseUrl, falcor, falcorCache } = useContext(CMSContext)
+    const { baseUrl, falcor, falcorCache } = useContext(CMSContext) || {}
     const [query, setQuery] = useState('');
     const [tmpQuery, setTmpQuery] = useState('');
     const [loading, setLoading] = useState(false);
@@ -241,3 +241,38 @@ const SearchPallet = ({open, setOpen, app, type}) => {
         </Transition.Root>
     )
 }
+
+
+export const getConfig = ({
+      app,
+      type,
+      filter,
+      action = 'load',
+      tags,
+      attributes = [
+          {key: 'id', label: 'id'},
+          {key: 'app', label: 'app'},
+          {key: 'type', label: 'type'},
+          {key: 'data', label: 'data'},
+          {key: 'updated_at', label: 'updated_at'},
+      ]}) => ({
+    format: {
+        app: app,
+        type: type,
+        attributes
+    },
+    children: [
+        {
+            type: () => {},
+            action,
+            filter: {
+                options: JSON.stringify({
+                    filter,
+                }),
+                tags,
+                attributes: attributes.map(a => a.key)
+            },
+            path: '/'
+        }
+    ]
+})

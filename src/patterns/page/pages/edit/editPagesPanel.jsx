@@ -4,25 +4,18 @@ import { Dialog, Transition } from '@headlessui/react'
 
 import { CMSContext } from '../../siteConfig'
 
-import Nestable from '../components/nestable';
-import { dataItemsNav } from '../components/utils/navItems'
-import { json2DmsForm, getUrlSlug } from '../components/utils/navItems'
+import Nestable from '../../ui/nestable';
+import { json2DmsForm, getUrlSlug, dataItemsNav } from '../_utils'
 
 
 
 export default function EditPagesNav ({ item, dataItems, edit, open, setOpen}) {
-  const { baseUrl } = React.useContext(CMSContext)
+  const { baseUrl } = React.useContext(CMSContext) || {}
   
-  // const menuItems = React.useMemo(() => {
-  //   let items = dataItemsNav(dataItems,baseUrl,true)
-  //   return items
-  // }, [dataItems])  
-
-  // console.log('edit pages in nav', dataItems)
 
   return (
     <Transition.Root show={open} as={Fragment}>
-      <Dialog as="div" className="relative z-20" onClose={setOpen}>
+      <Dialog as="div" className="relative z-30" onClose={setOpen}>
         <div className="fixed inset-0" />
 
         <div className="fixed inset-0 overflow-hidden">

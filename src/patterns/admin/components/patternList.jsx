@@ -1,54 +1,57 @@
 import React, {useState} from 'react'
-import {Link} from 'react-router-dom'
+import {Link, useNavigate} from 'react-router-dom'
+
 function PatternList (props) {
 
 	const data = props?.dataItems[0] || {};
 	const siteId = data?.id;
 
-	return <div className={'p-10 w-full h-dvh'}>
-		<div className={'w-full flex justify-between border-b-2 border-blue-400'}>
-			<div className={'text-2xl font-semibold text-gray-700'}>Patterns</div>
-			<Link to={`edit/${siteId}`}>Edit Site</Link>
-		</div>
-		<div key={data?.site_name} className={'font-semibold'}>
-			Site Name: {data?.site_name || 'No Site Name'}
-		</div>
+	return (
+		<div className={'p-10 w-full h-dvh'}>
+			<div className={'w-full flex justify-between border-b-2 border-blue-400'}>
+				<div className={'text-2xl font-semibold text-gray-700'}>Patterns Hola</div>
+				<Link to={`edit/${siteId}`}>Edit Site</Link>
+			</div>
+			<div key={data?.site_name} className={'font-semibold'}>
+				Site Name: {data?.site_name || 'No Site Name'}
+			</div>
 
-		<div className={'py-5'}>
-			<div className={'py-2 font-semibold text-l'}>Current Patterns</div>
-			<div className={'font-light divide-y-2'}>
-				<div className={'font-semibold grid grid-cols-4 '}>
-					<div>ID</div>
-					<div>Base Url</div>
-					<div>Name</div>
-					<div>Type</div>
+			<div className={'py-5'}>
+				<div className={'py-2 font-semibold text-l'}>Current Patterns</div>
+				<div className={'font-light divide-y-2'}>
+					<div className={'font-semibold grid grid-cols-4 '}>
+						<div>ID</div>
+						<div>Base Url</div>
+						<div>Name</div>
+						<div>Type</div>
+					</div>
+					{
+						(data?.patterns || []).map(pattern => (
+							<div key={pattern.id} className={'grid grid-cols-4 '}>
+								<div>{pattern.id}</div>
+								<div><Link to={pattern.base_url}>{pattern.base_url}</Link></div>
+								<div>name</div>
+								<div>Page</div>
+							</div>
+						))
+					}
 				</div>
-				{
-					(data?.patterns || []).map(pattern => (
-						<div key={pattern.id} className={'grid grid-cols-4 '}>
-							<div>{pattern.id}</div>
-							<div><Link to={pattern.base_url}>{pattern.base_url}</Link></div>
-							<div>name</div>
-							<div>Page</div>
-						</div>
-					))
-				}
 			</div>
 		</div>
-	</div>
+	)
 }
 
 function PatternEdit({
-						 Component,
-						 attributes,
-						 updateAttribute,
-						 status,
-						 submit,
-						 onChange,
-						 value = [],
-						 format,
-						 ...rest
-					 }) {
+	 Component,
+	 attributes,
+	 updateAttribute,
+	 status,
+	 submit,
+	 onChange,
+	 value = [],
+	 format,
+	 ...rest
+}) {
 	const [newItem, setNewItem] = useState({});
 	const [editingIndex, setEditingIndex] = useState(undefined);
 	const [editingItem, setEditingItem] = useState(undefined);
@@ -182,7 +185,8 @@ function PatternEditUsingComps({
 			</div>
 			<div className={'flex w-full'}>
 				{
-					value.map((item, itemIndex) => <div className={'flex flex-1 max-w-[33%] border-2 p-10 m-4'}>
+					value.map((item, itemIndex) => (
+						<div className={'flex flex-1 max-w-[33%] border-2 p-10 m-4'}>
 							<div className={'flex flex-1 flex-col'}>
 								{
 									Object.keys(attributes)
@@ -212,7 +216,7 @@ function PatternEditUsingComps({
 								onClick={() => onChange(value.filter((v,i) => i !== itemIndex))}
 							>X</button>
 						</div>
-					)
+					))
 				}
 			</div>
 

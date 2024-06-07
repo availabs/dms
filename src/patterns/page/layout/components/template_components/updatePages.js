@@ -1,6 +1,6 @@
 import {dmsDataEditor, dmsDataLoader} from '../../../../../index'
 import {parseJSON} from "../utils/parseJSON.js";
-import { RegisteredComponents } from '../../../selector'
+import { RegisteredComponents } from '../../../components/selector'
 import cloneDeep from "lodash/cloneDeep";
 import {json2DmsForm} from '../utils/navItems'
 //import { Promise } from 'bluebird'

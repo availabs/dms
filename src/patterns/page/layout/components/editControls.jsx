@@ -15,7 +15,7 @@ import {parseJSON} from "./utils/parseJSON.js";
 import EditPagesNav  from './editPages'
 import EditHistory from './editHistory'
 
-import { RegisteredComponents } from '../../selector'
+import { RegisteredComponents } from '../../components/selector'
 
 import { CMSContext } from '../../siteConfig'
 
