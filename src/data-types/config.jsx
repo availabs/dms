@@ -190,8 +190,8 @@ const RenderAddField = ({theme, item, attribute, placeholder, className, addAttr
                     }
                 }}
             />
-            <input disabled className={className || (theme?.text?.input || 'w-3/4 border bg-gray-100 p-2 rounded-md')}></input>
-            <button disabled className={'bg-gray-300 text-white'}>............</button>
+
+            <button className={'bg-blue-300 hover:bg-blue-500 text-white'} onClick={e => fn()}>+ add</button>
         </div>)
 }
 
