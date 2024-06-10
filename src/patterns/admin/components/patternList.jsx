@@ -100,6 +100,10 @@ function PatternEdit({
 							)
 						}
 						<div className={'w-full flex items-center justify-center'}>
+							<Link
+								className={'bg-blue-100 hover:bg-blue-300 text-blue-800 px-2 py-0.5 m-1 rounded-lg w-fit h-fit'}
+								to={`/manage_pattern/${pattern.id}`}>Manage</Link>
+
 							<button
 								className={'bg-blue-100 hover:bg-blue-300 text-blue-800 px-2 py-0.5 m-1 rounded-lg w-fit h-fit'}
 								title={'edit item'}
