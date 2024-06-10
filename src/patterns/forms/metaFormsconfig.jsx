@@ -1,6 +1,6 @@
 import React from "react"
 import {Link, useParams} from "react-router-dom";
-import {TableComp} from "./components/TableComp";
+import TableComp from "./components/TableComp";
 import {
   falcorGraph,
   FalcorProvider
@@ -19,7 +19,7 @@ const Layout = ({children, title, baseUrl, format,...rest}) => {
                 <div className='flex items-center'>
                     <div className='text-2xl p-3 font-thin flex-1'>{title}</div>
                     <div className='px-1'>
-                        <Link to={`${baseUrl}/new`} className={format.isBlank ? linkClassDisabled : linkClass}>
+                        <Link to={`${baseUrl}/item/new`} className={format.isBlank ? linkClassDisabled : linkClass}>
                             Create New
                         </Link>
                     </div>
@@ -77,7 +77,7 @@ const siteConfig = ({
                 children: [
                     {
                         type: props =>
-                            <TableComp
+                            <TableComp.ViewComp
                                 data={props.dataItems}
                                 columns={columns}
                                 baseUrl={baseUrl}
@@ -89,8 +89,21 @@ const siteConfig = ({
                         path: "/",
                     },
                     {
+                        type: props =>
+                            <TableComp.EditComp
+                                data={props.dataItems}
+                                columns={columns}
+                                baseUrl={baseUrl}
+                                app={app}
+                                type={type}
+                                {...props}
+                            />,
+                        action: "list",
+                        path: "/edit",
+                    },
+                    {
                         type: "dms-form-view",
-                        path: '/view/:id?',
+                        path: '/item/view/:id?',
                         action: 'view',
                         options: {
                             accessor: 'name'
@@ -104,8 +117,8 @@ const siteConfig = ({
                             accessor: 'name'
                         },
                         filter: {type: 'new'},
-                        path: '/new',
-                        redirect: '/edit/:id?'
+                        path: '/item/new',
+                        redirect: '/item/edit/:id?'
                     },
                     {
                         type: "dms-form-edit",
@@ -113,7 +126,7 @@ const siteConfig = ({
                         options: {
                             accessor: 'name'
                         },
-                        path: '/edit/:id?'
+                        path: '/item/edit/:id?'
                     }
                 ]
             }

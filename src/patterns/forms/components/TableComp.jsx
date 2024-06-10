@@ -19,7 +19,7 @@ const getNestedValue = (obj) => typeof obj?.value === 'object' ? getNestedValue(
 const fnum = (number, currency = false) => `${currency ? '$ ' : ''} ${isNaN(number) ? 0 : parseInt(number).toLocaleString()}`;
 const Loading = () => <div>Loading...</div>;
 
-export const TableComp = ({format, baseUrl, app, type, ...rest}) => {
+const TableComp = ({format, baseUrl, app, type, ...rest}) => {
     const navigate = useNavigate();
     const params = useParams();
     const cachedData = rest;
@@ -190,10 +190,10 @@ export const TableComp = ({format, baseUrl, app, type, ...rest}) => {
                                        <div className={'flex flex-row flex-wrap justify-between'}>
                                            <Link
                                                className={actionButtonClass}
-                                               to={`${baseUrl}view/${d?.cell?.row?.original?.id}`}> view </Link>
+                                               to={`${baseUrl}/item/view/${d?.cell?.row?.original?.id}`}> view </Link>
                                            <Link
                                                className={actionButtonClass}
-                                               to={`${baseUrl}edit/${d?.cell?.row?.original?.id}`}> edit </Link>
+                                               to={`${baseUrl}/item/edit/${d?.cell?.row?.original?.id}`}> edit </Link>
                                        </div>
                                    )
                                },
@@ -206,4 +206,9 @@ export const TableComp = ({format, baseUrl, app, type, ...rest}) => {
                 />
         }
     </>
+}
+
+export default {
+    "EditComp": TableComp,
+    "ViewComp": TableComp
 }
