@@ -167,7 +167,7 @@ const RenderInputSelect = ({className, label, value, col, attr, updateAttribute,
     </div>
 )
 
-const RenderAddField = ({theme, item, attribute, placeholder, className, addAttribute}) => {
+const RenderAddField = ({theme, item, placeholder, className, addAttribute}) => {
     const [newValue, setNewValue] = useState('');
 
     function fn() {
@@ -182,7 +182,7 @@ const RenderAddField = ({theme, item, attribute, placeholder, className, addAttr
             <input
                 className={'w-1/4 border p-2 rounded-md'}
                 value={newValue}
-                placeholder={attribute}
+                placeholder={placeholder}
                 onChange={e => {setNewValue(e.target.value)}}
                 onBlur={e => {
                     if(e.target.value !== ''){
@@ -353,7 +353,7 @@ const Edit = ({value = '{}', onChange, className, placeholder, ...rest}) => {
                 })
         }
         <div className={'w-full p-2'}>
-            <RenderAddField item={{}} placeholder={'+ Add new field'} attribute={'+ Add new field'} theme={theme}
+            <RenderAddField item={{}} placeholder={'New field name...'} theme={theme}
                       className={className} addAttribute={addAttribute}/>
         </div>
     </div>
