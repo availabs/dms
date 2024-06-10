@@ -24,7 +24,7 @@ export async function processNewData (dataCache, activeIdsIntOrStr, filteredIdsL
         // flatten data into single object
         let d = cloneDeep(newDataVals[k])
         let out = d?.data?.value || {}
-        //console.log('hola', k, out, i)
+        //console.log('hola', k, out, newDataVals)
 
         Object.keys(d)
             .filter(k => k !== 'data')
@@ -33,6 +33,7 @@ export async function processNewData (dataCache, activeIdsIntOrStr, filteredIdsL
                     let attr = col.split('->>')[1].trim().replace(/[']/g, '')
                     out[attr] = d[col]
                 } else {
+                    //console.log('testing', d, col, d[col])
                     out[col] = d[col]
                 }
 

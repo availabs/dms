@@ -1,7 +1,7 @@
 import {getAccessor, getColAccessor} from "./getColAccesor";
 import {getMeta} from "./getMeta";
 import {setMeta} from "./setMeta";
-import {dmsDataLoader} from "~/modules/dms/src"
+import {dmsDataLoader} from "../../../api/index"
 
 export async function getData({
   formsConfig,

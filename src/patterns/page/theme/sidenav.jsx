@@ -9,7 +9,7 @@ const sidenav = (opts={}) =>  {
 
   let colors = {
     white: {
-      contentBg: `bg-white border-r`,
+      contentBg: `bg-slate-100 border-r`,
       sideItemActive:``,
       contentBgAccent: `bg-neutral-100`,
       accentColor: `blue-600`,

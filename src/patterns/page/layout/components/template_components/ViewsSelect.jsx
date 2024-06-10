@@ -3,7 +3,7 @@ import get from "lodash/get.js";
 
 import { CMSContext } from '../../../siteConfig'
 import Selector from "./Selector.jsx";
-import {pgEnv} from "../utils/constants.js";
+//import {pgEnv} from "../utils/constants.js";
 
 export const getAttributes = (data) => {
   return Object.entries(data || {})
@@ -18,7 +18,7 @@ export const getAttributes = (data) => {
 
 export const ViewsSelect = ({source_id, value, onChange}) => {
 
-    const { falcor, falcorCache} = React.useContext(CMSContext)
+    const { falcor, falcorCache, pgEnv} = React.useContext(CMSContext)
 
     useEffect(() => {
         async function fetchData() {
