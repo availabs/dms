@@ -324,7 +324,7 @@ const Edit = ({value = '{}', onChange, className, placeholder, ...rest}) => {
     const addAttribute = (value) => {
         // here, value is the new attribute. this triggers on changing the name field.
         // value should be {name: 'xyz'}. after this triggers, the field controls are presented and edited via updateAttributes.
-        const newItem = {...item, 'attributes': [...item.attributes, value]}
+        const newItem = {...item, 'attributes': [...(item.attributes || []), value]}
         setItem(newItem)
         onChange(JSON.stringify(newItem))
     }
