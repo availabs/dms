@@ -16,28 +16,28 @@ function PatternList (props) {
 				Site Name: {data?.site_name || 'No Site Name'}
 			</div>
 
-			<div className={'py-5'}>
-				<div className={'py-2 font-semibold text-l'}>Current Patterns</div>
-				<div className={'font-light divide-y-2'}>
-					<div className={'font-semibold grid grid-cols-4 '}>
-						<div>ID</div>
-						<div>Base Url</div>
-						<div>Name</div>
-						<div>Type</div>
-					</div>
-					{
-						(data?.patterns || []).map(pattern => (
-							<div key={pattern.id} className={'grid grid-cols-4 '}>
-								<div>{pattern.id}</div>
-								<div><Link to={pattern.base_url}>{pattern.base_url}</Link></div>
-								<div>name</div>
-								<div>Page</div>
-							</div>
-						))
-					}
+		<div className={'py-5'}>
+			<div className={'py-2 font-semibold text-l'}>Current Patterns</div>
+			<div className={'font-light divide-y-2'}>
+				<div className={'font-semibold grid grid-cols-4 '}>
+					<div>Pattern Type</div>
+					<div>Doc Type</div>
+					<div>Base Url</div>
+					<div></div>
 				</div>
+				{
+					(data?.patterns || []).map(pattern => (
+						<div key={pattern.id} className={'grid grid-cols-4 '}>
+							<div>{pattern.pattern_type}</div>
+							<div>{pattern.doc_type}</div>
+							<Link to={pattern.base_url}>{pattern.base_url}</Link>
+							<Link to={`/manage_pattern/${pattern.id}`}>Manage</Link>
+						</div>
+					))
+				}
 			</div>
 		</div>
+	</div>
 	)
 }
 
@@ -55,24 +55,26 @@ function PatternEdit({
 	const [newItem, setNewItem] = useState({});
 	const [editingIndex, setEditingIndex] = useState(undefined);
 	const [editingItem, setEditingItem] = useState(undefined);
+	const attrToShow = Object.keys(attributes).filter(attrKey => ['pattern_type', 'doc_type', 'base_url'].includes(attrKey));
+	const numAttributes = attrToShow.length
+
 	const addNewValue = () => {
 		const newData = [...value, newItem];
 		onChange(newData)
 		submit(newData)
 		setNewItem({})
 	}
-	const numAttributes = Object.keys(attributes).length
 
 	return (
 		<div className={'flex flex-col p-10 w-full divide-y-2'}>
 			<div className={'w-full flex justify-between border-b-2 border-blue-400'}>
 				<div className={'text-2xl font-semibold text-gray-700'}>Patterns</div>
-				<Link to={`/list`}>back</Link>
+				<button onClick={() => navigate(-1)}>back</button>
 			</div>
 
 			<div className={`font-semibold grid grid-cols-${numAttributes+1}`}>
 				{
-					Object.keys(attributes).map(attr => <div>{attr}</div>)
+					attrToShow.map(attr => <div>{attr}</div>)
 				}
 				<div>Actions</div>
 			</div>
@@ -80,7 +82,9 @@ function PatternEdit({
 				value.map((pattern, index) => (
 					<div key={pattern.id} className={`grid grid-cols-${numAttributes+1}`}>
 						{
-							Object.keys(attributes).map(attr => {
+							attrToShow
+								.filter(attrKey => attrKey !== 'config')
+								.map(attr => {
 								let EditComp = attributes[attr].EditComp;
 
 
@@ -137,7 +141,7 @@ function PatternEdit({
 
 			<div className={`mx-4 grid grid-cols-${numAttributes + 1}`}>
 				{
-					Object.keys(attributes)
+					attrToShow
 						.map((attrKey, i) => {
 							let EditComp = attributes[attrKey].EditComp
 							return (

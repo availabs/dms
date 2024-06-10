@@ -21,6 +21,8 @@ const adminConfig = ({
   format.type = type
 
   return {
+    app,
+    type,
     format: format,
     baseUrl,
     children: [
@@ -40,7 +42,7 @@ const adminConfig = ({
             type: (props) => <SiteEdit {...props} />,
             action: "edit",
             path: "/*",
-          
+
           }
         ]
       }

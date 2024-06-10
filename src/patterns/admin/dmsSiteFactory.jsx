@@ -4,13 +4,19 @@ import {dmsDataLoader, dmsPageFactory,} from '../../index'
 import pageConfigNew from '../page/siteConfig'
 import { Link } from 'react-router-dom'
 import defaultTheme from '../page/theme/theme'
+import formsConfig from '../forms/metaFormsconfig'
+import patternConfig from "./patternConfig";
 
 import {
   falcorGraph,
   FalcorProvider
 } from "@availabs/avl-falcor"
 
-export default async function dmsSiteFactory({
+const configs = {
+  page: pageConfigNew,
+  form: formsConfig
+}
+export default async function dmsSiteFactory ({
   dmsConfig,
   adminPath='/list',
   authWrapper = Component => Component,
@@ -28,20 +34,39 @@ export default async function dmsSiteFactory({
 
   return [
     dmsPageFactory({...dmsConfig, baseUrl: adminPath}),
+
+      dmsPageFactory({
+          ...patternConfig({
+              app: 'dms-site',
+              type: 'pattern',
+              baseUrl: '/manage_pattern/'
+          }),
+          baseUrl: '/manage_pattern'
+      }),
+
     ...patterns.map(pattern => {
-      return ({
-        ...dmsPageFactory(pageConfigNew({
-          app: dmsConfig.app,
-          type: pattern.doc_type,
-          theme,
-          useFalcor,
-          API_HOST,
-          //rightMenu: <div>RIGHT</div>,
-          baseUrl: pattern.base_url,
-        }), authWrapper),
+
+        console.log('dmsSiteFactory', pattern, dmsConfig, "app: ",  dmsConfig?.format?.app || dmsConfig.app, "type:",pattern.doc_type || pattern?.base_url?.replace(/\//g, ''),)
+        const config = configs[pattern.pattern_type];
+
+        return ({
+            ...dmsPageFactory(
+              config({
+                app: dmsConfig?.format?.app || dmsConfig.app,
+                // type: pattern.doc_type,
+                type: pattern.doc_type || pattern?.base_url?.replace(/\//g, ''),
+                format: pattern?.config,
+                theme,
+                useFalcor,
+                API_HOST,
+                baseUrl: pattern.base_url
+              }), 
+              authWrapper
+            )
         //path: `${pattern.base_url}/*`,
       })
     })
+
   ]
 }
 
