@@ -25,6 +25,104 @@ function classNames(...classes) {
     return classes.filter(Boolean).join(' ')
 }
 
+const RenderTagSuggestions = ({tags, tmpQuery, setQuery}) => tags
+    .filter(tag => (!tmpQuery?.length || tag.toLowerCase().includes(tmpQuery.toLowerCase())))
+    .length > 0 && (
+    <Combobox.Options static
+                      className="max-h-96 transform-gpu scroll-py-3 overflow-y-auto p-3">
+        <span className={'text-xs italic'}>suggestions: </span>
+        {tags
+            .filter(tag => (!tmpQuery?.length || tag.toLowerCase().includes(tmpQuery.toLowerCase())))
+            .filter((tag, i) => i <= 5)
+            .map((tag) => (
+                <Combobox.Option
+                    key={tag}
+                    value={tag}
+                    onClick={() => setQuery(tag)}
+                    className={({active}) =>
+                        classNames('flex cursor-pointer select-none rounded-xl p-1', active && 'bg-gray-100')
+                    }
+                >
+                    {({active}) => (
+                        <div>
+                            <i className="text-sm text-red-400 fa fa-tag" />
+                            <span
+                                className={classNames(
+                                    'ml-2 text-sm font-medium',
+                                    active ? 'text-gray-900' : 'text-gray-700'
+                                )}
+                            >
+                                                                {tag}
+                                                            </span>
+                        </div>
+                    )}
+                </Combobox.Option>
+            ))}
+    </Combobox.Options>
+);
+
+const RenderItems = ({items}) => items.length > 0 && (
+    <Combobox.Options static
+                      className="max-h-96 transform-gpu scroll-py-3 overflow-y-auto p-3">
+        {items.map((item) => (
+            <Combobox.Option
+                key={item.id}
+                value={item}
+                className={({active}) =>
+                    classNames('flex cursor-pointer select-none rounded-xl p-3', active && 'bg-gray-100')
+                }
+            >
+                {({active}) => (
+                    <>
+                        <div
+                            className={classNames(
+                                'flex h-10 w-10 flex-none items-center justify-center rounded-lg',
+                                item.color
+                            )}
+                        >
+                            <item.icon className="h-6 w-6 text-white"
+                                       aria-hidden="true"/>
+                        </div>
+                        <div className="ml-4 flex-auto">
+                            <p
+                                className={classNames(
+                                    'text-sm font-medium w-fit',
+                                    active ? 'text-gray-900' : 'text-gray-700',
+                                    item.titleMatch ? 'bg-yellow-300 px-1 rounded-md' : ''
+                                )}
+                            >
+                                {item.name || item.id}
+                            </p>
+                            <p className={classNames('text-sm', active ? 'text-gray-700' : 'text-gray-500')}>
+                                {item.description}
+                            </p>
+                            <span className={'tracking-wide p-1 bg-red-400 text-xs text-white font-semibold rounded-md border'}>{item.tags}</span>
+                        </div>
+                    </>
+                )}
+            </Combobox.Option>
+        ))}
+    </Combobox.Options>
+)
+
+const RenderStatus = ({loading, query, itemsLen}) =>
+    loading ? (
+            <div className="p-2 mx-auto w-1/4 h-full flex items-center justify-middle">
+                <i className="px-2 fa fa-loader text-gray-400" />
+                <p className="font-semibold text-gray-900">Loading...</p>
+            </div>
+        ) :
+        query !== '' && itemsLen === 0 && (
+            <div className="px-6 py-14 text-center text-sm sm:px-14">
+                <i
+                    className="fa fa-exclamation mx-auto h-6 w-6 text-gray-400"
+                />
+                <p className="mt-4 font-semibold text-gray-900">No results found</p>
+                <p className="mt-2 text-gray-500">No components found for this search term.
+                    Please try again.</p>
+            </div>
+        );
+
 const SearchPallet = ({open, setOpen, app, type}) => {
     const { baseUrl, falcor, falcorCache } = useContext(CMSContext)
     const [query, setQuery] = useState('');
@@ -78,11 +176,12 @@ const SearchPallet = ({open, setOpen, app, type}) => {
                     url: `${baseUrl}/${value.url_slug}`,
                     type: value.type,
                     color: 'bg-indigo-500',
+                    titleMatch: value.section_title?.includes(query) && !value.tags?.includes(query),
                     icon: () => <i className={'fa-light fa-memo text-white'}/>,
                 })
             })
 
-            console.log('setting items', query, tmpItems)
+            // console.log('setting items', query, tmpItems)
             setItems(tmpItems || [])
             setLoading(false)
         }
@@ -137,102 +236,11 @@ const SearchPallet = ({open, setOpen, app, type}) => {
                                     />
                                 </div>
 
-                                {tags
-                                    .filter(tag => (!tmpQuery?.length || tag.toLowerCase().includes(tmpQuery.toLowerCase())))
-                                    .length > 0 && (
-                                    <Combobox.Options static
-                                                      className="max-h-96 transform-gpu scroll-py-3 overflow-y-auto p-3">
-                                        <span className={'text-xs italic'}>suggestions: </span>
-                                        {tags
-                                            .filter(tag => (!tmpQuery?.length || tag.toLowerCase().includes(tmpQuery.toLowerCase())))
-                                            .filter((tag, i) => i <= 5)
-                                            .map((tag) => (
-                                            <Combobox.Option
-                                                key={tag}
-                                                value={tag}
-                                                onClick={() => setQuery(tag)}
-                                                className={({active}) =>
-                                                    classNames('flex cursor-pointer select-none rounded-xl p-1', active && 'bg-gray-100')
-                                                }
-                                            >
-                                                {({active}) => (
-                                                    <div>
-                                                        <i className="text-sm text-red-400 fa fa-tag" />
-                                                        <span
-                                                            className={classNames(
-                                                                'ml-2 text-sm font-medium',
-                                                                active ? 'text-gray-900' : 'text-gray-700'
-                                                            )}
-                                                        >
-                                                                {tag}
-                                                            </span>
-                                                    </div>
-                                                )}
-                                            </Combobox.Option>
-                                        ))}
-                                    </Combobox.Options>
-                                )}
+                                <RenderTagSuggestions tags={tags} tmpQuery={tmpQuery} setQuery={setQuery} />
 
-                                {items.length > 0 && (
-                                    <Combobox.Options static
-                                                      className="max-h-96 transform-gpu scroll-py-3 overflow-y-auto p-3">
-                                        {items.map((item) => (
-                                            <Combobox.Option
-                                                key={item.id}
-                                                value={item}
-                                                className={({active}) =>
-                                                    classNames('flex cursor-pointer select-none rounded-xl p-3', active && 'bg-gray-100')
-                                                }
-                                            >
-                                                {({active}) => (
-                                                    <>
-                                                        <div
-                                                            className={classNames(
-                                                                'flex h-10 w-10 flex-none items-center justify-center rounded-lg',
-                                                                item.color
-                                                            )}
-                                                        >
-                                                            <item.icon className="h-6 w-6 text-white"
-                                                                       aria-hidden="true"/>
-                                                        </div>
-                                                        <div className="ml-4 flex-auto">
-                                                            <p
-                                                                className={classNames(
-                                                                    'text-sm font-medium',
-                                                                    active ? 'text-gray-900' : 'text-gray-700'
-                                                                )}
-                                                            >
-                                                                {item.name || item.id}
-                                                            </p>
-                                                            <p className={classNames('text-sm', active ? 'text-gray-700' : 'text-gray-500')}>
-                                                                {item.description}
-                                                            </p>
-                                                            <span className={'tracking-wide p-1 bg-red-400 text-xs text-white font-semibold rounded-md border'}>{item.tags}</span>
-                                                        </div>
-                                                    </>
-                                                )}
-                                            </Combobox.Option>
-                                        ))}
-                                    </Combobox.Options>
-                                )}
+                                <RenderItems items={items} />
 
-                                {
-                                    loading ? (
-                                            <div className="p-2 mx-auto w-1/4 h-full flex items-center justify-middle">
-                                                <i className="px-2 fa fa-loader text-gray-400" />
-                                                <p className="font-semibold text-gray-900">Loading...</p>
-                                            </div>
-                                        ) :
-                                        query !== '' && items.length === 0 && (
-                                            <div className="px-6 py-14 text-center text-sm sm:px-14">
-                                                <i
-                                                    className="fa fa-exclamation mx-auto h-6 w-6 text-gray-400"
-                                                />
-                                                <p className="mt-4 font-semibold text-gray-900">No results found</p>
-                                                <p className="mt-2 text-gray-500">No components found for this search term.
-                                                    Please try again.</p>
-                                            </div>
-                                        )}
+                                <RenderStatus query={query} loading={loading} itemsLen={items.length} />
                             </Combobox>
                         </Dialog.Panel>
                     </Transition.Child>

@@ -31,7 +31,8 @@ const siteConfig = ({
   checkAuth = () => {},
   authLevel = -1,
   theme = defaultTheme,
-  pgEnv
+  pgEnv,
+  API_HOST
 }) => {
   theme = {...defaultTheme, ...theme}
   // console.log('pattern siteConfig', app, type, pgEnv)
@@ -42,7 +43,7 @@ const siteConfig = ({
 
   const rightMenuWithSearch = (
       <div className={'flex flex-col md:flex-row'}>
-        {/*<Search app={app} type={type}/>*/}
+        <Search app={app} type={type}/>
         {rightMenu}
       </div>
   )
@@ -50,7 +51,8 @@ const siteConfig = ({
   // const rightMenuWithSearch = rightMenu; // for live site
   return {
     format: format,
-    baseUrl, 
+    baseUrl,
+    API_HOST,
     check: ({user}, activeConfig, navigate) =>  {
       
       const getReqAuth = (configs) => {
