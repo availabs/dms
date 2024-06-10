@@ -61,7 +61,8 @@ function PageView ({item, dataItems, attributes, logo, rightMenu}) {
                   <PencilEditSquare  className={theme?.page?.icon} />
                 </Link>
               )}
-              <ContentView 
+              <ContentView
+                full_width={item.full_width}
                 item={item}
                 value={sections} 
                 attributes={sectionAttr}

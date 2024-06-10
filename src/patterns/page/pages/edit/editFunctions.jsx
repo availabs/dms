@@ -103,7 +103,7 @@ export const newPage = async (item, dataItems, user, apiUpdate) => {
     apiUpdate({data:newItem})
   }
 
-export const updateTitle = async ( item, dataItems, value='') => {
+export const updateTitle = async ( item, dataItems, value='', user, apiUpdate) => {
     if(value !== item.title) {
       let history = item.history ? cloneDeep(item.history) : []
       let edit = {

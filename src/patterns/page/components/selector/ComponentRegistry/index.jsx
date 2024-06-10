@@ -35,7 +35,7 @@ const RenderColorPicker = ({title, className, color, setColor}) => (
             {
                 [
                     // blues
-                    '#1e3a8a', '#1e40af', '#1d4ed8', '#2563eb', '#3b82f6','#60a5fa', '#93c5fd', '#bfdbfe', '#dbeafe', '#eff6ff',
+                    'rgba(0,0,0,0)','#1e3a8a', '#1e40af', '#1d4ed8', '#2563eb', '#3b82f6','#60a5fa', '#93c5fd', '#bfdbfe', '#dbeafe', '#eff6ff',
 
                     // yellows
                     '#713f12', '#854d0e', '#a16207', '#ca8a04', '#eab308', '#facc15', '#fde047', '#fef08a', '#fef9c3', '#fefce8',
@@ -44,13 +44,14 @@ const RenderColorPicker = ({title, className, color, setColor}) => (
                 ].map(c => <option key={c}>{c}</option>)
             }
         </datalist>
+        <div>X</div>
     </div>
 )
 
 const Edit = ({value, onChange}) => {
     const cachedData = parseJson(value)
-    const emptyTextBlock = {text: '', size: '4xl', color: '000000'};
-    const [bgColor, setBgColor] = useState(cachedData?.bgColor || '#fff');
+    const emptyTextBlock = {text: '', size: '4xl', color: 'rgab(0,0,0,0)'};
+    const [bgColor, setBgColor] = useState(cachedData?.bgColor || 'rgba(0,0,0,0)');
     const [text, setText] = useState(cachedData?.text || value || emptyTextBlock);
 
     useEffect(() => {
@@ -66,6 +67,7 @@ const Edit = ({value, onChange}) => {
                     title={'Background: '}
                     className={'w-full px-2 py-1 flex flex-row text-sm items-center border border-dashed'}
                     color={bgColor} setColor={setBgColor}/>
+
                     <LexicalComp value={text} onChange={setText} bgColor={bgColor}/>
             </div>
         </div>

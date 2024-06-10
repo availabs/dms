@@ -16,6 +16,8 @@ import { registerDataType } from "../../index"
 
 import merge from 'lodash/merge'
 
+import { useFalcor } from "@availabs/avl-falcor"
+
 // sideNav = {size: 'miniPad'}
 
 export const CMSContext = React.createContext(undefined);
@@ -23,8 +25,8 @@ export const CMSContext = React.createContext(undefined);
 const siteConfig = ({ 
   app = "dms-site",
   type = "docs-page",
-  useFalcor,
   rightMenu = <div />,
+  userFalcor=useFalcor,
   baseUrl = '',
   checkAuth = () => {},
   authLevel = -1,
@@ -35,7 +37,7 @@ const siteConfig = ({
   baseUrl = baseUrl[0] === '/' ? baseUrl.slice(1) : baseUrl
   // console.log('baseUrl',baseUrl)
   
-  console.log('')
+  // console.log('')
   //let navOptions = {...theme?.navOptions, ...navOptions}
   const format = cloneDeep(cmsFormat)
   format.app = app
@@ -50,7 +52,7 @@ const siteConfig = ({
 
   // for instances without auth turned on can edit
   // should move this to dmsFactory default authWrapper
-  const defaultUser = { email: "user", authLevel: 5, authed: true}
+  const defaultUser = { email: "user", authLevel: 5, authed: true, fake: true}
   
   // const rightMenuWithSearch = rightMenu; // for live site
   return {

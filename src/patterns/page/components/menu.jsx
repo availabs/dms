@@ -28,17 +28,19 @@ const UserMenu = ({user}) => {
     )
 }
 
-export const Item = (to, icon, span, condition) => (
-    condition === undefined || condition ?
+export const Item = ({to, icon,children}) => (
+        (
         <Link to={ to } >
             <div className='px-6 py-1 bg-blue-500 text-white hover:text-blue-100'>
                 <div className='hover:translate-x-2 transition duration-100 ease-out hover:ease-in'>
                     <i className={`${icon} `} />
-                    <span className='pl-2'>{span}</span>
+                    <span className='pl-2'>
+                        {children}
+                    </span>
                 </div>
             </div>
-        </Link>
-    : null
+        </Link>)
+   
 )
 
 
@@ -49,19 +51,29 @@ export default ({title, children}) => {
         <div className="h-full z-40">
             {!user.authed ?            
                 <Link className={`flex items-center px-8 text-lg font-bold h-12 dark:text-blue-100`} to="/auth/login" state={{from: location?.pathname}}>Login</Link> :
-                <Dropdown control={<UserMenu user={user}/>} className={` hover:bg-blue-500 group `} >
-                    <div className='p-1 bg-blue-500'>
-                        { user.authLevel >= 5 ? 
+                <Dropdown control={<UserMenu user={user}/>} className={` hover:bg-blue-500 group z-40 `} >
+                    <div className='p-1 bg-blue-500 z-40'>
+                       
                         <div className='py-2'>
-                            <div className=''> 
-                                {Item('/users/manage', 'fad fa-screwdriver-wrench fa-fw flex-shrink-0  pr-1', 'Manage Users')}
+                            {user.authLevel >= 5 && (
+                                <Item to='/list' icon={'fad fa-sign-out-alt pb-2 pr-1'}>
+                                    Patterns
+                                </Item>
+                            )}
+                            {user.authLevel >= 5 && (
+                                <Item to='/admin' icon={'fad fa-sign-out-alt pb-2 pr-1'}>
+                                    Admin
+                                </Item>
+                            )}                     
+                        </div>
+                        {!user.fake && (
+                            <div className='py-1 border-t border-blue-400'> 
+                                <Item to='/auth/logout' icon={'fad fa-sign-out-alt pb-2 pr-1'}>
+                                    Logout
+                                </Item>
                             </div>
-                           
-                        </div>
-                        : ''}
-                        <div className='py-1 border-t border-blue-400'> 
-                            {Item('/auth/logout', 'fad fa-sign-out-alt pb-2 pr-1', 'Logout')}
-                        </div>
+                        )}
+
                     </div>
                 </Dropdown>
             }

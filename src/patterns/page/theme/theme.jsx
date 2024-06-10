@@ -1,10 +1,12 @@
+import React from 'react'
 import sidenav from './sidenav'
 import topnav from './topnav'
+import { Link } from 'react-router-dom'
 
 
 const theme = {
   navOptions: {
-    logo: '',
+    logo: '',//<Link to='/' className='h-12 flex px-4 items-center'>LOGO</Link>,
     sideNav: {
       size: 'none',
       search: 'none',
