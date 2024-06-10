@@ -167,7 +167,7 @@ const RenderInputSelect = ({className, label, value, col, attr, updateAttribute,
     </div>
 )
 
-const RenderAddField = ({theme, item, attribute, placeholder, className, addAttribute}) => {
+const RenderAddField = ({theme, item, placeholder, className, addAttribute}) => {
     const [newValue, setNewValue] = useState('');
 
     function fn() {
@@ -182,7 +182,7 @@ const RenderAddField = ({theme, item, attribute, placeholder, className, addAttr
             <input
                 className={'w-1/4 border p-2 rounded-md'}
                 value={newValue}
-                placeholder={attribute}
+                placeholder={placeholder}
                 onChange={e => {setNewValue(e.target.value)}}
                 onBlur={e => {
                     if(e.target.value !== ''){
@@ -190,8 +190,8 @@ const RenderAddField = ({theme, item, attribute, placeholder, className, addAttr
                     }
                 }}
             />
-            <input disabled className={className || (theme?.text?.input || 'w-3/4 border bg-gray-100 p-2 rounded-md')}></input>
-            <button disabled className={'bg-gray-300 text-white'}>............</button>
+
+            <button className={'bg-blue-300 hover:bg-blue-500 text-white'} onClick={e => fn()}>+ add</button>
         </div>)
 }
 
@@ -324,7 +324,7 @@ const Edit = ({value = '{}', onChange, className, placeholder, ...rest}) => {
     const addAttribute = (value) => {
         // here, value is the new attribute. this triggers on changing the name field.
         // value should be {name: 'xyz'}. after this triggers, the field controls are presented and edited via updateAttributes.
-        const newItem = {...item, 'attributes': [...item.attributes, value]}
+        const newItem = {...item, 'attributes': [...(item.attributes || []), value]}
         setItem(newItem)
         onChange(JSON.stringify(newItem))
     }
@@ -353,7 +353,7 @@ const Edit = ({value = '{}', onChange, className, placeholder, ...rest}) => {
                 })
         }
         <div className={'w-full p-2'}>
-            <RenderAddField item={{}} placeholder={'+ Add new field'} attribute={'+ Add new field'} theme={theme}
+            <RenderAddField item={{}} placeholder={'New field name...'} theme={theme}
                       className={className} addAttribute={addAttribute}/>
         </div>
     </div>
