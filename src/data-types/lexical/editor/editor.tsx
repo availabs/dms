@@ -10,9 +10,9 @@ import {AutoFocusPlugin} from '@lexical/react/LexicalAutoFocusPlugin';
 import {CharacterLimitPlugin} from '@lexical/react/LexicalCharacterLimitPlugin';
 import {CheckListPlugin} from '@lexical/react/LexicalCheckListPlugin';
 import {ClearEditorPlugin} from '@lexical/react/LexicalClearEditorPlugin';
+
 // import {CollaborationPlugin} from '@lexical/react/LexicalCollaborationPlugin';
 import LexicalErrorBoundary from '@lexical/react/LexicalErrorBoundary';
-import {HashtagPlugin} from '@lexical/react/LexicalHashtagPlugin';
 import {HistoryPlugin} from '@lexical/react/LexicalHistoryPlugin';
 import {HorizontalRulePlugin} from '@lexical/react/LexicalHorizontalRulePlugin';
 import {ListPlugin} from '@lexical/react/LexicalListPlugin';
@@ -31,29 +31,21 @@ import ActionsPlugin from './plugins/ActionsPlugin';
 import AutocompletePlugin from './plugins/AutocompletePlugin';
 import AutoEmbedPlugin from './plugins/AutoEmbedPlugin';
 import AutoLinkPlugin from './plugins/AutoLinkPlugin';
-import ClickableLinkPlugin from './plugins/ClickableLinkPlugin';
-//import CodeActionMenuPlugin from './plugins/CodeActionMenuPlugin';
+import ClickableLinkPlugin from './plugins/ClickableLinkPlugin'
 import CodeHighlightPlugin from './plugins/CodeHighlightPlugin';
 import CollapsiblePlugin from './plugins/CollapsiblePlugin';
-// import CommentPlugin from './plugins/CommentPlugin';
+
 import ComponentPickerPlugin from './plugins/ComponentPickerPlugin';
 import DragDropPaste from './plugins/DragDropPastePlugin';
 import DraggableBlockPlugin from './plugins/DraggableBlockPlugin';
-// import EmojiPickerPlugin from './plugins/EmojiPickerPlugin';
-// import EmojisPlugin from './plugins/EmojisPlugin';
-// import EquationsPlugin from './plugins/EquationsPlugin';
-// import ExcalidrawPlugin from './plugins/ExcalidrawPlugin';
-// import FigmaPlugin from './plugins/FigmaPlugin';
 import FloatingLinkEditorPlugin from './plugins/FloatingLinkEditorPlugin';
 import FloatingTextFormatToolbarPlugin from './plugins/FloatingTextFormatToolbarPlugin';
 // import ImagesPlugin from './plugins/ImagesPlugin';
 import KeywordsPlugin from './plugins/KeywordsPlugin';
 import LinkPlugin from './plugins/LinkPlugin';
 import ListMaxIndentLevelPlugin from './plugins/ListMaxIndentLevelPlugin';
-import MarkdownShortcutPlugin from './plugins/MarkdownShortcutPlugin';
+// import MarkdownShortcutPlugin from './plugins/MarkdownShortcutPlugin';
 import {MaxLengthPlugin} from './plugins/MaxLengthPlugin';
-// import MentionsPlugin from './plugins/MentionsPlugin';
-import PollPlugin from './plugins/PollPlugin';
 import SpeechToTextPlugin from './plugins/SpeechToTextPlugin';
 import TabFocusPlugin from './plugins/TabFocusPlugin';
 import TableCellActionMenuPlugin from './plugins/TableActionMenuPlugin';
@@ -62,21 +54,20 @@ import TableOfContentsPlugin from './plugins/TableOfContentsPlugin';
 import {TablePlugin as NewTablePlugin} from './plugins/TablePlugin';
 import ToolbarPlugin from './plugins/ToolbarPlugin';
 import TreeViewPlugin from './plugins/TreeViewPlugin';
-import TwitterPlugin from './plugins/TwitterPlugin';
 import YouTubePlugin from './plugins/YouTubePlugin';
 import PlaygroundEditorTheme from './themes/PlaygroundEditorTheme';
 import ContentEditable from './ui/ContentEditable';
 import Placeholder from './ui/Placeholder';
 import InlineImagePlugin from "./plugins/InlineImagePlugin";
 
-const skipCollaborationInit =
-    // @ts-ignore
-    window.parent != null && window.parent.frames.right === window;
+// const skipCollaborationInit =
+//     // @ts-expect-error
+//     window.parent != null && window.parent.frames.right === window;
 
 export default function Editor(props): JSX.Element {
     const {historyState} = useSharedHistoryContext();
     const {
-        isCollab,
+        /*isCollab,*/
         isAutocomplete,
         isMaxLength,
         isCharLimit,
@@ -84,7 +75,7 @@ export default function Editor(props): JSX.Element {
         isRichText = true,
         showTreeView,
         showTableOfContents,
-        showComments,
+        /*showComments,*/
         showActionBar,
         placeholderText = '',
         editable = true,
@@ -144,7 +135,6 @@ export default function Editor(props): JSX.Element {
                 <ClearEditorPlugin/>
                 <ComponentPickerPlugin/>
                 <AutoEmbedPlugin/>
-                <HashtagPlugin/>
                 <KeywordsPlugin/>
                 <SpeechToTextPlugin/>
                 <AutoLinkPlugin/>
@@ -174,7 +164,7 @@ export default function Editor(props): JSX.Element {
                             placeholder={placeholder}
                             ErrorBoundary={LexicalErrorBoundary}
                         />
-                        <MarkdownShortcutPlugin/>
+                        
                         <CodeHighlightPlugin/>
                         <ListPlugin/>
                         <CheckListPlugin/>
@@ -185,7 +175,7 @@ export default function Editor(props): JSX.Element {
                             <AutoFocusPlugin/>
                             <RichTextPlugin
                                 contentEditable={
-                                    <ContentEditable className="TableNode__contentEditable"/>
+                                    <ContentEditable className={`min-h-[20px] border-[0px] resize-none cursor-text block relative [tab-size:1] outline-[0px] p-[10px] select-text text-[14px] leading-[1.4em] w-[calc(100%_-_20px)] whitespace-pre-wrap`}/>
                                 }
                                 placeholder={null}
                                 ErrorBoundary={LexicalErrorBoundary}
@@ -198,8 +188,7 @@ export default function Editor(props): JSX.Element {
                         </NewTablePlugin>
                         <InlineImagePlugin/>
                         <LinkPlugin/>
-                        <PollPlugin/>
-                        <TwitterPlugin/>
+                       
                         <YouTubePlugin/>
 
                         <ClickableLinkPlugin/>

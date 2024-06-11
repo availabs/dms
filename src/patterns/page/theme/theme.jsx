@@ -3,10 +3,47 @@ import topnav from './topnav'
 
 
 const theme = {
+  navOptions: {
+    logo: '',
+    sideNav: {
+      size: 'none',
+      search: 'none',
+      logo: 'top',
+      dropdown: 'none',
+      nav: 'none'
+    },
+    topNav: {
+      size: 'compact',
+      dropdown: 'right',
+      search: 'right',
+      logo: 'left',
+      nav: 'main' 
+    }
+  },
+  heading: {
+    "base": "p-2 w-full font-sans font-medium text-md bg-transparent",
+    "1": `text-blue-500 font-bold text-xl tracking-wider py-1 pl-1`,
+    "2": `text-lg tracking-wider`,
+    "3": `text-md tracking-wide`,
+    "default": ''                                                                        
+  },
+  levelClasses: {
+    '1': ' pt-2 pb-1 uppercase text-sm text-blue-400 hover:underline cursor-pointer border-r-2 mr-4',
+    '2': 'pl-2 pt-2 pb-1 uppercase text-sm text-slate-400 hover:underline cursor-pointer border-r-2 mr-4',
+    '3': 'pl-4 pt-2 pb-1 text-sm text-slate-400 hover:underline cursor-pointer border-r-2 mr-4',
+    '4': 'pl-6 pt-2 pb-1 text-sm text-slate-400 hover:underline cursor-pointer border-r-2 mr-4',
+  },
   page: {
-    wrapper1: 'w-full flex-1 flex flex-col  ', // first div inside Layout
+    wrapper1: 'w-full h-full flex-1 flex flex-col bg-slate-100', // first div inside Layout
     wrapper2: 'w-full h-full flex-1 flex flex-row px-1 md:px-6 py-6', // inside page header, wraps sidebar
-    wrapper3: 'flex flex-1 w-full  flex-col border shadow bg-white relative text-md font-light leading-7 p-4 min-h-[calc(100vh_-_51px)]' , // content wrapepr
+    wrapper3: 'flex flex-1 w-full  flex-col border shadow bg-white relative text-md font-light leading-7 p-4 min-h-[calc(100vh_-_102px)]' , // content wrapepr
+    iconWrapper : 'z-30 absolute right-[10px] top-[5px]',
+    icon: 'text-slate-400 hover:text-blue-500'
+  },
+  pageControls: {
+    controlItem: 'pl-6 py-0.5 text-md cursor-pointer hover:text-blue-500 text-slate-400 flex items-center',
+    select: 'bg-transparent border-none rounded-sm focus:ring-0 focus:border-0 pl-1',
+    selectOption: 'p-4 text-md cursor-pointer hover:text-blue-500 text-slate-400 hover:bg-blue-600',
   },
   navPadding: {
     1: 'pt-0 ',

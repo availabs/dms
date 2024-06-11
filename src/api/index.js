@@ -1,44 +1,50 @@
-import { falcor } from '~/index'
+// import { falcor } from '~/index'
 import { getActiveConfig /*, filterParams*/ } from '../dms-manager/_utils'
 import get from 'lodash/get'
 import createRequest, {getIdPath} from './createRequest'
 import {processNewData} from "./proecessNewData";
-import {loadFullData} from "./loadFullData";
+// import {loadFullData} from "./loadFullData";
 import {updateDMSAttrs} from "./updateDMSAttrs";
 
-function rand(min, max) { // min and max included 
-  return Math.floor(Math.random() * (max - min + 1) + min)
-}
+// function rand(min, max) { // min and max included 
+//   return Math.floor(Math.random() * (max - min + 1) + min)
+// }
+
+
 
 let fullDataLoad = {}
-let runCount = 0
+// let runCount = 0
 
-export async function dmsDataLoader ( config, path='/') {
+export async function dmsDataLoader (falcor, config, path='/') {
 	//---- Testing stuff to delete ----------
-	runCount += 1
-	const runId = runCount
+	// runCount += 1
+	// const runId = runCount
 	//-------------------------------------
+	// console.log('dmsDataLoader', config, path)
 
 	if(config.formatFn){
 		config.format = await config.formatFn();
 	}
 
+	//---------------------------------------------------------
+	// Pages can have many configs active at one time
+	// Because any config can have children
+	//---------------------------------------------------------
 	const { format } = config
-	const { app , type, defaultSearch, attributes = {} } = format
+	const { app , type, /*defaultSearch,*/ attributes = {} } = format
+
+	const activeConfigs = getActiveConfig(config.children, path)
+	
+	// console.log('------------dmsDataLoader-------------')
 	const dmsAttrsConfigs = (Object.values(attributes))
+		//.filter(d => !Array.isArray(filter?.attributes) || filter.attributes.includes(d.key))
 		.filter(d => d.type === 'dms-format')
 		.reduce((out,curr) => {
 			out[curr.key] = curr
 			return out
 		},{})
 
-	//console.log('dmsAttrsConfigs', dmsAttrsConfigs)
-	//---------------------------------------------------------
-	// Pages can have many configs active at one time
-	// Because any config can have children
-	//---------------------------------------------------------
-	const activeConfigs = getActiveConfig(config.children, path)
-	//console.log('activeConfigs', activeConfigs)
+
 
 	// -- Always want to know how many data items of a type we have
 	let lengthReq = ['dms', 'data', `${ app }+${ type }`, 'length' ]
@@ -61,16 +67,23 @@ export async function dmsDataLoader ( config, path='/') {
 		.map(config => createRequest(config, format, path, length))
 		.filter(routes => routes?.length)
 
-	// console.log('newRequests', newRequests)
+	// console.log('newRequests', newRequests, activeConfigs)
 
     //--------- Route Data Loading ------------------------
-	newRequests.length > 0 ? await falcor.get(...newRequests) : {}
+	if (newRequests.length > 0 ) {
+		await falcor.get(...newRequests)
+	}
 	// get api response
 	let newReqFalcor = falcor.getCache()
 	// console.log('newReqFalcor', newReqFalcor)
 
 	if(activeConfigs.find(ac => ac.action === 'search')){
 		const path =  newRequests[0].filter((r, i) => i <= newRequests[0].indexOf('byTag'));
+
+		return get(newReqFalcor, path, {});
+	}
+	if(activeConfigs.find(ac => ac.action === 'searchTags')){
+		const path =  newRequests[0].filter((r, i) => i <= newRequests[0].indexOf('tags'));
 
 		return get(newReqFalcor, path, {});
 	}
@@ -119,26 +132,27 @@ export async function dmsDataLoader ( config, path='/') {
 	activeIds.push(...(filteredIds || []))
 	// ---------------------------------------------------------------------------------------------------
 
-  const out = await processNewData(
-  	newReqFalcor, 
-  	activeIds, 
-  	filteredIds?.length, 
-  	app, type, 
-  	dmsAttrsConfigs,
-  	format,
-  	falcor
-  )
+	const out = await processNewData(
+	  	newReqFalcor, 
+	  	activeIds, 
+	  	filteredIds?.length, 
+	  	app, type, 
+	  	dmsAttrsConfigs,
+	  	format,
+	  	falcor
+	)
 	
 	if( activeConfigs?.[0]?.lazyLoad && !fullDataLoad[`${ app }+${ type }`]) {
 		// console.log('lazy loading')
 		// loadFullData(fullDataLoad, app, type, itemReqByIndex, runId, length, dmsAttrsConfigs, format, falcor)
 	}
 
+	// console.log('data out', out)
 	return out
 }
 
-export async function dmsDataEditor ( config, data={}, requestType, path='/' ) {
-	//console.log('API - dmsDataEditor', config,data,path)
+export async function dmsDataEditor (falcor, config, data={}, requestType, /*path='/'*/ ) {
+	console.log('API - dmsDataEditor', config,data)
 	const { app , type } = config.format
 	//const activeConfig = getActiveConfig(config.children, path)
 	
@@ -153,25 +167,27 @@ export async function dmsDataEditor ( config, data={}, requestType, path='/' ) {
 	// ----- Code for Saving Dms Format in separate rows
 	// ---------------------------------------------------------------
 
-		const dmsAttrsConfigs = Object.values(config?.format?.attributes || {})
-			.filter(d => d.type === 'dms-format')
-			.reduce((out,curr) => {
-				out[curr.key] = curr
-				return out
-			},{})
 
-		const dmsAttrsToUpdate = attributeKeys.filter(d => {
-			return Object.keys(dmsAttrsConfigs).includes(d)
-		})
-
-		const dmsAttrsData = dmsAttrsToUpdate.reduce((out,curr) => {
-			out[curr] = data[curr]
-			delete data[curr]
+	const dmsAttrsConfigs = Object.values(config?.format?.attributes || {})
+		.filter(d => d.type === 'dms-format')
+		.reduce((out,curr) => {
+			out[curr.key] = curr
 			return out
 		},{})
 
-		let updates = await updateDMSAttrs(dmsAttrsData, dmsAttrsConfigs, falcor)
-		data = {...data, ...updates}
+	const dmsAttrsToUpdate = attributeKeys.filter(d => {
+		return Object.keys(dmsAttrsConfigs).includes(d)
+	})
+
+	const dmsAttrsData = dmsAttrsToUpdate.reduce((out,curr) => {
+		out[curr] = data[curr]
+		delete data[curr]
+		return out
+	},{})
+
+	// console.log('gonna updateDMSAttrs', dmsAttrsData, dmsAttrsConfigs, falcor)
+	let updates = await updateDMSAttrs(dmsAttrsData, dmsAttrsConfigs, falcor)
+	data = {...data, ...updates}
 	
 	//console.log('dmsDataEditor', data  )
 
@@ -201,10 +217,11 @@ export async function dmsDataEditor ( config, data={}, requestType, path='/' ) {
 		// console.log('falcor update data', requestType, data, JSON.stringify(data).length)
 		// todo - data verification
 		console.time(`falcor update data ${id}`)
+		console.log('update', id, data)
 		await falcor.call(["dms", "data", "edit"], [id, data]);
 		await falcor.invalidate(['dms', 'data', 'byId', id])
 		console.timeEnd(`falcor update data ${id}`)
-		return {message: "Update successful."}
+		return {message: "Update successful.",  }
 	} else if ( attributeKeys.length > 0 ) {
 		/*  if there is only data 
 		    create new                

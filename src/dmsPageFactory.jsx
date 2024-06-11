@@ -8,17 +8,31 @@ import {
 } from './index'
 
 import defaultTheme from './theme/default-theme'
+
+import {
+  falcorGraph,
+  FalcorProvider
+} from "@availabs/avl-falcor"
 //const noAuth = Component => Component
 
 export default function dmsPageFactory (
   dmsConfig,
-  dmsPath='/',
   authWrapper = Component => Component,
   dmsTheme = defaultTheme
 ) {
+  //console.log('hola', dmsConfig, authWrapper)
+  //const {falcor, falcorCache} = useFalcor()
+  let { 
+    API_HOST = 'https://graph.availabs.org', 
+    baseUrl = "" 
+  } = dmsConfig
+  //baseUrl = baseUrl[0] === '/' ? baseUrl.slice(1) : baseUrl
+  const dmsPath= `${baseUrl}/`
+  const falcor = falcorGraph(API_HOST)
+
 
   async function loader ({ request, params }) {
-    let data = await dmsDataLoader(dmsConfig, `/${params['*'] || ''}`)
+    let data = await dmsDataLoader(falcor, dmsConfig, `/${params['*'] || ''}`)
     return { 
       data
     }
@@ -26,7 +40,8 @@ export default function dmsPageFactory (
 
   async function action ({ request, params }) {
     const form = await request.formData();
-    return dmsDataEditor(dmsConfig, 
+    return dmsDataEditor(falcor,
+      dmsConfig, 
       JSON.parse(form.get("data")), 
       form.get("requestType"), 
       params['*']
@@ -36,21 +51,15 @@ export default function dmsPageFactory (
   function DMS() {
     const params = useParams();
     const AuthedManager = authWrapper(DmsManager)
-    
-    /*
-    React.useEffect(() => {
-      console.log('DMS Wrapper load', params)
-    },[])
-
-    console.log('DMS Wrapper render', params)
-    */
 
     return React.useMemo(() => (
-      <AuthedManager 
-        path={ `/${params['*'] || ''}` }
-        config={dmsConfig}
-        theme={dmsTheme}
-      />
+      <FalcorProvider falcor={falcor}>
+        <AuthedManager 
+          path={ `/${params['*'] || ''}` }
+          config={dmsConfig}
+          theme={dmsTheme}
+        />
+      </FalcorProvider>
     ),[params['*']])
   }
 
@@ -65,7 +74,7 @@ export default function dmsPageFactory (
 
   return {
     path: `${dmsPath}*`,
-    element: (props) =>  <DMS {...props} />,
+    Component: (props) =>  <DMS {...props} />,
     loader: loader,
     action: action
   }

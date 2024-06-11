@@ -1,6 +1,6 @@
 //import { Promise } from "bluebird";
 import { parseJSON } from '../utils/parseJSON'
-import { RegisteredComponents } from '../../../selector'
+import { RegisteredComponents } from '../../../components/selector'
 import {dmsDataEditor, dmsDataLoader} from '../../../../../index'
 import cloneDeep from 'lodash/cloneDeep'
 import {getConfig} from "../../template/pages";
@@ -9,7 +9,7 @@ import {getConfig} from "../../template/pages";
 
 export const generatePages = async ({
                                         item, url, destination, id_column, dataRows, falcor, setLoadingStatus, locationNameMap,
-                                        setGeneratedPages
+                                        setGeneratedPages, urlSuffixCol='geoid'
                                     }) => {
     setLoadingStatus('Generating Pages...', dataRows)
     const idColAttr =
@@ -27,7 +27,7 @@ export const generatePages = async ({
 
         const existingPage = await locationNameMap.reduce(async (acc, type) => {
             const prevPages = await acc;
-            const currentPages = await dmsDataLoader(getConfig({
+            const currentPages = await dmsDataLoader(falcor, getConfig({
                 app: 'dms-site',
                 type,
                 filter: {[`data->>'template_id'`]: [item.id], [`data->>'id_column_value'`]: [idColAttrVal]},
@@ -38,7 +38,10 @@ export const generatePages = async ({
         // if(existingPage?.length > 1){
         //     console.warn('<generate page> More than one page found for', idColAttrVal)
         // }
-
+        // if(new Date(existingPage?.updated_at?.value) > new Date("2024-04-12T00:00:00.000Z")){
+        //     setLoadingStatus(`skipping ${idColAttrVal}`)
+        //     return Promise.resolve()
+        // }
         console.log('existing page', idColAttrVal, existingPage)
 
         const sectionIds =  existingPage?.data?.value?.sections?.map(section => section.id) || [];
@@ -47,6 +50,7 @@ export const generatePages = async ({
         const generatedSections = await sectionIds.reduce(async (acc, sectionId) => { //dont load data here?
             const prevSections = await acc;
             const currentSections = await dmsDataLoader(
+                falcor,
                 getConfig({
                     app: 'dms-site',
                     type: 'cms-section',
@@ -86,12 +90,7 @@ export const generatePages = async ({
                 // update the defaultValue here
                 const attrName = variable.name;
                 const sectionControlMappedName = dataControls?.sectionControls?.[section_id]?.[attrName];
-                variable.defaultValue = attrName === id_column.name ? idColAttrVal :
-                    (activeDataRow[attrName] ||
-                        dataControls?.active_row?.[sectionControlMappedName] ||
-                        null
-                    );
-
+                variable.defaultValue = activeDataRow?.[sectionControlMappedName];
                 return variable
             })
 
@@ -150,7 +149,7 @@ export const generatePages = async ({
             const formatNameForURL = name => name.toLowerCase().replace(' county', '').replace('.', '').replace(/ /g, '_');
 
             const urlSuffix =
-                id_column?.name === 'geoid' ?
+                urlSuffixCol === 'county' ?
                     formatNameForURL(activeDataRow?.['county'] || activeDataRow?.['name']) || idColAttrVal :
                     idColAttrVal;
 
@@ -192,7 +191,7 @@ export const generatePages = async ({
                 ]
             }
             const resPage = await dmsDataEditor(pageConfig, newPage);
-            createdOrUpdatedPageIdStore.push({id: resPage?.id})
+            createdOrUpdatedPageIdStore.push({id: resPage?.id, num_errors: newPage.num_errors, id_column_value: newPage.id_column_value})
             // console.log('created', resPage)
 
         }

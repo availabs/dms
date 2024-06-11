@@ -1,7 +1,6 @@
 const theme = {
   page: {
     container: 'flex-1 w-full h-full ',
-    content: '',
     content:'flex-1 flex px-4'
   },
   layout: {

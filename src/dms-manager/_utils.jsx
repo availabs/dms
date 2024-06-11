@@ -77,7 +77,9 @@ export function getActiveView(config, path, format, user, depth=0) {
 
 export function getActiveConfig (config=[], path='/', depth = 0) {
 	
+	// console.log('getActiveConfig', config, path)
 	let configs = cloneDeep(configMatcher(config,path, depth))
+
 	let childConfigs = configs
 		.reduce((out,conf) => {
 			let childConf = getActiveConfig(conf.children, path, depth+1)
@@ -99,6 +101,7 @@ export function validFormat(format) {
 		format.attributes && 
 		format.attributes.length > 0
 }
+
 
 
 /*
@@ -126,7 +129,7 @@ export function filterParams (data, params,format) {
 		return out
 	},'') || ''
 
-	// console.log('filterParams', data, params, wildKey)
+	//console.log('filterParams', data, params, wildKey)
 	
 	let filter = false
 	Object.keys(params).forEach(k => {
@@ -136,5 +139,17 @@ export function filterParams (data, params,format) {
 			filter = false
 		}
 	})
+
+	if(params['id'] == data['id']) {
+		return true
+	}
+	
 	return filter
+}
+
+export const json2DmsForm = (data,requestType='update') => {
+  let out = new FormData()
+  out.append('data', JSON.stringify(data))
+  out.append('requestType', requestType)
+  return out
 }

@@ -1,10 +1,9 @@
 import { Fragment, useState } from 'react'
 import { Combobox, Transition } from '@headlessui/react'
-import { CheckIcon, ChevronUpDownIcon } from '@heroicons/react/20/solid'
 
 
 
-export default function Selector({options=[], onChange, value, nameAccessor=d => d?.name || d , valueAccessor }) {
+export default function Selector({options=[], onChange, value, nameAccessor=d => d?.name || d , valueAccessor, className }) {
   const [query, setQuery] = useState('')
   const filteredOptions =
     query === ''
@@ -21,17 +20,19 @@ export default function Selector({options=[], onChange, value, nameAccessor=d =>
     <div className="w-full">
       <Combobox value={value} onChange={onChange}>
         <div className="relative mt-1">
-          <div className="relative w-full cursor-default overflow-hidden rounded-lg bg-white text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-blue-300 sm:text-sm">
+          <div className={className || "relative w-full cursor-default overflow-hidden rounded-lg bg-white text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-blue-300 sm:text-sm"}>
             <Combobox.Input
               className="w-full border-none py-2 pl-3 pr-10 text-sm leading-5 text-gray-900 focus:ring-0"
               displayValue={(option) => nameAccessor(option) || option }
               onChange={(event) => setQuery(event.target.value)}
             />
             <Combobox.Button className="absolute inset-y-0 right-0 flex items-center pr-2">
-              <ChevronUpDownIcon
-                className="h-5 w-5 text-gray-400"
+              <div
+                className="h-5 w-5 text-gray-400 flex items-center justify-center"
                 aria-hidden="true"
-              />
+              >
+                <div class='fa fa-chevron-down' />
+              </div>
             </Combobox.Button>
           </div>
           <Transition
@@ -74,7 +75,9 @@ export default function Selector({options=[], onChange, value, nameAccessor=d =>
                               active ? 'text-white' : 'text-blue-600'
                             }`}
                           >
-                            <CheckIcon className="h-5 w-5" aria-hidden="true" />
+                            <div className="h-5 w-5 flex items-center justify-center" aria-hidden="true">
+                              <div className='fa fa-check'/>
+                            </div>
                           </span>
                         ) : null}
                       </>

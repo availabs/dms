@@ -6,7 +6,7 @@ import { getAttributes } from './_utils'
 
 export default function ViewWrapper({ Component, format, options, params, user, ...props}) {
 	let attributes = getAttributes(format,options)
-	const { data } = useLoaderData()
+	const { data=[] } = useLoaderData() || {}
 	const {defaultSort = (d) => d } = format
 
 

@@ -19,7 +19,7 @@ import type {
     DOMExportOutput,
     EditorConfig,
     LexicalEditor,
-    LexicalNode,
+    // LexicalNode,
     NodeKey,
     SerializedEditor,
     SerializedLexicalNode,

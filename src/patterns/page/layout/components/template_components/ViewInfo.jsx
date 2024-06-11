@@ -1,20 +1,21 @@
-import React, {useState} from "react";
+import React, {useMemo, useState} from "react";
 import {getConfig} from "../../template/pages.jsx";
 import {dmsDataLoader} from "../../../../../index.js";
 import get from "lodash/get.js";
-
+//import {falcor} from "~/modules/avl-falcor"
 import { CMSContext } from '../../../siteConfig'
 import Selector from "./Selector.jsx";
 import {updatePages} from "./updatePages.js";
 import {generatePages} from "./generatePages.js";
-import {pgEnv} from "../utils/constants.js";
+//import {pgEnv} from "../utils/constants.js";
 
 export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatus=() => {}}) => {
 
     // console.log('ViewInfo', id_column, active_id)
-    const { falcor, falcorCache} = React.useContext(CMSContext)
+    const { falcor, falcorCache, pgEnv } = React.useContext(CMSContext)
     const [generatedPages, setGeneratedPages] = useState([]);
     const [showAdditionalOptions, setShowAdditionalOptions] = useState(false);
+    const [urlSuffixCol, setUrlSuffixCol] = useState('geoid');
     const {
         url, 
         destination = item.type,
@@ -98,7 +99,7 @@ export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatu
                     { key: `data->>'num_errors' as num_errors`, label: 'num_errors'}
                 ];
 
-                let currentPages = await dmsDataLoader(getConfig({
+                let currentPages = await dmsDataLoader(falcor, getConfig({
                     app: 'dms-site',
                     type,
                     filter: {[`data->>'template_id'`]: [item.id]},
@@ -124,16 +125,27 @@ export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatu
     // 2. new sections have been added
     // 3. existing section has been deleted
 
-    const errorIdColValues = generatedPages.filter(page => typeof +page.num_errors === 'number' && +page.num_errors > 0).map(page => page.id_column_value.toString());
-    const generatedIdColValues = generatedPages.filter(page => page.id_column_value && typeof page.id_column_value !== 'object').map(page => page.id_column_value.toString());
-    const missingPagesDataRows = dataRows.filter(row => !generatedIdColValues.includes(row[id_column.name]));
-    const errorPagesDataRows = dataRows.filter(row => errorIdColValues.includes(row[id_column.name]));
+    const errorIdColValues = useMemo(() => generatedPages.filter(page => typeof +page.num_errors === 'number' && +page.num_errors > 0).map(page => page.id_column_value.toString()), [generatedPages]);
+    const generatedIdColValues = useMemo(() => generatedPages.filter(page => page.id_column_value && typeof page.id_column_value !== 'object').map(page => page.id_column_value.toString()), [generatedPages]);
+    const missingPagesDataRows = useMemo(() => dataRows.filter(row => !generatedIdColValues.includes(row[id_column.name])), [generatedIdColValues, dataRows, id_column.name]);
+    const errorPagesDataRows = useMemo(() => dataRows.filter(row => errorIdColValues.includes(row[id_column.name])), [errorIdColValues, dataRows, id_column.name]);
 
     return (
         <div className='flex flex-col'>
             {/*<div>View Info</div>*/}
-          {/*  <div>Rows: {dataLength} </div>
+            {/*  <div>Rows: {dataLength} </div>
             <div>Attributes : {attributes?.length || 0}</div>*/}
+
+            <span className='text-xs uppercase font-bold text-slate-400 ml-4'> url suffix </span>
+            <Selector
+                className={'ml-2.5 relative w-full cursor-default overflow-hidden bg-transparent border-b-2 border-slate-300 text-slate-500 text-left sm:text-sm'}
+                options={attributes.map(d => d.name)}
+                value={urlSuffixCol}
+                nameAccessor={d => d?.name}
+                valueAccessor={d => d?.name}
+                onChange={d => setUrlSuffixCol(d)}
+            />
+
             <Selector
                 options={['',...attributes]}
                 value={id_column}
@@ -153,7 +165,7 @@ export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatu
                     )}
                 /> : ''}
 
-            <div className='flex items-center p-4'>
+            <div className='flex items-center pt-2'>
                 {
                     generatedPages?.length || dataRows?.length ?
                         <div className={'flex flex-col'}>
@@ -167,7 +179,8 @@ export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatu
                                             generatePages({
                                                 item, url, destination, id_column,
                                                 dataRows, falcor, setLoadingStatus,
-                                                locationNameMap, setGeneratedPages
+                                                locationNameMap, setGeneratedPages,
+                                                urlSuffixCol
                                             })}
                                 >
                                     {loadingStatus || (generatedPages?.length ? 'Update Pages' : 'Generate Pages')}
@@ -193,12 +206,15 @@ export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatu
                                             ${loadingStatus || !missingPagesDataRows?.length ? `bg-gray-500 border-b-2 border-gray-800 cursor-not-allowed` :
                                     `bg-blue-500 hover:bg-blue-400 border-b-4 border-blue-800 hover:border-blue-700 cursor-pointer`}`}
                                         disabled={loadingStatus || !missingPagesDataRows?.length}
-                                        onClick={e =>
-                                            generatePages({
+                                        onClick={e => {
+                                            setShowAdditionalOptions(false);
+                                            return generatePages({
                                                 item, url, destination, id_column,
                                                 dataRows: missingPagesDataRows, falcor, setLoadingStatus,
-                                                locationNameMap, setGeneratedPages
-                                            })}
+                                                locationNameMap, setGeneratedPages,
+                                                urlSuffixCol
+                                            })
+                                        }}
                                 >
                                     {loadingStatus || `Generate missing pages (${missingPagesDataRows?.length})`}
                                 </button>
@@ -209,12 +225,15 @@ export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatu
                                             ${loadingStatus || !errorPagesDataRows?.length ? `bg-gray-500 border-b-2 border-gray-800 cursor-not-allowed` :
                                     `bg-blue-500 hover:bg-blue-400 border-b-4 border-blue-800 hover:border-blue-700 cursor-pointer`}`}
                                         disabled={loadingStatus || !errorPagesDataRows?.length}
-                                        onClick={e =>
-                                            generatePages({
+                                        onClick={e => {
+                                            setShowAdditionalOptions(false);
+                                            return generatePages({
                                                 item, url, destination, id_column,
                                                 dataRows: errorPagesDataRows, falcor, setLoadingStatus,
-                                                locationNameMap, setGeneratedPages
-                                            })}
+                                                locationNameMap, setGeneratedPages,
+                                                urlSuffixCol
+                                            })
+                                        }}
                                 >
                                     {loadingStatus || `Update errored pages (${errorPagesDataRows?.length})`}
                                 </button>
