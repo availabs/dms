@@ -120,19 +120,20 @@ export const toSnakeCase = str =>
 
 
 
-const levelClasses = {
-    '1': ' pt-2 pb-1 uppercase text-sm text-blue-400 hover:underline cursor-pointer border-r-2 mr-4',
-    '2': 'pl-2 pt-2 pb-1 uppercase text-sm text-slate-400 hover:underline cursor-pointer border-r-2 mr-4',
-    '3': 'pl-4 pt-2 pb-1 text-sm text-slate-400 hover:underline cursor-pointer border-r-2 mr-4',
-    '4': 'pl-6 pt-2 pb-1 text-sm text-slate-400 hover:underline cursor-pointer border-r-2 mr-4',
+// const levelClasses = {
+//     '1': ' pt-2 pb-1 uppercase text-sm text-blue-400 hover:underline cursor-pointer border-r-2 mr-4',
+//     '2': 'pl-2 pt-2 pb-1 uppercase text-sm text-slate-400 hover:underline cursor-pointer border-r-2 mr-4',
+//     '3': 'pl-4 pt-2 pb-1 text-sm text-slate-400 hover:underline cursor-pointer border-r-2 mr-4',
+//     '4': 'pl-6 pt-2 pb-1 text-sm text-slate-400 hover:underline cursor-pointer border-r-2 mr-4',
 
-}
+// }
 
 const parseData = data => !data ? {} : typeof data === "object" ? data : JSON.parse(data)?.text
 
-export function getInPageNav(item, edit = false) {
+export function getInPageNav(item, theme) {
     const currentDI = item
 
+    console.log('test 123', theme)
    
     const menuItems = (currentDI?.sections || []).reduce((acc, {title, element, level = '1', ...props}) => {
 
@@ -174,7 +175,7 @@ export function getInPageNav(item, edit = false) {
                     const elmntToView = window.document.getElementById(`#${title?.replace(/ /g, '_')}`);
                     elmntToView?.scrollIntoView({ behavior: "smooth" });
                 },
-                className: levelClasses[level]
+                className: theme?.levelClasses[level]
             },
             ...(lexicalNavElements || [])
         ]

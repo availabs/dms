@@ -1,6 +1,7 @@
 import React from "react"
 import {Link, useParams} from "react-router-dom";
 import TableComp from "./components/TableComp";
+import ManageForms from './ManageForms'
 import {
   falcorGraph,
   FalcorProvider
@@ -65,6 +66,11 @@ const siteConfig = ({
 
         },
         children: [
+            {
+                type: ManageForms,
+                path: '/manage',
+                action: "edit",
+            },
             {
                 type: (props) => <Layout {...props} title={title} baseUrl={baseUrl}/>,
                 path: '/*',

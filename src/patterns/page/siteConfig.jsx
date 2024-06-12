@@ -13,6 +13,7 @@ import cloneDeep from 'lodash/cloneDeep'
 import defaultTheme from './theme/theme'
 import Selector from "./components/selector"
 import { registerDataType } from "../../index"
+import { useFalcor } from "@availabs/avl-falcor"
 
 import merge from 'lodash/merge'
 
@@ -37,18 +38,11 @@ const siteConfig = ({
   baseUrl = baseUrl[0] === '/' ? baseUrl.slice(1) : baseUrl
   // console.log('baseUrl',baseUrl)
   
-  // console.log('')
-  //let navOptions = {...theme?.navOptions, ...navOptions}
   const format = cloneDeep(cmsFormat)
   format.app = app
   format.type = type
 
-  // const rightMenuWithSearch = (
-  //     <div className={'flex flex-col md:flex-row'}>
-  //       <Search app={app} type={type}/>
-  //       {rightMenu}
-  //     </div>
-  // )
+  
 
   // for instances without auth turned on can edit
   // should move this to dmsFactory default authWrapper
@@ -116,49 +110,43 @@ const siteConfig = ({
             action: "view"
           },
           
-          // { 
-          //   type: (props) => (
-          //     <TemplateList
-          //       logo={logo}
-          //       rightMenu={rightMenuWithSearch}
-          //       {...props}
-          //     />
-          //   ),
-          //   action: "list",
-          //   path: "templates/*",
-          //   lazyLoad: true,
-          //   filter: {
-          //     options: JSON.stringify({
-          //       filter: {
-          //         "data->>'template_id'": ['-99'],
-          //       }
-          //     }),
-          //     attributes:['title', 'index', 'url_slug', 'parent', 'hide_in_nav', 'template_id' ]
-          //   }
-          // },
-          // { 
-          //   type: (props) => <TemplateEdit 
-          //     logo={logo}
-          //     rightMenu={rightMenuWithSearch}
-          //     {...props}
-          //   />,
+          { 
+            type: (props) => (
+              <TemplateList
+                {...props}
+              />
+            ),
+            action: "list",
+            path: "templates/*",
+            lazyLoad: true,
+            filter: {
+              options: JSON.stringify({
+                filter: {
+                  "data->>'template_id'": ['-99'],
+                }
+              }),
+              attributes:['title', 'index', 'url_slug', 'parent', 'hide_in_nav', 'template_id' ]
+            }
+          },
+          { 
+            type: (props) => <TemplateEdit 
+              {...props}
+            />,
+            action: "edit",
+            path: "templates/edit/:id"
+          },
+          // {
+          //   type: TemplatePreview,
           //   action: "edit",
-          //   path: "templates/edit/:id"
+          //   path: "/view/:id"
           // },
-          // // {
-          // //   type: TemplatePreview,
-          // //   action: "edit",
-          // //   path: "/view/:id"
-          // // },
-          // { 
-          //     type: (props) => <TemplatePages
-          //       logo={logo}
-          //       rightMenu={rightMenuWithSearch}
-          //       {...props}
-          //     />,
-          //     action: "edit",
-          //     path: "templates/pages/:id"
-          // },
+          { 
+              type: (props) => <TemplatePages
+                {...props}
+              />,
+              action: "edit",
+              path: "templates/pages/:id"
+          },
         ]
       },
       

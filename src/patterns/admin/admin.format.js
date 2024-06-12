@@ -1,5 +1,23 @@
 import PatternList from './components/patternList'
 
+export const template = {
+  app: "dms-site",
+  type: "form-template",
+  attributes: [
+    { key: "path",
+      placeholder: 'Doc Type',
+      type: "text",
+      required: true
+    },
+    { key: "base_url",
+      placeholder: 'Base URL',
+      type: "text",
+      required: true
+    },
+  ]
+  
+}
+
 export const pattern = {
   app: "dms-site",
   type: "pattern",

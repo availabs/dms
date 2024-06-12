@@ -31,7 +31,7 @@ function PageView ({item, dataItems, attributes, logo, rightMenu}) {
 
   const level = item?.index == '999' || theme?.navOptions?.topNav?.nav !== 'main' ? 1 : detectNavLevel(dataItems, baseUrl);
 
-  const inPageNav = getInPageNav(item);
+  const inPageNav = getInPageNav(item,theme);
 
   const headerSection = item['sections']?.filter(d => d.is_header)?.[0]
   const sections = item['sections']?.filter(d => !d.is_header && !d.is_footer)
