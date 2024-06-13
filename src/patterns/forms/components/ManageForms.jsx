@@ -1,18 +1,18 @@
 import React, {useEffect, useState} from "react";
 
 const ManageForm = ({
-                                status,
-                                apiUpdate,
-                                attributes,
-                                dataItems,
-                                format,
-                                item,
-                                setItem,
-                                updateAttribute,
-                                user,
-                                params,
-                                submit,
-                                ...rest
+    status,
+    apiUpdate,
+    attributes,
+    dataItems,
+    format,
+    item,
+    setItem,
+    updateAttribute,
+    user,
+    params,
+    submit,
+    ...rest
 }) => {
     // const {id} = params;
     const [newItem, setNewItem] = useState(item);

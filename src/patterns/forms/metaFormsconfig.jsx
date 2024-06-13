@@ -1,7 +1,6 @@
 import React from "react"
 import {Link, useParams} from "react-router-dom";
 import TableComp from "./components/TableComp";
-import ManageForms from './ManageForms'
 import {
   falcorGraph,
   FalcorProvider
@@ -39,7 +38,7 @@ const Layout = ({children, title, baseUrl, format,...rest}) => {
 const siteConfig = ({
     app, type, format, title, baseUrl, columns, checkAuth = () => {}
                     }) => {
-    console.log('format', format)
+    // console.log('format', format)
     const newformat = JSON.parse(format || '{}')
     newformat.app = app;
     newformat.type = type;
@@ -66,11 +65,6 @@ const siteConfig = ({
 
         },
         children: [
-            {
-                type: ManageForms,
-                path: '/manage',
-                action: "edit",
-            },
             {
                 type: (props) => <Layout {...props} title={title} baseUrl={baseUrl}/>,
                 path: '/*',

@@ -8,6 +8,9 @@ import TemplateList from './layout/template/list'
 import TemplatePages from './layout/template/pages'
 import TemplateEdit from './layout/template/edit'
 
+// Manager
+import CmsManager from './pages/manager'
+
 import cmsFormat from "./page.format.js"
 import cloneDeep from 'lodash/cloneDeep'
 import defaultTheme from './theme/theme'
@@ -16,8 +19,6 @@ import { registerDataType } from "../../index"
 import { useFalcor } from "@availabs/avl-falcor"
 
 import merge from 'lodash/merge'
-
-import { useFalcor } from "@availabs/avl-falcor"
 
 // sideNav = {size: 'miniPad'}
 
@@ -109,7 +110,15 @@ const siteConfig = ({
             path: "/*",
             action: "view"
           },
-          
+           { 
+            type: (props) => (
+              <CmsManager 
+                {...props}
+              />
+            ),
+            path: "/manager/*",
+            action: "edit"
+          },
           { 
             type: (props) => (
               <TemplateList

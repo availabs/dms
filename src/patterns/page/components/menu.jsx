@@ -45,7 +45,7 @@ export const Item = ({to, icon,children}) => (
 
 
 export default ({title, children}) => {
-    const { user } = React.useContext(CMSContext)
+    const { user, baseUrl } = React.useContext(CMSContext)
     const location = useLocation();
     return (
         <div className="h-full z-40">
@@ -61,8 +61,8 @@ export default ({title, children}) => {
                                 </Item>
                             )}
                             {user.authLevel >= 5 && (
-                                <Item to='/admin' icon={'fad fa-sign-out-alt pb-2 pr-1'}>
-                                    Admin
+                                <Item to={`${baseUrl}/manager`} icon={'fad fa-sign-out-alt pb-2 pr-1'}>
+                                    Manager
                                 </Item>
                             )}                     
                         </div>
