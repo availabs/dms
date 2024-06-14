@@ -11,7 +11,7 @@ import {
 const falcor = falcorGraph('https://graph.availabs.org')
 
 const defaultConfig = JSON.stringify({
-    app: 'dms-site',
+    app: 'default-app',
     type: 'test-forms',
     attributes: [
         {

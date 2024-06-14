@@ -8,11 +8,15 @@ import TemplateList from './layout/template/list'
 import TemplatePages from './layout/template/pages'
 import TemplateEdit from './layout/template/edit'
 
+// Manager
+import CmsManager from './pages/manager'
+
 import cmsFormat from "./page.format.js"
 import cloneDeep from 'lodash/cloneDeep'
 import defaultTheme from './theme/theme'
 import Selector from "./components/selector"
 import { registerDataType } from "../../index"
+import { useFalcor } from "@availabs/avl-falcor"
 
 import merge from 'lodash/merge'
 import {SearchPage} from "./components/search/SearchPage";
@@ -24,8 +28,8 @@ export const CMSContext = React.createContext(undefined);
 const siteConfig = ({ 
   app = "dms-site",
   type = "docs-page",
-  useFalcor,
   rightMenu = <div />,
+  userFalcor=useFalcor,
   baseUrl = '',
   checkAuth = () => {},
   authLevel = -1,
@@ -36,24 +40,17 @@ const siteConfig = ({
   theme = merge(defaultTheme, theme)
   baseUrl = baseUrl[0] === '/' ? baseUrl.slice(1) : baseUrl
   // console.log('baseUrl',baseUrl)
-  
-  console.log('')
-  //let navOptions = {...theme?.navOptions, ...navOptions}
+
   const format = cloneDeep(cmsFormat)
   format.app = app
   format.type = type
 
-  // const rightMenuWithSearch = (
-  //     <div className={'flex flex-col md:flex-row'}>
-  //       <Search app={app} type={type}/>
-  //       {rightMenu}
-  //     </div>
-  // )
+
 
   // for instances without auth turned on can edit
   // should move this to dmsFactory default authWrapper
-  const defaultUser = { email: "user", authLevel: 5, authed: true}
-
+  const defaultUser = { email: "user", authLevel: 5, authed: true, fake: true}
+  
   // const rightMenuWithSearch = rightMenu; // for live site
   return {
     format: format,
@@ -69,7 +66,7 @@ const siteConfig = ({
     //       }
     //       return Math.max(out, authLevel)
     //     },-1)
-    //   }
+    //   } 
     //   let requiredAuth = getReqAuth(activeConfig)
     //   console.log('checking', user, activeConfig)
     //   checkAuth({user, authLevel:requiredAuth}, navigate)
@@ -99,7 +96,7 @@ const siteConfig = ({
         children: [
           { 
             type: (props) => (
-              <PageEdit
+              <PageEdit 
                 {...props}
               />
             ),
@@ -108,8 +105,8 @@ const siteConfig = ({
           },
           { 
             type: (props) => (
-              <PageView
-                {...props}
+              <PageView 
+                {...props} 
               />
             ),
             filter: {
@@ -118,60 +115,62 @@ const siteConfig = ({
             path: "/*",
             action: "view"
           },
+            {
+                type: (props) => <SearchPage {...props}/>,
+                path: "/search/*",
+                action: "list"
+            },
+           {
+            type: (props) => (
+              <CmsManager
+                {...props}
+              />
+            ),
+            path: "/manager/*",
+            action: "edit"
+          },
           {
-            type: (props) => <SearchPage {...props}/>,
-            path: "/search/*",
-            action: "list"
-          }
-
+            type: (props) => (
+              <TemplateList
+                {...props}
+              />
+            ),
+            action: "list",
+            path: "templates/*",
+            lazyLoad: true,
+            filter: {
+              options: JSON.stringify({
+                filter: {
+                  "data->>'template_id'": ['-99'],
+                }
+              }),
+              attributes:['title', 'index', 'url_slug', 'parent', 'hide_in_nav', 'template_id' ]
+            }
+          },
+          {
+            type: (props) => <TemplateEdit
+              {...props}
+            />,
+            action: "edit",
+            path: "templates/edit/:id"
+          },
           // {
-          //   type: (props) => (
-          //     <TemplateList
-          //       logo={logo}
-          //       rightMenu={rightMenuWithSearch}
-          //       {...props}
-          //     />
-          //   ),
-          //   action: "list",
-          //   path: "templates/*",
-          //   lazyLoad: true,
-          //   filter: {
-          //     options: JSON.stringify({
-          //       filter: {
-          //         "data->>'template_id'": ['-99'],
-          //       }
-          //     }),
-          //     attributes:['title', 'index', 'url_slug', 'parent', 'hide_in_nav', 'template_id' ]
-          //   }
-          // },
-          // {
-          //   type: (props) => <TemplateEdit
-          //     logo={logo}
-          //     rightMenu={rightMenuWithSearch}
-          //     {...props}
-          //   />,
+          //   type: TemplatePreview,
           //   action: "edit",
-          //   path: "templates/edit/:id"
+          //   path: "/view/:id"
           // },
-          // // {
-          // //   type: TemplatePreview,
-          // //   action: "edit",
-          // //   path: "/view/:id"
-          // // },
-          // {
-          //     type: (props) => <TemplatePages
-          //       logo={logo}
-          //       rightMenu={rightMenuWithSearch}
-          //       {...props}
-          //     />,
-          //     action: "edit",
-          //     path: "templates/pages/:id"
-          // },
+          {
+              type: (props) => <TemplatePages
+                {...props}
+              />,
+              action: "edit",
+              path: "templates/pages/:id"
+          },
         ]
       },
-
+      
     ]
   }
 }
 
-export default siteConfig
+export default [siteConfig]

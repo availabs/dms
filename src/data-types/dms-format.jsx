@@ -13,7 +13,7 @@ function Edit({value, onChange, attributes={}}) {
         }
         
     }
-    
+    // if(!Object.keys(attributes).length) return <></>
                     
     return (
         <div>
@@ -39,7 +39,10 @@ function Edit({value, onChange, attributes={}}) {
     )   
 }
 
-const View = ({value={}, attributes}) => {
+const View = ({value={}, attributes={}}) => {
+    console.log('dms-format value', value, attributes)
+    // if(!Object.keys(attributes).length) return <></>
+
     return (
         <div>
             {Object.keys(attributes)

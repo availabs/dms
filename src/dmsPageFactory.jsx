@@ -33,6 +33,7 @@ export default function dmsPageFactory (
 
   async function loader ({ request, params }) {
     let data = await dmsDataLoader(falcor, dmsConfig, `/${params['*'] || ''}`)
+    console.log('loader data', data)
     return { 
       data
     }

@@ -6,8 +6,6 @@ import { usePopper } from 'react-popper'
 import defaultTheme from '../theme/theme'
 
 
-const NO_OP = ()=>{}
-
 export const useClickOutside = handleClick => {
   const [node, setNode] = React.useState(null);
 
@@ -56,7 +54,6 @@ export function Dropdown ({ control, children,className, width='w-full max-w-[20
         </div>
     )
 }
-
 
 export function PopoverMenuItem ({children,onClick}) {
     const {theme = defaultTheme} = React.useContext(CMSContext)

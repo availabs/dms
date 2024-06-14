@@ -1,18 +1,19 @@
 import React, {useEffect, useState} from "react";
 
 const ManageForm = ({
-                                status,
-                                apiUpdate,
-                                attributes,
-                                dataItems,
-                                format,
-                                item,
-                                setItem,
-                                updateAttribute,
-                                user,
-                                params,
-                                submit,
-                                ...rest
+                        status,
+                        apiUpdate,
+                        attributes,
+                        dataItems,
+                        format,
+                        item,
+                        setItem,
+                        updateAttribute,
+                        user,
+                        params,
+                        submit,
+                        manageTemplates = false,
+                        ...rest
 }) => {
     // const {id} = params;
     const [newItem, setNewItem] = useState(item);
@@ -20,13 +21,15 @@ const ManageForm = ({
     const updateData = (data, attrKey) => {
         apiUpdate({data: {...newItem, ...{[attrKey]: data}}, config: {format}})
     }
-
+    console.log('manage forms /manage_pattern/:id/templates?', manageTemplates, attributes, item)
     return <div key={item.id} className={'w-full'}>
         {status ? <div>{JSON.stringify(status)}</div> : ''}
 
         {Object.keys(attributes)
+            .filter(attr => manageTemplates ? attr === 'templates' : attr !== 'templates')
             .map((attrKey, i) => {
-                let EditComp = attributes[attrKey].EditComp
+                let EditComp = attributes[attrKey].EditComp;
+                console.log('attrs', attributes[attrKey], newItem)
                 return (
                     <div key={`${attrKey}-${i}`}>
                         <EditComp
@@ -37,7 +40,9 @@ const ManageForm = ({
                                 updateData(v, attrKey)
                             }}
                             format={format}
+                            manageTemplates={manageTemplates}
                             {...attributes[attrKey]}
+                            item={newItem}
                         />
                     </div>
                 )
