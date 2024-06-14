@@ -32,7 +32,7 @@ function PageEdit ({
 
   // console.log('-----------render edit----------------')
   const level = item?.index == '999' || theme?.navOptions?.topNav?.nav !== 'main' ? 1 : detectNavLevel(dataItems, baseUrl);
-  const inPageNav = getInPageNav(item);
+  const inPageNav = getInPageNav(item, theme);
   const sectionAttr = attributes?.['sections']?.attributes || {}
 
 

@@ -72,6 +72,7 @@ const RenderError = ({data}) => (
 
 function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, onRemove}) {
     let sectionTitleCondition = value?.['title'] 
+    let {theme} = React.useContext(CMSContext) || {}
 
     const updateAttribute = (k, v) => {
         if(!isEqual(value, {...value, [k]: v})) {
@@ -154,17 +155,9 @@ function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, o
                                         <div className='flex flex-col'>
                                             <div className='flex-0 grow'>
                                                 <TitleComp //todo make it blue if H!
-                                                    className={`p-2 w-full font-sans font-medium text-md bg-transparent ${
-                                                        (value?.['level']) === '1' ?
-                                                            `text-blue-500 font-bold text-xl tracking-wider py-1 pl-1` :
-                                                            value?.['level'] === '2' ?
-                                                                `text-lg tracking-wider` :
-                                                                value?.['level'] === '3' ?
-                                                                    `text-md tracking-wide` :
-                                                                    ``}`}
+                                                    className={`${theme?.heading?.base} ${theme?.heading[value?.['level']] || theme?.heading['default']}`}
                                                     placeholder={'Section Title'}
                                                     value={value?.['title']} 
-
                                                     onChange={(v) => updateAttribute('title', v)}
                                                 />
                                             </div>
@@ -233,7 +226,7 @@ function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove}) {
     let [referenceElement, setReferenceElement] = useState()
     let [popperElement, setPopperElement] = useState()
     let { styles, attributes:popperAttributes } = usePopper(referenceElement, popperElement)
-    const { baseUrl, user } = React.useContext(CMSContext) || {}
+    const { baseUrl, user, theme } = React.useContext(CMSContext) || {}
     
     const hideDebug = true
     let TitleComp = attributes?.title?.ViewComp
@@ -355,14 +348,7 @@ function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove}) {
                         <div id={`#${value?.title?.replace(/ /g, '_')}`}
                              className={`flex-1 flex-row py-2  font-display font-medium uppercase scroll-mt-36 ${sectionTitleCondition ? '' : 'invisible'}`}>
                             <TitleComp
-                                className={`w-full ${
-                                    (value?.['level']) === '1' ? 
-                                        `text-blue-500 font-bold text-xl tracking-wider py-1 pl-1` : 
-                                        value?.['level'] === '2' ? 
-                                            `text-lg tracking-wider` : 
-                                            value?.['level'] === '3' ? 
-                                            `text-md tracking-wide` : 
-                                                ``}`}
+                                className={`w-full ${theme.heading[value?.['level']] || theme.heading['default']}`}
                                 value={value?.['title']}
                             />
                         </div>
@@ -657,7 +643,7 @@ const View = ({Component, value, attr, full_width}) => {
     }
 
 
-    //console.log('render SA view', Component, value)
+    console.log('render SA view', full_width)
 
     return (
         <div className={`w-full grid grid-cols-6 ${layouts[full_width === 'show' ? 'fullwidth' : 'centered']} gap-1`}>

@@ -232,7 +232,7 @@ export const ButtonSelector = ({
 export function SideNavContainer({children, width='w-64'}) {
   return (
     <div className={`w-64 hidden xl:block`}>
-      <div className={`w-64 sticky top-20 hidden xl:block`}> 
+      <div className={`w-64 sticky top-2 hidden xl:block max-h-[100vh_-_450px]`}> 
         {children}
       </div>
     </div>

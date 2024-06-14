@@ -1,10 +1,12 @@
+import React from 'react'
 import sidenav from './sidenav'
 import topnav from './topnav'
+import { Link } from 'react-router-dom'
 
 
 const theme = {
   navOptions: {
-    logo: '',
+    logo: '',//<Link to='/' className='h-12 flex px-4 items-center'><div className='rounded-full h-8 w-8 bg-blue-500 border-2 border-blue-300 hover:bg-blue-600' /></Link>, //<Link to='/' className='h-12 flex px-4 items-center'>LOGO</Link>,
     sideNav: {
       size: 'none',
       search: 'none',
@@ -19,6 +21,19 @@ const theme = {
       logo: 'left',
       nav: 'main' 
     }
+  },
+  heading: {
+    "base": "p-2 w-full font-sans font-medium text-md bg-transparent",
+    "1": `text-blue-500 font-bold text-xl tracking-wider py-1 pl-1`,
+    "2": `text-lg tracking-wider`,
+    "3": `text-md tracking-wide`,
+    "default": ''                                                                        
+  },
+  levelClasses: {
+    '1': ' pt-2 pb-1 uppercase text-sm text-blue-400 hover:underline cursor-pointer border-r-2 mr-4',
+    '2': 'pl-2 pt-2 pb-1 uppercase text-sm text-slate-400 hover:underline cursor-pointer border-r-2 mr-4',
+    '3': 'pl-4 pt-2 pb-1 text-sm text-slate-400 hover:underline cursor-pointer border-r-2 mr-4',
+    '4': 'pl-6 pt-2 pb-1 text-sm text-slate-400 hover:underline cursor-pointer border-r-2 mr-4',
   },
   page: {
     wrapper1: 'w-full h-full flex-1 flex flex-col bg-slate-100', // first div inside Layout
@@ -40,5 +55,7 @@ const theme = {
   sidenav,
   topnav
 }
+
+//theme.navOptions.logo = <Link to='/' className='h-12 flex px-4 items-center'><div className='rounded-full h-10 bg-blue-500 border border-slate-50' /></Link>
 
 export default theme

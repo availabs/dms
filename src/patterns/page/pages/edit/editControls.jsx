@@ -41,7 +41,7 @@ function EditControls({ item, dataItems, updateAttribute, setItem, apiUpdate, at
      
       <TitleEditComp
         value={item?.title}
-        onChange={updateTitle}
+        onChange={(v) => updateTitle(item, dataItems, v, user, apiUpdate)}
         label={'page name'}
       />
             
