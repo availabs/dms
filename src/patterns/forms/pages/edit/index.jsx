@@ -6,25 +6,24 @@ import { json2DmsForm, getUrlSlug, toSnakeCase, getInPageNav,dataItemsNav, detec
 import { saveHeader, saveSection } from './editFunctions'
 import Layout from '../../ui/avail-layout'
 import SideNav from '../../ui/nav/Side'
-import { ViewIcon } from '../../ui/icons'
+import {PencilEditSquare, ViewIcon} from '../../ui/icons'
 import { SideNavContainer } from '../../ui'
 import EditControls from './editControls'
-
-
-
-import { CMSContext } from '../../siteConfig'
+import {FormsContext} from "../../metaFormsconfig";
+import SectionArray from "../../components/sections/sectionArray";
+import {templateSection} from "../../../admin/admin.format";
 
 function PageEdit ({
-  item, dataItems, updateAttribute,attributes, setItem, apiUpdate, status, navOptions
+  item={}, dataItems, updateAttribute,attributes, setItem, apiUpdate, status, navOptions
 }) {
   const navigate = useNavigate()
   const submit = useSubmit()
   const { pathname = '/edit' } = useLocation()
-  const { baseUrl, user, theme } = React.useContext(CMSContext) || {}
+  const { baseUrl, user, theme } = React.useContext(FormsContext) || {}
   const [ creating, setCreating ] = React.useState(false)
 
   // console.log('item', item, dataItems, status)
-  
+
   const menuItems = React.useMemo(() => {
     let items = dataItemsNav(dataItems,baseUrl,true)
     return items
@@ -37,7 +36,7 @@ function PageEdit ({
 
 
   React.useEffect(() => {
-    if(!item?.url_slug ) { 
+    if(!item?.url_slug ) {
       let defaultUrl = dataItems
         .sort((a,b) => a.index-b.index)
         .filter(d=> !d.parent && d.url_slug)[0]
@@ -50,7 +49,7 @@ function PageEdit ({
     // -- This on load effect backfills pages created before drafts
     // -- will be removed after full adoption of draft / publish
     // ------------------------------------------------------------
-    if(item.sections && item?.sections?.length > 0 && !item.draft_sections) {
+    if(item.sections && item?.sections?.length > 0 && !item?.draft_sections) {
       const draftSections = cloneDeep(item.sections)
       draftSections.forEach(d => delete d.id)
       const newItem = cloneDeep(item)
@@ -61,26 +60,28 @@ function PageEdit ({
     }
   },[])
 
-  const headerSection = item['draft_sections']?.filter(d => d.is_header)?.[0]
-  const draftSections = item['draft_sections']?.filter(d => !d.is_header && !d.is_footer)
+  const headerSection = item?.['draft_sections']?.filter(d => d.is_header)?.[0]
+  const draftSections = item?.['draft_sections']?.filter(d => !d.is_header && !d.is_footer)
 
-  
+  const HelloWorld = () => <div> hello world </div>
 
   const ContentEdit = React.useMemo(() => {
-    return attributes['sections'].EditComp
+    return attributes?.['sections'].EditComp || SectionArray.EditComp
   }, [])
 
+  const attr = {attributes: templateSection.attributes}
+  console.log('item', item)
   return (
     <div>
       {item?.header === 'above' && (
         <ContentEdit
           item={item}
-          value={[headerSection]} 
-          onChange={(val,action) => saveHeader(v, item, user, apiUpdate)}         
+          value={[headerSection]}
+          onChange={(val,action) => saveHeader(v, item, user, apiUpdate)}
           attributes={sectionAttr}
         />
-      )} 
-      <Layout navItems={menuItems}>
+      )}
+      <Layout>
         <div className={`${theme?.page?.wrapper1} ${theme?.navPadding[level]}`}>
           {item?.header === 'below' && (
             <ContentEdit item={item} value={[headerSection]} onChange={(val,action) => saveHeader(v, item, user, apiUpdate)} attributes={sectionAttr} />
@@ -88,45 +89,34 @@ function PageEdit ({
           <div className={`${theme?.page?.wrapper2}`}>
             {item?.sidebar === 'show' && (
               <SideNavContainer>
-                <SideNav {...inPageNav} /> 
+                <SideNav {...inPageNav} />
               </SideNavContainer>
-            )}  
+            )}
             <div className={theme?.page?.wrapper3 + ''}>
               {item?.header === 'inpage' && (
                  <ContentEdit item={item} value={[headerSection]} onChange={(val,action) => saveHeader(v, item, user, apiUpdate)} attributes={sectionAttr}/>
-              )} 
+              )}
               {user?.authLevel >= 5 && (
                 <Link className={theme?.page?.iconWrapper} to={`${baseUrl}/${item?.url_slug || ''}`}>
                   <ViewIcon className={theme?.page?.icon} />
                 </Link>
               )}
+              {item.title}
               <ContentEdit
-                full_width={item.full_width}
-                value={draftSections} 
-                onChange={(val,action) => saveSection(val, action, item, user, apiUpdate)}         
+                  attr={attr}
+                full_width={item?.full_width}
+                value={item.draft_sections}
+                onChange={(val,action) => saveSection(val, action, item, user, apiUpdate)}
                 attributes={sectionAttr}
               />
             </div>
-            <SideNavContainer witdh={'w-52'}>
-              <EditControls 
-                item={item} 
-                dataItems={dataItems}
-                setItem={setItem}
-                edit={true}
-                status={status}
-                apiUpdate={apiUpdate}
-                attributes={attributes}
-                updateAttribute={updateAttribute}
-                pageType={'page'}
-              />
-            </SideNavContainer>
-          </div>  
-          
+          </div>
+
         </div>
       </Layout>
-      {item?.footer && <div className='h-[300px] bg-slate-100' />} 
+      {item?.footer && <div className='h-[300px] bg-slate-100' />}
     </div>
-  ) 
+  )
 }
 
 export default PageEdit

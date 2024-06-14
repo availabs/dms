@@ -9,6 +9,8 @@ import SideNav from '../ui/nav/Side'
 
 import {PencilEditSquare} from '../ui/icons'
 import { SideNavContainer } from '../ui'
+import SectionArray from "../components/sections/sectionArray";
+import {templateSection} from "../../admin/admin.format";
 
 const HelloWorld = () => <div> hello world </div>
 
@@ -23,7 +25,7 @@ function PageView ({item, dataItems, attributes, logo, rightMenu}) {
   console.log('forms template page view', item, theme)
   
   const ContentView = React.useMemo(() => {
-    return attributes?.['sections']?.ViewComp || HelloWorld
+    return attributes?.['sections']?.ViewComp || SectionArray.ViewComp
   }, [])
 
   // const menuItems = React.useMemo(() => {
@@ -36,8 +38,10 @@ function PageView ({item, dataItems, attributes, logo, rightMenu}) {
   //const inPageNav = getInPageNav(item,theme);
 
   const headerSection = (item?.['sections'] || [])?.filter(d => d.is_header)?.[0]
-  const sections = (item?.['sections'] || [])?.filter(d => !d.is_header && !d.is_footer)
+  const sections = (item?.['sections'] || item?.['draft_sections'] || [])?.filter(d => !d.is_header && !d.is_footer)
   const sectionAttr = attributes?.['sections']?.attributes || {}
+  const attr = {attributes: templateSection.attributes}
+
   //console.log('test 123', attributes['sections'])
 
 
@@ -66,6 +70,7 @@ function PageView ({item, dataItems, attributes, logo, rightMenu}) {
               )}
               {item.title}
               <ContentView
+                  attr={attr}
                 full_width={item.full_width}
                 item={item}
                 value={sections} 

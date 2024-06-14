@@ -12,6 +12,7 @@ import {data} from "autoprefixer";
 import defaultTheme from './theme/theme'
 
 import TemplateView from './pages/view'
+import TemplateEdit from './pages/edit'
 
 const falcor = falcorGraph('https://graph.availabs.org')
 export const FormsContext = React.createContext(undefined);
@@ -24,10 +25,13 @@ const defaultUser = { email: "user", authLevel: 5, authed: true, fake: true}
 const FormTemplateView = ({apiLoad, apiUpdate, parent, params, format, dataItems=[],baseUrl,theme,edit=false,...rest}) => {
     const [items, setItems] = useState([]);
     const [item, setItem] = useState({});
+    const Comp = edit ? TemplateEdit : TemplateView;
     let p = useParams()
-    if(edit) {p['*'] = p['*'].replace('edit/','')}
+    if(edit) {
+        p['*'] = p['*'].replace('edit/','');
+    }
 
-    console.log('params', p)
+    console.log('params', rest)
     const match = matchRoutes(dataItems.map(d => ({path:d.url_slug, ...d})), {pathname:`/${p["*"]}`})?.[0] || {};
     const itemId = match?.params?.id;
     const parentConfigAttributes = JSON.parse(parent?.config || '{}')?.attributes || [];
@@ -53,7 +57,6 @@ const FormTemplateView = ({apiLoad, apiUpdate, parent, params, format, dataItems
                 attributes: parentConfigAttributes,
                 children
             });
-            console.log('d?', d)
             setItems(d)
         })()
     }, [])
@@ -66,13 +69,17 @@ const FormTemplateView = ({apiLoad, apiUpdate, parent, params, format, dataItems
     // fetch form items using parent.
     // load items using matched template.
 
-    if(!match) return <>No template found.</>
+    if(!match.route) return <>No template found.</>
     // if(!itemId) return <>No Id found.</>
-
+    console.log('match', match.route)
     return (
        
-            <TemplateView
+            <Comp
                 item={match.route}
+                dataItems={[]}
+                apiLoad={apiLoad}
+                apiUpdate={apiUpdate}
+                format={format}
             />  
     )
 }
@@ -99,7 +106,7 @@ const formTemplateConfig = ({
                     // use dataItems. use Parent Templates, and manually get the correct template.
                     console.log('template format  !!!!', props.dataItems, props, parent)
                     return (
-                        <FormsContext.Provider value={{baseUrl, user: props.user || defaultUser, theme, app, type, theme, parent}}>
+                        <FormsContext.Provider value={{baseUrl, user: props.user || defaultUser, theme, app, type, parent}}>
                                 
                             <FormTemplateView
                                 parent={parent}
@@ -117,7 +124,7 @@ const formTemplateConfig = ({
                     // use dataItems. use Parent Templates, and manually get the correct template.
                     console.log('template format  !!!!', props.dataItems, props, parent)
                     return (
-                        <FormsContext.Provider value={{baseUrl, user: props.user || defaultUser, theme, app, type, theme, parent}}>
+                        <FormsContext.Provider value={{baseUrl, user: props.user || defaultUser, theme, app, type, parent}}>
                                 
                             <FormTemplateView
                                 parent={parent}

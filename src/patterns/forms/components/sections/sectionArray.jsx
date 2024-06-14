@@ -23,6 +23,8 @@ import {
     InfoSquare,
     MoreSquare
 } from '../../ui/icons'
+import text from "../../../../data-types/text";
+import lexical from "../../../../data-types/lexical";
 
 const isJson = (str)  => {
     try {
@@ -80,11 +82,11 @@ function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, o
         }
     }
 
-    let TitleComp = attributes?.title?.EditComp
-    let LevelComp = attributes?.level?.EditComp
-    let TagsComp = attributes?.tags?.EditComp
-    let ElementComp = attributes?.element?.EditComp
-    let HelpComp = attributes?.helpText?.EditComp
+    let TitleComp = (attributes?.title || text)?.EditComp
+    let LevelComp = (attributes?.level || text)?.EditComp
+    let TagsComp = (attributes?.tags || text)?.EditComp
+    let ElementComp = (attributes?.element || lexical)?.EditComp
+    let HelpComp = (attributes?.helpText || text)?.EditComp
 
     return (
         <div className={``}>
@@ -166,7 +168,7 @@ function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, o
                                                     className='p-2 w-full bg-transparent'
                                                     value={value?.['level']}
                                                     placeholder={'level'}
-                                                    options={attributes.level.options}
+                                                    options={attributes.level?.options}
                                                     onChange={(v) => updateAttribute('level', v)}
                                                 />
                                             </div>
@@ -194,7 +196,7 @@ function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, o
             {sectionTitleCondition && (
                 <div className='flex h-[50px]'>
                     <div className='flex'>
-                        <TitleComp //todo make it blue if H!
+                        <TitleComp
                             className={`p-2 w-full font-sans font-medium text-md  ${
                                 (value?.['level']) === '1' ?
                                     `text-blue-500 font-bold text-xl tracking-wider py-1 pl-1` :
@@ -229,10 +231,10 @@ function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove}) {
     const { baseUrl, user, theme } = React.useContext(FormsContext) || {}
     
     const hideDebug = true
-    let TitleComp = attributes?.title?.ViewComp
+    let TitleComp = (attributes?.title || text)?.ViewComp
     let TagsComp = attributes?.tags?.ViewComp 
-    let ElementComp = attributes?.element?.ViewComp
-    let HelpComp = attributes?.helpText?.ViewComp
+    let ElementComp = (attributes?.element || lexical)?.ViewComp
+    let HelpComp = (attributes?.helpText || text)?.ViewComp
     let sectionTitleCondition = value?.['title']  //|| value?.['tags'] ;// edit
     let helpTextCondition = value?.['helpText'];
     let interactCondition = false //typeof onEdit !== 'function' && value?.element?.['element-type']?.includes('Map:');

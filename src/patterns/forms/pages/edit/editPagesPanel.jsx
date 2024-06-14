@@ -2,7 +2,7 @@ import React, {Fragment, useState, useEffect} from 'react'
 import { NavLink, useSubmit, useLocation } from "react-router-dom";
 import { Dialog, Transition } from '@headlessui/react'
 
-import { CMSContext } from '../../siteConfig'
+import { FormsContext } from '../../metaFormsconfig'
 
 import Nestable from '../../ui/nestable';
 import { json2DmsForm, getUrlSlug, dataItemsNav } from '../_utils'
@@ -10,7 +10,7 @@ import { json2DmsForm, getUrlSlug, dataItemsNav } from '../_utils'
 
 
 export default function EditPagesNav ({ item, dataItems, edit, open, setOpen}) {
-  const { baseUrl } = React.useContext(CMSContext) || {}
+  const { baseUrl } = React.useContext(FormsContext) || {}
   
 
   return (
@@ -114,7 +114,7 @@ function getChildNav(item, dataItems, baseUrl, edit) {
 function Nav ({item, dataItems, edit, open, setOpen}) {
   const submit = useSubmit()
   const { pathname = '/edit' } = useLocation()
-  const { baseUrl} = React.useContext(CMSContext)
+  const { baseUrl} = React.useContext(FormsContext)
   
   
   const onDragEnd = React.useCallback(result => {
@@ -232,7 +232,7 @@ function Nav ({item, dataItems, edit, open, setOpen}) {
 function AddItemButton ({dataItems}) {
   const submit = useSubmit();
   const { pathname = '/edit' } = useLocation();
-  const { baseUrl, user } = React.useContext(CMSContext);
+  const { baseUrl, user } = React.useContext(FormsContext);
   
   const highestIndex = dataItems
     .filter(d => !d.parent)

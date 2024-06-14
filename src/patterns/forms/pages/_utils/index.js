@@ -22,7 +22,7 @@ export function timeAgo(input) {
   }
 }
 
-export function getChildNav(item, dataItems, baseUrl='', edit) {
+export function getChildNav(item, dataItems=[], baseUrl='', edit) {
     let children = dataItems
         .filter(d => item.id && d.parent === item.id)
         .sort((a, b) => a.index - b.index)
@@ -42,7 +42,7 @@ export function getChildNav(item, dataItems, baseUrl='', edit) {
 
 }
 
-export function getCurrentDataItem(dataItems, baseUrl) {
+export function getCurrentDataItem(dataItems=[], baseUrl) {
     const location =
         window.location.pathname
             .replace(baseUrl, '')
@@ -54,14 +54,14 @@ export function getCurrentDataItem(dataItems, baseUrl) {
         dataItems.find((d, i) => d.url_slug === location || d.id === location);
 }
 
-export function detectNavLevel(dataItems, baseUrl) {
+export function detectNavLevel(dataItems=[], baseUrl) {
     const isMatch = getCurrentDataItem(dataItems, baseUrl)
     const isParent = dataItems.filter(d => d.parent === isMatch?.id).length;
     const level = isMatch ? isMatch.url_slug?.split('/')?.length : 1;
     return level + (isParent ? 1 : 0);
 }
 
-export function dataItemsNav(dataItems, baseUrl = '', edit = false) {
+export function dataItemsNav(dataItems=[], baseUrl = '', edit = false) {
     // console.log('dataItemsnav', dataItems)
     return dataItems
         .sort((a, b) => a.index - b.index)

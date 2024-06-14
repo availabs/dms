@@ -15,10 +15,10 @@ import EditHistory from './editHistoryPanel'
 
 //import { RegisteredComponents } from '../../selector'
 
-import { CMSContext } from '../../siteConfig'
+import { FormsContext } from '../../metaFormsconfig'
 
 function EditControls({ item, dataItems, updateAttribute, setItem, apiUpdate, attributes, edit, status,  pageType = 'page' }) {
-  const { baseUrl, user, falcor, falcorCache} = React.useContext(CMSContext) || {}
+  const { baseUrl, user, falcor, falcorCache} = React.useContext(FormsContext) || {}
   const submit = useSubmit(0)
   
   const [ editState, setEditState ] = React.useState({

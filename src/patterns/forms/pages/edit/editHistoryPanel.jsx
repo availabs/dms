@@ -1,12 +1,12 @@
 import React, { Fragment } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
 
-import { CMSContext } from '../../siteConfig'
+import { FormsContext } from '../../metaFormsconfig'
 import {timeAgo} from '../_utils'
 
 
 export default function EditHistory ({item , dataItems, historyOpen, setHistoryOpen}) {
-  const { baseUrl } = React.useContext(CMSContext) || {}
+  const { baseUrl } = React.useContext(FormsContext) || {}
 
   return (
     <Transition.Root show={historyOpen} as={Fragment}>
