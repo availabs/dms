@@ -23,8 +23,6 @@ import {
     InfoSquare,
     MoreSquare
 } from '../../ui/icons'
-import text from "../../../../data-types/text";
-import lexical from "../../../../data-types/lexical";
 
 const isJson = (str)  => {
     try {
@@ -82,11 +80,11 @@ function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, o
         }
     }
 
-    let TitleComp = (attributes?.title || text)?.EditComp
-    let LevelComp = (attributes?.level || text)?.EditComp
-    let TagsComp = (attributes?.tags || text)?.EditComp
-    let ElementComp = (attributes?.element || lexical)?.EditComp
-    let HelpComp = (attributes?.helpText || text)?.EditComp
+    let TitleComp = attributes?.title?.EditComp
+    let LevelComp = attributes?.level?.EditComp
+    let TagsComp = attributes?.tags?.EditComp
+    let ElementComp = attributes?.element?.EditComp
+    let HelpComp = attributes?.helpText?.EditComp
 
     return (
         <div className={``}>
@@ -231,10 +229,10 @@ function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove}) {
     const { baseUrl, user, theme } = React.useContext(FormsContext) || {}
     
     const hideDebug = true
-    let TitleComp = (attributes?.title || text)?.ViewComp
+    let TitleComp = attributes?.title?.ViewComp
     let TagsComp = attributes?.tags?.ViewComp 
-    let ElementComp = (attributes?.element || lexical)?.ViewComp
-    let HelpComp = (attributes?.helpText || text)?.ViewComp
+    let ElementComp = attributes?.element?.ViewComp
+    let HelpComp = attributes?.helpText?.ViewComp
     let sectionTitleCondition = value?.['title']  //|| value?.['tags'] ;// edit
     let helpTextCondition = value?.['helpText'];
     let interactCondition = false //typeof onEdit !== 'function' && value?.element?.['element-type']?.includes('Map:');
