@@ -14,7 +14,7 @@ export default function ListWrapper({ Component, format, options, user, ...props
 			// update the data
 			await dmsDataEditor(falcor, config, data, requestType)
 			// reload page to refresh page data
-			submit(null, {action: pathname})
+			// submit(null, {action: pathname})
 	}
 
 	const apiLoad = async (config) => {

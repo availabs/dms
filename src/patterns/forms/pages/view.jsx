@@ -25,7 +25,7 @@ function PageView ({item, dataItems, attributes, logo, rightMenu}) {
   console.log('forms template page view', item, theme)
   
   const ContentView = React.useMemo(() => {
-    return attributes?.['sections']?.ViewComp || SectionArray.ViewComp
+    return attributes?.['sections']?.ViewComp //|| SectionArray.ViewComp
   }, [])
 
   // const menuItems = React.useMemo(() => {

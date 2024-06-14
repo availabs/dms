@@ -22,7 +22,8 @@ const defaultUser = { email: "user", authLevel: 5, authed: true, fake: true}
 // should move this to dmsFactory default authWrapper
 
 
-const FormTemplateView = ({apiLoad, apiUpdate, parent, params, format, dataItems=[],baseUrl,theme,edit=false,...rest}) => {
+const FormTemplateView = ({apiLoad, apiUpdate, attributes, parent, params, format, dataItems=[],baseUrl,theme,edit=false,...rest}) => {
+    console.log('do i get attributes', attributes)
     const [items, setItems] = useState([]);
     const [item, setItem] = useState({});
     const Comp = edit ? TemplateEdit : TemplateView;
@@ -31,15 +32,10 @@ const FormTemplateView = ({apiLoad, apiUpdate, parent, params, format, dataItems
         p['*'] = p['*'].replace('edit/','');
     }
 
-    console.log('params', rest)
     const match = matchRoutes(dataItems.map(d => ({path:d.url_slug, ...d})), {pathname:`/${p["*"]}`})?.[0] || {};
     const itemId = match?.params?.id;
     const parentConfigAttributes = JSON.parse(parent?.config || '{}')?.attributes || [];
     const type = parent.doc_type || parent?.base_url?.replace(/\//g, '')
-
-    console.log('params---------------------', match?.params?.id, match)
-    console.log('dataItems', dataItems, 'urls', dataItems.map(d=> d.url_slug))
-    
 
     const children = [{
         type: () => {
@@ -80,6 +76,7 @@ const FormTemplateView = ({apiLoad, apiUpdate, parent, params, format, dataItems
                 apiLoad={apiLoad}
                 apiUpdate={apiUpdate}
                 format={format}
+                attributes={attributes}
             />  
     )
 }

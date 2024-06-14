@@ -66,7 +66,7 @@ function PageEdit ({
   const HelloWorld = () => <div> hello world </div>
 
   const ContentEdit = React.useMemo(() => {
-    return attributes?.['sections'].EditComp || SectionArray.EditComp
+    return attributes?.['sections'].EditComp //|| SectionArray.EditComp
   }, [])
 
   const attr = {attributes: templateSection.attributes}
