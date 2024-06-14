@@ -2,7 +2,7 @@ import React, {useEffect, useState} from "react"
 import {dmsDataLoader} from "../../api/index"
 import {formsConfigFormat} from "./forms.format";
 import {Layout} from "./components/Layout.jsx";
-import {TableComp} from "./components/TableComp";
+import TableComp from "./components/TableComp";
 import {
   falcorGraph,
   FalcorProvider
@@ -76,7 +76,7 @@ const siteConfig = ({
             children: [
                 {
                     type: props =>
-                        <TableComp
+                        <TableComp.EditComp
                             data={props.dataItems}
                             columns={columns}
                             baseUrl={baseUrl}
