@@ -164,4 +164,4 @@ const siteConfig = ({
   }
 }
 
-export default siteConfig
+export default [siteConfig]

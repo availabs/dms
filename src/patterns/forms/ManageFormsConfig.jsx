@@ -1,8 +1,9 @@
 import React from 'react'
-import {pattern} from "./admin.format.js"
+import {pattern} from "../admin/admin.format.js"
 import cloneDeep from 'lodash/cloneDeep'
 import defaultTheme from '../page/layout/components/theme'
-import ManageForms from "../forms/components/ManageForms";
+import ManageForms from "./components/ManageForms";
+import ManageTemplates from "./components/ManageTemplates";
 
 const Layout = ({children, title, baseUrl, format,...rest}) => {
   // const params = useParams();
@@ -21,8 +22,8 @@ const Layout = ({children, title, baseUrl, format,...rest}) => {
 
 // config to manage forms.
 const adminConfig = ({ 
-  app = "dms-site",
-  type = "docs-page",
+  app = "default-app",
+  type = "default-type",
   sideNav = null,
   logo = null,
   rightMenu = <div />,
@@ -69,6 +70,11 @@ const adminConfig = ({
             type: props => <ManageForms.EditComp {...props} />,
             action: 'edit',
             path: `:id`
+          },
+          {
+            type: props => <ManageForms.EditComp {...props} manageTemplates />,
+            action: 'edit',
+            path: `:id/templates`
           },
           {
             type: props => <ManageForms.ViewComp {...props} />,

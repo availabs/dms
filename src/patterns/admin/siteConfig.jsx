@@ -8,8 +8,8 @@ import Layout from "./pages/layout"
 import siteFormat from "./admin.format.js"
 
 const adminConfig = ({ 
-  app = "dms-site",
-  type = "docs-page",
+  app = "default-app",
+  type = "default-page",
   sideNav = null,
   logo = null,
   rightMenu = <div />,

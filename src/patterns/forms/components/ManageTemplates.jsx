@@ -21,17 +21,18 @@ const ManageForm = ({
     const updateData = (data, attrKey) => {
         apiUpdate({data: {...newItem, ...{[attrKey]: data}}, config: {format}})
     }
-    console.log('manage forms /manage_pattern/:id/templates?', manageTemplates, attributes, item)
-    return <div key={item.id} className={'w-full'}>
+    console.log('item', item)
+    return <div key={item?.id} className={'w-full'}>
         {status ? <div>{JSON.stringify(status)}</div> : ''}
 
         {Object.keys(attributes)
-            .filter(attr => manageTemplates ? attr === 'templates' : attr !== 'templates')
+            .filter(attr => attr === 'templates')
             .map((attrKey, i) => {
                 let EditComp = attributes[attrKey].EditComp;
-                console.log('attrs', attributes[attrKey], newItem)
+                console.log('attrs', attributes[attrKey])
                 return (
                     <div key={`${attrKey}-${i}`}>
+                        {attrKey}
                         <EditComp
                             key={`${attrKey}-${i}`}
                             value={newItem?.[attrKey]}
@@ -42,7 +43,6 @@ const ManageForm = ({
                             format={format}
                             manageTemplates={manageTemplates}
                             {...attributes[attrKey]}
-                            item={newItem}
                         />
                     </div>
                 )
