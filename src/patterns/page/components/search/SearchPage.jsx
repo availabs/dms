@@ -8,6 +8,7 @@ import {Combobox} from "@headlessui/react";
 
 const searchItemWrapperClass = `p-2 bg-blue-50 hover:bg-blue-100`
 
+const getSearchURL = ({value, baseUrl, type='tag'}) => !baseUrl || baseUrl === '' ? `/search/?q=${value}&type=${type}` : `/${baseUrl}/search/?q=${value}&type=${type}`;
 const RenderTagSuggestions = ({tags, tmpQuery, setQuery, navigate, baseUrl}) => tags
     .filter(tag => (!tmpQuery?.length || tag.toLowerCase().includes(tmpQuery.toLowerCase())))
     .length > 0 && (
@@ -22,7 +23,7 @@ const RenderTagSuggestions = ({tags, tmpQuery, setQuery, navigate, baseUrl}) => 
                         key={tag}
                         onClick={() => {
                             setQuery(tag)
-                            navigate(`/${baseUrl}/search/?q=${tag}&type=tag`)
+                            navigate(getSearchURL({value: tag, baseUrl}))
                         }}
                         className={`mx-0.5 cursor-pointer rounded-xl py-0.5 px-1.5 bg-gray-500 text-white text-xs`}
                     >
@@ -164,10 +165,10 @@ export const SearchPage = ({item, dataItems, format, attributes, logo, rightMenu
                     value={query}
                     onChange={e => {
                         setQuery(e.target.value)
-                        navigate(`/${baseUrl}/search/?q=${e.target.value}&type=tag`)
+                        navigate(getSearchURL({value: e.target.value, baseUrl}))
                     }}/>
             </div>
-            
+
             <RenderTagSuggestions tags={tags} tmpQuery={tmpQuery} setQuery={setQuery} navigate={navigate} baseUrl={baseUrl}/>
 
             <RenderItems items={items} navigate={navigate}/>
