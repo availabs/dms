@@ -25,7 +25,7 @@ import {SearchPage} from "./components/search/SearchPage";
 
 export const CMSContext = React.createContext(undefined);
 
-const siteConfig = ({ 
+export const siteConfig = ({
   app = "dms-site",
   type = "docs-page",
   rightMenu = <div />,
