@@ -25,8 +25,9 @@ export default async function dmsSiteFactory(
     API_HOST = 'https://graph.availabs.org'
 ) {
     const falcor = falcorGraph(API_HOST)
+    //console.log('1 - ', dmsConfig)
     let data = await dmsDataLoader(falcor, dmsConfig, `/`);
-    //console.log('test 123', data)
+    console.log('pattern dms-item', data)
 
     const patterns = data.reduce((acc, curr) => [...acc, ...curr.patterns], []) || [];
 
@@ -56,11 +57,7 @@ export default async function dmsSiteFactory(
                         baseUrl: pattern.base_url,
                         format: pattern?.config,
                         parent: pattern,
-                        theme: {
-                            navOptions: {
-                                logo: (<Link to='/' className='h-12 flex px-4 items-center'>LOGO</Link>),
-                            }
-                        },
+                        
                         useFalcor,
                         API_HOST,
                         //rightMenu: <div>RIGHT</div>,

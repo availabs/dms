@@ -1,5 +1,5 @@
 import PatternList from './components/patternList'
-import SectionArray from "../page/components/sections/sectionArray";
+import SectionArray from "../forms/components/sections/sectionArray";
 
 export const templateSection = {
   app: "admin",

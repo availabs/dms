@@ -1,10 +1,12 @@
 import React, { useEffect, Fragment, useRef, useState } from 'react'
 import {PencilIcon} from './icons'
-import { CMSContext } from '../siteConfig'
+import { FormsContext } from '../metaFormsconfig'
 import { Dialog, Transition, Switch, Popover } from '@headlessui/react'
 import { usePopper } from 'react-popper'
 import defaultTheme from '../theme/theme'
 
+
+const NO_OP = ()=>{}
 
 export const useClickOutside = handleClick => {
   const [node, setNode] = React.useState(null);
@@ -55,8 +57,9 @@ export function Dropdown ({ control, children,className, width='w-full max-w-[20
     )
 }
 
+
 export function PopoverMenuItem ({children,onClick}) {
-    const {theme = defaultTheme} = React.useContext(CMSContext)
+    const {theme = defaultTheme} = React.useContext(FormsContext)
     return (
         <div 
             onClick={onClick}
@@ -229,7 +232,7 @@ export const ButtonSelector = ({
 export function SideNavContainer({children, width='w-64'}) {
   return (
     <div className={`w-64 hidden xl:block`}>
-      <div className={`w-64 sticky top-20 hidden xl:block`}> 
+      <div className={`w-64 sticky top-2 hidden xl:block max-h-[100vh_-_450px]`}> 
         {children}
       </div>
     </div>
@@ -283,7 +286,7 @@ export function SidebarSwitch({value,toggleSidebar}) {
 
 export function DeleteModal ({item, open, setOpen, onDelete})  {
   const cancelButtonRef = useRef(null)
-  const { baseUrl } = React.useContext(CMSContext) || {}
+  const { baseUrl } = React.useContext(FormsContext) || {}
   const [loading, setLoading] = useState(false)
   return (
     <Modal

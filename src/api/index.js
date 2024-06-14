@@ -31,6 +31,7 @@ export async function dmsDataLoader (falcor, config, path='/') {
 	// Because any config can have children
 	//---------------------------------------------------------
 	const { format } = config
+	//console.log('2 - ', config, config.dmsConfig.format)
 	const { app , type, /*defaultSearch,*/ attributes = {} } = format
 
 	const activeConfigs = getActiveConfig(config.children, path)
