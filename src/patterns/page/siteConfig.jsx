@@ -15,6 +15,7 @@ import Selector from "./components/selector"
 import { registerDataType } from "../../index"
 
 import merge from 'lodash/merge'
+import {SearchPage} from "./components/search/SearchPage";
 
 // sideNav = {size: 'miniPad'}
 
@@ -117,6 +118,11 @@ const siteConfig = ({
             path: "/*",
             action: "view"
           },
+          {
+            type: (props) => <SearchPage {...props}/>,
+            path: "/search/*",
+            action: "list"
+          }
 
           // {
           //   type: (props) => (

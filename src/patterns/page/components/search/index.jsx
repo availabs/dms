@@ -25,7 +25,7 @@ function classNames(...classes) {
     return classes.filter(Boolean).join(' ')
 }
 
-const RenderTagSuggestions = ({tags, tmpQuery, setQuery}) => tags
+export const RenderTagSuggestions = ({tags, tmpQuery, setQuery}) => tags
     .filter(tag => (!tmpQuery?.length || tag.toLowerCase().includes(tmpQuery.toLowerCase())))
     .length > 0 && (
     <Combobox.Options static
@@ -61,7 +61,7 @@ const RenderTagSuggestions = ({tags, tmpQuery, setQuery}) => tags
     </Combobox.Options>
 );
 
-const RenderItems = ({items}) => items.length > 0 && (
+export const RenderItems = ({items}) => items.length > 0 && (
     <Combobox.Options static
                       className="max-h-96 transform-gpu scroll-py-3 overflow-y-auto p-3">
         {items.map((item) => (
@@ -105,7 +105,7 @@ const RenderItems = ({items}) => items.length > 0 && (
     </Combobox.Options>
 )
 
-const RenderStatus = ({loading, query, itemsLen}) =>
+export const RenderStatus = ({loading, query, itemsLen}) =>
     loading ? (
             <div className="p-2 mx-auto w-1/4 h-full flex items-center justify-middle">
                 <i className="px-2 fa fa-loader text-gray-400" />
