@@ -473,7 +473,7 @@ const ScrollToHashElement = () => {
 };
 
 const Edit = ({Component, value, onChange, attr, full_width = false, ...rest }) => {
-    console.log('.............', rest, attr, value)
+    //console.log('.............', rest, attr, value)
     if (!value || !value.map) { 
         value = []
     }
@@ -643,7 +643,7 @@ const View = ({Component, value, attr, full_width}) => {
     }
 
 
-    console.log('render SA view', full_width)
+    //console.log('render SA view', full_width)
 
     return (
         <div className={`w-full grid grid-cols-6 ${layouts[full_width === 'show' ? 'fullwidth' : 'centered']} gap-1`}>

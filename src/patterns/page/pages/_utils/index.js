@@ -133,7 +133,7 @@ const parseData = data => !data ? {} : typeof data === "object" ? data : JSON.pa
 export function getInPageNav(item, theme) {
     const currentDI = item
 
-    console.log('test 123', theme)
+    //console.log('test 123', theme)
    
     const menuItems = (currentDI?.sections || []).reduce((acc, {title, element, level = '1', ...props}) => {
 
