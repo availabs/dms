@@ -1,10 +1,10 @@
 import React, {useEffect} from 'react'
 import { useParams } from "react-router-dom";
 
-import { 
-  DmsManager, 
+import {
+  DmsManager,
   dmsDataLoader,
-  dmsDataEditor, 
+  dmsDataEditor,
 } from './index'
 
 import defaultTheme from './theme/default-theme'
@@ -22,17 +22,16 @@ export default function dmsPageFactory (
 ) {
   //console.log('hola', dmsConfig, authWrapper)
   //const {falcor, falcorCache} = useFalcor()
-  const { 
-    API_HOST = 'https://graph.availabs.org', 
-    baseUrl = "" 
+  const {
+    API_HOST = 'https://graph.availabs.org',
+    baseUrl = ""
   } = dmsConfig
   const dmsPath= `${baseUrl}/`
   const falcor = falcorGraph(API_HOST)
 
-
   async function loader ({ request, params }) {
     let data = await dmsDataLoader(falcor, dmsConfig, `/${params['*'] || ''}`)
-    return { 
+    return {
       data
     }
   }
@@ -40,9 +39,9 @@ export default function dmsPageFactory (
   async function action ({ request, params }) {
     const form = await request.formData();
     return dmsDataEditor(falcor,
-      dmsConfig, 
-      JSON.parse(form.get("data")), 
-      form.get("requestType"), 
+      dmsConfig,
+      JSON.parse(form.get("data")),
+      form.get("requestType"),
       params['*']
     )
   };
@@ -53,7 +52,7 @@ export default function dmsPageFactory (
 
     return React.useMemo(() => (
       <FalcorProvider falcor={falcor}>
-        <AuthedManager 
+        <AuthedManager
           path={ `/${params['*'] || ''}` }
           config={dmsConfig}
           theme={dmsTheme}
@@ -78,4 +77,3 @@ export default function dmsPageFactory (
     action: action
   }
 }
-

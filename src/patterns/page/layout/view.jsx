@@ -20,9 +20,12 @@ function PageView ({item, dataItems, attributes, logo, rightMenu}) {
   }
 
   const { baseUrl, theme, user } = React.useContext(CMSContext)
-  const ContentView = React.useMemo(() => {
-    return attributes['sections'].ViewComp
-  }, [])
+  // const ContentView = React.useMemo(() => {
+  //   return attributes['sections'].ViewComp
+  // }, [])
+  const { key, ViewComp: ContentView, ...rest } = React.useMemo(() => {
+    return attributes['sections'];
+  }, [attributes]);
 
   const menuItems = React.useMemo(() => {
     let items = dataItemsNav(dataItems,baseUrl,false)
@@ -36,37 +39,37 @@ function PageView ({item, dataItems, attributes, logo, rightMenu}) {
   const sections = item['sections']?.filter(d => !d.is_header && !d.is_footer)
 
   //console.log('page view', sections)
-  
+
   return (
     <div id='page_view'>
       {/* Header */}
-      {(item?.header === 'above') && <ContentView item={item} value={[headerSection]} {...attributes['sections']}/>}
+      {(item?.header === 'above') && <ContentView key={ key } item={item} value={[headerSection]} {...rest}/>}
       {/* Layout */}
-      <Layout 
+      <Layout
         topNav={{menuItems, position: 'fixed', logo, rightMenu }}
         sideNav={item.sideNav ? item.sideNav : inPageNav}
       >
         <div className={`${theme.page.wrapper1} ${theme.navPadding[level]}`}>
-          {(item?.header === 'below') && <ContentView item={item} value={[headerSection]} {...attributes['sections']}/>}
+          {(item?.header === 'below') && <ContentView key={ key } item={item} value={[headerSection]} {...rest}/>}
           <div className={`${theme.page.wrapper2}`}>
-            {item?.sidebar === 'show' && <RenderSideNav inPageNav={inPageNav} />}      
+            {item?.sidebar === 'show' && <RenderSideNav inPageNav={inPageNav} />}
             <div className={theme.page.wrapper3}>
               {/* Content */}
-              {(item?.header === 'inpage') && <ContentView item={item} value={[headerSection]} {...attributes['sections']}/>}
+              {(item?.header === 'inpage') && <ContentView key={ key } item={item} value={[headerSection]} {...rest}/>}
               {user?.authLevel >= 5 && <ToggleEdit item={item} baseUrl={baseUrl} />}
-              <ContentView 
+              <ContentView key={ key }
                 item={item}
-                value={sections} 
-                {...attributes['sections']}
+                value={sections}
+                {...rest}
               />
-            </div>    
+            </div>
           </div>
         </div>
       </Layout>
       {/*Footer*/}
       {item?.footer && <div className='h-[300px] bg-slate-100' />}
     </div>
-  ) 
+  )
 }
 
 
@@ -76,19 +79,18 @@ function ToggleEdit({baseUrl, item}) {
   return (
     <Link className='z-30 absolute right-[10px] top-[5px]' to={`${baseUrl}/edit/${item.url_slug}`}>
       <i className={`fad fa-edit fa-fw flex-shrink-0 text-lg text-slate-400 hover:text-blue-500`}/>
-    </Link> 
+    </Link>
   )
 }
- 
+
 function RenderSideNav({inPageNav}) {
   return (
     <div className='w-64 hidden xl:block'>
-      <div className='w-64 sticky top-20 hidden xl:block h-screen'> 
+      <div className='w-64 sticky top-20 hidden xl:block h-screen'>
         <div className='h-[calc(100%_-_5rem)] overflow-y-auto overflow-x-hidden font-display'>
-          <SideNav {...inPageNav} /> 
+          <SideNav {...inPageNav} />
         </div>
       </div>
     </div>
   )
 }
-
