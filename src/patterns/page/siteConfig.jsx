@@ -38,8 +38,8 @@ export const siteConfig = ({
     API_HOST
 }) => {
   theme = merge(defaultTheme, theme)
-  baseUrl = baseUrl[0] === '/' ? baseUrl.slice(1) : baseUrl
-  // console.log('baseUrl',baseUrl)
+  //baseUrl = baseUrl[0] === '/' ? baseUrl.slice(1) : baseUrl
+  console.log('baseUrl',baseUrl)
 
   const format = cloneDeep(cmsFormat)
   format.app = app

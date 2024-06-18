@@ -17,7 +17,7 @@ function PageView ({item, dataItems, attributes, logo, rightMenu}) {
     item = {} // create a default item to set up first time experience.
   }
 
-  console.log('item', item, dataItems, status)
+  //console.log('item', item, dataItems, status)
   
   const { baseUrl, theme, user } = React.useContext(CMSContext) || {}
   const ContentView = React.useMemo(() => {
