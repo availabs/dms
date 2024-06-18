@@ -115,11 +115,11 @@ export const siteConfig = ({
             path: "/*",
             action: "view"
           },
-            {
+          {
                 type: (props) => <SearchPage {...props}/>,
                 path: "/search/*",
                 action: "list"
-            },
+          },
            {
             type: (props) => (
               <CmsManager
