@@ -23,6 +23,7 @@ export async function dmsDataLoader (falcor, config, path='/') {
 	// console.log('dmsDataLoader', config, path)
 	//-------------------------------------------
 
+
 	if(config.formatFn){
 		config.format = await config.formatFn();
 	}
@@ -32,6 +33,7 @@ export async function dmsDataLoader (falcor, config, path='/') {
 	// Because any config can have children
 	//---------------------------------------------------------
 	const { format } = config
+	//console.log('2 - ', config, config.dmsConfig.format)
 	const { app , type, /*defaultSearch,*/ attributes = {} } = format
 
 	const activeConfigs = getActiveConfig(config.children, path)
@@ -55,10 +57,10 @@ export async function dmsDataLoader (falcor, config, path='/') {
 		const options = activeConfigs.find(ac => ['list','load'].includes(ac.action))?.filter?.options;
 		if(options) lengthReq = ['dms', 'data', `${ app }+${ type }`, 'options', options, 'length' ];
 	}
-	//console.log('lengthReq', lengthReq)
 
+	// console.log('lengthReq', lengthReq)
 	const length = get(await falcor.get(lengthReq), ['json',...lengthReq], 0)
-	//console.log('length',length)
+	// console.log('length',length)
 	const itemReqByIndex = ['dms', 'data', `${ app }+${ type }`, 'byIndex']
 	
 	// -- --------------------------------------------------------
@@ -153,7 +155,7 @@ export async function dmsDataLoader (falcor, config, path='/') {
 }
 
 export async function dmsDataEditor (falcor, config, data={}, requestType, /*path='/'*/ ) {
-	//console.log('API - dmsDataEditor', config,data,path)
+	console.log('API - dmsDataEditor', config,data)
 	const { app , type } = config.format
 	//const activeConfig = getActiveConfig(config.children, path)
 	

@@ -34,7 +34,8 @@ export default function EditWrapper({ Component, format, options, params, user, 
 	useEffect(() => {
 		let filteredItem = data.filter(d => filterParams(d,params,format))[0]
 		// update item on data update
-		if(!isEqual(item,filteredItem)){
+		if(!isEqual(item,filteredItem) && filteredItem){
+			console.log('setItem', item, filteredItem)
 			setItem( filteredItem || {})
 		}
 	},[data,params])
@@ -43,12 +44,7 @@ export default function EditWrapper({ Component, format, options, params, user, 
 	const apiUpdate = async ({data, config={format}, requestType=''}) => {  
 			// update the data
 			await dmsDataEditor(falcor, config, data, requestType)
-			// reload page to refresh page data
 			submit(null, {action: pathname})
-	}
-
-	const apiLoad = async (config) => {
-		return await dmsDataLoader(falcor, config)
 	}
 
 	const updateAttribute = (attr, value, multi) => {
@@ -61,6 +57,10 @@ export default function EditWrapper({ Component, format, options, params, user, 
 
 	const submitForm = () => {
 		submit(json2DmsForm(item), { method: "post", action: pathname })
+	}
+
+	const apiLoad = async (config) => {
+		return await dmsDataLoader(falcor, config)
 	}
 
 	const EditComponent = React.useMemo(() => Component, [])

@@ -1,4 +1,4 @@
-import Multiselect from "~/component_registry/shared/MultiSelect.jsx";
+// import Multiselect from "~/component_registry/shared/MultiSelect.jsx";
 import {useState} from "react";
 
 export const FilterSelector = ({filters, setFilters, columns, uniqueValues}) => {
@@ -34,13 +34,13 @@ export const FilterSelector = ({filters, setFilters, columns, uniqueValues}) => 
                     <div className={'w-full pt-2 mt-1 flex flex-row text-sm items-top'}>
                         <label className={'shrink-0 pr-2 py-2 my-1 w-1/4 font-medium'}>{columns.find(c => c.accessor === column)?.Header}</label>
                         <div className={'p-2 ml-0 my-1 bg-white rounded-md w-full shrink'}>
-                            <Multiselect
-                                className={'flex-row-reverse'}
-                                value={filters[column]}
-                                options={uniqueValues[column].map(uv => ({key: uv, label: uv}))}
-                                onChange={e => setFilters({...filters, [column]: e.map(e1 => e1.key)})}
-                                noLabel={true}
-                            />
+                            {/*<Multiselect*/}
+                            {/*    className={'flex-row-reverse'}*/}
+                            {/*    value={filters[column]}*/}
+                            {/*    options={uniqueValues[column].map(uv => ({key: uv, label: uv}))}*/}
+                            {/*    onChange={e => setFilters({...filters, [column]: e.map(e1 => e1.key)})}*/}
+                            {/*    noLabel={true}*/}
+                            {/*/>*/}
                         </div>
                         <button
                             className={'my-1 px-2 py-2 h-fit bg-red-300 hover:bg-red-500 rounded-md'}
