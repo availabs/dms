@@ -35,12 +35,12 @@ export const siteConfig = ({
   authLevel = -1,
   theme = defaultTheme,
   pgEnv,
-    API_HOST
+  API_HOST
 }) => {
   theme = merge(defaultTheme, theme)
   //baseUrl = baseUrl[0] === '/' ? baseUrl.slice(1) : baseUrl
-  console.log('baseUrl',baseUrl)
-
+  //console.log('baseUrl',baseUrl)
+  console.log('app+type', app,type)
   const format = cloneDeep(cmsFormat)
   format.app = app
   format.type = type
@@ -120,7 +120,7 @@ export const siteConfig = ({
                 path: "/search/*",
                 action: "list"
           },
-           {
+          {
             type: (props) => (
               <CmsManager
                 {...props}
