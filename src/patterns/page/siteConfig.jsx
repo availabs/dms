@@ -19,9 +19,11 @@ import { registerDataType } from "../../index"
 import { useFalcor } from "@availabs/avl-falcor"
 
 import merge from 'lodash/merge'
+import { Link } from 'react-router-dom'
 import {SearchPage} from "./components/search/SearchPage";
 
 // sideNav = {size: 'miniPad'}
+const defaultLogo = <Link to={`${baseUrl}`} className='h-12 flex px-4 items-center'><div className='rounded-full h-8 w-8 bg-blue-500 border-2 border-blue-300 hover:bg-blue-600' /></Link>
 
 export const CMSContext = React.createContext(undefined);
 
@@ -39,8 +41,13 @@ export const siteConfig = ({
 }) => {
   theme = merge(defaultTheme, theme)
   //baseUrl = baseUrl[0] === '/' ? baseUrl.slice(1) : baseUrl
+  
+  if(!theme.navOptions.logo) {
+    theme.navOptions.logo = defaultLogo
+  }
   //console.log('baseUrl',baseUrl)
-  console.log('app+type', app,type)
+
+
   const format = cloneDeep(cmsFormat)
   format.app = app
   format.type = type
@@ -56,21 +63,6 @@ export const siteConfig = ({
     format: format,
     baseUrl,
     API_HOST,
-    // check: ({user}, activeConfig, navigate) =>  {
-    //
-    //   const getReqAuth = (configs) => {
-    //     return configs.reduce((out,config) => {
-    //       let authLevel = config.authLevel || -1
-    //       if(config.children) {
-    //         authLevel = Math.max(authLevel, getReqAuth(config.children))
-    //       }
-    //       return Math.max(out, authLevel)
-    //     },-1)
-    //   } 
-    //   let requiredAuth = getReqAuth(activeConfig)
-    //   console.log('checking', user, activeConfig)
-    //   checkAuth({user, authLevel:requiredAuth}, navigate)
-    // },
     children: [
       { 
         type: ({children, user=defaultUser, pgEnv, ...props}) => {

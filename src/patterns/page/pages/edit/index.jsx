@@ -45,6 +45,8 @@ function PageEdit ({
     }
   },[])
 
+
+
   React.useEffect(() => {
     // ------------------------------------------------------------
     // -- This on load effect backfills pages created before drafts
@@ -64,7 +66,7 @@ function PageEdit ({
   const headerSection = item['draft_sections']?.filter(d => d.is_header)?.[0]
   const draftSections = item['draft_sections']?.filter(d => !d.is_header && !d.is_footer)
 
-  
+  // console.log('page edit render', draftSections)
 
   const ContentEdit = React.useMemo(() => {
     return attributes['sections'].EditComp

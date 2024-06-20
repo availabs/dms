@@ -35,7 +35,7 @@ const adminConfig = ({
   const format = cloneDeep(pattern)
   format.app = app
   format.type = type
-  console.log('pattern config. testing to edit patterns', format)
+ //console.log('pattern config. testing to edit patterns', format)
   return {
     format: format,
     baseUrl,
