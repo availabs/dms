@@ -30,9 +30,9 @@ const icons = {
 }
 
 function EditComp(props) {
-    const {value, onChange, size} = props
+    const {value, onChange, size, ...rest} = props
     // console.log("selector props", props, value)
-
+    console.log('selector edit', rest)
     const updateAttribute = (k, v) => {
         if (!isEqual(value, {...value, [k]: v})) {
             onChange({...value, [k]: v})
@@ -103,21 +103,22 @@ function EditComp(props) {
                     value={value?.['element-data'] || ''}
                     onChange={v => updateAttribute('element-data', v)}
                     size={size}
+                    {...rest}
                 />
             </div>
         </div>
     )
 }
 
-function ViewComp({value}) {
+function ViewComp({value, ...rest}) {
     // if (!value) return false
-
+    console.log('selector view', rest)
     let Comp = RegisteredComponents[get(value, "element-type", 'lexical')] ?
         RegisteredComponents[get(value, "element-type", "lexical")].ViewComp :
         () => <div> Component {value["element-type"]} Not Registered </div>
 
     return (
-        <Comp value={value?.['element-data'] || ''}/>
+        <Comp value={value?.['element-data'] || ''} {...rest}/>
     )
 }
 

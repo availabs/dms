@@ -2,6 +2,8 @@ import React, {useEffect, useState} from "react"
 import {isJson} from "../index";
 import { dmsDataTypes } from "../../../../../index.js"
 import Header from './header'
+import Spreadsheet from "./spreadsheet";
+import Item from "./item";
 
 export const RenderCalloutBox = ({text = {}, backgroundColor, ...rest}) => {
     return (
@@ -107,7 +109,9 @@ const lexical  = {
 }
  const ComponentRegistry = {
     lexical,
-    "Header: Default Header": Header
+    "Header: Default Header": Header,
+     "Spreadsheet": Spreadsheet,
+     "Item": Item
 }
 
 

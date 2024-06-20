@@ -9,12 +9,11 @@ import SideNav from '../ui/nav/Side'
 
 import {PencilEditSquare} from '../ui/icons'
 import { SideNavContainer } from '../ui'
-import SectionArray from "../components/sections/sectionArray";
 import {templateSection} from "../../admin/admin.format";
 
 const HelloWorld = () => <div> hello world </div>
 
-function PageView ({item, dataItems, attributes, logo, rightMenu}) {
+function PageView ({item, dataItems, attributes, logo, rightMenu, format, apiLoad, apiUpdate}) {
   // console.log('page_view')
   // if(!item) return <div> No Pages </div>
   if(!item) {
@@ -73,8 +72,11 @@ function PageView ({item, dataItems, attributes, logo, rightMenu}) {
                   attr={attr}
                 full_width={item.full_width}
                 item={item}
-                value={sections} 
+                value={sections}
                 attributes={sectionAttr}
+                  format={format}
+                  apiLoad={apiLoad}
+                  apiUpdate={apiUpdate}
               />
             </div>    
           </div>
