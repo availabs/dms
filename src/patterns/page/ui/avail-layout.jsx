@@ -29,7 +29,7 @@ let fixedSizes = {
 
 const Logos = () => <div className='h-12'/>
 
-const Layout = ({ children, navItems, title }) => {
+const Layout = ({ children, navItems, title, ...props }) => {
 	//const theme = useTheme()
 
 	const { theme, app, type } = React.useContext(CMSContext) || {}

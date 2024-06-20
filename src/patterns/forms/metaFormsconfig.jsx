@@ -1,7 +1,7 @@
 import React, {useEffect, useState} from "react"
 import {Link, useParams, useLocation, matchRoutes} from "react-router-dom";
 
-import TableComp from "./components/TableComp";
+// import TableComp from "./components/TableComp";
 import {template} from "../admin/admin.format"
 import {
   falcorGraph,

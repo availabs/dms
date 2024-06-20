@@ -28,9 +28,10 @@ const DmsManager = (props) => {
 	const navigate = useNavigate()
 
 	React.useEffect(()=>{
-		// console.log('test 123', user)
+		//console.log(' dmsManager:31 - user', user)
 		if(check && user) {
 			let activeConfig = getActiveConfig(config.children, path, config.format)
+			// console.log('activeConfig', activeConfig, check)
 			check( checkAuth, props, activeConfig, navigate, path )
 		}
 		

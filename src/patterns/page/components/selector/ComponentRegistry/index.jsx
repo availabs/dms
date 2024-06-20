@@ -46,7 +46,7 @@ const RenderColorPicker = ({title, className, color, setColor}) => (
                 ].map(c => <option key={c}>{c}</option>)
             }
         </datalist>
-        <div>X</div>
+        
     </div>
 )
 
@@ -94,6 +94,7 @@ const View = ({value}) => {
     ) return null;
 
     const LexicalComp = dmsDataTypes.lexical.ViewComp;
+    //console.log('lexical comp', dataOrValue)
     return (
         <div>
             <LexicalComp value={dataOrValue} bgColor={data?.bgColor} />

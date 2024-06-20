@@ -19,8 +19,10 @@ export async function dmsDataLoader (falcor, config, path='/') {
 	//---- Testing stuff to delete ----------
 	// runCount += 1
 	// const runId = runCount
-	//-------------------------------------
+	//-------------------------------------------
 	// console.log('dmsDataLoader', config, path)
+	//-------------------------------------------
+
 
 	if(config.formatFn){
 		config.format = await config.formatFn();
@@ -55,8 +57,8 @@ export async function dmsDataLoader (falcor, config, path='/') {
 		const options = activeConfigs.find(ac => ['list','load'].includes(ac.action))?.filter?.options;
 		if(options) lengthReq = ['dms', 'data', `${ app }+${ type }`, 'options', options, 'length' ];
 	}
-	// console.log('lengthReq', lengthReq)
 
+	// console.log('lengthReq', lengthReq)
 	const length = get(await falcor.get(lengthReq), ['json',...lengthReq], 0)
 	// console.log('length',length)
 	const itemReqByIndex = ['dms', 'data', `${ app }+${ type }`, 'byIndex']
@@ -217,11 +219,11 @@ export async function dmsDataEditor (falcor, config, data={}, requestType, /*pat
 		*/
 		// console.log('falcor update data', requestType, data, JSON.stringify(data).length)
 		// todo - data verification
-		console.time(`falcor update data ${id}`)
-		console.log('update', id, data)
+		// console.time(`falcor update data ${id}`)
+		// console.log('update', id, data)
 		await falcor.call(["dms", "data", "edit"], [id, data]);
 		await falcor.invalidate(['dms', 'data', 'byId', id])
-		console.timeEnd(`falcor update data ${id}`)
+		// console.timeEnd(`falcor update data ${id}`)
 		return {message: "Update successful.",  }
 	} else if ( attributeKeys.length > 0 ) {
 		/*  if there is only data 
