@@ -11,31 +11,12 @@ import { SideNavContainer } from '../../ui'
 import { CMSContext } from '../../siteConfig'
 
 function CmsManager ({item, dataItems, attributes, logo, rightMenu}) {
-  // console.log('page_view')
-  // if(!item) return <div> No Pages </div>
-  if(!item) {
-    item = {} // create a default item to set up first time experience.
-  }
-
-  //console.log('item', item, dataItems, status)
+ 
   
   const { baseUrl, theme, user } = React.useContext(CMSContext) || {}
   const ContentView = React.useMemo(() => {
     return attributes['sections'].ViewComp
   }, [])
-
-  // const menuItems = React.useMemo(() => {
-  //   let items = dataItemsNav(dataItems,baseUrl,false)
-  //   return items
-  // }, [dataItems])
-
-  // const level = item?.index == '999' || theme?.navOptions?.topNav?.nav !== 'main' ? 1 : detectNavLevel(dataItems, baseUrl);
-
-  // const inPageNav = getInPageNav(item,theme);
-
-
-  //console.log('test 123', attributes['sections'])
-
 
   return (
     <div id='page_view'>

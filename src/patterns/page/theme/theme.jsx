@@ -19,6 +19,7 @@ const theme = {
       dropdown: 'right',
       search: 'right',
       logo: 'left',
+      position: 'fixed',
       nav: 'main' 
     }
   },

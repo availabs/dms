@@ -29,7 +29,7 @@ const UserMenu = ({user}) => {
 }
 
 export const Item = ({to, icon,children}) => (
-        (
+    (
         <Link to={ to } >
             <div className='px-6 py-1 bg-blue-500 text-white hover:text-blue-100'>
                 <div className='hover:translate-x-2 transition duration-100 ease-out hover:ease-in'>
@@ -39,7 +39,8 @@ export const Item = ({to, icon,children}) => (
                     </span>
                 </div>
             </div>
-        </Link>)
+        </Link>
+    )
    
 )
 

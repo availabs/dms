@@ -18,7 +18,6 @@ const configs = {
 }
 export default async function dmsSiteFactory({
     dmsConfig,
-    dmsPath = '/',
     adminPath = '/list',
     authWrapper = Component => Component,
     //dmsTheme = defaultTheme,
@@ -26,7 +25,7 @@ export default async function dmsSiteFactory({
     API_HOST = 'https://graph.availabs.org'
 }) {
     const falcor = falcorGraph(API_HOST)
-    console.log('1 - ', dmsConfig)
+    //console.log('1 - ', dmsConfig)
     let data = await dmsDataLoader(falcor, dmsConfig, `/`);
     
 
@@ -63,7 +62,7 @@ export default async function dmsSiteFactory({
                         API_HOST,
                         //rightMenu: <div>RIGHT</div>,
                     });
-                    console.log('hosting', pattern.base_url, configObj)
+                    //console.log('hosting', pattern.base_url, configObj)
                     return ({...dmsPageFactory(configObj, authWrapper)})
             }));
 
