@@ -34,7 +34,7 @@ const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell}) =>
     const Comp = DataTypes[attribute.type]?.EditComp;
     return (
         <div className={'flex border'}>
-            <Comp key={`${attribute.name}-${i}`} className={'p-1 hover:bg-blue-50 h-fit'}
+            <Comp key={`${attribute.name}-${i}`} className={'p-1 hover:bg-blue-50 h-full w-full '}
                   value={newItem[attribute.name]} onChange={e => {
                       setNewItem({...item, [attribute.name]: e})
                       updateItem(e, attribute, {...item, [attribute.name]: e})
@@ -42,17 +42,17 @@ const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell}) =>
             {
                 isLastCell &&
                 <>
+                    <Link
+                        className={'w-fit p-1 bg-blue-300 hover:bg-blue-500 text-white'}
+                        to={`view/${newItem.id}`}>
+                        view
+                    </Link>
                     <button
                         className={'w-fit p-1 bg-red-300 hover:bg-red-500 text-white'}
                         onClick={e => {
                             removeItem(newItem)
                         }}>x
                     </button>
-                    <Link
-                        className={'w-fit p-1 bg-blur-300 hover:bg-blue-500 text-white'}
-                        to={`view/${newItem.id}`}>
-                        view
-                    </Link>
                 </>
             }
         </div>
@@ -114,7 +114,7 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
                         return (
                             <div className={'flex border'}>
                                 <Comp key={`${attribute.name}`}
-                                      className={'p-2 hover:bg-blue-50'}
+                                      className={'p-2 hover:bg-blue-50 w-full'}
                                       value={newItem[attribute.name]}
                                       onChange={e => setNewItem({...newItem, [attribute.name]: e})}
                                       onFocus={e => console.log('focusing')}
