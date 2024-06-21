@@ -10,11 +10,10 @@ import {PencilEditSquare, ViewIcon} from '../../ui/icons'
 import { SideNavContainer } from '../../ui'
 import EditControls from './editControls'
 import {FormsContext} from "../../metaFormsconfig";
-import SectionArray from "../../components/sections/sectionArray";
 import {templateSection} from "../../../admin/admin.format";
 
 function PageEdit ({
-  item={}, dataItems, updateAttribute,attributes, setItem, apiUpdate, status, navOptions
+  item={}, dataItems, updateAttribute,attributes, setItem, apiLoad, apiUpdate, status, navOptions, format
 }) {
   const navigate = useNavigate()
   const submit = useSubmit()
@@ -68,7 +67,7 @@ function PageEdit ({
   const ContentEdit = React.useMemo(() => {
     return attributes?.['sections'].EditComp //|| SectionArray.EditComp
   }, [])
-
+  console.log('contentEdit', format, attributes?.['sections'])
   const attr = {attributes: templateSection.attributes}
   console.log('item', item)
   return (
@@ -108,6 +107,9 @@ function PageEdit ({
                 value={item.draft_sections}
                 onChange={(val,action) => saveSection(val, action, item, user, apiUpdate)}
                 attributes={sectionAttr}
+                  format={format}
+                  apiLoad={apiLoad}
+                  apiUpdate={apiUpdate}
               />
             </div>
           </div>

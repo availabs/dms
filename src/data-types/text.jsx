@@ -1,15 +1,19 @@
-import React from "react"
+import React, {useState} from "react"
 import { useTheme } from '../theme'
 
 
 const Edit = ({value = '', onChange, className, placeholder}) => {
+    const [tmpValue, setTmpValue] = useState(value)
     const theme = useTheme()
     return (
         <input
             className={ className || (theme?.text?.input || 'w-full border p-2')}
-            value={value}
+            value={tmpValue}
             placeholder={placeholder}
-            onChange={(e) => onChange(e.target.value)}
+            onChange={(e) => {
+                setTmpValue(e.target.value)
+                onChange(e.target.value)
+            }}
         />
     )
 }
