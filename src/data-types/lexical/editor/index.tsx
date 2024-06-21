@@ -8,6 +8,7 @@
 import React from 'react';
 import {LexicalComposer} from '@lexical/react/LexicalComposer';
 import {OnChangePlugin} from '@lexical/react/LexicalOnChangePlugin';
+import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
 
 
 import Editor from './editor';
@@ -19,7 +20,6 @@ import './lexical.css';
 
 export default function Lexicals ({value, onChange, bgColor, editable=false, id}) {
   
-  //console.log('lexical', value)
   const initialConfig = {
     editorState:
         JSON.parse(value || '{}')?.root &&
@@ -28,22 +28,52 @@ export default function Lexicals ({value, onChange, bgColor, editable=false, id}
     namespace: 'dms-lexical',
     nodes: [...PlaygroundNodes],
     editable: editable,
-    readOnly: editable,
+    readOnly: !editable,
     onError: (error) => {
       throw error;
     },
     theme: PlaygroundEditorTheme
   };
 
-  //console.log('initialConfig', initialConfig)
-
+  
   return (
     <LexicalComposer key={id} initialConfig={initialConfig}>
-      <div className="editor-shell">
-        <Editor editable={editable} bgColor={bgColor}/>
-        <OnChangePlugin onChange={onChange} />
-      </div>
+      <UpdateEditor 
+        value={value}
+        onChange={onChange}
+        bgColor={bgColor}
+        editable={editable}
+      />
     </LexicalComposer>
   );
 }
+
+function UpdateEditor ({value, onChange, bgColor, editable}) {
+  const isFirstRender = React.useRef(true);
+  const [editor] = useLexicalComposerContext()
+
+  React.useEffect(() => {
+      if (isFirstRender.current) {
+          isFirstRender.current = false;
+      }
+      if(!editable && !isFirstRender.current){
+        let parsedValue = JSON.parse(value || '{}')
+        let update = parsedValue.root && parsedValue?.root?.children?.length
+          ? value : null
+        if(update) {
+          const newEditorState = editor.parseEditorState(update)
+          editor.setEditorState(newEditorState)
+        }
+      }
+  }, [isFirstRender.current,value])
+
+  return (
+    <div className="editor-shell">
+      <Editor editable={editable} bgColor={bgColor}/>
+      <OnChangePlugin onChange={onChange} />
+    </div>
+  )
+}
+
+
 

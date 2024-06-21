@@ -16,18 +16,18 @@ const configs = {
     page: pageConfigNew,
     form: formsConfig
 }
-export default async function dmsSiteFactory(
+export default async function dmsSiteFactory({
     dmsConfig,
-    dmsPath = '/',
     adminPath = '/list',
     authWrapper = Component => Component,
     //dmsTheme = defaultTheme,
+    theme,
     API_HOST = 'https://graph.availabs.org'
-) {
+}) {
     const falcor = falcorGraph(API_HOST)
     //console.log('1 - ', dmsConfig)
     let data = await dmsDataLoader(falcor, dmsConfig, `/`);
-    console.log('pattern dms-item', data)
+    
 
     const patterns = data.reduce((acc, curr) => [...acc, ...curr.patterns], []) || [];
 
@@ -57,12 +57,12 @@ export default async function dmsSiteFactory(
                         baseUrl: pattern.base_url,
                         format: pattern?.config,
                         parent: pattern,
-                        
+                        theme,
                         useFalcor,
                         API_HOST,
                         //rightMenu: <div>RIGHT</div>,
                     });
-                    console.log('hosting', pattern.base_url, configObj)
+                    //console.log('hosting', pattern.base_url, configObj)
                     return ({...dmsPageFactory(configObj, authWrapper)})
             }));
 

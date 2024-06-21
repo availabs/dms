@@ -1,7 +1,7 @@
 import React, {useEffect, useState} from "react"
 import {Link, useParams, useLocation, matchRoutes} from "react-router-dom";
 
-import TableComp from "./components/TableComp";
+// import TableComp from "./components/TableComp";
 import {template} from "../admin/admin.format"
 import {
   falcorGraph,
@@ -23,7 +23,6 @@ const defaultUser = { email: "user", authLevel: 5, authed: true, fake: true}
 
 
 const FormTemplateView = ({apiLoad, apiUpdate, attributes, parent, params, format, dataItems=[],baseUrl,theme,edit=false,...rest}) => {
-    console.log('do i get attributes', attributes)
     const [items, setItems] = useState([]);
     const [item, setItem] = useState({});
     const Comp = edit ? TemplateEdit : TemplateView;
@@ -69,15 +68,15 @@ const FormTemplateView = ({apiLoad, apiUpdate, attributes, parent, params, forma
     // if(!itemId) return <>No Id found.</>
     console.log('match', match.route)
     return (
-       
+
             <Comp
                 item={match.route}
                 dataItems={[]}
                 apiLoad={apiLoad}
                 apiUpdate={apiUpdate}
-                format={format}
+                format={{...parent, type}}
                 attributes={attributes}
-            />  
+            />
     )
 }
 
@@ -106,6 +105,7 @@ const formTemplateConfig = ({
                         <FormsContext.Provider value={{baseUrl, user: props.user || defaultUser, theme, app, type, parent}}>
                                 
                             <FormTemplateView
+                                format={newformat}
                                 parent={parent}
                                 {...props}
                             />

@@ -35,7 +35,7 @@ export default function EditWrapper({ Component, format, options, params, user, 
 		let filteredItem = data.filter(d => filterParams(d,params,format))[0]
 		// update item on data update
 		if(!isEqual(item,filteredItem) && filteredItem){
-			console.log('setItem', item, filteredItem)
+			//console.log('setItem', item, filteredItem)
 			setItem( filteredItem || {})
 		}
 	},[data,params])
@@ -60,6 +60,7 @@ export default function EditWrapper({ Component, format, options, params, user, 
 	}
 
 	const apiLoad = async (config) => {
+		console.log('<apiLoad> edit', config)
 		return await dmsDataLoader(falcor, config)
 	}
 

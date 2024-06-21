@@ -70,7 +70,7 @@ const RenderError = ({data}) => (
         Error: {data?.status}
     </div>)
 
-function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, onRemove}) {
+function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, onRemove, format, apiLoad, apiUpdate}) {
     let sectionTitleCondition = value?.['title'] 
     let {theme} = React.useContext(FormsContext) || {}
 
@@ -212,17 +212,20 @@ function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, o
                 </div>
             )}
             <div className={'border border-orange-500'}>
-                <ElementComp 
-                    value={value?.['element']} 
+                <ElementComp
+                    value={value?.['element']}
                     onChange={(v) => updateAttribute('element', v)}
                     size={size}
+                    format={format}
+                    apiLoad={apiLoad}
+                    apiUpdate={apiUpdate}
                 />
             </div>
         </div>
     )
 }
 
-function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove}) {
+function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove, format, apiLoad, apiUpdate}) {
     let [referenceElement, setReferenceElement] = useState()
     let [popperElement, setPopperElement] = useState()
     let { styles, attributes:popperAttributes } = usePopper(referenceElement, popperElement)
@@ -243,7 +246,7 @@ function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove}) {
 
     const element = React.useMemo(() => {
         // console.log('element',value.id, i)
-        return <ElementComp value={value?.['element']} />
+        return <ElementComp value={value?.['element']} format={format} apiLoad={apiLoad} apiUpdate={apiUpdate}/>
     }, 
     [value?.element, value?.id])
         
@@ -472,7 +475,7 @@ const ScrollToHashElement = () => {
     return null;
 };
 
-const Edit = ({Component, value, onChange, attr, full_width = false, ...rest }) => {
+const Edit = ({Component, value, onChange, attr, full_width = false, format, apiLoad, apiUpdate, ...rest }) => {
     console.log('.............', rest, attr, value)
     if (!value || !value.map) { 
         value = []
@@ -597,6 +600,9 @@ const Edit = ({Component, value, onChange, attr, full_width = false, ...rest }) 
                                 attributes={attr.attributes}
                                 size={size}
                                 i={i}
+                                format={format}
+                                apiLoad={apiLoad}
+                                apiUpdate={apiUpdate}
                             />
                             : ''
                         }
@@ -611,6 +617,9 @@ const Edit = ({Component, value, onChange, attr, full_width = false, ...rest }) 
                                 edit={true}
                                 onEdit={ edit.index === -1 ? (e) => update(i)  : null }
                                 addAbove={() => setEditIndex(i)}
+                                format={format}
+                                apiLoad={apiLoad}
+                                apiUpdate={apiUpdate}
                             /> : v?.status?.length > 1 ? <RenderError data={v} /> : ''}
 
                         {/* add new section at end  */}
@@ -627,7 +636,7 @@ const Edit = ({Component, value, onChange, attr, full_width = false, ...rest }) 
     )
 }
 
-const View = ({Component, value, attr, full_width}) => {
+const View = ({Component, value, attr, full_width, format, apiLoad, apiUpdate}) => {
     if (!value || !value.map) { return '' }
     let runningColTotal = 8;
     let layouts = {
@@ -671,6 +680,9 @@ const View = ({Component, value, attr, full_width}) => {
                             key={i}
                             i={i}
                             value={v}
+                            format={format}
+                            apiLoad={apiLoad}
+                            apiUpdate={apiUpdate}
                         />
                     </div>
                 )

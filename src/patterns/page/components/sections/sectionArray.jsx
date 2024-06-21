@@ -239,13 +239,10 @@ function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove}) {
     let isTemplateSectionCondition = value?.element?.['template-section-id'];
     let showEditIcons = edit && typeof onEdit === 'function' && !isTemplateSectionCondition
 
-    //console.log('test xyz', value?.['helpText'], typeof value?.['helpText'], value?.['helpText']?.length )
-
     const element = React.useMemo(() => {
-        // console.log('element',value.id, i)
         return <ElementComp value={value?.['element']} />
     }, 
-    [value?.element, value?.id])
+    [value])
         
     return (
         <div className={`h-full ${hideDebug ? '' : ''}`}>
@@ -473,7 +470,7 @@ const ScrollToHashElement = () => {
 };
 
 const Edit = ({Component, value, onChange, attr, full_width = false, ...rest }) => {
-    console.log('.............', rest, attr, value)
+    //console.log('.............', rest, attr, value)
     if (!value || !value.map) { 
         value = []
     }
@@ -494,7 +491,7 @@ const Edit = ({Component, value, onChange, attr, full_width = false, ...rest }) 
        setEdit({index: -1, value:'',type:'new'}) 
     }
 
-    const save = () => {
+    const save = async () => {
         let cloneValue = cloneDeep(value)
         let action = ''
         // edit.value.has_changes = true
@@ -507,8 +504,9 @@ const Edit = ({Component, value, onChange, attr, full_width = false, ...rest }) 
             action = `added section ${edit?.value?.title ? `${edit?.value?.title} ${edit.index+1}` : edit.index+1}`
         }
         //console.log('edit on save', edit)
+       
+        await onChange(cloneValue,action)
         cancel()
-        onChange(cloneValue,action)
     }
 
     const remove = () => {
@@ -643,7 +641,7 @@ const View = ({Component, value, attr, full_width}) => {
     }
 
 
-    console.log('render SA view', full_width)
+    //console.log('render SA view', full_width)
 
     return (
         <div className={`w-full grid grid-cols-6 ${layouts[full_width === 'show' ? 'fullwidth' : 'centered']} gap-1`}>
