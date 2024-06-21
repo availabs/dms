@@ -17,18 +17,19 @@ const getData = async ({format, apiLoad, itemId}) =>{
         type: () => {
         },
         action: 'view',
-        path: '/',
+        path: `/view/${itemId}`,
         params: {id: itemId}
     }]
     const data = await apiLoad({
         app: format.app,
         type: format.type,
-        id: itemId,
+        params: {id: itemId},
         format,
         attributes,
         children
     });
-  return {data, attributes}
+
+  return {data: data.filter(d => d.id === itemId), attributes}
 }
 
 const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell}) => {
@@ -54,89 +55,20 @@ const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell}) =>
     )
 }
 const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
-    const [data, setData] = useState([]);
-    const [attributes, setAttributes] = useState([])
-    const [newItem, setNewItem] = useState({})
-    async function load(){
-        const {data, attributes} = await getData({format, apiLoad});
-        setData(data)
-        setAttributes(attributes)
-    }
-    if(!value) return ''
-    useEffect(() => {
-        load()
-    }, [format])
-
-    const updateItem = (value, attribute, d) => {
-        return apiUpdate({data: {...d, [attribute.name]: value}, config: {format}})
-    }
-
-    const addItem = () => {
-        return apiUpdate({data: newItem, config: {format}}) && setNewItem({})
-    }
-
-    const removeItem = item => {
-        console.log('data to remove', item)
-        setData(data.filter(d => d.id !== item.id))
-        return apiUpdate({data:item, config: {format}, requestType: 'delete'})
-    }
-
-    return (
-        <div>
-            <div className={'text-xl text-gray-300 font-semibold'}>Spreadsheet view</div>
-            <div className={` grid grid-cols-${attributes.length}`}>
-
-                {attributes.map(attribute =>
-                    <div className={'p-2 font-semibold text-gray-500 border'}>
-                        {attribute.display_name || attribute.name}
-                    </div>)}
-
-                {data.map((d, i) => (
-                    attributes.map((attribute, attrI) =>
-                        <RenderCell
-                            attribute={attribute}
-                            updateItem={updateItem}
-                            removeItem={removeItem}
-                            i={i}
-                            item={d}
-                            isLastCell={attrI === attributes.length - 1}
-                        />)
-                ))}
-
-                {
-                    attributes.map((attribute, attrI) => {
-                        const Comp = DataTypes[attribute.type]?.EditComp;
-                        return (
-                            <div className={'flex border'}>
-                                <Comp key={`${attribute.name}`}
-                                      className={'p-2 hover:bg-blue-50'}
-                                      value={newItem[attribute.name]}
-                                      onChange={e => setNewItem({...newItem, [attribute.name]: e})}
-                                      onFocus={e => console.log('focusing')}
-                                />
-                                {
-                                    attrI === attributes.length - 1 &&
-                                    <button
-                                        className={'w-fit p-1 bg-blue-300 hover:bg-blue-500 text-white'}
-                                        onClick={e => addItem()}>+
-                                    </button>
-                                }
-                            </div>
-                        )
-                    })
-                }
-            </div>
-        </div>
-    )
-}
-
-const View = ({value, format, apiLoad, ...rest}) => {
     const params = useParams();
+    const cachedData = isJson(value) ? JSON.parse(value) : {};
     const [data, setData] = useState([]);
     const [attributes, setAttributes] = useState([])
     const itemId = params['*']?.split('view/')[1];
-    console.log('item view', itemId)
-    if(!value) return '';
+    const [visibleAttributes, setVisibleAttributes] = useState(cachedData?.visibleAttributes || []);
+    // if(!value) return '';
+
+    // useEffect(() => !visibleAttributes?.length && setVisibleAttributes(attributes.map(attr => attr.name)), [attributes]);
+    useEffect(() => {
+        onChange(JSON.stringify({
+            ...cachedData, visibleAttributes
+        }))
+    }, [visibleAttributes]);
 
     useEffect(() => {
         async function load(){
@@ -147,25 +79,95 @@ const View = ({value, format, apiLoad, ...rest}) => {
 
         load()
     }, [format])
-    console.log('data', data, attributes)
+
+
     return (
         <div>
-            <div className={'text-xl text-gray-300 font-semibold'}>Spreadsheet view</div>
-            <div className={`grid grid-cols-${attributes.length} divide-x divide-y`}>
-                {attributes.map(attribute =>
-                    <div className={'p-2 font-semibold text-gray-500'}>
-                        {attribute.display_name || attribute.name}
-                    </div>)}
+            <div className={'text-xl text-gray-300 font-semibold'}>Item Edit</div>
+            <div className={`grid grid-cols-3 divide-x divide-y`}>
                 {data.map(d => (
-                        attributes.map(attribute => {
-                            const Comp = DataTypes[attribute.type]?.ViewComp;
-                            return (<Comp className={'p-2 hover:bg-blue-50'} value={d[attribute.name] || ' '} />)
-                        })
-                    ))}
+                    attributes.map(attribute => {
+                        // const Comp = DataTypes[attribute.type]?.ViewComp;
+                        return (
+                            <>
+                                <div className={'p-2 font-semibold text-gray-500'}>
+                                    <input type={"checkbox"}
+                                           checked={visibleAttributes.includes(attribute.name)}
+                                           onChange={e => {
+                                               setVisibleAttributes(
+                                                   visibleAttributes.includes(attribute.name) ? visibleAttributes.filter(attr => attr !== attribute.name) :
+                                                       [attribute.name, ...visibleAttributes]
+                                               )
+                                               // onChange(JSON.stringify({
+                                               //     ...(value || {}),
+                                               //     visibleAttributes: visibleAttributes.includes(attribute.name) ? visibleAttributes.filter(attr => attr !== attribute.name) :
+                                               //         [...attribute.name, ...visibleAttributes]
+                                               // }))
+                                           }}
+                                    />
+                                </div>
+                                <div className={'p-2 font-semibold text-gray-500'}>
+                                    {attribute.display_name || attribute.name}
+                                </div>
+
+                                <div className={'p-2 text-gray-700'}>
+                                    {typeof d[attribute.name] === "object" ? JSON.stringify(d[attribute.name]) : d[attribute.name]}
+                                </div>
+                            </>
+                        )
+                    })
+                ))}
             </div>
         </div>
     )
-             
+}
+
+const View = ({value, format, apiLoad, ...rest}) => {
+    const cachedData = isJson(value) ? JSON.parse(value) : {};
+    const [visibleAttributes, setVisibleAttributes] = useState(cachedData?.visibleAttributes || []);
+    const params = useParams();
+    const [data, setData] = useState([]);
+    const [attributes, setAttributes] = useState([])
+    const itemId = params['*']?.split('view/')[1];
+
+    // if(!value) return '';
+
+    useEffect(() => {
+        async function load(){
+            const {data, attributes} = await getData({format, apiLoad, itemId});
+            setData(data)
+            setAttributes(attributes)
+        }
+
+        load()
+    }, [format])
+
+    return (
+        <div>
+            <div className={'text-xl text-gray-300 font-semibold'}>Item View</div>
+            <div className={`grid grid-cols-2 divide-x divide-y`}>
+                {data.map(d => (
+                    attributes
+                        .filter(attribute => visibleAttributes.includes(attribute.name))
+                        .map(attribute => {
+                        // const Comp = DataTypes[attribute.type]?.ViewComp;
+                        return (
+                            <>
+                                <div className={'p-2 font-semibold text-gray-500'}>
+                                    {attribute.display_name || attribute.name}
+                                </div>
+
+                                <div className={'p-2 text-gray-700'}>
+                                    {typeof d[attribute.name] === "object" ? JSON.stringify(d[attribute.name]) : d[attribute.name]}
+                                </div>
+                            </>
+                        )
+                    })
+                ))}
+            </div>
+        </div>
+    )
+
 }
 
 Edit.settings = {
@@ -177,8 +179,7 @@ Edit.settings = {
 export default {
     "name": 'Item',
     "type": 'table',
-    "variables": [
-    ],
+    "variables": [],
     getData,
     "EditComp": Edit,
     "ViewComp": View

@@ -18,6 +18,7 @@ export default function ListWrapper({ Component, format, options, user, ...props
 	}
 
 	const apiLoad = async (config) => {
+		console.log('<apiLoad> list', config)
 		return await dmsDataLoader(falcor, config)
 	}
 

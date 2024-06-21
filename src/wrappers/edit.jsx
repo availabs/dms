@@ -60,6 +60,7 @@ export default function EditWrapper({ Component, format, options, params, user, 
 	}
 
 	const apiLoad = async (config) => {
+		console.log('<apiLoad> edit', config)
 		return await dmsDataLoader(falcor, config)
 	}
 
