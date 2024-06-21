@@ -169,7 +169,7 @@ export const SearchPage = ({item, dataItems, format, attributes, logo, rightMenu
                     }}/>
             </div>
 
-            <RenderTagSuggestions tags={tags} tmpQuery={tmpQuery} setQuery={setQuery} navigate={navigate} baseUrl={baseUrl}/>
+            <RenderTagSuggestions tags={tags} tmpQuery={query} setQuery={setQuery} navigate={navigate} baseUrl={baseUrl}/>
 
             <RenderItems items={items} navigate={navigate}/>
 
