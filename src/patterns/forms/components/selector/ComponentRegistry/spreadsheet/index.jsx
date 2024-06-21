@@ -36,8 +36,8 @@ const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell}) =>
         <div className={'flex border'}>
             <Comp key={`${attribute.name}-${i}`} className={'p-1 hover:bg-blue-50 h-fit'}
                   value={newItem[attribute.name]} onChange={e => {
-                      setNewItem({...item, [attribute]: e})
-                      updateItem(e, attribute, {...item, [attribute]: e})
+                      setNewItem({...item, [attribute.name]: e})
+                      updateItem(e, attribute, {...item, [attribute.name]: e})
             }}/>
             {
                 isLastCell &&

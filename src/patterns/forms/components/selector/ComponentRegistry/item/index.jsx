@@ -29,41 +29,19 @@ const getData = async ({format, apiLoad, itemId}) =>{
         children
     });
 
-  return {data: data.filter(d => d.id === itemId), attributes}
+  return {data: data.find(d => d.id === itemId), attributes}
 }
 
-const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell}) => {
-    const [newItem, setNewItem] = useState(item);
-    const Comp = DataTypes[attribute.type]?.EditComp;
-    return (
-        <div className={'flex border'}>
-            <Comp key={`${attribute.name}-${i}`} className={'p-1 hover:bg-blue-50 h-fit'}
-                  value={newItem[attribute.name]} onChange={e => {
-                      setNewItem({...item, [attribute]: e})
-                      updateItem(e, attribute, {...item, [attribute]: e})
-            }}/>
-            {
-                isLastCell &&
-                <button
-                    className={'w-fit p-1 bg-red-300 hover:bg-red-500 text-white'}
-                    onClick={e => {
-                        removeItem(newItem)
-                    }}>x
-                </button>
-            }
-        </div>
-    )
-}
 const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     const params = useParams();
     const cachedData = isJson(value) ? JSON.parse(value) : {};
-    const [data, setData] = useState([]);
-    const [attributes, setAttributes] = useState([])
-    const itemId = params['*']?.split('view/')[1];
+    const [loading, setLoading] = useState(false);
+    const [attributes, setAttributes] = useState([]);
+    const [newItem, setNewItem] = useState();
     const [visibleAttributes, setVisibleAttributes] = useState(cachedData?.visibleAttributes || []);
-    // if(!value) return '';
 
-    // useEffect(() => !visibleAttributes?.length && setVisibleAttributes(attributes.map(attr => attr.name)), [attributes]);
+    const itemId = params['*']?.split('view/')[1];
+
     useEffect(() => {
         onChange(JSON.stringify({
             ...cachedData, visibleAttributes
@@ -72,22 +50,34 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
 
     useEffect(() => {
         async function load(){
+            console.log('fetching data.......................')
+            setLoading(true)
             const {data, attributes} = await getData({format, apiLoad, itemId});
-            setData(data)
+            setNewItem(data)
             setAttributes(attributes)
+            setLoading(false)
         }
 
         load()
-    }, [format])
+    }, [])
+    console.log('new item', newItem)
 
+    const updateItem = (value, attribute, d) => {
+        console.log('???????????', d, {...d, [attribute.name]: value})
+        return apiUpdate({data: {...d, [attribute.name]: value}, config: {format}})
+    }
 
+    if (!newItem) return null;
     return (
         <div>
             <div className={'text-xl text-gray-300 font-semibold'}>Item Edit</div>
+            {
+                loading && <div className={'w-full h-full absolute'}>Loading...</div>
+            }
             <div className={`grid grid-cols-3 divide-x divide-y`}>
-                {data.map(d => (
+                {
                     attributes.map(attribute => {
-                        // const Comp = DataTypes[attribute.type]?.ViewComp;
+                        const Comp = DataTypes[attribute.type]?.EditComp;
                         return (
                             <>
                                 <div className={'p-2 font-semibold text-gray-500'}>
@@ -98,11 +88,6 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
                                                    visibleAttributes.includes(attribute.name) ? visibleAttributes.filter(attr => attr !== attribute.name) :
                                                        [attribute.name, ...visibleAttributes]
                                                )
-                                               // onChange(JSON.stringify({
-                                               //     ...(value || {}),
-                                               //     visibleAttributes: visibleAttributes.includes(attribute.name) ? visibleAttributes.filter(attr => attr !== attribute.name) :
-                                               //         [...attribute.name, ...visibleAttributes]
-                                               // }))
                                            }}
                                     />
                                 </div>
@@ -111,12 +96,17 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
                                 </div>
 
                                 <div className={'p-2 text-gray-700'}>
-                                    {typeof d[attribute.name] === "object" ? JSON.stringify(d[attribute.name]) : d[attribute.name]}
+                                    <Comp key={`${attribute.name}`} className={'p-1 hover:bg-blue-50 h-fit'}
+                                          value={newItem[attribute.name]} onChange={e => {
+                                        setNewItem({...newItem, [attribute.name]: e})
+                                        updateItem(e, attribute, {...newItem, [attribute.name]: e})
+                                    }}/>
+                                    {/*{typeof newItem[attribute.name] === "object" ? JSON.stringify(newItem[attribute.name]) : newItem[attribute.name]}*/}
                                 </div>
                             </>
                         )
                     })
-                ))}
+                }
             </div>
         </div>
     )
@@ -126,7 +116,7 @@ const View = ({value, format, apiLoad, ...rest}) => {
     const cachedData = isJson(value) ? JSON.parse(value) : {};
     const [visibleAttributes, setVisibleAttributes] = useState(cachedData?.visibleAttributes || []);
     const params = useParams();
-    const [data, setData] = useState([]);
+    const [data, setData] = useState({});
     const [attributes, setAttributes] = useState([])
     const itemId = params['*']?.split('view/')[1];
 
@@ -140,30 +130,30 @@ const View = ({value, format, apiLoad, ...rest}) => {
         }
 
         load()
-    }, [format])
+    }, [])
 
     return (
         <div>
             <div className={'text-xl text-gray-300 font-semibold'}>Item View</div>
             <div className={`grid grid-cols-2 divide-x divide-y`}>
-                {data.map(d => (
+                {
                     attributes
                         .filter(attribute => visibleAttributes.includes(attribute.name))
                         .map(attribute => {
-                        // const Comp = DataTypes[attribute.type]?.ViewComp;
-                        return (
-                            <>
-                                <div className={'p-2 font-semibold text-gray-500'}>
-                                    {attribute.display_name || attribute.name}
-                                </div>
+                            // const Comp = DataTypes[attribute.type]?.ViewComp;
+                            return (
+                                <>
+                                    <div className={'p-2 font-semibold text-gray-500'}>
+                                        {attribute.display_name || attribute.name}
+                                    </div>
 
-                                <div className={'p-2 text-gray-700'}>
-                                    {typeof d[attribute.name] === "object" ? JSON.stringify(d[attribute.name]) : d[attribute.name]}
-                                </div>
-                            </>
-                        )
-                    })
-                ))}
+                                    <div className={'p-2 text-gray-700'}>
+                                        {typeof data?.[attribute.name] === "object" ? JSON.stringify(data[attribute.name]) : data?.[attribute.name]}
+                                    </div>
+                                </>
+                            )
+                        })
+                }
             </div>
         </div>
     )
