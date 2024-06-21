@@ -17,7 +17,8 @@ const getData = async ({format, apiLoad, itemId}) =>{
         type: () => {
         },
         action: 'view',
-        path: `/view/${itemId}`,
+        path: `/`,
+        // path: `/view/${itemId}`, // trying to pass params. children need to patch with path. this doesn't work.
         params: {id: itemId}
     }]
     const data = await apiLoad({
@@ -131,7 +132,7 @@ const View = ({value, format, apiLoad, ...rest}) => {
 
         load()
     }, [])
-
+    console.log('data???????????????????', data)
     return (
         <div>
             <div className={'text-xl text-gray-300 font-semibold'}>Item View</div>
