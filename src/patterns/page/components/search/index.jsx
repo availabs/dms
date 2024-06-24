@@ -3,6 +3,7 @@ import {Combobox, Dialog, Transition} from '@headlessui/react'
 // import {getConfig} from "../layout/template/pages";
 import {dmsDataLoader} from "../../../../api";
 import {CMSContext} from "../../siteConfig";
+import {Link} from "react-router-dom";
 
 export const Search = ({app, type}) => {
     const [open, setOpen] = useState(false)
@@ -222,18 +223,23 @@ const SearchPallet = ({open, setOpen, app, type}) => {
                                     window.location = `${item.url}#${item.id}`
                                 }
                             }}>
-                                <div className="relative">
+                                <div className="flex items-center relative">
                                     <i
-                                        className="fa-light fa-search pointer-events-none absolute left-4 top-3.5 h-5 w-5 text-gray-400"
+                                        className="fa-light fa-search pointer-events-none h-5 w-5 text-gray-400"
                                     />
                                     <Combobox.Input
-                                        className="h-12 w-full border-0 bg-transparent pl-11 pr-4 text-gray-900 placeholder:text-gray-400 focus:ring-0 sm:text-sm"
+                                        className="h-10 w-full border-0 bg-transparent p-1 mx-1 text-gray-900 placeholder:text-gray-400 focus:ring-0 sm:text-sm rounded-md"
                                         placeholder="Search..."
                                         onChange={(event) =>{
                                             const match = tags.find(tag => tag.toLowerCase() === event.target.value.toLowerCase());
                                             setTmpQuery(match || event.target.value)
                                         }}
                                     />
+
+                                    <Link
+                                        className={'fa-light fa-arrow-up-right-from-square h-5 w-5 text-gray-400'}
+                                        title={'Open Search Page'}
+                                     to={'search'}/>
                                 </div>
 
                                 <RenderTagSuggestions tags={tags} tmpQuery={tmpQuery} setQuery={setQuery} />
