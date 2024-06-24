@@ -92,7 +92,7 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
             <div className={` grid grid-cols-${attributes.length}`}>
 
                 {attributes.map(attribute =>
-                    <div className={'p-2 font-semibold text-gray-500 border'}>
+                    <div className={'p-2 font-semibold text-gray-500 border bg-gray-200'}>
                         {attribute.display_name || attribute.name}
                     </div>)}
 
