@@ -2,7 +2,7 @@ import React, { Fragment, useState, useLayoutEffect } from "react"
 import { useLocation } from 'react-router-dom';
 import isEqual from 'lodash/isEqual'
 import cloneDeep from 'lodash/cloneDeep'
-import { Popover, Transition } from '@headlessui/react'
+import { Popover, Transition, Combobox } from '@headlessui/react'
 import { Link } from "react-router-dom";
 import { usePopper } from 'react-popper'
 import { CMSContext } from '../../siteConfig'
@@ -21,7 +21,8 @@ import {
     ChevronDownSquare,
     ChevronUpSquare,
     InfoSquare,
-    MoreSquare
+    MoreSquare,
+    Tags
 } from '../../ui/icons'
 
 const isJson = (str)  => {
@@ -70,6 +71,91 @@ const RenderError = ({data}) => (
         Error: {data?.status}
     </div>)
 
+function TagComponent ({value, placeholder, onChange, edit=false}) {
+    const arrayValue = Array.isArray(value) ? value :  (value?.split(',') || [])
+    const [newTag, setNewTag] = useState('');
+    console.log('hola', value, arrayValue)
+
+    const tags = [
+        'Hazard',
+        'Hurricane',
+        'Avalanche',
+        'Earthquake',
+        'Rec',
+        "S1","S1-a","S2","S2-a","S2-a1","S2-a2","S2-a3","S2-a4","S2-a5","S2-a6","S2-a7","S2-a8","S2-a9","S3","S3-a","S3-a1","S3-a2","S3-a3","S3-b2","S4","S4-a","S4-b","S5","S5-a","S5-b","S5-1","S6","S6-a","S6-a1","S6-a2","S6-a2.i","S6-a2.ii","S6-a2.iii","S6-b","S7","S7-a","S7-a1","S7-a2","S7-a3","S7-a4","S8","S8-1","S8-a","S8-a1","S8-a2","S8-a2.i","S8-a3","S8-a3.i","S8-a3.ii","S8-a3.iii","S8-a3.iv","S8-a3.v","S8-a4","S8-b","S8-b1","S8-b2","S8-b3","S8-c","S8-c1","S8-c2","S9","S9-a","S9-b","S10","S10-a","S10-b","S10-c","S10-d","S11","S11-a","S11-b","S12","S12-a","S12-b","S13","S13-a","S13-b","S13-b1","S13-b2","S14","S14-a","S14-a1","S14-a2","S14-a3","S14-b","S14-b1","S14-b2","S15","S15-a","S15-a1","S15-a2","S15-a3","S16","S16-a","S16-b","S17","S17-1","S17-1a","S17-1b","S18","S18-a","S18-b","S18-b1","S18-b2","S18-b3","S18-c","S19","S19-a","S19-1","S20","S20-a","S20-b","HHPD1","HHPD1-1","HHPD1-a","HHPD1-b","HHPD1-b1","HHPD1-b2","HHPD1-2","HHPD2","HHPD2-1","HHPD2-a","HHPD2-b","HHPD2-b1","HHPD2-b2","HHPD2-b3","HHPD2-b4","HHPD2-c","HHPD3","HHPD3-1","HHPD3-a","HHPD3-a1","HHPD3-a2","HHPD3-a3","HHPD3-a4","HHPD3-b","HHPD4","HPPD4-1","HPPD4-a","HPPD4-a1","HPPD4-a2","HPPD4-a3","HPPD4-a4","HPPD4-a5","HHPD4-b","HHPD4-c","HHPD5","HHPD5-a","HHPD6","HHPD6-1","HHPD6-a","HHPD6-b","HHPD6-c","HHPD7","HHPD7-1","HHPD7-a","HHPD7-b","FMAG1","FMAG1-a","FMAG1-b","FMAG1-c","FMAG1-d","FMAG2","FMAG2-a"
+    ]
+
+    return (
+        <div className='w-full border border-blue-200'>
+            {edit && <Combobox>
+                <div className="relative z-20">
+                    {newTag}
+                    <Combobox.Input
+                        className="h-12 w-[189px] bg-blue-50 m-1 p-2 text-gray-900 placeholder:text-gray-400 focus:ring-0 sm:text-sm"
+                        placeholder={placeholder}
+                        value={newTag}
+                        onChange={(e) => {setNewTag( e.target.value) }}
+                        
+                        onKeyUp={(e => {
+                            if(e.key === 'Enter' && newTag.length > 0) {
+                              onChange([...arrayValue,newTag].join(','))
+                              setNewTag('')
+                            }
+                        })}
+                    />
+                </div>
+                {tags
+                    .filter(tag => (!newTag?.length || tag.toLowerCase().includes(newTag.toLowerCase())))
+                    .length > 0 && (
+                        <Combobox.Options 
+                            static
+                            className="max-h-96 transform-gpu scroll-py-3 overflow-y-auto p-3"
+                        >
+                            
+                            {tags
+                                .filter(tag => (newTag.length > 0 && tag.toLowerCase().includes(newTag.toLowerCase())))
+                                .filter((tag, i) => i <= 5)
+                                .map((tag) => (
+                                    <Combobox.Option
+                                        key={tag}
+                                        value={tag}
+                                        onClick={() => setNewTag(tag)}
+                                        className={({active}) => `flex cursor-pointer select-none rounded-xl p-1 ${active && 'bg-gray-100'}`}
+                                    >
+                                        {({active}) => (
+                                            <div>
+                                                <i className="text-sm text-blue-400 fa fa-tag" />
+                                                <span
+                                                    className={`ml-2 text-sm font-medium ${active ? 'text-gray-900' : 'text-gray-700'}`}
+                                                >
+                                                    {tag}
+                                                </span>
+                                            </div>
+                                        )}
+                                    </Combobox.Option>
+                                ))}
+                        </Combobox.Options>
+                    )
+                }
+            </Combobox>}
+            <div className='w-full min-h-8 border-blue-200'>
+            {
+                arrayValue.map((d,i) => (
+                    <div key={i} className='px-2 py-1 text-sm border border-blue-200 m-1 rounded bg-blue-100 flex justify-between items-center'>
+                        <div className='text-slate-600'>{d}</div>
+                        {edit && <div className='cursor-pointer' onClick={() => onChange(arrayValue.filter(v => v !== d ).join(','))}>
+                            <RemoveCircle className='text-red-400 hover:text-red-600  w-[16px] h-[16px]'/>
+                        </div>}
+                    </div>
+                ))
+            }
+            </div>
+        </div>
+    )
+
+}
+
+
 function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, onRemove}) {
     let sectionTitleCondition = value?.['title'] 
     let {theme} = React.useContext(CMSContext) || {}
@@ -92,7 +178,34 @@ function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, o
             <div className={`flex w-full`}>
                 <div className='flex-1'/>
                     <div className={`z-10 relative`}>
-                        <div className={`absolute mr-16 top-[-14px] right-[-60px] flex`}>    
+                        <div className={`absolute mr-16 top-[-14px] right-[-60px] flex`}>
+                            <Popover className="relative">
+                                <Popover.Button  className={'flex items-center cursor-pointer pt-1 pr-1'} >
+                                    <Tags  className='text-blue-400 hover:text-blue-600  w-[24px] h-[24px]' title="Move Up"/>
+                                </Popover.Button>
+                                <Transition
+                                    as={Fragment}
+                                    enter="transition ease-out duration-200"
+                                    enterFrom="opacity-0 translate-y-1"
+                                    enterTo="opacity-100 translate-y-0"
+                                    leave="transition ease-in duration-150"
+                                    leaveFrom="opacity-100 translate-y-0"
+                                    leaveTo="opacity-0 translate-y-1"
+                                >
+                                    <Popover.Panel 
+                                        anchor="bottom"
+                                        className="absolute -left-[100px] shadow-lg bg-white z-10 w-screen w-[200px] transform border border-blue-200 ">
+                                        
+                                        <TagComponent
+                                            edit={true}
+                                            className='p-2 flex-0'
+                                            value={value?.['tags']}
+                                            placeholder={'Add Tag...'} 
+                                            onChange={(v) => updateAttribute('tags', v)}
+                                        />
+                                  </Popover.Panel>
+                                </Transition>
+                            </Popover>   
                             <Popover className="relative">
                                 <Popover.Button  className={'flex items-center cursor-pointer pt-1 pr-1'} >
                                     <InfoSquare className='text-blue-400 hover:text-blue-600  w-[24px] h-[24px]' title="Move Up"/>
@@ -168,14 +281,6 @@ function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, o
                                                     placeholder={'level'}
                                                     options={attributes.level.options}
                                                     onChange={(v) => updateAttribute('level', v)}
-                                                />
-                                            </div>
-                                            <div>
-                                                <TagsComp 
-                                                    className='p-2 flex-0'
-                                                    value={value?.['tags']}
-                                                    placeholder={'Add Tag...'} 
-                                                    onChange={(v) => updateAttribute('tags', v)}
                                                 />
                                             </div>
                                             <div className={'self-center pl-2'}>
@@ -265,68 +370,93 @@ function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove}) {
                     :
                     <div className={`z-10 relative`}>
                         <div className={`absolute mr-16 top-[-14px] right-[-60px] flex items-center h-[32px]`}> 
-                            
-                                
-                                    {helpTextCondition && <Popover className="relative pr-1 h-[24px]">
-                                        <Popover.Button
+                            {value?.['tags']?.length && <Popover className="pr-1 h-[24px] z-20">
+                                <Popover.Button  className={'flex items-center cursor-pointer'} >
+                                    <Tags  className='text-slate-400 hover:text-blue-500 w-[24px] h-[24px]' title="Move Up"/>
+                                </Popover.Button>
+                                <Transition
+                                    as={Fragment}
+                                    enter="transition ease-out duration-200"
+                                    enterFrom="opacity-0 translate-y-1"
+                                    enterTo="opacity-100 translate-y-0"
+                                    leave="transition ease-in duration-150"
+                                    leaveFrom="opacity-100 translate-y-0"
+                                    leaveTo="opacity-0 translate-y-1"
+                                >
+                                    <Popover.Panel 
+                                        anchor="bottom"
+                                        className="absolute -left-[174px] shadow-lg bg-white z-30 w-screen w-[200px] transform border border-blue-200 ">
+                                        <TagComponent
                                             
-                                            className={' cursor-pointer '}>
-                                            {/*<i className="fa fa-circle-info text-2xl fa-fw" title="Help"/>*/}
-                                            <InfoSquare className='text-blue-400 hover:text-blue-500 w-[24px] h-[24px]' title="Move Up"/>
-                                        </Popover.Button>
-                                        <Transition
-                                            as={Fragment}
-                                            enter="transition ease-out duration-200"
-                                            enterFrom="opacity-0 translate-y-1"
-                                            enterTo="opacity-100 translate-y-0"
-                                            leave="transition ease-in duration-150"
-                                            leaveFrom="opacity-100 translate-y-0"
-                                            leaveTo="opacity-0 translate-y-1"
-                                        >
-                                            <Popover.Panel 
-                                                
-                                                
-                                                className="absolute shadow bg-white z-10 w-screen max-w-sm transform px-4 border border-blue-200 lg:max-w-lg">
-                                                
-                                                    <HelpComp
-                                                        value={value?.['helpText']}
-                                                    />
-                                                
+                                            className='p-2 flex-0'
+                                            value={value?.['tags']}
+                                            placeholder={'Add Tag...'} 
+                                            onChange={(v) => updateAttribute('tags', v)}
+                                        />
+                                  </Popover.Panel>
+                                </Transition>
+                            </Popover>}
+                                    
+                            {helpTextCondition && <Popover className="relative pr-1 h-[24px]">
+                                <Popover.Button
+                                    
+                                    className={' cursor-pointer '}>
+                                    {/*<i className="fa fa-circle-info text-2xl fa-fw" title="Help"/>*/}
+                                    <InfoSquare className='text-blue-400 hover:text-blue-500 w-[24px] h-[24px]' title="Move Up"/>
+                                </Popover.Button>
+                                <Transition
+                                    as={Fragment}
+                                    enter="transition ease-out duration-200"
+                                    enterFrom="opacity-0 translate-y-1"
+                                    enterTo="opacity-100 translate-y-0"
+                                    leave="transition ease-in duration-150"
+                                    leaveFrom="opacity-100 translate-y-0"
+                                    leaveTo="opacity-0 translate-y-1"
+                                >
+                                    <Popover.Panel 
+                                        
+                                        
+                                        className="absolute shadow bg-white z-10 w-screen max-w-sm transform px-4 border border-blue-200 lg:max-w-lg">
+                                        
+                                            <HelpComp
+                                                value={value?.['helpText']}
+                                            />
+                                        
 
 
-                                            </Popover.Panel>
-                                        </Transition>
-                                    </Popover>}
-                                    {showEditIcons && (
-                                        <>
-                                            <button 
-                                                className={'flex items-center text-md cursor-pointer hover:text-blue-500 text-slate-400 pr-1'}
-                                                onClick={ () => moveItem(i,-1) }
-                                            >
-                                                {/*<i className="fa-light fa-angle-up text-xl fa-fw"  />*/}
-                                                <ChevronUpSquare className='text-slate-400 hover:text-blue-500 w-[24px] h-[24px]' title="Move Up"/>
-                                               
-                                            </button>
-                                            <button className={'flex items-center text-md cursor-pointer hover:text-blue-500 text-slate-400 pr-1'}
-                                                onClick={ () =>  moveItem(i,1) }
-                                            >
-                                                {/*<i className="fa-light fa-angle-down text-xl fa-fw" title="Move Down"/>*/}
-                                                <ChevronDownSquare className='text-slate-400 hover:text-blue-500 w-[24px] h-[24px]' title="Move Down"/>
-                                            </button>
+                                    </Popover.Panel>
+                                </Transition>
+                            </Popover>}
+                            {showEditIcons && (
+                                <>
+                                    <button 
+                                        className={'flex items-center text-md cursor-pointer hover:text-blue-500 text-slate-400 pr-1'}
+                                        onClick={ () => moveItem(i,-1) }
+                                    >
+                                        {/*<i className="fa-light fa-angle-up text-xl fa-fw"  />*/}
+                                        <ChevronUpSquare className='text-slate-400 hover:text-blue-500 w-[24px] h-[24px]' title="Move Up"/>
                                        
-                                            <button
-                                                className={' flex items-center text-md cursor-pointer hover:text-blue-500 py-1 pr-1 text-slate-400'}
-                                                onClick={ onEdit }
-                                            >
-                                                {/*<i className="fa-light fa-pencil text-xl fa-fw" title="Edit"></i>*/}
-                                                <PencilSquare className='text-slate-400 hover:text-blue-500 w-[24px] h-[24px]'/>
-                                               
-                                            </button>
-                                            <button className={'text-lg cursor-pointer hover:text-blue-500 text-slate-400 pr-3'} onClick={addAbove}> 
-                                                <SquarePlus className='text-slate-400 hover:text-blue-500 w-[24px] h-[24px]'/>
-                                            </button>
-                                        </>
-                                    )}
+                                    </button>
+                                    <button className={'flex items-center text-md cursor-pointer hover:text-blue-500 text-slate-400 pr-1'}
+                                        onClick={ () =>  moveItem(i,1) }
+                                    >
+                                        {/*<i className="fa-light fa-angle-down text-xl fa-fw" title="Move Down"/>*/}
+                                        <ChevronDownSquare className='text-slate-400 hover:text-blue-500 w-[24px] h-[24px]' title="Move Down"/>
+                                    </button>
+                               
+                                    <button
+                                        className={' flex items-center text-md cursor-pointer hover:text-blue-500 py-1 pr-1 text-slate-400'}
+                                        onClick={ onEdit }
+                                    >
+                                        {/*<i className="fa-light fa-pencil text-xl fa-fw" title="Edit"></i>*/}
+                                        <PencilSquare className='text-slate-400 hover:text-blue-500 w-[24px] h-[24px]'/>
+                                       
+                                    </button>
+                                    <button className={'text-lg cursor-pointer hover:text-blue-500 text-slate-400 pr-3'} onClick={addAbove}> 
+                                        <SquarePlus className='text-slate-400 hover:text-blue-500 w-[24px] h-[24px]'/>
+                                    </button>
+                                </>
+                            )}
                                 
                             
                     
