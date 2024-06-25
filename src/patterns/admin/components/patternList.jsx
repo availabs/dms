@@ -45,7 +45,7 @@ function PatternList (props) {
 
 function PatternEdit({
 	 Component,
-	 attributes,
+	 attributes={},
 	 updateAttribute,
 	 status,
 	 submit,
@@ -66,7 +66,7 @@ function PatternEdit({
 		submit(newData)
 		setNewItem({})
 	}
-
+	const c = `grid grid-cols-${numAttributes+1}`;
 	return (
 		<div className={'flex flex-col p-10 w-full divide-y-2'}>
 			<div className={'w-full flex justify-between border-b-2 border-blue-400'}>
@@ -74,7 +74,7 @@ function PatternEdit({
 				<button onClick={() => navigate(-1)}>back</button>
 			</div>
 
-			<div className={`font-semibold grid grid-cols-${numAttributes+1}`}>
+			<div className={`font-semibold ${c}`}>
 				{
 					attrToShow.map(attr => <div>{attr}</div>)
 				}
@@ -82,7 +82,7 @@ function PatternEdit({
 			</div>
 			{
 				value.map((pattern, index) => (
-					<div key={pattern.id} className={`grid grid-cols-${numAttributes+1}`}>
+					<div key={pattern.id} className={c}>
 						{
 							attrToShow
 								.filter(attrKey => attrKey !== 'config')
@@ -145,7 +145,7 @@ function PatternEdit({
 				))
 			}
 
-			<div className={`mx-4 grid grid-cols-${numAttributes + 1}`}>
+			<div className={`mx-4 ${c}`}>
 				{
 					attrToShow
 						.map((attrKey, i) => {

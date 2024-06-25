@@ -17,16 +17,20 @@ function PageEdit ({
 }) {
   const navigate = useNavigate()
   const submit = useSubmit()
+  const params = useParams()
   const { pathname = '/edit' } = useLocation()
   const { baseUrl, user, theme } = React.useContext(FormsContext) || {}
   const [ creating, setCreating ] = React.useState(false)
 
-  // console.log('item', item, dataItems, status)
+  const urlWithoutId = item.url_slug?.replace(':id', '')
+  const itemId = params['*']?.split(urlWithoutId)[1]
+  const viewUrl = `${urlWithoutId}${itemId}`;
 
   const menuItems = React.useMemo(() => {
     let items = dataItemsNav(dataItems,baseUrl,true)
     return items
   }, [dataItems])
+
 
   // console.log('-----------render edit----------------')
   const level = item?.index == '999' || theme?.navOptions?.topNav?.nav !== 'main' ? 1 : detectNavLevel(dataItems, baseUrl);
@@ -67,9 +71,9 @@ function PageEdit ({
   const ContentEdit = React.useMemo(() => {
     return attributes?.['sections'].EditComp //|| SectionArray.EditComp
   }, [])
-  console.log('contentEdit', format, attributes?.['sections'])
+  // console.log('contentEdit', format, attributes?.['sections'])
   const attr = {attributes: templateSection.attributes}
-  console.log('item', item)
+  // console.log('item', item)
   return (
     <div>
       {item?.header === 'above' && (
@@ -96,7 +100,7 @@ function PageEdit ({
                  <ContentEdit item={item} value={[headerSection]} onChange={(val,action) => saveHeader(v, item, user, apiUpdate)} attributes={sectionAttr}/>
               )}
               {user?.authLevel >= 5 && (
-                <Link className={theme?.page?.iconWrapper} to={`${baseUrl}/${item?.url_slug || ''}`}>
+                <Link className={theme?.page?.iconWrapper} to={`${baseUrl}/${viewUrl || ''}`}>
                   <ViewIcon className={theme?.page?.icon} />
                 </Link>
               )}

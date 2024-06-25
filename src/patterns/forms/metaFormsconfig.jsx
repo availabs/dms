@@ -13,6 +13,8 @@ import defaultTheme from './theme/theme'
 
 import TemplateView from './pages/view'
 import TemplateEdit from './pages/edit'
+import {updateAttributes, updateRegisteredFormats} from "../admin/siteConfig";
+import {isJson} from "./components/selector";
 
 const falcor = falcorGraph('https://graph.availabs.org')
 export const FormsContext = React.createContext(undefined);
@@ -66,7 +68,6 @@ const FormTemplateView = ({apiLoad, apiUpdate, attributes, parent, params, forma
 
     if(!match.route) return <>No template found.</>
     // if(!itemId) return <>No Id found.</>
-    console.log('match', match.route)
     return (
 
             <Comp
@@ -88,8 +89,6 @@ const formTemplateConfig = ({
     const newformat = {...template}
     newformat.app = app;
     newformat.type = `template`;
-    // newformat.type = `${type}-template`;
-    console.log('parent', parent)
    return ({
         app,
         type: `template`,
@@ -100,7 +99,7 @@ const formTemplateConfig = ({
             {
                 type: (props) => {
                     // use dataItems. use Parent Templates, and manually get the correct template.
-                    console.log('template format  !!!!', props.dataItems, props, parent)
+                    // console.log('template format  !!!!', props.dataItems, props, parent)
                     return (
                         <FormsContext.Provider value={{baseUrl, user: props.user || defaultUser, theme, app, type, parent}}>
                                 
@@ -119,7 +118,7 @@ const formTemplateConfig = ({
             {
                 type: (props) => {
                     // use dataItems. use Parent Templates, and manually get the correct template.
-                    console.log('template format  !!!!', props.dataItems, props, parent)
+                    // console.log('template format  !!!!', props.dataItems, props, parent)
                     return (
                         <FormsContext.Provider value={{baseUrl, user: props.user || defaultUser, theme, app, type, parent}}>
                                 

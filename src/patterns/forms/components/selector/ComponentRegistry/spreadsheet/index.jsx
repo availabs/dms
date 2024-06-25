@@ -67,7 +67,7 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
         setData(data)
         setAttributes(attributes)
     }
-    if(!value) return ''
+    // if(!value) return ''
     useEffect(() => {
         load()
     }, [format])
@@ -85,7 +85,7 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
         setData(data.filter(d => d.id !== item.id))
         return apiUpdate({data:item, config: {format}, requestType: 'delete'})
     }
-
+    console.log('datA?', data)
     return (
         <div>
             <div className={'text-xl text-gray-300 font-semibold'}>Spreadsheet view</div>

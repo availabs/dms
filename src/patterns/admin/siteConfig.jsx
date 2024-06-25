@@ -7,14 +7,27 @@ import Layout from "./pages/layout"
 
 import siteFormat from "./admin.format.js"
 
-const updateRegisteredFormats = (registerFormats, app) => {
+export const updateRegisteredFormats = (registerFormats, app) => {
   if(Array.isArray(registerFormats)){
     registerFormats = registerFormats.map(rFormat => {
       rFormat.app = app;
-      return updateRegisteredFormats(rFormat, app);
+      rFormat.registerFormats = updateRegisteredFormats(rFormat.registerFormats, app);
+      rFormat.attributes = updateAttributes(rFormat.attributes, app);
+      return rFormat;
     })
   }
   return registerFormats;
+}
+
+export const updateAttributes = (attributes, app) => {
+  if(Array.isArray(attributes)){
+    attributes = attributes.map(attr => {
+      attr.format = attr.format ? `${app}+${attr.format.split('+')[1]}`: undefined;
+      return updateRegisteredFormats(attr, app);
+    })
+    console.log('attr', attributes)
+  }
+  return attributes;
 }
 
 const adminConfig = ({ 
@@ -29,7 +42,8 @@ const adminConfig = ({
   const format = cloneDeep(siteFormat)
   format.app = app
   format.type = type
-  // format.registerFormats = updateRegisteredFormats(format.registerFormats, app) // update app for all the children formats. this works, but dms stops providing attributes to patternList
+  format.registerFormats = updateRegisteredFormats(format.registerFormats, app) // update app for all the children formats. this works, but dms stops providing attributes to patternList
+  format.attributes = updateAttributes(format.attributes, app) // update app for all the children formats. this works, but dms stops providing attributes to patternList
   // console.log('????????????///', format)
   return {
     app,
