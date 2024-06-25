@@ -92,7 +92,7 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
             <div className={` grid grid-cols-${attributes.length}`}>
 
                 {attributes.map(attribute =>
-                    <div className={'p-2 font-semibold text-gray-500 border'}>
+                    <div className={'p-2 font-semibold text-gray-500 border bg-gray-200'}>
                         {attribute.display_name || attribute.name}
                     </div>)}
 
@@ -117,7 +117,13 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
                                       className={'p-2 hover:bg-blue-50 w-full'}
                                       value={newItem[attribute.name]}
                                       onChange={e => setNewItem({...newItem, [attribute.name]: e})}
-                                      onFocus={e => console.log('focusing')}
+                                      // onFocus={e => console.log('focusing', e)}
+                                       onPaste={e => {
+                                           e.preventDefault();
+                                           const paste =
+                                               (e.clipboardData || window.clipboardData).getData("text")?.split('\n').map(row => row.split('\t'))
+                                           console.log('pasting', paste)
+                                       }}
                                 />
                                 {
                                     attrI === attributes.length - 1 &&

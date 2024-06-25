@@ -112,6 +112,12 @@ export const pattern = {
       type: "text",
       required: true
     },
+    {
+      key: "authLevel",
+      placeholder: "-1",
+      type: "text",
+      required: true
+    },
     { key: 'config',
       placeholder: 'please select a type',
       type: 'config'

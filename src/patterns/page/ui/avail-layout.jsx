@@ -7,7 +7,7 @@ import SideNav from './nav/Side.jsx'
 
 import { Search } from '../components/search'
 
-import { Link, Outlet } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 let marginSizes = {
 	none: '',
@@ -78,7 +78,7 @@ const Layout = ({ children, navItems, title, ...props }) => {
 	// console.log('layout', topNav)
 	
 	return (
-		<div className='flex' >
+		<div className={`flex ${theme.bg}`}>
 			{
 				sideNavOptions.size === 'none' ? '' : (
 					<div className={`hidden md:block ${marginSizes[sideNavOptions.size]}`}>

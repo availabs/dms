@@ -2,11 +2,12 @@ import React, {useState} from "react"
 import { useTheme } from '../theme'
 
 
-const Edit = ({value = '', onChange, className, placeholder}) => {
+const Edit = ({value = '', onChange, className, placeholder, ...rest}) => {
     const [tmpValue, setTmpValue] = useState(value)
     const theme = useTheme()
     return (
         <input
+            {...rest}
             className={ className || (theme?.text?.input || 'w-full border p-2')}
             value={tmpValue}
             placeholder={placeholder}

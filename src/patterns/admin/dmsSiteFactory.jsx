@@ -28,19 +28,20 @@ export default async function dmsSiteFactory({
     //console.log('1 - ', dmsConfig)
     let data = await dmsDataLoader(falcor, dmsConfig, `/`);
     
-
-    const patterns = data.reduce((acc, curr) => [...acc, ...curr.patterns], []) || [];
+    console.log('dmsConfig', dmsConfig)
+    const patterns = data.reduce((acc, curr) => [...acc, ...(curr?.patterns || [])], []) || [];
 
     // call dmsPageFactory here assuming patterns are page type
     // export multiple routes based on patterns.
     return [
-        dmsPageFactory({...dmsConfig, baseUrl: adminPath}),
+        dmsPageFactory({...dmsConfig, baseUrl: adminPath, API_HOST}),
 
         dmsPageFactory({
             ...patternConfig({
                 app: dmsConfig.app,
                 type: 'pattern',
-                baseUrl: '/manage_pattern/'
+                baseUrl: '/manage_pattern/',
+                API_HOST
             }),
             // baseUrl: '/manage_pattern'
         }),
@@ -48,6 +49,7 @@ export default async function dmsSiteFactory({
         ...patterns.reduce((acc, pattern) => {
             const c = configs[pattern.pattern_type];
 
+            console.log('patterns', pattern)
             acc.push(
                 ...c.map(config => {
                     const configObj = config({
@@ -57,6 +59,7 @@ export default async function dmsSiteFactory({
                         baseUrl: pattern.base_url,
                         format: pattern?.config,
                         parent: pattern,
+                        authLevel: +pattern.authLevel || -1,
                         theme,
                         useFalcor,
                         API_HOST,
@@ -68,50 +71,6 @@ export default async function dmsSiteFactory({
 
             return acc;
         }, []),
-
-
-
-        // ...patterns
-        //     .filter(pattern => pattern.pattern_type === 'form' && pattern.templates?.length)
-        //     .reduce((acc, pattern) => {
-        //         const config = configs[pattern.pattern_type];
-        //         templateConfig.baseUrl = pattern.base_url
-        //         const templates = pattern.templates.map(t => {
-        //             console.log('template', t, pattern)
-        //             templateConf.children.push({
-        //                     type: (props) => (
-        //                         <FormTemplateView
-        //                             {...props}
-        //                         />
-        //                     ),
-        //                     path: t.path,
-        //                     action: "view"
-        //                 })
-        //             // host templates on url_slug
-        //             // return ({
-        //             //     ...dmsPageFactory(config({
-        //             //         app: 'dms-site', //dmsConfig?.format?.app || dmsConfig.app,
-        //             //         type: 'template', //pattern.doc_type || pattern?.base_url?.replace(/\//g, ''),
-        //             //         format: JSON.stringify(template),
-        //             //         // parent: pattern,
-        //             //         theme: {
-        //             //             navOptions: {
-        //             //                 logo: (<Link to='/' className='h-12 flex px-4 items-center'>LOGO</Link>),
-        //             //             }
-        //             //         },
-        //             //         useFalcor,
-        //             //         API_HOST,
-        //             //         //rightMenu: <div>RIGHT</div>,
-        //             //         baseUrl: t.url_slug === '/' ? '' : t.url_slug,
-        //             //     }), authWrapper),
-        //             //     //path: `${pattern.base_url}/*`,
-        //             // })
-        //         })
-        //
-        //         acc.push(...templates)
-        //         return acc
-        //     }, [])
-
     ]
 }
 

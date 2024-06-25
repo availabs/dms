@@ -7,6 +7,16 @@ import Layout from "./pages/layout"
 
 import siteFormat from "./admin.format.js"
 
+const updateRegisteredFormats = (registerFormats, app) => {
+  if(Array.isArray(registerFormats)){
+    registerFormats = registerFormats.map(rFormat => {
+      rFormat.app = app;
+      return updateRegisteredFormats(rFormat, app);
+    })
+  }
+  return registerFormats;
+}
+
 const adminConfig = ({ 
   app = "default-app",
   type = "default-page",
@@ -19,7 +29,8 @@ const adminConfig = ({
   const format = cloneDeep(siteFormat)
   format.app = app
   format.type = type
-
+  // format.registerFormats = updateRegisteredFormats(format.registerFormats, app) // update app for all the children formats. this works, but dms stops providing attributes to patternList
+  // console.log('????????????///', format)
   return {
     app,
     type,
