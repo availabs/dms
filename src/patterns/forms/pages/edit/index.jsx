@@ -103,10 +103,10 @@ function PageEdit ({
               {item.title}
               <ContentEdit
                   attr={attr}
-                full_width={item?.full_width}
-                value={item.draft_sections}
-                onChange={(val,action) => saveSection(val, action, item, user, apiUpdate)}
-                attributes={sectionAttr}
+                  full_width={item?.full_width}
+                  value={item.draft_sections}
+                  onChange={(val,action) => saveSection(val, action, item, user, apiUpdate)}
+                  attributes={sectionAttr}
                   format={format}
                   apiLoad={apiLoad}
                   apiUpdate={apiUpdate}

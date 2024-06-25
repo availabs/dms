@@ -29,7 +29,7 @@ const adminConfig = ({
   const format = cloneDeep(siteFormat)
   format.app = app
   format.type = type
-  // format.registerFormats = updateRegisteredFormats(format.registerFormats, app) // update app for all the children formats. this works, but dms stops providing attributes to patternList
+  format.registerFormats = updateRegisteredFormats(format.registerFormats, app) // update app for all the children formats. this works, but dms stops providing attributes to patternList
   // console.log('????????????///', format)
   return {
     app,

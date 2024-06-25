@@ -69,14 +69,14 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, format, apiLoa
               )}
               {item.title}
               <ContentView
-                  attr={attr}
+                attr={attr}
                 full_width={item.full_width}
                 item={item}
                 value={sections}
                 attributes={sectionAttr}
-                  format={format}
-                  apiLoad={apiLoad}
-                  apiUpdate={apiUpdate}
+                format={format}
+                apiLoad={apiLoad}
+                apiUpdate={apiUpdate}
               />
             </div>    
           </div>

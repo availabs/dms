@@ -37,29 +37,18 @@ const adminConfig = ({
   rightMenu = <div />,
   baseUrl = '/',
   checkAuth = () => {},
-  theme = defaultTheme
+  theme = defaultTheme,
+  API_HOST = 'https://graph.availabs.org'
 }) => {
   theme = theme || defaultTheme
   const format = cloneDeep(pattern)
   format.app = app
   format.type = type
- //console.log('pattern config. testing to edit patterns', format)
+ //console.log('pattern config. testing to edit patterns', format, app ,type)
   return {
     format: format,
     baseUrl,
-    check: ({user}, activeConfig, navigate) =>  {
-      const getReqAuth = (configs) => {
-        return configs.reduce((out,config) => {
-          let authLevel = config.authLevel || -1
-          if(config.children) {
-            authLevel = Math.max(authLevel, getReqAuth(config.children))
-          }
-          return Math.max(out, authLevel)
-        },-1)
-      } 
-      let requiredAuth = getReqAuth(activeConfig)
-      checkAuth({user, authLevel:requiredAuth}, navigate)
-    },
+    API_HOST,
     children: [
       {
         type: (props) => {

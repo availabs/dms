@@ -41,7 +41,7 @@ export default async function dmsSiteFactory({
                 app: dmsConfig.app,
                 type: 'pattern',
                 baseUrl: '/manage_pattern/',
-                API_HOST
+                API_HOST   
             }),
             // baseUrl: '/manage_pattern'
         }),
