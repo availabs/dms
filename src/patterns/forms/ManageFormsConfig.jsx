@@ -5,6 +5,7 @@ import cloneDeep from 'lodash/cloneDeep'
 import defaultTheme from '../page/layout/components/theme'
 import ManageForms from "./components/ManageForms";
 import ManageTemplates from "./components/ManageTemplates";
+import {updateAttributes, updateRegisteredFormats} from "../admin/siteConfig";
 
 const Layout = ({children, title, baseUrl, format,...rest}) => {
   const params = useParams();
@@ -44,7 +45,8 @@ const adminConfig = ({
   const format = cloneDeep(pattern)
   format.app = app
   format.type = type
- //console.log('pattern config. testing to edit patterns', format, app ,type)
+  format.registerFormats = updateRegisteredFormats(format.registerFormats, app) // update app for all the children formats. this works, but dms stops providing attributes to patternList
+  format.attributes = updateAttributes(format.attributes, app) // update app for all the children formats. this works, but dms stops providing attributes to patternList
   return {
     format: format,
     baseUrl,
