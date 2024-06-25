@@ -28,8 +28,8 @@ export default async function dmsSiteFactory({
     //console.log('1 - ', dmsConfig)
     let data = await dmsDataLoader(falcor, dmsConfig, `/`);
     
-
-    const patterns = data.reduce((acc, curr) => [...acc, ...curr.patterns], []) || [];
+    console.log('dmsConfig', dmsConfig)
+    const patterns = data.reduce((acc, curr) => [...acc, ...(curr?.patterns || [])], []) || [];
 
     // call dmsPageFactory here assuming patterns are page type
     // export multiple routes based on patterns.
