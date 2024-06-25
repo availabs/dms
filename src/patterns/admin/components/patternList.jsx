@@ -22,6 +22,7 @@ function PatternList (props) {
 				<div className={'font-semibold grid grid-cols-4 '}>
 					<div>Pattern Type</div>
 					<div>Doc Type</div>
+					<div>Auth Level</div>
 					<div>Base Url</div>
 					<div></div>
 				</div>
@@ -30,6 +31,7 @@ function PatternList (props) {
 						<div key={pattern.id} className={'grid grid-cols-4 '}>
 							<div>{pattern.pattern_type}</div>
 							<div>{pattern.doc_type}</div>
+							<div>{pattern.authLevel}</div>
 							<Link to={pattern.base_url}>{pattern.base_url}</Link>
 							<Link to={`/manage_pattern/${pattern.id}`}>Manage</Link>
 						</div>
@@ -55,7 +57,7 @@ function PatternEdit({
 	const [newItem, setNewItem] = useState({});
 	const [editingIndex, setEditingIndex] = useState(undefined);
 	const [editingItem, setEditingItem] = useState(undefined);
-	const attrToShow = Object.keys(attributes).filter(attrKey => ['pattern_type', 'doc_type', 'base_url'].includes(attrKey));
+	const attrToShow = Object.keys(attributes).filter(attrKey => ['pattern_type', 'doc_type', 'base_url', 'authLevel'].includes(attrKey));
 	const numAttributes = attrToShow.length
 
 	const addNewValue = () => {
