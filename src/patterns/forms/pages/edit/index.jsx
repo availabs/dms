@@ -24,7 +24,7 @@ function PageEdit ({
 
   const urlWithoutId = item.url_slug?.replace(':id', '')
   const itemId = params['*']?.split(urlWithoutId)[1]
-  const viewUrl = `${urlWithoutId}${itemId}`;
+  const viewUrl = `${urlWithoutId}${itemId || ''}`;
 
   const menuItems = React.useMemo(() => {
     let items = dataItemsNav(dataItems,baseUrl,true)
