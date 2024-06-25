@@ -21,6 +21,7 @@ import { useFalcor } from "@availabs/avl-falcor"
 import merge from 'lodash/merge'
 import { Link } from 'react-router-dom'
 import {SearchPage} from "./components/search/SearchPage";
+import DefaultMenu from './components/menu'
 
 // sideNav = {size: 'miniPad'}
 
@@ -29,21 +30,22 @@ export const CMSContext = React.createContext(undefined);
 export const siteConfig = ({
   app = "dms-site",
   type = "docs-page",
-  rightMenu = <div />,
+  rightMenu = <DefaultMenu />,
   userFalcor=useFalcor,
   baseUrl = '',
   checkAuth = () => {},
+  logo,
   authLevel = -1,
   theme = defaultTheme,
   pgEnv,
-    API_HOST
+  API_HOST
 }) => {
   theme = merge(defaultTheme, theme)
   //baseUrl = baseUrl[0] === '/' ? baseUrl.slice(1) : baseUrl
   const defaultLogo = <Link to={`${baseUrl}`} className='h-12 flex px-4 items-center'><div className='rounded-full h-8 w-8 bg-blue-500 border-2 border-blue-300 hover:bg-blue-600' /></Link>
 
   if(!theme.navOptions.logo) {
-    theme.navOptions.logo = defaultLogo
+    theme.navOptions.logo = logo ? logo : defaultLogo
   }
   //console.log('baseUrl',baseUrl)
 
@@ -52,7 +54,7 @@ export const siteConfig = ({
   format.type = type
 
 
-
+  console.log('pgEnv siteConfig', app, type, pgEnv)
   // for instances without auth turned on can edit
   // should move this to dmsFactory default authWrapper
   const defaultUser = { email: "user", authLevel: 5, authed: true, fake: true}
@@ -68,7 +70,7 @@ export const siteConfig = ({
           const { falcor, falcorCache } = useFalcor();
           // console.log('hola', theme, props)
           return (
-            <CMSContext.Provider value={{baseUrl, user, theme, falcor, falcorCache, pgEnv, app, type}}>
+            <CMSContext.Provider value={{baseUrl, user, theme, falcor, falcorCache, pgEnv, app, type, Menu: () => <>{rightMenu}</> }} >
               {children}
             </CMSContext.Provider>
           )

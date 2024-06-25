@@ -89,7 +89,6 @@ function TagComponent ({value, placeholder, onChange, edit=false}) {
         <div className='w-full border border-blue-200'>
             {edit && <Combobox>
                 <div className="relative z-20">
-                    {newTag}
                     <Combobox.Input
                         className="h-12 w-[189px] bg-blue-50 m-1 p-2 text-gray-900 placeholder:text-gray-400 focus:ring-0 sm:text-sm"
                         placeholder={placeholder}
@@ -119,7 +118,11 @@ function TagComponent ({value, placeholder, onChange, edit=false}) {
                                     <Combobox.Option
                                         key={tag}
                                         value={tag}
-                                        onClick={() => setNewTag(tag)}
+                                        onClick={() => {
+                                            setNewTag(tag)
+                                            
+                                            
+                                        }}
                                         className={({active}) => `flex cursor-pointer select-none rounded-xl p-1 ${active && 'bg-gray-100'}`}
                                     >
                                         {({active}) => (
@@ -194,7 +197,7 @@ function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, o
                                 >
                                     <Popover.Panel 
                                         anchor="bottom"
-                                        className="absolute -left-[100px] shadow-lg bg-white z-10 w-screen w-[200px] transform border border-blue-200 ">
+                                        className="absolute -left-[100px] shadow-lg bg-white z-10 w-[200px] transform border border-blue-200 ">
                                         
                                         <TagComponent
                                             edit={true}
@@ -316,7 +319,7 @@ function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, o
                     </div>
                 </div>
             )}
-            <div className={'border border-orange-500'}>
+            <div className={''}>
                 <ElementComp 
                     value={value?.['element']} 
                     onChange={(v) => updateAttribute('element', v)}
@@ -385,7 +388,7 @@ function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove}) {
                                 >
                                     <Popover.Panel 
                                         anchor="bottom"
-                                        className="absolute -left-[174px] shadow-lg bg-white z-30 w-screen w-[200px] transform border border-blue-200 ">
+                                        className="absolute -left-[174px] shadow-lg bg-white z-30 w-[200px] transform border border-blue-200 ">
                                         <TagComponent
                                             
                                             className='p-2 flex-0'

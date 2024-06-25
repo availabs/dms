@@ -32,7 +32,7 @@ const icons = {
 function EditComp(props) {
     const {value, onChange, size, ...rest} = props
     // console.log("selector props", props, value)
-    console.log('selector edit', rest)
+    // console.log('selector edit', rest)
     const updateAttribute = (k, v) => {
         if (!isEqual(value, {...value, [k]: v})) {
             onChange({...value, [k]: v})
@@ -112,7 +112,7 @@ function EditComp(props) {
 
 function ViewComp({value, ...rest}) {
     // if (!value) return false
-    console.log('selector view', rest)
+    // console.log('selector view', rest)
     let Comp = RegisteredComponents[get(value, "element-type", 'lexical')] ?
         RegisteredComponents[get(value, "element-type", "lexical")].ViewComp :
         () => <div> Component {value["element-type"]} Not Registered </div>

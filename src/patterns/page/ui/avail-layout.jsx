@@ -4,7 +4,7 @@ import { CMSContext } from '../siteConfig'
 
 import TopNav from './nav/Top.jsx'
 import SideNav from './nav/Side.jsx'
-import Menu from '../components/menu'
+
 import { Search } from '../components/search'
 
 import { Link, Outlet } from "react-router-dom";
@@ -32,7 +32,7 @@ const Logos = () => <div className='h-12'/>
 const Layout = ({ children, navItems, title, ...props }) => {
 	//const theme = useTheme()
 
-	const { theme, app, type } = React.useContext(CMSContext) || {}
+	const { theme, app, type, Menu } = React.useContext(CMSContext) || {}
 	const { sideNav={}, topNav={}, logo=Logos } = theme?.navOptions || {}
 	
 	const sideNavOptions = {
