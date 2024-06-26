@@ -249,6 +249,8 @@ function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove, fo
         return <ElementComp value={value?.['element']} format={format} apiLoad={apiLoad} apiUpdate={apiUpdate}/>
     }, 
     [value?.element, value?.id])
+
+    //console.log('element test 123', value.element, value.id)
         
     return (
         <div className={`h-full ${hideDebug ? '' : ''}`}>
@@ -407,7 +409,7 @@ function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove, fo
                 }
             {/* -------------------END Section Header ----------------------*/}
             <div className={`h-full ${hideDebug ? '' : 'border border-dashed border-orange-500'}`}>
-                {element}
+                {value.element['element-data']} {element}
             </div>
         </div>
     )
@@ -476,7 +478,7 @@ const ScrollToHashElement = () => {
 };
 
 const Edit = ({Component, value, onChange, attr, full_width = false, format, apiLoad, apiUpdate, ...rest }) => {
-    console.log('.............', rest, attr, value)
+    //console.log('.............', rest, attr, value)
     if (!value || !value.map) { 
         value = []
     }

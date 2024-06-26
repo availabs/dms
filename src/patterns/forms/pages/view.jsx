@@ -1,5 +1,5 @@
 import React, {useEffect} from 'react'
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import cloneDeep from 'lodash/cloneDeep'
 // -- 
 import { FormsContext } from '../metaFormsconfig'
@@ -13,19 +13,26 @@ import {templateSection} from "../../admin/admin.format";
 
 const HelloWorld = () => <div> hello world </div>
 
-function PageView ({item, dataItems, attributes, logo, rightMenu, format, apiLoad, apiUpdate}) {
+function PageView ({item, dataItems, attributes, logo, rightMenu, format, apiLoad, apiUpdate, ...rest}) {
   // console.log('page_view')
   // if(!item) return <div> No Pages </div>
+  const params = useParams()
   if(!item) {
     item = {} // create a default item to set up first time experience.
   }
-
+  const urlWithoutId = item.url_slug?.replace(':id', '')
+  const itemId = params['*']?.split(urlWithoutId)[1]
+  const editUrl = `edit/${urlWithoutId}${itemId || ''}`;
   const { baseUrl, theme, user } = React.useContext(FormsContext) || {}
-  console.log('forms template page view', item, theme)
+
+  console.log('Form Tempate View', item.url_slug , urlWithoutId, itemId, baseUrl, params)
+  // console.log('forms template page view', item, theme)
   
   const ContentView = React.useMemo(() => {
     return attributes?.['sections']?.ViewComp //|| SectionArray.ViewComp
   }, [])
+
+
 
   // const menuItems = React.useMemo(() => {
   //   let items = dataItemsNav(dataItems,baseUrl,false)
@@ -63,20 +70,20 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, format, apiLoa
               {/* Content */}
               {(item?.header === 'inpage') && <ContentView item={item} value={[headerSection]} attributes={sectionAttr} />}
               {user?.authLevel >= 5 && (
-                <Link className={theme?.page?.iconWrapper} to={`${baseUrl}/edit/${item?.url_slug || ''}`}>
+                <Link className={theme?.page?.iconWrapper} to={`/${baseUrl}${editUrl || ''}`}>
                   <PencilEditSquare  className={theme?.page?.icon} />
                 </Link>
               )}
               {item.title}
               <ContentView
-                  attr={attr}
+                attr={attr}
                 full_width={item.full_width}
                 item={item}
                 value={sections}
                 attributes={sectionAttr}
-                  format={format}
-                  apiLoad={apiLoad}
-                  apiUpdate={apiUpdate}
+                format={format}
+                apiLoad={apiLoad}
+                apiUpdate={apiUpdate}
               />
             </div>    
           </div>

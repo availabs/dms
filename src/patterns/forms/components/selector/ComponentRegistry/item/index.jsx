@@ -17,8 +17,8 @@ const getData = async ({format, apiLoad, itemId}) =>{
         type: () => {
         },
         action: 'view',
-        path: `/`,
-        // path: `/view/${itemId}`, // trying to pass params. children need to match with path. this doesn't work.
+        // path: `/`,
+        path: `/form1/view/${itemId}`, // trying to pass params. children need to match with path. this doesn't work.
         params: {id: itemId}
     }]
     const data = await apiLoad({
@@ -61,10 +61,10 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
 
         load()
     }, [])
-    console.log('new item', newItem)
+    //console.log('new item', newItem)
 
     const updateItem = (value, attribute, d) => {
-        console.log('???????????', d, {...d, [attribute.name]: value})
+        //console.log('???????????', d, {...d, [attribute.name]: value})
         return apiUpdate({data: {...d, [attribute.name]: value}, config: {format}})
     }
 
@@ -77,10 +77,10 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
             }
             <div className={`grid grid-cols-3 divide-x divide-y`}>
                 {
-                    attributes.map(attribute => {
+                    attributes.map((attribute,i) => {
                         const Comp = DataTypes[attribute.type]?.EditComp;
                         return (
-                            <>
+                            <React.Fragment key={i}>
                                 <div className={'p-2 font-semibold text-gray-500'}>
                                     <input type={"checkbox"}
                                            checked={visibleAttributes.includes(attribute.name)}
@@ -104,7 +104,7 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
                                     }}/>
                                     {/*{typeof newItem[attribute.name] === "object" ? JSON.stringify(newItem[attribute.name]) : newItem[attribute.name]}*/}
                                 </div>
-                            </>
+                            </React.Fragment>
                         )
                     })
                 }
@@ -140,10 +140,10 @@ const View = ({value, format, apiLoad, ...rest}) => {
                 {
                     attributes
                         .filter(attribute => visibleAttributes.includes(attribute.name))
-                        .map(attribute => {
+                        .map((attribute,i) => {
                             // const Comp = DataTypes[attribute.type]?.ViewComp;
                             return (
-                                <>
+                                <React.Fragment key={i}>
                                     <div className={'p-2 font-semibold text-gray-500'}>
                                         {attribute.display_name || attribute.name}
                                     </div>
@@ -151,7 +151,7 @@ const View = ({value, format, apiLoad, ...rest}) => {
                                     <div className={'p-2 text-gray-700'}>
                                         {typeof data?.[attribute.name] === "object" ? JSON.stringify(data[attribute.name]) : data?.[attribute.name]}
                                     </div>
-                                </>
+                                </React.Fragment>
                             )
                         })
                 }

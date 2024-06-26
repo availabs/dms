@@ -67,7 +67,7 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
         setData(data)
         setAttributes(attributes)
     }
-    if(!value) return ''
+    // if(!value) return ''
     useEffect(() => {
         load()
     }, [format])
@@ -85,7 +85,7 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
         setData(data.filter(d => d.id !== item.id))
         return apiUpdate({data:item, config: {format}, requestType: 'delete'})
     }
-
+    console.log('datA?', data, attributes)
     return (
         <div>
             <div className={'text-xl text-gray-300 font-semibold'}>Spreadsheet view</div>
@@ -110,20 +110,21 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
 
                 {
                     attributes.map((attribute, attrI) => {
-                        const Comp = DataTypes[attribute.type]?.EditComp;
+                        const Comp = DataTypes[attribute?.type || 'text']?.EditComp;
                         return (
                             <div className={'flex border'}>
-                                <Comp key={`${attribute.name}`}
-                                      className={'p-2 hover:bg-blue-50 w-full'}
-                                      value={newItem[attribute.name]}
-                                      onChange={e => setNewItem({...newItem, [attribute.name]: e})}
+                                <Comp 
+                                    key={`${attribute.name}`}
+                                    className={'p-2 hover:bg-blue-50 w-full'}
+                                    value={newItem[attribute.name]}
+                                    onChange={e => setNewItem({...newItem, [attribute.name]: e})}
                                       // onFocus={e => console.log('focusing', e)}
-                                       onPaste={e => {
-                                           e.preventDefault();
-                                           const paste =
-                                               (e.clipboardData || window.clipboardData).getData("text")?.split('\n').map(row => row.split('\t'))
-                                           console.log('pasting', paste)
-                                       }}
+                                    onPaste={e => {
+                                       e.preventDefault();
+                                       const paste =
+                                           (e.clipboardData || window.clipboardData).getData("text")?.split('\n').map(row => row.split('\t'))
+                                       console.log('pasting', paste)
+                                   }}
                                 />
                                 {
                                     attrI === attributes.length - 1 &&
@@ -155,7 +156,7 @@ const View = ({value, format, apiLoad, ...rest}) => {
 
         load()
     }, [format])
-    console.log('data', data, attributes)
+    //console.log('data', data, attributes)
     return (
         <div>
             <div className={'text-xl text-gray-300 font-semibold'}>Spreadsheet view</div>

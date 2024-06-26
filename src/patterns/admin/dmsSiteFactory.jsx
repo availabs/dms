@@ -11,6 +11,7 @@ import {
     FalcorProvider
 } from "@availabs/avl-falcor"
 import PageEdit from "../page/pages/edit";
+import {updateAttributes, updateRegisteredFormats} from "./siteConfig";
 
 const configs = {
     page: pageConfigNew,
@@ -24,24 +25,26 @@ export default async function dmsSiteFactory({
     theme,
     API_HOST = 'https://graph.availabs.org'
 }) {
+    let dmsConfigUpdated = {...dmsConfig};
+    dmsConfigUpdated.registerFormats = updateRegisteredFormats(dmsConfigUpdated.registerFormats, dmsConfig.app)
+    dmsConfigUpdated.attributes = updateAttributes(dmsConfigUpdated.attributes, dmsConfig.app)
+
     const falcor = falcorGraph(API_HOST)
-    //console.log('1 - ', dmsConfig)
-    let data = await dmsDataLoader(falcor, dmsConfig, `/`);
-    
-    console.log('dmsConfig', dmsConfig)
+    let data = await dmsDataLoader(falcor, dmsConfigUpdated, `/`);
+
     const patterns = data.reduce((acc, curr) => [...acc, ...(curr?.patterns || [])], []) || [];
 
     // call dmsPageFactory here assuming patterns are page type
     // export multiple routes based on patterns.
     return [
-        dmsPageFactory({...dmsConfig, baseUrl: adminPath, API_HOST}),
+        dmsPageFactory({...dmsConfigUpdated, baseUrl: adminPath, API_HOST}),
 
         dmsPageFactory({
             ...patternConfig({
-                app: dmsConfig.app,
+                app: dmsConfigUpdated.app,
                 type: 'pattern',
                 baseUrl: '/manage_pattern/',
-                API_HOST
+                API_HOST   
             }),
             // baseUrl: '/manage_pattern'
         }),
@@ -49,11 +52,10 @@ export default async function dmsSiteFactory({
         ...patterns.reduce((acc, pattern) => {
             const c = configs[pattern.pattern_type];
 
-            console.log('patterns', pattern)
             acc.push(
                 ...c.map(config => {
                     const configObj = config({
-                        app: dmsConfig?.format?.app || dmsConfig.app,
+                        app: dmsConfigUpdated?.format?.app || dmsConfigUpdated.app,
                         // type: pattern.doc_type,
                         type: pattern.doc_type || pattern?.base_url?.replace(/\//g, ''),
                         baseUrl: pattern.base_url,
@@ -65,7 +67,6 @@ export default async function dmsSiteFactory({
                         API_HOST,
                         //rightMenu: <div>RIGHT</div>,
                     });
-                    //console.log('hosting', pattern.base_url, configObj)
                     return ({...dmsPageFactory(configObj, authWrapper)})
             }));
 
