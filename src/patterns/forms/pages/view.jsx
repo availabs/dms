@@ -22,10 +22,10 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, format, apiLoa
   }
   const urlWithoutId = item.url_slug?.replace(':id', '')
   const itemId = params['*']?.split(urlWithoutId)[1]
-  const editUrl = `edit/${urlWithoutId}${itemId || ''}`;
+  const editUrl = `edit${urlWithoutId}${itemId || ''}`;
   const { baseUrl, theme, user } = React.useContext(FormsContext) || {}
 
-  console.log('Form Tempate View', urlWithoutId, itemId, baseUrl, params)
+  console.log('Form Tempate View', item.url_slug , urlWithoutId, itemId, baseUrl, params)
   // console.log('forms template page view', item, theme)
   
   const ContentView = React.useMemo(() => {
@@ -70,7 +70,7 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, format, apiLoa
               {/* Content */}
               {(item?.header === 'inpage') && <ContentView item={item} value={[headerSection]} attributes={sectionAttr} />}
               {user?.authLevel >= 5 && (
-                <Link className={theme?.page?.iconWrapper} to={`${baseUrl}/${editUrl || ''}`}>
+                <Link className={theme?.page?.iconWrapper} to={`/${baseUrl}${editUrl || ''}`}>
                   <PencilEditSquare  className={theme?.page?.icon} />
                 </Link>
               )}

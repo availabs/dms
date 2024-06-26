@@ -30,9 +30,12 @@ const FormTemplateView = ({apiLoad, apiUpdate, attributes, parent, params, forma
         p['*'] = p['*'].replace('edit/','');
     }
 
-    //console.log('')
 
-    const match = matchRoutes(dataItems.map(d => ({path:d.url_slug, ...d})), {pathname:`/${p["*"]}`})?.[0] || {};
+
+    //const match = matchRoutes(dataItems.map(d => ({path:d.url_slug, ...d})), {pathname:`/${p["*"]}`})?.[0] || {};
+    const relatedTemplateIds = (parent?.templates || []).map(t => t.id);
+    const match = matchRoutes(dataItems.filter(dI => relatedTemplateIds.includes(dI.id)).map(d => ({path:d.url_slug, ...d})), {pathname:`/${p["*"]}`})?.[0] || {};
+
     const itemId = match?.params?.id;
     const parentConfigAttributes = JSON.parse(parent?.config || '{}')?.attributes || [];
     const type = parent.doc_type || parent?.base_url?.replace(/\//g, '')
@@ -59,14 +62,14 @@ const FormTemplateView = ({apiLoad, apiUpdate, attributes, parent, params, forma
 
     useEffect(() => {
         const matchedItem = itemId ? items.find(item => item.id == itemId) : items
-        console.log('FormTemplateView items', itemId, matchedItem, items)
+        //console.log('FormTemplateView items', itemId, matchedItem, items)
         setItem(matchedItem)
     }, [itemId, items])
-    // fetch form items using parent.
-    // load items using matched template.
+    
 
     if(!match.route) return <>No template found.</>
-    // if(!itemId) return <>No Id found.</>
+    
+
     return (
 
             <Comp
@@ -85,6 +88,7 @@ const FormTemplateView = ({apiLoad, apiUpdate, attributes, parent, params, forma
 const formTemplateConfig = ({
     app, type, format, parent, title, baseUrl, API_HOST='https://graph.availabs.org', columns, theme=defaultTheme, checkAuth = () => {}
 }) => {
+    console.log('formTemplateConfig', app, type)
     const newformat = {...template}
     newformat.app = app;
     newformat.type = `template`;
@@ -102,39 +106,35 @@ const formTemplateConfig = ({
                     // console.log('template format  !!!!', props.dataItems, props, parent)
                     return (
                         <FormsContext.Provider value={{baseUrl, user: props.user || defaultUser, theme, app, type, parent}}>
-                                
                             <FormTemplateView
                                 format={newformat}
                                 parent={parent}
                                 {...props}
                             />
-                               
                         </FormsContext.Provider>
                     )
                 },
                 action: "list",
                 path: "/*",
             },
+
             {
                 type: (props) => {
                     // use dataItems. use Parent Templates, and manually get the correct template.
                     // console.log('template format  !!!!', props.dataItems, props, parent)
                     return (
                         <FormsContext.Provider value={{baseUrl, user: props.user || defaultUser, theme, app, type, parent}}>
-                                
                             <FormTemplateView
                                 parent={parent}
                                 edit={true}
                                 {...props}
                             />
-                               
                         </FormsContext.Provider>
                     )
                 },
                 action: "list",
                 path: "/edit/*",
-            },
-
+            }
 
         ]
     })
@@ -145,117 +145,3 @@ export default [
     formTemplateConfig,
 ];
 
-// const siteConfig = ({
-//     app, type, format, parent, title, baseUrl, columns, checkAuth = () => {}
-//                     }) => {
-//     console.log('is parent here?', parent)
-//     const newformat = JSON.parse(format || '{}')
-//     newformat.app = app;
-//     newformat.type = type;
-//     newformat.isBlank = !newformat?.attributes?.length;
-//     newformat.attributes = newformat.attributes || [{'name': 'name'}]
-
-//     return {
-//         app,
-//         type,
-//         baseUrl: `${baseUrl}/edit`,
-//         format: newformat,
-//         // check: ({user}, activeConfig, navigate) => {
-//         //
-//         //     const getReqAuth = (configs) => {
-//         //         return configs.reduce((out, config) => {
-//         //             let authLevel = config.authLevel || -1
-//         //             if (config.children) {
-//         //                 authLevel = Math.max(authLevel, getReqAuth(config.children))
-//         //             }
-//         //             return Math.max(out, authLevel)
-//         //         }, -1)
-//         //     }
-//         //
-//         //     let requiredAuth = getReqAuth(activeConfig)
-//         //     checkAuth({user, authLevel: requiredAuth}, navigate)
-//         //
-//         // },
-//         children: [
-//             {
-//                 type: (props) => <Layout parentId={parent?.id} {...props} title={title} baseUrl={baseUrl}/>,
-//                 path: '/*',
-//                 action: 'list',
-//                 filter: {
-//                     fromIndex: path => path.split('/')[2],
-//                     toIndex: path => path.split('/')[3],
-//                     stopFullDataLoad: true
-//                 },
-//                 children: [
-//                     {
-//                         type: ({dataItems, ...props}) => {
-//                             // use dataItems. use Parent Templates, and manually get the correct template.
-//                             console.log('props from list page of templates', dataItems, props, parent)
-//                             return <div>
-//                                 {
-//                                     parent?.templates ? `This form has ${parent?.templates?.length || 0} templates. Create a list component.` :
-//                                         'No templates found. Please click on Manage Templates to begin.'
-//                                 }
-//                             </div>
-//                         },
-//                         action: "list",
-//                         path: "/edit",
-//                     },
-//                     // {
-//                     //     type: props =>
-//                     //         <TableComp.ViewComp
-//                     //             data={props.dataItems}
-//                     //             columns={columns}
-//                     //             baseUrl={baseUrl}
-//                     //             app={app}
-//                     //             type={type}
-//                     //             {...props}
-//                     //         />,
-//                     //     action: "list",
-//                     //     path: "/",
-//                     // },
-//                     {
-//                         type: props =>
-//                             <TableComp.EditComp
-//                                 data={props.dataItems}
-//                                 columns={columns}
-//                                 baseUrl={baseUrl}
-//                                 app={app}
-//                                 type={type}
-//                                 {...props}
-//                             />,
-//                         action: "list",
-//                         path: "/edit",
-//                     },
-//                     // {
-//                     //     type: "dms-form-view",
-//                     //     path: '/item/view/:id?',
-//                     //     action: 'view',
-//                     //     options: {
-//                     //         accessor: 'name'
-//                     //     }
-//                     //
-//                     // },
-//                     {
-//                         type: "dms-form-edit",
-//                         action: 'edit',
-//                         options: {
-//                             accessor: 'name'
-//                         },
-//                         filter: {type: 'new'},
-//                         path: '/item/new',
-//                         redirect: '/item/edit/:id?'
-//                     },
-//                     {
-//                         type: "dms-form-edit",
-//                         action: 'edit',
-//                         options: {
-//                             accessor: 'name'
-//                         },
-//                         path: '/item/edit/:id?'
-//                     }
-//                 ]
-//             }
-//         ]
-//     }
-// }
