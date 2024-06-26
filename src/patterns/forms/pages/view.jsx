@@ -24,11 +24,15 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, format, apiLoa
   const itemId = params['*']?.split(urlWithoutId)[1]
   const editUrl = `edit/${urlWithoutId}${itemId || ''}`;
   const { baseUrl, theme, user } = React.useContext(FormsContext) || {}
+
+  console.log('Form Tempate View', urlWithoutId, itemId, baseUrl, params)
   // console.log('forms template page view', item, theme)
   
   const ContentView = React.useMemo(() => {
     return attributes?.['sections']?.ViewComp //|| SectionArray.ViewComp
   }, [])
+
+
 
   // const menuItems = React.useMemo(() => {
   //   let items = dataItemsNav(dataItems,baseUrl,false)

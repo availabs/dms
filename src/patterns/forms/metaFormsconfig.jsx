@@ -3,10 +3,7 @@ import {Link, useParams, useLocation, matchRoutes} from "react-router-dom";
 
 // import TableComp from "./components/TableComp";
 import {template} from "../admin/admin.format"
-import {
-  falcorGraph,
-  FalcorProvider
-} from "@availabs/avl-falcor"
+
 import PageEdit from "../page/pages/edit";
 import {data} from "autoprefixer";
 import defaultTheme from './theme/theme'
@@ -16,7 +13,7 @@ import TemplateEdit from './pages/edit'
 import {updateAttributes, updateRegisteredFormats} from "../admin/siteConfig";
 import {isJson} from "./components/selector";
 
-const falcor = falcorGraph('https://graph.availabs.org')
+
 export const FormsContext = React.createContext(undefined);
 const defaultUser = { email: "user", authLevel: 5, authed: true, fake: true}
 
@@ -32,6 +29,8 @@ const FormTemplateView = ({apiLoad, apiUpdate, attributes, parent, params, forma
     if(edit) {
         p['*'] = p['*'].replace('edit/','');
     }
+
+    //console.log('')
 
     const match = matchRoutes(dataItems.map(d => ({path:d.url_slug, ...d})), {pathname:`/${p["*"]}`})?.[0] || {};
     const itemId = match?.params?.id;
@@ -60,7 +59,7 @@ const FormTemplateView = ({apiLoad, apiUpdate, attributes, parent, params, forma
 
     useEffect(() => {
         const matchedItem = itemId ? items.find(item => item.id == itemId) : items
-        //console.log('items', itemId, matchedItem, items)
+        console.log('FormTemplateView items', itemId, matchedItem, items)
         setItem(matchedItem)
     }, [itemId, items])
     // fetch form items using parent.
@@ -84,7 +83,7 @@ const FormTemplateView = ({apiLoad, apiUpdate, attributes, parent, params, forma
 
 
 const formTemplateConfig = ({
-    app, type, format, parent, title, baseUrl, columns, theme=defaultTheme, checkAuth = () => {}
+    app, type, format, parent, title, baseUrl, API_HOST='https://graph.availabs.org', columns, theme=defaultTheme, checkAuth = () => {}
 }) => {
     const newformat = {...template}
     newformat.app = app;
@@ -95,6 +94,7 @@ const formTemplateConfig = ({
         // type: `${type}-template`,
         format: newformat,
         baseUrl,
+        API_HOST,
         children: [
             {
                 type: (props) => {

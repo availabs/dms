@@ -25,7 +25,7 @@ export const updateAttributes = (attributes, app) => {
       attr.format = attr.format ? `${app}+${attr.format.split('+')[1]}`: undefined;
       return updateRegisteredFormats(attr, app);
     })
-    console.log('attr', attributes)
+    //console.log('attr', attributes)
   }
   return attributes;
 }

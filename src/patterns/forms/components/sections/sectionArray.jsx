@@ -250,7 +250,7 @@ function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove, fo
     }, 
     [value?.element, value?.id])
 
-    console.log('element test 123', value.element, value.id)
+    //console.log('element test 123', value.element, value.id)
         
     return (
         <div className={`h-full ${hideDebug ? '' : ''}`}>
@@ -478,7 +478,7 @@ const ScrollToHashElement = () => {
 };
 
 const Edit = ({Component, value, onChange, attr, full_width = false, format, apiLoad, apiUpdate, ...rest }) => {
-    console.log('.............', rest, attr, value)
+    //console.log('.............', rest, attr, value)
     if (!value || !value.map) { 
         value = []
     }
