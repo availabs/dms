@@ -33,7 +33,8 @@ const FormTemplateView = ({apiLoad, apiUpdate, attributes, parent, params, forma
         p['*'] = p['*'].replace('edit/','');
     }
 
-    const match = matchRoutes(dataItems.map(d => ({path:d.url_slug, ...d})), {pathname:`/${p["*"]}`})?.[0] || {};
+    const relatedTemplateIds = (parent?.templates || []).map(t => t.id);
+    const match = matchRoutes(dataItems.filter(dI => relatedTemplateIds.includes(dI.id)).map(d => ({path:d.url_slug, ...d})), {pathname:`/${p["*"]}`})?.[0] || {};
     const itemId = match?.params?.id;
     const parentConfigAttributes = JSON.parse(parent?.config || '{}')?.attributes || [];
     const type = parent.doc_type || parent?.base_url?.replace(/\//g, '')
