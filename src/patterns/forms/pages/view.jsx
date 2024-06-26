@@ -22,7 +22,7 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, format, apiLoa
   }
   const urlWithoutId = item.url_slug?.replace(':id', '')
   const itemId = params['*']?.split(urlWithoutId)[1]
-  const editUrl = `edit${urlWithoutId}${itemId || ''}`;
+  const editUrl = `edit/${urlWithoutId}${itemId || ''}`;
   const { baseUrl, theme, user } = React.useContext(FormsContext) || {}
 
   console.log('Form Tempate View', item.url_slug , urlWithoutId, itemId, baseUrl, params)

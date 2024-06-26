@@ -26,7 +26,7 @@ function PageEdit ({
   const itemId = params['*']?.split(urlWithoutId)[1]
   const viewUrl = `${urlWithoutId}${itemId || ''}`;
 
-  console.log('Form Tempate Edit', urlWithoutId, itemId, baseUrl, params)
+  console.log('Form Tempate Edit',)
 
   const menuItems = React.useMemo(() => {
     let items = dataItemsNav(dataItems,baseUrl,true)
@@ -75,7 +75,7 @@ function PageEdit ({
   }, [])
   // console.log('contentEdit', format, attributes?.['sections'])
   const attr = {attributes: templateSection.attributes}
-  // console.log('item', item)
+  console.log('item', item)
   return (
     <div>
       {item?.header === 'above' && (
@@ -111,13 +111,29 @@ function PageEdit ({
                   attr={attr}
                   full_width={item?.full_width}
                   value={item.draft_sections}
-                  onChange={(val,action) => saveSection(val, action, item, user, apiUpdate)}
+                  onChange={(val,action) => {
+                    console.log('save section', val, action, item, user)
+                    saveSection(val, action, item, user, apiUpdate)
+                  }}
                   attributes={sectionAttr}
                   format={format}
                   apiLoad={apiLoad}
                   apiUpdate={apiUpdate}
               />
             </div>
+            {/*<SideNavContainer witdh={'w-52'}>
+              <EditControls 
+                item={item} 
+                dataItems={dataItems}
+                setItem={setItem}
+                edit={true}
+                status={status}
+                apiUpdate={apiUpdate}
+                attributes={attributes}
+                updateAttribute={updateAttribute}
+                pageType={'page'}
+              />
+            </SideNavContainer>*/}
           </div>
 
         </div>
