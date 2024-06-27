@@ -61,13 +61,13 @@ export default ({title, children}) => {
                                 </Item>
                             )}
                             {user.authLevel >= 5 && (
-                                <Item to={`/manage_pattern/${parent?.id}`} icon={'fad fa-sign-out-alt pb-2 pr-1'}>
-                                    Manager Form
+                                <Item to={`/${baseUrl}manage/attributes`} icon={'fad fa-sign-out-alt pb-2 pr-1'}>
+                                    Metadata
                                 </Item>
                             )}
                             {user.authLevel >= 5 && (
-                                <Item to={`/manage_pattern/${parent?.id}/templates`} icon={'fad fa-sign-out-alt pb-2 pr-1'}>
-                                    Manage Templates
+                                <Item to={`/${baseUrl}manage/templates`} icon={'fad fa-sign-out-alt pb-2 pr-1'}>
+                                    Templates
                                 </Item>
                             )}                     
                         </div>
