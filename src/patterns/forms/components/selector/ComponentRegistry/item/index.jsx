@@ -66,7 +66,7 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
         return apiUpdate({data: {...d, [attribute.name]: value}, config: {format}})
     }
 
-    if (!newItem) return null;
+    if (!newItem || !itemId) return null;
     return (
         <div>
             <div className={'text-xl text-gray-300 font-semibold'}>Item Edit</div>

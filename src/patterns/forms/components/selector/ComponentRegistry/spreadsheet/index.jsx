@@ -11,12 +11,14 @@ export const isJson = (str)  => {
 }
 
 const getData = async ({format, apiLoad}) =>{
+    console.log('spreadsheet getDAta called')
     // fetch all data items based on app and type. see if you can associate those items to its pattern. this will be useful when you have multiple patterns.
     const attributes = JSON.parse(format?.config || '{}')?.attributes || [];
     const children = [{
         type: () => {
         },
         action: 'list',
+        testparam: 'testparam',
         path: '/',
     }]
     const data = await apiLoad({
@@ -62,13 +64,14 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     const [data, setData] = useState([]);
     const [attributes, setAttributes] = useState([])
     const [newItem, setNewItem] = useState({})
-    async function load(){
-        const {data, attributes} = await getData({format, apiLoad});
-        setData(data)
-        setAttributes(attributes)
-    }
+
     // if(!value) return ''
     useEffect(() => {
+        async function load(){
+            const {data, attributes} = await getData({format, apiLoad});
+            setData(data)
+            setAttributes(attributes)
+        }
         load()
     }, [format])
 
