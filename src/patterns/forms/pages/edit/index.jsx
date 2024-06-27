@@ -102,7 +102,7 @@ function PageEdit ({
                  <ContentEdit item={item} value={[headerSection]} onChange={(val,action) => saveHeader(v, item, user, apiUpdate)} attributes={sectionAttr}/>
               )}
               {user?.authLevel >= 5 && (
-                <Link className={theme?.page?.iconWrapper} to={`/${baseUrl}/${viewUrl || ''}`}>
+                <Link className={theme?.page?.iconWrapper} to={`${baseUrl}/${viewUrl || ''}`}>
                   <ViewIcon className={theme?.page?.icon} />
                 </Link>
               )}

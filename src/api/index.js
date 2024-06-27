@@ -37,7 +37,6 @@ export async function dmsDataLoader (falcor, config, path='/') {
 	const { app , type, /*defaultSearch,*/ attributes = {} } = format
 
 	const activeConfigs = getActiveConfig(config.children, path)
-	console.log('item data activeConfigs', activeConfigs, path)
 	// console.log('------------dmsDataLoader-------------')
 	const dmsAttrsConfigs = (Object.values(attributes))
 		//.filter(d => !Array.isArray(filter?.attributes) || filter.attributes.includes(d.key))
