@@ -13,8 +13,7 @@ function configMatcher (config, path ) {
 	
 	// matchRoutes picks best from all available routes in config
 
-	const matches = matchRoutes(config.map(d => ({path:d.path})), {pathname:path}) || []
-	// console.log('configMatcher', config, matches, path)
+	const matches = matchRoutes(config.map(d => ({path:d.path, ...d})), {pathname:path}) || []
 
 	// hash matches by route path
 	let matchHash = matches.reduce((out,c) => {
@@ -77,12 +76,11 @@ export function getActiveView(config, path, format, user, depth=0) {
 
 export function getActiveConfig (config=[], path='/', depth = 0) {
 	
-	// console.log('getActiveConfig', config, path)
 	let configs = cloneDeep(configMatcher(config,path, depth))
 
 	let childConfigs = configs
 		.reduce((out,conf) => {
-			let childConf = getActiveConfig(conf.children, path, depth+1)
+			let childConf = conf.children?.length ? getActiveConfig(conf.children, path, depth+1) : [];
 			if(childConf.length) {
 				return [...out, ...childConf]
 			}
