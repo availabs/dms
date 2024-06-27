@@ -3,9 +3,66 @@ import cloneDeep from 'lodash/cloneDeep'
 
 import PatternList from "./components/patternList";
 import SiteEdit from "./pages/siteEdit"
-import Layout from "./pages/layout"
 
-import siteFormat from "./admin.format.js"
+
+import adminFormat from "./admin.format.js"
+import defaultTheme from './theme/theme'
+
+export const AdminContext = React.createContext(undefined);
+const defaultUser = { email: "user", authLevel: 5, authed: true, fake: true}
+
+const adminConfig = ({ 
+  app = "default-app",
+  type = "default-page",
+  sideNav = null,
+  logo = null,
+  rightMenu = <div />,
+  baseUrl = '/',
+  checkAuth = () => {},
+  theme = defaultTheme
+}) => {
+  const format = cloneDeep(adminFormat)
+  format.app = app
+  format.type = type
+  
+  // ----------------------
+  // update app for all the children formats. this works, but dms stops providing attributes to patternList
+  format.registerFormats = updateRegisteredFormats(format.registerFormats, app) 
+  format.attributes = updateAttributes(format.attributes, app) 
+  // ----------------------
+  console.log('test 123', theme)
+  return {
+    app,
+    type,
+    format: format,
+    baseUrl,
+    children: [
+      { 
+        type: (props) => {
+          return (
+            <AdminContext.Provider value={{baseUrl, user: props.user || defaultUser, theme, app, type, parent}}>
+              {props.children}
+            </AdminContext.Provider>
+          )
+        },
+        action: "list",
+        path: "/*",
+        children: [
+          {
+            type: (props) => <SiteEdit {...props} />,
+            action: "edit",
+            path: "/*",
+
+          }
+        ]
+      }
+    ]
+  }
+}
+
+export default adminConfig
+
+
 
 export const updateRegisteredFormats = (registerFormats, app) => {
   if(Array.isArray(registerFormats)){
@@ -29,50 +86,3 @@ export const updateAttributes = (attributes, app) => {
   }
   return attributes;
 }
-
-const adminConfig = ({ 
-  app = "default-app",
-  type = "default-page",
-  sideNav = null,
-  logo = null,
-  rightMenu = <div />,
-  baseUrl = '/',
-  checkAuth = () => {}
-}) => {
-  const format = cloneDeep(siteFormat)
-  format.app = app
-  format.type = type
-  format.registerFormats = updateRegisteredFormats(format.registerFormats, app) // update app for all the children formats. this works, but dms stops providing attributes to patternList
-  format.attributes = updateAttributes(format.attributes, app) // update app for all the children formats. this works, but dms stops providing attributes to patternList
-  // console.log('????????????///', format)
-  return {
-    app,
-    type,
-    format: format,
-    baseUrl,
-    children: [
-      { 
-        type: (props) => {
-          return (
-            <Layout 
-              {...props}
-              baseUrl={baseUrl}
-            />
-          )
-        },
-        action: "list",
-        path: "/*",
-        children: [
-          {
-            type: (props) => <SiteEdit {...props} />,
-            action: "edit",
-            path: "/*",
-
-          }
-        ]
-      }
-    ]
-  }
-}
-
-export default adminConfig

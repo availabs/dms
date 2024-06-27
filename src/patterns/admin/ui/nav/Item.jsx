@@ -1,7 +1,7 @@
 import React, {useEffect} from "react";
 import { useMatch, useNavigate, Link } from "react-router-dom";
 
-import { FormsContext } from '../../'
+import { AdminContext } from '../../siteConfig'
 
 function Icon ({ icon, className }) {
 	return (
@@ -27,7 +27,7 @@ const NavItem = ({
 	subMenuOpen = false
 }) => {
 	// console.log('renderMenu')
-	const { theme: fullTheme  } = React.useContext(FormsContext) || {}
+	const { theme: fullTheme  } = React.useContext(AdminContext) || {}
 	const theme = (fullTheme?.[type === 'side' ? 'sidenav' : 'topnav'] || NOOP)(themeOptions);
 
 	const navigate = useNavigate();
@@ -143,7 +143,7 @@ const NavItem = ({
 export default NavItem;
 
 const SubMenu = ({ i, showSubMenu, subMenus, type, hovering, subMenuActivate, active, themeOptions }) => {
-	const { theme: fullTheme  } = React.useContext(FormsContext)
+	const { theme: fullTheme  } = React.useContext(AdminContext)
 	const theme = fullTheme[type === 'side' ? 'sidenav' : 'topnav'](themeOptions);
 
 	const inactiveHoveing = !active && subMenuActivate !== 'onHover' && hovering;

@@ -1,10 +1,10 @@
 import React from "react";
 //import { useTheme} from "~/modules/avl-components/src/index.js";
-import { FormsContext } from '../'
+import { AdminContext } from '../siteConfig'
 
 import TopNav from './nav/Top.jsx'
 import SideNav from './nav/Side.jsx'
-import Menu from '../components/menu'
+// import Menu from '../components/menu'
 // import { Search } from '../components/search'
 
 import { Link, Outlet } from "react-router-dom";
@@ -28,15 +28,15 @@ let fixedSizes = {
 }
 
 const Logos = () => <div className='h-12'/>
+const Menu = () => <div className='h-12'/>
+
 
 const Layout = ({ children, navItems=[], title }) => {
 	//const theme = useTheme()
 
-	const { theme, app, type } = React.useContext(FormsContext) || {}
+	const { theme, app, type } = React.useContext(AdminContext) || {}
 	const { sideNav={}, topNav={}, logo=Logos } = theme?.navOptions || {}
 	
-	console.log('forms layout', sideNav)
-
 	const sideNavOptions = {
 		size: sideNav.size || 'none',
 		color: sideNav.color || 'white',
@@ -86,10 +86,9 @@ const Layout = ({ children, navItems=[], title }) => {
 					<div className={`hidden md:block ${marginSizes[sideNavOptions.size]}`}>
 						<div className={`fixed h-screen ${fixedSizes[sideNavOptions.size]}`}>
 							<SideNav 
-								themeOptions={sideNavOptions}
 								topMenu={sideNavOptions.topMenu}
+								themeOptions={sideNavOptions}
 								menuItems={sideNavOptions.menuItems}
-								bottomMenu={sideNavOptions.bottomMenu}
 							/>
 						</div>
 					</div>
@@ -115,7 +114,13 @@ const Layout = ({ children, navItems=[], title }) => {
 					</>)
 				}
 				<div id={'content'} className={`flex-1`}>
-					{children}
+					<div className={`${theme?.page?.wrapper1}`}>
+          				<div className={`${theme?.page?.wrapper2}`}>      
+	            			<div className={theme?.page?.wrapper3}>
+							{children}
+							</div>
+						</div>
+					</div>
 				</div>
 			</div>
 		</div>

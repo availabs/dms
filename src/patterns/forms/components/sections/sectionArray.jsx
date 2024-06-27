@@ -5,7 +5,7 @@ import cloneDeep from 'lodash/cloneDeep'
 import { Popover, Transition } from '@headlessui/react'
 import { Link } from "react-router-dom";
 import { usePopper } from 'react-popper'
-import { FormsContext } from '../../metaFormsconfig'
+import { FormsContext } from '../../'
 import { getSizeClass, sizeOptionsSVG } from './sizes.jsx'
 import { 
     SquarePlus, 
@@ -409,7 +409,7 @@ function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove, fo
                 }
             {/* -------------------END Section Header ----------------------*/}
             <div className={`h-full ${hideDebug ? '' : 'border border-dashed border-orange-500'}`}>
-                {value.element['element-data']} {element}
+                {element}
             </div>
         </div>
     )

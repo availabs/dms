@@ -9,7 +9,7 @@ import SideNav from '../../ui/nav/Side'
 import {PencilEditSquare, ViewIcon} from '../../ui/icons'
 import { SideNavContainer } from '../../ui'
 import EditControls from './editControls'
-import {FormsContext} from "../../metaFormsconfig";
+import {FormsContext} from "../../";
 import {templateSection} from "../../../admin/admin.format";
 
 function PageEdit ({

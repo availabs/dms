@@ -71,7 +71,7 @@ export const siteConfig = ({
           const { falcor, falcorCache } = useFalcor();
           // console.log('hola', theme, props)
           return (
-            <CMSContext.Provider value={{baseUrl, user, theme, falcor, falcorCache, pgEnv, app, type, Menu: () => <>{rightMenu}</> }} >
+            <CMSContext.Provider value={{baseUrl, user, theme, falcor, falcorCache, pgEnv, app, type }} >
               {children}
             </CMSContext.Provider>
           )

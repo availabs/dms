@@ -2,7 +2,7 @@ import React, {useEffect} from 'react'
 import { Link, useParams } from "react-router-dom";
 import cloneDeep from 'lodash/cloneDeep'
 // -- 
-import { FormsContext } from '../metaFormsconfig'
+import { FormsContext } from '../'
 import {dataItemsNav, detectNavLevel, getInPageNav} from './_utils'
 import Layout from '../ui/avail-layout'
 import SideNav from '../ui/nav/Side'
@@ -74,7 +74,7 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, format, apiLoa
                   <PencilEditSquare  className={theme?.page?.icon} />
                 </Link>
               )}
-              {item.title}
+              {/*{item.title}*/}
               <ContentView
                 attr={attr}
                 full_width={item.full_width}

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 
-import { FormsContext } from '../../'
+import { AdminContext } from '../../siteConfig'
 
 import get from "lodash/get";
 
@@ -35,7 +35,7 @@ const MobileSidebar = ({
 	subMenuActivate, subMenuStyle,
    ...props
 }) => {
-	const { theme: fullTheme  } = React.useContext(FormsContext) || {}
+	const { theme: fullTheme  } = React.useContext(AdminContext) || {}
 	const theme = (fullTheme?.['sidenav'] || NOOP)(themeOptions);
 	// theme = props.theme || theme;
 
@@ -98,7 +98,7 @@ const DesktopSidebar = ({
 	subMenuActivate, subMenuStyle,
 	...props }) => {
 	//let theme = useTheme()['sidenav'](themeOptions);
-	const { theme: fullTheme  } = React.useContext(FormsContext)
+	const { theme: fullTheme  } = React.useContext(AdminContext)
 	const theme = fullTheme['sidenav'](themeOptions);
 	// console.log('SideNav', themeOptions, theme, useTheme()['sidenav'](themeOptions))
 	// console.log('sideNav', menuItems)

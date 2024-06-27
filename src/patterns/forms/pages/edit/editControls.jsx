@@ -10,12 +10,12 @@ import { json2DmsForm, getUrlSlug, toSnakeCase, parseJSON } from '../_utils'
 import { insertSubPage, newPage, updateTitle, toggleSidebar, publish, getMenus } from './editFunctions'
 
 
-import EditPagesNav  from './editPagesPanel'
-import EditHistory from './editHistoryPanel'
+// import EditPagesNav  from './editPagesPanel'
+// import EditHistory from './editHistoryPanel'
 
 //import { RegisteredComponents } from '../../selector'
 
-import { FormsContext } from '../../metaFormsconfig'
+import { FormsContext } from '../../'
 
 function EditControls({ item, dataItems, updateAttribute, setItem, apiUpdate, attributes, edit, status,  pageType = 'page' }) {
   const { baseUrl, user, falcor, falcorCache} = React.useContext(FormsContext) || {}
@@ -69,8 +69,8 @@ function EditControls({ item, dataItems, updateAttribute, setItem, apiUpdate, at
           deleteItem()
         }} 
       />
-      <EditPagesNav item={item} dataItems={dataItems}  edit={true} open={editState.showNav} setOpen={(v) => setEditState({...editState, showNav: v})}/>
-      <EditHistory item={item}  historyOpen={editState.showHistory} setHistoryOpen={(v) => setEditState({...editState, showHistory: v})} />
+      {/*<EditPagesNav item={item} dataItems={dataItems}  edit={true} open={editState.showNav} setOpen={(v) => setEditState({...editState, showNav: v})}/>
+      <EditHistory item={item}  historyOpen={editState.showHistory} setHistoryOpen={(v) => setEditState({...editState, showHistory: v})} />*/}
     </div>
   )
 }

@@ -1,7 +1,7 @@
 import React, { Fragment } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
 
-import { FormsContext } from '../../metaFormsconfig'
+import { FormsContext } from '../../'
 import {timeAgo} from '../_utils'
 
 

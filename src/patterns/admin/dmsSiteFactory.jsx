@@ -1,20 +1,20 @@
 import React from 'react'
-import {useFalcor} from '@availabs/avl-falcor'
+import {} from '@availabs/avl-falcor'
 import {dmsDataLoader, dmsPageFactory,} from '../../index'
-import pageConfigNew from '../page/siteConfig'
 import {Link} from 'react-router-dom'
-import formsConfig from '../forms/metaFormsconfig'
+import { falcorGraph, useFalcor } from "@availabs/avl-falcor"
+
+
+import formsConfig from '../forms'
+import pageConfig from '../page/siteConfig'
 import patternConfig from "../forms/ManageFormsConfig";
 import {template} from "./admin.format"
-import {
-    falcorGraph,
-    FalcorProvider
-} from "@availabs/avl-falcor"
-import PageEdit from "../page/pages/edit";
+
+
 import {updateAttributes, updateRegisteredFormats} from "./siteConfig";
 
 const configs = {
-    page: pageConfigNew,
+    page: pageConfig,
     form: formsConfig
 }
 export default async function dmsSiteFactory({
@@ -37,18 +37,14 @@ export default async function dmsSiteFactory({
     // call dmsPageFactory here assuming patterns are page type
     // export multiple routes based on patterns.
     return [
-        dmsPageFactory({...dmsConfigUpdated, baseUrl: adminPath, API_HOST}),
-
+        //pattern manager
         dmsPageFactory({
-            ...patternConfig({
-                app: dmsConfigUpdated.app,
-                type: 'pattern',
-                baseUrl: '/manage_pattern/',
-                API_HOST   
-            }),
-            // baseUrl: '/manage_pattern'
+            ...dmsConfigUpdated, 
+            baseUrl: adminPath, 
+            API_HOST, 
+            theme
         }),
-
+        // patterns
         ...patterns.reduce((acc, pattern) => {
             const c = configs[pattern.pattern_type];
 

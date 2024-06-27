@@ -7,10 +7,10 @@ import get from "lodash/get";
 import NavItem from "./Item";
 const NOOP = () => { return {} }
 
-import { FormsContext } from '../../'
+import { AdminContext } from '../../siteConfig'
 
 export const MobileMenu = ({ open, toggle, menuItems = [], rightMenu = null,themeOptions={}}) => {
-  const { theme: fullTheme  } = React.useContext(FormsContext) || {}
+  const { theme: fullTheme  } = React.useContext(AdminContext) || {}
   const theme = (fullTheme?.['topnav'] || NOOP )(themeOptions);
 
   return (
@@ -48,7 +48,7 @@ export const DesktopMenu = ({
   subMenuActivate,
   themeOptions={}
 }) => {
-  const { theme: fullTheme  } = React.useContext(FormsContext) || {}
+  const { theme: fullTheme  } = React.useContext(AdminContext) || {}
   const theme = (fullTheme?.['topnav'] || NOOP )(themeOptions);
   return (
     <div className={`${theme.topnavWrapper}`}>

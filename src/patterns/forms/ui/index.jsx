@@ -1,6 +1,6 @@
 import React, { useEffect, Fragment, useRef, useState } from 'react'
 import {PencilIcon} from './icons'
-import { FormsContext } from '../metaFormsconfig'
+import { FormsContext } from '../'
 import { Dialog, Transition, Switch, Popover } from '@headlessui/react'
 import { usePopper } from 'react-popper'
 import defaultTheme from '../theme/theme'

@@ -7,7 +7,7 @@ function PatternList (props) {
 	const siteId = data?.id;
 
 	return (
-		<div className={'p-10 w-full h-dvh'}>
+		<div className={'p-10 max-w-5xl h-dvh'}>
 			<div className={'w-full flex justify-between border-b-2 border-blue-400'}>
 				<div className={'text-2xl font-semibold text-gray-700'}>Patterns Hola</div>
 				<Link to={`edit/${siteId}`}>Edit Site</Link>

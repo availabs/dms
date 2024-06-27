@@ -12,10 +12,12 @@ const ManageForm = ({
     user,
     params,
     submit,
+    parent,
     manageTemplates = false,
     ...rest
 }) => {
     // const {id} = params;
+    console.log('ManageForm', item, parent, dataItems)
     const [newItem, setNewItem] = useState(item);
     useEffect(() => setNewItem(item), [item])
     const updateData = (data, attrKey) => {
