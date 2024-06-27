@@ -9,20 +9,21 @@ import {Combobox} from "@headlessui/react";
 const searchItemWrapperClass = `p-2 bg-blue-50 hover:bg-blue-100`
 
 const getSearchURL = ({value, baseUrl, type='tag'}) => !baseUrl || baseUrl === '' ? `/search/?q=${value}&type=${type}` : `/${baseUrl}/search/?q=${value}&type=${type}`;
-const RenderTagSuggestions = ({tags, tmpQuery, setQuery, navigate, baseUrl}) => tags
+
+const RenderTagSuggestions = ({tags, individualTags, tmpQuery, setQuery, navigate, baseUrl}) => individualTags
     .filter(tag => (!tmpQuery?.length || tag.toLowerCase().includes(tmpQuery.toLowerCase())))
     .length > 0 && (
     <div className="max-h-96 transform-gpu scroll-py-3 overflow-y-auto p-3 flex items-center">
         <span className={'text-xs italic'}>suggestions: </span>
         <div className={'flex'}>
-            {tags
+            {individualTags
                 .filter(tag => (!tmpQuery?.length || tag.toLowerCase().includes(tmpQuery.toLowerCase())))
                 .filter((tag, i) => i <= 5)
                 .map((tag) => (
                     <div
                         key={tag}
                         onClick={() => {
-                            setQuery(tag)
+                            setQuery(tags.filter(t => t.split(',').includes(tag)))
                             navigate(getSearchURL({value: tag, baseUrl}))
                         }}
                         className={`mx-0.5 cursor-pointer rounded-xl py-0.5 px-1.5 bg-gray-500 text-white text-xs`}
@@ -61,8 +62,10 @@ const RenderItems = ({items, navigate}) => items.length > 0 && (
                     <p className={`text-sm text-gray-500 hover:text-gray-700`}>
                         {item.description}
                     </p>
-                    <span
-                        className={'tracking-wide p-1 bg-red-400 text-xs text-white font-semibold rounded-md border'}>{item.tags}</span>
+                    {
+                        item.tags.split(',').map(tag => <span
+                            className={'tracking-wide p-1 bg-red-400 text-xs text-white font-semibold rounded-md border'}>{tag}</span>)
+                    }
                 </div>
             </div>
         ))}
@@ -92,15 +95,19 @@ export const SearchPage = ({item, dataItems, format, attributes, logo, rightMenu
     const params = useParams();
     const [searchParams] = useSearchParams();
     const {baseUrl, falcor, falcorCache, ...rest} = useContext(CMSContext) || {}
-    const [query, setQuery] = useState(searchParams.get('q'));
-    const [tmpQuery, setTmpQuery] = useState('');
+    const [query, setQuery] = useState();
+    const [tmpQuery, setTmpQuery] = useState(searchParams.get('q'));
     const [loading, setLoading] = useState(false);
     const [tags, setTags] = useState([]);
+    const [individualTags, setIndividualTags] = useState([]);
     const [items, setItems] = useState([]);
 
     const app = format?.app;
     const type = format?.type;
-    console.log('app',)
+
+    useEffect(() => {
+        setTimeout(() => setQuery(tags.filter(t => t.split(',').includes(tmpQuery))), 0)
+    }, [tags, tmpQuery]);
 
     useEffect(() => {
         async function getTags() {
@@ -113,7 +120,10 @@ export const SearchPage = ({item, dataItems, format, attributes, logo, rightMenu
             return dmsDataLoader(falcor, config, '/');
         }
 
-        getTags().then(tags => setTags(tags.value.map(t => t.tags).sort()));
+        getTags().then(tags => {
+            setTags(tags.value.map(t => t.tags).sort());
+            setIndividualTags([...new Set(tags.value.reduce((acc, t) => [...acc, ...t.tags.split(',')], []))].sort());
+        });
     }, []);
 
     useEffect(() => {
@@ -124,30 +134,31 @@ export const SearchPage = ({item, dataItems, format, attributes, logo, rightMenu
             app,
             type,
             action: 'search',
-            tags: [query]
+            tags: Array.isArray(query) ? query : [query]
         })
 
         async function getData() {
             setLoading(true)
             const data = await dmsDataLoader(falcor, config, '/');
-            // console.log('cs', Object.keys(data).find(searchTerm => searchTerm === query),
-            //     query, data
-            // )
-            const tmpItems = data[query]?.value?.map(value => {
-                return ({
-                    id: value.section_id,
-                    name: value.section_title,
-                    tags: value.tags,
-                    description: value.page_title,
-                    url: `${baseUrl}/${value.url_slug}`,
-                    type: value.type,
-                    color: 'bg-indigo-500',
-                    titleMatch: value.section_title?.includes(query) && !value.tags?.includes(query),
-                    icon: () => <i className={'fa-light fa-memo text-white'}/>,
-                })
-            })
 
-            // console.log('setting items', query, tmpItems)
+            const tmpItems = (Array.isArray(query) ? query : [query]).reduce((acc, q) => {
+                const pagesForQuery = data[q]?.value?.map(value => {
+                    return ({
+                        id: value.section_id,
+                        name: value.section_title,
+                        tags: value.tags,
+                        description: value.page_title,
+                        url: `${baseUrl}/${value.url_slug}`,
+                        type: value.type,
+                        color: 'bg-indigo-500',
+                        titleMatch: value.section_title?.includes(query) && !value.tags?.includes(query),
+                        icon: () => <i className={'fa-light fa-memo text-white'}/>,
+                    })
+                });
+
+                return [...acc, ...pagesForQuery]
+            }, []);
+
             setItems(tmpItems || [])
             setLoading(false)
         }
@@ -162,17 +173,19 @@ export const SearchPage = ({item, dataItems, format, attributes, logo, rightMenu
                 <input
                     className={'w-full'}
                     placeholder={'Search...'}
-                    value={query}
+                    value={tmpQuery}
                     onChange={e => {
-                        setQuery(e.target.value)
+                        setQuery(tags.filter(t => t.split(',').map(t => t.toLowerCase()).includes(e.target.value?.toLowerCase())))
+                        setTmpQuery(e.target.value)
                         navigate(getSearchURL({value: e.target.value, baseUrl}))
                     }}/>
             </div>
 
-            <RenderTagSuggestions tags={tags} tmpQuery={query} setQuery={setQuery} navigate={navigate} baseUrl={baseUrl}/>
+            <RenderTagSuggestions tags={tags} individualTags={individualTags} tmpQuery={tmpQuery} setQuery={setQuery} navigate={navigate} baseUrl={baseUrl}/>
 
-            <RenderItems items={items} navigate={navigate}/>
-
-            <RenderStatus query={query} loading={loading} itemsLen={items.length} />
+            {
+                items.length ? <RenderItems items={items} navigate={navigate}/> :
+                    <RenderStatus query={query} loading={loading} itemsLen={items.length} />
+            }
         </Layout>)
 }
