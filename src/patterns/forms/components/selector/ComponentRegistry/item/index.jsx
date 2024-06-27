@@ -18,7 +18,7 @@ const getData = async ({format, apiLoad, itemId}) =>{
         },
         action: 'view',
         // path: `/`,
-        path: `/form1/view/${itemId}`, // trying to pass params. children need to match with path. this doesn't work.
+        path: `view/:id`, // trying to pass params. children need to match with path. this doesn't work.
         params: {id: itemId}
     }]
     const data = await apiLoad({
@@ -27,16 +27,17 @@ const getData = async ({format, apiLoad, itemId}) =>{
         params: {id: itemId},
         format,
         attributes,
-        children
-    });
+        children,
+        path: `view/:id`,
+    }, `/view/${itemId}`);
 
-  return {data: data.find(d => d.id === itemId), attributes}
+  return {data: data[0], attributes}
+  // return {data: data.find(d => d.id === itemId), attributes}
 }
 
 const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     const params = useParams();
     const cachedData = isJson(value) ? JSON.parse(value) : {};
-    const [loading, setLoading] = useState(false);
     const [attributes, setAttributes] = useState([]);
     const [newItem, setNewItem] = useState();
     const [visibleAttributes, setVisibleAttributes] = useState(cachedData?.visibleAttributes || []);
@@ -51,12 +52,9 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
 
     useEffect(() => {
         async function load(){
-            console.log('fetching data.......................')
-            setLoading(true)
             const {data, attributes} = await getData({format, apiLoad, itemId});
             setNewItem(data)
             setAttributes(attributes)
-            setLoading(false)
         }
 
         load()
@@ -72,9 +70,6 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     return (
         <div>
             <div className={'text-xl text-gray-300 font-semibold'}>Item Edit</div>
-            {
-                loading && <div className={'w-full h-full absolute'}>Loading...</div>
-            }
             <div className={`grid grid-cols-3 divide-x divide-y`}>
                 {
                     attributes.map((attribute,i) => {
@@ -132,7 +127,7 @@ const View = ({value, format, apiLoad, ...rest}) => {
 
         load()
     }, [])
-    console.log('data???????????????????', data)
+
     return (
         <div>
             <div className={'text-xl text-gray-300 font-semibold'}>Item View</div>

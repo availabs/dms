@@ -19,9 +19,9 @@ export default function ListWrapper({ Component, format, options, user, ...props
 			submit(null, {action: pathname})
 	}
 
-	const apiLoad = async (config) => {
-		//console.log('<apiLoad> list', config)
-		return await dmsDataLoader(falcor, config)
+	const apiLoad = async (config, path) => {
+		// console.log('<apiLoad> from list wrapper', config, path)
+		return await dmsDataLoader(falcor, config, path)
 	}
 
 	const ListComponent = React.useMemo(() => Component, [])

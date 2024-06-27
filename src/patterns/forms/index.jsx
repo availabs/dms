@@ -158,8 +158,8 @@ export default [
 
 
 const FormTemplateView = ({apiLoad, apiUpdate, attributes, parent, params, format, dataItems=[],baseUrl,theme,edit=false,...rest}) => {
-    const [items, setItems] = useState([]);
-    const [item, setItem] = useState({});
+    // const [items, setItems] = useState([]);
+    // const [item, setItem] = useState({});
     const Comp = edit ? TemplateEdit : TemplateView;
     let p = useParams()
     if(edit) {
@@ -174,31 +174,31 @@ const FormTemplateView = ({apiLoad, apiUpdate, attributes, parent, params, forma
     const parentConfigAttributes = JSON.parse(parent?.config || '{}')?.attributes || [];
     const type = parent.doc_type || parent?.base_url?.replace(/\//g, '')
 
-    const children = [{
-        type: () => {
-        },
-        action: 'list',
-        path: '/',
-    }]
+    // const children = [{
+    //     type: () => {
+    //     },
+    //     action: 'list',
+    //     path: '/',
+    // }]
 
-    useEffect(() => {
-        (async function (){
-            const d = await apiLoad({
-                app: parent.app,
-                type,
-                format: {...parent, type},
-                attributes: parentConfigAttributes,
-                children
-            });
-            setItems(d)
-        })()
-    }, [])
-
-    useEffect(() => {
-        const matchedItem = itemId ? items.find(item => item.id == itemId) : items
-        //console.log('FormTemplateView items', itemId, matchedItem, items)
-        setItem(matchedItem)
-    }, [itemId, items])
+    // useEffect(() => {
+    //     (async function (){
+    //         const d = await apiLoad({
+    //             app: parent.app,
+    //             type,
+    //             format: {...parent, type},
+    //             attributes: parentConfigAttributes,
+    //             children
+    //         });
+    //         setItems(d)
+    //     })()
+    // }, [])
+    //
+    // useEffect(() => {
+    //     const matchedItem = itemId ? items.find(item => item.id == itemId) : items
+    //     console.log('FormTemplateView items', itemId, matchedItem, items)
+    //     setItem(matchedItem)
+    // }, [itemId, items])
     
 
     if(!match.route) return <>No template found.</>

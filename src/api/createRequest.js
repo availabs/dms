@@ -83,7 +83,7 @@ export function getIdPath (wrapperConfig,format) {
 	},'') || ''
 
 	let id = wrapperConfig.params?.id;
-	// console.log('do i get id', id, wrapperConfig)
+	// console.log('item data do i get id', id, wrapperConfig)
 	//console.log('hola', id , wildKey, defaultSearch, wrapperConfig, format)
 	// if you have an id prefer that to a wildkey
 
