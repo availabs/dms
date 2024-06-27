@@ -18,7 +18,7 @@ const getData = async ({format, apiLoad, itemId}) =>{
         },
         action: 'view',
         // path: `/`,
-        path: `view/:id`, // trying to pass params. children need to match with path. this doesn't work.
+        // path: `view/:id`, // trying to pass params. children need to match with path. this doesn't work.
         params: {id: itemId}
     }]
     const data = await apiLoad({
@@ -28,11 +28,11 @@ const getData = async ({format, apiLoad, itemId}) =>{
         format,
         attributes,
         children,
-        path: `view/:id`,
+        // path: `view/:id`,
     }, `/view/${itemId}`);
 
-  return {data: data[0], attributes}
-  // return {data: data.find(d => d.id === itemId), attributes}
+  // return {data: data[0], attributes}
+  return {data: data.find(d => d.id === itemId), attributes}
 }
 
 const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
@@ -58,7 +58,7 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
         }
 
         load()
-    }, [])
+    }, [itemId])
     //console.log('new item', newItem)
 
     const updateItem = (value, attribute, d) => {
