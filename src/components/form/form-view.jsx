@@ -10,7 +10,8 @@ export default function FormEdit({item, updateAttribute, attributes, status, sub
     return (
         <div className={theme?.form?.sectionsWrapper}>
             {
-                (format?.sections || [])
+                format?.sections ?
+                    (format?.sections || [])
                     .map(section => (
                         <div key={section?.id} className={theme?.form?.sections}>
                             <div className={theme?.form?.tab}>
@@ -26,7 +27,13 @@ export default function FormEdit({item, updateAttribute, attributes, status, sub
                                 sectionId={section?.id}
                             />
                         </div>
-                    ))
+                    )) :
+                    <ViewCard
+                        preferredTheme={theme?.form}
+                        item={item}
+                        status={status}
+                        attributes={attributes}
+                    />
             }
 
         </div>

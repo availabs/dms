@@ -17,7 +17,6 @@
   position: relative;
 }
 
-
 .PlaygroundEditorTheme__quote {
   margin: 0;
   margin-left: 20px;
@@ -79,10 +78,7 @@
   font-family: Menlo, Consolas, Monaco, monospace;
   font-size: 94%;
 }
-.PlaygroundEditorTheme__hashtag {
-  background-color: rgba(88, 144, 255, 0.15);
-  border-bottom: 1px solid rgba(88, 144, 255, 0.3);
-}
+
 .PlaygroundEditorTheme__link {
   color: rgb(33, 111, 219);
   text-decoration: none;
@@ -120,6 +116,7 @@
   text-align: right;
   min-width: 25px;
 }
+
 .PlaygroundEditorTheme__table {
   border-collapse: collapse;
   border-spacing: 0;
@@ -280,6 +277,7 @@
   display: inline;
   background-color: #ffbbbb !important;
 }
+
 .PlaygroundEditorTheme__ol1 {
   padding: 0;
   margin: 0;
@@ -425,10 +423,4 @@
 .PlaygroundEditorTheme__markOverlap.selected {
   background: rgba(255, 212, 0, 0.7);
   border-bottom: 2px solid rgba(255, 212, 0, 0.7);
-}
-.PlaygroundEditorTheme__embedBlock {
-  user-select: none;
-}
-.PlaygroundEditorTheme__embedBlockFocus {
-  outline: 2px solid rgb(60, 132, 244);
 }

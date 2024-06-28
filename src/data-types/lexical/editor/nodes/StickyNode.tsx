@@ -22,7 +22,7 @@ import {Suspense} from 'react';
 import {createPortal} from 'react-dom';
 
 const StickyComponent = React.lazy(
-  // @ts-ignore
+  // @ts-expect-error dumb
   () => import('./StickyComponent'),
 );
 

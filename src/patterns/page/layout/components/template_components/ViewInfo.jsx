@@ -2,17 +2,17 @@ import React, {useMemo, useState} from "react";
 import {getConfig} from "../../template/pages.jsx";
 import {dmsDataLoader} from "../../../../../index.js";
 import get from "lodash/get.js";
-
+//import {falcor} from "~/modules/avl-falcor"
 import { CMSContext } from '../../../siteConfig'
 import Selector from "./Selector.jsx";
 import {updatePages} from "./updatePages.js";
 import {generatePages} from "./generatePages.js";
-import {pgEnv} from "../utils/constants.js";
+//import {pgEnv} from "../utils/constants.js";
 
 export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatus=() => {}}) => {
 
     // console.log('ViewInfo', id_column, active_id)
-    const { falcor, falcorCache} = React.useContext(CMSContext)
+    const { falcor, falcorCache, pgEnv } = React.useContext(CMSContext)
     const [generatedPages, setGeneratedPages] = useState([]);
     const [showAdditionalOptions, setShowAdditionalOptions] = useState(false);
     const [urlSuffixCol, setUrlSuffixCol] = useState('geoid');
@@ -99,7 +99,7 @@ export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatu
                     { key: `data->>'num_errors' as num_errors`, label: 'num_errors'}
                 ];
 
-                let currentPages = await dmsDataLoader(getConfig({
+                let currentPages = await dmsDataLoader(falcor, getConfig({
                     app: 'dms-site',
                     type,
                     filter: {[`data->>'template_id'`]: [item.id]},

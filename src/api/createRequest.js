@@ -26,20 +26,17 @@ const createRequest = (wrapperConfig,format, path, length) => {
 	if(wrapperConfig?.filter?.type === 'new') return [];
 
 	switch (wrapperConfig.action) {
-		case 'list':
-			const listReq =  [
+		case 'list': {
+			return [
 				'dms', 'data', `${ app }+${ type }`, 
 				 options !== '{}' ? 'opts' : false,
 				 options !== '{}' ? options : false,
 				'byIndex', {from: fromIndex, to: toIndex },
 				[ "id", "app", "type",...dataAttrs]
 			].filter(d => d)
-			// console.log('listreq', listReq)
-			return listReq
-
-		break;
+		}
 		case 'view':
-		case 'edit':
+		case 'edit': {
 			// if
 			const idPath = getIdPath(wrapperConfig,format)
 			// console.log('idPath', idPath)
@@ -49,8 +46,8 @@ const createRequest = (wrapperConfig,format, path, length) => {
 				{from: fromIndex, to: toIndex },
 				[ "id", "updated_at", "created_at","app", "type",...dataAttrs]
 			]
-		break;
-		case 'load': // use a new route that can accept filter and calculate length
+		}
+		case 'load': { // use a new route that can accept filter and calculate length
 			return [
 				'dms', 'data', `${ app }+${ type }`,
 				'options', options,
@@ -60,8 +57,11 @@ const createRequest = (wrapperConfig,format, path, length) => {
 					...(filterAttrs.length > 0 ? filterAttrs : ['data'])
 				]
 			]
+		}
 		case 'search':
 			return ['dms', 'search', `${ app }+${ type }`,'byTag', tags];
+		case 'searchTags':
+			return ['dms', 'search', `${ app }+${ type }`,'tags'];
 		default:
 			return []
 	}
@@ -83,7 +83,7 @@ export function getIdPath (wrapperConfig,format) {
 	},'') || ''
 
 	let id = wrapperConfig.params?.id;
-
+	// console.log('item data do i get id', id, wrapperConfig)
 	//console.log('hola', id , wildKey, defaultSearch, wrapperConfig, format)
 	// if you have an id prefer that to a wildkey
 

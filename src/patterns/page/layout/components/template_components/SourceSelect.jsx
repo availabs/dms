@@ -2,14 +2,13 @@ import React, {useEffect, useMemo} from "react";
 import get from "lodash/get.js";
 
 import Selector from "./Selector.jsx";
-import {pgEnv} from "../utils/constants.js";
 import {getAttributes} from './ViewsSelect'
 
 import { CMSContext } from '../../../siteConfig'
 
 export const SourcesSelect = ({value, onChange}) => {
 
-    const { falcor, falcorCache} = React.useContext(CMSContext)
+    const { falcor, falcorCache, pgEnv } = React.useContext(CMSContext)
 
     useEffect(() => {
         async function fetchData() {

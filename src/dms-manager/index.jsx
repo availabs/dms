@@ -2,6 +2,8 @@ import React from 'react'
 import { useNavigate} from 'react-router-dom'
 import comps from '../components'
 import { getActiveView, getActiveConfig, validFormat } from './_utils'
+import { defaultCheck, defaultCheckAuth } from './_auth'
+
 
 import ThemeContext from '../theme'
 import defaultTheme from '../theme/default-theme'
@@ -15,14 +17,25 @@ const DmsManager = (props) => {
 		theme = defaultTheme,
 		user
 	} = props
+
+	//console.log('dms manager', props)
+	
+	const {
+		check = defaultCheck,
+		checkAuth = defaultCheckAuth,
+	} = config
 	
 	const navigate = useNavigate()
 
 	React.useEffect(()=>{
-		if(config.check) {
+		//console.log(' dmsManager:31 - user', user)
+		if(check && user) {
 			let activeConfig = getActiveConfig(config.children, path, config.format)
-			config.check( props, activeConfig, navigate )
+			// console.log('activeConfig', activeConfig, check)
+			check( checkAuth, props, activeConfig, navigate, path )
 		}
+		
+
 	},[path])
 
 	// React.useEffect(() => console.log('dms manager unmount') , [])
@@ -47,10 +60,9 @@ const DmsManager = (props) => {
 		return <NoRouteMatch path={path} />
 	}
 
+	// console.log('DMS Manager: render')
 	return React.useMemo(() => (
-		<ThemeContext.Provider value={theme}>
-			{RenderView}
-		</ThemeContext.Provider>
+		<>{RenderView}</>
 	),[RenderView])	
 }
 
