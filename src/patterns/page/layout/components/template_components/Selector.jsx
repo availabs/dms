@@ -1,6 +1,5 @@
 import { Fragment, useState } from 'react'
 import { Combobox, Transition } from '@headlessui/react'
-import { CheckIcon, ChevronUpDownIcon } from '@heroicons/react/20/solid'
 
 
 
@@ -28,10 +27,12 @@ export default function Selector({options=[], onChange, value, nameAccessor=d =>
               onChange={(event) => setQuery(event.target.value)}
             />
             <Combobox.Button className="absolute inset-y-0 right-0 flex items-center pr-2">
-              <ChevronUpDownIcon
-                className="h-5 w-5 text-gray-400"
+              <div
+                className="h-5 w-5 text-gray-400 flex items-center justify-center"
                 aria-hidden="true"
-              />
+              >
+                <div class='fa fa-chevron-down' />
+              </div>
             </Combobox.Button>
           </div>
           <Transition
@@ -74,7 +75,9 @@ export default function Selector({options=[], onChange, value, nameAccessor=d =>
                               active ? 'text-white' : 'text-blue-600'
                             }`}
                           >
-                            <CheckIcon className="h-5 w-5" aria-hidden="true" />
+                            <div className="h-5 w-5 flex items-center justify-center" aria-hidden="true">
+                              <div className='fa fa-check'/>
+                            </div>
                           </span>
                         ) : null}
                       </>

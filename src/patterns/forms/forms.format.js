@@ -1,10 +1,15 @@
 export const formsConfigFormat = {
-    app: "dms-site",
+    app: "default-app",
     type: "forms-config",
     attributes: [
         {
             key: 'name',
             label: 'Name',
+            type: 'text'
+        },
+        {
+            key: 'url',
+            label: 'url',
             type: 'text'
         },
         {

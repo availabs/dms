@@ -1,12 +1,12 @@
 import {useRef, useState, Fragment, useEffect} from "react";
 import { Dialog, Transition } from '@headlessui/react'
-// import Multiselect from "~/modules/dms/src/data-types/multiselect.jsx";
-import MultiSelect from "~/component_registry/shared/MultiSelect.jsx";
+import Multiselect from "../../../data-types/multiselect.jsx";
+// import MultiSelect from "~/component_registry/shared/MultiSelect.jsx";
 import {getColAccessor} from "../utils/getColAccesor";
 import { CSVLink } from "react-csv";
 import {getData} from "../utils/getData.js";
-import {ButtonSelector} from "~/component_registry/shared/buttonSelector.jsx";
-import {falcor} from "~/modules/avl-falcor"
+// import {ButtonSelector} from "~/component_registry/shared/buttonSelector.jsx";
+// import {falcor} from "~/modules/avl-falcor"
 
 export const DownloadModal = ({
                                   columns, visibleCols, form, data, filteredData, displayDownload, setDisplayDownload,
@@ -19,7 +19,7 @@ export const DownloadModal = ({
                                   pageSize, sortBy, groupBy, fn, notNull, colSizes,
                                   filters, filterValue, manualFilters, hiddenCols,
                                   metaLookupByViewId, setMetaLookupByViewId,
-                                  getNestedValue
+                                  getNestedValue, falcor
 }) => {
     const [loading, setLoading] = useState(false)
     const [finalCols, setFinalCols] = useState(columns.filter(c => visibleCols.includes(c.name)).map(c => ({key: c.name, label: c.display_name})));
@@ -125,12 +125,12 @@ export const DownloadModal = ({
                                         />
                                     </div>
                                 </div>
-                                <ButtonSelector
-                                    label={'Data:'}
-                                    types={['Filtered', 'Full']}
-                                    type={filterData}
-                                    setType={setFilterData}
-                                />
+                                {/*<ButtonSelector*/}
+                                {/*    label={'Data:'}*/}
+                                {/*    types={['Filtered', 'Full']}*/}
+                                {/*    type={filterData}*/}
+                                {/*    setType={setFilterData}*/}
+                                {/*/>*/}
                                 <div className="mt-5 sm:mt-6 sm:grid sm:grid-flow-row-dense sm:grid-cols-2 sm:gap-3">
                                     <button
                                         type="button"

@@ -25,15 +25,15 @@ import {AutocompleteNode} from './AutocompleteNode';
 import {EmojiNode} from './EmojiNode';
 // import {EquationNode} from './EquationNode';
 // import {ExcalidrawNode} from './ExcalidrawNode';
-import {FigmaNode} from './FigmaNode';
+// import {FigmaNode} from './FigmaNode';
 // import {ImageNode} from './ImageNode';
 import {InlineImageNode} from './InlineImageNode';
 import {KeywordNode} from './KeywordNode';
-import {MentionNode} from './MentionNode';
-import {PollNode} from './PollNode';
-import {StickyNode} from './StickyNode';
+// import {MentionNode} from './MentionNode';
+// import {PollNode} from './PollNode';
+// import {StickyNode} from './StickyNode';
 import {TableNode as NewTableNode} from './TableNode';
-import {TweetNode} from './TweetNode';
+// import {TweetNode} from './TweetNode';
 import {YouTubeNode} from './YouTubeNode';
 
 const PlaygroundNodes: Array<Klass<LexicalNode>> = [
@@ -46,25 +46,25 @@ const PlaygroundNodes: Array<Klass<LexicalNode>> = [
   TableNode,
   TableCellNode,
   TableRowNode,
-  HashtagNode,
+  // HashtagNode,
   CodeHighlightNode,
   AutoLinkNode,
   LinkNode,
   OverflowNode,
-  PollNode,
-  StickyNode,
+  //PollNode,
+  //StickyNode,
   // ImageNode,
   InlineImageNode,
-  MentionNode,
-  EmojiNode,
+  // MentionNode,
+  // EmojiNode,
   // ExcalidrawNode,
   // EquationNode,
   AutocompleteNode,
   KeywordNode,
   HorizontalRuleNode,
-  TweetNode,
+  // TweetNode,
   YouTubeNode,
-  FigmaNode,
+  // FigmaNode,
   MarkNode,
   CollapsibleContainerNode,
   CollapsibleContentNode,

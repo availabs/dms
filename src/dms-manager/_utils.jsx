@@ -13,8 +13,7 @@ function configMatcher (config, path ) {
 	
 	// matchRoutes picks best from all available routes in config
 
-	const matches = matchRoutes(config.map(d => ({path:d.path})), {pathname:path}) || []
-	// console.log('configMatcher', config, matches, path)
+	const matches = matchRoutes(config.map(d => ({path:d.path, ...d})), {pathname:path}) || []
 
 	// hash matches by route path
 	let matchHash = matches.reduce((out,c) => {
@@ -78,9 +77,10 @@ export function getActiveView(config, path, format, user, depth=0) {
 export function getActiveConfig (config=[], path='/', depth = 0) {
 	
 	let configs = cloneDeep(configMatcher(config,path, depth))
+
 	let childConfigs = configs
 		.reduce((out,conf) => {
-			let childConf = getActiveConfig(conf.children, path, depth+1)
+			let childConf = conf.children?.length ? getActiveConfig(conf.children, path, depth+1) : [];
 			if(childConf.length) {
 				return [...out, ...childConf]
 			}
@@ -99,6 +99,7 @@ export function validFormat(format) {
 		format.attributes && 
 		format.attributes.length > 0
 }
+
 
 
 /*
@@ -126,7 +127,7 @@ export function filterParams (data, params,format) {
 		return out
 	},'') || ''
 
-	// console.log('filterParams', data, params, wildKey)
+	//console.log('filterParams', data, params, wildKey)
 	
 	let filter = false
 	Object.keys(params).forEach(k => {
@@ -136,5 +137,17 @@ export function filterParams (data, params,format) {
 			filter = false
 		}
 	})
+
+	if(params['id'] == data['id']) {
+		return true
+	}
+	
 	return filter
+}
+
+export const json2DmsForm = (data,requestType='update') => {
+  let out = new FormData()
+  out.append('data', JSON.stringify(data))
+  out.append('requestType', requestType)
+  return out
 }

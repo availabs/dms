@@ -41,20 +41,20 @@ export default function Table({dataItems=[], attributes={}, options={}}) {
 	}
 	return (
 		<div className={''}> 
-			<table className={`${theme.table.table}`}>
-				<thead className={`${theme.table.thead}`}>
+			<table className={`${theme?.table?.table}`}>
+				<thead className={`${theme?.table?.thead}`}>
 					<tr>
-					{ columns.map((col,i) => <th key={i} className={`${theme.table.th}`}>{col.name}</th>) }
+					{ columns.map((col,i) => <th key={i} className={`${theme?.table?.th}`}>{col.name}</th>) }
 					</tr>
 				</thead>
-				<tbody className={`${theme.table.tbody}`}>
+				<tbody className={`${theme?.table?.tbody}`}>
 				{
 					dataItems.map(d =>
 						<tr key={d.id}>
 						{
 							columns.map((col,i) => 
 								<TableColumn
-									className={`${theme.table.td}`}
+									className={`${theme?.table?.td}`}
 									key={`${col.name}-${i}`}
 									data={d}
 									column={col}

@@ -6,7 +6,7 @@ const DefaultComp = ({title, subtitle}) => (
 		<div>{subtitle}</div>
 	</div>
 )
-export const TabPanel = ({theme, tabs = [], activeIndex= 0, setActiveIndex = null}) => {
+export const TabPanel = ({theme = {}, tabs = [], activeIndex= 0, setActiveIndex = null}) => {
 	if(!tabs) return null;
 	const [activeTabIndex, setActiveTabIndex] = React.useState(activeIndex)
 

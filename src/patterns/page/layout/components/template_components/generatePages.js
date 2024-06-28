@@ -1,6 +1,6 @@
 //import { Promise } from "bluebird";
 import { parseJSON } from '../utils/parseJSON'
-import { RegisteredComponents } from '../../../selector'
+import { RegisteredComponents } from '../../../components/selector'
 import {dmsDataEditor, dmsDataLoader} from '../../../../../index'
 import cloneDeep from 'lodash/cloneDeep'
 import {getConfig} from "../../template/pages";
@@ -27,7 +27,7 @@ export const generatePages = async ({
 
         const existingPage = await locationNameMap.reduce(async (acc, type) => {
             const prevPages = await acc;
-            const currentPages = await dmsDataLoader(getConfig({
+            const currentPages = await dmsDataLoader(falcor, getConfig({
                 app: 'dms-site',
                 type,
                 filter: {[`data->>'template_id'`]: [item.id], [`data->>'id_column_value'`]: [idColAttrVal]},
@@ -50,6 +50,7 @@ export const generatePages = async ({
         const generatedSections = await sectionIds.reduce(async (acc, sectionId) => { //dont load data here?
             const prevSections = await acc;
             const currentSections = await dmsDataLoader(
+                falcor,
                 getConfig({
                     app: 'dms-site',
                     type: 'cms-section',

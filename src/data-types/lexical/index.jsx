@@ -18,10 +18,10 @@ function parseValue (value) {
 
 const Edit = ({value, onChange, ...rest}) => {
     return (
-        <div className="editor-shell">
+        <div className="editor-shell tracking-wide leading-7">
           <Editor 
             value={parseValue(value)}
-            onChange={(d) => { onChange(d) }}
+            onChange={(d) => onChange(d)}
             editable={true}
             {...rest}
           />
@@ -30,6 +30,7 @@ const Edit = ({value, onChange, ...rest}) => {
 }
 
 const View = ({value, ...rest}) => {
+    //console.log('lexical type view', parseValue(value))
     return (
     <div className="editor-shell tracking-wide leading-7">
           <Editor 

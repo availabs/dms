@@ -2,7 +2,8 @@ import React from 'react'
 import text from './text'
 import textarea from './textarea'
 import boolean from './boolean'
-
+import config from './form-config'
+import template from './template'
 import dmsFormat from './dms-format'
 import Array from './array'
 import Lexical from './lexical'
@@ -17,6 +18,8 @@ export const dmsDataTypes = {
 	'text': text,
 	'datetime': text,
 	'textarea': textarea,
+	'config': config,
+	'form-template': template,
 	'boolean': boolean,
 	'dms-format': dmsFormat,
 	'lexical': Lexical,
