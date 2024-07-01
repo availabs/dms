@@ -7,7 +7,7 @@ export const Layout = ({children, title, baseUrl, format, ...rest}) => {
     const url = `${baseUrl}/${format?.id}` //.replace('93165', params.formid)
     return (
         <div className='py-6 h-full'>
-            <div className='bg-white h-full shadow max-w-6xl mx-auto px-6'>
+            <div className='bg-white h-fit shadow max-w-6xl mx-auto px-6'>
                 <div className='flex items-center'>
                     <div className='text-2xl p-3 font-thin flex-1'>{title}</div>
                     <div className='px-1'>
