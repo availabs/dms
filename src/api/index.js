@@ -19,8 +19,10 @@ export async function dmsDataLoader (falcor, config, path='/') {
 	//---- Testing stuff to delete ----------
 	// runCount += 1
 	// const runId = runCount
-	//-------------------------------------
+	//-------------------------------------------
 	// console.log('dmsDataLoader', config, path)
+	//-------------------------------------------
+
 
 	if(config.formatFn){
 		config.format = await config.formatFn();
@@ -35,7 +37,6 @@ export async function dmsDataLoader (falcor, config, path='/') {
 	const { app , type, /*defaultSearch,*/ attributes = {} } = format
 
 	const activeConfigs = getActiveConfig(config.children, path)
-	
 	// console.log('------------dmsDataLoader-------------')
 	const dmsAttrsConfigs = (Object.values(attributes))
 		//.filter(d => !Array.isArray(filter?.attributes) || filter.attributes.includes(d.key))
@@ -55,8 +56,8 @@ export async function dmsDataLoader (falcor, config, path='/') {
 		const options = activeConfigs.find(ac => ['list','load'].includes(ac.action))?.filter?.options;
 		if(options) lengthReq = ['dms', 'data', `${ app }+${ type }`, 'options', options, 'length' ];
 	}
-	// console.log('lengthReq', lengthReq)
 
+	// console.log('lengthReq', lengthReq)
 	const length = get(await falcor.get(lengthReq), ['json',...lengthReq], 0)
 	// console.log('length',length)
 	const itemReqByIndex = ['dms', 'data', `${ app }+${ type }`, 'byIndex']
@@ -68,15 +69,12 @@ export async function dmsDataLoader (falcor, config, path='/') {
 		.map(config => createRequest(config, format, path, length))
 		.filter(routes => routes?.length)
 
-	// console.log('newRequests', newRequests, activeConfigs)
-
     //--------- Route Data Loading ------------------------
 	if (newRequests.length > 0 ) {
 		await falcor.get(...newRequests)
 	}
 	// get api response
 	let newReqFalcor = falcor.getCache()
-	// console.log('newReqFalcor', newReqFalcor)
 
 	if(activeConfigs.find(ac => ac.action === 'search')){
 		const path =  newRequests[0].filter((r, i) => i <= newRequests[0].indexOf('byTag'));
@@ -148,12 +146,11 @@ export async function dmsDataLoader (falcor, config, path='/') {
 		// loadFullData(fullDataLoad, app, type, itemReqByIndex, runId, length, dmsAttrsConfigs, format, falcor)
 	}
 
-	// console.log('data out', out)
 	return out
 }
 
 export async function dmsDataEditor (falcor, config, data={}, requestType, /*path='/'*/ ) {
-	console.log('API - dmsDataEditor', config,data)
+	// console.log('API - dmsDataEditor', config,data)
 	const { app , type } = config.format
 	//const activeConfig = getActiveConfig(config.children, path)
 	
@@ -217,11 +214,11 @@ export async function dmsDataEditor (falcor, config, data={}, requestType, /*pat
 		*/
 		// console.log('falcor update data', requestType, data, JSON.stringify(data).length)
 		// todo - data verification
-		console.time(`falcor update data ${id}`)
-		console.log('update', id, data)
+		// console.time(`falcor update data ${id}`)
+		// console.log('update', id, data)
 		await falcor.call(["dms", "data", "edit"], [id, data]);
 		await falcor.invalidate(['dms', 'data', 'byId', id])
-		console.timeEnd(`falcor update data ${id}`)
+		// console.timeEnd(`falcor update data ${id}`)
 		return {message: "Update successful.",  }
 	} else if ( attributeKeys.length > 0 ) {
 		/*  if there is only data 

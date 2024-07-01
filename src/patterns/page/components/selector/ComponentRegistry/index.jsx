@@ -2,6 +2,8 @@ import React, {useEffect, useState} from "react"
 import {isJson} from "../index";
 import { dmsDataTypes } from "../../../../../index.js"
 import Header from './header'
+import Spreadsheet from "../../../../forms/components/selector/ComponentRegistry/spreadsheet";
+import Item from "../../../../forms/components/selector/ComponentRegistry/item";
 
 export const RenderCalloutBox = ({text = {}, backgroundColor, ...rest}) => {
     return (
@@ -44,7 +46,7 @@ const RenderColorPicker = ({title, className, color, setColor}) => (
                 ].map(c => <option key={c}>{c}</option>)
             }
         </datalist>
-        <div>X</div>
+        
     </div>
 )
 
@@ -92,6 +94,7 @@ const View = ({value}) => {
     ) return null;
 
     const LexicalComp = dmsDataTypes.lexical.ViewComp;
+    //console.log('lexical comp', dataOrValue)
     return (
         <div>
             <LexicalComp value={dataOrValue} bgColor={data?.bgColor} />
@@ -107,8 +110,10 @@ const lexical  = {
 }
  const ComponentRegistry = {
     lexical,
-    "Header: Default Header": Header
-}
+    "Header: Default Header": Header,
+     "Spreadsheet": Spreadsheet,
+     "Item": Item
+ }
 
 
 export default ComponentRegistry

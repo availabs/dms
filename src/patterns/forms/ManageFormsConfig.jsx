@@ -1,18 +1,27 @@
 import React from 'react'
+import {Link, useParams} from "react-router-dom"
 import {pattern} from "../admin/admin.format.js"
 import cloneDeep from 'lodash/cloneDeep'
 import defaultTheme from '../page/layout/components/theme'
 import ManageForms from "./components/ManageForms";
 import ManageTemplates from "./components/ManageTemplates";
+import {updateAttributes, updateRegisteredFormats} from "../admin/siteConfig";
 
 const Layout = ({children, title, baseUrl, format,...rest}) => {
-  // const params = useParams();
+  const params = useParams();
+  const isTemplatePage = params['*']?.includes('templates');
+  const link = isTemplatePage ? `${baseUrl}${params['*'].split('/templates')[0]}` :
+      `${baseUrl}${params['*']}/templates`;
+  const text = isTemplatePage ? 'Manage Form' : 'Manage Templates';
 
   return (
       <div className='h-screen w-screen py-6'>
         <div className='bg-white h-fit shadow max-w-6xl mx-auto px-6'>
           <div className='flex items-center'>
-            <div className='text-2xl p-3 font-thin flex-1'>Manage</div>
+            <div className='w-full text-2xl p-3 font-thin flex-1 flex justify-between items-center'>
+              <label>Manage</label>
+              <Link className={'text-sm'} to={link}>{text}</Link>
+            </div>
           </div>
           {children}
         </div>
@@ -29,29 +38,19 @@ const adminConfig = ({
   rightMenu = <div />,
   baseUrl = '/',
   checkAuth = () => {},
-  theme = defaultTheme
+  theme = defaultTheme,
+  API_HOST = 'https://graph.availabs.org'
 }) => {
   theme = theme || defaultTheme
   const format = cloneDeep(pattern)
   format.app = app
   format.type = type
-  console.log('pattern config. testing to edit patterns', format)
+  format.registerFormats = updateRegisteredFormats(format.registerFormats, app) // update app for all the children formats. this works, but dms stops providing attributes to patternList
+  format.attributes = updateAttributes(format.attributes, app) // update app for all the children formats. this works, but dms stops providing attributes to patternList
   return {
     format: format,
     baseUrl,
-    check: ({user}, activeConfig, navigate) =>  {
-      const getReqAuth = (configs) => {
-        return configs.reduce((out,config) => {
-          let authLevel = config.authLevel || -1
-          if(config.children) {
-            authLevel = Math.max(authLevel, getReqAuth(config.children))
-          }
-          return Math.max(out, authLevel)
-        },-1)
-      } 
-      let requiredAuth = getReqAuth(activeConfig)
-      checkAuth({user, authLevel:requiredAuth}, navigate)
-    },
+    API_HOST,
     children: [
       {
         type: (props) => {

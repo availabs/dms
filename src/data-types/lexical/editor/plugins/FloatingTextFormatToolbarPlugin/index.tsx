@@ -162,7 +162,7 @@ function TextFormatFloatingToolbar({
   }, [editor, updateTextFormatFloatingToolbar]);
 
   return (
-    <div ref={popupCharStylesEditorRef} className={editor.isEditable() && `floating-text-format-popup`}>
+    <div ref={popupCharStylesEditorRef} className={editor.isEditable() ? `floating-text-format-popup` : ''}>
       {editor.isEditable() && (
         <>
           <button

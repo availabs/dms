@@ -1,5 +1,7 @@
 import React from 'react'
 import { Input, ButtonPrimary} from '../ui'
+import Layout from '../ui/avail-layout'
+import {AdminContext} from "../siteConfig";
 
 
 function NewSite ({apiUpdate}) {
@@ -45,9 +47,8 @@ function SiteEdit ({
    format
 }) {
 	
-
+	const { baseUrl, theme, user } = React.useContext(AdminContext) || {}
 	const updateData = (data, attrKey) => {
-		console.log('update data', {...item, ...{[attrKey]: data}})
 		apiUpdate({data: {...item, ...{[attrKey]: data}}, config: {format}})
 	}
 	
@@ -55,18 +56,20 @@ function SiteEdit ({
 		item = dataItems[0]
 	}
 
-	if(!item.id) return <NewSite apiUpdate={apiUpdate} />
+	if(!item.id) return <NewSite apiUpdate={apiUpdate} />// (<Layout></Layout>)()
 
 
 	//console.log('site edit', status, dataItems)
 
-	return <div key={item?.id || 'new'} className={'w-full'}>	
-		{Object.keys(attributes)
-			.map((attrKey, i) => {
-				let EditComp = attributes[attrKey].EditComp
-				// console.log('what', attributes[attrKey])
-				return (
-					<div key={`${attrKey}-${i}`}>
+	return (
+		<Layout>
+		
+			{Object.keys(attributes)
+				.map((attrKey, i) => {
+					let EditComp = attributes[attrKey].EditComp
+					// console.log('what', attributes[attrKey])
+					return (
+						<div key={`${attrKey}-${i}`}>
 							<EditComp
 								key={`${attrKey}-${i}`}
 								value={item?.[attrKey]}
@@ -75,11 +78,13 @@ function SiteEdit ({
 								format={format}
 								{...attributes[attrKey]}
 							/>
-					</div>
-				)
-			})
-		}
-	</div>
+						</div>
+					)
+				})
+			}
+			
+		</Layout>
+	)
 }
 
 export default SiteEdit

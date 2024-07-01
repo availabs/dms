@@ -1,6 +1,6 @@
 import React from "react";
 //import { useTheme} from "~/modules/avl-components/src/index.js";
-import { FormsContext } from '../metaFormsconfig'
+import { FormsContext } from '../'
 
 import TopNav from './nav/Top.jsx'
 import SideNav from './nav/Side.jsx'
@@ -35,6 +35,8 @@ const Layout = ({ children, navItems=[], title }) => {
 	const { theme, app, type } = React.useContext(FormsContext) || {}
 	const { sideNav={}, topNav={}, logo=Logos } = theme?.navOptions || {}
 	
+	console.log('forms layout', sideNav)
+
 	const sideNavOptions = {
 		size: sideNav.size || 'none',
 		color: sideNav.color || 'white',
@@ -84,9 +86,10 @@ const Layout = ({ children, navItems=[], title }) => {
 					<div className={`hidden md:block ${marginSizes[sideNavOptions.size]}`}>
 						<div className={`fixed h-screen ${fixedSizes[sideNavOptions.size]}`}>
 							<SideNav 
-								topMenu={sideNavOptions.topMenu}
 								themeOptions={sideNavOptions}
+								topMenu={sideNavOptions.topMenu}
 								menuItems={sideNavOptions.menuItems}
+								bottomMenu={sideNavOptions.bottomMenu}
 							/>
 						</div>
 					</div>

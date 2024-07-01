@@ -1,7 +1,7 @@
 import React from "react"
 import { Dropdown } from '../ui/index'
 import {Link, useLocation} from 'react-router-dom'
-import { FormsContext } from '../metaFormsconfig'
+import { FormsContext } from '../'
 import { User } from '../ui/icons'
 
 // import {NavItem, NavMenu, NavMenuItem, NavMenuSeparator, withAuth} from 'components/avl-components/src'
@@ -10,7 +10,7 @@ import { User } from '../ui/icons'
 const UserMenu = ({user}) => {
     // const theme = useTheme()
     return (
-        <div className={`flex justify-column align-middle py-1 px-4 min-w-44`}>
+        <div className={`flex justify-column align-middle py-1 px-4 w-44 overflow-hidden`}>
             <div className='pt-[4px]'>
                 <span className={`rounded-full border-2 border-blue-400
                     inline-flex items-center justify-center 
@@ -34,7 +34,7 @@ export const Item = ({to, icon,children}) => (
             <div className='px-6 py-1 bg-blue-500 text-white hover:text-blue-100'>
                 <div className='hover:translate-x-2 transition duration-100 ease-out hover:ease-in'>
                     <i className={`${icon} `} />
-                    <span className='pl-2'>
+                    <span className='pl-2 text-sm'>
                         {children}
                     </span>
                 </div>
@@ -61,13 +61,13 @@ export default ({title, children}) => {
                                 </Item>
                             )}
                             {user.authLevel >= 5 && (
-                                <Item to={`/manage_pattern/${parent?.id}`} icon={'fad fa-sign-out-alt pb-2 pr-1'}>
-                                    Manager Form
+                                <Item to={`/${baseUrl}manage/attributes`} icon={'fad fa-sign-out-alt pb-2 pr-1'}>
+                                    Metadata
                                 </Item>
                             )}
                             {user.authLevel >= 5 && (
-                                <Item to={`/manage_pattern/${parent?.id}/templates`} icon={'fad fa-sign-out-alt pb-2 pr-1'}>
-                                    Manage Templates
+                                <Item to={`/${baseUrl}manage/templates`} icon={'fad fa-sign-out-alt pb-2 pr-1'}>
+                                    Templates
                                 </Item>
                             )}                     
                         </div>

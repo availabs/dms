@@ -3,9 +3,13 @@ import cloneDeep from 'lodash/cloneDeep'
 
 import PatternList from "./components/patternList";
 import SiteEdit from "./pages/siteEdit"
-import Layout from "./pages/layout"
 
-import siteFormat from "./admin.format.js"
+
+import adminFormat from "./admin.format.js"
+import defaultTheme from './theme/theme'
+
+export const AdminContext = React.createContext(undefined);
+const defaultUser = { email: "user", authLevel: 5, authed: true, fake: true}
 
 const adminConfig = ({ 
   app = "default-app",
@@ -14,12 +18,19 @@ const adminConfig = ({
   logo = null,
   rightMenu = <div />,
   baseUrl = '/',
-  checkAuth = () => {}
+  checkAuth = () => {},
+  theme = defaultTheme
 }) => {
-  const format = cloneDeep(siteFormat)
+  const format = cloneDeep(adminFormat)
   format.app = app
   format.type = type
-
+  
+  // ----------------------
+  // update app for all the children formats. this works, but dms stops providing attributes to patternList
+  format.registerFormats = updateRegisteredFormats(format.registerFormats, app) 
+  format.attributes = updateAttributes(format.attributes, app) 
+  // ----------------------
+  console.log('test 123', theme)
   return {
     app,
     type,
@@ -29,10 +40,9 @@ const adminConfig = ({
       { 
         type: (props) => {
           return (
-            <Layout 
-              {...props}
-              baseUrl={baseUrl}
-            />
+            <AdminContext.Provider value={{baseUrl, user: props.user || defaultUser, theme, app, type, parent}}>
+              {props.children}
+            </AdminContext.Provider>
           )
         },
         action: "list",
@@ -51,3 +61,28 @@ const adminConfig = ({
 }
 
 export default adminConfig
+
+
+
+export const updateRegisteredFormats = (registerFormats, app) => {
+  if(Array.isArray(registerFormats)){
+    registerFormats = registerFormats.map(rFormat => {
+      rFormat.app = app;
+      rFormat.registerFormats = updateRegisteredFormats(rFormat.registerFormats, app);
+      rFormat.attributes = updateAttributes(rFormat.attributes, app);
+      return rFormat;
+    })
+  }
+  return registerFormats;
+}
+
+export const updateAttributes = (attributes, app) => {
+  if(Array.isArray(attributes)){
+    attributes = attributes.map(attr => {
+      attr.format = attr.format ? `${app}+${attr.format.split('+')[1]}`: undefined;
+      return updateRegisteredFormats(attr, app);
+    })
+    //console.log('attr', attributes)
+  }
+  return attributes;
+}

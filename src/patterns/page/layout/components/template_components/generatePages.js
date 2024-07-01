@@ -42,7 +42,7 @@ export const generatePages = async ({
         //     setLoadingStatus(`skipping ${idColAttrVal}`)
         //     return Promise.resolve()
         // }
-        console.log('existing page', idColAttrVal, existingPage)
+        // console.log('existing page', idColAttrVal, existingPage)
 
         const sectionIds =  existingPage?.data?.value?.sections?.map(section => section.id) || [];
         setLoadingStatus(`${existingPage ? `Updating` : 'Generating'} page ${++i}/${idColAttr?.length}`);
@@ -65,7 +65,7 @@ export const generatePages = async ({
         const dataControls = item.data_controls;
         const activeDataRow = dataRows.find(dr => dr[id_column.name] === idColAttrVal) || {};
 
-        let updates = await PromiseMap(item.sections.map(s => s.id), async section_id => {
+        let updates = await Promise.allSettled(item.sections.map(s => s.id).map(section_id => {
             let templateSection = item.sections.find(d => d.id === section_id)  || {};
             // let pageSection = generatedSections.find(s => s.data.value.element['template-section-id'] === section_id); // if we don't need to pull this data, save resources.
             let data = parseJSON(templateSection?.element?.['element-data']) || {}
@@ -100,16 +100,21 @@ export const generatePages = async ({
                 // if(pageI > 8){
                 //     throw new Error(`custom error for section id ${section_id} page ${idColAttrVal}`)
                 // }
-                return comp?.getData ? comp.getData(args,falcor).then(data => ({section_id, data, type})) : ({section_id, data, type})
+                return comp?.getData ? comp.getData(args,falcor).then(async data => {
+                    return {section_id, data, type}
+                }) : ({section_id, data, type})
             }catch (err){
+                console.error('<generatePages> Error: ', idColAttrVal, err)
                 return ({section_id, data, err, type})
             }
-        }, {concurrency: 5})
+        }))
+        await falcor.setCache({});
+// disaster 4154 shows data on template, but not on generated page
+        console.log('updates', updates)
 
-        //console.log('updates', updates)
         if(updates.length > 0) {
             const updatedSections = item.sections
-                .map(s => updates.find(u => u.section_id === s.id) || s) // to preserve order
+                .map(s => updates.find(u => u?.value?.section_id === s.id)?.value || s) // to preserve order
                 .filter(u => u)
                 .map(({section_id, data, err, type}) => {
                     let templateSection = item.sections.find(d => d.id === section_id)  || {};
@@ -140,63 +145,71 @@ export const generatePages = async ({
             const sectionConfig = {format: {app, type: sectionType}};
             const pageConfig = {format: {app, type}};
 
-            //create all sections first, get their ids and then create the page.
-            const newSectionIds = await PromiseMap(
-                updatedSections.map((section) => dmsDataEditor(sectionConfig, section)),
-                p => p,
-                {concurrency: 5});
+            try {
+                //create all sections first, get their ids and then create the page.
+                const newSectionIds = await PromiseMap(
+                    updatedSections.map((section) => dmsDataEditor(falcor, sectionConfig, section)),
+                    p => p,
+                    {concurrency: 25, saveResponse: true});
 
-            const formatNameForURL = name => name.toLowerCase().replace(' county', '').replace('.', '').replace(/ /g, '_');
+                const formatNameForURL = name => name.toLowerCase().replace(' county', '').replace('.', '').replace(/ /g, '_');
 
-            const urlSuffix =
-                urlSuffixCol === 'county' ?
-                    formatNameForURL(activeDataRow?.['county'] || activeDataRow?.['name']) || idColAttrVal :
-                    idColAttrVal;
+                const urlSuffix =
+                    urlSuffixCol === 'county' ?
+                        formatNameForURL(activeDataRow?.['county'] || activeDataRow?.['name']) || idColAttrVal :
+                        idColAttrVal;
 
-            const newPage = {
-                ...existingPage && {id: existingPage.id},
-                ...existingPage?.data?.value || {},
-                id_column_value: idColAttrVal,
-                template_id: item.id,
-                sidebar: item.sidebar,
-                header: item.header,
-                footer: item.footer,
-                full_width: item.full_width,
-                hide_in_nav: 'true', // not pulling though?
-                index: 999,
-                url_slug: `${url || id_column.name}/${urlSuffix}`,
-                title: `${id_column.name} ${idColAttrVal} Template`,
-                num_errors: updatedSections.filter(section => section.status !== 'success').length,
-                sections: [
-                    ...updatedSections.map((section, i) => ({ // updatedSections contains correct order
-                        "id": section.id || newSectionIds[i]?.id,
-                        "ref": "dms-site+cms-section"
-                    })),
-                    ...generatedSections.filter(section => !section.data.value.element['template-section-id']) // non-template sections
-                        .map((section, i) => ({
-                            "id": section.id,
+                const newPage = {
+                    ...existingPage && {id: existingPage.id},
+                    ...existingPage?.data?.value || {},
+                    id_column_value: idColAttrVal,
+                    template_id: item.id,
+                    sidebar: item.sidebar,
+                    header: item.header,
+                    footer: item.footer,
+                    full_width: item.full_width,
+                    hide_in_nav: 'true', // not pulling though?
+                    index: 999,
+                    url_slug: `${url || id_column.name}/${urlSuffix}`,
+                    title: `${id_column.name} ${idColAttrVal} Template`,
+                    num_errors: updatedSections.filter(section => section.status !== 'success').length,
+                    sections: [
+                        ...updatedSections.map((section, i) => ({ // updatedSections contains correct order
+                            "id": section.id || newSectionIds[i]?.id,
                             "ref": "dms-site+cms-section"
                         })),
-                ],
-                draft_sections: [
-                    ...updatedSections.map((section, i) => ({ // updatedSections contains correct order
-                        "id": section.id || newSectionIds[i]?.id,
-                        "ref": "dms-site+cms-section"
-                    })),
-                    ...generatedSections.filter(section => !section.data.value.element['template-section-id']) // non-template sections
-                        .map((section, i) => ({
-                            "id": section.id,
+                        ...generatedSections.filter(section => !section.data.value.element['template-section-id']) // non-template sections
+                            .map((section, i) => ({
+                                "id": section.id,
+                                "ref": "dms-site+cms-section"
+                            })),
+                    ],
+                    draft_sections: [
+                        ...updatedSections.map((section, i) => ({ // updatedSections contains correct order
+                            "id": section.id || newSectionIds[i]?.id,
                             "ref": "dms-site+cms-section"
                         })),
-                ]
+                        ...generatedSections.filter(section => !section.data.value.element['template-section-id']) // non-template sections
+                            .map((section, i) => ({
+                                "id": section.id,
+                                "ref": "dms-site+cms-section"
+                            })),
+                    ]
+                }
+
+                try {
+                    const resPage = await dmsDataEditor(falcor, pageConfig, newPage);
+                    createdOrUpdatedPageIdStore.push({id: resPage?.id, num_errors: newPage.num_errors, id_column_value: newPage.id_column_value})
+                }catch (err){
+                    console.error('<generatePages> Create/Update Page Error:', idColAttrVal, err)
+                }
+            }catch (err){
+                console.error('<generatePages> Create/Update Sections Error:', idColAttrVal, err)
             }
-            const resPage = await dmsDataEditor(pageConfig, newPage);
-            createdOrUpdatedPageIdStore.push({id: resPage?.id, num_errors: newPage.num_errors, id_column_value: newPage.id_column_value})
-            // console.log('created', resPage)
 
         }
 
-    }), {concurrency: 5})
+    }), {concurrency: 20, saveResponse: false})
     setGeneratedPages(createdOrUpdatedPageIdStore)
     setLoadingStatus(undefined)
 }
@@ -223,7 +236,10 @@ export function PromiseMap (iterable, mapper, options = {}) {
         const i = index++
         const mapped = mapper(next.value, i)
         return Promise.resolve(mapped).then(resolved => {
-            results[i] = resolved
+            if(options.saveResponse){
+                results[i] = resolved;
+            }
+            console.log('size of the results object in PromiseMap:', JSON.stringify(results).length, results);
             return wrappedMapper()
         })
     }

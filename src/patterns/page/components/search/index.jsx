@@ -3,6 +3,7 @@ import {Combobox, Dialog, Transition} from '@headlessui/react'
 // import {getConfig} from "../layout/template/pages";
 import {dmsDataLoader} from "../../../../api";
 import {CMSContext} from "../../siteConfig";
+import {Link} from "react-router-dom";
 
 export const Search = ({app, type}) => {
     const [open, setOpen] = useState(false)
@@ -25,20 +26,20 @@ function classNames(...classes) {
     return classes.filter(Boolean).join(' ')
 }
 
-export const RenderTagSuggestions = ({tags, tmpQuery, setQuery}) => tags
+export const RenderTagSuggestions = ({tags, individualTags, tmpQuery, setQuery}) => individualTags
     .filter(tag => (!tmpQuery?.length || tag.toLowerCase().includes(tmpQuery.toLowerCase())))
     .length > 0 && (
     <Combobox.Options static
                       className="max-h-96 transform-gpu scroll-py-3 overflow-y-auto p-3">
         <span className={'text-xs italic'}>suggestions: </span>
-        {tags
+        {individualTags
             .filter(tag => (!tmpQuery?.length || tag.toLowerCase().includes(tmpQuery.toLowerCase())))
             .filter((tag, i) => i <= 5)
             .map((tag) => (
                 <Combobox.Option
                     key={tag}
                     value={tag}
-                    onClick={() => setQuery(tag)}
+                    onClick={() => setQuery(tags.filter(t => t.split(',').includes(tag)))}
                     className={({active}) =>
                         classNames('flex cursor-pointer select-none rounded-xl p-1', active && 'bg-gray-100')
                     }
@@ -96,7 +97,10 @@ export const RenderItems = ({items}) => items.length > 0 && (
                             <p className={classNames('text-sm', active ? 'text-gray-700' : 'text-gray-500')}>
                                 {item.description}
                             </p>
-                            <span className={'tracking-wide p-1 bg-red-400 text-xs text-white font-semibold rounded-md border'}>{item.tags}</span>
+                            {
+                                item.tags.split(',').map(tag => <span
+                                    className={'tracking-wide p-1 bg-red-400 text-xs text-white font-semibold rounded-md border'}>{tag}</span>)
+                            }
                         </div>
                     </>
                 )}
@@ -129,6 +133,7 @@ const SearchPallet = ({open, setOpen, app, type}) => {
     const [tmpQuery, setTmpQuery] = useState('');
     const [loading, setLoading] = useState(false);
     const [tags, setTags] = useState([]);
+    const [individualTags, setIndividualTags] = useState([]);
     const [items, setItems] = useState([]);
     // change it so that query is only set when whole tag is searched from typeahead
 
@@ -147,7 +152,10 @@ const SearchPallet = ({open, setOpen, app, type}) => {
             return dmsDataLoader(falcor, config, '/');
         }
 
-        getTags().then(tags => setTags(tags.value.map(t => t.tags).sort()));
+        getTags().then(tags => {
+            setTags(tags.value.map(t => t.tags).sort());
+            setIndividualTags([...new Set(tags.value.reduce((acc, t) => [...acc, ...t.tags.split(',')], []))].sort());
+        });
     }, []);
 
     useEffect(() => {
@@ -158,30 +166,31 @@ const SearchPallet = ({open, setOpen, app, type}) => {
             app,
             type,
             action: 'search',
-            tags: [query]
+            tags: Array.isArray(query) ? query : [query]
         })
 
         async function getData() {
             setLoading(true)
             const data = await dmsDataLoader(falcor, config, '/');
-            // console.log('cs', Object.keys(data).find(searchTerm => searchTerm === query),
-            //     query, data
-            // )
-            const tmpItems = data[query]?.value?.map(value => {
-                return ({
-                    id: value.section_id,
-                    name: value.section_title,
-                    tags: value.tags,
-                    description: value.page_title,
-                    url: `${baseUrl}/${value.url_slug}`,
-                    type: value.type,
-                    color: 'bg-indigo-500',
-                    titleMatch: value.section_title?.includes(query) && !value.tags?.includes(query),
-                    icon: () => <i className={'fa-light fa-memo text-white'}/>,
-                })
-            })
 
-            // console.log('setting items', query, tmpItems)
+            const tmpItems = (Array.isArray(query) ? query : [query]).reduce((acc, q) => {
+                const pagesForQuery = data[q]?.value?.map(value => {
+                    return ({
+                        id: value.section_id,
+                        name: value.section_title,
+                        tags: value.tags,
+                        description: value.page_title,
+                        url: `${baseUrl}/${value.url_slug}`,
+                        type: value.type,
+                        color: 'bg-indigo-500',
+                        titleMatch: value.section_title?.includes(query) && !value.tags?.includes(query),
+                        icon: () => <i className={'fa-light fa-memo text-white'}/>,
+                    })
+                });
+
+                return [...acc, ...pagesForQuery]
+            }, []);
+
             setItems(tmpItems || [])
             setLoading(false)
         }
@@ -222,21 +231,26 @@ const SearchPallet = ({open, setOpen, app, type}) => {
                                     window.location = `${item.url}#${item.id}`
                                 }
                             }}>
-                                <div className="relative">
+                                <div className="flex items-center relative">
                                     <i
-                                        className="fa-light fa-search pointer-events-none absolute left-4 top-3.5 h-5 w-5 text-gray-400"
+                                        className="fa-light fa-search pointer-events-none h-5 w-5 text-gray-400"
                                     />
                                     <Combobox.Input
-                                        className="h-12 w-full border-0 bg-transparent pl-11 pr-4 text-gray-900 placeholder:text-gray-400 focus:ring-0 sm:text-sm"
+                                        className="h-10 w-full border-0 bg-transparent p-1 mx-1 text-gray-900 placeholder:text-gray-400 focus:ring-0 sm:text-sm rounded-md"
                                         placeholder="Search..."
                                         onChange={(event) =>{
                                             const match = tags.find(tag => tag.toLowerCase() === event.target.value.toLowerCase());
                                             setTmpQuery(match || event.target.value)
                                         }}
                                     />
+
+                                    <Link
+                                        className={'fa-light fa-arrow-up-right-from-square h-5 w-5 text-gray-400'}
+                                        title={'Open Search Page'}
+                                     to={'search'}/>
                                 </div>
 
-                                <RenderTagSuggestions tags={tags} tmpQuery={tmpQuery} setQuery={setQuery} />
+                                <RenderTagSuggestions tags={tags} individualTags={individualTags} tmpQuery={tmpQuery} setQuery={setQuery} />
 
                                 <RenderItems items={items} />
 

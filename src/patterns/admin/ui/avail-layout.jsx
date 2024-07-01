@@ -1,13 +1,13 @@
 import React from "react";
 //import { useTheme} from "~/modules/avl-components/src/index.js";
-import { CMSContext } from '../siteConfig'
+import { AdminContext } from '../siteConfig'
 
 import TopNav from './nav/Top.jsx'
 import SideNav from './nav/Side.jsx'
+// import Menu from '../components/menu'
+// import { Search } from '../components/search'
 
-import { Search } from '../components/search'
-
-import { Link } from "react-router-dom";
+import { Link, Outlet } from "react-router-dom";
 
 let marginSizes = {
 	none: '',
@@ -28,11 +28,13 @@ let fixedSizes = {
 }
 
 const Logos = () => <div className='h-12'/>
+const Menu = () => <div className='h-12'/>
 
-const Layout = ({ children, navItems, title, ...props }) => {
+
+const Layout = ({ children, navItems=[], title }) => {
 	//const theme = useTheme()
 
-	const { theme, app, type, Menu } = React.useContext(CMSContext) || {}
+	const { theme, app, type } = React.useContext(AdminContext) || {}
 	const { sideNav={}, topNav={}, logo=Logos } = theme?.navOptions || {}
 	
 	const sideNavOptions = {
@@ -43,11 +45,11 @@ const Layout = ({ children, navItems, title, ...props }) => {
 			<div className={'flex flex-row md:flex-col'}>
 	      		{sideNav?.logo === 'top' && logo}
 	        	{sideNav?.dropdown === 'top' && <Menu />}
-	        	{sideNav?.search === 'top' && <Search app={app} type={type}/>}
+	        	{/*{sideNav?.search === 'top' && <Search app={app} type={type}/>}*/}
 	      	</div>),
 		bottomMenu:  (
 	      	<div className={'flex flex-row md:flex-col'}>
-	      		{sideNav?.search === 'bottom' && <Search app={app} type={type}/>}
+	      		{/*{sideNav?.search === 'bottom' && <Search app={app} type={type}/>}*/}
 	        	{sideNav?.dropdown === 'bottom' && <Menu />}
 	      	</div>
 	  	)
@@ -63,13 +65,13 @@ const Layout = ({ children, navItems, title, ...props }) => {
 		leftMenu: (
 			<div className={'flex flex-col md:flex-row'}>
 	      		{topNav?.logo === 'left' && logo}
-	        	{topNav?.search === 'left' && <Search app={app} type={type}/>}
+	        	{/*{topNav?.search === 'left' && <Search app={app} type={type}/>}*/}
 	        	{topNav?.dropdown === 'left' && <Menu />}
 	      	</div>),
 		rightMenu:  (
 	      	<div className={'flex flex-col md:flex-row'}>
 	      		{topNav?.rightMenu}
-	        	{topNav?.search === 'right' && <Search app={app} type={type}/>}
+	        	{/*{topNav?.search === 'right' && <Search app={app} type={type}/>}*/}
 	        	{topNav?.dropdown === 'right' && <Menu />}
 	      	</div>
 	  	)	
@@ -78,7 +80,7 @@ const Layout = ({ children, navItems, title, ...props }) => {
 	// console.log('layout', topNav)
 	
 	return (
-		<div className={`flex ${theme.bg}`}>
+		<div className='flex' >
 			{
 				sideNavOptions.size === 'none' ? '' : (
 					<div className={`hidden md:block ${marginSizes[sideNavOptions.size]}`}>
@@ -112,7 +114,13 @@ const Layout = ({ children, navItems, title, ...props }) => {
 					</>)
 				}
 				<div id={'content'} className={`flex-1`}>
-					{children}
+					<div className={`${theme?.page?.wrapper1}`}>
+          				<div className={`${theme?.page?.wrapper2}`}>      
+	            			<div className={theme?.page?.wrapper3}>
+							{children}
+							</div>
+						</div>
+					</div>
 				</div>
 			</div>
 		</div>

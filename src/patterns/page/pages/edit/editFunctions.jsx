@@ -24,7 +24,7 @@ export const saveHeader = (v, item, user, apiUpdate ) => {
     apiUpdate({data: newItem})
   }
 
-export const saveSection = (v, action, item, user, apiUpdate) => {
+export const saveSection = async (v, action, item, user, apiUpdate) => {
     const headerSection = item['draft_sections']?.filter(d => d.is_header)?.[0]
     
     //console.log('save section', v,action)
@@ -46,14 +46,15 @@ export const saveSection = (v, action, item, user, apiUpdate) => {
     // ----------------
     // only need to send id, and data to update, not whole 
     // --------------------
-
+    //console.log('test 123', )
     const newItem = {
       id: item?.id, 
       draft_sections: [headerSection, ...v].filter(d => d),
       has_changes: true,
       history, 
     }
-    apiUpdate({data: newItem})
+    // console.log('editFunction saveSection newItem',newItem, v)
+    await apiUpdate({data: newItem})
   }
 
 

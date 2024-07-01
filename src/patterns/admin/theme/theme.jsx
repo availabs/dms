@@ -19,7 +19,6 @@ const theme = {
       dropdown: 'right',
       search: 'right',
       logo: 'left',
-      position: 'fixed',
       nav: 'main' 
     }
   },
@@ -53,7 +52,6 @@ const theme = {
     2: 'md:pt-12 pt-0',
     3: 'md:pt-24 pt-0'
   },
-  bg: 'bg-slate-100',
   sidenav,
   topnav
 }

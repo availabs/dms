@@ -13,7 +13,7 @@ export async function processNewData (dataCache, activeIdsIntOrStr, filteredIdsL
         {}
     ))
     .filter(d => (
-        //(!filteredIdsLength || activeIds.includes(+d.id)) && 
+        // (!activeIds?.length || activeIds.includes(+d.id)) &&
         d.id &&
         d.app === app &&
         d.type === type
