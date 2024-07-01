@@ -35,7 +35,7 @@ const Layout = ({ children, navItems=[], title }) => {
 	const { theme, app, type } = React.useContext(FormsContext) || {}
 	const { sideNav={}, topNav={}, logo=Logos } = theme?.navOptions || {}
 	
-	console.log('forms layout', sideNav)
+	// console.log('forms layout', sideNav)
 
 	const sideNavOptions = {
 		size: sideNav.size || 'none',

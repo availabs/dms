@@ -14,7 +14,7 @@ const parseJson = value => {
 }
 
 const Edit = ({value = '{}', onChange, className, placeholder, manageTemplates, ...rest}) => {
-    console.log('form-config', value, rest)
+    //console.log('form-config', value, rest)
     const theme = useTheme()
     const [item, setItem] = useState(parseJson(value))
 
