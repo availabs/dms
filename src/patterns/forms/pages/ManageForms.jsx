@@ -51,6 +51,7 @@ const ManageForm = ({
                                                 format={format}
                                                 manageTemplates={manageTemplates}
                                                 placeholder={attributes[attrKey].placeholder}
+                                                options={attributes[attrKey].options}
                                                 item={newItem}
                                                 {...attributes[attrKey].placeholder}
                                             />
