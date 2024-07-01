@@ -71,7 +71,7 @@ const adminConfig = ({
             path: `:id`
           },
           {
-            type: props => <ManageForms.EditComp {...props} manageTemplates />,
+            type: props => <ManageForms.EditComp {...props} manageTemplates={true} />,
             action: 'edit',
             path: `:id/templates`
           },

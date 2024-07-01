@@ -135,20 +135,20 @@ const formsAdminConfig = ({
                 path: "/*",
                 children: [
                     {
-                        type: props => <ManageForms.EditComp item={parent} {...props} />,
+                        type: props => <ManageForms.EditComp parent={parent} {...props} />,
                         action: 'edit',
                         path: `attributes`
                     },
                     {
-                        type: props => <ManageForms.EditComp {...props} manageTemplates />,
+                        type: props => <ManageTemplates.EditComp {...props} manageTemplates={true} />,
                         action: 'edit',
                         path: `templates`
                     },
-                    {
-                        type: props => <ManageForms.ViewComp {...props} />,
-                        action: 'view',
-                        path: `view/:id`
-                    }
+                    // {
+                    //     type: props => <ManageForms.ViewComp {...props} />,
+                    //     action: 'view',
+                    //     path: `view/:id`
+                    // }
                 ]
             }
         ]
