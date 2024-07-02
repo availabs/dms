@@ -31,7 +31,6 @@ export const siteConfig = ({
   app = "dms-site",
   type = "docs-page",
   rightMenu = <DefaultMenu />,
-  useFalcor=useFalcor,
   baseUrl = '',
   checkAuth = () => {},
   logo,

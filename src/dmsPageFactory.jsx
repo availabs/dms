@@ -30,7 +30,7 @@ export default function dmsPageFactory (
   //console.log('page factory', API_HOST, dmsConfig )
   const dmsPath= `${baseUrl}/`
   const falcor = falcorGraph(API_HOST)
-
+  console.log('test 123', falcor, API_HOST)
 
   async function loader ({ request, params }) {
     let data = await dmsDataLoader(falcor, dmsConfig, `/${params['*'] || ''}`)
