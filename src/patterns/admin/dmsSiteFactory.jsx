@@ -7,7 +7,6 @@ import { falcorGraph, useFalcor } from "@availabs/avl-falcor"
 
 import formsConfig from '../forms'
 import pageConfig from '../page/siteConfig'
-import patternConfig from "../forms/ManageFormsConfig";
 import {template} from "./admin.format"
 
 
@@ -47,6 +46,8 @@ export default async function dmsSiteFactory({
         // patterns
         ...patterns.reduce((acc, pattern) => {
             const c = configs[pattern.pattern_type];
+
+            console.log('register pattern', pattern)
 
             acc.push(
                 ...c.map(config => {

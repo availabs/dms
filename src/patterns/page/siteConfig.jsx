@@ -16,7 +16,7 @@ import cloneDeep from 'lodash/cloneDeep'
 import defaultTheme from './theme/theme'
 import Selector from "./components/selector"
 import { registerDataType } from "../../index"
-import { useFalcor } from "@availabs/avl-falcor"
+import { useFalcor as useAvlFalcor } from "@availabs/avl-falcor"
 
 import merge from 'lodash/merge'
 import { Link } from 'react-router-dom'
@@ -42,7 +42,7 @@ export const siteConfig = ({
   theme = merge(defaultTheme, theme)
   //baseUrl = baseUrl[0] === '/' ? baseUrl.slice(1) : baseUrl
   const defaultLogo = <Link to={`${baseUrl}`} className='h-12 flex px-4 items-center'><div className='rounded-full h-8 w-8 bg-blue-500 border-2 border-blue-300 hover:bg-blue-600' /></Link>
-  
+
   if(!theme.navOptions.logo) {
     theme.navOptions.logo = logo ? logo : defaultLogo
   }
@@ -58,14 +58,14 @@ export const siteConfig = ({
   // for instances without auth turned on can edit
   // should move this to dmsFactory default authWrapper
   const defaultUser = { email: "user", authLevel: 5, authed: true, fake: true}
-  
+
   // const rightMenuWithSearch = rightMenu; // for live site
   return {
     format: format,
     baseUrl,
     API_HOST,
     children: [
-      { 
+      {
         type: ({children, user=defaultUser, pgEnv, ...props}) => {
           const { falcor, falcorCache } = useFalcor();
           // console.log('hola', theme, props)
@@ -87,19 +87,19 @@ export const siteConfig = ({
           attributes:['title', 'index', 'url_slug', 'parent','published', 'hide_in_nav']
         },
         children: [
-          { 
+          {
             type: (props) => (
-              <PageEdit 
+              <PageEdit
                 {...props}
               />
             ),
             path: "edit/*",
             action: "edit"
           },
-          { 
+          {
             type: (props) => (
-              <PageView 
-                {...props} 
+              <PageView
+                {...props}
               />
             ),
             filter: {
@@ -161,7 +161,7 @@ export const siteConfig = ({
           },
         ]
       },
-      
+
     ]
   }
 }

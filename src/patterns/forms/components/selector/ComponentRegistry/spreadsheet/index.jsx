@@ -94,14 +94,15 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
             <div className={'text-xl text-gray-300 font-semibold'}>Spreadsheet view</div>
             <div className={` grid grid-cols-${attributes.length}`}>
 
-                {attributes.map(attribute =>
-                    <div className={'p-2 font-semibold text-gray-500 border bg-gray-200'}>
+                {attributes.map((attribute,i) =>
+                    <div key={i} className={'p-2 font-semibold text-gray-500 border bg-gray-200'}>
                         {attribute.display_name || attribute.name}
                     </div>)}
 
                 {data.map((d, i) => (
                     attributes.map((attribute, attrI) =>
                         <RenderCell
+                            key={i}
                             attribute={attribute}
                             updateItem={updateItem}
                             removeItem={removeItem}
