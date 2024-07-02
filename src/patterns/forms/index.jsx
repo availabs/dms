@@ -140,7 +140,7 @@ const formsAdminConfig = ({
                         path: `attributes`
                     },
                     {
-                        type: props => <ManageTemplates.EditComp {...props} manageTemplates={true} />,
+                        type: props => <ManageTemplates.EditComp  parent={parent} {...props} />,
                         action: 'edit',
                         path: `templates`
                     },

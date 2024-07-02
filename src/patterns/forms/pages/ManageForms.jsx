@@ -53,7 +53,7 @@ const ManageForm = ({
                                                 placeholder={attributes[attrKey].placeholder}
                                                 options={attributes[attrKey].options}
                                                 item={newItem}
-                                                {...attributes[attrKey].placeholder}
+                                                {...attributes[attrKey]}
                                             />
                                         </div>
                                     )
