@@ -26,7 +26,7 @@ const adminConfig = ({
   format.type = type
   
   // ----------------------
-  // update app for all the children formats. this works, but dms stops providing attributes to patternList
+  // update app for all the children formats
   format.registerFormats = updateRegisteredFormats(format.registerFormats, app) 
   format.attributes = updateAttributes(format.attributes, app) 
   // ----------------------

@@ -6,7 +6,7 @@ import { FormsContext } from '../'
 const ManageForm = ({
     status,
     apiUpdate,
-    attributes,
+    attributes={},
     dataItems,
     format,
     item,
@@ -25,7 +25,7 @@ const ManageForm = ({
     const updateData = (data, attrKey) => {
         apiUpdate({data: {...newItem, ...{[attrKey]: data}}, config: {format}})
     }
-    console.log('ManageForm', item, parent, newItem, attributes)
+    console.log('ManageTemplates', parent, newItem, attributes)
     
     //console.log('manage forms /manage_pattern/:id/templates?', manageTemplates, attributes, item)
     return (
@@ -36,7 +36,7 @@ const ManageForm = ({
                         {status ? <div>{JSON.stringify(status)}</div> : ''}
                         <div className='w-full max-w-6xl mx-auto'>
                             {Object.keys(attributes)
-                                .filter(attr => manageTemplates ? attr === 'templates' : attr !== 'templates')
+                                .filter(attr => attr === 'templates')
                                 .map((attrKey, i) => {
                                     let EditComp = attributes[attrKey].EditComp;
                                     //console.log('attrs', attributes[attrKey], newItem)
@@ -49,9 +49,9 @@ const ManageForm = ({
                                                     updateData(v, attrKey)
                                                 }}
                                                 format={format}
-                                                manageTemplates={manageTemplates}
                                                 placeholder={attributes[attrKey].placeholder}
                                                 item={newItem}
+                                                {...attributes[attrKey]}
                                             />
                                         </div>
                                     )
