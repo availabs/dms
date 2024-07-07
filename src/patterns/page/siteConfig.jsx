@@ -16,7 +16,7 @@ import cloneDeep from 'lodash/cloneDeep'
 import defaultTheme from './theme/theme'
 import Selector from "./components/selector"
 import { registerDataType } from "../../index"
-import { useFalcor as useAvlFalcor } from "@availabs/avl-falcor"
+import { useFalcor } from "@availabs/avl-falcor"
 
 import merge from 'lodash/merge'
 import { Link } from 'react-router-dom'
