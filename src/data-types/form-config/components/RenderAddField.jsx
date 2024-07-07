@@ -22,6 +22,7 @@ export const RenderAddField = ({theme, item, placeholder, className, addAttribut
                         triggerAddEvent()
                     }
                 }}
+                onKeyDown={e =>  e.key === 'Enter' && triggerAddEvent()}
             />
 
             <button className={'bg-blue-300 hover:bg-blue-500 text-white'} onClick={e => fn()}>+ add</button>

@@ -1,6 +1,8 @@
 import React, { useMemo, useState, useEffect }from 'react'
 import {Link} from "react-router-dom"
 import DataTypes from "../../../../../../data-types";
+import RenderColumnControls from "./components/RenderColumnControls";
+import RenderInHeaderColumnControls from "./components/RenderInHeaderColumnControls";
 export const isJson = (str)  => {
     try {
         JSON.parse(str);
@@ -10,16 +12,31 @@ export const isJson = (str)  => {
     return true;
 }
 
-const getData = async ({format, apiLoad}) =>{
+const getNestedValue = value =>
+    value?.value && typeof value?.value === 'object' ? getNestedValue(value.value) :
+        !value?.value && typeof value?.value === 'object' ? '' : value;
+
+const getData = async ({format, apiLoad, currentPage, pageSize, orderBy}) =>{
     console.log('spreadsheet getDAta called')
     // fetch all data items based on app and type. see if you can associate those items to its pattern. this will be useful when you have multiple patterns.
     const attributes = JSON.parse(format?.config || '{}')?.attributes || [];
+    const fromIndex = currentPage*pageSize;
+    const toIndex = currentPage*pageSize + pageSize-1;
     const children = [{
         type: () => {
         },
         action: 'list',
-        testparam: 'testparam',
         path: '/',
+        filter: {
+            fromIndex: path => fromIndex,
+            toIndex: path => toIndex,
+            // options: JSON.stringify({orderBy})
+            options: JSON.stringify({
+                orderBy: Object.keys(orderBy).reduce((acc, curr) => ({...acc, [`data->>'${curr}'`]: orderBy[curr]}) , {})
+            }),
+            // attributes: attributes.map(attr => `data->>'${attr.name}' as ${attr.name}`)
+            stopFullDataLoad: true
+        },
     }]
     const data = await apiLoad({
         app: format.app,
@@ -28,7 +45,14 @@ const getData = async ({format, apiLoad}) =>{
         attributes,
         children
     });
-  return {data, attributes}
+    return data;
+  // return data.map(row =>
+  //     Object.keys(row)
+  //         .reduce((acc, cell) =>
+  //             ({
+  //                 ...acc,
+  //                 [cell.split(' as ')[1]]: getNestedValue(row[cell])
+  //             }) , {}))
 }
 
 const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell}) => {
@@ -36,11 +60,15 @@ const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell}) =>
     const Comp = DataTypes[attribute.type]?.EditComp;
     return (
         <div className={'flex border'}>
-            <Comp key={`${attribute.name}-${i}`} className={'p-1 hover:bg-blue-50 h-full w-full '}
-                  value={newItem[attribute.name]} onChange={e => {
+            <Comp key={`${attribute.name}-${i}`}
+                  className={'p-1 hover:bg-blue-50 h-fit w-full flex flex-wrap'}
+                  {...attribute}
+                  value={newItem[attribute.name]}
+                  onChange={e => {
                       setNewItem({...item, [attribute.name]: e})
                       updateItem(e, attribute, {...item, [attribute.name]: e})
-            }}/>
+                  }}
+            />
             {
                 isLastCell &&
                 <>
@@ -60,21 +88,84 @@ const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell}) =>
         </div>
     )
 }
-const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
-    const [data, setData] = useState([]);
-    const [attributes, setAttributes] = useState([])
-    const [newItem, setNewItem] = useState({})
 
-    // if(!value) return ''
+const RenderPagination = ({totalPages, pageSize, currentPage, setVCurrentPage}) => {
+    const numNavBtns = Math.ceil(totalPages / pageSize);
+
+    return (
+        <div className={'float-right flex no-wrap items-center p-1'}>
+            <div className={'mx-1 cursor-pointer text-gray-500 hover:text-gray-800'} onClick={() => setVCurrentPage(currentPage > 0 ? currentPage - 1 : currentPage)}>{`<< prev`}</div>
+            <select
+                className={'p-2 border-2 text-gray-800 hover:bg-blue-50 text-sm rounded-md'}
+                value={currentPage}
+                onChange={e => setVCurrentPage(+e.target.value)}
+            >
+                {
+                    [...new Array(numNavBtns).keys()]
+                        .map((i) =>
+                            <option
+                                className={'p-2 border-2 text-gray-800 hover:bg-blue-50 text-sm'}
+                                value={i} key={i}>{i + 1}
+                            </option>)
+                }
+            </select>
+            <div className={'mx-1 cursor-pointer text-gray-500 hover:text-gray-800'} onClick={() => setVCurrentPage(currentPage < totalPages ? currentPage + 1 : currentPage)}>{`next >>`}</div>
+        </div>)
+}
+
+const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
+    const isEdit = onChange;
+    const cachedData = isJson(value) ? JSON.parse(value) : {};
+    const [data, setData] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [attributes, setAttributes] = useState(cachedData.attributes || []);
+    const [visibleAttributes, setVisibleAttributes] = useState(cachedData.visibleAttributes || []);
+    const [newItem, setNewItem] = useState({})
+    const [orderBy, setOrderBy] = useState(cachedData.orderBy || {});
+    const [currentPage, setCurrentPage] = useState(0);
+    const pageSize = cachedData.pageSize || 10;
+
+    //--------------------------------- init comp begin
+    useEffect(() => {
+        setAttributes(JSON.parse(format?.config || '{}')?.attributes || [])
+    }, [format]);
+
     useEffect(() => {
         async function load(){
-            const {data, attributes} = await getData({format, apiLoad});
-            setData(data)
-            setAttributes(attributes)
+            // init stuff
+            setLoading(true)
+            const data = await getData({format, apiLoad, currentPage, pageSize, orderBy});
+            setData(data);
+            !visibleAttributes?.length && setVisibleAttributes(attributes?.map(attr => attr.name));
+            setLoading(false)
         }
         load()
     }, [format])
+    //--------------------------------- init comp end
 
+    //--------------------------------- get data begin
+    useEffect(() => {
+        // onPageChange
+        async function load(){
+            setLoading(true)
+            const data = await getData({format, apiLoad, currentPage, pageSize, orderBy});
+            setData(data);
+            setLoading(false)
+            console.log('called getdata', data)
+        }
+        load()
+    }, [currentPage, orderBy]);
+    //--------------------------------- get data end
+
+    //--------------------------------- saving settings begin
+    useEffect(() => {
+        if(!isEdit) return;
+
+        onChange(JSON.stringify({visibleAttributes, pageSize, attributes, orderBy}));
+    }, [visibleAttributes, attributes, orderBy])
+    //--------------------------------- saving settings end
+
+    // -------------------------------- util fns begin
     const updateItem = (value, attribute, d) => {
         return apiUpdate({data: {...d, [attribute.name]: value}, config: {format}})
     }
@@ -84,101 +175,87 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     }
 
     const removeItem = item => {
-        console.log('data to remove', item)
         setData(data.filter(d => d.id !== item.id))
         return apiUpdate({data:item, config: {format}, requestType: 'delete'})
     }
-    console.log('datA?', data, attributes)
+    // -------------------------------- util fns end
+
     return (
         <div>
-            <div className={'text-xl text-gray-300 font-semibold'}>Spreadsheet view</div>
-            <div className={` grid grid-cols-${attributes.length}`}>
+            {
+                isEdit &&
+                <div className={'flex'}>
+                    <RenderColumnControls attributes={attributes} setAttributes={setAttributes} visibleAttributes={visibleAttributes}
+                                          setVisibleAttributes={setVisibleAttributes}/>
+                </div>
+            }
+            {
+                loading ? <div>loading...</div> :
+                    <div className={`grid grid-cols-${visibleAttributes.length}`}>
 
-                {attributes.map((attribute,i) =>
-                    <div key={i} className={'p-2 font-semibold text-gray-500 border bg-gray-200'}>
-                        {attribute.display_name || attribute.name}
-                    </div>)}
-
-                {data.map((d, i) => (
-                    attributes.map((attribute, attrI) =>
-                        <RenderCell
-                            key={i}
-                            attribute={attribute}
-                            updateItem={updateItem}
-                            removeItem={removeItem}
-                            i={i}
-                            item={d}
-                            isLastCell={attrI === attributes.length - 1}
-                        />)
-                ))}
-
-                {
-                    attributes.map((attribute, attrI) => {
-                        const Comp = DataTypes[attribute?.type || 'text']?.EditComp;
-                        return (
-                            <div className={'flex border'}>
-                                <Comp 
-                                    key={`${attribute.name}`}
-                                    className={'p-2 hover:bg-blue-50 w-full'}
-                                    value={newItem[attribute.name]}
-                                    onChange={e => setNewItem({...newItem, [attribute.name]: e})}
-                                      // onFocus={e => console.log('focusing', e)}
-                                    onPaste={e => {
-                                       e.preventDefault();
-                                       const paste =
-                                           (e.clipboardData || window.clipboardData).getData("text")?.split('\n').map(row => row.split('\t'))
-                                       console.log('pasting', paste)
-                                   }}
+                        {/*Header*/}
+                        {visibleAttributes.map(va => attributes.find(attr => attr.name === va)).map((attribute, i) =>
+                            <div key={i}
+                                 className={'p-2 font-semibold text-gray-500 border bg-gray-100'}>
+                                <RenderInHeaderColumnControls
+                                    isEdit={isEdit}
+                                    attribute={attribute}
+                                    orderBy={orderBy}
+                                    setOrderBy={setOrderBy}
                                 />
-                                {
-                                    attrI === attributes.length - 1 &&
-                                    <button
-                                        className={'w-fit p-1 bg-blue-300 hover:bg-blue-500 text-white'}
-                                        onClick={e => addItem()}>+
-                                    </button>
-                                }
-                            </div>
-                        )
-                    })
-                }
-            </div>
+                            </div>)}
+
+                        {/*Rows*/}
+                        {data.map((d, i) => (
+                            visibleAttributes.map((attribute, attrI) =>
+                                <RenderCell
+                                    key={`${i}-${attrI}`}
+                                    attribute={attributes.find(attr => attr.name === attribute)}
+                                    updateItem={updateItem}
+                                    removeItem={removeItem}
+                                    i={i}
+                                    item={d}
+                                    isLastCell={attrI === visibleAttributes.length - 1}
+                                />)
+                        ))}
+
+                        {/*Add new row*/}
+                        {
+                            visibleAttributes.map(va => attributes.find(attr => attr.name === va)).map((attribute, attrI) => {
+                                const Comp = DataTypes[attribute?.type || 'text']?.EditComp;
+                                return (
+                                    <div className={'flex border'}>
+                                        <Comp
+                                            key={`${attribute.name}`}
+                                            className={'p-2 hover:bg-blue-50 w-full'}
+                                            value={newItem[attribute.name]}
+                                            onChange={e => setNewItem({...newItem, [attribute.name]: e})}
+                                            // onFocus={e => console.log('focusing', e)}
+                                            onPaste={e => {
+                                                e.preventDefault();
+                                                const paste =
+                                                    (e.clipboardData || window.clipboardData).getData("text")?.split('\n').map(row => row.split('\t'))
+                                                console.log('pasting', paste)
+                                            }}
+                                        />
+                                        {
+                                            attrI === visibleAttributes.length - 1 &&
+                                            <button
+                                                className={'w-fit p-1 bg-blue-300 hover:bg-blue-500 text-white'}
+                                                onClick={e => addItem()}>+
+                                            </button>
+                                        }
+                                    </div>
+                                )
+                            })
+                        }
+                    </div>
+            }
+            {/*Pagination*/}
+            <RenderPagination totalPages={13000} pageSize={10} currentPage={currentPage}
+                              setVCurrentPage={setCurrentPage}/>
         </div>
     )
-}
-
-const View = ({value, format, apiLoad, ...rest}) => {
-    const [data, setData] = useState([]);
-    const [attributes, setAttributes] = useState([])
-    console.log('spreadsheet view', rest)
-    if(!value) return ''
-    useEffect(() => {
-        async function load(){
-            const {data, attributes} = await getData({format, apiLoad});
-            setData(data)
-            setAttributes(attributes)
-        }
-
-        load()
-    }, [format])
-    //console.log('data', data, attributes)
-    return (
-        <div>
-            <div className={'text-xl text-gray-300 font-semibold'}>Spreadsheet view</div>
-            <div className={`grid grid-cols-${attributes.length} divide-x divide-y`}>
-                {attributes.map(attribute =>
-                    <div className={'p-2 font-semibold text-gray-500'}>
-                        {attribute.display_name || attribute.name}
-                    </div>)}
-                {data.map(d => (
-                        attributes.map(attribute => {
-                            const Comp = DataTypes[attribute.type]?.ViewComp;
-                            return (<Comp className={'p-2 hover:bg-blue-50'} value={d[attribute.name] || ' '} />)
-                        })
-                    ))}
-            </div>
-        </div>
-    )
-             
 }
 
 Edit.settings = {
@@ -190,8 +267,7 @@ Edit.settings = {
 export default {
     "name": 'Spreadsheet',
     "type": 'table',
-    "variables": [
-    ],
+    "variables": [],
     getData,
     "EditComp": Edit,
     "ViewComp": Edit
