@@ -1,5 +1,6 @@
 import PatternList from './components/patternList'
 import SectionArray from "../forms/components/sections/sectionArray";
+import TemplateList from "../forms/components/templateList";
 
 export const templateSection = {
   app: "admin",
@@ -64,13 +65,13 @@ export const template = {
     {
       key: 'data_controls',
       type: "text",
-      hidden: true
+      // hidden: true
     },
     {
       key: 'url_slug',
       type: "text",
       // matchWildcard: true,
-      hidden: true
+      // hidden: true
     },
     {
       key: 'sections',
@@ -128,6 +129,7 @@ export const pattern = {
       type: 'dms-format',
       isArray: true,
       format: 'admin+template',
+      DisplayComp: TemplateList
     },
   ] 
 }

@@ -60,7 +60,9 @@ export async function dmsDataLoader (falcor, config, path='/') {
 	// console.log('lengthReq', lengthReq)
 	const length = get(await falcor.get(lengthReq), ['json',...lengthReq], 0)
 	// console.log('length',length)
-	const itemReqByIndex = ['dms', 'data', `${ app }+${ type }`, 'byIndex']
+	let options = activeConfigs[0]?.filter?.options || '{}';
+	const itemReqByIndex = ['dms', 'data', `${ app }+${ type }`, options !== '{}' ? 'opts' : false,
+									options !== '{}' ? options : false, 'byIndex'].filter(i => i)
 	
 	// -- --------------------------------------------------------
 	// -- Create the requests based on all active configs
@@ -122,18 +124,19 @@ export async function dmsDataLoader (falcor, config, path='/') {
 			activeConfigs?.[0]?.filter?.toIndex(path) :
 			(+activeConfigs?.[0]?.params?.[activeConfigs?.[0]?.filter?.toIndex]);
 
-	const filteredIds = !id && fromIndex && toIndex &&
+	const filteredIds = !id && fromIndex !== undefined && toIndex !== undefined ?
 		Object.keys(get(newReqFalcor, [...itemReqByIndex], {}))
 			.filter(index => +index >= +fromIndex && +index <= +toIndex - 1)
 			.map(index => get(newReqFalcor, [...itemReqByIndex, index, 'value', 3])) // ['dms', 'data', 'byId', id]
-			.filter(d => d)
+			.filter(d => d) : [];
 
 	activeIds.push(...(filteredIds || []))
 	// ---------------------------------------------------------------------------------------------------
 
 	const out = await processNewData(
 	  	newReqFalcor, 
-	  	activeIds, 
+	  	activeIds,
+		activeConfigs?.[0]?.filter?.stopFullDataLoad,
 	  	filteredIds?.length, 
 	  	app, type, 
 	  	dmsAttrsConfigs,

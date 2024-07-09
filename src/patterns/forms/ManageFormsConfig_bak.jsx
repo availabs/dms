@@ -4,7 +4,6 @@ import {pattern} from "../admin/admin.format.js"
 import cloneDeep from 'lodash/cloneDeep'
 import defaultTheme from '../page/layout/components/theme'
 import ManageForms from "./components/ManageForms";
-import ManageTemplates from "./components/ManageTemplates";
 import {updateAttributes, updateRegisteredFormats} from "../admin/siteConfig";
 
 const Layout = ({children, title, baseUrl, format,...rest}) => {
@@ -71,7 +70,7 @@ const adminConfig = ({
             path: `:id`
           },
           {
-            type: props => <ManageForms.EditComp {...props} manageTemplates />,
+            type: props => <ManageForms.EditComp {...props} manageTemplates={true} />,
             action: 'edit',
             path: `:id/templates`
           },

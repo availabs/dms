@@ -18,7 +18,7 @@ const getData = async ({format, apiLoad, itemId}) =>{
         },
         action: 'view',
         // path: `/`,
-        // path: `view/:id`, // trying to pass params. children need to match with path. this doesn't work.
+        path: `view/:id`, // trying to pass params. children need to match with path. this doesn't work.
         params: {id: itemId}
     }]
     const data = await apiLoad({

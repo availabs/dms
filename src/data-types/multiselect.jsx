@@ -2,31 +2,40 @@ import React, {useEffect, useRef, useState} from "react"
 import {useTheme} from '../theme'
 
 const inputWrapper = 'flex px-2 py-1 w-full text-sm font-light border focus:border-blue-300 bg-white hover:bg-gray-100 transition ease-in';
+const mainWrapper = '';
 const input = 'focus:outline-none w-full';
 const tokenWrapper = 'flex px-2 py-1 mx-1 bg-gray-100 hover:bg-gray-300 rounded-md transition ease-in';
 const removeIcon = 'fa fa-x px-1 text-xs text-red-300 hover:text-red-500 self-center transition ease-in';
 const menuWrapper = 'p-2 shadow-lg z-10';
 const menuItem = 'px-2 py-1 hover:bg-gray-300 hover:cursor-pointer transition ease-in';
 
-const RenderToken = ({token, value, onChange, theme}) => {
+const RenderToken = ({token, value, onChange, theme, isSearching, setIsSearching}) => {
     return (
         <div className={theme?.multiselect?.tokenWrapper || tokenWrapper}>
-            <div >{token.label || token}</div>
+            <div onClick={() => setIsSearching(!isSearching)}>{token.label || token}</div>
             <i
                 className={theme?.multiselect?.removeIcon || removeIcon}
                 onClick={e => onChange(value.filter(v => (v.value || v) !== (token.value || token)))}
-            />
+            > x </i>
         </div>
     )
 }
 
-const RenderMenu = ({options, isSearching, setIsSearching, searchKeyword, value, onChange, theme}) => {
+const RenderMenu = ({options, isSearching, setIsSearching, placeholder, setSearchKeyword, searchKeyword, value, onChange, theme}) => {
     const mappedValue = value.map(v => v.value || v)
     return (
         <div className={`${isSearching ? `block` : `hidden`} ${theme?.multiselect?.menuWrapper || menuWrapper}`}>
+            <input
+                autoFocus
+                key={'input'}
+                placeholder={placeholder || 'search...'}
+                className={theme?.multiselect?.input || input}
+                onChange={e => setSearchKeyword(e.target.value)}
+                onFocus={() => setIsSearching(true)}
+            />
             {
                 options
-                    .filter(o => !mappedValue.includes(o.value || o) && (o.label || o).includes(searchKeyword))
+                    .filter(o => !mappedValue.includes(o.value || o) && (o.label || o)?.toLowerCase().includes(searchKeyword?.toLowerCase()))
                     .map((o, i) =>
                         <div
                             key={`option-${i}`}
@@ -85,11 +94,11 @@ const Edit = ({value = [], onChange, className,placeholder, options = []}) => {
     const invalidValues = typeSafeValue.filter(v => (v.value || v) && !options.filter(o => (o.value || o) === (v.value || v))?.length);
 
     return (
-        <div ref={ref}>
+        <div ref={ref} className={(theme?.multiselect?.mainWrapper) || mainWrapper}>
             {
                 invalidValues.length ? <div className={theme?.multiselect?.error}>Invalid Values: {JSON.stringify(invalidValues)}</div> : null
             }
-            <div className={className || (theme?.multiselect?.inputWrapper) || inputWrapper}>
+            <div className={className || (theme?.multiselect?.inputWrapper) || inputWrapper} onClick={() => setIsSearching(!isSearching)}>
                 {
                     typeSafeValue
                         .map((v, i) =>
@@ -98,21 +107,18 @@ const Edit = ({value = [], onChange, className,placeholder, options = []}) => {
                                 token={v}
                                 value={typeSafeValue}
                                 onChange={onChange}
+                                isSearching={isSearching}
+                                setIsSearching={setIsSearching}
                                 theme={theme}
                             />)
                 }
-                <input
-                    key={'input'}
-                    placeholder={placeholder}
-                    className={theme?.multiselect?.input || input}
-                    onChange={e => setSearchKeyword(e.target.value)}
-                    onFocus={() => setIsSearching(true)}
-                />
             </div>
 
             <RenderMenu
                 isSearching={isSearching}
                 setIsSearching={setIsSearching}
+                placeholder={placeholder}
+                setSearchKeyword={setSearchKeyword}
                 searchKeyword={searchKeyword}
                 value={typeSafeValue}
                 onChange={onChange}

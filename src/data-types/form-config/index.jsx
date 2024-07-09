@@ -14,7 +14,7 @@ const parseJson = value => {
 }
 
 const Edit = ({value = '{}', onChange, className, placeholder, manageTemplates, ...rest}) => {
-    console.log('form-config', value, rest)
+    //console.log('form-config', value, rest)
     const theme = useTheme()
     const [item, setItem] = useState(parseJson(value))
 
@@ -43,27 +43,29 @@ const Edit = ({value = '{}', onChange, className, placeholder, manageTemplates, 
         onChange(JSON.stringify(newItem))
     }
 
-    return <div className={'border-2 p-2'}>
-        <div>managing {manageTemplates ? 'templates' : 'config'}</div>
-        <label className={labelClass}>Manage Config</label>
-        {
-            Object.keys(item)
-                .filter(attribute => attribute === 'attributes')
-                .map(attribute => {
-                    return (
-                        <div className={'w-full p-2'}>
-                            <RenderField item={item} placeholder={placeholder} attribute={attribute} theme={theme}
-                                         className={className} updateAttribute={updateAttribute}
-                                         removeAttribute={removeAttribute}/>
-                        </div>
-                    )
-                })
-        }
-        <div className={'w-full p-2'}>
-            <RenderAddField item={{}} placeholder={'New field name...'} theme={theme}
-                      className={className} addAttribute={addAttribute}/>
+    return (
+        <div className={'border-2 p-2'}>
+            <div>managing {manageTemplates ? 'templates' : 'config'}</div>
+            <label className={labelClass}>Manage Config</label>
+            {
+                Object.keys(item)
+                    .filter(attribute => attribute === 'attributes')
+                    .map(attribute => {
+                        return (
+                            <div className={'w-full p-2'}>
+                                <RenderField item={item} placeholder={placeholder} attribute={attribute} theme={theme}
+                                             className={className} updateAttribute={updateAttribute}
+                                             removeAttribute={removeAttribute}/>
+                            </div>
+                        )
+                    })
+            }
+            <div className={'w-full p-2'}>
+                <RenderAddField item={{}} placeholder={'New field name...'} theme={theme}
+                          className={className} addAttribute={addAttribute}/>
+            </div>
         </div>
-    </div>
+    )
 }
 
 const View = ({value, className}) => {
