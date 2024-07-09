@@ -5,6 +5,7 @@ import {getConfig} from "./index";
 import Layout from "../../ui/avail-layout";
 import {CMSContext} from "../../siteConfig";
 import {Combobox} from "@headlessui/react";
+import {dataItemsNav, detectNavLevel} from "../../pages/_utils";
 
 const searchItemWrapperClass = `p-2 bg-blue-50 hover:bg-blue-100`
 
@@ -36,11 +37,11 @@ const RenderTagSuggestions = ({tags, individualTags, tmpQuery, setQuery, navigat
 );
 
 const RenderItems = ({items, navigate}) => items.length > 0 && (
-    <div className="max-h-96 transform-gpu scroll-py-3 overflow-y-auto p-3">
+    <div className="h-full transform-gpu scroll-py-3 overflow-y-auto p-3">
         {items.map((item) => (
             <div
                 key={item.id}
-                className={`flex cursor-pointer select-none rounded-xl p-3 bg-gray-100`}
+                className={`flex cursor-pointer select-none rounded-xl p-3 bg-slate-100 hover:bg-slate-200 transition ease-in`}
                 onClick={e => {
                     // navigate(`/${item.url}#${item.id}`)
                     window.location = `${item.url}#${item.id}`
@@ -95,7 +96,7 @@ export const SearchPage = ({item, dataItems, format, attributes, logo, rightMenu
     const navigate = useNavigate();
     const params = useParams();
     const [searchParams] = useSearchParams();
-    const {baseUrl, falcor, falcorCache, ...rest} = useContext(CMSContext) || {}
+    const {baseUrl, theme, user, falcor, falcorCache, ...rest} = useContext(CMSContext) || {}
     const [query, setQuery] = useState();
     const [tmpQuery, setTmpQuery] = useState(searchParams.get('q'));
     const [loading, setLoading] = useState(false);
@@ -105,6 +106,14 @@ export const SearchPage = ({item, dataItems, format, attributes, logo, rightMenu
 
     const app = format?.app;
     const type = format?.type;
+
+    useEffect(() => {
+        setTmpQuery(searchParams.get('q'))
+    }, [searchParams.get('q')])
+    const menuItems = React.useMemo(() => {
+        let items = dataItemsNav(dataItems,baseUrl,false)
+        return items
+    }, [dataItems])
 
     useEffect(() => {
         setTimeout(() => setQuery(tags.filter(t => t.split(',').includes(tmpQuery))), 0)
@@ -169,24 +178,26 @@ export const SearchPage = ({item, dataItems, format, attributes, logo, rightMenu
     }, [query]);
 
     return (
-        <Layout navItems={[]}>
-            <div className={'w-full text-xl border-2 p-2 rounded-md'}>
-                <input
-                    className={'w-full'}
-                    placeholder={'Search...'}
-                    value={tmpQuery}
-                    onChange={e => {
-                        setQuery(tags.filter(t => t.split(',').map(t => t.toLowerCase()).includes(e.target.value?.toLowerCase())))
-                        setTmpQuery(e.target.value)
-                        navigate(getSearchURL({value: e.target.value, baseUrl}))
-                    }}/>
+        <Layout navItems={menuItems}>
+            <div className={`${theme?.page?.wrapper1} ${theme?.navPadding[0]}`}>
+                <div className={'w-full text-xl border-2 p-2 rounded-md'}>
+                    <input
+                        className={'w-full'}
+                        placeholder={'Search...'}
+                        value={tmpQuery}
+                        onChange={e => {
+                            setQuery(tags.filter(t => t.split(',').map(t => t.toLowerCase()).includes(e.target.value?.toLowerCase())))
+                            setTmpQuery(e.target.value)
+                            navigate(getSearchURL({value: e.target.value, baseUrl}))
+                        }}/>
+                </div>
+
+                <RenderTagSuggestions tags={tags} individualTags={individualTags} tmpQuery={tmpQuery} setQuery={setQuery} navigate={navigate} baseUrl={baseUrl}/>
+
+                {
+                    items.length ? <RenderItems items={items} navigate={navigate}/> :
+                        <RenderStatus query={query} loading={loading} itemsLen={items.length} />
+                }
             </div>
-
-            <RenderTagSuggestions tags={tags} individualTags={individualTags} tmpQuery={tmpQuery} setQuery={setQuery} navigate={navigate} baseUrl={baseUrl}/>
-
-            {
-                items.length ? <RenderItems items={items} navigate={navigate}/> :
-                    <RenderStatus query={query} loading={loading} itemsLen={items.length} />
-            }
         </Layout>)
 }
