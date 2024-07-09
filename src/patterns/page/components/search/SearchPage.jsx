@@ -42,7 +42,8 @@ const RenderItems = ({items, navigate}) => items.length > 0 && (
                 key={item.id}
                 className={`flex cursor-pointer select-none rounded-xl p-3 bg-gray-100`}
                 onClick={e => {
-                    navigate(`/${item.url}#${item.id}`)
+                    // navigate(`/${item.url}#${item.id}`)
+                    window.location = `${item.url}#${item.id}`
                 }}
             >
                 <div
