@@ -1,5 +1,5 @@
 import {AgGridReact} from "./ag-grid-react/src/agGridReact";
-import { ClientSideRowModelModule } from './ag-grid/community-modules/client-side-row-model/src/main';
+import { ClientSideRowModelModule } from '@ag-grid-community/client-side-row-model';
 import '@ag-grid-community/styles/ag-grid.css';
 import '@ag-grid-community/styles/ag-theme-quartz.css';
 import 'ag-grid-enterprise';
