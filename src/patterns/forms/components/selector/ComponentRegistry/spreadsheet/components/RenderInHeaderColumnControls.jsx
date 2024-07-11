@@ -1,6 +1,7 @@
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react'
 import RenderSwitch from "./Switch";
 import {useRef} from "react";
+import {ArrowDown} from "../../../../../../admin/ui/icons";
 
 export default function RenderInHeaderColumnControls({
     attribute, isEdit, orderBy, setOrderBy
@@ -8,11 +9,11 @@ export default function RenderInHeaderColumnControls({
     const actions = [
         {
             label: 'Sort A->Z',
-            action: () => setOrderBy({[attribute.name]: 'asc nulls last'})
+            action: () => setOrderBy({[attribute.name]: 'asc nulls last', id: 'asc'})
         },
         {
             label: 'Sort Z->A',
-            action: () => setOrderBy({[attribute.name]: 'desc nulls last'})
+            action: () => setOrderBy({[attribute.name]: 'desc nulls last', id: 'desc'})
         }
     ]
 
@@ -21,7 +22,7 @@ export default function RenderInHeaderColumnControls({
             <div>
                 <MenuButton
                     className="inline-flex items-center w-full justify-center gap-x-1.5 rounded-md px-3 py-2 text-sm font-semibold text-gray-900">
-                    {attribute.display_name || attribute.name} {isEdit && <span className={'text-xs text-gray-500'}>v</span>}
+                    {attribute.display_name || attribute.name} {isEdit && <ArrowDown />}
                 </MenuButton>
             </div>
 

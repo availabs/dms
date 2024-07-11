@@ -1,6 +1,7 @@
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react'
 import RenderSwitch from "./Switch";
 import {useRef} from "react";
+import {ArrowDown, ChevronDownSquare} from "../../../../../../admin/ui/icons";
 
 export default function RenderColumnControls({
     attributes, setAttributes, visibleAttributes, setVisibleAttributes
@@ -40,7 +41,7 @@ export default function RenderColumnControls({
         <Menu as="div" className="relative inline-block text-left">
             <div>
                 <MenuButton className="inline-flex w-full justify-center gap-x-1.5 rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
-                    Columns v
+                    Columns <ArrowDown />
                 </MenuButton>
             </div>
 

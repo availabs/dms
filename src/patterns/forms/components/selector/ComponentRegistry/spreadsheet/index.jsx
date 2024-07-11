@@ -2,7 +2,10 @@ import React, { useMemo, useState, useEffect }from 'react'
 import {Link} from "react-router-dom"
 import DataTypes from "../../../../../../data-types";
 import RenderColumnControls from "./components/RenderColumnControls";
+import RenderTypeControls from "./components/RenderTypeControls"
 import RenderInHeaderColumnControls from "./components/RenderInHeaderColumnControls";
+import AgGrid from "./components/agGrid";
+
 export const isJson = (str)  => {
     try {
         JSON.parse(str);
@@ -58,6 +61,10 @@ const getData = async ({format, apiLoad, currentPage, pageSize, orderBy}) =>{
 const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell}) => {
     const [newItem, setNewItem] = useState(item);
     const Comp = DataTypes[attribute.type]?.EditComp;
+
+    useEffect(() => {
+        setTimeout(updateItem(newItem[attribute.name], attribute, {...item, [attribute.name]: newItem[attribute.name]}), 1000)
+    }, [newItem])
     return (
         <div className={'flex border'}>
             <Comp key={`${attribute.name}-${i}`}
@@ -66,7 +73,7 @@ const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell}) =>
                   value={newItem[attribute.name]}
                   onChange={e => {
                       setNewItem({...item, [attribute.name]: e})
-                      updateItem(e, attribute, {...item, [attribute.name]: e})
+                      // setTimeout(updateItem(e, attribute, {...item, [attribute.name]: e}), 1000)
                   }}
             />
             {
@@ -113,6 +120,73 @@ const RenderPagination = ({totalPages, pageSize, currentPage, setVCurrentPage}) 
         </div>)
 }
 
+const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, setOrderBy, updateItem, removeItem, addItem, newItem, setNewItem, data}) => (
+    <div className={`grid grid-cols-${visibleAttributes.length}`}>
+
+        {/*Header*/}
+        {visibleAttributes.map(va => attributes.find(attr => attr.name === va)).map((attribute, i) =>
+            <div key={i}
+                 className={'p-2 font-semibold text-gray-500 border bg-gray-100'}>
+                <RenderInHeaderColumnControls
+                    isEdit={isEdit}
+                    attribute={attribute}
+                    orderBy={orderBy}
+                    setOrderBy={setOrderBy}
+                />
+            </div>)}
+
+        {/*Rows*/}
+        {data.map((d, i) => (
+            visibleAttributes.map((attribute, attrI) =>
+                <RenderCell
+                    key={`${i}-${attrI}`}
+                    attribute={attributes.find(attr => attr.name === attribute)}
+                    updateItem={updateItem}
+                    removeItem={removeItem}
+                    i={i}
+                    item={d}
+                    isLastCell={attrI === visibleAttributes.length - 1}
+                />)
+        ))}
+
+        {/*Add new row*/}
+        {
+            visibleAttributes.map(va => attributes.find(attr => attr.name === va)).map((attribute, attrI) => {
+                const Comp = DataTypes[attribute?.type || 'text']?.EditComp;
+                return (
+                    <div className={'flex border'}>
+                        <Comp
+                            key={`${attribute.name}`}
+                            className={'p-2 hover:bg-blue-50 w-full'}
+                            value={newItem[attribute.name]}
+                            onChange={e => setNewItem({...newItem, [attribute.name]: e})}
+                            // onFocus={e => console.log('focusing', e)}
+                            onPaste={e => {
+                                e.preventDefault();
+                                const paste =
+                                    (e.clipboardData || window.clipboardData).getData("text")?.split('\n').map(row => row.split('\t'))
+                                console.log('pasting', paste)
+                            }}
+                        />
+                        {
+                            attrI === visibleAttributes.length - 1 &&
+                            <button
+                                className={'w-fit p-1 bg-blue-300 hover:bg-blue-500 text-white'}
+                                onClick={e => addItem()}>+
+                            </button>
+                        }
+                    </div>
+                )
+            })
+        }
+    </div>
+)
+
+const tableComps = {
+    'simple': RenderSimple,
+    'ag-grid': AgGrid
+}
+
 const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     const isEdit = onChange;
     const cachedData = isJson(value) ? JSON.parse(value) : {};
@@ -123,7 +197,8 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     const [newItem, setNewItem] = useState({})
     const [orderBy, setOrderBy] = useState(cachedData.orderBy || {});
     const [currentPage, setCurrentPage] = useState(0);
-    const pageSize = cachedData.pageSize || 10;
+    const [tableType, setTableType] = useState(cachedData.tableType || 'simple')
+    const pageSize = 5// cachedData.pageSize || 5;
 
     //--------------------------------- init comp begin
     useEffect(() => {
@@ -131,7 +206,8 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     }, [format]);
 
     useEffect(() => {
-        async function load(){
+        async function load() {
+            if(data) return;
             // init stuff
             setLoading(true)
             const data = await getData({format, apiLoad, currentPage, pageSize, orderBy});
@@ -139,6 +215,7 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
             !visibleAttributes?.length && setVisibleAttributes(attributes?.map(attr => attr.name));
             setLoading(false)
         }
+
         load()
     }, [format])
     //--------------------------------- init comp end
@@ -146,27 +223,29 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     //--------------------------------- get data begin
     useEffect(() => {
         // onPageChange
-        async function load(){
+        async function load() {
             setLoading(true)
             const data = await getData({format, apiLoad, currentPage, pageSize, orderBy});
             setData(data);
             setLoading(false)
             console.log('called getdata', data)
         }
+
         load()
     }, [currentPage, orderBy]);
     //--------------------------------- get data end
 
     //--------------------------------- saving settings begin
     useEffect(() => {
-        if(!isEdit) return;
+        if (!isEdit) return;
 
-        onChange(JSON.stringify({visibleAttributes, pageSize, attributes, orderBy}));
-    }, [visibleAttributes, attributes, orderBy])
+        onChange(JSON.stringify({visibleAttributes, pageSize, attributes, orderBy, tableType}));
+    }, [visibleAttributes, attributes, orderBy, tableType])
     //--------------------------------- saving settings end
 
     // -------------------------------- util fns begin
     const updateItem = (value, attribute, d) => {
+        // console.log('updating', {...d, [attribute.name]: value})
         return apiUpdate({data: {...d, [attribute.name]: value}, config: {format}})
     }
 
@@ -176,80 +255,27 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
 
     const removeItem = item => {
         setData(data.filter(d => d.id !== item.id))
-        return apiUpdate({data:item, config: {format}, requestType: 'delete'})
+        return apiUpdate({data: item, config: {format}, requestType: 'delete'})
     }
     // -------------------------------- util fns end
 
+    const TableComp = useMemo(() => tableComps[tableType], [tableType])
     return (
         <div>
             {
                 isEdit &&
                 <div className={'flex'}>
-                    <RenderColumnControls attributes={attributes} setAttributes={setAttributes} visibleAttributes={visibleAttributes}
+                    <RenderColumnControls attributes={attributes} setAttributes={setAttributes}
+                                          visibleAttributes={visibleAttributes}
                                           setVisibleAttributes={setVisibleAttributes}/>
+
+                    <RenderTypeControls tableType={tableType} setTableType={setTableType}/>
                 </div>
             }
             {
                 loading ? <div>loading...</div> :
-                    <div className={`grid grid-cols-${visibleAttributes.length}`}>
+                    <TableComp {...{data, visibleAttributes, attributes, isEdit, orderBy, setOrderBy, updateItem, removeItem, addItem, newItem, setNewItem}} />
 
-                        {/*Header*/}
-                        {visibleAttributes.map(va => attributes.find(attr => attr.name === va)).map((attribute, i) =>
-                            <div key={i}
-                                 className={'p-2 font-semibold text-gray-500 border bg-gray-100'}>
-                                <RenderInHeaderColumnControls
-                                    isEdit={isEdit}
-                                    attribute={attribute}
-                                    orderBy={orderBy}
-                                    setOrderBy={setOrderBy}
-                                />
-                            </div>)}
-
-                        {/*Rows*/}
-                        {data.map((d, i) => (
-                            visibleAttributes.map((attribute, attrI) =>
-                                <RenderCell
-                                    key={`${i}-${attrI}`}
-                                    attribute={attributes.find(attr => attr.name === attribute)}
-                                    updateItem={updateItem}
-                                    removeItem={removeItem}
-                                    i={i}
-                                    item={d}
-                                    isLastCell={attrI === visibleAttributes.length - 1}
-                                />)
-                        ))}
-
-                        {/*Add new row*/}
-                        {
-                            visibleAttributes.map(va => attributes.find(attr => attr.name === va)).map((attribute, attrI) => {
-                                const Comp = DataTypes[attribute?.type || 'text']?.EditComp;
-                                return (
-                                    <div className={'flex border'}>
-                                        <Comp
-                                            key={`${attribute.name}`}
-                                            className={'p-2 hover:bg-blue-50 w-full'}
-                                            value={newItem[attribute.name]}
-                                            onChange={e => setNewItem({...newItem, [attribute.name]: e})}
-                                            // onFocus={e => console.log('focusing', e)}
-                                            onPaste={e => {
-                                                e.preventDefault();
-                                                const paste =
-                                                    (e.clipboardData || window.clipboardData).getData("text")?.split('\n').map(row => row.split('\t'))
-                                                console.log('pasting', paste)
-                                            }}
-                                        />
-                                        {
-                                            attrI === visibleAttributes.length - 1 &&
-                                            <button
-                                                className={'w-fit p-1 bg-blue-300 hover:bg-blue-500 text-white'}
-                                                onClick={e => addItem()}>+
-                                            </button>
-                                        }
-                                    </div>
-                                )
-                            })
-                        }
-                    </div>
             }
             {/*Pagination*/}
             <RenderPagination totalPages={13000} pageSize={10} currentPage={currentPage}
