@@ -20,7 +20,6 @@ const getNestedValue = value =>
         !value?.value && typeof value?.value === 'object' ? '' : value;
 
 const getData = async ({format, apiLoad, currentPage, pageSize, orderBy}) =>{
-    console.log('spreadsheet getDAta called')
     // fetch all data items based on app and type. see if you can associate those items to its pattern. this will be useful when you have multiple patterns.
     const attributes = JSON.parse(format?.config || '{}')?.attributes || [];
     const fromIndex = currentPage*pageSize;
@@ -49,6 +48,39 @@ const getData = async ({format, apiLoad, currentPage, pageSize, orderBy}) =>{
         children
     });
     return data;
+  // return data.map(row =>
+  //     Object.keys(row)
+  //         .reduce((acc, cell) =>
+  //             ({
+  //                 ...acc,
+  //                 [cell.split(' as ')[1]]: getNestedValue(row[cell])
+  //             }) , {}))
+}
+
+const getLength = async ({format, apiLoad}) =>{
+    console.log('getlength called.....................')
+    const attributes = JSON.parse(format?.config || '{}')?.attributes || [];
+    const children = [{
+        type: () => {
+        },
+        action: 'length',
+        path: '/',
+        filter: {
+            options: JSON.stringify({
+                // orderBy: Object.keys(orderBy).reduce((acc, curr) => ({...acc, [`data->>'${curr}'`]: orderBy[curr]}) , {})
+            }),
+            // attributes: attributes.map(attr => `data->>'${attr.name}' as ${attr.name}`)
+        },
+    }]
+    const length = await apiLoad({
+        app: format.app,
+        type: format.type,
+        format,
+        attributes,
+        children
+    });
+    console.log('length', )
+    return length;
   // return data.map(row =>
   //     Object.keys(row)
   //         .reduce((acc, cell) =>
@@ -190,6 +222,7 @@ const tableComps = {
 const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     const isEdit = onChange;
     const cachedData = isJson(value) ? JSON.parse(value) : {};
+    const [length, setLength] = useState(cachedData.length || 0);
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(false);
     const [attributes, setAttributes] = useState(cachedData.attributes || []);
@@ -210,8 +243,10 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
             if(data) return;
             // init stuff
             setLoading(true)
+            const length = await getLength({format, apiLoad});
             const data = await getData({format, apiLoad, currentPage, pageSize, orderBy});
             setData(data);
+            setLength(length);
             !visibleAttributes?.length && setVisibleAttributes(attributes?.map(attr => attr.name));
             setLoading(false)
         }
@@ -225,7 +260,9 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
         // onPageChange
         async function load() {
             setLoading(true)
+            const length = await getLength({format, apiLoad});
             const data = await getData({format, apiLoad, currentPage, pageSize, orderBy});
+            setLength(length);
             setData(data);
             setLoading(false)
             console.log('called getdata', data)
@@ -278,7 +315,7 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
 
             }
             {/*Pagination*/}
-            <RenderPagination totalPages={13000} pageSize={10} currentPage={currentPage}
+            <RenderPagination totalPages={length} pageSize={10} currentPage={currentPage}
                               setVCurrentPage={setCurrentPage}/>
         </div>
     )

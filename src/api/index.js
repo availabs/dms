@@ -60,6 +60,9 @@ export async function dmsDataLoader (falcor, config, path='/') {
 	// console.log('lengthReq', lengthReq)
 	const length = get(await falcor.get(lengthReq), ['json',...lengthReq], 0)
 	// console.log('length',length)
+	if(activeConfigs.find(ac => ac.action === 'length')){
+		return length;
+	}
 	let options = activeConfigs[0]?.filter?.options || '{}';
 	const itemReqByIndex = ['dms', 'data', `${ app }+${ type }`, options !== '{}' ? 'opts' : false,
 									options !== '{}' ? options : false, 'byIndex'].filter(i => i)
