@@ -1,7 +1,7 @@
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react'
 import RenderSwitch from "./Switch";
 import {useRef} from "react";
-import {ArrowDown} from "../../../../../../admin/ui/icons";
+import {ArrowDown, SortAsc, SortDesc} from "../../../../../../admin/ui/icons";
 
 export default function RenderInHeaderColumnControls({
     attribute, isEdit, orderBy, setOrderBy
@@ -22,7 +22,10 @@ export default function RenderInHeaderColumnControls({
             <div>
                 <MenuButton
                     className="inline-flex items-center w-full justify-center gap-x-1.5 rounded-md px-3 py-2 text-sm font-semibold text-gray-900">
-                    {attribute.display_name || attribute.name} {isEdit && <ArrowDown />}
+                    {attribute.display_name || attribute.name}
+                    {orderBy[attribute.name] === 'asc nulls last' ? <SortAsc /> :
+                        orderBy[attribute.name] === 'desc nulls last' ? <SortDesc /> : null}
+                    {isEdit && <ArrowDown />}
                 </MenuButton>
             </div>
 
