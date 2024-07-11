@@ -78,7 +78,7 @@ const Layout = ({ children, navItems, title, ...props }) => {
 	// console.log('layout', topNav)
 	
 	return (
-		<div className={`flex ${theme.bg}`}>
+		<div className={`flex ${theme?.bg}`}>
 			{
 				sideNavOptions.size === 'none' ? '' : (
 					<div className={`hidden md:block ${marginSizes[sideNavOptions.size]}`}>
