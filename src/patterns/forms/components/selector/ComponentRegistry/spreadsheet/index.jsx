@@ -4,7 +4,7 @@ import DataTypes from "../../../../../../data-types";
 import RenderColumnControls from "./components/RenderColumnControls";
 import RenderTypeControls from "./components/RenderTypeControls"
 import RenderInHeaderColumnControls from "./components/RenderInHeaderColumnControls";
-import AgGrid from "./components/agGrid";
+import Glide from './components/glide';
 
 export const isJson = (str)  => {
     try {
@@ -216,7 +216,7 @@ const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, setOrderB
 
 const tableComps = {
     'simple': RenderSimple,
-    'ag-grid': AgGrid
+    'glide': Glide
 }
 
 const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
@@ -227,12 +227,12 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     const [loading, setLoading] = useState(false);
     const [attributes, setAttributes] = useState(cachedData.attributes || []);
     const [visibleAttributes, setVisibleAttributes] = useState(cachedData.visibleAttributes || []);
+    const [colSizes, setColSizes] = useState(cachedData.colSizes || {});
     const [newItem, setNewItem] = useState({})
     const [orderBy, setOrderBy] = useState(cachedData.orderBy || {});
     const [currentPage, setCurrentPage] = useState(0);
     const [tableType, setTableType] = useState(cachedData.tableType || 'simple')
-    const pageSize = 5// cachedData.pageSize || 5;
-
+    const pageSize = 10// cachedData.pageSize || 5;
     //--------------------------------- init comp begin
     useEffect(() => {
         setAttributes(JSON.parse(format?.config || '{}')?.attributes || [])
@@ -244,8 +244,8 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
             // init stuff
             setLoading(true)
             const length = await getLength({format, apiLoad});
-            const data = await getData({format, apiLoad, currentPage, pageSize, orderBy});
-            setData(data);
+            const d = await getData({format, apiLoad, currentPage, pageSize, orderBy});
+            setData(d);
             setLength(length);
             !visibleAttributes?.length && setVisibleAttributes(attributes?.map(attr => attr.name));
             setLoading(false)
@@ -276,8 +276,8 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     useEffect(() => {
         if (!isEdit) return;
 
-        onChange(JSON.stringify({visibleAttributes, pageSize, attributes, orderBy, tableType}));
-    }, [visibleAttributes, attributes, orderBy, tableType])
+        onChange(JSON.stringify({visibleAttributes, pageSize, attributes, orderBy, tableType, colSizes}));
+    }, [visibleAttributes, attributes, orderBy, tableType, colSizes])
     //--------------------------------- saving settings end
 
     // -------------------------------- util fns begin
@@ -299,6 +299,7 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     const TableComp = useMemo(() => tableComps[tableType], [tableType])
     return (
         <div>
+
             {
                 isEdit &&
                 <div className={'flex'}>
@@ -311,7 +312,23 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
             }
             {
                 loading ? <div>loading...</div> :
-                    <TableComp {...{data, visibleAttributes, attributes, isEdit, orderBy, setOrderBy, updateItem, removeItem, addItem, newItem, setNewItem}} />
+                    <TableComp {...{
+                        data,
+                        setData,
+                        visibleAttributes,
+                        setVisibleAttributes,
+                        attributes,
+                        isEdit,
+                        orderBy,
+                        setOrderBy,
+                        updateItem,
+                        removeItem,
+                        addItem,
+                        newItem,
+                        setNewItem,
+                        colSizes,
+                        setColSizes,
+                    }} />
 
             }
             {/*Pagination*/}

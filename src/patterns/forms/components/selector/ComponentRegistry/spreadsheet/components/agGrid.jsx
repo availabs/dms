@@ -2,7 +2,7 @@ import {AgGridReact} from "./ag-grid-react/src/agGridReact";
 import { ClientSideRowModelModule } from '@ag-grid-community/client-side-row-model';
 import '@ag-grid-community/styles/ag-grid.css';
 import '@ag-grid-community/styles/ag-theme-quartz.css';
-import 'ag-grid-enterprise';
+// import 'ag-grid-enterprise';
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import DataTypes from "../../../../../../../data-types";
 

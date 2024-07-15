@@ -21,7 +21,7 @@ export default function RenderColumnControls({
                 <div className="py-1">
                     {
                         [
-                            'simple', 'ag-grid'
+                            'simple', 'glide'
                         ]
                             .map((type, i) => (
                             <MenuItem>
