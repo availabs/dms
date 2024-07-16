@@ -11,9 +11,9 @@ const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell}) =>
         setTimeout(updateItem(newItem[attribute.name], attribute, {...item, [attribute.name]: newItem[attribute.name]}), 1000)
     }, [newItem])
     return (
-        <div className={'flex border'}>
+        <div className={`flex ${isLastCell ? `border border-r-0` : `border`}`}>
             <Comp key={`${attribute.name}-${i}`}
-                  className={'p-1 hover:bg-blue-50 h-fit w-full flex flex-wrap'}
+                  className={'p-1 hover:bg-blue-50 h-fit w-full h-full flex flex-wrap'}
                   displayInvalidMsg={false}
                   {...attribute}
                   value={newItem[attribute.name]}
@@ -25,12 +25,12 @@ const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell}) =>
                 isLastCell &&
                 <>
                     <Link
-                        className={'w-fit p-1 bg-blue-300 hover:bg-blue-500 text-white'}
+                        className={'w-fit p-1 bg-blue-300 hover:bg-blue-500 text-white rounded-l-lg'}
                         to={`view/${newItem.id}`}>
                         view
                     </Link>
                     <button
-                        className={'w-fit p-1 bg-red-300 hover:bg-red-500 text-white'}
+                        className={'w-fit p-1 bg-red-300 hover:bg-red-500 text-white rounded-r-lg'}
                         onClick={e => {removeItem(newItem)}}>x
                     </button>
                 </>
@@ -45,7 +45,7 @@ export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, se
         {/*Header*/}
         {visibleAttributes.map(va => attributes.find(attr => attr.name === va)).map((attribute, i) =>
             <div key={i}
-                 className={'p-2 font-semibold text-gray-500 border bg-gray-100'}>
+                 className={'p-0 font-semibold text-gray-500 border bg-gray-100'}>
                 <RenderInHeaderColumnControls
                     isEdit={isEdit}
                     attribute={attribute}
@@ -73,10 +73,11 @@ export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, se
             visibleAttributes.map(va => attributes.find(attr => attr.name === va)).map((attribute, attrI) => {
                 const Comp = DataTypes[attribute?.type || 'text']?.EditComp;
                 return (
-                    <div className={'flex border'}>
+                    <div className={`flex ${attrI === visibleAttributes.length - 1 ? 'border border-r-0' : `border`}`}>
                         <Comp
                             key={`${attribute.name}`}
-                            className={'p-2 hover:bg-blue-50 w-full'}
+                            className={'p-1 hover:bg-blue-50 w-full h-full'}
+                            {...attribute}
                             value={newItem[attribute.name]}
                             placeholder={'+ add new'}
                             onChange={e => setNewItem({...newItem, [attribute.name]: e})}
@@ -91,7 +92,7 @@ export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, se
                         {
                             attrI === visibleAttributes.length - 1 &&
                             <button
-                                className={'w-fit p-1 bg-blue-300 hover:bg-blue-500 text-white'}
+                                className={'w-fit p-1 bg-blue-300 hover:bg-blue-500 text-white rounded-r-lg'}
                                 onClick={e => addItem()}>+
                             </button>
                         }
