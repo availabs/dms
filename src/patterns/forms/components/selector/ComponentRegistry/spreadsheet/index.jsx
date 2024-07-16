@@ -3,99 +3,12 @@ import RenderColumnControls from "./components/RenderColumnControls";
 import RenderTypeControls from "./components/RenderTypeControls"
 import Glide from './components/glide';
 import {RenderSimple} from "./components/SijmpleSpreadsheet";
-
-export const isJson = (str)  => {
-    try {
-        JSON.parse(str);
-    } catch (e) {
-        return false;
-    }
-    return true;
-}
-
-const getNestedValue = value =>
-    value?.value && typeof value?.value === 'object' ? getNestedValue(value.value) :
-        !value?.value && typeof value?.value === 'object' ? '' : value;
-
-const getData = async ({format, apiLoad, currentPage, pageSize, orderBy}) =>{
-    // fetch all data items based on app and type. see if you can associate those items to its pattern. this will be useful when you have multiple patterns.
-    const attributes = JSON.parse(format?.config || '{}')?.attributes || [];
-    const fromIndex = currentPage*pageSize;
-    const toIndex = currentPage*pageSize + pageSize-1;
-    const children = [{
-        type: () => {
-        },
-        action: 'list',
-        path: '/',
-        filter: {
-            fromIndex: path => fromIndex,
-            toIndex: path => toIndex,
-            options: JSON.stringify({
-                orderBy: Object.keys(orderBy).reduce((acc, curr) => ({...acc, [`data->>'${curr}'`]: orderBy[curr]}) , {})
-            }),
-            stopFullDataLoad: true
-        },
-    }]
-    const data = await apiLoad({
-        app: format.app,
-        type: format.type,
-        format,
-        attributes,
-        children
-    });
-    return data;
-
-}
-
-const getLength = async ({format, apiLoad}) =>{
-    const attributes = JSON.parse(format?.config || '{}')?.attributes || [];
-    const children = [{
-        type: () => {
-        },
-        action: 'length',
-        path: '/',
-        filter: {
-            options: JSON.stringify({})
-        },
-    }]
-    const length = await apiLoad({
-        app: format.app,
-        type: format.type,
-        format,
-        attributes,
-        children
-    });
-    return length;
-}
-
+import {RenderPagination} from "./components/RenderPagination";
+import {isJson, getLength, getData} from "./utils";
 
 const tableComps = {
     'simple': RenderSimple,
     'glide': Glide
-}
-
-const RenderPagination = ({totalPages, pageSize, currentPage, setVCurrentPage}) => {
-    const numNavBtns = Math.ceil(totalPages / pageSize);
-
-    return (
-        <div className={'float-right flex no-wrap items-center p-1'}>
-            <div className={'mx-1 cursor-pointer text-gray-500 hover:text-gray-800'} onClick={() => setVCurrentPage(currentPage > 0 ? currentPage - 1 : currentPage)}>{`<< prev`}</div>
-            <select
-                className={'p-2 border-2 text-gray-800 hover:bg-blue-50 text-sm rounded-md'}
-                value={currentPage}
-                onChange={e => setVCurrentPage(+e.target.value)}
-            >
-                {
-                    [...new Array(numNavBtns).keys()]
-                        .map((i) =>
-                            <option
-                                className={'p-2 border-2 text-gray-800 hover:bg-blue-50 text-sm'}
-                                value={i} key={i}>{i + 1}
-                            </option>)
-                }
-            </select>
-            <div className={'mx-1 cursor-pointer text-gray-500 hover:text-gray-800'} onClick={() => setVCurrentPage(currentPage < totalPages ? currentPage + 1 : currentPage)}>{`next >>`}</div>
-        </div>)
 }
 
 const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
