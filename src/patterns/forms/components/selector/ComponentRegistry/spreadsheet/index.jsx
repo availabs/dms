@@ -1,10 +1,8 @@
 import React, { useMemo, useState, useEffect }from 'react'
-import {Link} from "react-router-dom"
-import DataTypes from "../../../../../../data-types";
 import RenderColumnControls from "./components/RenderColumnControls";
 import RenderTypeControls from "./components/RenderTypeControls"
-import RenderInHeaderColumnControls from "./components/RenderInHeaderColumnControls";
 import Glide from './components/glide';
+import {RenderSimple} from "./components/SijmpleSpreadsheet";
 
 export const isJson = (str)  => {
     try {
@@ -32,11 +30,9 @@ const getData = async ({format, apiLoad, currentPage, pageSize, orderBy}) =>{
         filter: {
             fromIndex: path => fromIndex,
             toIndex: path => toIndex,
-            // options: JSON.stringify({orderBy})
             options: JSON.stringify({
                 orderBy: Object.keys(orderBy).reduce((acc, curr) => ({...acc, [`data->>'${curr}'`]: orderBy[curr]}) , {})
             }),
-            // attributes: attributes.map(attr => `data->>'${attr.name}' as ${attr.name}`)
             stopFullDataLoad: true
         },
     }]
@@ -48,17 +44,10 @@ const getData = async ({format, apiLoad, currentPage, pageSize, orderBy}) =>{
         children
     });
     return data;
-  // return data.map(row =>
-  //     Object.keys(row)
-  //         .reduce((acc, cell) =>
-  //             ({
-  //                 ...acc,
-  //                 [cell.split(' as ')[1]]: getNestedValue(row[cell])
-  //             }) , {}))
+
 }
 
 const getLength = async ({format, apiLoad}) =>{
-    console.log('getlength called.....................')
     const attributes = JSON.parse(format?.config || '{}')?.attributes || [];
     const children = [{
         type: () => {
@@ -66,10 +55,7 @@ const getLength = async ({format, apiLoad}) =>{
         action: 'length',
         path: '/',
         filter: {
-            options: JSON.stringify({
-                // orderBy: Object.keys(orderBy).reduce((acc, curr) => ({...acc, [`data->>'${curr}'`]: orderBy[curr]}) , {})
-            }),
-            // attributes: attributes.map(attr => `data->>'${attr.name}' as ${attr.name}`)
+            options: JSON.stringify({})
         },
     }]
     const length = await apiLoad({
@@ -79,53 +65,13 @@ const getLength = async ({format, apiLoad}) =>{
         attributes,
         children
     });
-    console.log('length', )
     return length;
-  // return data.map(row =>
-  //     Object.keys(row)
-  //         .reduce((acc, cell) =>
-  //             ({
-  //                 ...acc,
-  //                 [cell.split(' as ')[1]]: getNestedValue(row[cell])
-  //             }) , {}))
 }
 
-const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell}) => {
-    const [newItem, setNewItem] = useState(item);
-    const Comp = DataTypes[attribute.type]?.EditComp;
 
-    useEffect(() => {
-        setTimeout(updateItem(newItem[attribute.name], attribute, {...item, [attribute.name]: newItem[attribute.name]}), 1000)
-    }, [newItem])
-    return (
-        <div className={'flex border'}>
-            <Comp key={`${attribute.name}-${i}`}
-                  className={'p-1 hover:bg-blue-50 h-fit w-full flex flex-wrap'}
-                  {...attribute}
-                  value={newItem[attribute.name]}
-                  onChange={e => {
-                      setNewItem({...item, [attribute.name]: e})
-                      // setTimeout(updateItem(e, attribute, {...item, [attribute.name]: e}), 1000)
-                  }}
-            />
-            {
-                isLastCell &&
-                <>
-                    <Link
-                        className={'w-fit p-1 bg-blue-300 hover:bg-blue-500 text-white'}
-                        to={`view/${newItem.id}`}>
-                        view
-                    </Link>
-                    <button
-                        className={'w-fit p-1 bg-red-300 hover:bg-red-500 text-white'}
-                        onClick={e => {
-                            removeItem(newItem)
-                        }}>x
-                    </button>
-                </>
-            }
-        </div>
-    )
+const tableComps = {
+    'simple': RenderSimple,
+    'glide': Glide
 }
 
 const RenderPagination = ({totalPages, pageSize, currentPage, setVCurrentPage}) => {
@@ -152,73 +98,6 @@ const RenderPagination = ({totalPages, pageSize, currentPage, setVCurrentPage}) 
         </div>)
 }
 
-const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, setOrderBy, updateItem, removeItem, addItem, newItem, setNewItem, data}) => (
-    <div className={`grid grid-cols-${visibleAttributes.length}`}>
-
-        {/*Header*/}
-        {visibleAttributes.map(va => attributes.find(attr => attr.name === va)).map((attribute, i) =>
-            <div key={i}
-                 className={'p-2 font-semibold text-gray-500 border bg-gray-100'}>
-                <RenderInHeaderColumnControls
-                    isEdit={isEdit}
-                    attribute={attribute}
-                    orderBy={orderBy}
-                    setOrderBy={setOrderBy}
-                />
-            </div>)}
-
-        {/*Rows*/}
-        {data.map((d, i) => (
-            visibleAttributes.map((attribute, attrI) =>
-                <RenderCell
-                    key={`${i}-${attrI}`}
-                    attribute={attributes.find(attr => attr.name === attribute)}
-                    updateItem={updateItem}
-                    removeItem={removeItem}
-                    i={i}
-                    item={d}
-                    isLastCell={attrI === visibleAttributes.length - 1}
-                />)
-        ))}
-
-        {/*Add new row*/}
-        {
-            visibleAttributes.map(va => attributes.find(attr => attr.name === va)).map((attribute, attrI) => {
-                const Comp = DataTypes[attribute?.type || 'text']?.EditComp;
-                return (
-                    <div className={'flex border'}>
-                        <Comp
-                            key={`${attribute.name}`}
-                            className={'p-2 hover:bg-blue-50 w-full'}
-                            value={newItem[attribute.name]}
-                            onChange={e => setNewItem({...newItem, [attribute.name]: e})}
-                            // onFocus={e => console.log('focusing', e)}
-                            onPaste={e => {
-                                e.preventDefault();
-                                const paste =
-                                    (e.clipboardData || window.clipboardData).getData("text")?.split('\n').map(row => row.split('\t'))
-                                console.log('pasting', paste)
-                            }}
-                        />
-                        {
-                            attrI === visibleAttributes.length - 1 &&
-                            <button
-                                className={'w-fit p-1 bg-blue-300 hover:bg-blue-500 text-white'}
-                                onClick={e => addItem()}>+
-                            </button>
-                        }
-                    </div>
-                )
-            })
-        }
-    </div>
-)
-
-const tableComps = {
-    'simple': RenderSimple,
-    'glide': Glide
-}
-
 const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     const isEdit = onChange;
     const cachedData = isJson(value) ? JSON.parse(value) : {};
@@ -233,7 +112,7 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     const [currentPage, setCurrentPage] = useState(0);
     const [tableType, setTableType] = useState(cachedData.tableType || 'simple')
     const pageSize = 10// cachedData.pageSize || 5;
-    //--------------------------------- init comp begin
+    // ========================================= init comp begin =======================================================
     useEffect(() => {
         setAttributes(JSON.parse(format?.config || '{}')?.attributes || [])
     }, [format]);
@@ -253,9 +132,9 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
 
         load()
     }, [format])
-    //--------------------------------- init comp end
+    // ========================================== init comp end ========================================================
 
-    //--------------------------------- get data begin
+    // ========================================== get data begin =======================================================
     useEffect(() => {
         // onPageChange
         async function load() {
@@ -270,17 +149,17 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
 
         load()
     }, [currentPage, orderBy]);
-    //--------------------------------- get data end
+    // =========================================== get data end ========================================================
 
-    //--------------------------------- saving settings begin
+    // =========================================== saving settings begin ===============================================
     useEffect(() => {
         if (!isEdit) return;
 
         onChange(JSON.stringify({visibleAttributes, pageSize, attributes, orderBy, tableType, colSizes}));
     }, [visibleAttributes, attributes, orderBy, tableType, colSizes])
-    //--------------------------------- saving settings end
+    // =========================================== saving settings end =================================================
 
-    // -------------------------------- util fns begin
+    // =========================================== util fns begin ======================================================
     const updateItem = (value, attribute, d) => {
         // console.log('updating', {...d, [attribute.name]: value})
         return apiUpdate({data: {...d, [attribute.name]: value}, config: {format}})
@@ -294,7 +173,7 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
         setData(data.filter(d => d.id !== item.id))
         return apiUpdate({data: item, config: {format}, requestType: 'delete'})
     }
-    // -------------------------------- util fns end
+    // =========================================== util fns end ========================================================
 
     const TableComp = useMemo(() => tableComps[tableType], [tableType])
     return (

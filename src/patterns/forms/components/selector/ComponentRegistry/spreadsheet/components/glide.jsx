@@ -1,16 +1,8 @@
 import "@glideapps/glide-data-grid/dist/index.css";
-
-import {
-    DataEditor,
-    // GridCell,
-    GridCellKind,
-    // GridColumn,
-    // Item
-} from "@glideapps/glide-data-grid";
+import {DataEditor, GridCellKind, GridColumnIcon} from "@glideapps/glide-data-grid";
 import {allCells} from "@glideapps/glide-data-grid-cells";
 import React, {useEffect, useMemo, useState} from "react";
-import RenderInHeaderColumnControls from "./RenderInHeaderColumnControls";
-
+//todo: sort icons, freeze particular column: basically re-order and freeze 1, filter, meta from server
 const Glide = ({
                    attributes,
                    visibleAttributes, setVisibleAttributes,
@@ -39,11 +31,13 @@ const Glide = ({
                 width: colSizes[a.name],
                 hasMenu: true,
                 menuIcon: 'dots',
+                // icon: GridColumnIcon.HeaderCode,
                 grow: hasResized.current.has(attr.name) ? undefined : (5 + i) / 5
             }
         })
-    }, [visibleAttributes, attributes, colSizes]);
+    }, [visibleAttributes, attributes, colSizes, orderBy]);
 
+    // =========================================== utils ===============================================================
     const getData = ([col, row]) => {
         const item = data[row] || {}
         const column = columns[col];
@@ -96,7 +90,14 @@ const Glide = ({
         [tmpAttributes[from], tmpAttributes[to]] = [tmpAttributes[to], tmpAttributes[from]]
         setVisibleAttributes(tmpAttributes)
     }
-
+    const onHeaderClicked = (col) => {
+        orderBy[columns[col].name] === 'asc nulls last' ? actions[1].action(columns[col].name) : actions[0].action(columns[col].name)
+    }
+    const editOnlyControls = {
+        onColumnResize,
+        onColumnMoved
+    }
+    // =========================================== end utils ============================================================
     // const onRowAppended = React.useCallback(async () => {
     //     // shift rows below index down
     //     for (let y = numRows; y > index; y--) {
@@ -116,7 +117,19 @@ const Glide = ({
     //     return index;
     // }, [getCellContent, numRows, setCellValueRaw, index]);
 
-    // menu ===================================================
+
+    // ============================================== menu =============================================================
+    const actions = [
+        {
+            label: 'Sort A->Z',
+            action: (colName) => setOrderBy({[colName]: 'asc nulls last', id: 'asc'})
+        },
+        {
+            label: 'Sort Z->A',
+            action: (colName) => setOrderBy({[colName]: 'desc nulls last', id: 'desc'})
+        }
+    ]
+
     const onHeaderMenuClick = (col, bounds) => {
         if (menu && columns[col]?.name === menu.col.name) {
             setMenu(undefined)
@@ -127,11 +140,6 @@ const Glide = ({
             });
         }
     };
-    // end menu ===============================================
-    const editOnlyControls = {
-        onColumnResize,
-        onColumnMoved
-    }
 
     const RenderMenu = ({menu}) => {
         if (!menu) return null;
@@ -139,32 +147,22 @@ const Glide = ({
             willChange: "top, left, width, height",
             top: `${menu.bounds.y - 40}px`,
             left: `${menu.bounds.x}px`,
-            width: `${menu.bounds.width}px`,
+            width: `${Math.max(30, menu.bounds.width)}px`,
         };
 
-        const actions = [
-            {
-                label: 'Sort A->Z',
-                action: () => setOrderBy({[menu.col.name]: 'asc nulls last', id: 'asc'})
-            },
-            {
-                label: 'Sort Z->A',
-                action: () => setOrderBy({[menu.col.name]: 'desc nulls last', id: 'desc'})
-            }
-        ]
-
-        return (<div className={'absolute bg-gray-100 divide-y p-2'} style={style}>
+        return (<div className={'absolute bg-gray-100 divide-y p-1 rounded-lg'} style={style}>
             {
                 actions.map(action => (
                     <div
                         key={action.label}
-                        className={'cursor-pointer'}
-                        onClick={() => action.action()}>
+                        className={'cursor-pointer hover:bg-gray-200 p-1 rounded-md'}
+                        onClick={() => action.action(menu.col.name)}>
                         {action.label}
                     </div>))
             }
         </div>)
     }
+    // ============================================= end menu ==========================================================
 
     return (
         <>
@@ -180,7 +178,7 @@ const Glide = ({
                             downFill: true,
                             rightFill: true
                         }}
-                        onHeaderMenuClick={onHeaderMenuClick}
+                        onHeaderMenuClick={onHeaderMenuClick} onHeaderClicked={onHeaderClicked}
                         // freezeColumns={1}
                         rows={numRows} onPaste={true} fillHandle={true} cellActivationBehavior="single-click"
             />

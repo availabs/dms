@@ -80,7 +80,7 @@ function useComponentVisible(initial) {
 }
 
 
-const Edit = ({value = [], onChange, className,placeholder, options = []}) => {
+const Edit = ({value = [], onChange, className,placeholder, options = [], displayInvalidMsg=true}) => {
     // options: ['1', 's', 't'] || [{label: '1', value: '1'}, {label: 's', value: '2'}, {label: 't', value: '3'}]
     const [searchKeyword, setSearchKeyword] = useState('');
     const typeSafeValue = Array.isArray(value) ? value : [value];
@@ -96,7 +96,7 @@ const Edit = ({value = [], onChange, className,placeholder, options = []}) => {
     return (
         <div ref={ref} className={(theme?.multiselect?.mainWrapper) || mainWrapper}>
             {
-                invalidValues.length ? <div className={theme?.multiselect?.error}>Invalid Values: {JSON.stringify(invalidValues)}</div> : null
+                invalidValues.length && displayInvalidMsg ? <div className={theme?.multiselect?.error}>Invalid Values: {JSON.stringify(invalidValues)}</div> : null
             }
             <div className={className || (theme?.multiselect?.inputWrapper) || inputWrapper} onClick={() => setIsSearching(!isSearching)}>
                 {
