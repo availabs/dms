@@ -123,7 +123,7 @@ const formsAdminConfig = ({
     console.log('formsAdminConfig', parent)
     return {
         format: patternFormat,
-        baseUrl: `${baseUrl}manage`,
+        baseUrl: `${baseUrl}/manage`,
         API_HOST,
         children: [
             {
