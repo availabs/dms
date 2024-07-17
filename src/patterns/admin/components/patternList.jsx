@@ -109,9 +109,9 @@ function PatternEdit({
 										onChange={(v) => setEditingItem({...editingItem, [attr]: v})}
 										{...attributes[attr]}
 									/>
-										: <div>{pattern[attr]}</div>
-								}
-							)
+										: attr === 'base_url' ? <Link to={`/${pattern[attr]}`}>{pattern[attr]}</Link> : <div>{pattern[attr]}</div>
+									}
+								)
 						}
 						<div className={'w-full flex items-center justify-start'}>
 							<Link
