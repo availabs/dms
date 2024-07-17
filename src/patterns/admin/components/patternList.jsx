@@ -113,7 +113,7 @@ function PatternEdit({
 								}
 							)
 						}
-						<div className={'w-full flex items-center justify-center'}>
+						<div className={'w-full flex items-center justify-start'}>
 							<Link
 								className={'bg-blue-100 hover:bg-blue-300 text-blue-800 px-2 py-0.5 m-1 rounded-lg w-fit h-fit'}
 								to={`/${pattern.base_url}manage/attributes`}>Manage</Link>
@@ -157,27 +157,27 @@ function PatternEdit({
 				))
 			}
 
-			<div className={`mx-4 ${c[numAttributes+1]}`}>
+			<div className={`${c[numAttributes+1]}`}>
 				{
 					attrToShow
 						.map((attrKey, i) => {
 							let EditComp = attributes[attrKey].EditComp
 							return (
-								<div key={`${attrKey}-${i}`} className={'w-full flex space-between'}>
-									<div className={'font-semibold w-3/4'}>
+
 										<EditComp
 											key={`${attrKey}-${i}`}
 											value={newItem?.[attrKey]}
 											onChange={(v) => setNewItem({...newItem, [attrKey]: v})}
 											{...attributes[attrKey]}
 										/>
-									</div>
-								</div>
+
 							)
 						})
 				}
-				<button className={'bg-blue-300 hover:bg-blue-500 text-white w-fit px-2 py-0.5'} onClick={addNewValue}>Add
+				<div className={'w-full flex items-center justify-start'}>
+				<button className={'bg-blue-100 hover:bg-blue-300 text-blue-800 px-2 py-0.5 m-1 rounded-lg w-fit h-fit'} onClick={addNewValue}>Add
 				</button>
+				</div>
 			</div>
 		</div>
 	)
