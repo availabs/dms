@@ -29,7 +29,7 @@ let fixedSizes = {
 
 const Logos = () => <div className='h-12'/>
 
-const Layout = ({ children, navItems=[], title }) => {
+const Layout = ({ children, navItems=[], title, adminPath, ...rest }) => {
 	//const theme = useTheme()
 
 	const { theme, app, type } = React.useContext(FormsContext) || {}
@@ -44,13 +44,13 @@ const Layout = ({ children, navItems=[], title }) => {
 		topMenu: (
 			<div className={'flex flex-row md:flex-col'}>
 	      		{sideNav?.logo === 'top' && logo}
-	        	{sideNav?.dropdown === 'top' && <Menu />}
+	        	{sideNav?.dropdown === 'top' && <Menu adminPath={adminPath}/>}
 	        	{/*{sideNav?.search === 'top' && <Search app={app} type={type}/>}*/}
 	      	</div>),
 		bottomMenu:  (
 	      	<div className={'flex flex-row md:flex-col'}>
 	      		{/*{sideNav?.search === 'bottom' && <Search app={app} type={type}/>}*/}
-	        	{sideNav?.dropdown === 'bottom' && <Menu />}
+	        	{sideNav?.dropdown === 'bottom' && <Menu adminPath={adminPath}/>}
 	      	</div>
 	  	)
 	}
@@ -66,13 +66,13 @@ const Layout = ({ children, navItems=[], title }) => {
 			<div className={'flex flex-col md:flex-row'}>
 	      		{topNav?.logo === 'left' && logo}
 	        	{/*{topNav?.search === 'left' && <Search app={app} type={type}/>}*/}
-	        	{topNav?.dropdown === 'left' && <Menu />}
+	        	{topNav?.dropdown === 'left' && <Menu adminPath={adminPath}/>}
 	      	</div>),
 		rightMenu:  (
 	      	<div className={'flex flex-col md:flex-row'}>
 	      		{topNav?.rightMenu}
 	        	{/*{topNav?.search === 'right' && <Search app={app} type={type}/>}*/}
-	        	{topNav?.dropdown === 'right' && <Menu />}
+	        	{topNav?.dropdown === 'right' && <Menu adminPath={adminPath}/>}
 	      	</div>
 	  	)	
 	}

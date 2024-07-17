@@ -27,7 +27,7 @@ const defaultUser = { email: "user", authLevel: 5, authed: true, fake: true}
 
 
 const formTemplateConfig = ({
-    app, type, 
+    app, type, adminPath,
     format, 
     parent, 
     title, 
@@ -49,6 +49,7 @@ const formTemplateConfig = ({
     const templateFormat = {...template}
     templateFormat.app = app;
     templateFormat.type = `template`;
+    console.log('adminpath index', adminPath)
     return {
         app,
         type: `template`,
@@ -64,6 +65,7 @@ const formTemplateConfig = ({
                             <FormTemplateView
                                 format={templateFormat}
                                 parent={parent}
+                                adminPath={adminPath}
                                 {...props}
                             />
                         </FormsContext.Provider>
@@ -79,6 +81,7 @@ const formTemplateConfig = ({
                         <FormsContext.Provider value={{baseUrl, user: props.user || defaultUser, theme, app, type, parent}}>
                             <FormTemplateView
                                 parent={parent}
+                                adminPath={adminPath}
                                 edit={true}
                                 {...props}
                             />
@@ -164,7 +167,7 @@ export default [
 ];
 
 
-const FormTemplateView = ({apiLoad, apiUpdate, attributes, parent, params, format, dataItems=[],baseUrl,theme,edit=false,...rest}) => {
+const FormTemplateView = ({apiLoad, apiUpdate, attributes, parent, params, format, adminPath, dataItems=[],baseUrl,theme,edit=false,...rest}) => {
     // const [items, setItems] = useState([]);
     // const [item, setItem] = useState({});
     const Comp = edit ? TemplateEdit : TemplateView;
@@ -182,7 +185,7 @@ const FormTemplateView = ({apiLoad, apiUpdate, attributes, parent, params, forma
     const type = parent.doc_type || parent?.base_url?.replace(/\//g, '') 
 
     if(!match.route) return <>No template found.</>
-    
+
 
     return (
 
@@ -192,6 +195,7 @@ const FormTemplateView = ({apiLoad, apiUpdate, attributes, parent, params, forma
                 apiLoad={apiLoad}
                 apiUpdate={apiUpdate}
                 format={{...parent, type}}
+                adminPath={adminPath}
                 attributes={attributes}
             />
     )

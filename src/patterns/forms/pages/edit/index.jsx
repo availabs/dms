@@ -13,7 +13,7 @@ import {FormsContext} from "../../";
 import {templateSection} from "../../../admin/admin.format";
 
 function PageEdit ({
-  item={}, dataItems, updateAttribute,attributes, setItem, apiLoad, apiUpdate, status, navOptions, format
+  item={}, dataItems, updateAttribute,attributes, setItem, apiLoad, apiUpdate, adminPath, status, navOptions, format
 }) {
   const navigate = useNavigate()
   const submit = useSubmit()
@@ -86,7 +86,7 @@ function PageEdit ({
           attributes={sectionAttr}
         />
       )}
-      <Layout>
+      <Layout adminPath={adminPath}>
         <div className={`${theme?.page?.wrapper1} ${theme?.navPadding[level]}`}>
           {item?.header === 'below' && (
             <ContentEdit item={item} value={[headerSection]} onChange={(val,action) => saveHeader(v, item, user, apiUpdate)} attributes={sectionAttr} />

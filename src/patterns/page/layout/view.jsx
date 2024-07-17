@@ -77,7 +77,7 @@ export default PageView
 
 function ToggleEdit({baseUrl, item}) {
   return (
-    <Link className='z-30 absolute right-[10px] top-[5px]' to={`${baseUrl}/edit/${item.url_slug}`}>
+    <Link className='z-5 absolute right-[10px] top-[5px]' to={`${baseUrl}/edit/${item.url_slug}`}>
       <i className={`fad fa-edit fa-fw flex-shrink-0 text-lg text-slate-400 hover:text-blue-500`}/>
     </Link>
   )

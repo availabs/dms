@@ -13,7 +13,7 @@ import {templateSection} from "../../admin/admin.format";
 
 const HelloWorld = () => <div> hello world </div>
 
-function PageView ({item, dataItems, attributes, logo, rightMenu, format, apiLoad, apiUpdate, ...rest}) {
+function PageView ({item, dataItems, adminPath, attributes, logo, rightMenu, format, apiLoad, apiUpdate, ...rest}) {
   // console.log('page_view')
   // if(!item) return <div> No Pages </div>
   const params = useParams()
@@ -51,13 +51,12 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, format, apiLoa
   //console.log('test 123', attributes['sections'])
 
 
-
   return (
     <div id='page_view'>
       {/* Header */}
       {(item?.header === 'above') && <ContentView item={item} value={[headerSection]} attributes={sectionAttr} />}
       {/* Layout */}
-      <Layout >
+      <Layout adminPath={adminPath}>
         <div className={`${theme?.page?.wrapper1} ${theme?.navPadding[level]}`}>
           {(item?.header === 'below') && <ContentView item={item} value={[headerSection]} attributes={sectionAttr} />}
           <div className={`${theme?.page?.wrapper2}`}>
