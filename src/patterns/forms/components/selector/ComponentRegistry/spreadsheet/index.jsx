@@ -24,7 +24,7 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     const [orderBy, setOrderBy] = useState(cachedData.orderBy || {});
     const [currentPage, setCurrentPage] = useState(0);
     const [tableType, setTableType] = useState(cachedData.tableType || 'simple')
-    const pageSize = 20// cachedData.pageSize || 5;
+    const pageSize = 200// cachedData.pageSize || 5;
     // ========================================= init comp begin =======================================================
     useEffect(() => {
         setAttributes(JSON.parse(format?.config || '{}')?.attributes || [])

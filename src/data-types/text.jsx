@@ -1,10 +1,12 @@
-import React, {useState} from "react"
+import React, {useEffect, useState} from "react"
 import { useTheme } from '../theme'
 
 
 const Edit = ({value = '', onChange, className, placeholder, ...rest}) => {
     const [tmpValue, setTmpValue] = useState(value)
     const theme = useTheme()
+
+    useEffect(() => setTmpValue(value), [value]);
     return (
         <input
             {...rest}

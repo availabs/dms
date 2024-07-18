@@ -98,24 +98,24 @@ const Glide = ({
         onColumnMoved
     }
     // =========================================== end utils ============================================================
-    // const onRowAppended = React.useCallback(async () => {
-    //     // shift rows below index down
-    //     for (let y = numRows; y > index; y--) {
-    //         for (let x = 0; x < 6; x++) {
-    //             setCellValueRaw([x, y], getCellContent([x, y - 1]));
-    //         }
-    //     }
-    //     for (let c = 0; c < 6; c++) {
-    //         const cell = getCellContent([c, index]);
-    //         setCellValueRaw([c, index], clearCell(cell));
-    //     }
-    //
-    //     setData([...data, {}])
-    //     setNumRows(numRows+1)
-    //
-    //     setNumRows(cv => cv + 1);
-    //     return index;
-    // }, [getCellContent, numRows, setCellValueRaw, index]);
+    const onRowAppended = React.useCallback(async () => {
+        // shift rows below index down
+        // for (let y = numRows; y > index; y--) {
+        //     for (let x = 0; x < 6; x++) {
+        //         setCellValueRaw([x, y], getCellContent([x, y - 1]));
+        //     }
+        // }
+        // for (let c = 0; c < 6; c++) {
+        //     const cell = getCellContent([c, index]);
+        //     setCellValueRaw([c, index], clearCell(cell));
+        // }
+
+        // setData([...data, {}])
+        // setNumRows(numRows+1)
+
+        // setNumRows(cv => cv + 1);
+        // return index;
+    }, []);
 
 
     // ============================================== menu =============================================================
@@ -166,9 +166,9 @@ const Glide = ({
 
     return (
         <>
-            <DataEditor className={'w-full'} columns={columns} getCellContent={getData} onCellEdited={onCellEdited}
+            <DataEditor className={'w-full max-h-[50dvh] overflow-auto scrollbar-sm'} columns={columns} getCellContent={getData} onCellEdited={onCellEdited}
                         customRenderers={allCells} enableFiltering={true} {...isEdit && editOnlyControls}
-                // onRowAppended={onRowAppended}
+                onRowAppended={onRowAppended}
                         trailingRowOptions={{
                             hint: "New row...",
                             sticky: true,
@@ -180,7 +180,7 @@ const Glide = ({
                         }}
                         onHeaderMenuClick={onHeaderMenuClick} onHeaderClicked={onHeaderClicked}
                         // freezeColumns={1}
-                        rows={numRows} onPaste={true} fillHandle={true} cellActivationBehavior="single-click"
+                        rows={numRows} onPaste={true} fillHandle={true} cellActivationBehavior="double-click"
             />
             <RenderMenu menu={menu}/>
         </>

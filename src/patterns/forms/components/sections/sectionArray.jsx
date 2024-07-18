@@ -91,7 +91,7 @@ function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, o
             {/* -------------------top line buttons ----------------------*/}
             <div className={`flex w-full`}>
                 <div className='flex-1'/>
-                    <div className={`z-5 relative`}>
+                    <div className={`z-10 relative`}>
                         <div className={`absolute mr-16 top-[-14px] right-[-60px] flex`}>    
                             <Popover className="relative">
                                 <Popover.Button  className={'flex items-center cursor-pointer pt-1 pr-1'} >
@@ -258,7 +258,7 @@ function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove, fo
             <div className={`flex w-full ${hideDebug ? '' : ''}`}>
                 <div className='flex-1'/>
                     
-                    {value?.is_header && edit ?  <div className={`z-5 relative ${hideDebug ? '': ''}`}>
+                    {value?.is_header && edit ?  <div className={`z-10 relative ${hideDebug ? '': ''}`}>
                         <div className={`absolute mr-16 right-[-60px] flex`}>
                             <button
                                 className={' flex items-center text-md cursor-pointer hover:text-blue-500 text-slate-400'}
@@ -271,7 +271,7 @@ function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove, fo
                         </div>
                     </div>
                     :
-                    <div className={`z-5 relative`}>
+                    <div className={`z-10 relative`}>
                         <div className={`absolute mr-16 top-[-14px] right-[-60px] flex items-center h-[32px]`}> 
                             
                                 
@@ -428,7 +428,7 @@ const AddSectionButton = ({onClick, showpageToggle}) => {
     return (
         <div className='flex w-full'>
             <div className='flex-1'/>
-            <div className={`z-5 relative ${showpageToggle ? 'w-12' : 'w-8'}`}>
+            <div className={`z-10 relative ${showpageToggle ? 'w-12' : 'w-8'}`}>
                 <div className='absolute right-[14px] top-[-9px] flex'> 
                     <button 
                         className={'cursor-pointer pr-0.5'}
