@@ -127,6 +127,10 @@ const Glide = ({
         {
             label: 'Sort Z->A',
             action: (colName) => setOrderBy({[colName]: 'desc nulls last', id: 'desc'})
+        },
+        {
+            label: 'Clear Sort',
+            action: () => setOrderBy({})
         }
     ]
 

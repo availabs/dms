@@ -24,12 +24,13 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     const [orderBy, setOrderBy] = useState(cachedData.orderBy || {});
     const [currentPage, setCurrentPage] = useState(0);
     const [tableType, setTableType] = useState(cachedData.tableType || 'simple')
-    const pageSize = 2// cachedData.pageSize || 5;
+    const pageSize = 50// cachedData.pageSize || 5;
     // ========================================= init comp begin =======================================================
     useEffect(() => {
         setAttributes(JSON.parse(format?.config || '{}')?.attributes || [])
     }, [format]);
 
+    useEffect(() => setColSizes({}), [tableType])
     useEffect(() => {
         async function load() {
             if(data) return;

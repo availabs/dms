@@ -14,6 +14,10 @@ export default function RenderInHeaderColumnControls({
         {
             label: 'Sort Z->A',
             action: () => setOrderBy({[attribute.name]: 'desc nulls last', id: 'desc'})
+        },
+        {
+            label: 'Clear Sort',
+            action: () => setOrderBy({})
         }
     ]
 
