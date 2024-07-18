@@ -24,7 +24,7 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     const [orderBy, setOrderBy] = useState(cachedData.orderBy || {});
     const [currentPage, setCurrentPage] = useState(0);
     const [tableType, setTableType] = useState(cachedData.tableType || 'simple')
-    const pageSize = 200// cachedData.pageSize || 5;
+    const pageSize = 2// cachedData.pageSize || 5;
     // ========================================= init comp begin =======================================================
     useEffect(() => {
         setAttributes(JSON.parse(format?.config || '{}')?.attributes || [])
@@ -57,7 +57,6 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
             setLength(length);
             setData(data);
             setLoading(false)
-            console.log('called getdata', data)
         }
 
         load()
@@ -74,8 +73,14 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
 
     // =========================================== util fns begin ======================================================
     const updateItem = (value, attribute, d) => {
-        // console.log('updating', {...d, [attribute.name]: value})
-        return apiUpdate({data: {...d, [attribute.name]: value}, config: {format}})
+        if(value !== undefined && attribute){
+            return apiUpdate({data: {...d, [attribute.name]: value}, config: {format}});
+        }
+        const dI = data.findIndex(dI => dI.id === d.id);
+        let tmpData = [...data];
+        tmpData[dI] = d;
+        setData(tmpData)
+        return apiUpdate({data: d, config: {format}});
     }
 
     const addItem = () => {

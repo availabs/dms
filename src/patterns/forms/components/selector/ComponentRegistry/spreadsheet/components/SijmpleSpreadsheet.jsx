@@ -3,12 +3,20 @@ import {Link} from "react-router-dom"
 import DataTypes from "../../../../../../../data-types";
 import RenderInHeaderColumnControls from "./RenderInHeaderColumnControls";
 
-const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell, width}) => {
+const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell, width, onPaste}) => {
     const [newItem, setNewItem] = useState(item);
     const Comp = DataTypes[attribute.type]?.EditComp;
 
+    useEffect(() => setNewItem(item), [item])
+
     useEffect(() => {
-        setTimeout(updateItem(newItem[attribute.name], attribute, {...item, [attribute.name]: newItem[attribute.name]}), 1000)
+        setTimeout(
+            updateItem(
+                newItem[attribute.name],
+                attribute,
+                {...item, [attribute.name]: newItem[attribute.name]}
+            ),
+            1000);
     }, [newItem])
     return (
         <div className={`flex ${isLastCell ? `border border-r-0` : `border`}`}  style={{ width: width }}>
@@ -20,6 +28,7 @@ const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell, wid
                   onChange={e => {
                       setNewItem({...item, [attribute.name]: e})
                   }}
+                  onPaste={onPaste}
             />
             {
                 isLastCell &&
@@ -73,7 +82,6 @@ export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, se
         document.addEventListener('mousemove', handleMouseMove);
         document.addEventListener('mouseup', handleMouseUp);
     };
-    console.log('neitem', newItem)
     return (
         <div className={`flex flex-col w-full`} ref={gridRef}>
 
@@ -118,6 +126,16 @@ export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, se
                                 i={i}
                                 item={d}
                                 isLastCell={attrI === visibleAttributes.length - 1}
+                                onPaste={e => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+
+                                    const paste =
+                                        (e.clipboardData || window.clipboardData).getData("text")?.split('\n').map(row => row.split('\t'));
+                                    const pastedColumns = [...new Array(paste[0].length).keys()].map(i => visibleAttributes[attrI + i]).filter(i => i);
+                                    const tmpNewItem = pastedColumns.reduce((acc, c, i) => ({...acc, [c]: paste[0][i]}), {})
+                                    updateItem(undefined, undefined, {...d, ...tmpNewItem})
+                                }}
                             />)}
                     </div>
                 ))}
@@ -128,7 +146,6 @@ export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, se
                 {
                     visibleAttributes.map(va => attributes.find(attr => attr.name === va)).map((attribute, attrI) => {
                         const Comp = DataTypes[attribute?.type || 'text']?.EditComp;
-                        console.log('attribute and value', attribute.name, newItem[attribute.name])
                         return (
                             <div
                                 className={`flex ${attrI === visibleAttributes.length - 1 ? 'border border-r-0' : `border`}`}
@@ -141,7 +158,6 @@ export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, se
                                     value={newItem[attribute.name]}
                                     placeholder={'+ add new'}
                                     onChange={e => setNewItem({...newItem, [attribute.name]: e})}
-                                    // onFocus={e => console.log('focusing', e)}
                                     onPaste={e => {
                                         e.preventDefault();
                                         e.stopPropagation();
