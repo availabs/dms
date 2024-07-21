@@ -16,6 +16,7 @@ const ManageForm = ({
     submit,
     parent,
     manageTemplates = false,
+    apiLoad,
     ...rest
 }) => {
     // const {id} = params;
@@ -25,8 +26,7 @@ const ManageForm = ({
     const updateData = (data, attrKey) => {
         apiUpdate({data: {...newItem, ...{[attrKey]: data}}, config: {format}})
     }
-    console.log('ManageForm', item, parent, newItem, attributes)
-    
+
     //console.log('manage forms /manage_pattern/:id/templates?', manageTemplates, attributes, item)
     return (
         <Layout>
@@ -48,12 +48,13 @@ const ManageForm = ({
                                                     setNewItem({...newItem, ...{[attrKey]: v}})
                                                     updateData(v, attrKey)
                                                 }}
-                                                format={format}
                                                 manageTemplates={manageTemplates}
                                                 placeholder={attributes[attrKey].placeholder}
                                                 options={attributes[attrKey].options}
                                                 item={newItem}
+                                                apiLoad={apiLoad}
                                                 {...attributes[attrKey]}
+                                                format={format}
                                             />
                                         </div>
                                     )
