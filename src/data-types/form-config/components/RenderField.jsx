@@ -207,7 +207,11 @@ const RenderMappings = ({col, drivingAttribute, attr, value=[], updateAttribute,
     const [targetValues, setTargetValues] = useState([]);
     const [srcValues, setSrcValues] = useState([]);
     const [editingIndex, setEditingIndex] = useState();
-    console.log('RenderMapping format', format)
+
+    const MultiSelectComp = dmsDataTypes.multiselect.EditComp;
+    const valueClasses = 'p-1 truncate';
+
+    // ============================================ get formats ========================================================
     useEffect(() => {
         async function load(){
             const length = await getLength({format: {...format, app: 'dms-site', type: 'forms-config'}, apiLoad});
@@ -221,7 +225,9 @@ const RenderMappings = ({col, drivingAttribute, attr, value=[], updateAttribute,
 
         load()
     }, []);
+    // ============================================ get formats end ====================================================
 
+    // ============================================ get src values =====================================================
     useEffect(() => {
         async function load(){
             if(!adding) return;
@@ -235,13 +241,15 @@ const RenderMappings = ({col, drivingAttribute, attr, value=[], updateAttribute,
                 attributes: [formattedAttribute],
                 groupBy: [`data->>'${col}'`]
             })
-            console.log('RenderMapping srcValues', data)
+
             setSrcValues(data?.map(d => d[formattedAttribute]).filter(d => typeof d !== "object"));
         }
 
         load()
-    }, []);
+    }, [adding]);
+    // ============================================ get src values end==================================================
 
+    // ============================================ get target values ==================================================
     useEffect(() => {
         async function load(){
             if(!mapping.selectedFormat || !mapping.selectedAttribute) return;
@@ -261,10 +269,8 @@ const RenderMappings = ({col, drivingAttribute, attr, value=[], updateAttribute,
 
         load()
     }, [mapping.selectedAttribute]);
+    // ============================================ get target values end ==============================================
 
-    const MultiSelectComp = dmsDataTypes.multiselect.EditComp;
-
-    const valueClasses = 'p-1 truncate';
     return (
         <div>
             meta mappings
@@ -316,6 +322,7 @@ const RenderMappings = ({col, drivingAttribute, attr, value=[], updateAttribute,
                                     setMapping({...mapping, srcValues: e})
                                 }}
                                 options={srcValues}
+                                displayInvalidMsg={false}
                             />
 
                             <select
