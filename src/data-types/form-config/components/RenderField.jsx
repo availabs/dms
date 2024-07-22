@@ -1,6 +1,6 @@
 import React, {useEffect, useMemo, useState} from "react";
 import Lexical from "../../lexical";
-import {isJson} from "../../../../../../utils/macros";
+import {isJson} from "../../../patterns/forms/components/selector";
 import {dmsDataTypes} from "../../index";
 
 const fieldTypes = {
