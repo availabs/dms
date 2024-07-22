@@ -1,10 +1,12 @@
 import React, { useMemo, useState, useEffect }from 'react'
 import RenderColumnControls from "./components/RenderColumnControls";
+import RenderFilterControls from "./components/RenderFilterControls";
 import RenderTypeControls from "./components/RenderTypeControls"
 import Glide from './components/glide';
 import {RenderSimple} from "./components/SijmpleSpreadsheet";
 import {RenderPagination} from "./components/RenderPagination";
 import {isJson, getLength, getData} from "./utils";
+import {RenderFilters} from "./components/RenderFilters";
 
 const tableComps = {
     'simple': RenderSimple,
@@ -22,6 +24,7 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     const [colSizes, setColSizes] = useState(cachedData.colSizes || {});
     const [newItem, setNewItem] = useState({})
     const [orderBy, setOrderBy] = useState(cachedData.orderBy || {});
+    const [filters, setFilters] = useState(cachedData.filters || []);
     const [currentPage, setCurrentPage] = useState(0);
     const [tableType, setTableType] = useState(cachedData.tableType || 'simple')
     const pageSize = 50// cachedData.pageSize || 5;
@@ -36,8 +39,8 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
             if(data) return;
             // init stuff
             setLoading(true)
-            const length = await getLength({format, apiLoad});
-            const d = await getData({format, apiLoad, currentPage, pageSize, orderBy});
+            const length = await getLength({format, apiLoad, filters});
+            const d = await getData({format, apiLoad, currentPage, pageSize, orderBy, filters});
             setData(d);
             setLength(length);
             !visibleAttributes?.length && setVisibleAttributes(attributes?.map(attr => attr.name));
@@ -53,23 +56,24 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
         // onPageChange
         async function load() {
             setLoading(true)
-            const length = await getLength({format, apiLoad});
-            const data = await getData({format, apiLoad, currentPage, pageSize, orderBy});
+            const length = await getLength({format, apiLoad, filters});
+            const data = await getData({format, apiLoad, currentPage, pageSize, orderBy, filters});
+            console.log('new length', length)
             setLength(length);
             setData(data);
             setLoading(false)
         }
 
         load()
-    }, [currentPage, orderBy]);
+    }, [currentPage, orderBy, filters]);
     // =========================================== get data end ========================================================
 
     // =========================================== saving settings begin ===============================================
     useEffect(() => {
         if (!isEdit) return;
 
-        onChange(JSON.stringify({visibleAttributes, pageSize, attributes, orderBy, tableType, colSizes}));
-    }, [visibleAttributes, attributes, orderBy, tableType, colSizes])
+        onChange(JSON.stringify({visibleAttributes, pageSize, attributes, orderBy, tableType, colSizes, filters}));
+    }, [visibleAttributes, attributes, orderBy, tableType, colSizes, filters])
     // =========================================== saving settings end =================================================
 
     // =========================================== util fns begin ======================================================
@@ -94,7 +98,8 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     }
     // =========================================== util fns end ========================================================
 
-    const TableComp = useMemo(() => tableComps[tableType], [tableType])
+    const TableComp = useMemo(() => tableComps[tableType], [tableType]);
+
     return (
         <div>
 
@@ -104,10 +109,14 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
                     <RenderColumnControls attributes={attributes} setAttributes={setAttributes}
                                           visibleAttributes={visibleAttributes}
                                           setVisibleAttributes={setVisibleAttributes}/>
+                    <RenderFilterControls attributes={attributes} visibleAttributes={visibleAttributes}
+                                          filters={filters} setFilters={setFilters}
+                    />
 
                     <RenderTypeControls tableType={tableType} setTableType={setTableType}/>
                 </div>
             }
+            <RenderFilters attributes={attributes} filters={filters} setFilters={setFilters} apiLoad={apiLoad} format={format}/>
             {
                 loading ? <div>loading...</div> :
                     <TableComp {...{
@@ -130,7 +139,7 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
 
             }
             {/*Pagination*/}
-            <RenderPagination totalPages={length} pageSize={10} currentPage={currentPage}
+            <RenderPagination totalPages={length} pageSize={pageSize} currentPage={currentPage}
                               setVCurrentPage={setCurrentPage}/>
         </div>
     )

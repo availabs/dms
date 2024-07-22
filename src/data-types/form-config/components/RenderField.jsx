@@ -146,7 +146,7 @@ export const getData = async ({format, apiLoad, length}) =>{
     return data;
 }
 
-export const getValues = async ({format, apiLoad, length, attributes, groupBy=[]}) =>{
+export const getValues = async ({format, apiLoad, length, attributes, groupBy=[], filterBy={}}) =>{
     // fetch all data items based on app and type. see if you can associate those items to its pattern. this will be useful when you have multiple patterns.
     const finalAttributes = attributes || (
                                         isJson(format?.config) ? (format.config?.attributes || []) :
@@ -162,7 +162,7 @@ export const getValues = async ({format, apiLoad, length, attributes, groupBy=[]
         filter: {
             fromIndex: path => fromIndex,
             toIndex: path => toIndex,
-            options: JSON.stringify({groupBy, aggregatedLen: groupBy.length}),
+            options: JSON.stringify({groupBy, aggregatedLen: groupBy.length, filter: filterBy}),
             attributes: finalAttributes,
             stopFullDataLoad: true
         },
@@ -177,7 +177,7 @@ export const getValues = async ({format, apiLoad, length, attributes, groupBy=[]
     return data;
 }
 
-export const getLength = async ({format, apiLoad, groupBy= []}) =>{
+export const getLength = async ({format, apiLoad, groupBy= [], filterBy}) =>{
     const finalAttributes = isJson(format?.config) ? (format.config?.attributes || []) :
                                         JSON.parse(format?.config || '{}')?.attributes || [];
 
@@ -187,7 +187,7 @@ export const getLength = async ({format, apiLoad, groupBy= []}) =>{
         action: 'filteredLength',
         path: '/',
         filter: {
-            options: JSON.stringify({groupBy, aggregatedLen: groupBy.length})
+            options: JSON.stringify({groupBy, aggregatedLen: groupBy.length, filter: filterBy})
         },
     }]
     const length = await apiLoad({

@@ -28,7 +28,7 @@ function defaultTheme () {
 			input: 'focus:outline-none w-full border p-1',
 			tokenWrapper: 'w-fit flex items-center px-2 py-1 m-0.5 bg-blue-100 hover:bg-blue-300 rounded-lg text-xs transition ease-in',
 			removeIcon: 'fa fa-x px-1 text-sm text-red-300 hover:text-red-500 self-center transition ease-in cursor-pointer',
-			menuWrapper: 'p-2 shadow-lg z-50 absolute bg-white',
+			menuWrapper: 'h-1/2 p-2 shadow-lg z-50 absolute bg-white overflow-auto scrollbar-sm',
 			menuItem: 'px-2 py-1 hover:bg-blue-300 hover:cursor-pointer transition ease-in',
 			error: 'text-xs text-red-300 font-light'
 		},
