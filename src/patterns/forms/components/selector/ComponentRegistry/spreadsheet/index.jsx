@@ -3,7 +3,7 @@ import RenderColumnControls from "./components/RenderColumnControls";
 import RenderFilterControls from "./components/RenderFilterControls";
 import RenderTypeControls from "./components/RenderTypeControls"
 import Glide from './components/glide';
-import {RenderSimple} from "./components/SijmpleSpreadsheet";
+import {RenderSimple} from "./components/SimpleSpreadsheet";
 import {RenderPagination} from "./components/RenderPagination";
 import {isJson, getLength, getData} from "./utils";
 import {RenderFilters} from "./components/RenderFilters";

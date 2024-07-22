@@ -38,6 +38,9 @@ function defaultTheme () {
 			label: 'text-sm font-light p-1 self-center',
 			error: 'text-xs text-red-300 font-light'
 		},
+		boolean: {
+			select: 'p-1 bg-white rounded-md'
+		},
 		card: {
 			wrapper: 'p-4',
 			rowHeader: 'w-full flex flex-row justify-between',

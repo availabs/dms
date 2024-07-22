@@ -25,7 +25,7 @@ function PageView ({item, dataItems, adminPath, attributes, logo, rightMenu, for
   const editUrl = `edit/${urlWithoutId}${itemId || ''}`;
   const { baseUrl, theme, user } = React.useContext(FormsContext) || {}
 
-  console.log('Form Tempate View', item.url_slug , urlWithoutId, itemId, baseUrl, params)
+  console.log('Form Tempate View', dataItems)
   // console.log('forms template page view', item, theme)
   
   const ContentView = React.useMemo(() => {
@@ -34,10 +34,10 @@ function PageView ({item, dataItems, adminPath, attributes, logo, rightMenu, for
 
 
 
-  // const menuItems = React.useMemo(() => {
-  //   let items = dataItemsNav(dataItems,baseUrl,false)
-  //   return items
-  // }, [dataItems])
+  const menuItems = React.useMemo(() => {
+    let items = dataItemsNav(dataItems.filter(d => d.main_nav === 'true'), baseUrl,false)
+    return items
+  }, [dataItems])
 
   const level = 1 //item?.index == '999' || theme?.navOptions?.topNav?.nav !== 'main' ? 1 : detectNavLevel(dataItems, baseUrl);
 
@@ -56,7 +56,7 @@ function PageView ({item, dataItems, adminPath, attributes, logo, rightMenu, for
       {/* Header */}
       {(item?.header === 'above') && <ContentView item={item} value={[headerSection]} attributes={sectionAttr} />}
       {/* Layout */}
-      <Layout adminPath={adminPath}>
+      <Layout adminPath={adminPath} navItems={menuItems}>
         <div className={`${theme?.page?.wrapper1} ${theme?.navPadding[level]}`}>
           {(item?.header === 'below') && <ContentView item={item} value={[headerSection]} attributes={sectionAttr} />}
           <div className={`${theme?.page?.wrapper2}`}>

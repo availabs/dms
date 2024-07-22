@@ -10,6 +10,7 @@ const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell, wid
     useEffect(() => setNewItem(item), [item])
 
     useEffect(() => {
+        if(newItem[attribute.name] === item[attribute.name]) return;
         setTimeout(
             updateItem(
                 newItem[attribute.name],

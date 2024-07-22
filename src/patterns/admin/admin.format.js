@@ -74,6 +74,10 @@ export const template = {
       // hidden: true
     },
     {
+      key: 'main_nav',
+      type: "boolean",
+    },
+    {
       key: 'sections',
       type: 'dms-format',
       isArray: true,

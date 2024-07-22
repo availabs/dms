@@ -191,7 +191,7 @@ const FormTemplateView = ({apiLoad, apiUpdate, attributes, parent, params, forma
 
             <Comp
                 item={match.route}
-                dataItems={[]}
+                dataItems={dataItems}
                 apiLoad={apiLoad}
                 apiUpdate={apiUpdate}
                 format={{...parent, type}}

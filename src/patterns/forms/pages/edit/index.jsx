@@ -29,7 +29,7 @@ function PageEdit ({
   console.log('Form Tempate Edit', baseUrl)
 
   const menuItems = React.useMemo(() => {
-    let items = dataItemsNav(dataItems,baseUrl,true)
+    let items = dataItemsNav(dataItems.filter(d => d.main_nav === 'true'), baseUrl,true)
     return items
   }, [dataItems])
 
@@ -86,7 +86,7 @@ function PageEdit ({
           attributes={sectionAttr}
         />
       )}
-      <Layout adminPath={adminPath}>
+      <Layout adminPath={adminPath} navItems={menuItems}>
         <div className={`${theme?.page?.wrapper1} ${theme?.navPadding[level]}`}>
           {item?.header === 'below' && (
             <ContentEdit item={item} value={[headerSection]} onChange={(val,action) => saveHeader(v, item, user, apiUpdate)} attributes={sectionAttr} />
