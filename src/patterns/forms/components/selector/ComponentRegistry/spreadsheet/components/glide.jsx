@@ -170,7 +170,7 @@ const Glide = ({
 
     return (
         <>
-            <DataEditor className={'w-full max-h-[50dvh] overflow-auto scrollbar-sm'} columns={columns} getCellContent={getData} onCellEdited={onCellEdited}
+            <DataEditor className={'w-full max-h-[calc(100vh_-_450px)] overflow-auto scrollbar-sm'} columns={columns} getCellContent={getData} onCellEdited={onCellEdited}
                         customRenderers={allCells} enableFiltering={true} {...isEdit && editOnlyControls}
                 onRowAppended={onRowAppended}
                         trailingRowOptions={{
