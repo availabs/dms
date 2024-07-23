@@ -117,11 +117,6 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
             <RenderFilters attributes={attributes} filters={filters} setFilters={setFilters} apiLoad={apiLoad} format={format}/>
             {
                 loading ? <div>loading...</div> :
-                    <div className={'w-full'}>
-                        <div className={'w-full bg-white flex flex-row items-center'}>
-                            <div className={`${tableType === 'simple' ? 'bg-blue-300 text-white' : ''} w-1/2 hover:bg-blue-100 p-2 rounded-md text-center`} onClick={() => setTableType('simple')}>Table</div>
-                            <div className={`${tableType === 'glide' ? 'bg-blue-300 text-white' : ''} w-1/2 hover:bg-blue-100 p-2 rounded-md text-center`} onClick={() => setTableType('glide')}>Spreadsheet</div>
-                        </div>
                         <TableComp {...{
                             data,
                             setData,
@@ -139,8 +134,6 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
                             colSizes,
                             setColSizes,
                         }} />
-                    </div>
-
             }
             {/*Pagination*/}
             <RenderPagination totalPages={length} pageSize={pageSize} currentPage={currentPage}
