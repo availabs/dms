@@ -32,7 +32,7 @@ function PatternList (props) {
 							<div>{pattern.pattern_type}</div>
 							<div>{pattern.doc_type}</div>
 							<div>{pattern.authLevel}</div>
-							<Link to={pattern.base_url}>{pattern.base_url}</Link>
+							<Link to={pattern.base_url}>{pattern.base_url} ok?</Link>
 							<Link to={`/manage_pattern/${pattern.id}`}>Manage</Link>
 						</div>
 					))
@@ -48,7 +48,7 @@ function PatternEdit({
 	 attributes={},
 	 updateAttribute,
 	 status,
-	 submit,
+	 onSubmit,
 	 onChange,
 	 value = [],
 	 format,
@@ -63,7 +63,7 @@ function PatternEdit({
 	const addNewValue = () => {
 		const newData = [...value, newItem];
 		onChange(newData)
-		submit(newData)
+		onSubmit(newData)
 		setNewItem({})
 	}
 	const c = {
@@ -88,7 +88,7 @@ function PatternEdit({
 
 			<div className={`font-semibold ${c[numAttributes+1]}`}>
 				{
-					attrToShow.map(attr => <div>{attr}</div>)
+					attrToShow.map(attr => <div key={attr}>{attr}</div>)
 				}
 				<div>Actions</div>
 			</div>
@@ -109,7 +109,7 @@ function PatternEdit({
 										onChange={(v) => setEditingItem({...editingItem, [attr]: v})}
 										{...attributes[attr]}
 									/>
-										: attr === 'base_url' ? <Link to={`/${pattern[attr]}`}>{pattern[attr]}</Link> : <div>{pattern[attr]}</div>
+										: attr === 'base_url' ? <Link to={`${pattern[attr]}`}>{pattern[attr]}</Link> : <div>{pattern[attr]}</div>
 									}
 								)
 						}
@@ -137,7 +137,9 @@ function PatternEdit({
 										onChange(value)
 										setEditingIndex(editingIndex === index ? undefined : index);
 										setEditingItem(editingIndex === index ? undefined : pattern)
-										submit(value)
+										console.log('test123 ', value)
+										value[0].base_url = `/${value[0].base_url?.replace(/^\/|\/$/g, '')}`
+										onSubmit(value)
 									}}
 								>done
 								</button>
@@ -148,7 +150,7 @@ function PatternEdit({
 								onClick={() => {
 									const newData = value.filter((v, i) => i !== index);
 									onChange(newData)
-									submit(newData)
+									onSubmit(newData)
 								}}
 							> remove
 							</button>
@@ -188,7 +190,6 @@ function PatternEditUsingComps({
 								   attributes,
 								   updateAttribute,
 								   status,
-								   submit,
 								   onChange,
 								   value = [],
 								   ...rest
@@ -208,7 +209,7 @@ function PatternEditUsingComps({
 			<div className={'flex w-full'}>
 				{
 					value.map((item, itemIndex) => (
-						<div className={'flex flex-1 max-w-[33%] border-2 p-10 m-4'}>
+						<div key={itemInedx} className={'flex flex-1 max-w-[33%] border-2 p-10 m-4'}>
 							<div className={'flex flex-1 flex-col'}>
 								{
 									Object.keys(attributes)

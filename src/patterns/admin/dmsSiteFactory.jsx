@@ -47,7 +47,7 @@ export default async function dmsSiteFactory({
         ...patterns.reduce((acc, pattern) => {
             const c = configs[pattern.pattern_type];
 
-            console.log('register pattern', pattern)
+            console.log('register pattern', pattern, `/${pattern.base_url?.replace(/\//g, '')}`, pattern.base_url)
 
             acc.push(
                 ...c.map(config => {
