@@ -67,16 +67,16 @@ function SiteEdit ({
 			{Object.keys(attributes)
 				.map((attrKey, i) => {
 					let EditComp = attributes[attrKey].EditComp
-					// console.log('what', attributes[attrKey])
+					//console.log('what', attributes[attrKey])
 					return (
 						<div key={`${attrKey}-${i}`}>
 							<EditComp
 								key={`${attrKey}-${i}`}
 								value={item?.[attrKey]}
 								onChange={(v) => updateAttribute(attrKey, v)}
-								submit={data => updateData(data, attrKey)}
+								onSubmit={data => updateData(data, attrKey)}
 								format={format}
-								{...attributes[attrKey]}
+								attributes={attributes[attrKey].attributes}
 							/>
 						</div>
 					)

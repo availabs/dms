@@ -42,6 +42,8 @@
   },
   "dependencies": {
     "@availabs/avl-falcor": "^0.0.3",
+    "@glideapps/glide-data-grid": "^6.0.3",
+    "@glideapps/glide-data-grid-cells": "^6.0.3",
     "@headlessui/react": "^2.1.2",
     "@lexical/clipboard": "^0.13.1",
     "@lexical/code": "^0.13.1",
@@ -65,8 +67,6 @@
     "react": "^18.2.0",
     "react-bootstrap-typeahead": "^6.3.2",
     "react-router-dom": "^6.9.0",
-    "use-immer": "^0.9.0",
-    "@glideapps/glide-data-grid": "^6.0.3",
-    "@glideapps/glide-data-grid-cells": "^6.0.3"
+    "use-immer": "^0.9.0"
   }
 }

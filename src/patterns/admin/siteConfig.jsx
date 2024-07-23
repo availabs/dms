@@ -30,7 +30,7 @@ const adminConfig = ({
   format.registerFormats = updateRegisteredFormats(format.registerFormats, app) 
   format.attributes = updateAttributes(format.attributes, app) 
   // ----------------------
-  console.log('test 123', theme)
+  //console.log('test 123', theme)
   return {
     app,
     type,

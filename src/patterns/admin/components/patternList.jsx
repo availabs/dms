@@ -48,7 +48,7 @@ function PatternEdit({
 	 attributes={},
 	 updateAttribute,
 	 status,
-	 submit,
+	 onSubmit,
 	 onChange,
 	 value = [],
 	 format,
@@ -63,7 +63,7 @@ function PatternEdit({
 	const addNewValue = () => {
 		const newData = [...value, newItem];
 		onChange(newData)
-		submit(newData)
+		onSubmit(newData)
 		setNewItem({})
 	}
 	const c = {
@@ -88,13 +88,13 @@ function PatternEdit({
 
 			<div className={`font-semibold ${c[numAttributes+1]}`}>
 				{
-					attrToShow.map(attr => <div>{attr}</div>)
+					attrToShow.map(attr => <div key={attr}>{attr}</div>)
 				}
 				<div>Actions</div>
 			</div>
 			{
 				value.map((pattern, index) => (
-					<div key={pattern.id} className={c[numAttributes+1]}>
+					<div key={`${pattern.id}+${index}`} className={c[numAttributes+1]}>
 						{
 							attrToShow
 								.filter(attrKey => attrKey !== 'config')
@@ -107,7 +107,7 @@ function PatternEdit({
 										key={`${attr}-${index}`}
 										value={editingItem?.[attr]}
 										onChange={(v) => setEditingItem({...editingItem, [attr]: v})}
-										{...attributes[attr]}
+										attributes={attributes[attr].attributes}
 									/>
 										: attr === 'base_url' ? <Link to={`/${pattern[attr]}`}>{pattern[attr]}</Link> : <div>{pattern[attr]}</div>
 									}
@@ -137,7 +137,7 @@ function PatternEdit({
 										onChange(value)
 										setEditingIndex(editingIndex === index ? undefined : index);
 										setEditingItem(editingIndex === index ? undefined : pattern)
-										submit(value)
+										onSubmit(value)
 									}}
 								>done
 								</button>
@@ -148,7 +148,7 @@ function PatternEdit({
 								onClick={() => {
 									const newData = value.filter((v, i) => i !== index);
 									onChange(newData)
-									submit(newData)
+									onSubmit(newData)
 								}}
 							> remove
 							</button>
@@ -188,7 +188,6 @@ function PatternEditUsingComps({
 								   attributes,
 								   updateAttribute,
 								   status,
-								   submit,
 								   onChange,
 								   value = [],
 								   ...rest
@@ -208,7 +207,7 @@ function PatternEditUsingComps({
 			<div className={'flex w-full'}>
 				{
 					value.map((item, itemIndex) => (
-						<div className={'flex flex-1 max-w-[33%] border-2 p-10 m-4'}>
+						<div key={itemInedx} className={'flex flex-1 max-w-[33%] border-2 p-10 m-4'}>
 							<div className={'flex flex-1 flex-col'}>
 								{
 									Object.keys(attributes)
