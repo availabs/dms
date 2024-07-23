@@ -7,13 +7,8 @@ import {Delete, ViewIcon, DotsInCircle} from "../../../../../../admin/ui/icons";
 const RenderActions = ({isLastCell, newItem, removeItem}) => {
     if(!isLastCell) return null;
 
-    const [isOpen, setIsOpen] = useState(false);
-
-
     return (
-        <div className={'p-2 relative'}>
-            <DotsInCircle title={'actions'} onClick={() => setIsOpen(!isOpen)} className={'cursor-pointer'}/>
-            <div className={isOpen ? 'flex flex-col absolute z-10' : 'hidden'}>
+            <div className={'flex flex-row h-fit'}>
                 <Link
                     title={'view'}
                     className={'w-fit p-1 bg-blue-300 hover:bg-blue-500 text-white rounded-lg'}
@@ -23,21 +18,23 @@ const RenderActions = ({isLastCell, newItem, removeItem}) => {
                 <button
                     title={'delete'}
                     className={'w-fit p-1 bg-red-300 hover:bg-red-500 text-white rounded-lg'}
-                    onClick={e => {removeItem(newItem)}}>
+                    onClick={e => {
+                        removeItem(newItem)
+                    }}>
                     <Delete className={'text-white'}/>
                 </button>
             </div>
-        </div>
     )
 }
 const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell, width, onPaste}) => {
+    const [editing, setEditing] = useState(false);
     const [newItem, setNewItem] = useState(item);
-    const Comp = DataTypes[attribute.type]?.EditComp;
+    const Comp = DataTypes[attribute.type]?.[editing ? 'EditComp' : 'ViewComp'];
 
     useEffect(() => setNewItem(item), [item])
 
     useEffect(() => {
-        if(newItem[attribute.name] === item[attribute.name]) return;
+        if (newItem[attribute.name] === item[attribute.name]) return;
         setTimeout(
             updateItem(
                 newItem[attribute.name],
@@ -47,9 +44,15 @@ const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell, wid
             1000);
     }, [newItem])
     return (
-        <div className={`flex items-center ${isLastCell ? `border border-r-0` : `border`}`}  style={{ width: width }}>
+        <div className={`flex items-center ${isLastCell ? `border border-r-0` : `border`}`}
+             style={{ width: width }}
+             onClick={() => setEditing(true)}
+             onBlur={() => setEditing(false)}
+        >
             <Comp key={`${attribute.name}-${i}`}
-                  className={'p-1 hover:bg-blue-50 h-fit w-full h-full flex flex-wrap'}
+                  className={`${attribute.type === 'multiselect' && newItem[attribute.name]?.length ? 'p-1' :
+                      attribute.type === 'multiselect' && !newItem[attribute.name]?.length ? 'p-4' : 'p-1'
+                  } hover:bg-blue-50 h-fit w-full h-full flex flex-wrap`}
                   displayInvalidMsg={false}
                   {...attribute}
                   value={newItem[attribute.name]}
@@ -58,7 +61,6 @@ const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell, wid
                   }}
                   onPaste={onPaste}
             />
-            <RenderActions isLastCell={isLastCell} newItem={newItem} removeItem={removeItem}/>
         </div>
     )
 }
@@ -94,13 +96,16 @@ export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, se
         document.addEventListener('mouseup', handleMouseUp);
     };
 
+    console.log('attrts', attributes)
     return (
         <div className={`flex flex-col w-full`} ref={gridRef}>
 
             {/*Header*/}
             <div className={'flex no-wrap'}>
-                {visibleAttributes.map(va => attributes.find(attr => attr.name === va)).map((attribute, i) =>
-                    <div className={'flex justify-between'} style={{width: colSizes[attribute.name]}}>
+                {visibleAttributes.map(va => attributes.find(attr => attr?.name === va))
+                    .filter(a => a)
+                    .map((attribute, i) =>
+                    <div className={'flex justify-between'} style={{width: colSizes[attribute?.name]}}>
                         <div key={i}
                              className={'w-full font-semibold text-gray-500 border bg-gray-100'}>
                             <RenderInHeaderColumnControls
@@ -120,8 +125,14 @@ export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, se
                                  right: 0,
                                  top: 0
                              }}
-                             onMouseDown={handleMouseDown(attribute.name)}/>
+                             onMouseDown={handleMouseDown(attribute?.name)}/>
                     </div>)}
+                <div className={'flex justify-between'} style={{width: '100'}}>
+                    <div key={'actions'}
+                         className={'w-full font-semibold text-gray-500 border bg-gray-100'}>
+                        Actions
+                    </div>
+                </div>
             </div>
 
             {/*Rows*/}
@@ -149,6 +160,7 @@ export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, se
                                     updateItem(undefined, undefined, {...d, ...tmpNewItem})
                                 }}
                             />)}
+                        <RenderActions isLastCell={true} newItem={newItem} removeItem={removeItem}/>
                     </div>
                 ))}
             </div>
@@ -156,7 +168,9 @@ export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, se
             {/*Add new row*/}
             <div className={'flex'}>
                 {
-                    visibleAttributes.map(va => attributes.find(attr => attr.name === va)).map((attribute, attrI) => {
+                    visibleAttributes.map(va => attributes.find(attr => attr.name === va))
+                        .filter(a => a)
+                        .map((attribute, attrI) => {
                         const Comp = DataTypes[attribute?.type || 'text']?.EditComp;
                         return (
                             <div
