@@ -20,7 +20,9 @@ const Glide = ({
     useEffect(() => setNumRows(data.length), [data.length]);
 
     const columns = useMemo(() => {
-        return visibleAttributes.map((attr, i) => {
+        return visibleAttributes
+            .filter(attr => attributes.find(a => a.name === attr))
+            .map((attr, i) => {
             const a = attributes.find(a => a.name === attr)
 
             return {
