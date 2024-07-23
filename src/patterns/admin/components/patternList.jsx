@@ -32,7 +32,7 @@ function PatternList (props) {
 							<div>{pattern.pattern_type}</div>
 							<div>{pattern.doc_type}</div>
 							<div>{pattern.authLevel}</div>
-							<Link to={pattern.base_url}>{pattern.base_url}</Link>
+							<Link to={pattern.base_url}>{pattern.base_url} ok?</Link>
 							<Link to={`/manage_pattern/${pattern.id}`}>Manage</Link>
 						</div>
 					))
@@ -94,7 +94,7 @@ function PatternEdit({
 			</div>
 			{
 				value.map((pattern, index) => (
-					<div key={`${pattern.id}+${index}`} className={c[numAttributes+1]}>
+					<div key={pattern.id} className={c[numAttributes+1]}>
 						{
 							attrToShow
 								.filter(attrKey => attrKey !== 'config')
@@ -107,9 +107,9 @@ function PatternEdit({
 										key={`${attr}-${index}`}
 										value={editingItem?.[attr]}
 										onChange={(v) => setEditingItem({...editingItem, [attr]: v})}
-										attributes={attributes[attr].attributes}
+										{...attributes[attr]}
 									/>
-										: attr === 'base_url' ? <Link to={`/${pattern[attr]}`}>{pattern[attr]}</Link> : <div>{pattern[attr]}</div>
+										: attr === 'base_url' ? <Link to={`${pattern[attr]}`}>{pattern[attr]}</Link> : <div>{pattern[attr]}</div>
 									}
 								)
 						}
@@ -137,6 +137,8 @@ function PatternEdit({
 										onChange(value)
 										setEditingIndex(editingIndex === index ? undefined : index);
 										setEditingItem(editingIndex === index ? undefined : pattern)
+										console.log('test123 ', value)
+										value[0].base_url = `/${value[0].base_url?.replace(/^\/|\/$/g, '')}`
 										onSubmit(value)
 									}}
 								>done

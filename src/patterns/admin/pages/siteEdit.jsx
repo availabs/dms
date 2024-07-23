@@ -74,7 +74,10 @@ function SiteEdit ({
 								key={`${attrKey}-${i}`}
 								value={item?.[attrKey]}
 								onChange={(v) => updateAttribute(attrKey, v)}
-								onSubmit={data => updateData(data, attrKey)}
+								onSubmit={data => {
+									console.log('updateData', data,attrKey)
+									updateData(data, attrKey)
+								}}
 								format={format}
 								attributes={attributes[attrKey].attributes}
 							/>
