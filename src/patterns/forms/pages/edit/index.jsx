@@ -35,7 +35,7 @@ function PageEdit ({
 
 
   // console.log('-----------render edit----------------')
-  const level = item?.index == '999' || theme?.navOptions?.topNav?.nav !== 'main' ? 1 : detectNavLevel(dataItems, baseUrl);
+  const level = 1 //item?.index == '999' || theme?.navOptions?.topNav?.nav !== 'main' ? 1 : detectNavLevel(dataItems, baseUrl);
   const inPageNav = getInPageNav(item, theme);
   const sectionAttr = attributes?.['sections']?.attributes || {}
 
@@ -106,7 +106,7 @@ function PageEdit ({
                   <ViewIcon className={theme?.page?.icon} />
                 </Link>
               )}
-              {item.title}
+
               <ContentEdit
                   attr={attr}
                   full_width={item?.full_width}

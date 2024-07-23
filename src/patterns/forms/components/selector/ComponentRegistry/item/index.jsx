@@ -16,7 +16,7 @@ const getData = async ({format, apiLoad, itemId}) =>{
     const children = [{
         type: () => {
         },
-        action: 'view',
+        action: 'edit',
         // path: `/`,
         path: `view/:id`, // trying to pass params. children need to match with path. this doesn't work.
         params: {id: itemId}
@@ -69,7 +69,6 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     if (!newItem || !itemId) return null;
     return (
         <div>
-            <div className={'text-xl text-gray-300 font-semibold'}>Item Edit</div>
             <div className={`grid grid-cols-3 divide-x divide-y`}>
                 {
                     attributes.map((attribute,i) => {
@@ -130,23 +129,23 @@ const View = ({value, format, apiLoad, ...rest}) => {
 
     return (
         <div>
-            <div className={'text-xl text-gray-300 font-semibold'}>Item View</div>
-            <div className={`grid grid-cols-2 divide-x divide-y`}>
+            <div className={`divide-y w-full`}>
                 {
                     attributes
                         .filter(attribute => visibleAttributes.includes(attribute.name))
                         .map((attribute,i) => {
                             // const Comp = DataTypes[attribute.type]?.ViewComp;
                             return (
-                                <React.Fragment key={i}>
-                                    <div className={'p-2 font-semibold text-gray-500'}>
+                                <div key={i} className={'w-full flex flex-row items-center hover:bg-blue-50 rounded-md'}>
+                                    <div className={'p-2 w-1/4 truncate text-sm font-bold text-gray-500'} title={attribute.display_name || attribute.name}>
                                         {attribute.display_name || attribute.name}
                                     </div>
 
-                                    <div className={'p-2 text-gray-700'}>
-                                        {typeof data?.[attribute.name] === "object" ? JSON.stringify(data[attribute.name]) : data?.[attribute.name]}
+                                    <div className={'p-2 w-3/4 text-gray-700'}>
+                                        { Array.isArray(data?.[attribute.name]) ? data?.[attribute.name].join(', ') :
+                                            typeof data?.[attribute.name] === "object" ? JSON.stringify(data[attribute.name]) : data?.[attribute.name]}
                                     </div>
-                                </React.Fragment>
+                                </div>
                             )
                         })
                 }

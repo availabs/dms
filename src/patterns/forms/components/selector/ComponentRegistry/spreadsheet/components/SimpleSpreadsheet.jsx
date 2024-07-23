@@ -2,7 +2,34 @@ import React, {useEffect, useRef, useState} from "react";
 import {Link} from "react-router-dom"
 import DataTypes from "../../../../../../../data-types";
 import RenderInHeaderColumnControls from "./RenderInHeaderColumnControls";
+import {Delete, ViewIcon, DotsInCircle} from "../../../../../../admin/ui/icons";
 
+const RenderActions = ({isLastCell, newItem, removeItem}) => {
+    if(!isLastCell) return null;
+
+    const [isOpen, setIsOpen] = useState(false);
+
+
+    return (
+        <div className={'p-2 relative'}>
+            <DotsInCircle title={'actions'} onClick={() => setIsOpen(!isOpen)} className={'cursor-pointer'}/>
+            <div className={isOpen ? 'flex flex-col absolute z-10' : 'hidden'}>
+                <Link
+                    title={'view'}
+                    className={'w-fit p-1 bg-blue-300 hover:bg-blue-500 text-white rounded-lg'}
+                    to={`view/${newItem.id}`}>
+                    <ViewIcon className={'text-white'}/>
+                </Link>
+                <button
+                    title={'delete'}
+                    className={'w-fit p-1 bg-red-300 hover:bg-red-500 text-white rounded-lg'}
+                    onClick={e => {removeItem(newItem)}}>
+                    <Delete className={'text-white'}/>
+                </button>
+            </div>
+        </div>
+    )
+}
 const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell, width, onPaste}) => {
     const [newItem, setNewItem] = useState(item);
     const Comp = DataTypes[attribute.type]?.EditComp;
@@ -20,7 +47,7 @@ const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell, wid
             1000);
     }, [newItem])
     return (
-        <div className={`flex ${isLastCell ? `border border-r-0` : `border`}`}  style={{ width: width }}>
+        <div className={`flex items-center ${isLastCell ? `border border-r-0` : `border`}`}  style={{ width: width }}>
             <Comp key={`${attribute.name}-${i}`}
                   className={'p-1 hover:bg-blue-50 h-fit w-full h-full flex flex-wrap'}
                   displayInvalidMsg={false}
@@ -31,20 +58,7 @@ const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell, wid
                   }}
                   onPaste={onPaste}
             />
-            {
-                isLastCell &&
-                <>
-                    <Link
-                        className={'w-fit p-1 bg-blue-300 hover:bg-blue-500 text-white rounded-l-lg'}
-                        to={`view/${newItem.id}`}>
-                        view
-                    </Link>
-                    <button
-                        className={'w-fit p-1 bg-red-300 hover:bg-red-500 text-white rounded-r-lg'}
-                        onClick={e => {removeItem(newItem)}}>x
-                    </button>
-                </>
-            }
+            <RenderActions isLastCell={isLastCell} newItem={newItem} removeItem={removeItem}/>
         </div>
     )
 }
@@ -60,19 +74,15 @@ export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, se
                 visibleAttributes.map(va => attributes.find(attr => attr.name === va)).reduce((acc, attr) => ({...acc, [attr.name]: initialColumnWidth}) , {})
             );
         }
-    }, [visibleAttributes.length]);
+    }, [visibleAttributes.length, Object.keys(colSizes).length]);
 
     const handleMouseDown = (col) => (e) => {
         const startX = e.clientX;
-        const startWidth = colSizes[col];
+        const startWidth = colSizes[col] || 0;
 
         const handleMouseMove = (moveEvent) => {
             const newWidth = startWidth + moveEvent.clientX - startX;
-            setColSizes((prevWidths) => {
-                const updatedWidths = {...prevWidths};
-                updatedWidths[col] = newWidth;
-                return updatedWidths;
-            });
+            setColSizes({...colSizes, [col]: newWidth});
         };
 
         const handleMouseUp = () => {
@@ -83,6 +93,7 @@ export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, se
         document.addEventListener('mousemove', handleMouseMove);
         document.addEventListener('mouseup', handleMouseUp);
     };
+
     return (
         <div className={`flex flex-col w-full`} ref={gridRef}>
 
@@ -114,7 +125,7 @@ export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, se
             </div>
 
             {/*Rows*/}
-            <div className={'flex flex-col no-wrap max-h-[50dvh] overflow-auto scrollbar-sm'}>
+            <div className={'flex flex-col no-wrap max-h-[calc(100vh_-_450px)] overflow-auto scrollbar-sm'}>
                 {data.map((d, i) => (
                     <div className={'flex'}>
                         {visibleAttributes.map((attribute, attrI) =>

@@ -14,7 +14,7 @@ const tableComps = {
 }
 
 const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
-    const isEdit = onChange;
+    const isEdit = Boolean(onChange);
     const cachedData = isJson(value) ? JSON.parse(value) : {};
     const [length, setLength] = useState(cachedData.length || 0);
     const [data, setData] = useState([]);
@@ -32,8 +32,6 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     useEffect(() => {
         setAttributes(JSON.parse(format?.config || '{}')?.attributes || [])
     }, [format]);
-
-    useEffect(() => setColSizes({}), [tableType])
     useEffect(() => {
         async function load() {
             if(data) return;
