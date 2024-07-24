@@ -19,7 +19,7 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     const [length, setLength] = useState(cachedData.length || 0);
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [attributes, setAttributes] = useState(cachedData.attributes || []);
+    const [attributes, setAttributes] = useState([]);
     const [visibleAttributes, setVisibleAttributes] = useState(cachedData.visibleAttributes || []);
     const [colSizes, setColSizes] = useState(cachedData.colSizes || {});
     const [newItem, setNewItem] = useState({})
@@ -32,6 +32,8 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     useEffect(() => {
         setAttributes(JSON.parse(format?.config || '{}')?.attributes || [])
     }, [format]);
+
+    useEffect(() => {setColSizes({})}, [visibleAttributes])
     useEffect(() => {
         async function load() {
             if(data) return;
