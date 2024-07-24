@@ -72,7 +72,7 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
             <div className={`grid grid-cols-3 divide-x divide-y`}>
                 {
                     attributes.map((attribute,i) => {
-                        const Comp = DataTypes[attribute.type]?.EditComp;
+                        const Comp = DataTypes[attribute.type]?.EditComp || DataTypes.text.EditComp;
                         return (
                             <React.Fragment key={i}>
                                 <div className={'p-2 font-semibold text-gray-500'}>
@@ -92,10 +92,12 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
 
                                 <div className={'p-2 text-gray-700'}>
                                     <Comp key={`${attribute.name}`} className={'p-1 hover:bg-blue-50 h-fit'}
-                                          value={newItem[attribute.name]} onChange={e => {
-                                        setNewItem({...newItem, [attribute.name]: e})
-                                        updateItem(e, attribute, {...newItem, [attribute.name]: e})
-                                    }}/>
+                                          {...attribute}
+                                          value={newItem[attribute.name]}
+                                          onChange={e => {
+                                              setNewItem({...newItem, [attribute.name]: e})
+                                              updateItem(e, attribute, {...newItem, [attribute.name]: e})
+                                          }}/>
                                     {/*{typeof newItem[attribute.name] === "object" ? JSON.stringify(newItem[attribute.name]) : newItem[attribute.name]}*/}
                                 </div>
                             </React.Fragment>
@@ -133,6 +135,7 @@ const View = ({value, format, apiLoad, ...rest}) => {
                 {
                     attributes
                         .filter(attribute => visibleAttributes.includes(attribute.name))
+                        .filter(d => d)
                         .map((attribute,i) => {
                             // const Comp = DataTypes[attribute.type]?.ViewComp;
                             return (
