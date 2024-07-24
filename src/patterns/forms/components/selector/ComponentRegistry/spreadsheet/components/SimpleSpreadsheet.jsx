@@ -27,9 +27,9 @@ const RenderActions = ({isLastCell, newItem, removeItem}) => {
     )
 }
 const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell, width, onPaste}) => {
-    const [editing, setEditing] = useState(false);
+    // const [editing, setEditing] = useState(false);
     const [newItem, setNewItem] = useState(item);
-    const Comp = DataTypes[attribute.type]?.[editing ? 'EditComp' : 'ViewComp'];
+    const Comp = DataTypes[attribute.type]?.EditComp;
 
     useEffect(() => setNewItem(item), [item])
 
@@ -46,8 +46,8 @@ const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell, wid
     return (
         <div className={`flex items-center ${isLastCell ? `border border-r-0` : `border`}`}
              style={{ width: width }}
-             onClick={() => setEditing(true)}
-             onBlur={() => setEditing(false)}
+             // onClick={() => setEditing(true)}
+             // onBlur={() => setEditing(false)}
         >
             <Comp key={`${attribute.name}-${i}`}
                   className={`${attribute.type === 'multiselect' && newItem[attribute.name]?.length ? 'p-1' :
@@ -160,7 +160,7 @@ export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, se
                                     updateItem(undefined, undefined, {...d, ...tmpNewItem})
                                 }}
                             />)}
-                        <RenderActions isLastCell={true} newItem={newItem} removeItem={removeItem}/>
+                        <RenderActions isLastCell={true} newItem={d} removeItem={removeItem}/>
                     </div>
                 ))}
             </div>

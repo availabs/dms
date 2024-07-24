@@ -55,6 +55,7 @@ export default function RenderColumnControls({
                             ...visibleAttributes.map(va => attributes.find(attr => attr.name === va)),
                             ...attributes.filter(attr => !visibleAttributes.includes(attr.name))
                         ]
+                            .filter(a => a)
                             .map((attribute, i) => (
                             <MenuItem>
                                 <div
