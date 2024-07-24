@@ -139,7 +139,9 @@ export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, se
             <div className={'flex flex-col no-wrap max-h-[calc(100vh_-_450px)] overflow-auto scrollbar-sm'}>
                 {data.map((d, i) => (
                     <div className={'flex'}>
-                        {visibleAttributes.map((attribute, attrI) =>
+                        {visibleAttributes
+                            .filter(attribute => attributes.find(attr => attr.name === attribute))
+                            .map((attribute, attrI) =>
                             <RenderCell
                                 key={`${i}-${attrI}`}
                                 width={colSizes[attributes.find(attr => attr.name === attribute).name]}
