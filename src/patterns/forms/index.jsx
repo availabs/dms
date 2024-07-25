@@ -40,7 +40,7 @@ const formTemplateConfig = ({
 }) => {
     theme = merge(defaultTheme, theme)
     //baseUrl = baseUrl[0] === '/' ? baseUrl.slice(1) : baseUrl
-    const defaultLogo = <Link to={`/${baseUrl}`} className='h-12 flex px-4 items-center'><div className='rounded-full h-8 w-8 bg-blue-500 border-2 border-blue-300 hover:bg-blue-600' /></Link>
+    const defaultLogo = <Link to={`${baseUrl}`} className='h-12 flex px-4 items-center'><div className='rounded-full h-8 w-8 bg-blue-500 border-2 border-blue-300 hover:bg-blue-600' /></Link>
   
     if(!theme.navOptions.logo) {
         theme.navOptions.logo = logo ? logo : defaultLogo
@@ -110,7 +110,7 @@ const formsAdminConfig = ({
 }) => {
     theme = merge(defaultTheme, theme)
     //baseUrl = baseUrl[0] === '/' ? baseUrl.slice(1) : baseUrl
-    const defaultLogo = <Link to={`/${baseUrl}`} className='h-12 flex px-4 items-center'><div className='rounded-full h-8 w-8 bg-blue-500 border-2 border-blue-300 hover:bg-blue-600' /></Link>
+    const defaultLogo = <Link to={`${baseUrl}`} className='h-12 flex px-4 items-center'><div className='rounded-full h-8 w-8 bg-blue-500 border-2 border-blue-300 hover:bg-blue-600' /></Link>
 
     if(!theme.navOptions.logo) {
         theme.navOptions.logo = logo ? logo : defaultLogo
