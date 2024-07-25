@@ -28,10 +28,11 @@ const RenderActions = ({isLastCell, newItem, removeItem}) => {
             </div>
     )
 }
-const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell, width, onPaste, isSelected}) => {
+const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell, width, onPaste, isSelected, isSelecting,
+                    onClick, onMouseDown, onMouseMove, onMouseUp}) => {
     // const [editing, setEditing] = useState(false);
     const [newItem, setNewItem] = useState(item);
-    const Comp = DataTypes[attribute.type]?.EditComp;
+    const Comp = DataTypes[attribute.type]?.[isSelecting ? 'ViewComp' : 'EditComp'];
 
     useEffect(() => setNewItem(item), [item])
 
@@ -48,10 +49,16 @@ const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell, wid
     }, [newItem]);
 
     return (
-        <div className={`flex items-center ${isLastCell ? `border border-r-0` : `border`} ${isSelected ? 'bg-blue-50' : ''}`}
+        <div className={`flex items-center ${isSelecting ? 'select-none' : ``} ${isLastCell ? `border border-r-0` : `border`} ${isSelected ? 'bg-blue-50' : ''}`}
              style={{ width: width }}
+             // onClick={onClick}
+             onMouseDown={onMouseDown}
+             onMouseMove={onMouseMove}
+             onMouseUp={onMouseUp}
+             onClick={onClick}
         >
             <Comp key={`${attribute.name}-${i}`}
+                  onClick={onClick}
                   className={`${attribute.type === 'multiselect' && newItem[attribute.name]?.length ? 'p-0.5' :
                       attribute.type === 'multiselect' && !newItem[attribute.name]?.length ? 'p-4' : 'p-0.5'
                   } hover:bg-blue-50 h-[30px] w-full h-full flex flex-wrap`}
@@ -70,20 +77,110 @@ const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell, wid
 
 export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, setOrderBy, updateItem, removeItem, addItem, newItem, setNewItem, data, colSizes, setColSizes}) => {
     const gridRef = useRef(null);
+    const [isSelecting, setIsSelecting] = useState(false);
     const [selection, setSelection] = useState([]);
+    const [isDragging, setIsDragging] = useState(false);
+    const startCellRow = useRef(null);
+    const startCellCol = useRef(null);
+
+
     useEffect(() => {
         if (gridRef.current && (!Object.keys(colSizes).length || Object.keys(colSizes).length !== visibleAttributes.length)) {
             const availableVisibleAttributesLen = visibleAttributes.filter(v => attributes.find(attr => attr.name === v)).length; // ignoring the once not in attributes anymore
             const gridWidth = gridRef.current.offsetWidth - numColSize - actionsColSize;
             const initialColumnWidth = gridWidth / availableVisibleAttributesLen;
-            console.log('???????????/', gridWidth, initialColumnWidth, availableVisibleAttributesLen)
             setColSizes(
                 visibleAttributes.map(va => attributes.find(attr => attr.name === va)).filter(a => a).reduce((acc, attr) => ({...acc, [attr.name]: initialColumnWidth}) , {})
             );
         }
     }, [visibleAttributes.length, Object.keys(colSizes).length]);
 
-    const handleMouseDown = (col) => (e) => {
+    //============================================ Keyboard Controls begin =============================================
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            console.log('this triggers', e.shiftKey, e.key, selection);
+            if (e.shiftKey) {
+                setIsDragging(true)
+                let lastSelected = selection[selection.length - 1]; // [int or {index, attrI}]
+                let attrIRange = selection.map(s => s.attrI).filter(s => s).sort();
+                if(!attrIRange?.length){
+                    attrIRange = visibleAttributes.map((va, i) => i);
+                }
+                let indexRange = selection.map(s => s.index || s).sort();
+                console.log('range', attrIRange)
+                if (typeof lastSelected === 'number') {
+                    lastSelected = { index: lastSelected, attrI: undefined };
+                }
+
+                switch (e.key) {
+                    case 'ArrowUp':
+                        if (lastSelected.index > 0) {
+                            setSelection(prevSelection => {
+                                const newindex = lastSelected.index - 1;
+                                const newSelection = attrIRange.map(r => ({ index: newindex, attrI: r })); // for all attributes, add a selection
+                                return prevSelection.find(sel => sel.index === newindex && sel.attrI === lastSelected.attrI)
+                                    ? prevSelection.filter(sel => !(sel.index === newindex && sel.attrI === lastSelected.attrI))
+                                    : [...prevSelection, ...newSelection];
+                            });
+                        }
+                        break;
+                    case 'ArrowDown':
+                        if (lastSelected.index < data.length - 1) {
+                            setSelection(prevSelection => {
+                                const newindex = lastSelected.index + 1;
+                                const newSelection = attrIRange.map(r => ({ index: newindex, attrI: r })); // for all attributes, add a selection
+                                return prevSelection.find(sel => sel.index === newindex && sel.attrI === lastSelected.attrI)
+                                    ? prevSelection.filter(sel => !(sel.index === newindex && sel.attrI === lastSelected.attrI))
+                                    : [...prevSelection, ...newSelection];
+                            });
+                        }
+                        break;
+                    case 'ArrowLeft':
+                        if (lastSelected.attrI > 0) {
+                            setSelection(prevSelection => {
+                                const newattrI = lastSelected.attrI - 1;
+                                const newSelection = indexRange.map(ir => ({ index: ir, attrI: newattrI }));
+                                return prevSelection.find(sel => sel.index === lastSelected.index && sel.attrI === newattrI)
+                                    ? prevSelection.filter(sel => !(sel.index === lastSelected.index && sel.attrI === newattrI))
+                                    : [...prevSelection, ...newSelection];
+                            });
+                        }
+                        break;
+                    case 'ArrowRight':
+                        if (lastSelected.attrI < visibleAttributes.length - 1) {
+                            setSelection(prevSelection => {
+                                const newattrI = lastSelected.attrI + 1;
+                                const newSelection = indexRange.map(ir => ({ index: ir, attrI: newattrI }));
+                                return prevSelection.find(sel => sel.index === lastSelected.index && sel.attrI === newattrI)
+                                    ? prevSelection.filter(sel => !(sel.index === lastSelected.index && sel.attrI === newattrI))
+                                    : [...prevSelection, ...newSelection];
+                            });
+                        }
+                        break;
+                    default:
+                        break;
+                }
+            } else if (e.ctrlKey) {
+                setIsSelecting(true);
+            }
+        };
+
+        const handleKeyUp = () => {
+            setIsSelecting(false)
+            setIsDragging(false)
+        }
+
+        window.addEventListener('keydown', handleKeyDown);
+        window.addEventListener('keyup', handleKeyUp);
+
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [selection, data.length]);
+    //============================================ Keyboard Controls end ===============================================
+
+    //============================================ Mouse Controls begin ================================================
+    const handleMouseDownHeader = (col) => (e) => {
         const startX = e.clientX;
         const startWidth = colSizes[col] || 0;
 
@@ -113,27 +210,7 @@ export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, se
         document.addEventListener('mousemove', handleMouseMove);
         document.addEventListener('mouseup', handleMouseUp);
     };
-
-
-    const handleSelection = (e) => {
-        // e.preventDefault();
-        // e.stopPropagation();
-        // // setIsSelected(true)
-        // console.log('e', e)
-        //
-        // const handleMouseMove = (moveEvent) => {
-        //     console.log('moving', moveEvent)
-        // };
-        //
-        // const handleMouseUp = () => {
-        //     console.log('mouseup')
-        //     document.removeEventListener('mousemove', handleMouseMove);
-        //     document.removeEventListener('mouseup', handleMouseUp);
-        // };
-        //
-        // document.addEventListener('mousemove', handleMouseMove);
-        // document.addEventListener('mouseup', handleMouseUp);
-    };
+    
 
     const handlePaste = (attrI, d) => (e) => {
         {
@@ -153,9 +230,70 @@ export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, se
             updateItem(undefined, undefined, {...d, ...tmpNewItem})
         }
     }
+
+    const handleMouseDown = (e, index, attrI) => {
+        if(attrI !== undefined && e.ctrlKey) {
+            console.log('ctrl pressed, selecting', index, attrI, isDragging)
+            setSelection([{index, attrI}]);
+            setIsDragging(true)
+            startCellRow.current = index;
+            startCellCol.current = attrI
+            return;
+        }
+
+        if(attrI !== undefined) return;
+        console.log('setting selection', index, attrI)
+        if (e.ctrlKey) {
+            // Toggle selection with ctrl key
+            e.preventDefault();
+            setSelection(selection.includes(index) ? selection.filter(v => v !== index) : [...selection, index]);
+        } else {
+            // Start dragging selection
+            setSelection([index]);
+            setIsDragging(true);
+            startCellRow.current = index;
+        }
+    };
+
+    const handleMouseMove = (e, index, attrI) => {
+        if(e.ctrlKey && attrI !== undefined) {
+            console.log('moving over', index, attrI, isDragging)
+            // Determine the range
+
+            const rangeRow = [startCellRow.current, index].sort((a, b) => a - b);
+            const rangeCol = [startCellCol.current, attrI].sort((a, b) => a - b);
+            const newSelection = [];
+            for (let i = rangeRow[0]; i <= rangeRow[1]; i++) {
+                for (let j = rangeCol[0]; j <= rangeCol[1]; j++) {
+                    newSelection.push({index: i, attrI: j});
+                }
+            }
+            setSelection(newSelection);
+            return;
+        }
+        if (isDragging) {
+            // Determine the range
+            const endCellIndex = index;
+            const range = [startCellRow.current, endCellIndex].sort((a, b) => a - b);
+            const newSelection = [];
+            for (let i = range[0]; i <= range[1]; i++) {
+                newSelection.push(i);
+            }
+            setSelection(newSelection);
+        }
+    };
+
+    const handleMouseUp = () => {
+        // Stop dragging
+        setIsDragging(false);
+    };
+    //============================================ Mouse Controls end ==================================================
+    console.log('selection', selection)
     if(!visibleAttributes.length) return <div className={'p-2'}>No columns selected.</div>;
     return (
-        <div className={`flex flex-col w-full`} ref={gridRef}>
+        <div className={`flex flex-col w-full`} ref={gridRef}
+
+        >
 
             {/*Header*/}
             <div className={'flex no-wrap'}>
@@ -187,7 +325,7 @@ export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, se
                                      right: 0,
                                      top: 0
                                  }}
-                                 onMouseDown={handleMouseDown(attribute?.name)}/>
+                                 onMouseDown={handleMouseDownHeader(attribute?.name)}/>
                         </div>)}
                 <div className={'flex shrink-0 justify-between'} style={{width: actionsColSize}}>
                     <div key={'actions'}
@@ -198,13 +336,25 @@ export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, se
             </div>
 
             {/*Rows*/}
-            <div className={'flex flex-col no-wrap max-h-[calc(100vh_-_250px)] overflow-auto scrollbar-sm'}>
+            <div className={'flex flex-col no-wrap max-h-[calc(100vh_-_250px)] overflow-auto scrollbar-sm'} onMouseLeave={handleMouseUp}>
                 {data.map((d, i) => (
-                    <div className={'flex'}>
+                    <div className={`flex ${isDragging ? `select-none` : ``}`}>
                         <div key={'#'}
                              className={`flex text-xs text-gray-500 items-center justify-center border cursor-pointer ${selection.includes(i) ? 'bg-blue-50' : ''}`}
                              style={{width: numColSize}}
-                             onClick={() => {setSelection(selection.includes(i) ? selection.filter(v => v !== i) : [...selection, i])}}
+                             onClick={e => {
+                                 // single click = replace selection
+                                 // click and mouse move = add to selection
+                                 // ctrl + click add
+                                 if(e.ctrlKey) {
+                                     setSelection(selection.includes(i) ? selection.filter(v => v !== i) : [...selection, i])
+                                 }else {
+                                     setSelection([i])
+                                 }
+                             }}
+                             onMouseDown={e => handleMouseDown(e, i)}
+                             onMouseMove={e => handleMouseMove(e, i)}
+                             onMouseUp={handleMouseUp}
                              onPaste={handlePaste(0, d)}
                         >
                             {i+1}
@@ -213,15 +363,20 @@ export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, se
                             .filter(attribute => attributes.find(attr => attr.name === attribute))
                             .map((attribute, attrI) =>
                             <RenderCell
-                                isSelected={selection.includes(i)}
+                                isSelecting={isSelecting}
+                                isSelected={selection.find(s => s.index === i && s.attrI === attrI) || selection.includes(i)}
                                 key={`${i}-${attrI}`}
                                 width={colSizes[attributes.find(attr => attr.name === attribute).name]}
                                 attribute={attributes.find(attr => attr.name === attribute)}
                                 updateItem={updateItem}
                                 removeItem={removeItem}
+
                                 i={i}
                                 item={d}
-                                // isLastCell={attrI === visibleAttributes.length - 1}
+                                onMouseDown={e => handleMouseDown(e, i, attrI)}
+                                onMouseMove={e => handleMouseMove(e, i, attrI)}
+                                onMouseUp={handleMouseUp}
+                                onClick={() => setSelection([])}
                                 onPaste={handlePaste(attrI, d)}
                             />)}
                         <div className={'flex items-center border'}>
