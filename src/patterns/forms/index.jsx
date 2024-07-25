@@ -49,7 +49,7 @@ const formTemplateConfig = ({
     const templateFormat = {...template}
     templateFormat.app = app;
     templateFormat.type = `template`;
-    console.log('adminpath index', adminPath)
+    //console.log('adminpath index', adminPath)
     return {
         app,
         type: `template`,
@@ -184,7 +184,7 @@ const FormTemplateView = ({apiLoad, apiUpdate, attributes, parent, params, forma
     const parentConfigAttributes = JSON.parse(parent?.config || '{}')?.attributes || [];
     const type = parent.doc_type || parent?.base_url?.replace(/\//g, '') 
 
-    if(!match.route) return <>No template found.</>
+    //if(!match.route) return <>No template found.</>
 
 
     return (
