@@ -98,16 +98,16 @@ export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, se
     //============================================ Keyboard Controls begin =============================================
     useEffect(() => {
         const handleKeyDown = (e) => {
-            console.log('this triggers', e.shiftKey, e.key, selection);
             if (e.shiftKey) {
                 setIsDragging(true)
                 let lastSelected = selection[selection.length - 1]; // [int or {index, attrI}]
-                let attrIRange = selection.map(s => s.attrI).filter(s => s).sort();
+                let attrIRange = selection.map(s => s.attrI).filter(s => s !== undefined).sort();
                 if(!attrIRange?.length){
                     attrIRange = visibleAttributes.map((va, i) => i);
                 }
-                let indexRange = selection.map(s => s.index || s).sort();
-                console.log('range', attrIRange)
+                attrIRange = [...new Set(attrIRange)].sort();
+                let indexRange = [...new Set(selection.map(s => s.index || s))].sort();
+                console.log('range', attrIRange, indexRange, selection)
                 if (typeof lastSelected === 'number') {
                     lastSelected = { index: lastSelected, attrI: undefined };
                 }
@@ -376,7 +376,7 @@ export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, se
                                 onMouseDown={e => handleMouseDown(e, i, attrI)}
                                 onMouseMove={e => handleMouseMove(e, i, attrI)}
                                 onMouseUp={handleMouseUp}
-                                onClick={() => setSelection([])}
+                                onClick={() => setSelection([{index:i, attrI}])}
                                 onPaste={handlePaste(attrI, d)}
                             />)}
                         <div className={'flex items-center border'}>
