@@ -39,7 +39,9 @@ export const siteConfig = ({
   pgEnv,
   API_HOST
 }) => {
-  theme = merge(defaultTheme, theme)
+  theme = merge({...defaultTheme}, {...theme})
+
+  console.log('pageConfig', theme, logo)
   //baseUrl = baseUrl[0] === '/' ? baseUrl.slice(1) : baseUrl
   baseUrl = baseUrl === '/' ? '' : baseUrl
   const defaultLogo = <Link to={`${baseUrl}`} className='h-12 flex px-4 items-center'><div className='rounded-full h-8 w-8 bg-blue-500 border-2 border-blue-300 hover:bg-blue-600' /></Link>
@@ -55,7 +57,7 @@ export const siteConfig = ({
   format.type = type
 
 
-  console.log('pgEnv siteConfig', app, type, pgEnv)
+  // console.log('pgEnv siteConfig', app, type, pgEnv)
   // for instances without auth turned on can edit
   // should move this to dmsFactory default authWrapper
   const defaultUser = { email: "user", authLevel: 5, authed: true, fake: true}
@@ -168,3 +170,27 @@ export const siteConfig = ({
 }
 
 export default [siteConfig]
+
+export const updateRegisteredFormats = (registerFormats, app, type) => {
+  if(Array.isArray(registerFormats)){
+    registerFormats = registerFormats.map(rFormat => {
+      rFormat.app = app;
+      rFormat.type = `${type}|${rFormat.type}`
+      rFormat.registerFormats = updateRegisteredFormats(rFormat.registerFormats, app, type);
+      rFormat.attributes = updateAttributes(rFormat.attributes, app, type);
+      return rFormat;
+    })
+  }
+  return registerFormats;
+}
+
+export const updateAttributes = (attributes, app, type) => {
+  if(Array.isArray(attributes)){
+    attributes = attributes.map(attr => {
+      attr.format = attr.format ? `${app}+${type}|${attr.format.split('+')[1]}`: undefined;
+      return updateRegisteredFormats(attr, app, type);
+    })
+    //console.log('attr', attributes)
+  }
+  return attributes;
+}

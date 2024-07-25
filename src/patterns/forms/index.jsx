@@ -40,7 +40,7 @@ const formTemplateConfig = ({
 }) => {
     theme = merge(defaultTheme, theme)
     //baseUrl = baseUrl[0] === '/' ? baseUrl.slice(1) : baseUrl
-    const defaultLogo = <Link to={`/${baseUrl}`} className='h-12 flex px-4 items-center'><div className='rounded-full h-8 w-8 bg-blue-500 border-2 border-blue-300 hover:bg-blue-600' /></Link>
+    const defaultLogo = <Link to={`${baseUrl}`} className='h-12 flex px-4 items-center'><div className='rounded-full h-8 w-8 bg-blue-500 border-2 border-blue-300 hover:bg-blue-600' /></Link>
   
     if(!theme.navOptions.logo) {
         theme.navOptions.logo = logo ? logo : defaultLogo
@@ -49,7 +49,7 @@ const formTemplateConfig = ({
     const templateFormat = {...template}
     templateFormat.app = app;
     templateFormat.type = `template`;
-    console.log('adminpath index', adminPath)
+    //console.log('adminpath index', adminPath)
     return {
         app,
         type: `template`,
@@ -110,7 +110,7 @@ const formsAdminConfig = ({
 }) => {
     theme = merge(defaultTheme, theme)
     //baseUrl = baseUrl[0] === '/' ? baseUrl.slice(1) : baseUrl
-    const defaultLogo = <Link to={`/${baseUrl}`} className='h-12 flex px-4 items-center'><div className='rounded-full h-8 w-8 bg-blue-500 border-2 border-blue-300 hover:bg-blue-600' /></Link>
+    const defaultLogo = <Link to={`${baseUrl}`} className='h-12 flex px-4 items-center'><div className='rounded-full h-8 w-8 bg-blue-500 border-2 border-blue-300 hover:bg-blue-600' /></Link>
 
     if(!theme.navOptions.logo) {
         theme.navOptions.logo = logo ? logo : defaultLogo
@@ -184,7 +184,7 @@ const FormTemplateView = ({apiLoad, apiUpdate, attributes, parent, params, forma
     const parentConfigAttributes = JSON.parse(parent?.config || '{}')?.attributes || [];
     const type = parent.doc_type || parent?.base_url?.replace(/\//g, '') 
 
-    if(!match.route) return <>No template found.</>
+    //if(!match.route) return <>No template found.</>
 
 
     return (
