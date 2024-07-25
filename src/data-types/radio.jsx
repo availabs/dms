@@ -15,14 +15,15 @@ const Edit = ({value = '', onChange, options = [], inline}) => {
                 {
                     options.map((o, i) => (
                         <div key={i} className={theme?.radio?.wrapper || 'p-1 flex'}>
-                            <input id={o}
+                            <input id={o.value || o}
                                    className={theme?.radio?.input || 'self-center p-1'}
-                                   type="radio" value={o} checked={value === o} onChange={e => onChange(e.target.value)} />
+                                   type="radio" value={o.value || o} checked={value === (o.value || o)}
+                                   onChange={e => onChange(e.target.value)} />
 
                             <label
-                                htmlFor={o}
+                                htmlFor={o.label || o}
                                 className={theme?.radio?.label || 'text-sm font-light p-1 self-center'}
-                            > {o} </label>
+                            > {o.label || o} </label>
                         </div>
                     ))
                 }
