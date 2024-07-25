@@ -33,7 +33,7 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
         setAttributes(JSON.parse(format?.config || '{}')?.attributes || [])
     }, [format]);
 
-    useEffect(() => {setColSizes({})}, [visibleAttributes])
+    useEffect(() => {visibleAttributes.find(va => !colSizes[va]) && setColSizes({})}, [visibleAttributes])
     useEffect(() => {
         async function load() {
             if(data) return;

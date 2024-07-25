@@ -20,7 +20,7 @@ function defaultTheme () {
 		},
 		select: {
 			input: 'px-2 py-1 w-full text-sm font-light border rounded-md focus:border-blue-300 bg-white hover:bg-blue-100 transition ease-in',
-			error: 'text-xs text-red-300 font-light'
+			error: 'p-1 text-xs text-red-300 font-light'
 		},
 		multiselect: {
 			mainWrapper: 'w-full',
@@ -30,7 +30,7 @@ function defaultTheme () {
 			removeIcon: 'fa fa-x px-1 text-xs text-red-300 hover:text-red-500 self-center transition ease-in cursor-pointer',
 			menuWrapper: 'h-1/2 p-2 shadow-lg z-50 absolute bg-white overflow-auto scrollbar-sm',
 			menuItem: 'px-2 py-1 hover:bg-blue-300 hover:cursor-pointer transition ease-in',
-			error: 'text-xs text-red-300 font-light'
+			error: 'p-1 text-xs text-red-300 font-light'
 		},
 		radio: {
 			wrapper: 'p-1 flex',

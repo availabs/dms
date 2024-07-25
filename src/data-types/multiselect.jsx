@@ -96,11 +96,12 @@ const Edit = ({value = [], onChange, className,placeholder, options = [], displa
     return (
         <div ref={ref} className={(theme?.multiselect?.mainWrapper) || mainWrapper}>
             {
-                invalidValues.length && displayInvalidMsg ? <div className={theme?.multiselect?.error}>Invalid Values: {JSON.stringify(invalidValues)}</div> : null
+                invalidValues.length && displayInvalidMsg ? <div className={theme?.multiselect?.error} title={`Invalid Values: ${JSON.stringify(invalidValues)}`}>i</div> : null
             }
             <div className={className || (theme?.multiselect?.inputWrapper) || inputWrapper} onClick={() => setIsSearching(!isSearching)}>
                 {
                     typeSafeValue
+                        .filter(d => d)
                         .map((v, i) =>
                             <RenderToken
                                 key={i}

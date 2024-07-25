@@ -25,7 +25,7 @@ export default function RenderInHeaderColumnControls({
         <Menu as="div" className="relative inline-block text-left w-full">
             <div>
                 <MenuButton
-                    className="inline-flex items-center w-full justify-between gap-x-1.5 rounded-md px-3 py-2 text-sm font-semibold text-gray-900">
+                    className="inline-flex items-center w-full justify-between gap-x-1.5 rounded-md px-3 py-1 text-sm font-semibold text-gray-900">
                     {attribute.display_name || attribute.name}
                     <div id={'col-icons'} className={'flex items-center'}>
                         {orderBy[attribute.name] === 'asc nulls last' ? <SortAsc /> :

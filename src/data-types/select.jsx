@@ -2,7 +2,7 @@ import React from "react"
 import { useTheme } from '../theme'
 
 
-const Edit = ({value = '', onChange, className, placeholder, options = []}) => {
+const Edit = ({value = '', onChange, className, placeholder, displayInvalidMsg=true, options = []}) => {
     // options: ['1', 's', 't'] || [{label: '1', value: '1'}, {label: 's', value: '2'}, {label: 't', value: '3'}]
     const theme = useTheme();
 
@@ -10,7 +10,7 @@ const Edit = ({value = '', onChange, className, placeholder, options = []}) => {
     return (
         <>
             {
-                isInvalidValue ? <div className={theme?.select?.error}>Invalid Value: {JSON.stringify(value)} </div> : null
+                isInvalidValue   ? <div className={theme?.select?.error} title={`Invalid Value: ${JSON.stringify(value)}`}>i</div> : null
             }
             <select
                 className={ className || (theme?.select?.input || 'w-full border p-2')}

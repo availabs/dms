@@ -20,7 +20,7 @@ export const getData = async ({format, apiLoad, currentPage, pageSize, orderBy, 
     // fetch all data items based on app and type. see if you can associate those items to its pattern. this will be useful when you have multiple patterns.
     const attributes = JSON.parse(format?.config || '{}')?.attributes || [];
     const fromIndex = currentPage*pageSize;
-    const toIndex = currentPage*pageSize + pageSize-1;
+    const toIndex = currentPage*pageSize + pageSize;
     const children = [{
         type: () => {
         },
