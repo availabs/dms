@@ -110,7 +110,7 @@ const formsAdminConfig = ({
 }) => {
     theme = merge(defaultTheme, theme)
     //baseUrl = baseUrl[0] === '/' ? baseUrl.slice(1) : baseUrl
-    const defaultLogo = <Link to={`${baseUrl}`} className='h-12 flex px-4 items-center'><div className='rounded-full h-8 w-8 bg-blue-500 border-2 border-blue-300 hover:bg-blue-600' /></Link>
+    const defaultLogo = <Link to={`/`} className='h-12 flex px-4 items-center'><div className='rounded-full h-8 w-8 bg-blue-500 border-2 border-blue-300 hover:bg-blue-600' /></Link>
 
     if(!theme.navOptions.logo) {
         theme.navOptions.logo = logo ? logo : defaultLogo
@@ -120,6 +120,11 @@ const formsAdminConfig = ({
     patternFormat.type = type
     patternFormat.registerFormats = updateRegisteredFormats(patternFormat.registerFormats, app) // update app for all the children formats. this works, but dms stops providing attributes to patternList
     patternFormat.attributes = updateAttributes(patternFormat.attributes, app) // update app for all the children formats. this works, but dms stops providing attributes to patternList
+    // patternFormat.filter = {
+    //     stopFullDataLoad: true,
+    //     fromIndex: () => 0,
+    //     toIndex: () => 1,
+    // }
     console.log('formsAdminConfig', parent)
     return {
         format: patternFormat,
@@ -135,15 +140,30 @@ const formsAdminConfig = ({
                   )
                 },
                 action: "list",
+                filter: {
+                    stopFullDataLoad: true,
+                    fromIndex: () => 0,
+                    toIndex: () => 0,
+                },
                 path: "/*",
                 children: [
                     {
                         type: props => <ManageForms.EditComp parent={parent} {...props} />,
+                        filter: {
+                            stopFullDataLoad: true,
+                            fromIndex: () => 0,
+                            toIndex: () => 0,
+                        },
                         action: 'edit',
                         path: `attributes`
                     },
                     {
                         type: props => <ManageTemplates.EditComp  parent={parent} {...props} />,
+                        filter: {
+                            stopFullDataLoad: true,
+                            fromIndex: () => 0,
+                            toIndex: () => 0,
+                        },
                         action: 'edit',
                         path: `templates`
                     },

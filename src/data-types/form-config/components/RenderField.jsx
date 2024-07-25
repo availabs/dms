@@ -213,6 +213,7 @@ const RenderMappings = ({col, drivingAttribute, attr, value=[], updateAttribute,
 
     // ============================================ get formats ========================================================
     useEffect(() => {
+        if(!adding) return;
         async function load(){
             const length = await getLength({format: {...format, app: 'dms-site', type: 'forms-config'}, apiLoad});
             const data = await getData({
@@ -224,7 +225,7 @@ const RenderMappings = ({col, drivingAttribute, attr, value=[], updateAttribute,
         }
 
         load()
-    }, []);
+    }, [adding]);
     // ============================================ get formats end ====================================================
 
     // ============================================ get src values =====================================================

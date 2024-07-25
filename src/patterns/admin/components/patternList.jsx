@@ -109,7 +109,7 @@ function PatternEdit({
 										onChange={(v) => setEditingItem({...editingItem, [attr]: v})}
 										{...attributes[attr]}
 									/>
-										: attr === 'base_url' ? <Link to={`${pattern[attr]}`}>{pattern[attr]}</Link> : <div>{pattern[attr]}</div>
+										: attr === 'base_url' ? <Link to={`/${pattern[attr]}`}>{pattern[attr]}</Link> : <div>{pattern[attr]}</div>
 									}
 								)
 						}
