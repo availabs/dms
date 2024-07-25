@@ -33,7 +33,6 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
         setAttributes(JSON.parse(format?.config || '{}')?.attributes || [])
     }, [format]);
 
-    useEffect(() => {visibleAttributes.find(va => !colSizes[va]) && setColSizes({})}, [visibleAttributes])
     useEffect(() => {
         async function load() {
             if(data) return;
@@ -139,7 +138,7 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
             }
             {/*Pagination*/}
             <RenderPagination totalPages={length} pageSize={pageSize} currentPage={currentPage}
-                              setVCurrentPage={setCurrentPage}/>
+                              setVCurrentPage={setCurrentPage} visibleAttributes={visibleAttributes}/>
         </div>
     )
 }

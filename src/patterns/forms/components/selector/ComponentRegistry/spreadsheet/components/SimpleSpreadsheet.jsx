@@ -36,6 +36,7 @@ const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell, wid
     useEffect(() => setNewItem(item), [item])
 
     useEffect(() => {
+        // send update to api
         if (newItem[attribute.name] === item[attribute.name]) return;
         setTimeout(
             updateItem(
@@ -69,12 +70,15 @@ const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell, wid
 
 export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, setOrderBy, updateItem, removeItem, addItem, newItem, setNewItem, data, colSizes, setColSizes}) => {
     const gridRef = useRef(null);
+    const [selection, setSelection] = useState([]);
     useEffect(() => {
-        if (gridRef.current && !Object.keys(colSizes).length) {
+        if (gridRef.current && (!Object.keys(colSizes).length || Object.keys(colSizes).length !== visibleAttributes.length)) {
+            const availableVisibleAttributesLen = visibleAttributes.filter(v => attributes.find(attr => attr.name === v)).length; // ignoring the once not in attributes anymore
             const gridWidth = gridRef.current.offsetWidth - numColSize - actionsColSize;
-            const initialColumnWidth = gridWidth / visibleAttributes.length;
+            const initialColumnWidth = gridWidth / availableVisibleAttributesLen;
+            console.log('???????????/', gridWidth, initialColumnWidth, availableVisibleAttributesLen)
             setColSizes(
-                visibleAttributes.map(va => attributes.find(attr => attr.name === va)).reduce((acc, attr) => ({...acc, [attr.name]: initialColumnWidth}) , {})
+                visibleAttributes.map(va => attributes.find(attr => attr.name === va)).filter(a => a).reduce((acc, attr) => ({...acc, [attr.name]: initialColumnWidth}) , {})
             );
         }
     }, [visibleAttributes.length, Object.keys(colSizes).length]);
@@ -89,7 +93,9 @@ export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, se
             const restColsWidthSum = Object.keys(colSizes).filter(k => k !== col).reduce((acc, curr) => acc + (colSizes[curr] || 0), 0);
 
             if(restColsWidthSum > gridWidth){
-                const diff = (restColsWidthSum - gridWidth) / visibleAttributes.length;
+                const availableVisibleAttributesLen = visibleAttributes.filter(v => attributes.find(attr => attr.namr === v)).length;
+
+                const diff = (restColsWidthSum - gridWidth) / availableVisibleAttributesLen;
                 const newColSizes = Object.keys(colSizes).reduce((acc, curr) => {
                     acc[curr] = curr === col ? newWidth : colSizes[curr] - diff;
                     return acc;
@@ -128,6 +134,26 @@ export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, se
         // document.addEventListener('mousemove', handleMouseMove);
         // document.addEventListener('mouseup', handleMouseUp);
     };
+
+    const handlePaste = (attrI, d) => (e) => {
+        {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const paste = (e.clipboardData || window.clipboardData)
+                                                    .getData("text")?.split('\n')
+                                                    .map(row => row.split('\t'));
+
+            const pastedColumns = [...new Array(paste[0].length).keys()]
+                                                    .map(i => visibleAttributes[attrI + i])
+                                                    .filter(i => i);
+
+            const tmpNewItem = pastedColumns.reduce((acc, c, i) => ({...acc, [c]: paste[0][i]}), {});
+
+            updateItem(undefined, undefined, {...d, ...tmpNewItem})
+        }
+    }
+    if(!visibleAttributes.length) return <div className={'p-2'}>No columns selected.</div>;
     return (
         <div className={`flex flex-col w-full`} ref={gridRef}>
 
@@ -175,13 +201,19 @@ export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, se
             <div className={'flex flex-col no-wrap max-h-[calc(100vh_-_250px)] overflow-auto scrollbar-sm'}>
                 {data.map((d, i) => (
                     <div className={'flex'}>
-                        <div key={'#'} className={'flex text-xs text-gray-500 items-center justify-center border'} style={{width: numColSize}}>
+                        <div key={'#'}
+                             className={`flex text-xs text-gray-500 items-center justify-center border cursor-pointer ${selection.includes(i) ? 'bg-blue-50' : ''}`}
+                             style={{width: numColSize}}
+                             onClick={() => {setSelection(selection.includes(i) ? selection.filter(v => v !== i) : [...selection, i])}}
+                             onPaste={handlePaste(0, d)}
+                        >
                             {i+1}
                         </div>
                         {visibleAttributes
                             .filter(attribute => attributes.find(attr => attr.name === attribute))
                             .map((attribute, attrI) =>
                             <RenderCell
+                                isSelected={selection.includes(i)}
                                 key={`${i}-${attrI}`}
                                 width={colSizes[attributes.find(attr => attr.name === attribute).name]}
                                 attribute={attributes.find(attr => attr.name === attribute)}
@@ -190,16 +222,7 @@ export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, se
                                 i={i}
                                 item={d}
                                 // isLastCell={attrI === visibleAttributes.length - 1}
-                                onPaste={e => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-
-                                    const paste =
-                                        (e.clipboardData || window.clipboardData).getData("text")?.split('\n').map(row => row.split('\t'));
-                                    const pastedColumns = [...new Array(paste[0].length).keys()].map(i => visibleAttributes[attrI + i]).filter(i => i);
-                                    const tmpNewItem = pastedColumns.reduce((acc, c, i) => ({...acc, [c]: paste[0][i]}), {})
-                                    updateItem(undefined, undefined, {...d, ...tmpNewItem})
-                                }}
+                                onPaste={handlePaste(attrI, d)}
                             />)}
                         <div className={'flex items-center border'}>
                             <RenderActions isLastCell={true} newItem={d} removeItem={removeItem}/>

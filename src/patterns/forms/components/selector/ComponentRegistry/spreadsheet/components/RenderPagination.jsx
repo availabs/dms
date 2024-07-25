@@ -1,6 +1,7 @@
 import React from "react";
 
-export const RenderPagination = ({totalPages, pageSize, currentPage, setVCurrentPage}) => {
+export const RenderPagination = ({totalPages, pageSize, currentPage, setVCurrentPage, visibleAttributes}) => {
+    if(!visibleAttributes.length) return;
     const numNavBtns = Math.ceil(totalPages / pageSize);
 
     return (
