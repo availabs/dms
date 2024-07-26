@@ -6,12 +6,17 @@ import Layout from "../../ui/avail-layout";
 import {CMSContext} from "../../siteConfig";
 import {Combobox} from "@headlessui/react";
 import {dataItemsNav, detectNavLevel} from "../../pages/_utils";
+import dataTypes from "../../../../data-types";
 
-const searchItemWrapperClass = `p-2 bg-blue-50 hover:bg-blue-100`
+const searchTypeMapping = {
+    tags: 'byTag',
+    page_title: 'byPageTitle'
+}
 
-const getSearchURL = ({value, baseUrl, type='tag'}) => !baseUrl || baseUrl === '' ? `/search/?q=${value}&type=${type}` : `/${baseUrl}/search/?q=${value}&type=${type}`;
+const getSearchURL = ({value, baseUrl, type='tags'}) => !baseUrl || baseUrl === '' ? `/search/?q=${value}&type=${type}` : `/${baseUrl}/search/?q=${value}&type=${type}`;
 
-const RenderTagSuggestions = ({tags, individualTags, tmpQuery, setQuery, navigate, baseUrl}) => individualTags
+const RenderTagSuggestions = ({tags, individualTags, tmpQuery, setQuery, navigate, baseUrl}) =>
+    individualTags
     .filter(tag => (!tmpQuery?.length || tag.toLowerCase().includes(tmpQuery.toLowerCase())))
     .length > 0 && (
     <div className="max-h-96 transform-gpu scroll-py-3 overflow-y-auto p-3 flex items-center">
@@ -44,7 +49,7 @@ const RenderItems = ({items, navigate}) => items.length > 0 && (
                 className={`flex cursor-pointer select-none rounded-xl p-3 bg-slate-100 hover:bg-slate-200 transition ease-in`}
                 onClick={e => {
                     // navigate(`/${item.url}#${item.id}`)
-                    window.location = `${item.url}#${item.id}`
+                    window.location = item.id ? `${item.url}#${item.id}` : `${item.url}`;
                 }}
             >
                 <div
@@ -65,7 +70,7 @@ const RenderItems = ({items, navigate}) => items.length > 0 && (
                         {item.description}
                     </p>
                     {
-                        item.tags.split(',').map(tag => <span
+                        (item.tags || '').split(',').filter(t => t).map(tag => <span
                             className={'tracking-wide p-1 bg-red-400 text-xs text-white font-semibold rounded-md border'}>{tag}</span>)
                     }
                 </div>
@@ -103,20 +108,25 @@ export const SearchPage = ({item, dataItems, format, attributes, logo, rightMenu
     const [tags, setTags] = useState([]);
     const [individualTags, setIndividualTags] = useState([]);
     const [items, setItems] = useState([]);
+    const [searchType, setSearchType] = useState(searchParams.get('type') || 'tags');
 
     const app = format?.app;
     const type = format?.type;
 
+    const Radio = dataTypes.radio.EditComp;
     useEffect(() => {
         setTmpQuery(searchParams.get('q'))
     }, [searchParams.get('q')])
+
     const menuItems = React.useMemo(() => {
         let items = dataItemsNav(dataItems,baseUrl,false)
         return items
     }, [dataItems])
 
     useEffect(() => {
-        setTimeout(() => setQuery(tags.filter(t => t.split(',').includes(tmpQuery))), 0)
+        setTimeout(() => setQuery(
+            searchType === 'tags' ? tags.filter(t => t.split(',').includes(tmpQuery)) : tmpQuery
+        ), 0)
     }, [tags, tmpQuery]);
 
     useEffect(() => {
@@ -124,27 +134,26 @@ export const SearchPage = ({item, dataItems, format, attributes, logo, rightMenu
             const config = getConfig({
                 app,
                 type,
-                action: 'searchTags'
+                action: searchType === 'tags' ? 'searchTags' : 'searchPageTitles'
             });
 
             return dmsDataLoader(falcor, config, '/');
         }
-
         getTags().then(tags => {
-            setTags(tags.value.map(t => t.tags).sort());
-            setIndividualTags([...new Set(tags.value.reduce((acc, t) => [...acc, ...t.tags.split(',')], []))].sort());
+            setTags(tags.value.map(t => t[searchType]).sort());
+            setIndividualTags([...new Set(tags.value.reduce((acc, t) => [...acc, ...t[searchType].split(',')], []))].sort());
         });
-    }, []);
+    }, [searchType]);
 
     useEffect(() => {
         if (!query) return;
         // search for sections matching query.
-
         const config = getConfig({
             app,
             type,
             action: 'search',
-            tags: Array.isArray(query) ? query : [query]
+            tags: Array.isArray(query) ? query : [query],
+            searchType: searchTypeMapping[searchType]
         })
 
         async function getData() {
@@ -165,8 +174,7 @@ export const SearchPage = ({item, dataItems, format, attributes, logo, rightMenu
                         icon: () => <i className={'fa-light fa-memo text-white'}/>,
                     })
                 });
-
-                return [...acc, ...pagesForQuery]
+                return [...acc, ...(pagesForQuery || [])]
             }, []);
 
             setItems(tmpItems || [])
@@ -180,15 +188,28 @@ export const SearchPage = ({item, dataItems, format, attributes, logo, rightMenu
     return (
         <Layout navItems={menuItems}>
             <div className={`${theme?.page?.wrapper1} ${theme?.navPadding[0]}`}>
+                <div className={'p-2 text-sm text-gray-800 flex items-center'}>
+                    search by:
+                    <Radio options={[{label: 'Tags', value: 'tags'}, {label: 'Page Title', value: 'page_title'}]}
+                           onChange={v => {
+                               setSearchType(v);
+                               navigate(getSearchURL({value: query, baseUrl, type: v}))
+                           }}
+                           value={searchType}
+                           inline={true}/>
+                </div>
                 <div className={'w-full text-xl border-2 p-2 rounded-md'}>
                     <input
                         className={'w-full'}
                         placeholder={'Search...'}
                         value={tmpQuery}
                         onChange={e => {
-                            setQuery(tags.filter(t => t.split(',').map(t => t.toLowerCase()).includes(e.target.value?.toLowerCase())))
+                            setQuery(
+                                searchType === 'tags' ? tags.filter(t => t.split(',').map(t => t.toLowerCase()).includes(e.target.value?.toLowerCase())) :
+                                    e.target.value
+                            )
                             setTmpQuery(e.target.value)
-                            navigate(getSearchURL({value: e.target.value, baseUrl}))
+                            navigate(getSearchURL({value: e.target.value, baseUrl, type: searchType}))
                         }}/>
                 </div>
 

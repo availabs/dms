@@ -5,7 +5,7 @@ import { useTheme } from '../theme'
 const Edit = ({value = '', onChange, options = [], inline}) => {
     // options: ['1', 's', 't'] || [{label: '1', value: '1'}, {label: 's', value: '2'}, {label: 't', value: '3'}]
     const theme = useTheme();
-    const isInvalidValue = value && !options.find(o => o === value);
+    const isInvalidValue = value && !options.find(o => (o.value || o) === value);
     return (
         <>
             {

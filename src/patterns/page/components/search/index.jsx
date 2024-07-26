@@ -270,7 +270,7 @@ export const getConfig = ({
       type,
       filter,
       action = 'load',
-      tags,
+      tags, searchType,
       attributes = [
           {key: 'id', label: 'id'},
           {key: 'app', label: 'app'},
@@ -292,6 +292,7 @@ export const getConfig = ({
                     filter,
                 }),
                 tags,
+                searchType,
                 attributes: attributes.map(a => a.key)
             },
             path: '/'
