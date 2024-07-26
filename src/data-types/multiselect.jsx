@@ -137,11 +137,11 @@ const View = ({className, value, options = []}) => {
     const option =
         options
             .filter(o => mappedValue.includes(o.value || o))
-            .map(o => o.label || o).join(', ');
+            .map(o => o.label || o);
 
     return (
         <div className={className || (theme?.text?.view)}>
-            {option || JSON.stringify(mappedValue)}
+            {(mappedValue).map((i, ii) => <RenderToken key={ii} token={i} isSearching={false} setIsSearching={() => {}} theme={theme}/>)}
         </div>
     )
 }
