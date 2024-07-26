@@ -79,6 +79,7 @@ export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, se
     const gridRef = useRef(null);
     const [isSelecting, setIsSelecting] = useState(false);
     const [selection, setSelection] = useState([]);
+    const [triggerSelectionDelete, setTriggerSelectionDelete] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
     const startCellRow = useRef(null);
     const startCellCol = useRef(null);
@@ -94,6 +95,25 @@ export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, se
             );
         }
     }, [visibleAttributes.length, Object.keys(colSizes).length]);
+
+    useEffect(() => {
+        async function deleteFn(){
+            if(triggerSelectionDelete){
+                const selectionRows = data.filter((d,i) => selection.find(s => (s.index || s) === i))
+                const selectionCols = visibleAttributes.filter((v,i) => selection.map(s => s.attrI).includes(i))
+
+                if(selectionCols.length){
+                    // partial selection
+                    updateItem(undefined, undefined, selectionRows.map(row => ({...row, ...selectionCols.reduce((acc, curr) => ({...acc, [curr]: ''}), {})})))
+                }else{
+                    // full row selection
+                    updateItem(undefined, undefined, selectionRows.map(row => ({...row, ...visibleAttributes.reduce((acc, curr) => ({...acc, [curr]: ''}), {})})))
+                }
+            }
+        }
+
+        deleteFn()
+    }, [triggerSelectionDelete])
 
     //============================================ Keyboard Controls begin =============================================
     useEffect(() => {
@@ -162,12 +182,15 @@ export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, se
                 }
             } else if (e.ctrlKey) {
                 setIsSelecting(true);
+            } else if (e.key === 'Delete'){
+                setTriggerSelectionDelete(true)
             }
         };
 
         const handleKeyUp = () => {
             setIsSelecting(false)
             setIsDragging(false)
+            setTriggerSelectionDelete(false);
         }
 
         window.addEventListener('keydown', handleKeyDown);
@@ -365,6 +388,7 @@ export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, se
                             <RenderCell
                                 isSelecting={isSelecting}
                                 isSelected={selection.find(s => s.index === i && s.attrI === attrI) || selection.includes(i)}
+                                triggerDelete={triggerSelectionDelete}
                                 key={`${i}-${attrI}`}
                                 width={colSizes[attributes.find(attr => attr.name === attribute).name]}
                                 attribute={attributes.find(attr => attr.name === attribute)}

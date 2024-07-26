@@ -80,11 +80,16 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
         if(value !== undefined && attribute){
             return apiUpdate({data: {...d, [attribute.name]: value}, config: {format}});
         }
-        const dI = data.findIndex(dI => dI.id === d.id);
+
+        let dataToUpdate = Array.isArray(d) ? d : [d];
+
         let tmpData = [...data];
-        tmpData[dI] = d;
+        dataToUpdate.map(dtu => {
+            const i = data.findIndex(dI => dI.id === dtu.id);
+            tmpData[i] = dtu;
+        });
         setData(tmpData)
-        return apiUpdate({data: d, config: {format}});
+        return Promise.all(dataToUpdate.map(dtu => apiUpdate({data: dtu, config: {format}})));
     }
 
     const addItem = () => {
