@@ -12,7 +12,7 @@ function defaultTheme () {
 		},
 		text: {
 			input: 'px-2 py-1 w-full text-sm font-light border rounded-md focus:border-blue-300 focus:outline-none transition ease-in',
-			view: 'text-sm font-light'
+			view: 'text-sm font-light truncate'
 		},
 		textarea: {
 			input: 'px-2 py-1 w-full text-sm font-light border rounded-md focus:border-blue-300 focus:outline-none transition ease-in',

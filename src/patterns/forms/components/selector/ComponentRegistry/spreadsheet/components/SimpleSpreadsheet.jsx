@@ -28,12 +28,16 @@ const RenderActions = ({isLastCell, newItem, removeItem}) => {
             </div>
     )
 }
-const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell, width, onPaste, isSelected, isSelecting,
-                    onClick, onMouseDown, onMouseMove, onMouseUp}) => {
+const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell, width, onPaste, isSelected, isSelecting, editing,
+                    onClick, onDoubleClick, onMouseDown, onMouseMove, onMouseUp}) => {
     // const [editing, setEditing] = useState(false);
     const [newItem, setNewItem] = useState(item);
-    const Comp = DataTypes[attribute.type]?.[isSelecting ? 'ViewComp' : 'EditComp'];
-
+    // const Comp = DataTypes[attribute.type]?.[isSelecting ? 'ViewComp' : 'EditComp'];
+    const Comp = DataTypes[attribute.type]?.[editing ? 'EditComp' : 'ViewComp'];
+    const classNames = {
+        text: 'flex no-wrap truncate',
+        isSelected: 'bg-blue-50 border-gray-700'
+    }
     useEffect(() => setNewItem(item), [item])
 
     useEffect(() => {
@@ -47,21 +51,26 @@ const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell, wid
             ),
             1000);
     }, [newItem]);
-
     return (
-        <div className={`flex items-center ${isSelecting ? 'select-none' : ``} ${isLastCell ? `border border-r-0` : `border`} ${isSelected ? 'bg-blue-50' : ''}`}
+        <div className={`flex items-center ${isSelecting ? 'select-none' : ``} ${isLastCell ? `border border-r-0` : `border`} ${isSelected ? classNames.isSelected : 'bg-white'}`}
              style={{ width: width }}
              // onClick={onClick}
              onMouseDown={onMouseDown}
              onMouseMove={onMouseMove}
              onMouseUp={onMouseUp}
              onClick={onClick}
+             onDoubleClick={onDoubleClick}
         >
             <Comp key={`${attribute.name}-${i}`}
                   onClick={onClick}
-                  className={`${attribute.type === 'multiselect' && newItem[attribute.name]?.length ? 'p-0.5' :
+                  className={`
+                  ${attribute.type === 'multiselect' && newItem[attribute.name]?.length ? 'p-0.5' :
                       attribute.type === 'multiselect' && !newItem[attribute.name]?.length ? 'p-4' : 'p-0.5'
-                  } hover:bg-blue-50 h-[30px] w-full h-full flex flex-wrap`}
+                  } 
+                  ${classNames[attribute.type] || `flex flex-wrap`}
+                  ${isSelected ? classNames.isSelected : 'bg-white'} hover:bg-blue-50 h-[30px] w-full h-full 
+                  
+                  `}
                   displayInvalidMsg={false}
                   {...attribute}
                   value={newItem[attribute.name]}
@@ -78,6 +87,7 @@ const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell, wid
 export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, setOrderBy, updateItem, removeItem, addItem, newItem, setNewItem, data, colSizes, setColSizes}) => {
     const gridRef = useRef(null);
     const [isSelecting, setIsSelecting] = useState(false);
+    const [editing, setEditing] = useState({}); // {index, attrI}
     const [selection, setSelection] = useState([]);
     const [triggerSelectionDelete, setTriggerSelectionDelete] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
@@ -255,7 +265,7 @@ export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, se
     }
 
     const handleMouseDown = (e, index, attrI) => {
-        if(attrI !== undefined && e.ctrlKey) {
+        if(attrI !== undefined /*&& e.ctrlKey*/) {
             console.log('ctrl pressed, selecting', index, attrI, isDragging)
             setSelection([{index, attrI}]);
             setIsDragging(true)
@@ -270,6 +280,8 @@ export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, se
             // Toggle selection with ctrl key
             e.preventDefault();
             setSelection(selection.includes(index) ? selection.filter(v => v !== index) : [...selection, index]);
+            setIsDragging(true);
+            startCellRow.current = index;
         } else {
             // Start dragging selection
             setSelection([index]);
@@ -279,8 +291,7 @@ export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, se
     };
 
     const handleMouseMove = (e, index, attrI) => {
-        if(e.ctrlKey && attrI !== undefined) {
-            console.log('moving over', index, attrI, isDragging)
+        if(/*e.ctrlKey && */attrI !== undefined && isDragging) {
             // Determine the range
 
             const rangeRow = [startCellRow.current, index].sort((a, b) => a - b);
@@ -311,7 +322,7 @@ export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, se
         setIsDragging(false);
     };
     //============================================ Mouse Controls end ==================================================
-    console.log('selection', selection)
+
     if(!visibleAttributes.length) return <div className={'p-2'}>No columns selected.</div>;
     return (
         <div className={`flex flex-col w-full`} ref={gridRef}
@@ -330,7 +341,7 @@ export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, se
                     .map((attribute, i) =>
                         <div className={'flex justify-between'} style={{width: colSizes[attribute?.name]}}>
                             <div key={i}
-                                 className={'w-full font-semibold text-gray-500 border bg-gray-100'}>
+                                 className={`w-full font-semibold text-gray-500 border ${selection.find(s => s.attrI === i) ? `bg-blue-50` : `bg-gray-50`}`}>
                                 <RenderInHeaderColumnControls
                                     isEdit={isEdit}
                                     attribute={attribute}
@@ -363,7 +374,8 @@ export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, se
                 {data.map((d, i) => (
                     <div className={`flex ${isDragging ? `select-none` : ``}`}>
                         <div key={'#'}
-                             className={`flex text-xs text-gray-500 items-center justify-center border cursor-pointer ${selection.includes(i) ? 'bg-blue-50' : ''}`}
+                             className={`flex text-xs text-gray-500 items-center justify-center border cursor-pointer 
+                             ${selection.find(s => (s.index || s) === i) ? 'bg-blue-50' : 'bg-gray-50'}`}
                              style={{width: numColSize}}
                              onClick={e => {
                                  // single click = replace selection
@@ -388,6 +400,7 @@ export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, se
                             <RenderCell
                                 isSelecting={isSelecting}
                                 isSelected={selection.find(s => s.index === i && s.attrI === attrI) || selection.includes(i)}
+                                editing={editing.index === i && editing.attrI === attrI}
                                 triggerDelete={triggerSelectionDelete}
                                 key={`${i}-${attrI}`}
                                 width={colSizes[attributes.find(attr => attr.name === attribute).name]}
@@ -400,7 +413,11 @@ export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, se
                                 onMouseDown={e => handleMouseDown(e, i, attrI)}
                                 onMouseMove={e => handleMouseMove(e, i, attrI)}
                                 onMouseUp={handleMouseUp}
-                                onClick={() => setSelection([{index:i, attrI}])}
+                                onClick={() => {
+                                    setSelection([{index: i, attrI}]);
+                                    setEditing({index: i, attrI});
+                                }}
+                                onDoubleClick={() => {}}
                                 onPaste={handlePaste(attrI, d)}
                             />)}
                         <div className={'flex items-center border'}>
