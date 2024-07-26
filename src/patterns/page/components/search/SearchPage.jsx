@@ -124,9 +124,10 @@ export const SearchPage = ({item, dataItems, format, attributes, logo, rightMenu
     }, [dataItems])
 
     useEffect(() => {
-        setTimeout(() => setQuery(
-            searchType === 'tags' ? tags.filter(t => t.split(',').includes(tmpQuery)) : tmpQuery
-        ), 0)
+        const matchingTags = tags.filter(t => t.split(',').includes(tmpQuery))
+        const q = searchType === 'tags' && matchingTags.length ? matchingTags :
+                            searchType === 'tags' && !matchingTags.length ? tmpQuery : tmpQuery;
+        setTimeout(() => setQuery(q), 0)
     }, [tags, tmpQuery]);
 
     useEffect(() => {
@@ -204,10 +205,12 @@ export const SearchPage = ({item, dataItems, format, attributes, logo, rightMenu
                         placeholder={'Search...'}
                         value={tmpQuery}
                         onChange={e => {
-                            setQuery(
-                                searchType === 'tags' ? tags.filter(t => t.split(',').map(t => t.toLowerCase()).includes(e.target.value?.toLowerCase())) :
-                                    e.target.value
-                            )
+                            const matchingTags = tags.filter(t => t.split(',').map(t => t.toLowerCase()).includes(e.target.value?.toLowerCase()));
+
+                            const q = searchType === 'tags' && matchingTags.length ? matchingTags :
+                                                    searchType === 'tags' && !matchingTags.length ? e.target.value :
+                                                        e.target.value;
+                            setQuery(q)
                             setTmpQuery(e.target.value)
                             navigate(getSearchURL({value: e.target.value, baseUrl, type: searchType}))
                         }}/>
