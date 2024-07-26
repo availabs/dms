@@ -21,7 +21,7 @@ const Edit = ({value = '', onChange, className, placeholder, ...rest}) => {
     )
 }
 
-const View = ({value, className}) => {
+const View = ({value, className, ...rest}) => {
     if (!value) return false
     const theme = useTheme()
     return (

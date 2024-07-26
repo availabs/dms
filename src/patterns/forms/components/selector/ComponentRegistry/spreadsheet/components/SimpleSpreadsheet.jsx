@@ -1,10 +1,29 @@
-import React, {useEffect, useRef, useState} from "react";
+import React, {useEffect, useMemo, useRef, useState} from "react";
 import {Link} from "react-router-dom"
 import DataTypes from "../../../../../../../data-types";
 import RenderInHeaderColumnControls from "./RenderInHeaderColumnControls";
 import {Delete, ViewIcon, Add} from "../../../../../../admin/ui/icons";
 const actionsColSize = 80;
 const numColSize = 20;
+const getEdge = ({startI, endI, startCol, endCol}, i, attrI) => {
+    const e =
+    startI === endI && startCol === endCol ? 'all' :
+    startI === endI && startI === i ? 'x' :
+        startCol === endCol && attrI === startCol ? 'y' :
+    startI === i && startCol === attrI ? 'top-left' :
+        startI === i && endCol === attrI ? 'top-right' :
+            startI === i && startCol !== attrI && endCol !== attrI ? 'top' :
+                endI === i && startCol === attrI ? 'bottom-left' :
+                    endI === i && endCol === attrI ? 'bottom-right' :
+                        endI === i && startCol !== attrI && endCol !== attrI ? 'bottom' :
+                            startCol === attrI && startI !== i && endI !== i ? 'left' :
+                                endCol === attrI && startI !== i && endI !== i ? 'right' : '';
+
+
+    console.log('edge', {startI, endI, startCol, endCol}, i, attrI, e)
+
+    return e;
+}
 
 const RenderActions = ({isLastCell, newItem, removeItem}) => {
     if(!isLastCell) return null;
@@ -28,15 +47,29 @@ const RenderActions = ({isLastCell, newItem, removeItem}) => {
             </div>
     )
 }
-const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell, width, onPaste, isSelected, isSelecting, editing,
+const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell, width, onPaste, isSelected, isSelecting, editing, edge,
                     onClick, onDoubleClick, onMouseDown, onMouseMove, onMouseUp}) => {
     // const [editing, setEditing] = useState(false);
     const [newItem, setNewItem] = useState(item);
     // const Comp = DataTypes[attribute.type]?.[isSelecting ? 'ViewComp' : 'EditComp'];
     const Comp = DataTypes[attribute.type]?.[editing ? 'EditComp' : 'ViewComp'];
+
+    const selectionEdgeClassNames = {
+        top: 'border-t border-gray-700',
+        bottom: 'border-b border-gray-700',
+        left: 'border-l border-gray-700',
+        right: 'border-r border-gray-700',
+        'top-left': 'border-t border-l border-gray-700',
+        'top-right': 'border-t border-r border-gray-700',
+        'bottom-left': 'border-b border-l border-gray-700',
+        'bottom-right': 'border-b border-r border-gray-700',
+        'x': 'border-x border-gray-700',
+        'y': 'border-y border-gray-700',
+        'all': 'border border-gray-700',
+    }
     const classNames = {
         text: 'flex no-wrap truncate',
-        isSelected: 'bg-blue-50 border-gray-700'
+        isSelected: edge => `bg-blue-50 ${selectionEdgeClassNames[edge]}`,
     }
     useEffect(() => setNewItem(item), [item])
 
@@ -52,8 +85,8 @@ const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell, wid
             1000);
     }, [newItem]);
     return (
-        <div className={`flex items-center ${isSelecting ? 'select-none' : ``} ${isLastCell ? `border border-r-0` : `border`} ${isSelected ? classNames.isSelected : 'bg-white'}`}
-             style={{ width: width }}
+        <div className={`flex items-center ${isSelecting ? 'select-none' : ``} ${isSelected ? classNames.isSelected(edge) : 'bg-white'}`}
+             style={{ width }}
              // onClick={onClick}
              onMouseDown={onMouseDown}
              onMouseMove={onMouseMove}
@@ -63,13 +96,13 @@ const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell, wid
         >
             <Comp key={`${attribute.name}-${i}`}
                   onClick={onClick}
+                  // disabled={!editing}
                   className={`
                   ${attribute.type === 'multiselect' && newItem[attribute.name]?.length ? 'p-0.5' :
                       attribute.type === 'multiselect' && !newItem[attribute.name]?.length ? 'p-4' : 'p-0.5'
                   } 
                   ${classNames[attribute.type] || `flex flex-wrap`}
-                  ${isSelected ? classNames.isSelected : 'bg-white'} hover:bg-blue-50 h-[30px] w-full h-full 
-                  
+                  ${isSelected ? classNames.isSelected() : 'bg-white'} hover:bg-blue-50 h-[30px] w-full h-full 
                   `}
                   displayInvalidMsg={false}
                   {...attribute}
@@ -94,7 +127,17 @@ export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, se
     const startCellRow = useRef(null);
     const startCellCol = useRef(null);
 
+    const selectionRange = useMemo(() => {
+        const rows = [...new Set(selection.map(s => s.index || s))].sort();
+        const cols = [...new Set(selection.map(s => s.attrI) || visibleAttributes.map((v,i) => i))];
 
+        return {
+            startI: rows[0],
+            endI: rows[rows.length - 1],
+            startCol: cols[0],
+            endCol: cols[cols.length - 1]
+        }
+    }, [selection])
     useEffect(() => {
         if (gridRef.current && (!Object.keys(colSizes).length || Object.keys(colSizes).length !== visibleAttributes.length)) {
             const availableVisibleAttributesLen = visibleAttributes.filter(v => attributes.find(attr => attr.name === v)).length; // ignoring the once not in attributes anymore
@@ -322,6 +365,19 @@ export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, se
         setIsDragging(false);
     };
     //============================================ Mouse Controls end ==================================================
+    const c = {
+        1: 'grid grid-cols-1',
+        2: 'grid grid-cols-2',
+        3: 'grid grid-cols-3',
+        4: 'grid grid-cols-4',
+        5: 'grid grid-cols-5',
+        6: 'grid grid-cols-6',
+        7: 'grid grid-cols-7',
+        8: 'grid grid-cols-8',
+        9: 'grid grid-cols-9',
+        10: 'grid grid-cols-10',
+        11: 'grid grid-cols-11',
+    };
 
     if(!visibleAttributes.length) return <div className={'p-2'}>No columns selected.</div>;
     return (
@@ -330,7 +386,7 @@ export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, se
         >
 
             {/*Header*/}
-            <div className={'flex no-wrap'}>
+            <div className={`grid ${c[visibleAttributes.length + 2]}`} style={{gridTemplateColumns: `${numColSize}px ${visibleAttributes.map(v => `${colSizes[v]}px` || 'auto').join(' ')} ${actionsColSize}px`}}>
                 <div className={'flex justify-between'} style={{width: numColSize}}>
                     <div key={'#'}
                          className={'w-full font-semibold text-gray-500 border bg-gray-100'}>
@@ -341,7 +397,7 @@ export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, se
                     .map((attribute, i) =>
                         <div className={'flex justify-between'} style={{width: colSizes[attribute?.name]}}>
                             <div key={i}
-                                 className={`w-full font-semibold text-gray-500 border ${selection.find(s => s.attrI === i) ? `bg-blue-50` : `bg-gray-50`}`}>
+                                 className={`w-full font-semibold  border ${selection.find(s => s.attrI === i) ? `bg-blue-100 text-gray-900` : `bg-gray-50 text-gray-500`}`}>
                                 <RenderInHeaderColumnControls
                                     isEdit={isEdit}
                                     attribute={attribute}
@@ -370,12 +426,14 @@ export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, se
             </div>
 
             {/*Rows*/}
-            <div className={'flex flex-col no-wrap max-h-[calc(100vh_-_250px)] overflow-auto scrollbar-sm'} onMouseLeave={handleMouseUp}>
+            <div className={'grid ${c[visibleAttributes.length + 2]} no-wrap max-h-[calc(100vh_-_250px)] overflow-auto scrollbar-sm'} onMouseLeave={handleMouseUp}>
                 {data.map((d, i) => (
-                    <div className={`flex ${isDragging ? `select-none` : ``}`}>
+                    <div className={`grid ${c[visibleAttributes.length + 2]} divide-x divide-y ${isDragging ? `select-none` : ``}`}
+                         style={{gridTemplateColumns: `${numColSize}px ${visibleAttributes.map(v => `${colSizes[v]}px` || 'auto').join(' ')} ${actionsColSize}px`}}
+                    >
                         <div key={'#'}
-                             className={`flex text-xs text-gray-500 items-center justify-center border cursor-pointer 
-                             ${selection.find(s => (s.index || s) === i) ? 'bg-blue-50' : 'bg-gray-50'}`}
+                             className={`flex text-xs items-center justify-center border cursor-pointer 
+                             ${selection.find(s => (s.index || s) === i) ? 'bg-blue-100 text-gray-900' : 'bg-gray-50 text-gray-500'}`}
                              style={{width: numColSize}}
                              onClick={e => {
                                  // single click = replace selection
@@ -400,6 +458,9 @@ export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, se
                             <RenderCell
                                 isSelecting={isSelecting}
                                 isSelected={selection.find(s => s.index === i && s.attrI === attrI) || selection.includes(i)}
+                                edge={
+                                    selection.find(s => s.index === i && s.attrI === attrI) || selection.includes(i) ?
+                                getEdge(selectionRange, i, attrI) : null}
                                 editing={editing.index === i && editing.attrI === attrI}
                                 triggerDelete={triggerSelectionDelete}
                                 key={`${i}-${attrI}`}
@@ -444,7 +505,7 @@ export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, se
                                 >
                                     <Comp
                                         key={`${attribute.name}`}
-                                        className={'p-1 hover:bg-blue-50 w-full h-full'}
+                                        className={'p-1 bg-white hover:bg-blue-50 w-full h-full'}
                                         {...attribute}
                                         value={newItem[attribute.name]}
                                         placeholder={'+ add new'}
