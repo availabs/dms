@@ -98,7 +98,7 @@ export const RenderItems = ({items}) => items.length > 0 && (
                                 {item.description}
                             </p>
                             {
-                                item.tags.split(',').map(tag => <span
+                                (item.tags || '').split(',').map(tag => <span
                                     className={'tracking-wide p-1 bg-red-400 text-xs text-white font-semibold rounded-md border'}>{tag}</span>)
                             }
                         </div>
