@@ -8,8 +8,12 @@ const numColSize = 20;
 const getEdge = ({startI, endI, startCol, endCol}, i, attrI) => {
     const e =
     startI === endI && startCol === endCol ? 'all' :
-    startI === endI && startI === i ? 'x' :
-        startCol === endCol && attrI === startCol ? 'y' :
+    startCol === endCol && startI === i ? 'ltr' :
+    startCol === endCol && endI === i ? 'lbr' :
+    startCol === endCol && startI !== i && endI !== i ? 'x' :
+        startI === endI && attrI === startCol ? 'tlb' :
+        startI === endI && attrI === endCol ? 'trb' :
+        startI === endI && startCol !== attrI && endCol !== attrI ? 'y' :
     startI === i && startCol === attrI ? 'top-left' :
         startI === i && endCol === attrI ? 'top-right' :
             startI === i && startCol !== attrI && endCol !== attrI ? 'top' :
@@ -20,7 +24,9 @@ const getEdge = ({startI, endI, startCol, endCol}, i, attrI) => {
                                 endCol === attrI && startI !== i && endI !== i ? 'right' : '';
 
 
-    console.log('edge', {startI, endI, startCol, endCol}, i, attrI, e)
+    if(i === 10){
+        console.log('edge', {startI, endI, startCol, endCol}, i, attrI, e)
+    }
 
     return e;
 }
@@ -55,21 +61,25 @@ const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell, wid
     const Comp = DataTypes[attribute.type]?.[editing ? 'EditComp' : 'ViewComp'];
 
     const selectionEdgeClassNames = {
-        top: 'border-t border-gray-700',
-        bottom: 'border-b border-gray-700',
-        left: 'border-l border-gray-700',
-        right: 'border-r border-gray-700',
-        'top-left': 'border-t border-l border-gray-700',
-        'top-right': 'border-t border-r border-gray-700',
-        'bottom-left': 'border-b border-l border-gray-700',
-        'bottom-right': 'border-b border-r border-gray-700',
-        'x': 'border-x border-gray-700',
-        'y': 'border-y border-gray-700',
-        'all': 'border border-gray-700',
+        top: {borderTopColor: '#2100f8'},
+        bottom: {borderBottomColor: '#2100f8'},
+        left: {borderLeftColor: '#2100f8'},
+        right: {borderRightColor: '#2100f8'},
+        'top-left': {borderTopColor: '#2100f8', borderLeftColor: '#2100f8'},
+        'top-right': {borderTopColor: '#2100f8', borderRightColor: '#2100f8'},
+        'bottom-left': {borderBottomColor: '#2100f8', borderLeftColor: '#2100f8'},
+        'bottom-right': {borderBottomColor: '#2100f8', borderRightColor: '#2100f8'},
+        'ltr': {borderTopColor: '#2100f8', borderLeftColor: '#2100f8', borderRightColor: '#2100f8'},
+        'lbr': {borderBottomColor: '#2100f8', borderLeftColor: '#2100f8', borderRightColor: '#2100f8'},
+        'tlb': {borderTopColor: '#2100f8', borderLeftColor: '#2100f8', borderBottomColor: '#2100f8'},
+        'trb': {borderTopColor: '#2100f8', borderRightColor: '#2100f8', borderBottomColor: '#2100f8'},
+        'x': {borderLeftColor: '#2100f8', borderRightColor: '#2100f8'},
+        'y': {borderTopColor: '#2100f8', borderBottomColor: '#2100f8'},
+        'all': {borderColor: '#2100f8'},
     }
     const classNames = {
         text: 'flex no-wrap truncate',
-        isSelected: edge => `bg-blue-50 ${selectionEdgeClassNames[edge]}`,
+        isSelected: edge => `bg-blue-50`,
     }
     useEffect(() => setNewItem(item), [item])
 
@@ -85,24 +95,27 @@ const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell, wid
             1000);
     }, [newItem]);
     return (
-        <div className={`flex items-center ${isSelecting ? 'select-none' : ``} ${isSelected ? classNames.isSelected(edge) : 'bg-white'}`}
-             style={{ width }}
-             // onClick={onClick}
-             onMouseDown={onMouseDown}
-             onMouseMove={onMouseMove}
-             onMouseUp={onMouseUp}
-             onClick={onClick}
-             onDoubleClick={onDoubleClick}
+        <div
+            className={`relative flex items-center ${isSelecting ? 'select-none' : ``} ${isSelected ? classNames.isSelected(edge) : 'bg-white'}`}
+            style={{
+                width,
+                ...isSelected && {borderWidth: '1px', ...selectionEdgeClassNames[edge]}
+        }}
+            onClick={onClick}
+            onMouseDown={onMouseDown}
+            onMouseMove={onMouseMove}
+            onMouseUp={onMouseUp}
+            onDoubleClick={onDoubleClick}
         >
             <Comp key={`${attribute.name}-${i}`}
                   onClick={onClick}
-                  // disabled={!editing}
+                // disabled={!editing}
                   className={`
                   ${attribute.type === 'multiselect' && newItem[attribute.name]?.length ? 'p-0.5' :
                       attribute.type === 'multiselect' && !newItem[attribute.name]?.length ? 'p-4' : 'p-0.5'
                   } 
                   ${classNames[attribute.type] || `flex flex-wrap`}
-                  ${isSelected ? classNames.isSelected() : 'bg-white'} hover:bg-blue-50 h-[30px] w-full h-full 
+                  ${isSelected ? 'bg-blue-50' : 'bg-white'} hover:bg-blue-50 h-[30px] w-full h-full 
                   `}
                   displayInvalidMsg={false}
                   {...attribute}
@@ -117,7 +130,21 @@ const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell, wid
 }
 
 
-export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, setOrderBy, updateItem, removeItem, addItem, newItem, setNewItem, data, colSizes, setColSizes}) => {
+export const RenderSimple = ({
+                                 visibleAttributes,
+                                 attributes,
+                                 isEdit,
+                                 orderBy,
+                                 setOrderBy,
+                                 updateItem,
+                                 removeItem,
+                                 addItem,
+                                 newItem,
+                                 setNewItem,
+                                 data,
+                                 colSizes,
+                                 setColSizes
+                             }) => {
     const gridRef = useRef(null);
     const [isSelecting, setIsSelecting] = useState(false);
     const [editing, setEditing] = useState({}); // {index, attrI}
@@ -128,8 +155,8 @@ export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, se
     const startCellCol = useRef(null);
 
     const selectionRange = useMemo(() => {
-        const rows = [...new Set(selection.map(s => s.index || s))].sort();
-        const cols = [...new Set(selection.map(s => s.attrI) || visibleAttributes.map((v,i) => i))];
+        const rows = [...new Set(selection.map(s => s.index || s))].sort((a,b) => a-b);
+        const cols = [...new Set(selection.map(s => s.attrI) || visibleAttributes.map((v, i) => i))];
 
         return {
             startI: rows[0],
@@ -174,13 +201,13 @@ export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, se
             if (e.shiftKey) {
                 setIsDragging(true)
                 let lastSelected = selection[selection.length - 1]; // [int or {index, attrI}]
-                let attrIRange = selection.map(s => s.attrI).filter(s => s !== undefined).sort();
+                let attrIRange = selection.map(s => s.attrI).filter(s => s !== undefined).sort((a,b) => a-b);
                 if(!attrIRange?.length){
                     attrIRange = visibleAttributes.map((va, i) => i);
                 }
-                attrIRange = [...new Set(attrIRange)].sort();
-                let indexRange = [...new Set(selection.map(s => s.index || s))].sort();
-                console.log('range', attrIRange, indexRange, selection)
+                attrIRange = [...new Set(attrIRange)].sort((a,b) => a-b);
+                let indexRange = [...new Set(selection.map(s => s.index || s))].sort((a,b) => a-b);
+
                 if (typeof lastSelected === 'number') {
                     lastSelected = { index: lastSelected, attrI: undefined };
                 }
@@ -309,7 +336,6 @@ export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, se
 
     const handleMouseDown = (e, index, attrI) => {
         if(attrI !== undefined /*&& e.ctrlKey*/) {
-            console.log('ctrl pressed, selecting', index, attrI, isDragging)
             setSelection([{index, attrI}]);
             setIsDragging(true)
             startCellRow.current = index;
@@ -318,7 +344,7 @@ export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, se
         }
 
         if(attrI !== undefined) return;
-        console.log('setting selection', index, attrI)
+
         if (e.ctrlKey) {
             // Toggle selection with ctrl key
             e.preventDefault();
@@ -432,7 +458,7 @@ export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, se
                          style={{gridTemplateColumns: `${numColSize}px ${visibleAttributes.map(v => `${colSizes[v]}px` || 'auto').join(' ')} ${actionsColSize}px`}}
                     >
                         <div key={'#'}
-                             className={`flex text-xs items-center justify-center border cursor-pointer 
+                             className={`p-1 flex text-xs items-center justify-center border cursor-pointer 
                              ${selection.find(s => (s.index || s) === i) ? 'bg-blue-100 text-gray-900' : 'bg-gray-50 text-gray-500'}`}
                              style={{width: numColSize}}
                              onClick={e => {
@@ -490,7 +516,7 @@ export const RenderSimple = ({visibleAttributes, attributes, isEdit, orderBy, se
 
             {/*Add new row*/}
             <div className={'flex max-h-[30px]'}>
-                <div style={{width: numColSize}} className={'flex text-xs text-gray-500 items-center justify-center border'}>
+                <div style={{width: numColSize}} className={'p-1 flex text-xs text-gray-500 items-center justify-center border'}>
                     {data.length + 1}
                 </div>
                 {

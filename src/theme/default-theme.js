@@ -12,7 +12,7 @@ function defaultTheme () {
 		},
 		text: {
 			input: 'px-2 py-1 w-full text-sm font-light border rounded-md focus:border-blue-300 focus:outline-none transition ease-in',
-			view: 'text-sm font-light'
+			view: 'text-sm font-light truncate bg-red-500'
 		},
 		textarea: {
 			input: 'px-2 py-1 w-full text-sm font-light border rounded-md focus:border-blue-300 focus:outline-none transition ease-in',
@@ -23,12 +23,13 @@ function defaultTheme () {
 			error: 'p-1 text-xs text-red-300 font-light'
 		},
 		multiselect: {
+			view: 'w-full h-full',
 			mainWrapper: 'w-full',
-			inputWrapper: 'flex flex-wrap flex-row px-2 py-1 w-full text-sm font-light border focus:border-blue-300 rounded-md bg-white hover:bg-blue-100 transition ease-in',
-			input: 'focus:outline-none w-full border p-1',
-			tokenWrapper: 'w-fit flex items-center px-2 py-1 m-0.5 bg-blue-100 hover:bg-blue-300 rounded-lg text-xs transition ease-in',
-			removeIcon: 'fa fa-x px-1 text-xs text-red-300 hover:text-red-500 self-center transition ease-in cursor-pointer',
-			menuWrapper: 'h-1/2 p-2 shadow-lg z-50 absolute bg-white overflow-auto scrollbar-sm',
+			inputWrapper: 'flex px-2 py-1 w-full text-sm font-light border focus:border-blue-300 rounded-md bg-white hover:bg-blue-100 transition ease-in',
+			input: 'focus:outline-none w-full',
+			tokenWrapper: 'flex px-2 py-1 mx-1 bg-blue-100 hover:bg-blue-300 rounded-md transition ease-in',
+			removeIcon: 'fa fa-x px-1 text-xs text-red-300 hover:text-red-500 self-center transition ease-in',
+			menuWrapper: 'absolute p-2 bg-white w-full max-h-[150px] overflow-auto scrollbar-sm shadow-lg z-10',
 			menuItem: 'px-2 py-1 hover:bg-blue-300 hover:cursor-pointer transition ease-in',
 			error: 'p-1 text-xs text-red-300 font-light'
 		},
@@ -37,9 +38,6 @@ function defaultTheme () {
 			input: 'self-center p-1',
 			label: 'text-sm font-light p-1 self-center',
 			error: 'text-xs text-red-300 font-light'
-		},
-		boolean: {
-			select: 'p-1 bg-white rounded-md'
 		},
 		card: {
 			wrapper: 'p-4',
