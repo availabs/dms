@@ -59,23 +59,23 @@ const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell, wid
     const [newItem, setNewItem] = useState(item);
     // const Comp = DataTypes[attribute.type]?.[isSelecting ? 'ViewComp' : 'EditComp'];
     const Comp = DataTypes[attribute.type]?.[editing ? 'EditComp' : 'ViewComp'];
-
+    const selectionColor = '#2100f8'
     const selectionEdgeClassNames = {
-        top: {borderTopColor: '#2100f8'},
-        bottom: {borderBottomColor: '#2100f8'},
-        left: {borderLeftColor: '#2100f8'},
-        right: {borderRightColor: '#2100f8'},
-        'top-left': {borderTopColor: '#2100f8', borderLeftColor: '#2100f8'},
-        'top-right': {borderTopColor: '#2100f8', borderRightColor: '#2100f8'},
-        'bottom-left': {borderBottomColor: '#2100f8', borderLeftColor: '#2100f8'},
-        'bottom-right': {borderBottomColor: '#2100f8', borderRightColor: '#2100f8'},
-        'ltr': {borderTopColor: '#2100f8', borderLeftColor: '#2100f8', borderRightColor: '#2100f8'},
-        'lbr': {borderBottomColor: '#2100f8', borderLeftColor: '#2100f8', borderRightColor: '#2100f8'},
-        'tlb': {borderTopColor: '#2100f8', borderLeftColor: '#2100f8', borderBottomColor: '#2100f8'},
-        'trb': {borderTopColor: '#2100f8', borderRightColor: '#2100f8', borderBottomColor: '#2100f8'},
-        'x': {borderLeftColor: '#2100f8', borderRightColor: '#2100f8'},
-        'y': {borderTopColor: '#2100f8', borderBottomColor: '#2100f8'},
-        'all': {borderColor: '#2100f8'},
+        top: {borderTopColor: selectionColor},
+        bottom: {borderBottomColor: selectionColor},
+        left: {borderLeftColor: selectionColor},
+        right: {borderRightColor: selectionColor},
+        'top-left': {borderTopColor: selectionColor, borderLeftColor: selectionColor},
+        'top-right': {borderTopColor: selectionColor, borderRightColor: selectionColor},
+        'bottom-left': {borderBottomColor: selectionColor, borderLeftColor: selectionColor},
+        'bottom-right': {borderBottomColor: selectionColor, borderRightColor: selectionColor},
+        'ltr': {borderTopColor: selectionColor, borderLeftColor: selectionColor, borderRightColor: selectionColor},
+        'lbr': {borderBottomColor: selectionColor, borderLeftColor: selectionColor, borderRightColor: selectionColor},
+        'tlb': {borderTopColor: selectionColor, borderLeftColor: selectionColor, borderBottomColor: selectionColor},
+        'trb': {borderTopColor: selectionColor, borderRightColor: selectionColor, borderBottomColor: selectionColor},
+        'x': {borderLeftColor: selectionColor, borderRightColor: selectionColor},
+        'y': {borderTopColor: selectionColor, borderBottomColor: selectionColor},
+        'all': {borderColor: selectionColor},
     }
     const classNames = {
         text: 'flex no-wrap truncate',
@@ -452,7 +452,7 @@ export const RenderSimple = ({
             </div>
 
             {/*Rows*/}
-            <div className={'grid ${c[visibleAttributes.length + 2]} no-wrap max-h-[calc(100vh_-_250px)] overflow-auto scrollbar-sm'} onMouseLeave={handleMouseUp}>
+            <div className={'flex flex-col no-wrap max-h-[calc(100vh_-_250px)] overflow-auto scrollbar-sm'} onMouseLeave={handleMouseUp}>
                 {data.map((d, i) => (
                     <div className={`grid ${c[visibleAttributes.length + 2]} divide-x divide-y ${isDragging ? `select-none` : ``}`}
                          style={{gridTemplateColumns: `${numColSize}px ${visibleAttributes.map(v => `${colSizes[v]}px` || 'auto').join(' ')} ${actionsColSize}px`}}
