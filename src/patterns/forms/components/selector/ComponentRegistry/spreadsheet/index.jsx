@@ -7,6 +7,7 @@ import {RenderSimple} from "./components/SimpleSpreadsheet";
 import {RenderPagination} from "./components/RenderPagination";
 import {isJson, getLength, getData} from "./utils";
 import {RenderFilters} from "./components/RenderFilters";
+import {useSearchParams} from "react-router-dom";
 
 const tableComps = {
     'simple': RenderSimple,
@@ -26,8 +27,19 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     const [orderBy, setOrderBy] = useState(cachedData.orderBy || {});
     const [filters, setFilters] = useState(cachedData.filters || []);
     const [currentPage, setCurrentPage] = useState(0);
-    const [tableType, setTableType] = useState(cachedData.tableType || 'simple')
+    const [tableType, setTableType] = useState(cachedData.tableType || 'simple');
     const pageSize = 50// cachedData.pageSize || 5;
+    const filterValueDelimiter = '|||'
+
+    // ========================================= filters ===============================================================
+    const [searchParams, setSearchParams] = useSearchParams();
+    useEffect(() => {
+        const filterCols = Array.from(searchParams.keys());
+        const filtersFromURL = filterCols.map(col => ({column: col, values: searchParams.get(col)?.split(filterValueDelimiter)}));
+        setFilters(filtersFromURL)
+    }, [searchParams]);
+    // ========================================= filters end ===========================================================
+
     // ========================================= init comp begin =======================================================
     useEffect(() => {
         setAttributes(JSON.parse(format?.config || '{}')?.attributes || [])
@@ -120,7 +132,7 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
                     <RenderTypeControls tableType={tableType} setTableType={setTableType}/>
                 </div>
             }
-            <RenderFilters attributes={attributes} filters={filters} setFilters={setFilters} apiLoad={apiLoad} format={format}/>
+            <RenderFilters attributes={attributes} filters={filters} setFilters={setFilters} apiLoad={apiLoad} format={format} delimiter={filterValueDelimiter}/>
             {
                 loading ? <div>loading...</div> :
                         <TableComp {...{

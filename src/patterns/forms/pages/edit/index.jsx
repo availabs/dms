@@ -24,7 +24,7 @@ function PageEdit ({
 
   const urlWithoutId = item.url_slug?.replace(':id', '')
   const itemId = params['*']?.split(urlWithoutId)[1]
-  const viewUrl = `${urlWithoutId}${itemId || ''}`;
+  const viewUrl = `${urlWithoutId}${itemId || ''}${window.location.search}`;
 
   console.log('Form Tempate Edit', baseUrl)
 

@@ -1,10 +1,24 @@
-import React, {useEffect, useState} from "react";
+import React, {useEffect, useMemo, useState} from "react";
+import {useNavigate, useSearchParams} from "react-router-dom";
 import {getLength, getValues} from "../../../../../../../data-types/form-config/components/RenderField";
 import {dmsDataTypes} from "../../../../../../../data-types";
 import {formattedAttributeStr, attributeAccessorStr} from "../utils";
 
-export const RenderFilters = ({attributes, filters, setFilters, format, apiLoad}) => {
+const convertToUrlParams = (arr, delimiter) => {
+    const params = new URLSearchParams();
+
+    arr.forEach(item => {
+        const { column, values = [] } = item;
+        params.append(column, values.join(delimiter));
+    });
+
+    return params.toString();
+};
+
+export const RenderFilters = ({attributes, filters, setFilters, format, apiLoad, delimiter}) => {
+    const navigate = useNavigate();
     const [filterOptions, setFilterOptions] = useState({}); // {col1: [vals], col2:[vals]}
+
     useEffect(() => {
         async function load(){
 
@@ -54,7 +68,10 @@ export const RenderFilters = ({attributes, filters, setFilters, format, apiLoad}
                             placeholder={'Please select values...'}
                             value={f.values}
                             onChange={e => {
-                                setFilters(filters.map((filter, fI) => fI === i ? {...f, values: e} : filter))
+                                const newFilters = filters.map((filter, fI) => fI === i ? {...f, values: e} : filter);
+                                const url = `?${convertToUrlParams(newFilters, delimiter)}`;
+                                setFilters(newFilters)
+                                navigate(url)
                             }}
                             options={filterOptions[f.column]}
                             displayInvalidMsg={false}
