@@ -1,6 +1,6 @@
 import React, {useEffect, useRef, useState} from "react"
 import {useTheme} from '../theme'
-import {ArrowDown} from "../patterns/admin/ui/icons";
+import {Alert, ArrowDown} from "../patterns/admin/ui/icons";
 
 const inputWrapper = 'flex px-2 py-1 w-full text-sm font-light border focus:border-blue-300 bg-white hover:bg-gray-100 transition ease-in';
 const mainWrapper = 'w-full';
@@ -14,16 +14,30 @@ const RenderToken = ({token, value, onChange, theme, isSearching, setIsSearching
     return (
         <div className={theme?.multiselect?.tokenWrapper || tokenWrapper}>
             <div onClick={() => setIsSearching(!isSearching)}>{token.label || token}</div>
-            <i
-                className={theme?.multiselect?.removeIcon || removeIcon}
-                onClick={e => onChange(value.filter(v => (v.value || v) !== (token.value || token)))}
-            > </i>
+            {
+                onChange && <i
+                    className={theme?.multiselect?.removeIcon || removeIcon}
+                    onClick={e => onChange(value.filter(v => (v.value || v) !== (token.value || token)))}
+                > </i>
+            }
         </div>
     )
 }
 
-const RenderMenu = ({options, isSearching, setIsSearching, placeholder, setSearchKeyword, searchKeyword, value, onChange, theme}) => {
-    const mappedValue = value.map(v => v.value || v)
+const RenderMenu = ({
+                        options,
+                        isSearching,
+                        setIsSearching,
+                        placeholder,
+                        setSearchKeyword,
+                        searchKeyword,
+                        value,
+                        onChange,
+                        theme
+                    }) => {
+    const mappedValue = value.map(v => v.value || v);
+    const selectAllOption = {label: 'Select All', value: 'select-all'};
+    const removeAllOption = {label: 'Remove All', value: 'remove-all'};
     return (
         <div className={`${isSearching ? `block` : `hidden`} ${theme?.multiselect?.menuWrapper || menuWrapper}`}>
             <input
@@ -35,14 +49,21 @@ const RenderMenu = ({options, isSearching, setIsSearching, placeholder, setSearc
                 onFocus={() => setIsSearching(true)}
             />
             {
-                options
-                    .filter(o => !mappedValue.includes(o.value || o) && (o.label || o)?.toLowerCase().includes(searchKeyword?.toLowerCase()))
+                [selectAllOption, removeAllOption, ...options]
+                    .filter(o =>
+                        o.value === 'select-all' ? value.length !== options.length :
+                            o.value === 'remove-all' ? value.length :
+                                !mappedValue.includes(o.value || o) && (o.label || o)?.toLowerCase().includes(searchKeyword?.toLowerCase()))
                     .map((o, i) =>
                         <div
                             key={`option-${i}`}
                             className={theme?.multiselect?.menuItem || menuItem}
                             onClick={e => {
-                                onChange([...value, o]);
+                                onChange(
+                                    o.value === 'select-all' ? options :
+                                        o.value === 'remove-all' ? [] :
+                                            [...value, o]
+                                );
                                 setIsSearching(false);
                             }}>
                             {o.label || o}
@@ -97,7 +118,8 @@ const Edit = ({value = [], onChange, className,placeholder, options = [], displa
     return (
         <div ref={ref} className={(theme?.multiselect?.mainWrapper) || mainWrapper}>
             {
-                invalidValues.length && displayInvalidMsg ? <div className={theme?.multiselect?.error} title={`Invalid Values: ${JSON.stringify(invalidValues)}`}>i</div> : null
+                invalidValues.length && displayInvalidMsg ?
+                    <Alert className={theme?.multiselect?.error} title={`Invalid Values: ${JSON.stringify(invalidValues)}`} /> : null
             }
             <div className={className || (theme?.multiselect?.inputWrapper) || inputWrapper} onClick={() => setIsSearching(!isSearching)}>
                 {
@@ -114,7 +136,7 @@ const Edit = ({value = [], onChange, className,placeholder, options = [], displa
                                 theme={theme}
                             />)
                 }
-                <ArrowDown className={'ml-auto self-center'}/>
+                <ArrowDown className={'ml-auto self-center font-bold'} width-={16} height={16}/>
             </div>
 
             <RenderMenu

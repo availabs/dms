@@ -1,5 +1,6 @@
 import React from "react"
 import { useTheme } from '../theme'
+import {Alert} from "../patterns/admin/ui/icons";
 
 
 const Edit = ({value = '', onChange, className, placeholder, displayInvalidMsg=true, options = []}) => {
@@ -10,7 +11,7 @@ const Edit = ({value = '', onChange, className, placeholder, displayInvalidMsg=t
     return (
         <>
             {
-                isInvalidValue   ? <div className={theme?.select?.error} title={`Invalid Value: ${JSON.stringify(value)}`}>i</div> : null
+                isInvalidValue ? <Alert className={theme?.select?.error} title={`Invalid Value: ${JSON.stringify(value)}`} /> : null
             }
             <select
                 className={ className || (theme?.select?.input || 'w-full border p-2')}

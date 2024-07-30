@@ -26,8 +26,13 @@ const defaultFnTypes = {
     'count': 'Count',
 }
 
-const labelClass = 'font-light capitalize font-gray-700';
-const inputClass = 'w-full border p-2 rounded-md'
+const defaultReqTypes = {
+    'yes': 'Yes',
+    'no': 'No'
+}
+
+const labelClass = 'text-sm font-light capitalize font-gray-700';
+const inputClass = 'bg-white w-full border p-2 rounded-md'
 
 const RenderInputText = ({label, value, col, attr, updateAttribute}) => {
     const [newValue, setNewValue] = useState(value);
@@ -49,6 +54,25 @@ const RenderInputText = ({label, value, col, attr, updateAttribute}) => {
         </div>
     )
 }
+
+const RenderInputSelect = ({label, value, col, attr, updateAttribute, placeholder, options}) => (
+    <div className={'flex flex-col items-start'}>
+        <label className={labelClass}>{label}</label>
+        <select
+            className={inputClass}
+            value={value}
+            onChange={e => {
+                // onChange(e.target.value)
+                updateAttribute(col, {[attr]: e.target.value})
+            }}
+        >
+            <option>{placeholder}</option>
+            {
+                Object.keys(options).map(value => <option key={value} value={value}>{options[value]}</option>)
+            }
+        </select>
+    </div>
+)
 
 const RenderInputLexical = ({label, value, col, attr, updateAttribute}) => (
     <div className={'flex flex-col items-start'}>
@@ -440,25 +464,6 @@ const RenderMeta = ({value, col, drivingAttribute, attr, updateAttribute}) =>
             />
         </div>) : null;
 
-const RenderInputSelect = ({className, label, value, col, attr, updateAttribute, placeholder, options}) => (
-    <div className={'flex flex-col items-start'}>
-        <label className={labelClass}>{label}</label>
-        <select
-            className={className || 'border p-2 rounded-md bg-white'}
-            value={value}
-            onChange={e => {
-                // onChange(e.target.value)
-                updateAttribute(col, {[attr]: e.target.value})
-            }}
-        >
-            <option>{placeholder}</option>
-            {
-                Object.keys(options).map(value => <option key={value} value={value}>{options[value]}</option>)
-            }
-        </select>
-    </div>
-)
-
 const RenderRemoveBtn = ({col, removeAttribute}) => {
     const [timerId, setTimerId] = useState(undefined);
 
@@ -517,7 +522,6 @@ export const RenderField = ({i, theme, item, attribute, placeholder, className, 
 
                     <RenderInputSelect
                         label={'Input Type'}
-                        className={className || theme?.text?.input}
                         value={item.type}
                         col={item.name}
                         attr={'type'}
@@ -544,7 +548,6 @@ export const RenderField = ({i, theme, item, attribute, placeholder, className, 
                         <div className={'flex flex-col'}>
                             <RenderInputSelect
                                 label={'Behaviour Type'}
-                                className={className || theme?.text?.input}
                                 value={item.display}
                                 col={item.name}
                                 attr={'display'}
@@ -555,7 +558,6 @@ export const RenderField = ({i, theme, item, attribute, placeholder, className, 
 
                             <RenderInputSelect
                                 label={'Default Fn'}
-                                className={className || theme?.text?.input}
                                 value={item.defaultFn}
                                 col={item.name}
                                 attr={'defaultFn'}
@@ -563,8 +565,25 @@ export const RenderField = ({i, theme, item, attribute, placeholder, className, 
                                 updateAttribute={updateAttribute}
                                 placeholder={'Please select default function'}
                             />
+
+                            <RenderInputSelect
+                                label={'Required'}
+                                value={item.required}
+                                col={item.name}
+                                attr={'required'}
+                                options={defaultReqTypes}
+                                updateAttribute={updateAttribute}
+                                placeholder={'Please select property'}
+                            />
                         </div>
                     </div>
+                    <RenderInputText
+                        label={'prompt'}
+                        attr={'prompt'}
+                        value={item.prompt}
+                        col={item.name}
+                        updateAttribute={updateAttribute}
+                    />
                     <RenderOptions col={item.name} drivingAttribute={item.type} value={item.options} attr={'options'} updateAttribute={updateAttribute}/>
                     <RenderMeta col={item.name} drivingAttribute={item.display} value={item.meta_lookup} attr={'meta_lookup'} updateAttribute={updateAttribute}/>
                     <RenderMappings col={item.name} drivingAttribute={item.display} value={item.mappings} attr={'mappings'}

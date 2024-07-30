@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect }from 'react'
 import {useParams, useLocation} from "react-router"
 import DataTypes from "../../../../../../data-types";
+import {InfoCircle} from "../../../../../admin/ui/icons";
 export const isJson = (str)  => {
     try {
         JSON.parse(str);
@@ -39,8 +40,10 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     const params = useParams();
     const cachedData = isJson(value) ? JSON.parse(value) : {};
     const [attributes, setAttributes] = useState([]);
+    const [orderedAttributes, setOrderedAttributes] = useState([]);
     const [newItem, setNewItem] = useState();
     const [visibleAttributes, setVisibleAttributes] = useState(cachedData?.visibleAttributes || []);
+    const [searchStr, setSearchStr] = useState('')
 
     const itemId = params['*']?.split('view/')[1];
 
@@ -62,16 +65,23 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     //console.log('new item', newItem)
 
     const updateItem = (value, attribute, d) => {
-        //console.log('???????????', d, {...d, [attribute.name]: value})
         return apiUpdate({data: {...d, [attribute.name]: value}, config: {format}})
     }
 
     if (!newItem || !itemId) return null;
     return (
         <div>
-            <div className={`grid grid-cols-3 divide-x divide-y`}>
+            <div className={`grid grid-cols-3 divide-x divide-y`} style={{gridTemplateColumns: "30px auto auto"}}>
+                <input
+                    className={'p-2 w-full col-span-3'}
+                    type={'text'}
+                    onChange={e => setSearchStr(e.target.value)}
+                    placeholder={'search...'}
+                />
                 {
-                    attributes.map((attribute,i) => {
+                    attributes
+                        .filter(a => !searchStr.length || a.name.toLowerCase().includes(searchStr.toLowerCase()))
+                        .map((attribute,i) => {
                         const Comp = DataTypes[attribute.type]?.EditComp || DataTypes.text.EditComp;
                         return (
                             <React.Fragment key={i}>
@@ -86,12 +96,15 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
                                            }}
                                     />
                                 </div>
-                                <div className={'p-2 font-semibold text-gray-500'}>
+                                <div className={'flex items-center p-2 font-semibold text-gray-500'}>
                                     {attribute.display_name || attribute.name}
+                                    {
+                                        attribute.prompt && <InfoCircle className={'text-xs px-1 hover:text-gray-700'} title={attribute.prompt} />
+                                    }
                                 </div>
 
-                                <div className={'p-2 text-gray-700'}>
-                                    <Comp key={`${attribute.name}`} className={'p-1 hover:bg-blue-50 h-fit'}
+                                <div className={'relative p-2 text-gray-700 max-w-11/12'}>
+                                    <Comp key={`${attribute.name}`} className={'border flex flex-wrap w-full p-2 bg-white hover:bg-blue-50 h-fit'}
                                           {...attribute}
                                           value={newItem[attribute.name]}
                                           onChange={e => {
@@ -137,16 +150,21 @@ const View = ({value, format, apiLoad, ...rest}) => {
                         .filter(attribute => visibleAttributes.includes(attribute.name))
                         .filter(d => d)
                         .map((attribute,i) => {
-                            // const Comp = DataTypes[attribute.type]?.ViewComp;
+                            const Comp = DataTypes[attribute.type]?.ViewComp || DataTypes.text.ViewComp;
                             return (
-                                <div key={i} className={'w-full flex flex-row items-center hover:bg-blue-50 rounded-md'}>
-                                    <div className={'p-2 w-1/4 truncate text-sm font-bold text-gray-500'} title={attribute.display_name || attribute.name}>
+                                <div key={i}
+                                     className={'w-full flex flex-row items-center hover:bg-blue-50 rounded-md'}>
+                                    <div className={'p-2 w-2/5 truncate text-sm font-bold text-gray-500'}
+                                         title={attribute.display_name || attribute.name}>
                                         {attribute.display_name || attribute.name}
                                     </div>
-
-                                    <div className={'p-2 w-3/4 text-gray-700'}>
-                                        { Array.isArray(data?.[attribute.name]) ? data?.[attribute.name].join(', ') :
-                                            typeof data?.[attribute.name] === "object" ? JSON.stringify(data[attribute.name]) : data?.[attribute.name]}
+                                    <div className={'relative w-3/5 p-2 text-gray-700'}>
+                                        <Comp key={`${attribute.name}`}
+                                              className={'border flex flex-wrap w-full p-2 bg-white hover:bg-blue-50 h-fit'}
+                                              {...attribute}
+                                              value={data?.[attribute.name]}
+                                        />
+                                        {/*{typeof newItem[attribute.name] === "object" ? JSON.stringify(newItem[attribute.name]) : newItem[attribute.name]}*/}
                                     </div>
                                 </div>
                             )
