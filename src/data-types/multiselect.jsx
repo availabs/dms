@@ -164,8 +164,12 @@ const View = ({className, value, options = []}) => {
             .map(o => o.label || o);
 
     return (
-        <div className={className || (theme?.text?.view)}>
-            {(mappedValue).map((i, ii) => <RenderToken key={ii} token={i} isSearching={false} setIsSearching={() => {}} theme={theme}/>)}
+        <div className={theme?.multiselect?.mainWrapper}>
+            <div className={className || (theme?.text?.inputWrapper)}>
+                {(mappedValue).map((i, ii) => <RenderToken key={ii} token={i} isSearching={false}
+                                                           setIsSearching={() => {
+                                                           }} theme={theme}/>)}
+            </div>
         </div>
     )
 }

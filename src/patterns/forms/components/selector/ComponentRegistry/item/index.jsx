@@ -213,7 +213,7 @@ const View = ({value, format, apiLoad, ...rest}) => {
                                     </div>
                                     <div className={'relative w-3/5 p-2 text-gray-700'}>
                                         <Comp key={`${attribute.name}`}
-                                              className={'border flex flex-wrap w-full p-2 bg-white hover:bg-blue-50 h-fit'}
+                                              className={'flex flex-wrap w-full p-2 bg-white hover:bg-blue-50 h-fit'}
                                               {...attribute}
                                               value={data?.[attribute.name]}
                                         />
