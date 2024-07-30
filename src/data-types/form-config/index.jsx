@@ -62,7 +62,7 @@ const Edit = ({value = '{}', onChange, className, placeholder, manageTemplates, 
                     })
             }
             <div className={'w-full p-2'}>
-                <RenderAddField item={{}} placeholder={'New field name...'} theme={theme}
+                <RenderAddField attributes={item.attributes} placeholder={'New field name...'} theme={theme}
                           className={className} addAttribute={addAttribute}/>
             </div>
         </div>
