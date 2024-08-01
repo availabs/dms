@@ -28,7 +28,7 @@ export default function dmsPageFactory (
   } = dmsConfig
   //baseUrl = baseUrl[0] === '/' ? baseUrl.slice(1) : baseUrl
   //console.log('page factory', API_HOST, dmsConfig )
-  const dmsPath= `${baseUrl}/`
+  const dmsPath= `${baseUrl}${baseUrl === '/' ? '' : '/'}`
   const falcor = falcorGraph(API_HOST)
 
   async function loader ({ request, params }) {

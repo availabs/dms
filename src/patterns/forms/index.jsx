@@ -27,7 +27,7 @@ const defaultUser = { email: "user", authLevel: 5, authed: true, fake: true}
 
 
 const formTemplateConfig = ({
-    app, type, 
+    app, type, adminPath,
     format, 
     parent, 
     title, 
@@ -40,7 +40,7 @@ const formTemplateConfig = ({
 }) => {
     theme = merge(defaultTheme, theme)
     //baseUrl = baseUrl[0] === '/' ? baseUrl.slice(1) : baseUrl
-    const defaultLogo = <Link to={`/${baseUrl}`} className='h-12 flex px-4 items-center'><div className='rounded-full h-8 w-8 bg-blue-500 border-2 border-blue-300 hover:bg-blue-600' /></Link>
+    const defaultLogo = <Link to={`${baseUrl}`} className='h-12 flex px-4 items-center'><div className='rounded-full h-8 w-8 bg-blue-500 border-2 border-blue-300 hover:bg-blue-600' /></Link>
   
     if(!theme.navOptions.logo) {
         theme.navOptions.logo = logo ? logo : defaultLogo
@@ -49,6 +49,7 @@ const formTemplateConfig = ({
     const templateFormat = {...template}
     templateFormat.app = app;
     templateFormat.type = `template`;
+    //console.log('adminpath index', adminPath)
     return {
         app,
         type: `template`,
@@ -64,6 +65,7 @@ const formTemplateConfig = ({
                             <FormTemplateView
                                 format={templateFormat}
                                 parent={parent}
+                                adminPath={adminPath}
                                 {...props}
                             />
                         </FormsContext.Provider>
@@ -79,6 +81,7 @@ const formTemplateConfig = ({
                         <FormsContext.Provider value={{baseUrl, user: props.user || defaultUser, theme, app, type, parent}}>
                             <FormTemplateView
                                 parent={parent}
+                                adminPath={adminPath}
                                 edit={true}
                                 {...props}
                             />
@@ -107,7 +110,7 @@ const formsAdminConfig = ({
 }) => {
     theme = merge(defaultTheme, theme)
     //baseUrl = baseUrl[0] === '/' ? baseUrl.slice(1) : baseUrl
-    const defaultLogo = <Link to={`/${baseUrl}`} className='h-12 flex px-4 items-center'><div className='rounded-full h-8 w-8 bg-blue-500 border-2 border-blue-300 hover:bg-blue-600' /></Link>
+    const defaultLogo = <Link to={`/`} className='h-12 flex px-4 items-center'><div className='rounded-full h-8 w-8 bg-blue-500 border-2 border-blue-300 hover:bg-blue-600' /></Link>
 
     if(!theme.navOptions.logo) {
         theme.navOptions.logo = logo ? logo : defaultLogo
@@ -117,10 +120,15 @@ const formsAdminConfig = ({
     patternFormat.type = type
     patternFormat.registerFormats = updateRegisteredFormats(patternFormat.registerFormats, app) // update app for all the children formats. this works, but dms stops providing attributes to patternList
     patternFormat.attributes = updateAttributes(patternFormat.attributes, app) // update app for all the children formats. this works, but dms stops providing attributes to patternList
+    // patternFormat.filter = {
+    //     stopFullDataLoad: true,
+    //     fromIndex: () => 0,
+    //     toIndex: () => 1,
+    // }
     console.log('formsAdminConfig', parent)
     return {
         format: patternFormat,
-        baseUrl: `${baseUrl}manage`,
+        baseUrl: `${baseUrl}/manage`,
         API_HOST,
         children: [
             {
@@ -132,15 +140,30 @@ const formsAdminConfig = ({
                   )
                 },
                 action: "list",
+                filter: {
+                    stopFullDataLoad: true,
+                    fromIndex: () => 0,
+                    toIndex: () => 0,
+                },
                 path: "/*",
                 children: [
                     {
                         type: props => <ManageForms.EditComp parent={parent} {...props} />,
+                        filter: {
+                            stopFullDataLoad: true,
+                            fromIndex: () => 0,
+                            toIndex: () => 0,
+                        },
                         action: 'edit',
                         path: `attributes`
                     },
                     {
                         type: props => <ManageTemplates.EditComp  parent={parent} {...props} />,
+                        filter: {
+                            stopFullDataLoad: true,
+                            fromIndex: () => 0,
+                            toIndex: () => 0,
+                        },
                         action: 'edit',
                         path: `templates`
                     },
@@ -164,7 +187,7 @@ export default [
 ];
 
 
-const FormTemplateView = ({apiLoad, apiUpdate, attributes, parent, params, format, dataItems=[],baseUrl,theme,edit=false,...rest}) => {
+const FormTemplateView = ({apiLoad, apiUpdate, attributes, parent, params, format, adminPath, dataItems=[],baseUrl,theme,edit=false,...rest}) => {
     // const [items, setItems] = useState([]);
     // const [item, setItem] = useState({});
     const Comp = edit ? TemplateEdit : TemplateView;
@@ -181,17 +204,18 @@ const FormTemplateView = ({apiLoad, apiUpdate, attributes, parent, params, forma
     const parentConfigAttributes = JSON.parse(parent?.config || '{}')?.attributes || [];
     const type = parent.doc_type || parent?.base_url?.replace(/\//g, '') 
 
-    if(!match.route) return <>No template found.</>
-    
+    //if(!match.route) return <>No template found.</>
+
 
     return (
 
             <Comp
                 item={match.route}
-                dataItems={[]}
+                dataItems={dataItems.filter(dI => relatedTemplateIds.includes(dI.id))}
                 apiLoad={apiLoad}
                 apiUpdate={apiUpdate}
                 format={{...parent, type}}
+                adminPath={adminPath}
                 attributes={attributes}
             />
     )

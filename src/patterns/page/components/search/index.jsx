@@ -9,9 +9,9 @@ export const Search = ({app, type}) => {
     const [open, setOpen] = useState(false)
 
     return (
-        <div className='w-full h-full p-2'>
+        <div className='w-full h-12 p-2'>
             <button
-                className={"bg-white h-full w-full flex items-center text-sm leading-6 text-slate-400 hover:text-slate-600 rounded-lg shadow-sm py-1.5 pl-4 pr-8 transition ease-in"}
+                className={"bg-white p-1 h-full w-full flex items-center text-sm leading-6 text-slate-400 hover:text-slate-600 rounded-lg shadow-sm py-1.5 pl-4 pr-8 transition ease-in"}
                 onClick={() => setOpen(true)}
             >
                 <i className={'fa-light fa-search pr-2 '}/> Search
@@ -98,7 +98,7 @@ export const RenderItems = ({items}) => items.length > 0 && (
                                 {item.description}
                             </p>
                             {
-                                item.tags.split(',').map(tag => <span
+                                (item.tags || '').split(',').map(tag => <span
                                     className={'tracking-wide p-1 bg-red-400 text-xs text-white font-semibold rounded-md border'}>{tag}</span>)
                             }
                         </div>
@@ -231,12 +231,12 @@ const SearchPallet = ({open, setOpen, app, type}) => {
                                     window.location = `${item.url}#${item.id}`
                                 }
                             }}>
-                                <div className="flex items-center relative">
+                                <div className="flex items-center relative px-2">
                                     <i
                                         className="fa-light fa-search pointer-events-none h-5 w-5 text-gray-400"
                                     />
                                     <Combobox.Input
-                                        className="h-10 w-full border-0 bg-transparent p-1 mx-1 text-gray-900 placeholder:text-gray-400 focus:ring-0 sm:text-sm rounded-md"
+                                        className="h-10 w-full border-0 bg-transparent p-1 mx-1 text-gray-900 placeholder:text-gray-400 focus:ring-0 sm:text-sm rounded-md ring-0 outline-none"
                                         placeholder="Search..."
                                         onChange={(event) =>{
                                             const match = tags.find(tag => tag.toLowerCase() === event.target.value.toLowerCase());
@@ -270,7 +270,7 @@ export const getConfig = ({
       type,
       filter,
       action = 'load',
-      tags,
+      tags, searchType,
       attributes = [
           {key: 'id', label: 'id'},
           {key: 'app', label: 'app'},
@@ -292,6 +292,7 @@ export const getConfig = ({
                     filter,
                 }),
                 tags,
+                searchType,
                 attributes: attributes.map(a => a.key)
             },
             path: '/'

@@ -11,8 +11,8 @@ function defaultTheme () {
 			'td': 'whitespace-nowrap px-3 py-4 text-sm text-gray-500'
 		},
 		text: {
-			input: 'px-2 py-1 w-full text-sm font-light border rounded-md focus:border-blue-300 focus:outline-none transition ease-in',
-			view: 'text-sm font-light'
+			input: 'px-2 py-1 w-full text-sm font-light border rounded-md focus:border-blue-300 bg-white focus:outline-none transition ease-in',
+			view: 'text-sm font-light truncate bg-red-500'
 		},
 		textarea: {
 			input: 'px-2 py-1 w-full text-sm font-light border rounded-md focus:border-blue-300 focus:outline-none transition ease-in',
@@ -20,23 +20,24 @@ function defaultTheme () {
 		},
 		select: {
 			input: 'px-2 py-1 w-full text-sm font-light border rounded-md focus:border-blue-300 bg-white hover:bg-blue-100 transition ease-in',
-			error: 'text-xs text-red-300 font-light'
+			error: 'p-1 text-xs text-red-700 font-bold'
 		},
 		multiselect: {
+			view: 'w-full h-full',
 			mainWrapper: 'w-full',
-			inputWrapper: 'flex flex-wrap flex-row px-2 py-1 w-full text-sm font-light border focus:border-blue-300 rounded-md bg-white hover:bg-blue-100 transition ease-in',
-			input: 'focus:outline-none w-full border p-1',
-			tokenWrapper: 'w-fit flex px-2 py-1 m-0.5 bg-blue-100 hover:bg-blue-300 rounded-lg text-xs transition ease-in',
-			removeIcon: 'fa fa-x px-1 text-sm text-red-300 hover:text-red-500 self-center transition ease-in cursor-pointer',
-			menuWrapper: 'p-2 shadow-lg z-50 absolute bg-white',
+			inputWrapper: 'flex px-2 py-1 w-full text-sm font-light border focus:border-blue-300 rounded-md bg-white hover:bg-blue-100 transition ease-in',
+			input: 'focus:outline-none w-full',
+			tokenWrapper: 'flex m-0.5 px-2 py-1 mx-1 bg-blue-100 hover:bg-blue-300 rounded-md transition ease-in',
+			removeIcon: 'fa fa-x px-1 text-xs text-red-300 hover:text-red-500 self-center transition ease-in',
+			menuWrapper: 'absolute p-2 bg-white w-full max-h-[150px] overflow-auto scrollbar-sm shadow-lg z-10',
 			menuItem: 'px-2 py-1 hover:bg-blue-300 hover:cursor-pointer transition ease-in',
-			error: 'text-xs text-red-300 font-light'
+			error: 'p-1 text-xs text-red-700 font-bold'
 		},
 		radio: {
 			wrapper: 'p-1 flex',
 			input: 'self-center p-1',
 			label: 'text-sm font-light p-1 self-center',
-			error: 'text-xs text-red-300 font-light'
+			error: 'text-xs text-red-700 font-bold'
 		},
 		card: {
 			wrapper: 'p-4',

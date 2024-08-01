@@ -51,16 +51,16 @@ export async function dmsDataLoader (falcor, config, path='/') {
 	// -- Always want to know how many data items of a type we have
 	let lengthReq = ['dms', 'data', `${ app }+${ type }`, 'length' ]
 
-	if(activeConfigs.find(ac => ['list','load'].includes(ac.action))){
+	if(activeConfigs.find(ac => ['list','load','filteredLength'].includes(ac.action))){
 		// special routes for 'load' action
-		const options = activeConfigs.find(ac => ['list','load'].includes(ac.action))?.filter?.options;
+		const options = activeConfigs.find(ac => ['list','load','filteredLength'].includes(ac.action))?.filter?.options;
 		if(options) lengthReq = ['dms', 'data', `${ app }+${ type }`, 'options', options, 'length' ];
 	}
 
 	// console.log('lengthReq', lengthReq)
 	const length = get(await falcor.get(lengthReq), ['json',...lengthReq], 0)
 	// console.log('length',length)
-	if(activeConfigs.find(ac => ac.action === 'length')){
+	if(activeConfigs.find(ac => ['length', 'filteredLength'].includes(ac.action))){
 		return length;
 	}
 	let options = activeConfigs[0]?.filter?.options || '{}';
@@ -82,12 +82,18 @@ export async function dmsDataLoader (falcor, config, path='/') {
 	let newReqFalcor = falcor.getCache()
 
 	if(activeConfigs.find(ac => ac.action === 'search')){
-		const path =  newRequests[0].filter((r, i) => i <= newRequests[0].indexOf('byTag'));
-
+		const searchType = activeConfigs.find(ac => ac.action === 'search')?.filter?.searchType || 'byTag';
+		const path =  newRequests[0].filter((r, i) => i <= newRequests[0].indexOf(searchType));
 		return get(newReqFalcor, path, {});
 	}
 	if(activeConfigs.find(ac => ac.action === 'searchTags')){
 		const path =  newRequests[0].filter((r, i) => i <= newRequests[0].indexOf('tags'));
+
+		return get(newReqFalcor, path, {});
+	}
+
+	if(activeConfigs.find(ac => ac.action === 'searchPageTitles')){
+		const path =  newRequests[0].filter((r, i) => i <= newRequests[0].indexOf('pageTitles'));
 
 		return get(newReqFalcor, path, {});
 	}

@@ -20,7 +20,7 @@ const createRequest = (wrapperConfig,format, path, length) => {
 			(+wrapperConfig.params?.[wrapperConfig?.filter?.toIndex] || length - 1);
 	let options = wrapperConfig?.filter?.options || '{}';
 	let tags = wrapperConfig?.filter?.tags || [];
-
+	let searchType = wrapperConfig?.filter?.searchType || 'byTag';
 	// wrapperConfig.action === 'edit' makes it pull either by id or full data. 
 	// this makes 'new' slow, as there's no id this fixes that.
 	if(wrapperConfig?.filter?.type === 'new') return [];
@@ -59,9 +59,11 @@ const createRequest = (wrapperConfig,format, path, length) => {
 			]
 		}
 		case 'search':
-			return ['dms', 'search', `${ app }+${ type }`,'byTag', tags];
+			return ['dms', 'search', `${ app }+${ type }`, searchType, tags];
 		case 'searchTags':
 			return ['dms', 'search', `${ app }+${ type }`,'tags'];
+		case 'searchPageTitles':
+			return ['dms', 'search', `${ app }+${ type }`,'pageTitles'];
 		default:
 			return []
 	}
