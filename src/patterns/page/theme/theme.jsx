@@ -17,7 +17,7 @@ const theme = {
     topNav: {
       size: 'compact',
       dropdown: 'right',
-      search: 'right',
+      search: 'none',
       logo: 'left',
       position: 'fixed',
       nav: 'main' 
