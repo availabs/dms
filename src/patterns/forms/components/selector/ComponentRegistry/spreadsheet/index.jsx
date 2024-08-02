@@ -5,9 +5,9 @@ import RenderTypeControls from "./components/RenderTypeControls"
 import Glide from './components/glide';
 import {RenderSimple} from "./components/SimpleSpreadsheet";
 import {RenderPagination} from "./components/RenderPagination";
-import {isJson, getLength, getData} from "./utils";
+import {isJson, getLength, getData, convertToUrlParams} from "./utils";
 import {RenderFilters} from "./components/RenderFilters";
-import {useSearchParams} from "react-router-dom";
+import {useSearchParams, useNavigate} from "react-router-dom";
 
 const tableComps = {
     'simple': RenderSimple,
@@ -30,14 +30,29 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     const [tableType, setTableType] = useState(cachedData.tableType || 'simple');
     const pageSize = 50// cachedData.pageSize || 5;
     const filterValueDelimiter = '|||'
+    const navigate = useNavigate();
 
     // ========================================= filters ===============================================================
     const [searchParams, setSearchParams] = useSearchParams();
+    console.log('filters', searchParams)
     useEffect(() => {
         const filterCols = Array.from(searchParams.keys());
         const filtersFromURL = filterCols.map(col => ({column: col, values: searchParams.get(col)?.split(filterValueDelimiter)}));
-        setFilters(filtersFromURL)
+        if(filtersFromURL.length) {
+            console.log('filters: setting filters from url')
+            setFilters(filtersFromURL)
+        }else if(!filtersFromURL.length && filters.length){
+            console.log('filters: navigating to url from filters')
+            // this means url didn't keep url params. so we need to navigate
+            const url = `?${convertToUrlParams(filters, filterValueDelimiter)}`;
+            navigate(url)
+        }
     }, [searchParams]);
+
+    useEffect(() => {
+        const url = `?${convertToUrlParams(filters, filterValueDelimiter)}`;
+        navigate(url)
+    }, [filters]);
     // ========================================= filters end ===========================================================
 
     // ========================================= init comp begin =======================================================
@@ -69,7 +84,6 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
             setLoading(true)
             const length = await getLength({format, apiLoad, filters});
             const data = await getData({format, apiLoad, currentPage, pageSize, orderBy, filters});
-            console.log('new length', length)
             setLength(length);
             setData(data);
             setLoading(false)
@@ -126,7 +140,8 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
                                           visibleAttributes={visibleAttributes}
                                           setVisibleAttributes={setVisibleAttributes}/>
                     <RenderFilterControls attributes={attributes} visibleAttributes={visibleAttributes}
-                                          filters={filters} setFilters={setFilters}
+                                          filters={filters} setFilters={setFilters} delimiter={filterValueDelimiter}
+                                          navigate={navigate}
                     />
 
                     <RenderTypeControls tableType={tableType} setTableType={setTableType}/>

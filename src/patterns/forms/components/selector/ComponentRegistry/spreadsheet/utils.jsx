@@ -14,7 +14,7 @@ export const getNestedValue = value =>
 export const formattedAttributeStr = col => `data->>'${col}' as ${col}`;
 export const attributeAccessorStr = col => `data->>'${col}'`;
 
-const formatFilters = filters => filters.filter(f => f.values?.length).reduce((acc, f) => ({...acc, [attributeAccessorStr(f.column)]: f.values}), {});
+const formatFilters = filters => filters.filter(f => f.values?.length && f.values.filter(fv => fv.length).length).reduce((acc, f) => ({...acc, [attributeAccessorStr(f.column)]: f.values}), {});
 
 export const getData = async ({format, apiLoad, currentPage, pageSize, orderBy, filters}) =>{
     // fetch all data items based on app and type. see if you can associate those items to its pattern. this will be useful when you have multiple patterns.
@@ -67,3 +67,14 @@ export const getLength = async ({format, apiLoad, filters=[]}) =>{
     });
     return length;
 }
+
+export const convertToUrlParams = (arr, delimiter) => {
+    const params = new URLSearchParams();
+
+    arr.forEach(item => {
+        const { column, values = [] } = item;
+        params.append(column, values.filter(v => v.length).join(delimiter));
+    });
+
+    return params.toString();
+};

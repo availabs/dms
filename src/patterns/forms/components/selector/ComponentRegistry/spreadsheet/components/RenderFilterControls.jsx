@@ -1,10 +1,10 @@
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react'
 import RenderSwitch from "./Switch";
-import {useRef} from "react";
-import {ArrowDown, ChevronDownSquare} from "../../../../../../admin/ui/icons";
+import {ArrowDown} from "../../../../../../admin/ui/icons";
+import {convertToUrlParams} from "../utils";
 
 export default function RenderColumnControls({
-                                                 attributes, filters, setFilters
+                                                 attributes, filters, setFilters, delimiter, navigate
                                              }) {
     return (
         <Menu as="div" className="relative inline-block text-left">
@@ -39,9 +39,13 @@ export default function RenderColumnControls({
 
                                             <RenderSwitch
                                                 enabled={filters.find(f => f.column === attribute.name) ? true : false}
-                                                setEnabled={e => e ?
-                                                    setFilters([...filters, {column: attribute.name}]) :
-                                                    setFilters(filters.filter(attr => attr.column !== attribute.name))}
+                                                setEnabled={e => {
+                                                    const newFilters = e ?
+                                                        [...filters, {column: attribute.name}] :
+                                                        filters.filter(attr => attr.column !== attribute.name);
+
+                                                    setFilters(newFilters);
+                                                }}
                                             />
                                         </div>
                                     </div>

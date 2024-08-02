@@ -206,7 +206,7 @@ export const RenderSimple = ({
                     attrIRange = visibleAttributes.map((va, i) => i);
                 }
                 attrIRange = [...new Set(attrIRange)].sort((a,b) => a-b);
-                let indexRange = [...new Set(selection.map(s => s.index || s))].sort((a,b) => a-b);
+                let indexRange = [...new Set(selection.map(s => s.index !== undefined ? s.index : s))].sort((a,b) => a-b);
 
                 if (typeof lastSelected === 'number') {
                     lastSelected = { index: lastSelected, attrI: undefined };
@@ -218,8 +218,8 @@ export const RenderSimple = ({
                             setSelection(prevSelection => {
                                 const newindex = lastSelected.index - 1;
                                 const newSelection = attrIRange.map(r => ({ index: newindex, attrI: r })); // for all attributes, add a selection
-                                return prevSelection.find(sel => sel.index === newindex && sel.attrI === lastSelected.attrI)
-                                    ? prevSelection.filter(sel => !(sel.index === newindex && sel.attrI === lastSelected.attrI))
+                                return prevSelection.find(sel => sel.index <= newindex)
+                                    ? prevSelection.filter(sel => !(sel.index > newindex))
                                     : [...prevSelection, ...newSelection];
                             });
                         }
@@ -229,8 +229,8 @@ export const RenderSimple = ({
                             setSelection(prevSelection => {
                                 const newindex = lastSelected.index + 1;
                                 const newSelection = attrIRange.map(r => ({ index: newindex, attrI: r })); // for all attributes, add a selection
-                                return prevSelection.find(sel => sel.index === newindex && sel.attrI === lastSelected.attrI)
-                                    ? prevSelection.filter(sel => !(sel.index === newindex && sel.attrI === lastSelected.attrI))
+                                return prevSelection.find(sel => sel.index >= newindex)
+                                    ? prevSelection.filter(sel => !(sel.index < newindex))
                                     : [...prevSelection, ...newSelection];
                             });
                         }
@@ -240,8 +240,8 @@ export const RenderSimple = ({
                             setSelection(prevSelection => {
                                 const newattrI = lastSelected.attrI - 1;
                                 const newSelection = indexRange.map(ir => ({ index: ir, attrI: newattrI }));
-                                return prevSelection.find(sel => sel.index === lastSelected.index && sel.attrI === newattrI)
-                                    ? prevSelection.filter(sel => !(sel.index === lastSelected.index && sel.attrI === newattrI))
+                                return prevSelection.find(sel => sel.attrI <= newattrI)
+                                    ? prevSelection.filter(sel => !(sel.attrI > newattrI))
                                     : [...prevSelection, ...newSelection];
                             });
                         }
@@ -251,8 +251,8 @@ export const RenderSimple = ({
                             setSelection(prevSelection => {
                                 const newattrI = lastSelected.attrI + 1;
                                 const newSelection = indexRange.map(ir => ({ index: ir, attrI: newattrI }));
-                                return prevSelection.find(sel => sel.index === lastSelected.index && sel.attrI === newattrI)
-                                    ? prevSelection.filter(sel => !(sel.index === lastSelected.index && sel.attrI === newattrI))
+                                return prevSelection.find(sel => sel.attrI >= newattrI)
+                                    ? prevSelection.filter(sel => !(sel.attrI < newattrI))
                                     : [...prevSelection, ...newSelection];
                             });
                         }
@@ -406,6 +406,7 @@ export const RenderSimple = ({
     };
 
     if(!visibleAttributes.length) return <div className={'p-2'}>No columns selected.</div>;
+    console.log('selection', selection)
     return (
         <div className={`flex flex-col w-full`} ref={gridRef}
 
@@ -459,7 +460,7 @@ export const RenderSimple = ({
                     >
                         <div key={'#'}
                              className={`p-1 flex text-xs items-center justify-center border cursor-pointer 
-                             ${selection.find(s => (s.index || s) === i) ? 'bg-blue-100 text-gray-900' : 'bg-gray-50 text-gray-500'}`}
+                             ${selection.find(s => (s.index !== undefined ? s.index : s) === i) ? 'bg-blue-100 text-gray-900' : 'bg-gray-50 text-gray-500'}`}
                              style={{width: numColSize}}
                              onClick={e => {
                                  // single click = replace selection
