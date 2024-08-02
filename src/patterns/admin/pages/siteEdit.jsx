@@ -59,10 +59,20 @@ function SiteEdit ({
 	if(!item.id) return <NewSite apiUpdate={apiUpdate} />// (<Layout></Layout>)()
 
 
-	//console.log('site edit', status, dataItems)
+	console.log('site edit', status, dataItems)
+	const menuItems = [
+		{
+			name: <div className='p-4'>Dashboard</div>,
+			className:''
+		}, 
+		{
+			name:'Dashboard'
+		}
+	]
+
 
 	return (
-		<Layout>
+		<Layout navItems={menuItems} >
 		
 			{Object.keys(attributes)
 				.map((attrKey, i) => {
@@ -75,7 +85,7 @@ function SiteEdit ({
 								value={item?.[attrKey]}
 								onChange={(v) => updateAttribute(attrKey, v)}
 								onSubmit={data => {
-									console.log('updateData', data,attrKey)
+									//console.log('updateData', data,attrKey)
 									updateData(data, attrKey)
 								}}
 								format={format}

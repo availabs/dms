@@ -8,18 +8,18 @@ const theme = {
   navOptions: {
     logo: '',//<Link to='/' className='h-12 flex px-4 items-center'><div className='rounded-full h-8 w-8 bg-blue-500 border-2 border-blue-300 hover:bg-blue-600' /></Link>, //<Link to='/' className='h-12 flex px-4 items-center'>LOGO</Link>,
     sideNav: {
-      size: 'none',
+      size: 'compact',
       search: 'none',
       logo: 'top',
       dropdown: 'none',
-      nav: 'none'
+      nav: 'main'
     },
     topNav: {
       size: 'compact',
       dropdown: 'right',
       search: 'right',
       logo: 'left',
-      nav: 'main' 
+      nav: 'none' 
     }
   },
   heading: {
