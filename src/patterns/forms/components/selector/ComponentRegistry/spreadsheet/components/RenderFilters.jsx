@@ -2,18 +2,7 @@ import React, {useEffect, useMemo, useState} from "react";
 import {useNavigate, useSearchParams} from "react-router-dom";
 import {getLength, getValues} from "../../../../../../../data-types/form-config/components/RenderField";
 import {dmsDataTypes} from "../../../../../../../data-types";
-import {formattedAttributeStr, attributeAccessorStr} from "../utils";
-
-const convertToUrlParams = (arr, delimiter) => {
-    const params = new URLSearchParams();
-
-    arr.forEach(item => {
-        const { column, values = [] } = item;
-        params.append(column, values.join(delimiter));
-    });
-
-    return params.toString();
-};
+import {formattedAttributeStr, attributeAccessorStr, convertToUrlParams} from "../utils";
 
 export const RenderFilters = ({attributes, filters, setFilters, format, apiLoad, delimiter}) => {
     const navigate = useNavigate();
@@ -26,13 +15,17 @@ export const RenderFilters = ({attributes, filters, setFilters, format, apiLoad,
             const data = await Promise.all(
                 filters.map(async (filter, filterI) => {
                     const filterBy = filters
-                        .filter((f, fI) => f.values?.length && fI !== filterI)
+                        .filter((f, fI) =>
+                            f.values?.length &&  // filters all other filters without any values
+                            f.values.filter(fv => fv.length).length && // and even blank values
+                            fI !== filterI // and the current filter. as we're gonna use other filters' values to determine options for current filter.
+                        )
                         .reduce((acc, f) => {
-                            acc[attributeAccessorStr(f.column)] = f.values;
+                            acc[attributeAccessorStr(f.column)] = f.values.filter(fv => fv.length);
                             return acc;
                         }, {});
                     const length = await getLength({format, apiLoad, groupBy: [attributeAccessorStr(filter.column)], filterBy});
-
+                    console.log('filters: getData', filter, filterBy, length)
                     const data = await getValues({
                         format,
                         apiLoad,

@@ -69,7 +69,7 @@ export const siteConfig = ({
     API_HOST,
     children: [
       {
-        type: ({children, user=defaultUser, pgEnv, ...props}) => {
+        type: ({children, user=defaultUser, ...props}) => {
           const { falcor, falcorCache } = useFalcor();
           // console.log('hola', theme, props)
           return (
