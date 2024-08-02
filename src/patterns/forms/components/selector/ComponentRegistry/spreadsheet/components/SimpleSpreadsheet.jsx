@@ -23,11 +23,6 @@ const getEdge = ({startI, endI, startCol, endCol}, i, attrI) => {
                             startCol === attrI && startI !== i && endI !== i ? 'left' :
                                 endCol === attrI && startI !== i && endI !== i ? 'right' : '';
 
-
-    if(i === 10){
-        console.log('edge', {startI, endI, startCol, endCol}, i, attrI, e)
-    }
-
     return e;
 }
 
@@ -155,9 +150,8 @@ export const RenderSimple = ({
     const startCellCol = useRef(null);
 
     const selectionRange = useMemo(() => {
-        const rows = [...new Set(selection.map(s => s.index || s))].sort((a,b) => a-b);
-        const cols = [...new Set(selection.map(s => s.attrI) || visibleAttributes.map((v, i) => i))];
-
+        const rows = [...new Set(selection.map(s => s.index !== undefined ? s.index : s))].sort((a,b) => a-b);
+        const cols = [...new Set(selection.map(s => s.attrI).sort((a,b) => a-b) || visibleAttributes.map((v, i) => i))];
         return {
             startI: rows[0],
             endI: rows[rows.length - 1],
