@@ -60,6 +60,11 @@ export default ({title, children, adminPath}) => {
                                 </Item>
                             )}
                             {user.authLevel >= 5 && (
+                                <Item to={`${baseUrl}/manage/validate`} icon={'fad fa-sign-out-alt pb-2 pr-1'}>
+                                    Validate
+                                </Item>
+                            )}
+                            {user.authLevel >= 5 && (
                                 <Item to={`${baseUrl}/manage/attributes`} icon={'fad fa-sign-out-alt pb-2 pr-1'}>
                                     Metadata
                                 </Item>

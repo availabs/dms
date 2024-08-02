@@ -17,6 +17,7 @@ import ManageForms from "./pages/ManageForms";
 import ManageTemplates from "./pages/ManageTemplates";
 
 import {updateAttributes, updateRegisteredFormats} from "../admin/siteConfig";
+import {Validate} from "./pages/Validate";
 
 
 export const FormsContext = React.createContext(undefined);
@@ -99,7 +100,8 @@ const formTemplateConfig = ({
 const formsAdminConfig = ({ 
     app, 
     type, 
-    parent, 
+    parent,
+    adminPath,
     title, 
     baseUrl, 
     API_HOST='https://graph.availabs.org', 
@@ -148,7 +150,7 @@ const formsAdminConfig = ({
                 path: "/*",
                 children: [
                     {
-                        type: props => <ManageForms.EditComp parent={parent} {...props} />,
+                        type: props => <ManageForms.EditComp parent={parent} {...props} adminPath={adminPath}/>,
                         filter: {
                             stopFullDataLoad: true,
                             fromIndex: () => 0,
@@ -158,7 +160,17 @@ const formsAdminConfig = ({
                         path: `attributes`
                     },
                     {
-                        type: props => <ManageTemplates.EditComp  parent={parent} {...props} />,
+                        type: props => <Validate parent={parent} {...props} adminPath={adminPath}/>,
+                        filter: {
+                            stopFullDataLoad: true,
+                            fromIndex: () => 0,
+                            toIndex: () => 0,
+                        },
+                        action: 'edit',
+                        path: `validate`
+                    },
+                    {
+                        type: props => <ManageTemplates.EditComp  parent={parent} {...props} adminPath={adminPath}/>,
                         filter: {
                             stopFullDataLoad: true,
                             fromIndex: () => 0,

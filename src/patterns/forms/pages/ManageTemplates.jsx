@@ -4,6 +4,7 @@ import { FormsContext } from '../'
 
 
 const ManageForm = ({
+    adminPath,
     status,
     apiUpdate,
     attributes={},
@@ -29,7 +30,7 @@ const ManageForm = ({
     
     //console.log('manage forms /manage_pattern/:id/templates?', manageTemplates, attributes, item)
     return (
-        <Layout>
+        <Layout adminPath={adminPath}>
             <div className={`${theme?.page?.wrapper1}`}>
                 <div className={`${theme?.page?.wrapper2}`}>      
                     <div className={theme?.page?.wrapper3}>
