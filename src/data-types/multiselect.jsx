@@ -155,8 +155,9 @@ const Edit = ({value = [], onChange, className,placeholder, options = [], displa
 }
 
 const View = ({className, value, options = []}) => {
-    if (!value) return false
     const theme = useTheme();
+    if (!value) return <div className={theme?.multiselect?.mainWrapper} />
+
     const mappedValue = (Array.isArray(value) ? value : [value]).map(v => v.value || v)
     const option =
         options
