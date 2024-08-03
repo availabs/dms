@@ -91,7 +91,7 @@ const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell, wid
     }, [newItem]);
     return (
         <div
-            className={`relative flex items-center ${isSelecting ? 'select-none' : ``} ${isSelected ? classNames.isSelected(edge) : 'bg-white'}`}
+            className={`relative flex items-center min-h-[35px] ${isSelecting ? 'select-none' : ``}`}
             style={{
                 width,
                 ...isSelected && {borderWidth: '1px', ...selectionEdgeClassNames[edge]}
@@ -106,11 +106,12 @@ const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell, wid
                   onClick={onClick}
                 // disabled={!editing}
                   className={`
+                  min-w-full min-h-full flex flex-wrap items-center truncate
+                  ${isSelected ? 'bg-blue-50' : 'bg-white'} hover:bg-blue-50 
                   ${attribute.type === 'multiselect' && newItem[attribute.name]?.length ? 'p-0.5' :
-                      attribute.type === 'multiselect' && !newItem[attribute.name]?.length ? 'p-4' : 'p-0.5'
+                      attribute.type === 'multiselect' && !newItem[attribute.name]?.length ? 'p-0.5' : 'p-0.5'
                   } 
-                  ${classNames[attribute.type] || `flex flex-wrap`}
-                  ${isSelected ? 'bg-blue-50' : 'bg-white'} hover:bg-blue-50 h-[30px] w-full h-full 
+                
                   `}
                   displayInvalidMsg={false}
                   {...attribute}
@@ -410,7 +411,7 @@ export const RenderSimple = ({
             <div className={`grid ${c[visibleAttributes.length + 2]}`} style={{gridTemplateColumns: `${numColSize}px ${visibleAttributes.map(v => `${colSizes[v]}px` || 'auto').join(' ')} ${actionsColSize}px`}}>
                 <div className={'flex justify-between'} style={{width: numColSize}}>
                     <div key={'#'}
-                         className={'w-full font-semibold text-gray-500 border bg-gray-100'}>
+                         className={'w-full font-semibold border bg-gray-50 text-gray-500'}>
                     </div>
                 </div>
                 {visibleAttributes.map(va => attributes.find(attr => attr?.name === va))
@@ -440,14 +441,14 @@ export const RenderSimple = ({
                         </div>)}
                 <div className={'flex shrink-0 justify-between'} style={{width: actionsColSize}}>
                     <div key={'actions'}
-                         className={'w-full font-semibold text-gray-500 border bg-gray-100'}>
+                         className={'w-full font-semibold border bg-gray-50 text-gray-500 select-none'}>
                         Actions
                     </div>
                 </div>
             </div>
 
             {/*Rows*/}
-            <div className={'flex flex-col no-wrap max-h-[calc(100vh_-_250px)] overflow-auto scrollbar-sm'} onMouseLeave={handleMouseUp}>
+            <div className={'flex flex-col no-wrap text-sm max-h-[calc(100vh_-_250px)] overflow-auto scrollbar-sm'} onMouseLeave={handleMouseUp}>
                 {data.map((d, i) => (
                     <div className={`grid ${c[visibleAttributes.length + 2]} divide-x divide-y ${isDragging ? `select-none` : ``}`}
                          style={{gridTemplateColumns: `${numColSize}px ${visibleAttributes.map(v => `${colSizes[v]}px` || 'auto').join(' ')} ${actionsColSize}px`}}

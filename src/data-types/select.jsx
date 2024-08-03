@@ -28,13 +28,14 @@ const Edit = ({value = '', onChange, className, placeholder, displayInvalidMsg=t
 }
 
 const View = ({className, value, options = []}) => {
-    if (!value) return false
+    if (!value) return <div className={ `${className || theme?.select?.input}`} />
 
     const theme = useTheme();
     const option = options.find(o => (o.value || o) === value) || value;
+    const isInvalidValue = value && !options.find(o => (o.value || o) === value);
 
     return (
-        <div className={ className || (theme?.text?.view)}>
+        <div className={ `${className || theme?.select?.input}`}>
             {option?.label || option}
         </div>
     )
