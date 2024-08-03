@@ -18,7 +18,7 @@ const theme = {
       size: 'compact',
       dropdown: 'right',
       search: 'right',
-      logo: 'left',
+      logo: 'none',
       nav: 'none' 
     }
   },

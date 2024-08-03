@@ -2,6 +2,7 @@ import React from 'react'
 import { Input, ButtonPrimary} from '../ui'
 import Layout from '../ui/avail-layout'
 import {AdminContext} from "../siteConfig";
+import { Link } from 'react-router-dom'
 
 
 function NewSite ({apiUpdate}) {
@@ -59,16 +60,28 @@ function SiteEdit ({
 	if(!item.id) return <NewSite apiUpdate={apiUpdate} />// (<Layout></Layout>)()
 
 
-	console.log('site edit', status, dataItems)
 	const menuItems = [
 		{
-			name: <div className='p-4'>Dashboard</div>,
+			name: <div className=''>Dashboard</div>,
 			className:''
 		}, 
 		{
-			name:'Dashboard'
-		}
+			name:'sites',
+			className: 'px-6 pb-1 pt-4 uppercase text-xs text-blue-400'
+		},
 	]
+
+	item.patterns.forEach(p =>{
+		menuItems.push({
+			name: (
+				<div className='w-full flex-1 flex items-center'>
+					<Link to={p.base_url} className='flex-1'>{p.doc_type}</Link>
+					<div className='px-2'>x</div>
+					<div className='px-2'>y</div>
+				</div>
+			)
+		})
+	})
 
 
 	return (
