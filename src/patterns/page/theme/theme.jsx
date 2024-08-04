@@ -53,6 +53,7 @@ const theme = {
     2: 'md:pt-12 pt-0',
     3: 'md:pt-24 pt-0'
   },
+  navLabel: 'px-6 pb-1 pt-6 uppercase text-xs text-blue-400',
   bg: 'bg-slate-100',
   sidenav,
   topnav

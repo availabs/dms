@@ -13,11 +13,14 @@ import TemplateView from './pages/view'
 import TemplateEdit from './pages/edit'
 
 //--- Admin Pages
-import ManageForms from "./pages/ManageForms";
-import ManageTemplates from "./pages/ManageTemplates";
+import ManageLayout from './pages/manage/layout'
+import Dashboard from './pages/manage'
+import ManageMeta from "./pages/manage/metadata";
+import ManageTemplates from "./pages/manage/templates";
+import Validate from "./pages/manage/validate";
 
 import {updateAttributes, updateRegisteredFormats} from "../admin/siteConfig";
-import {Validate} from "./pages/Validate";
+
 
 
 export const FormsContext = React.createContext(undefined);
@@ -92,7 +95,6 @@ const formTemplateConfig = ({
                 action: "list",
                 path: "/edit/*",
             }
-
         ]
     }
 }
@@ -110,9 +112,13 @@ const formsAdminConfig = ({
     theme=defaultTheme, 
     checkAuth = () => {}
 }) => {
-    theme = merge(defaultTheme, theme)
-    //baseUrl = baseUrl[0] === '/' ? baseUrl.slice(1) : baseUrl
-    const defaultLogo = <Link to={`/`} className='h-12 flex px-4 items-center'><div className='rounded-full h-8 w-8 bg-blue-500 border-2 border-blue-300 hover:bg-blue-600' /></Link>
+    theme = merge(cloneDeep(defaultTheme), cloneDeep(theme))
+    baseUrl = baseUrl === '/' ? '' : baseUrl
+    const defaultLogo = (
+        <Link to={baseUrl || '/'} className='h-12 flex px-4 items-center'>
+            <div className='rounded-full h-8 w-8 bg-blue-500 border-2 border-blue-300 hover:bg-blue-600' />
+        </Link>
+    )
 
     if(!theme.navOptions.logo) {
         theme.navOptions.logo = logo ? logo : defaultLogo
@@ -127,7 +133,7 @@ const formsAdminConfig = ({
     //     fromIndex: () => 0,
     //     toIndex: () => 1,
     // }
-    console.log('formsAdminConfig', parent)
+    // console.log('formsAdminConfig', parent)
     return {
         format: patternFormat,
         baseUrl: `${baseUrl}/manage`,
@@ -137,7 +143,9 @@ const formsAdminConfig = ({
                 type: (props) => {
                   return (
                       <FormsContext.Provider value={{baseUrl, user: props.user || defaultUser, theme, app, type, parent}}>
-                        {props.children}
+                        <ManageLayout>
+                            {props.children}
+                        </ManageLayout>
                       </FormsContext.Provider>
                   )
                 },
@@ -149,15 +157,20 @@ const formsAdminConfig = ({
                 },
                 path: "/*",
                 children: [
+                    { 
+                        type: Dashboard,
+                        path: "",
+                        action: "edit"
+                    },
                     {
-                        type: props => <ManageForms.EditComp parent={parent} {...props} adminPath={adminPath}/>,
+                        type: props => <ManageMeta.EditComp parent={parent} {...props} adminPath={adminPath}/>,
                         filter: {
                             stopFullDataLoad: true,
                             fromIndex: () => 0,
                             toIndex: () => 0,
                         },
                         action: 'edit',
-                        path: `attributes`
+                        path: `metadata`
                     },
                     {
                         type: props => <Validate parent={parent} {...props} adminPath={adminPath}/>,
@@ -192,9 +205,8 @@ const formsAdminConfig = ({
 
 
 export default [
-    // siteConfig,
-    formsAdminConfig,
     formTemplateConfig,
+    formsAdminConfig
     
 ];
 
@@ -217,8 +229,6 @@ const FormTemplateView = ({apiLoad, apiUpdate, attributes, parent, params, forma
     const type = parent.doc_type || parent?.base_url?.replace(/\//g, '') 
 
     //if(!match.route) return <>No template found.</>
-
-
     return (
 
             <Comp

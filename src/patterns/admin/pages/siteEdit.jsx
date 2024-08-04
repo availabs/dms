@@ -66,7 +66,7 @@ function SiteEdit ({
 			className:''
 		}, 
 		{
-			name:'sites',
+			name:'manage sites',
 			className: 'px-6 pb-1 pt-4 uppercase text-xs text-blue-400'
 		},
 	]
@@ -75,9 +75,9 @@ function SiteEdit ({
 		menuItems.push({
 			name: (
 				<div className='w-full flex-1 flex items-center'>
-					<Link to={p.base_url} className='flex-1'>{p.doc_type}</Link>
-					<div className='px-2'>x</div>
-					<div className='px-2'>y</div>
+					<Link to={`${p.base_url === '/' ? '' : p.base_url}/manage`} className='flex-1'>{p.doc_type}</Link>
+					{/*<div className='px-2'>x</div>
+					<div className='px-2'>y</div>*/}
 				</div>
 			)
 		})
