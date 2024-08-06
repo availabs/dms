@@ -48,12 +48,31 @@ const RenderMenu = ({
                 onChange={e => setSearchKeyword(e.target.value)}
                 onFocus={() => setIsSearching(true)}
             />
+            <div className={theme.multiselect.smartMenuWrapper}>
+                {
+                    [selectAllOption, removeAllOption]
+                        .filter(o =>
+                            o.value === 'select-all' ? value.length !== options.length :
+                                o.value === 'remove-all' ? value.length : true)
+                        .map((o, i) =>
+                            <div
+                                key={`smart-option-${i}`}
+                                className={theme?.multiselect?.smartMenuItem || menuItem}
+                                onClick={e => {
+                                    onChange(
+                                        o.value === 'select-all' ? options :
+                                            o.value === 'remove-all' ? [] :
+                                                [...value, o]
+                                    );
+                                    setIsSearching(false);
+                                }}>
+                                {o.label || o}
+                            </div>)
+                }
+            </div>
             {
-                [selectAllOption, removeAllOption, ...options]
-                    .filter(o =>
-                        o.value === 'select-all' ? value.length !== options.length :
-                            o.value === 'remove-all' ? value.length :
-                                !mappedValue.includes(o.value || o) && (o.label || o)?.toLowerCase().includes(searchKeyword?.toLowerCase()))
+                options
+                    .filter(o => !mappedValue.includes(o.value || o) && (o.label || o)?.toLowerCase().includes(searchKeyword?.toLowerCase()))
                     .map((o, i) =>
                         <div
                             key={`option-${i}`}

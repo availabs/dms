@@ -25,7 +25,7 @@ export const RenderFilters = ({attributes, filters, setFilters, format, apiLoad,
                             return acc;
                         }, {});
                     const length = await getLength({format, apiLoad, groupBy: [attributeAccessorStr(filter.column)], filterBy});
-                    console.log('filters: getData', filter, filterBy, length)
+
                     const data = await getValues({
                         format,
                         apiLoad,
@@ -51,20 +51,20 @@ export const RenderFilters = ({attributes, filters, setFilters, format, apiLoad,
     return (
         <div className={'flex flex-col'}>
             {filters.map((f, i) => (
-                <div className={'flex flex-row items-center'}>
+                <div className={'w-full flex flex-row items-center'}>
                     <div className={'w-1/4 p-1'}>
                         {attributes.find(attr => attr.name === f.column)?.display_name || f.column}
                     </div>
-                    <div className={'w-3/4 p-1'}>
+                    <div className={'w-3/4 p-1 relative'}>
                         <MultiSelectComp
                             className={`border rounded-md bg-white h-full ${f.values?.length ? `p-1` : `p-4`}`}
                             placeholder={'Please select values...'}
                             value={f.values}
                             onChange={e => {
                                 const newFilters = filters.map((filter, fI) => fI === i ? {...f, values: e} : filter);
-                                const url = `?${convertToUrlParams(newFilters, delimiter)}`;
+                                // const url = `?${convertToUrlParams(newFilters, delimiter)}`;
                                 setFilters(newFilters)
-                                navigate(url)
+                                // navigate(url)
                             }}
                             options={filterOptions[f.column]}
                             displayInvalidMsg={false}

@@ -4,7 +4,7 @@ import {useRef} from "react";
 import {ArrowDown, SortAsc, SortDesc} from "../../../../../../admin/ui/icons";
 
 export default function RenderInHeaderColumnControls({
-    attribute, isEdit, orderBy, setOrderBy
+    attribute, isEdit, orderBy, setOrderBy, filters, setFilters
                                             }) {
     const actions = [
         {
@@ -18,6 +18,12 @@ export default function RenderInHeaderColumnControls({
         {
             label: 'Clear Sort',
             action: () => setOrderBy({})
+        },
+        {
+            label: filters.find(f => f.column === attribute.name) ? 'Remove Filter' : 'Add Filter',
+            action: () => setFilters(filters.find(f => f.column === attribute.name) ?
+                filters.filter(f => f.column !== attribute.name) :
+                [...filters, {column: attribute.name}])
         }
     ]
 

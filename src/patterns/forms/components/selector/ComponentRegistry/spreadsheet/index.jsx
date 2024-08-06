@@ -26,35 +26,27 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     const pageSize = 50// cachedData.pageSize || 5;
     const filterValueDelimiter = '|||'
     const navigate = useNavigate();
-
-    // ========================================= filters ===============================================================
     const [searchParams, setSearchParams] = useSearchParams();
-    console.log('filters', searchParams)
-    useEffect(() => {
-        const filterCols = Array.from(searchParams.keys());
-        const filtersFromURL = filterCols.map(col => ({column: col, values: searchParams.get(col)?.split(filterValueDelimiter)}));
-        if(filtersFromURL.length) {
-            console.log('filters: setting filters from url')
-            setFilters(filtersFromURL)
-        }else if(!filtersFromURL.length && filters.length){
-            console.log('filters: navigating to url from filters')
-            // this means url didn't keep url params. so we need to navigate
-            const url = `?${convertToUrlParams(filters, filterValueDelimiter)}`;
-            navigate(url)
-        }
-    }, [searchParams]);
-
-    useEffect(() => {
-        const url = `?${convertToUrlParams(filters, filterValueDelimiter)}`;
-        navigate(url)
-    }, [filters]);
-    // ========================================= filters end ===========================================================
-
     // ========================================= init comp begin =======================================================
     useEffect(() => {
         setAttributes(JSON.parse(format?.config || '{}')?.attributes || [])
     }, [format]);
 
+    // ========================================= filters 1/2 begin======================================================
+    useEffect(() => {
+        const filterCols = Array.from(searchParams.keys());
+        const filtersFromURL = filterCols.map(col => ({column: col, values: searchParams.get(col)?.split(filterValueDelimiter)}));
+        if(filtersFromURL.length) {
+            setFilters(filtersFromURL)
+            const url = `?${convertToUrlParams(filters, filterValueDelimiter)}`;
+            if(url !== window.location.search) navigate(url);
+        }else if(!filtersFromURL.length && filters.length){
+            // this means url didn't keep url params. so we need to navigate
+            const url = `?${convertToUrlParams(filters, filterValueDelimiter)}`;
+            navigate(url)
+        }
+    }, [searchParams]);
+    // ========================================= filters 1/2 end =======================================================
     useEffect(() => {
         async function load() {
             if(data) return;
@@ -95,6 +87,13 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
         onChange(JSON.stringify({visibleAttributes, pageSize, attributes, orderBy, tableType, colSizes, filters}));
     }, [visibleAttributes, attributes, orderBy, tableType, colSizes, filters])
     // =========================================== saving settings end =================================================
+
+    // =========================================== filters 2/2 begin ===================================================
+    useEffect(() => {
+        const url = `?${convertToUrlParams(filters, filterValueDelimiter)}`;
+        navigate(url)
+    }, [filters]);
+    // =========================================== filters 2/2 end ===================================================
 
     // =========================================== util fns begin ======================================================
     const updateItem = (value, attribute, d) => {
@@ -148,6 +147,8 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
                             isEdit,
                             orderBy,
                             setOrderBy,
+                            filters,
+                            setFilters,
                             updateItem,
                             removeItem,
                             addItem,

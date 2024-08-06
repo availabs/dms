@@ -138,6 +138,8 @@ export const RenderSimple = ({
                                  isEdit,
                                  orderBy,
                                  setOrderBy,
+                                 filters,
+                                 setFilters,
                                  updateItem,
                                  removeItem,
                                  addItem,
@@ -440,6 +442,8 @@ export const RenderSimple = ({
                                         attribute={attribute}
                                         orderBy={orderBy}
                                         setOrderBy={setOrderBy}
+                                        filters={filters}
+                                        setFilters={setFilters}
                                     />
                                 </div>
                                 <div className="z-5"

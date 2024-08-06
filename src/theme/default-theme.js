@@ -31,6 +31,8 @@ function defaultTheme () {
 			removeIcon: 'fa fa-xmark px-1 text-xs text-red-300 hover:text-red-500 self-center transition ease-in',
 			menuWrapper: 'absolute p-2 bg-white w-full max-h-[150px] overflow-auto scrollbar-sm shadow-lg z-10',
 			menuItem: 'px-2 py-1 hover:bg-blue-300 hover:cursor-pointer transition ease-in',
+			smartMenuWrapper: 'w-full h-full flex',
+			smartMenuItem: 'w-fit px-1 py-0.5 mx-1 bg-blue-100 hover:bg-blue-300 hover:cursor-pointer transition ease-in border rounded-lg text-sm',
 			error: 'p-1 text-xs text-red-700 font-bold'
 		},
 		radio: {
