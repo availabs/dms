@@ -57,7 +57,7 @@ export const RenderFilters = ({attributes, filters, setFilters, format, apiLoad,
                     </div>
                     <div className={'w-3/4 p-1 relative'}>
                         <MultiSelectComp
-                            className={`border rounded-md bg-white h-full ${f.values?.length ? `p-1` : `p-4`}`}
+                            className={`max-h-[150px] overflow-auto scrollbar-sm border rounded-md bg-white ${f.values?.length ? `p-1` : `p-4`}`}
                             placeholder={'Please select values...'}
                             value={f.values}
                             onChange={e => {
