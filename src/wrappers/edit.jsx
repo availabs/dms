@@ -27,10 +27,10 @@ export default function EditWrapper({ Component, format, options, params, user, 
 
 
 	const [item, setItem] = React.useState(
-		defaultSort(data).filter(d => filterParams(d,params,format))[0] 
+		defaultSort(data).filter(d => filterParams(d,params,format))[0]
 		|| {}
 	)
-	
+	console.log('item: edit', item)
 	useEffect(() => {
 		let filteredItem = data.filter(d => filterParams(d,params,format))[0]
 		// update item on data update

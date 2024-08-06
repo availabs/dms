@@ -116,7 +116,7 @@ function PatternEdit({
 						<div className={'w-full flex items-center justify-start'}>
 							<Link
 								className={'bg-blue-100 hover:bg-blue-300 text-blue-800 px-2 py-0.5 m-1 rounded-lg w-fit h-fit'}
-								to={`${pattern.base_url}manage/attributes`}>Manage</Link>
+								to={`${pattern.base_url}/manage/metadata`}>Manage</Link>
 
 							<button
 								className={'bg-blue-100 hover:bg-blue-300 text-blue-800 px-2 py-0.5 m-1 rounded-lg w-fit h-fit'}
