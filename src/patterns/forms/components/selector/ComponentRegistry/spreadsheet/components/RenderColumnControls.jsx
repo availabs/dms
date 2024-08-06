@@ -1,6 +1,6 @@
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react'
 import RenderSwitch from "./Switch";
-import {useRef} from "react";
+import {useRef, useState} from "react";
 import {ArrowDown, ChevronDownSquare} from "../../../../../../admin/ui/icons";
 
 export default function RenderColumnControls({
@@ -8,6 +8,7 @@ export default function RenderColumnControls({
                                             }) {
     const dragItem = useRef();
     const dragOverItem = useRef();
+    const [search, setSearch] = useState();
 
     const dragStart = (e, position) => {
         dragItem.current = position;
@@ -49,13 +50,17 @@ export default function RenderColumnControls({
                 transition
                 className="absolute left-0 z-10 w-72 origin-top-left divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 transition focus:outline-none data-[closed]:scale-95 data-[closed]:transform data-[closed]:opacity-0 data-[enter]:duration-100 data-[leave]:duration-75 data-[enter]:ease-out data-[leave]:ease-in"
             >
+                <input className={'p-2'} placeholder={'search...'}
+                       onChange={e => {
+                           setSearch(e.target.value)
+                       }}/>
                 <div className="py-1 h-[500px] overflow-auto scrollbar-sm">
                     {
                         [
                             ...visibleAttributes.map(va => attributes.find(attr => attr.name === va)),
                             ...attributes.filter(attr => !visibleAttributes.includes(attr.name))
                         ]
-                            .filter(a => a)
+                            .filter(a => a && (!search || (a.display_name || a.name).toLowerCase().includes(search.toLowerCase())))
                             .map((attribute, i) => (
                             <MenuItem>
                                 <div

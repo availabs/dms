@@ -5,6 +5,9 @@ import RenderInHeaderColumnControls from "./RenderInHeaderColumnControls";
 import {Delete, ViewIcon, Add} from "../../../../../../admin/ui/icons";
 const actionsColSize = 80;
 const numColSize = 20;
+const frozenColClass = '' //'sticky left-0 z-10'
+
+const LoadingComp = ({className}) => <div className={className}>loading...</div>
 const getEdge = ({startI, endI, startCol, endCol}, i, attrI) => {
     const e =
     startI === endI && startCol === endCol ? 'all' :
@@ -48,12 +51,12 @@ const RenderActions = ({isLastCell, newItem, removeItem}) => {
             </div>
     )
 }
-const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell, width, onPaste, isSelected, isSelecting, editing, edge,
+const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell, width, onPaste, isFrozen, isSelected, isSelecting, editing, edge, loading,
                     onClick, onDoubleClick, onMouseDown, onMouseMove, onMouseUp}) => {
     // const [editing, setEditing] = useState(false);
     const [newItem, setNewItem] = useState(item);
     // const Comp = DataTypes[attribute.type]?.[isSelecting ? 'ViewComp' : 'EditComp'];
-    const Comp = DataTypes[attribute.type]?.[editing ? 'EditComp' : 'ViewComp'];
+    const Comp = loading ? LoadingComp : DataTypes[attribute.type]?.[editing ? 'EditComp' : 'ViewComp'];
     const selectionColor = '#2100f8'
     const selectionEdgeClassNames = {
         top: {borderTopColor: selectionColor},
@@ -91,7 +94,10 @@ const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell, wid
     }, [newItem]);
     return (
         <div
-            className={`relative flex items-center min-h-[35px] ${isSelecting ? 'select-none' : ``}`}
+            className={`relative flex items-center min-h-[35px] 
+            ${isFrozen ? frozenColClass : ''} ${isSelecting ? 'select-none' : ``}
+            ${isSelected ? 'bg-blue-50' : 'bg-white'}
+            `}
             style={{
                 width,
                 ...isSelected && {borderWidth: '1px', ...selectionEdgeClassNames[edge]}
@@ -139,7 +145,10 @@ export const RenderSimple = ({
                                  setNewItem,
                                  data,
                                  colSizes,
-                                 setColSizes
+                                 setColSizes,
+                                 currentPage,
+                                 pageSize,
+                                 loading
                              }) => {
     const gridRef = useRef(null);
     const [isSelecting, setIsSelecting] = useState(false);
@@ -149,7 +158,6 @@ export const RenderSimple = ({
     const [isDragging, setIsDragging] = useState(false);
     const startCellRow = useRef(null);
     const startCellCol = useRef(null);
-
     const selectionRange = useMemo(() => {
         const rows = [...new Set(selection.map(s => s.index !== undefined ? s.index : s))].sort((a,b) => a-b);
         const cols = [...new Set(selection.map(s => s.attrI).sort((a,b) => a-b) || visibleAttributes.map((v, i) => i))];
@@ -401,60 +409,67 @@ export const RenderSimple = ({
     };
 
     if(!visibleAttributes.length) return <div className={'p-2'}>No columns selected.</div>;
-    console.log('selection', selection)
+    const frozenCols = [0,1]
+    const frozenColsLeftMargins = useMemo(() => {
+        let runningTotal = numColSize;
+        return frozenCols.reduce((acc, fc, i) => {
+            acc[visibleAttributes[fc]] = runningTotal;
+            runningTotal += colSizes[visibleAttributes[fc]];
+            return acc;
+        }, {})
+    }, [frozenCols]);
+
     return (
-        <div className={`flex flex-col w-full`} ref={gridRef}
-
-        >
-
-            {/*Header*/}
-            <div className={`grid ${c[visibleAttributes.length + 2]}`} style={{gridTemplateColumns: `${numColSize}px ${visibleAttributes.map(v => `${colSizes[v]}px` || 'auto').join(' ')} ${actionsColSize}px`}}>
-                <div className={'flex justify-between'} style={{width: numColSize}}>
-                    <div key={'#'}
-                         className={'w-full font-semibold border bg-gray-50 text-gray-500'}>
+        <div className={`flex flex-col w-full overflow-x-auto scrollbar-sm`} ref={gridRef}>
+            <div className={'flex flex-col no-wrap text-sm max-h-[calc(100vh_-_250px)] overflow-y-auto scrollbar-sm'} onMouseLeave={handleMouseUp}>
+                {/*Header*/}
+                <div className={`sticky top-0 grid ${c[visibleAttributes.length + 2]}`} style={{zIndex: 5, gridTemplateColumns: `${numColSize}px ${visibleAttributes.map(v => `${colSizes[v]}px` || 'auto').join(' ')} ${actionsColSize}px`}}>
+                    <div className={'flex justify-between sticky left-0 z-[1]'} style={{width: numColSize}}>
+                        <div key={'#'}
+                             className={`w-full font-semibold border bg-gray-50 text-gray-500 ${frozenColClass}`}>
+                        </div>
+                    </div>
+                    {visibleAttributes.map(va => attributes.find(attr => attr?.name === va))
+                        .filter(a => a)
+                        .map((attribute, i) =>
+                            <div className={`flex justify-between ${frozenCols.includes(i) ? frozenColClass : ''}`} style={{width: colSizes[attribute?.name]}}>
+                                <div key={i}
+                                     className={`w-full font-semibold  border ${selection.find(s => s.attrI === i) ? `bg-blue-100 text-gray-900` : `bg-gray-50 text-gray-500`}`}>
+                                    <RenderInHeaderColumnControls
+                                        isEdit={isEdit}
+                                        attribute={attribute}
+                                        orderBy={orderBy}
+                                        setOrderBy={setOrderBy}
+                                    />
+                                </div>
+                                <div className="z-5"
+                                     style={{
+                                         width: '3px',
+                                         height: '100%',
+                                         background: '#ddd',
+                                         cursor: 'col-resize',
+                                         position: 'relative',
+                                         right: 0,
+                                         top: 0
+                                     }}
+                                     onMouseDown={handleMouseDownHeader(attribute?.name)}/>
+                            </div>)}
+                    <div className={'flex shrink-0 justify-between'} style={{width: actionsColSize}}>
+                        <div key={'actions'}
+                             className={'w-full font-semibold border bg-gray-50 text-gray-500 select-none'}>
+                            Actions
+                        </div>
                     </div>
                 </div>
-                {visibleAttributes.map(va => attributes.find(attr => attr?.name === va))
-                    .filter(a => a)
-                    .map((attribute, i) =>
-                        <div className={'flex justify-between'} style={{width: colSizes[attribute?.name]}}>
-                            <div key={i}
-                                 className={`w-full font-semibold  border ${selection.find(s => s.attrI === i) ? `bg-blue-100 text-gray-900` : `bg-gray-50 text-gray-500`}`}>
-                                <RenderInHeaderColumnControls
-                                    isEdit={isEdit}
-                                    attribute={attribute}
-                                    orderBy={orderBy}
-                                    setOrderBy={setOrderBy}
-                                />
-                            </div>
-                            <div className="z-5"
-                                 style={{
-                                     width: '3px',
-                                     height: '100%',
-                                     background: '#ddd',
-                                     cursor: 'col-resize',
-                                     position: 'relative',
-                                     right: 0,
-                                     top: 0
-                                 }}
-                                 onMouseDown={handleMouseDownHeader(attribute?.name)}/>
-                        </div>)}
-                <div className={'flex shrink-0 justify-between'} style={{width: actionsColSize}}>
-                    <div key={'actions'}
-                         className={'w-full font-semibold border bg-gray-50 text-gray-500 select-none'}>
-                        Actions
-                    </div>
-                </div>
-            </div>
 
-            {/*Rows*/}
-            <div className={'flex flex-col no-wrap text-sm max-h-[calc(100vh_-_250px)] overflow-auto scrollbar-sm'} onMouseLeave={handleMouseUp}>
+                {/*Rows*/}
                 {data.map((d, i) => (
                     <div className={`grid ${c[visibleAttributes.length + 2]} divide-x divide-y ${isDragging ? `select-none` : ``}`}
                          style={{gridTemplateColumns: `${numColSize}px ${visibleAttributes.map(v => `${colSizes[v]}px` || 'auto').join(' ')} ${actionsColSize}px`}}
                     >
                         <div key={'#'}
                              className={`p-1 flex text-xs items-center justify-center border cursor-pointer 
+                             sticky left-0 z-[1]
                              ${selection.find(s => (s.index !== undefined ? s.index : s) === i) ? 'bg-blue-100 text-gray-900' : 'bg-gray-50 text-gray-500'}`}
                              style={{width: numColSize}}
                              onClick={e => {
@@ -472,7 +487,7 @@ export const RenderSimple = ({
                              onMouseUp={handleMouseUp}
                              onPaste={handlePaste(0, d)}
                         >
-                            {i+1}
+                            {(i + (currentPage * pageSize)) + 1}
                         </div>
                         {visibleAttributes
                             .filter(attribute => attributes.find(attr => attr.name === attribute))
@@ -480,6 +495,7 @@ export const RenderSimple = ({
                             <RenderCell
                                 isSelecting={isSelecting}
                                 isSelected={selection.find(s => s.index === i && s.attrI === attrI) || selection.includes(i)}
+                                isFrozen={frozenCols.includes(attrI)}
                                 edge={
                                     selection.find(s => s.index === i && s.attrI === attrI) || selection.includes(i) ?
                                 getEdge(selectionRange, i, attrI) : null}
@@ -488,6 +504,7 @@ export const RenderSimple = ({
                                 key={`${i}-${attrI}`}
                                 width={colSizes[attributes.find(attr => attr.name === attribute).name]}
                                 attribute={attributes.find(attr => attr.name === attribute)}
+                                loading={loading}
                                 updateItem={updateItem}
                                 removeItem={removeItem}
 
@@ -508,55 +525,61 @@ export const RenderSimple = ({
                         </div>
                     </div>
                 ))}
-            </div>
 
-            {/*Add new row*/}
-            <div className={'flex max-h-[30px]'}>
-                <div style={{width: numColSize}} className={'p-1 flex text-xs text-gray-500 items-center justify-center border'}>
-                    {data.length + 1}
-                </div>
-                {
-                    visibleAttributes.map(va => attributes.find(attr => attr.name === va))
-                        .filter(a => a)
-                        .map((attribute, attrI) => {
-                            const Comp = DataTypes[attribute?.type || 'text']?.EditComp;
-                            return (
-                                <div
-                                    className={`flex border`}
-                                    style={{width: colSizes[attribute.name]}}
-                                >
-                                    <Comp
-                                        key={`${attribute.name}`}
-                                        className={'p-1 bg-white hover:bg-blue-50 w-full h-full'}
-                                        {...attribute}
-                                        value={newItem[attribute.name]}
-                                        placeholder={'+ add new'}
-                                        onChange={e => setNewItem({...newItem, [attribute.name]: e})}
-                                        onPaste={e => {
-                                            e.preventDefault();
-                                            e.stopPropagation();
+                {/*Add new row*/}
+                <div
+                    className={`bg-white grid ${c[visibleAttributes.length + 2]} divide-x divide-y ${isDragging ? `select-none` : ``} sticky bottom-0 z-[1]`}
+                    style={{gridTemplateColumns: `${numColSize}px ${visibleAttributes.map(v => `${colSizes[v]}px` || 'auto').join(' ')} ${actionsColSize}px`}}
+                >
+                    <div className={'flex justify-between sticky left-0 z-[1]'} style={{width: numColSize}}>
+                        <div key={'#'}
+                             className={`w-full font-semibold border bg-gray-50 text-gray-500`}>
+                        </div>
+                    </div>
+                    {
+                        visibleAttributes.map(va => attributes.find(attr => attr.name === va))
+                            .filter(a => a)
+                            .map((attribute, attrI) => {
+                                const Comp = DataTypes[attribute?.type || 'text']?.EditComp;
+                                return (
+                                    <div
+                                        className={`flex border`}
+                                        style={{width: colSizes[attribute.name]}}
+                                    >
+                                        <Comp
+                                            key={`${attribute.name}`}
+                                            menuPosition={'top'}
+                                            className={'p-1 bg-white hover:bg-blue-50 w-full h-full'}
+                                            {...attribute}
+                                            value={newItem[attribute.name]}
+                                            placeholder={'+ add new'}
+                                            onChange={e => setNewItem({...newItem, [attribute.name]: e})}
+                                            onPaste={e => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
 
-                                            const paste =
-                                                (e.clipboardData || window.clipboardData).getData("text")?.split('\n').map(row => row.split('\t'));
-                                            const pastedColumns = [...new Array(paste[0].length).keys()].map(i => visibleAttributes[attrI + i]).filter(i => i);
-                                            const tmpNewItem = pastedColumns.reduce((acc, c, i) => ({
-                                                ...acc,
-                                                [c]: paste[0][i]
-                                            }), {})
-                                            setNewItem({...newItem, ...tmpNewItem})
+                                                const paste =
+                                                    (e.clipboardData || window.clipboardData).getData("text")?.split('\n').map(row => row.split('\t'));
+                                                const pastedColumns = [...new Array(paste[0].length).keys()].map(i => visibleAttributes[attrI + i]).filter(i => i);
+                                                const tmpNewItem = pastedColumns.reduce((acc, c, i) => ({
+                                                    ...acc,
+                                                    [c]: paste[0][i]
+                                                }), {})
+                                                setNewItem({...newItem, ...tmpNewItem})
 
-                                        }}
-                                    />
-                                </div>
-                            )
-                        })
-                }
-                <div className={'flex flex-row h-fit justify-evenly'} style={{width: actionsColSize}}>
-                    <button
-                        className={'w-fit p-0.5 bg-blue-300 hover:bg-blue-500 text-white rounded-lg'}
-                        onClick={e => addItem()}>
-                        <Add className={'text-white'} height={20} width={20}/>
-                    </button>
+                                            }}
+                                        />
+                                    </div>
+                                )
+                            })
+                    }
+                    <div className={'bg-white flex flex-row h-fit justify-evenly'} style={{width: actionsColSize}}>
+                        <button
+                            className={'w-fit p-0.5 bg-blue-300 hover:bg-blue-500 text-white rounded-lg'}
+                            onClick={e => addItem()}>
+                            <Add className={'text-white'} height={20} width={20}/>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

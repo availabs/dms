@@ -2,17 +2,12 @@ import React, { useMemo, useState, useEffect }from 'react'
 import RenderColumnControls from "./components/RenderColumnControls";
 import RenderFilterControls from "./components/RenderFilterControls";
 import RenderTypeControls from "./components/RenderTypeControls"
-import Glide from './components/glide';
 import {RenderSimple} from "./components/SimpleSpreadsheet";
 import {RenderPagination} from "./components/RenderPagination";
 import {isJson, getLength, getData, convertToUrlParams} from "./utils";
 import {RenderFilters} from "./components/RenderFilters";
 import {useSearchParams, useNavigate} from "react-router-dom";
 
-const tableComps = {
-    'simple': RenderSimple,
-    'glide': Glide
-}
 
 const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     const isEdit = Boolean(onChange);
@@ -127,9 +122,6 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
         return apiUpdate({data: item, config: {format}, requestType: 'delete'})
     }
     // =========================================== util fns end ========================================================
-
-    const TableComp = useMemo(() => tableComps[tableType], [tableType]);
-
     return (
         <div className={'w-full'}>
 
@@ -143,14 +135,11 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
                                           filters={filters} setFilters={setFilters} delimiter={filterValueDelimiter}
                                           navigate={navigate}
                     />
-
-                    <RenderTypeControls tableType={tableType} setTableType={setTableType}/>
                 </div>
             }
             <RenderFilters attributes={attributes} filters={filters} setFilters={setFilters} apiLoad={apiLoad} format={format} delimiter={filterValueDelimiter}/>
             {
-                loading ? <div>loading...</div> :
-                        <TableComp {...{
+                        <RenderSimple {...{
                             data,
                             setData,
                             visibleAttributes,
@@ -166,6 +155,9 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
                             setNewItem,
                             colSizes,
                             setColSizes,
+                            currentPage,
+                            pageSize,
+                            loading
                         }} />
             }
             {/*Pagination*/}
