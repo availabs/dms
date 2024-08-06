@@ -2,7 +2,7 @@ import React, {useEffect, useMemo, useRef, useState} from "react";
 import {Link} from "react-router-dom"
 import DataTypes from "../../../../../../../data-types";
 import RenderInHeaderColumnControls from "./RenderInHeaderColumnControls";
-import {Delete, ViewIcon, Add} from "../../../../../../admin/ui/icons";
+import {Delete, ViewIcon, Add, PencilIcon} from "../../../../../../admin/ui/icons";
 const actionsColSize = 80;
 const numColSize = 20;
 const frozenColClass = '' //'sticky left-0 z-10'
@@ -40,14 +40,20 @@ const RenderActions = ({isLastCell, newItem, removeItem}) => {
                     to={`view/${newItem.id}`}>
                     <ViewIcon className={'text-white'} height={20} width={20}/>
                 </Link>
-                <button
-                    title={'delete'}
-                    className={'w-fit p-0.5 bg-red-300 hover:bg-red-500 text-white rounded-lg'}
-                    onClick={e => {
-                        removeItem(newItem)
-                    }}>
-                    <Delete className={'text-white'} height={20} width={20}/>
-                </button>
+                <Link
+                    title={'edit'}
+                    className={'w-fit p-0.5 bg-blue-300 hover:bg-blue-500 text-white rounded-lg'}
+                    to={`edit-item/${newItem.id}`}>
+                    <PencilIcon className={'text-white'} height={18} width={18}/>
+                </Link>
+                {/*<button*/}
+                {/*    title={'delete'}*/}
+                {/*    className={'w-fit p-0.5 bg-red-300 hover:bg-red-500 text-white rounded-lg'}*/}
+                {/*    onClick={e => {*/}
+                {/*        removeItem(newItem)*/}
+                {/*    }}>*/}
+                {/*    <Delete className={'text-white'} height={20} width={20}/>*/}
+                {/*</button>*/}
             </div>
     )
 }

@@ -16,7 +16,12 @@ const RenderButton = ({to, text}) => (
 )
 const RenderHeader = ({title, buttons=[]}) => (
     <div className={'w-full flex justify-between border-b rounded-l-lg pr-2'}>
-        <span className={'text-3xl text-blue-500 text-bold tracking-wide border-l-4 border-blue-500 rounded-b-lg px-2'}>{title}</span>
+        <div>
+            <span
+                className={'text-3xl text-blue-500 text-bold tracking-wide border-b-4 border-blue-500 px-2'}>{title.substring(0, 1)}</span>
+            <span
+                className={'text-3xl -ml-2 text-blue-500 text-bold tracking-wide'}>{title.substring(1, title.length)}</span>
+        </div>
         <div>
             {
                 buttons.map(button => <RenderButton {...button} />)

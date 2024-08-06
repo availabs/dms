@@ -2,6 +2,7 @@ import React, {useMemo, useState, useEffect, useRef} from 'react'
 import {useParams, useLocation} from "react-router"
 import DataTypes from "../../../../../../data-types";
 import {InfoCircle} from "../../../../../admin/ui/icons";
+import RenderSwitch from "../spreadsheet/components/Switch";
 export const isJson = (str)  => {
     try {
         JSON.parse(str);
@@ -40,15 +41,17 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     const params = useParams();
     const cachedData = isJson(value) ? JSON.parse(value) : {};
     const [attributes, setAttributes] = useState([]);
-    const [orderedAttributes, setOrderedAttributes] = useState(cachedData.orderedAttributes);
+    const [orderedAttributes, setOrderedAttributes] = useState(cachedData.orderedAttributes || []);
     const [newItem, setNewItem] = useState();
     const [visibleAttributes, setVisibleAttributes] = useState(cachedData?.visibleAttributes || []);
-    const [searchStr, setSearchStr] = useState('')
-    const itemId = params['*']?.split('view/')[1];
-
+    const [searchStr, setSearchStr] = useState('');
+    const [url, setUrl] = useState(cachedData.url || 'view/');
+    const [allowEditInView, setAllowEditInView] = useState(cachedData.allowEditInView);
+    const itemId = useMemo(() => params['*']?.split(url)[1], [url]);
     const dragItem = useRef();
     const dragOverItem = useRef();
 
+    // ============================================ drag utils begin ===================================================
     const dragStart = (e, position) => {
         dragItem.current = position;
         e.dataTransfer.effectAllowed = "move";
@@ -74,33 +77,55 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
         dragOverItem.current = null;
         setOrderedAttributes(copyListItems);
     };
+    // ============================================ drag utils end =====================================================
 
-    useEffect(() => {
-        onChange(JSON.stringify({
-            ...cachedData, visibleAttributes, orderedAttributes
-        }))
-    }, [visibleAttributes, orderedAttributes]);
-
+    // ============================================ data load begin ====================================================
     useEffect(() => {
         async function load(){
+            if(!itemId) return;
             const {data, attributes} = await getData({format, apiLoad, itemId});
             setNewItem(data)
             setAttributes(attributes)
-            !orderedAttributes && setOrderedAttributes(attributes)
+            !orderedAttributes.length && setOrderedAttributes(attributes)
         }
 
         load()
     }, [itemId])
-    //console.log('new item', newItem)
+    // ============================================ data load end ======================================================
+
+    // ============================================ save begin =========================================================
+    useEffect(() => {
+        onChange(JSON.stringify({
+            ...cachedData, visibleAttributes, orderedAttributes, url, allowEditInView
+        }))
+    }, [visibleAttributes, orderedAttributes, url, allowEditInView]);
+    // ============================================ save end ===========================================================
 
     const updateItem = (value, attribute, d) => {
         return apiUpdate({data: {...d, [attribute.name]: value}, config: {format}})
     }
 
-    if (!newItem || !itemId) return null;
     return (
         <div>
             <div className={'divide-y'}>
+                <div className={'flex col-span-3'}>
+                    <label className={'w-1/4 p-2'}>Base URL: </label>
+                    <input
+                        className={'w-3/4 p-2 w-full'}
+                        type={'text'}
+                        value={url}
+                        onChange={e => setUrl(e.target.value)}
+                        placeholder={'url'}
+                    />
+                </div>
+                <div className={'flex items-center col-span-3'}>
+                    <label className={'w-1/4 p-2'}>Allow Edit: </label>
+                    <RenderSwitch
+                        className={'w-3/4 p-2'}
+                        enabled={allowEditInView}
+                        setEnabled={e => setAllowEditInView(e)}
+                    />
+                </div>
                 <input
                     className={'p-2 w-full col-span-3'}
                     type={'text'}
@@ -154,17 +179,20 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
                                     }
                                 </div>
 
-                                <div className={'relative p-2 text-gray-700 max-w-11/12'}>
-                                    <Comp key={`${attribute.name}`}
-                                          className={'border flex flex-wrap w-full p-2 bg-white hover:bg-blue-50 h-fit'}
-                                          {...attribute}
-                                          value={newItem[attribute.name]}
-                                          onChange={e => {
-                                              setNewItem({...newItem, [attribute.name]: e})
-                                              updateItem(e, attribute, {...newItem, [attribute.name]: e})
-                                          }}/>
-                                    {/*{typeof newItem[attribute.name] === "object" ? JSON.stringify(newItem[attribute.name]) : newItem[attribute.name]}*/}
-                                </div>
+                                {
+                                    newItem ?
+                                        <div className={'relative p-2 text-gray-700 max-w-11/12'}>
+                                            <Comp key={`${attribute.name}`}
+                                                  className={'border flex flex-wrap w-full p-2 bg-white hover:bg-blue-50 h-fit'}
+                                                  {...attribute}
+                                                  value={newItem[attribute.name]}
+                                                  onChange={e => {
+                                                      setNewItem({...newItem, [attribute.name]: e})
+                                                      updateItem(e, attribute, {...newItem, [attribute.name]: e})
+                                                  }}/>
+                                            {/*{typeof newItem[attribute.name] === "object" ? JSON.stringify(newItem[attribute.name]) : newItem[attribute.name]}*/}
+                                        </div> : null
+                                }
                             </div>
                         )
                         })
@@ -174,26 +202,41 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     )
 }
 
-const View = ({value, format, apiLoad, ...rest}) => {
+const View = ({value, format, apiLoad, apiUpdate, ...rest}) => {
     const cachedData = isJson(value) ? JSON.parse(value) : {};
     const [visibleAttributes, setVisibleAttributes] = useState(cachedData?.visibleAttributes || []);
     const [orderedAttributes, setOrderedAttributes] = useState(cachedData?.orderedAttributes);
     const params = useParams();
     const [data, setData] = useState({});
+    const [tmpItem, setTmpItem] = useState({});
     const [attributes, setAttributes] = useState([])
-    const itemId = params['*']?.split('view/')[1];
-
-    // if(!value) return '';
+    const allowEdit = cachedData.allowEditInView;
+    const compType = allowEdit ? 'EditComp' : 'ViewComp';
+    const itemId = params['*']?.split(cachedData.url)[1]; // "add-new-item"
 
     useEffect(() => {
         async function load() {
+            if (itemId === 'add-new-item') {
+                setAttributes(orderedAttributes);
+                console.log('ordered attrs', orderedAttributes)
+                return;
+            }
             const {data, attributes} = await getData({format, apiLoad, itemId});
             setData(data)
+            setTmpItem(data)
             setAttributes(attributes)
         }
 
         load()
     }, [])
+
+    const updateItem = async () => {
+        const res = await apiUpdate({data: tmpItem, config: {format}});
+
+        if(res?.id && itemId === 'add-new-item'){
+            window.location = window.location.href.replace(itemId, res.id);
+        }
+    }
 
     return (
         <div>
@@ -203,7 +246,7 @@ const View = ({value, format, apiLoad, ...rest}) => {
                         .filter(attribute => visibleAttributes.includes(attribute.name))
                         .filter(d => d)
                         .map((attribute,i) => {
-                            const Comp = DataTypes[attribute.type]?.ViewComp || DataTypes.text.ViewComp;
+                            const Comp = DataTypes[attribute.type]?.[compType] || DataTypes.text[compType];
                             return (
                                 <div key={i}
                                      className={'w-full flex flex-row items-center hover:bg-blue-50 rounded-md'}>
@@ -215,14 +258,22 @@ const View = ({value, format, apiLoad, ...rest}) => {
                                         <Comp key={`${attribute.name}`}
                                               className={'flex flex-wrap w-full p-2 bg-white hover:bg-blue-50 h-fit'}
                                               {...attribute}
-                                              value={data?.[attribute.name]}
+                                              value={tmpItem?.[attribute.name]}
+                                              onChange={e => {
+                                                  setTmpItem({...tmpItem, [attribute.name]: e})
+                                              }}
                                         />
-                                        {/*{typeof newItem[attribute.name] === "object" ? JSON.stringify(newItem[attribute.name]) : newItem[attribute.name]}*/}
                                     </div>
                                 </div>
                             )
                         })
                 }
+                <div className={'w-full flex justify-end gap-1'}>
+                    <button className={'px-2 py-0.5 bg-blue-300 hover:bg-blue-600 text-white rounded-md'}
+                            onClick={() => updateItem()}>save</button>
+                    <button className={'px-2 py-0.5 bg-red-300 hover:bg-red-600 text-white rounded-md'}
+                            onClick={() => setTmpItem(data)}>cancel</button>
+                </div>
             </div>
         </div>
     )
