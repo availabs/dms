@@ -62,7 +62,7 @@ export default ({title, children}) => {
                                 </Item>
                             )}
                             {user.authLevel >= 5 && (
-                                <Item to={`${baseUrl}/manager`} icon={'fad fa-sign-out-alt pb-2 pr-1'}>
+                                <Item to={`${baseUrl}/manage`} icon={'fad fa-sign-out-alt pb-2 pr-1'}>
                                     Manager
                                 </Item>
                             )}                     

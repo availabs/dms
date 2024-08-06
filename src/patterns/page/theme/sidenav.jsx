@@ -67,7 +67,7 @@ const sidenav = (opts={}) =>  {
       topItem: "flex items-center text-sm px-4 border-r h-12",
       icon: "group w-6 mr-2 text-blue-500 ",
       iconActive: "group w-6 mr-2 text-blue-500 ",
-      sideItemContent: 'group-hover:translate-x-1.5 transition-transform duration-300 ease-in-out',
+      sideItemContent: 'transition-transform duration-300 ease-in-out',
     },
     full: {
       fixed: '',

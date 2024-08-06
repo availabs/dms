@@ -1,13 +1,13 @@
 import React from "react";
-//import { useTheme} from "~/modules/avl-components/src/index.js";
-import { CMSContext } from '../siteConfig'
-
-import TopNav from './nav/Top.jsx'
-import SideNav from './nav/Side.jsx'
-
-import { Search } from '../components/search'
-
+import merge from 'lodash/merge';
+import cloneDeep from 'lodash/cloneDeep';
 import { Link } from "react-router-dom";
+
+import TopNav from './nav/Top.jsx';
+import SideNav from './nav/Side.jsx';
+import { Search } from '../components/search';
+import { CMSContext } from '../siteConfig';
+
 
 let marginSizes = {
 	none: '',
@@ -29,10 +29,11 @@ let fixedSizes = {
 
 const Logos = () => <div className='h-12'/>
 
-const Layout = ({ children, navItems, title, ...props }) => {
+const Layout = ({ children, navItems, title, theme,  ...props }) => {
 	//const theme = useTheme()
 
-	const { theme, app, type, Menu } = React.useContext(CMSContext) || {}
+	const { theme: defaultTheme, app, type, Menu } = React.useContext(CMSContext) || {}
+	theme = merge(cloneDeep(defaultTheme), cloneDeep(theme))
 	const { sideNav={}, topNav={}, logo=Logos } = theme?.navOptions || {}
 	
 	const sideNavOptions = {

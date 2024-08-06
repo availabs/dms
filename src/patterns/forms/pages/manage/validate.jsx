@@ -1,8 +1,8 @@
 import React, {useEffect, useState} from "react";
-import Layout from '../ui/avail-layout'
-import { FormsContext } from '../'
-import {getValues} from "../../../data-types/form-config/components/RenderField";
-import {attributeAccessorStr, formattedAttributeStr} from "../components/selector/ComponentRegistry/spreadsheet/utils";
+import Layout from '../../ui/avail-layout'
+import { FormsContext } from '../../'
+import {getValues} from "../../../../data-types/form-config/components/RenderField";
+import {attributeAccessorStr, formattedAttributeStr} from "../../components/selector/ComponentRegistry/spreadsheet/utils";
 
 const getBlankValueSql = col => `SUM(CASE WHEN data->>'${col}' IS NULL OR data->>'${col}'::text = '' THEN 1 ELSE 0 END) AS ${col}_blank`;
 const getFilledValueSql = col => `SUM(CASE WHEN data->>'${col}' IS NOT NULL AND data->>'${col}'::text != '' THEN 1 ELSE 0 END) AS ${col}_value`;
@@ -12,7 +12,7 @@ const getValidValueSql = (col, options) =>
     `SUM(CASE WHEN data->>'${col}' IN (${options.map(o => `'${(o.value || o).replace(/'/, "''")}'`)}) THEN 1 ELSE 0 END) AS ${col}_valid`;
 
 const formatNum = (isLoading, value='') => isLoading ? 'loading...' : value.toString().toLocaleString();
-export const Validate = ({
+const Validate = ({
     adminPath,
     status,
     apiUpdate,
@@ -87,36 +87,37 @@ export const Validate = ({
         load()
     }, [parent])
     return (
-        <Layout adminPath={adminPath}>
-            <div className={`${theme?.page?.wrapper1}`}>
-                <div className={`${theme?.page?.wrapper2}`}>      
-                    <div className={theme?.page?.wrapper3}>
-                        {status ? <div>{JSON.stringify(status)}</div> : ''}
-                        <div className='w-full max-w-6xl mx-auto'>
-                            {
-                                columns.map(col => (
-                                    <div
-                                        className={'p-4 grid grid-cols-3 justify-between hover:bg-blue-300 transition:ease-in-out'}
-                                        style={{gridTemplateColumns: '2fr 1fr 1fr'}}>
-                                        <div>{col.display_name || col.name}</div>
-                                        <div className={'flex flex-col'}>
-                                            <div># rows with value: {formatNum(loading, data[`${col.name}_filled`])}</div>
-                                            <div># rows without value: {formatNum(loading, data[`${col.name}_blank`])}</div>
-                                            <div>total: {formatNum(loading, data[`${col.name}_blank`] + data[`${col.name}_filled`])}</div>
-                                        </div>
-                                        <div className={'flex flex-col'}>
-                                            <div># rows with errors: {formatNum(loading, data[`${col.name}_error`])}</div>
-                                            <div># rows with valid: {formatNum(loading, data[`${col.name}_valid`])}</div>
-                                            <div>total: {formatNum(loading, data[`${col.name}_error`] + data[`${col.name}_valid`])}</div>
-                                        </div>
+        
+        <div className={`${theme?.page?.wrapper1}`}>
+            <div className={`${theme?.page?.wrapper2}`}>      
+                <div className={theme?.page?.wrapper3}>
+                    {status ? <div>{JSON.stringify(status)}</div> : ''}
+                    <div className='w-full max-w-6xl mx-auto'>
+                        {
+                            columns.map(col => (
+                                <div
+                                    className={'p-4 grid grid-cols-3 justify-between hover:bg-blue-300 transition:ease-in-out'}
+                                    style={{gridTemplateColumns: '2fr 1fr 1fr'}}>
+                                    <div>{col.display_name || col.name}</div>
+                                    <div className={'flex flex-col'}>
+                                        <div># rows with value: {formatNum(loading, data[`${col.name}_filled`])}</div>
+                                        <div># rows without value: {formatNum(loading, data[`${col.name}_blank`])}</div>
+                                        <div>total: {formatNum(loading, data[`${col.name}_blank`] + data[`${col.name}_filled`])}</div>
                                     </div>
-                                ))
-                            }
-                        </div>
+                                    <div className={'flex flex-col'}>
+                                        <div># rows with errors: {formatNum(loading, data[`${col.name}_error`])}</div>
+                                        <div># rows with valid: {formatNum(loading, data[`${col.name}_valid`])}</div>
+                                        <div>total: {formatNum(loading, data[`${col.name}_error`] + data[`${col.name}_valid`])}</div>
+                                    </div>
+                                </div>
+                            ))
+                        }
                     </div>
                 </div>
             </div>
-        </Layout>
+        </div>
+        
     )
 }
 
+export default Validate

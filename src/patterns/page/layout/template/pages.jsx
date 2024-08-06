@@ -114,7 +114,7 @@ const getMetaName = (id_column, id, data) => id_column === 'geoid' ?
     data?.[findNameCol(data)] || id
 const TemplatePages = ({item, params, logo, rightMenu, baseUrl=''}) => {
     const [pageSize, setPageSize] = useState(10);
-    const { falcor, falcorCache, pgEnv } = React.useContext(CMSContext)
+    const { falcor, falcorCache, pgEnv, theme } = React.useContext(CMSContext)
     const {id} = params;
     const view_id = item.data_controls?.view?.view_id;
     const id_column = item.data_controls?.id_column?.name;
@@ -240,11 +240,8 @@ const TemplatePages = ({item, params, logo, rightMenu, baseUrl=''}) => {
     })
 
     return (
-        <Layout
-            topNav={{menuItems, position: 'fixed', logo, rightMenu }}
-            sideNav={[]}
-        >
-            <div className='h-full flex-1 flex flex-col text-gray-900 bg-slate-100'>
+        <div className={theme?.page?.wrapper2}>
+            <div className={theme?.page?.wrapper3}>
                 <div className='py-6 h-full'>
                     <div className='bg-white h-full shadow border max-w-6xl mx-auto px-6'>
                         <div className={'flex flex-col sm:flex-row justify-between'}>
@@ -286,7 +283,7 @@ const TemplatePages = ({item, params, logo, rightMenu, baseUrl=''}) => {
                     </div>
                 </div>
             </div>
-        </Layout>
+        </div>
     )
 }
 

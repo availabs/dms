@@ -47,6 +47,7 @@ const theme = {
     select: 'bg-transparent border-none rounded-sm focus:ring-0 focus:border-0 pl-1',
     selectOption: 'p-4 text-md cursor-pointer hover:text-blue-500 text-slate-400 hover:bg-blue-600',
   },
+  navLabel: 'px-6 pb-1 pt-6 uppercase text-xs text-blue-400',
   navPadding: {
     1: 'pt-0 ',
     2: 'md:pt-12 pt-0',
