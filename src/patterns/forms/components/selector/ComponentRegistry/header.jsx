@@ -1,6 +1,6 @@
 import React, {useMemo, useState, useEffect, useRef} from 'react'
 import {Link} from "react-router-dom";
-import {Add, CancelCircle} from "../../../../admin/ui/icons";
+import {Delete} from "../../../../admin/ui/icons";
 
 export const isJson = (str)  => {
     try {
@@ -12,7 +12,7 @@ export const isJson = (str)  => {
 }
 
 const RenderButton = ({to, text}) => (
-    <Link className={'p-2 bg-blue-300 hover:bg-blue-600 text-white rounded-md'} to={to}>{text}</Link>
+    <Link className={'p-2 mx-1 bg-blue-300 hover:bg-blue-600 text-white rounded-md'} to={to}>{text}</Link>
 )
 const RenderHeader = ({title, buttons=[]}) => (
     <div className={'w-full flex justify-between border-b rounded-l-lg pr-2'}>
@@ -64,7 +64,7 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
                                    onChange={e => setButtons(
                                        [...buttons.map((b, bI) => i === bI ? {...b, to: e.target.value} : b)
                                        ])}/>
-                            <button onClick={(() => setButtons(buttons.filter((b,bI) => bI !== i)))}><CancelCircle /></button>
+                            <button onClick={(() => setButtons(buttons.filter((b,bI) => bI !== i)))}><Delete className={'text-red-300 hover:text-red-600'}/></button>
                         </div>
                     ))
                 }
