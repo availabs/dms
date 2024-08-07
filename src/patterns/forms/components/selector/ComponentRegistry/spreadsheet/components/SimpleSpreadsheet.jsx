@@ -36,13 +36,13 @@ const RenderActions = ({isLastCell, newItem, removeItem}) => {
             <div className={'flex flex-row h-fit justify-evenly'} style={{width: actionsColSize}}>
                 <Link
                     title={'view'}
-                    className={'w-fit p-0.5 bg-blue-300 hover:bg-blue-500 text-white rounded-lg'}
+                    className={'flex items-center w-fit p-0.5 bg-blue-300 hover:bg-blue-500 text-white rounded-lg'}
                     to={`view/${newItem.id}`}>
                     <ViewIcon className={'text-white'} height={20} width={20}/>
                 </Link>
                 <Link
                     title={'edit'}
-                    className={'w-fit p-0.5 bg-blue-300 hover:bg-blue-500 text-white rounded-lg'}
+                    className={'flex items-center w-fit p-0.5 bg-blue-300 hover:bg-blue-500 text-white rounded-lg'}
                     to={`edit-item/${newItem.id}`}>
                     <PencilIcon className={'text-white'} height={18} width={18}/>
                 </Link>
@@ -466,7 +466,7 @@ export const RenderSimple = ({
                             </div>)}
                     <div className={'flex shrink-0 justify-between'} style={{width: actionsColSize}}>
                         <div key={'actions'}
-                             className={'w-full font-semibold border bg-gray-50 text-gray-500 select-none'}>
+                             className={'w-full px-3 py-1 font-semibold border bg-gray-50 text-gray-900 select-none'}>
                             Actions
                         </div>
                     </div>

@@ -3,6 +3,7 @@ import {useNavigate, useSearchParams} from "react-router-dom";
 import {getLength, getValues} from "../../../../../../../data-types/form-config/components/RenderField";
 import {dmsDataTypes} from "../../../../../../../data-types";
 import {formattedAttributeStr, attributeAccessorStr, convertToUrlParams} from "../utils";
+import {Filter} from "../../../../../../admin/ui/icons";
 
 export const RenderFilters = ({attributes, filters, setFilters, format, apiLoad, delimiter}) => {
     const navigate = useNavigate();
@@ -49,7 +50,8 @@ export const RenderFilters = ({attributes, filters, setFilters, format, apiLoad,
     const MultiSelectComp = dmsDataTypes.multiselect.EditComp;
 
     return (
-        <div className={'flex flex-col'}>
+        <div className={'p-4 flex flex-col border border-blue-300 rounded-md'}>
+            <Filter className={'-mt-4 -mr-6 text-blue-300 bg-white self-end rounded-md'}/>
             {filters.map((f, i) => (
                 <div className={'w-full flex flex-row items-center'}>
                     <div className={'w-1/4 p-1'}>
