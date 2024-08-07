@@ -418,14 +418,6 @@ export const RenderSimple = ({
 
     if(!visibleAttributes.length) return <div className={'p-2'}>No columns selected.</div>;
     const frozenCols = [0,1]
-    const frozenColsLeftMargins = useMemo(() => {
-        let runningTotal = numColSize;
-        return frozenCols.reduce((acc, fc, i) => {
-            acc[visibleAttributes[fc]] = runningTotal;
-            runningTotal += colSizes[visibleAttributes[fc]];
-            return acc;
-        }, {})
-    }, [frozenCols]);
 
     return (
         <div className={`flex flex-col w-full overflow-x-auto scrollbar-sm`} ref={gridRef}>

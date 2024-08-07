@@ -48,7 +48,7 @@ export const RenderFilters = ({attributes, filters, setFilters, format, apiLoad,
     }, [filters]);
 
     const MultiSelectComp = dmsDataTypes.multiselect.EditComp;
-
+    if(!filters.length) return null;
     return (
         <div className={'p-4 flex flex-col border border-blue-300 rounded-md'}>
             <Filter className={'-mt-4 -mr-6 text-blue-300 bg-white self-end rounded-md'}/>
