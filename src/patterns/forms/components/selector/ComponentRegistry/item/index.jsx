@@ -212,7 +212,7 @@ const View = ({value, format, apiLoad, apiUpdate, ...rest}) => {
     const [attributes, setAttributes] = useState([])
     const allowEdit = cachedData.allowEditInView;
     const compType = allowEdit ? 'EditComp' : 'ViewComp';
-    const itemId = params['*']?.split(cachedData.url)[1]; // "add-new-item"
+    const itemId = params['*']?.split(cachedData.url || 'view/')[1]; // "add-new-item"
 
     useEffect(() => {
         async function load() {
@@ -268,12 +268,17 @@ const View = ({value, format, apiLoad, apiUpdate, ...rest}) => {
                             )
                         })
                 }
-                <div className={'w-full flex justify-end gap-1'}>
-                    <button className={'px-2 py-0.5 bg-blue-300 hover:bg-blue-600 text-white rounded-md'}
-                            onClick={() => updateItem()}>save</button>
-                    <button className={'px-2 py-0.5 bg-red-300 hover:bg-red-600 text-white rounded-md'}
-                            onClick={() => setTmpItem(data)}>cancel</button>
-                </div>
+                {
+                    allowEdit ?
+                        <div className={'w-full flex justify-end gap-1'}>
+                            <button className={'px-2 py-0.5 bg-blue-300 hover:bg-blue-600 text-white rounded-md'}
+                                    onClick={() => updateItem()}>save
+                            </button>
+                            <button className={'px-2 py-0.5 bg-red-300 hover:bg-red-600 text-white rounded-md'}
+                                    onClick={() => setTmpItem(data)}>cancel
+                            </button>
+                        </div> : null
+                }
             </div>
         </div>
     )
