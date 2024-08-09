@@ -31,7 +31,6 @@ const icons = {
 
 function EditComp(props) {
     const {value, onChange, size, ...rest} = props
-    console.log('??????????????????////', RegisteredComponents)
     // console.log("selector props", props, value)
     // console.log('selector edit', rest)
     const updateAttribute = (k, v) => {

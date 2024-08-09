@@ -1,4 +1,4 @@
-import React, { Fragment, useState, useLayoutEffect } from "react"
+import React, {Fragment, useState, useLayoutEffect, useEffect} from "react"
 import { useLocation } from 'react-router-dom';
 import isEqual from 'lodash/isEqual'
 import cloneDeep from 'lodash/cloneDeep'
@@ -485,7 +485,11 @@ const Edit = ({Component, value, onChange, attr, full_width = false, format, api
     // console.log('---------------sa edit render-----------------')
     // console.log('sa edit sections', value)
     // const [values, setValues] = React.useState([...value , ''] || [''])
-    const values = [...value,'']
+    const [values, setValues] = useState([]);
+
+    useEffect(() => {
+        setValues([...value,''])
+    }, [value]);
     const [edit, setEdit] = React.useState({
         index: -1,
         value: '',
@@ -504,6 +508,7 @@ const Edit = ({Component, value, onChange, attr, full_width = false, format, api
         let action = ''
         // edit.value.has_changes = true
         if(edit.type === 'update') {
+            // values.splice()
             cloneValue[edit.index] = edit.value
 
             action = `edited section ${edit?.value?.title ? `${edit?.value?.title} ${edit.index+1}` : edit.index+1}`
@@ -513,6 +518,7 @@ const Edit = ({Component, value, onChange, attr, full_width = false, format, api
         }
         //console.log('edit on save', edit)
         cancel()
+        setValues([...cloneValue, ''])
         onChange(cloneValue,action)
     }
 

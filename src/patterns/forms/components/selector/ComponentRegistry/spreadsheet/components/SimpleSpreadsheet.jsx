@@ -418,7 +418,7 @@ export const RenderSimple = ({
 
     if(!visibleAttributes.length) return <div className={'p-2'}>No columns selected.</div>;
     const frozenCols = [0,1]
-
+    console.log('rendewring spreadsheet', visibleAttributes)
     return (
         <div className={`flex flex-col w-full overflow-x-auto scrollbar-sm`} ref={gridRef}>
             <div className={'flex flex-col no-wrap text-sm max-h-[calc(100vh_-_250px)] overflow-y-auto scrollbar-sm'} onMouseLeave={handleMouseUp}>
@@ -458,7 +458,7 @@ export const RenderSimple = ({
                             </div>)}
                     <div className={'flex shrink-0 justify-between'} style={{width: actionsColSize}}>
                         <div key={'actions'}
-                             className={'w-full px-3 py-1 font-semibold border bg-gray-50 text-gray-900 select-none'}>
+                             className={'w-full flex items-center px-3 py-1 font-semibold border bg-gray-50 text-gray-900 select-none'}>
                             Actions
                         </div>
                     </div>

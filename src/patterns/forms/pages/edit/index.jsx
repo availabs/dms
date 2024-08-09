@@ -26,7 +26,6 @@ function PageEdit ({
   const itemId = params['*']?.split(urlWithoutId)[1]
   const viewUrl = `${urlWithoutId}${itemId || ''}${window.location.search}`;
 
-  console.log('Form Tempate Edit', baseUrl)
 
   const menuItems = React.useMemo(() => {
     let items = dataItemsNav(dataItems.filter(d => d.main_nav === 'true'), baseUrl,true)
@@ -75,7 +74,7 @@ function PageEdit ({
   }, [])
   // console.log('contentEdit', format, attributes?.['sections'])
   const attr = {attributes: templateSection.attributes}
-  console.log('item', item)
+
   return (
     <div>
       {item?.header === 'above' && (
