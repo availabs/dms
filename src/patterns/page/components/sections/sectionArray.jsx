@@ -611,7 +611,7 @@ const Edit = ({Component, value, onChange, attr, full_width = false, ...rest }) 
     // console.log('sa edit sections', value)
     // const [values, setValues] = React.useState([...value , ''] || [''])
     const [values, setValues] = useState([]);
-    useEffect(() => {
+    React.useEffect(() => {
         setValues([...value,''])
     }, [value]);
 
