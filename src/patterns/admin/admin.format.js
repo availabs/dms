@@ -87,6 +87,7 @@ export const template = {
 
   ]
 }
+
 export const pattern = {
   app: "admin",
   type: "pattern",

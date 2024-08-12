@@ -51,7 +51,7 @@ export default ({title, children}) => {
     return (
         <div className="h-full z-40">
             {!user.authed ?            
-                <Link className={`flex items-center px-8 text-lg font-bold h-12 dark:text-blue-100`} to="/auth/login" state={{from: location?.pathname}}>Login</Link> :
+                <Link className={`flex items-center px-8 text-lg font-bold h-12 dark:text-blue-100 px-4`} to="/auth/login" state={{from: location?.pathname}}>Login</Link> :
                 <Dropdown control={<UserMenu user={user}/>} className={` hover:bg-blue-500 group z-40 `} >
                     <div className='p-1 bg-blue-500 z-40'>
                        

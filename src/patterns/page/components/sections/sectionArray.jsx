@@ -610,7 +610,11 @@ const Edit = ({Component, value, onChange, attr, full_width = false, ...rest }) 
     // console.log('---------------sa edit render-----------------')
     // console.log('sa edit sections', value)
     // const [values, setValues] = React.useState([...value , ''] || [''])
-    const values = [...value,'']
+    const [values, setValues] = useState([]);
+    useEffect(() => {
+        setValues([...value,''])
+    }, [value]);
+
     const [edit, setEdit] = React.useState({
         index: -1,
         value: '',
@@ -624,7 +628,7 @@ const Edit = ({Component, value, onChange, attr, full_width = false, ...rest }) 
        setEdit({index: -1, value:'',type:'new'}) 
     }
 
-    const save = async () => {
+    const save = /* async */ () => {
         let cloneValue = cloneDeep(value)
         let action = ''
         // edit.value.has_changes = true
@@ -637,9 +641,11 @@ const Edit = ({Component, value, onChange, attr, full_width = false, ...rest }) 
             action = `added section ${edit?.value?.title ? `${edit?.value?.title} ${edit.index+1}` : edit.index+1}`
         }
         //console.log('edit on save', edit)
-       
-        await onChange(cloneValue,action)
+        
         cancel()
+        setValues([...cloneValue, ''])
+        /* await */ onChange(cloneValue,action)
+    
     }
 
     const remove = () => {

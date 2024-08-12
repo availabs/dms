@@ -30,7 +30,7 @@ export default function EditWrapper({ Component, format, options, params, user, 
 		defaultSort(data).filter(d => filterParams(d,params,format))[0]
 		|| {}
 	)
-	console.log('item: edit', item)
+	// console.log('item: edit', item)
 	useEffect(() => {
 		let filteredItem = data.filter(d => filterParams(d,params,format))[0]
 		// update item on data update
@@ -59,9 +59,9 @@ export default function EditWrapper({ Component, format, options, params, user, 
 		submit(json2DmsForm(item), { method: "post", action: pathname })
 	}
 
-	const apiLoad = async (config) => {
-		console.log('<apiLoad> edit', config)
-		return await dmsDataLoader(falcor, config)
+	const apiLoad = async (config, path) => {
+		//console.log('<apiLoad> edit', config)
+		return await dmsDataLoader(falcor, config, path || '/')
 	}
 
 	const EditComponent = React.useMemo(() => Component, [])

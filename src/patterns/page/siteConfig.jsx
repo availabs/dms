@@ -14,11 +14,11 @@ import TemplateEdit from './layout/template/edit'
 // Manager
 import ManageLayout from './pages/manager/layout'
 import Dashboard from './pages/manager'
+import DesignEditor from './pages/manager/design'
 
 import cmsFormat from "./page.format.js"
 import defaultTheme from './theme/theme'
-// import Selector from "./components/selector"
-// import { registerDataType } from "../../index"
+
 import { useFalcor } from "@availabs/avl-falcor"
 
 
@@ -35,8 +35,7 @@ export const siteConfig = ({
   type = "docs-page",
   rightMenu = <DefaultMenu />,
   baseUrl = '/',
-  checkAuth = () => {},
-  logo,
+  logo, // deprecated
   authLevel = -1,
   theme = defaultTheme,
   pattern,
@@ -49,7 +48,11 @@ export const siteConfig = ({
   // console.log('pageConfig', theme, logo)
   // baseUrl = baseUrl[0] === '/' ? baseUrl.slice(1) : baseUrl
   baseUrl = baseUrl === '/' ? '' : baseUrl
-  const defaultLogo = <Link to={`${baseUrl || '/'}`} className='h-12 flex px-4 items-center'><div className='rounded-full h-8 w-8 bg-blue-500 border-2 border-blue-300 hover:bg-blue-600' /></Link>
+  const defaultLogo = (
+    <Link to={`${baseUrl || '/'}`} className='h-12 flex px-4 items-center'>
+      <div className='rounded-full h-8 w-8 bg-blue-500 border-2 border-blue-300 hover:bg-blue-600' />
+    </Link>
+  )
 
   if(!theme.navOptions.logo) {
     theme.navOptions.logo = logo ? logo : defaultLogo
@@ -63,7 +66,7 @@ export const siteConfig = ({
 
 
   // console.log('pgEnv siteConfig', app, type, pgEnv)
-  // for instances without auth turned on can edit
+  // for instances without auth turned on, default user can edit
   // should move this to dmsFactory default authWrapper
   const defaultUser = { email: "user", authLevel: 5, authed: true, fake: true}
 
@@ -74,9 +77,9 @@ export const siteConfig = ({
     API_HOST,
     children: [
       {
-        type: ({children, user=defaultUser, ...props}) => {
+        type: ({children, user={}, ...props}) => {
           const { falcor, falcorCache } = useFalcor();
-          // console.log('hola', theme, props)
+          // console.log('hola', user, defaultUser)
           return (
             <CMSContext.Provider value={{baseUrl, user, theme, falcor, falcorCache, pgEnv, app, type, Menu: () => <>{rightMenu}</> }} >
               {children}
@@ -136,6 +139,11 @@ export const siteConfig = ({
               { 
                 type: Dashboard,
                 path: "manage/",
+                action: "edit"
+              },
+              { 
+                type: DesignEditor,
+                path: "manage/design",
                 action: "edit"
               },
               { 

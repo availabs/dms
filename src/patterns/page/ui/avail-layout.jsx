@@ -27,9 +27,18 @@ let fixedSizes = {
 	full: 'w-64'
 }
 
+let fixedSizePixels = {
+	none: '0px',
+	micro: '56px',
+	mini: '80px',
+	miniPad: '0px',
+	compact: '176px',
+	full: '256px'
+}
+
 const Logos = () => <div className='h-12'/>
 
-const Layout = ({ children, navItems, title, theme,  ...props }) => {
+const Layout = ({ children, navItems, secondNav, title, theme, yPadding = '0px', ...props }) => {
 	//const theme = useTheme()
 
 	const { theme: defaultTheme, app, type, Menu } = React.useContext(CMSContext) || {}
@@ -48,6 +57,7 @@ const Layout = ({ children, navItems, title, theme,  ...props }) => {
 	      	</div>),
 		bottomMenu:  (
 	      	<div className={'flex flex-row md:flex-col'}>
+	      		{sideNav?.logo === 'bottom' && logo}
 	      		{sideNav?.search === 'bottom' && <Search app={app} type={type}/>}
 	        	{sideNav?.dropdown === 'bottom' && <Menu />}
 	      	</div>
@@ -72,6 +82,7 @@ const Layout = ({ children, navItems, title, theme,  ...props }) => {
 	      		{topNav?.rightMenu}
 	        	{topNav?.search === 'right' && <Search app={app} type={type}/>}
 	        	{topNav?.dropdown === 'right' && <Menu />}
+	        	{topNav?.logo === 'right' && logo}
 	      	</div>
 	  	)	
 	}
@@ -79,13 +90,14 @@ const Layout = ({ children, navItems, title, theme,  ...props }) => {
 	// console.log('layout', topNav)
 	
 	return (
-		<div className={`flex ${theme?.bg}`}>
+		<div className={`flex ${theme?.bg} max-w-screen`}>
 			{
 				sideNavOptions.size === 'none' ? '' : (
 					<div className={`hidden md:block ${marginSizes[sideNavOptions.size]}`}>
 						<div className={`fixed h-screen ${fixedSizes[sideNavOptions.size]}`}>
 							<SideNav 
 								topMenu={sideNavOptions.topMenu}
+								bottomMenu={sideNavOptions.bottomMenu}
 								themeOptions={sideNavOptions}
 								menuItems={sideNavOptions.menuItems}
 							/>
@@ -93,7 +105,13 @@ const Layout = ({ children, navItems, title, theme,  ...props }) => {
 					</div>
 				)
 			}
-			<div className={`flex-1 flex items-start flex-col items-stretch w-full min-h-screen `}>
+			<div 
+				className={`flex-1 flex items-start flex-col items-stretch max-w-full`} 
+				style={{
+					minHeight: `calc(100vh - ${yPadding}`,
+					maxWidth: `calc(100vw - ${fixedSizePixels[sideNavOptions.size]}`
+				}}
+			>
 				{
 					topNavOptions.size === 'none' ? '' : (<>
 						<div className={`${

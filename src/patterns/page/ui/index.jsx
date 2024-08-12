@@ -226,10 +226,10 @@ export const ButtonSelector = ({
     )
 }
 
-export function SideNavContainer({children, width='w-64'}) {
+export function SideNavContainer({children, width='w-64', custom='top-20'}) {
   return (
-    <div className={`w-64 hidden xl:block`}>
-      <div className={`w-64 sticky top-20 hidden xl:block`}> 
+    <div className={`${width} hidden xl:block`}>
+      <div className={`${width} sticky ${custom} hidden xl:block`}> 
         {children}
       </div>
     </div>

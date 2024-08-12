@@ -46,6 +46,7 @@ function CmsManager ({children}) {
     { name: 'Content', className: theme.navLabel },
     { name: 'Templates', path: `${baseUrl}/manage/templates` },
     { name: 'Metadata', path: `${baseUrl}/manage/metadata` },
+    { name: 'Validate', path: `${baseUrl}/manage/validate` },
     
 
     { name: 'Layout', className: theme.navLabel },

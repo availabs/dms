@@ -57,18 +57,18 @@ const MobileSidebar = ({
 							/>
 						</div>
 						<div
-							className={`flex-1 h-0 pt-2 pb-4 overflow-y-auto overflow-x-hidden`}
+							className={`flex-1 h-0 border border-orange-400 pt-2 pb-4 overflow-y-auto overflow-x-hidden flex`}
 						>
-							<div className="px-6 pt-4 pb-8 logo-text gray-900">
+							{/*<div className="px-6 pt-4 pb-8 logo-text gray-900">
 								<Link
 									to={"/"}
 									className={`flex-shrink-0 flex items-center ${theme.text}`}
 								>
 									{logo}
 								</Link>
-							</div>
+							</div>*/}
 							<div>{topMenu}</div>
-							<nav className="flex-1">
+							<nav className="flex-1 ">
 								{menuItems.map((page, i) => (
 									<div key={i} className={page.sectionClass}>
 										{sideBarItem({i, page, themeOptions, subMenuActivate})}
