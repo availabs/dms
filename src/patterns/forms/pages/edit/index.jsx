@@ -13,7 +13,7 @@ import {FormsContext} from "../../";
 import {templateSection} from "../../../admin/admin.format";
 
 function PageEdit ({
-  item={}, dataItems, updateAttribute,attributes, setItem, apiLoad, apiUpdate, status, navOptions, format
+  item={}, dataItems, updateAttribute,attributes, setItem, apiLoad, apiUpdate, adminPath, status, navOptions, format
 }) {
   const navigate = useNavigate()
   const submit = useSubmit()
@@ -24,18 +24,17 @@ function PageEdit ({
 
   const urlWithoutId = item.url_slug?.replace(':id', '')
   const itemId = params['*']?.split(urlWithoutId)[1]
-  const viewUrl = `${urlWithoutId}${itemId || ''}`;
+  const viewUrl = `${urlWithoutId}${itemId || ''}${window.location.search}`;
 
-  console.log('Form Tempate Edit', baseUrl)
 
   const menuItems = React.useMemo(() => {
-    let items = dataItemsNav(dataItems,baseUrl,true)
+    let items = dataItemsNav(dataItems.filter(d => d.main_nav === 'true'), baseUrl,true)
     return items
   }, [dataItems])
 
 
   // console.log('-----------render edit----------------')
-  const level = item?.index == '999' || theme?.navOptions?.topNav?.nav !== 'main' ? 1 : detectNavLevel(dataItems, baseUrl);
+  const level = 1 //item?.index == '999' || theme?.navOptions?.topNav?.nav !== 'main' ? 1 : detectNavLevel(dataItems, baseUrl);
   const inPageNav = getInPageNav(item, theme);
   const sectionAttr = attributes?.['sections']?.attributes || {}
 
@@ -75,7 +74,7 @@ function PageEdit ({
   }, [])
   // console.log('contentEdit', format, attributes?.['sections'])
   const attr = {attributes: templateSection.attributes}
-  console.log('item', item)
+
   return (
     <div>
       {item?.header === 'above' && (
@@ -86,7 +85,7 @@ function PageEdit ({
           attributes={sectionAttr}
         />
       )}
-      <Layout>
+      <Layout adminPath={adminPath} navItems={menuItems}>
         <div className={`${theme?.page?.wrapper1} ${theme?.navPadding[level]}`}>
           {item?.header === 'below' && (
             <ContentEdit item={item} value={[headerSection]} onChange={(val,action) => saveHeader(v, item, user, apiUpdate)} attributes={sectionAttr} />
@@ -106,7 +105,7 @@ function PageEdit ({
                   <ViewIcon className={theme?.page?.icon} />
                 </Link>
               )}
-              {item.title}
+
               <ContentEdit
                   attr={attr}
                   full_width={item?.full_width}

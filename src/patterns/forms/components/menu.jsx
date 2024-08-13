@@ -44,32 +44,27 @@ export const Item = ({to, icon,children}) => (
 )
 
 
-export default ({title, children}) => {
+export default ({title, children, adminPath}) => {
     const { user, baseUrl, parent } = React.useContext(FormsContext)
     const location = useLocation();
     return (
         <div className="h-full z-40">
-            {!user.authed ?            
+            {!user.authed ?
                 <Link className={`flex items-center px-8 text-lg font-bold h-12 dark:text-blue-100`} to="/auth/login" state={{from: location?.pathname}}>Login</Link> :
                 <Dropdown control={<UserMenu user={user}/>} className={` hover:bg-blue-500 group z-40 `} >
-                    <div className='p-1 bg-blue-500 z-40'>
-                       
+                    <div className='p-1 bg-blue-500 z-50 shadow-lg'>
                         <div className='py-2'>
                             {user.authLevel >= 5 && (
-                                <Item to='/list' icon={'fad fa-sign-out-alt pb-2 pr-1'}>
+                                <Item to={adminPath} icon={'fad fa-sign-out-alt pb-2 pr-1'}>
                                     Patterns
                                 </Item>
                             )}
                             {user.authLevel >= 5 && (
-                                <Item to={`/${baseUrl}manage/attributes`} icon={'fad fa-sign-out-alt pb-2 pr-1'}>
-                                    Metadata
+                                <Item to={`${baseUrl}/manage`} icon={'fad fa-sign-out-alt pb-2 pr-1'}>
+                                    Manage
                                 </Item>
                             )}
-                            {user.authLevel >= 5 && (
-                                <Item to={`/${baseUrl}manage/templates`} icon={'fad fa-sign-out-alt pb-2 pr-1'}>
-                                    Templates
-                                </Item>
-                            )}                     
+                                         
                         </div>
                         {!user.fake && (
                             <div className='py-1 border-t border-blue-400'> 

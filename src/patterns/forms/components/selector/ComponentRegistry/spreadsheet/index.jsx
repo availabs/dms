@@ -1,82 +1,115 @@
 import React, { useMemo, useState, useEffect }from 'react'
-import {Link} from "react-router-dom"
-import DataTypes from "../../../../../../data-types";
-export const isJson = (str)  => {
-    try {
-        JSON.parse(str);
-    } catch (e) {
-        return false;
-    }
-    return true;
-}
+import RenderColumnControls from "./components/RenderColumnControls";
+import RenderFilterControls from "./components/RenderFilterControls";
+import RenderTypeControls from "./components/RenderTypeControls"
+import {RenderSimple} from "./components/SimpleSpreadsheet";
+import {RenderPagination} from "./components/RenderPagination";
+import {isJson, getLength, getData, convertToUrlParams} from "./utils";
+import {RenderFilters} from "./components/RenderFilters";
+import {useSearchParams, useNavigate} from "react-router-dom";
 
-const getData = async ({format, apiLoad}) =>{
-    console.log('spreadsheet getDAta called')
-    // fetch all data items based on app and type. see if you can associate those items to its pattern. this will be useful when you have multiple patterns.
-    const attributes = JSON.parse(format?.config || '{}')?.attributes || [];
-    const children = [{
-        type: () => {
-        },
-        action: 'list',
-        testparam: 'testparam',
-        path: '/',
-    }]
-    const data = await apiLoad({
-        app: format.app,
-        type: format.type,
-        format,
-        attributes,
-        children
-    });
-  return {data, attributes}
-}
 
-const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell}) => {
-    const [newItem, setNewItem] = useState(item);
-    const Comp = DataTypes[attribute.type]?.EditComp;
-    return (
-        <div className={'flex border'}>
-            <Comp key={`${attribute.name}-${i}`} className={'p-1 hover:bg-blue-50 h-full w-full '}
-                  value={newItem[attribute.name]} onChange={e => {
-                      setNewItem({...item, [attribute.name]: e})
-                      updateItem(e, attribute, {...item, [attribute.name]: e})
-            }}/>
-            {
-                isLastCell &&
-                <>
-                    <Link
-                        className={'w-fit p-1 bg-blue-300 hover:bg-blue-500 text-white'}
-                        to={`view/${newItem.id}`}>
-                        view
-                    </Link>
-                    <button
-                        className={'w-fit p-1 bg-red-300 hover:bg-red-500 text-white'}
-                        onClick={e => {
-                            removeItem(newItem)
-                        }}>x
-                    </button>
-                </>
-            }
-        </div>
-    )
-}
 const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
+    const isEdit = Boolean(onChange);
+    const cachedData = isJson(value) ? JSON.parse(value) : {};
+    const [length, setLength] = useState(cachedData.length || 0);
     const [data, setData] = useState([]);
-    const [attributes, setAttributes] = useState([])
+    const [loading, setLoading] = useState(false);
+    const [attributes, setAttributes] = useState([]);
+    const [visibleAttributes, setVisibleAttributes] = useState(cachedData.visibleAttributes || []);
+    const [colSizes, setColSizes] = useState(cachedData.colSizes || {});
     const [newItem, setNewItem] = useState({})
+    const [orderBy, setOrderBy] = useState(cachedData.orderBy || {});
+    const [filters, setFilters] = useState(cachedData.filters || []);
+    const [currentPage, setCurrentPage] = useState(0);
+    const pageSize = 50// cachedData.pageSize || 5;
+    const filterValueDelimiter = '|||'
+    const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
 
-    // if(!value) return ''
+    // ========================================= init comp begin =======================================================
     useEffect(() => {
-        async function load(){
-            const {data, attributes} = await getData({format, apiLoad});
-            setData(data)
-            setAttributes(attributes)
+        setAttributes(JSON.parse(format?.config || '{}')?.attributes || [])
+    }, [format]);
+
+    // ========================================= filters 1/2 begin======================================================
+    useEffect(() => {
+        const filterCols = Array.from(searchParams.keys());
+        const filtersFromURL = filterCols.map(col => ({column: col, values: searchParams.get(col)?.split(filterValueDelimiter)}));
+        if(filtersFromURL.length) {
+            setFilters(filtersFromURL)
+            const url = `?${convertToUrlParams(filters, filterValueDelimiter)}`;
+            if(url !== window.location.search) navigate(url);
+        }else if(!filtersFromURL.length && filters.length){
+            // this means url didn't keep url params. so we need to navigate
+            const url = `?${convertToUrlParams(filters, filterValueDelimiter)}`;
+            navigate(url)
         }
+    }, [searchParams]);
+    // ========================================= filters 1/2 end =======================================================
+    useEffect(() => {
+        async function load() {
+            if(data) return;
+            // init stuff
+            setLoading(true)
+            const length = await getLength({format, apiLoad, filters});
+            const d = await getData({format, apiLoad, currentPage, pageSize, orderBy, filters});
+            setData(d);
+            setLength(length);
+            !visibleAttributes?.length && setVisibleAttributes(attributes?.map(attr => attr.name));
+            setLoading(false)
+        }
+
         load()
     }, [format])
+    // ========================================== init comp end ========================================================
 
+    // ========================================== get data begin =======================================================
+    useEffect(() => {
+        // onPageChange
+        async function load() {
+            setLoading(true)
+            const length = await getLength({format, apiLoad, filters});
+            const data = await getData({format, apiLoad, currentPage, pageSize, orderBy, filters});
+            setLength(length);
+            setData(data);
+            setLoading(false)
+        }
+
+        load()
+    }, [currentPage, orderBy, filters]);
+    // =========================================== get data end ========================================================
+
+    // =========================================== saving settings begin ===============================================
+    useEffect(() => {
+        if (!isEdit) return;
+
+        onChange(JSON.stringify({visibleAttributes, pageSize, attributes, orderBy, colSizes, filters}));
+    }, [visibleAttributes, attributes, orderBy, colSizes, filters])
+    // =========================================== saving settings end =================================================
+
+    // =========================================== filters 2/2 begin ===================================================
+    useEffect(() => {
+        const url = `?${convertToUrlParams(filters, filterValueDelimiter)}`;
+        navigate(url)
+    }, [filters]);
+    // =========================================== filters 2/2 end ===================================================
+
+    // =========================================== util fns begin ======================================================
     const updateItem = (value, attribute, d) => {
-        return apiUpdate({data: {...d, [attribute.name]: value}, config: {format}})
+        if(value !== undefined && attribute){
+            return apiUpdate({data: {...d, [attribute.name]: value}, config: {format}});
+        }
+
+        let dataToUpdate = Array.isArray(d) ? d : [d];
+
+        let tmpData = [...data];
+        dataToUpdate.map(dtu => {
+            const i = data.findIndex(dI => dI.id === dtu.id);
+            tmpData[i] = dtu;
+        });
+        setData(tmpData)
+        return Promise.all(dataToUpdate.map(dtu => apiUpdate({data: dtu, config: {format}})));
     }
 
     const addItem = () => {
@@ -84,100 +117,200 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     }
 
     const removeItem = item => {
-        console.log('data to remove', item)
         setData(data.filter(d => d.id !== item.id))
-        return apiUpdate({data:item, config: {format}, requestType: 'delete'})
+        return apiUpdate({data: item, config: {format}, requestType: 'delete'})
     }
-    console.log('datA?', data, attributes)
+    // =========================================== util fns end ========================================================
     return (
-        <div>
-            <div className={'text-xl text-gray-300 font-semibold'}>Spreadsheet view</div>
-            <div className={` grid grid-cols-${attributes.length}`}>
+        <div className={'w-full'}>
 
-                {attributes.map(attribute =>
-                    <div className={'p-2 font-semibold text-gray-500 border bg-gray-200'}>
-                        {attribute.display_name || attribute.name}
-                    </div>)}
-
-                {data.map((d, i) => (
-                    attributes.map((attribute, attrI) =>
-                        <RenderCell
-                            attribute={attribute}
-                            updateItem={updateItem}
-                            removeItem={removeItem}
-                            i={i}
-                            item={d}
-                            isLastCell={attrI === attributes.length - 1}
-                        />)
-                ))}
-
-                {
-                    attributes.map((attribute, attrI) => {
-                        const Comp = DataTypes[attribute?.type || 'text']?.EditComp;
-                        return (
-                            <div className={'flex border'}>
-                                <Comp 
-                                    key={`${attribute.name}`}
-                                    className={'p-2 hover:bg-blue-50 w-full'}
-                                    value={newItem[attribute.name]}
-                                    onChange={e => setNewItem({...newItem, [attribute.name]: e})}
-                                      // onFocus={e => console.log('focusing', e)}
-                                    onPaste={e => {
-                                       e.preventDefault();
-                                       const paste =
-                                           (e.clipboardData || window.clipboardData).getData("text")?.split('\n').map(row => row.split('\t'))
-                                       console.log('pasting', paste)
-                                   }}
-                                />
-                                {
-                                    attrI === attributes.length - 1 &&
-                                    <button
-                                        className={'w-fit p-1 bg-blue-300 hover:bg-blue-500 text-white'}
-                                        onClick={e => addItem()}>+
-                                    </button>
-                                }
-                            </div>
-                        )
-                    })
-                }
-            </div>
+            {
+                isEdit &&
+                <div className={'flex'}>
+                    <RenderColumnControls attributes={attributes} setAttributes={setAttributes}
+                                          visibleAttributes={visibleAttributes}
+                                          setVisibleAttributes={setVisibleAttributes}/>
+                    <RenderFilterControls attributes={attributes} visibleAttributes={visibleAttributes}
+                                          filters={filters} setFilters={setFilters} delimiter={filterValueDelimiter}
+                                          navigate={navigate}
+                    />
+                </div>
+            }
+            <RenderFilters attributes={attributes} filters={filters} setFilters={setFilters} apiLoad={apiLoad} format={format} delimiter={filterValueDelimiter}/>
+            {
+                        <RenderSimple {...{
+                            data,
+                            setData,
+                            visibleAttributes,
+                            setVisibleAttributes,
+                            attributes,
+                            isEdit,
+                            orderBy,
+                            setOrderBy,
+                            filters,
+                            setFilters,
+                            updateItem,
+                            removeItem,
+                            addItem,
+                            newItem,
+                            setNewItem,
+                            colSizes,
+                            setColSizes,
+                            currentPage,
+                            pageSize,
+                            loading
+                        }} />
+            }
+            {/*Pagination*/}
+            <RenderPagination totalPages={length} pageSize={pageSize} currentPage={currentPage}
+                              setVCurrentPage={setCurrentPage} visibleAttributes={visibleAttributes}/>
         </div>
     )
 }
 
-const View = ({value, format, apiLoad, ...rest}) => {
+const View = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
+    const isEdit = false;
+    const cachedData = isJson(value) ? JSON.parse(value) : {};
+    const [length, setLength] = useState(cachedData.length || 0);
+    const [colSizes, setColSizes] = useState(cachedData.colSizes || {});
+    const [orderBy, setOrderBy] = useState(cachedData.orderBy || {});
+    const [filters, setFilters] = useState(cachedData.filters || []);
+
+    const [newItem, setNewItem] = useState({})
     const [data, setData] = useState([]);
-    const [attributes, setAttributes] = useState([])
-    console.log('spreadsheet view', rest)
-    if(!value) return ''
+    const [loading, setLoading] = useState(false);
+    const [currentPage, setCurrentPage] = useState(0);
+
+    const attributes = cachedData.attributes;
+    const visibleAttributes = cachedData.visibleAttributes || [];
+    const pageSize = 50// cachedData.pageSize || 5;
+    const filterValueDelimiter = '|||'
+    const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
+    console.log('????????????????????///', JSON.stringify(filters, null, 4))
+    // ========================================= handle edit -> save transition begin ===================================
+    // useEffect(() => {
+    //     const cachedData = isJson(value) ? JSON.parse(value) : {};
+    //     setLength(cachedData.length);
+    //     setColSizes(cachedData.colSizes);
+    //     setOrderBy(cachedData.orderBy);
+    //     setFilters(cachedData.filters);
+    // }, [value])
+    // ========================================= handle edit -> save transition begin ===================================
+
+
+    // ========================================= filters 1/2 begin======================================================
     useEffect(() => {
-        async function load(){
-            const {data, attributes} = await getData({format, apiLoad});
-            setData(data)
-            setAttributes(attributes)
+        const filterCols = Array.from(searchParams.keys());
+        const filtersFromURL = filterCols.map(col => ({column: col, values: searchParams.get(col)?.split(filterValueDelimiter)}));
+        if(filtersFromURL.length) {
+            setFilters(filtersFromURL)
+            const url = `?${convertToUrlParams(filters, filterValueDelimiter)}`;
+            if(url !== window.location.search) navigate(url);
+        }else if(!filtersFromURL.length && filters.length){
+            // this means url didn't keep url params. so we need to navigate
+            const url = `?${convertToUrlParams(filters, filterValueDelimiter)}`;
+            navigate(url)
+        }
+    }, [searchParams, filters]);
+    // ========================================= filters 1/2 end =======================================================
+    useEffect(() => {
+        async function load() {
+            if(data) return;
+            // init stuff
+            setLoading(true)
+            const length = await getLength({format, apiLoad, filters});
+            const d = await getData({format, apiLoad, currentPage, pageSize, orderBy, filters});
+            setData(d);
+            setLength(length);
+            setLoading(false)
         }
 
         load()
     }, [format])
-    //console.log('data', data, attributes)
+    // ========================================== init comp end ========================================================
+
+    // ========================================== get data begin =======================================================
+    useEffect(() => {
+        // onPageChange
+        async function load() {
+            setLoading(true)
+            const length = await getLength({format, apiLoad, filters});
+            const data = await getData({format, apiLoad, currentPage, pageSize, orderBy, filters});
+            setLength(length);
+            setData(data);
+            setLoading(false)
+        }
+
+        load()
+    }, [currentPage, orderBy, filters]);
+    // =========================================== get data end ========================================================
+
+    // =========================================== filters 2/2 begin ===================================================
+    useEffect(() => {
+        const url = `?${convertToUrlParams(filters, filterValueDelimiter)}`;
+        navigate(url)
+    }, [filters]);
+    // =========================================== filters 2/2 end ===================================================
+
+    // =========================================== util fns begin ======================================================
+    const updateItem = (value, attribute, d) => {
+        if(value !== undefined && attribute){
+            return apiUpdate({data: {...d, [attribute.name]: value}, config: {format}});
+        }
+
+        let dataToUpdate = Array.isArray(d) ? d : [d];
+
+        let tmpData = [...data];
+        dataToUpdate.map(dtu => {
+            const i = data.findIndex(dI => dI.id === dtu.id);
+            tmpData[i] = dtu;
+        });
+        setData(tmpData)
+        return Promise.all(dataToUpdate.map(dtu => apiUpdate({data: dtu, config: {format}})));
+    }
+
+    const addItem = () => {
+        return apiUpdate({data: newItem, config: {format}}) && setNewItem({})
+    }
+
+    const removeItem = item => {
+        setData(data.filter(d => d.id !== item.id))
+        return apiUpdate({data: item, config: {format}, requestType: 'delete'})
+    }
+    // =========================================== util fns end ========================================================
+
     return (
-        <div>
-            <div className={'text-xl text-gray-300 font-semibold'}>Spreadsheet view</div>
-            <div className={`grid grid-cols-${attributes.length} divide-x divide-y`}>
-                {attributes.map(attribute =>
-                    <div className={'p-2 font-semibold text-gray-500'}>
-                        {attribute.display_name || attribute.name}
-                    </div>)}
-                {data.map(d => (
-                        attributes.map(attribute => {
-                            const Comp = DataTypes[attribute.type]?.ViewComp;
-                            return (<Comp className={'p-2 hover:bg-blue-50'} value={d[attribute.name] || ' '} />)
-                        })
-                    ))}
-            </div>
+        <div className={'w-full'}>
+            <RenderFilters attributes={attributes} filters={filters} setFilters={setFilters} apiLoad={apiLoad} format={format} delimiter={filterValueDelimiter}/>
+            {
+                        <RenderSimple {...{
+                            data,
+                            setData,
+                            visibleAttributes,
+                            attributes,
+                            isEdit,
+                            orderBy,
+                            setOrderBy,
+                            filters,
+                            setFilters,
+                            updateItem,
+                            removeItem,
+                            addItem,
+                            newItem,
+                            setNewItem,
+                            colSizes,
+                            setColSizes,
+                            currentPage,
+                            pageSize,
+                            loading
+                        }} />
+            }
+            {/*Pagination*/}
+            <RenderPagination totalPages={length} pageSize={pageSize} currentPage={currentPage}
+                              setVCurrentPage={setCurrentPage} visibleAttributes={visibleAttributes}/>
         </div>
     )
-             
 }
 
 Edit.settings = {
@@ -189,9 +322,8 @@ Edit.settings = {
 export default {
     "name": 'Spreadsheet',
     "type": 'table',
-    "variables": [
-    ],
+    "variables": [],
     getData,
     "EditComp": Edit,
-    "ViewComp": Edit
+    "ViewComp": View
 }

@@ -1,38 +1,88 @@
 import React, {useEffect, useRef, useState} from "react"
 import {useTheme} from '../theme'
+import {Alert, ArrowDown} from "../patterns/admin/ui/icons";
 
 const inputWrapper = 'flex px-2 py-1 w-full text-sm font-light border focus:border-blue-300 bg-white hover:bg-gray-100 transition ease-in';
+const mainWrapper = 'w-full';
 const input = 'focus:outline-none w-full';
 const tokenWrapper = 'flex px-2 py-1 mx-1 bg-gray-100 hover:bg-gray-300 rounded-md transition ease-in';
 const removeIcon = 'fa fa-x px-1 text-xs text-red-300 hover:text-red-500 self-center transition ease-in';
 const menuWrapper = 'p-2 shadow-lg z-10';
 const menuItem = 'px-2 py-1 hover:bg-gray-300 hover:cursor-pointer transition ease-in';
 
-const RenderToken = ({token, value, onChange, theme}) => {
+const RenderToken = ({token, value, onChange, theme, isSearching, setIsSearching}) => {
     return (
         <div className={theme?.multiselect?.tokenWrapper || tokenWrapper}>
-            <div >{token.label || token}</div>
-            <i
-                className={theme?.multiselect?.removeIcon || removeIcon}
-                onClick={e => onChange(value.filter(v => (v.value || v) !== (token.value || token)))}
-            />
+            <div onClick={() => setIsSearching(!isSearching)}>{token.label || token}</div>
+            {
+                onChange && <i
+                    className={theme?.multiselect?.removeIcon || removeIcon}
+                    onClick={e => onChange(value.filter(v => (v.value || v) !== (token.value || token)))}
+                > </i>
+            }
         </div>
     )
 }
 
-const RenderMenu = ({options, isSearching, setIsSearching, searchKeyword, value, onChange, theme}) => {
-    const mappedValue = value.map(v => v.value || v)
+const RenderMenu = ({
+                        options,
+                        isSearching,
+                        setIsSearching,
+                        placeholder,
+                        setSearchKeyword,
+                        searchKeyword,
+                        value,
+                        onChange,
+                        theme
+                    }) => {
+    const mappedValue = value.map(v => v.value || v);
+    const selectAllOption = {label: 'Select All', value: 'select-all'};
+    const removeAllOption = {label: 'Remove All', value: 'remove-all'};
     return (
         <div className={`${isSearching ? `block` : `hidden`} ${theme?.multiselect?.menuWrapper || menuWrapper}`}>
+            <input
+                autoFocus
+                key={'input'}
+                placeholder={placeholder || 'search...'}
+                className={theme?.multiselect?.input || input}
+                onChange={e => setSearchKeyword(e.target.value)}
+                onFocus={() => setIsSearching(true)}
+            />
+            <div className={theme.multiselect.smartMenuWrapper}>
+                {
+                    [selectAllOption, removeAllOption]
+                        .filter(o =>
+                            o.value === 'select-all' ? value.length !== options.length :
+                                o.value === 'remove-all' ? value.length : true)
+                        .map((o, i) =>
+                            <div
+                                key={`smart-option-${i}`}
+                                className={theme?.multiselect?.smartMenuItem || menuItem}
+                                onClick={e => {
+                                    onChange(
+                                        o.value === 'select-all' ? options :
+                                            o.value === 'remove-all' ? [] :
+                                                [...value, o]
+                                    );
+                                    setIsSearching(false);
+                                }}>
+                                {o.label || o}
+                            </div>)
+                }
+            </div>
             {
                 options
-                    .filter(o => !mappedValue.includes(o.value || o) && (o.label || o).includes(searchKeyword))
+                    .filter(o => !mappedValue.includes(o.value || o) && (o.label || o)?.toLowerCase().includes(searchKeyword?.toLowerCase()))
                     .map((o, i) =>
                         <div
                             key={`option-${i}`}
                             className={theme?.multiselect?.menuItem || menuItem}
                             onClick={e => {
-                                onChange([...value, o]);
+                                onChange(
+                                    o.value === 'select-all' ? options :
+                                        o.value === 'remove-all' ? [] :
+                                            [...value, o]
+                                );
                                 setIsSearching(false);
                             }}>
                             {o.label || o}
@@ -71,7 +121,7 @@ function useComponentVisible(initial) {
 }
 
 
-const Edit = ({value = [], onChange, className,placeholder, options = []}) => {
+const Edit = ({value = [], onChange, className,placeholder, options = [], displayInvalidMsg=true, menuPosition='bottom'}) => {
     // options: ['1', 's', 't'] || [{label: '1', value: '1'}, {label: 's', value: '2'}, {label: 't', value: '3'}]
     const [searchKeyword, setSearchKeyword] = useState('');
     const typeSafeValue = Array.isArray(value) ? value : [value];
@@ -85,34 +135,37 @@ const Edit = ({value = [], onChange, className,placeholder, options = []}) => {
     const invalidValues = typeSafeValue.filter(v => (v.value || v) && !options.filter(o => (o.value || o) === (v.value || v))?.length);
 
     return (
-        <div ref={ref}>
+        <div ref={ref} className={`${theme?.multiselect?.mainWrapper || mainWrapper} ${menuPosition === 'top' ? 'flex flex-col flex-col-reverse' : ''}`}>
             {
-                invalidValues.length ? <div className={theme?.multiselect?.error}>Invalid Values: {JSON.stringify(invalidValues)}</div> : null
+                invalidValues.length && displayInvalidMsg ?
+                    <Alert className={theme?.multiselect?.error} title={`Invalid Values: ${JSON.stringify(invalidValues)}`} /> : null
             }
-            <div className={className || (theme?.multiselect?.inputWrapper) || inputWrapper}>
+            <div className={className || (theme?.multiselect?.inputWrapper) || inputWrapper} onClick={() => {
+                setIsSearching(!isSearching)
+                console.log('ms?', ref.current.top)
+            }}>
                 {
                     typeSafeValue
+                        .filter(d => d)
                         .map((v, i) =>
                             <RenderToken
                                 key={i}
                                 token={v}
                                 value={typeSafeValue}
                                 onChange={onChange}
+                                isSearching={isSearching}
+                                setIsSearching={setIsSearching}
                                 theme={theme}
                             />)
                 }
-                <input
-                    key={'input'}
-                    placeholder={placeholder}
-                    className={theme?.multiselect?.input || input}
-                    onChange={e => setSearchKeyword(e.target.value)}
-                    onFocus={() => setIsSearching(true)}
-                />
+                <ArrowDown className={'ml-auto self-center font-bold'} width-={16} height={16}/>
             </div>
 
             <RenderMenu
                 isSearching={isSearching}
                 setIsSearching={setIsSearching}
+                placeholder={placeholder}
+                setSearchKeyword={setSearchKeyword}
                 searchKeyword={searchKeyword}
                 value={typeSafeValue}
                 onChange={onChange}
@@ -124,17 +177,22 @@ const Edit = ({value = [], onChange, className,placeholder, options = []}) => {
 }
 
 const View = ({className, value, options = []}) => {
-    if (!value) return false
     const theme = useTheme();
+    if (!value) return <div className={theme?.multiselect?.mainWrapper} />
+
     const mappedValue = (Array.isArray(value) ? value : [value]).map(v => v.value || v)
     const option =
         options
             .filter(o => mappedValue.includes(o.value || o))
-            .map(o => o.label || o).join(', ');
+            .map(o => o.label || o);
 
     return (
-        <div className={className || (theme?.text?.view)}>
-            {option || JSON.stringify(mappedValue)}
+        <div className={theme?.multiselect?.mainWrapper}>
+            <div className={className || (theme?.text?.inputWrapper)}>
+                {(mappedValue).map((i, ii) => <RenderToken key={ii} token={i} isSearching={false}
+                                                           setIsSearching={() => {
+                                                           }} theme={theme}/>)}
+            </div>
         </div>
     )
 }

@@ -1,7 +1,7 @@
 import get from "lodash/get";
 import cloneDeep from "lodash/cloneDeep"
 
-export async function processNewData (dataCache, activeIdsIntOrStr, filteredIdsLength, app, type, dmsAttrsConfigs,format,falcor) {
+export async function processNewData (dataCache, activeIdsIntOrStr, stopFullDataLoad, filteredIdsLength, app, type, dmsAttrsConfigs,format,falcor) {
     const activeIds = Array.isArray(activeIdsIntOrStr) ? activeIdsIntOrStr.map(id => +id) : activeIdsIntOrStr;
     // console.log('activeIds', activeIds)
     let newData = []
@@ -13,7 +13,7 @@ export async function processNewData (dataCache, activeIdsIntOrStr, filteredIdsL
         {}
     ))
     .filter(d => (
-        // (!activeIds?.length || activeIds.includes(+d.id)) &&
+        (stopFullDataLoad ? activeIds?.length && activeIds.includes(+d.id) : true) &&
         d.id &&
         d.app === app &&
         d.type === type

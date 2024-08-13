@@ -15,7 +15,8 @@ export default function ListWrapper({ Component, format, options, user, ...props
 	const apiUpdate = async ({data, config={format}, requestType=''}) => {  
 			// update the data
 			// submit(null, {action: pathname})
-			await dmsDataEditor(falcor, config, data, requestType)
+			const res = await dmsDataEditor(falcor, config, data, requestType);
+			if(!data.id) return res; // return id if apiUpdate was used to create an entry.
 			submit(null, {action: pathname})
 	}
 

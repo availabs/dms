@@ -39,7 +39,7 @@ const theme = {
     wrapper1: 'w-full h-full flex-1 flex flex-col bg-slate-100', // first div inside Layout
     wrapper2: 'w-full h-full flex-1 flex flex-row px-1 md:px-6 py-6', // inside page header, wraps sidebar
     wrapper3: 'flex flex-1 w-full  flex-col border shadow bg-white relative text-md font-light leading-7 p-4 min-h-[calc(100vh_-_102px)]' , // content wrapepr
-    iconWrapper : 'z-30 absolute right-[10px] top-[5px]',
+    iconWrapper : 'z-5 absolute right-[10px] top-[5px]',
     icon: 'text-slate-400 hover:text-blue-500'
   },
   pageControls: {
@@ -47,6 +47,7 @@ const theme = {
     select: 'bg-transparent border-none rounded-sm focus:ring-0 focus:border-0 pl-1',
     selectOption: 'p-4 text-md cursor-pointer hover:text-blue-500 text-slate-400 hover:bg-blue-600',
   },
+  navLabel: 'px-6 pb-1 pt-6 uppercase text-xs text-blue-400',
   navPadding: {
     1: 'pt-0 ',
     2: 'md:pt-12 pt-0',

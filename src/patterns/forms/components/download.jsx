@@ -9,17 +9,16 @@ import {getData} from "../utils/getData.js";
 // import {falcor} from "~/modules/avl-falcor"
 
 export const DownloadModal = ({
-                                  columns, visibleCols, form, data, filteredData, displayDownload, setDisplayDownload,
-
-                                  formsConfig,
-                                  actionType,
-                                  pgEnv,
-                                  geoid,
-                                  geoAttribute,
-                                  pageSize, sortBy, groupBy, fn, notNull, colSizes,
-                                  filters, filterValue, manualFilters, hiddenCols,
-                                  metaLookupByViewId, setMetaLookupByViewId,
-                                  getNestedValue, falcor
+  columns, visibleCols, form, data, filteredData, displayDownload, setDisplayDownload,
+  formsConfig,
+  actionType,
+  pgEnv,
+  geoid,
+  geoAttribute,
+  pageSize, sortBy, groupBy, fn, notNull, colSizes,
+  filters, filterValue, manualFilters, hiddenCols,
+  metaLookupByViewId, setMetaLookupByViewId,
+  getNestedValue, falcor
 }) => {
     const [loading, setLoading] = useState(false)
     const [finalCols, setFinalCols] = useState(columns.filter(c => visibleCols.includes(c.name)).map(c => ({key: c.name, label: c.display_name})));

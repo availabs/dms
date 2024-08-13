@@ -24,9 +24,9 @@ export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatu
         id_column,
         active_row
     } = item?.data_controls
-    if (!view.view_id) return null;
+    if (!view?.view_id) return null;
     const locationNameMap = [destination]
-    
+
 
 
 

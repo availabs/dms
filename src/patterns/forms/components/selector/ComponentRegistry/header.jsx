@@ -1,134 +1,87 @@
-import React, { useMemo, useState, useEffect }from 'react'
-import {isJson} from "../index";
+import React, {useMemo, useState, useEffect, useRef} from 'react'
+import {Link} from "react-router-dom";
+import {Delete} from "../../../../admin/ui/icons";
 
+export const isJson = (str)  => {
+    try {
+        JSON.parse(str);
+    } catch (e) {
+        return false;
+    }
+    return true;
+}
 
-export function Header ({position = 'above',bgImg = '', logo = '', title = 'Title', bgClass='', subTitle='subTitle', note='note'}) {
-  
-  return (
-    <div className={`h-[300px] bg-cover bg-center w-full flex ${bgClass}`} style={{ backgroundImage: `url("${bgImg}")` }}>
-      <div className='p-2'>
-        {logo && <img src={logo} alt="NYS Logo" />}
-      </div>
-      <div className='flex-1 flex flex-col  items-center p-4'>
-        <div className='flex-1'/>
-        <div className='text-3xl sm:text-7xl font-bold text-[#f2a91a] text-right w-full text-display'>
-          {title && <div>{title}</div>}
+const RenderButton = ({to, text}) => (
+    <Link className={'p-2 mx-1 bg-blue-300 hover:bg-blue-600 text-white rounded-md'} to={to}>{text}</Link>
+)
+const RenderHeader = ({title, buttons=[]}) => (
+    <div className={'w-full flex justify-between border-b rounded-l-lg pr-2'}>
+        <div>
+            <span
+                className={'text-3xl text-blue-500 text-bold tracking-wide border-b-4 border-blue-500 px-2'}>{title.substring(0, 1)}</span>
+            <span
+                className={'text-3xl -ml-2 text-blue-500 text-bold tracking-wide'}>{title.substring(1, title.length)}</span>
         </div>
-        <div className='text-lg tracking-wider pt-2 sm:text-3xl font-bold text-slate-200 text-right w-full uppercase'>
-          {subTitle && <div>{subTitle}</div>}
+        <div>
+            {
+                buttons.map(button => <RenderButton {...button} />)
+            }
         </div>
-        <div className='text-lg tracking-wider sm:text-xl font-bold text-slate-200 text-right w-full uppercase'>
-          {note && <div>{note}</div>}
-        </div>
-        <div className='flex-1'/>
-      </div>
     </div>
-  )
-}
+)
 
-const getData = ({position='above',bgImg='/img/header.png', logo='/img/nygov-logo.png',bgClass = '', title='MitigateNY', subTitle='New York State Hazard Mitigation Plan', note='2023 Update'}) =>{
-  return new Promise((resolve, reject) => {
-    resolve({
-      position,
-      bgImg,
-      bgClass,
-      logo,
-      title,
-      subTitle,
-      note
-    })
-  })
-}
-
-const Edit = ({value, onChange, size}) => {
-    
-    let cachedData = useMemo(() => {
-        return value && isJson(value) ? JSON.parse(value) : {}
-    }, [value]);
-
-    //console.log('Edit: value,', size)
-   
-    const baseUrl = '/';
-
-    const ealSourceId = 343;
-    const [loading, setLoading] = useState(true);
-    const [status, setStatus] = useState('');
-    const [compData, setCompData] = useState({
-        bgImg: cachedData.bgImg || '',//'/img/header.png', 
-        logo: cachedData.logo || '',//'/img/nygov-logo.png', 
-        title: cachedData.title || 'Title', 
-        subTitle: cachedData.subTitle || 'subTitle', 
-        note: cachedData.note || 'note',
-        bgClass: cachedData.bgClass || ''
-    })
-
+const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
+    const cachedData = isJson(value) ? JSON.parse(value) : {};
+    const [title, setTitle] = useState(cachedData.title || '');
+    const [buttons, setButtons] = useState(cachedData.buttons || []); //{to, text}
     useEffect(() => {
-      if(value !== JSON.stringify(compData)) {
-        onChange(JSON.stringify(compData))
-      }
-    },[compData])
+        onChange(JSON.stringify({
+            ...cachedData, title, buttons
+        }))
+    }, [title, buttons]);
 
     return (
-      <div className='w-full'>
-        <div className='relative'>
-          <div className={'border rounded-md border-blue-500 bg-blue-50 p-2 m-1'}>
-            <div className={'flex flex-row flex-wrap justify-between'}>
-              <label className={'shrink-0 pr-2 py-1 my-1 w-1/4'}>Title:</label>
-              <div className={`flex flex row w-3/4 shrink my-1`}>
-                <input type='text' value={compData.title} onChange={(e) => setCompData({...compData, title: e.target.value})} />
-              </div>
+        <div>
+            <div>
+                <div className={'border flex justify-between'}>
+                    <input className={'p-2 w-full'} placeholder={'Please enter title...'} value={title}
+                           onChange={e => setTitle(e.target.value)}/>
+                    <button className={'bg-blue-300 hover:bg-blue-600 text-white rounded-md'} onClick={() => setButtons([...buttons, {to: '', text: ''}])}>add button</button>
+                </div>
+                {
+                    buttons.map((button, i) => (
+                        <div className={'flex'}>
+                            <input className={'p-2'}
+                                   placeholder={'text'}
+                                   value={button.text}
+                                   onChange={e => setButtons(
+                                       [
+                                           ...buttons.map((b, bI) => i === bI ? {...b, text: e.target.value} : b)
+                                       ])}/>
+                            <input className={'p-2'}
+                                   placeholder={'link'}
+                                   value={button.to}
+                                   onChange={e => setButtons(
+                                       [...buttons.map((b, bI) => i === bI ? {...b, to: e.target.value} : b)
+                                       ])}/>
+                            <button onClick={(() => setButtons(buttons.filter((b,bI) => bI !== i)))}><Delete className={'text-red-300 hover:text-red-600'}/></button>
+                        </div>
+                    ))
+                }
             </div>
 
-            <div className={'flex flex-row flex-wrap justify-between'}>
-              <label className={'shrink-0 pr-2 py-1 my-1 w-1/4'}>subTitle:</label>
-              <div className={`flex flex row w-3/4 shrink my-1`}>
-                <input type='text' value={compData.subTitle} onChange={(e) => setCompData({...compData, subTitle: e.target.value})} />
-              </div>
-            </div>
-
-            <div className={'flex flex-row flex-wrap justify-between'}>
-              <label className={'shrink-0 pr-2 py-1 my-1 w-1/4'}>Note:</label>
-              <div className={`flex flex row w-3/4 shrink my-1`}>
-                <input type='text' value={compData.note} onChange={(e) => setCompData({...compData, note: e.target.value})} />
-              </div>
-            </div>
-
-            <div className={'flex flex-row flex-wrap justify-between'}>
-              <label className={'shrink-0 pr-2 py-1 my-1 w-1/4'}>Bg Class:</label>
-              <div className={`flex flex row w-3/4 shrink my-1`}>
-                <input type='text' value={compData.bgClass} onChange={(e) => setCompData({...compData, bgClass: e.target.value})} />
-              </div>
-            </div>
-
-            <div className={'flex flex-row flex-wrap justify-between'}>
-              <label className={'shrink-0 pr-2 py-1 my-1 w-1/4'}>bgImg:</label>
-              <div className={`flex flex row w-3/4 shrink my-1`}>
-                <input type='text' value={compData.bgImg} onChange={(e) => setCompData({...compData, bgImg: e.target.value})} />
-              </div>
-            </div>
-
-            <div className={'flex flex-row flex-wrap justify-between'}>
-              <label className={'shrink-0 pr-2 py-1 my-1 w-1/4'}>logo:</label>
-              <div className={`flex flex row w-3/4 shrink my-1`}>
-                <input type='text' value={compData.logo} onChange={(e) => setCompData({...compData, logo: e.target.value})} />
-              </div>
-            </div>
-          </div>
-          <Header {...compData}/>
+            <RenderHeader title={title} buttons={buttons}/>
         </div>
-      </div>
-    ) 
-
+    )
 }
 
-const View = ({value}) => {
-    if(!value) return ''
-    let data = typeof value === 'object' ?
-        value['element-data'] : 
-        JSON.parse(value)
-    
-    return <Header {...data} />
-             
+const View = ({value, format, apiLoad, ...rest}) => {
+    const cachedData = isJson(value) ? JSON.parse(value) : {};
+    const {title, buttons} = cachedData;
+    return (
+        <RenderHeader title={title} buttons={buttons}/>
+    )
+
 }
 
 Edit.settings = {
@@ -138,35 +91,11 @@ Edit.settings = {
 
 
 export default {
-    "name": 'Header: Default',
+    "name": 'Header: Title',
     "type": 'Header',
     "variables": [
-        { 
-          name:'bgImg',
-          default: '/img/header.png',
-        },
-        { 
-          name:'logo',
-          default: '/img/nygov-logo.png',
-        },
-        { 
-          name:'title',
-          default: 'MitigateNY',
-        },
-        { 
-          name: 'subTitle',
-          default: 'New York State Hazard Mitigation Plan',
-        },
-        { 
-          name: 'bgClass',
-          default: '',
-        },
-        { 
-          name:'note',
-          default: '2023 Update',
-        }
+        {name: 'title'}
     ],
-    getData,
     "EditComp": Edit,
     "ViewComp": View
 }

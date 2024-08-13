@@ -40,7 +40,8 @@ const theme = {
     wrapper1: 'w-full h-full flex-1 flex flex-col bg-slate-100', // first div inside Layout
     wrapper2: 'w-full h-full flex-1 flex flex-row px-1 md:px-6 py-6', // inside page header, wraps sidebar
     wrapper3: 'flex flex-1 w-full  flex-col border shadow bg-white relative text-md font-light leading-7 p-4 min-h-[calc(100vh_-_102px)]' , // content wrapepr
-    iconWrapper : 'z-30 absolute right-[10px] top-[5px]',
+    wrapper3_inner: 'flex flex-1 w-full  flex-col border shadow bg-white relative text-md font-light leading-7 p-4 min-h-[calc(100vh_-_202px)]' , // content wrapepr
+    iconWrapper : 'z-5 absolute right-[10px] top-[5px]',
     icon: 'text-slate-400 hover:text-blue-500'
   },
   pageControls: {
@@ -53,6 +54,7 @@ const theme = {
     2: 'md:pt-12 pt-0',
     3: 'md:pt-24 pt-0'
   },
+  navLabel: 'px-6 pb-1 pt-6 uppercase text-xs text-blue-400',
   bg: 'bg-slate-100',
   sidenav,
   topnav
@@ -61,3 +63,116 @@ const theme = {
 //theme.navOptions.logo = <Link to='/' className='h-12 flex px-4 items-center'><div className='rounded-full h-10 bg-blue-500 border border-slate-50' /></Link>
 
 export default theme
+
+export const themeOptions = {
+  "topNav": {
+    "label": "Top Nav",
+    "defaultOpen": true,
+    "controls": {
+      "size": {
+        "label": "Size",
+        "type": "select",
+        "options": [
+          "none",
+          "compact"
+        ]
+      },
+      "logo": {
+        "label": "Logo",
+        "type": "select",
+        "options": [
+          "none",
+          "left",
+          "right"
+        ]
+      },
+      "search": {
+        "label": "Search",
+        "type": "select",
+        "options": [
+          "none",
+          "left",
+          "right"
+        ]
+      },
+      "dropdown": {
+        "label": "Menu",
+        "type": "select",
+        "options": [
+          "none",
+          "left",
+          "right"
+        ]
+      },
+      "nav": {
+        "label": "Navigation",
+        "type": "select",
+        "options": [
+          "none",
+          "main",
+          "secondary"
+        ]
+      }
+    }
+  },
+  "sideNav": {
+    "label": "Side Nav",
+    "defaultOpen": false,
+    "controls": {
+      "size": {
+        "label": "Size",
+        "type": "select",
+        "options": [
+          "none",
+          "compact"
+        ]
+      },
+      "logo": {
+        "label": "Logo",
+        "type": "select",
+        "options": [
+          "none",
+          "top",
+          "bottom"
+        ]
+      },
+      "search": {
+        "label": "Search",
+        "type": "select",
+        "options": [
+          "none",
+          "top",
+          "bottom"
+        ]
+      },
+      "dropdown": {
+        "label": "Menu",
+        "type": "select",
+        "options": [
+          "none",
+          "top",
+          "bottom"
+        ]
+      },
+      "nav": {
+        "label": "Navigation",
+        "type": "select",
+        "options": [
+          "none",
+          "main",
+          "secondary"
+        ]
+      }
+    }
+  },
+  "secondaryNav": {
+    "label": "Secondary Nav",
+    "defaultOpen": false,
+    "controls": {
+      "navItems": {
+        "label": "Nav Items",
+        "type": "menu"
+      }
+    }
+  }
+}

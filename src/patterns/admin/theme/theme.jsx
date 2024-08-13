@@ -8,18 +8,18 @@ const theme = {
   navOptions: {
     logo: '',//<Link to='/' className='h-12 flex px-4 items-center'><div className='rounded-full h-8 w-8 bg-blue-500 border-2 border-blue-300 hover:bg-blue-600' /></Link>, //<Link to='/' className='h-12 flex px-4 items-center'>LOGO</Link>,
     sideNav: {
-      size: 'none',
+      size: 'compact',
       search: 'none',
       logo: 'top',
       dropdown: 'none',
-      nav: 'none'
+      nav: 'main'
     },
     topNav: {
       size: 'compact',
       dropdown: 'right',
       search: 'right',
-      logo: 'left',
-      nav: 'main' 
+      logo: 'none',
+      nav: 'none' 
     }
   },
   heading: {
@@ -39,7 +39,7 @@ const theme = {
     wrapper1: 'w-full h-full flex-1 flex flex-col bg-slate-100', // first div inside Layout
     wrapper2: 'w-full h-full flex-1 flex flex-row px-1 md:px-6 py-6', // inside page header, wraps sidebar
     wrapper3: 'flex flex-1 w-full  flex-col border shadow bg-white relative text-md font-light leading-7 p-4 min-h-[calc(100vh_-_102px)]' , // content wrapepr
-    iconWrapper : 'z-30 absolute right-[10px] top-[5px]',
+    iconWrapper : 'z-5 absolute right-[10px] top-[5px]',
     icon: 'text-slate-400 hover:text-blue-500'
   },
   pageControls: {

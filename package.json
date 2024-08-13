@@ -42,7 +42,9 @@
   },
   "dependencies": {
     "@availabs/avl-falcor": "^0.0.3",
-    "@headlessui/react": "^1.7.19",
+    "@glideapps/glide-data-grid": "^6.0.3",
+    "@glideapps/glide-data-grid-cells": "^6.0.3",
+    "@headlessui/react": "^2.1.2",
     "@lexical/clipboard": "^0.13.1",
     "@lexical/code": "^0.13.1",
     "@lexical/file": "^0.13.1",
