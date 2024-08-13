@@ -31,7 +31,7 @@ export const siteConfig = ({
   app = "dms-site",
   type = "docs-page",
   rightMenu = <DefaultMenu />,
-  userFalcor=useFalcor,
+  useFalcor=useFalcor,
   baseUrl = '',
   checkAuth = () => {},
   logo,
@@ -71,7 +71,7 @@ export const siteConfig = ({
           const { falcor, falcorCache } = useFalcor();
           // console.log('hola', theme, props)
           return (
-            <CMSContext.Provider value={{baseUrl, user, theme, falcor, falcorCache, pgEnv, app, type, Menu: () => <>{rightMenu}</> }} >
+            <CMSContext.Provider value={{baseUrl, user, theme, falcor, falcorCache, pgEnv: 'hazmit_dama', app, type, Menu: () => <>{rightMenu}</> }} >
               {children}
             </CMSContext.Provider>
           )
@@ -85,7 +85,7 @@ export const siteConfig = ({
               "data->>'hide_in_nav'": ['null']
             }
           }),
-          attributes:['title', 'index', 'url_slug', 'parent','published', 'hide_in_nav']
+          attributes:['title', 'index', 'url_slug', 'parent','published', 'hide_in_nav']``
         },
         children: [
           { 

@@ -1,6 +1,6 @@
 import React, {useMemo, useState} from "react";
 import {getConfig} from "../../template/pages.jsx";
-import {dmsDataLoader} from "../../../../../index.js";
+import {dmsDataLoader} from "../../../../../api";
 import get from "lodash/get.js";
 //import {falcor} from "~/modules/avl-falcor"
 import { CMSContext } from '../../../siteConfig'
@@ -8,11 +8,10 @@ import Selector from "./Selector.jsx";
 import {updatePages} from "./updatePages.js";
 import {generatePages} from "./generatePages.js";
 //import {pgEnv} from "../utils/constants.js";
-
 export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatus=() => {}}) => {
 
     // console.log('ViewInfo', id_column, active_id)
-    const { falcor, falcorCache, pgEnv } = React.useContext(CMSContext)
+    const { falcor, falcorCache, pgEnv } = React.useContext(CMSContext);
     const [generatedPages, setGeneratedPages] = useState([]);
     const [showAdditionalOptions, setShowAdditionalOptions] = useState(false);
     const [urlSuffixCol, setUrlSuffixCol] = useState('geoid');
@@ -25,16 +24,14 @@ export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatu
         id_column,
         active_row
     } = item?.data_controls
-
+    if (!view.view_id) return null;
     const locationNameMap = [destination]
     
 
 
 
     React.useEffect(() => {
-        if(view.view_id){
-            falcor.get(["dama", pgEnv, "viewsbyId", view.view_id, "data", "length"])
-        }
+        falcor.get(["dama", pgEnv, "viewsbyId", view.view_id, "data", "length"])
     }, [pgEnv,  view.view_id]);
 
     const dataLength = React.useMemo(() => {

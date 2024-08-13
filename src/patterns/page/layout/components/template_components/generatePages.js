@@ -148,7 +148,7 @@ export const generatePages = async ({
             try {
                 //create all sections first, get their ids and then create the page.
                 const newSectionIds = await PromiseMap(
-                    updatedSections.map((section) => dmsDataEditor(sectionConfig, section)),
+                    updatedSections.map((section) => dmsDataEditor(falcor, sectionConfig, section)),
                     p => p,
                     {concurrency: 25, saveResponse: true});
 
@@ -198,7 +198,7 @@ export const generatePages = async ({
                 }
 
                 try {
-                    const resPage = await dmsDataEditor(pageConfig, newPage);
+                    const resPage = await dmsDataEditor(falcor, pageConfig, newPage);
                     createdOrUpdatedPageIdStore.push({id: resPage?.id, num_errors: newPage.num_errors, id_column_value: newPage.id_column_value})
                 }catch (err){
                     console.error('<generatePages> Create/Update Page Error:', idColAttrVal, err)
