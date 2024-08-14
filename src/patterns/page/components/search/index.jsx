@@ -4,6 +4,8 @@ import {Combobox, Dialog, Transition} from '@headlessui/react'
 import {dmsDataLoader} from "../../../../api";
 import {CMSContext} from "../../siteConfig";
 import {Link} from "react-router-dom";
+import {boldMatchingText, getScore, searchTypeMapping} from "./SearchPage";
+import {ArrowRight, Page, Section} from "../../../admin/ui/icons";
 
 export const Search = ({app, type}) => {
     const [open, setOpen] = useState(false)
@@ -26,11 +28,11 @@ function classNames(...classes) {
     return classes.filter(Boolean).join(' ')
 }
 
-export const RenderTagSuggestions = ({tags, individualTags, tmpQuery, setQuery}) => individualTags
+export const RenderSuggestions = ({individualTags, tmpQuery, setQuery}) => individualTags
     .filter(tag => (!tmpQuery?.length || tag.toLowerCase().includes(tmpQuery.toLowerCase())))
     .length > 0 && (
     <Combobox.Options static
-                      className="max-h-96 transform-gpu scroll-py-3 overflow-y-auto p-3">
+                      className="flex items-center max-h-96 transform-gpu scroll-py-3 overflow-y-auto p-3">
         <span className={'text-xs italic'}>suggestions: </span>
         {individualTags
             .filter(tag => (!tmpQuery?.length || tag.toLowerCase().includes(tmpQuery.toLowerCase())))
@@ -39,22 +41,20 @@ export const RenderTagSuggestions = ({tags, individualTags, tmpQuery, setQuery})
                 <Combobox.Option
                     key={tag}
                     value={tag}
-                    onClick={() => setQuery(tags.filter(t => t.split(',').includes(tag)))}
-                    className={({active}) =>
-                        classNames('flex cursor-pointer select-none rounded-xl p-1', active && 'bg-gray-100')
+                    onClick={() => setQuery(tag)}
+                    className={({focus}) =>
+                        classNames('flex cursor-pointer select-none rounded-xl p-1 mx-1', focus && 'bg-gray-100')
                     }
                 >
-                    {({active}) => (
+                    {({focus}) => (
                         <div>
-                            <i className="text-sm text-red-400 fa fa-tag" />
+                            <i className="text-xs text-red-400 fa fa-tag" />
                             <span
                                 className={classNames(
                                     'ml-2 text-sm font-medium',
-                                    active ? 'text-gray-900' : 'text-gray-700'
+                                    focus ? 'text-gray-900' : 'text-gray-700'
                                 )}
-                            >
-                                                                {tag}
-                                                            </span>
+                            > {tag} </span>
                         </div>
                     )}
                 </Combobox.Option>
@@ -62,57 +62,80 @@ export const RenderTagSuggestions = ({tags, individualTags, tmpQuery, setQuery})
     </Combobox.Options>
 );
 
-export const RenderItems = ({items}) => items.length > 0 && (
-    <Combobox.Options static
-                      className="max-h-96 transform-gpu scroll-py-3 overflow-y-auto p-3">
-        {items.map((item) => (
+export const RenderItems = ({items, query}) => Object.keys(items).length ? (
+    <Combobox.Options
+                      className="p-3 max-h-[500px] transform-gpu scroll-py-3 overflow-y-auto scrollbar-sm">
+        {Object.keys(items)
+            .sort((a,b) => items[b].score - items[a].score)
+            .map((page_id) => (
             <Combobox.Option
-                key={item.id}
-                value={item}
-                className={({active}) =>
-                    classNames('flex cursor-pointer select-none rounded-xl p-3', active && 'bg-gray-100')
+                key={page_id}
+                value={page_id}
+                className={({focus}) =>
+                    classNames('select-none rounded-xl p-3', focus && 'bg-transparent')
                 }
             >
-                {({active}) => (
-                    <>
+                {({focus}) => (
+                    <div
+                        key={page_id}
+                        className={
+                            classNames(`w-full select-none rounded-xl p-3 bg-slate-10 transition ease-in`, focus && 'bg-slate-200')
+                        }
+                    >
+                        {/*page title*/}
                         <div
-                            className={classNames(
-                                'flex h-10 w-10 flex-none items-center justify-center rounded-lg',
-                                item.color
-                            )}
-                        >
-                            <item.icon className="h-6 w-6 text-white"
-                                       aria-hidden="true"/>
+                            className={`group w-full flex items-center text-xl font-medium text-gray-700 hover:text-gray-700 cursor-pointer`}
+                            onClick={e => window.location = `${items[page_id].url}`}>
+                            <Page className="flex items-center h-6 w-6 mr-2 border rounded-md"/>
+                            <div>{boldMatchingText(items[page_id].page_title || page_id, query)}</div>
+                            <ArrowRight className={'h-6 w-6 ml-2 text-transparent group-hover:text-gray-900'}/>
                         </div>
-                        <div className="ml-4 flex-auto">
-                            <p
-                                className={classNames(
-                                    'text-sm font-medium w-fit',
-                                    active ? 'text-gray-900' : 'text-gray-700',
-                                    item.titleMatch ? 'bg-yellow-300 px-1 rounded-md' : ''
-                                )}
-                            >
-                                {item.name || item.id}
-                            </p>
-                            <p className={classNames('text-sm', active ? 'text-gray-700' : 'text-gray-500')}>
-                                {item.description}
-                            </p>
-                            {
-                                (item.tags || '').split(',').map(tag => <span
-                                    className={'tracking-wide p-1 bg-red-400 text-xs text-white font-semibold rounded-md border'}>{tag}</span>)
-                            }
+
+                        <div className="ml-3 pl-4 flex-auto border-l border-gray-900">
+                            {/*sections*/}
+                            <div>
+                                {(items[page_id].sections || []).map(({
+                                                                          section_id,
+                                                                          section_title,
+                                                                          tags = '',
+                                                                          score
+                                                                      }) => (
+                                    <div className={'w-full cursor-pointer group'}
+                                         onClick={() => window.location = `${items[page_id].url}#${section_id}`}>
+                                        {/*section title*/}
+                                        <div
+                                            className={'w-full flex items-center text-md font-medium text-gray-700 hover:text-gray-700'}>
+                                            <Section className="h-6 w-6 mr-2 border rounded-md"/>
+                                            <div>{boldMatchingText(section_title || section_id, query)}</div>
+                                            <ArrowRight
+                                                className={'h-6 w-6 ml-2 text-transparent group-hover:text-gray-900'}/>
+
+                                        </div>
+                                        {/*tags*/}
+                                        <div className={'w-full ml-8'}>
+                                            {
+                                                tags?.split(',').filter(t => t && t.length).map(tag => (
+                                                    <span className={`tracking-wide p-1 text-xs text-white font-semibold rounded-md border 
+                                                ${tag.toLowerCase() === query.toLowerCase() ? 'border-1 border-red-600 bg-red-400' : 'bg-red-300'}`}>
+                                                    {boldMatchingText(tag, query)}
+                                                </span>))
+                                            }
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
-                    </>
+                    </div>
                 )}
             </Combobox.Option>
-        ))}
+            ))}
     </Combobox.Options>
-)
+) : null;
 
 export const RenderStatus = ({loading, query, itemsLen}) =>
     loading ? (
             <div className="p-2 mx-auto w-1/4 h-full flex items-center justify-middle">
-                <i className="px-2 fa fa-loader text-gray-400" />
+                <i className="px-2 fa fa-loader text-gray-400"/>
                 <p className="font-semibold text-gray-900">Loading...</p>
             </div>
         ) :
@@ -128,17 +151,18 @@ export const RenderStatus = ({loading, query, itemsLen}) =>
         );
 
 const SearchPallet = ({open, setOpen, app, type}) => {
-    const { baseUrl, falcor, falcorCache } = useContext(CMSContext) || {}
+    const {baseUrl, falcor, falcorCache} = useContext(CMSContext) || {}
     const [query, setQuery] = useState('');
     const [tmpQuery, setTmpQuery] = useState('');
     const [loading, setLoading] = useState(false);
     const [tags, setTags] = useState([]);
     const [individualTags, setIndividualTags] = useState([]);
+    const [data, setData] = useState({});
     const [items, setItems] = useState([]);
-    // change it so that query is only set when whole tag is searched from typeahead
+    const searchType = 'tags'; // the query has been updated to search by page title, section title, and tags.
 
     useEffect(() => {
-        setTimeout(() => setQuery(tmpQuery), 0)
+        setQuery(tmpQuery)
     }, [tmpQuery]);
 
     useEffect(() => {
@@ -153,51 +177,52 @@ const SearchPallet = ({open, setOpen, app, type}) => {
         }
 
         getTags().then(tags => {
-            setTags(tags.value.map(t => t.tags).sort());
-            setIndividualTags([...new Set(tags.value.reduce((acc, t) => [...acc, ...t.tags.split(',')], []))].sort());
+            setTags(tags.value.map(t => t[searchType]).sort());
+            setIndividualTags([...new Set(tags.value.reduce((acc, t) => [...acc, ...t[searchType].split(',')], []))].sort());
         });
-    }, []);
+    }, [searchType]);
 
     useEffect(() => {
         if (!query) return;
         // search for sections matching query.
-
         const config = getConfig({
             app,
             type,
             action: 'search',
-            tags: Array.isArray(query) ? query : [query]
+            tags: Array.isArray(query) ? query : [query],
+            searchType: searchTypeMapping[searchType]
         })
 
         async function getData() {
             setLoading(true)
             const data = await dmsDataLoader(falcor, config, '/');
-
-            const tmpItems = (Array.isArray(query) ? query : [query]).reduce((acc, q) => {
-                const pagesForQuery = data[q]?.value?.map(value => {
-                    return ({
-                        id: value.section_id,
-                        name: value.section_title,
-                        tags: value.tags,
-                        description: value.page_title,
-                        url: `${baseUrl}/${value.url_slug}`,
-                        type: value.type,
-                        color: 'bg-indigo-500',
-                        titleMatch: value.section_title?.includes(query) && !value.tags?.includes(query),
-                        icon: () => <i className={'fa-light fa-memo text-white'}/>,
-                    })
-                });
-
-                return [...acc, ...pagesForQuery]
-            }, []);
-
-            setItems(tmpItems || [])
+            setData(data)
             setLoading(false)
         }
 
         getData();
         // search for page title and url for matched sections
     }, [query]);
+
+    useEffect(() => {
+        // page with most hits in title and sections comes up
+        // section with most match comes up
+        // {page_id, page_title, url, sections: [{section_id, section_title, tags}]}
+        setLoading(true);
+        const pagesForQuery = data[query]?.value?.reduce((acc, {page_id, page_title, url_slug, section_id, section_title, tags, ...rest}) => {
+            const score = getScore([...(section_title?.split(' ') || []), ...(tags?.split(',') || [])], query);
+            acc[page_id] = {
+                page_title,
+                url: `${baseUrl}/${url_slug}`,
+                sections: [...(acc[page_id]?.sections || []), {section_id, section_title, tags, score}].sort((a,b) => b.score - a.score),
+                score: getScore([page_title], query) + score + (acc[page_id]?.sections || []).reduce((acc, curr) => acc + (curr.score || 0), 0)
+            }
+            return acc;
+        }, {})
+
+        setItems(pagesForQuery || []);
+        setLoading(false);
+    }, [data, query])
 
     return (
         <Transition.Root show={open} as={Fragment} afterLeave={() => setQuery('')} appear>
@@ -225,7 +250,7 @@ const SearchPallet = ({open, setOpen, app, type}) => {
                         leaveTo="opacity-0 scale-95"
                     >
                         <Dialog.Panel
-                            className="mx-auto max-w-xl transform divide-y divide-gray-100 overflow-hidden rounded-xl bg-white shadow-2xl ring-1 ring-black ring-opacity-5 transition-all">
+                            className="mx-auto max-w-3xl max-h-3/4 transform divide-y divide-gray-100 overflow-hidden rounded-xl bg-white shadow-2xl ring-1 ring-black ring-opacity-5 transition-all">
                             <Combobox onChange={(item) => {
                                 if (item.url){
                                     window.location = `${item.url}#${item.id}`
@@ -236,7 +261,8 @@ const SearchPallet = ({open, setOpen, app, type}) => {
                                         className="fa-light fa-search pointer-events-none h-5 w-5 text-gray-400"
                                     />
                                     <Combobox.Input
-                                        className="h-10 w-full border-0 bg-transparent p-1 mx-1 text-gray-900 placeholder:text-gray-400 focus:ring-0 sm:text-sm rounded-md ring-0 outline-none"
+                                        autoFocus
+                                        className="h-10 w-full border-0 bg-transparent p-2 mx-1 text-gray-900 placeholder:text-gray-400 focus:ring-0 sm:text-sm rounded-md ring-0 outline-none"
                                         placeholder="Search..."
                                         onChange={(event) =>{
                                             const match = tags.find(tag => tag.toLowerCase() === event.target.value.toLowerCase());
@@ -250,11 +276,11 @@ const SearchPallet = ({open, setOpen, app, type}) => {
                                      to={'search'}/>
                                 </div>
 
-                                <RenderTagSuggestions tags={tags} individualTags={individualTags} tmpQuery={tmpQuery} setQuery={setQuery} />
+                                <RenderSuggestions tags={tags} individualTags={individualTags} tmpQuery={tmpQuery} setQuery={setQuery} />
 
-                                <RenderItems items={items} />
+                                <RenderItems items={items} query={query}/>
 
-                                <RenderStatus query={query} loading={loading} itemsLen={items.length} />
+                                <RenderStatus query={query} loading={loading} itemsLen={Object.keys(items).length} />
                             </Combobox>
                         </Dialog.Panel>
                     </Transition.Child>
