@@ -1,5 +1,5 @@
 import {Fragment, useEffect, useContext, useState} from "react";
-import {Combobox, Dialog, Transition} from '@headlessui/react'
+import {Combobox, Dialog, DialogPanel, Input, Transition} from '@headlessui/react'
 // import {getConfig} from "../layout/template/pages";
 import {dmsDataLoader} from "../../../../api";
 import {CMSContext} from "../../siteConfig";
@@ -28,64 +28,54 @@ function classNames(...classes) {
     return classes.filter(Boolean).join(' ')
 }
 
-export const RenderSuggestions = ({individualTags, tmpQuery, setQuery}) => individualTags
-    .filter(tag => (!tmpQuery?.length || tag.toLowerCase().includes(tmpQuery.toLowerCase())))
-    .length > 0 && (
-    <Combobox.Options static
-                      className="flex items-center max-h-96 transform-gpu scroll-py-3 overflow-y-auto p-3">
+const RenderSuggestions = ({individualTags, query, setQuery}) => individualTags
+    .filter(tag => (!query?.length || tag.toLowerCase().includes(query.toLowerCase())))
+    .length > 0 ? (
+    <div className="flex items-center max-h-96 transform-gpu scroll-py-3 overflow-y-auto p-3">
         <span className={'text-xs italic'}>suggestions: </span>
         {individualTags
-            .filter(tag => (!tmpQuery?.length || tag.toLowerCase().includes(tmpQuery.toLowerCase())))
+            .filter(tag => (!query?.length || tag.toLowerCase().includes(query.toLowerCase())))
             .filter((tag, i) => i <= 5)
             .map((tag) => (
-                <Combobox.Option
+                <div
                     key={tag}
-                    value={tag}
                     onClick={() => setQuery(tag)}
-                    className={({focus}) =>
-                        classNames('flex cursor-pointer select-none rounded-xl p-1 mx-1', focus && 'bg-gray-100')
-                    }
+                    className={'flex cursor-pointer select-none hover:bg-gray-100  rounded-xl p-1'}
                 >
-                    {({focus}) => (
-                        <div>
-                            <i className="text-xs text-red-400 fa fa-tag" />
-                            <span
-                                className={classNames(
-                                    'ml-2 text-sm font-medium',
-                                    focus ? 'text-gray-900' : 'text-gray-700'
-                                )}
-                            > {tag} </span>
-                        </div>
-                    )}
-                </Combobox.Option>
+                    <div>
+                        <i className="text-xs text-red-400 fa fa-tag"/>
+                        <span
+                            className={classNames(
+                                'ml-2 text-sm font-medium',
+                                focus ? 'text-gray-900' : 'text-gray-700'
+                            )}
+                        > {tag} </span>
+                    </div>
+                </div>
             ))}
-    </Combobox.Options>
-);
+    </div>
+) : null;
 
-export const RenderItems = ({items, query}) => Object.keys(items).length ? (
-    <Combobox.Options
-                      className="p-3 max-h-[500px] transform-gpu scroll-py-3 overflow-y-auto scrollbar-sm">
+const RenderItems = ({items, query}) => Object.keys(items).length ? (
+    <div
+        className="p-3 max-h-[500px] transform-gpu scroll-py-3 overflow-x-hidden overflow-y-auto scrollbar-sm">
         {Object.keys(items)
-            .sort((a,b) => items[b].score - items[a].score)
+            .sort((a, b) => items[b].score - items[a].score)
             .map((page_id) => (
-            <Combobox.Option
-                key={page_id}
-                value={page_id}
-                className={({focus}) =>
-                    classNames('select-none rounded-xl p-3', focus && 'bg-transparent')
-                }
-            >
-                {({focus}) => (
+                <div
+                    key={page_id}
+                    className={'select-none rounded-xl m-1'}
+                >
                     <div
                         key={page_id}
-                        className={
-                            classNames(`w-full select-none rounded-xl p-3 bg-slate-10 transition ease-in`, focus && 'bg-slate-200')
-                        }
+                        className={`w-full select-none rounded-xl p-2 bg-slate-100 hover:bg-slate-200 transition ease-in`}
                     >
                         {/*page title*/}
                         <div
                             className={`group w-full flex items-center text-xl font-medium text-gray-700 hover:text-gray-700 cursor-pointer`}
-                            onClick={e => window.location = `${items[page_id].url}`}>
+                            onClick={e => {
+                                window.location = `${items[page_id].url}`
+                            }}>
                             <Page className="flex items-center h-6 w-6 mr-2 border rounded-md"/>
                             <div>{boldMatchingText(items[page_id].page_title || page_id, query)}</div>
                             <ArrowRight className={'h-6 w-6 ml-2 text-transparent group-hover:text-gray-900'}/>
@@ -126,20 +116,19 @@ export const RenderItems = ({items, query}) => Object.keys(items).length ? (
                             </div>
                         </div>
                     </div>
-                )}
-            </Combobox.Option>
+                </div>
             ))}
-    </Combobox.Options>
+    </div>
 ) : null;
 
-export const RenderStatus = ({loading, query, itemsLen}) =>
+const RenderStatus = ({loading, query, itemsLen}) =>
     loading ? (
             <div className="p-2 mx-auto w-1/4 h-full flex items-center justify-middle">
                 <i className="px-2 fa fa-loader text-gray-400"/>
                 <p className="font-semibold text-gray-900">Loading...</p>
             </div>
         ) :
-        query !== '' && itemsLen === 0 && (
+        query && query !== '' && itemsLen === 0 && (
             <div className="px-6 py-14 text-center text-sm sm:px-14">
                 <i
                     className="fa fa-exclamation mx-auto h-6 w-6 text-gray-400"
@@ -152,21 +141,30 @@ export const RenderStatus = ({loading, query, itemsLen}) =>
 
 const SearchPallet = ({open, setOpen, app, type}) => {
     const {baseUrl, falcor, falcorCache} = useContext(CMSContext) || {}
-    const [query, setQuery] = useState('');
-    const [tmpQuery, setTmpQuery] = useState('');
+    const [query, setQuery] = useState();
+    const [tmpQuery, setTmpQuery] = useState();
     const [loading, setLoading] = useState(false);
     const [tags, setTags] = useState([]);
     const [individualTags, setIndividualTags] = useState([]);
     const [data, setData] = useState({});
-    const [items, setItems] = useState([]);
+    const [items, setItems] = useState({});
     const searchType = 'tags'; // the query has been updated to search by page title, section title, and tags.
 
     useEffect(() => {
-        setQuery(tmpQuery)
+        // Debounce logic: only update `query` after a delay when `tmpQuery` changes
+        const handler = setTimeout(() => {
+            setQuery(tmpQuery);
+        }, 500); // 500ms delay
+
+        // Cleanup timeout if `tmpQuery` changes before the delay is over
+        return () => {
+            clearTimeout(handler);
+        };
     }, [tmpQuery]);
 
     useEffect(() => {
         async function getTags() {
+            setLoading(true)
             const config = getConfig({
                 app,
                 type,
@@ -179,11 +177,13 @@ const SearchPallet = ({open, setOpen, app, type}) => {
         getTags().then(tags => {
             setTags(tags.value.map(t => t[searchType]).sort());
             setIndividualTags([...new Set(tags.value.reduce((acc, t) => [...acc, ...t[searchType].split(',')], []))].sort());
+            setLoading(false)
         });
-    }, [searchType]);
+    }, []);
 
     useEffect(() => {
         if (!query) return;
+        setLoading(true)
         // search for sections matching query.
         const config = getConfig({
             app,
@@ -194,39 +194,51 @@ const SearchPallet = ({open, setOpen, app, type}) => {
         })
 
         async function getData() {
-            setLoading(true)
             const data = await dmsDataLoader(falcor, config, '/');
-            setData(data)
-            setLoading(false)
+            return data;
         }
 
-        getData();
-        // search for page title and url for matched sections
+        getData().then(data => {
+            setData(data);
+            setLoading(false);
+        });
     }, [query]);
 
     useEffect(() => {
         // page with most hits in title and sections comes up
         // section with most match comes up
         // {page_id, page_title, url, sections: [{section_id, section_title, tags}]}
-        setLoading(true);
-        const pagesForQuery = data[query]?.value?.reduce((acc, {page_id, page_title, url_slug, section_id, section_title, tags, ...rest}) => {
-            const score = getScore([...(section_title?.split(' ') || []), ...(tags?.split(',') || [])], query);
-            acc[page_id] = {
-                page_title,
-                url: `${baseUrl}/${url_slug}`,
-                sections: [...(acc[page_id]?.sections || []), {section_id, section_title, tags, score}].sort((a,b) => b.score - a.score),
-                score: getScore([page_title], query) + score + (acc[page_id]?.sections || []).reduce((acc, curr) => acc + (curr.score || 0), 0)
-            }
-            return acc;
-        }, {})
+        function processData() {
 
-        setItems(pagesForQuery || []);
-        setLoading(false);
+            if (!data[query]?.value?.length) {
+                return {};
+            }
+            const pagesForQuery = data[query]?.value?.reduce((acc, {page_id, page_title, url_slug, section_id, section_title, tags, ...rest}) => {
+                const score = getScore([...(section_title?.split(' ') || []), ...(tags?.split(',') || [])], query);
+                acc[page_id] = {
+                    page_title,
+                    url: `${baseUrl}/${url_slug}`,
+                    sections: [...(acc[page_id]?.sections || []), {
+                        section_id,
+                        section_title,
+                        tags,
+                        score
+                    }].sort((a, b) => b.score - a.score),
+                    score: getScore([page_title], query) + score + (acc[page_id]?.sections || []).reduce((acc, curr) => acc + (curr.score || 0), 0)
+                }
+                return acc;
+            }, {});
+
+            return pagesForQuery;
+        }
+
+        const items = processData();
+        setItems(items);
     }, [data, query])
 
     return (
         <Transition.Root show={open} as={Fragment} afterLeave={() => setQuery('')} appear>
-            <Dialog as="div" className="relative z-20" onClose={setOpen}>
+            <Dialog key={'search-dialogue'} as="div" className="relative z-20" onClose={setOpen}>
                 <Transition.Child
                     as={Fragment}
                     enter="ease-out duration-300"
@@ -249,24 +261,26 @@ const SearchPallet = ({open, setOpen, app, type}) => {
                         leaveFrom="opacity-100 scale-100"
                         leaveTo="opacity-0 scale-95"
                     >
-                        <Dialog.Panel
+                        <DialogPanel
                             className="mx-auto max-w-3xl max-h-3/4 transform divide-y divide-gray-100 overflow-hidden rounded-xl bg-white shadow-2xl ring-1 ring-black ring-opacity-5 transition-all">
-                            <Combobox onChange={(item) => {
-                                if (item.url){
-                                    window.location = `${item.url}#${item.id}`
+                            {/*<Combobox onChange={(item) => {
+                                if (items?.[item]?.url){
+                                    window.location = items[item].id ? `${items[item].url}#${items[item].id}` : `${items[item].url}`
                                 }
-                            }}>
+                            }}
+                            >*/}
                                 <div className="flex items-center relative px-2">
                                     <i
                                         className="fa-light fa-search pointer-events-none h-5 w-5 text-gray-400"
                                     />
-                                    <Combobox.Input
+                                    <Input
                                         autoFocus
                                         className="h-10 w-full border-0 bg-transparent p-2 mx-1 text-gray-900 placeholder:text-gray-400 focus:ring-0 sm:text-sm rounded-md ring-0 outline-none"
                                         placeholder="Search..."
+                                        value={tmpQuery}
                                         onChange={(event) =>{
-                                            const match = tags.find(tag => tag.toLowerCase() === event.target.value.toLowerCase());
-                                            setTmpQuery(match || event.target.value)
+                                            // const match = tags.find(tag => tag.toLowerCase() === event.target.value.toLowerCase());
+                                            setTmpQuery(event.target.value)
                                         }}
                                     />
 
@@ -276,13 +290,13 @@ const SearchPallet = ({open, setOpen, app, type}) => {
                                      to={'search'}/>
                                 </div>
 
-                                <RenderSuggestions tags={tags} individualTags={individualTags} tmpQuery={tmpQuery} setQuery={setQuery} />
+                                <RenderSuggestions tags={tags} individualTags={individualTags} query={tmpQuery} setQuery={setTmpQuery} />
 
-                                <RenderItems items={items} query={query}/>
+                                <RenderItems key={'search-items'} items={items} query={query}/>
 
-                                <RenderStatus query={query} loading={loading} itemsLen={Object.keys(items).length} />
-                            </Combobox>
-                        </Dialog.Panel>
+                                <RenderStatus key={'search-suggestions'} query={query} loading={loading} itemsLen={Object.keys(items).length} />
+                            {/*</Combobox>*/}
+                        </DialogPanel>
                     </Transition.Child>
                 </div>
             </Dialog>

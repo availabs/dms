@@ -46,14 +46,14 @@ const RenderActions = ({isLastCell, newItem, removeItem}) => {
                     to={`edit-item/${newItem.id}`}>
                     <PencilIcon className={'text-white'} height={18} width={18}/>
                 </Link>
-                {/*<button*/}
-                {/*    title={'delete'}*/}
-                {/*    className={'w-fit p-0.5 bg-red-300 hover:bg-red-500 text-white rounded-lg'}*/}
-                {/*    onClick={e => {*/}
-                {/*        removeItem(newItem)*/}
-                {/*    }}>*/}
-                {/*    <Delete className={'text-white'} height={20} width={20}/>*/}
-                {/*</button>*/}
+                <button
+                    title={'delete'}
+                    className={'w-fit p-0.5 bg-red-300 hover:bg-red-500 text-white rounded-lg'}
+                    onClick={e => {
+                        removeItem(newItem)
+                    }}>
+                    <Delete className={'text-white'} height={20} width={20}/>
+                </button>
             </div>
     )
 }
@@ -578,7 +578,9 @@ export const RenderSimple = ({
                     <div className={'bg-white flex flex-row h-fit justify-evenly'} style={{width: actionsColSize}}>
                         <button
                             className={'w-fit p-0.5 bg-blue-300 hover:bg-blue-500 text-white rounded-lg'}
-                            onClick={e => addItem()}>
+                            onClick={e => {
+                                addItem()
+                            }}>
                             <Add className={'text-white'} height={20} width={20}/>
                         </button>
                     </div>

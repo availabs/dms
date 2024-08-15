@@ -113,6 +113,8 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     }
 
     const addItem = () => {
+        setData([...data, newItem]);        setData([...data, newItem]);
+
         return apiUpdate({data: newItem, config: {format}}) && setNewItem({})
     }
 
@@ -271,6 +273,7 @@ const View = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     }
 
     const addItem = () => {
+        setData([...data, newItem]);
         return apiUpdate({data: newItem, config: {format}}) && setNewItem({})
     }
 

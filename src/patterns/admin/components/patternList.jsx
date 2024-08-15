@@ -54,17 +54,18 @@ function PatternEdit({
 	 format,
 	 ...rest
 }) {
-	const [newItem, setNewItem] = useState({});
+	const [newItem, setNewItem] = useState({app: format?.app});
 	const [editingIndex, setEditingIndex] = useState(undefined);
 	const [editingItem, setEditingItem] = useState(undefined);
 	const attrToShow = Object.keys(attributes).filter(attrKey => ['pattern_type', 'doc_type', 'base_url', 'authLevel'].includes(attrKey));
 	const numAttributes = attrToShow.length
-
+	console.log('??????????/', format)
+	console.log('??????????/', format)
 	const addNewValue = () => {
 		const newData = [...value, newItem];
 		onChange(newData)
 		onSubmit(newData)
-		setNewItem({})
+		setNewItem({app: format?.app})
 	}
 	const c = {
 		1: 'grid grid-cols-1',
@@ -106,7 +107,7 @@ function PatternEdit({
 									<EditComp
 										key={`${attr}-${index}`}
 										value={editingItem?.[attr]}
-										onChange={(v) => setEditingItem({...editingItem, [attr]: v})}
+										onChange={(v) => setEditingItem({...editingItem, app: format.app, [attr]: v})}
 										{...attributes[attr]}
 									/>
 										: attr === 'base_url' ? <Link to={`${pattern[attr]}`}>{pattern[attr]}</Link> : <div>{pattern[attr]}</div>
