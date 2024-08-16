@@ -102,7 +102,7 @@ export const RenderItems = ({items, query, setQuery}) => {
                                     <div
                                         className={'w-full flex items-center text-md font-medium text-gray-700 hover:text-gray-700'}>
                                         <Section className="h-6 w-6 mr-2 border rounded-md"/>
-                                        <div>{boldMatchingText(section_title || section_id, query)} ({score})</div>
+                                        <div>{boldMatchingText(section_title || section_id, query)}</div>
                                         <ArrowRight className={'h-6 w-6 ml-2 text-transparent group-hover:text-gray-900'}/>
 
                                     </div>
