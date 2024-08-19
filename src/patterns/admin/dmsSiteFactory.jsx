@@ -60,6 +60,7 @@ export default async function dmsSiteFactory({
                             adminPath,
                             format: pattern?.config,
                             pattern: pattern,
+                            parent: pattern,
                             authLevel: +pattern.authLevel || -1,
                             theme,
                             useFalcor,
