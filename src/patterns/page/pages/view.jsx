@@ -44,7 +44,7 @@ function PageView ({item, dataItems, attributes, logo, rightMenu}) {
       {/* Header */}
       {(item?.header === 'above') && <ContentView item={item} value={[headerSection]} attributes={sectionAttr} />}
       {/* Layout */}
-      <Layout navItems={menuItems}>
+      <Layout navItems={menuItems} secondNav={theme?.navOptions?.secondaryNav?.navItems || []}>
         <div className={`${theme?.page?.wrapper1} ${theme?.navPadding[level]}`}>
           {(item?.header === 'below') && <ContentView item={item} value={[headerSection]} attributes={sectionAttr} />}
           <div className={`${theme?.page?.wrapper2}`}>

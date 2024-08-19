@@ -43,7 +43,8 @@ export const siteConfig = ({
   pgEnv,
   API_HOST
 }) => {
-  theme = merge(cloneDeep(defaultTheme), cloneDeep(theme))
+  console.log('hola', pattern?.theme)
+  theme = merge(cloneDeep(defaultTheme), cloneDeep(theme), pattern?.theme || {})
 
   // console.log('pageConfig', theme, logo)
   // baseUrl = baseUrl[0] === '/' ? baseUrl.slice(1) : baseUrl

@@ -48,7 +48,7 @@ export default async function dmsSiteFactory({
             if(pattern?.pattern_type){
                 const c = configs[pattern.pattern_type];
 
-                console.log('register pattern', pattern, theme)
+                //console.log('register pattern', pattern, theme)
 
                 acc.push(
                     ...c.map(config => {
@@ -59,7 +59,7 @@ export default async function dmsSiteFactory({
                             baseUrl: `/${pattern.base_url?.replace(/^\/|\/$/g, '')}`, // only leading slash allowed
                             adminPath,
                             format: pattern?.config,
-                            parent: pattern,
+                            pattern: pattern,
                             authLevel: +pattern.authLevel || -1,
                             theme,
                             useFalcor,

@@ -43,6 +43,7 @@ export default function EditWrapper({ Component, format, options, params, user, 
 
 	const apiUpdate = async ({data, config={format}, requestType=''}) => {  
 			// update the data
+		console.log('apiUpdate', data, config)
 			await dmsDataEditor(falcor, config, data, requestType)
 			submit(null, {action: pathname})
 	}

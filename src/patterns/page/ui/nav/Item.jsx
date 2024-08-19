@@ -1,12 +1,21 @@
 import React, {useEffect} from "react";
 import { useMatch, useNavigate, Link } from "react-router-dom";
+import Icons from '../icons'
 
 import { CMSContext } from '../../siteConfig'
 
 function Icon ({ icon, className }) {
+	let Icon = ''
+	if(icon.includes('fa')) {
+		Icon = <span className={icon} /> 
+	} else {
+		let Comp = Icons[icon]
+		Icon = <Comp />
+	}
+
 	return (
   	<div className={`${className} flex justify-center items-center`}>
-   		<span className={icon} />
+   		{Icon}
   	</div>
 	)
 };

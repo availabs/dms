@@ -9,7 +9,7 @@ const sidenav = (opts={}) =>  {
 
   let colors = {
     white: {
-      contentBg: `bg-slate-100 border-r`,
+      contentBg: `bg-white border-r`,
       sideItemActive:``,
       contentBgAccent: `bg-neutral-100`,
       accentColor: `blue-600`,
@@ -20,8 +20,8 @@ const sidenav = (opts={}) =>  {
       highlightColor: `text-blue-800`,
     },
     transparent: {
-      contentBg: ``,
-      contentBgAccent: `bg-neutral-100`,
+      contentBg: `border-r`,
+      contentBgAccent: `bg-slate-100`,
       accentColor: `blue-600`,
       accentBg: `hover:bg-blue-400`,
       borderColor: `border-slate-100`,

@@ -174,6 +174,8 @@ export async function dmsDataEditor (falcor, config, data={}, requestType, /*pat
 	const attributeKeys = Object.keys(data)
 		.filter(k => !['id', 'updated_at', 'created_at'].includes(k))
 
+	console.log('dms editor', data, app, type)
+
 	// console.log('dmsDataEditor',config)
 
 	// --------------------------------------------------------------

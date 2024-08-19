@@ -41,14 +41,16 @@ const Logos = () => <div className='h-12'/>
 const Layout = ({ children, navItems, secondNav, title, theme, yPadding = '0px', ...props }) => {
 	//const theme = useTheme()
 
+	// console.log('second nav', secondNav)
+
 	const { theme: defaultTheme, app, type, Menu } = React.useContext(CMSContext) || {}
 	theme = merge(cloneDeep(defaultTheme), cloneDeep(theme))
 	const { sideNav={}, topNav={}, logo=Logos } = theme?.navOptions || {}
 	
 	const sideNavOptions = {
 		size: sideNav.size || 'none',
-		color: sideNav.color || 'white',
-		menuItems: (sideNav?.nav === 'main' ? navItems : []).filter(page => !page.hideInNav),
+		color: sideNav.color || 'transparent',
+		menuItems: (sideNav?.nav === 'main' ? navItems : sideNav?.nav === 'secondary' ? secondNav || [] : []).filter(page => !page.hideInNav),
 		topMenu: (
 			<div className={'flex flex-row md:flex-col'}>
 	      		{sideNav?.logo === 'top' && logo}
