@@ -1,7 +1,7 @@
 import React, {useState} from "react";
 import {Add, Alert} from "../../../patterns/admin/ui/icons";
 
-export const RenderAddField = ({theme, placeholder, attributes, className, addAttribute}) => {
+export const RenderAddField = ({theme, placeholder, attributes=[], className, addAttribute}) => {
     const [newValue, setNewValue] = useState('');
     const [error, setError] = useState('empty name');
     function fn() {
