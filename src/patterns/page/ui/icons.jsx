@@ -211,3 +211,34 @@ export const ArrowDown = (props) => (
 );
 
 
+
+const Icons = {
+  PencilEditSquare,
+  ViewIcon,
+  PencilIcon,
+  CirclePlus,
+  SquarePlus,
+  WrenchIcon,
+  SlidersIcon,
+  MenuIcon,
+  ClockIcon,
+  InfoCircle,
+  TrashCan,
+  RemoveCircle,
+  CancelCircle,
+  FloppyDisk,
+  CirclePlusDot,
+  PencilSquare,
+  ArrowDownSquare,
+  ArrowUpSquare,
+  ChevronDownSquare,
+  ChevronUpSquare,
+  InfoSquare,
+  MoreSquare,
+  UserCircle,
+  User,
+  Tags,
+  ArrowUp,
+  ArrowDown
+}
+export default Icons

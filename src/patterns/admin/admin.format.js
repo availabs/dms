@@ -128,6 +128,10 @@ export const pattern = {
       placeholder: 'please select a type',
       type: 'config'
     },
+    { key: 'theme',
+      placeholder: '',
+      type: 'config'
+    },
     {
       key: 'templates',
       // type: 'form-template',
