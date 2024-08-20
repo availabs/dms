@@ -6,7 +6,7 @@ import {Delete, ViewIcon, Add, PencilIcon} from "../../../../../../admin/ui/icon
 const actionsColSize = 80;
 const numColSize = 20;
 const frozenColClass = '' //'sticky left-0 z-10'
-
+const stringifyIfObj = obj => typeof obj === "object" ? JSON.stringify(obj) : obj;
 const LoadingComp = ({className}) => <div className={className}>loading...</div>
 const getEdge = ({startI, endI, startCol, endCol}, i, attrI) => {
     const e =
@@ -89,7 +89,7 @@ const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell, wid
 
     useEffect(() => {
         // send update to api
-        if (newItem[attribute.name] === item[attribute.name]) return;
+        if (stringifyIfObj(newItem[attribute.name]) === stringifyIfObj(item[attribute.name])) return;
         setTimeout(
             updateItem(
                 newItem[attribute.name],
@@ -116,7 +116,7 @@ const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell, wid
         >
             <Comp key={`${attribute.name}-${i}`}
                   onClick={onClick}
-                // disabled={!editing}
+                  autoFocus={editing}
                   className={`
                   min-w-full min-h-full flex flex-wrap items-center truncate
                   ${isSelected ? 'bg-blue-50' : 'bg-white'} hover:bg-blue-50 
@@ -125,7 +125,7 @@ const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell, wid
                   } 
                 
                   `}
-                  displayInvalidMsg={false}
+                  // displayInvalidMsg={false}
                   {...attribute}
                   value={newItem[attribute.name]}
                   onChange={e => {
@@ -275,6 +275,43 @@ export const RenderSimple = ({
                 setIsSelecting(true);
             } else if (e.key === 'Delete'){
                 setTriggerSelectionDelete(true)
+            } else if (e.key.includes('Arrow')){
+                let {index, attrI} = typeof selection[selection.length - 1] === 'number' ?
+                                            { index: selection[selection.length - 1], attrI: undefined } :
+                                                selection[selection.length - 1];
+
+                switch (e.key){
+                    case "ArrowUp":
+                        index > 0 && setSelection([{index: index - 1, attrI: attrI || 0}]);
+                        setEditing({})
+                        break;
+                    case "ArrowDown":
+                        index < Math.min(pageSize, data.length) - 1 && setSelection([{index: index + 1, attrI: attrI || 0}]);
+                        setEditing({})
+                        break;
+                    case "ArrowLeft":
+                        attrI > 0 && setSelection([{index, attrI: attrI - 1}]);
+                        setEditing({})
+                        break;
+                    case "ArrowRight":
+                        attrI < visibleAttributes.length - 1 && setSelection([{index, attrI: attrI + 1}]);
+                        setEditing({})
+                        break;
+
+                }
+            } else if (e.key === 'Enter'){
+                let {index, attrI} = typeof selection[selection.length - 1] === 'number' ?
+                    { index: selection[selection.length - 1], attrI: undefined } :
+                    selection[selection.length - 1];
+
+                if(index === editing.index && attrI === editing.attrI){
+                    // move to cell below if editing
+                    setEditing({});
+                    setSelection([{index: index + 1, attrI}]);
+                }else{
+                    // enter edit mode
+                    setEditing({index, attrI});
+                }
             }
         };
 
@@ -290,7 +327,7 @@ export const RenderSimple = ({
         return () => {
             window.removeEventListener('keydown', handleKeyDown);
         };
-    }, [selection, data.length]);
+    }, [selection, editing, data.length]);
     //============================================ Keyboard Controls end ===============================================
 
     //============================================ Mouse Controls begin ================================================
@@ -418,7 +455,6 @@ export const RenderSimple = ({
 
     if(!visibleAttributes.length) return <div className={'p-2'}>No columns selected.</div>;
     const frozenCols = [0,1]
-    console.log('rendewring spreadsheet', visibleAttributes)
     return (
         <div className={`flex flex-col w-full overflow-x-auto scrollbar-sm`} ref={gridRef}>
             <div className={'flex flex-col no-wrap text-sm max-h-[calc(100vh_-_250px)] overflow-y-auto scrollbar-sm'} onMouseLeave={handleMouseUp}>
