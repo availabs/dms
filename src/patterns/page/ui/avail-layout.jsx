@@ -80,12 +80,12 @@ const Layout = ({ children, navItems, secondNav, title, theme, yPadding = '0px',
 	        	{topNav?.dropdown === 'left' && <Menu />}
 	      	</div>),
 		rightMenu:  (
-	      	<div className={'flex flex-col md:flex-row'}>
+	      	<>
 	      		{topNav?.rightMenu}
 	        	{topNav?.search === 'right' && <Search app={app} type={type}/>}
 	        	{topNav?.dropdown === 'right' && <Menu />}
 	        	{topNav?.logo === 'right' && logo}
-	      	</div>
+	      	</>
 	  	)	
 	}
 	const Logo = sideNavOptions.logo

@@ -32,7 +32,7 @@ export function Dropdown ({ control, children,className, width='w-full max-w-[20
         // console.log('openType', openType)
     return (
         <div ref={ setRef }
-             className={`h-full relative cursor-pointer ${className}` }
+             className={`relative cursor-pointer ${className}` }
              onMouseEnter={ e => {
                 if(openType === 'hover') {
                  setOpen(true)

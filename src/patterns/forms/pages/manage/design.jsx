@@ -14,7 +14,7 @@ import {dataItemsNav, detectNavLevel, getInPageNav} from '../_utils'
 // import SideNav from '../../ui/nav/Side'
 import { ArrowUp, ArrowDown } from '../../ui/icons'
 import { SideNavContainer } from '../../ui'
-import { CMSContext } from '../../siteConfig'
+import { FormsContext } from '../../'
 import { themeOptions } from '../../theme/theme'
 
 
@@ -143,7 +143,7 @@ const controls = {
 
 function DesignEditor ({item, dataItems, attributes, apiLoad, apiUpdate, format, logo, rightMenu,...props}) {
  
-  const { baseUrl, theme, user } = React.useContext(CMSContext) || {}
+  const { baseUrl, theme, user } = React.useContext(FormsContext) || {}
   const [ newTheme, setNewTheme ] = React.useState({})
   const [ pattern, setPattern ] = React.useState({})
   // console.log('test', pattern,newTheme)

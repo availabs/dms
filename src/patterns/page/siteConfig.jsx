@@ -37,14 +37,14 @@ export const siteConfig = ({
   baseUrl = '/',
   logo, // deprecated
   authLevel = -1,
-  theme = defaultTheme,
+  themes = { default: {} },
   pattern,
   site,
   pgEnv,
   API_HOST
 }) => {
-  console.log('hola', pattern?.theme)
-  theme = merge(cloneDeep(defaultTheme), cloneDeep(theme), pattern?.theme || {})
+  //console.log('hola', pattern?.theme)
+  let theme = merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern.theme_name] || themes.default), pattern?.theme || {})
 
   // console.log('pageConfig', theme, logo)
   // baseUrl = baseUrl[0] === '/' ? baseUrl.slice(1) : baseUrl
@@ -143,7 +143,7 @@ export const siteConfig = ({
                 action: "edit"
               },
               { 
-                type: DesignEditor,
+                type: (props) => <DesignEditor themes={themes} {...props} />,
                 path: "manage/design",
                 action: "edit"
               },
