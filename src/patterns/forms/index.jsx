@@ -65,7 +65,7 @@ const formTemplateConfig = ({
                 type: (props) => {
                     // use dataItems. use Parent Templates, and manually get the correct template.
                     return (
-                        <FormsContext.Provider value={{baseUrl, user: props.user || defaultUser, theme, app, type, parent}}>
+                        <FormsContext.Provider value={{baseUrl, user: props.user || defaultUser, theme, app, type, parent, API_HOST}}>
                             <FormTemplateView
                                 format={templateFormat}
                                 parent={parent}
@@ -82,7 +82,7 @@ const formTemplateConfig = ({
                 type: (props) => {
                     // use dataItems. use Parent Templates, and manually get the correct template.
                     return (
-                        <FormsContext.Provider value={{baseUrl, user: props.user || defaultUser, theme, app, type, parent}}>
+                        <FormsContext.Provider value={{baseUrl, user: props.user || defaultUser, theme, app, type, parent, API_HOST}}>
                             <FormTemplateView
                                 parent={parent}
                                 adminPath={adminPath}
