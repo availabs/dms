@@ -154,7 +154,7 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
                     return {
                         original_name: name,
                         name, display_name,
-                        existingColumnMatch: existingAttributes.find(col => col.display_name === display_name || col.name === name)
+                        existingColumnMatch: existingAttributes.find(col => col.display_name === display_name || col.name === name)?.name
                     }
                 }))
         }
@@ -199,8 +199,8 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
                                         <div className={'p-0.5 hover:bg-blue-50 rounded-md grid grid-cols-3'}>
                                             <input className={inputClass} value={col.name}/>
                                             <input  className={inputClass} value={col.display_name}/>
-                                            <select className={col.existingColumnMatch?.name ? inputClass : `${inputClass} bg-red-50`}
-                                                    value={col.existingColumnMatch?.name}
+                                            <select className={col.existingColumnMatch ? inputClass : `${inputClass} bg-red-50`}
+                                                    value={col.existingColumnMatch}
                                                     onChange={e =>
                                                         setColumns(columns.map(c => c.name === col.name ? ({...c, existingColumnMatch: e.target.value}) : c))}
                                             >
