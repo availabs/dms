@@ -26,12 +26,13 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     const filterValueDelimiter = '|||'
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
-
+    console.log('size', size)
     // ========================================= init comp begin =======================================================
     useEffect(() => {
         setAttributes(JSON.parse(format?.config || '{}')?.attributes || [])
     }, [format]);
-
+    useEffect(() => setColSizes({}), [size]); // on size change, reset column sizes.
+    useEffect(() => setLength(data.length), [data]); // on data change, reset length.
     // ========================================= filters 1/2 begin======================================================
     useEffect(() => {
         const filterCols = Array.from(searchParams.keys());
@@ -113,8 +114,7 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     }
 
     const addItem = () => {
-        setData([...data, newItem]);        setData([...data, newItem]);
-
+        setData([...data, newItem]);
         return apiUpdate({data: newItem, config: {format}}) && setNewItem({})
     }
 
@@ -189,17 +189,8 @@ const View = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     const filterValueDelimiter = '|||'
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
-    console.log('????????????????????///', JSON.stringify(filters, null, 4))
-    // ========================================= handle edit -> save transition begin ===================================
-    // useEffect(() => {
-    //     const cachedData = isJson(value) ? JSON.parse(value) : {};
-    //     setLength(cachedData.length);
-    //     setColSizes(cachedData.colSizes);
-    //     setOrderBy(cachedData.orderBy);
-    //     setFilters(cachedData.filters);
-    // }, [value])
-    // ========================================= handle edit -> save transition begin ===================================
 
+    useEffect(() => setLength(data.length), [data]); // on data change, reset length.
 
     // ========================================= filters 1/2 begin======================================================
     useEffect(() => {
@@ -208,13 +199,15 @@ const View = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
         if(filtersFromURL.length) {
             setFilters(filtersFromURL)
             const url = `?${convertToUrlParams(filters, filterValueDelimiter)}`;
-            if(url !== window.location.search) navigate(url);
+            if(url !== window.location.search) {
+                navigate(url);
+            }
         }else if(!filtersFromURL.length && filters.length){
             // this means url didn't keep url params. so we need to navigate
             const url = `?${convertToUrlParams(filters, filterValueDelimiter)}`;
             navigate(url)
         }
-    }, [searchParams, filters]);
+    }, [searchParams]);
     // ========================================= filters 1/2 end =======================================================
     useEffect(() => {
         async function load() {
@@ -250,8 +243,10 @@ const View = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
 
     // =========================================== filters 2/2 begin ===================================================
     useEffect(() => {
-        const url = `?${convertToUrlParams(filters, filterValueDelimiter)}`;
-        navigate(url)
+        const url = convertToUrlParams(filters, filterValueDelimiter);
+        if(url.length && url !== window.location.search.replace('?', '')) {
+            navigate(`?${url}`)
+        }
     }, [filters]);
     // =========================================== filters 2/2 end ===================================================
 
