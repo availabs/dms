@@ -2,7 +2,7 @@ import React, {useState} from "react"
 import { useTheme } from '../theme'
 import get from 'lodash/get'
 
-const Edit = ({value, onChange, className, placeholder}) => {
+const Edit = ({value, onChange, className, placeholder, ...rest}) => {
     const [tmpValue, setTmpValue] = useState(value)
     const theme = useTheme()
     return (

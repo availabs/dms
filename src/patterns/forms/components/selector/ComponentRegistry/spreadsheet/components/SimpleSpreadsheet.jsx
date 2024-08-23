@@ -29,6 +29,56 @@ const getEdge = ({startI, endI, startCol, endCol}, i, attrI) => {
     return e;
 }
 
+function usePaste(callback) {
+    useEffect(() => {
+        function handlePaste(event) {
+            const pastedText = event.clipboardData.getData('Text');
+            if (pastedText) {
+                callback(pastedText, event);
+            }
+        }
+
+        window.addEventListener('paste', handlePaste);
+
+        return () => {
+            window.removeEventListener('paste', handlePaste);
+        };
+    }, [callback]);
+}
+const updateItemsOnPaste = ({pastedContent, e, index, attrI, data, visibleAttributes, updateItem}) => {
+    const paste = pastedContent?.split('\n').filter(row => row.length).map(row => row.split('\t'));
+    if(!paste) return;
+
+    const rowsToPaste = [...new Array(paste.length).keys()].map(i => index + i).filter(i => i < data.length)
+    const columnsToPaste = [...new Array(paste[0].length).keys()]
+        .map(i => visibleAttributes[attrI + i])
+        .filter(i => i);
+
+    const itemsToUpdate = rowsToPaste.map((row, rowI) => (
+        {
+            ...data[row],
+            ...columnsToPaste.reduce((acc, col, colI) => ({...acc, [col]: paste[rowI][colI]}), {})
+        }
+    ));
+
+    updateItem(undefined, undefined, itemsToUpdate);
+}
+function useCopy(callback) {
+    useEffect(() => {
+        function handleCopy(event) {
+            const dataToCopy = callback();
+            // event.clipboardData.setData('text/plain', dataToCopy)
+            return navigator.clipboard.writeText(dataToCopy)
+        }
+
+        window.addEventListener('copy', handleCopy);
+
+        return () => {
+            window.removeEventListener('copy', handleCopy);
+        };
+    }, [callback]);
+}
+
 const RenderActions = ({isLastCell, newItem, removeItem}) => {
     if(!isLastCell) return null;
 
@@ -113,6 +163,7 @@ const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell, wid
             onMouseMove={onMouseMove}
             onMouseUp={onMouseUp}
             onDoubleClick={onDoubleClick}
+            onPaste={onPaste}
         >
             <Comp key={`${attribute.name}-${i}`}
                   onClick={onClick}
@@ -131,13 +182,16 @@ const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell, wid
                   onChange={e => {
                       setNewItem({...item, [attribute.name]: e})
                   }}
-                  onPaste={onPaste}
+                  // onPaste={onPaste}
             />
         </div>
     )
 }
 
-
+const getLocation = selectionPoint => {
+    let {index, attrI} = typeof selectionPoint === 'number' ? { index: selectionPoint, attrI: undefined } : selectionPoint;
+    return {index, attrI}
+}
 export const RenderSimple = ({
                                  visibleAttributes,
                                  attributes,
@@ -176,6 +230,28 @@ export const RenderSimple = ({
             endCol: cols[cols.length - 1]
         }
     }, [selection])
+
+    usePaste((pastedContent, e) => {
+        let {index, attrI} = typeof selection[selection.length - 1] === 'number' ?
+            { index: selection[selection.length - 1], attrI: undefined } :
+            selection[selection.length - 1];
+       updateItemsOnPaste({pastedContent, e, index, attrI, data, visibleAttributes, updateItem})
+    });
+
+    useCopy(() => {
+        return Object.values(
+            selection.sort((a,b) => {
+            const {index: rowA, attrI: colA} = getLocation(a);
+            const {index: rowB, attrI: colB} = getLocation(b);
+
+            return (rowA - rowB) || (colA - colB);
+            })
+                .reduce((acc, s) => {
+                    const {index, attrI} = getLocation(s);
+                    acc[index] = acc[index] ? `${acc[index]}\t${data[index][visibleAttributes[attrI]]}` : data[index][visibleAttributes[attrI]]; // join cells of a row
+                    return acc;
+                }, {})).join('\n') // join rows
+    })
     useEffect(() => {
         if (gridRef.current && (!Object.keys(colSizes).length || Object.keys(colSizes).length !== visibleAttributes.length)) {
             const availableVisibleAttributesLen = visibleAttributes.filter(v => attributes.find(attr => attr.name === v)).length; // ignoring the once not in attributes anymore
@@ -209,6 +285,7 @@ export const RenderSimple = ({
     //============================================ Keyboard Controls begin =============================================
     useEffect(() => {
         const handleKeyDown = (e) => {
+            console.log('e?', e.key, e)
             if (e.shiftKey) {
                 setIsDragging(true)
                 let lastSelected = selection[selection.length - 1]; // [int or {index, attrI}]
@@ -361,26 +438,7 @@ export const RenderSimple = ({
         document.addEventListener('mousemove', handleMouseMove);
         document.addEventListener('mouseup', handleMouseUp);
     };
-    
 
-    const handlePaste = (attrI, d) => (e) => {
-        {
-            e.preventDefault();
-            e.stopPropagation();
-
-            const paste = (e.clipboardData || window.clipboardData)
-                                                    .getData("text")?.split('\n')
-                                                    .map(row => row.split('\t'));
-
-            const pastedColumns = [...new Array(paste[0].length).keys()]
-                                                    .map(i => visibleAttributes[attrI + i])
-                                                    .filter(i => i);
-
-            const tmpNewItem = pastedColumns.reduce((acc, c, i) => ({...acc, [c]: paste[0][i]}), {});
-
-            updateItem(undefined, undefined, {...d, ...tmpNewItem})
-        }
-    }
 
     const handleMouseDown = (e, index, attrI) => {
         if(attrI !== undefined /*&& e.ctrlKey*/) {
@@ -523,7 +581,6 @@ export const RenderSimple = ({
                              onMouseDown={e => handleMouseDown(e, i)}
                              onMouseMove={e => handleMouseMove(e, i)}
                              onMouseUp={handleMouseUp}
-                             onPaste={handlePaste(0, d)}
                         >
                             {(i + (currentPage * pageSize)) + 1}
                         </div>
@@ -556,7 +613,6 @@ export const RenderSimple = ({
                                     setEditing({index: i, attrI});
                                 }}
                                 onDoubleClick={() => {}}
-                                onPaste={handlePaste(attrI, d)}
                             />)}
                         <div className={'flex items-center border'}>
                             <RenderActions isLastCell={true} newItem={d} removeItem={removeItem}/>
