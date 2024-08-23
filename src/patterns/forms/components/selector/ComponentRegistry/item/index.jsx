@@ -319,7 +319,7 @@ const View = ({value, format, apiLoad, apiUpdate, ...rest}) => {
         <div>
             <div className={`divide-y w-full`}>
                 {
-                    orderedAttributes
+                    (orderedAttributes || attributes.filter(a => visibleAttributes.includes(a.name)))
                         .map((attribute,i) => {
                             const Comp = DataTypes[attribute.type]?.[compType] || DataTypes.text[compType];
                             return (
