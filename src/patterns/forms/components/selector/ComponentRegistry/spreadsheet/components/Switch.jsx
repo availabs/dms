@@ -1,23 +1,28 @@
 export default function RenderSwitch({ enabled, setEnabled, label, size='medium' }) {
     const sizeClassesPill = {
-        small: 'h-4 w-9',
+        small: 'h-4 w-8',
         medium: 'h-6 w-11'
     }
 
     const sizeClassesDot = {
-        small: 'h-3 w-3',
+        small: 'h-3.5 w-3.5 p-1',
         medium: 'h-4 w-4'
     }
 
     const translateClasses = {
         true: {
-            small: 'translate-x-5',
+            small: 'translate-x-4',
             medium: 'translate-x-6'
         },
         false: {
-            small: 'translate-x-1',
+            small: 'translate-x-0.5',
             medium: 'translate-x-1'
         },
+    }
+
+    const roundedClasses = {
+        small: 'rounded-lg',
+        medium: 'rounded-full'
     }
     return (
         <div
@@ -31,7 +36,7 @@ export default function RenderSwitch({ enabled, setEnabled, label, size='medium'
                     return !enabled;
                 }
             }}
-            className={`relative inline-flex ${sizeClassesPill[size]} items-center rounded-full cursor-pointer transition-colors duration-200 ease-in-out ${enabled ? 'bg-indigo-600' : 'bg-gray-200'}`}
+            className={`relative inline-flex ${sizeClassesPill[size]} items-center ${roundedClasses[size]} cursor-pointer transition-colors duration-200 ease-in-out ${enabled ? 'bg-indigo-600' : 'bg-gray-200'}`}
         >
             <span className="sr-only">{label}</span>
             <span
