@@ -7,6 +7,8 @@ import {RenderPagination} from "./components/RenderPagination";
 import {isJson, getLength, getData, convertToUrlParams} from "./utils";
 import {RenderFilters} from "./components/RenderFilters";
 import {useSearchParams, useNavigate} from "react-router-dom";
+import RenderSwitch from "./components/Switch";
+import {ArrowDown} from "../../../../../admin/ui/icons";
 
 
 const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
@@ -21,6 +23,7 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     const [newItem, setNewItem] = useState({})
     const [orderBy, setOrderBy] = useState(cachedData.orderBy || {});
     const [filters, setFilters] = useState(cachedData.filters || []);
+    const [allowEditInView, setAllowEditInView] = useState(cachedData.allowEditInView);
     const [currentPage, setCurrentPage] = useState(0);
     const pageSize = 50// cachedData.pageSize || 5;
     const filterValueDelimiter = '|||'
@@ -85,8 +88,8 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     useEffect(() => {
         if (!isEdit) return;
 
-        onChange(JSON.stringify({visibleAttributes, pageSize, attributes, orderBy, colSizes, filters}));
-    }, [visibleAttributes, attributes, orderBy, colSizes, filters])
+        onChange(JSON.stringify({visibleAttributes, pageSize, attributes, orderBy, colSizes, filters, allowEditInView}));
+    }, [visibleAttributes, attributes, orderBy, colSizes, filters, allowEditInView])
     // =========================================== saving settings end =================================================
 
     // =========================================== filters 2/2 begin ===================================================
@@ -136,31 +139,47 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
                                           filters={filters} setFilters={setFilters} delimiter={filterValueDelimiter}
                                           navigate={navigate}
                     />
+
+                    <div>
+                        <div
+                             className={`inline-flex w-full justify-center items-center rounded-md px-1.5 py-1 text-sm font-regular text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 bg-white hover:bg-gray-50 cursor-pointer`}
+                             onClick={() => setAllowEditInView(!allowEditInView)}
+                        >
+                            <span className={'flex-1 select-none mr-1'}>Allow Edit: </span>
+                            <RenderSwitch
+                                size={'small'}
+                                enabled={allowEditInView}
+                                setEnabled={() => {}}
+                            />
+                        </div>
+                    </div>
                 </div>
             }
-            <RenderFilters attributes={attributes} filters={filters} setFilters={setFilters} apiLoad={apiLoad} format={format} delimiter={filterValueDelimiter}/>
+            <RenderFilters attributes={attributes} filters={filters} setFilters={setFilters} apiLoad={apiLoad}
+                           format={format} delimiter={filterValueDelimiter}/>
             {
-                        <RenderSimple {...{
-                            data,
-                            setData,
-                            visibleAttributes,
-                            setVisibleAttributes,
-                            attributes,
-                            isEdit,
-                            orderBy,
-                            setOrderBy,
-                            filters,
-                            setFilters,
-                            updateItem,
-                            removeItem,
-                            addItem,
-                            newItem,
-                            setNewItem,
-                            colSizes,
-                            setColSizes,
-                            currentPage,
-                            pageSize,
-                            loading
+                <RenderSimple {...{
+                    data,
+                    setData,
+                    visibleAttributes,
+                    setVisibleAttributes,
+                    attributes,
+                    isEdit,
+                    orderBy,
+                    setOrderBy,
+                    filters,
+                    setFilters,
+                    updateItem,
+                    removeItem,
+                    addItem,
+                    newItem,
+                    setNewItem,
+                    colSizes,
+                    setColSizes,
+                    currentPage,
+                    pageSize,
+                    loading,
+                    allowEdit: true
                         }} />
             }
             {/*Pagination*/}
@@ -185,11 +204,12 @@ const View = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
 
     const attributes = cachedData.attributes;
     const visibleAttributes = cachedData.visibleAttributes || [];
+    const allowEdit = cachedData.allowEditInView;
     const pageSize = 50// cachedData.pageSize || 5;
     const filterValueDelimiter = '|||'
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
-
+    console.log('allowEdit', cachedData.allowEditInView, allowEdit)
     useEffect(() => setLength(data.length), [data]); // on data change, reset length.
 
     // ========================================= filters 1/2 begin======================================================
@@ -301,7 +321,8 @@ const View = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
                             setColSizes,
                             currentPage,
                             pageSize,
-                            loading
+                            loading,
+                            allowEdit
                         }} />
             }
             {/*Pagination*/}

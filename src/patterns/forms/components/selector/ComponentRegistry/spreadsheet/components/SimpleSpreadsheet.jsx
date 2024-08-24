@@ -79,8 +79,8 @@ function useCopy(callback) {
     }, [callback]);
 }
 
-const RenderActions = ({isLastCell, newItem, removeItem}) => {
-    if(!isLastCell) return null;
+const RenderActions = ({isLastCell, allowEdit, newItem, removeItem}) => {
+    if(!isLastCell || !allowEdit) return null;
 
     return (
             <div className={'flex flex-row h-fit justify-evenly'} style={{width: actionsColSize}}>
@@ -107,12 +107,14 @@ const RenderActions = ({isLastCell, newItem, removeItem}) => {
             </div>
     )
 }
-const RenderCell = ({attribute, i, item, updateItem, removeItem, isLastCell, width, onPaste, isFrozen, isSelected, isSelecting, editing, edge, loading,
-                    onClick, onDoubleClick, onMouseDown, onMouseMove, onMouseUp}) => {
+const RenderCell = ({
+                        attribute, i, item, updateItem, width, onPaste,
+                        isFrozen, isSelected, isSelecting, editing, edge, loading, allowEdit,
+                        onClick, onDoubleClick, onMouseDown, onMouseMove, onMouseUp}) => {
     // const [editing, setEditing] = useState(false);
     const [newItem, setNewItem] = useState(item);
     // const Comp = DataTypes[attribute.type]?.[isSelecting ? 'ViewComp' : 'EditComp'];
-    const Comp = loading ? LoadingComp : DataTypes[attribute.type]?.[editing ? 'EditComp' : 'ViewComp'];
+    const Comp = loading ? LoadingComp : DataTypes[attribute.type]?.[editing && allowEdit ? 'EditComp' : 'ViewComp'];
     const selectionColor = '#2100f8'
     const selectionEdgeClassNames = {
         top: {borderTopColor: selectionColor},
@@ -210,7 +212,8 @@ export const RenderSimple = ({
                                  setColSizes,
                                  currentPage,
                                  pageSize,
-                                 loading
+                                 loading,
+                                 allowEdit
                              }) => {
     const gridRef = useRef(null);
     const [isSelecting, setIsSelecting] = useState(false);
@@ -613,70 +616,75 @@ export const RenderSimple = ({
                                     setEditing({index: i, attrI});
                                 }}
                                 onDoubleClick={() => {}}
+                                allowEdit={allowEdit}
                             />)}
                         <div className={'flex items-center border'}>
-                            <RenderActions isLastCell={true} newItem={d} removeItem={removeItem}/>
+                            <RenderActions allowEdit={allowEdit} isLastCell={true} newItem={d} removeItem={removeItem}/>
                         </div>
                     </div>
                 ))}
 
                 {/*Add new row*/}
-                <div
-                    className={`bg-white grid ${c[visibleAttributes.length + 2]} divide-x divide-y ${isDragging ? `select-none` : ``} sticky bottom-0 z-[1]`}
-                    style={{gridTemplateColumns: `${numColSize}px ${visibleAttributes.map(v => `${colSizes[v]}px` || 'auto').join(' ')} ${actionsColSize}px`}}
-                >
-                    <div className={'flex justify-between sticky left-0 z-[1]'} style={{width: numColSize}}>
-                        <div key={'#'}
-                             className={`w-full font-semibold border bg-gray-50 text-gray-500`}>
-                        </div>
-                    </div>
-                    {
-                        visibleAttributes.map(va => attributes.find(attr => attr.name === va))
-                            .filter(a => a)
-                            .map((attribute, attrI) => {
-                                const Comp = DataTypes[attribute?.type || 'text']?.EditComp;
-                                return (
-                                    <div
-                                        className={`flex border`}
-                                        style={{width: colSizes[attribute.name]}}
-                                    >
-                                        <Comp
-                                            key={`${attribute.name}`}
-                                            menuPosition={'top'}
-                                            className={'p-1 bg-white hover:bg-blue-50 w-full h-full'}
-                                            {...attribute}
-                                            value={newItem[attribute.name]}
-                                            placeholder={'+ add new'}
-                                            onChange={e => setNewItem({...newItem, [attribute.name]: e})}
-                                            onPaste={e => {
-                                                e.preventDefault();
-                                                e.stopPropagation();
+                {
+                    allowEdit ?
+                        <div
+                            className={`bg-white grid ${c[visibleAttributes.length + 2]} divide-x divide-y ${isDragging ? `select-none` : ``} sticky bottom-0 z-[1]`}
+                            style={{gridTemplateColumns: `${numColSize}px ${visibleAttributes.map(v => `${colSizes[v]}px` || 'auto').join(' ')} ${actionsColSize}px`}}
+                        >
+                            <div className={'flex justify-between sticky left-0 z-[1]'} style={{width: numColSize}}>
+                                <div key={'#'}
+                                     className={`w-full font-semibold border bg-gray-50 text-gray-500`}>
+                                </div>
+                            </div>
+                            {
+                                visibleAttributes.map(va => attributes.find(attr => attr.name === va))
+                                    .filter(a => a)
+                                    .map((attribute, attrI) => {
+                                        const Comp = DataTypes[attribute?.type || 'text']?.EditComp;
+                                        return (
+                                            <div
+                                                className={`flex border`}
+                                                style={{width: colSizes[attribute.name]}}
+                                            >
+                                                <Comp
+                                                    key={`${attribute.name}`}
+                                                    menuPosition={'top'}
+                                                    className={'p-1 bg-white hover:bg-blue-50 w-full h-full'}
+                                                    {...attribute}
+                                                    value={newItem[attribute.name]}
+                                                    placeholder={'+ add new'}
+                                                    onChange={e => setNewItem({...newItem, [attribute.name]: e})}
+                                                    onPaste={e => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
 
-                                                const paste =
-                                                    (e.clipboardData || window.clipboardData).getData("text")?.split('\n').map(row => row.split('\t'));
-                                                const pastedColumns = [...new Array(paste[0].length).keys()].map(i => visibleAttributes[attrI + i]).filter(i => i);
-                                                const tmpNewItem = pastedColumns.reduce((acc, c, i) => ({
-                                                    ...acc,
-                                                    [c]: paste[0][i]
-                                                }), {})
-                                                setNewItem({...newItem, ...tmpNewItem})
+                                                        const paste =
+                                                            (e.clipboardData || window.clipboardData).getData("text")?.split('\n').map(row => row.split('\t'));
+                                                        const pastedColumns = [...new Array(paste[0].length).keys()].map(i => visibleAttributes[attrI + i]).filter(i => i);
+                                                        const tmpNewItem = pastedColumns.reduce((acc, c, i) => ({
+                                                            ...acc,
+                                                            [c]: paste[0][i]
+                                                        }), {})
+                                                        setNewItem({...newItem, ...tmpNewItem})
 
-                                            }}
-                                        />
-                                    </div>
-                                )
-                            })
-                    }
-                    <div className={'bg-white flex flex-row h-fit justify-evenly'} style={{width: actionsColSize}}>
-                        <button
-                            className={'w-fit p-0.5 bg-blue-300 hover:bg-blue-500 text-white rounded-lg'}
-                            onClick={e => {
-                                addItem()
-                            }}>
-                            <Add className={'text-white'} height={20} width={20}/>
-                        </button>
-                    </div>
-                </div>
+                                                    }}
+                                                />
+                                            </div>
+                                        )
+                                    })
+                            }
+                            <div className={'bg-white flex flex-row h-fit justify-evenly'}
+                                 style={{width: actionsColSize}}>
+                                <button
+                                    className={'w-fit p-0.5 bg-blue-300 hover:bg-blue-500 text-white rounded-lg'}
+                                    onClick={e => {
+                                        addItem()
+                                    }}>
+                                    <Add className={'text-white'} height={20} width={20}/>
+                                </button>
+                            </div>
+                        </div> : null
+                }
             </div>
         </div>
     )

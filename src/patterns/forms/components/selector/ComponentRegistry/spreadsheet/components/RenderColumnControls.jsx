@@ -1,6 +1,5 @@
-import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react'
 import RenderSwitch from "./Switch";
-import {useRef, useState} from "react";
+import React, {useRef, useState} from "react";
 import {ArrowDown, ChevronDownSquare} from "../../../../../../admin/ui/icons";
 
 export default function RenderColumnControls({
@@ -8,8 +7,11 @@ export default function RenderColumnControls({
                                             }) {
     const dragItem = useRef();
     const dragOverItem = useRef();
+    const menuRef = useRef(null);
     const [search, setSearch] = useState();
-
+    const [isOpen, setIsOpen] = useState(false);
+    const menuBtnId = 'menu-btn-column-controls'; // used to control isOpen on menu-btm click;
+    // ================================================== drag utils start =============================================
     const dragStart = (e, position) => {
         dragItem.current = position;
         e.dataTransfer.effectAllowed = "move";
@@ -37,34 +39,48 @@ export default function RenderColumnControls({
         setAttributes(copyListItems);
         setVisibleAttributes(copyListItems.filter(attr => visibleAttributes.includes(attr.name)).map(attr => attr.name))
     };
+    // ================================================== drag utils end ===============================================
 
+    // ================================================== close on outside click start =================================
+    const handleClickOutside = (e) => {
+        console.log('e', e.target, e.target.id)
+        if (menuRef.current && !menuRef.current.contains(e.target) && e.target.id !== menuBtnId) {
+            setIsOpen(false);
+        }
+    };
+
+    React.useEffect(() => {
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
+    // ================================================== close on outside click end ===================================
     return (
-        <Menu as="div" className="relative inline-block text-left">
+        <div className="relative inline-block text-left">
             <div>
-                <MenuButton className="inline-flex w-full justify-center gap-x-1.5 rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
-                    Columns <ArrowDown />
-                </MenuButton>
+                <div id={menuBtnId}
+                     className={`inline-flex w-full justify-center items-center rounded-md px-1.5 py-1 text-sm font-regular text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 ${isOpen ? `bg-gray-50` : `bg-white hover:bg-gray-50`} cursor-pointer`}
+                     onClick={e => setIsOpen(!isOpen)}>
+                    Columns <ArrowDown height={18} width={18} className={'mt-1'}/>
+                </div>
             </div>
 
-            <MenuItems
-                transition
-                className="absolute left-0 z-10 w-72 origin-top-left divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 transition focus:outline-none data-[closed]:scale-95 data-[closed]:transform data-[closed]:opacity-0 data-[enter]:duration-100 data-[leave]:duration-75 data-[enter]:ease-out data-[leave]:ease-in"
+            <div ref={menuRef}
+                className={`${isOpen ? 'visible transition ease-in duration-200' : 'hidden transition ease-in duration-200'} absolute left-0 z-10 w-72 origin-top-left divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 transition focus:outline-none`}
             >
-                <input className={'p-2'} placeholder={'search...'}
+                <input className={'p-1 w-full rounded-md'} placeholder={'search...'}
                        onChange={e => {
                            setSearch(e.target.value)
                        }}/>
-                <div className="py-1 h-[500px] overflow-auto scrollbar-sm">
+                <div className="py-1 max-h-[500px] overflow-auto scrollbar-sm">
                     {
-                        [
-                            ...visibleAttributes.map(va => attributes.find(attr => attr.name === va)),
-                            ...attributes.filter(attr => !visibleAttributes.includes(attr.name))
-                        ]
+                        attributes
                             .filter(a => a && (!search || (a.display_name || a.name).toLowerCase().includes(search.toLowerCase())))
                             .map((attribute, i) => (
-                            <MenuItem>
+                            <div>
                                 <div
-                                    className="flex items-center cursor-pointer px-2 py-1 text-sm text-gray-700 data-[focus]:bg-gray-100 data-[focus]:text-gray-900"
+                                    className="flex items-center px-2 py-1 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900"
                                     onDragStart={(e) => dragStart(e, i)}
                                     onDragEnter={(e) => dragEnter(e, i)}
 
@@ -73,7 +89,7 @@ export default function RenderColumnControls({
                                     onDragEnd={drop}
                                     draggable
                                 >
-                                    <div className={'h-4 w-4 m-1 cursor-pointer text-gray-800'}>
+                                    <div className={'h-4 w-4 m-1 text-gray-800'}>
                                         <svg data-v-4e778f45=""
                                              className="nc-icon cursor-move !h-3.75 text-gray-600 mr-1"
                                              viewBox="0 0 24 24" width="1.2em" height="1.2em">
@@ -82,22 +98,25 @@ export default function RenderColumnControls({
                                         </svg>
                                     </div>
 
-                                    <div className={'flex justify-between m-1 w-full'}>
+                                    <div className={'flex justify-between m-1 w-full cursor-pointer '}
+                                         onClick={() => !visibleAttributes.includes(attribute.name) ?
+                                             setVisibleAttributes([...visibleAttributes, attribute.name]) :
+                                             setVisibleAttributes(visibleAttributes.filter(attr => attr !== attribute.name))}
+                                    >
                                         {attribute.display_name || attribute.name}
 
                                         <RenderSwitch
+                                            id={attribute.name}
                                             enabled={visibleAttributes.includes(attribute.name)}
-                                            setEnabled={e => e ?
-                                                setVisibleAttributes([...visibleAttributes, attribute.name]) :
-                                                setVisibleAttributes(visibleAttributes.filter(attr => attr !== attribute.name))}
+                                            setEnabled={() => {}}
                                         />
                                     </div>
                                 </div>
-                            </MenuItem>
+                            </div>
                         ))
                     }
                 </div>
-            </MenuItems>
-        </Menu>
+            </div>
+        </div>
     )
 }
