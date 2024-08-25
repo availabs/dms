@@ -141,14 +141,10 @@ const RenderCell = ({
 
     useEffect(() => {
         // send update to api
-        if (stringifyIfObj(newItem[attribute.name]) === stringifyIfObj(item[attribute.name])) return;
-        setTimeout(
-            updateItem(
-                newItem[attribute.name],
-                attribute,
-                {...item, [attribute.name]: newItem[attribute.name]}
-            ),
-            1000);
+        if (stringifyIfObj(newItem[attribute.name]) !== stringifyIfObj(item[attribute.name])){
+            updateItem(undefined, undefined, newItem)
+        }
+
     }, [newItem]);
     return (
         <div
@@ -182,7 +178,7 @@ const RenderCell = ({
                   {...attribute}
                   value={newItem[attribute.name]}
                   onChange={e => {
-                      setNewItem({...item, [attribute.name]: e})
+                      setNewItem({...newItem, [attribute.name]: e})
                   }}
                   // onPaste={onPaste}
             />

@@ -7,17 +7,17 @@ import { getAttributes } from './_utils'
 export default function ListWrapper({ Component, format, options, user, ...props}) {
 	const { falcor } = useFalcor()
 	const attributes = getAttributes(format,options)
-	const { pathname } = useLocation()
+	const {app, type} = format;
+	const { pathname, search } = useLocation()
 	const { data=[] } = useLoaderData() || {}
 	const submit = useSubmit()
 	// console.log('list wrapper', data)
 
-	const apiUpdate = async ({data, config={format}, requestType=''}) => {  
-			// update the data
-			// submit(null, {action: pathname})
-			const res = await dmsDataEditor(falcor, config, data, requestType);
-			if(!data.id) return res; // return id if apiUpdate was used to create an entry.
-			submit(null, {action: pathname})
+	const apiUpdate = async ({data, config, requestType=''}) => {
+		const res = await dmsDataEditor(falcor, config, data, requestType);
+		if(!data.id) return res; // return id if apiUpdate was used to create an entry.
+		if(data.app !== app || data.type !== type) return; // if apiUpdate was used to manually update something, don't refresh.
+		submit(null, {action: `${pathname}${search}`})
 	}
 
 	const apiLoad = async (config, path) => {

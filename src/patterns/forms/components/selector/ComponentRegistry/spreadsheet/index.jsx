@@ -91,7 +91,6 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
                     setCurrentPage(currentPage+1)
                     setData(prevData => [...prevData, ...data])
                     setHasMore((currentPage * pageSize + pageSize) < length)
-                    console.log('load data', currentPage * pageSize + pageSize, length)
                 }
             },
             { threshold: 0 }
@@ -123,10 +122,6 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
 
     // =========================================== util fns begin ======================================================
     const updateItem = (value, attribute, d) => {
-        if(value !== undefined && attribute){
-            return apiUpdate({data: {...d, [attribute.name]: value}, config: {format}});
-        }
-
         let dataToUpdate = Array.isArray(d) ? d : [d];
 
         let tmpData = [...data];
@@ -231,8 +226,7 @@ const View = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     const pageSize = 50// cachedData.pageSize || 5;
     const filterValueDelimiter = '|||'
     const navigate = useNavigate();
-    const [searchParams, setSearchParams] = useSearchParams();
-    console.log('allowEdit', cachedData.allowEditInView, allowEdit)
+    const [searchParams, setSearchParams] = useSearchParams(window.location.search);
     // useEffect(() => setLength(data.length), [data]); // on data change, reset length.
 
     // ========================================= filters 1/2 begin======================================================
@@ -317,10 +311,6 @@ const View = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
 
     // =========================================== util fns begin ======================================================
     const updateItem = (value, attribute, d) => {
-        if(value !== undefined && attribute){
-            return apiUpdate({data: {...d, [attribute.name]: value}, config: {format}});
-        }
-
         let dataToUpdate = Array.isArray(d) ? d : [d];
 
         let tmpData = [...data];
