@@ -13,7 +13,7 @@ export default function ListWrapper({ Component, format, options, user, ...props
 	const submit = useSubmit()
 	// console.log('list wrapper', data)
 
-	const apiUpdate = async ({data, config, requestType=''}) => {
+	const apiUpdate = async ({data, config = {format}, requestType=''}) => {
 		const res = await dmsDataEditor(falcor, config, data, requestType);
 		if(!data.id) return res; // return id if apiUpdate was used to create an entry.
 		if(data.app !== app || data.type !== type) return; // if apiUpdate was used to manually update something, don't refresh.
