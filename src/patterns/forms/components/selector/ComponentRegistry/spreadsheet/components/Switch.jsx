@@ -24,7 +24,7 @@ export default function RenderSwitch({ enabled=false, setEnabled, label, size='m
         small: 'rounded-lg',
         medium: 'rounded-full'
     }
-    console.log('enabled', enabled, size)
+
     return (
         <div
             role="switch"

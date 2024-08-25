@@ -1,14 +1,12 @@
 import React, { useMemo, useState, useEffect }from 'react'
 import RenderColumnControls from "./components/RenderColumnControls";
 import RenderFilterControls from "./components/RenderFilterControls";
-import RenderTypeControls from "./components/RenderTypeControls"
 import {RenderSimple} from "./components/SimpleSpreadsheet";
 import {RenderPagination} from "./components/RenderPagination";
 import {isJson, getLength, getData, convertToUrlParams} from "./utils";
 import {RenderFilters} from "./components/RenderFilters";
 import {useSearchParams, useNavigate} from "react-router-dom";
 import RenderSwitch from "./components/Switch";
-import {ArrowDown} from "../../../../../admin/ui/icons";
 
 
 const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
@@ -16,6 +14,7 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     const cachedData = isJson(value) ? JSON.parse(value) : {};
     const [length, setLength] = useState(cachedData.length || 0);
     const [data, setData] = useState([]);
+    const [hasMore, setHasMore] = useState();
     const [loading, setLoading] = useState(false);
     const [attributes, setAttributes] = useState([]);
     const [visibleAttributes, setVisibleAttributes] = useState(cachedData.visibleAttributes || []);
@@ -29,13 +28,13 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     const filterValueDelimiter = '|||'
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
-    console.log('size', size)
+
     // ========================================= init comp begin =======================================================
     useEffect(() => {
         setAttributes(JSON.parse(format?.config || '{}')?.attributes || [])
     }, [format]);
     useEffect(() => setColSizes({}), [size]); // on size change, reset column sizes.
-    useEffect(() => setLength(data.length), [data]); // on data change, reset length.
+    // useEffect(() => setLength(data.length), [data]); // on data change, reset length.
     // ========================================= filters 1/2 begin======================================================
     useEffect(() => {
         const filterCols = Array.from(searchParams.keys());
@@ -57,7 +56,7 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
             // init stuff
             setLoading(true)
             const length = await getLength({format, apiLoad, filters});
-            const d = await getData({format, apiLoad, currentPage, pageSize, orderBy, filters});
+            const d = await getData({format, apiLoad, currentPage, pageSize, length, orderBy, filters});
             setData(d);
             setLength(length);
             !visibleAttributes?.length && setVisibleAttributes(attributes?.map(attr => attr.name));
@@ -74,14 +73,37 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
         async function load() {
             setLoading(true)
             const length = await getLength({format, apiLoad, filters});
-            const data = await getData({format, apiLoad, currentPage, pageSize, orderBy, filters});
+            const data = await getData({format, apiLoad, currentPage, pageSize, length, orderBy, filters});
             setLength(length);
             setData(data);
+            setHasMore((currentPage * pageSize + pageSize) < length)
             setLoading(false)
         }
 
         load()
-    }, [currentPage, orderBy, filters]);
+    }, [orderBy, filters]);
+
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            async (entries) => {
+                if (entries[0].isIntersecting && hasMore) {
+                    const data = await getData({format, apiLoad, currentPage: currentPage+1, pageSize, length, orderBy, filters});
+                    setCurrentPage(currentPage+1)
+                    setData(prevData => [...prevData, ...data])
+                    setHasMore((currentPage * pageSize + pageSize) < length)
+                    console.log('load data', currentPage * pageSize + pageSize, length)
+                }
+            },
+            { threshold: 0 }
+        );
+
+        const target = document.querySelector('#loadMoreTrigger');
+        if (target) observer.observe(target);
+
+        return () => {
+            if (target) observer.unobserve(target);
+        };
+    }, [data, loading]);
     // =========================================== get data end ========================================================
 
     // =========================================== saving settings begin ===============================================
@@ -183,7 +205,7 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
                         }} />
             }
             {/*Pagination*/}
-            <RenderPagination totalPages={length} pageSize={pageSize} currentPage={currentPage}
+            <RenderPagination totalPages={length} loadedRows={data.length} pageSize={pageSize} currentPage={currentPage}
                               setVCurrentPage={setCurrentPage} visibleAttributes={visibleAttributes}/>
         </div>
     )
@@ -199,6 +221,7 @@ const View = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
 
     const [newItem, setNewItem] = useState({})
     const [data, setData] = useState([]);
+    const [hasMore, setHasMore] = useState();
     const [loading, setLoading] = useState(false);
     const [currentPage, setCurrentPage] = useState(0);
 
@@ -210,7 +233,7 @@ const View = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     console.log('allowEdit', cachedData.allowEditInView, allowEdit)
-    useEffect(() => setLength(data.length), [data]); // on data change, reset length.
+    // useEffect(() => setLength(data.length), [data]); // on data change, reset length.
 
     // ========================================= filters 1/2 begin======================================================
     useEffect(() => {
@@ -235,7 +258,7 @@ const View = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
             // init stuff
             setLoading(true)
             const length = await getLength({format, apiLoad, filters});
-            const d = await getData({format, apiLoad, currentPage, pageSize, orderBy, filters});
+            const d = await getData({format, apiLoad, currentPage, pageSize, length, orderBy, filters});
             setData(d);
             setLength(length);
             setLoading(false)
@@ -251,14 +274,36 @@ const View = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
         async function load() {
             setLoading(true)
             const length = await getLength({format, apiLoad, filters});
-            const data = await getData({format, apiLoad, currentPage, pageSize, orderBy, filters});
+            const data = await getData({format, apiLoad, currentPage, pageSize, length, orderBy, filters});
             setLength(length);
             setData(data);
+            setHasMore((currentPage * pageSize + pageSize) < length)
             setLoading(false)
         }
 
         load()
-    }, [currentPage, orderBy, filters]);
+    }, [orderBy, filters]);
+
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            async (entries) => {
+                if (entries[0].isIntersecting && hasMore) {
+                    const data = await getData({format, apiLoad, currentPage: currentPage+1, pageSize, length, orderBy, filters});
+                    setCurrentPage(currentPage+1)
+                    setData(prevData => [...prevData, ...data])
+                    setHasMore((currentPage * pageSize + pageSize) < length)
+                }
+            },
+            { threshold: 0 }
+        );
+
+        const target = document.querySelector('#loadMoreTrigger');
+        if (target) observer.observe(target);
+
+        return () => {
+            if (target) observer.unobserve(target);
+        };
+    }, [data, loading]);
     // =========================================== get data end ========================================================
 
     // =========================================== filters 2/2 begin ===================================================
@@ -326,7 +371,7 @@ const View = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
                         }} />
             }
             {/*Pagination*/}
-            <RenderPagination totalPages={length} pageSize={pageSize} currentPage={currentPage}
+            <RenderPagination totalPages={length} loadedRows={data.length} pageSize={pageSize} currentPage={currentPage}
                               setVCurrentPage={setCurrentPage} visibleAttributes={visibleAttributes}/>
         </div>
     )
