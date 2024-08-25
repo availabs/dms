@@ -38,7 +38,7 @@ export default function RenderColumnControls({
             <div ref={menuRef}
                 className={`${isOpen ? 'visible transition ease-in duration-200' : 'hidden transition ease-in duration-200'} absolute left-0 z-10 w-72 origin-top-left divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 transition focus:outline-none`}
             >
-                <input className={'p-1 w-full rounded-md'} placeholder={'search...'}
+                <input className={'px-3 py-1 w-full rounded-md'} placeholder={'search...'}
                        onChange={e => {
                            setSearch(e.target.value)
                        }}/>

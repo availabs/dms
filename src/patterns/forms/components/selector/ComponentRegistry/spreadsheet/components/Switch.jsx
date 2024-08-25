@@ -1,4 +1,4 @@
-export default function RenderSwitch({ enabled, setEnabled, label, size='medium' }) {
+export default function RenderSwitch({ enabled=false, setEnabled, label, size='medium' }) {
     const sizeClassesPill = {
         small: 'h-4 w-8',
         medium: 'h-6 w-11'
@@ -24,6 +24,7 @@ export default function RenderSwitch({ enabled, setEnabled, label, size='medium'
         small: 'rounded-lg',
         medium: 'rounded-full'
     }
+    console.log('enabled', enabled, size)
     return (
         <div
             role="switch"
