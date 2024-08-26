@@ -54,13 +54,13 @@ export const RenderFilters = ({attributes, filters, setFilters, format, apiLoad,
             <Filter className={'-mt-4 -mr-6 text-blue-300 bg-white self-end rounded-md'}/>
             {filters.map((f, i) => (
                 <div className={'w-full flex flex-row items-center'}>
-                    <div className={'w-1/4 p-1'}>
+                    <div className={'w-1/4 p-1 text-sm'}>
                         {attributes.find(attr => attr.name === f.column)?.display_name || f.column}
                     </div>
                     <div className={'w-3/4 p-1 relative'}>
                         <MultiSelectComp
-                            className={`max-h-[150px] overflow-auto scrollbar-sm border rounded-md bg-white ${f.values?.length ? `p-1` : `p-4`}`}
-                            placeholder={'Please select values...'}
+                            className={`max-h-[150px] flex text-xs overflow-auto scrollbar-sm border rounded-md bg-white ${f.values?.length ? `p-1` : `p-4`}`}
+                            placeholder={'Search...'}
                             value={f.values}
                             onChange={e => {
                                 const newFilters = filters.map((filter, fI) => fI === i ? {...f, values: e} : filter);
