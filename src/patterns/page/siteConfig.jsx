@@ -14,6 +14,7 @@ import TemplateEdit from './layout/template/edit'
 // Manager
 import ManageLayout from './pages/manager/layout'
 import Dashboard from './pages/manager'
+import PageManager from './pages/manager/pages'
 import DesignEditor from './pages/manager/design'
 
 import cmsFormat from "./page.format.js"
@@ -44,7 +45,7 @@ export const siteConfig = ({
   API_HOST
 }) => {
   //console.log('hola', pattern?.theme)
-  let theme = merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern.theme_name] || themes.default), pattern?.theme || {})
+  let theme = merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern.theme?.settings?.theme?.theme] || themes.default), pattern?.theme || {})
 
   // console.log('pageConfig', theme, logo)
   // baseUrl = baseUrl[0] === '/' ? baseUrl.slice(1) : baseUrl
@@ -135,7 +136,15 @@ export const siteConfig = ({
           {
             type: ManageLayout,
             path: "manage/*",
-            action: "edit",
+            action: "list",
+            filter: {
+              options: JSON.stringify({
+                filter: {
+                  "data->>'hide_in_nav'": ['null']
+                }
+              }),
+              attributes:['title', 'index', 'url_slug', 'parent','published', 'hide_in_nav']
+            },
             children: [
               { 
                 type: Dashboard,
@@ -148,7 +157,7 @@ export const siteConfig = ({
                 action: "edit"
               },
               { 
-                type: Dashboard,
+                type: PageManager,
                 path: "manage/pages",
                 action: "edit"
               },

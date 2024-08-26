@@ -71,14 +71,14 @@ export default ({title, children}) => {
                     <div className='p-1 bg-blue-500 z-40'>
                        
                         <div className='py-2'>
-                            {authMenuItems.map((item) => {
-                                return <>
+                            {authMenuItems.map((item,i) => {
+                                return <div key={i}>
                                     {user.authLevel >= (+item.authLevel || -1) && (
                                         <Item to={item.path} icon={item.icon}>
                                             {item.name}
                                         </Item>
                                     )}
-                                </>
+                                </div>
                            
                             })}
                                          

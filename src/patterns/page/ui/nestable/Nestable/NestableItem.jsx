@@ -2,7 +2,13 @@ import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import { cx } from '../utils';
 
-import Icon from '../Icon';
+function Icon ({ children, className, ...props }) {
+ 
+  return (
+    <i className={`${nestable-icon}  ${className}`} {...props} />
+  );
+  
+}
 
 class NestableItem extends Component {
   static propTypes = {
