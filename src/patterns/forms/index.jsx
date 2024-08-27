@@ -19,7 +19,7 @@ import ManageMeta from "./pages/manage/metadata";
 import ManageTemplates from "./pages/manage/templates";
 import Validate from "./pages/manage/validate";
 
-import {updateAttributes, updateRegisteredFormats} from "../admin/siteConfig";
+// import {updateAttributes, updateRegisteredFormats} from "../admin/siteConfig";
 
 
 
@@ -50,13 +50,16 @@ const formTemplateConfig = ({
         theme.navOptions.logo = logo ? logo : defaultLogo
     }
     //console.log('formTemplateConfig', app, type)
-    const templateFormat = {...template}
+    const templateFormat = cloneDeep(template);
+    const newType = `${parent.doc_type}|template`
     templateFormat.app = app;
-    templateFormat.type = `template`;
-    //console.log('adminpath index', adminPath)
+    templateFormat.type = newType;
+    templateFormat.registerFormats = updateRegisteredFormats(templateFormat.registerFormats, app, newType) // update app for all the children formats. this works, but dms stops providing attributes to patternList
+    templateFormat.attributes = updateAttributes(templateFormat.attributes, app, newType) // update app for all the children formats. this works, but dms stops providing attributes to patternList
+
     return {
         app,
-        type: `template`,
+        type: newType,
         format: templateFormat,
         baseUrl,
         API_HOST,
@@ -126,14 +129,10 @@ const formsAdminConfig = ({
     const patternFormat = cloneDeep(pattern)
     patternFormat.app = app
     patternFormat.type = type
-    patternFormat.registerFormats = updateRegisteredFormats(patternFormat.registerFormats, app) // update app for all the children formats. this works, but dms stops providing attributes to patternList
-    patternFormat.attributes = updateAttributes(patternFormat.attributes, app) // update app for all the children formats. this works, but dms stops providing attributes to patternList
-    // patternFormat.filter = {
-    //     stopFullDataLoad: true,
-    //     fromIndex: () => 0,
-    //     toIndex: () => 1,
-    // }
-    // console.log('formsAdminConfig', parent)
+    patternFormat.registerFormats = updateRegisteredFormats(patternFormat.registerFormats, app, type) // update app for all the children formats. this works, but dms stops providing attributes to patternList
+    patternFormat.attributes = updateAttributes(patternFormat.attributes, app, type) // update app for all the children formats. this works, but dms stops providing attributes to patternList
+
+    // console.log('formsAdminConfig', patternFormat)
     return {
         format: patternFormat,
         baseUrl: `${baseUrl}/manage`,
@@ -241,4 +240,29 @@ const FormTemplateView = ({apiLoad, apiUpdate, attributes, parent, params, forma
                 attributes={attributes}
             />
     )
+}
+
+const updateRegisteredFormats = (registerFormats, app, type) => {
+    if(Array.isArray(registerFormats)){
+        registerFormats = registerFormats.map(rFormat => {
+            const newType = `${type}|${rFormat.type}`
+            rFormat.app = app;
+            rFormat.type = newType
+            rFormat.registerFormats = updateRegisteredFormats(rFormat.registerFormats, app, newType); // provide updated type here
+            rFormat.attributes = updateAttributes(rFormat.attributes, app, newType); // provide updated type here
+            return rFormat;
+        })
+    }
+    return registerFormats;
+}
+
+const updateAttributes = (attributes, app, type) => {
+    if(Array.isArray(attributes)){
+        attributes = attributes.map(attr => {
+            attr.format = attr.format ? `${app}+${type}|${attr.format.split('+')[1]}`: undefined;
+            return updateRegisteredFormats(attr, app, type);
+        })
+        //console.log('attr', attributes)
+    }
+    return attributes;
 }
