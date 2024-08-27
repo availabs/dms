@@ -43,7 +43,7 @@ export const siteConfig = ({
   pgEnv,
   API_HOST
 }) => {
-  console.log('hola', pattern?.theme)
+  // console.log('hola', pattern?.theme)
   theme = merge(cloneDeep(defaultTheme), cloneDeep(theme), pattern?.theme || {})
 
   // console.log('pageConfig', theme, logo)
@@ -135,6 +135,7 @@ export const siteConfig = ({
           {
             type: ManageLayout,
             path: "manage/*",
+            authLevel: 5,
             action: "edit",
             children: [
               { 
