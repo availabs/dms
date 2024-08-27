@@ -90,7 +90,7 @@ const topnav =  ({
         transition cursor-pointer
     `,
     //`px-4 text-sm font-medium tracking-widest uppercase inline-flex items-center  border-transparent  leading-5 text-white hover:bg-white hover:text-darkblue-500 border-gray-200 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out h-full`,
-    topmenuRightNavContainer: "hidden md:block h-full",
+    topmenuRightNavContainer: "hidden md:block h-full items-center",
     topnavMobileContainer: "bg-slate-50",
     navitemTopActive:
       ` w-fit group font-display whitespace-nowrap

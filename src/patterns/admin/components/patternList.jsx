@@ -57,10 +57,10 @@ function PatternEdit({
 	const [newItem, setNewItem] = useState({app: format?.app});
 	const [editingIndex, setEditingIndex] = useState(undefined);
 	const [editingItem, setEditingItem] = useState(undefined);
-	const attrToShow = Object.keys(attributes).filter(attrKey => ['pattern_type', 'doc_type', 'base_url', 'authLevel'].includes(attrKey));
+	const attrToShow = Object.keys(attributes).filter(attrKey => ['pattern_type', 'doc_type', 'subdomain', 'base_url', 'authLevel'].includes(attrKey));
 	const numAttributes = attrToShow.length
-	console.log('??????????/', format)
-	console.log('??????????/', format)
+	//console.log('??????????/', format)
+	//console.log('??????????/', format)
 	const addNewValue = () => {
 		const newData = [...value, newItem];
 		onChange(newData)
@@ -117,7 +117,7 @@ function PatternEdit({
 						<div className={'w-full flex items-center justify-start'}>
 							<Link
 								className={'bg-blue-100 hover:bg-blue-300 text-blue-800 px-2 py-0.5 m-1 rounded-lg w-fit h-fit'}
-								to={`${pattern.base_url}/manage/metadata`}>Manage</Link>
+								to={`${pattern.base_url === '/' ? '' : pattern.base_url}/manage/metadata`}>Manage</Link>
 
 							<button
 								className={'bg-blue-100 hover:bg-blue-300 text-blue-800 px-2 py-0.5 m-1 rounded-lg w-fit h-fit'}

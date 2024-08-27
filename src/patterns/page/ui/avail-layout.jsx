@@ -45,6 +45,7 @@ const Layout = ({ children, navItems, secondNav, title, theme, yPadding = '0px',
 
 	const { theme: defaultTheme, app, type, Menu } = React.useContext(CMSContext) || {}
 	theme = merge(cloneDeep(defaultTheme), cloneDeep(theme))
+	console.log('layout theme', theme?.topnav?.topnavWrapper)
 	const { sideNav={}, topNav={}, logo=Logos } = theme?.navOptions || {}
 	
 	const sideNavOptions = {
@@ -80,12 +81,12 @@ const Layout = ({ children, navItems, secondNav, title, theme, yPadding = '0px',
 	        	{topNav?.dropdown === 'left' && <Menu />}
 	      	</div>),
 		rightMenu:  (
-	      	<div className={'flex flex-col md:flex-row'}>
+	      	<>
 	      		{topNav?.rightMenu}
 	        	{topNav?.search === 'right' && <Search app={app} type={type}/>}
 	        	{topNav?.dropdown === 'right' && <Menu />}
 	        	{topNav?.logo === 'right' && logo}
-	      	</div>
+	      	</>
 	  	)	
 	}
 	const Logo = sideNavOptions.logo
@@ -111,7 +112,7 @@ const Layout = ({ children, navItems, secondNav, title, theme, yPadding = '0px',
 				className={`flex-1 flex items-start flex-col items-stretch max-w-full`} 
 				style={{
 					minHeight: `calc(100vh - ${yPadding}`,
-					maxWidth: `calc(100vw - ${fixedSizePixels[sideNavOptions.size]}`
+					//maxWidth: `calc(100vw - ${fixedSizePixels[sideNavOptions.size]}`
 				}}
 			>
 				{

@@ -45,25 +45,42 @@ export const Item = ({to, icon,children}) => (
 
 
 export default ({title, children, adminPath}) => {
-    const { user, baseUrl, parent } = React.useContext(FormsContext)
+    const { user, baseUrl, parent, theme } = React.useContext(FormsContext)
     const location = useLocation();
+    console.log('here')
+    let authMenuItems = theme?.navOptions?.authMenu?.navItems || [
+            {
+                name: 'Patterns',
+                icon: 'fad fa-sign-out-alt pb-2 pr-1',
+                path: '/list',
+                authLevel: 5
+            },
+            {
+                name: 'Manager',
+                icon: 'fad fa-sign-out-alt pb-2 pr-1',
+                path: `${baseUrl}/manage`,
+                authLevel: 5
+            },
+        ]
+    
     return (
         <div className="h-full z-40">
-            {!user.authed ?
-                <Link className={`flex items-center px-8 text-lg font-bold h-12 dark:text-blue-100`} to="/auth/login" state={{from: location?.pathname}}>Login</Link> :
+            {!user.authed ?            
+                <Link className={`flex items-center px-8 text-lg font-bold h-12 dark:text-blue-100 px-4`} to="/auth/login" state={{from: location?.pathname}}>Login</Link> :
                 <Dropdown control={<UserMenu user={user}/>} className={` hover:bg-blue-500 group z-40 `} >
-                    <div className='p-1 bg-blue-500 z-50 shadow-lg'>
+                    <div className='p-1 bg-blue-500 z-40'>
+                       
                         <div className='py-2'>
-                            {user.authLevel >= 5 && (
-                                <Item to={adminPath} icon={'fad fa-sign-out-alt pb-2 pr-1'}>
-                                    Patterns
-                                </Item>
-                            )}
-                            {user.authLevel >= 5 && (
-                                <Item to={`${baseUrl}/manage`} icon={'fad fa-sign-out-alt pb-2 pr-1'}>
-                                    Manage
-                                </Item>
-                            )}
+                            {authMenuItems.map((item) => {
+                                return <>
+                                    {user.authLevel >= (+item.authLevel || -1) && (
+                                        <Item to={item.path} icon={item.icon}>
+                                            {item.name}
+                                        </Item>
+                                    )}
+                                </>
+                           
+                            })}
                                          
                         </div>
                         {!user.fake && (

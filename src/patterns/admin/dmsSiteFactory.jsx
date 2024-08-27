@@ -10,6 +10,18 @@ import pageConfig from '../page/siteConfig'
 import {template} from "./admin.format"
 
 
+const getSubdomain = (host) => {
+    // ---
+    // takes window.location.host and returns subdomain
+    // only works with single depth subdomains 
+    // ---
+    return host.split('.').length > 2 ?
+    window.location.host.split('.')[0].toLowerCase() : 
+    host.split('.').length > 1 ?  
+        window.location.host.split('.')[0].toLowerCase() :  
+        false
+}
+
 import {updateAttributes, updateRegisteredFormats} from "./siteConfig";
 
 const configs = {
@@ -20,11 +32,11 @@ export default async function dmsSiteFactory({
     dmsConfig,
     adminPath = '/list',
     authWrapper = Component => Component,
-    //dmsTheme = defaultTheme,
-    theme,
+    themes = { default: {} },
     API_HOST = 'https://graph.availabs.org'
 }) {
     let dmsConfigUpdated = {...dmsConfig};
+    themes = themes?.default ? themes : { ...themes, default: {} }
     dmsConfigUpdated.registerFormats = updateRegisteredFormats(dmsConfigUpdated.registerFormats, dmsConfig.app)
     dmsConfigUpdated.attributes = updateAttributes(dmsConfigUpdated.attributes, dmsConfig.app)
 
@@ -32,6 +44,8 @@ export default async function dmsSiteFactory({
     let data = await dmsDataLoader(falcor, dmsConfigUpdated, `/`);
 
     const patterns = data.reduce((acc, curr) => [...acc, ...(curr?.patterns || [])], []) || [];
+    const SUBDOMAIN = getSubdomain(window.location.host)
+    //console.log('subdomain')
 
     // call dmsPageFactory here assuming patterns are page type
     // export multiple routes based on patterns.
@@ -41,15 +55,14 @@ export default async function dmsSiteFactory({
             ...dmsConfigUpdated, 
             baseUrl: adminPath, 
             API_HOST, 
-            theme
+            theme: themes['default']
         }),
         // patterns
         ...patterns.reduce((acc, pattern) => {
-            if(pattern?.pattern_type){
+            if(pattern?.pattern_type && (!SUBDOMAIN || pattern.subdomain === SUBDOMAIN)){
                 const c = configs[pattern.pattern_type];
 
                 //console.log('register pattern', pattern, theme)
-
                 acc.push(
                     ...c.map(config => {
                         const configObj = config({
@@ -62,7 +75,7 @@ export default async function dmsSiteFactory({
                             pattern: pattern,
                             parent: pattern,
                             authLevel: +pattern.authLevel || -1,
-                            theme,
+                            themes,
                             useFalcor,
                             API_HOST,
                             //rightMenu: <div>RIGHT</div>,
