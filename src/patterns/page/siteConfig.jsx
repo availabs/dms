@@ -45,7 +45,7 @@ export const siteConfig = ({
   API_HOST
 }) => {
   //console.log('hola', pattern?.theme)
-  let theme = merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern.theme?.settings?.theme?.theme] || themes.default), pattern?.theme || {})
+  let theme = merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern?.theme?.settings?.theme?.theme] || themes.default), pattern?.theme || {})
 
   // console.log('pageConfig', theme, logo)
   // baseUrl = baseUrl[0] === '/' ? baseUrl.slice(1) : baseUrl
