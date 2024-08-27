@@ -31,6 +31,7 @@ const managerTheme={
 
 
 
+
 function CmsManager ({children}) {
  
   
@@ -42,7 +43,7 @@ function CmsManager ({children}) {
     { name:'', className: 'p-2' },
     { name: 'Dashboard', path: `${baseUrl}/manage` },
     
-    //{name: 'View Site', path: `${baseUrl}/`},
+    {name: 'View Site', path: `${baseUrl}/`},
     { name: 'Content', className: theme.navLabel },
     { name: 'Templates', path: `${baseUrl}/manage/templates` },
     { name: 'Metadata', path: `${baseUrl}/manage/metadata` },
@@ -50,7 +51,6 @@ function CmsManager ({children}) {
     
 
     { name: 'Layout', className: theme.navLabel },
-    { name: 'Navigation', path: `${baseUrl}/manage/nav` },
     { name: 'Design', path: `${baseUrl}/manage/design` }
   ]
 

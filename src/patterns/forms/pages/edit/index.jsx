@@ -120,7 +120,7 @@ function PageEdit ({
                   apiUpdate={apiUpdate}
               />
             </div>
-            {/*<SideNavContainer witdh={'w-52'}>
+            <SideNavContainer witdh={'w-52'}>
               <EditControls 
                 item={item} 
                 dataItems={dataItems}
@@ -132,7 +132,7 @@ function PageEdit ({
                 updateAttribute={updateAttribute}
                 pageType={'page'}
               />
-            </SideNavContainer>*/}
+            </SideNavContainer>
           </div>
 
         </div>

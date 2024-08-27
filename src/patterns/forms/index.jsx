@@ -7,6 +7,7 @@ import {template, pattern} from "../admin/admin.format"
 
 
 import defaultTheme from './theme/theme'
+import DefaultMenu from './components/menu'
 
 //--- Tempalte Pages
 import TemplateView from './pages/view'
@@ -18,6 +19,7 @@ import Dashboard from './pages/manage'
 import ManageMeta from "./pages/manage/metadata";
 import ManageTemplates from "./pages/manage/templates";
 import Validate from "./pages/manage/validate";
+import Design from "./pages/manage/design";
 
 // import {updateAttributes, updateRegisteredFormats} from "../admin/siteConfig";
 
@@ -35,14 +37,16 @@ const formTemplateConfig = ({
     format, 
     parent, 
     title, 
-    baseUrl, 
+    Menu=DefaultMenu,
+    baseUrl,
     API_HOST='https://graph.availabs.org', 
     columns,
     logo,
-    theme=defaultTheme, 
+    themes = { default: {} },
     checkAuth = () => {}
 }) => {
-    theme = merge(defaultTheme, theme)
+    //console.log('parent', parent)
+    let theme = merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern.theme_name] || themes.default), parent?.theme || {})
     //baseUrl = baseUrl[0] === '/' ? baseUrl.slice(1) : baseUrl
     const defaultLogo = <Link to={`${baseUrl}`} className='h-12 flex px-4 items-center'><div className='rounded-full h-8 w-8 bg-blue-500 border-2 border-blue-300 hover:bg-blue-600' /></Link>
   
@@ -68,7 +72,7 @@ const formTemplateConfig = ({
                 type: (props) => {
                     // use dataItems. use Parent Templates, and manually get the correct template.
                     return (
-                        <FormsContext.Provider value={{baseUrl, user: props.user || defaultUser, theme, app, type, parent, API_HOST}}>
+                        <FormsContext.Provider value={{baseUrl, user: props.user || defaultUser, theme, app, type, parent, API_HOST, Menu}}>
                             <FormTemplateView
                                 format={templateFormat}
                                 parent={parent}
@@ -80,12 +84,19 @@ const formTemplateConfig = ({
                 },
                 action: "list",
                 path: "/*",
+                children: [
+                     {
+                        type: () => <ManageLayout>OOOOk<Design {...props} /></ManageLayout>,
+                        action: 'edit',
+                        path: `test123`
+                    },
+                ]
             },
             {
                 type: (props) => {
                     // use dataItems. use Parent Templates, and manually get the correct template.
                     return (
-                        <FormsContext.Provider value={{baseUrl, user: props.user || defaultUser, theme, app, type, parent, API_HOST}}>
+                        <FormsContext.Provider value={{baseUrl, user: props.user || defaultUser, theme, app, type, parent, API_HOST, Menu}}>
                             <FormTemplateView
                                 parent={parent}
                                 adminPath={adminPath}
@@ -108,14 +119,15 @@ const formsAdminConfig = ({
     parent,
     adminPath,
     title, 
-    baseUrl, 
+    baseUrl,
+    Menu=DefaultMenu,
     API_HOST='https://graph.availabs.org', 
     columns,
     logo,
-    theme=defaultTheme, 
+    themes={ default: {} },
     checkAuth = () => {}
 }) => {
-    theme = merge(cloneDeep(defaultTheme), cloneDeep(theme))
+    let theme = merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern.theme_name] || themes.default), parent?.theme || {})
     baseUrl = baseUrl === '/' ? '' : baseUrl
     const defaultLogo = (
         <Link to={baseUrl || '/'} className='h-12 flex px-4 items-center'>
@@ -141,7 +153,7 @@ const formsAdminConfig = ({
             {
                 type: (props) => {
                   return (
-                      <FormsContext.Provider value={{baseUrl, user: props.user || defaultUser, theme, app, type, parent}}>
+                      <FormsContext.Provider value={{baseUrl, user: props.user || defaultUser, theme, app, type, parent, Menu}}>
                         <ManageLayout>
                             {props.children}
                         </ManageLayout>
@@ -190,6 +202,11 @@ const formsAdminConfig = ({
                         },
                         action: 'edit',
                         path: `templates`
+                    },
+                    {
+                        type: Design,
+                        action: 'edit',
+                        path: `design`
                     },
                     // {
                     //     type: props => <ManageForms.ViewComp {...props} />,

@@ -25,7 +25,7 @@ function PageView ({item, dataItems, adminPath, attributes, logo, rightMenu, for
   const editUrl = `edit/${urlWithoutId}${itemId || ''}${window.location.search}`;
   const { baseUrl, theme, user } = React.useContext(FormsContext) || {}
 
-  console.log('Form Tempate View', dataItems)
+  // console.log('Form Tempate View', dataItems)
   // console.log('forms template page view', item, theme)
   
   const ContentView = React.useMemo(() => {
