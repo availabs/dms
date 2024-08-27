@@ -15,10 +15,11 @@ const getSubdomain = (host) => {
     // takes window.location.host and returns subdomain
     // only works with single depth subdomains 
     // ---
+    // console.log('host', host);
     return host.split('.').length > 2 ?
     window.location.host.split('.')[0].toLowerCase() : 
-    host.split('.').length > 1 ?  
-        window.location.host.split('.')[0].toLowerCase() :  
+    // host.split('.').length > 1 ?  
+    //     window.location.host.split('.')[0].toLowerCase() :  
         false
 }
 
@@ -59,7 +60,9 @@ export default async function dmsSiteFactory({
         }),
         // patterns
         ...patterns.reduce((acc, pattern) => {
+            //console.log('Patterns', pattern, SUBDOMAIN)
             if(pattern?.pattern_type && (!SUBDOMAIN || pattern.subdomain === SUBDOMAIN)){
+                //console.log('add patterns', pattern, SUBDOMAIN)
                 const c = configs[pattern.pattern_type];
 
                 //console.log('register pattern', pattern, theme)
