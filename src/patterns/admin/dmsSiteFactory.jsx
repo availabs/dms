@@ -7,7 +7,7 @@ import { falcorGraph, useFalcor } from "@availabs/avl-falcor"
 
 import formsConfig from '../forms'
 import pageConfig from '../page/siteConfig'
-import {template} from "./admin.format"
+//import {template} from "./admin.format"
 
 
 const getSubdomain = (host) => {

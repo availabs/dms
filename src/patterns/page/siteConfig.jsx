@@ -65,6 +65,9 @@ export const siteConfig = ({
   const format = cloneDeep(cmsFormat)
   format.app = app
   format.type = type
+  updateRegisteredFormats(format.registerFormats, app, type)
+  updateAttributes(format.attributes, app, type)
+  console.log('foramat after update', app, type, format)
 
 
   // console.log('pgEnv siteConfig', app, type, pgEnv)
