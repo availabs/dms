@@ -16,11 +16,14 @@ export const attributeAccessorStr = col => `data->>'${col}'`;
 
 const formatFilters = filters => filters.filter(f => f.values?.length && f.values.filter(fv => fv.length).length).reduce((acc, f) => ({...acc, [attributeAccessorStr(f.column)]: f.values}), {});
 
-export const getData = async ({format, apiLoad, currentPage, pageSize, orderBy, filters}) =>{
+export const getData = async ({format, apiLoad, currentPage, pageSize, length, orderBy, filters}) =>{
     // fetch all data items based on app and type. see if you can associate those items to its pattern. this will be useful when you have multiple patterns.
     const attributes = JSON.parse(format?.config || '{}')?.attributes || [];
     const fromIndex = currentPage*pageSize;
-    const toIndex = currentPage*pageSize + pageSize;
+    const toIndex = Math.min(length, currentPage*pageSize + pageSize);
+    if(fromIndex > length - 1) return [];
+
+    console.log('fetching', fromIndex, toIndex)
     const children = [{
         type: () => {
         },
