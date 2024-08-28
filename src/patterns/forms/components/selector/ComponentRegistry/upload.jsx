@@ -1,6 +1,7 @@
 import React, {useMemo, useState, useEffect, useRef, useContext} from 'react'
 import {Link} from "react-router-dom";
 import {FormsContext} from "../../../index";
+import {InfoCircle} from "../../../../admin/ui/icons";
 
 export const isJson = (str)  => {
     try {
@@ -103,8 +104,9 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     const dmsServerPath = `${API_HOST}/dama-admin`; // to use for publish. no need for pgEnv.
 
     const [loading, setLoading] = useState(false);
+    const [search, setSearch] = useState('');
     const [etlContextId, setEtlContextId] = useState();
-    const [gisUploadId, setGisUploadId] = useState(); // 'shaun-XPS-13-9340_e54982da-f682-4ef5-ba33-550f1f5655c2'
+    const [gisUploadId, setGisUploadId] = useState();
     const [layers, setLayers] =useState([]);
     const [layerName, setLayerName] = useState();
     const inputClass = `p-1.5 hover:bg-blue-100 rounded-sm`;
@@ -161,9 +163,7 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     }, [layers, layerName]);
     // ================================================= get layers end ================================================
 
-
-    console.log('parent? find type.', user, columns, existingAttributes)
-
+    const pivotColumns = existingAttributes.filter(existingCol => columns.filter(c => c.existingColumnMatch === existingCol.name).length > 1);
     // post upload UI
     if(gisUploadId){
         // after a file has been uploaded to the server, make required selection. then publish.
@@ -183,23 +183,51 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
                         }
                     </select>
                 </div>
+                {/*display pivot columns*/}
+                {
+                    pivotColumns.length ?
+                        <div className={'p-2 border border-blue-300 rounded-md'}>
+                            <div className={'flex items-center text-blue-500 font-semibold'}>Pivot Columns
+                                <InfoCircle className={'ml-1 text-blue-500 hover:text-blue-300 cursor-pointer'} height={18} width={18}
+                                    title={'These column headers will become values for the Destination column if there exists a value for a given row in the data.'}/>
+                            </div>
+                            <div className={'grid grid-cols-2'}
+                                 style={{gridTemplateColumns: '1fr 2fr'}}>
+                                <div>Destination Column</div>
+                                <div>Source Columns</div>
+                            </div>
+                            {
+
+                                pivotColumns.map(existingCol => (
+                                    <div className={'grid grid-cols-2'} style={{gridTemplateColumns: '1fr 2fr'}}>
+                                        <div>{existingCol.display_name || existingCol.name}</div>
+                                        <div>{columns.filter(c => c.existingColumnMatch === existingCol.name).map(c => c.display_name || c.name).join(', ')}</div>
+                                    </div>
+                                ))
+
+                            }
+                        </div> : null
+                }
                 {/* if there are attributes for this pattern, show them as well. and give option to map detected columns to them */}
                 {
                     columns?.length ?
                     <>
-                        <div className={'p-1 hover:bg-blue-50 rounded-md grid grid-cols-3 font-semibold border-b'}>
-                            <label>Column Name</label>
-                            <label>Display Name</label>
+                        <div className={'p-1 hover:bg-blue-50 rounded-md grid grid-cols-3 font-semibold border-b'} style={{gridTemplateColumns: "1fr 1fr 100px"}}>
+                            <label className={'flex flex-wrap items-center'}>
+                                Display Name
+                                <input className={'p-0.5 mx-1 border rounded-md text-sm font-light'} value={search} onChange={e => setSearch(e.target.value)} placeholder={'search...'}/></label>
                             <label>Existing Column Match</label>
+                            <label>GEO Column</label>
                         </div>
                         <div className={'flex flex-col max-h-[300px] overflow-auto scrollbar-sm'}>
                             {
                                 columns
+                                    .filter(({display_name, name}) => !search || (display_name || name).toLowerCase().includes(search.toLowerCase()))
                                     .map(col => (
-                                        <div className={'p-0.5 hover:bg-blue-50 rounded-md grid grid-cols-3'}>
-                                            <input className={inputClass} value={col.name}/>
-                                            <input  className={inputClass} value={col.display_name}/>
-                                            <select className={col.existingColumnMatch ? inputClass : `${inputClass} bg-red-50`}
+                                        <div className={'p-0.5 hover:bg-blue-50 rounded-md grid grid-cols-3'} style={{gridTemplateColumns: "1fr 1fr 100px"}}>
+                                            {/*<input disabled className={inputClass} value={col.name}/>*/}
+                                            <input disabled className={inputClass} value={col.display_name}/>
+                                            <select key={col.name} className={col.existingColumnMatch ? inputClass : `${inputClass} bg-red-50`}
                                                     value={col.existingColumnMatch}
                                                     onChange={e =>
                                                         setColumns(columns.map(c => c.name === col.name ? ({...c, existingColumnMatch: e.target.value}) : c))}
@@ -214,6 +242,15 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
                                                             </option>))
                                                 }
                                             </select>
+                                            <div className={'flex items-center justify-center'}>
+                                                <input className={''} type={"checkbox"} checked={col.geo_col}
+                                                       onClick={e => {
+                                                           setColumns(columns.map(c => c.name === col.name ? ({
+                                                               ...c,
+                                                               geo_col: e.target.checked
+                                                           }) : c))
+                                                       }}/>
+                                            </div>
                                         </div>
                                     ))
                             }
