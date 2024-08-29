@@ -43,7 +43,6 @@ export default function RenderColumnControls({
 
     // ================================================== close on outside click start =================================
     const handleClickOutside = (e) => {
-        console.log('e', e.target, e.target.id)
         if (menuRef.current && !menuRef.current.contains(e.target) && e.target.id !== menuBtnId) {
             setIsOpen(false);
         }

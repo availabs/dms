@@ -107,6 +107,18 @@ const RenderActions = ({isLastCell, allowEdit, newItem, removeItem}) => {
             </div>
     )
 }
+const validate = ({value, required, options, name}) => {
+    const requiredValidation = !required || (required && value && value !== '')
+    const optionsValidation = !options || !options?.length || (
+        Array.isArray(options) && typeof value === "string" ? // select
+            options.map(o => o.value || o).includes(value) :
+            Array.isArray(options) && Array.isArray(value) ?  // multiselect
+                value.reduce((acc, v) => acc && options.map(o => o.value || o).includes(v.value || v), true) :
+                false
+    );
+    // if (!(requiredValidation && optionsValidation)) console.log('----', name, requiredValidation, optionsValidation, options, value)
+    return requiredValidation && optionsValidation;
+}
 const RenderCell = ({
                         attribute, i, item, updateItem, width, onPaste,
                         isFrozen, isSelected, isSelecting, editing, edge, loading, allowEdit,
@@ -146,6 +158,12 @@ const RenderCell = ({
         }
 
     }, [newItem]);
+    const isValid = validate({
+        value: newItem[attribute.name],
+        options: attribute.options,
+        required: attribute.required === "yes"
+    });
+
     return (
         <div
             className={`relative flex items-center min-h-[35px] 
@@ -163,6 +181,9 @@ const RenderCell = ({
             onDoubleClick={onDoubleClick}
             onPaste={onPaste}
         >
+            {
+                isValid ? null : <span className={'absolute top-0 right-0 text-red-900 font-bold h-fit w-fit'} title={'Invalid Value'}>*</span>
+            }
             <Comp key={`${attribute.name}-${i}`}
                   onClick={onClick}
                   autoFocus={editing}

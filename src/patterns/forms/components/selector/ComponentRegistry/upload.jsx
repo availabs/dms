@@ -70,7 +70,7 @@ const uploadGisDataset = async ({file, user, etlContextId, damaServerPath, setGi
     }
 }
 
-const publish = async ({userId, email, gisUploadId, layerName, app, type, dmsServerPath, columns}) => {
+const publish = async ({userId, email, gisUploadId, layerName, app, type, dmsServerPath, columns, publishStatus, setPublishStatus}) => {
     const publishData = {
         user_id: userId,
         email: email,
@@ -79,7 +79,7 @@ const publish = async ({userId, email, gisUploadId, layerName, app, type, dmsSer
         columns
     };
 
-    const res = await fetch(`${dmsServerPath}/publish-dms/${app}+${type}/publish`,
+    const res = await fetch(`${dmsServerPath}/dms/${app}+${type}/publish`,
         {
             method: "POST",
             body: JSON.stringify(publishData),
@@ -89,12 +89,13 @@ const publish = async ({userId, email, gisUploadId, layerName, app, type, dmsSer
         });
 
     const publishFinalEvent = await res.json();
+    setPublishStatus(true)
     console.log('publishFinalEvent', publishFinalEvent)
 }
 const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     // this component should let a user:
     // 1. upload
-    // 2. post upload change column name and display names
+    // 2. post upload change column name and display names -- avoiding this. this should be done in meta manager.
     // 3. set columns to geo columns
     // 4. map multiple columns to a single column. this converts column headers to values of a new column
 
@@ -104,11 +105,12 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     const dmsServerPath = `${API_HOST}/dama-admin`; // to use for publish. no need for pgEnv.
 
     const [loading, setLoading] = useState(false);
+    const [publishStatus, setPublishStatus] = useState(false)
     const [search, setSearch] = useState('');
     const [etlContextId, setEtlContextId] = useState();
-    const [gisUploadId, setGisUploadId] = useState();
+    const [gisUploadId, setGisUploadId] = useState(); // 'shaun-XPS-13-9340_7ae040fc-3854-480e-8279-622a6c199f69'
     const [layers, setLayers] =useState([]);
-    const [layerName, setLayerName] = useState();
+    const [layerName, setLayerName] = useState('');
     const inputClass = `p-1.5 hover:bg-blue-100 rounded-sm`;
     const existingAttributes = JSON.parse(format.config || '{}')?.attributes;
     const [columns, setColumns] = useState([]);
@@ -138,7 +140,6 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
                     const url = `${damaServerPath}/gis-dataset/${gisUploadId}/layers`;
                     const layerNamesRes = await fetch(url);
                     const layers = await layerNamesRes.json();
-                    console.log('???????????????///', layerNamesRes, layers)
                     setLayers(layers)
                     setLayerName(layers?.[0]?.layerName)
                 }
@@ -152,130 +153,30 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     useEffect(() => {
         if(layers.find(layer => layer.layerName === layerName)?.fieldsMetadata){
             setColumns(layers.find(layer => layer.layerName === layerName)?.fieldsMetadata
-                .map(({name, display_name}) => {
+                .map(({name, display_name}, i) => {
+                    const existingColumn = existingAttributes.find(col => col.display_name === display_name || col.name === name);
                     return {
-                        original_name: name,
-                        name, display_name,
-                        existingColumnMatch: existingAttributes.find(col => col.display_name === display_name || col.name === name)?.name
+                        name: name || `col_${i+1}`, // safeguarding blank headers
+                        display_name: display_name || name || `col_${i+1}`,
+                        existingColumnMatch: existingColumn?.name,
+                        options: ['select', 'multiselect'].includes(existingColumn?.type) ? existingColumn.options : null,
+                        required: existingColumn?.required === "yes"
                     }
                 }))
         }
     }, [layers, layerName]);
     // ================================================= get layers end ================================================
-
+    console.log('columns', columns)
     const pivotColumns = existingAttributes.filter(existingCol => columns.filter(c => c.existingColumnMatch === existingCol.name).length > 1);
-    // post upload UI
-    if(gisUploadId){
-        // after a file has been uploaded to the server, make required selection. then publish.
-        return (
-            <div className={'w-full border p-2 rounded-md'}>
-                <div className={'w-full pb-4'}>
-                    <label htmlFor={'layer-selector'}>Please select a sheet to upload:</label>
-                    <select
-                        id={'layer-selector'}
-                        className={'p-2 ml-4 bg-transparent border rounded-md hover:cursor-pointer'}
-                        value={layerName}
-                        onChange={e => setLayerName(e.target.value)}
-                    >
-                        {
-                            (layers || []).map(({layerName}) => <option key={layerName}
-                                                                        value={layerName}>{layerName}</option>)
-                        }
-                    </select>
-                </div>
-                {/*display pivot columns*/}
-                {
-                    pivotColumns.length ?
-                        <div className={'p-2 border border-blue-300 rounded-md'}>
-                            <div className={'flex items-center text-blue-500 font-semibold'}>Pivot Columns
-                                <InfoCircle className={'ml-1 text-blue-500 hover:text-blue-300 cursor-pointer'} height={18} width={18}
-                                    title={'These column headers will become values for the Destination column if there exists a value for a given row in the data.'}/>
-                            </div>
-                            <div className={'grid grid-cols-2'}
-                                 style={{gridTemplateColumns: '1fr 2fr'}}>
-                                <div>Destination Column</div>
-                                <div>Source Columns</div>
-                            </div>
-                            {
 
-                                pivotColumns.map(existingCol => (
-                                    <div className={'grid grid-cols-2'} style={{gridTemplateColumns: '1fr 2fr'}}>
-                                        <div>{existingCol.display_name || existingCol.name}</div>
-                                        <div>{columns.filter(c => c.existingColumnMatch === existingCol.name).map(c => c.display_name || c.name).join(', ')}</div>
-                                    </div>
-                                ))
-
-                            }
-                        </div> : null
-                }
-                {/* if there are attributes for this pattern, show them as well. and give option to map detected columns to them */}
-                {
-                    columns?.length ?
-                    <>
-                        <div className={'p-1 hover:bg-blue-50 rounded-md grid grid-cols-3 font-semibold border-b'} style={{gridTemplateColumns: "1fr 1fr 100px"}}>
-                            <label className={'flex flex-wrap items-center'}>
-                                Display Name
-                                <input className={'p-0.5 mx-1 border rounded-md text-sm font-light'} value={search} onChange={e => setSearch(e.target.value)} placeholder={'search...'}/></label>
-                            <label>Existing Column Match</label>
-                            <label>GEO Column</label>
-                        </div>
-                        <div className={'flex flex-col max-h-[300px] overflow-auto scrollbar-sm'}>
-                            {
-                                columns
-                                    .filter(({display_name, name}) => !search || (display_name || name).toLowerCase().includes(search.toLowerCase()))
-                                    .map(col => (
-                                        <div className={'p-0.5 hover:bg-blue-50 rounded-md grid grid-cols-3'} style={{gridTemplateColumns: "1fr 1fr 100px"}}>
-                                            {/*<input disabled className={inputClass} value={col.name}/>*/}
-                                            <input disabled className={inputClass} value={col.display_name}/>
-                                            <select key={col.name} className={col.existingColumnMatch ? inputClass : `${inputClass} bg-red-50`}
-                                                    value={col.existingColumnMatch}
-                                                    onChange={e =>
-                                                        setColumns(columns.map(c => c.name === col.name ? ({...c, existingColumnMatch: e.target.value}) : c))}
-                                            >
-                                                <option>Please select...</option>
-                                                {
-                                                    existingAttributes
-                                                        .sort((a,b) => a?.display_name?.localeCompare(b?.display_name))
-                                                        .map(({name, display_name}) => (
-                                                            <option key={name} value={name}>
-                                                                {display_name || name}
-                                                            </option>))
-                                                }
-                                            </select>
-                                            <div className={'flex items-center justify-center'}>
-                                                <input className={''} type={"checkbox"} checked={col.geo_col}
-                                                       onClick={e => {
-                                                           setColumns(columns.map(c => c.name === col.name ? ({
-                                                               ...c,
-                                                               geo_col: e.target.checked
-                                                           }) : c))
-                                                       }}/>
-                                            </div>
-                                        </div>
-                                    ))
-                            }
-                        </div>
-                        <div className={'mt-1 flex justify-end'}>
-                            <button className={'p-1 bg-blue-300 hover:bg-blue-600 text-white rounded-md'}
-                                    onClick={() => publish({
-                                        ...user,
-                                        gisUploadId,
-                                        layerName,
-                                        app: format.app,
-                                        type: format.type,
-                                        dmsServerPath,
-                                        columns
-                                    })}>
-                                publish
-                            </button>
-                        </div>
-                    </> : <div>No columns available.</div>
-                }
-            </div>
-        )
+    if(publishStatus){
+        return <div className={'flex items-center justify-center w-full h-[150px] border rounded-md'}>
+            The Sheet has been Processed. To Validate your records, <Link className={'text-blue-500 hover:text-blue-700 px-1'} to={'manage/validate'}>click here</Link>
+        </div>
     }
+    return !gisUploadId ?
     // file uploader UI
-    return (
+    (
         <div className={'w-full h-[300px]'}>
 
             <div className="flex items-center justify-center w-full">
@@ -304,16 +205,118 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
 
 
         </div>
-    )
-}
+    ) :
+        // post upload UI
+        // after a file has been uploaded to the server, make required selection. then publish.
+        (
+            <div className={'w-full border p-2 rounded-md'}>
+                <div className={'w-full pb-4'}>
+                    <label htmlFor={'layer-selector'}>Please select a sheet to upload:</label>
+                    <select
+                        id={'layer-selector'}
+                        className={'p-2 ml-4 bg-transparent border rounded-md hover:cursor-pointer'}
+                        value={layerName}
+                        onChange={e => setLayerName(e.target.value)}
+                    >
+                        {
+                            (layers || []).map(({layerName}) => <option key={layerName}
+                                                                        value={layerName}>{layerName}</option>)
+                        }
+                    </select>
+                </div>
+                {/*display pivot columns*/}
+                {
+                    pivotColumns.length ?
+                        <div className={'p-2 border border-blue-300 rounded-md'}>
+                            <div className={'flex items-center text-blue-500 font-semibold'}>Pivot Columns
+                                <InfoCircle className={'ml-1 text-blue-500 hover:text-blue-300 cursor-pointer'} height={18} width={18}
+                                            title={'These column headers will become values for the Destination column if there exists a value for a given row in the data.'}/>
+                            </div>
+                            <div className={'grid grid-cols-2'}
+                                 style={{gridTemplateColumns: '1fr 2fr'}}>
+                                <div>Destination Column</div>
+                                <div>Source Columns</div>
+                            </div>
+                            {
 
-const View = ({value, format, apiLoad, ...rest}) => {
-    const cachedData = isJson(value) ? JSON.parse(value) : {};
-    const {title, buttons} = cachedData;
-    return (
-        <RenderHeader title={title} buttons={buttons}/>
-    )
+                                pivotColumns.map(existingCol => (
+                                    <div key={existingCol.name} className={'grid grid-cols-2'} style={{gridTemplateColumns: '1fr 2fr'}}>
+                                        <div>{existingCol.display_name || existingCol.name}</div>
+                                        <div>{columns.filter(c => c.existingColumnMatch === existingCol.name).map(c => c.display_name || c.name).join(', ')}</div>
+                                    </div>
+                                ))
 
+                            }
+                        </div> : null
+                }
+                {/* if there are attributes for this pattern, show them as well. and give option to map detected columns to them */}
+                {
+                    columns?.length ?
+                        <>
+                            <div className={'p-1 hover:bg-blue-50 rounded-md grid grid-cols-3 font-semibold border-b'} style={{gridTemplateColumns: "1fr 1fr 100px"}}>
+                                <label className={'flex flex-wrap items-center'}>
+                                    Display Name
+                                    <input className={'p-0.5 mx-1 border rounded-md text-sm font-light'} value={search} onChange={e => setSearch(e.target.value)} placeholder={'search...'}/></label>
+                                <label>Existing Column Match</label>
+                                <label>GEO Column</label>
+                            </div>
+                            <div className={'flex flex-col max-h-[700px] overflow-auto scrollbar-sm'}>
+                                {
+                                    columns
+                                        .filter(({display_name, name}) => !search || (display_name || name).toLowerCase().includes(search.toLowerCase()))
+                                        .map(({name, display_name, existingColumnMatch, geo_col}) => (
+                                            <div key={name} className={'p-0.5 hover:bg-blue-50 rounded-md grid grid-cols-3'} style={{gridTemplateColumns: "1fr 1fr 100px"}}>
+                                                {/*<input disabled className={inputClass} value={name}/>*/}
+                                                <div key={`${name}_display_name`} className={inputClass}>{display_name}</div>
+                                                <select  key={`${name}_select_existing_col`} className={existingColumnMatch ? inputClass : `${inputClass} bg-red-50`}
+                                                        value={existingColumnMatch}
+                                                        onChange={e =>
+                                                            setColumns(columns.map(c => c.name === name ? ({...c, existingColumnMatch: e.target.value}) : c))}
+                                                >
+                                                    <option>Please select...</option>
+                                                    {
+                                                        existingAttributes
+                                                            .sort((a,b) => a?.display_name?.localeCompare(b?.display_name))
+                                                            .map(({name, display_name}) => (
+                                                                <option key={name} value={name}>
+                                                                    {display_name || name}
+                                                                </option>))
+                                                    }
+                                                </select>
+                                                <div  key={`${name}_geo_col_div`} className={'flex items-center justify-center'}>
+                                                    <input className={''} type={"checkbox"} checked={geo_col || false}
+                                                           onChange={() => {}}
+                                                           onClick={e => {
+                                                               setColumns(columns.map(c => c.name === name ? ({
+                                                                   ...c,
+                                                                   geo_col: e.target.checked
+                                                               }) : c))
+                                                           }}/>
+                                                </div>
+                                            </div>
+                                        ))
+                                }
+                            </div>
+                            <div className={'mt-1 flex justify-end'}>
+                                <button className={'p-1 bg-blue-300 hover:bg-blue-600 text-white rounded-md'}
+                                        onClick={() => publish({
+                                            ...user,
+                                            gisUploadId,
+                                            layerName,
+                                            app: format.app,
+                                            type: format.type,
+                                            dmsServerPath,
+                                            columns,
+                                            publishStatus,
+                                            setPublishStatus
+                                        })}>
+                                    publish
+                                </button>
+                            </div>
+                        </> : <div>No columns available.</div>
+                }
+            </div>
+        )
 }
 
 Edit.settings = {

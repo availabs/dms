@@ -28,7 +28,7 @@ const View = ({value, className, ...rest}) => {
         <div
             className={ className || (theme?.text?.view)}
         >
-            {value}
+            {typeof value === "object" ? JSON.stringify(value) : value}
         </div>
     )
 }

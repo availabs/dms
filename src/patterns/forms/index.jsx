@@ -153,7 +153,7 @@ const formsAdminConfig = ({
             {
                 type: (props) => {
                   return (
-                      <FormsContext.Provider value={{baseUrl, user: props.user || defaultUser, theme, app, type, parent, Menu}}>
+                      <FormsContext.Provider value={{baseUrl, user: props.user || defaultUser, theme, app, type, parent, Menu, API_HOST}}>
                         <ManageLayout>
                             {props.children}
                         </ManageLayout>

@@ -35,7 +35,7 @@ const managerTheme={
 function CmsManager ({children}) {
  
   
-  const { baseUrl, theme, user } = React.useContext(FormsContext) || {}
+  const { baseUrl, theme={}, user } = React.useContext(FormsContext) || {}
   
 
   const managerNavItems = [

@@ -23,7 +23,7 @@ const View = ({value}) => {
     if (!value) return false
     return (
         <div className={get(theme,'textarea.viewWrapper','')}>
-            {value}
+            {typeof value === "object" ? JSON.stringify(value) : value}
         </div>
     )
 }
