@@ -57,8 +57,8 @@ function UpdateEditor ({value, onChange, bgColor, editable}) {
           isFirstRender.current = false;
       }
       if(!editable && !isFirstRender.current){
-        let parsedValue = JSON.parse(value || '{}')
-        let update = parsedValue.root && parsedValue?.root?.children?.length
+        const parsedValue = JSON.parse(value || '{}')
+        const update = parsedValue.root && parsedValue?.root?.children?.length
           ? value : null
         if(update) {
           const newEditorState = editor.parseEditorState(update)
