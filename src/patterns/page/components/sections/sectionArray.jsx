@@ -22,7 +22,8 @@ import {
     ChevronUpSquare,
     InfoSquare,
     MoreSquare,
-    Tags
+    Tags,
+    Copy
 } from '../../ui/icons'
 
 const isJson = (str)  => {
@@ -449,11 +450,20 @@ function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove}) {
                                
                                     <button
                                         className={' flex items-center text-md cursor-pointer hover:text-blue-500 py-1 pr-1 text-slate-400'}
+                                        onClick={() => navigator.clipboard.writeText(JSON.stringify({'element-type': value?.element?.['element-type'], 'element-data': value?.element?.['element-data']}))}
+                                    >
+                                        {/*<i className="fa-light fa-pencil text-xl fa-fw" title="Edit"></i>*/}
+                                        <Copy title={'Copy Section'} className='text-slate-400 hover:text-blue-500 w-[24px] h-[24px]'/>
+                                       
+                                    </button>
+
+                                    <button
+                                        className={' flex items-center text-md cursor-pointer hover:text-blue-500 py-1 pr-1 text-slate-400'}
                                         onClick={ onEdit }
                                     >
                                         {/*<i className="fa-light fa-pencil text-xl fa-fw" title="Edit"></i>*/}
                                         <PencilSquare className='text-slate-400 hover:text-blue-500 w-[24px] h-[24px]'/>
-                                       
+
                                     </button>
                                     <button className={'text-lg cursor-pointer hover:text-blue-500 text-slate-400 pr-3'} onClick={addAbove}> 
                                         <SquarePlus className='text-slate-400 hover:text-blue-500 w-[24px] h-[24px]'/>
