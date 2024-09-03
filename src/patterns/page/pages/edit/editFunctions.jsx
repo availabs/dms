@@ -80,7 +80,31 @@ export const insertSubPage = async (item, dataItems, user, apiUpdate) => {
     newItem.url_slug = `${getUrlSlug(newItem,dataItems)}`    
     apiUpdate({data:newItem})
   }
-  
+
+const duplicateItem = (item, dataItems, user, apiUpdate) => {
+    const highestIndex = dataItems
+        .filter(d => !d.parent)
+        .reduce((out,d) => {
+            return Math.max(isNaN(d.index) ? -1 : d.index  , out)
+        },-1)
+
+    const newItem = cloneDeep(item)
+    delete newItem.id
+    newItem.title += ' Dup'
+    newItem.index = highestIndex + 1
+    newItem.url_slug = getUrlSlug(newItem, dataItems)
+    newItem.sections.forEach(s => {
+        delete s.ref
+        delete s.id
+    })
+    newItem.history = [{
+        type:'Created Duplicate Page.',
+        user: user.email,
+        time: new Date().toString()
+    }]
+    apiUpdate({data:newItem})
+}
+
 export const newPage = async (item, dataItems, user, apiUpdate) => {
     const highestIndex = dataItems
     .filter(d => !d.parent)
@@ -197,6 +221,7 @@ export function getMenus (item, dataItems, user, pageType, editState, setEditSta
         "items": [
           {item: '☲ New Page', "onClick": () => newPage(item, dataItems, user, apiUpdate) },
           {item: '☲ Insert Subpage', "onClick":() =>  insertSubPage(item, dataItems, user, apiUpdate) },
+          {item: '☳ Duplicate', "onClick":() =>  duplicateItem(item, dataItems, user, apiUpdate) },
           {item: '☵ Delete', "onClick": () => setEditState({...editState, showDelete: true}) }
         ]
       },
