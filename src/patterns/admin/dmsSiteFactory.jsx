@@ -19,9 +19,7 @@ const getSubdomain = (host) => {
     // ---
     console.log('host', host,  host.split('.'));
     return host.split('.').length > 2 ?
-    window.location.host.split('.')[0].toLowerCase() : 
-    host.split('.').length > 1 ?  
-         window.location.host.split('.')[0].toLowerCase() :  
+    window.location.host.split('.')[0].toLowerCase() :
         false
 }
 
