@@ -70,7 +70,7 @@ const uploadGisDataset = async ({file, user, etlContextId, damaServerPath, setGi
     }
 }
 
-const publish = async ({userId, email, gisUploadId, layerName, app, type, dmsServerPath, columns, publishStatus, setPublishStatus}) => {
+const publish = async ({userId, email, gisUploadId, layerName, app, type, dmsServerPath, columns, setPublishing, setPublishStatus}) => {
     const publishData = {
         user_id: userId,
         email: email,
@@ -79,6 +79,7 @@ const publish = async ({userId, email, gisUploadId, layerName, app, type, dmsSer
         columns
     };
 
+    setPublishing(true);
     const res = await fetch(`${dmsServerPath}/dms/${app}+${type}/publish`,
         {
             method: "POST",
@@ -89,7 +90,8 @@ const publish = async ({userId, email, gisUploadId, layerName, app, type, dmsSer
         });
 
     const publishFinalEvent = await res.json();
-    setPublishStatus(true)
+    setPublishing(false);
+    setPublishStatus(true);
     console.log('publishFinalEvent', publishFinalEvent)
 }
 const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
@@ -105,6 +107,7 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     const dmsServerPath = `${API_HOST}/dama-admin`; // to use for publish. no need for pgEnv.
 
     const [loading, setLoading] = useState(false);
+    const [publishing, setPublishing] = useState(false);
     const [publishStatus, setPublishStatus] = useState(false)
     const [search, setSearch] = useState('');
     const [etlContextId, setEtlContextId] = useState();
@@ -299,6 +302,7 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
                             </div>
                             <div className={'mt-1 flex justify-end'}>
                                 <button className={'p-1 bg-blue-300 hover:bg-blue-600 text-white rounded-md'}
+                                        disabled={publishing}
                                         onClick={() => publish({
                                             ...user,
                                             gisUploadId,
@@ -308,9 +312,10 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
                                             dmsServerPath,
                                             columns,
                                             publishStatus,
-                                            setPublishStatus
+                                            setPublishStatus,
+                                            setPublishing
                                         })}>
-                                    publish
+                                    {publishing ? 'publishing...' : 'publish'}
                                 </button>
                             </div>
                         </> : <div>No columns available.</div>
