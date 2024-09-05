@@ -213,6 +213,31 @@ export const publish = async (user,item, apiUpdate) => {
 
 }
 
+export const discardChanges = async (user,item, apiUpdate) => {
+  let edit = {
+    type: 'discarded changes.',
+    user: user.email,
+    time: new Date().toString()
+  }
+
+  let history = item?.history ? cloneDeep(item.history) : []
+  history.push(edit)
+
+  const newItem = {
+    ...cloneDeep(item),
+    has_changes: false,
+    published: '',
+    history
+  }
+
+  newItem.draft_sections = item.sections.map(s => {
+      delete s.id;
+      return s;
+  });
+  apiUpdate({data:newItem})
+
+}
+
 export function getMenus (item, dataItems, user, pageType, editState, setEditState, apiUpdate) {
   return [
       {

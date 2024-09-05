@@ -25,6 +25,7 @@ import {
     Tags,
     Copy
 } from '../../ui/icons'
+import {DeleteModal} from "../../ui";
 
 const isJson = (str)  => {
     try {
@@ -161,6 +162,7 @@ function TagComponent ({value, placeholder, onChange, edit=false}) {
 
 
 function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, onRemove}) {
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
     let sectionTitleCondition = value?.['title'] 
     let {theme} = React.useContext(CMSContext) || {}
 
@@ -183,9 +185,33 @@ function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, o
                 <div className='flex-1'/>
                     <div className={`z-10 relative`}>
                         <div className={`absolute mr-16 top-[-14px] right-[-60px] flex`}>
+                            {/*delete*/}
+                            <button className={'flex items-center text-md cursor-pointer pr-1'}
+                                    onClick={() => setShowDeleteModal(!showDeleteModal)}
+                            >
+                                {/*<i className="fa-light fa-angle-down text-xl fa-fw" title="Move Down"/>*/}
+                                <TrashCan className='text-red-400 hover:text-red-600 w-[24px] h-[24px]'
+                                          title="Move Down"/>
+                            </button>
+                            <DeleteModal
+                                title={`Delete Section ${value?.title || ''} ${value?.id}`} open={showDeleteModal}
+                                prompt={`Are you sure you want to delete this section? All of the section data will be permanently removed
+                                            from our servers forever. This action cannot be undone.`}
+                                setOpen={(v) => setShowDeleteModal(v)}
+                                onDelete={() => {
+                                    async function deleteItem() {
+                                        await onRemove()
+                                        setShowDeleteModal(false)
+                                    }
+
+                                    deleteItem()
+                                }}
+                            />
+                            {/*help text*/}
                             <Popover className="relative">
-                                <Popover.Button  className={'flex items-center cursor-pointer pt-1 pr-1'} >
-                                    <Tags  className='text-blue-400 hover:text-blue-600  w-[24px] h-[24px]' title="Move Up"/>
+                                <Popover.Button className={'flex items-center cursor-pointer pt-1 pr-1'}>
+                                    <InfoSquare className='text-blue-400 hover:text-blue-600  w-[24px] h-[24px]'
+                                                title="Help Text"/>
                                 </Popover.Button>
                                 <Transition
                                     as={Fragment}
@@ -196,65 +222,65 @@ function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, o
                                     leaveFrom="opacity-100 translate-y-0"
                                     leaveTo="opacity-0 translate-y-1"
                                 >
-                                    <Popover.Panel 
-                                        anchor="bottom"
-                                        className="absolute -left-[100px] shadow-lg bg-white z-10 w-[200px] transform border border-blue-200 ">
-                                        
-                                        <TagComponent
-                                            edit={true}
-                                            className='p-2 flex-0'
-                                            value={value?.['tags']}
-                                            placeholder={'Add Tag...'} 
-                                            onChange={(v) => updateAttribute('tags', v)}
-                                        />
-                                  </Popover.Panel>
-                                </Transition>
-                            </Popover>   
-                            <Popover className="relative">
-                                <Popover.Button  className={'flex items-center cursor-pointer pt-1 pr-1'} >
-                                    <InfoSquare className='text-blue-400 hover:text-blue-600  w-[24px] h-[24px]' title="Move Up"/>
-                                </Popover.Button>
-                                <Transition
-                                    as={Fragment}
-                                    enter="transition ease-out duration-200"
-                                    enterFrom="opacity-0 translate-y-1"
-                                    enterTo="opacity-100 translate-y-0"
-                                    leave="transition ease-in duration-150"
-                                    leaveFrom="opacity-100 translate-y-0"
-                                    leaveTo="opacity-0 translate-y-1"
-                                >
-                                    <Popover.Panel 
+                                    <Popover.Panel
                                         anchor="bottom"
                                         className="absolute shadow-lg bg-white z-10 w-screen max-w-sm transform px-4 border border-blue-200 lg:max-w-lg">
-                                        
+
                                         <HelpComp
                                             value={value?.['helpText']}
                                             onChange={(v) => updateAttribute('helpText', v)}
                                         />
-                                  </Popover.Panel>
+                                    </Popover.Panel>
                                 </Transition>
                             </Popover>
-                            <button className={'flex items-center text-md cursor-pointer pr-1'}
-                                onClick={ onRemove }
-                            >
-                                {/*<i className="fa-light fa-angle-down text-xl fa-fw" title="Move Down"/>*/}
-                                <TrashCan className='text-slate-400 hover:text-red-500 w-[24px] h-[24px]' title="Move Down"/>
+                            {/*tags*/}
+                            <Popover className="relative">
+                                <Popover.Button className={'flex items-center cursor-pointer pt-1 pr-1'}>
+                                    <Tags className='text-blue-400 hover:text-blue-600  w-[24px] h-[24px]'
+                                          title="Tags"/>
+                                </Popover.Button>
+                                <Transition
+                                    as={Fragment}
+                                    enter="transition ease-out duration-200"
+                                    enterFrom="opacity-0 translate-y-1"
+                                    enterTo="opacity-100 translate-y-0"
+                                    leave="transition ease-in duration-150"
+                                    leaveFrom="opacity-100 translate-y-0"
+                                    leaveTo="opacity-0 translate-y-1"
+                                >
+                                    <Popover.Panel
+                                        anchor="bottom"
+                                        className="absolute -left-[100px] shadow-lg bg-white z-10 w-[200px] transform border border-blue-200 ">
+
+                                        <TagComponent
+                                            edit={true}
+                                            className='p-2 flex-0'
+                                            value={value?.['tags']}
+                                            placeholder={'Add Tag...'}
+                                            onChange={(v) => updateAttribute('tags', v)}
+                                        />
+                                    </Popover.Panel>
+                                </Transition>
+                            </Popover>
+                            {/*save*/}
+                            <button className={'text-lg cursor-pointer hover:text-blue-500 text-slate-400 pr-1'}
+                                    onClick={onSave}>
+                                <FloppyDisk className='text-slate-400 hover:text-blue-500 w-[24px] h-[24px]'/>
                             </button>
-                       
+                            {/*cancel*/}
                             <button
                                 className={' flex items-center text-md cursor-pointer  py-1 pr-1 text-slate-400'}
-                                onClick={ onCancel }
+                                onClick={onCancel}
                             >
                                 {/*<i className="fa-light fa-pencil text-xl fa-fw" title="Edit"></i>*/}
                                 <CancelCircle className='text-slate-400 hover:text-red-500 w-[24px] h-[24px]'/>
-                               
+
                             </button>
-                            <button className={'text-lg cursor-pointer hover:text-blue-500 text-slate-400 pr-1'} onClick={onSave}> 
-                                <FloppyDisk className='text-slate-400 hover:text-blue-500 w-[24px] h-[24px]'/>
-                            </button>
-                             <Popover className="relative">
-                                <Popover.Button className={'flex items-center cursor-pointer pt-1 pr-1'} >
-                                    <MoreSquare className='text-blue-400 hover:text-blue-600  w-[24px] h-[24px]' title="Move Up"/>
+                            {/*section details*/}
+                            <Popover className="relative">
+                                <Popover.Button className={'flex items-center cursor-pointer pt-1 pr-1'}>
+                                    <MoreSquare className='text-blue-400 hover:text-blue-600  w-[24px] h-[24px]'
+                                                title="section details"/>
                                 </Popover.Button>
                                 <Transition
                                     as={Fragment}
@@ -268,18 +294,18 @@ function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, o
                                     <Popover.Panel
                                         anchor="bottom"
                                         className="fixed right-0 lg:absolute lg:left-[35px] lg:top-[14px] shadow bg-blue-50 z-10 w-[280px] min-h-[250px] z-40 rounded border border-blue-300 transform px-4">
-                                        
+
                                         <div className='flex flex-col'>
                                             <div className='flex-0 grow'>
                                                 <TitleComp //todo make it blue if H!
                                                     className={`${theme?.heading?.base} ${theme?.heading[value?.['level']] || theme?.heading['default']}`}
                                                     placeholder={'Section Title'}
-                                                    value={value?.['title']} 
+                                                    value={value?.['title']}
                                                     onChange={(v) => updateAttribute('title', v)}
                                                 />
                                             </div>
                                             <div>
-                                                <LevelComp 
+                                                <LevelComp
                                                     className='p-2 w-full bg-transparent'
                                                     value={value?.['level']}
                                                     placeholder={'level'}
@@ -288,18 +314,18 @@ function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, o
                                                 />
                                             </div>
                                             <div className={'self-center pl-2'}>
-                                                <SizeSelect 
-                                                    size={value?.['size']} 
-                                                    onChange={v => updateAttribute('size',v)}
+                                                <SizeSelect
+                                                    size={value?.['size']}
+                                                    onChange={v => updateAttribute('size', v)}
                                                 />
                                             </div>
                                         </div>
-                                  </Popover.Panel>
+                                    </Popover.Panel>
                                 </Transition>
                             </Popover>
                         </div>
                     </div>
-                </div>    
+            </div>
             {sectionTitleCondition && (
                 <div className='flex h-[50px]'>
                     <div className='flex'>
@@ -313,7 +339,7 @@ function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, o
                                             `text-md tracking-wide` :
                                             ``}`}
                             placeholder={'Section Title'}
-                            value={value?.['title']} 
+                            value={value?.['title']}
 
                             onChange={(v) => updateAttribute('title', v)}
                         />
@@ -321,8 +347,8 @@ function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, o
                 </div>
             )}
             <div className={''}>
-                <ElementComp 
-                    value={value?.['element']} 
+                <ElementComp
+                    value={value?.['element']}
                     onChange={(v) => updateAttribute('element', v)}
                     size={size}
                 />
@@ -613,7 +639,7 @@ const ScrollToHashElement = () => {
 };
 
 const Edit = ({Component, value, onChange, attr, full_width = false, ...rest }) => {
-    //console.log('.............', rest, attr, value)
+    console.log('.............', rest, attr, value)
     if (!value || !value.map) { 
         value = []
     }
