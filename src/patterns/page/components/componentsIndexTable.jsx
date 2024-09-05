@@ -5,6 +5,9 @@ import get from "lodash/get";
 import {Link} from "react-router-dom";
 import writeXlsxFile from 'write-excel-file';
 import {Download} from '../ui/icons'
+import {getUrlSlug} from "../layout/components/utils/navItems";
+import Switch from "../../../data-types/lexical/editor/ui/Switch";
+import RenderSwitch from "../../forms/components/selector/ComponentRegistry/spreadsheet/components/Switch";
 
 
 const parseIfJson = str => {
@@ -25,6 +28,8 @@ const cols = {
 }
 
 const sectionCols = [
+    // {name: 'sortBy', display_name: 'sort'},
+    {name: 'parent', display_name: 'Parent'},
     {name: 'page_title', display_name: 'Page Title'},
     {name: 'section_title', display_name: 'Section Title'},
     {name: 'element_type', display_name: 'Type'},
@@ -72,6 +77,18 @@ const getURL = ({name, section, pattern}) => {
     return patternBaseUrl?.length ? `${protocol}//${subDomain}/${patternBaseUrl}/${url}` : `${protocol}//${subDomain}/${url}`;
 }
 
+const getParentChain = (item, items, enableDebugging) => {
+    enableDebugging && console.log('running for', item.page_title, item)
+    if(!items?.length) return [];
+    if(!item.page_parent) return [item];
+
+    const parent = items.find(i => +i.page_id === +item.page_parent);
+    enableDebugging && console.log('parent for ', item.page_title, parent, items)
+    if(!parent) return [];
+    if(!parent.page_parent) return [parent, item];
+    return [...getParentChain(parent, items), item];
+};
+
 const getAttribution = ({section}) => {
     if(!section.element_data) return null;
 
@@ -81,8 +98,8 @@ const getAttribution = ({section}) => {
 const RenderTags = ({value}) => !value ? <div className={'p-1'}>N/A</div> :
     <div className={'flex flex-wrap'}>
         {
-            value.split(',').map(tag =>
-                <div className={'text-sm font-semibold text-white m-0.5 py-0.5 px-1 rounded-lg bg-red-300 h-fit w-fit'}>{tag}</div>)}
+            value.split(',').map((tag, i) =>
+                <div key={`${tag}-${i}`} className={'text-sm font-semibold text-white m-0.5 py-0.5 px-1 rounded-lg bg-red-300 h-fit w-fit'}>{tag}</div>)}
     </div>
 
 const RenderAttribution = ({value, section}) => {
@@ -97,11 +114,15 @@ const RenderLink = ({value, section, name, pattern}) => {
     return <Link className={'p-1 overflow-hidden'} to={url}>{name === 'url' ? 'link' : (value || 'N/A')}</Link>;
 }
 
-const RenderValue = ({value, name, section, pattern}) =>
+// const RenderParent = ({section, sections}) => {
+//     return getParentChain(section, sections).map(p => p.page_title || p.url_slug).join('/')
+// }
+const RenderValue = ({value, name, section, sections, pattern}) =>
     name === 'tags' ? <RenderTags value={value} /> :
         name === 'element_data' ? <RenderAttribution value={value} section={section}/> :
             ['page_title', 'section_title', 'url'].includes(name) ?
                 <RenderLink name={name} value={value} section={section} pattern={pattern}/> :
+                    // name === 'parent' ? <RenderParent section={section} sections={sections} /> :
                 <RenderText value={value} />
 
 async function getPatterns({app, falcor}){
@@ -134,6 +155,15 @@ async function getSections({app, pattern, falcor, setLoading}){
     return get(falcor.getCache(), [...dataPath, 'value'], {});
 }
 
+const processSections = (sections) => sections.map((s) => {
+    const parentChain = getParentChain(s, sections);
+    const parent = parentChain.map(p => p.page_title || p.url_slug).join('/');
+    const sortBy = parentChain.map(p => p.page_index).join('-');
+    return {...s, parent, sortBy};
+})
+    .filter(s => s.parent && s.sortBy) // orphans
+    .sort((a,b) => a.sortBy.localeCompare(b.sortBy));
+
 const Edit = ({value, onChange, size}) => {
     const {app, baseUrl, falcor, falcorCache, ...rest} = useContext(CMSContext) || {}
     const cachedData = parseIfJson(value) ? JSON.parse(value) : {};
@@ -142,6 +172,7 @@ const Edit = ({value, onChange, size}) => {
     const [pattern, setPattern] = useState(cachedData.pattern || []);
     const [sections, setSections] = useState(cachedData.sections || [])
     const [currentPage, setCurrentPage] = useState(0);
+    const [filterNullTags, setFilterNullTags] = useState(true);
 
     // ============================================ data load begin ====================================================
     useEffect(() => {
@@ -153,7 +184,7 @@ const Edit = ({value, onChange, size}) => {
             if(!pattern) return;
             setLoading(true)
             getSections({app, pattern, falcor, setLoading}).then(sections => {
-                setSections(sections);
+                setSections(processSections(sections));
                 setLoading(false);
             })
         });
@@ -162,8 +193,7 @@ const Edit = ({value, onChange, size}) => {
     useEffect(() => {
         if(!patterns?.length || !pattern) return;
         getSections({app, pattern, falcor, setLoading}).then(sections => {
-            console.log('got section', loading)
-            setSections(sections);
+            setSections(processSections(sections));
             setLoading(false);
         })
     }, [app, pattern])
@@ -176,7 +206,7 @@ const Edit = ({value, onChange, size}) => {
         }))
     }, [pattern]);
     // ============================================ save end ===========================================================
-    console.log('sections', sections.map(s => s.element_data).filter(f => f))
+
     return (
         <div>
             <div className={'flex justify-between items-center'}>
@@ -200,9 +230,15 @@ const Edit = ({value, onChange, size}) => {
                                                fileName={`${pattern}_sections`}/>
                 }
             </div>
-            <div className={'grid grid-cols-6 divide-x font-semibold border-x border-t'}>
+            <div className={'flex items-center p-1 text-sm rounded-md my-1 w-fit bg-gray-100 hover:bg-gray-200 cursor-pointer'}
+                 onClick={() => setFilterNullTags(!filterNullTags)}
+            >
+                <span className={'mr-1'}>Filter Empty Tags</span>
+                <RenderSwitch enabled={filterNullTags} setEnabled={e => setFilterNullTags(e)} label={'filter null tags'} size={'small'}/>
+            </div>
+            <div className={'grid grid-cols-8 divide-x font-semibold border-x border-t'}>
                 {
-                    sectionCols.map(c => <div className={'p-1'}>{c.display_name}</div>)
+                    sectionCols.map(c => <div key={c.name} className={'p-1'}>{c.display_name}</div>)
                 }
             </div>
             {
@@ -210,11 +246,18 @@ const Edit = ({value, onChange, size}) => {
                     <div className={'max-h-[700px] overflow-auto scrollbar-sm border rounded-md'}>
                         {
                             (sections || [])
-                                // .filter((s, sI) => sI < 10)
+                                .filter((s, sI) => !filterNullTags || s.tags?.length)
                                 .map(section => (
-                                <div className={'grid grid-cols-6 divide-x divide-y font-light hover:bg-blue-100'}>
+                                <div key={section.section_id} className={'grid grid-cols-8 divide-x divide-y font-light hover:bg-blue-100'}>
                                     {
-                                        sectionCols.map(({name}) => <RenderValue value={section[name]} name={name} section={section} pattern={patterns.find(p => p.doc_type === pattern)}/>)
+                                        sectionCols.map(({name}) =>
+                                            <RenderValue key={`${section.section_id}_${name}`}
+                                                         value={section[name]}
+                                                         name={name}
+                                                         section={section}
+                                                         sections={sections}
+                                                         pattern={patterns.find(p => p.doc_type === pattern)}
+                                            />)
                                     }
                                 </div>
                             ))
