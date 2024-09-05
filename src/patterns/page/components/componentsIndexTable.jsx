@@ -47,6 +47,7 @@ const DownloadExcel = ({ sections, pattern, fileName='sections' }) => {
             column: display_name,
             type: String,
             value: data => data?.[name],
+            ...name === 'url' && {'hyperlink': data => data?.[name]}
         }));
 
         // Use the writeXlsxFile function to create and download the Excel file
@@ -68,7 +69,7 @@ const getURL = ({name, section, pattern}) => {
     const {protocol, host} = window.location;
     const domain = host.split('.').length > 2 ? host.split('.').slice(1).join('.') : host; // devmny.org
     const subDomain = typeof pattern.subdomain === 'string' ? `${pattern.subdomain}.${domain}` : domain ;
-    return patternBaseUrl?.length ? `${subDomain}/${patternBaseUrl}/${url}` : `${subDomain}/${url}`;
+    return patternBaseUrl?.length ? `${protocol}//${subDomain}/${patternBaseUrl}/${url}` : `${protocol}//${subDomain}/${url}`;
 }
 
 const getAttribution = ({section}) => {
@@ -93,7 +94,7 @@ const RenderText = ({value}) => <div className={'p-1 overflow-hidden'}>{value ||
 
 const RenderLink = ({value, section, name, pattern}) => {
     const url = getURL({name, section, pattern})
-    return <Link className={'p-1 overflow-hidden'} to={url}>{name === 'url' ? url : (value || 'N/A')}</Link>;
+    return <Link className={'p-1 overflow-hidden'} to={url}>{name === 'url' ? 'link' : (value || 'N/A')}</Link>;
 }
 
 const RenderValue = ({value, name, section, pattern}) =>
@@ -206,7 +207,7 @@ const Edit = ({value, onChange, size}) => {
             </div>
             {
                 loading ? 'loading...' :
-                    <div className={'max-h-[500px] overflow-auto scrollbar-sm border rounded-md'}>
+                    <div className={'max-h-[700px] overflow-auto scrollbar-sm border rounded-md'}>
                         {
                             (sections || [])
                                 // .filter((s, sI) => sI < 10)
