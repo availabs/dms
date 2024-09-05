@@ -236,19 +236,19 @@ const Edit = ({value, onChange, size}) => {
                 <span className={'mr-1'}>Filter Empty Tags</span>
                 <RenderSwitch enabled={filterNullTags} setEnabled={e => setFilterNullTags(e)} label={'filter null tags'} size={'small'}/>
             </div>
-            <div className={'grid grid-cols-8 divide-x font-semibold border-x border-t'}>
+            <div className={'grid grid-cols-7 divide-x font-semibold border-x border-t'}>
                 {
                     sectionCols.map(c => <div key={c.name} className={'p-1'}>{c.display_name}</div>)
                 }
             </div>
             {
-                loading ? 'loading...' :
+                loading ? <div className={'w-full text-center'}>loading...</div> :
                     <div className={'max-h-[700px] overflow-auto scrollbar-sm border rounded-md'}>
                         {
                             (sections || [])
                                 .filter((s, sI) => !filterNullTags || s.tags?.length)
                                 .map(section => (
-                                <div key={section.section_id} className={'grid grid-cols-8 divide-x divide-y font-light hover:bg-blue-100'}>
+                                <div key={section.section_id} className={'grid grid-cols-7 divide-x divide-y font-light hover:bg-blue-100'}>
                                     {
                                         sectionCols.map(({name}) =>
                                             <RenderValue key={`${section.section_id}_${name}`}
