@@ -65,7 +65,7 @@ const TemplateEdit = ({
                                             onChange={(v) => setEditingItem({...editingItem, [attr]: v})}
                                             {...attributes[attr]}
                                         />
-                                        : <div>{pattern[attr]}</div>
+                                        : <div>{typeof pattern[attr] === 'object' ? 'Invalid state' : pattern[attr]}</div>
                                 }
                             )
                     }

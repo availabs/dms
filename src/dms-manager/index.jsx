@@ -5,8 +5,8 @@ import { getActiveView, getActiveConfig, validFormat } from './_utils'
 import { defaultCheck, defaultCheckAuth } from './_auth'
 
 
-import ThemeContext from '../theme'
-import defaultTheme from '../theme/default-theme'
+// import ThemeContext from '../theme'
+// import defaultTheme from '../theme/default-theme'
 
 const { InvalidConfig, NoRouteMatch } = comps
 
@@ -14,7 +14,6 @@ const DmsManager = (props) => {
 	const { 
 		config,
 		path = '',
-		theme = defaultTheme,
 		user
 	} = props
 

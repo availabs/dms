@@ -15,7 +15,7 @@ const onChangeFilter = (selected, setSelected, onChange) => {
 
 const RenderToken = ({props, selected, setSelected, onChange}) => {
     return (
-        <div className="w-fit inline-block ml-2">
+        <div key={props.label} className="w-fit inline-block ml-2">
             {props.label}
             <button
                 className={'hover:text-red-300 animate ml-1 p-1 rounded-md rbt-token-remove-button'}
@@ -35,10 +35,10 @@ const renderMenu = ({results, menuProps, labelKey, filter, filters, setFilter, o
             {
                 <div className={'flex flex-row flex-wrap items-center justify-start gap-1 p-1 bg-slate-200 text-xs font-bold'}>
                     {
-                        filters.map(({icon, label, value, filterText}) => {
+                        filters.map(({icon, label, value, filterText, onClick}) => {
                             const isActive = filter === filterText;
-                            const onClick = e =>
-                                value ? onChange(value) : setFilter(isActive ? null : filterText)
+                            const onClickFn = e => onClick ? onClick(e) :
+                                    value ? onChange(value) : setFilter(isActive ? null : filterText)
                             return (
                                 <button
                                     key={filterText}
@@ -48,7 +48,7 @@ const renderMenu = ({results, menuProps, labelKey, filter, filters, setFilter, o
                                     ${isActive ? `bg-slate-300 hover:bg-blue-300` : `bg-slate-100 hover:bg-blue-100`} 
                                      rounded-md`
                                     }
-                                    onClick={onClick}
+                                    onClick={e => onClickFn(e)}
                                 >
                                     <i className={`${icon} pr-2 pl-1`}/>
                                     {label}
@@ -59,7 +59,7 @@ const renderMenu = ({results, menuProps, labelKey, filter, filters, setFilter, o
                 </div>
             }
             {results.map((result, index) => (
-                <MenuItem className={"block hover:bg-slate-200 text-xl tracking-wide pl-1"} option={result}
+                <MenuItem key={result.label} className={"block hover:bg-slate-200 text-xl tracking-wide pl-1"} option={result}
                           position={index}>
                     {result.label}
                 </MenuItem>

@@ -40,7 +40,6 @@ const theme = {
     wrapper1: 'w-full h-full flex-1 flex flex-col bg-slate-100', // first div inside Layout
     wrapper2: 'w-full h-full flex-1 flex flex-row px-1 md:px-6 py-6', // inside page header, wraps sidebar
     wrapper3: 'flex flex-1 w-full  flex-col border shadow bg-white relative text-md font-light leading-7 p-4 min-h-[calc(100vh_-_102px)]' , // content wrapepr
-    wrapper3_inner: 'flex flex-1 w-full  flex-col border shadow bg-white relative text-md font-light leading-7 p-4 min-h-[calc(100vh_-_202px)]' , // content wrapepr
     iconWrapper : 'z-5 absolute right-[10px] top-[5px]',
     icon: 'text-slate-400 hover:text-blue-500'
   },
@@ -65,113 +64,154 @@ const theme = {
 export default theme
 
 export const themeOptions = {
-  "topNav": {
-    "label": "Top Nav",
-    "defaultOpen": true,
-    "controls": {
-      "size": {
-        "label": "Size",
-        "type": "select",
-        "options": [
-          "none",
-          "compact"
-        ]
-      },
-      "logo": {
-        "label": "Logo",
-        "type": "select",
-        "options": [
-          "none",
-          "left",
-          "right"
-        ]
-      },
-      "search": {
-        "label": "Search",
-        "type": "select",
-        "options": [
-          "none",
-          "left",
-          "right"
-        ]
-      },
-      "dropdown": {
-        "label": "Menu",
-        "type": "select",
-        "options": [
-          "none",
-          "left",
-          "right"
-        ]
-      },
-      "nav": {
-        "label": "Navigation",
-        "type": "select",
-        "options": [
-          "none",
-          "main",
-          "secondary"
-        ]
+  "settings": {
+    "theme": {
+      "label": "Theme",
+      "defaultOpen": true,
+      "controls": {
+        "theme": {
+          "label": "Theme",
+          "type": "select",
+          "options": [
+            "default",
+            "mnyv1"
+          ]
+        }
       }
     }
   },
-  "sideNav": {
-    "label": "Side Nav",
-    "defaultOpen": false,
-    "controls": {
-      "size": {
-        "label": "Size",
-        "type": "select",
-        "options": [
-          "none",
-          "compact"
-        ]
-      },
-      "logo": {
-        "label": "Logo",
-        "type": "select",
-        "options": [
-          "none",
-          "top",
-          "bottom"
-        ]
-      },
-      "search": {
-        "label": "Search",
-        "type": "select",
-        "options": [
-          "none",
-          "top",
-          "bottom"
-        ]
-      },
-      "dropdown": {
-        "label": "Menu",
-        "type": "select",
-        "options": [
-          "none",
-          "top",
-          "bottom"
-        ]
-      },
-      "nav": {
-        "label": "Navigation",
-        "type": "select",
-        "options": [
-          "none",
-          "main",
-          "secondary"
-        ]
+  "navOptions": {
+    "topNav": {
+      "label": "Top Nav",
+      "defaultOpen": true,
+      "controls": {
+        "size": {
+          "label": "Size",
+          "type": "select",
+          "options": [
+            "none",
+            "compact"
+          ]
+        },
+        "logo": {
+          "label": "Logo",
+          "type": "select",
+          "options": [
+            "none",
+            "left",
+            "right"
+          ]
+        },
+        "search": {
+          "label": "Search",
+          "type": "select",
+          "options": [
+            "none",
+            "left",
+            "right"
+          ]
+        },
+        "dropdown": {
+          "label": "Menu",
+          "type": "select",
+          "options": [
+            "none",
+            "left",
+            "right"
+          ]
+        },
+        "nav": {
+          "label": "Navigation",
+          "type": "select",
+          "options": [
+            "none",
+            "main",
+            "secondary"
+          ]
+        }
       }
-    }
-  },
-  "secondaryNav": {
-    "label": "Secondary Nav",
-    "defaultOpen": false,
-    "controls": {
-      "navItems": {
-        "label": "Nav Items",
-        "type": "menu"
+    },
+    "sideNav": {
+      "label": "Side Nav",
+      "defaultOpen": false,
+      "controls": {
+        "size": {
+          "label": "Size",
+          "type": "select",
+          "options": [
+            "none",
+            "micro",
+            "mini",
+            "compact",
+            "full"
+          ]
+        },
+        "color": {
+          "label": "Color",
+          "type": "select",
+          "options": [
+            "transparent",
+            "white",
+            "bright",
+            "dark"
+          ]
+        },
+        "logo": {
+          "label": "Logo",
+          "type": "select",
+          "options": [
+            "none",
+            "top",
+            "bottom"
+          ]
+        },
+        "search": {
+          "label": "Search",
+          "type": "select",
+          "options": [
+            "none",
+            "top",
+            "bottom"
+          ]
+        },
+        "dropdown": {
+          "label": "Menu",
+          "type": "select",
+          "options": [
+            "none",
+            "top",
+            "bottom"
+          ]
+        },
+        "nav": {
+          "label": "Navigation",
+          "type": "select",
+          "options": [
+            "none",
+            "main",
+            "secondary"
+          ]
+        }
+      }
+    },
+    "secondaryNav": {
+      "label": "Secondary Nav",
+      "defaultOpen": false,
+      "controls": {
+        "navItems": {
+          "label": "Nav Items",
+          "type": "menu"
+        }
+      }
+    },
+    "authMenu": {
+      "label": "Auth Menu",
+      "defaultOpen": false,
+      "controls": {
+        "navItems": {
+          "label": "Nav Items",
+          "type": "menu"
+        }
       }
     }
   }

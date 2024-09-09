@@ -84,6 +84,13 @@ export const template = {
       format: 'admin+template-section',
       DisplayComp: SectionArray
     },
+    {
+      key: 'draft_sections',
+      type: 'dms-format',
+      isArray: true,
+      format: 'admin+template-section',
+      DisplayComp: SectionArray
+    },
 
   ]
 }
@@ -126,6 +133,10 @@ export const pattern = {
     },
     { key: 'config',
       placeholder: 'please select a type',
+      type: 'config'
+    },
+    { key: 'theme',
+      placeholder: '',
       type: 'config'
     },
     {

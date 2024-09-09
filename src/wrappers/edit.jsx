@@ -20,7 +20,7 @@ export default function EditWrapper({ Component, format, options, params, user, 
 	const { falcor } = useFalcor()
 	const attributes = getAttributes(format, options, 'edit')
 	const submit = useSubmit();
-	const { pathname } = useLocation()
+	const { pathname, search } = useLocation()
 	const { data=[] } = useLoaderData() || []
 	let status = useActionData()
 	const {defaultSort = (d) => d } = format
@@ -43,8 +43,9 @@ export default function EditWrapper({ Component, format, options, params, user, 
 
 	const apiUpdate = async ({data, config={format}, requestType=''}) => {  
 			// update the data
+		console.log('apiUpdate', data, config)
 			await dmsDataEditor(falcor, config, data, requestType)
-			submit(null, {action: pathname})
+			submit(null, {action: `${pathname}${search}`})
 	}
 
 	const updateAttribute = (attr, value, multi) => {

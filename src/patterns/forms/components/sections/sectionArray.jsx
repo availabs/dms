@@ -488,6 +488,7 @@ const Edit = ({Component, value, onChange, attr, full_width = false, format, api
     const [values, setValues] = useState([]);
 
     useEffect(() => {
+        if(JSON.stringify(values) === JSON.stringify([...value,''])) return;
         setValues([...value,''])
     }, [value]);
     const [edit, setEdit] = React.useState({

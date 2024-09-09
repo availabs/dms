@@ -1,21 +1,48 @@
-'use client'
+export default function RenderSwitch({ enabled=false, setEnabled, label, size='medium' }) {
+    const sizeClassesPill = {
+        small: 'h-4 w-8',
+        medium: 'h-6 w-11'
+    }
 
-import { useState } from 'react'
-import { Switch } from '@headlessui/react'
+    const sizeClassesDot = {
+        small: 'h-3.5 w-3.5 p-1',
+        medium: 'h-4 w-4'
+    }
 
-export default function RenderSwitch({enabled, setEnabled}) {
+    const translateClasses = {
+        true: {
+            small: 'translate-x-4',
+            medium: 'translate-x-6'
+        },
+        false: {
+            small: 'translate-x-0.5',
+            medium: 'translate-x-1'
+        },
+    }
+
+    const roundedClasses = {
+        small: 'rounded-lg',
+        medium: 'rounded-full'
+    }
 
     return (
-        <Switch
-            checked={enabled}
-            onChange={setEnabled}
-            className="group relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent bg-gray-200 transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2 data-[checked]:bg-indigo-600"
+        <div
+            role="switch"
+            aria-checked={enabled}
+            tabIndex={0}
+            onClick={() => setEnabled && setEnabled(!enabled)}
+            onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    return !enabled;
+                }
+            }}
+            className={`relative inline-flex ${sizeClassesPill[size]} items-center ${roundedClasses[size]} cursor-pointer transition-colors duration-200 ease-in-out ${enabled ? 'bg-indigo-600' : 'bg-gray-200'}`}
         >
-            <span className="sr-only">Use setting</span>
+            <span className="sr-only">{label}</span>
             <span
-                aria-hidden="true"
-                className="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out group-data-[checked]:translate-x-5"
+                className={`inline-block ${sizeClassesDot[size]} transform rounded-full bg-white transition-transform duration-200 ease-in-out ${translateClasses[enabled][size]}`}
             />
-        </Switch>
-    )
+        </div>
+    );
 }

@@ -32,7 +32,7 @@ export function Dropdown ({ control, children,className, width='w-full max-w-[20
         // console.log('openType', openType)
     return (
         <div ref={ setRef }
-             className={`h-full relative cursor-pointer ${className}` }
+             className={`relative cursor-pointer ${className}` }
              onMouseEnter={ e => {
                 if(openType === 'hover') {
                  setOpen(true)
@@ -253,6 +253,23 @@ export function PublishButton({children, active, onClick}) {
     )
 }
 
+export function DiscardChangesButton({children, active, onClick}) {
+    if(!active) return null;
+    return (
+        <div
+          onClick={onClick}
+          className={`${ active ? 
+            'inline-flex w-36 justify-center rounded-lg cursor-pointer text-sm font-semibold py-2 px-2 bg-red-600 text-white hover:bg-red-500 shadow-lg border border-b-4 border-red-800 hover:border-red-700 active:border-b-2 active:mb-[2px] active:shadow-none':
+            'inline-flex w-36 justify-center rounded-lg cursor-not-allowed text-sm font-semibold py-2 px-2 bg-slate-300 text-white shadow border border-slate-400 border-b-4'
+          }`}
+        >
+          <span className='flex items-center'>
+            {children}
+          </span>
+        </div>
+    )
+}
+
 export function SidebarSwitch({value,toggleSidebar}) {
   let enabled = value === 'show'
   return (
@@ -281,7 +298,7 @@ export function SidebarSwitch({value,toggleSidebar}) {
   )
 }
 
-export function DeleteModal ({item, open, setOpen, onDelete})  {
+export function DeleteModal ({title, prompt, item={}, open, setOpen, onDelete})  {
   const cancelButtonRef = useRef(null)
   const { baseUrl } = React.useContext(CMSContext) || {}
   const [loading, setLoading] = useState(false)
@@ -297,12 +314,12 @@ export function DeleteModal ({item, open, setOpen, onDelete})  {
         </div>
         <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left">
           <Dialog.Title as="h3" className="text-base font-semibold leading-6 text-gray-900">
-            Delete Page {item.title} {item.id}
+              {title || `Delete ${item.title || ''} ${item.id}`}
           </Dialog.Title>
           <div className="mt-2">
             <p className="text-sm text-gray-500">
-              Are you sure you want to delete this page? All of the page data will be permanently removed
-              from our servers forever. This action cannot be undone.
+                {prompt || `Are you sure you want to delete this page? All of the page data will be permanently removed
+              from our servers forever. This action cannot be undone.`}
             </p>
           </div>
         </div>
