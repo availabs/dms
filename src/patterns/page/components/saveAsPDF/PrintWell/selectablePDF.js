@@ -1,7 +1,8 @@
+import {API_HOST} from "../../../../../../../../config";
 
 
 export const selectablePDF = async (pdfRef) => {
-   const response = await fetch(`http://localhost:4444/dama-admin/hazmit_dama/downloadpdf`,
+   const response = await fetch(`${API_HOST}/dama-admin/hazmit_dama/downloadpdf`,
        {
           method: 'POST',
           headers: {
