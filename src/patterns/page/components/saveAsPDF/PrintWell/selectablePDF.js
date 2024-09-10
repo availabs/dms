@@ -1,5 +1,6 @@
 import {API_HOST} from "../../../../../../../../config";
-import {style} from "./style_str"
+const tailwindcss = "https://cdn.jsdelivr.net/npm/tailwindcss@2.2.15/dist/tailwind.min.css";
+
 export const selectablePDF = async (pdfRef) => {
     const html = `
                         <!DOCTYPE html>
@@ -12,7 +13,7 @@ export const selectablePDF = async (pdfRef) => {
                                   @import url('https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800;900&family=IBM+Plex+Sans:wght@100;200;300;400;500;600;700&family=Inter:wght@100;200;300;400;500;600;700;800;900&family=Montserrat:wght@100;200;300;400;500;600;700;800;900&family=Oswald:wght@300;500;700&family=Poppins:wght@100;200;300;400;500;600;700;800;900&family=Roboto:wght@100;300;400;500;700;900&family=Rubik:wght@300;400;500;600;700;800&family=Work+Sans:wght@100;200;300;400;500;600;700;800;900&display=swap');
                                 </style>
                             </head>
-                            <body style="padding:30px;width: 1213px">
+                            <body style="padding:30px;width: 1400px">
                                 ${pdfRef.current.innerHTML}
                             </body>
                             </html>`;
