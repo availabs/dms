@@ -804,8 +804,10 @@ const Edit = ({Component, value, onChange, attr, full_width = false, ...rest }) 
 
 const View = ({Component, value, attr, full_width}) => {
     if (!value || !value.map) { return '' }
-    const pdfRef = useRef(); // To capture the section of the page to be converted to PDF
 
+    const pdfRef = useRef(); // To capture the section of the page to be converted to PDF
+    const { baseUrl, user, theme } = React.useContext(CMSContext) || {}
+    const isAvailUser = user?.email?.includes('availabs');
     let runningColTotal = 8;
     let layouts = {
         centered: 'md:grid-cols-[1fr_repeat(6,_minmax(_100px,_170px))_1fr]',
@@ -824,7 +826,7 @@ const View = ({Component, value, attr, full_width}) => {
 
     return (
         <div className={`w-full grid grid-cols-6 ${layouts[full_width === 'show' ? 'fullwidth' : 'centered']} gap-1`} ref={pdfRef}>
-            <div className={'flex absolute right-10 top-2'}>
+            <div className={isAvailUser ? 'flex absolute right-10 top-2' : 'hidden'}>
                 <button className={'mx-1'} onClick={() => printWellPdf(pdfRef)}>
                     <Printer className={'hover:text-blue-500'}/>
                 </button>
