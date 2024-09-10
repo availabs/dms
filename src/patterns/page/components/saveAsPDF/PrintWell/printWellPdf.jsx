@@ -34,42 +34,90 @@ export const printWellPdf = (pdfRef) => {
     });
 };
 
-export const printWellPdfSingleColumn = async (pdfRef) => {
+export const printWellPdfSingleRow = async (pdfRef) => {
     const input = pdfRef.current;
+    const divs = Array.from(input.querySelectorAll('div[data-size]'));  // Select all divs with IDs
+
+    // Define PDF dimensions
+    const pdfWidth = 210;  // A4 width in mm
+    const pdfHeight = 500; // A4 height in mm
+    const scale = 2;       // Scaling factor for higher resolution
+
+    // Convert PDF dimensions from mm to pixels
+    const pdfWidthPx = pdfWidth * 3.7795275591 * scale;
+    const pdfHeightPx = pdfHeight * 3.7795275591 * scale;
 
     const pdf = new jsPDF('p', 'mm', 'a4');
+    let currentColSize = 0;
+    let currentRowDivs = [];
+    let yOffset = 0;  // Keeps track of vertical position for adding new rows
 
-    // PDF dimensions
-    const pdfWidth = 210;  // A4 width in mm
-    const pdfHeight = 297; // A4 height in mm
-    const imgWidth = pdfWidth;
+    for (let i = 0; i < divs.length; i++) {
+        const div = divs[i];
+        const size = parseInt(div.dataset.size || 0, 10); // Get size from the dataset
+        const totalHeight = input.scrollHeight;
 
-    let currentHeight = 0; // Track cumulative height
+        // Group divs into columns, summing size until it reaches 6
+        if (currentColSize + size <= 6) {
+            currentColSize += size;
+            currentRowDivs.push(div);
+        } else {
+            // Capture the current row as a single chunk
+            console.log('in loop', currentRowDivs)
+            await captureRowAsCanvas(pdf, currentRowDivs, yOffset, pdfWidthPx, pdfHeightPx, scale);
 
-    // Select only divs that have an id attribute (i.e., parent sections)
-    const divsWithIds = input.querySelectorAll('div[id]');
-
-    // Helper function to generate canvas for each div
-    const generateCanvas = (div) => {
-        return html2canvas(div, { scale: 1 });
-    };
-
-    // Loop over divs with id and generate the PDF sequentially
-    for (const div of divsWithIds) {
-        const divCanvas = await generateCanvas(div);
-        const divImgData = divCanvas.toDataURL('image/png');
-        const divHeightInMM = (divCanvas.height * pdfWidth) / divCanvas.width;
-
-        // If adding the div would exceed the page height, add a new page
-        if (currentHeight + divHeightInMM > pdfHeight) {
-            pdf.addPage();
-            currentHeight = 0;  // Reset height for new page
+            // Reset for next row
+            currentColSize = size;
+            currentRowDivs = [div];
+            yOffset += pdfHeightPx;  // Move the offset down for the next row
         }
-
-        // Add the div image to the current PDF page
-        pdf.addImage(divImgData, 'PNG', 0, currentHeight, imgWidth, divHeightInMM);
-        currentHeight += divHeightInMM; // Update cumulative height for the current page
     }
 
-    pdf.save('dynamic-content.pdf');  // Save the generated PDF
+    // Capture any remaining divs in the last row
+    if (currentRowDivs.length > 0) {
+        console.log('final', currentRowDivs)
+        await captureRowAsCanvas(pdf, currentRowDivs, yOffset, pdfWidthPx, pdfHeightPx, scale);
+    }
+
+    pdf.save('dynamic-content.pdf');
 };
+
+const captureRowAsCanvas = async (pdf, rowDivs, yOffset, pdfWidthPx, pdfHeightPx, scale) => {
+    // Create a temporary wrapper to hold the row of divs
+    const wrapper = document.createElement('div');
+    wrapper.style.display = 'flex'; // Align divs horizontally
+    wrapper.style.width = `${pdfWidthPx / scale}px`;
+    wrapper.style.height = 'auto';
+    wrapper.style.overflow = 'hidden';
+
+    rowDivs.forEach((div) => {
+        const clonedDiv = div.cloneNode(true);
+        wrapper.appendChild(clonedDiv);  // Append cloned divs to the wrapper
+    });
+
+    // Append the wrapper to the body for rendering
+    document.body.appendChild(wrapper);
+
+    // Use html2canvas to capture the wrapper with divs in a row
+    const canvas = await html2canvas(wrapper, {
+        scale: scale,
+        width: pdfWidthPx / scale,
+        height: pdfHeightPx / scale,
+    });
+
+    const imgData = canvas.toDataURL('image/png');
+    const imgWidth = pdf.internal.pageSize.getWidth();
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+    // Add to PDF
+    if (pdf.getNumberOfPages() > 0) {
+        pdf.addPage();
+    }
+
+    pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+
+    // Remove the wrapper after capturing
+    document.body.removeChild(wrapper);
+};
+
+

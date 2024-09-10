@@ -26,7 +26,7 @@ import {
     Copy, Download, Printer, PDF
 } from '../../ui/icons'
 import {DeleteModal} from "../../ui";
-import {printWellPdf, printWellPdfSingleColumn} from "../saveAsPDF/PrintWell/printWellPdf";
+import {printWellPdf, printWellPdfSingleRow} from "../saveAsPDF/PrintWell/printWellPdf";
 import {selectablePDF} from "../saveAsPDF/PrintWell/selectablePDF";
 
 const isJson = (str)  => {
@@ -829,7 +829,7 @@ const View = ({Component, value, attr, full_width}) => {
                     <Printer className={'hover:text-blue-500'}/>
                 </button>
 
-                <button className={'mx-1'} onClick={() => printWellPdfSingleColumn(pdfRef)}>
+                <button className={'mx-1'} onClick={() => printWellPdfSingleRow(pdfRef)}>
                     <Printer className={'hover:text-red-500'}/>
                 </button>
 
@@ -855,7 +855,7 @@ const View = ({Component, value, attr, full_width}) => {
                         const sizeClass = getSizeClass(size, requiredSpace, availableSpace, runningColTotal);
 
                         return (
-                            <div id={v?.id} key={i} className={`${sizeClass}`}>
+                            <div id={v?.id} key={i} className={`${sizeClass}`} data-size={requiredSpace}>
                                 <SectionView
                                     attributes={attr.attributes}
                                     key={i}
