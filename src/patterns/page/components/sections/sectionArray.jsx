@@ -26,7 +26,7 @@ import {
     Copy, Download, Printer, PDF
 } from '../../ui/icons'
 import {DeleteModal} from "../../ui";
-import {printWellPdf} from "../saveAsPDF/PrintWell/printWellPdf";
+import {printWellPdf, printWellPdfSingleColumn} from "../saveAsPDF/PrintWell/printWellPdf";
 import {selectablePDF} from "../saveAsPDF/PrintWell/selectablePDF";
 
 const isJson = (str)  => {
@@ -824,13 +824,19 @@ const View = ({Component, value, attr, full_width}) => {
 
     return (
         <div className={`w-full grid grid-cols-6 ${layouts[full_width === 'show' ? 'fullwidth' : 'centered']} gap-1`} ref={pdfRef}>
-            <button className={'absolute right-10 top-2'} onClick={() => printWellPdf(pdfRef)}>
-               <Printer className={'hover:text-blue-500'}/>
-            </button>
+            <div className={'flex absolute right-10 top-2'}>
+                <button className={'mx-1'} onClick={() => printWellPdf(pdfRef)}>
+                    <Printer className={'hover:text-blue-500'}/>
+                </button>
 
-            <button className={'absolute right-16 top-2'} onClick={() => selectablePDF(pdfRef)}>
-               <PDF className={'hover:text-blue-500'} />
-            </button>
+                <button className={'mx-1'} onClick={() => printWellPdfSingleColumn(pdfRef)}>
+                    <Printer className={'hover:text-red-500'}/>
+                </button>
+
+                <button className={'mx-1'} onClick={() => selectablePDF(pdfRef)}>
+                    <PDF className={'hover:text-blue-500'}/>
+                </button>
+            </div>
             {
                 value.filter(v => hideSectionCondition(v))
                     .map((v, i) => {
