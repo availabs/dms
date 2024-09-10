@@ -172,7 +172,7 @@ const Edit = ({value, onChange, size}) => {
     const [pattern, setPattern] = useState(cachedData.pattern || []);
     const [sections, setSections] = useState(cachedData.sections || [])
     const [currentPage, setCurrentPage] = useState(0);
-    const [filterNullTags, setFilterNullTags] = useState(true);
+    const [filterNullTags, setFilterNullTags] = useState(false);
 
     // ============================================ data load begin ====================================================
     useEffect(() => {

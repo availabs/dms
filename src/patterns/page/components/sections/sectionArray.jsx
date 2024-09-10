@@ -1,4 +1,4 @@
-import React, { Fragment, useState, useLayoutEffect } from "react"
+import React, { Fragment, useState, useLayoutEffect, useRef } from "react"
 import { useLocation } from 'react-router-dom';
 import isEqual from 'lodash/isEqual'
 import cloneDeep from 'lodash/cloneDeep'
@@ -7,8 +7,8 @@ import { Link } from "react-router-dom";
 import { usePopper } from 'react-popper'
 import { CMSContext } from '../../siteConfig'
 import { getSizeClass, sizeOptionsSVG } from './sizes.jsx'
-import { 
-    SquarePlus, 
+import {
+    SquarePlus,
     InfoCircle,
     TrashCan,
     RemoveCircle,
@@ -23,9 +23,11 @@ import {
     InfoSquare,
     MoreSquare,
     Tags,
-    Copy
+    Copy, Download, Printer, PDF
 } from '../../ui/icons'
 import {DeleteModal} from "../../ui";
+import {printWellPdf} from "../saveAsPDF/PrintWell/printWellPdf";
+import {selectablePDF} from "../saveAsPDF/PrintWell/selectablePDF";
 
 const isJson = (str)  => {
     try {
@@ -802,6 +804,8 @@ const Edit = ({Component, value, onChange, attr, full_width = false, ...rest }) 
 
 const View = ({Component, value, attr, full_width}) => {
     if (!value || !value.map) { return '' }
+    const pdfRef = useRef(); // To capture the section of the page to be converted to PDF
+
     let runningColTotal = 8;
     let layouts = {
         centered: 'md:grid-cols-[1fr_repeat(6,_minmax(_100px,_170px))_1fr]',
@@ -819,37 +823,44 @@ const View = ({Component, value, attr, full_width}) => {
     //console.log('render SA view', full_width)
 
     return (
-        <div className={`w-full grid grid-cols-6 ${layouts[full_width === 'show' ? 'fullwidth' : 'centered']} gap-1`}>
-        { 
-            value.filter(v => hideSectionCondition(v))
-                .map((v,i) =>{
-                const size = v?.size || "1";
-                const requiredSpace = sizeOptionsSVG.find(s => s.name === size)?.value;
-                const availableSpace = 6 - runningColTotal;
+        <div className={`w-full grid grid-cols-6 ${layouts[full_width === 'show' ? 'fullwidth' : 'centered']} gap-1`} ref={pdfRef}>
+            <button className={'absolute right-10 top-2'} onClick={() => printWellPdf(pdfRef)}>
+               <Printer className={'hover:text-blue-500'}/>
+            </button>
 
-                if(runningColTotal === 0){
-                    runningColTotal = requiredSpace
-                }else if(requiredSpace <= availableSpace){
-                    runningColTotal += requiredSpace
-                }else{
-                    runningColTotal = requiredSpace
-                }
+            <button className={'absolute right-16 top-2'} onClick={() => selectablePDF(pdfRef)}>
+               <PDF className={'hover:text-blue-500'} />
+            </button>
+            {
+                value.filter(v => hideSectionCondition(v))
+                    .map((v, i) => {
+                        const size = v?.size || "1";
+                        const requiredSpace = sizeOptionsSVG.find(s => s.name === size)?.value;
+                        const availableSpace = 6 - runningColTotal;
 
-                const sizeClass = getSizeClass(size, requiredSpace, availableSpace, runningColTotal);
+                        if (runningColTotal === 0) {
+                            runningColTotal = requiredSpace
+                        } else if (requiredSpace <= availableSpace) {
+                            runningColTotal += requiredSpace
+                        } else {
+                            runningColTotal = requiredSpace
+                        }
 
-                return (
-                    <div id={v?.id} key={i} className={`${sizeClass}`}>
-                        <SectionView
-                            attributes={attr.attributes}
-                            key={i}
-                            i={i}
-                            value={v}
-                        />
-                    </div>
-                )
-            })
-        }
-        <ScrollToHashElement />
+                        const sizeClass = getSizeClass(size, requiredSpace, availableSpace, runningColTotal);
+
+                        return (
+                            <div id={v?.id} key={i} className={`${sizeClass}`}>
+                                <SectionView
+                                    attributes={attr.attributes}
+                                    key={i}
+                                    i={i}
+                                    value={v}
+                                />
+                            </div>
+                        )
+                    })
+            }
+            <ScrollToHashElement/>
         </div>
     )
 }
