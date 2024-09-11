@@ -28,6 +28,8 @@ export async function dmsDataLoader (falcor, config, path='/') {
 		config.format = await config.formatFn();
 	}
 
+	//console.log('dmsDataLoader', config)
+
 	//---------------------------------------------------------
 	// Pages can have many configs active at one time
 	// Because any config can have children
@@ -74,6 +76,7 @@ export async function dmsDataLoader (falcor, config, path='/') {
 		.map(config => createRequest(config, format, path, length))
 		.filter(routes => routes?.length)
 
+	//console.log('newRequests',newRequests)
     //--------- Route Data Loading ------------------------
 	if (newRequests.length > 0 ) {
 		await falcor.get(...newRequests)
@@ -170,6 +173,8 @@ export async function dmsDataEditor (falcor, config, data={}, requestType, /*pat
 	const { id } = data
 	const attributeKeys = Object.keys(data)
 		.filter(k => !['id', 'updated_at', 'created_at'].includes(k))
+
+	console.log('dms editor', data, app, type)
 
 	// console.log('dmsDataEditor',config)
 

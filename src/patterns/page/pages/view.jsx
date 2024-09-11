@@ -1,4 +1,4 @@
-import React, {useEffect} from 'react'
+import React, {useEffect, useRef} from 'react'
 import { Link } from "react-router-dom";
 import cloneDeep from 'lodash/cloneDeep'
 // -- 
@@ -7,8 +7,10 @@ import {dataItemsNav, detectNavLevel, getInPageNav} from './_utils'
 import Layout from '../ui/avail-layout'
 import SideNav from '../ui/nav/Side'
 
-import {PencilEditSquare} from '../ui/icons'
+import {PDF, PencilEditSquare, Printer} from '../ui/icons'
 import { SideNavContainer } from '../ui'
+import {printWellPdf, printWellPdfSingleRow} from "../components/saveAsPDF/PrintWell/printWellPdf";
+import {selectablePDF} from "../components/saveAsPDF/PrintWell/selectablePDF";
 
 function PageView ({item, dataItems, attributes, logo, rightMenu}) {
   // console.log('page_view')
@@ -18,7 +20,7 @@ function PageView ({item, dataItems, attributes, logo, rightMenu}) {
   }
 
   //console.log('item', item, dataItems, status)
-  
+  const pdfRef = useRef(); // To capture the section of the page to be converted to PDF
   const { baseUrl, theme, user } = React.useContext(CMSContext) || {}
   const ContentView = React.useMemo(() => {
     return attributes['sections'].ViewComp
@@ -44,7 +46,7 @@ function PageView ({item, dataItems, attributes, logo, rightMenu}) {
       {/* Header */}
       {(item?.header === 'above') && <ContentView item={item} value={[headerSection]} attributes={sectionAttr} />}
       {/* Layout */}
-      <Layout navItems={menuItems}>
+      <Layout navItems={menuItems} secondNav={theme?.navOptions?.secondaryNav?.navItems || []}>
         <div className={`${theme?.page?.wrapper1} ${theme?.navPadding[level]}`}>
           {(item?.header === 'below') && <ContentView item={item} value={[headerSection]} attributes={sectionAttr} />}
           <div className={`${theme?.page?.wrapper2}`}>
@@ -52,29 +54,35 @@ function PageView ({item, dataItems, attributes, logo, rightMenu}) {
               <SideNavContainer>
                 <SideNav {...inPageNav} /> 
               </SideNavContainer>
-            )}      
-            <div className={theme?.page?.wrapper3}>
+            )}
+            <div className={theme?.page?.wrapper3} ref={pdfRef}>
               {/* Content */}
-              {(item?.header === 'inpage') && <ContentView item={item} value={[headerSection]} attributes={sectionAttr} />}
+              {(item?.header === 'inpage') &&
+                  <ContentView item={item} value={[headerSection]} attributes={sectionAttr}/>}
               {user?.authLevel >= 5 && (
-                <Link className={theme?.page?.iconWrapper} to={`${baseUrl}/edit/${item?.url_slug || ''}`}>
-                  <PencilEditSquare  className={theme?.page?.icon} />
-                </Link>
+                  <Link className={theme?.page?.iconWrapper} to={`${baseUrl}/edit/${item?.url_slug || ''}`}>
+                    <PencilEditSquare className={theme?.page?.icon}/>
+                  </Link>
               )}
+              <div className={user?.email?.includes('availabs') ? 'flex absolute right-10 top-2' : 'hidden'}>
+                <button className={'mx-1'} onClick={() => selectablePDF(pdfRef)}>
+                  <PDF className={'hover:text-blue-500'}/>
+                </button>
+              </div>
               <ContentView
-                full_width={item.full_width}
-                item={item}
-                value={sections} 
-                attributes={sectionAttr}
+                  full_width={item.full_width}
+                  item={item}
+                  value={sections}
+                  attributes={sectionAttr}
               />
-            </div>    
+            </div>
           </div>
         </div>
       </Layout>
       {/*Footer*/}
-      {item?.footer && <div className='h-[300px] bg-slate-100' />}
+      {item?.footer && <div className='h-[300px] bg-slate-100'/>}
     </div>
-  ) 
+  )
 }
 
 

@@ -71,7 +71,7 @@ async function loadDmsFormats (item,dmsAttrsConfigs, format, falcor) {
     // 
     // ----------------------------------------
 
-    
+    if(!item) return;
     //console.log('loadDmsFormats', item)
     let dmsKeys = Object.keys(item)
         .filter(d => Object.keys(dmsAttrsConfigs).includes(d))

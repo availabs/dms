@@ -7,16 +7,22 @@ import {template, pattern} from "../admin/admin.format"
 
 
 import defaultTheme from './theme/theme'
+import DefaultMenu from './components/menu'
 
 //--- Tempalte Pages
 import TemplateView from './pages/view'
 import TemplateEdit from './pages/edit'
 
 //--- Admin Pages
-import ManageForms from "./pages/ManageForms";
-import ManageTemplates from "./pages/ManageTemplates";
+import ManageLayout from './pages/manage/layout'
+import Dashboard from './pages/manage'
+import ManageMeta from "./pages/manage/metadata";
+import ManageTemplates from "./pages/manage/templates";
+import Validate from "./pages/manage/validate";
+import Design from "./pages/manage/design";
 
-import {updateAttributes, updateRegisteredFormats} from "../admin/siteConfig";
+// import {updateAttributes, updateRegisteredFormats} from "../admin/siteConfig";
+
 
 
 export const FormsContext = React.createContext(undefined);
@@ -31,14 +37,16 @@ const formTemplateConfig = ({
     format, 
     parent, 
     title, 
-    baseUrl, 
+    Menu=DefaultMenu,
+    baseUrl,
     API_HOST='https://graph.availabs.org', 
     columns,
     logo,
-    theme=defaultTheme, 
+    themes = { default: {} },
     checkAuth = () => {}
 }) => {
-    theme = merge(defaultTheme, theme)
+    //console.log('parent', parent)
+    let theme = merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern.theme_name] || themes.default), parent?.theme || {})
     //baseUrl = baseUrl[0] === '/' ? baseUrl.slice(1) : baseUrl
     const defaultLogo = <Link to={`${baseUrl}`} className='h-12 flex px-4 items-center'><div className='rounded-full h-8 w-8 bg-blue-500 border-2 border-blue-300 hover:bg-blue-600' /></Link>
   
@@ -46,13 +54,16 @@ const formTemplateConfig = ({
         theme.navOptions.logo = logo ? logo : defaultLogo
     }
     //console.log('formTemplateConfig', app, type)
-    const templateFormat = {...template}
+    const templateFormat = cloneDeep(template);
+    const newType = `${parent.doc_type}|template`
     templateFormat.app = app;
-    templateFormat.type = `template`;
-    //console.log('adminpath index', adminPath)
+    templateFormat.type = newType;
+    templateFormat.registerFormats = updateRegisteredFormats(templateFormat.registerFormats, app, newType) // update app for all the children formats. this works, but dms stops providing attributes to patternList
+    templateFormat.attributes = updateAttributes(templateFormat.attributes, app, newType) // update app for all the children formats. this works, but dms stops providing attributes to patternList
+
     return {
         app,
-        type: `template`,
+        type: newType,
         format: templateFormat,
         baseUrl,
         API_HOST,
@@ -61,7 +72,7 @@ const formTemplateConfig = ({
                 type: (props) => {
                     // use dataItems. use Parent Templates, and manually get the correct template.
                     return (
-                        <FormsContext.Provider value={{baseUrl, user: props.user || defaultUser, theme, app, type, parent}}>
+                        <FormsContext.Provider value={{baseUrl, user: props.user || defaultUser, theme, app, type, parent, API_HOST, Menu}}>
                             <FormTemplateView
                                 format={templateFormat}
                                 parent={parent}
@@ -73,12 +84,19 @@ const formTemplateConfig = ({
                 },
                 action: "list",
                 path: "/*",
+                children: [
+                     {
+                        type: () => <ManageLayout>OOOOk<Design {...props} /></ManageLayout>,
+                        action: 'edit',
+                        path: `test123`
+                    },
+                ]
             },
             {
                 type: (props) => {
                     // use dataItems. use Parent Templates, and manually get the correct template.
                     return (
-                        <FormsContext.Provider value={{baseUrl, user: props.user || defaultUser, theme, app, type, parent}}>
+                        <FormsContext.Provider value={{baseUrl, user: props.user || defaultUser, theme, app, type, parent, API_HOST, Menu}}>
                             <FormTemplateView
                                 parent={parent}
                                 adminPath={adminPath}
@@ -91,7 +109,6 @@ const formTemplateConfig = ({
                 action: "list",
                 path: "/edit/*",
             }
-
         ]
     }
 }
@@ -99,18 +116,24 @@ const formTemplateConfig = ({
 const formsAdminConfig = ({ 
     app, 
     type, 
-    parent, 
+    parent,
+    adminPath,
     title, 
-    baseUrl, 
+    baseUrl,
+    Menu=DefaultMenu,
     API_HOST='https://graph.availabs.org', 
     columns,
     logo,
-    theme=defaultTheme, 
+    themes={ default: {} },
     checkAuth = () => {}
 }) => {
-    theme = merge(defaultTheme, theme)
-    //baseUrl = baseUrl[0] === '/' ? baseUrl.slice(1) : baseUrl
-    const defaultLogo = <Link to={`/`} className='h-12 flex px-4 items-center'><div className='rounded-full h-8 w-8 bg-blue-500 border-2 border-blue-300 hover:bg-blue-600' /></Link>
+    let theme = merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern.theme_name] || themes.default), parent?.theme || {})
+    baseUrl = baseUrl === '/' ? '' : baseUrl
+    const defaultLogo = (
+        <Link to={baseUrl || '/'} className='h-12 flex px-4 items-center'>
+            <div className='rounded-full h-8 w-8 bg-blue-500 border-2 border-blue-300 hover:bg-blue-600' />
+        </Link>
+    )
 
     if(!theme.navOptions.logo) {
         theme.navOptions.logo = logo ? logo : defaultLogo
@@ -118,14 +141,10 @@ const formsAdminConfig = ({
     const patternFormat = cloneDeep(pattern)
     patternFormat.app = app
     patternFormat.type = type
-    patternFormat.registerFormats = updateRegisteredFormats(patternFormat.registerFormats, app) // update app for all the children formats. this works, but dms stops providing attributes to patternList
-    patternFormat.attributes = updateAttributes(patternFormat.attributes, app) // update app for all the children formats. this works, but dms stops providing attributes to patternList
-    // patternFormat.filter = {
-    //     stopFullDataLoad: true,
-    //     fromIndex: () => 0,
-    //     toIndex: () => 1,
-    // }
-    console.log('formsAdminConfig', parent)
+    patternFormat.registerFormats = updateRegisteredFormats(patternFormat.registerFormats, app, type) // update app for all the children formats. this works, but dms stops providing attributes to patternList
+    patternFormat.attributes = updateAttributes(patternFormat.attributes, app, type) // update app for all the children formats. this works, but dms stops providing attributes to patternList
+
+    // console.log('formsAdminConfig', patternFormat)
     return {
         format: patternFormat,
         baseUrl: `${baseUrl}/manage`,
@@ -134,8 +153,10 @@ const formsAdminConfig = ({
             {
                 type: (props) => {
                   return (
-                      <FormsContext.Provider value={{baseUrl, user: props.user || defaultUser, theme, app, type, parent}}>
-                        {props.children}
+                      <FormsContext.Provider value={{baseUrl, user: props.user || defaultUser, theme, app, type, parent, Menu, API_HOST}}>
+                        <ManageLayout>
+                            {props.children}
+                        </ManageLayout>
                       </FormsContext.Provider>
                   )
                 },
@@ -147,18 +168,33 @@ const formsAdminConfig = ({
                 },
                 path: "/*",
                 children: [
+                    { 
+                        type: Dashboard,
+                        path: "",
+                        action: "edit"
+                    },
                     {
-                        type: props => <ManageForms.EditComp parent={parent} {...props} />,
+                        type: props => <ManageMeta.EditComp parent={parent} {...props} adminPath={adminPath}/>,
                         filter: {
                             stopFullDataLoad: true,
                             fromIndex: () => 0,
                             toIndex: () => 0,
                         },
                         action: 'edit',
-                        path: `attributes`
+                        path: `metadata`
                     },
                     {
-                        type: props => <ManageTemplates.EditComp  parent={parent} {...props} />,
+                        type: props => <Validate parent={parent} {...props} adminPath={adminPath}/>,
+                        filter: {
+                            stopFullDataLoad: true,
+                            fromIndex: () => 0,
+                            toIndex: () => 0,
+                        },
+                        action: 'edit',
+                        path: `validate`
+                    },
+                    {
+                        type: props => <ManageTemplates.EditComp  parent={parent} {...props} adminPath={adminPath}/>,
                         filter: {
                             stopFullDataLoad: true,
                             fromIndex: () => 0,
@@ -166,6 +202,11 @@ const formsAdminConfig = ({
                         },
                         action: 'edit',
                         path: `templates`
+                    },
+                    {
+                        type: Design,
+                        action: 'edit',
+                        path: `design`
                     },
                     // {
                     //     type: props => <ManageForms.ViewComp {...props} />,
@@ -180,9 +221,8 @@ const formsAdminConfig = ({
 
 
 export default [
-    // siteConfig,
-    formsAdminConfig,
     formTemplateConfig,
+    formsAdminConfig
     
 ];
 
@@ -205,8 +245,6 @@ const FormTemplateView = ({apiLoad, apiUpdate, attributes, parent, params, forma
     const type = parent.doc_type || parent?.base_url?.replace(/\//g, '') 
 
     //if(!match.route) return <>No template found.</>
-
-
     return (
 
             <Comp
@@ -219,4 +257,29 @@ const FormTemplateView = ({apiLoad, apiUpdate, attributes, parent, params, forma
                 attributes={attributes}
             />
     )
+}
+
+const updateRegisteredFormats = (registerFormats, app, type) => {
+    if(Array.isArray(registerFormats)){
+        registerFormats = registerFormats.map(rFormat => {
+            const newType = `${type}|${rFormat.type}`
+            rFormat.app = app;
+            rFormat.type = newType
+            rFormat.registerFormats = updateRegisteredFormats(rFormat.registerFormats, app, newType); // provide updated type here
+            rFormat.attributes = updateAttributes(rFormat.attributes, app, newType); // provide updated type here
+            return rFormat;
+        })
+    }
+    return registerFormats;
+}
+
+const updateAttributes = (attributes, app, type) => {
+    if(Array.isArray(attributes)){
+        attributes = attributes.map(attr => {
+            attr.format = attr.format ? `${app}+${type}|${attr.format.split('+')[1]}`: undefined;
+            return updateRegisteredFormats(attr, app, type);
+        })
+        //console.log('attr', attributes)
+    }
+    return attributes;
 }

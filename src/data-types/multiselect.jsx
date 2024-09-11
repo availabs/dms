@@ -48,12 +48,31 @@ const RenderMenu = ({
                 onChange={e => setSearchKeyword(e.target.value)}
                 onFocus={() => setIsSearching(true)}
             />
+            <div className={theme.multiselect.smartMenuWrapper}>
+                {
+                    [selectAllOption, removeAllOption]
+                        .filter(o =>
+                            o.value === 'select-all' ? value.length !== options.length :
+                                o.value === 'remove-all' ? value.length : true)
+                        .map((o, i) =>
+                            <div
+                                key={`smart-option-${i}`}
+                                className={theme?.multiselect?.smartMenuItem || menuItem}
+                                onClick={e => {
+                                    onChange(
+                                        o.value === 'select-all' ? options :
+                                            o.value === 'remove-all' ? [] :
+                                                [...value, o]
+                                    );
+                                    setIsSearching(false);
+                                }}>
+                                {o.label || o}
+                            </div>)
+                }
+            </div>
             {
-                [selectAllOption, removeAllOption, ...options]
-                    .filter(o =>
-                        o.value === 'select-all' ? value.length !== options.length :
-                            o.value === 'remove-all' ? value.length :
-                                !mappedValue.includes(o.value || o) && (o.label || o)?.toLowerCase().includes(searchKeyword?.toLowerCase()))
+                options
+                    .filter(o => !mappedValue.includes(o.value || o) && (o.label || o)?.toLowerCase().includes(searchKeyword?.toLowerCase()))
                     .map((o, i) =>
                         <div
                             key={`option-${i}`}
@@ -102,7 +121,7 @@ function useComponentVisible(initial) {
 }
 
 
-const Edit = ({value = [], onChange, className,placeholder, options = [], displayInvalidMsg=true}) => {
+const Edit = ({value = [], onChange, className,placeholder, options = [], displayInvalidMsg=true, menuPosition='bottom'}) => {
     // options: ['1', 's', 't'] || [{label: '1', value: '1'}, {label: 's', value: '2'}, {label: 't', value: '3'}]
     const [searchKeyword, setSearchKeyword] = useState('');
     const typeSafeValue = Array.isArray(value) ? value : [value];
@@ -116,12 +135,15 @@ const Edit = ({value = [], onChange, className,placeholder, options = [], displa
     const invalidValues = typeSafeValue.filter(v => (v.value || v) && !options.filter(o => (o.value || o) === (v.value || v))?.length);
 
     return (
-        <div ref={ref} className={(theme?.multiselect?.mainWrapper) || mainWrapper}>
+        <div ref={ref} className={`${theme?.multiselect?.mainWrapper || mainWrapper} ${menuPosition === 'top' ? 'flex flex-col flex-col-reverse' : ''}`}>
             {
                 invalidValues.length && displayInvalidMsg ?
                     <Alert className={theme?.multiselect?.error} title={`Invalid Values: ${JSON.stringify(invalidValues)}`} /> : null
             }
-            <div className={className || (theme?.multiselect?.inputWrapper) || inputWrapper} onClick={() => setIsSearching(!isSearching)}>
+            <div className={className || (theme?.multiselect?.inputWrapper) || inputWrapper} onClick={() => {
+                setIsSearching(!isSearching)
+                console.log('ms?', ref.current.top)
+            }}>
                 {
                     typeSafeValue
                         .filter(d => d)
@@ -155,8 +177,9 @@ const Edit = ({value = [], onChange, className,placeholder, options = [], displa
 }
 
 const View = ({className, value, options = []}) => {
-    if (!value) return false
     const theme = useTheme();
+    if (!value) return <div className={theme?.multiselect?.mainWrapper} />
+
     const mappedValue = (Array.isArray(value) ? value : [value]).map(v => v.value || v)
     const option =
         options

@@ -110,7 +110,7 @@ function TemplateEdit ({
         </div>
       } 
       <Layout 
-        topNav={{menuItems, position: 'fixed', logo, rightMenu }} 
+        topNav={{size: 'none'}} 
         sideNav={sideNav}
       >
         <div className={`${theme.page.wrapper1} ${theme.navPadding[level]}`}>

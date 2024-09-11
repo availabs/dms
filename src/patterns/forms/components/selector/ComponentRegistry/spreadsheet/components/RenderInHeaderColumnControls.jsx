@@ -4,7 +4,7 @@ import {useRef} from "react";
 import {ArrowDown, SortAsc, SortDesc} from "../../../../../../admin/ui/icons";
 
 export default function RenderInHeaderColumnControls({
-    attribute, isEdit, orderBy, setOrderBy
+    attribute, isEdit, orderBy, setOrderBy, filters, setFilters
                                             }) {
     const actions = [
         {
@@ -18,6 +18,12 @@ export default function RenderInHeaderColumnControls({
         {
             label: 'Clear Sort',
             action: () => setOrderBy({})
+        },
+        {
+            label: filters.find(f => f.column === attribute.name) ? 'Remove Filter' : 'Add Filter',
+            action: () => setFilters(filters.find(f => f.column === attribute.name) ?
+                filters.filter(f => f.column !== attribute.name) :
+                [...filters, {column: attribute.name}])
         }
     ]
 
@@ -30,7 +36,7 @@ export default function RenderInHeaderColumnControls({
                     <div id={'col-icons'} className={'flex items-center'}>
                         {orderBy[attribute.name] === 'asc nulls last' ? <SortAsc /> :
                             orderBy[attribute.name] === 'desc nulls last' ? <SortDesc /> : null}
-                        {isEdit && <ArrowDown />}
+                        <ArrowDown />
                     </div>
                 </MenuButton>
             </div>
@@ -41,12 +47,12 @@ export default function RenderInHeaderColumnControls({
             >
                 <div className="py-1 h-1/2 overflow-auto scrollbar-sm">
                     {
-                        isEdit && actions
+                        actions
                             .map((action, i) => (
                             <MenuItem>
                                 <div
                                     className="flex items-center cursor-pointer px-2 py-1 text-sm text-gray-700 data-[focus]:bg-gray-100 data-[focus]:text-gray-900"
-                                    onClick={() => isEdit && action.action()}
+                                    onClick={() => action.action()}
                                 >
 
                                     <div className={'flex justify-between m-1 w-full'}>

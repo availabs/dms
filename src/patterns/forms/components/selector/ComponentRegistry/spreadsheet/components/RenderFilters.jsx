@@ -2,18 +2,8 @@ import React, {useEffect, useMemo, useState} from "react";
 import {useNavigate, useSearchParams} from "react-router-dom";
 import {getLength, getValues} from "../../../../../../../data-types/form-config/components/RenderField";
 import {dmsDataTypes} from "../../../../../../../data-types";
-import {formattedAttributeStr, attributeAccessorStr} from "../utils";
-
-const convertToUrlParams = (arr, delimiter) => {
-    const params = new URLSearchParams();
-
-    arr.forEach(item => {
-        const { column, values = [] } = item;
-        params.append(column, values.join(delimiter));
-    });
-
-    return params.toString();
-};
+import {formattedAttributeStr, attributeAccessorStr, convertToUrlParams} from "../utils";
+import {Filter} from "../../../../../../admin/ui/icons";
 
 export const RenderFilters = ({attributes, filters, setFilters, format, apiLoad, delimiter}) => {
     const navigate = useNavigate();
@@ -26,9 +16,13 @@ export const RenderFilters = ({attributes, filters, setFilters, format, apiLoad,
             const data = await Promise.all(
                 filters.map(async (filter, filterI) => {
                     const filterBy = filters
-                        .filter((f, fI) => f.values?.length && fI !== filterI)
+                        .filter((f, fI) =>
+                            f.values?.length &&  // filters all other filters without any values
+                            f.values.filter(fv => fv.length).length && // and even blank values
+                            fI !== filterI // and the current filter. as we're gonna use other filters' values to determine options for current filter.
+                        )
                         .reduce((acc, f) => {
-                            acc[attributeAccessorStr(f.column)] = f.values;
+                            acc[attributeAccessorStr(f.column)] = f.values.filter(fv => fv.length);
                             return acc;
                         }, {});
                     const length = await getLength({format, apiLoad, groupBy: [attributeAccessorStr(filter.column)], filterBy});
@@ -54,24 +48,25 @@ export const RenderFilters = ({attributes, filters, setFilters, format, apiLoad,
     }, [filters]);
 
     const MultiSelectComp = dmsDataTypes.multiselect.EditComp;
-
+    if(!filters.length) return null;
     return (
-        <div className={'flex flex-col'}>
+        <div className={'p-4 flex flex-col border border-blue-300 rounded-md'}>
+            <Filter className={'-mt-4 -mr-6 text-blue-300 bg-white self-end rounded-md'}/>
             {filters.map((f, i) => (
-                <div className={'flex flex-row items-center'}>
-                    <div className={'w-1/4 p-1'}>
+                <div className={'w-full flex flex-row items-center'}>
+                    <div className={'w-1/4 p-1 text-sm'}>
                         {attributes.find(attr => attr.name === f.column)?.display_name || f.column}
                     </div>
-                    <div className={'w-3/4 p-1'}>
+                    <div className={'w-3/4 p-1 relative'}>
                         <MultiSelectComp
-                            className={`border rounded-md bg-white h-full ${f.values?.length ? `p-1` : `p-4`}`}
-                            placeholder={'Please select values...'}
+                            className={`max-h-[150px] flex text-xs overflow-auto scrollbar-sm border rounded-md bg-white ${f.values?.length ? `p-1` : `p-4`}`}
+                            placeholder={'Search...'}
                             value={f.values}
                             onChange={e => {
                                 const newFilters = filters.map((filter, fI) => fI === i ? {...f, values: e} : filter);
-                                const url = `?${convertToUrlParams(newFilters, delimiter)}`;
+                                // const url = `?${convertToUrlParams(newFilters, delimiter)}`;
                                 setFilters(newFilters)
-                                navigate(url)
+                                // navigate(url)
                             }}
                             options={filterOptions[f.column]}
                             displayInvalidMsg={false}

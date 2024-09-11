@@ -50,11 +50,26 @@ function EditComp(props) {
 
     let DataComp = (RegisteredComponents[get(value, "element-type", "lexical")] || RegisteredComponents['lexical']).EditComp
 
+    const handlePaste = async (e) => {
+        e.preventDefault();
+
+        try{
+            const text = await navigator.clipboard.readText();
+            const copiedValue = isJson(text) && JSON.parse(text || '{}');
+            if(!copiedValue || !copiedValue['element-type']) return;
+
+            updateAttribute('element-type', copiedValue['element-type']);
+            onChange({...value, ...copiedValue});
+        }catch (e) {
+            console.error('<paste>', e)
+        }
+    }
     return (
         <div className="w-full">
             <div className="relative my-1">
                 {/*Selector Edit*/}
                 <FilterableSearch
+                    contentEditable={true}
                     className={'flex-row-reverse'}
                     placeholder={'Search for a Component...'}
                     options={
@@ -69,11 +84,7 @@ function EditComp(props) {
                     value={value?.['element-type']}
                     onChange={async e => {
                         if (e === 'paste') {
-                            return navigator.clipboard.readText()
-                                .then(text => {
-                                    const copiedValue = isJson(text) && JSON.parse(text || '{}')
-                                    return copiedValue?.['element-type'] && onChange({...value, ...copiedValue})
-                                })
+
                         } else {
                             updateAttribute('element-type', e)
                         }
@@ -82,7 +93,8 @@ function EditComp(props) {
                         {
                             icon: 'fa-thin fa-paste',
                             label: 'Paste',
-                            value: 'paste'
+                            value: 'paste',
+                            onClick: handlePaste
                         },
                         ...[...new Set(
                             Object.keys(RegisteredComponents)
