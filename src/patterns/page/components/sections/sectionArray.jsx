@@ -26,8 +26,6 @@ import {
     Copy, Download, Printer, PDF
 } from '../../ui/icons'
 import {DeleteModal} from "../../ui";
-import {printWellPdf, printWellPdfSingleRow} from "../saveAsPDF/PrintWell/printWellPdf";
-import {selectablePDF} from "../saveAsPDF/PrintWell/selectablePDF";
 
 const isJson = (str)  => {
     try {
