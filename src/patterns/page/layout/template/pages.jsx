@@ -271,6 +271,8 @@ const TemplatePages = ({item, params, logo, rightMenu, baseUrl=''}) => {
                                     data={data}
                                     columns={columns}
                                     pageSize={pageSize}
+                                    sortBy={'updated'}
+                                    sortOrder={'desc'}
                                 />
                                 {/*{
                                     value?.length ?
