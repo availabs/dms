@@ -639,7 +639,7 @@ const ScrollToHashElement = () => {
 };
 
 const Edit = ({Component, value, onChange, attr, full_width = false, ...rest }) => {
-    console.log('.............', rest, attr, value)
+    // console.log('.............', rest, attr, value)
     if (!value || !value.map) { 
         value = []
     }

@@ -59,6 +59,7 @@ function EditComp(props) {
             if(!copiedValue || !copiedValue['element-type']) return;
 
             updateAttribute('element-type', copiedValue['element-type']);
+            updateAttribute('element-data', copiedValue['element-data']);
             onChange({...value, ...copiedValue});
         }catch (e) {
             console.error('<paste>', e)
@@ -112,6 +113,7 @@ function EditComp(props) {
             </div>
             <div>
                 <DataComp
+                    key={value?.['element-data'] || ''}
                     value={value?.['element-data'] || ''}
                     onChange={v => updateAttribute('element-data', v)}
                     size={size}
