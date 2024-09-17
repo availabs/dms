@@ -1,4 +1,4 @@
-import {useEffect} from "react";
+import {useEffect, useState} from "react";
 import get from "lodash/get"
 import isEqual from "lodash/isEqual"
 
@@ -30,7 +30,8 @@ const icons = {
 }
 
 function EditComp(props) {
-    const {value, onChange, size, ...rest} = props
+    const {value, onChange, size, ...rest} = props;
+    const [key, setKey] = useState();
     // console.log("selector props", props, value)
     // console.log('selector edit', rest)
     const updateAttribute = (k, v) => {
@@ -52,12 +53,11 @@ function EditComp(props) {
 
     const handlePaste = async (e) => {
         e.preventDefault();
-
         try{
             const text = await navigator.clipboard.readText();
             const copiedValue = isJson(text) && JSON.parse(text || '{}');
             if(!copiedValue || !copiedValue['element-type']) return;
-
+            setKey(copiedValue['element-type'])
             updateAttribute('element-type', copiedValue['element-type']);
             updateAttribute('element-data', copiedValue['element-data']);
             onChange({...value, ...copiedValue});
@@ -113,7 +113,7 @@ function EditComp(props) {
             </div>
             <div>
                 <DataComp
-                    key={value?.['element-data'] || ''}
+                    key={key || ''}
                     value={value?.['element-data'] || ''}
                     onChange={v => updateAttribute('element-data', v)}
                     size={size}
