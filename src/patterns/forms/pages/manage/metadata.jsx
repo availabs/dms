@@ -1,9 +1,10 @@
 import React, {useEffect, useState} from "react";
-import Layout from '../ui/avail-layout'
-import { FormsContext } from '../'
+import Layout from '../../ui/avail-layout'
+import { FormsContext } from '../../'
 
 
 const ManageForm = ({
+    adminPath,
     status,
     apiUpdate,
     attributes,
@@ -16,42 +17,44 @@ const ManageForm = ({
     submit,
     parent,
     manageTemplates = false,
+    apiLoad,
     ...rest
 }) => {
     // const {id} = params;
     const { baseUrl, theme, user } = React.useContext(FormsContext) || {}
-    console.log('ManageForm', item, parent, dataItems)
-    const [newItem, setNewItem] = useState(item);
-    useEffect(() => setNewItem(item), [item])
+    const [newItem, setNewItem] = useState(parent);
+    useEffect(() => setNewItem(parent), [parent])
     const updateData = (data, attrKey) => {
         apiUpdate({data: {...newItem, ...{[attrKey]: data}}, config: {format}})
     }
-    //console.log('manage forms /manage_pattern/:id/templates?', manageTemplates, attributes, item)
-    return (
-        <Layout>
-            <div className={`${theme?.page?.wrapper1}`}>
-                <div className={`${theme?.page?.wrapper2}`}>      
-                    <div className={theme?.page?.wrapper3}>
-                        {status ? <div>{JSON.stringify(status)}</div> : ''}
 
+    console.log('manage forms /manage_pattern/:id/templates?', manageTemplates, attributes)
+    return (
+        <div className={`${theme?.page?.wrapper1}`}>
+            <div className={`${theme?.page?.wrapper2}`}>      
+                <div className={theme?.page?.wrapper3}>
+                    {status ? <div>{JSON.stringify(status)}</div> : ''}
+                    <div className='w-full max-w-6xl mx-auto'>
                         {Object.keys(attributes)
-                            .filter(attr => manageTemplates ? attr === 'templates' : attr !== 'templates')
+                            .filter(attr => attr === 'config')
                             .map((attrKey, i) => {
                                 let EditComp = attributes[attrKey].EditComp;
                                 //console.log('attrs', attributes[attrKey], newItem)
                                 return (
                                     <div key={`${attrKey}-${i}`}>
                                         <EditComp
-                                            key={`${attrKey}-${i}`}
                                             value={newItem?.[attrKey]}
                                             onChange={(v) => {
                                                 setNewItem({...newItem, ...{[attrKey]: v}})
                                                 updateData(v, attrKey)
                                             }}
-                                            format={format}
                                             manageTemplates={manageTemplates}
-                                            {...attributes[attrKey]}
+                                            placeholder={attributes[attrKey].placeholder}
+                                            options={attributes[attrKey].options}
                                             item={newItem}
+                                            apiLoad={apiLoad}
+                                            {...attributes[attrKey]}
+                                            format={format}
                                         />
                                     </div>
                                 )
@@ -59,8 +62,8 @@ const ManageForm = ({
                         }
                     </div>
                 </div>
-            </div> 
-        </Layout>
+            </div>
+        </div> 
     )
 }
 

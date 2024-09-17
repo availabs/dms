@@ -13,6 +13,8 @@ export const MobileMenu = ({ open, toggle, menuItems = [], rightMenu = null,them
   const { theme: fullTheme  } = React.useContext(FormsContext) || {}
   const theme = (fullTheme?.['topnav'] || NOOP )(themeOptions);
 
+
+
   return (
     <div
       className={`${open ? "md:hidden" : "hidden"} ${

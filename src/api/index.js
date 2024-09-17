@@ -28,6 +28,8 @@ export async function dmsDataLoader (falcor, config, path='/') {
 		config.format = await config.formatFn();
 	}
 
+	//console.log('dmsDataLoader', config)
+
 	//---------------------------------------------------------
 	// Pages can have many configs active at one time
 	// Because any config can have children
@@ -51,16 +53,21 @@ export async function dmsDataLoader (falcor, config, path='/') {
 	// -- Always want to know how many data items of a type we have
 	let lengthReq = ['dms', 'data', `${ app }+${ type }`, 'length' ]
 
-	if(activeConfigs.find(ac => ['list','load'].includes(ac.action))){
+	if(activeConfigs.find(ac => ['list','load','filteredLength'].includes(ac.action))){
 		// special routes for 'load' action
-		const options = activeConfigs.find(ac => ['list','load'].includes(ac.action))?.filter?.options;
+		const options = activeConfigs.find(ac => ['list','load','filteredLength'].includes(ac.action))?.filter?.options;
 		if(options) lengthReq = ['dms', 'data', `${ app }+${ type }`, 'options', options, 'length' ];
 	}
 
 	// console.log('lengthReq', lengthReq)
 	const length = get(await falcor.get(lengthReq), ['json',...lengthReq], 0)
 	// console.log('length',length)
-	const itemReqByIndex = ['dms', 'data', `${ app }+${ type }`, 'byIndex']
+	if(activeConfigs.find(ac => ['length', 'filteredLength'].includes(ac.action))){
+		return length;
+	}
+	let options = activeConfigs[0]?.filter?.options || '{}';
+	const itemReqByIndex = ['dms', 'data', `${ app }+${ type }`, options !== '{}' ? 'opts' : false,
+									options !== '{}' ? options : false, 'byIndex'].filter(i => i)
 	
 	// -- --------------------------------------------------------
 	// -- Create the requests based on all active configs
@@ -69,6 +76,7 @@ export async function dmsDataLoader (falcor, config, path='/') {
 		.map(config => createRequest(config, format, path, length))
 		.filter(routes => routes?.length)
 
+	//console.log('newRequests',newRequests)
     //--------- Route Data Loading ------------------------
 	if (newRequests.length > 0 ) {
 		await falcor.get(...newRequests)
@@ -77,12 +85,18 @@ export async function dmsDataLoader (falcor, config, path='/') {
 	let newReqFalcor = falcor.getCache()
 
 	if(activeConfigs.find(ac => ac.action === 'search')){
-		const path =  newRequests[0].filter((r, i) => i <= newRequests[0].indexOf('byTag'));
-
+		const searchType = activeConfigs.find(ac => ac.action === 'search')?.filter?.searchType || 'byTag';
+		const path =  newRequests[0].filter((r, i) => i <= newRequests[0].indexOf(searchType));
 		return get(newReqFalcor, path, {});
 	}
 	if(activeConfigs.find(ac => ac.action === 'searchTags')){
 		const path =  newRequests[0].filter((r, i) => i <= newRequests[0].indexOf('tags'));
+
+		return get(newReqFalcor, path, {});
+	}
+
+	if(activeConfigs.find(ac => ac.action === 'searchPageTitles')){
+		const path =  newRequests[0].filter((r, i) => i <= newRequests[0].indexOf('pageTitles'));
 
 		return get(newReqFalcor, path, {});
 	}
@@ -122,18 +136,19 @@ export async function dmsDataLoader (falcor, config, path='/') {
 			activeConfigs?.[0]?.filter?.toIndex(path) :
 			(+activeConfigs?.[0]?.params?.[activeConfigs?.[0]?.filter?.toIndex]);
 
-	const filteredIds = !id && fromIndex && toIndex &&
+	const filteredIds = !id && fromIndex !== undefined && toIndex !== undefined ?
 		Object.keys(get(newReqFalcor, [...itemReqByIndex], {}))
 			.filter(index => +index >= +fromIndex && +index <= +toIndex - 1)
 			.map(index => get(newReqFalcor, [...itemReqByIndex, index, 'value', 3])) // ['dms', 'data', 'byId', id]
-			.filter(d => d)
+			.filter(d => d) : [];
 
 	activeIds.push(...(filteredIds || []))
 	// ---------------------------------------------------------------------------------------------------
 
 	const out = await processNewData(
 	  	newReqFalcor, 
-	  	activeIds, 
+	  	activeIds,
+		activeConfigs?.[0]?.filter?.stopFullDataLoad,
 	  	filteredIds?.length, 
 	  	app, type, 
 	  	dmsAttrsConfigs,
@@ -158,6 +173,8 @@ export async function dmsDataEditor (falcor, config, data={}, requestType, /*pat
 	const { id } = data
 	const attributeKeys = Object.keys(data)
 		.filter(k => !['id', 'updated_at', 'created_at'].includes(k))
+
+	console.log('dms editor', data, app, type)
 
 	// console.log('dmsDataEditor',config)
 

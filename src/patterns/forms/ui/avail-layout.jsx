@@ -1,13 +1,14 @@
 import React from "react";
-//import { useTheme} from "~/modules/avl-components/src/index.js";
-import { FormsContext } from '../'
+import merge from 'lodash/merge';
+import cloneDeep from 'lodash/cloneDeep';
+import { Link } from "react-router-dom";
 
-import TopNav from './nav/Top.jsx'
-import SideNav from './nav/Side.jsx'
-import Menu from '../components/menu'
-// import { Search } from '../components/search'
+import TopNav from './nav/Top.jsx';
+import SideNav from './nav/Side.jsx';
+//import { Search } from '../components/search';
+import { FormsContext } from '../';
 
-import { Link, Outlet } from "react-router-dom";
+
 
 let marginSizes = {
 	none: '',
@@ -27,29 +28,44 @@ let fixedSizes = {
 	full: 'w-64'
 }
 
-const Logos = () => <div className='h-12'/>
+let fixedSizePixels = {
+	none: '0px',
+	micro: '56px',
+	mini: '80px',
+	miniPad: '0px',
+	compact: '176px',
+	full: '256px'
+}
 
-const Layout = ({ children, navItems=[], title }) => {
+const Logos = () => <div className='h-12'/>
+const Search = () => <div />
+// const Menu = () => <div />
+
+const Layout = ({ children, navItems, title, theme, yPadding = '0px', ...props }) => {
 	//const theme = useTheme()
 
-	const { theme, app, type } = React.useContext(FormsContext) || {}
+	
+	const { theme: defaultTheme, app, type, Menu } = React.useContext(FormsContext) || {}
+	const secondNav = defaultTheme?.navOptions?.secondaryNav?.navItems || []
+	//console.log('second nav', secondNav, theme?.navOptions)
+
+	theme = merge(cloneDeep(defaultTheme), cloneDeep(theme))
 	const { sideNav={}, topNav={}, logo=Logos } = theme?.navOptions || {}
 	
-	console.log('forms layout', sideNav)
-
 	const sideNavOptions = {
 		size: sideNav.size || 'none',
-		color: sideNav.color || 'white',
-		menuItems: (sideNav?.nav === 'main' ? navItems : []).filter(page => !page.hideInNav),
+		color: sideNav.color || 'transparent',
+		menuItems: (sideNav?.nav === 'main' ? navItems : sideNav?.nav === 'secondary' ? secondNav || [] : []).filter(page => !page.hideInNav),
 		topMenu: (
 			<div className={'flex flex-row md:flex-col'}>
 	      		{sideNav?.logo === 'top' && logo}
 	        	{sideNav?.dropdown === 'top' && <Menu />}
-	        	{/*{sideNav?.search === 'top' && <Search app={app} type={type}/>}*/}
+	        	{sideNav?.search === 'top' && <Search app={app} type={type}/>}
 	      	</div>),
 		bottomMenu:  (
 	      	<div className={'flex flex-row md:flex-col'}>
-	      		{/*{sideNav?.search === 'bottom' && <Search app={app} type={type}/>}*/}
+	      		{sideNav?.logo === 'bottom' && logo}
+	      		{sideNav?.search === 'bottom' && <Search app={app} type={type}/>}
 	        	{sideNav?.dropdown === 'bottom' && <Menu />}
 	      	</div>
 	  	)
@@ -65,37 +81,44 @@ const Layout = ({ children, navItems=[], title }) => {
 		leftMenu: (
 			<div className={'flex flex-col md:flex-row'}>
 	      		{topNav?.logo === 'left' && logo}
-	        	{/*{topNav?.search === 'left' && <Search app={app} type={type}/>}*/}
+	        	{topNav?.search === 'left' && <Search app={app} type={type}/>}
 	        	{topNav?.dropdown === 'left' && <Menu />}
 	      	</div>),
 		rightMenu:  (
 	      	<div className={'flex flex-col md:flex-row'}>
 	      		{topNav?.rightMenu}
-	        	{/*{topNav?.search === 'right' && <Search app={app} type={type}/>}*/}
+	        	{topNav?.search === 'right' && <Search app={app} type={type}/>}
 	        	{topNav?.dropdown === 'right' && <Menu />}
+	        	{topNav?.logo === 'right' && logo}
 	      	</div>
 	  	)	
 	}
 	const Logo = sideNavOptions.logo
-	// console.log('layout', topNav)
+	console.log('layout', topNavOptions)
 	
 	return (
-		<div className='flex' >
+		<div className={`flex ${theme?.bg} max-w-screen`}>
 			{
 				sideNavOptions.size === 'none' ? '' : (
 					<div className={`hidden md:block ${marginSizes[sideNavOptions.size]}`}>
 						<div className={`fixed h-screen ${fixedSizes[sideNavOptions.size]}`}>
 							<SideNav 
-								themeOptions={sideNavOptions}
 								topMenu={sideNavOptions.topMenu}
-								menuItems={sideNavOptions.menuItems}
 								bottomMenu={sideNavOptions.bottomMenu}
+								themeOptions={sideNavOptions}
+								menuItems={sideNavOptions.menuItems}
 							/>
 						</div>
 					</div>
 				)
 			}
-			<div className={`flex-1 flex items-start flex-col items-stretch w-full min-h-screen `}>
+			<div 
+				className={`flex-1 flex items-start flex-col items-stretch max-w-full`} 
+				style={{
+					minHeight: `calc(100vh - ${yPadding}`,
+					maxWidth: `calc(100vw - ${fixedSizePixels[sideNavOptions.size]}`
+				}}
+			>
 				{
 					topNavOptions.size === 'none' ? '' : (<>
 						<div className={`${

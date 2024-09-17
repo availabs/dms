@@ -2,6 +2,7 @@ import React from 'react'
 import { Input, ButtonPrimary} from '../ui'
 import Layout from '../ui/avail-layout'
 import {AdminContext} from "../siteConfig";
+import { Link } from 'react-router-dom'
 
 
 function NewSite ({apiUpdate}) {
@@ -59,24 +60,49 @@ function SiteEdit ({
 	if(!item.id) return <NewSite apiUpdate={apiUpdate} />// (<Layout></Layout>)()
 
 
-	//console.log('site edit', status, dataItems)
+	const menuItems = [
+		{
+			name: <div className=''>Dashboard</div>,
+			className:''
+		}, 
+		{
+			name:'manage sites',
+			className: 'px-6 pb-1 pt-4 uppercase text-xs text-blue-400'
+		},
+	]
+
+	item.patterns.forEach(p =>{
+		menuItems.push({
+			name: (
+				<div className='w-full flex-1 flex items-center'>
+					<Link to={`${p.base_url === '/' ? '' : p.base_url}/manage`} className='flex-1'>{p.doc_type}</Link>
+					{/*<div className='px-2'>x</div>
+					<div className='px-2'>y</div>*/}
+				</div>
+			)
+		})
+	})
+
 
 	return (
-		<Layout>
+		<Layout navItems={menuItems} >
 		
 			{Object.keys(attributes)
 				.map((attrKey, i) => {
 					let EditComp = attributes[attrKey].EditComp
-					// console.log('what', attributes[attrKey])
+					//console.log('what', attributes[attrKey])
 					return (
 						<div key={`${attrKey}-${i}`}>
 							<EditComp
 								key={`${attrKey}-${i}`}
 								value={item?.[attrKey]}
 								onChange={(v) => updateAttribute(attrKey, v)}
-								submit={data => updateData(data, attrKey)}
+								onSubmit={data => {
+									//console.log('updateData', data,attrKey)
+									updateData(data, attrKey)
+								}}
 								format={format}
-								{...attributes[attrKey]}
+								attributes={attributes[attrKey].attributes}
 							/>
 						</div>
 					)

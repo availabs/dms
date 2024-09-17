@@ -4,10 +4,10 @@ import cloneDeep from 'lodash/cloneDeep'
 import get from 'lodash/get'
 import isEqual from "lodash/isEqual"
 
-import { PublishButton, TitleEditComp, IconPopover, PopoverMenuItem, DeleteModal } from '../../ui'
-import { PencilIcon, CirclePlus } from '../../ui/icons'
+import {PublishButton, TitleEditComp, IconPopover, PopoverMenuItem, DeleteModal, DiscardChangesButton} from '../../ui'
+import {PencilIcon, CirclePlus, CancelCircle} from '../../ui/icons'
 import { json2DmsForm, getUrlSlug, toSnakeCase, parseJSON } from '../_utils'
-import { insertSubPage, newPage, updateTitle, toggleSidebar, publish, getMenus } from './editFunctions'
+import {insertSubPage, newPage, updateTitle, toggleSidebar, publish, getMenus, discardChanges} from './editFunctions'
 
 
 import EditPagesNav  from './editPagesPanel'
@@ -38,6 +38,13 @@ function EditControls({ item, dataItems, updateAttribute, setItem, apiUpdate, at
             {hasChanges ?  <CirclePlus className='w-6 h-6' />: ''}
         </PublishButton>
       </div>
+
+        <div className='w-full flex justify-center pb-6'>
+        <DiscardChangesButton active={hasChanges} onClick={() => discardChanges(user,item, apiUpdate)} >
+          <span> {hasChanges ? `Discard` : `No Changes`} </span>
+            {hasChanges ?  <CancelCircle className='w-6 h-6' />: ''}
+        </DiscardChangesButton>
+      </div>
      
       <TitleEditComp
         value={item?.title}
@@ -61,7 +68,7 @@ function EditControls({ item, dataItems, updateAttribute, setItem, apiUpdate, at
           })
         }
       </div>            
-      <DeleteModal item={item} open={editState.showDelete} setOpen={(v) => setEditState({...editState, showDelete: v})} onDelete={() => {
+      <DeleteModal title={`Delete Page ${item.title} ${item.id} `} open={editState.showDelete} setOpen={(v) => setEditState({...editState, showDelete: v})} onDelete={() => {
         async function deleteItem () {
           await submit(json2DmsForm(item,'delete'), { method: "post", action: `${baseUrl}/edit/`})
             setEditState({...editState, showDelete: false})

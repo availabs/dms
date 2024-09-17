@@ -9,12 +9,12 @@ import {getConfig} from "../../template/pages";
 
 export const generatePages = async ({
                                         item, url, destination, id_column, dataRows, falcor, setLoadingStatus, locationNameMap,
-                                        setGeneratedPages, urlSuffixCol='geoid'
+                                        setGeneratedPages, from, to, urlSuffixCol='geoid'
                                     }) => {
     setLoadingStatus('Generating Pages...', dataRows)
     const idColAttr =
         dataRows
-            // .filter(d => !d?.state_fips || d.state_fips === '36')
+            .filter((d, i) => (!from || !to) || (i >= from && i <= to))
             .sort((a,b) => a?.state_fips ? +b[id_column.name] - +a[id_column.name] : true)
             .map(d => d[id_column.name])
     // .filter((d,i) => (d && (i <= 10)))
@@ -148,7 +148,7 @@ export const generatePages = async ({
             try {
                 //create all sections first, get their ids and then create the page.
                 const newSectionIds = await PromiseMap(
-                    updatedSections.map((section) => dmsDataEditor(sectionConfig, section)),
+                    updatedSections.map((section) => dmsDataEditor(falcor, sectionConfig, section)),
                     p => p,
                     {concurrency: 25, saveResponse: true});
 
@@ -198,7 +198,7 @@ export const generatePages = async ({
                 }
 
                 try {
-                    const resPage = await dmsDataEditor(pageConfig, newPage);
+                    const resPage = await dmsDataEditor(falcor, pageConfig, newPage);
                     createdOrUpdatedPageIdStore.push({id: resPage?.id, num_errors: newPage.num_errors, id_column_value: newPage.id_column_value})
                 }catch (err){
                     console.error('<generatePages> Create/Update Page Error:', idColAttrVal, err)

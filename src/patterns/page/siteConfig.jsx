@@ -1,4 +1,7 @@
 import React from 'react'
+import merge from 'lodash/merge'
+import cloneDeep from 'lodash/cloneDeep'
+
 // pages
 import PageView from "./pages/view"
 import PageEdit from "./pages/edit"
@@ -9,18 +12,19 @@ import TemplatePages from './layout/template/pages'
 import TemplateEdit from './layout/template/edit'
 
 // Manager
-import CmsManager from './pages/manager'
+import ManageLayout from './pages/manager/layout'
+import Dashboard from './pages/manager'
+import PageManager from './pages/manager/pages'
+import DesignEditor from './pages/manager/design'
 
 import cmsFormat from "./page.format.js"
-import cloneDeep from 'lodash/cloneDeep'
 import defaultTheme from './theme/theme'
-import Selector from "./components/selector"
-import { registerDataType } from "../../index"
+
 import { useFalcor } from "@availabs/avl-falcor"
 
-import merge from 'lodash/merge'
+
 import { Link } from 'react-router-dom'
-import {SearchPage} from "./components/search/SearchPage";
+import { SearchPage } from "./components/search/SearchPage";
 import DefaultMenu from './components/menu'
 
 // sideNav = {size: 'miniPad'}
@@ -31,45 +35,56 @@ export const siteConfig = ({
   app = "dms-site",
   type = "docs-page",
   rightMenu = <DefaultMenu />,
-  userFalcor=useFalcor,
-  baseUrl = '',
-  checkAuth = () => {},
-  logo,
+  baseUrl = '/',
+  logo, // deprecated
   authLevel = -1,
-  theme = defaultTheme,
+  themes = { default: {} },
+  pattern,
+  site,
   pgEnv,
   API_HOST
 }) => {
-  theme = merge(defaultTheme, theme)
-  //baseUrl = baseUrl[0] === '/' ? baseUrl.slice(1) : baseUrl
-  const defaultLogo = <Link to={`${baseUrl}`} className='h-12 flex px-4 items-center'><div className='rounded-full h-8 w-8 bg-blue-500 border-2 border-blue-300 hover:bg-blue-600' /></Link>
-  
+  //console.log('hola', pattern?.theme)
+  let theme = merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern?.theme?.settings?.theme?.theme] || themes.default), pattern?.theme || {})
+
+  // console.log('pageConfig', theme, logo)
+  // baseUrl = baseUrl[0] === '/' ? baseUrl.slice(1) : baseUrl
+  baseUrl = baseUrl === '/' ? '' : baseUrl
+  const defaultLogo = (
+    <Link to={`${baseUrl || '/'}`} className='h-12 flex px-4 items-center'>
+      <div className='rounded-full h-8 w-8 bg-blue-500 border-2 border-blue-300 hover:bg-blue-600' />
+    </Link>
+  )
+
   if(!theme.navOptions.logo) {
     theme.navOptions.logo = logo ? logo : defaultLogo
   }
-  //console.log('baseUrl',baseUrl)
+  
 
 
   const format = cloneDeep(cmsFormat)
   format.app = app
   format.type = type
+  updateRegisteredFormats(format.registerFormats, app, type)
+  updateAttributes(format.attributes, app, type)
+  //console.log('foramat after update', app, type, format)
 
 
-  console.log('pgEnv siteConfig', app, type, pgEnv)
-  // for instances without auth turned on can edit
+  // console.log('pgEnv siteConfig', app, type, pgEnv)
+  // for instances without auth turned on, default user can edit
   // should move this to dmsFactory default authWrapper
   const defaultUser = { email: "user", authLevel: 5, authed: true, fake: true}
-  
+
   // const rightMenuWithSearch = rightMenu; // for live site
   return {
     format: format,
     baseUrl,
     API_HOST,
     children: [
-      { 
-        type: ({children, user=defaultUser, pgEnv, ...props}) => {
+      {
+        type: ({children, user={}, ...props}) => {
           const { falcor, falcorCache } = useFalcor();
-          // console.log('hola', theme, props)
+          // console.log('hola', user, defaultUser)
           return (
             <CMSContext.Provider value={{baseUrl, user, theme, falcor, falcorCache, pgEnv, app, type, Menu: () => <>{rightMenu}</> }} >
               {children}
@@ -88,19 +103,19 @@ export const siteConfig = ({
           attributes:['title', 'index', 'url_slug', 'parent','published', 'hide_in_nav']
         },
         children: [
-          { 
+          {
             type: (props) => (
-              <PageEdit 
+              <PageEdit
                 {...props}
               />
             ),
             path: "edit/*",
             action: "edit"
           },
-          { 
+          {
             type: (props) => (
-              <PageView 
-                {...props} 
+              <PageView
+                {...props}
               />
             ),
             filter: {
@@ -114,57 +129,97 @@ export const siteConfig = ({
             path: "search/*",
             action: "list"
           },
-          {
-            type: (props) => (
-              <CmsManager
-                {...props}
-              />
-            ),
-            path: "manager/*",
-            action: "edit"
-          },
-          {
-            type: (props) => (
-              <TemplateList
-                {...props}
-              />
-            ),
-            action: "list",
-            path: "templates/*",
-            lazyLoad: true,
-            filter: {
-              options: JSON.stringify({
-                filter: {
-                  "data->>'template_id'": ['-99'],
-                }
-              }),
-              attributes:['title', 'index', 'url_slug', 'parent', 'hide_in_nav', 'template_id' ]
-            }
-          },
-          {
-            type: (props) => <TemplateEdit
-              {...props}
-            />,
-            action: "edit",
-            path: "templates/edit/:id"
-          },
+          
           // {
           //   type: TemplatePreview,
           //   action: "edit",
           //   path: "/view/:id"
           // },
+          
           {
-              type: (props) => <TemplatePages
-                {...props}
-              />,
-              action: "edit",
-              path: "templates/pages/:id"
+            type: ManageLayout,
+            path: "manage/*",
+            //authLevel: 5,
+            action: "list",
+            filter: {
+              options: JSON.stringify({
+                filter: {
+                  "data->>'hide_in_nav'": ['null']
+                }
+              }),
+              attributes:['title', 'index', 'url_slug', 'parent','published', 'hide_in_nav']
+            },
+            children: [
+              { 
+                type: Dashboard,
+                path: "manage/",
+                action: "edit"
+              },
+              { 
+                type: (props) => <DesignEditor themes={themes} {...props} />,
+                path: "manage/design",
+                action: "edit"
+              },
+              { 
+                type: PageManager,
+                path: "manage/pages",
+                action: "edit"
+              },
+              {
+                type: TemplateList,
+                action: "list",
+                path: "manage/templates/*",
+                lazyLoad: true,
+                filter: {
+                  options: JSON.stringify({
+                    filter: {
+                      "data->>'template_id'": ['-99'],
+                    }
+                  }),
+                  attributes:['title', 'index', 'url_slug', 'parent', 'hide_in_nav', 'template_id' ]
+                }
+              },
+              {
+                type: TemplateEdit,
+                action: "edit",
+                path: "manage/templates/edit/:id"
+              },
+              {
+                  type: TemplatePages,
+                  action: "edit",
+                  path: "manage/templates/pages/:id"
+              },
+            ]
           },
         ]
       },
-      
+
     ]
   }
 }
 
 export default [siteConfig]
+
+export const updateRegisteredFormats = (registerFormats, app, type) => {
+  if(Array.isArray(registerFormats)){
+    registerFormats = registerFormats.map(rFormat => {
+      rFormat.app = app;
+      rFormat.type = `${type}|${rFormat.type}`
+      rFormat.registerFormats = updateRegisteredFormats(rFormat.registerFormats, app, type);
+      rFormat.attributes = updateAttributes(rFormat.attributes, app, type);
+      return rFormat;
+    })
+  }
+  return registerFormats;
+}
+
+export const updateAttributes = (attributes, app, type) => {
+  if(Array.isArray(attributes)){
+    attributes = attributes.map(attr => {
+      attr.format = attr.format ? `${app}+${type}|${attr.format.split('+')[1]}`: undefined;
+      return updateRegisteredFormats(attr, app, type);
+    })
+    //console.log('attr', attributes)
+  }
+  return attributes;
+}

@@ -12,7 +12,7 @@ export default function ViewWrapper({ Component, format, options, params, user, 
 
 	const item = defaultSort(data)
 		.filter(d => filterParams(d,params,format))[0] || data[0]
-
+	console.log('item: view', item)
 	const ViewComponent = React.useMemo(() => Component, [])
 
 	return (

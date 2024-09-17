@@ -184,7 +184,6 @@ const cmsPageFormat = {
       isArray: true,
       format: 'dms-site+page-edit',
     }
-
   ]
 }
 

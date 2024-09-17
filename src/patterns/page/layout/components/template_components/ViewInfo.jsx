@@ -1,6 +1,6 @@
 import React, {useMemo, useState} from "react";
 import {getConfig} from "../../template/pages.jsx";
-import {dmsDataLoader} from "../../../../../index.js";
+import {dmsDataLoader} from "../../../../../api";
 import get from "lodash/get.js";
 //import {falcor} from "~/modules/avl-falcor"
 import { CMSContext } from '../../../siteConfig'
@@ -8,14 +8,14 @@ import Selector from "./Selector.jsx";
 import {updatePages} from "./updatePages.js";
 import {generatePages} from "./generatePages.js";
 //import {pgEnv} from "../utils/constants.js";
-
 export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatus=() => {}}) => {
 
     // console.log('ViewInfo', id_column, active_id)
-    const { falcor, falcorCache, pgEnv } = React.useContext(CMSContext)
+    const { falcor, falcorCache, pgEnv } = React.useContext(CMSContext);
     const [generatedPages, setGeneratedPages] = useState([]);
     const [showAdditionalOptions, setShowAdditionalOptions] = useState(false);
     const [urlSuffixCol, setUrlSuffixCol] = useState('geoid');
+    const [customGenerationOptions, setCustomGenerationOptions] = useState({}); // from, to
     const {
         url, 
         destination = item.type,
@@ -25,16 +25,14 @@ export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatu
         id_column,
         active_row
     } = item?.data_controls
-
+    if (!view?.view_id) return null;
     const locationNameMap = [destination]
-    
+
 
 
 
     React.useEffect(() => {
-        if(view.view_id){
-            falcor.get(["dama", pgEnv, "viewsbyId", view.view_id, "data", "length"])
-        }
+        falcor.get(["dama", pgEnv, "viewsbyId", view.view_id, "data", "length"])
     }, [pgEnv,  view.view_id]);
 
     const dataLength = React.useMemo(() => {
@@ -236,6 +234,60 @@ export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatu
                                 >
                                     {loadingStatus || `Update errored pages (${errorPagesDataRows?.length})`}
                                 </button>
+
+                                {/*free range*/}
+                                <div className={`inline-flex flex-col w-36 justify-center rounded-lg text-sm font-semibold 
+                                            py-2 px-2 shadow-lg border active:border-b-2 active:mb-[2px] active:shadow-none' 
+                                            bg-blue-100 border-b-4 border-blue-500`}
+                                >
+                                    <div className={'w-full flex py-1'}>
+                                        <select
+                                            className={'p-1 border hover:cursor-pointer rounded-md'}
+                                            value={customGenerationOptions.from}
+                                            onChange={e => setCustomGenerationOptions({
+                                                ...customGenerationOptions,
+                                                from: e.target.value
+                                            })}
+                                        >
+                                            <option>from</option>
+                                            {
+                                                Array.from({length: dataRows.length}, (_, index) => index)
+                                                    .map(i => <option key={i} value={i}>{i + 1}</option>)
+                                            }
+                                        </select>
+
+                                        <select
+                                            className={'p-1 border hover:cursor-pointer rounded-md'}
+                                            value={customGenerationOptions.to}
+                                            onChange={e => setCustomGenerationOptions({
+                                                ...customGenerationOptions,
+                                                to: e.target.value
+                                            })}
+                                        >
+                                            <option>to</option>
+                                            {
+                                                Array.from({length: dataRows.length}, (_, index) => index)
+                                                    .map(i => <option key={i} value={i}>{i + 1}</option>)
+                                            }
+                                        </select>
+                                    </div>
+                                    {loadingStatus || (
+                                        <button
+                                            className={'w-full text-white bg-blue-500 hover:bg-blue-400 border-b-4 border-blue-800 hover:border-blue-700 cursor-pointer rounded-md'}
+                                            onClick={e => {
+                                                setShowAdditionalOptions(false);
+                                                return generatePages({
+                                                    item, url, destination, id_column,
+                                                    dataRows, falcor, setLoadingStatus,
+                                                    locationNameMap, setGeneratedPages, ...customGenerationOptions,
+                                                    urlSuffixCol
+                                                })
+                                            }}
+                                        >
+                                            Generate
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                             {/*additional options end*/}
                         </div> :

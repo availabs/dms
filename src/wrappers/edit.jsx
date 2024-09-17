@@ -20,17 +20,17 @@ export default function EditWrapper({ Component, format, options, params, user, 
 	const { falcor } = useFalcor()
 	const attributes = getAttributes(format, options, 'edit')
 	const submit = useSubmit();
-	const { pathname } = useLocation()
+	const { pathname, search } = useLocation()
 	const { data=[] } = useLoaderData() || []
 	let status = useActionData()
 	const {defaultSort = (d) => d } = format
 
 
 	const [item, setItem] = React.useState(
-		defaultSort(data).filter(d => filterParams(d,params,format))[0] 
+		defaultSort(data).filter(d => filterParams(d,params,format))[0]
 		|| {}
 	)
-	
+	// console.log('item: edit', item)
 	useEffect(() => {
 		let filteredItem = data.filter(d => filterParams(d,params,format))[0]
 		// update item on data update
@@ -43,8 +43,9 @@ export default function EditWrapper({ Component, format, options, params, user, 
 
 	const apiUpdate = async ({data, config={format}, requestType=''}) => {  
 			// update the data
+		console.log('apiUpdate', data, config)
 			await dmsDataEditor(falcor, config, data, requestType)
-			submit(null, {action: pathname})
+			submit(null, {action: `${pathname}${search}`})
 	}
 
 	const updateAttribute = (attr, value, multi) => {
@@ -59,9 +60,9 @@ export default function EditWrapper({ Component, format, options, params, user, 
 		submit(json2DmsForm(item), { method: "post", action: pathname })
 	}
 
-	const apiLoad = async (config) => {
-		console.log('<apiLoad> edit', config)
-		return await dmsDataLoader(falcor, config)
+	const apiLoad = async (config, path) => {
+		//console.log('<apiLoad> edit', config)
+		return await dmsDataLoader(falcor, config, path || '/')
 	}
 
 	const EditComponent = React.useMemo(() => Component, [])

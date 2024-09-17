@@ -24,8 +24,8 @@ function PageEdit ({
   const { pathname = '/edit' } = useLocation()
   const { baseUrl, user, theme } = React.useContext(CMSContext)
 
-  console.log('item', item, dataItems)
-  
+  //console.log('item', item)
+
   const menuItems = React.useMemo(() => {
     let items = dataItemsNav(dataItems,baseUrl,true)
     return items
@@ -35,13 +35,13 @@ function PageEdit ({
   const level = item?.index == '999' ? 1 : detectNavLevel(dataItems, baseUrl);
   const inPageNav = getInPageNav(item);
 
-  
+
   // console.log('page edit', item.index, level)
   //console.log('page edit', open, setOpen)
   //if(!dataItems[0]) return <div/>
 
   React.useEffect(() => {
-    if(!item?.url_slug ) { 
+    if(!item?.url_slug ) {
       let defaultUrl = dataItems
         .sort((a,b) => a.index-b.index)
         .filter(d=> !d.parent && d.url_slug)[0]
@@ -69,25 +69,25 @@ function PageEdit ({
   const draftSections = item['draft_sections']?.filter(d => !d.is_header && !d.is_footer)
 
   const saveHeader = (v) => {
-    
+
     let history = item.history ? cloneDeep(item.history) : []
-  
+
     history.push({
       type: 'Header updated.',
-      user: user?.email || 'user', 
+      user: user?.email || 'user',
       time: new Date().toString()
     })
-    
+
     updateAttribute('','',{
       'has_changes': true,
       'history': history,
       'draft_sections': [...v, ...draftSections].filter(d => d)
     })
     const newItem = {
-      id: item.id, 
+      id: item.id,
       draft_sections: [...v, ...draftSections].filter(d => d),
       has_changes: true,
-      history, 
+      history,
     }
     console.log('save header', newItem)
     submit(json2DmsForm(newItem), { method: "post", action: `${baseUrl}/edit/${item.url_slug}` })
@@ -97,7 +97,7 @@ function PageEdit ({
     //console.log('save section', v,action)
     let edit = {
       type: action,
-      user: user?.email || 'user', 
+      user: user?.email || 'user',
       time: new Date().toString()
     }
 
@@ -112,14 +112,14 @@ function PageEdit ({
     })
 
     // ----------------
-    // only need to send id, and data to update, not whole 
+    // only need to send id, and data to update, not whole
     // --------------------
 
     const newItem = {
-      id: item?.id, 
+      id: item?.id,
       draft_sections: [headerSection, ...v].filter(d => d),
       has_changes: true,
-      history, 
+      history,
     }
     submit(json2DmsForm(newItem), { method: "post", action: `${baseUrl}/edit/${item.url_slug}` })
     //.then(d => console.log('on submit',d))
@@ -129,54 +129,66 @@ function PageEdit ({
     return attributes['sections'].EditComp
   }, [])
 
+  const { key, ...rest } = React.useMemo(() => {
+    return attributes['draft_sections'];
+  }, [attributes['draft_sections']]);
+
   //console.log('headerSection', headerElement.position)
-  
+
   // /img/landing_header2.png
   return (
     <div>
-       {item?.header === 'above' && <div className='w-full'> 
-         <ContentEdit
+       {item?.header === 'above' && <div className='w-full'>
+         <ContentEdit key={ key }
             item={item}
-            value={[headerSection]} 
-            onChange={saveHeader}         
-            {...attributes['draft_sections']}
+            value={[headerSection]}
+            onChange={saveHeader}
+            {...rest}
           />
         </div>
-      } 
-      <Layout 
-        topNav={{menuItems, position: 'fixed', logo, rightMenu }} 
+      }
+      <Layout
+        topNav={{menuItems, position: 'fixed', logo, rightMenu }}
         sideNav={inPageNav}
       >
         <div className={`${theme.page.wrapper1} ${theme.navPadding[level]}`}>
           {item?.header === 'below' && (
-            <div className='w-full'> 
-              <ContentEdit item={item} value={[headerSection]} onChange={saveHeader} {...attributes['draft_sections']} />
+            <div className='w-full'>
+              <ContentEdit key={ key }
+                item={item}
+                value={[headerSection]}
+                onChange={saveHeader}
+                {...rest} />
             </div>
           )}
           {/* PAGE EDIT */}
 
           <div className={`${theme.page.wrapper2}`}>
-            {item?.sidebar === 'show' && <RenderSideNav inPageNav={inPageNav} />}  
+            {item?.sidebar === 'show' && <RenderSideNav inPageNav={inPageNav} />}
             <div className={theme.page.wrapper3 + ' border-r'}>
               {item?.header === 'inpage' && (
-                <div className='w-full'> 
-                 <ContentEdit item={item} value={[headerSection]} onChange={saveHeader} {...attributes['draft_sections']}/>
+                <div className='w-full'>
+                 <ContentEdit  key={ key }
+                    item={item}
+                    value={[headerSection]}
+                    onChange={saveHeader}
+                    {...rest}/>
                 </div>
-              )} 
-              
+              )}
+
               {user?.authLevel >= 5 && <ToggleView item={item} baseUrl={baseUrl} />}
-                
-              <ContentEdit
+
+              <ContentEdit key={ key }
                 full_width={item.full_width}
-                value={draftSections} 
-                onChange={saveSection}         
-                {...attributes['draft_sections']}
+                value={draftSections}
+                onChange={saveSection}
+                {...rest}
               />
             </div>
             <div className='w-52 hidden xl:block'>
-              <div className='w-52 sticky top-24 hidden xl:block'> 
-                <EditControls 
-                  item={item} 
+              <div className='w-52 sticky top-24 hidden xl:block'>
+                <EditControls
+                  item={item}
                   dataItems={dataItems}
                   setItem={setItem}
                   edit={true}
@@ -187,31 +199,31 @@ function PageEdit ({
                 />
               </div>
             </div>
-          </div>  
+          </div>
           {/* PAGE EDIT END */}
         </div>
       </Layout>
-      {item?.footer && <div className='h-[300px] bg-slate-100' />} 
+      {item?.footer && <div className='h-[300px] bg-slate-100' />}
     </div>
-  ) 
+  )
 }
 
 export default PageEdit
 
 function ToggleView({baseUrl, item}) {
   return (
-    <Link className='z-30 absolute right-[10px] top-[5px]' to={`${baseUrl}/${item.url_slug}`}>
+    <Link className='z-5 absolute right-[10px] top-[5px]' to={`${baseUrl}/${item.url_slug}`}>
       <i className={`fad fa-eye fa-fw flex-shrink-0 text-lg text-slate-400 hover:text-blue-500`}/>
-    </Link> 
+    </Link>
   )
 }
- 
+
 function RenderSideNav({inPageNav}) {
   return (
     <div className='w-64 hidden xl:block'>
-      <div className='w-64 sticky top-20 hidden xl:block h-screen'> 
+      <div className='w-64 sticky top-20 hidden xl:block h-screen'>
         <div className='h-[calc(100%_-_5rem)] overflow-y-auto overflow-x-hidden font-display'>
-          <SideNav {...inPageNav} /> 
+          <SideNav {...inPageNav} />
         </div>
       </div>
     </div>

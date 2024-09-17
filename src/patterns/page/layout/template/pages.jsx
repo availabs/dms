@@ -3,7 +3,7 @@ import {Link, useNavigate, useParams} from "react-router-dom";
 import {dmsDataLoader} from "../../../../api";
 import {DeleteModal} from "./list.jsx";
 import Layout from '../components/avail-layout'
-// import {Table} from "~/modules/avl-components/src";
+import Table from "../../../forms/components/Table"
 import {getNestedValue} from "../../../forms/utils/getNestedValue";
 import { CMSContext } from "../../siteConfig";
 import get from "lodash/get";
@@ -25,7 +25,7 @@ export const locationUrlMap = {
 
 const NoPages = ({}) => (<div className={'p-4'}>No Pages have been generated for this template.</div>)
 
-function TemplateRow ({ id, app, type, data={} }) {
+function TemplateRow ({ id, app, type, data={}, updated_at }) {
     const navigate = useNavigate();
     const [showDelete, setShowDelete] = useState(false)
     return (
@@ -39,7 +39,8 @@ function TemplateRow ({ id, app, type, data={} }) {
                 </Link>
             </div>
             <div className={'text-right px-2'}>
-                {locationNameMap[type]}
+                {/*{locationNameMap[type]}*/}
+                <span className={'px-4'}>{getNestedValue(updated_at)}</span>
             </div>
             <div className={'text-right px-2'}>
                 <Link to={`${locationUrlMap[type]}/${data?.value?.url_slug}`}
@@ -56,18 +57,18 @@ function TemplateRow ({ id, app, type, data={} }) {
 }
 
 export const getConfig = ({
-      app,
-      type,
-      filter,
-      action = 'load',
-      tags,
-      attributes = [
-          {key: 'id', label: 'id'},
-          {key: 'app', label: 'app'},
-          {key: 'type', label: 'type'},
-          {key: 'data', label: 'data'},
-          {key: 'updated_at', label: 'updated_at'},
-      ]}) => ({
+                              app,
+                              type,
+                              filter,
+                              action = 'load',
+                              tags,
+                              attributes = [
+                                  {key: 'id', label: 'id'},
+                                  {key: 'app', label: 'app'},
+                                  {key: 'type', label: 'type'},
+                                  {key: 'data', label: 'data'},
+                                  {key: 'updated_at', label: 'updated_at'},
+                              ]}) => ({
     format: {
         app: app,
         type: type,
@@ -113,7 +114,7 @@ const getMetaName = (id_column, id, data) => id_column === 'geoid' ?
     data?.[findNameCol(data)] || id
 const TemplatePages = ({item, params, logo, rightMenu, baseUrl=''}) => {
     const [pageSize, setPageSize] = useState(10);
-    const { falcor, falcorCache, pgEnv } = React.useContext(CMSContext)
+    const { falcor, falcorCache, pgEnv, theme } = React.useContext(CMSContext)
     const {id} = params;
     const view_id = item.data_controls?.view?.view_id;
     const id_column = item.data_controls?.id_column?.name;
@@ -239,11 +240,8 @@ const TemplatePages = ({item, params, logo, rightMenu, baseUrl=''}) => {
     })
 
     return (
-        <Layout
-            topNav={{menuItems, position: 'fixed', logo, rightMenu }}
-            sideNav={[]}
-        >
-            <div className='h-full flex-1 flex flex-col text-gray-900 bg-slate-100'>
+        <div className={theme?.page?.wrapper2}>
+            <div className={theme?.page?.wrapper3}>
                 <div className='py-6 h-full'>
                     <div className='bg-white h-full shadow border max-w-6xl mx-auto px-6'>
                         <div className={'flex flex-col sm:flex-row justify-between'}>
@@ -269,23 +267,25 @@ const TemplatePages = ({item, params, logo, rightMenu, baseUrl=''}) => {
                         </div>
                         <div className='px-6 pt-8'>
                             <div className='shadow rounded border'>
-                                {/*<Table
+                                <Table
                                     data={data}
                                     columns={columns}
                                     pageSize={pageSize}
-                                />*/}
-                                {/*{*/}
-                                {/*    value?.length ?*/}
-                                {/*        value.map(item => (*/}
-                                {/*            <TemplateRow key={item.id} {...item} />*/}
-                                {/*        )) : <NoPages />*/}
-                                {/*}*/}
+                                    sortBy={'updated'}
+                                    sortOrder={'desc'}
+                                />
+                                {/*{
+                                    value?.length ?
+                                        value.map(item => (
+                                            <TemplateRow key={item.id} {...item} />
+                                        )) : <NoPages />
+                                }*/}
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </Layout>
+        </div>
     )
 }
 

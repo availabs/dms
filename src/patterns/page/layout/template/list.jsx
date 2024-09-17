@@ -13,7 +13,7 @@ function TemplateRow ({ item={} }) {
   return (
     <div className='grid grid-cols-4 px-2 py-3 border-b hover:bg-blue-50'>
       <div>
-        <Link to={`${baseUrl}/templates/edit/${item.id}`} > 
+        <Link to={`${baseUrl}/manage/templates/edit/${item.id}`} > 
           <div className='px-2 font-medium text-lg text-slate-700'>
             {item.title}
           </div>
@@ -23,7 +23,7 @@ function TemplateRow ({ item={} }) {
       <div></div>
       <div></div>
       <div className='text-right flex items-center flex-row justify-end px-2 '>
-          <Link to={`${baseUrl}/templates/pages/${item.id}`}
+          <Link to={`${baseUrl}/manage/templates/pages/${item.id}`}
                 className={'fa-thin fa-memo px-2 py-1 mx-2 text-bold cursor-pointer'}
                 title={'pages'}
           />
@@ -42,9 +42,10 @@ function TemplateRow ({ item={} }) {
 }
 
 
-export default function TemplateList ({children, dataItems, edit, baseUrl='', logo, rightMenu, sideNav=[], ...props}) {
+export default function TemplateList ({children, dataItems, edit, ...props}) {
   const {path} = useLocation()
   const [showNew, setShowNew] = useState(false)
+  const { baseUrl, theme} = React.useContext(CMSContext)
 
   //console.log('template list', dataItems.filter(item => item ))
   const menuItems=[
@@ -52,36 +53,31 @@ export default function TemplateList ({children, dataItems, edit, baseUrl='', lo
   ]
   
   return (
-   <Layout 
-        topNav={{menuItems, position: 'fixed', logo, rightMenu }} 
-        sideNav={sideNav}
-   >
-     <div className='py-6 h-full'>
-       <div className='bg-white h-full shadow border max-w-6xl mx-auto px-6'>
-            <div className='flex items-center'>
-                <div className='text-2xl p-3 font-thin flex-1'>Templates</div>
-                {
-                  path === `${baseUrl}/templates` ? 
-                     <div className='px-1'><Link to={`${baseUrl}`} className='inline-flex w-36 justify-center rounded-lg cursor-pointer text-sm font-semibold py-1 px-4 bg-blue-600 text-white hover:bg-blue-500 shadow-lg border border-b-4 border-blue-800 hover:border-blue-700 active:border-b-2 active:mb-[2px] active:shadow-none'> Templates </Link></div>
-                  :  <div className='px-1' ><div onClick={()=> setShowNew(!showNew)} className='inline-flex w-36 justify-center rounded-lg cursor-pointer text-sm font-semibold py-1 px-4 bg-blue-600 text-white hover:bg-blue-500 shadow-lg border border-b-4 border-blue-800 hover:border-blue-700 active:border-b-2 active:mb-[2px] active:shadow-none'> New Template</div></div>
-                }
-            </div>
-            <div className='px-6 pt-8'>
-              <div className='shadow rounded border'>
-                {dataItems
-                  .filter(item => item.template_id == '-99')
-                  .map(item => (
-                  <TemplateRow key={item.id} item={item} />
-                ))}
-              </div>
-            </div>
-            <NewTemplateModal
-              open={showNew}
-              setOpen={setShowNew}
-            />
+   <div className={theme?.page?.wrapper2}>
+      <div className={theme?.page?.wrapper3}>
+        <div className='flex items-center'>
+            <div className='text-2xl p-3 font-thin flex-1'>Templates</div>
+            {
+              path === `${baseUrl}/manage/templates` ? 
+                 <div className='px-1'><Link to={`${baseUrl}`} className='inline-flex w-36 justify-center rounded-lg cursor-pointer text-sm font-semibold py-1 px-4 bg-blue-600 text-white hover:bg-blue-500 shadow-lg border border-b-4 border-blue-800 hover:border-blue-700 active:border-b-2 active:mb-[2px] active:shadow-none'> Templates </Link></div>
+              :  <div className='px-1' ><div onClick={()=> setShowNew(!showNew)} className='inline-flex w-36 justify-center rounded-lg cursor-pointer text-sm font-semibold py-1 px-4 bg-blue-600 text-white hover:bg-blue-500 shadow-lg border border-b-4 border-blue-800 hover:border-blue-700 active:border-b-2 active:mb-[2px] active:shadow-none'> New Template</div></div>
+            }
         </div>
+        <div className='px-6 pt-8 w-full mx-auto max-w-10xl'>
+          <div >
+            {dataItems
+              .filter(item => item.template_id == '-99')
+              .map(item => (
+              <TemplateRow key={item.id} item={item} />
+            ))}
+          </div>
+        </div>
+        <NewTemplateModal
+          open={showNew}
+          setOpen={setShowNew}
+        />
       </div>
-    </Layout>
+    </div>
   )
 }
 

@@ -1,10 +1,12 @@
-import React, {useState} from "react"
+import React, {useEffect, useState} from "react"
 import { useTheme } from '../theme'
 
 
 const Edit = ({value = '', onChange, className, placeholder, ...rest}) => {
     const [tmpValue, setTmpValue] = useState(value)
     const theme = useTheme()
+
+    useEffect(() => setTmpValue(value), [value]);
     return (
         <input
             {...rest}
@@ -19,14 +21,14 @@ const Edit = ({value = '', onChange, className, placeholder, ...rest}) => {
     )
 }
 
-const View = ({value, className}) => {
+const View = ({value, className, ...rest}) => {
     if (!value) return false
     const theme = useTheme()
     return (
         <div
             className={ className || (theme?.text?.view)}
         >
-            {value}
+            {typeof value === "object" ? JSON.stringify(value) : value}
         </div>
     )
 }

@@ -1,12 +1,21 @@
 import React, {useEffect} from "react";
 import { useMatch, useNavigate, Link } from "react-router-dom";
+import Icons from '../icons'
 
 import { CMSContext } from '../../siteConfig'
 
 function Icon ({ icon, className }) {
+	let Icon = ''
+	if(!icon || icon?.includes('fa')) {
+		Icon = <span className={icon} /> 
+	} else {
+		let Comp = Icons[icon]
+		Icon = <Comp />
+	}
+
 	return (
   	<div className={`${className} flex justify-center items-center`}>
-   		<span className={icon} />
+   		{Icon}
   	</div>
 	)
 };
@@ -28,7 +37,7 @@ const NavItem = ({
 }) => {
 	// console.log('renderMenu')
 	const { theme: fullTheme  } = React.useContext(CMSContext) || {}
-	const theme = (fullTheme?.[type === 'side' ? 'sidenav' : 'topnav'] || NOOP)(themeOptions);
+	const theme = (fullTheme?.[type === 'side' ? 'sidenav' : 'topnav'] || {}) //(themeOptions);
 
 	const navigate = useNavigate();
 	const To = React.useMemo(() => {
@@ -51,9 +60,9 @@ const NavItem = ({
 
 	const routeMatch = Boolean(useMatch({ path: `${subTos[0]}/*` || '', end: true }));
 
-	const linkClasses = type === "side" ? theme.navitemSide : theme.navitemTop;
+	const linkClasses = type === "side" ? theme?.navitemSide : theme?.navitemTop;
 	const activeClasses =
-		type === "side" ? theme.navitemSideActive : theme.navitemTopActive;
+		type === "side" ? theme?.navitemSideActive : theme?.navitemTopActive;
 
 	const isActive = routeMatch || active
 	const navClass = isActive ? activeClasses : linkClasses;
@@ -68,7 +77,7 @@ const NavItem = ({
 	}, [routeMatch,showSubMenu,to]);
 
 	return (
-			<div className={type === "side" ? theme.subMenuParentWrapper : null}
+			<div className={type === "side" ? theme?.subMenuParentWrapper : null}
 				 onMouseOutCapture={() =>
 					 (subMenuActivate === 'onHover' && setShowSubMenu(false)) ||
 					 (subMenuActivate !== 'onHover' && setHovering(false) && setShowSubMenu(false))
@@ -95,13 +104,13 @@ const NavItem = ({
 									icon={icon}
 									className={
 										type === "side" ? 
-											(isActive ? theme.menuIconSideActive : theme.menuIconSide)
-											: (isActive ? theme.menuIconTopActive : theme.menuIconTop)
+											(isActive ? theme?.menuIconSideActive : theme?.menuIconSide)
+											: (isActive ? theme?.menuIconTopActive : theme?.menuIconTop)
 
 									}
 								/>
 							)}
-							<div className={theme.navItemContent}>
+							<div className={theme?.navItemContent}>
 								{children}
 							</div>
 						</div>
@@ -117,7 +126,7 @@ const NavItem = ({
 								subMenus.length ?
 									<Icon
 
-										icon={showSubMenu ? theme.indicatorIconOpen : theme.indicatorIcon}/>
+										icon={showSubMenu ? theme?.indicatorIconOpen : theme?.indicatorIcon}/>
 									: null
 							}
 							
@@ -144,7 +153,8 @@ export default NavItem;
 
 const SubMenu = ({ i, showSubMenu, subMenus, type, hovering, subMenuActivate, active, themeOptions }) => {
 	const { theme: fullTheme  } = React.useContext(CMSContext)
-	const theme = fullTheme[type === 'side' ? 'sidenav' : 'topnav'](themeOptions);
+	const theme = (fullTheme?.[type === 'side' ? 'sidenav' : 'topnav'] || {}) //(themeOptions);
+
 
 	const inactiveHoveing = !active && subMenuActivate !== 'onHover' && hovering;
 	if ((!showSubMenu || !subMenus.length) && !(inactiveHoveing)) {
@@ -154,17 +164,17 @@ const SubMenu = ({ i, showSubMenu, subMenus, type, hovering, subMenuActivate, ac
 	return (
 		<div
 			className={ type === "side" ?
-				theme.subMenuWrapper :
-				inactiveHoveing && i === 0 ? theme.subMenuWrapperInactiveFlyout :
-					inactiveHoveing && i > 0 ? theme.subMenuWrapperInactiveFlyoutBelow :
-					theme.subMenuWrapperTop
+				theme?.subMenuWrapper :
+				inactiveHoveing && i === 0 ? theme?.subMenuWrapperInactiveFlyout :
+					inactiveHoveing && i > 0 ? theme?.subMenuWrapperInactiveFlyoutBelow :
+					theme?.subMenuWrapperTop
 		}
 		>
 			
 			<div
 				className={`
-							${inactiveHoveing && theme.subMenuWrapperInactiveFlyoutDirection}
-							${!inactiveHoveing && theme.subMenuWrapperChild}
+							${inactiveHoveing && theme?.subMenuWrapperInactiveFlyoutDirection}
+							${!inactiveHoveing && theme?.subMenuWrapperChild}
 					flex ${(type === "side" || inactiveHoveing ? "flex-col" : "flex-row")}
 				`}
 			>

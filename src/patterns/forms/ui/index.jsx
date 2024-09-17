@@ -48,7 +48,7 @@ export function Dropdown ({ control, children,className, width='w-full max-w-[20
         >
             {control}
             {open ?
-                <div className={ `shadow fixed ${width} rounded-b-lg ${open ? `block` : `hidden`} z-10` }>
+                <div className={ `shadow fixed ${width} rounded-b-lg ${open ? `block` : `hidden`} z-20` }>
                     { children }
                 </div> : ''
                 

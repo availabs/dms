@@ -9,7 +9,7 @@ const sidenav = (opts={}) =>  {
 
   let colors = {
     white: {
-      contentBg: `bg-slate-100 border-r`,
+      contentBg: `bg-white border-r`,
       sideItemActive:``,
       contentBgAccent: `bg-neutral-100`,
       accentColor: `blue-600`,
@@ -20,8 +20,8 @@ const sidenav = (opts={}) =>  {
       highlightColor: `text-blue-800`,
     },
     transparent: {
-      contentBg: ``,
-      contentBgAccent: `bg-neutral-100`,
+      contentBg: `border-r`,
+      contentBgAccent: `bg-slate-100`,
       accentColor: `blue-600`,
       accentBg: `hover:bg-blue-400`,
       borderColor: `border-slate-100`,
@@ -65,9 +65,9 @@ const sidenav = (opts={}) =>  {
       sideItem: "group flex px-3 py-1.5 text-[14px] font-light hover:bg-blue-50 text-slate-700 mx-2 ",
       sideItemActive: "group flex px-3 py-1.5 text-[14px] font-light hover:bg-blue-50 text-slate-700  mx-2 ", //"border-r-4 border-blue-500 ",
       topItem: "flex items-center text-sm px-4 border-r h-12",
-      icon: "group w-6 mr-2 text-blue-500 ",
+      icon: "group w-6 mr-2 text-[#5d87a1] ",
       iconActive: "group w-6 mr-2 text-blue-500 ",
-      sideItemContent: 'group-hover:translate-x-1.5 transition-transform duration-300 ease-in-out',
+      sideItemContent: 'transition-transform duration-300 ease-in-out',
     },
     full: {
       fixed: '',
@@ -75,7 +75,7 @@ const sidenav = (opts={}) =>  {
       sideItem: "group flex px-3 py-2 text-[14px] font-light hover:bg-blue-50 text-slate-700 mx-2 border-r-4 border-white",
       sideItemActive: "group flex px-3 py-2 text-[14px] font-light hover:bg-blue-50 text-slate-700 mx-2 border-r-4  border-white",
       topItem: "flex pr-4 py-2  font-",
-      icon: "group w-6 mr-2 text-blue-500  ",
+      icon: "group w-6 mr-2 text-[#5d87a1]  ",
       iconActive: "group w-6 mr-2 text-blue-500",
       sideItemContent: 'group-hover:translate-x-1.5 transition-transform duration-300 ease-in-out',
     },

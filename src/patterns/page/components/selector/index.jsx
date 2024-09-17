@@ -1,4 +1,4 @@
-import {useEffect} from "react";
+import {useEffect, useState} from "react";
 import get from "lodash/get"
 import isEqual from "lodash/isEqual"
 
@@ -30,7 +30,8 @@ const icons = {
 }
 
 function EditComp(props) {
-    const {value, onChange, size, ...rest} = props
+    const {value, onChange, size, ...rest} = props;
+    const [key, setKey] = useState();
     // console.log("selector props", props, value)
     // console.log('selector edit', rest)
     const updateAttribute = (k, v) => {
@@ -50,11 +51,26 @@ function EditComp(props) {
 
     let DataComp = (RegisteredComponents[get(value, "element-type", "lexical")] || RegisteredComponents['lexical']).EditComp
 
+    const handlePaste = async (e) => {
+        e.preventDefault();
+        try{
+            const text = await navigator.clipboard.readText();
+            const copiedValue = isJson(text) && JSON.parse(text || '{}');
+            if(!copiedValue || !copiedValue['element-type']) return;
+            setKey(copiedValue['element-type'])
+            updateAttribute('element-type', copiedValue['element-type']);
+            updateAttribute('element-data', copiedValue['element-data']);
+            onChange({...value, ...copiedValue});
+        }catch (e) {
+            console.error('<paste>', e)
+        }
+    }
     return (
         <div className="w-full">
             <div className="relative my-1">
                 {/*Selector Edit*/}
                 <FilterableSearch
+                    contentEditable={true}
                     className={'flex-row-reverse'}
                     placeholder={'Search for a Component...'}
                     options={
@@ -69,11 +85,7 @@ function EditComp(props) {
                     value={value?.['element-type']}
                     onChange={async e => {
                         if (e === 'paste') {
-                            return navigator.clipboard.readText()
-                                .then(text => {
-                                    const copiedValue = isJson(text) && JSON.parse(text || '{}')
-                                    return copiedValue?.['element-type'] && onChange({...value, ...copiedValue})
-                                })
+
                         } else {
                             updateAttribute('element-type', e)
                         }
@@ -82,7 +94,8 @@ function EditComp(props) {
                         {
                             icon: 'fa-thin fa-paste',
                             label: 'Paste',
-                            value: 'paste'
+                            value: 'paste',
+                            onClick: handlePaste
                         },
                         ...[...new Set(
                             Object.keys(RegisteredComponents)
@@ -100,6 +113,7 @@ function EditComp(props) {
             </div>
             <div>
                 <DataComp
+                    key={key || ''}
                     value={value?.['element-data'] || ''}
                     onChange={v => updateAttribute('element-data', v)}
                     size={size}

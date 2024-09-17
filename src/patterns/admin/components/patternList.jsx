@@ -1,5 +1,6 @@
 import React, {useState} from 'react'
 import {Link, useNavigate} from 'react-router-dom'
+import {VerticalDots} from "../ui/icons";
 
 function PatternList (props) {
 
@@ -32,7 +33,7 @@ function PatternList (props) {
 							<div>{pattern.pattern_type}</div>
 							<div>{pattern.doc_type}</div>
 							<div>{pattern.authLevel}</div>
-							<Link to={pattern.base_url}>{pattern.base_url}</Link>
+							<Link to={pattern.base_url}>{pattern.base_url} ok?</Link>
 							<Link to={`/manage_pattern/${pattern.id}`}>Manage</Link>
 						</div>
 					))
@@ -48,23 +49,25 @@ function PatternEdit({
 	 attributes={},
 	 updateAttribute,
 	 status,
-	 submit,
+	 onSubmit,
 	 onChange,
 	 value = [],
 	 format,
 	 ...rest
 }) {
-	const [newItem, setNewItem] = useState({});
+	const [newItem, setNewItem] = useState({app: format?.app});
 	const [editingIndex, setEditingIndex] = useState(undefined);
 	const [editingItem, setEditingItem] = useState(undefined);
-	const attrToShow = Object.keys(attributes).filter(attrKey => ['pattern_type', 'doc_type', 'base_url', 'authLevel'].includes(attrKey));
+	const [showActionsIndex, setShowActionsIndex] = useState();
+	const attrToShow = Object.keys(attributes).filter(attrKey => ['pattern_type', 'doc_type', 'subdomain', 'base_url', 'authLevel'].includes(attrKey));
 	const numAttributes = attrToShow.length
-
-	const addNewValue = () => {
-		const newData = [...value, newItem];
+	//console.log('??????????/', format)
+	//console.log('??????????/', format)
+	const addNewValue = (item) => {
+		const newData = [...value, item || newItem];
 		onChange(newData)
-		submit(newData)
-		setNewItem({})
+		onSubmit(newData)
+		setNewItem({app: format?.app})
 	}
 	const c = {
 		1: 'grid grid-cols-1',
@@ -88,13 +91,13 @@ function PatternEdit({
 
 			<div className={`font-semibold ${c[numAttributes+1]}`}>
 				{
-					attrToShow.map(attr => <div>{attr}</div>)
+					attrToShow.map(attr => <div key={attr}>{attr}</div>)
 				}
 				<div>Actions</div>
 			</div>
 			{
 				value.map((pattern, index) => (
-					<div key={pattern.id} className={c[numAttributes+1]}>
+					<div key={pattern.id} className={`${c[numAttributes+1]} ${showActionsIndex === index ? `bg-gray-100` : ``} items-center px-2`}>
 						{
 							attrToShow
 								.filter(attrKey => attrKey !== 'config')
@@ -106,20 +109,21 @@ function PatternEdit({
 									<EditComp
 										key={`${attr}-${index}`}
 										value={editingItem?.[attr]}
-										onChange={(v) => setEditingItem({...editingItem, [attr]: v})}
+										onChange={(v) => setEditingItem({...editingItem, app: format.app, [attr]: v})}
 										{...attributes[attr]}
 									/>
-										: <div>{pattern[attr]}</div>
-								}
-							)
+										: attr === 'base_url' ? <Link to={`${pattern[attr]}`}>{pattern[attr]}</Link> : <div>{pattern[attr]}</div>
+									}
+								)
 						}
-						<div className={'w-full flex items-center justify-center'}>
+						{/* actions */}
+						<div className={'w-full flex items-center justify-start'}>
 							<Link
-								className={'bg-blue-100 hover:bg-blue-300 text-blue-800 px-2 py-0.5 m-1 rounded-lg w-fit h-fit'}
-								to={`/manage_pattern/${pattern.id}`}>Manage</Link>
+								className={'bg-blue-100 hover:bg-blue-300 text-sm text-blue-800 px-2 py-0.5 m-1 rounded-lg w-fit h-fit'}
+								to={`${pattern.base_url === '/' ? '' : pattern.base_url}/manage/metadata`}>manage</Link>
 
 							<button
-								className={'bg-blue-100 hover:bg-blue-300 text-blue-800 px-2 py-0.5 m-1 rounded-lg w-fit h-fit'}
+								className={'bg-blue-100 hover:bg-blue-300 text-sm text-blue-800 px-2 py-0.5 m-1 rounded-lg w-fit h-fit'}
 								title={'edit item'}
 								onClick={() => {
 									setEditingIndex(editingIndex === index ? undefined : index);
@@ -130,54 +134,82 @@ function PatternEdit({
 							{
 								editingIndex === index &&
 								<button
-									className={'bg-blue-100 hover:bg-blue-300 text-blue-800 px-2 py-0.5 m-1 rounded-lg w-fit h-fit'}
+									className={'bg-blue-100 hover:bg-blue-300 text-sm text-blue-800 px-2 py-0.5 m-1 rounded-lg w-fit h-fit'}
 									title={'done editing'}
 									onClick={() => {
 										value.splice(index, 1, editingItem);
 										onChange(value)
 										setEditingIndex(editingIndex === index ? undefined : index);
 										setEditingItem(editingIndex === index ? undefined : pattern)
-										submit(value)
+										console.log('test123 ', value)
+										value[0].base_url = `/${value[0].base_url?.replace(/^\/|\/$/g, '')}`
+										onSubmit(value)
 									}}
 								>done
 								</button>
 							}
-							<button
-								className={'bg-red-100 hover:bg-red-300 text-red-800 px-2 py-0.5 mx-1 rounded-lg w-fit h-fit'}
-								title={'remove item'}
-								onClick={() => {
-									const newData = value.filter((v, i) => i !== index);
-									onChange(newData)
-									submit(newData)
-								}}
-							> remove
-							</button>
+							<div className={'relative w-fit'}>
+								<VerticalDots
+									className={`p-1 hover:cursor-pointer hover:bg-gray-100 ${showActionsIndex === index ? `bg-gray-200` : ``} rounded-full`}
+									height={24} width={24}
+									onClick={() => setShowActionsIndex(showActionsIndex === index ? undefined : index)}/>
+								<div className={showActionsIndex === index ? 'z-10 absolute p-1 flex flex-col right-0 top-8 bg-white text-sm border rounded-md shadow-md' : 'hidden'}>
+
+									<button
+										className={'bg-green-100 hover:bg-green-300 text-green-800 px-2 py-0.5 my-1 rounded-lg w-full h-fit'}
+										title={'duplicate item'}
+										onClick={() => {
+											const dataToCopy = JSON.stringify({
+												app: pattern.app,
+												base_url: `${pattern.base_url}_copy`,
+												subdomain: pattern.subdomain,
+												config: pattern.config,
+												doc_type: `${pattern.doc_type}_copy`,
+												pattern_type: pattern.pattern_type,
+												auth_level: pattern.auth_level
+											})
+											addNewValue(dataToCopy)
+										}}
+									> duplicate
+									</button>
+									<div className={'w-full border-b-2 border-red-300'} />
+									<button
+										className={'bg-red-100 hover:bg-red-300 text-red-800 px-2 py-0.5 my-1 rounded-lg w-full h-fit'}
+										title={'remove item'}
+										onClick={() => {
+											const newData = value.filter((v, i) => i !== index);
+											onChange(newData)
+											onSubmit(newData)
+										}}
+									> remove
+									</button>
+								</div>
+							</div>
 						</div>
 					</div>
 				))
 			}
 
-			<div className={`mx-4 ${c[numAttributes+1]}`}>
+			<div className={`${c[numAttributes + 1]}`}>
 				{
 					attrToShow
 						.map((attrKey, i) => {
 							let EditComp = attributes[attrKey].EditComp
 							return (
-								<div key={`${attrKey}-${i}`} className={'w-full flex space-between'}>
-									<div className={'font-semibold w-3/4'}>
-										<EditComp
-											key={`${attrKey}-${i}`}
-											value={newItem?.[attrKey]}
-											onChange={(v) => setNewItem({...newItem, [attrKey]: v})}
+
+								<EditComp
+									key={`${attrKey}-${i}`}
+									value={newItem?.[attrKey]}
+									onChange={(v) => setNewItem({...newItem, [attrKey]: v})}
 											{...attributes[attrKey]}
 										/>
-									</div>
-								</div>
+
 							)
 						})
 				}
-				<button className={'bg-blue-300 hover:bg-blue-500 text-white w-fit px-2 py-0.5'} onClick={addNewValue}>Add
-				</button>
+				<div className={'w-full flex items-center justify-start'}>
+				<button className={'bg-blue-100 hover:bg-blue-300 text-sm text-blue-800 px-2 py-0.5 m-1 rounded-lg w-fit h-fit'} onClick={addNewValue}>add</button>
+				</div>
 			</div>
 		</div>
 	)
@@ -188,7 +220,6 @@ function PatternEditUsingComps({
 								   attributes,
 								   updateAttribute,
 								   status,
-								   submit,
 								   onChange,
 								   value = [],
 								   ...rest
@@ -208,7 +239,7 @@ function PatternEditUsingComps({
 			<div className={'flex w-full'}>
 				{
 					value.map((item, itemIndex) => (
-						<div className={'flex flex-1 max-w-[33%] border-2 p-10 m-4'}>
+						<div key={itemInedx} className={'flex flex-1 max-w-[33%] border-2 p-10 m-4'}>
 							<div className={'flex flex-1 flex-col'}>
 								{
 									Object.keys(attributes)
