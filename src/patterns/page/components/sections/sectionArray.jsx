@@ -1,4 +1,4 @@
-import React, { Fragment, useState, useLayoutEffect } from "react"
+import React, { Fragment, useState, useLayoutEffect, useRef } from "react"
 import { useLocation } from 'react-router-dom';
 import isEqual from 'lodash/isEqual'
 import cloneDeep from 'lodash/cloneDeep'
@@ -7,8 +7,8 @@ import { Link } from "react-router-dom";
 import { usePopper } from 'react-popper'
 import { CMSContext } from '../../siteConfig'
 import { getSizeClass, sizeOptionsSVG } from './sizes.jsx'
-import { 
-    SquarePlus, 
+import {
+    SquarePlus,
     InfoCircle,
     TrashCan,
     RemoveCircle,
@@ -23,7 +23,7 @@ import {
     InfoSquare,
     MoreSquare,
     Tags,
-    Copy
+    Copy, Download, Printer, PDF
 } from '../../ui/icons'
 import {DeleteModal} from "../../ui";
 
@@ -380,7 +380,7 @@ function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove}) {
     [value])
         
     return (
-        <div className={`h-full ${hideDebug ? '' : ''}`}>
+        <div className={`h-full ${hideDebug ? '' : ''}`} style={{pageBreakInside: "avoid"}}>
             {/* -------------------top line buttons ----------------------*/}
             <div className={`flex w-full ${hideDebug ? '' : ''}`}>
                 <div className='flex-1'/>
@@ -639,7 +639,7 @@ const ScrollToHashElement = () => {
 };
 
 const Edit = ({Component, value, onChange, attr, full_width = false, ...rest }) => {
-    console.log('.............', rest, attr, value)
+    // console.log('.............', rest, attr, value)
     if (!value || !value.map) { 
         value = []
     }
@@ -802,6 +802,8 @@ const Edit = ({Component, value, onChange, attr, full_width = false, ...rest }) 
 
 const View = ({Component, value, attr, full_width}) => {
     if (!value || !value.map) { return '' }
+    const { baseUrl, user, theme } = React.useContext(CMSContext) || {}
+    const isAvailUser = user?.email?.includes('availabs');
     let runningColTotal = 8;
     let layouts = {
         centered: 'md:grid-cols-[1fr_repeat(6,_minmax(_100px,_170px))_1fr]',
@@ -820,36 +822,36 @@ const View = ({Component, value, attr, full_width}) => {
 
     return (
         <div className={`w-full grid grid-cols-6 ${layouts[full_width === 'show' ? 'fullwidth' : 'centered']} gap-1`}>
-        { 
-            value.filter(v => hideSectionCondition(v))
-                .map((v,i) =>{
-                const size = v?.size || "1";
-                const requiredSpace = sizeOptionsSVG.find(s => s.name === size)?.value;
-                const availableSpace = 6 - runningColTotal;
+            {
+                value.filter(v => hideSectionCondition(v))
+                    .map((v, i) => {
+                        const size = v?.size || "1";
+                        const requiredSpace = sizeOptionsSVG.find(s => s.name === size)?.value;
+                        const availableSpace = 6 - runningColTotal;
 
-                if(runningColTotal === 0){
-                    runningColTotal = requiredSpace
-                }else if(requiredSpace <= availableSpace){
-                    runningColTotal += requiredSpace
-                }else{
-                    runningColTotal = requiredSpace
-                }
+                        if (runningColTotal === 0) {
+                            runningColTotal = requiredSpace
+                        } else if (requiredSpace <= availableSpace) {
+                            runningColTotal += requiredSpace
+                        } else {
+                            runningColTotal = requiredSpace
+                        }
 
-                const sizeClass = getSizeClass(size, requiredSpace, availableSpace, runningColTotal);
+                        const sizeClass = getSizeClass(size, requiredSpace, availableSpace, runningColTotal);
 
-                return (
-                    <div id={v?.id} key={i} className={`${sizeClass}`}>
-                        <SectionView
-                            attributes={attr.attributes}
-                            key={i}
-                            i={i}
-                            value={v}
-                        />
-                    </div>
-                )
-            })
-        }
-        <ScrollToHashElement />
+                        return (
+                            <div id={v?.id} key={i} className={`${sizeClass}`} data-size={requiredSpace}>
+                                <SectionView
+                                    attributes={attr.attributes}
+                                    key={i}
+                                    i={i}
+                                    value={v}
+                                />
+                            </div>
+                        )
+                    })
+            }
+            <ScrollToHashElement/>
         </div>
     )
 }

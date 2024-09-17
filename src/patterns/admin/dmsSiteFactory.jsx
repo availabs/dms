@@ -17,10 +17,10 @@ const getSubdomain = (host) => {
     // takes window.location.host and returns subdomain
     // only works with single depth subdomains 
     // ---
-    console.log('host', host,  host.split('.'));
+    //console.log('host', host,  host.split('.'));
     return host.split('.').length > 2 ?
-    window.location.host.split('.')[0].toLowerCase() :
-        false
+        window.location.host.split('.')[0].toLowerCase() :
+            false
 }
 
 import {updateAttributes, updateRegisteredFormats} from "./siteConfig";
