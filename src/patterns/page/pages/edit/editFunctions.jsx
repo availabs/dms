@@ -97,6 +97,10 @@ const duplicateItem = (item, dataItems, user, apiUpdate) => {
         delete s.ref
         delete s.id
     })
+    newItem.draft_sections.forEach(s => {
+        delete s.ref
+        delete s.id
+    })
     newItem.history = [{
         type:'Created Duplicate Page.',
         user: user.email,

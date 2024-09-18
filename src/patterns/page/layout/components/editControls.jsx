@@ -139,6 +139,10 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
       delete s.ref
       delete s.id
     })
+      newItem.draft_sections.forEach(s => {
+      delete s.ref
+      delete s.id
+    })
     
     submit(json2DmsForm(newItem), { method: "post", action: pathname })
   }

@@ -369,7 +369,10 @@ function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove}) {
     let ElementComp = attributes?.element?.ViewComp
     let HelpComp = attributes?.helpText?.ViewComp
     let sectionTitleCondition = value?.['title']  //|| value?.['tags'] ;// edit
-    let helpTextCondition = value?.['helpText'];
+    let helpTextCondition = value?.['helpText'] && !(
+        (value?.['helpText']?.root?.children?.length === 1 && value?.['helpText']?.root?.children?.[0]?.children?.length === 0) || // empty child
+        (value?.['helpText']?.root?.children?.length === 0) // no children
+    )
     let interactCondition = false //typeof onEdit !== 'function' && value?.element?.['element-type']?.includes('Map:');
     let isTemplateSectionCondition = value?.element?.['template-section-id'];
     let showEditIcons = edit && typeof onEdit === 'function' && !isTemplateSectionCondition
