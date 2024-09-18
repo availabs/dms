@@ -806,7 +806,7 @@ const Edit = ({Component, value, onChange, attr, full_width = false, ...rest }) 
 const View = ({Component, value, attr, full_width}) => {
     if (!value || !value.map) { return '' }
     const { baseUrl, user, theme } = React.useContext(CMSContext) || {}
-    const isAvailUser = user?.email?.includes('availabs');
+
     let runningColTotal = 8;
     let layouts = {
         centered: 'md:grid-cols-[1fr_repeat(6,_minmax(_100px,_170px))_1fr]',
