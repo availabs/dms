@@ -64,9 +64,9 @@ function PageView ({item, dataItems, attributes, logo, rightMenu}) {
                     <PencilEditSquare className={theme?.page?.icon}/>
                   </Link>
               )}
-              <div className={user?.email?.includes('availabs') ? 'flex absolute right-10 top-2' : 'hidden'}>
+              <div className={'flex absolute right-10 top-2'}>
                 <button className={'mx-1'} onClick={() => selectablePDF(pdfRef)}>
-                  <PDF className={'hover:text-blue-500'}/>
+                  <PDF className={'hover:text-blue-500 text-blue-300'}/>
                 </button>
               </div>
               <ContentView

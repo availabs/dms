@@ -18,9 +18,15 @@ const getSubdomain = (host) => {
     // only works with single depth subdomains 
     // ---
     //console.log('host', host,  host.split('.'));
-    return host.split('.').length > 2 ?
-        window.location.host.split('.')[0].toLowerCase() :
-            false
+    if (process.env.NODE_ENV === "development") {
+        return host.split('.').length >= 2 ?
+            window.location.host.split('.')[0].toLowerCase() :
+                false
+    } else {
+        return host.split('.').length > 2 ?
+            window.location.host.split('.')[0].toLowerCase() :
+                false
+    }
 }
 
 import {updateAttributes, updateRegisteredFormats} from "./siteConfig";
@@ -53,7 +59,8 @@ export default async function dmsSiteFactory({
     let data = await dmsDataLoader(falcor, dmsConfigUpdated, `/`);
 
     const patterns = data.reduce((acc, curr) => [...acc, ...(curr?.patterns || [])], []) || [];
-    const SUBDOMAIN = getSubdomain(window.location.host)
+    let SUBDOMAIN = getSubdomain(window.location.host)
+    SUBDOMAIN = SUBDOMAIN === 'hazardmitigation' ? '' : SUBDOMAIN
     //console.log('subdomain')
 
     // call dmsPageFactory here assuming patterns are page type
@@ -86,6 +93,7 @@ export default async function dmsSiteFactory({
                             pattern: pattern,
                             parent: pattern,
                             authLevel: +pattern.authLevel || -1,
+                            pgEnv:'hazmit_dama',
                             themes,
                             useFalcor,
                             API_HOST,

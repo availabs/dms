@@ -64,7 +64,9 @@ function PatternEdit({
 	//console.log('??????????/', format)
 	//console.log('??????????/', format)
 	const addNewValue = (item) => {
+
 		const newData = [...value, item || newItem];
+		// console.log('addNewValue', newData)
 		onChange(newData)
 		onSubmit(newData)
 		setNewItem({app: format?.app})
@@ -208,7 +210,12 @@ function PatternEdit({
 						})
 				}
 				<div className={'w-full flex items-center justify-start'}>
-				<button className={'bg-blue-100 hover:bg-blue-300 text-sm text-blue-800 px-2 py-0.5 m-1 rounded-lg w-fit h-fit'} onClick={addNewValue}>add</button>
+				<button 
+					className={'bg-blue-100 hover:bg-blue-300 text-sm text-blue-800 px-2 py-0.5 m-1 rounded-lg w-fit h-fit'} 
+					onClick={() => addNewValue(newItem)}
+				>
+					Add Ok
+				</button>
 				</div>
 			</div>
 		</div>
@@ -216,14 +223,14 @@ function PatternEdit({
 }
 
 function PatternEditUsingComps({
-								   Component,
-								   attributes,
-								   updateAttribute,
-								   status,
-								   onChange,
-								   value = [],
-								   ...rest
-					 }) {
+   Component,
+   attributes,
+   updateAttribute,
+   status,
+   onChange,
+   value = [],
+   ...rest
+}) {
 	console.log('rest', rest, attributes, updateAttribute)
 	const [newItem, setNewItem] = useState({});
 	const addNewValue = () => {

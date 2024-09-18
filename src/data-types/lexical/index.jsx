@@ -18,7 +18,7 @@ function parseValue (value) {
 
 const Edit = ({value, onChange, ...rest}) => {
     return (
-        <div className="editor-shell tracking-wide leading-7">
+        <div className="editor-shell tracking-wide leading-7 ">
           <Editor 
             value={parseValue(value)}
             onChange={(d) => onChange(d)}

@@ -45,7 +45,7 @@ export 	async function updateDMSAttrs(data, configs, falcor) {
                 updates[attr].push({ref:`${app}+${type}`, id})
             } else {
                 // else create
-                // console.log('create dms-format', `${app}+${type}`)
+                // console.log('create dms-format', `${app}+${type}`, d)
                 const res = await falcor.call(
                     ["dms", "data", "create"],
                     [app, type, d]
