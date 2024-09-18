@@ -9,12 +9,12 @@ import {getConfig} from "../../template/pages";
 
 export const generatePages = async ({
                                         item, url, destination, id_column, dataRows, falcor, setLoadingStatus, locationNameMap,
-                                        setGeneratedPages, urlSuffixCol='geoid'
+                                        setGeneratedPages, from, to, urlSuffixCol='geoid'
                                     }) => {
     setLoadingStatus('Generating Pages...', dataRows)
     const idColAttr =
         dataRows
-            // .filter(d => !d?.state_fips || d.state_fips === '36')
+            .filter((d, i) => (!from || !to) || (i >= from && i <= to))
             .sort((a,b) => a?.state_fips ? +b[id_column.name] - +a[id_column.name] : true)
             .map(d => d[id_column.name])
     // .filter((d,i) => (d && (i <= 10)))

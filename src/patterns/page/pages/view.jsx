@@ -9,7 +9,6 @@ import SideNav from '../ui/nav/Side'
 
 import {PDF, PencilEditSquare, Printer} from '../ui/icons'
 import { SideNavContainer } from '../ui'
-import {printWellPdf, printWellPdfSingleRow} from "../components/saveAsPDF/PrintWell/printWellPdf";
 import {selectablePDF} from "../components/saveAsPDF/PrintWell/selectablePDF";
 
 function PageView ({item, dataItems, attributes, logo, rightMenu}) {

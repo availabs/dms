@@ -26,8 +26,6 @@ import {
     Copy, Download, Printer, PDF
 } from '../../ui/icons'
 import {DeleteModal} from "../../ui";
-import {printWellPdf, printWellPdfSingleRow} from "../saveAsPDF/PrintWell/printWellPdf";
-import {selectablePDF} from "../saveAsPDF/PrintWell/selectablePDF";
 
 const isJson = (str)  => {
     try {
@@ -371,7 +369,10 @@ function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove}) {
     let ElementComp = attributes?.element?.ViewComp
     let HelpComp = attributes?.helpText?.ViewComp
     let sectionTitleCondition = value?.['title']  //|| value?.['tags'] ;// edit
-    let helpTextCondition = value?.['helpText'];
+    let helpTextCondition = value?.['helpText'] && !(
+        (value?.['helpText']?.root?.children?.length === 1 && value?.['helpText']?.root?.children?.[0]?.children?.length === 0) || // empty child
+        (value?.['helpText']?.root?.children?.length === 0) // no children
+    )
     let interactCondition = false //typeof onEdit !== 'function' && value?.element?.['element-type']?.includes('Map:');
     let isTemplateSectionCondition = value?.element?.['template-section-id'];
     let showEditIcons = edit && typeof onEdit === 'function' && !isTemplateSectionCondition
@@ -641,7 +642,7 @@ const ScrollToHashElement = () => {
 };
 
 const Edit = ({Component, value, onChange, attr, full_width = false, ...rest }) => {
-    console.log('.............', rest, attr, value)
+    // console.log('.............', rest, attr, value)
     if (!value || !value.map) { 
         value = []
     }
@@ -805,7 +806,7 @@ const Edit = ({Component, value, onChange, attr, full_width = false, ...rest }) 
 const View = ({Component, value, attr, full_width}) => {
     if (!value || !value.map) { return '' }
     const { baseUrl, user, theme } = React.useContext(CMSContext) || {}
-    const isAvailUser = user?.email?.includes('availabs');
+
     let runningColTotal = 8;
     let layouts = {
         centered: 'md:grid-cols-[1fr_repeat(6,_minmax(_100px,_170px))_1fr]',
