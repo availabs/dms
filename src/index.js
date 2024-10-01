@@ -1,5 +1,6 @@
 import { dmsDataLoader, dmsDataEditor } from './api'
 import DmsManager from './dms-manager'
+import {updateRegisteredFormats, updateAttributes} from './dms-manager/_utils'
 import { dmsDataTypes, registerDataType } from './data-types'
 import dmsPageFactory from './dmsPageFactory'
 import { json2DmsForm } from './dms-manager/_utils'
@@ -23,5 +24,7 @@ export {
 	pageConfig,
 	adminConfig,
 	Selector,
-	registerComponents
+	registerComponents,
+	updateAttributes,
+	updateRegisteredFormats
 }
