@@ -214,7 +214,7 @@ function PatternEdit({
 					className={'bg-blue-100 hover:bg-blue-300 text-sm text-blue-800 px-2 py-0.5 m-1 rounded-lg w-fit h-fit'} 
 					onClick={() => addNewValue(newItem)}
 				>
-					Add Ok
+					Add
 				</button>
 				</div>
 			</div>

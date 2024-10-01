@@ -7,6 +7,7 @@ import Spreadsheet from "../../../../forms/components/selector/ComponentRegistry
 import CustomHeader from "../../../../forms/components/selector/ComponentRegistry/header";
 import Item from "../../../../forms/components/selector/ComponentRegistry/item";
 import Upload from "../../../../forms/components/selector/ComponentRegistry/upload";
+import PatternListComponent from "../../../../forms/components/selector/ComponentRegistry/patternListComponent";
 
 export const RenderCalloutBox = ({text = {}, backgroundColor, ...rest}) => {
     return (
@@ -118,7 +119,8 @@ const lexical  = {
      "Spreadsheet": Spreadsheet,
      "Item": Item,
      "Upload": Upload,
-     "Table: Components Index": ComponentsIndexTable
+     "Table: Components Index": ComponentsIndexTable,
+     "Pattern List": PatternListComponent
  }
 
 

@@ -43,9 +43,7 @@ const Edit = ({value = '{}', onChange, className, placeholder, manageTemplates, 
     }
 
     return (
-        <div className={'border-2 p-2'}>
-            <div>managing {manageTemplates ? 'templates' : 'config'}</div>
-            <label className={labelClass}>Manage Config</label>
+        <div className={'p-2'}>
             {
                 Object.keys(item)
                     .filter(attribute => attribute === 'attributes')

@@ -49,6 +49,7 @@ export default ({
     csvDownload = false,
     onCsvDownload,
     themeOptions = {},
+    theme = {},
     ...props
 }) => {
     const [pageData, setPageData] = React.useState(data || []);
@@ -56,8 +57,6 @@ export default ({
     const [currentPage, setCurrentPage] = useState(manualCurrentPage || 0);
     const [pageValue, setPageValue] = useState(0);
     const [loading, setLoading] = useState(false);
-
-    const theme = {}
 
     const filterTypes = React.useMemo(
         () => ({

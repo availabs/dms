@@ -275,7 +275,7 @@ export const RenderSimple = ({
     useEffect(() => {
         if (gridRef.current && (!Object.keys(colSizes).length || Object.keys(colSizes).length !== visibleAttributes.length)) {
             const availableVisibleAttributesLen = visibleAttributes.filter(v => attributes.find(attr => attr.name === v)).length; // ignoring the once not in attributes anymore
-            const gridWidth = gridRef.current.offsetWidth - numColSize - actionsColSize;
+            const gridWidth = gridRef.current.offsetWidth - numColSize - (allowEdit ? actionsColSize : 0);
             const initialColumnWidth = gridWidth / availableVisibleAttributesLen;
             setColSizes(
                 visibleAttributes.map(va => attributes.find(attr => attr.name === va)).filter(a => a).reduce((acc, attr) => ({...acc, [attr.name]: initialColumnWidth}) , {})
@@ -433,7 +433,7 @@ export const RenderSimple = ({
 
         const handleMouseMove = (moveEvent) => {
             const newWidth = startWidth + moveEvent.clientX - startX;
-            const gridWidth = gridRef.current.offsetWidth - numColSize - actionsColSize - newWidth;
+            const gridWidth = gridRef.current.offsetWidth - numColSize - (allowEdit ? actionsColSize : 0) - newWidth;
             const restColsWidthSum = Object.keys(colSizes).filter(k => k !== col).reduce((acc, curr) => acc + (colSizes[curr] || 0), 0);
 
             if(restColsWidthSum > gridWidth){
@@ -574,12 +574,16 @@ export const RenderSimple = ({
                                      }}
                                      onMouseDown={handleMouseDownHeader(attribute?.name)}/>
                             </div>)}
-                    <div className={'flex shrink-0 justify-between'} style={{width: actionsColSize}}>
-                        <div key={'actions'}
-                             className={'w-full flex items-center px-3 py-1 font-semibold border bg-gray-50 text-gray-900 select-none'}>
-                            Actions
-                        </div>
-                    </div>
+                    {
+                        allowEdit ? (
+                            <div className={'flex shrink-0 justify-between'} style={{width: actionsColSize}}>
+                                <div key={'actions'}
+                                     className={'w-full flex items-center px-3 py-1 font-semibold border bg-gray-50 text-gray-900 select-none'}>
+                                    Actions
+                                </div>
+                            </div>
+                        ) : null
+                    }
                 </div>
 
                 {/*Rows*/}

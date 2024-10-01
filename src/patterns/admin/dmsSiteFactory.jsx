@@ -37,7 +37,8 @@ import {updateAttributes, updateRegisteredFormats} from "./siteConfig";
 // --
 const configs = {
     page: pageConfig,
-    form: formsConfig
+    form: formsConfig,
+    forms: formsConfig, // for future use.
 }
 
 registerDataType("selector", Selector)
@@ -79,7 +80,7 @@ export default async function dmsSiteFactory({
             if(pattern?.pattern_type && (!SUBDOMAIN || pattern.subdomain === SUBDOMAIN)){
                 //console.log('add patterns', pattern, SUBDOMAIN)
                 const c = configs[pattern.pattern_type];
-
+                if(!c) return acc;
                 //console.log('register pattern', pattern, theme)
                 acc.push(
                     ...c.map(config => {
@@ -91,6 +92,7 @@ export default async function dmsSiteFactory({
                             adminPath,
                             format: pattern?.config,
                             pattern: pattern,
+                            pattern_type:pattern?.pattern_type,
                             parent: pattern,
                             authLevel: +pattern.authLevel || -1,
                             pgEnv:'hazmit_dama',

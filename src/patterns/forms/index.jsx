@@ -4,7 +4,7 @@ import merge from 'lodash/merge'
 import cloneDeep from 'lodash/cloneDeep'
 // import TableComp from "./components/TableComp";
 import {template, pattern} from "../admin/admin.format"
-
+import formsFormat from "./forms.format";
 
 import defaultTheme from './theme/theme'
 import DefaultMenu from './components/menu'
@@ -20,6 +20,9 @@ import ManageMeta from "./pages/manage/metadata";
 import ManageTemplates from "./pages/manage/templates";
 import Validate from "./pages/manage/validate";
 import Design from "./pages/manage/design";
+import Overview from "./pages/manage/overview";
+import TableView from "./pages/manage/table";
+import UploadPage from "./pages/manage/upload";
 
 // import {updateAttributes, updateRegisteredFormats} from "../admin/siteConfig";
 
@@ -125,6 +128,7 @@ const formsAdminConfig = ({
     columns,
     logo,
     themes={ default: {} },
+    pattern_type,
     checkAuth = () => {}
 }) => {
     let theme = merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern.theme_name] || themes.default), parent?.theme || {})
@@ -138,7 +142,12 @@ const formsAdminConfig = ({
     if(!theme.navOptions.logo) {
         theme.navOptions.logo = logo ? logo : defaultLogo
     }
-    const patternFormat = cloneDeep(pattern)
+    // for future use
+    const patternFormatMapping = {
+        form: pattern,
+        forms: formsFormat
+    }
+    const patternFormat = cloneDeep(patternFormatMapping[pattern_type]);
     patternFormat.app = app
     patternFormat.type = type
     patternFormat.registerFormats = updateRegisteredFormats(patternFormat.registerFormats, app, type) // update app for all the children formats. this works, but dms stops providing attributes to patternList
@@ -174,6 +183,16 @@ const formsAdminConfig = ({
                         action: "edit"
                     },
                     {
+                        type: props => <Overview.EditComp parent={parent} {...props} adminPath={adminPath}/>,
+                        filter: {
+                            stopFullDataLoad: true,
+                            fromIndex: () => 0,
+                            toIndex: () => 0,
+                        },
+                        action: 'edit',
+                        path: `overview`
+                    },
+                    {
                         type: props => <ManageMeta.EditComp parent={parent} {...props} adminPath={adminPath}/>,
                         filter: {
                             stopFullDataLoad: true,
@@ -182,6 +201,26 @@ const formsAdminConfig = ({
                         },
                         action: 'edit',
                         path: `metadata`
+                    },
+                    {
+                        type: props => <TableView parent={parent} {...props} adminPath={adminPath}/>,
+                        filter: {
+                            stopFullDataLoad: true,
+                            fromIndex: () => 0,
+                            toIndex: () => 0,
+                        },
+                        action: 'edit',
+                        path: `table`
+                    },
+                    {
+                        type: props => <UploadPage parent={parent} {...props} adminPath={adminPath}/>,
+                        filter: {
+                            stopFullDataLoad: true,
+                            fromIndex: () => 0,
+                            toIndex: () => 0,
+                        },
+                        action: 'edit',
+                        path: `upload`
                     },
                     {
                         type: props => <Validate parent={parent} {...props} adminPath={adminPath}/>,

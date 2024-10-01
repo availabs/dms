@@ -135,6 +135,16 @@ export const pattern = {
       placeholder: 'please select a type',
       type: 'config'
     },
+    { key: "description",
+      placeholder: 'Description',
+      type: "lexical",
+      required: true
+    },
+    { key: "categories",
+      placeholder: 'Categories',
+      type: "text",
+      required: true
+    },
     { key: 'theme',
       placeholder: '',
       type: 'config'
