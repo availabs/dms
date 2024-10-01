@@ -101,7 +101,7 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     // 3. set columns to geo columns
     // 4. map multiple columns to a single column. this converts column headers to values of a new column
 
-    const {API_HOST, user} = useContext(FormsContext);
+    const {API_HOST, user, baseUrl} = useContext(FormsContext);
     const pgEnv = 'hazmit_dama'
     const damaServerPath = `${API_HOST}/dama-admin/${pgEnv}`; // need to use this format to utilize existing api fns
     const dmsServerPath = `${API_HOST}/dama-admin`; // to use for publish. no need for pgEnv.
@@ -172,9 +172,9 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     console.log('columns', columns)
     const pivotColumns = existingAttributes.filter(existingCol => columns.filter(c => c.existingColumnMatch === existingCol.name).length > 1);
 
-    if(publishStatus){
+    if(true || publishStatus){
         return <div className={'flex items-center justify-center w-full h-[150px] border rounded-md'}>
-            The Sheet has been Processed. To Validate your records, <Link className={'text-blue-500 hover:text-blue-700 px-1'} to={'manage/validate'}>click here</Link>
+            The Sheet has been Processed. To Validate your records, <Link className={'text-blue-500 hover:text-blue-700 px-1'} to={`${baseUrl}/manage/validate`}>click here</Link>
         </div>
     }
     return !gisUploadId ?

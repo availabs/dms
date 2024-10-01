@@ -7,7 +7,7 @@ import SourcesLayout from "./layout";
 import {makeLexicalFormat} from "../../../../../../../../../pages/DataManager/DataTypes/default/Overview";
 import {dmsDataTypes} from "~/modules/dms/src"
 import {dmsDataLoader} from "../../../../../../api";
-import {getConfig} from "../../../../../page/layout/template/pages";
+import {getConfig} from "../../../../../page/pages/manager/template/pages";
 
 export const isJson = (str)  => {
     try {
