@@ -1,11 +1,11 @@
-import {dmsDataEditor, dmsDataLoader} from '../../../../../index'
-import {parseJSON} from "../utils/parseJSON.js";
-import { RegisteredComponents } from '../../../components/selector'
+import {dmsDataEditor, dmsDataLoader} from '../../../../../../index'
+//import {} from "../utils/parseJSON.js";
+import { RegisteredComponents } from '../../../../components/selector'
 import cloneDeep from "lodash/cloneDeep";
-import {json2DmsForm} from '../utils/navItems'
+import {json2DmsForm, parseJSON} from '../../../_utils'
 //import { Promise } from 'bluebird'
 import {generatePages, PromiseMap} from './generatePages'
-import {getConfig} from "../../template/pages";
+import {getConfig} from "..//pages";
 
 export const updatePages = async ({submit, item, url, destination, id_column, generatedPages, sectionIds, falcor, setLoadingStatus, dataRows}) => {
     // while updating existing sections, keep in mind to not change the id_column attribute.

@@ -45,7 +45,7 @@ const Layout = ({ children, navItems, secondNav, title, theme, yPadding = '0px',
 
 	const { theme: defaultTheme, app, type, Menu } = React.useContext(CMSContext) || {}
 	theme = merge(cloneDeep(defaultTheme), cloneDeep(theme))
-	console.log('layout theme', theme?.topnav?.topnavWrapper)
+	// console.log('layout theme', theme?.topnav?.topnavWrapper)
 	const { sideNav={}, topNav={}, logo=Logos } = theme?.navOptions || {}
 	
 	const sideNavOptions = {

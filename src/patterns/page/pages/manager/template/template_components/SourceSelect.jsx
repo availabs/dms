@@ -4,7 +4,7 @@ import get from "lodash/get.js";
 import Selector from "./Selector.jsx";
 import {getAttributes} from './ViewsSelect'
 
-import { CMSContext } from '../../../siteConfig'
+import { CMSContext } from '../../../../siteConfig'
 
 export const SourcesSelect = ({value, onChange}) => {
 

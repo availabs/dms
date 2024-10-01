@@ -6,18 +6,18 @@ import cloneDeep from 'lodash/cloneDeep'
 import get from 'lodash/get'
 import isEqual from "lodash/isEqual"
 
-import ButtonSelector from './buttonSelector'
+import ButtonSelector from './template_components/ButtonSelector'
 import TemplateDataControls from './templateDataControls'
 import {ViewInfo} from "./template_components/ViewInfo.jsx";
-import {json2DmsForm, getUrlSlug, toSnakeCase} from './utils/navItems'
-import {parseJSON} from "./utils/parseJSON.js";
+import {json2DmsForm, getUrlSlug, toSnakeCase, parseJSON} from '../../_utils'
 
-import EditPagesNav  from './editPages'
-import EditHistory from './editHistory'
+//import EditPagesNav  from './editPages'
+//import EditHistory from './editHistory'
 
-import { RegisteredComponents } from '../../components/selector'
+import {Modal, DeleteModal} from '../../../ui/'
+import { RegisteredComponents } from '../../../components/selector'
 
-import { CMSContext } from '../../siteConfig'
+import { CMSContext } from '../../../siteConfig'
 
 
 const theme = {
@@ -29,7 +29,7 @@ const theme = {
   }
 }
 
-function EditControls({ item, dataItems, updateAttribute,attributes, edit, status, setItem, pageType = 'page' }) {
+function EditControls({ item, dataItems, updateAttribute,attributes, edit, status, setItem  }) {
   const submit = useSubmit()
   const { pathname = '/edit' } = useLocation()
   //console.log('pathname editcontrols', pathname)
@@ -56,7 +56,7 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
     if(newSections) {
       newItem.sections = newSections
     }
-    submit(json2DmsForm(newItem), { method: "post", action: pageType  === 'template' ? pathname :`${baseUrl}/edit/${newItem.url_slug}` })
+    submit(json2DmsForm(newItem), { method: "post", action: pathname })
   }
 
 
@@ -72,7 +72,7 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
                 let section = item.sections.filter(d => d.id === section_id)?.[0] || {}
                 setLoadingStatus(`Updating section ${section?.title}  ${section?.element?.['element-type']}  ${i+1}/${totalSections}`)
                 
-                let data = parseJSON(section?.element?.['element-data']) || {}
+                let data = (section?.element?.['element-data']) || {}
                 let type = section?.element?.['element-type'] || ''
                 let comp = RegisteredComponents[type] || {}
 
@@ -227,7 +227,7 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
     newItem[type] = value
    
     // console.log('item', newItem, value)
-    let sectionType = pageType === 'template' ? 'sections' : 'draft_sections';
+    let sectionType = 'sections' ;
     if(type === 'header' && !newItem?.[sectionType]?.filter(d => d.is_header)?.[0]){
       //console.log('toggleHeader add header', newItem[sectionType])
       
@@ -338,8 +338,8 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
 
   return (
     <>
-      <EditPagesNav item={item} dataItems={dataItems}  edit={true} open={open} setOpen={setOpen}/>
-      <EditHistory item={item}  historyOpen={historyOpen} setHistoryOpen={setHistoryOpen} />
+      {/*<EditPagesNav item={item} dataItems={dataItems}  edit={true} open={open} setOpen={setOpen}/>*/}
+      {/*<EditHistory item={item}  historyOpen={historyOpen} setHistoryOpen={setHistoryOpen} />*/}
       <TemplateDataControls
           item={item}
           open={showDataControls}
@@ -352,9 +352,7 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
       />
         {edit &&
           <div className='p-4'>
-            {pageType === 'page' && <div className='w-full flex justify-center pb-6'>
-              <PublishButton item={item} onClick={publish} />
-            </div>}
+            
             <div className='pl-4 pb-2'>
               <span className='text-xs uppercase font-bold text-slate-400'> page name </span>
               <TitleEditComp
@@ -364,50 +362,7 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
             </div>
             
             <div className='flex w-full h-12 px-4'>
-              {pageType === 'page' && <IconPopover icon='fad fa-wrench p-2 text-blue-300 hover:text-blue-500 cursor-pointer text-lg' >
-                <div className='py-2'>
-                  <div className='px-6 font-medium text-sm'> Page Controls </div>
-                  {/*(!item?.parent || item?.parent === '') &&
-                      <div className={theme.pageControls.controlItem}>
-                        <i className={'fa-solid fa-up-down-left-right text-sm'} />
-                        <select
-                            title={'Move Page'}
-                            className={theme.pageControls.select}
-                            value={type}
-                            onChange={e => {
-                              setMoving(true); // doesn't work yet
-                              return movePages(e.target.value);
-                            }}
-                        >
-                          <option key={'cms'} value={'docs-page'} className={theme.pageControls.selectOption}>Live</option>
-                          <option key={'draft'} value={'docs-draft'} className={theme.pageControls.selectOption}>Draft</option>
-                          <option key={'playground'} value={'docs-play'} className={theme.pageControls.selectOption}>Playground</option>
-                        </select>
-                      </div>
-                  */}
-                  <div onClick={insertSubPage}
-                    className={theme.pageControls.controlItem}
-                  >
-                    {'☲ New Page'}
-                  </div>
-                  
-                  <div onClick={insertSubPage}
-                    className={theme.pageControls.controlItem}
-                  >
-                    {'☲ Insert Subpage'}
-                  </div>
-                  <div onClick={duplicateItem}
-                    className={theme.pageControls.controlItem}
-                  >
-                    {'☳ Duplicate'}
-                  </div>
-                  <div onClick={() => setShowDelete(true)}
-                    className={theme.pageControls.controlItem}
-                  >
-                    {'☵ Delete'}
-                  </div>
-                </div>
-              </IconPopover>}
+              
               <IconPopover icon='fad fa-sliders-h p-2 text-blue-300 hover:text-blue-500 cursor-pointer text-lg'>
                 <div className='py-2'>
                   <div className='px-6 font-medium text-sm'> Page Settings </div>
@@ -462,14 +417,11 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
                   
                 </div>
               </IconPopover>
-              {pageType === 'page' && <div 
-                className='fad fa-file-alt p-2 text-blue-300 hover:text-blue-500 cursor-pointer text-lg' 
-                onClick={() => setOpen(true)}
-              />}
-              {pageType === 'template' && <div 
+             
+               <div 
                 className='fad fa-sliders-h-square p-2 text-blue-300 hover:text-blue-500 cursor-pointer text-lg' 
                 onClick={() => setShowDataControls(true)}
-              />}
+              />
               <div 
                 className='fad fa-history p-2 text-blue-300 hover:text-blue-500 cursor-pointer text-lg' 
                 onClick={() => setHistoryOpen(true)}
@@ -477,15 +429,15 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
 
             </div>
 
-            {pageType  === 'template' && <div className='pl-4 pb-2'>
+            <div className='pl-4 pb-2'>
               <span className='text-xs uppercase font-bold text-slate-400'> url prefix </span>
               <TitleEditComp
                 value={item?.data_controls?.url}
                 onChange={(value) => setDataControls({...item.data_controls, url:value})}
               />
-            </div>}
+            </div>
             
-            {(pageType === 'template' && item?.data_controls?.id_column) && <div>
+            {(item?.data_controls?.id_column) && <div>
                         <ViewInfo
                             item={item}
                             submit={submit}
@@ -657,102 +609,6 @@ export function SidebarSwitch({type,item,toggleSidebar}) {
         `}
       />
     </Switch>
-  )
-}
-
-export function DeleteModal ({item, open, setOpen})  {
-  const cancelButtonRef = useRef(null)
-  const submit = useSubmit()
-  const { baseUrl } = React.useContext(CMSContext)
-  const [loading, setLoading] = useState(false)
-  return (
-    <Modal
-      open={open}
-      setOpen={setOpen}
-      initialFocus={cancelButtonRef}
-    >
-      <div className="sm:flex sm:items-start">
-        <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
-          <i className="fa fa-danger h-6 w-6 text-red-600" aria-hidden="true" />
-        </div>
-        <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left">
-          <Dialog.Title as="h3" className="text-base font-semibold leading-6 text-gray-900">
-            Delete Page {item.title} {item.id}
-          </Dialog.Title>
-          <div className="mt-2">
-            <p className="text-sm text-gray-500">
-              Are you sure you want to delete this page? All of the page data will be permanently removed
-              from our servers forever. This action cannot be undone.
-            </p>
-          </div>
-        </div>
-      </div>
-      <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
-        <button
-          type="button"
-          disabled={loading}
-          className="inline-flex w-full justify-center rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 sm:ml-3 sm:w-auto"
-          onClick={async () => {
-            setLoading(true)
-            await submit(json2DmsForm(item,'delete'), { method: "post", action: `${baseUrl}/edit/`})
-            setLoading(false);
-            setOpen(false);
-          }}
-        >
-          Delet{loading ? 'ing...' : 'e'}
-        </button>
-        <button
-          type="button"
-          className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto"
-          onClick={() => setOpen(false)}
-          ref={cancelButtonRef}
-        >
-          Cancel
-        </button>
-      </div>
-    </Modal>
-  )
-
-}
-
-export function Modal({open, setOpen, initialFocus, children}) {
-  return (
-    <Transition.Root show={open} as={Fragment}>
-      <Dialog as="div" className="relative z-30" initialFocus={initialFocus} onClose={setOpen}>
-        <Transition.Child
-          as={Fragment}
-          enter="ease-out duration-300"
-          enterFrom="opacity-0"
-          enterTo="opacity-100"
-          leave="ease-in duration-200"
-          leaveFrom="opacity-100"
-          leaveTo="opacity-0"
-        >
-          <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" />
-        </Transition.Child>
-
-        <div className="fixed inset-0 z-10 overflow-y-auto" >
-          <div 
-            onClick={() =>  {setOpen(false);}} 
-            className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0"
-          >
-            <Transition.Child
-              as={Fragment}
-              enter="ease-out duration-300"
-              enterFrom="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
-              enterTo="opacity-100 translate-y-0 sm:scale-100"
-              leave="ease-in duration-200"
-              leaveFrom="opacity-100 translate-y-0 sm:scale-100"
-              leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
-            >
-              <Dialog.Panel className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6">
-                {children}
-              </Dialog.Panel>
-            </Transition.Child>
-          </div>
-        </div>
-      </Dialog>
-    </Transition.Root>
   )
 }
 

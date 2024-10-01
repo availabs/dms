@@ -1,13 +1,12 @@
 import React, {useMemo, useState} from "react";
-import {getConfig} from "../../template/pages.jsx";
-import {dmsDataLoader} from "../../../../../api";
+import {getConfig} from "../pages.jsx";
+import {dmsDataLoader} from "../../../../../../api";
 import get from "lodash/get.js";
 //import {falcor} from "~/modules/avl-falcor"
-import { CMSContext } from '../../../siteConfig'
+import { CMSContext } from '../../../../siteConfig'
 import Selector from "./Selector.jsx";
 import {updatePages} from "./updatePages.js";
 import {generatePages} from "./generatePages.js";
-//import {pgEnv} from "../utils/constants.js";
 export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatus=() => {}}) => {
 
     // console.log('ViewInfo', id_column, active_id)
@@ -125,8 +124,10 @@ export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatu
 
     const errorIdColValues = useMemo(() => generatedPages.filter(page => typeof +page.num_errors === 'number' && +page.num_errors > 0).map(page => page.id_column_value.toString()), [generatedPages]);
     const generatedIdColValues = useMemo(() => generatedPages.filter(page => page.id_column_value && typeof page.id_column_value !== 'object').map(page => page.id_column_value.toString()), [generatedPages]);
-    const missingPagesDataRows = useMemo(() => dataRows.filter(row => !generatedIdColValues.includes(row[id_column.name]?.toString())), [generatedIdColValues, dataRows, id_column.name]);
-    const errorPagesDataRows = useMemo(() => dataRows.filter(row => errorIdColValues.includes(row[id_column.name]?.toString())), [errorIdColValues, dataRows, id_column.name]);
+    const missingPagesDataRows = useMemo(() => dataRows.filter(row => !generatedIdColValues
+            .includes(row[id_column?.name]?.toString())), [generatedIdColValues, dataRows, id_column?.name]);
+    const errorPagesDataRows = useMemo(() => dataRows
+            .filter(row => errorIdColValues.includes(row[id_column?.name]?.toString())), [errorIdColValues, dataRows, id_column?.name]);
     return (
         <div className='flex flex-col'>
             {/*<div>View Info</div>*/}

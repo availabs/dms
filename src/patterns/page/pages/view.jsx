@@ -39,7 +39,7 @@ function PageView ({item, dataItems, attributes, logo, rightMenu}) {
   const sectionAttr = attributes?.['sections']?.attributes || {}
   //console.log('test 123', attributes['sections'])
 
-
+  console.log('inPageNav', inPageNav)
   return (
     <div id='page_view'>
       {/* Header */}
