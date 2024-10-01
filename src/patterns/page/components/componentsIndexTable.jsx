@@ -5,7 +5,7 @@ import get from "lodash/get";
 import {Link} from "react-router-dom";
 import writeXlsxFile from 'write-excel-file';
 import {Download} from '../ui/icons'
-import {getUrlSlug} from "../layout/components/utils/navItems";
+import {getUrlSlug} from "../pages/_utils";
 import Switch from "../../../data-types/lexical/editor/ui/Switch";
 import RenderSwitch from "../../forms/components/selector/ComponentRegistry/spreadsheet/components/Switch";
 

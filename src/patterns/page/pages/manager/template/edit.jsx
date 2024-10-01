@@ -3,13 +3,12 @@ import { NavLink, Link, useSubmit, useNavigate, useLocation, useParams} from "re
 import cloneDeep from 'lodash/cloneDeep'
 
 
-import Layout from '../components/avail-layout'
-import { getInPageNav } from "../components/utils/inPageNavItems.js";
-
-import SideNav from '../components/nav/Side'
-import {json2DmsForm, getUrlSlug, toSnakeCase} from '../components/utils/navItems'
-import EditControls from '../components/editControls'
-import { CMSContext } from '../../siteConfig'
+//import Layout from '../../ui/avail-layout'
+import { json2DmsForm, getInPageNav  } from '../../_utils'
+import { SideNavContainer } from '../../../ui'
+import SideNav from '../../../ui/nav/Side' //'../components/nav/Side'
+import EditControls from './templateEditControls'
+import { CMSContext } from '../../../siteConfig'
 
 
 
@@ -92,7 +91,7 @@ function TemplateEdit ({
     submit(json2DmsForm(newItem), { method: "post", action: pathname })
     //.then(d => console.log('on submit',d))
   }
-
+   console.log('inPageNav', inPageNav)
   //console.log('page edit', attributes['sections'])
   const ContentEdit = React.useMemo(() => {
     return attributes['sections'].EditComp
@@ -109,10 +108,7 @@ function TemplateEdit ({
           />
         </div>
       } 
-      <Layout 
-        topNav={{size: 'none'}} 
-        sideNav={sideNav}
-      >
+      
         <div className={`${theme.page.wrapper1} ${theme.navPadding[level]}`}>
           {item?.header === 'below' && (
             <div className='w-full'> 
@@ -156,7 +152,7 @@ function TemplateEdit ({
           </div>  
             {/* PAGE EDIT END */}
         </div>
-      </Layout>
+      
       {item?.footer && <div className='h-[300px] bg-slate-100' />} 
     </div>   
   ) 
@@ -164,13 +160,9 @@ function TemplateEdit ({
 
 function RenderSideNav({inPageNav}) {
   return (
-    <div className='w-64 hidden xl:block'>
-      <div className='w-64 sticky top-20 hidden xl:block h-screen'> 
-        <div className='h-[calc(100%_-_5rem)] overflow-y-auto overflow-x-hidden font-display'>
+    <SideNavContainer  custom='max-h-[calc(100vh_-_6rem)] overflow-y-auto overflow-x-hidden top-20 sticky'>
           <SideNav {...inPageNav} /> 
-        </div>
-      </div>
-    </div>
+    </SideNavContainer>
   )
 }
 

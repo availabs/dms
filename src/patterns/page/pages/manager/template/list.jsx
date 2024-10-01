@@ -1,11 +1,10 @@
 import React, { useState, useRef } from 'react'
 import { Link, useSubmit, useLocation } from "react-router-dom";
 import { Dialog  } from '@headlessui/react'
-import { Modal } from "../components/editControls"
-import {json2DmsForm, getUrlSlug, toSnakeCase} from '../components/utils/navItems'
-import { CMSContext } from '../../siteConfig'
+import { Modal } from "../../../ui"
+import { json2DmsForm, getUrlSlug, toSnakeCase } from '../../_utils'
+import { CMSContext } from '../../../siteConfig'
 
-import Layout from '../components/avail-layout'
 
 function TemplateRow ({ item={} }) {
   const { baseUrl} = React.useContext(CMSContext)
@@ -47,7 +46,7 @@ export default function TemplateList ({children, dataItems, edit, ...props}) {
   const [showNew, setShowNew] = useState(false)
   const { baseUrl, theme} = React.useContext(CMSContext)
 
-  //console.log('template list', dataItems.filter(item => item ))
+  console.log('template list', dataItems.filter(item => item ))
   const menuItems=[
     {path: `${baseUrl}/templates`, name: 'Templates'}
   ]

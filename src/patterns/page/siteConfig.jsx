@@ -7,9 +7,9 @@ import PageView from "./pages/view"
 import PageEdit from "./pages/edit"
 
 // templates
-import TemplateList from './layout/template/list'
-import TemplatePages from './layout/template/pages'
-import TemplateEdit from './layout/template/edit'
+import TemplateList from './pages/manager/template/list'
+import TemplatePages from './pages/manager/template/pages'
+import TemplateEdit from './pages/manager/template/edit'
 
 // Manager
 import ManageLayout from './pages/manager/layout'
@@ -185,9 +185,9 @@ export const siteConfig = ({
                 path: "manage/templates/edit/:id"
               },
               {
-                  type: TemplatePages,
-                  action: "edit",
-                  path: "manage/templates/pages/:id"
+                type: TemplatePages,
+                action: "edit",
+                path: "manage/templates/pages/:id"
               },
             ]
           },

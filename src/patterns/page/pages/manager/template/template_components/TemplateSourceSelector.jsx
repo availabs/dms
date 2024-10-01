@@ -1,7 +1,6 @@
 import {SourcesSelect} from "./SourceSelect.jsx";
 import {ViewsSelect} from "./ViewsSelect.jsx";
 import {ViewInfo} from "./ViewInfo.jsx";
-import {PathControl} from "./PathControl.jsx";
 import {SectionListControls} from "./SectionListControls.jsx";
 import React from "react";
 
@@ -63,7 +62,7 @@ export const TemplateSourceSelector = ({
                         setLoadingStatus={setLoadingStatus}
                         baseUrl={baseUrl}
                     />
-                    <PathControl/>
+
                     <SectionListControls
                         sections={item.sections}
                         sectionControls={dataControls.sectionControls}

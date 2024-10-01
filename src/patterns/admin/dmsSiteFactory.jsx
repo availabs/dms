@@ -4,7 +4,7 @@ import { createBrowserRouter, RouterProvider } from "react-router-dom";
 //import {  adminConfig } from "./modules/dms/src/"
 import { dmsDataLoader, dmsPageFactory, registerDataType, Selector } from '../../'
 import { falcorGraph, useFalcor } from "@availabs/avl-falcor"
-
+import cloneDeep from 'lodash/cloneDeep'
 
 
 import formsConfig from '../forms'
@@ -43,29 +43,28 @@ const configs = {
 
 registerDataType("selector", Selector)
 
-export default async function dmsSiteFactory({
-    dmsConfig,
-    adminPath = '/list',
-    authWrapper = Component => Component,
-    themes = { default: {} },
-    falcor,
-    API_HOST = 'https://graph.availabs.org'
-}) {
-    let dmsConfigUpdated = {...dmsConfig};
+
+function pattern2routes (siteData, props) {
+    let {
+        dmsConfig,
+        adminPath = '/list',
+        authWrapper = Component => Component,
+        themes = { default: {} },
+        falcor,
+        API_HOST = 'https://graph.availabs.org'
+    } = props
+
+    const patterns = siteData.reduce((acc, curr) => [...acc, ...(curr?.patterns || [])], []) || [];
+    let SUBDOMAIN = getSubdomain(window.location.host)
+    SUBDOMAIN = SUBDOMAIN === 'hazardmitigation' ? '' : SUBDOMAIN
+    
     themes = themes?.default ? themes : { ...themes, default: {} }
+    
+    let dmsConfigUpdated = cloneDeep(dmsConfig);
     dmsConfigUpdated.registerFormats = updateRegisteredFormats(dmsConfigUpdated.registerFormats, dmsConfig.app)
     dmsConfigUpdated.attributes = updateAttributes(dmsConfigUpdated.attributes, dmsConfig.app)
 
-    falcor = falcor || falcorGraph(API_HOST)
-    let data = await dmsDataLoader(falcor, dmsConfigUpdated, `/`);
 
-    const patterns = data.reduce((acc, curr) => [...acc, ...(curr?.patterns || [])], []) || [];
-    let SUBDOMAIN = getSubdomain(window.location.host)
-    SUBDOMAIN = SUBDOMAIN === 'hazardmitigation' ? '' : SUBDOMAIN
-    //console.log('subdomain')
-
-    // call dmsPageFactory here assuming patterns are page type
-    // export multiple routes based on patterns.
     return [
         //pattern manager
         dmsPageFactory({
@@ -109,8 +108,29 @@ export default async function dmsSiteFactory({
     ]
 }
 
+export default async function dmsSiteFactory(props) {
+    let {
+        dmsConfig,
+        falcor,
+        API_HOST = 'https://graph.availabs.org'
+    } = props
+
+    let dmsConfigUpdated = cloneDeep(dmsConfig);
+    dmsConfigUpdated.registerFormats = updateRegisteredFormats(dmsConfigUpdated.registerFormats, dmsConfig.app)
+    dmsConfigUpdated.attributes = updateAttributes(dmsConfigUpdated.attributes, dmsConfig.app)
+
+    falcor = falcor || falcorGraph(API_HOST)
+    console.time('load routes')
+    let data = await dmsDataLoader(falcor, dmsConfigUpdated, `/`);
+    console.timeEnd('load routes')
+    //console.log('data', data)
+
+    return pattern2routes(data, props)
+}
+
 export function DmsSite ({
     dmsConfig,
+    defaultData,
     adminPath = '/list',
     authWrapper = Component => Component,
     themes = { default: {} },
@@ -122,9 +142,23 @@ export function DmsSite ({
     // to do:
     // could save sites to localstorage cache clear on load.
     //-----------
-    const [dynamicRoutes, setDynamicRoutes] = useState([]);
+    const [dynamicRoutes, setDynamicRoutes] = useState(
+        defaultData ? 
+            pattern2routes(defaultData, {
+                dmsConfig,
+                adminPath,
+                themes,
+                falcor,
+                API_HOST,
+                authWrapper
+                //theme   
+            }) 
+            : []
+        );
+    
     useEffect(() => {
         (async function() {
+            console.time('dmsSiteFactory')
             const dynamicRoutes = await dmsSiteFactory({
                 dmsConfig,
                 adminPath,
@@ -134,6 +168,8 @@ export function DmsSite ({
                 authWrapper
                 //theme   
             });
+            console.timeEnd('dmsSiteFactory')
+            // console.log('dynamicRoutes', dynamicRoutes)
             setDynamicRoutes(dynamicRoutes);
         })()
     }, []);
@@ -144,7 +180,7 @@ export function DmsSite ({
         Component: () => (<div className={'w-screen h-screen flex items-center bg-blue-50'}>404</div>)
     }
 
-    console.log('routes', routes, dynamicRoutes)
+    //console.log('routes', routes, dynamicRoutes)
 
     return (
         <RouterProvider router={createBrowserRouter([

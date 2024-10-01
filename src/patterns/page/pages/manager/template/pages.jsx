@@ -1,11 +1,10 @@
 import React, {useEffect, useState} from 'react';
 import {Link, useNavigate, useParams} from "react-router-dom";
-import {dmsDataLoader} from "../../../../api";
+import {dmsDataLoader} from "../../../../../api";
 import {DeleteModal} from "./list.jsx";
-import Layout from '../components/avail-layout'
-import Table from "../../../forms/components/Table"
-import {getNestedValue} from "../../../forms/utils/getNestedValue";
-import { CMSContext } from "../../siteConfig";
+import Table from "../../../../forms/components/Table"
+import {getNestedValue} from "../../_utils";
+import { CMSContext } from "../../../siteConfig";
 import get from "lodash/get";
 
 export const locationNameMap = {
@@ -27,11 +26,12 @@ const NoPages = ({}) => (<div className={'p-4'}>No Pages have been generated for
 
 function TemplateRow ({ id, app, type, data={}, updated_at }) {
     const navigate = useNavigate();
+    const { baseUrl } = React.useContext(CMSContext)
     const [showDelete, setShowDelete] = useState(false)
     return (
         <div className='grid grid-cols-3 px-2 py-3 border-b hover:bg-blue-50'>
             <div>
-                <Link to={`${locationUrlMap[type]}/${data?.value?.url_slug}`} >
+                <Link to={`${baseUrl}/${data?.value?.url_slug}`} >
                     <div className='px-2 font-medium text-lg text-slate-700'>
                         {data?.value?.title}
                     </div>
@@ -43,11 +43,11 @@ function TemplateRow ({ id, app, type, data={}, updated_at }) {
                 <span className={'px-4'}>{getNestedValue(updated_at)}</span>
             </div>
             <div className={'text-right px-2'}>
-                <Link to={`${locationUrlMap[type]}/${data?.value?.url_slug}`}
+                <Link to={`${baseUrl}/${data?.value?.url_slug}`}
                       className={'fa-thin fa-eye px-2 py-1 mx-2 text-bold cursor-pointer'}
                       locationNameMap           title={'view'}
                 />
-                <Link to={`${locationUrlMap[type]}/edit/${data?.value?.url_slug}`}
+                <Link to={`${baseUrl}/edit/${data?.value?.url_slug}`}
                       className={'fa-thin fa-pencil px-2 py-1 mx-2 text-bold cursor-pointer'}
                       title={'edit'}
                 />
@@ -112,13 +112,13 @@ const findNameCol = data => Object.keys(data).find(col => col.toLowerCase().incl
 const getMetaName = (id_column, id, data) => id_column === 'geoid' ?
     data?.['county'] || data?.['name'] || id :
     data?.[findNameCol(data)] || id
-const TemplatePages = ({item, params, logo, rightMenu, baseUrl=''}) => {
-    const [pageSize, setPageSize] = useState(10);
-    const { falcor, falcorCache, pgEnv, theme } = React.useContext(CMSContext)
+const TemplatePages = ({item, params, logo, rightMenu}) => {
+    const [pageSize, setPageSize] = useState(100);
+    const { baseUrl, falcor, falcorCache, pgEnv, theme, app, type} = React.useContext(CMSContext)
     const {id} = params;
     const view_id = item.data_controls?.view?.view_id;
     const id_column = item.data_controls?.id_column?.name;
-    const locations = [item.type]
+    //const locations = [type]
     const menuItems=[{path: `${baseUrl}/templates`, name: 'Templates'}]
 
     if (!id) return null;
@@ -127,18 +127,13 @@ const TemplatePages = ({item, params, logo, rightMenu, baseUrl=''}) => {
     useEffect(() => {
         // get generated pages
         (async function () {
-            const res = await locations.reduce(async (acc, type) => {
-                const prevPages = await acc;
-                const currentPages = await dmsDataLoader(
-                    falcor,
-                    getConfig({
-                        app: 'dms-site',
-                        type: type,
-                        filter: {[`data->>'template_id'`]: [id]}
-                    }), '/');
-                return [...prevPages, ...currentPages];
-            }, Promise.resolve([]));
-
+            const res = await dmsDataLoader(
+            falcor,
+            getConfig({
+                app: app,
+                type: type,
+                filter: {[`data->>'template_id'`]: [id]}
+            }), '/');
             setValue(res)
         })()
     }, [id]);
@@ -231,8 +226,8 @@ const TemplatePages = ({item, params, logo, rightMenu, baseUrl=''}) => {
         return {
             title: getMetaName(id_column, data.value.id_column_value, v) || data.value.title,
             location: locationNameMap[type],
-            view: `${locationUrlMap[type]}/${data?.value?.url_slug}`,
-            edit: `${locationUrlMap[type]}/edit/${data?.value?.url_slug}`,
+            view: `${baseUrl}/${data?.value?.url_slug}`,
+            edit: `${baseUrl}/edit/${data?.value?.url_slug}`,
             updated: getNestedValue(updated_at),
             status: data?.value?.num_errors > 0 ? 'error' : 'success'
 
@@ -242,8 +237,8 @@ const TemplatePages = ({item, params, logo, rightMenu, baseUrl=''}) => {
     return (
         <div className={theme?.page?.wrapper2}>
             <div className={theme?.page?.wrapper3}>
-                <div className='py-6 h-full'>
-                    <div className='bg-white h-full shadow border max-w-6xl mx-auto px-6'>
+                <div className=' h-full'>
+                    <div className='bg-white h-full max-w-6xl mx-auto px-6'>
                         <div className={'flex flex-col sm:flex-row justify-between'}>
                             <div className='flex flex-col'>
                                 <label className='text-2xl pt-3 font-thin flex-1'><span
@@ -265,8 +260,8 @@ const TemplatePages = ({item, params, logo, rightMenu, baseUrl=''}) => {
                                 <label>rows</label>
                             </div>
                         </div>
-                        <div className='px-6 pt-8'>
-                            <div className='shadow rounded border'>
+                        <div className='pt-8'>
+                            <div className='rounded border'>
                                 <Table
                                     data={data}
                                     columns={columns}
