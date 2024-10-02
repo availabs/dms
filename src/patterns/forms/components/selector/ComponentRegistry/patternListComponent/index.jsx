@@ -6,7 +6,7 @@ import {Link, useSearchParams} from "react-router-dom";
 import SourcesLayout from "./layout";
 import {makeLexicalFormat} from "../../../../../../../../../pages/DataManager/DataTypes/default/Overview";
 import {dmsDataTypes} from "~/modules/dms/src"
-import {dmsDataLoader} from "../../../../../../api";
+import {dmsDataLoader, dmsDataEditor} from "../../../../../../api";
 import {getConfig} from "../../../../../page/pages/manager/template/pages";
 
 export const isJson = (str)  => {
@@ -18,19 +18,39 @@ export const isJson = (str)  => {
     return true;
 }
 
-const getData = async (app, falcor) => {
+const getData = async (app, type, siteType, falcor) => {
+    const siteConfig = getConfig({
+        app,
+        type: siteType
+    })
+
+    const siteData = await dmsDataLoader(falcor, siteConfig, `/`);
+    // these are the patterns which are in the site.
+    // there may be deleted patterns which are not in the site.patterns array. don't wanna show them :shrug:
+    const existingPatterns = (siteData?.[0]?.data?.value?.patterns || []).map(p => p.id)
+
     const config = getConfig({
         app,
         type: 'pattern',
-        filter: {[`data->>'pattern_type'`]: ['form']}
+        filter: {[`data->>'pattern_type'`]: ['form'], id: existingPatterns}
     })
 
     return await dmsDataLoader(falcor, config, `/`);
 }
 
+const addPattern = async (app, data, falcor) => {
+    const config = {
+        format: {
+            app: app,
+            type: 'pattern'
+        }
+    }
+
+    return await dmsDataEditor(falcor, config, data);
+}
+
 const SourceThumb = ({ source }) => {
     const {pgEnv, baseUrl, falcor, falcorCache} = React.useContext(CMSContext)
-    console.log('source', source)
     const Lexical = dmsDataTypes.lexical.ViewComp;
 
     return (
@@ -58,23 +78,51 @@ const SourceThumb = ({ source }) => {
     );
 };
 
-const Edit = ({value, onChange, size}) => {
-    const {app, falcor, falcorCache, baseUrl, user} = useContext(CMSContext);
+const RenderAddPattern = ({isAdding, setIsAdding, app, falcor}) => {
+    const [data, setData] = useState({doc_type: '', base_url: ''});
+    if(!isAdding) return null;
+
+    return (
+        <div className={'w-full p-4 bg-white hover:bg-blue-50 block border shadow flex items-center'}>
+            <input className={'p-1 mx-1 text-sm font-medium w-full block'}
+                   key={'new-form-doc-type'}
+                   value={data.doc_type}
+                   placeholder={'Doc Type'}
+                   onChange={e => setData({...data, doc_type: e.target.value})}
+            />
+            <input className={'p-1 mx-1 text-sm font-light w-full block'}
+                   key={'new-form-url-slug'}
+                   value={data.base_url}
+                   placeholder={'Base URL'}
+                   onChange={e => setData({...data, base_url: e.target.value})}
+            />
+            <button className={'p-1 mx-1 bg-blue-300 hover:bg-blue-500 text-white'}
+                    disabled={!data.doc_type || !data.base_url}
+                    onClick={() => addPattern(app, data, falcor)}
+            >add</button>
+            <button className={'p-1 mx-1 bg-red-300 hover:bg-red-500 text-white'}
+                    onClick={() => {
+                        setData({doc_type: '', base_url: ''})
+                        setIsAdding(false)
+                    }}
+            >cancel</button>
+        </div>
+    )
+}
+const Edit = ({siteType}) => {
+    const {app, type, falcor, falcorCache, baseUrl, user} = useContext(CMSContext);
     const [patterns, setPatterns] = useState([]);
     const [layerSearch, setLayerSearch] = useState("");
     const { cat1, cat2, ...rest } = useParams();
-    const [params, setParams] = useSearchParams();
     const [sort, setSort] = useState('asc');
+    const [isAdding, setIsAdding] = useState(false);
     const actionButtonClassName = 'bg-transparent hover:bg-blue-100 rounded-sm p-2 ml-0.5 border-2';
     const isListAll = false;
     const filteredCategories = []; // categories you want to exclude from landing list page.
 
     useEffect(() => {
-        getData(app, falcor).then(data => setPatterns(data));
+        getData(app, type, siteType, falcor).then(data => setPatterns(data));
     }, [app]);
-
-    console.log('??', patterns.filter(p => p.data.value.categories))
-
 
     const categories = [...new Set(
         patterns
@@ -115,20 +163,15 @@ const Edit = ({value, onChange, size}) => {
                     <i className={`fa-solid ${sort === 'asc' ? `fa-arrow-down-z-a` : `fa-arrow-down-a-z`} text-xl text-blue-400`}/>
                 </button>
 
-                <Link
-                    to={isListAll ? `${baseUrl}` : `${baseUrl}/listall`}
-                    className={actionButtonClassName} title={isListAll ? 'View Key Sources' : 'View All Sources'}>
-                    <i className={`fa-solid ${isListAll ? `fa-filter-list` : `fa-list-ul`} text-xl text-blue-400`}/>
-                </Link>
-
-                {
-                    user?.authed && user.authLevel === 10 &&
-                    <Link
-                        to={`${baseUrl}/settings`}
-                        className={actionButtonClassName} title={'Settings'}>
-                        <i className={`fa-solid fa-gear text-xl text-blue-400`}/>
-                    </Link>
-                }
+                {/*{*/}
+                {/*    user?.authed && user.authLevel === 10 &&*/}
+                {/*    <button*/}
+                {/*        className={actionButtonClassName} title={'Add'}*/}
+                {/*        onClick={() => setIsAdding(!isAdding)}*/}
+                {/*    >*/}
+                {/*        <i className={`fa-solid fa-add text-xl text-blue-400`}/>*/}
+                {/*    </button>*/}
+                {/*}*/}
 
             </div>
             <div className={'flex flex-row'}>
@@ -149,6 +192,7 @@ const Edit = ({value, onChange, size}) => {
                     }
                 </div>
                 <div className={'w-3/4 flex flex-col space-y-1.5 ml-1.5 max-h-[80dvh] overflow-auto scrollbar-sm'}>
+                    <RenderAddPattern falcor={falcor} app={app} isAdding={isAdding} setIsAdding={setIsAdding}/>
                     {
                         patterns
                             .filter(source => {

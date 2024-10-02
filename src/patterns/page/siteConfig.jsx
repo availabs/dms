@@ -34,6 +34,7 @@ export const CMSContext = React.createContext(undefined);
 export const siteConfig = ({
   app = "dms-site",
   type = "docs-page",
+  siteType,
   rightMenu = <DefaultMenu />,
   baseUrl = '/',
   logo, // deprecated
@@ -77,6 +78,7 @@ export const siteConfig = ({
 
   // const rightMenuWithSearch = rightMenu; // for live site
   return {
+    siteType,
     format: format,
     baseUrl,
     API_HOST,
@@ -107,6 +109,7 @@ export const siteConfig = ({
             type: (props) => (
               <PageEdit
                 {...props}
+                siteType={siteType}
               />
             ),
             path: "edit/*",
@@ -116,6 +119,7 @@ export const siteConfig = ({
             type: (props) => (
               <PageView
                 {...props}
+                siteType={siteType}
               />
             ),
             filter: {

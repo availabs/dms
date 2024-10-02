@@ -68,7 +68,8 @@ function pattern2routes (siteData, props) {
     return [
         //pattern manager
         dmsPageFactory({
-            ...dmsConfigUpdated, 
+            ...dmsConfigUpdated,
+            siteType: dmsConfigUpdated.type,
             baseUrl: adminPath, 
             API_HOST, 
             theme: themes['default']
@@ -87,6 +88,7 @@ function pattern2routes (siteData, props) {
                             app: dmsConfigUpdated?.format?.app || dmsConfigUpdated.app,
                             // type: pattern.doc_type,
                             type: pattern.doc_type || pattern?.base_url?.replace(/\//g, ''),
+                            siteType: dmsConfigUpdated?.format?.type || dmsConfigUpdated.type,
                             baseUrl: `/${pattern.base_url?.replace(/^\/|\/$/g, '')}`, // only leading slash allowed
                             adminPath,
                             format: pattern?.config,

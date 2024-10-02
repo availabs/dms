@@ -161,7 +161,7 @@ function TagComponent ({value, placeholder, onChange, edit=false}) {
 }
 
 
-function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, onRemove}) {
+function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, onRemove, siteType}) {
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     let sectionTitleCondition = value?.['title'] 
     let {theme} = React.useContext(CMSContext) || {}
@@ -177,7 +177,7 @@ function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, o
     let TagsComp = attributes?.tags?.EditComp
     let ElementComp = attributes?.element?.EditComp
     let HelpComp = attributes?.helpText?.EditComp
-
+    // console.log('props in sectionEdit', siteType)
     return (
         <div className={``}>
             {/* -------------------top line buttons ----------------------*/}
@@ -351,13 +351,14 @@ function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, o
                     value={value?.['element']}
                     onChange={(v) => updateAttribute('element', v)}
                     size={size}
+                    siteType={siteType}
                 />
             </div>
         </div>
     )
 }
 
-function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove}) {
+function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove, siteType}) {
     let [referenceElement, setReferenceElement] = useState()
     let [popperElement, setPopperElement] = useState()
     let { styles, attributes:popperAttributes } = usePopper(referenceElement, popperElement)
@@ -378,7 +379,7 @@ function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove}) {
     let showEditIcons = edit && typeof onEdit === 'function' && !isTemplateSectionCondition
 
     const element = React.useMemo(() => {
-        return <ElementComp value={value?.['element']} />
+        return <ElementComp value={value?.['element']} siteType={siteType}/>
     }, 
     [value])
         
@@ -641,7 +642,7 @@ const ScrollToHashElement = () => {
     return null;
 };
 
-const Edit = ({Component, value, onChange, attr, full_width = false, ...rest }) => {
+const Edit = ({Component, value, onChange, attr, full_width = false, siteType, ...rest }) => {
     // console.log('.............', rest, attr, value)
     if (!value || !value.map) { 
         value = []
@@ -773,6 +774,7 @@ const Edit = ({Component, value, onChange, attr, full_width = false, ...rest }) 
                                 attributes={attr.attributes}
                                 size={size}
                                 i={i}
+                                siteType={siteType}
                             />
                             : ''
                         }
@@ -787,6 +789,7 @@ const Edit = ({Component, value, onChange, attr, full_width = false, ...rest }) 
                                 edit={true}
                                 onEdit={ edit.index === -1 ? (e) => update(i)  : null }
                                 addAbove={() => setEditIndex(i)}
+                                siteType={siteType}
                             /> : v?.status?.length > 1 ? <RenderError data={v} /> : ''}
 
                         {/* add new section at end  */}
@@ -803,7 +806,7 @@ const Edit = ({Component, value, onChange, attr, full_width = false, ...rest }) 
     )
 }
 
-const View = ({Component, value, attr, full_width}) => {
+const View = ({Component, value, attr, full_width, siteType}) => {
     if (!value || !value.map) { return '' }
     const { baseUrl, user, theme } = React.useContext(CMSContext) || {}
 
@@ -821,7 +824,7 @@ const View = ({Component, value, attr, full_width}) => {
     }
 
 
-    //console.log('render SA view', full_width)
+    // console.log('props in sectionArray.view', siteType)
 
     return (
         <div className={`w-full grid grid-cols-6 ${layouts[full_width === 'show' ? 'fullwidth' : 'centered']} gap-1`}>
@@ -849,6 +852,7 @@ const View = ({Component, value, attr, full_width}) => {
                                     key={i}
                                     i={i}
                                     value={v}
+                                    siteType={siteType}
                                 />
                             </div>
                         )

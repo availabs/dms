@@ -36,7 +36,7 @@ const defaultUser = { email: "user", authLevel: 5, authed: true, fake: true}
 
 
 const formTemplateConfig = ({
-    app, type, adminPath,
+    app, type, siteType, adminPath,
     format, 
     parent, 
     title, 
@@ -67,6 +67,7 @@ const formTemplateConfig = ({
     return {
         app,
         type: newType,
+        siteType,
         format: templateFormat,
         baseUrl,
         API_HOST,
@@ -118,7 +119,8 @@ const formTemplateConfig = ({
 
 const formsAdminConfig = ({ 
     app, 
-    type, 
+    type,
+    siteType,
     parent,
     adminPath,
     title, 
@@ -155,6 +157,7 @@ const formsAdminConfig = ({
 
     // console.log('formsAdminConfig', patternFormat)
     return {
+        siteType,
         format: patternFormat,
         baseUrl: `${baseUrl}/manage`,
         API_HOST,
