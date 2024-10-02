@@ -10,7 +10,7 @@ const navPages = [
   {name: 'Upload', href: `manage/upload`},
 ]
 
-const SourcesLayout = ({children, fullWidth, hideBreadcrumbs, hideNav, form={}, page={}, baseUrl }) => {
+const SourcesLayout = ({children, fullWidth, hideBreadcrumbs, hideNav, form, page, baseUrl }) => {
   return (
     <div className={`${fullWidth ? '' : 'max-w-6xl mx-72'} h-full flex flex-col`}>
       {hideBreadcrumbs ? '' :  <div className=''>
@@ -53,7 +53,7 @@ const Breadcrumbs = ({fullWidth, baseUrl, form, page}) => {
             </Link>
           </div>
         </li>
-        {[form, page].map((page,i) => (
+        {[form, page].filter(p => p).map((page,i) => (
           <li key={i} className="flex">
             <div className="flex items-center">
               <svg

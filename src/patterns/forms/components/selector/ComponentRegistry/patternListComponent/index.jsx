@@ -62,7 +62,7 @@ const SourceThumb = ({ source }) => {
                 <div>
                     {(get(source, ['data', 'value', "categories"], []) || [])
                         .map(cat => (typeof cat === 'string' ? [cat] : cat).map((s, i) => (
-                            <Link key={i} to={`${baseUrl}/cat/${i > 0 ? cat[i - 1] + "/" : ""}${s}`}
+                            <Link key={i} to={`?cat=${i > 0 ? cat[i - 1] + "/" : ""}${s}`}
                                   className="text-xs p-1 px-2 bg-blue-200 text-blue-600 mr-2">{s}</Link>
                         )))
                     }
@@ -113,12 +113,15 @@ const Edit = ({siteType}) => {
     const {app, type, falcor, falcorCache, baseUrl, user} = useContext(CMSContext);
     const [patterns, setPatterns] = useState([]);
     const [layerSearch, setLayerSearch] = useState("");
-    const { cat1, cat2, ...rest } = useParams();
+    const {...rest } = useParams();
+    const [searchParams, setSearchParams] = useSearchParams();
     const [sort, setSort] = useState('asc');
     const [isAdding, setIsAdding] = useState(false);
     const actionButtonClassName = 'bg-transparent hover:bg-blue-100 rounded-sm p-2 ml-0.5 border-2';
     const isListAll = false;
     const filteredCategories = []; // categories you want to exclude from landing list page.
+    const cat1 = searchParams.get('cat');
+    const cat2 = undefined;
 
     useEffect(() => {
         getData(app, type, siteType, falcor).then(data => setPatterns(data));
@@ -146,7 +149,8 @@ const Edit = ({siteType}) => {
     }, {})
 
     return (
-        <SourcesLayout fullWidth={true} baseUrl={baseUrl} isListAll={false} page={{}} hideBreadcrumbs={true} hideNav={true}>
+        <SourcesLayout fullWidth={true} isListAll={false} hideBreadcrumbs={false} hideNav={true}
+                       baseUrl={`${baseUrl}/${rest['*']}`} page={cat1 ? {name: cat1, href: `?cat=${cat1}`} : {}} >
             <div className="flex flex-rows items-center">
                 <input
                     className="w-full text-lg p-2 border border-gray-300 "
@@ -183,7 +187,7 @@ const Edit = ({siteType}) => {
                             <Link
                                 key={cat}
                                 className={`${cat1 === cat || cat2 === cat ? `bg-blue-100` : `bg-white`} hover:bg-blue-50 p-2 rounded-md flex items-center`}
-                                to={`${baseUrl}${isListAll ? `/listall` : ``}/cat/${cat}`}
+                                to={`${isListAll ? `/listall` : ``}?cat=${cat}`}
                             >
                                 <i className={'fa fa-category'} /> {cat}
                                 <div className={'bg-blue-200 text-blue-600 text-xs w-5 h-5 ml-2 shrink-0 grow-0 rounded-lg flex items-center justify-center border border-blue-300'}>{categoriesCount[cat]}</div>
@@ -207,7 +211,7 @@ const Edit = ({siteType}) => {
                                 let output = true;
                                 if (cat1) {
                                     output = false;
-                                    (get(source, "categories", []) || [])
+                                    (get(source, ['data', 'value', 'categories'], []) || [])
                                         .forEach(site => {
                                             if (site[0] === cat1 && (!cat2 || site[1] === cat2)) {
                                                 output = true;
