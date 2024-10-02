@@ -172,7 +172,7 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     console.log('columns', columns)
     const pivotColumns = existingAttributes.filter(existingCol => columns.filter(c => c.existingColumnMatch === existingCol.name).length > 1);
 
-    if(true || publishStatus){
+    if(publishStatus){
         return <div className={'flex items-center justify-center w-full h-[150px] border rounded-md'}>
             The Sheet has been Processed. To Validate your records, <Link className={'text-blue-500 hover:text-blue-700 px-1'} to={`${baseUrl}/manage/validate`}>click here</Link>
         </div>
