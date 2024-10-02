@@ -38,15 +38,31 @@ const getData = async (app, type, siteType, falcor) => {
     return await dmsDataLoader(falcor, config, `/`);
 }
 
-const addPattern = async (app, data, falcor) => {
+const addPattern = async (app, siteType, data, falcor) => {
+    const siteConfig = getConfig({
+        app,
+        type: siteType
+    })
+
+    const siteData = await dmsDataLoader(falcor, siteConfig, `/`);
+    const site = siteData[0].data.value;
+    site.patterns = [...(site?.patterns || []), data];
+
     const config = {
         format: {
             app: app,
-            type: 'pattern'
+            type: siteType,
+            attributes: [
+                {
+                    key: 'patterns',
+                    type: 'dms-format',
+                    format: `${app}+pattern`
+                }
+            ]
         }
     }
 
-    return await dmsDataEditor(falcor, config, data);
+    return await dmsDataEditor(falcor, config, site);
 }
 
 const SourceThumb = ({ source }) => {
@@ -78,8 +94,9 @@ const SourceThumb = ({ source }) => {
     );
 };
 
-const RenderAddPattern = ({isAdding, setIsAdding, app, falcor}) => {
-    const [data, setData] = useState({doc_type: '', base_url: ''});
+const RenderAddPattern = ({isAdding, setIsAdding, app, siteType, falcor}) => {
+    const blankData = {pattern_type: 'form', doc_type: '', base_url: ''}
+    const [data, setData] = useState(blankData);
     if(!isAdding) return null;
 
     return (
@@ -98,11 +115,11 @@ const RenderAddPattern = ({isAdding, setIsAdding, app, falcor}) => {
             />
             <button className={'p-1 mx-1 bg-blue-300 hover:bg-blue-500 text-white'}
                     disabled={!data.doc_type || !data.base_url}
-                    onClick={() => addPattern(app, data, falcor)}
+                    onClick={() => addPattern(app, siteType, data, falcor)}
             >add</button>
             <button className={'p-1 mx-1 bg-red-300 hover:bg-red-500 text-white'}
                     onClick={() => {
-                        setData({doc_type: '', base_url: ''})
+                        setData(blankData)
                         setIsAdding(false)
                     }}
             >cancel</button>
@@ -167,15 +184,15 @@ const Edit = ({siteType}) => {
                     <i className={`fa-solid ${sort === 'asc' ? `fa-arrow-down-z-a` : `fa-arrow-down-a-z`} text-xl text-blue-400`}/>
                 </button>
 
-                {/*{*/}
-                {/*    user?.authed && user.authLevel === 10 &&*/}
-                {/*    <button*/}
-                {/*        className={actionButtonClassName} title={'Add'}*/}
-                {/*        onClick={() => setIsAdding(!isAdding)}*/}
-                {/*    >*/}
-                {/*        <i className={`fa-solid fa-add text-xl text-blue-400`}/>*/}
-                {/*    </button>*/}
-                {/*}*/}
+                {
+                    user?.authed && user.authLevel === 10 &&
+                    <button
+                        className={actionButtonClassName} title={'Add'}
+                        onClick={() => setIsAdding(!isAdding)}
+                    >
+                        <i className={`fa-solid fa-add text-xl text-blue-400`}/>
+                    </button>
+                }
 
             </div>
             <div className={'flex flex-row'}>
@@ -196,7 +213,7 @@ const Edit = ({siteType}) => {
                     }
                 </div>
                 <div className={'w-3/4 flex flex-col space-y-1.5 ml-1.5 max-h-[80dvh] overflow-auto scrollbar-sm'}>
-                    <RenderAddPattern falcor={falcor} app={app} isAdding={isAdding} setIsAdding={setIsAdding}/>
+                    <RenderAddPattern falcor={falcor} app={app} siteType={siteType} isAdding={isAdding} setIsAdding={setIsAdding}/>
                     {
                         patterns
                             .filter(source => {
