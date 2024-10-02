@@ -65,7 +65,7 @@ const Validate = ({
     const dmsServerPath = `${API_HOST}/dama-admin`;
 
     const {app, type, config} = parent;
-    const columns = JSON.parse(config)?.attributes || [];
+    const columns = JSON.parse(config || '{}')?.attributes || [];
     const invalidEntriesFormat = {...parent, type: `${format.type}-invalid-entry`}
 
     useEffect(() => {

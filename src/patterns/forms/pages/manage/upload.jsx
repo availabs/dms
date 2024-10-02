@@ -22,7 +22,6 @@ const UploadPage = ({
     // ...rest
 }) => {
     const { API_HOST, baseUrl, theme, user, ...rest } = React.useContext(FormsContext) || {};
-    console.log('?????????????', format)
     return (
         <SourcesLayout fullWidth={false} baseUrl={baseUrl} isListAll={false} hideBreadcrumbs={false}
                        form={{name: format.type, href: format.url_slug}}
@@ -31,7 +30,8 @@ const UploadPage = ({
                 <Upload.EditComp
                     onChange={() => {}}
                     size={1}
-                    format={parent}
+                    format={format}
+                    parent={parent}
                     apiLoad={apiLoad}
                     apiUpdate={apiUpdate}
                 />
