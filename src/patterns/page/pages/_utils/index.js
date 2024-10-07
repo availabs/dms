@@ -195,6 +195,9 @@ import reduce from 'lodash/reduce'
 import map from 'lodash/map'
 
 export const parseJSON = (d, fallback={}) => {
+     if(typeof d === 'object') {
+        return d
+    }
     let out = fallback
     try {
         out = JSON.parse(d)

@@ -70,11 +70,14 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
             .reduce(async (acc, section_id, i) => {
                 const prev = await acc;
                 let section = item.sections.filter(d => d.id === section_id)?.[0] || {}
+                //console.log('section testing', section, item.sections, section_id)
                 setLoadingStatus(`Updating section ${section?.title}  ${section?.element?.['element-type']}  ${i+1}/${totalSections}`)
                 
-                let data = (section?.element?.['element-data']) || {}
+                let data = parseJSON(section?.element?.['element-data'] || {})
                 let type = section?.element?.['element-type'] || ''
                 let comp = RegisteredComponents[type] || {}
+
+                console.log('section data testing', data)
 
                 // here, identify if any sectionControls are in data.additionalControls and pass them as additionalcontrols.
                 // this will let getData detect them as filters
@@ -102,6 +105,7 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
                 })
 
                 let args = {...controlVars, ...updateVars, additionalVariables}
+                console.log('args',type ,args, controlVars, updateVars, additionalVariables)
                 const curr = comp?.getData ? await comp.getData(args, falcor).then(data => ({section_id, data})) : null
                 return curr ? [...prev, curr] : prev
             }, Promise.resolve([]))
