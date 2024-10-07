@@ -15,8 +15,9 @@ import EditControls from './editControls'
 import { CMSContext } from '../../siteConfig'
 
 function PageEdit ({
-  item, dataItems, updateAttribute,attributes, setItem, apiUpdate, status, navOptions
+  item, dataItems, updateAttribute,attributes, setItem, apiUpdate, status, navOptions, siteType
 }) {
+  // console.log('props in pageEdit', siteType)
   const navigate = useNavigate()
   const submit = useSubmit()
   const { pathname = '/edit' } = useLocation()
@@ -80,12 +81,13 @@ function PageEdit ({
           value={[headerSection]} 
           onChange={(val,action) => saveHeader(v, item, user, apiUpdate)}         
           attributes={sectionAttr}
+          siteType={siteType}
         />
       )} 
       <Layout navItems={menuItems} secondNav={theme?.navOptions?.secondaryNav?.navItems || []}>
         <div className={`${theme?.page?.wrapper1} ${theme?.navPadding[level]}`}>
           {item?.header === 'below' && (
-            <ContentEdit item={item} value={[headerSection]} onChange={(val,action) => saveHeader(v, item, user, apiUpdate)} attributes={sectionAttr} />
+            <ContentEdit item={item} value={[headerSection]} onChange={(val,action) => saveHeader(v, item, user, apiUpdate)} attributes={sectionAttr} siteType={siteType}/>
           )}
           <div className={`${theme?.page?.wrapper2}`}>
             {item?.sidebar === 'show' && (
@@ -95,7 +97,7 @@ function PageEdit ({
             )}  
             <div className={theme?.page?.wrapper3 + ''}>
               {item?.header === 'inpage' && (
-                 <ContentEdit item={item} value={[headerSection]} onChange={(val,action) => saveHeader(v, item, user, apiUpdate)} attributes={sectionAttr}/>
+                 <ContentEdit item={item} value={[headerSection]} onChange={(val,action) => saveHeader(v, item, user, apiUpdate)} attributes={sectionAttr} siteType={siteType}/>
               )} 
               {user?.authLevel >= 5 && (
                 <Link className={theme?.page?.iconWrapper} to={`${baseUrl}/${item?.url_slug || ''}`}>
@@ -107,6 +109,7 @@ function PageEdit ({
                 value={draftSections} 
                 onChange={(val,action) => saveSection(val, action, item, user, apiUpdate)}         
                 attributes={sectionAttr}
+                siteType={siteType}
               />
             </div>
             <SideNavContainer witdh={'w-52'}>

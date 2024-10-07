@@ -12,25 +12,6 @@ export const isJson = (str)  => {
     return true;
 }
 
-const RenderButton = ({to, text}) => (
-    <Link className={'p-2 mx-1 bg-blue-300 hover:bg-blue-600 text-white rounded-md'} to={to}>{text}</Link>
-)
-const RenderHeader = ({title, buttons=[]}) => (
-    <div className={'w-full flex justify-between border-b rounded-l-lg pr-2'}>
-        <div>
-            <span
-                className={'text-3xl text-blue-500 text-bold tracking-wide border-b-4 border-blue-500 px-2'}>{title.substring(0, 1)}</span>
-            <span
-                className={'text-3xl -ml-2 text-blue-500 text-bold tracking-wide'}>{title.substring(1, title.length)}</span>
-        </div>
-        <div>
-            {
-                buttons.map(button => <RenderButton {...button} />)
-            }
-        </div>
-    </div>
-)
-
 const uploadGisDataset = async ({file, user, etlContextId, damaServerPath, setGisUploadId, setLoading}) => {
     try {
         setLoading(true)
@@ -70,7 +51,8 @@ const uploadGisDataset = async ({file, user, etlContextId, damaServerPath, setGi
     }
 }
 
-const publish = async ({userId, email, gisUploadId, layerName, app, type, dmsServerPath, columns, setPublishing, setPublishStatus}) => {
+const publish = async ({userId, email, gisUploadId, layerName, app, type, dmsServerPath, setPublishing, setPublishStatus,
+                           updateMetaData, existingAttributes = [], columns = []}) => {
     const publishData = {
         user_id: userId,
         email: email,
@@ -80,6 +62,12 @@ const publish = async ({userId, email, gisUploadId, layerName, app, type, dmsSer
     };
 
     setPublishing(true);
+
+    // add columns not present in metadata currently
+    updateMetaData(JSON.stringify({
+        attributes: [...existingAttributes, ...columns.filter(c => !existingAttributes.find(ea => ea.display_name === c.display_name || ea.name === c.name))]
+    }), 'config');
+
     const res = await fetch(`${dmsServerPath}/dms/${app}+${type}/publish`,
         {
             method: "POST",
@@ -94,14 +82,14 @@ const publish = async ({userId, email, gisUploadId, layerName, app, type, dmsSer
     setPublishStatus(true);
     console.log('publishFinalEvent', publishFinalEvent)
 }
-const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
+const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, parent, ...rest}) => {
     // this component should let a user:
     // 1. upload
     // 2. post upload change column name and display names -- avoiding this. this should be done in meta manager.
     // 3. set columns to geo columns
     // 4. map multiple columns to a single column. this converts column headers to values of a new column
 
-    const {API_HOST, user} = useContext(FormsContext);
+    const {API_HOST, user, baseUrl} = useContext(FormsContext);
     const pgEnv = 'hazmit_dama'
     const damaServerPath = `${API_HOST}/dama-admin/${pgEnv}`; // need to use this format to utilize existing api fns
     const dmsServerPath = `${API_HOST}/dama-admin`; // to use for publish. no need for pgEnv.
@@ -115,13 +103,15 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     const [layers, setLayers] =useState([]);
     const [layerName, setLayerName] = useState('');
     const inputClass = `p-1.5 hover:bg-blue-100 rounded-sm`;
-    const existingAttributes = JSON.parse(format.config || '{}')?.attributes;
+    const existingAttributes = JSON.parse(parent.config || '{}')?.attributes || [];
     const [columns, setColumns] = useState([]);
-
     // pivot columns convert column headers into their values if source column has any data in them.
     // {Flooding: {pivotColumn: 'associated_hazards'}
     // pivotColumns: {finalCOlName: [srcCol1, srcCol2, srcCol3, ...]}
 
+    const updateMetaData = (data, attrKey) => {
+        apiUpdate({data: {...parent, ...{[attrKey]: data}}, config: {format}})
+    }
     // ================================================= get etl context begin =========================================
     useEffect(() => {
         async function getContextId () {
@@ -163,6 +153,7 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
                         display_name: display_name || name || `col_${i+1}`,
                         existingColumnMatch: existingColumn?.name,
                         options: ['select', 'multiselect'].includes(existingColumn?.type) ? existingColumn.options : null,
+                        type: ['select', 'multiselect'].includes(existingColumn?.type) ? existingColumn?.type : 'text',
                         required: existingColumn?.required === "yes"
                     }
                 }))
@@ -174,7 +165,7 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
 
     if(publishStatus){
         return <div className={'flex items-center justify-center w-full h-[150px] border rounded-md'}>
-            The Sheet has been Processed. To Validate your records, <Link className={'text-blue-500 hover:text-blue-700 px-1'} to={'manage/validate'}>click here</Link>
+            The Sheet has been Processed. To Validate your records, <Link className={'text-blue-500 hover:text-blue-700 px-1'} to={`${baseUrl}/manage/validate`}>click here</Link>
         </div>
     }
     return !gisUploadId ?
@@ -313,7 +304,9 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
                                             columns,
                                             publishStatus,
                                             setPublishStatus,
-                                            setPublishing
+                                            setPublishing,
+                                            existingAttributes,
+                                            updateMetaData
                                         })}>
                                     {publishing ? 'publishing...' : 'publish'}
                                 </button>

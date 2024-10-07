@@ -1,6 +1,7 @@
 import React, {useEffect, useState} from "react";
 import Layout from '../../ui/avail-layout'
 import { FormsContext } from '../../'
+import SourcesLayout from "../../components/selector/ComponentRegistry/patternListComponent/layout";
 
 
 const ManageForm = ({
@@ -30,40 +31,44 @@ const ManageForm = ({
 
     console.log('manage forms /manage_pattern/:id/templates?', manageTemplates, attributes)
     return (
-        <div className={`${theme?.page?.wrapper1}`}>
-            <div className={`${theme?.page?.wrapper2}`}>      
-                <div className={theme?.page?.wrapper3}>
-                    {status ? <div>{JSON.stringify(status)}</div> : ''}
-                    <div className='w-full max-w-6xl mx-auto'>
-                        {Object.keys(attributes)
-                            .filter(attr => attr === 'config')
-                            .map((attrKey, i) => {
-                                let EditComp = attributes[attrKey].EditComp;
-                                //console.log('attrs', attributes[attrKey], newItem)
-                                return (
-                                    <div key={`${attrKey}-${i}`}>
-                                        <EditComp
-                                            value={newItem?.[attrKey]}
-                                            onChange={(v) => {
-                                                setNewItem({...newItem, ...{[attrKey]: v}})
-                                                updateData(v, attrKey)
-                                            }}
-                                            manageTemplates={manageTemplates}
-                                            placeholder={attributes[attrKey].placeholder}
-                                            options={attributes[attrKey].options}
-                                            item={newItem}
-                                            apiLoad={apiLoad}
-                                            {...attributes[attrKey]}
-                                            format={format}
-                                        />
-                                    </div>
-                                )
-                            })
-                        }
+        <SourcesLayout fullWidth={false} baseUrl={baseUrl} isListAll={false} hideBreadcrumbs={false}
+                       form={{name: format.type, href: format.url_slug}}
+                       page={{name: 'Metadata', href: `${baseUrl}/manage/metadata`}}>
+            <div className={`${theme?.page?.wrapper1}`}>
+                <div>
+                    <div className={'flex flex-1 w-full flex-col shadow bg-white relative text-md font-light leading-7 p-4'}>
+                        {status ? <div>{JSON.stringify(status)}</div> : ''}
+                        <div className='w-full max-w-6xl mx-auto'>
+                            {Object.keys(attributes)
+                                .filter(attr => attr === 'config')
+                                .map((attrKey, i) => {
+                                    let EditComp = attributes[attrKey].EditComp;
+                                    //console.log('attrs', attributes[attrKey], newItem)
+                                    return (
+                                        <div key={`${attrKey}-${i}`}>
+                                            <EditComp
+                                                value={newItem?.[attrKey]}
+                                                onChange={(v) => {
+                                                    setNewItem({...newItem, ...{[attrKey]: v}})
+                                                    updateData(v, attrKey)
+                                                }}
+                                                manageTemplates={manageTemplates}
+                                                placeholder={attributes[attrKey].placeholder}
+                                                options={attributes[attrKey].options}
+                                                item={newItem}
+                                                apiLoad={apiLoad}
+                                                {...attributes[attrKey]}
+                                                format={format}
+                                            />
+                                        </div>
+                                    )
+                                })
+                            }
+                        </div>
                     </div>
                 </div>
             </div>
-        </div> 
+        </SourcesLayout>
     )
 }
 

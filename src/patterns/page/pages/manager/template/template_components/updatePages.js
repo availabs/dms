@@ -15,6 +15,7 @@ export const updatePages = async ({submit, item, url, destination, id_column, ge
     const generatedSections = await sectionIds.reduce(async (acc, sectionId) => { //dont load data here?
         const prevSections = await acc;
         const currentSections = await dmsDataLoader(
+            falcor,
             getConfig({
                 app: 'dms-site',
                 type: 'cms-section',

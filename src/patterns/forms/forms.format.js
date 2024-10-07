@@ -1,22 +1,27 @@
-export const formsConfigFormat = {
-    app: "default-app",
-    type: "forms-config",
+import PatternList from "../admin/components/patternList";
+import {pattern, template, templateSection} from "../admin/admin.format";
+// meta format to forms. it only has other form patterns as children
+// should have hard coded pages:
+const formsFormat = {
+    app: "admin",
+    type: "pattern-admin",
+    registerFormats: [pattern, template, templateSection],
     attributes: [
         {
             key: 'name',
-            label: 'Name',
-            type: 'text'
+            placeholder: 'Name',
+            type: "text",
+            hidden: true
         },
+        //content
         {
-            key: 'url',
-            label: 'url',
-            type: 'text'
-        },
-        {
-            key: 'config',
-            label: 'Config',
-            prompt: 'Paste full config here.',
-            type: 'textarea'
+            key: 'sources',
+            type: 'dms-format',
+            isArray: true,
+            format: 'admin+pattern',
+            DisplayComp: PatternList
         },
     ]
 }
+
+export default formsFormat
