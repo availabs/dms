@@ -4,10 +4,50 @@ import {CMSContext} from "../../../../../page/siteConfig";
 import get from "lodash/get";
 import {Link, useSearchParams} from "react-router-dom";
 import SourcesLayout from "./layout";
-import {makeLexicalFormat} from "../../../../../../../../../pages/DataManager/DataTypes/default/Overview";
+
 import {dmsDataTypes} from "~/modules/dms/src"
 import {dmsDataLoader, dmsDataEditor} from "../../../../../../api";
 import {getConfig} from "../../../../../page/pages/manager/template/pages";
+
+export const makeLexicalFormat = value => (isJson(value) ? JSON.parse(value) : value)?.root?.children ? value : {
+        root: {
+            "children": [
+                {
+                    "children": [
+                        {
+                            "detail": 0,
+                            "format": 0,
+                            "mode": "normal",
+                            "text": value || 'No Description',
+                            "type": 'text',
+                            "version": 1
+                        },
+                        {
+                            "detail": 0,
+                            "format": 0,
+                            "mode": "normal",
+                            "text": '\n\n',
+                            "type": 'text',
+                            "version": 1
+                        }
+                    ],
+                    "tag": '',
+                    "direction": "ltr",
+                    "format": "",
+                    "indent": 0,
+                    "type": "paragraph",
+                    "version": 1
+                }
+            ],
+            "direction": "ltr",
+            "format": "",
+            "indent": 0,
+            "type": "root",
+            "version": 1
+        }
+    };
+
+
 
 export const isJson = (str)  => {
     try {
