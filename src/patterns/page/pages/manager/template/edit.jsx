@@ -91,7 +91,7 @@ function TemplateEdit ({
     submit(json2DmsForm(newItem), { method: "post", action: pathname })
     //.then(d => console.log('on submit',d))
   }
-   console.log('inPageNav', inPageNav)
+  //console.log('inPageNav', inPageNav)
   //console.log('page edit', attributes['sections'])
   const ContentEdit = React.useMemo(() => {
     return attributes['sections'].EditComp
