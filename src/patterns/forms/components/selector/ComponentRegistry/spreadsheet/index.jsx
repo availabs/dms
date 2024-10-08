@@ -74,14 +74,16 @@ const RenderFormsSelector = ({app, siteType, formatFromProps, format, setFormat,
     useEffect(() => {
         getForms({app, siteType, apiLoad}).then(data => setForms((data || [])));
         }, []);
-    console.log('forms', forms)
+    console.log('forms', format)
     return (
         <select
-            className={'p-1 w-full'}
-            value={format}
+            className={'p-1 w-full bg-white border'}
+            value={JSON.stringify(format)}
             onChange={e => {
                 console.log('val', e.target.value)
-                setFormat(JSON.parse(e.target.value || '{}'))
+                const tmpFormat = JSON.parse(e.target.value || '{}');
+                // add type, as we only get doc_type here.
+                setFormat({...tmpFormat, type: tmpFormat.type || tmpFormat.doc_type})
             }}
         >
             <option key={'default'} value={undefined}>Please Select a form</option>
@@ -96,6 +98,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     const isEdit = Boolean(onChange);
     const cachedData = isJson(value) ? JSON.parse(value) : {};
     const [format, setFormat] = useState(formatFromProps || cachedData.format);
+    const [showChangeFormatModal, setShowChangeFormatModal] = useState(!formatFromProps); // if you don't get format from props, default set to true
     const [length, setLength] = useState(cachedData.length || 0);
     const [data, setData] = useState([]);
     const [hasMore, setHasMore] = useState();
@@ -233,6 +236,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     }
     // =========================================== util fns end ========================================================
 
+    // render form selector if no config is passed.
     if(!format?.config) return (
         <div className={'p-1 flex'}>
             Form data not available. Please make a selection:
@@ -242,7 +246,6 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
 
     return (
         <div className={'w-full h-full'}>
-            {/*render form selector if no config is passed.*/}
             {
                 isEdit &&
                 <div className={'flex'}>
@@ -267,8 +270,28 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
                             />
                         </div>
                     </div>
+
+                    <div>
+                        <div
+                             className={`inline-flex w-full justify-center items-center rounded-md px-1.5 py-1 text-sm font-regular text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 bg-white hover:bg-gray-50 cursor-pointer`}
+                             onClick={() => setShowChangeFormatModal(!showChangeFormatModal)}
+                        >
+                            <span className={'flex-1 select-none mr-1'}>show set format modal </span>
+                            <RenderSwitch
+                                size={'small'}
+                                enabled={showChangeFormatModal}
+                                setEnabled={() => {}}
+                            />
+                        </div>
+                    </div>
                 </div>
             }
+
+            {
+                showChangeFormatModal ?
+                    <RenderFormsSelector siteType={siteType} apiLoad={apiLoad} app={pageFormat.app} format={format} setFormat={setFormat} formatFromProps={formatFromProps} /> : null
+            }
+
             <RenderFilters attributes={attributes} filters={filters} setFilters={setFilters} apiLoad={apiLoad}
                            format={format} delimiter={filterValueDelimiter}/>
             {/*Pagination*/}
