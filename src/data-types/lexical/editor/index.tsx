@@ -68,7 +68,7 @@ function UpdateEditor ({value, onChange, bgColor, editable}) {
   }, [isFirstRender.current,value])
 
   return (
-    <div className="editor-shell">
+    <div className={PlaygroundEditorTheme.editorShell}>
       <Editor editable={editable} bgColor={bgColor}/>
       <OnChangePlugin onChange={onChange} />
     </div>

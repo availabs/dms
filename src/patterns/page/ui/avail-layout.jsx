@@ -3,8 +3,8 @@ import merge from 'lodash/merge';
 import cloneDeep from 'lodash/cloneDeep';
 import { Link } from "react-router-dom";
 
-import TopNav from './nav/Top.jsx';
-import SideNav from './nav/Side.jsx';
+import TopNav from './nav/Top';
+import SideNav from './nav/Side';
 import { Search } from '../components/search';
 import { CMSContext } from '../siteConfig';
 

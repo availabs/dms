@@ -5,9 +5,43 @@ import get from "lodash/get";
 import {Link, useSearchParams} from "react-router-dom";
 import SourcesLayout from "./layout";
 
-import {dmsDataTypes} from "~/modules/dms/src"
+import {dmsDataTypes} from "../../../../../../"
 import {dmsDataLoader, dmsDataEditor} from "../../../../../../api";
-import {getConfig} from "../../../../../page/pages/manager/template/pages";
+// import {getConfig} from "../../../../../page/pages/manager/template/pages"; no refrences outside the pattern
+
+export const getConfig = ({
+                              app,
+                              type,
+                              filter,
+                              action = 'load',
+                              tags,
+                              attributes = [
+                                  {key: 'id', label: 'id'},
+                                  {key: 'app', label: 'app'},
+                                  {key: 'type', label: 'type'},
+                                  {key: 'data', label: 'data'},
+                                  {key: 'updated_at', label: 'updated_at'},
+                              ]}) => ({
+    format: {
+        app: app,
+        type: type,
+        attributes
+    },
+    children: [
+        {
+            type: () => {},
+            action,
+            filter: {
+                options: JSON.stringify({
+                    filter,
+                }),
+                tags,
+                attributes: attributes.map(a => a.key)
+            },
+            path: '/'
+        }
+    ]
+})
 
 export const makeLexicalFormat = value => (isJson(value) ? JSON.parse(value) : value)?.root?.children ? value : {
         root: {

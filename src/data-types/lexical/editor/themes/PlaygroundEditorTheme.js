@@ -10,6 +10,7 @@
 import './PlaygroundEditorTheme.css';
 
 const theme  = {
+  editorShell: ' relative mx-auto my-0.5 rounded-sm'
   blockCursor: `block pointer-events-none absolute content-['']  after:absolute after:-top-[2px] after:w-[20px] after:border-t-[1px_solid_black]`,
   characterLimit: 'inline !bg-[#ffbbbb]',
   code: `bg-[rgb(240,_242,_245)] font-[Menlo,_Consolas,_Monaco,_monospace] block pl-[52px] pr-[8px] py-[8px] leading-[1.53] text-[13px] m-0 mt-[8px] mb-[8px] [tab-size:2] relative after:content-[attr(data-gutter)] after:absolute after:bg-[#eee] after:left-[0] after:top-[0] after:border-r-[1px_solid_#ccc] after:p-[8px] after:text-[#777] after:whitespace-pre-wrap after:text-right after:min-w-[25px]`,
