@@ -31,18 +31,18 @@ const TableView = ({
     const columns = JSON.parse(config || '{}')?.attributes || [];
 
     return (
-        <SourcesLayout fullWidth={false} baseUrl={baseUrl} isListAll={false} hideBreadcrumbs={false}
+        <SourcesLayout fullWidth={true} baseUrl={baseUrl} isListAll={false} hideBreadcrumbs={false}
                        form={{name: format.type, href: format.url_slug}}
                        page={{name: 'Table', href: `${baseUrl}/manage/table`}}>
-            <div className={`${theme?.page?.wrapper1} overflow-auto`}>
-                <Spreadsheet.ViewComp
+            <div className={`${theme?.page?.wrapper1} h-full overflow-auto`}>
+                <Spreadsheet.EditComp
                     onChange={() => {}}
                     size={1}
-                    format={format}
+                    format={{...format, config: parent.config}}
                     apiLoad={apiLoad}
                     apiUpdate={apiUpdate}
                     value={JSON.stringify({
-                        allowEditInView: false,
+                        // allowEditInView: false,
                         visibleAttributes: columns.map(col => col.name).slice(0, 5),
                         attributes: columns
                     })}

@@ -5,7 +5,7 @@ export const RenderPagination = ({totalPages=0, loadedRows, pageSize=10, current
     const numNavBtns = Math.ceil(totalPages / pageSize);
 
     return (
-        <div className={'float-right flex flex-col items-end p-1 text-sm font-gray-500'}>
+        <div className={'float-right flex flex-col items-end p-1 text-sm font-gray-500 -mt-6'}>
             <div className={'text-xs italic'}>
                 showing {Math.min(loadedRows, totalPages)} of {isNaN(totalPages) ? 0 : parseInt(totalPages).toLocaleString()} rows
             </div>

@@ -15,7 +15,7 @@ import EditControls from './editControls'
 import { CMSContext } from '../../siteConfig'
 
 function PageEdit ({
-  item, dataItems, updateAttribute,attributes, setItem, apiUpdate, status, navOptions, siteType
+  format, item, dataItems, updateAttribute,attributes, setItem, apiLoad, apiUpdate, status, navOptions, siteType
 }) {
   // console.log('props in pageEdit', siteType)
   const navigate = useNavigate()
@@ -23,7 +23,7 @@ function PageEdit ({
   const { pathname = '/edit' } = useLocation()
   const { baseUrl, user, theme } = React.useContext(CMSContext) || {}
   const [ creating, setCreating ] = React.useState(false)
-
+  const isDynamicPage = true; // map this flag to the UI. when true, the page gets data loading capabilities.
   // console.log('item', item, dataItems, status)
   
   const menuItems = React.useMemo(() => {
@@ -110,6 +110,8 @@ function PageEdit ({
                 onChange={(val,action) => saveSection(val, action, item, user, apiUpdate)}         
                 attributes={sectionAttr}
                 siteType={siteType}
+                apiLoad={isDynamicPage ? apiLoad : undefined}
+                format={isDynamicPage ? format : undefined}
               />
             </div>
             <SideNavContainer witdh={'w-52'}>

@@ -161,7 +161,7 @@ function TagComponent ({value, placeholder, onChange, edit=false}) {
 }
 
 
-function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, onRemove, siteType}) {
+function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, onRemove, siteType, apiLoad, format}) {
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     let sectionTitleCondition = value?.['title'] 
     let {theme} = React.useContext(CMSContext) || {}
@@ -352,13 +352,15 @@ function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, o
                     onChange={(v) => updateAttribute('element', v)}
                     size={size}
                     siteType={siteType}
+                    apiLoad={apiLoad}
+                    pageFormat={format}
                 />
             </div>
         </div>
     )
 }
 
-function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove, siteType}) {
+function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove, siteType, apiLoad, format}) {
     let [referenceElement, setReferenceElement] = useState()
     let [popperElement, setPopperElement] = useState()
     let { styles, attributes:popperAttributes } = usePopper(referenceElement, popperElement)
@@ -379,7 +381,7 @@ function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove, si
     let showEditIcons = edit && typeof onEdit === 'function' && !isTemplateSectionCondition
 
     const element = React.useMemo(() => {
-        return <ElementComp value={value?.['element']} siteType={siteType}/>
+        return <ElementComp value={value?.['element']} siteType={siteType} apiLoad={apiLoad} pageFormat={format}/>
     }, 
     [value])
         
@@ -642,7 +644,7 @@ const ScrollToHashElement = () => {
     return null;
 };
 
-const Edit = ({Component, value, onChange, attr, full_width = false, siteType, ...rest }) => {
+const Edit = ({Component, value, onChange, attr, full_width = false, siteType, apiLoad, format, ...rest }) => {
     // console.log('.............', rest, attr, value)
     if (!value || !value.map) { 
         value = []
@@ -775,6 +777,8 @@ const Edit = ({Component, value, onChange, attr, full_width = false, siteType, .
                                 size={size}
                                 i={i}
                                 siteType={siteType}
+                                apiLoad={apiLoad}
+                                format={format}
                             />
                             : ''
                         }
@@ -790,6 +794,8 @@ const Edit = ({Component, value, onChange, attr, full_width = false, siteType, .
                                 onEdit={ edit.index === -1 ? (e) => update(i)  : null }
                                 addAbove={() => setEditIndex(i)}
                                 siteType={siteType}
+                                apiLoad={apiLoad}
+                                format={format}
                             /> : v?.status?.length > 1 ? <RenderError data={v} /> : ''}
 
                         {/* add new section at end  */}
@@ -806,7 +812,7 @@ const Edit = ({Component, value, onChange, attr, full_width = false, siteType, .
     )
 }
 
-const View = ({Component, value, attr, full_width, siteType}) => {
+const View = ({Component, value, attr, full_width, siteType, apiLoad, format}) => {
     if (!value || !value.map) { return '' }
     const { baseUrl, user, theme } = React.useContext(CMSContext) || {}
 
@@ -853,6 +859,8 @@ const View = ({Component, value, attr, full_width, siteType}) => {
                                     i={i}
                                     value={v}
                                     siteType={siteType}
+                                    apiLoad={apiLoad}
+                                    format={format}
                                 />
                             </div>
                         )

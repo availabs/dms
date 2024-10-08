@@ -281,7 +281,7 @@ export const RenderSimple = ({
                 visibleAttributes.map(va => attributes.find(attr => attr.name === va)).filter(a => a).reduce((acc, attr) => ({...acc, [attr.name]: initialColumnWidth}) , {})
             );
         }
-    }, [visibleAttributes.length, Object.keys(colSizes).length]);
+    }, [visibleAttributes.length, attributes.length, Object.keys(colSizes).length]);
 
     useEffect(() => {
         async function deleteFn(){
@@ -533,8 +533,8 @@ export const RenderSimple = ({
     if(!visibleAttributes.length) return <div className={'p-2'}>No columns selected.</div>;
     const frozenCols = [0,1]
     return (
-        <div className={`flex flex-col w-full overflow-x-auto scrollbar-sm`} ref={gridRef}>
-            <div className={'flex flex-col no-wrap text-sm max-h-[calc(100vh_-_250px)] overflow-y-auto scrollbar-sm'}
+        <div className={`flex flex-col w-full h-full overflow-x-auto scrollbar-sm`} ref={gridRef}>
+            <div className={'flex flex-col no-wrap text-sm max-h-[calc(87vh_-_10px)] overflow-y-auto scrollbar-sm'}
                  onMouseLeave={handleMouseUp}>
                 {/*Header*/}
                 <div className={`sticky top-0 grid ${c[visibleAttributes.length + 2]}`} style={{
@@ -651,6 +651,7 @@ export const RenderSimple = ({
                         </div>
                     </div>
                 ))}
+                <div id="loadMoreTrigger"></div>
                 {/*Add new row*/}
                 {
                     allowEdit ?
@@ -712,7 +713,7 @@ export const RenderSimple = ({
                             </div>
                         </div> : null
                 }
-                <div id="loadMoreTrigger"></div>
+
             </div>
         </div>
     )

@@ -41,8 +41,8 @@ export const getData = async ({format, apiLoad, currentPage, pageSize, length, o
     }]
     const data = await apiLoad({
         app: format.app,
-        type: format.type,
-        format,
+        type: format.type || format.doc_type, //doc_type when format is not passed, but the user selects it in pageEdit.
+        format: {...format, type: format.type || format.doc_type},
         attributes,
         children
     });
@@ -63,8 +63,8 @@ export const getLength = async ({format, apiLoad, filters=[]}) =>{
     }]
     const length = await apiLoad({
         app: format.app,
-        type: format.type,
-        format,
+        type: format.type || format.doc_type, //doc_type when format is not passed, but the user selects it in pageEdit.
+        format: {...format, type: format.type || format.doc_type},
         attributes,
         children
     });

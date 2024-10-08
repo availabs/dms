@@ -11,7 +11,7 @@ import {PDF, PencilEditSquare, Printer} from '../ui/icons'
 import { SideNavContainer } from '../ui'
 import {selectablePDF} from "../components/saveAsPDF/PrintWell/selectablePDF";
 
-function PageView ({item, dataItems, attributes, logo, rightMenu, siteType}) {
+function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiLoad, format}) {
   // console.log('page_view')
   // if(!item) return <div> No Pages </div>
   if(!item) {
@@ -74,6 +74,8 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType}) {
                   value={sections}
                   attributes={sectionAttr}
                   siteType={siteType}
+                  apiLoad={apiLoad}
+                  format={format}
               />
             </div>
           </div>

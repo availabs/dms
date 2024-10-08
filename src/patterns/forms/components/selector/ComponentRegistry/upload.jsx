@@ -64,9 +64,12 @@ const publish = async ({userId, email, gisUploadId, layerName, app, type, dmsSer
     setPublishing(true);
 
     // add columns not present in metadata currently
-    updateMetaData(JSON.stringify({
-        attributes: [...existingAttributes, ...columns.filter(c => !existingAttributes.find(ea => ea.display_name === c.display_name || ea.name === c.name))]
-    }), 'config');
+    const newColumns = columns.filter(c => !existingAttributes.find(ea => ea.display_name === c.display_name || ea.name === c.name));
+    if(newColumns.length){
+        updateMetaData(JSON.stringify({
+            attributes: [...existingAttributes, ...newColumns]
+        }), 'config');
+    }
 
     const res = await fetch(`${dmsServerPath}/dms/${app}+${type}/publish`,
         {
@@ -88,6 +91,7 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, parent, ...res
     // 2. post upload change column name and display names -- avoiding this. this should be done in meta manager.
     // 3. set columns to geo columns
     // 4. map multiple columns to a single column. this converts column headers to values of a new column
+    // todo 5. choose an id column to update data if there's id match. -- in progress
 
     const {API_HOST, user, baseUrl} = useContext(FormsContext);
     const pgEnv = 'hazmit_dama'
