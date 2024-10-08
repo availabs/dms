@@ -46,7 +46,7 @@ export default function TemplateList ({children, dataItems, edit, ...props}) {
   const [showNew, setShowNew] = useState(false)
   const { baseUrl, theme} = React.useContext(CMSContext)
 
-  console.log('template list', dataItems.filter(item => item ))
+  //console.log('template list', dataItems.filter(item => item ))
   const menuItems=[
     {path: `${baseUrl}/templates`, name: 'Templates'}
   ]

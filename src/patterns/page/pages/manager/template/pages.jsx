@@ -221,6 +221,8 @@ const TemplatePages = ({item, params, logo, rightMenu}) => {
         width: actionColumns.includes(col) || statusColumns.includes(col) ? '5%' : '20%'
     }))
 
+    //console.log('template listing' , value)
+
     const data = value.map(({type, data, updated_at}) => {
         const v = idColDataRows.find(d => d[id_column] === data.value.id_column_value)
         return {

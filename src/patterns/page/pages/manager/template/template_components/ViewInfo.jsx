@@ -10,7 +10,7 @@ import {generatePages} from "./generatePages.js";
 export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatus=() => {}}) => {
 
     // console.log('ViewInfo', id_column, active_id)
-    const { falcor, falcorCache, pgEnv } = React.useContext(CMSContext);
+    const { falcor, falcorCache, pgEnv, app, type } = React.useContext(CMSContext);
     const [generatedPages, setGeneratedPages] = useState([]);
     const [showAdditionalOptions, setShowAdditionalOptions] = useState(false);
     const [urlSuffixCol, setUrlSuffixCol] = useState('geoid');
@@ -25,9 +25,9 @@ export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatu
         active_row
     } = item?.data_controls
     if (!view?.view_id) return null;
-    const locationNameMap = [destination]
+    const locationNameMap = [type]
 
-
+    console.log('testing viewInfo', destination, type)
 
 
     React.useEffect(() => {
@@ -88,7 +88,7 @@ export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatu
         (async function () {
             setLoadingStatus('Loading Pages...')
 
-            const pages = await locationNameMap.reduce(async (acc, type) => {
+            const pages = await locationNameMap.reduce(async (acc, item_type) => {
                 const prevPages = await acc;
                 const attributes = [
                     { key: 'id', label: 'id'},
@@ -97,11 +97,13 @@ export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatu
                 ];
 
                 let currentPages = await dmsDataLoader(falcor, getConfig({
-                    app: 'dms-site',
-                    type,
+                    app,
+                    type:item_type,
                     filter: {[`data->>'template_id'`]: [item.id]},
                     attributes
                 }), '/');
+
+                console.log('currentPages', currentPages, app, item_type, item.id)
 
                 currentPages = currentPages.map(page => attributes.reduce((acc, curr) => {
                         acc[curr.label] = page[curr.key]

@@ -377,7 +377,7 @@ function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove, si
         (value?.['helpText']?.root?.children?.length === 0) // no children
     )
     let interactCondition = false //typeof onEdit !== 'function' && value?.element?.['element-type']?.includes('Map:');
-    let isTemplateSectionCondition = value?.element?.['template-section-id'];
+    let isTemplateSectionCondition = false//value?.element?.['template-section-id'];
     let showEditIcons = edit && typeof onEdit === 'function' && !isTemplateSectionCondition
 
     const element = React.useMemo(() => {
