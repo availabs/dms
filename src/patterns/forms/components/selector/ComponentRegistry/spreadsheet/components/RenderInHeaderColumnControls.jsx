@@ -32,7 +32,7 @@ export default function RenderInHeaderColumnControls({
             <div>
                 <MenuButton
                     className="inline-flex items-center w-full justify-between gap-x-1.5 rounded-md px-3 py-1 text-sm font-semibold text-gray-900">
-                    {attribute.display_name || attribute.name}
+                    <label className={'truncate'}>{attribute.display_name || attribute.name}</label>
                     <div id={'col-icons'} className={'flex items-center'}>
                         {orderBy[attribute.name] === 'asc nulls last' ? <SortAsc /> :
                             orderBy[attribute.name] === 'desc nulls last' ? <SortDesc /> : null}
