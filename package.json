@@ -1,6 +1,6 @@
 {
   "name": "@availabs/dms",
-  "version": "0.0.9",
+  "version": "0.0.11",
   "description": "AVAIL Data Management System",
   "main": "dist/index.js",
   "private": false,
@@ -63,6 +63,7 @@
     "react": "^18.2.0",
     "react-bootstrap-typeahead": "^6.3.2",
     "react-frame-component": "^5.2.7",
-    "react-router-dom": "^6.26.2"
+    "react-router-dom": "^6.26.2",
+    "write-excel-file": "^2.0.10"
   }
 }

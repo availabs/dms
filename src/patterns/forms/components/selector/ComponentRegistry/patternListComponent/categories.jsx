@@ -1,5 +1,7 @@
 import React from "react"
-import { Button } from "~/modules/avl-components/src"
+//import { Button } from "~/modules/avl-components/src"
+
+
 
 const CategoryItem = ({ children, remove, indices, editing, className="" }) => {
     const doRemove = React.useCallback(e => {
@@ -158,11 +160,11 @@ const SourceCategories = ({
                 <div className="grid grid-cols-1 gap-1">
                     <CategoryAdder
                         addNewCategory={ addNewCategory }/>
-                    <Button onClick={ stopAll }
+                    <button onClick={ stopAll }
                             themeOptions={ { size:'sm', color: 'cancel' } }
                     >
                         Stop editing categories
-                    </Button>
+                    </button>
                 </div>
             }
         </div>

@@ -6,7 +6,7 @@ import { Popover, Transition } from '@headlessui/react'
 import { Link } from "react-router-dom";
 import { usePopper } from 'react-popper'
 import { FormsContext } from '../../'
-import { getSizeClass, sizeOptionsSVG } from './sizes.jsx'
+import { getSizeClass, sizeOptionsSVG } from './sizes'
 import { 
     SquarePlus, 
     InfoCircle,

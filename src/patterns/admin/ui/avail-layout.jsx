@@ -2,8 +2,8 @@ import React from "react";
 //import { useTheme} from "~/modules/avl-components/src/index.js";
 import { AdminContext } from '../siteConfig'
 
-import TopNav from './nav/Top.jsx'
-import SideNav from './nav/Side.jsx'
+import TopNav from './nav/Top'
+import SideNav from './nav/Side'
 // import Menu from '../components/menu'
 // import { Search } from '../components/search'
 

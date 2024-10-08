@@ -4,7 +4,7 @@ import isEqual from "lodash/isEqual"
 
 import {dmsDataTypes} from "../../../../index"
 
-import FilterableSearch from "./FilterableSearch.jsx";
+import FilterableSearch from "./FilterableSearch";
 
 import ComponentRegistry from './ComponentRegistry'
 
