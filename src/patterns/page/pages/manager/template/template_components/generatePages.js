@@ -150,7 +150,7 @@ export const generatePages = async ({
                 const newSectionIds = await PromiseMap(
                     updatedSections.map((section) => dmsDataEditor(falcor, sectionConfig, section)),
                     p => p,
-                    {concurrency: 25, saveResponse: true});
+                    {concurrency: 10, saveResponse: true});
 
                 const formatNameForURL = name => name.toLowerCase().replace(' county', '').replace('.', '').replace(/ /g, '_');
 
@@ -209,7 +209,7 @@ export const generatePages = async ({
 
         }
 
-    }), {concurrency: 20, saveResponse: false})
+    }), {concurrency: 10, saveResponse: false})
     setGeneratedPages(createdOrUpdatedPageIdStore)
     setLoadingStatus(undefined)
 }

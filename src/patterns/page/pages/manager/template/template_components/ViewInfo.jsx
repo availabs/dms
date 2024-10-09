@@ -212,7 +212,7 @@ export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatu
                                                 item, url, destination, id_column,
                                                 dataRows: missingPagesDataRows, falcor, setLoadingStatus,
                                                 locationNameMap, setGeneratedPages,
-                                                urlSuffixCol
+                                                urlSuffixCol, app, type
                                             })
                                         }}
                                 >
@@ -231,7 +231,7 @@ export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatu
                                                 item, url, destination, id_column,
                                                 dataRows: errorPagesDataRows, falcor, setLoadingStatus,
                                                 locationNameMap, setGeneratedPages,
-                                                urlSuffixCol
+                                                urlSuffixCol, app, type
                                             })
                                         }}
                                 >
@@ -283,7 +283,7 @@ export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatu
                                                     item, url, destination, id_column,
                                                     dataRows, falcor, setLoadingStatus,
                                                     locationNameMap, setGeneratedPages, ...customGenerationOptions,
-                                                    urlSuffixCol
+                                                    urlSuffixCol, app, type
                                                 })
                                             }}
                                         >
