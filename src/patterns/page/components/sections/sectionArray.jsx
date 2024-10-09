@@ -160,6 +160,27 @@ function TagComponent ({value, placeholder, onChange, edit=false}) {
 
 }
 
+const handlePaste = async (e, setKey, value, onChange, ) => {
+    e.preventDefault();
+    try{
+        const text = await navigator.clipboard.readText();
+        const copiedValue = isJson(text) && JSON.parse(text || '{}');
+
+        if(!copiedValue || !copiedValue['element']?.['element-type']) return;
+        setKey(copiedValue['element']['element-type']) // mainly for lexical so it updates with value
+        const pastedValue = {}
+
+        Object.keys(copiedValue)
+            .filter(key => !['id', 'ref'].includes(key))
+            .map(key => {
+                pastedValue[key] = copiedValue[key]
+            })
+
+        onChange({...value, ...pastedValue});
+    }catch (e) {
+        console.error('<paste>', e)
+    }
+}
 
 function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, onRemove, siteType, apiLoad, format}) {
     const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -350,6 +371,7 @@ function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, o
                 <ElementComp
                     value={value?.['element']}
                     onChange={(v) => updateAttribute('element', v)}
+                    handlePaste={(e, setKey) => handlePaste(e, setKey, value, onChange)}
                     size={size}
                     siteType={siteType}
                     apiLoad={apiLoad}
@@ -482,7 +504,7 @@ function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove, si
                                
                                     <button
                                         className={' flex items-center text-md cursor-pointer hover:text-blue-500 py-1 pr-1 text-slate-400'}
-                                        onClick={() => navigator.clipboard.writeText(JSON.stringify({'element-type': value?.element?.['element-type'], 'element-data': value?.element?.['element-data']}))}
+                                        onClick={() => navigator.clipboard.writeText(JSON.stringify(value))}
                                     >
                                         {/*<i className="fa-light fa-pencil text-xl fa-fw" title="Edit"></i>*/}
                                         <Copy title={'Copy Section'} className='text-slate-400 hover:text-blue-500 w-[24px] h-[24px]'/>

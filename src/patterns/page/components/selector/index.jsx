@@ -30,7 +30,7 @@ const icons = {
 }
 
 function EditComp(props) {
-    const {value, onChange, size, ...rest} = props;
+    const {value, onChange, size, handlePaste, ...rest} = props;
     const [key, setKey] = useState();
     // console.log("selector props", props, value)
     // console.log('selector edit', rest)
@@ -51,20 +51,6 @@ function EditComp(props) {
 
     let DataComp = (RegisteredComponents[get(value, "element-type", "lexical")] || RegisteredComponents['lexical']).EditComp
 
-    const handlePaste = async (e) => {
-        e.preventDefault();
-        try{
-            const text = await navigator.clipboard.readText();
-            const copiedValue = isJson(text) && JSON.parse(text || '{}');
-            if(!copiedValue || !copiedValue['element-type']) return;
-            setKey(copiedValue['element-type'])
-            updateAttribute('element-type', copiedValue['element-type']);
-            updateAttribute('element-data', copiedValue['element-data']);
-            onChange({...value, ...copiedValue});
-        }catch (e) {
-            console.error('<paste>', e)
-        }
-    }
     return (
         <div className="w-full">
             <div className="relative my-1">
@@ -95,7 +81,7 @@ function EditComp(props) {
                             icon: 'fa-thin fa-paste',
                             label: 'Paste',
                             value: 'paste',
-                            onClick: handlePaste
+                            onClick: e => handlePaste(e, setKey)
                         },
                         ...[...new Set(
                             Object.keys(RegisteredComponents)
