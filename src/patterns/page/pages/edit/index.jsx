@@ -100,7 +100,7 @@ function PageEdit ({
                  <ContentEdit item={item} value={[headerSection]} onChange={(val,action) => saveHeader(v, item, user, apiUpdate)} attributes={sectionAttr} siteType={siteType}/>
               )} 
               {user?.authLevel >= 5 && (
-                <Link className={theme?.page?.iconWrapper} to={`${baseUrl}/${item?.url_slug || ''}`}>
+                <Link className={theme?.page?.iconWrapper} to={`${baseUrl}/${item?.url_slug || ''}${window.location.search}`}>
                   <ViewIcon className={theme?.page?.icon} />
                 </Link>
               )}

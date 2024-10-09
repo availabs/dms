@@ -81,7 +81,7 @@ function useCopy(callback) {
     }, [callback]);
 }
 
-const RenderActions = ({isLastCell, allowEdit, newItem, removeItem}) => {
+const RenderActions = ({isLastCell, allowEdit, newItem, removeItem, viewUrl, editUrl}) => {
     if(!isLastCell || !allowEdit) return null;
 
     return (
@@ -90,13 +90,13 @@ const RenderActions = ({isLastCell, allowEdit, newItem, removeItem}) => {
                 <Link
                     title={'view'}
                     className={'flex items-center w-fit p-0.5 bg-blue-300 hover:bg-blue-500 text-white rounded-lg'}
-                    to={`view/${newItem.id}`}>
+                    to={`${viewUrl}${newItem.id}`}>
                     <ViewIcon className={'text-white'} height={20} width={20}/>
                 </Link>
                 <Link
                     title={'edit'}
                     className={'flex items-center w-fit p-0.5 bg-blue-300 hover:bg-blue-500 text-white rounded-lg'}
-                    to={`edit-item/${newItem.id}`}>
+                    to={`${editUrl}${newItem.id}`}>
                     <PencilIcon className={'text-white'} height={18} width={18}/>
                 </Link>
                 <button
@@ -234,7 +234,9 @@ export const RenderSimple = ({
                                  currentPage,
                                  pageSize,
                                  loading,
-                                 allowEdit
+                                 allowEdit,
+                                 viewUrl,
+                                 editUrl
                              }) => {
     const gridRef = useRef(null);
     const [isSelecting, setIsSelecting] = useState(false);
@@ -656,7 +658,7 @@ export const RenderSimple = ({
                                     />)}
 
                             <RenderActions allowEdit={allowEdit} isLastCell={true} newItem={d}
-                                           removeItem={removeItem}/>
+                                           removeItem={removeItem} viewUrl={viewUrl} editUrl={editUrl}/>
 
                             <div className={'flex items-center border'}>
                                 <div key={'##'}

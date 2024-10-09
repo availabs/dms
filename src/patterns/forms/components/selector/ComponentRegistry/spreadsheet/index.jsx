@@ -7,93 +7,8 @@ import {isJson, getLength, getData, convertToUrlParams} from "./utils";
 import {RenderFilters} from "./components/RenderFilters";
 import {useSearchParams, useNavigate} from "react-router-dom";
 import RenderSwitch from "./components/Switch";
+import {FormsSelector} from "../../FormsSelector";
 
-const getConfig = ({
-                       app,
-                       type,
-                       filter,
-                       action = 'load',
-                       tags,
-                       attributes = [
-                           {key: 'id', label: 'id'},
-                           {key: 'app', label: 'app'},
-                           {key: 'type', label: 'type'},
-                           {key: 'data', label: 'data'},
-                           {key: 'updated_at', label: 'updated_at'},
-                       ]}) => ({
-    format: {
-        app: app,
-        type: type,
-        attributes
-    },
-    children: [
-        {
-            type: () => {},
-            action,
-            filter: {
-                options: JSON.stringify({
-                    filter,
-                }),
-                tags,
-                attributes: attributes.map(a => a.key)
-            },
-            path: '/'
-        }
-    ]
-})
-
-const getForms = async ({app, siteType, apiLoad}) => {
-    const siteConfig = getConfig({
-        app,
-        type: siteType,
-    })
-
-    // these are the patterns which are in the site.
-    // there may be deleted patterns which are not in the site.patterns array. don't wanna show them :shrug:
-
-    const siteData = await apiLoad(siteConfig);
-
-    // these are the patterns which are in the site.
-    // there may be deleted patterns which are not in the site.patterns array. don't wanna show them :shrug:
-    const existingPatterns = (siteData?.[0]?.data?.value?.patterns || []).map(p => p.id)
-
-    const config = getConfig({
-        app,
-        type: 'pattern',
-        filter: {[`data->>'pattern_type'`]: ['form'], id: existingPatterns}
-    })
-    return await apiLoad(config);
-
-}
-
-const RenderFormsSelector = ({app, siteType, formatFromProps, format, setFormat, apiLoad}) => {
-    const [forms, setForms] = useState([]);
-    console.log('props passed', app, siteType, formatFromProps, format)
-    if(formatFromProps?.config) return null;
-
-    useEffect(() => {
-        getForms({app, siteType, apiLoad}).then(data => setForms((data || [])));
-        }, []);
-    console.log('forms', format)
-    return (
-        <select
-            className={'p-1 w-full bg-white border'}
-            value={JSON.stringify(format)}
-            onChange={e => {
-                console.log('val', e.target.value)
-                const tmpFormat = JSON.parse(e.target.value || '{}');
-                // add type, as we only get doc_type here.
-                setFormat({...tmpFormat, type: tmpFormat.type || tmpFormat.doc_type})
-            }}
-        >
-            <option key={'default'} value={undefined}>Please Select a form</option>
-            {
-                forms.map(form => <option key={form?.data?.value.doc_type} value={JSON.stringify(form?.data?.value || {})}>{form?.data?.value.doc_type}</option>)
-            }
-
-        </select>
-    )
-}
 const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLoad, apiUpdate, siteType, ...rest}) => {
     const isEdit = Boolean(onChange);
     const cachedData = isJson(value) ? JSON.parse(value) : {};
@@ -111,6 +26,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     const [filters, setFilters] = useState(cachedData.filters || []);
     const [allowEditInView, setAllowEditInView] = useState(cachedData.allowEditInView);
     const [currentPage, setCurrentPage] = useState(0);
+    const [actionUrls, setActionUrls] = useState(cachedData.actionUrls || {viewUrl: '', editUrl: ''});
     const pageSize = 500// cachedData.pageSize || 5;
     const filterValueDelimiter = '|||'
     const navigate = useNavigate();
@@ -201,8 +117,8 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     useEffect(() => {
         if (!isEdit) return;
 
-        onChange(JSON.stringify({visibleAttributes, pageSize, attributes, orderBy, colSizes, filters, allowEditInView, format}));
-    }, [visibleAttributes, attributes, orderBy, colSizes, filters, allowEditInView, format])
+        onChange(JSON.stringify({visibleAttributes, pageSize, attributes, orderBy, colSizes, filters, allowEditInView, format, actionUrls}));
+    }, [visibleAttributes, attributes, orderBy, colSizes, filters, allowEditInView, format, actionUrls])
     // =========================================== saving settings end =================================================
 
     // =========================================== filters 2/2 begin ===================================================
@@ -240,7 +156,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     if(!format?.config) return (
         <div className={'p-1 flex'}>
             Form data not available. Please make a selection:
-            <RenderFormsSelector siteType={siteType} apiLoad={apiLoad} app={pageFormat.app} format={format} setFormat={setFormat} formatFromProps={formatFromProps} />
+            <FormsSelector siteType={siteType} apiLoad={apiLoad} app={pageFormat.app} format={format} setFormat={setFormat} formatFromProps={formatFromProps} />
         </div>
     )
 
@@ -248,7 +164,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
         <div className={'w-full h-full'}>
             {
                 isEdit &&
-                <div className={'flex'}>
+                <div className={'flex items-center'}>
                     <RenderColumnControls attributes={attributes} setAttributes={setAttributes}
                                           visibleAttributes={visibleAttributes}
                                           setVisibleAttributes={setVisibleAttributes}/>
@@ -284,12 +200,30 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
                             />
                         </div>
                     </div>
+
+                    <div>
+                        <div
+                             className={`inline-flex w-full justify-center items-center rounded-md px-1.5 py-1 text-sm font-regular text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 bg-white hover:bg-gray-50`}
+                        >
+                            <span className={'flex-1 select-none mr-1'}>View URL </span>
+                            <input className={'border rounded-lg px-1'} value={actionUrls.viewUrl} onChange={e => setActionUrls({...actionUrls, viewUrl: e.target.value}) } />
+                        </div>
+                    </div>
+
+                    <div>
+                        <div
+                             className={`inline-flex w-full justify-center items-center rounded-md px-1.5 py-1 text-sm font-regular text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 bg-white hover:bg-gray-50`}
+                        >
+                            <span className={'flex-1 select-none mr-1'}>Edit URL </span>
+                            <input className={'border rounded-lg px-1'} value={actionUrls.editUrl} onChange={e => setActionUrls({...actionUrls, editUrl: e.target.value}) } />
+                        </div>
+                    </div>
                 </div>
             }
 
             {
                 showChangeFormatModal ?
-                    <RenderFormsSelector siteType={siteType} apiLoad={apiLoad} app={pageFormat.app} format={format} setFormat={setFormat} formatFromProps={formatFromProps} /> : null
+                    <FormsSelector siteType={siteType} apiLoad={apiLoad} app={pageFormat.app} format={format} setFormat={setFormat} formatFromProps={formatFromProps} /> : null
             }
 
             <RenderFilters attributes={attributes} filters={filters} setFilters={setFilters} apiLoad={apiLoad}
@@ -319,6 +253,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
                     currentPage,
                     pageSize,
                     loading,
+                    ...actionUrls,
                     allowEdit: true
                         }} />
             }
@@ -334,6 +269,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
     const [colSizes, setColSizes] = useState(cachedData.colSizes || {});
     const [orderBy, setOrderBy] = useState(cachedData.orderBy || {});
     const [filters, setFilters] = useState(cachedData.filters || []);
+    const [actionUrls, setActionUrls] = useState(cachedData.actionUrls || {viewUrl: '', editUrl: ''});
 
     const [newItem, setNewItem] = useState({})
     const [data, setData] = useState([]);
@@ -483,7 +419,8 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
                             currentPage,
                             pageSize,
                             loading,
-                            allowEdit
+                            allowEdit,
+                            ...actionUrls
                         }} />
             }
             {/*Pagination*/}

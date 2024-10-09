@@ -59,7 +59,7 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
               {(item?.header === 'inpage') &&
                   <ContentView item={item} value={[headerSection]} attributes={sectionAttr}/>}
               {user?.authLevel >= 5 && (
-                  <Link className={theme?.page?.iconWrapper} to={`${baseUrl}/edit/${item?.url_slug || ''}`}>
+                  <Link className={theme?.page?.iconWrapper} to={`${baseUrl}/edit/${item?.url_slug || ''}${window.location.search}`}>
                     <PencilEditSquare className={theme?.page?.icon}/>
                   </Link>
               )}

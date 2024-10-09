@@ -3,6 +3,8 @@ import {useParams, useLocation} from "react-router"
 import DataTypes from "../../../../../../data-types";
 import {InfoCircle} from "../../../../../admin/ui/icons";
 import RenderSwitch from "../spreadsheet/components/Switch";
+import {FormsSelector} from "../../FormsSelector";
+import {useSearchParams} from "react-router-dom";
 export const isJson = (str)  => {
     try {
         JSON.parse(str);
@@ -37,9 +39,11 @@ const getData = async ({format, apiLoad, itemId}) =>{
   return {data: data.find(d => d.id === itemId), attributes}
 }
 
-const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
-    const params = useParams();
+const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLoad, apiUpdate, siteType, ...rest}) => {
+    const [searchParams, setSearchParams] = useSearchParams();
     const cachedData = isJson(value) ? JSON.parse(value) : {};
+    const [format, setFormat] = useState(formatFromProps || cachedData.format);
+    const [showChangeFormatModal, setShowChangeFormatModal] = useState(!formatFromProps); // if you don't get format from props, default set to true
     const [attributes, setAttributes] = useState([]);
     const [orderedAttributes, setOrderedAttributes] = useState(cachedData.orderedAttributes || []);
     const [newItem, setNewItem] = useState();
@@ -51,18 +55,15 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     const [renderAbove, setRenderAbove] = useState(false);
     const inputRef = useRef(null);
 
-    const [url, setUrl] = useState(cachedData.url || 'view/');
     const [allowEditInView, setAllowEditInView] = useState(cachedData.allowEditInView || false);
-    const itemId = useMemo(() => params['*']?.split(url)[1], [url]);
+    const itemId = searchParams.get('id');
     const dragItem = useRef();
     const dragOverItem = useRef();
 
     useEffect(() => {
-        const splitUrl = params['*']?.split('/');
-        if(+splitUrl[splitUrl.length - 1] || splitUrl[splitUrl.length - 1] === 'add-new-item'){
-            setUrl(`${splitUrl[splitUrl.length - 2]}/`)
-        }
-    }, [params['*']])
+        // if there's no format passed, the user should be given option to select one. to achieve thia, format needs to be a state variable.
+        formatFromProps && setFormat(formatFromProps);
+    }, [formatFromProps]);
 
     // ============================================ drag utils begin ===================================================
     const dragStart = (e, position) => {
@@ -102,15 +103,15 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
         }
 
         load()
-    }, [itemId])
+    }, [format, itemId])
     // ============================================ data load end ======================================================
 
     // ============================================ save begin =========================================================
     useEffect(() => {
         onChange(JSON.stringify({
-            ...cachedData, visibleAttributes, orderedAttributes, url, allowEditInView
+            ...cachedData, visibleAttributes, orderedAttributes, allowEditInView, format
         }))
-    }, [visibleAttributes, orderedAttributes, url, allowEditInView]);
+    }, [visibleAttributes, orderedAttributes, allowEditInView, format]);
     // ============================================ save end ===========================================================
 
     // ============================================ search handle focus begin ==========================================
@@ -122,7 +123,7 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
         const searchItemsHeight = searchItemsRef.current
             ? searchItemsRef.current.offsetHeight
             : 0;
-        console.log('???', searchItemsHeight)
+
         // Check if there's more space above or below and set state accordingly
         if (spaceBelow < searchItemsHeight && spaceAbove > searchItemsHeight) {
             setRenderAbove(true);
@@ -151,19 +152,24 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
         return apiUpdate({data: {...d, [attribute.name]: value}, config: {format}})
     }
 
+    // render form selector if no config is passed.
+    if(!format?.config) return (
+        <div className={'p-1 flex'}>
+            Form data not available. Please make a selection:
+            <FormsSelector siteType={siteType} apiLoad={apiLoad} app={pageFormat.app} format={format} setFormat={setFormat} formatFromProps={formatFromProps} />
+        </div>
+    )
+
+    if(!itemId){
+        return <div className={'p-1 flex'}>Invalid item id.</div>
+    }
     return (
         <div>
+            {
+                showChangeFormatModal ?
+                    <FormsSelector siteType={siteType} apiLoad={apiLoad} app={pageFormat.app} format={format} setFormat={setFormat} formatFromProps={formatFromProps} /> : null
+            }
             <div className={'divide-y'}>
-                <div className={'flex col-span-3'}>
-                    <label className={'w-1/4 p-2'}>Base URL: </label>
-                    <input
-                        className={'w-3/4 p-2 w-full'}
-                        type={'text'}
-                        value={url}
-                        onChange={e => setUrl(e.target.value)}
-                        placeholder={'url'}
-                    />
-                </div>
                 <div className={'flex items-center col-span-3'}>
                     <label className={'w-1/4 p-2'}>Allow Edit: </label>
                     <RenderSwitch
@@ -274,17 +280,23 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, ...rest}) => {
     )
 }
 
-const View = ({value, format, apiLoad, apiUpdate, ...rest}) => {
+const View = ({value, format:formatFromProps, apiLoad, apiUpdate, ...rest}) => {
     const cachedData = isJson(value) ? JSON.parse(value) : {};
+    const [format, setFormat] = useState(formatFromProps || cachedData.format);
     const [visibleAttributes, setVisibleAttributes] = useState(cachedData?.visibleAttributes || []);
     const [orderedAttributes, setOrderedAttributes] = useState(cachedData?.orderedAttributes);
-    const params = useParams();
+    const [searchParams, setSearchParams] = useSearchParams();
     const [data, setData] = useState({});
     const [tmpItem, setTmpItem] = useState({});
     const [attributes, setAttributes] = useState([])
     const allowEdit = cachedData.allowEditInView;
     const compType = allowEdit ? 'EditComp' : 'ViewComp';
-    const itemId = params['*']?.split(cachedData.url || 'view/')[1]; // "add-new-item"
+    const itemId = searchParams.get('id') // "add-new-item"
+
+    useEffect(() => {
+        // if there's no format passed, the user should be given option to select one. to achieve thia, format needs to be a state variable.
+        formatFromProps && setFormat(formatFromProps);
+    }, [formatFromProps]);
 
     useEffect(() => {
         // update value dependent state variables on value change
@@ -305,7 +317,7 @@ const View = ({value, format, apiLoad, apiUpdate, ...rest}) => {
         }
 
         load()
-    }, [])
+    }, [format])
 
     const updateItem = async () => {
         const res = await apiUpdate({data: tmpItem, config: {format}});
