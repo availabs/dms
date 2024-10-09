@@ -9,7 +9,7 @@ import {getConfig} from "../pages";
 
 export const generatePages = async ({
                                         item, url, destination, id_column, dataRows, falcor, setLoadingStatus, locationNameMap,
-                                        setGeneratedPages, from, to, urlSuffixCol='geoid'
+                                        setGeneratedPages, from, to, urlSuffixCol='geoid', app, type
                                     }) => {
     setLoadingStatus('Generating Pages...', dataRows)
     const idColAttr =
@@ -25,10 +25,10 @@ export const generatePages = async ({
     const createdOrUpdatedPageIdStore = [];
     await PromiseMap(idColAttr, (async(idColAttrVal, pageI) => {
 
-        const existingPage = await locationNameMap.reduce(async (acc, type) => {
+        const existingPage = await locationNameMap.reduce(async (acc, mao_type) => {
             const prevPages = await acc;
             const currentPages = await dmsDataLoader(falcor, getConfig({
-                app: 'dms-site',
+                app,
                 type,
                 filter: {[`data->>'template_id'`]: [item.id], [`data->>'id_column_value'`]: [idColAttrVal]},
             }), '/');
@@ -52,8 +52,8 @@ export const generatePages = async ({
             const currentSections = await dmsDataLoader(
                 falcor,
                 getConfig({
-                    app: 'dms-site',
-                    type: 'cms-section',
+                    app,
+                    type: `${type}|cms-section`,
                     filter: {
                         'id': [sectionId] // [] of ids
                     },
@@ -110,7 +110,7 @@ export const generatePages = async ({
         }))
         await falcor.setCache({});
 // disaster 4154 shows data on template, but not on generated page
-        console.log('updates', updates)
+        //console.log('updates', updates)
 
         if(updates.length > 0) {
             const updatedSections = item.sections
@@ -138,9 +138,9 @@ export const generatePages = async ({
                 })
 
             // genetate
-            const app = 'dms-site'
-            const type = destination || item.type // defaults to play
-            const sectionType = 'cms-section'
+            //const app
+            //const type = destination || item.type // defaults to play
+            const sectionType = `${type}|cms-section`
 
             const sectionConfig = {format: {app, type: sectionType}};
             const pageConfig = {format: {app, type}};
@@ -176,12 +176,12 @@ export const generatePages = async ({
                     sections: [
                         ...updatedSections.map((section, i) => ({ // updatedSections contains correct order
                             "id": section.id || newSectionIds[i]?.id,
-                            "ref": "dms-site+cms-section"
+                            "ref": `${app}+${type}|cms-section`
                         })),
                         ...generatedSections.filter(section => !section.data.value.element['template-section-id']) // non-template sections
                             .map((section, i) => ({
                                 "id": section.id,
-                                "ref": "dms-site+cms-section"
+                                "ref": `${app}+${type}|cms-section`
                             })),
                     ],
                     draft_sections: [
@@ -192,7 +192,7 @@ export const generatePages = async ({
                         ...generatedSections.filter(section => !section.data.value.element['template-section-id']) // non-template sections
                             .map((section, i) => ({
                                 "id": section.id,
-                                "ref": "dms-site+cms-section"
+                                "ref": `${app}+${type}|cms-section`
                             })),
                     ]
                 }
