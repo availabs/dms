@@ -180,7 +180,7 @@ export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatu
                                                 item, url, destination, id_column,
                                                 dataRows, falcor, setLoadingStatus,
                                                 locationNameMap, setGeneratedPages,
-                                                urlSuffixCol
+                                                urlSuffixCol, app, type
                                             })}
                                 >
                                     {loadingStatus || (generatedPages?.length ? 'Update Pages' : 'Generate Pages')}
