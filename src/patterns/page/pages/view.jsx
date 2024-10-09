@@ -20,7 +20,7 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
 
   //console.log('item', item, dataItems, status)
   const pdfRef = useRef(); // To capture the section of the page to be converted to PDF
-  const { baseUrl, theme, user } = React.useContext(CMSContext) || {}
+  const { baseUrl, theme, user, API_HOST } = React.useContext(CMSContext) || {}
   const ContentView = React.useMemo(() => {
     return attributes['sections'].ViewComp
   }, [])
@@ -64,7 +64,7 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
                   </Link>
               )}
               <div className={'flex absolute right-10 top-2'}>
-                <button className={'mx-1'} onClick={() => selectablePDF(pdfRef)}>
+                <button className={'mx-1'} onClick={() => selectablePDF(pdfRef, API_HOST)}>
                   <PDF className={'hover:text-blue-500 text-blue-300'}/>
                 </button>
               </div>

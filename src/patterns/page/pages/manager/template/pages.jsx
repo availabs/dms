@@ -1,7 +1,7 @@
 import React, {useEffect, useState} from 'react';
 import {Link, useNavigate, useParams} from "react-router-dom";
 import {dmsDataLoader} from "../../../../../api";
-import {DeleteModal} from "./list.jsx";
+import {DeleteModal} from "./list";
 import Table from "../../../../forms/components/Table"
 import {getNestedValue} from "../../_utils";
 import { CMSContext } from "../../../siteConfig";

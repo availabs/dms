@@ -402,7 +402,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
         }
 
         load()
-    }, [orderBy, filters]);
+    }, [format, orderBy, filters]);
 
     useEffect(() => {
         const observer = new IntersectionObserver(
@@ -423,7 +423,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
         return () => {
             if (target) observer.unobserve(target);
         };
-    }, [data, loading]);
+    }, [format, data, loading]);
     // =========================================== get data end ========================================================
 
     // =========================================== filters 2/2 begin ===================================================

@@ -5,6 +5,8 @@ import RenderInHeaderColumnControls from "./RenderInHeaderColumnControls";
 import {Delete, ViewIcon, Add, PencilIcon} from "../../../../../../admin/ui/icons";
 const actionsColSize = 80;
 const numColSize = 20;
+const gutterColSize = 20;
+const minColSize = 50
 const frozenColClass = '' //'sticky left-0 z-10'
 const stringifyIfObj = obj => typeof obj === "object" ? JSON.stringify(obj) : obj;
 const LoadingComp = ({className}) => <div className={className}>loading...</div>
@@ -83,6 +85,7 @@ const RenderActions = ({isLastCell, allowEdit, newItem, removeItem}) => {
     if(!isLastCell || !allowEdit) return null;
 
     return (
+        <div className={'flex items-center border'}>
             <div className={'flex flex-row h-fit justify-evenly'} style={{width: actionsColSize}}>
                 <Link
                     title={'view'}
@@ -105,6 +108,7 @@ const RenderActions = ({isLastCell, allowEdit, newItem, removeItem}) => {
                     <Delete className={'text-white'} height={20} width={20}/>
                 </button>
             </div>
+        </div>
     )
 }
 const validate = ({value, required, options, name}) => {
@@ -275,8 +279,8 @@ export const RenderSimple = ({
     useEffect(() => {
         if (gridRef.current && (!Object.keys(colSizes).length || Object.keys(colSizes).length !== visibleAttributes.length)) {
             const availableVisibleAttributesLen = visibleAttributes.filter(v => attributes.find(attr => attr.name === v)).length; // ignoring the once not in attributes anymore
-            const gridWidth = gridRef.current.offsetWidth - numColSize - (allowEdit ? actionsColSize : 0);
-            const initialColumnWidth = gridWidth / availableVisibleAttributesLen;
+            const gridWidth = gridRef.current.offsetWidth - numColSize - gutterColSize - (allowEdit ? actionsColSize : 0);
+            const initialColumnWidth = Math.max(minColSize, gridWidth / availableVisibleAttributesLen);
             setColSizes(
                 visibleAttributes.map(va => attributes.find(attr => attr.name === va)).filter(a => a).reduce((acc, attr) => ({...acc, [attr.name]: initialColumnWidth}) , {})
             );
@@ -432,8 +436,8 @@ export const RenderSimple = ({
         const startWidth = colSizes[col] || 0;
 
         const handleMouseMove = (moveEvent) => {
-            const newWidth = startWidth + moveEvent.clientX - startX;
-            const gridWidth = gridRef.current.offsetWidth - numColSize - (allowEdit ? actionsColSize : 0) - newWidth;
+            const newWidth = Math.max(minColSize, startWidth + moveEvent.clientX - startX);
+            const gridWidth = gridRef.current.offsetWidth - numColSize - gutterColSize - (allowEdit ? actionsColSize : 0) - newWidth;
             const restColsWidthSum = Object.keys(colSizes).filter(k => k !== col).reduce((acc, curr) => acc + (colSizes[curr] || 0), 0);
 
             if(restColsWidthSum > gridWidth){
@@ -537,9 +541,9 @@ export const RenderSimple = ({
             <div className={'flex flex-col no-wrap text-sm max-h-[calc(87vh_-_10px)] overflow-y-auto scrollbar-sm'}
                  onMouseLeave={handleMouseUp}>
                 {/*Header*/}
-                <div className={`sticky top-0 grid ${c[visibleAttributes.length + 2]}`} style={{
+                <div className={`sticky top-0 grid ${allowEdit ? c[visibleAttributes.length + 3] : c[visibleAttributes.length + 2]}`} style={{
                     zIndex: 5,
-                    gridTemplateColumns: `${numColSize}px ${visibleAttributes.map(v => `${colSizes[v]}px` || 'auto').join(' ')} ${actionsColSize}px`
+                    gridTemplateColumns: `${numColSize}px ${visibleAttributes.map(v => `${colSizes[v]}px` || 'auto').join(' ')} ${allowEdit ? `${actionsColSize}px` : ``} ${gutterColSize}px`
                 }}>
                     <div className={'flex justify-between sticky left-0 z-[1]'} style={{width: numColSize}}>
                         <div key={'#'}
@@ -562,7 +566,7 @@ export const RenderSimple = ({
                                         setFilters={setFilters}
                                     />
                                 </div>
-                                <div className="z-5"
+                                <div className="z-5 -ml-2"
                                      style={{
                                          width: '3px',
                                          height: '100%',
@@ -584,80 +588,129 @@ export const RenderSimple = ({
                             </div>
                         ) : null
                     }
+                    <div key={'##'}
+                         className={`bg-gray-50 border z-[1] flex shrink-0 justify-between`}
+                         style={{width: numColSize}}
+                    > {` `}</div>
                 </div>
-
                 {/*Rows*/}
-                {data.map((d, i) => (
-                    <div
-                        className={`grid ${c[visibleAttributes.length + 2]} divide-x divide-y ${isDragging ? `select-none` : ``}`}
-                        style={{gridTemplateColumns: `${numColSize}px ${visibleAttributes.map(v => `${colSizes[v]}px` || 'auto').join(' ')} ${actionsColSize}px`}}
-                    >
-                        <div key={'#'}
-                             className={`p-1 flex text-xs items-center justify-center border cursor-pointer 
+                {/*<div className={`max-h-[calc(87vh_-_10px)] overflow-y-auto scrollbar-sm`}>*/}
+                    {data.map((d, i) => (
+                        <div
+                            className={`grid ${allowEdit ? c[visibleAttributes.length + 3] : c[visibleAttributes.length + 2]} divide-x divide-y ${isDragging ? `select-none` : ``}`}
+                            style={{gridTemplateColumns: `${numColSize}px ${visibleAttributes.map(v => `${colSizes[v]}px` || 'auto').join(' ')} ${allowEdit ? `${actionsColSize}px` : ``} ${gutterColSize}px`}}
+                        >
+                            <div key={'#'}
+                                 className={`p-1 flex text-xs items-center justify-center border cursor-pointer 
                              sticky left-0 z-[1]
                              ${selection.find(s => (s.index !== undefined ? s.index : s) === i) ? 'bg-blue-100 text-gray-900' : 'bg-gray-50 text-gray-500'}`}
-                             style={{width: numColSize}}
-                             onClick={e => {
-                                 // single click = replace selection
-                                 // click and mouse move = add to selection
-                                 // ctrl + click add
-                                 if (e.ctrlKey) {
-                                     setSelection(selection.includes(i) ? selection.filter(v => v !== i) : [...selection, i])
-                                 } else {
-                                     setSelection([i])
-                                 }
-                             }}
-                             onMouseDown={e => handleMouseDown(e, i)}
-                             onMouseMove={e => handleMouseMove(e, i)}
-                             onMouseUp={handleMouseUp}
-                        >
-                            {/*{(i + (currentPage * pageSize)) + 1}*/}
-                            {i + 1}
-                        </div>
-                        {visibleAttributes
-                            .filter(attribute => attributes.find(attr => attr.name === attribute))
-                            .map((attribute, attrI) =>
-                                <RenderCell
-                                    isSelecting={isSelecting}
-                                    isSelected={selection.find(s => s.index === i && s.attrI === attrI) || selection.includes(i)}
-                                    isFrozen={frozenCols.includes(attrI)}
-                                    edge={
-                                        selection.find(s => s.index === i && s.attrI === attrI) || selection.includes(i) ?
-                                            getEdge(selectionRange, i, attrI) : null}
-                                    editing={editing.index === i && editing.attrI === attrI}
-                                    triggerDelete={triggerSelectionDelete}
-                                    key={`${i}-${attrI}`}
-                                    width={colSizes[attributes.find(attr => attr.name === attribute).name]}
-                                    attribute={attributes.find(attr => attr.name === attribute)}
-                                    loading={loading}
-                                    updateItem={updateItem}
-                                    removeItem={removeItem}
+                                 style={{width: numColSize}}
+                                 onClick={e => {
+                                     // single click = replace selection
+                                     // click and mouse move = add to selection
+                                     // ctrl + click add
+                                     if (e.ctrlKey) {
+                                         setSelection(selection.includes(i) ? selection.filter(v => v !== i) : [...selection, i])
+                                     } else {
+                                         setSelection([i])
+                                     }
+                                 }}
+                                 onMouseDown={e => handleMouseDown(e, i)}
+                                 onMouseMove={e => handleMouseMove(e, i)}
+                                 onMouseUp={handleMouseUp}
+                            >
+                                {/*{(i + (currentPage * pageSize)) + 1}*/}
+                                {i + 1}
+                            </div>
+                            {visibleAttributes
+                                .filter(attribute => attributes.find(attr => attr.name === attribute))
+                                .map((attribute, attrI) =>
+                                    <RenderCell
+                                        isSelecting={isSelecting}
+                                        isSelected={selection.find(s => s.index === i && s.attrI === attrI) || selection.includes(i)}
+                                        isFrozen={frozenCols.includes(attrI)}
+                                        edge={
+                                            selection.find(s => s.index === i && s.attrI === attrI) || selection.includes(i) ?
+                                                getEdge(selectionRange, i, attrI) : null}
+                                        editing={editing.index === i && editing.attrI === attrI}
+                                        triggerDelete={triggerSelectionDelete}
+                                        key={`${i}-${attrI}`}
+                                        width={colSizes[attributes.find(attr => attr.name === attribute).name]}
+                                        attribute={attributes.find(attr => attr.name === attribute)}
+                                        loading={loading}
+                                        updateItem={updateItem}
+                                        removeItem={removeItem}
 
-                                    i={i}
-                                    item={d}
-                                    onMouseDown={e => handleMouseDown(e, i, attrI)}
-                                    onMouseMove={e => handleMouseMove(e, i, attrI)}
-                                    onMouseUp={handleMouseUp}
-                                    onClick={() => {
-                                        setSelection([{index: i, attrI}]);
-                                        setEditing({index: i, attrI});
-                                    }}
-                                    onDoubleClick={() => {
-                                    }}
-                                    allowEdit={allowEdit}
-                                />)}
-                        <div className={'flex items-center border'}>
-                            <RenderActions allowEdit={allowEdit} isLastCell={true} newItem={d} removeItem={removeItem}/>
+                                        i={i}
+                                        item={d}
+                                        onMouseDown={e => handleMouseDown(e, i, attrI)}
+                                        onMouseMove={e => handleMouseMove(e, i, attrI)}
+                                        onMouseUp={handleMouseUp}
+                                        onClick={() => {
+                                            setSelection([{index: i, attrI}]);
+                                            setEditing({index: i, attrI});
+                                        }}
+                                        onDoubleClick={() => {
+                                        }}
+                                        allowEdit={allowEdit}
+                                    />)}
+
+                            <RenderActions allowEdit={allowEdit} isLastCell={true} newItem={d}
+                                           removeItem={removeItem}/>
+
+                            <div className={'flex items-center border'}>
+                                <div key={'##'}
+                                     className={`bg-gray-50 h-full flex shrink-0 justify-between`}
+                                     style={{width: numColSize}}
+                                > {` `}</div>
+                            </div>
+                        </div>
+                    ))}
+                    <div id="loadMoreTrigger"></div>
+                {/*</div>*/}
+
+                {/*gutter*/}
+                <div
+                    className={`bg-white grid ${allowEdit ? c[visibleAttributes.length + 3] : c[visibleAttributes.length + 2]} divide-x divide-y ${isDragging ? `select-none` : ``} sticky bottom-0 z-[1]`}
+                    style={{gridTemplateColumns: `${numColSize}px ${visibleAttributes.map(v => `${colSizes[v]}px` || 'auto').join(' ')} ${allowEdit ? `${actionsColSize}px` : ``} ${gutterColSize}px`}}
+                >
+                    <div className={'flex justify-between sticky left-0 z-[1]'} style={{width: numColSize}}>
+                        <div key={'#'}
+                             className={`w-full font-semibold border bg-gray-50 text-gray-500`}>
                         </div>
                     </div>
-                ))}
-                <div id="loadMoreTrigger"></div>
-                {/*Add new row*/}
+                    {
+                        visibleAttributes.map(va => attributes.find(attr => attr.name === va))
+                            .filter(a => a)
+                            .map((attribute, attrI) => {
+                                const Comp = DataTypes[attribute?.type || 'text']?.EditComp;
+                                return (
+                                    <div
+                                        className={`flex border bg-gray-50`}
+                                        style={{width: colSizes[attribute.name]}}
+                                    >
+                                        {` `}
+                                    </div>
+                                )
+                            })
+                    }
+                    <div className={'bg-white flex flex-row h-fit justify-evenly'}
+                         style={{width: actionsColSize}}>
+                        <button
+                            className={'w-fit p-0.5 bg-blue-300 hover:bg-blue-500 text-white rounded-lg'}
+                            onClick={e => {
+                                addItem()
+                            }}>
+                            <Add className={'text-white'} height={20} width={20}/>
+                        </button>
+                    </div>
+                </div>
+
                 {
                     allowEdit ?
                         <div
-                            className={`bg-white grid ${c[visibleAttributes.length + 2]} divide-x divide-y ${isDragging ? `select-none` : ``} sticky bottom-0 z-[1]`}
-                            style={{gridTemplateColumns: `${numColSize}px ${visibleAttributes.map(v => `${colSizes[v]}px` || 'auto').join(' ')} ${actionsColSize}px`}}
+                            className={`bg-white grid ${allowEdit ? c[visibleAttributes.length + 3] : c[visibleAttributes.length + 2]} divide-x divide-y ${isDragging ? `select-none` : ``} sticky bottom-0 z-[1]`}
+                            style={{gridTemplateColumns: `${numColSize}px ${visibleAttributes.map(v => `${colSizes[v]}px` || 'auto').join(' ')} ${allowEdit ? `${actionsColSize}px` : ``} ${gutterColSize}px`}}
                         >
                             <div className={'flex justify-between sticky left-0 z-[1]'} style={{width: numColSize}}>
                                 <div key={'#'}
