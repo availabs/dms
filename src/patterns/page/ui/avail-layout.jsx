@@ -94,47 +94,49 @@ const Layout = ({ children, navItems, secondNav, title, theme, yPadding = '0px',
 	
 	return (
 		<div className={`flex ${theme?.bg} max-w-screen`}>
-			{
-				sideNavOptions.size === 'none' ? '' : (
-					<div className={`hidden md:block ${marginSizes[sideNavOptions.size]}`}>
-						<div className={`fixed h-screen ${fixedSizes[sideNavOptions.size]}`}>
-							<SideNav 
-								topMenu={sideNavOptions.topMenu}
-								bottomMenu={sideNavOptions.bottomMenu}
-								themeOptions={sideNavOptions}
-								menuItems={sideNavOptions.menuItems}
-							/>
+			<div className={`flex flex-1 ${theme?.layout?.wrapper}`} >
+				
+				<div 
+					className={`flex-1 flex items-start flex-col items-stretch max-w-full`} 
+					style={{
+						minHeight: `calc(100vh - ${yPadding}`,
+					}}
+				>
+					{
+						topNavOptions.size === 'none' ? '' : (<>
+							<div className={`${theme?.layout?.topnavContainer1}`}>
+								<div className={`${theme?.layout?.topnavContainer2}`}>
+									<TopNav
+										themeOptions={topNavOptions}
+										// subMenuActivate={'onHover'}
+										leftMenu={topNavOptions.leftMenu}
+										menuItems={topNavOptions.menuItems}
+										rightMenu={topNavOptions.rightMenu}
+										
+									/>
+								</div>
+							</div>
+						</>)
+					}
+					<div className={`flex-1 flex`}>
+						{
+							sideNavOptions.size === 'none' ? '' : (
+								<div className={`${theme?.layout?.sidenavContainer1}`}>
+									<div className={`${theme?.layout?.sidenavContainer2}`}>
+										<SideNav 
+											topMenu={sideNavOptions.topMenu}
+											bottomMenu={sideNavOptions.bottomMenu}
+											themeOptions={sideNavOptions}
+											menuItems={sideNavOptions.menuItems}
+										/>
+									</div>
+								</div>
+							)
+						}
+						<div className={`flex-1`}>
+							{children}
 						</div>
 					</div>
-				)
-			}
-			<div 
-				className={`flex-1 flex items-start flex-col items-stretch max-w-full`} 
-				style={{
-					minHeight: `calc(100vh - ${yPadding}`,
-					//maxWidth: `calc(100vw - ${fixedSizePixels[sideNavOptions.size]}`
-				}}
-			>
-				{
-					topNavOptions.size === 'none' ? '' : (<>
-						<div className={`${
-							topNavOptions.position === 'fixed' ? 
-								`sticky top-0 z-20 w-full ` 
-								: 'z-10'
-							}`}>
-								<TopNav
-									themeOptions={topNavOptions}
-									// subMenuActivate={'onHover'}
-									leftMenu={topNavOptions.leftMenu}
-									menuItems={topNavOptions.menuItems}
-									rightMenu={topNavOptions.rightMenu}
-									
-								/>
-						</div>
-					</>)
-				}
-				<div id={'content'} className={`flex-1`}>
-					{children}
 				</div>
 			</div>
 		</div>

@@ -36,6 +36,13 @@ const theme = {
     '3': 'pl-4 pt-2 pb-1 text-sm text-slate-400 hover:underline cursor-pointer border-r-2 mr-4',
     '4': 'pl-6 pt-2 pb-1 text-sm text-slate-400 hover:underline cursor-pointer border-r-2 mr-4',
   },
+  layout: {
+    wrapper: '',
+    topnavContainer1:``,
+    topnavContainer2:`sticky top-0 z-20 `,
+    sidenavContainer1: '',
+    sidenavContainer2: 'sticky h-[calc(100vh_-_42px)] '
+  },
   page: {
     wrapper1: 'w-full h-full flex-1 flex flex-col bg-slate-100', // first div inside Layout
     wrapper2: 'w-full h-full flex-1 flex flex-row px-1 md:px-6 py-6', // inside page header, wraps sidebar
