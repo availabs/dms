@@ -908,6 +908,26 @@ i.prettier-error {
   background-image: url(images/icons/code.svg);
 }
 
+/*  modify the talwind.config.js for transformation stuff
+
+module.exports = {
+  theme: {
+    extend: {
+      animation: {
+        'slide-in': 'slide-in 0.4s ease',
+      },
+      keyframes: {
+        'slide-in': {
+          '0%': { opacity: '0', transform: 'translateX(-200px)' },
+          '100%': { opacity: '1', transform: 'translateX(0)' },
+        },
+      },
+    },
+  },
+  variants: {},
+  plugins: [],
+}; */
+
 .switches {
   z-index: 6;
   position: fixed;
