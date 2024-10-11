@@ -39,9 +39,9 @@ const theme = {
   layout: {
     wrapper: '',
     topnavContainer1:``,
-    topnavContainer2:`sticky top-0 z-20 `,
-    sidenavContainer1: '',
-    sidenavContainer2: 'sticky h-[calc(100vh_-_42px)] '
+    topnavContainer2:`sticky top-0 z-20 w-full max-w-[100vw]`,
+    sidenavContainer1: 'mr-44',
+    sidenavContainer2: 'fixed h-[calc(100vh_-_52px)]'
   },
   page: {
     wrapper1: 'w-full h-full flex-1 flex flex-col bg-slate-100', // first div inside Layout

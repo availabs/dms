@@ -94,7 +94,7 @@ const Layout = ({ children, navItems, secondNav, title, theme, yPadding = '0px',
 	
 	return (
 		<div className={`flex ${theme?.bg} max-w-screen`}>
-			<div className={`flex flex-1 ${theme?.layout?.wrapper}`} >
+			<div className={`flex flex-1 max-w-screen ${theme?.layout?.wrapper}`} >
 				
 				<div 
 					className={`flex-1 flex items-start flex-col items-stretch max-w-full`} 
@@ -104,18 +104,18 @@ const Layout = ({ children, navItems, secondNav, title, theme, yPadding = '0px',
 				>
 					{
 						topNavOptions.size === 'none' ? '' : (<>
-							<div className={`${theme?.layout?.topnavContainer1}`}>
+							
 								<div className={`${theme?.layout?.topnavContainer2}`}>
-									<TopNav
-										themeOptions={topNavOptions}
-										// subMenuActivate={'onHover'}
-										leftMenu={topNavOptions.leftMenu}
-										menuItems={topNavOptions.menuItems}
-										rightMenu={topNavOptions.rightMenu}
-										
-									/>
+										<TopNav
+											themeOptions={topNavOptions}
+											// subMenuActivate={'onHover'}
+											leftMenu={topNavOptions.leftMenu}
+											menuItems={topNavOptions.menuItems}
+											rightMenu={topNavOptions.rightMenu}
+											
+										/>
 								</div>
-							</div>
+							
 						</>)
 					}
 					<div className={`flex-1 flex`}>
