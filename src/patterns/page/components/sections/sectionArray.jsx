@@ -406,6 +406,7 @@ function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove, si
         return <ElementComp value={value?.['element']} siteType={siteType} apiLoad={apiLoad} pageFormat={format}/>
     }, 
     [value])
+    if(!value?.element?.['element-type'] && !value?.element?.['element-data']) return null;
         
     return (
         <div className={`h-full ${hideDebug ? '' : ''}`} style={{pageBreakInside: "avoid"}}>
