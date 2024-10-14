@@ -370,7 +370,87 @@ const theme = {
     },
   },
   keyword: 'text-[#f1765e] font-bold', //keyword
-  
+  table: {
+    disableSelection: {
+      base: '',
+      selectedSpan: 'bg-transparent', //  table.disable-selection span::selection
+      selectedBr: 'bg-transparent', //table.disable-selection br::selection
+    },
+  },
+  tableCellActionButtonContainer: 'absolute top-0 left-0 will-change-transform', //table-cell-action-button-container
+  tableCellActionButton: 'bg-none flex justify-center items-center border-0 relative rounded-[15px] text-[#222] inline-block cursor-pointer', //.table-cell-action-button
+  actionButton: {
+    base: 'bg-[#eee] border-0 px-3 py-2 relative ml-[5px] rounded-[15px] text-[#222] inline-block cursor-pointer hover:bg-[#ddd] hover:text-black', //.action-button
+    disabled: 'g-gray-200 cursor-not-allowed opacity-60', // button.action-button:disabled
+  },
+  debugTimetravelPanel: {
+    base: 'overflow-hidden p-0 pb-2.5 m-auto flex', // .debug-timetravel-panel
+    slider: 'p-0 flex-[8]', // .debug-timetravel-panel-slider
+    button: 'p-0 border-0 bg-none flex-[1] text-white text-xs hover:underline' // .debug-timetravel-panel-button
+  },
+  debugTimetravelButton: 'absolute top-2.5 right-3 border-0 p-0 text-xs text-white bg-transparent hover:underline', //.debug-timetravel-button
+  debugTreetypeButton: 'absolute top-2.5 right-[85px] border-0 p-0 text-xs text-white bg-transparent hover:underline', //.debug-treetype-button
+  connecting: 'absolute top-2.5 left-2.5 text-[15px] text-gray-400 overflow-hidden text-ellipsis whitespace-nowrap pointer-events-none', // .connecting
+  ltr: 'text-left', // .ltr
+  rtl: 'text-right',  // .rtl
+  toolbar: {
+    base: 'flex flex-wrap h-fit overflow-hidden mb[1px] p-1 rounded-tl-lg rounded-tr-lg sticky top-0 z-20 items-center', // .toolbar
+    toolbarItem: {
+      base: 'border-0 flex bg-none rounded-lg p-2 cursor-pointer align-middle flex-shrink-0 items-center justify-between', // .toolbar .toolbar-item
+      disabled: {
+        base: 'cursor-not-allowed', // .toolbar .toolbar-item:disabled
+        icon: 'opacity-20', // .toolbar .toolbar-item:disabled .icon,
+        text: 'opacity-20', // .toolbar .toolbar-item:disabled .text,
+        iconFormat: 'opacity-60', // .toolbar .toolbar-item:disabled i.format,
+        chevronDown: 'opacity-20', // .toolbar .toolbar-item:disabled .chevron-down
+      },
+      spaced: 'mr-2', // .toolbar .toolbar-item.spaced
+      iconFormat: 'flex h-[18px] w-[18px] opacity-60 custom-vertical-align', // .toolbar .toolbar-item i.format
+      active: {
+        base: 'bg-[rgba(223,232,250,0.3)]', // .toolbar .toolbar-item.active
+        i: 'opacity-100', //.toolbar .toolbar-item.active i
+      },
+      fontFamilyText: 'block max-w-[10rem]', // .toolbar .toolbar-item.font-family .text 
+      text: 'flex leading-[20px] custom-vertical-align text-[14px] text-gray-500 truncate overflow-hidden h-[20px] text-left pr-[10px]', // .toolbar .toolbar-item .text 
+      icon: 'flex w-5 h-5 select-none mr-2 leading-4 bg-contain', // .toolbar .toolbar-item .icon 
+    },
+    codeLanguage: 'w-[150px]', // .toolbar .code-language
+    chevronDownIcon: 'mt-1 w-4 h-4 flex select-none', // .toolbar i.chevron-down
+    chevronDownIconInside: 'w-4 h-4 flex ml-6 mt-2.5 mr-2 pointer-events-none', //.toolbar i.chevron-down.inside
+    divider: 'w-px bg-gray-300 mx-1', // .toolbar .divider 
+  },
+  stickyNoteContainer: {
+    base: 'absolute z-9 w-[120px] inline-block', //.sticky-note-container
+    dragging: 'transition-none', // .sticky-note-container.dragging
+  },
+  stickyNote: {
+    base: 'relative block cursor-move text-left w-[120px] m-6 p-[20px] border border-[#e8e8e8] font-[Reenie_Beanie] text-[24px] rounded-br-[60px]', //.sticky-note
+    after: 'absolute z-[-1] right-0 bottom-[20px] w-[120px] h-[25px] bg-black/20 shadow-[2px_15px_5px_rgba(0,0,0,0.4)] transform -scale-x-100', // .sticky-note:after
+    yellow: 'border-t border-[#fdfd86] bg-gradient-to-br from-[#ffff88] to-[#ffffc6]', //.sticky-note.yellow
+    pink: 'border-t border-[#e7d1e4] bg-gradient-to-br from-[#f7cbe8] to-[#e7bfe1]', //.sticky-note.pink
+    div: 'cursor-text', // .sticky-note div
+    delete: 'absolute top-[8px] right-[10px] text-[10px] border-0 bg-none cursor-pointer opacity-50 hover:font-bold hover:opacity-100', //.sticky-note .delete
+    color: 'absolute top-[8px] right-[25px] border-0 bg-none opacity-50 hover:opacity-100', //.sticky-note .color,
+    colorIcon: 'block w-[12px] h-[12px] bg-contain', //.sticky-note .color i
+  },
+  excalidrawButton: {
+    base: 'border-0 p-0 m-0 bg-transparent', // .excalidraw-button
+    selected: 'outline outline-2 outline-[rgb(60,132,244)] user-select-none', // .excalidraw-button.selected
+  },
+  hr: {
+    base: 'p-[2px] border-none my-4 cursor-pointer relative', // hr
+    after: 'absolute left-0 right-0 h-[2px] bg-[#ccc] leading-[2px]', // hr:after
+    selected: 'outline-[2px] outline-solid outline-[#3c84f4] select-none', // hr.selected
+  },
+  spacer: 'tracking[-2px]', // .spacer
+  editorEquation: {
+    base: 'cursor-default select-none', //.editor-equation
+    focused: 'outline-2 outline-solid outline-[#3c84f4]', // .editor-equation.focused
+  },
+  buttonItemIcon: 'opacity-60', // button.item i
+  dropdownItemActive: 'bg-[rgba(223,232,250,0.3)]', // button.item.dropdown-item-active
+  dropdownItemActiveIcon: 'opacity-100', // button.item.dropdown-item-active i
+  tableNodeContentEditable: 'min-h-[20px] border-0 resize-none cursor-text block relative tab-size-1 outline-0 p-0 select-text text-[15px] whitespace-pre-wrap break-words z-3', //.TableNode__contentEditable
 };
 
 export default theme;
