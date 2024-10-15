@@ -213,7 +213,7 @@ export class InlineImageNode extends DecoratorNode<JSX.Element> {
     }
 
     update(payload: UpdateInlineImagePayload): void {
-        console.log('updating payload', payload)
+        //console.log('updating payload', payload)
         const writable = this.getWritable();
         const {altText, showCaption, position} = payload;
         if (altText !== undefined) {

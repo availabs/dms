@@ -131,25 +131,6 @@ export default async function dmsSiteFactory(props) {
     return pattern2routes(data, props)
 }
 
-function ScrollToTop() {
-    const { pathname } = useLocation();
-
-    useEffect(() => {
-        window.scrollTo(0, 0);
-    }, [pathname]);
-
-    return null;
-}
-
-function Layout() {
-    return (
-        <>
-            <ScrollToTop />
-            <Outlet />
-        </>
-    );
-}
-
 export function DmsSite ({
     dmsConfig,
     defaultData,
@@ -205,28 +186,11 @@ export function DmsSite ({
     //console.log('routes', routes, dynamicRoutes)
 
     return (
-        <>
-            <RouterProvider router={createBrowserRouter([
-                {
-                    path: '/',
-                    element: <Layout />, // This ensures ScrollToTop is applied to all child routes
-                    children: [
-                        ...dynamicRoutes,
-                        ...routes,
-                        PageNotFoundRoute
-                    ]
-                }
-            ])}
-            />
-        </>
+        <RouterProvider router={createBrowserRouter([
+            ...dynamicRoutes,
+            ...routes,
+            PageNotFoundRoute
+          ])}
+        />
     )
-
-    // return (
-    //     <RouterProvider router={createBrowserRouter([
-    //         ...dynamicRoutes,
-    //         ...routes,
-    //         PageNotFoundRoute
-    //       ])}
-    //     />
-    // )
 } 

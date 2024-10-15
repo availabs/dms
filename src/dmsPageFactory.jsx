@@ -1,5 +1,5 @@
 import React, {useEffect} from 'react'
-import { useParams } from "react-router-dom";
+import { useParams, useLocation } from "react-router-dom";
 
 import {
   DmsManager,
@@ -14,6 +14,17 @@ import {
   FalcorProvider
 } from "@availabs/avl-falcor"
 //const noAuth = Component => Component
+
+
+function ScrollToTop() {
+    const { pathname } = useLocation();
+
+    useEffect(() => {
+        window.scrollTo(0, 0);
+    }, [pathname]);
+
+    return null;
+}
 
 export default function dmsPageFactory (
   dmsConfig,
@@ -75,7 +86,12 @@ export default function dmsPageFactory (
 
   return {
     path: `${dmsPath}*`,
-    Component: (props) =>  <DMS {...props} />,
+    Component: (props) =>  (
+      <>
+        <ScrollToTop />
+        <DMS {...props} />
+      </>
+    ),
     loader: loader,
     action: action
   }
