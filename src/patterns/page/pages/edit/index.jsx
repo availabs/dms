@@ -79,7 +79,7 @@ function PageEdit ({
         <ContentEdit
           item={item}
           value={[headerSection]} 
-          onChange={(val,action) => saveHeader(v, item, user, apiUpdate)}         
+          onChange={(v,action) => saveHeader(v, item, user, apiUpdate)}         
           attributes={sectionAttr}
           siteType={siteType}
         />
@@ -87,7 +87,13 @@ function PageEdit ({
       <Layout navItems={menuItems} secondNav={theme?.navOptions?.secondaryNav?.navItems || []}>
         <div className={`${theme?.page?.wrapper1} ${theme?.navPadding[level]}`}>
           {item?.header === 'below' && (
-            <ContentEdit item={item} value={[headerSection]} onChange={(val,action) => saveHeader(v, item, user, apiUpdate)} attributes={sectionAttr} siteType={siteType}/>
+            <ContentEdit 
+              item={item} 
+              value={[headerSection]} 
+              onChange={(v,action) => saveHeader(v, item, user, apiUpdate)} 
+              attributes={sectionAttr} 
+              siteType={siteType}
+            />
           )}
           <div className={`${theme?.page?.wrapper2}`}>
             {item?.sidebar === 'show' && (

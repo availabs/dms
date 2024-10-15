@@ -2,10 +2,10 @@ import React, { useMemo, useState, useEffect }from 'react'
 import {isJson} from "../index";
 
 
-export function Header ({position = 'above',bgImg = '', logo = '', title = 'Title', bgClass='', subTitle='subTitle', note='note'}) {
+export function Header ({position = 'above',bgImg = '', logo = '', title = 'Title', bgClass='', subTitle='subTitle', note='note', height=300}) {
   
   return (
-    <div className={`h-[300px] bg-cover bg-center w-full flex ${bgClass}`} style={{ backgroundImage: `url("${bgImg}")` }}>
+    <div className={` bg-fit bg-center w-full flex ${bgClass}`} style={{ backgroundImage: `url("${bgImg}")`, height }}>
       <div className='p-2'>
         {logo && <img src={logo} alt="NYS Logo" />}
       </div>
@@ -59,7 +59,8 @@ const Edit = ({value, onChange, size}) => {
         title: cachedData.title || 'Title', 
         subTitle: cachedData.subTitle || 'subTitle', 
         note: cachedData.note || 'note',
-        bgClass: cachedData.bgClass || ''
+        bgClass: cachedData.bgClass || '',
+        height: 300
     })
 
     useEffect(() => {
@@ -111,6 +112,12 @@ const Edit = ({value, onChange, size}) => {
               <label className={'shrink-0 pr-2 py-1 my-1 w-1/4'}>logo:</label>
               <div className={`flex flex row w-3/4 shrink my-1`}>
                 <input type='text' value={compData.logo} onChange={(e) => setCompData({...compData, logo: e.target.value})} />
+              </div>
+            </div>
+             <div className={'flex flex-row flex-wrap justify-between'}>
+              <label className={'shrink-0 pr-2 py-1 my-1 w-1/4'}>height:</label>
+              <div className={`flex flex row w-3/4 shrink my-1`}>
+                <input type='text' value={compData.logo} onChange={(e) => setCompData({...compData, height: e.target.value})} />
               </div>
             </div>
           </div>
