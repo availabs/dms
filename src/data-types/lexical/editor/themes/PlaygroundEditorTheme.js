@@ -262,6 +262,10 @@ const theme = {
     fontSizeWrapper: "flex mx-[4px]", // .link-editor .font-size-wrapper,
     fontFamilyWrapper: "flex mx-[4px]", // .link-editor .font-family-wrapper
     select: "p-[6px] border-0 bg-[rgba(0,0,0,0.075)] rounded-[4px]", // .link-editor select
+    base: 'flex absolute top-0 left-0 z-10 max-w-[400px] w-full opacity-0 bg-white shadow-lg rounded-b-lg transition-opacity duration-500 will-change-transform', // .link-editor
+    button: 'w-5 h-5 inline-block p-1.5 rounded-lg cursor-pointer mx-0.5', // .link-editor .button
+    buttonHovered: 'w-5 h-5 inline-block bg-gray-200', // .link-editor .button.hovered
+    icon: 'bg-contain inline-block h-5 w-5 align-middle', // .link-editor .button i, .actions i
   },
   mention: {
     focus: 'shadow-[0_0_0_2px_rgb(180,213,255)] outline-none', //.mention:focus
@@ -451,6 +455,84 @@ const theme = {
   dropdownItemActive: 'bg-[rgba(223,232,250,0.3)]', // button.item.dropdown-item-active
   dropdownItemActiveIcon: 'opacity-100', // button.item.dropdown-item-active i
   tableNodeContentEditable: 'min-h-[20px] border-0 resize-none cursor-text block relative tab-size-1 outline-0 p-0 select-text text-[15px] whitespace-pre-wrap break-words z-3', //.TableNode__contentEditable
+  nestable: {
+    base: 'relative', // .nestable
+    list: 'p-0 list-none', // .nestable .nestable-list
+    listDirectChild: 'p-0', // .nestable > .nestable-list 
+    item: 'm-0', // .nestable-item, .nestable-item-copy 
+    itemFirstChild: 'mt-0', // .nestable-item:first-child, .nestable-item-copy:first-child
+    itemList: 'mt-0', // .nestable-item .nestable-list, .nestable-item-copy .nestable-list 
+    isDragging: {
+      list: 'pointer-events-none', // .nestable-item.is-dragging .nestable-list 
+      allElements: 'opacity-0', // .nestable-item.is-dragging * 
+      before: 'absolute inset-0 rounded-md', // .nestable-item.is-dragging:before
+    },
+    itemIcon: 'mr-1 cursor-pointer', // .nestable-item-icon
+    dragLayer: 'fixed top-0 left-0 z-[100] pointer-events-none', // .nestable-drag-layer 
+    dragLayerList: 'absolute top-0 left-0 p-0', // .nestable-drag-layer > .nestable-list 
+    icon: {
+      base: 'relative inline-block w-5 h-5 bg-transparent bg-center bg-no-repeat', // .nestable-icon 
+      before: 'hidden', // .nestable-icon:before
+    },
+    iconPlusGray: 'w-5 h-5 bg-[url("./icon-plus-gray.svg")]', // .icon-plus-gray 
+    iconMinusGray: 'w-5 h-5 bg-[url("./icon-minus-gray.svg")]', // .icon-minus-gray 
+  },
+  draggableBlockMenu: {
+    base: 'rounded-md p-0.5 cursor-grab opacity-0 absolute left-0 top-0 will-change-transform hover:bg-gray-200', // .draggable-block-menu
+    icon: 'w-4 h-4 opacity-30 bg-[url("/images/icons/draggable-block-menu.svg")]', // .draggable-block-menu .icon 
+    active: 'cursor-grabbing', // .draggable-block-menu:active
+  },
+  draggableBlockTargetLine: {
+    base: 'pointer-events-none bg-deepskyblue h-1 absolute left-0 top-0 opacity-0 will-change-transform', // .draggable-block-target-line
+  },
+  floatingTextFormatPopup: {
+    base: 'flex bg-white p-1 align-middle absolute top-0 left-0 z-10 opacity-0 shadow-lg rounded-lg transition-opacity duration-500 h-11 will-change-transform', // .floating-text-format-popup
+    popupItem: {
+      base: 'border-0 flex bg-transparent rounded-lg p-2 cursor-pointer align-middle', // .floating-text-format-popup button.popup-item
+      disabled: 'cursor-not-allowed', // .floating-text-format-popup button.popup-item:disabled
+      spaced: 'mr-0.5', // .floating-text-format-popup button.popup-item.spaced
+      icon: 'bg-contain inline-block h-4.5 w-4.5 mt-0.5 flex opacity-60', // .floating-text-format-popup button.popup-item i.format
+      disabledIcon: 'opacity-20', // .floating-text-format-popup button.popup-item:disabled i.format
+      active: 'bg-[rgba(223,232,250,0.3)]', // .floating-text-format-popup button.popup-item.active
+      activeIcon: 'opacity-100', // .floating-text-format-popup button.popup-item.active i
+      hover: 'hover:bg-gray-200', // .floating-text-format-popup .popup-item:hover:not([disabled])
+    },
+    select: {
+      base: 'border-0 flex bg-transparent rounded-lg p-2 w-18 text-sm text-gray-500 truncate appearance-none', // .floating-text-format-popup select.popup-item
+      codeLanguage: 'capitalize w-32',
+    },
+    text: 'flex items-center text-[14px] text-gray-500 leading-[20px] w-[70px] h-[20px] overflow-hidden text-left truncate', // .floating-text-format-popup .popup-item .text 
+    icon: 'flex w-5 h-5 select-none mr-2 leading-4 bg-contain', // .floating-text-format-popup .popup-item .icon
+    chevronDown: 'mt-0.75 w-4 h-4 flex select-none', // .floating-text-format-popup i.chevron-down
+    chevronInside: 'w-4 h-4 flex ml-[-6.25rem] mt-2.75 mr-2.5 pointer-events-none', // .floating-text-format-popup i.chevron-down.inside
+    divider: 'w-px bg-gray-200 mx-1', // .floating-text-format-popup .divider
+    insertComment: 'hidden md:block',
+  },
+  collapsible: {
+    container: 'bg-[#fcfcfc] border border-gray-200 rounded-lg mb-2', // .Collapsible__container
+    containerOpen: 'bg-transparent border-none', // .Collapsible__container[open]
+    title: 'scroll-mt-24 cursor-pointer p-1.25 pl-5 relative font-bold list-none outline-none', // .Collapsible__title
+    titleBefore: 'absolute left-1.75 top-1/2 transform -translate-y-1/2 border border-solid border-transparent border-l-black border-t-[4px] border-b-[4px] border-l-[6px] border-r-[6px]', // .Collapsible__title:before 
+    titleBeforeClosed: 'border-[0.25rem_0.375rem_0.25rem_0.375rem]', // .Collapsible__container[open] .Collapsible__title:before
+    titleBeforeOpen: 'border-[0.375rem_0.25rem_0_0.25rem] border-t-black bg-transparent', // .Collapsible__container[open]
+    content: 'p-0 pl-5 pb-1.25', // .Collapsible__content
+    collapsedContent: 'hidden select-none', // .Collapsible__collapsed .Collapsible__content
+  },
+  tableOfContents: {
+    container: 'fixed top-52 right-[-35px] p-2.5 w-[250px] flex flex-row justify-start z-10 h-[300px] text-[#65676b]', // .table-of-contents
+    headings: 'list-none mt-0 ml-2.5 p-0 overflow-scroll w-[200px] h-[220px] overflow-x-hidden overflow-y-auto scrollbar-hide', // .headings
+    heading1: 'text-black font-bold cursor-pointer', // .first-heading
+    heading2: 'ml-2.5', // .table-of-contents .heading2
+    heading3: 'ml-5', // .table-of-contents .heading3 
+    normalHeading: 'cursor-pointer leading-5 text-base',
+    selectedHeading: 'text-[#3578e5] relative', // .selected-heading
+    selectedHeadingWrapper: 'relative',
+    selectedHeadingBefore: 'absolute inline-block left-[-30px] top-1 z-10 h-1 w-1 bg-[#3578e5] border-4 border-white rounded-full', // .selected-heading-wrapper::before
+    normalHeadingWrapper: 'ml-8 relative', // .normal-heading
+  },
+  tableCellResizer: {
+    resizer: 'absolute', // .TableCellResizer__resizer
+  },
 };
 
 export default theme;
