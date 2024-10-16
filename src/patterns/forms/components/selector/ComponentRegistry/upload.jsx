@@ -1,6 +1,6 @@
 import React, {useMemo, useState, useEffect, useRef, useContext} from 'react'
 import {Link} from "react-router-dom";
-import {FormsContext} from "../../../index";
+import {FormsContext} from "../../../siteConfig";
 import {InfoCircle} from "../../../../admin/ui/icons";
 
 export const isJson = (str)  => {
@@ -107,7 +107,7 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, parent, ...res
     const [layers, setLayers] =useState([]);
     const [layerName, setLayerName] = useState('');
     const inputClass = `p-1.5 hover:bg-blue-100 rounded-sm`;
-    const existingAttributes = JSON.parse(parent.config || '{}')?.attributes || [];
+    const existingAttributes = JSON.parse(format.config || '{}')?.attributes || [];
     const [columns, setColumns] = useState([]);
     // pivot columns convert column headers into their values if source column has any data in them.
     // {Flooding: {pivotColumn: 'associated_hazards'}

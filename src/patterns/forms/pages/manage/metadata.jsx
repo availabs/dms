@@ -1,6 +1,6 @@
 import React, {useEffect, useState} from "react";
 import Layout from '../../ui/avail-layout'
-import { FormsContext } from '../../'
+import { FormsContext } from '../../siteConfig'
 import SourcesLayout from "../../components/selector/ComponentRegistry/patternListComponent/layout";
 
 
@@ -22,18 +22,19 @@ const ManageForm = ({
     ...rest
 }) => {
     // const {id} = params;
-    const { baseUrl, theme, user } = React.useContext(FormsContext) || {}
-    const [newItem, setNewItem] = useState(parent);
-    useEffect(() => setNewItem(parent), [parent])
+    const { baseUrl, pageBaseUrl, theme, user } = React.useContext(FormsContext) || {}
+
     const updateData = (data, attrKey) => {
-        apiUpdate({data: {...newItem, ...{[attrKey]: data}}, config: {format}})
+        apiUpdate({data: {...item, ...{[attrKey]: data}}, config: {format}})
     }
 
     console.log('manage forms /manage_pattern/:id/templates?', manageTemplates, attributes)
     return (
-        <SourcesLayout fullWidth={false} baseUrl={baseUrl} isListAll={false} hideBreadcrumbs={false}
-                       form={{name: format.type, href: format.url_slug}}
-                       page={{name: 'Metadata', href: `${baseUrl}/manage/metadata`}}>
+        <SourcesLayout fullWidth={false} baseUrl={baseUrl} pageBaseUrl={pageBaseUrl} isListAll={false} hideBreadcrumbs={false}
+                       form={{name: item.name || item.doc_type, href: format.url_slug}}
+                       page={{name: 'Metadata', href: `${pageBaseUrl}/${params.id}`}}
+                       id={params.id} //page id to use for navigation
+        >
             <div className={`${theme?.page?.wrapper1}`}>
                 <div>
                     <div className={'flex flex-1 w-full flex-col shadow bg-white relative text-md font-light leading-7 p-4'}>
@@ -43,19 +44,19 @@ const ManageForm = ({
                                 .filter(attr => attr === 'config')
                                 .map((attrKey, i) => {
                                     let EditComp = attributes[attrKey].EditComp;
-                                    //console.log('attrs', attributes[attrKey], newItem)
+                                    //console.log('attrs', attributes[attrKey], item)
                                     return (
                                         <div key={`${attrKey}-${i}`}>
                                             <EditComp
-                                                value={newItem?.[attrKey]}
+                                                value={item?.[attrKey]}
                                                 onChange={(v) => {
-                                                    setNewItem({...newItem, ...{[attrKey]: v}})
+                                                    // setItem({...item, ...{[attrKey]: v}})
                                                     updateData(v, attrKey)
                                                 }}
                                                 manageTemplates={manageTemplates}
                                                 placeholder={attributes[attrKey].placeholder}
                                                 options={attributes[attrKey].options}
-                                                item={newItem}
+                                                item={item}
                                                 apiLoad={apiLoad}
                                                 {...attributes[attrKey]}
                                                 format={format}

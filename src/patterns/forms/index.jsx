@@ -18,11 +18,11 @@ import ManageLayout from './pages/manage/layout'
 import Dashboard from './pages/manage'
 import ManageMeta from "./pages/manage/metadata";
 import ManageTemplates from "./pages/manage/templates";
-import Validate from "./pages/manage/validate";
+import Validate from "./pages/validate";
 import Design from "./pages/manage/design";
-import Overview from "./pages/manage/overview";
-import TableView from "./pages/manage/table";
-import UploadPage from "./pages/manage/upload";
+import Overview from "./pages/overview";
+import TableView from "./pages/table";
+import UploadPage from "./pages/upload";
 
 // import {updateAttributes, updateRegisteredFormats} from "../admin/siteConfig";
 

@@ -8,6 +8,7 @@ import cloneDeep from 'lodash/cloneDeep'
 
 
 import formsConfig from '../forms'
+import metaFormsConfig from '../forms/siteConfig'; // meta level forms config. this "pattern" serves as parent for all forms.
 import pageConfig from '../page/siteConfig'
 //import {template} from "./admin.format"
 
@@ -39,7 +40,7 @@ import {useLocation} from "react-router";
 const configs = {
     page: pageConfig,
     form: formsConfig,
-    forms: formsConfig, // for future use.
+    forms: metaFormsConfig,
 }
 
 registerDataType("selector", Selector)
@@ -204,29 +205,29 @@ export function DmsSite ({
 
     //console.log('routes', routes, dynamicRoutes)
 
-    return (
-        <>
-            <RouterProvider router={createBrowserRouter([
-                {
-                    path: '/',
-                    element: <Layout />, // This ensures ScrollToTop is applied to all child routes
-                    children: [
-                        ...dynamicRoutes,
-                        ...routes,
-                        PageNotFoundRoute
-                    ]
-                }
-            ])}
-            />
-        </>
-    )
-
     // return (
-    //     <RouterProvider router={createBrowserRouter([
-    //         ...dynamicRoutes,
-    //         ...routes,
-    //         PageNotFoundRoute
-    //       ])}
-    //     />
+    //     <>
+    //         <RouterProvider router={createBrowserRouter([
+    //             {
+    //                 path: '/',
+    //                 element: <Layout />, // This ensures ScrollToTop is applied to all child routes
+    //                 children: [
+    //                     ...dynamicRoutes,
+    //                     ...routes,
+    //                     PageNotFoundRoute
+    //                 ]
+    //             }
+    //         ])}
+    //         />
+    //     </>
     // )
+
+    return (
+        <RouterProvider router={createBrowserRouter([
+            ...dynamicRoutes,
+            ...routes,
+            PageNotFoundRoute
+          ])}
+        />
+    )
 } 

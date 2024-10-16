@@ -66,7 +66,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
             const d = await getData({format, apiLoad, currentPage, pageSize, length, orderBy, filters});
             setData(d);
             setLength(length);
-            !visibleAttributes?.length && setVisibleAttributes(attributes?.map(attr => attr.name));
+            !visibleAttributes?.length && setVisibleAttributes((attributes || []).slice(0, 5).map(attr => attr.name));
             setLoading(false)
         }
 
@@ -156,7 +156,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     if(!format?.config) return (
         <div className={'p-1 flex'}>
             Form data not available. Please make a selection:
-            <FormsSelector siteType={siteType} apiLoad={apiLoad} app={pageFormat.app} format={format} setFormat={setFormat} formatFromProps={formatFromProps} />
+            <FormsSelector siteType={siteType} apiLoad={apiLoad} app={pageFormat?.app} format={format} setFormat={setFormat} formatFromProps={formatFromProps} />
         </div>
     )
 
@@ -223,7 +223,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
 
             {
                 showChangeFormatModal ?
-                    <FormsSelector siteType={siteType} apiLoad={apiLoad} app={pageFormat.app} format={format} setFormat={setFormat} formatFromProps={formatFromProps} /> : null
+                    <FormsSelector siteType={siteType} apiLoad={apiLoad} app={pageFormat?.app} format={format} setFormat={setFormat} formatFromProps={formatFromProps} /> : null
             }
 
             <RenderFilters attributes={attributes} filters={filters} setFilters={setFilters} apiLoad={apiLoad}

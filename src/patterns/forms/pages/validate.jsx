@@ -1,7 +1,7 @@
 import React, {useContext, useEffect, useState} from "react";
-import { FormsContext } from '../../'
-import SourcesLayout from "../../components/selector/ComponentRegistry/patternListComponent/layout";
-import Spreadsheet from "../../components/selector/ComponentRegistry/spreadsheet";
+import { FormsContext } from '../siteConfig'
+import SourcesLayout from "../components/selector/ComponentRegistry/patternListComponent/layout";
+import Spreadsheet from "../components/selector/ComponentRegistry/spreadsheet";
 
 const getBlankValueSql = col => `SUM(CASE WHEN data->>'${col}' IS NULL OR data->>'${col}'::text = '' THEN 1 ELSE 0 END) AS ${col}_blank`;
 const getFilledValueSql = col => `SUM(CASE WHEN data->>'${col}' IS NOT NULL AND data->>'${col}'::text != '' THEN 1 ELSE 0 END) AS ${col}_value`;
@@ -47,27 +47,28 @@ const Validate = ({
     apiLoad,
     attributes={},
     dataItems,
-    format,
+    // format,
     item,
     setItem,
     updateAttribute,
     params,
     submit,
-    parent,
+    // parent,
     manageTemplates = false,
     // ...rest
 }) => {
+    // assumes meta is already setup. if a user changes meta after upload, validation is incomplete.
     const [data, setData] = useState({});
     const [loading, setLoading] = useState(false);
     const [validating, setValidating] = useState(false);
     const [error, setError] = useState();
-    const { API_HOST, baseUrl, theme, user, ...rest } = React.useContext(FormsContext) || {};
+    const { API_HOST, baseUrl, pageBaseUrl, theme, user, ...rest } = React.useContext(FormsContext) || {};
     const dmsServerPath = `${API_HOST}/dama-admin`;
 
-    const {app, type, config} = parent;
+    const {app, doc_type, config} = item;
     const columns = JSON.parse(config || '{}')?.attributes || [];
-    const invalidEntriesFormat = {...parent, type: `${format.type}-invalid-entry`}
-
+    const invalidEntriesFormat = {app, type: `${doc_type}-invalid-entry`, config}
+    console.log('?????//', invalidEntriesFormat, app, doc_type, config)
     useEffect(() => {
         async function load(){
             setLoading(true)
@@ -117,11 +118,14 @@ const Validate = ({
         }
 
         load()
-    }, [parent])
+    }, [item])
     return (
-        <SourcesLayout fullWidth={false} baseUrl={baseUrl} isListAll={false} hideBreadcrumbs={false}
-                       form={{name: format.type, href: format.url_slug}}
-                       page={{name: 'Validate', href: `${baseUrl}/manage/validate`}}>
+        <SourcesLayout ffullWidth={false} baseUrl={baseUrl} pageBaseUrl={pageBaseUrl} isListAll={false} hideBreadcrumbs={false}
+                       form={{name: item.name || item.doc_type, href: item.url_slug}}
+                       page={{name: 'Validate', href: `${pageBaseUrl}/${params.id}`}}
+                       id={params.id} //page id to use for navigation
+
+        >
             <div className={`${theme?.page?.wrapper1}`}>
                 <div>
                     <div className={'flex flex-1 w-full flex-col shadow bg-white relative text-md font-light leading-7 p-4'}>

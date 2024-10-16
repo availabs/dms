@@ -1,14 +1,13 @@
-import PatternList from "../admin/components/patternList";
-import {pattern, template, templateSection} from "../admin/admin.format";
-// meta format to forms. it only has other form patterns as children
-// should have hard coded pages:
 export const source = {
   app: "forms",
   type: "source",
   attributes: [
-      // we need a type for this?
-    
-    { key: "doc_type",
+    { key: "name",
+      placeholder: 'Name',
+      type: "text",
+      required: false
+    },
+      { key: "doc_type",
       placeholder: 'Doc Type',
       type: "text",
       required: true
@@ -47,12 +46,11 @@ const formsFormat = {
             type: "text",
             hidden: true
         },
-        //content
         {
             key: 'sources',
             type: 'dms-format',
             isArray: true,
-            format: 'forms+source'
+            format: 'forms+source',
         },
     ]
 }

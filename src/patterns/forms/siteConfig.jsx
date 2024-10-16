@@ -4,7 +4,7 @@ import merge from 'lodash/merge'
 import cloneDeep from 'lodash/cloneDeep'
 // import TableComp from "./components/TableComp";
 import {template, pattern} from "../admin/admin.format"
-import formsFormat from "./forms.format";
+import formsFormat, {source} from "./forms.format";
 
 import defaultTheme from './theme/theme'
 import DefaultMenu from './components/menu'
@@ -18,10 +18,12 @@ import Design from "./pages/manage/design";
 
 import ManageMeta from "./pages/manage/metadata";
 import ManageTemplates from "./pages/manage/templates";
-import Validate from "./pages/manage/validate";
-import Overview from "./pages/manage/overview";
-import TableView from "./pages/manage/table";
-import UploadPage from "./pages/manage/upload";
+import Validate from "./pages/validate";
+import Overview from "./pages/overview";
+import TableView from "./pages/table";
+import UploadPage from "./pages/upload";
+import PatternListComponent from "./components/selector/ComponentRegistry/patternListComponent";
+import AvailLayout from "./ui/avail-layout";
 
 // import {updateAttributes, updateRegisteredFormats} from "../admin/siteConfig";
 
@@ -65,7 +67,7 @@ const formsAdminConfig = ({
     }
     // for future use
     const patternFormatMapping = {
-        form: pattern,
+        // form: pattern,
         forms: formsFormat
     }
     const patternFormat = cloneDeep(patternFormatMapping[pattern_type]);
@@ -85,9 +87,9 @@ const formsAdminConfig = ({
                 type: (props) => {
                   return (
                       <FormsContext.Provider value={{baseUrl, user: props.user || defaultUser, theme, app, type, parent, Menu, API_HOST}}>
-                        {/*<ManageLayout>*/}
+                        <AvailLayout secondNav={theme?.navOptions?.secondaryNav?.navItems || []}>
                             {props.children}
-                        {/*</ManageLayout>*/}
+                        </AvailLayout>
                       </FormsContext.Provider>
                   )
                 },
@@ -103,11 +105,145 @@ const formsAdminConfig = ({
                         // sources list component on blank 
                          
                         // sources list component on blank 
-                        type: () => <div> put the list component here</div>,
+                        type: props => <PatternListComponent.EditComp parent={parent} {...props} adminPath={adminPath}/>,
                         path: "",
                         action: "edit"
                     },
-                  
+
+                    // {
+                    //     type: props => <Overview.EditComp parent={parent} {...props} adminPath={adminPath}/>,
+                    //     filter: {
+                    //         stopFullDataLoad: true,
+                    //         fromIndex: () => 0,
+                    //         toIndex: () => 0,
+                    //     },
+                    //     action: 'edit',
+                    //     path: `source/:id/overview`
+                    // },
+                    // {
+                    //     type: props => <ManageMeta.EditComp parent={parent} {...props} adminPath={adminPath}/>,
+                    //     filter: {
+                    //         stopFullDataLoad: true,
+                    //         fromIndex: () => 0,
+                    //         toIndex: () => 0,
+                    //     },
+                    //     action: 'edit',
+                    //     path: `source/:id/metadata`
+                    // },
+                    // {
+                    //     type: props => <TableView parent={parent} {...props} adminPath={adminPath}/>,
+                    //     filter: {
+                    //         stopFullDataLoad: true,
+                    //         fromIndex: () => 0,
+                    //         toIndex: () => 0,
+                    //     },
+                    //     action: 'emetadatadit',
+                    //     path: `source/:id/table`
+                    // },
+                    // {
+                    //     type: props => <UploadPage parent={parent} {...props} adminPath={adminPath}/>,
+                    //     filter: {
+                    //         stopFullDataLoad: true,
+                    //         fromIndex: () => 0,
+                    //         toIndex: () => 0,
+                    //     },
+                    //     action: 'edit',
+                    //     path: `source/:id/upload`
+                    // },
+                    // {
+                    //     type: props => <Validate parent={parent} {...props} adminPath={adminPath}/>,
+                    //     filter: {
+                    //         stopFullDataLoad: true,
+                    //         fromIndex: () => 0,
+                    //         toIndex: () => 0,
+                    //     },
+                    //     action: 'edit',
+                    //     path: `source/:id/validate`
+                    // },
+                    //
+                    // {
+                    //     // sources list component on blank
+                    //     type: Dashboard,
+                    //     path: "manage/",
+                    //     action: "edit"
+                    // },
+                    // {
+                    //     type: Design,
+                    //     action: 'edit',
+                    //     path: `manage/design`
+                    // },
+                    // // {
+                    // //     type: props => <ManageForms.ViewComp {...props} />,
+                    // //     action: 'view',
+                    // //     path: `view/:id`
+                    // // }
+                ]
+            }
+        ]
+    }
+}
+
+
+const formsSourceConfig = ({
+    app,
+    type,
+    siteType,
+    parent,
+    adminPath,
+    title,
+    baseUrl,
+    Menu=DefaultMenu,
+    API_HOST='https://graph.availabs.org',
+    columns,
+    logo,
+    themes={ default: {} },
+    pattern_type,
+    checkAuth = () => {}
+}) => {
+    let theme = merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern.theme_name] || themes.default), parent?.theme || {})
+    baseUrl = baseUrl === '/' ? '' : baseUrl
+    const defaultLogo = (
+        <Link to={baseUrl || '/'} className='h-12 flex px-4 items-center'>
+            <div className='rounded-full h-8 w-8 bg-blue-500 border-2 border-blue-300 hover:bg-blue-600' />
+        </Link>
+    )
+
+    if(!theme.navOptions.logo) {
+        theme.navOptions.logo = logo ? logo : defaultLogo
+    }
+
+    const patternFormat = cloneDeep(source);
+    const newType = `${type}|source`;
+    patternFormat.app = app
+    patternFormat.type = newType
+    patternFormat.registerFormats = updateRegisteredFormats(patternFormat.registerFormats, app, newType) // update app for all the children formats. this works, but dms stops providing attributes to patternList
+    patternFormat.attributes = updateAttributes(patternFormat.attributes, app, newType) // update app for all the children formats. this works, but dms stops providing attributes to patternList
+
+    // console.log('formsAdminConfig', patternFormat)
+    return {
+        siteType,
+        format: patternFormat,
+        baseUrl: `${baseUrl}/manage/source`,
+        API_HOST,
+        children: [
+            {
+                type: (props) => {
+                  return (
+                      <FormsContext.Provider value={{baseUrl: `${baseUrl}/manage`, pageBaseUrl: `${baseUrl}/manage/source`, user: props.user || defaultUser, theme, app, type, parent, Menu, API_HOST}}>
+                        <AvailLayout>
+                            {props.children}
+                        </AvailLayout>
+                      </FormsContext.Provider>
+                  )
+                },
+                action: "list",
+                filter: {
+                    stopFullDataLoad: true,
+                    fromIndex: () => 0,
+                    toIndex: () => 0,
+                },
+                path: "/*",
+                children: [
                     {
                         type: props => <Overview.EditComp parent={parent} {...props} adminPath={adminPath}/>,
                         filter: {
@@ -116,7 +252,7 @@ const formsAdminConfig = ({
                             toIndex: () => 0,
                         },
                         action: 'edit',
-                        path: `source/:id/overview`
+                        path: `:id`
                     },
                     {
                         type: props => <ManageMeta.EditComp parent={parent} {...props} adminPath={adminPath}/>,
@@ -126,7 +262,7 @@ const formsAdminConfig = ({
                             toIndex: () => 0,
                         },
                         action: 'edit',
-                        path: `source/:id/metadata`
+                        path: `:id/metadata`
                     },
                     {
                         type: props => <TableView parent={parent} {...props} adminPath={adminPath}/>,
@@ -135,8 +271,8 @@ const formsAdminConfig = ({
                             fromIndex: () => 0,
                             toIndex: () => 0,
                         },
-                        action: 'emetadatadit',
-                        path: `source/:id/table`
+                        action: 'edit',
+                        path: `:id/table`
                     },
                     {
                         type: props => <UploadPage parent={parent} {...props} adminPath={adminPath}/>,
@@ -146,7 +282,7 @@ const formsAdminConfig = ({
                             toIndex: () => 0,
                         },
                         action: 'edit',
-                        path: `source/:id/upload`
+                        path: `:id/upload`
                     },
                     {
                         type: props => <Validate parent={parent} {...props} adminPath={adminPath}/>,
@@ -156,11 +292,11 @@ const formsAdminConfig = ({
                             toIndex: () => 0,
                         },
                         action: 'edit',
-                        path: `source/:id/validate`
+                        path: `:id/validate`
                     },
-                   
-                    { 
-                        // sources list component on blank 
+
+                    {
+                        // sources list component on blank
                         type: Dashboard,
                         path: "manage/",
                         action: "edit"
@@ -170,11 +306,6 @@ const formsAdminConfig = ({
                         action: 'edit',
                         path: `manage/design`
                     },
-                    // {
-                    //     type: props => <ManageForms.ViewComp {...props} />,
-                    //     action: 'view',
-                    //     path: `view/:id`
-                    // }
                 ]
             }
         ]
@@ -183,43 +314,10 @@ const formsAdminConfig = ({
 
 
 export default [
-    formTemplateConfig,
-    formsAdminConfig
+    formsAdminConfig,
+    formsSourceConfig
     
 ];
-
-
-const FormTemplateView = ({apiLoad, apiUpdate, attributes, parent, params, format, adminPath, dataItems=[],baseUrl,theme,edit=false,...rest}) => {
-    // const [items, setItems] = useState([]);
-    // const [item, setItem] = useState({});
-    const Comp = edit ? TemplateEdit : TemplateView;
-    let p = useParams()
-    if(edit) {
-        p['*'] = p['*'].replace('edit/','');
-    }
-
-    //const match = matchRoutes(dataItems.map(d => ({path:d.url_slug, ...d})), {pathname:`/${p["*"]}`})?.[0] || {};
-    const relatedTemplateIds = (parent?.templates || []).map(t => t.id);
-    const match = matchRoutes(dataItems.filter(dI => relatedTemplateIds.includes(dI.id)).map(d => ({path:d.url_slug, ...d})), {pathname:`/${p["*"]}`})?.[0] || {};
-
-    const itemId = match?.params?.id;
-    const parentConfigAttributes = JSON.parse(parent?.config || '{}')?.attributes || [];
-    const type = parent.doc_type || parent?.base_url?.replace(/\//g, '') 
-
-    //if(!match.route) return <>No template found.</>
-    return (
-
-            <Comp
-                item={match.route}
-                dataItems={dataItems.filter(dI => relatedTemplateIds.includes(dI.id))}
-                apiLoad={apiLoad}
-                apiUpdate={apiUpdate}
-                format={{...parent, type}}
-                adminPath={adminPath}
-                attributes={attributes}
-            />
-    )
-}
 
 const updateRegisteredFormats = (registerFormats, app, type) => {
     if(Array.isArray(registerFormats)){

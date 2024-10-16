@@ -1,10 +1,11 @@
 import React, {useMemo, useState, useEffect, useRef, useContext} from 'react'
 import get from "lodash/get";
-import SourcesLayout from "../../components/selector/ComponentRegistry/patternListComponent/layout";
-import {FormsContext} from "../../index";
-import Table from "../../components/Table";
-import dmsDataTypes from "../../../../data-types";
-import SourceCategories from "../../components/selector/ComponentRegistry/patternListComponent/categories";
+import SourcesLayout from "../components/selector/ComponentRegistry/patternListComponent/layout";
+import {FormsContext} from "../siteConfig";
+import Table from "../components/Table";
+import dmsDataTypes from "../../../data-types";
+import SourceCategories from "../components/selector/ComponentRegistry/patternListComponent/categories";
+import _ from "lodash";
 
 export const isJson = (str)  => {
     try {
@@ -52,65 +53,33 @@ const tableTheme = (opts = {color:'white', size: 'compact'}) => {
 }
 
 const defaultLexicalValue = {
-    root: {
+    "root": {
+        "type": "root",
+        "format": "",
+        "indent": 0,
+        "version": 1,
         "children": [
             {
+                "type": "paragraph",
+                "format": "",
+                "indent": 0,
+                "version": 1,
                 "children": [
                     {
+                        "mode": "normal",
+                        "text": "No Description",
+                        "type": "text",
+                        "style": "",
                         "detail": 0,
                         "format": 0,
-                        "mode": "normal",
-                        "text": 'No Description',
-                        "type": 'text',
-                        "version": 1
-                    },
-                    {
-                        "detail": 0,
-                        "format": 0,
-                        "mode": "normal",
-                        "text": '\n\n',
-                        "type": 'text',
                         "version": 1
                     }
                 ],
-                "tag": '',
-                "direction": "ltr",
-                "format": "",
-                "indent": 0,
-                "type": "paragraph",
-                "version": 1
+                "direction": "ltr"
             }
         ],
-        "direction": "ltr",
-        "format": "",
-        "indent": 0,
-        "type": "root",
-        "version": 1
+        "direction": "ltr"
     }
-}
-
-const getData = async ({format, apiLoad, itemId}) =>{
-    // fetch all data items based on app and type. see if you can associate those items to its pattern. this will be useful when you have multiple patterns.
-    const attributes = ['created_at','updated_at'] //JSON.parse(format?.config || '{}')?.attributes || [];
-    const children = [{
-        type: () => {
-        },
-        action: 'view',
-        // path: `/`,
-        path: `view/:id`, // trying to pass params. children need to match with path. this doesn't work.
-        params: {id: itemId}
-    }]
-    const data = await apiLoad({
-        app: format.app,
-        type: 'pattern',
-        params: {id: itemId},
-        format: {...format, type: 'pattern'},
-        attributes,
-        children,
-    }, `/view/${itemId}`);
-    console.log('data', format.app, format.type, itemId, data)
-    // return {data: data[0], attributes}
-    return {data: data.find(d => d.id === itemId), attributes}
 }
 
 const RenderPencil = ({user, editing, setEditing, attr}) => {
@@ -139,46 +108,43 @@ const OverViewEdit = ({
       parent,
       apiLoad
 }) => {
-    const {app, falcor, falcorCache, baseUrl, user} = useContext(FormsContext);
-    const [newItem, setNewItem] = useState(parent);
-    const [fetchedItemData, setFetchedItemData] = useState();
-    const [editing, setEditing] = useState();
-    const columns = useMemo(() => isJson(newItem.config) ? JSON.parse(newItem.config)?.attributes : [], [newItem.config]);
-    const [pageSize, setPageSize] = useState(15);
-    useEffect(() => setNewItem(parent), [parent]);
+    const {app, falcor, falcorCache, baseUrl, pageBaseUrl, user} = useContext(FormsContext);
 
-    useEffect(() => {
-        getData({format, apiLoad, itemId: newItem.id}).then(({data}) => setFetchedItemData(data))
-    }, []);
+    const [editing, setEditing] = useState();
+    const columns = useMemo(() => isJson(item.config) ? JSON.parse(item.config)?.attributes : [], [item.config]);
+    const [pageSize, setPageSize] = useState(15);
+
     const updateData = (data, attrKey) => {
-        apiUpdate({data: {...newItem, ...{[attrKey]: data}}, config: {format}})
+        console.log('updating data', item, attrKey, data, format)
+        apiUpdate({data: {...item, ...{[attrKey]: data}}, config: {format}})
     }
 
     const dateOptions = {year: "numeric", month: "long", day: "numeric", hour: "numeric", minute: "numeric"}
-    const createdTimeStamp = new Date(fetchedItemData?.created_at || '').toLocaleDateString(undefined, dateOptions);
-    const updatedTimeStamp = new Date(fetchedItemData?.updated_at || '').toLocaleDateString(undefined, dateOptions);
+    const createdTimeStamp = new Date(item?.created_at || '').toLocaleDateString(undefined, dateOptions);
+    const updatedTimeStamp = new Date(item?.updated_at || '').toLocaleDateString(undefined, dateOptions);
     const DescComp = useMemo(() => editing === 'description' ? attributes['description'].EditComp : attributes['description'].ViewComp, [editing]);
     const CategoriesComp = SourceCategories // useMemo(() => editing === 'categories' ? attributes['categories'].EditComp : attributes['categories'].ViewComp, [editing]);
 
-    console.log('newItem', newItem, columns)
+    console.log('props',item)
     const Lexical = dmsDataTypes.lexical.ViewComp;
 
     return (
-        <SourcesLayout fullWidth={false} baseUrl={baseUrl} isListAll={false} hideBreadcrumbs={false}
-                       form={{name: format.type, href: format.url_slug}}
-                       page={{name: 'Overview', href: `${baseUrl}/manage/overview`}}
+        <SourcesLayout fullWidth={false} baseUrl={baseUrl} pageBaseUrl={pageBaseUrl} isListAll={false} hideBreadcrumbs={false}
+                       form={{name: item.name || item.doc_type, href: format.url_slug}}
+                       page={{name: 'Overview', href: `${pageBaseUrl}/${params.id}`}}
+                       id={params.id} //page id to use for navigation
         >
             <div className={'p-4 bg-white flex flex-col'}>
                 <div className={'mt-1 text-2xl text-blue-600 font-medium overflow-hidden sm:mt-0 sm:col-span-3'}>
-                    {newItem.doc_type}
+                    {item.doc_type}
                 </div>
 
                 <div className={'flex flex-col md:flex-row'}>
                     <div className="w-full md:w-[70%] pl-4 py-2 sm:pl-6 flex justify-between group text-sm text-gray-500 pr-14">
                         <DescComp
-                            value={newItem?.description || defaultLexicalValue}
+                            value={editing === 'description' ? item?.description : (item?.description || defaultLexicalValue)}
                             onChange={(v) => {
-                                setNewItem({...newItem, ...{description: v}})
+                                // setItem({...item, ...{description: v}})
                                 updateData(v, 'description')
                             }}
                             {...attributes.description}
@@ -203,9 +169,9 @@ const OverViewEdit = ({
                                 <dd className="text-sm text-gray-900 sm:mt-0 sm:col-span-2">
                                     <div className="pb-2 px-2 relative">
                                         <CategoriesComp
-                                            value={Array.isArray(newItem?.categories) ? newItem?.categories : []}
+                                            value={Array.isArray(item?.categories) ? item?.categories : []}
                                             onChange={(v) => {
-                                                setNewItem({...newItem, ...{categories: v}})
+                                                // setItem({...item, ...{categories: v}})
                                                 updateData(v, 'categories')
                                             }}
                                             editingCategories={editing === 'categories'}

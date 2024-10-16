@@ -3,20 +3,20 @@ import React from 'react';
 import { Link, useParams } from 'react-router-dom'
 
 const navPages = [
-  {name: 'Overview', href: `manage/overview`},
-  {name: 'Table', href: `manage/table`},
-  {name: 'Validate', href: `manage/validate`},
-  {name: 'Metadata', href: `manage/metadata`},
-  {name: 'Upload', href: `manage/upload`},
+  {name: 'Overview', href: ``},
+  {name: 'Table', href: `table`},
+  {name: 'Validate', href: `validate`},
+  {name: 'Metadata', href: `metadata`},
+  {name: 'Upload', href: `upload`},
 ]
 
-const SourcesLayout = ({children, fullWidth, hideBreadcrumbs, hideNav, form, page, baseUrl }) => {
+const SourcesLayout = ({children, fullWidth, hideBreadcrumbs, hideNav, form, page, baseUrl, pageBaseUrl, id }) => {
   return (
     <div className={`${fullWidth ? '' : 'max-w-6xl mx-72'} h-full flex flex-col`}>
       {hideBreadcrumbs ? '' :  <div className=''>
         <Breadcrumbs fullWidth={fullWidth} baseUrl={baseUrl} form={form} page={page} />
       </div> }
-      <Nav navPages={navPages} page={page} hideNav={hideNav} baseUrl={baseUrl} />
+      <Nav navPages={navPages} page={page} hideNav={hideNav} baseUrl={pageBaseUrl} id={id}/>
       <div className='flex-1 flex flex-col'>
         {children}
       </div>
@@ -26,14 +26,14 @@ const SourcesLayout = ({children, fullWidth, hideBreadcrumbs, hideNav, form, pag
 
 export default SourcesLayout
 
-const Nav = ({baseUrl, navPages, page, hideNav}) => hideNav ? null : (
+const Nav = ({baseUrl, navPages, page, hideNav, id}) => hideNav ? null : (
     <nav className={'w-full flex'}>
       {
         navPages.map(p => (
             <Link className={
               `p-2 mx-1 font-display font-medium text-l text-slate-700
                 ${p.name === page.name ? `border-b-2 border-blue-600` : `hover:border-b-2 hover:border-gray-300`}`}
-                  to={`${baseUrl}/${p.href}`}>
+                  to={`${baseUrl}/${id}/${p.href}`}>
               {p.name}
             </Link>))
       }

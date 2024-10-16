@@ -1,47 +1,10 @@
 import React, {useMemo, useState, useEffect, useRef, useContext} from 'react'
 import {useParams, useLocation} from "react-router"
-import {CMSContext} from "../../../../../page/siteConfig";
 import get from "lodash/get";
 import {Link, useSearchParams} from "react-router-dom";
 import SourcesLayout from "./layout";
-
 import {dmsDataTypes} from "../../../../../../"
-import {dmsDataLoader, dmsDataEditor} from "../../../../../../api";
-// import {getConfig} from "../../../../../page/pages/manager/template/pages"; no refrences outside the pattern
-
-export const getConfig = ({
-                              app,
-                              type,
-                              filter,
-                              action = 'load',
-                              tags,
-                              attributes = [
-                                  {key: 'id', label: 'id'},
-                                  {key: 'app', label: 'app'},
-                                  {key: 'type', label: 'type'},
-                                  {key: 'data', label: 'data'},
-                                  {key: 'updated_at', label: 'updated_at'},
-                              ]}) => ({
-    format: {
-        app: app,
-        type: type,
-        attributes
-    },
-    children: [
-        {
-            type: () => {},
-            action,
-            filter: {
-                options: JSON.stringify({
-                    filter,
-                }),
-                tags,
-                attributes: attributes.map(a => a.key)
-            },
-            path: '/'
-        }
-    ]
-})
+import {FormsContext} from "../../../../siteConfig";
 
 export const makeLexicalFormat = value => (isJson(value) ? JSON.parse(value) : value)?.root?.children ? value : {
         root: {
@@ -92,62 +55,50 @@ export const isJson = (str)  => {
     return true;
 }
 
-const getData = async (app, type, siteType, falcor) => {
-    const siteConfig = getConfig({
-        app,
-        type: siteType
-    })
+const getData = async ({format, apiLoad, parent}) => {
+    const sources = (parent?.sources || []);
 
-    const siteData = await dmsDataLoader(falcor, siteConfig, `/`);
-    // these are the patterns which are in the site.
-    // there may be deleted patterns which are not in the site.patterns array. don't wanna show them :shrug:
-    const existingPatterns = (siteData?.[0]?.data?.value?.patterns || []).map(p => p.id)
+    if(!sources.length) return;
+    const sourceIds = sources.map(s => +s.id);
+    const sourceRef = (sources[0]?.ref || '').split('+');
+    // use source ids to load source info
 
-    const config = getConfig({
-        app,
-        type: 'pattern',
-        filter: {[`data->>'pattern_type'`]: ['form'], id: existingPatterns}
-    })
-
-    return await dmsDataLoader(falcor, config, `/`);
-}
-
-const addPattern = async (app, siteType, data, falcor) => {
-    const siteConfig = getConfig({
-        app,
-        type: siteType
-    })
-
-    const siteData = await dmsDataLoader(falcor, siteConfig, `/`);
-    const site = siteData[0].data.value;
-    site.patterns = [...(site?.patterns || []), data];
-
-    const config = {
-        format: {
-            app: app,
-            type: siteType,
-            attributes: [
-                {
-                    key: 'patterns',
-                    type: 'dms-format',
-                    format: `${app}+pattern`
+    const sourcesChildren = [{
+        type: () => {
+        },
+        action: 'list',
+        path: `/`,
+        filter: {
+            options: JSON.stringify({
+                filter: {
+                    ['id']: sourceIds
                 }
-            ]
-        }
-    }
+            })
+        },
 
-    return await dmsDataEditor(falcor, config, site);
+    }]
+    // load full pattern to get source ids
+    const sourcesData = await apiLoad({
+        app: format.app,
+        type: sourceRef[1],
+        format: {...format, type: sourceRef[1]},
+        attributes: ['data'],
+        children: sourcesChildren
+    }, `/`);
+
+    console.log('data', sourcesData)
+    return sourcesData;
+    // return {data: data.find(d => d.id === itemId), attributes}
 }
 
 const SourceThumb = ({ source }) => {
-    const {pgEnv, baseUrl, falcor, falcorCache} = React.useContext(CMSContext)
     const Lexical = dmsDataTypes.lexical.ViewComp;
 
     return (
         <div className="w-full p-4 bg-white hover:bg-blue-50 block border shadow flex">
             <div>
-                <Link to={`${source.data.value.base_url}/manage/overview`} className="text-xl font-medium w-full block">
-                    <span>{source.data.value.doc_type}</span>
+                <Link to={`source/${source.id}`} className="text-xl font-medium w-full block">
+                    <span>{source?.doc_type}</span>
                 </Link>
                 <div>
                     {(get(source, ['data', 'value', "categories"], []) || [])
@@ -157,9 +108,9 @@ const SourceThumb = ({ source }) => {
                         )))
                     }
                 </div>
-                <Link to={`${source.data.value.base_url}/manage/overview`} className="py-2 block">
+                <Link to={`${source?.base_url}/manage`} className="py-2 block">
 
-                    <Lexical value={makeLexicalFormat(source.data.value.description)}/>
+                    <Lexical value={makeLexicalFormat(source?.description)}/>
                 </Link>
             </div>
 
@@ -168,28 +119,32 @@ const SourceThumb = ({ source }) => {
     );
 };
 
-const RenderAddPattern = ({isAdding, setIsAdding, app, siteType, falcor}) => {
-    const blankData = {pattern_type: 'form', doc_type: '', base_url: ''}
+const RenderAddPattern = ({isAdding, setIsAdding, updateData, sources, setSources}) => {
+    const blankData = {doc_type: '', name: ''}
     const [data, setData] = useState(blankData);
     if(!isAdding) return null;
 
     return (
         <div className={'w-full p-4 bg-white hover:bg-blue-50 block border shadow flex items-center'}>
-            <input className={'p-1 mx-1 text-sm font-medium w-full block'}
-                   key={'new-form-doc-type'}
-                   value={data.doc_type}
-                   placeholder={'Doc Type'}
-                   onChange={e => setData({...data, doc_type: e.target.value})}
-            />
             <input className={'p-1 mx-1 text-sm font-light w-full block'}
                    key={'new-form-url-slug'}
-                   value={data.base_url}
-                   placeholder={'Base URL'}
-                   onChange={e => setData({...data, base_url: e.target.value})}
+                   value={data.name}
+                   placeholder={'Name'}
+                   onChange={e => setData({...data, name: e.target.value})}
             />
+            <input className={'p-1 mx-1 text-sm font-medium w-full block'}
+                     key={'new-form-doc-type'}
+                     value={data.doc_type}
+                     placeholder={'Doc Type'}
+                     onChange={e => setData({...data, doc_type: e.target.value})}
+            />
+
             <button className={'p-1 mx-1 bg-blue-300 hover:bg-blue-500 text-white'}
-                    disabled={!data.doc_type || !data.base_url}
-                    onClick={() => addPattern(app, siteType, data, falcor)}
+                    disabled={!data.doc_type}
+                    onClick={() => {
+                        updateData({sources: [...sources, data]})
+                        // setSources([...sources, data])
+                    }}
             >add</button>
             <button className={'p-1 mx-1 bg-red-300 hover:bg-red-500 text-white'}
                     onClick={() => {
@@ -200,9 +155,9 @@ const RenderAddPattern = ({isAdding, setIsAdding, app, siteType, falcor}) => {
         </div>
     )
 }
-const Edit = ({siteType}) => {
-    const {app, type, falcor, falcorCache, baseUrl, user} = useContext(CMSContext);
-    const [patterns, setPatterns] = useState([]);
+const Edit = ({attributes, item, dataItems, apiLoad, apiUpdate, updateAttribute, parent, format, ...r}) => {
+    const {baseUrl, user} = useContext(FormsContext);
+    const [sources, setSources] = useState([]);
     const [layerSearch, setLayerSearch] = useState("");
     const {...rest } = useParams();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -214,26 +169,31 @@ const Edit = ({siteType}) => {
     const cat1 = searchParams.get('cat');
     const cat2 = undefined;
 
+    const updateData = (data) => {
+        console.log('updating data', parent, data, format)
+        return apiUpdate({data: {...parent, ...data}, config: {format}})
+    }
+
     useEffect(() => {
-        getData(app, type, siteType, falcor).then(data => setPatterns(data));
-    }, [app]);
+        getData({format, apiLoad, parent}).then(sources => setSources(sources));
+    }, [format, parent.sources]);
 
     const categories = [...new Set(
-        patterns
+        sources
             .filter(source => {
                 return isListAll || (
                     // we're not listing all sources
                     !isListAll &&
-                    !source.data.value.categories?.find(cat =>
+                    !source?.categories?.find(cat =>
                         // find if current category $cat includes any of filtered categories
                         filteredCategories.find(filteredCategory => cat.includes(filteredCategory))))
             })
-            .reduce((acc, s) => [...acc, ...(s.data.value.categories?.map(s1 => s1[0]) || [])], []))].sort()
+            .reduce((acc, s) => [...acc, ...(s?.categories?.map(s1 => s1[0]) || [])], []))].sort()
 
 
       const categoriesCount = categories.reduce((acc, cat) => {
-        acc[cat] = patterns.filter(p => p.data.value.categories).filter(pattern => {
-            return (Array.isArray(pattern.data.value.categories) ? pattern.data.value.categories : [pattern.data.value.categories])
+        acc[cat] = sources.filter(p => p?.categories).filter(pattern => {
+            return (Array.isArray(pattern?.categories) ? pattern?.categories : [pattern?.categories])
                 ?.find(category => category.includes(cat))
         })?.length
         return acc;
@@ -287,14 +247,14 @@ const Edit = ({siteType}) => {
                     }
                 </div>
                 <div className={'w-3/4 flex flex-col space-y-1.5 ml-1.5 max-h-[80dvh] overflow-auto scrollbar-sm'}>
-                    <RenderAddPattern falcor={falcor} app={app} siteType={siteType} isAdding={isAdding} setIsAdding={setIsAdding}/>
+                    <RenderAddPattern sources={sources} setSources={setSources} updateData={updateData} isAdding={isAdding} setIsAdding={setIsAdding}/>
                     {
-                        patterns
+                        sources
                             .filter(source => {
                                 return isListAll || (
                                     // we're not listing all sources
                                     !isListAll &&
-                                    !source.data.value.categories?.find(cat =>
+                                    !source?.categories?.find(cat =>
                                         // find if current category $cat includes any of filtered categories
                                         filteredCategories.find(filteredCategory => cat.includes(filteredCategory))))
                             })
@@ -312,8 +272,8 @@ const Edit = ({siteType}) => {
                                 return output;
                             })
                             .filter(source => {
-                                let searchTerm = (source.data.value.doc_type + " " + (
-                                    (Array.isArray(source.data.value?.categories) ? source.data.value?.categories : [source.data.value?.categories]) || [])
+                                let searchTerm = (source?.doc_type + " " + (
+                                    (Array.isArray(source?.categories) ? source?.categories : [source?.categories]) || [])
                                     .reduce((out,cat) => {
                                         out += Array.isArray(cat) ? cat.join(' ') : typeof cat === 'string' ? cat : '';
                                         return out
@@ -322,7 +282,7 @@ const Edit = ({siteType}) => {
                             })
                             .sort((a,b) => {
                                 const m = sort === 'asc' ? 1 : -1;
-                                return m * a.data.value.doc_type?.localeCompare(b.data.value.doc_type)
+                                return m * a?.doc_type?.localeCompare(b?.doc_type)
                             })
                             .map((s, i) => <SourceThumb key={i} source={s} baseUrl={baseUrl} />)
                     }
