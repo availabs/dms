@@ -22,11 +22,10 @@ const UploadPage = ({
 }) => {
     const { API_HOST, baseUrl, pageBaseUrl, theme, user, ...rest } = React.useContext(FormsContext) || {};
 
-    console.log('what am i passing ', format, parent)
     return (
         <SourcesLayout fullWidth={false} baseUrl={baseUrl} pageBaseUrl={pageBaseUrl} isListAll={false} hideBreadcrumbs={false}
                        form={{name: item.name || item.doc_type, href: format.url_slug}}
-                       page={{name: 'Upload', href: `${pageBaseUrl}/${params.id}`}}
+                       page={{name: 'Upload', href: `${pageBaseUrl}/${params.id}/upload`}}
                        id={params.id} //page id to use for navigation
 
         >
