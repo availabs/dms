@@ -17,7 +17,7 @@ import TemplateEdit from './pages/edit'
 import ManageLayout from './pages/manage/layout'
 import Dashboard from './pages/manage'
 import ManageMeta from "./pages/manage/metadata";
-import ManageTemplates from "./pages/manage/templates";
+//import ManageTemplates from "./pages/manage/templates";
 import Validate from "./pages/validate";
 import Design from "./pages/manage/design";
 import Overview from "./pages/overview";
@@ -235,16 +235,16 @@ const formsAdminConfig = ({
                         action: 'edit',
                         path: `validate`
                     },
-                    {
-                        type: props => <ManageTemplates.EditComp  parent={parent} {...props} adminPath={adminPath}/>,
-                        filter: {
-                            stopFullDataLoad: true,
-                            fromIndex: () => 0,
-                            toIndex: () => 0,
-                        },
-                        action: 'edit',
-                        path: `templates`
-                    },
+                    // {
+                    //     type: props => <ManageTemplates.EditComp  parent={parent} {...props} adminPath={adminPath}/>,
+                    //     filter: {
+                    //         stopFullDataLoad: true,
+                    //         fromIndex: () => 0,
+                    //         toIndex: () => 0,
+                    //     },
+                    //     action: 'edit',
+                    //     path: `templates`
+                    // },
                     {
                         type: Design,
                         action: 'edit',

@@ -14,7 +14,7 @@ const managerTheme={
     sideNav: {
       size: 'compact',
       search: 'none',
-      logo: 'top',
+      logo: 'none',
       dropdown: 'none',
       nav: 'main'
     },
@@ -22,7 +22,7 @@ const managerTheme={
       size: 'compact',
       dropdown: 'right',
       search: 'none',
-      logo: 'none',
+      logo: 'left',
       position: 'fixed',
       nav: 'none' 
     }

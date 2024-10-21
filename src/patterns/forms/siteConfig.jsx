@@ -3,7 +3,7 @@ import {Link, useParams, useLocation, matchRoutes} from "react-router-dom";
 import merge from 'lodash/merge'
 import cloneDeep from 'lodash/cloneDeep'
 // import TableComp from "./components/TableComp";
-import {template, pattern} from "../admin/admin.format"
+// import {template, pattern} from "../admin/admin.format"
 import formsFormat, {source} from "./forms.format";
 
 import defaultTheme from './theme/theme'
@@ -13,11 +13,10 @@ import DefaultMenu from './components/menu'
 //--- Admin Pages
 import ManageLayout from './pages/manage/layout'
 import Dashboard from './pages/manage'
-import Design from "./pages/manage/design";
+import DesignEditor from "./pages/manage/design";
 
 
-import ManageMeta from "./pages/manage/metadata";
-import ManageTemplates from "./pages/manage/templates";
+
 import Validate from "./pages/validate";
 import Overview from "./pages/overview";
 import TableView from "./pages/table";
@@ -50,10 +49,13 @@ const formsAdminConfig = ({
     API_HOST='https://graph.availabs.org', 
     columns,
     logo,
+    pattern,
     themes={ default: {} },
     pattern_type,
+
     checkAuth = () => {}
 }) => {
+    console.log('parent theme', parent.theme)
     let theme = merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern.theme_name] || themes.default), parent?.theme || {})
     baseUrl = baseUrl === '/' ? '' : baseUrl
     const defaultLogo = (
@@ -86,10 +88,8 @@ const formsAdminConfig = ({
             {
                 type: (props) => {
                   return (
-                      <FormsContext.Provider value={{baseUrl: `${baseUrl}/manage`, user: props.user || defaultUser, theme, app, type, parent, Menu, API_HOST}}>
-                        <AvailLayout secondNav={theme?.navOptions?.secondaryNav?.navItems || []}>
+                      <FormsContext.Provider value={{baseUrl: `${baseUrl}`, user: props.user || defaultUser, theme, app, type, parent, Menu, API_HOST}}>
                             {props.children}
-                        </AvailLayout>
                       </FormsContext.Provider>
                   )
                 },
@@ -105,78 +105,42 @@ const formsAdminConfig = ({
                         // sources list component on blank 
                          
                         // sources list component on blank 
-                        type: props => <PatternListComponent.EditComp parent={parent} {...props} adminPath={adminPath}/>,
+                        type: props => (
+                            <AvailLayout secondNav={theme?.navOptions?.secondaryNav?.navItems || []}>
+                                <div className='max-w-7xl mx-auto'>
+                                    <PatternListComponent.EditComp parent={parent} {...props} adminPath={adminPath}/>
+                                </div>
+                             </AvailLayout>
+                        ),
                         path: "",
                         action: "edit"
                     },
-
-                    // {
-                    //     type: props => <Overview.EditComp parent={parent} {...props} adminPath={adminPath}/>,
-                    //     filter: {
-                    //         stopFullDataLoad: true,
-                    //         fromIndex: () => 0,
-                    //         toIndex: () => 0,
-                    //     },
-                    //     action: 'edit',
-                    //     path: `source/:id/overview`
-                    // },
-                    // {
-                    //     type: props => <ManageMeta.EditComp parent={parent} {...props} adminPath={adminPath}/>,
-                    //     filter: {
-                    //         stopFullDataLoad: true,
-                    //         fromIndex: () => 0,
-                    //         toIndex: () => 0,
-                    //     },
-                    //     action: 'edit',
-                    //     path: `source/:id/metadata`
-                    // },
-                    // {
-                    //     type: props => <TableView parent={parent} {...props} adminPath={adminPath}/>,
-                    //     filter: {
-                    //         stopFullDataLoad: true,
-                    //         fromIndex: () => 0,
-                    //         toIndex: () => 0,
-                    //     },
-                    //     action: 'emetadatadit',
-                    //     path: `source/:id/table`
-                    // },
-                    // {
-                    //     type: props => <UploadPage parent={parent} {...props} adminPath={adminPath}/>,
-                    //     filter: {
-                    //         stopFullDataLoad: true,
-                    //         fromIndex: () => 0,
-                    //         toIndex: () => 0,
-                    //     },
-                    //     action: 'edit',
-                    //     path: `source/:id/upload`
-                    // },
-                    // {
-                    //     type: props => <Validate parent={parent} {...props} adminPath={adminPath}/>,
-                    //     filter: {
-                    //         stopFullDataLoad: true,
-                    //         fromIndex: () => 0,
-                    //         toIndex: () => 0,
-                    //     },
-                    //     action: 'edit',
-                    //     path: `source/:id/validate`
-                    // },
-                    //
-                    // {
-                    //     // sources list component on blank
-                    //     type: Dashboard,
-                    //     path: "manage/",
-                    //     action: "edit"
-                    // },
-                    // {
-                    //     type: Design,
-                    //     action: 'edit',
-                    //     path: `manage/design`
-                    // },
-                    // // {
-                    // //     type: props => <ManageForms.ViewComp {...props} />,
-                    // //     action: 'view',
-                    // //     path: `view/:id`
-                    // // }
+                    {
+                        type: ManageLayout,
+                        path: "manage/*",
+                        //authLevel: 5,
+                        action: "list",
+                        filter: {
+                          options: JSON.stringify({
+                            filter: {
+                              "data->>'hide_in_nav'": ['null']
+                            }
+                          }),
+                          attributes:['title', 'index', 'url_slug', 'parent','published', 'hide_in_nav']
+                        },
+                        children: [
+                          { 
+                            type: Dashboard,
+                            path: "manage/",
+                            action: "edit"
+                          },
+                          { 
+                            type: (props) => <DesignEditor themes={themes} {...props} />,
+                            path: "manage/design",
+                            action: "edit"
+                          }
+                        ]
+                    }
                 ]
             }
         ]
@@ -196,10 +160,12 @@ const formsSourceConfig = ({
     API_HOST='https://graph.availabs.org',
     columns,
     logo,
+    pattern,
     themes={ default: {} },
     pattern_type,
     checkAuth = () => {}
 }) => {
+    
     let theme = merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern.theme_name] || themes.default), parent?.theme || {})
     baseUrl = baseUrl === '/' ? '' : baseUrl
     const defaultLogo = (
@@ -232,7 +198,7 @@ const formsSourceConfig = ({
                 type: (props) => {
                   return (
                       <FormsContext.Provider value={{baseUrl: `${baseUrl}`, pageBaseUrl: `${baseUrl}/source`, user: props.user || defaultUser, theme, app, type, parent, Menu, API_HOST}}>
-                        <AvailLayout >
+                        <AvailLayout>
                             {props.children}
                         </AvailLayout>
                       </FormsContext.Provider>
@@ -295,19 +261,7 @@ const formsSourceConfig = ({
                         },
                         action: 'edit',
                         path: `:id/validate`
-                    },
-
-                    {
-                        // sources list component on blank
-                        type: Dashboard,
-                        path: "manage/",
-                        action: "edit"
-                    },
-                    {
-                        type: Design,
-                        action: 'edit',
-                        path: `manage/design`
-                    },
+                    }
                 ]
             }
         ]

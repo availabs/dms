@@ -14,19 +14,19 @@ import {dataItemsNav, detectNavLevel, getInPageNav} from '../_utils'
 // import SideNav from '../../ui/nav/Side'
 import { ArrowUp, ArrowDown } from '../../ui/icons'
 import { SideNavContainer } from '../../ui'
-import { FormsContext } from '../../'
+import { FormsContext } from '../../siteConfig'
 import { themeOptions } from '../../theme/theme'
 
 
-function SelectControl ({ themeOptions, theme, newTheme, setNewTheme, navKey, controlKey }) 
+function SelectControl ({ themeOptions, theme, newTheme, setNewTheme, sectionKey, navKey, controlKey }) 
 {
-    let control = themeOptions[navKey].controls[controlKey]         
+    let control = themeOptions[sectionKey][navKey].controls[controlKey]         
     return (
       <div className='w-full'>
         <div className='text-xs font-medium pt-1 text-slate-400'>{control.label}</div>
         <div className='w-full'>
-        <select className='p-2 bg-white w-full' value={newTheme.navOptions?.[navKey]?.[controlKey] || theme.navOptions?.[navKey]?.[controlKey]} onChange={(e) => {
-          setNewTheme(merge(cloneDeep(newTheme), {navOptions: {[navKey]: {[controlKey]: e.target.value}}}))
+        <select className='p-2 bg-white w-full' value={newTheme[sectionKey]?.[navKey]?.[controlKey] || theme[sectionKey]?.[navKey]?.[controlKey]} onChange={(e) => {
+          setNewTheme(merge(cloneDeep(newTheme), {[sectionKey]: {[navKey]: {[controlKey]: e.target.value}}}))
         }}>
           {control.options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
         </select>
@@ -71,12 +71,12 @@ function MenuItemEditor({onSave, onCancel}) {
   )
 }
 
-function MenuControl ({ themeOptions, theme, newTheme, setNewTheme, navKey, controlKey })  {
+function MenuControl ({ themeOptions, theme, newTheme, setNewTheme, sectionKey, navKey, controlKey })  {
     let [editIndex, setEditIndex] = React.useState(-2)
 
-    //console.log('test 123', navKey, controlKey, newTheme.navOptions?.[navKey]?.[controlKey])
-    let control = themeOptions[navKey].controls[controlKey]
-    let menuItems = newTheme.navOptions?.[navKey]?.[controlKey] || []
+    console.log('test 123', navKey, controlKey, newTheme.navOptions?.[navKey]?.[controlKey])
+    let control = themeOptions[sectionKey][navKey].controls[controlKey]
+    let menuItems = newTheme?.[sectionKey]?.[navKey]?.[controlKey] || []
 
     return (
       <div className='w-full'>
@@ -105,7 +105,7 @@ function MenuControl ({ themeOptions, theme, newTheme, setNewTheme, navKey, cont
                       menuItems.splice(i,1)
                       let newItems = menuItems
                       console.log('splice', newItems, i)
-                      setNewTheme(merge(cloneDeep(newTheme), {navOptions: {[navKey]: {[controlKey]: newItems}}}))
+                      setNewTheme(merge(cloneDeep(newTheme), {[sectionKey]: {[navKey]: {[controlKey]: newItems}}}))
                     }}
                     className='h-5 w-5 cursor-pointer text-slate-500 hover:text-red-500'
                   />
@@ -126,7 +126,7 @@ function MenuControl ({ themeOptions, theme, newTheme, setNewTheme, navKey, cont
                   newItems[editIndex] = newItem
                 }
                 
-                setNewTheme(merge(cloneDeep(newTheme), {navOptions: {[navKey]: {[controlKey]: newItems}}}))
+                setNewTheme(merge(cloneDeep(newTheme), {[sectionKey]: {[navKey]: {[controlKey]: newItems}}}))
                 setEditIndex(-2)
 
               }} 
@@ -141,12 +141,17 @@ const controls = {
   'menu': MenuControl
 }
 
-function DesignEditor ({item, dataItems, attributes, apiLoad, apiUpdate, format, logo, rightMenu,...props}) {
+function DesignEditor ({item, dataItems, attributes, apiLoad, apiUpdate, format, logo, rightMenu,themes, ...props}) {
  
   const { baseUrl, theme, user } = React.useContext(FormsContext) || {}
   const [ newTheme, setNewTheme ] = React.useState({})
   const [ pattern, setPattern ] = React.useState({})
   // console.log('test', pattern,newTheme)
+  const combinedTheme = merge(cloneDeep(theme),  cloneDeep(themes[newTheme?.settings?.theme?.theme || 'default']), cloneDeep(newTheme))
+
+  // console.log('selected theme', newTheme?.settings?.theme?.theme)
+  // console.log('combined theme', combinedTheme?.topnav?.topnavWrapper)
+
   const PatternFormat = {
     app: format.app,
     type: "pattern",
@@ -165,6 +170,7 @@ function DesignEditor ({item, dataItems, attributes, apiLoad, apiUpdate, format,
   React.useEffect(() => {
       const loadData = async () => {
         const {app, type} = format
+        console.log('format type', type)
         let data = await apiLoad({
             children: [{
                 action: "list",
@@ -175,7 +181,7 @@ function DesignEditor ({item, dataItems, attributes, apiLoad, apiUpdate, format,
             }],
             format: PatternFormat
         })
-        //console.log('got data', data)
+        console.log('got data', data)
         setNewTheme( cloneDeep(data?.[0]?.theme || {}))
         setPattern( cloneDeep( {theme: {},...data?.[0]} || {}))
       }
@@ -198,12 +204,13 @@ function DesignEditor ({item, dataItems, attributes, apiLoad, apiUpdate, format,
               <>
                 <link type="text/css" rel="stylesheet" href="/css/build.css" />
                 <link href="/fonts/font-awesome-6/css/all.min.css" rel="stylesheet" />
+               
               </>
             }
           >    
-            <Layout navItems={menuItems} secondNav={newTheme?.navOptions?.secondaryNav?.navItems || []} theme={merge(cloneDeep(theme), cloneDeep(newTheme))}>
-              <div className={`${theme?.page?.wrapper2}`}>
-                <div className={`${theme?.page?.wrapper3} `}>
+            <Layout navItems={menuItems} secondNav={newTheme?.navOptions?.secondaryNav?.navItems || []} theme={combinedTheme}>
+              <div className={`${combinedTheme?.page?.wrapper2}`}>
+                <div className={`${combinedTheme?.page?.wrapper3} `}>
                   Placeholder Content
                 </div>
               </div>
@@ -225,39 +232,46 @@ function DesignEditor ({item, dataItems, attributes, apiLoad, apiUpdate, format,
               </div> 
             </div>
             <div className='border-t'>
-              {Object.keys(themeOptions).map(navKey => (
-                <Disclosure as="div" key={navKey} className="border-b" defaultOpen={themeOptions[navKey].defaultOpen}>
-                  {({ open }) => (
-                  <>
-                      <DisclosureButton className={`group flex w-full items-center justify-between p-1 `}>
-                        <span className="text-xs/6 font-bold text-slate-700 group-data-[hover]:text-slate-700/80">
-                          {themeOptions[navKey].label}
-                        </span>
-                        <span >{ open ? <ArrowUp className='text-slate-400 h-6 w-6 mr-2'/> : <ArrowDown className='text-slate-400 h-6 w-6 mr-2' /> }</span>
-                      </DisclosureButton>
-                      <DisclosurePanel className="text-xs/5 text-slate-700/50 py-1 px-2">
-                        {
-                          Object.keys(themeOptions[navKey].controls).map(controlKey => {
-                            const Control = controls[themeOptions[navKey].controls[controlKey].type || 'select']
-                            return (
-                              <div key={`${navKey}_${controlKey}`}>
-                                <Control
-                                  theme={theme}
-                                  newTheme={newTheme}
-                                  setNewTheme={setNewTheme}
-                                  themeOptions={themeOptions}
-                                  navKey={navKey}
-                                  controlKey={controlKey}
-                                />    
-                              </div>
-                            )
-                          })
-                        }
-                      </DisclosurePanel>
-                    </>
-                  )}
-                  </Disclosure>)
-                )}
+              {Object.keys(themeOptions).map(sectionKey => {
+                return (
+                  <div key={sectionKey}>
+                    {sectionKey}
+                    {Object.keys(themeOptions[sectionKey]).map(navKey => (
+                      <Disclosure as="div" key={navKey} className="border-b" defaultOpen={themeOptions[sectionKey][navKey].defaultOpen}>
+                        {({ open }) => (
+                        <>
+                            <DisclosureButton className={`group flex w-full items-center justify-between p-1 `}>
+                              <span className="text-xs/6 font-bold text-slate-700 group-data-[hover]:text-slate-700/80">
+                                {themeOptions[sectionKey][navKey].label}
+                              </span>
+                              <span >{ open ? <ArrowUp className='text-slate-400 h-6 w-6 mr-2'/> : <ArrowDown className='text-slate-400 h-6 w-6 mr-2' /> }</span>
+                            </DisclosureButton>
+                            <DisclosurePanel className="text-xs/5 text-slate-700/50 py-1 px-2">
+                              {
+                                Object.keys(themeOptions[sectionKey][navKey].controls).map(controlKey => {
+                                  const Control = controls[themeOptions[sectionKey][navKey].controls[controlKey].type || 'select']
+                                  return (
+                                    <div key={`${sectionKey}_${navKey}_${controlKey}`}>
+                                      <Control
+                                        theme={theme}
+                                        newTheme={newTheme}
+                                        setNewTheme={setNewTheme}
+                                        themeOptions={themeOptions}
+                                        sectionKey={sectionKey}
+                                        navKey={navKey}
+                                        controlKey={controlKey}
+                                      />    
+                                    </div>
+                                  )
+                                })
+                              }
+                            </DisclosurePanel>
+                          </>
+                        )}
+                        </Disclosure>)
+                      )}
+                  </div>
+                )})}
               </div>
               <div>
                 <pre className='text-xs'>
@@ -269,6 +283,7 @@ function DesignEditor ({item, dataItems, attributes, apiLoad, apiUpdate, format,
         </div>
   )   
 }
+
 
 
 export default DesignEditor

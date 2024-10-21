@@ -47,7 +47,6 @@ export const Item = ({to, icon,children}) => (
 export default ({title, children, adminPath}) => {
     const { user, baseUrl, parent, theme } = React.useContext(FormsContext)
     const location = useLocation();
-    console.log('here')
     let authMenuItems = theme?.navOptions?.authMenu?.navItems || [
             {
                 name: 'Patterns',

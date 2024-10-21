@@ -4,9 +4,9 @@ import React, {useEffect} from 'react'
 
 //import { saveHeader, saveSection } from './editFunctions'
 import Layout from '../../ui/avail-layout'
-import SideNav from '../../ui/nav/Side'
+// import SideNav from '../../ui/nav/Side'
 import { ViewIcon } from '../../ui/icons'
-import { FormsContext } from '../../'
+import { FormsContext } from '../../siteConfig'
 
 
 const managerTheme={
@@ -14,7 +14,7 @@ const managerTheme={
     sideNav: {
       size: 'compact',
       search: 'none',
-      logo: 'top',
+      logo: 'none',
       dropdown: 'none',
       nav: 'main'
     },
@@ -22,7 +22,7 @@ const managerTheme={
       size: 'compact',
       dropdown: 'right',
       search: 'none',
-      logo: 'none',
+      logo: 'left',
       position: 'fixed',
       nav: 'none' 
     }
@@ -44,10 +44,8 @@ function CmsManager ({children}) {
     { name: 'Dashboard', path: `${baseUrl}/manage` },
     
     {name: 'View Site', path: `${baseUrl}/`},
-    { name: 'Content', className: theme.navLabel },
-    { name: 'Templates', path: `${baseUrl}/manage/templates` },
-    { name: 'Metadata', path: `${baseUrl}/manage/metadata` },
-    { name: 'Validate', path: `${baseUrl}/manage/validate` },
+    // { name: 'Metadata', path: `${baseUrl}/manage/metadata` },
+    // { name: 'Validate', path: `${baseUrl}/manage/validate` },
     
 
     { name: 'Layout', className: theme.navLabel },

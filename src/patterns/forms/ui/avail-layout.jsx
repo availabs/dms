@@ -52,7 +52,7 @@ const Layout = ({ children, navItems=[], title, theme, yPadding = '0px', ...prop
 	theme = merge(cloneDeep(defaultTheme), cloneDeep(theme))
 	const { sideNav={}, topNav={}, logo=Logos } = theme?.navOptions || {}
 
-	console.log('theme', theme, defaultTheme)
+	// console.log('theme', theme, defaultTheme)
 
 	//console.log('logo', logo)
 	
@@ -98,7 +98,7 @@ const Layout = ({ children, navItems=[], title, theme, yPadding = '0px', ...prop
 	  	)	
 	}
 	const Logo = sideNavOptions.logo
-	console.log('layout', topNavOptions)
+	// console.log('layout', topNavOptions)
 	
 	return (
 		<div className={`flex ${theme?.bg} max-w-screen`}>
