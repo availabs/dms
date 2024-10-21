@@ -1,5 +1,6 @@
 import React from "react"
 import Editor from "./editor/index"
+import theme from "./editor/themes/PlaygroundEditorTheme"
 
 function isJsonString(str) {
     try { JSON.parse(str) } 
@@ -18,7 +19,7 @@ function parseValue (value) {
 
 const Edit = ({value, onChange, ...rest}) => {
     return (
-        <div className="editor-shell tracking-wide leading-7 ">
+        <div className={`${theme.editorShell} tracking-wide leading-7` || "editor-shell tracking-wide leading-7 "}>
           <Editor 
             value={parseValue(value)}
             onChange={(d) => onChange(d)}
@@ -32,7 +33,7 @@ const Edit = ({value, onChange, ...rest}) => {
 const View = ({value, ...rest}) => {
     //console.log('lexical type view', parseValue(value))
     return (
-    <div className="editor-shell tracking-wide leading-7">
+    <div className={`${theme.editorShell} tracking-wide leading-7` || "editor-shell tracking-wide leading-7 "}>
           <Editor 
             value={parseValue(value)}
             editable={false}

@@ -19,6 +19,7 @@ import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 
 import {$createMentionNode} from '../../nodes/MentionNode';
+import theme from "./../../themes/PlaygroundEditorTheme";
 
 const PUNCTUATION =
   '\\.,\\+\\*\\?\\$\\@\\|#{}\\(\\)\\^\\-\\[\\]\\\\/!%\'"~=<>_:;';
@@ -668,7 +669,7 @@ export default function NewMentionsPlugin(): JSX.Element | null {
       ) =>
         anchorElementRef.current && results.length
           ? ReactDOM.createPortal(
-              <div className="typeahead-popover mentions-menu">
+              <div className={`${theme.typeaheadPopover.base} ${theme.mentionsMenu}` || "typeahead-popover mentions-menu"}>
                 <ul>
                   {options.map((option, i: number) => (
                     <MentionsTypeaheadMenuItem

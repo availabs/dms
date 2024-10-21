@@ -845,6 +845,7 @@ i.prettier-error {
   height: 1px;
 }
 
+/* Non convertable to talwind */
 @media screen and (max-width: 1100px) {
   .dropdown-button-text {
     display: none !important;

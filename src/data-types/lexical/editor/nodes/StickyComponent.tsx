@@ -28,6 +28,7 @@ import StickyEditorTheme from '../themes/StickyEditorTheme';
 import ContentEditable from '../ui/ContentEditable';
 import Placeholder from '../ui/Placeholder';
 import {$isStickyNode} from './StickyNode';
+import theme from '../themes/PlaygroundEditorTheme';
 
 type Positioning = {
   isDragging: boolean;
@@ -162,7 +163,7 @@ export default function StickyComponent({
     const positioning = positioningRef.current;
     if (stickyContainer !== null) {
       positioning.isDragging = false;
-      stickyContainer.classList.remove('dragging');
+      stickyContainer.classList.remove(`${theme.stickyNoteContainer.dragging}` || 'dragging');
       editor.update(() => {
         const node = $getNodeByKey(nodeKey);
         if ($isStickyNode(node)) {
@@ -195,9 +196,9 @@ export default function StickyComponent({
   const {historyState} = useSharedHistoryContext();
 
   return (
-    <div ref={stickyContainerRef} className="sticky-note-container">
+    <div ref={stickyContainerRef} className={`${theme.stickyNoteContainer}` || "sticky-note-container"}>
       <div
-        className={`sticky-note ${color}`}
+        className={`${theme.stickyNote.base} ${color}`}
         onPointerDown={(event) => {
           const stickyContainer = stickyContainerRef.current;
           if (
@@ -215,7 +216,7 @@ export default function StickyComponent({
             positioning.offsetX = event.clientX - left;
             positioning.offsetY = event.clientY - top;
             positioning.isDragging = true;
-            stickContainer.classList.add('dragging');
+            stickContainer.classList.add(`${theme.stickyNoteContainer.dragging}` || 'dragging');
             document.addEventListener('pointermove', handlePointerMove);
             document.addEventListener('pointerup', handlePointerUp);
             event.preventDefault();
@@ -223,14 +224,14 @@ export default function StickyComponent({
         }}>
         <button
           onClick={handleDelete}
-          className="delete"
+          className={`${theme.stickyNote.delete}` || "delete"}
           aria-label="Delete sticky note"
           title="Delete">
           X
         </button>
         <button
           onClick={handleColorChange}
-          className="color"
+          className={`${theme.stickyNote.color}` || "color"}
           aria-label="Change sticky note color"
           title="Color">
           <i className="bucket" />

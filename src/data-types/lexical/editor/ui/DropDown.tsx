@@ -16,6 +16,7 @@ import {
   useState,
 } from 'react';
 import {createPortal} from 'react-dom';
+import theme from "./../themes/PlaygroundEditorTheme";
 
 type DropDownContextType = {
   registerItem: (ref: React.RefObject<HTMLButtonElement>) => void;
@@ -128,7 +129,7 @@ function DropDownItems({
 
   return (
     <DropDownContext.Provider value={contextValue}>
-      <div className="dropdown" ref={dropDownRef} onKeyDown={handleKeyDown}>
+      <div className={theme.dropdown.base} ref={dropDownRef} onKeyDown={handleKeyDown}>
         {children}
       </div>
     </DropDownContext.Provider>
@@ -235,9 +236,9 @@ export default function DropDown({
         ref={buttonRef}>
         {buttonIconClassName && <span className={buttonIconClassName} />}
         {buttonLabel && (
-          <span className="text dropdown-button-text">{buttonLabel}</span>
+          <span className={`${theme.dropdown.item.base} display-none` || "text dropdown-button-text"}>{buttonLabel}</span>
         )}
-        <i className="chevron-down" />
+        <i className={`${theme.iconChevronDown}` || "chevron-down"} />
       </button>
 
       {showDropDown &&

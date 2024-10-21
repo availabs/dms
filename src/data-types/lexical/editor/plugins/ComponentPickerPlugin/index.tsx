@@ -40,6 +40,7 @@ import {INSERT_INLINE_IMAGE_COMMAND, InsertInlineImageDialog} from '../InlineIma
 import {InsertNewTableDialog, InsertTableDialog} from '../TablePlugin';
 import {INSERT_EMBED_COMMAND} from '@lexical/react/LexicalAutoEmbedPlugin';
 import {EmbedConfigs} from '../AutoEmbedPlugin';
+import theme from "./../../themes/PlaygroundEditorTheme";
 
 
 class ComponentPickerOption extends MenuOption {
@@ -322,7 +323,7 @@ export default function ComponentPickerMenuPlugin(): JSX.Element {
                 ) =>
                     anchorElementRef.current && options.length
                         ? ReactDOM.createPortal(
-                            <div className="typeahead-popover component-picker-menu">
+                            <div className={`${theme.typeaheadPopover.base} ${theme.componentPickerMenu}` || "typeahead-popover component-picker-menu"}>
                                 <ul>
                                     {options.map((option, i: number) => (
                                         <ComponentPickerMenuItem
