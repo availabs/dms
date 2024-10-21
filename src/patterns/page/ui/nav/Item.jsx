@@ -97,8 +97,8 @@ const NavItem = ({
 						if (To[0]) navigate(To[0]);
 					}}
 				>
-					<div className={'flex'}>
-						<div className='flex-1 flex' >
+					<div className={theme.menuItemWrapper}>
+						<div className='flex-1 flex items-center' >
 							{!icon ? null : (
 								<Icon
 									icon={icon}
@@ -113,24 +113,25 @@ const NavItem = ({
 							<div className={theme?.navItemContent}>
 								{children}
 							</div>
-						</div>
-						<div
-							onClick={() => {
-								if (subMenuActivate === 'onClick') {
-									// localStorage.setItem(`${to}_toggled`, `${!showSubMenu}`);
-									setShowSubMenu(!showSubMenu);
-								}
-							}}
-						>
-							{
-								subMenus.length ?
-									<Icon
+							<div
+								onClick={() => {
+									if (subMenuActivate === 'onClick') {
+										// localStorage.setItem(`${to}_toggled`, `${!showSubMenu}`);
+										setShowSubMenu(!showSubMenu);
+									}
+								}}
+							>
+								{
+									subMenus.length ?
+										<Icon
 
-										icon={showSubMenu ? theme?.indicatorIconOpen : theme?.indicatorIcon}/>
-									: null
-							}
-							
+											icon={showSubMenu ? theme?.indicatorIconOpen : theme?.indicatorIcon}/>
+										: null
+								}
+								
+							</div>
 						</div>
+						
 						{	subMenus.length ?
 								<SubMenu
 									i={i}

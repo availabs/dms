@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 
-import { FormsContext } from '../../'
+import { FormsContext } from '../../siteConfig'
 
 import get from "lodash/get";
 
@@ -36,20 +36,20 @@ const MobileSidebar = ({
    ...props
 }) => {
 	const { theme: fullTheme  } = React.useContext(FormsContext) || {}
-	const theme = (fullTheme?.['sidenav'] || NOOP)(themeOptions);
+	const theme = (fullTheme?.['sidenav'] || {})//(themeOptions);
 	// theme = props.theme || theme;
 
 	return (
 		<>
 			<div className="md:hidden" onClick={() => toggle(!open)}>
-				<span className={open ? theme.menuIconOpen : theme.menuIconClosed} />
+				<span className={open ? theme?.menuIconOpen : theme?.menuIconClosed} />
 			</div>
 			<div style={{ display: open ? "block" : "none" }} className={`md:hidden`} >
 				<div className="fixed inset-0 z-20 transition-opacity ease-linear duration-300">
 					<div className="absolute inset-0 opacity-75" />
 				</div>
-				<div className={`fixed inset-0 flex z-40 ${theme.contentBgAccent}`}>
-					<div className={`flex-1 flex flex-col max-w-xs w-full transform ease-in-out duration-300 ${theme.contentBg}`}>
+				<div className={`fixed inset-0 flex z-40 ${theme?.contentBgAccent}`}>
+					<div className={`flex-1 flex flex-col max-w-xs w-full transform ease-in-out duration-300 ${theme?.contentBg}`}>
 						<div className="absolute top-0 right-0 -mr-14 p-1">
 							<button
 								onClick={() => toggle(!open)}
@@ -57,18 +57,18 @@ const MobileSidebar = ({
 							/>
 						</div>
 						<div
-							className={`flex-1 h-0 pt-2 pb-4 overflow-y-auto overflow-x-hidden`}
+							className={`flex-1 h-0 border border-orange-400 pt-2 pb-4 overflow-y-auto overflow-x-hidden flex`}
 						>
-							<div className="px-6 pt-4 pb-8 logo-text gray-900">
+							{/*<div className="px-6 pt-4 pb-8 logo-text gray-900">
 								<Link
 									to={"/"}
-									className={`flex-shrink-0 flex items-center ${theme.text}`}
+									className={`flex-shrink-0 flex items-center ${theme?.text}`}
 								>
 									{logo}
 								</Link>
-							</div>
+							</div>*/}
 							<div>{topMenu}</div>
-							<nav className="flex-1">
+							<nav className="flex-1 ">
 								{menuItems.map((page, i) => (
 									<div key={i} className={page.sectionClass}>
 										{sideBarItem({i, page, themeOptions, subMenuActivate})}
@@ -99,16 +99,16 @@ const DesktopSidebar = ({
 	...props }) => {
 	//let theme = useTheme()['sidenav'](themeOptions);
 	const { theme: fullTheme  } = React.useContext(FormsContext)
-	const theme = fullTheme['sidenav'](themeOptions);
+	const theme = (fullTheme?.['sidenav'] || {})//(themeOptions);
 	// console.log('SideNav', themeOptions, theme, useTheme()['sidenav'](themeOptions))
 	// console.log('sideNav', menuItems)
 	return (
 		<>
 			<div
-				className={`${theme.sidenavWrapper}`}
+				className={`${theme?.sidenavWrapper}`}
 			>
 				{topMenu}
-				<nav className={`${theme.itemsWrapper}`}>
+				<nav className={`${theme?.itemsWrapper}`}>
 					{menuItems.map((item, i) =>
 						sideBarItem({i, item, themeOptions, subMenuActivate})
 					)}
@@ -116,22 +116,22 @@ const DesktopSidebar = ({
 				{bottomMenu}
 			</div>
 			{mobile === 'side' ? '' :
-				<div className={`${theme.topnavWrapper} md:hidden`}>
-			      <div className={`${theme.topnavContent} justify-between`}>
+				<div className={`${theme?.topnavWrapper} md:hidden`}>
+			      <div className={`${theme?.topnavContent} justify-between`}>
 			        <div>{topMenu}</div>
 			        <div className="flex items-center justify-center h-full">
-			          <div className={`${theme.topmenuRightNavContainer}`}>{bottomMenu}</div>
+			          <div className={`${theme?.topmenuRightNavContainer}`}>{bottomMenu}</div>
 
 			          {/*<!-- Mobile menu button -->*/}
 			          <button
 			            type="button"
-			            className={theme.mobileButton}
+			            className={theme?.mobileButton}
 			            onClick={() => toggle(!open)}
 			          >
 			            <span className="sr-only">Open main menu</span>
 			            <div className={`flex justify-center items-center text-2xl`}>
 			              <span
-			                className={!open ? theme.menuOpenIcon : theme.menuCloseIcon}
+			                className={!open ? theme?.menuOpenIcon : theme?.menuCloseIcon}
 			              />
 			            </div>
 			          </button>

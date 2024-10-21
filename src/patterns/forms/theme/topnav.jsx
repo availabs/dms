@@ -1,9 +1,10 @@
-const topnav =  ({
-    color='white',
-    size='compact',
-    menu='left',
-    subMenuStyle = 'inline',
-}) => {
+const color='white'
+const size='compact'
+const menu='left'
+const subMenuStyle = 'row'
+
+
+//console.log('topnav theme test', size, color, menu)
 
   let colors = {
     white: {
@@ -66,7 +67,7 @@ const topnav =  ({
             indicatorIconOpen: 'fal fa-angle-down pl-2 pt-1',
             subMenuWrapper: `absolute bg-white ml-${sizes[size].width - 8}`,
             subMenuParentWrapper: `flex flex-row  `,
-            subMenuWrapperChild: `divide-x overflow-x-auto`,
+            subMenuWrapperChild: `divide-x overflow-x-auto flex`,
             subMenuWrapperTop: `absolute top-full left-0 border-y border-gray-200 w-full bg-white normal-case`,
             subMenuWrapperInactiveFlyout: `absolute  mt-8 normal-case bg-white shadow-lg z-10 p-2`,
             subMenuWrapperInactiveFlyoutBelow: ` absolute ml-40 normal-case bg-white shadow-lg z-10 p-2`,
@@ -75,10 +76,11 @@ const topnav =  ({
     }
 
 
-    return {
+  let topnav = {
     topnavWrapper: `w-full ${colors[color].contentBg} border-b border-gray-200`,
     topnavContent: `flex w-full h-full`,
     topnavMenu: `${sizes[size].menu} h-full overflow-x-auto overflow-y-hidden scrollbar-sm`,
+    menuItemWrapper: 'flex',
     menuIconTop: `text-${colors[color].accentColor} ${sizes[size].icon} group-hover:${colors[color].highlightColor}`,
     menuIconTopActive : `text-${colors[color].accentColor} ${sizes[size].icon} group-hover:${colors[color].highlightColor}`,
     menuOpenIcon: `fa-light fa-bars fa-fw`,
@@ -90,7 +92,7 @@ const topnav =  ({
         transition cursor-pointer
     `,
     //`px-4 text-sm font-medium tracking-widest uppercase inline-flex items-center  border-transparent  leading-5 text-white hover:bg-white hover:text-darkblue-500 border-gray-200 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out h-full`,
-    topmenuRightNavContainer: "hidden md:block h-full items-center",
+    topmenuRightNavContainer: "hidden md:flex h-full items-center",
     topnavMobileContainer: "bg-slate-50",
     navitemTopActive:
       ` w-fit group font-display whitespace-nowrap
@@ -105,6 +107,6 @@ const topnav =  ({
       sizes
     }
   }
-}
+
 
 export default topnav

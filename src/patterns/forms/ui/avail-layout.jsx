@@ -6,7 +6,7 @@ import { Link } from "react-router-dom";
 import TopNav from './nav/Top';
 import SideNav from './nav/Side';
 //import { Search } from '../components/search';
-import { FormsContext } from '../';
+import { FormsContext } from '../siteConfig';
 
 
 
@@ -39,11 +39,11 @@ let fixedSizePixels = {
 
 const Logos = () => <div className='h-12'/>
 const Search = () => <div />
-// const Menu = () => <div />
+const Menu = () => <div />
 
-const Layout = ({ children, navItems, title, theme, yPadding = '0px', ...props }) => {
+const Layout = ({ children, navItems=[], title, theme, yPadding = '0px', ...props }) => {
 	//const theme = useTheme()
-
+	
 	
 	const { theme: defaultTheme, app, type, Menu } = React.useContext(FormsContext) || {}
 	const secondNav = defaultTheme?.navOptions?.secondaryNav?.navItems || []
@@ -51,11 +51,15 @@ const Layout = ({ children, navItems, title, theme, yPadding = '0px', ...props }
 
 	theme = merge(cloneDeep(defaultTheme), cloneDeep(theme))
 	const { sideNav={}, topNav={}, logo=Logos } = theme?.navOptions || {}
+
+	console.log('theme', theme, defaultTheme)
+
+	//console.log('logo', logo)
 	
 	const sideNavOptions = {
 		size: sideNav.size || 'none',
 		color: sideNav.color || 'transparent',
-		menuItems: (sideNav?.nav === 'main' ? navItems : sideNav?.nav === 'secondary' ? secondNav || [] : []).filter(page => !page.hideInNav),
+		menuItems: (sideNav?.nav === 'main' ? navItems : sideNav?.nav === 'secondary' ? secondNav || [] : []).filter(page => !page?.hideInNav),
 		topMenu: (
 			<div className={'flex flex-row md:flex-col'}>
 	      		{sideNav?.logo === 'top' && logo}
@@ -98,47 +102,49 @@ const Layout = ({ children, navItems, title, theme, yPadding = '0px', ...props }
 	
 	return (
 		<div className={`flex ${theme?.bg} max-w-screen`}>
-			{
-				sideNavOptions.size === 'none' ? '' : (
-					<div className={`hidden md:block ${marginSizes[sideNavOptions.size]}`}>
-						<div className={`fixed h-screen ${fixedSizes[sideNavOptions.size]}`}>
-							<SideNav 
-								topMenu={sideNavOptions.topMenu}
-								bottomMenu={sideNavOptions.bottomMenu}
-								themeOptions={sideNavOptions}
-								menuItems={sideNavOptions.menuItems}
-							/>
+			<div className={`flex flex-1 max-w-screen ${theme?.layout?.wrapper}`} >
+				
+				<div 
+					className={`flex-1 flex items-start flex-col items-stretch max-w-full`} 
+					style={{
+						minHeight: `calc(100vh - ${yPadding}`,
+					}}
+				>
+					{
+						topNavOptions.size === 'none' ? '' : (<>
+							
+								<div className={`${theme?.layout?.topnavContainer2}`}>
+										<TopNav
+											themeOptions={topNavOptions}
+											// subMenuActivate={'onHover'}
+											leftMenu={topNavOptions.leftMenu}
+											menuItems={topNavOptions.menuItems}
+											rightMenu={topNavOptions.rightMenu}
+											
+										/>
+								</div>
+							
+						</>)
+					}
+					<div className={`flex-1 flex`}>
+						{
+							sideNavOptions.size === 'none' ? '' : (
+								<div className={`${theme?.layout?.sidenavContainer1}`}>
+									<div className={`${theme?.layout?.sidenavContainer2}`}>
+										<SideNav 
+											topMenu={sideNavOptions.topMenu}
+											bottomMenu={sideNavOptions.bottomMenu}
+											themeOptions={sideNavOptions}
+											menuItems={sideNavOptions.menuItems}
+										/>
+									</div>
+								</div>
+							)
+						}
+						<div className={`flex-1`}>
+							{children}
 						</div>
 					</div>
-				)
-			}
-			<div 
-				className={`flex-1 flex items-start flex-col items-stretch max-w-full`} 
-				style={{
-					minHeight: `calc(100vh - ${yPadding}`,
-					maxWidth: `calc(100vw - ${fixedSizePixels[sideNavOptions.size]}`
-				}}
-			>
-				{
-					topNavOptions.size === 'none' ? '' : (<>
-						<div className={`${
-							topNavOptions.position === 'fixed' ? 
-								`sticky top-0 z-20 w-full ` 
-								: 'z-10'
-							}`}>
-								<TopNav
-									themeOptions={topNavOptions}
-									// subMenuActivate={'onHover'}
-									leftMenu={topNavOptions.leftMenu}
-									menuItems={topNavOptions.menuItems}
-									rightMenu={topNavOptions.rightMenu}
-									
-								/>
-						</div>
-					</>)
-				}
-				<div id={'content'} className={`flex-1`}>
-					{children}
 				</div>
 			</div>
 		</div>

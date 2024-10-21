@@ -80,7 +80,7 @@ const formsAdminConfig = ({
     return {
         siteType,
         format: patternFormat,
-        baseUrl: `${baseUrl}/manage`,
+        baseUrl: `${baseUrl}`,
         API_HOST,
         children: [
             {
@@ -212,6 +212,8 @@ const formsSourceConfig = ({
         theme.navOptions.logo = logo ? logo : defaultLogo
     }
 
+    console.log('forms siteconfig theme', theme )
+
     const patternFormat = cloneDeep(source);
     const newType = `${type}|source`;
     patternFormat.app = app
@@ -223,14 +225,14 @@ const formsSourceConfig = ({
     return {
         siteType,
         format: patternFormat,
-        baseUrl: `${baseUrl}/manage/source`,
+        baseUrl: `${baseUrl}/source`,
         API_HOST,
         children: [
             {
                 type: (props) => {
                   return (
-                      <FormsContext.Provider value={{baseUrl: `${baseUrl}/manage`, pageBaseUrl: `${baseUrl}/manage/source`, user: props.user || defaultUser, theme, app, type, parent, Menu, API_HOST}}>
-                        <AvailLayout>
+                      <FormsContext.Provider value={{baseUrl: `${baseUrl}`, pageBaseUrl: `${baseUrl}/source`, user: props.user || defaultUser, theme, app, type, parent, Menu, API_HOST}}>
+                        <AvailLayout >
                             {props.children}
                         </AvailLayout>
                       </FormsContext.Provider>

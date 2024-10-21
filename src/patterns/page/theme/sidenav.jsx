@@ -287,6 +287,7 @@
     fixed: `md:${sizes[size].fixed}`,
     logoWrapper: `${sizes[size].wrapper} ${colors[color].contentBgAccent} ${colors[color].textColorAccent}`,
     sidenavWrapper: `${mobile[responsive]} ${colors[color].contentBg} ${sizes[size].wrapper} h-full z-20`,
+    menuItemWrapper: 'flex flex-col',
     menuIconSide: `${sizes[size].icon} group-hover:${colors[color].highlightColor}`,
     menuIconSideActive: `${sizes[size].iconActive} group-hover:${colors[color].highlightColor}`,
     
