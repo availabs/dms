@@ -122,7 +122,7 @@ const Validate = ({
     return (
         <SourcesLayout ffullWidth={false} baseUrl={baseUrl} pageBaseUrl={pageBaseUrl} isListAll={false} hideBreadcrumbs={false}
                        form={{name: item.name || item.doc_type, href: item.url_slug}}
-                       page={{name: 'Validate', href: `${pageBaseUrl}/${params.id}`}}
+                       page={{name: 'Validate', href: `${pageBaseUrl}/${params.id}/validate`}}
                        id={params.id} //page id to use for navigation
 
         >

@@ -33,7 +33,7 @@ const TableView = ({
     return (
         <SourcesLayout fullWidth={false} baseUrl={baseUrl} pageBaseUrl={pageBaseUrl} isListAll={false} hideBreadcrumbs={false}
                        form={{name: item.name || item.doc_type, href: format.url_slug}}
-                       page={{name: 'Table', href: `${pageBaseUrl}/${params.id}`}}
+                       page={{name: 'Table', href: `${pageBaseUrl}/${params.id}/table`}}
                        id={params.id} //page id to use for navigation
         >
             {

@@ -209,13 +209,14 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, parent, ...res
         (
             <div className={'w-full border p-2 rounded-md'}>
                 <div className={'w-full pb-4'}>
-                    <label htmlFor={'layer-selector'}>Please select a sheet to upload:</label>
+                    <label htmlFor={'layer-selector'}>Sheet to upload:</label>
                     <select
                         id={'layer-selector'}
                         className={'p-2 ml-4 bg-transparent border rounded-md hover:cursor-pointer'}
                         value={layerName}
                         onChange={e => setLayerName(e.target.value)}
                     >
+                        <option key={'default'} value={undefined}>Please select...</option>
                         {
                             (layers || []).map(({layerName}) => <option key={layerName}
                                                                         value={layerName}>{layerName}</option>)
@@ -227,7 +228,8 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, parent, ...res
                     pivotColumns.length ?
                         <div className={'p-2 border border-blue-300 rounded-md'}>
                             <div className={'flex items-center text-blue-500 font-semibold'}>Pivot Columns
-                                <InfoCircle className={'ml-1 text-blue-500 hover:text-blue-300 cursor-pointer'} height={18} width={18}
+                                <InfoCircle className={'ml-1 text-blue-500 hover:text-blue-300 cursor-pointer'}
+                                            height={18} width={18}
                                             title={'These column headers will become values for the Destination column if there exists a value for a given row in the data.'}/>
                             </div>
                             <div className={'grid grid-cols-2'}
@@ -238,7 +240,8 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, parent, ...res
                             {
 
                                 pivotColumns.map(existingCol => (
-                                    <div key={existingCol.name} className={'grid grid-cols-2'} style={{gridTemplateColumns: '1fr 2fr'}}>
+                                    <div key={existingCol.name} className={'grid grid-cols-2'}
+                                         style={{gridTemplateColumns: '1fr 2fr'}}>
                                         <div>{existingCol.display_name || existingCol.name}</div>
                                         <div>{columns.filter(c => c.existingColumnMatch === existingCol.name).map(c => c.display_name || c.name).join(', ')}</div>
                                     </div>
@@ -247,43 +250,78 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, parent, ...res
                             }
                         </div> : null
                 }
+
+                {/*Render primary column selector*/}
+                <div className={'w-full pb-4'}>
+                    <label htmlFor={'layer-selector'}>Primary Column <span className={'text-xs italic'}>(If selected, existing records will be updated for matching column values)</span>:</label>
+                    <select
+                        id={'primary-col-selector'}
+                        className={'p-2 ml-4 bg-transparent border rounded-md hover:cursor-pointer'}
+                        value={columns.find(c => c.isPrimary)?.name}
+                        onChange={e => setColumns(columns.map(c => c.name === e.target.value ? ({
+                            ...c,
+                            isPrimary: true
+                        }) : c))}
+                    >
+                        <option key={'primary-col-selector-default-option'} value={undefined}>Please select a Primary column if applicable...
+                        </option>
+                        {
+                            columns.map(({name, display_name}) => <option key={name}
+                                                                          value={name}>{display_name || name}</option>)
+                        }
+                    </select>
+                </div>
                 {/* if there are attributes for this pattern, show them as well. and give option to map detected columns to them */}
                 {
                     columns?.length ?
                         <>
-                            <div className={'p-1 hover:bg-blue-50 rounded-md grid grid-cols-3 font-semibold border-b'} style={{gridTemplateColumns: "1fr 1fr 100px"}}>
+                            <div className={'p-1 hover:bg-blue-50 rounded-md grid grid-cols-3 font-semibold border-b'}
+                                 style={{gridTemplateColumns: "1fr 1fr 100px"}}>
                                 <label className={'flex flex-wrap items-center'}>
                                     Display Name
-                                    <input className={'p-0.5 mx-1 border rounded-md text-sm font-light'} value={search} onChange={e => setSearch(e.target.value)} placeholder={'search...'}/></label>
+                                    <input className={'p-0.5 mx-1 border rounded-md text-sm font-light'} value={search}
+                                           onChange={e => setSearch(e.target.value)} placeholder={'search...'}/></label>
                                 <label>Existing Column Match</label>
                                 <label>GEO Column</label>
                             </div>
                             <div className={'flex flex-col max-h-[700px] overflow-auto scrollbar-sm'}>
                                 {
                                     columns
-                                        .filter(({display_name, name}) => !search || (display_name || name).toLowerCase().includes(search.toLowerCase()))
+                                        .filter(({
+                                                     display_name,
+                                                     name
+                                                 }) => !search || (display_name || name).toLowerCase().includes(search.toLowerCase()))
                                         .map(({name, display_name, existingColumnMatch, geo_col}) => (
-                                            <div key={name} className={'p-0.5 hover:bg-blue-50 rounded-md grid grid-cols-3'} style={{gridTemplateColumns: "1fr 1fr 100px"}}>
+                                            <div key={name}
+                                                 className={'p-0.5 hover:bg-blue-50 rounded-md grid grid-cols-3'}
+                                                 style={{gridTemplateColumns: "1fr 1fr 100px"}}>
                                                 {/*<input disabled className={inputClass} value={name}/>*/}
-                                                <div key={`${name}_display_name`} className={inputClass}>{display_name}</div>
-                                                <select  key={`${name}_select_existing_col`} className={existingColumnMatch ? inputClass : `${inputClass} bg-red-50`}
+                                                <div key={`${name}_display_name`}
+                                                     className={inputClass}>{display_name}</div>
+                                                <select key={`${name}_select_existing_col`}
+                                                        className={existingColumnMatch ? inputClass : `${inputClass} bg-red-50`}
                                                         value={existingColumnMatch}
                                                         onChange={e =>
-                                                            setColumns(columns.map(c => c.name === name ? ({...c, existingColumnMatch: e.target.value}) : c))}
+                                                            setColumns(columns.map(c => c.name === name ? ({
+                                                                ...c,
+                                                                existingColumnMatch: e.target.value
+                                                            }) : c))}
                                                 >
                                                     <option>Please select...</option>
                                                     {
                                                         existingAttributes
-                                                            .sort((a,b) => a?.display_name?.localeCompare(b?.display_name))
+                                                            .sort((a, b) => a?.display_name?.localeCompare(b?.display_name))
                                                             .map(({name, display_name}) => (
                                                                 <option key={name} value={name}>
                                                                     {display_name || name}
                                                                 </option>))
                                                     }
                                                 </select>
-                                                <div  key={`${name}_geo_col_div`} className={'flex items-center justify-center'}>
+                                                <div key={`${name}_geo_col_div`}
+                                                     className={'flex items-center justify-center'}>
                                                     <input className={''} type={"checkbox"} checked={geo_col || false}
-                                                           onChange={() => {}}
+                                                           onChange={() => {
+                                                           }}
                                                            onClick={e => {
                                                                setColumns(columns.map(c => c.name === name ? ({
                                                                    ...c,

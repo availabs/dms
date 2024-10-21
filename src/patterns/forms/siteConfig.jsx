@@ -86,7 +86,7 @@ const formsAdminConfig = ({
             {
                 type: (props) => {
                   return (
-                      <FormsContext.Provider value={{baseUrl, user: props.user || defaultUser, theme, app, type, parent, Menu, API_HOST}}>
+                      <FormsContext.Provider value={{baseUrl: `${baseUrl}/manage`, user: props.user || defaultUser, theme, app, type, parent, Menu, API_HOST}}>
                         <AvailLayout secondNav={theme?.navOptions?.secondaryNav?.navItems || []}>
                             {props.children}
                         </AvailLayout>
