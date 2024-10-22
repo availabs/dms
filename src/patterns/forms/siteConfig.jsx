@@ -21,6 +21,7 @@ import Validate from "./pages/validate";
 import Overview from "./pages/overview";
 import TableView from "./pages/table";
 import UploadPage from "./pages/upload";
+import ManageMeta from './pages/manage/metadata'
 import PatternListComponent from "./components/selector/ComponentRegistry/patternListComponent";
 import AvailLayout from "./ui/avail-layout";
 
