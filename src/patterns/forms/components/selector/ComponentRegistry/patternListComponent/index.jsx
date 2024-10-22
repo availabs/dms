@@ -108,7 +108,7 @@ const SourceThumb = ({ source }) => {
                         )))
                     }
                 </div>
-                <Link to={`${source?.base_url}/manage`} className="py-2 block">
+                <Link to={`source/${source.id}`} className="py-2 block">
 
                     <Lexical value={makeLexicalFormat(source?.description)}/>
                 </Link>
@@ -119,7 +119,7 @@ const SourceThumb = ({ source }) => {
     );
 };
 
-const RenderAddPattern = ({isAdding, setIsAdding, updateData, sources, setSources}) => {
+const RenderAddPattern = ({isAdding, setIsAdding, updateData, sources, setSources, submit}) => {
     const blankData = {doc_type: '', name: ''}
     const [data, setData] = useState(blankData);
     if(!isAdding) return null;
@@ -144,6 +144,7 @@ const RenderAddPattern = ({isAdding, setIsAdding, updateData, sources, setSource
                     onClick={() => {
                         updateData({sources: [...sources, data]})
                         // setSources([...sources, data])
+                        submit()
                     }}
             >add</button>
             <button className={'p-1 mx-1 bg-red-300 hover:bg-red-500 text-white'}
@@ -155,7 +156,7 @@ const RenderAddPattern = ({isAdding, setIsAdding, updateData, sources, setSource
         </div>
     )
 }
-const Edit = ({attributes, item, dataItems, apiLoad, apiUpdate, updateAttribute, parent, format, ...r}) => {
+const Edit = ({attributes, item, dataItems, apiLoad, apiUpdate, updateAttribute, parent, format, submit, ...r}) => {
     const {baseUrl, user} = useContext(FormsContext);
     const [sources, setSources] = useState([]);
     const [layerSearch, setLayerSearch] = useState("");
@@ -247,7 +248,7 @@ const Edit = ({attributes, item, dataItems, apiLoad, apiUpdate, updateAttribute,
                     }
                 </div>
                 <div className={'w-3/4 flex flex-col space-y-1.5 ml-1.5 max-h-[80dvh] overflow-auto scrollbar-sm'}>
-                    <RenderAddPattern sources={sources} setSources={setSources} updateData={updateData} isAdding={isAdding} setIsAdding={setIsAdding}/>
+                    <RenderAddPattern sources={sources} setSources={setSources} updateData={updateData} isAdding={isAdding} setIsAdding={setIsAdding} submit={submit}/>
                     {
                         sources
                             .filter(source => {
