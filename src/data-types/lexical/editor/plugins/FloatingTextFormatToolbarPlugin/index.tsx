@@ -170,7 +170,7 @@ function TextFormatFloatingToolbar({
             onClick={() => {
               editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'bold');
             }}
-            className={(`${theme.floatingTextFormatPopup.popupItem.base} ${theme.floatingTextFormatPopup.popupItem.spaced}` || 'popup-item spaced ') + (isBold ? `${theme.floatingTextFormatPopup.popupItem.active}` || 'active' : '')}
+            className={(`${theme.floatingTextFormatPopup.popupItem.base} ${theme.floatingTextFormatPopup.popupItem.spaced} ` || 'popup-item spaced ') + (isBold ? `${theme.floatingTextFormatPopup.popupItem.active}` || 'active' : '')}
             aria-label="Format text as bold">
             <i className={`${theme.floatingTextFormatPopup.popupItem.icon} ${theme.icon.bold}` || "format bold"} />
           </button>
@@ -178,7 +178,7 @@ function TextFormatFloatingToolbar({
             onClick={() => {
               editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'italic');
             }}
-            className={(`${theme.floatingTextFormatPopup.popupItem.base} ${theme.floatingTextFormatPopup.popupItem.spaced}` || 'popup-item spaced ') + (isItalic ? `${theme.floatingTextFormatPopup.popupItem.active}` || 'active' : '')}
+            className={(`${theme.floatingTextFormatPopup.popupItem.base} ${theme.floatingTextFormatPopup.popupItem.spaced} ` || 'popup-item spaced ') + (isItalic ? `${theme.floatingTextFormatPopup.popupItem.active}` || 'active' : '')}
             aria-label="Format text as italics">
             <i className={`${theme.floatingTextFormatPopup.popupItem.icon} ${theme.icon.italic}` || "format italic"} />
           </button>
@@ -186,7 +186,7 @@ function TextFormatFloatingToolbar({
             onClick={() => {
               editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'underline');
             }}
-            className={(`${theme.floatingTextFormatPopup.popupItem.base} ${theme.floatingTextFormatPopup.popupItem.spaced}` || 'popup-item spaced ') + (isUnderline ? `${theme.floatingTextFormatPopup.popupItem.active}` || 'active' : '')}
+            className={(`${theme.floatingTextFormatPopup.popupItem.base} ${theme.floatingTextFormatPopup.popupItem.spaced} ` || 'popup-item spaced ') + (isUnderline ? `${theme.floatingTextFormatPopup.popupItem.active}` || 'active' : '')}
             aria-label="Format text to underlined">
             <i className={`${theme.floatingTextFormatPopup.popupItem.icon} ${theme.icon.underline}` || "format underline"} />
           </button>
@@ -202,7 +202,7 @@ function TextFormatFloatingToolbar({
             onClick={() => {
               editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'subscript');
             }}
-            className={(`${theme.floatingTextFormatPopup.popupItem.base} ${theme.floatingTextFormatPopup.popupItem.spaced}` || 'popup-item spaced ') + (isSubscript ? `${theme.floatingTextFormatPopup.popupItem.active}` || 'active' : '')}
+            className={(`${theme.floatingTextFormatPopup.popupItem.base} ${theme.floatingTextFormatPopup.popupItem.spaced} ` || 'popup-item spaced ') + (isSubscript ? `${theme.floatingTextFormatPopup.popupItem.active}` || 'active' : '')}
             title="Subscript"
             aria-label="Format Subscript">
             <i className={`${theme.floatingTextFormatPopup.popupItem.icon} ${theme.icon.subscript}` || "format subscript"} />
@@ -211,7 +211,7 @@ function TextFormatFloatingToolbar({
             onClick={() => {
               editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'superscript');
             }}
-            className={(`${theme.floatingTextFormatPopup.popupItem.base} ${theme.floatingTextFormatPopup.popupItem.spaced}` || 'popup-item spaced ') + (isSuperscript ? `${theme.floatingTextFormatPopup.popupItem.active}` || 'active' : '')}
+            className={(`${theme.floatingTextFormatPopup.popupItem.base} ${theme.floatingTextFormatPopup.popupItem.spaced} ` || 'popup-item spaced ') + (isSuperscript ? `${theme.floatingTextFormatPopup.popupItem.active}` || 'active' : '')}
             title="Superscript"
             aria-label="Format Superscript">
             <i className={`${theme.floatingTextFormatPopup.popupItem.icon} ${theme.icon.subscript}` || "format superscript"} />
@@ -226,7 +226,7 @@ function TextFormatFloatingToolbar({
           </button>
           <button
             onClick={insertLink}
-            className={(`${theme.floatingTextFormatPopup.popupItem.base} ${theme.floatingTextFormatPopup.popupItem.spaced}` || 'popup-item spaced ') + (isLink ? `${theme.floatingTextFormatPopup.popupItem.active}` || 'active' : '')}
+            className={(`${theme.floatingTextFormatPopup.popupItem.base} ${theme.floatingTextFormatPopup.popupItem.spaced} ` || 'popup-item spaced ') + (isLink ? `${theme.floatingTextFormatPopup.popupItem.active}` || 'active' : '')}
             aria-label="Insert link">
             <i className={`${theme.floatingTextFormatPopup.popupItem.icon} ${theme.icon.link}` || "format link"} />
           </button>

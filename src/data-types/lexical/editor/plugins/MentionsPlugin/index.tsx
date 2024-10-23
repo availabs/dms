@@ -585,9 +585,9 @@ function MentionsTypeaheadMenuItem({
   onMouseEnter: () => void;
   option: MentionTypeaheadOption;
 }) {
-  let className = 'item';
+  let className = theme.typeaheadPopover.ul.li.item || 'item';
   if (isSelected) {
-    className += ' selected';
+    className += ` ${theme.typeaheadPopover.ul.li.selected}` || ' selected';
   }
   return (
     <li
@@ -601,7 +601,7 @@ function MentionsTypeaheadMenuItem({
       onMouseEnter={onMouseEnter}
       onClick={onClick}>
       {option.picture}
-      <span className="text">{option.name}</span>
+      <span className={theme.dropdown.item.text || "text"}>{option.name}</span>
     </li>
   );
 }

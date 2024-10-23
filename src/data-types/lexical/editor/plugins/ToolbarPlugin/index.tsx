@@ -460,10 +460,9 @@ function ElementFormatDropdown({
         }}
         className={`${theme.dropdown.item.base}` ||"item"}>
         <i
-          className={`${theme.actions.i.base} ${
-            isRTL
-              ? ELEMENT_FORMAT_OPTIONS.start.iconRTL
-              : ELEMENT_FORMAT_OPTIONS.start.icon
+          className={`${theme.actions.i.base} ${theme.icon[isRTL
+            ? ELEMENT_FORMAT_OPTIONS.start.iconRTL
+            : ELEMENT_FORMAT_OPTIONS.start.icon]
           }`}
         />
         <span className={`${theme.dropdown.item.text}` ||"text"}>Start Align</span>
@@ -474,11 +473,9 @@ function ElementFormatDropdown({
         }}
         className={`${theme.dropdown.item.base}` ||"item"}>
         <i
-          className={`${theme.actions.i.base} ${
-            isRTL
-              ? ELEMENT_FORMAT_OPTIONS.end.iconRTL
-              : ELEMENT_FORMAT_OPTIONS.end.icon
-          }`}
+          className={`${theme.actions.i.base} ${theme.icon[isRTL
+            ? ELEMENT_FORMAT_OPTIONS.end.iconRTL
+            : ELEMENT_FORMAT_OPTIONS.end.icon]}`}
         />
         <span className={`${theme.dropdown.item.text}` ||"text"}>End Align</span>
       </DropDownItem>
@@ -488,7 +485,7 @@ function ElementFormatDropdown({
           editor.dispatchCommand(OUTDENT_CONTENT_COMMAND, undefined);
         }}
         className={`${theme.dropdown.item.base}` ||"item"}>
-        <i className={`${theme.actions.i.base} ` + (isRTL ? 'indent' : 'outdent')} />
+        <i className={`${theme.actions.i.base} ${theme.icon[(isRTL ? 'indent' : 'outdent')]}`} />
         <span className={`${theme.dropdown.item.text}` ||"text"}>Outdent</span>
       </DropDownItem>
       <DropDownItem
@@ -496,7 +493,7 @@ function ElementFormatDropdown({
           editor.dispatchCommand(INDENT_CONTENT_COMMAND, undefined);
         }}
         className={`${theme.dropdown.item.base}` ||"item"}>
-        <i className={`${theme.actions.i.base} ` + (isRTL ? 'outdent' : 'indent')} />
+        <i className={`${theme.actions.i.base} ${theme.icon[(isRTL ? 'outdent' : 'indent')]}`} />
         <span className={`${theme.dropdown.item.text}` ||"text"}>Indent</span>
       </DropDownItem>
     </DropDown>

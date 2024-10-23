@@ -86,9 +86,9 @@ function ComponentPickerMenuItem({
     onMouseEnter: () => void;
     option: ComponentPickerOption;
 }) {
-    let className = 'item';
+    let className = theme.typeaheadPopover.ul.li.item || 'item';
     if (isSelected) {
-        className += ' selected';
+        className += ` ${theme.typeaheadPopover.ul.li.selected}` || ' selected';
     }
     return (
         <li
@@ -102,7 +102,7 @@ function ComponentPickerMenuItem({
             onMouseEnter={onMouseEnter}
             onClick={onClick}>
             {option.icon}
-            <span className="text">{option.title}</span>
+            <span className={theme.dropdown.item.text || "text"}>{option.title}</span>
         </li>
     );
 }
@@ -126,7 +126,7 @@ function getDynamicOptions(editor: LexicalEditor, queryString: string) {
             ...colOptions.map(
                 (columns) =>
                     new ComponentPickerOption(`${rows}x${columns} Table`, {
-                        icon: <i className="icon table"/>,
+                        icon: <i className={`${theme.typeaheadPopover.ul.li.icon} ${theme.icon.table}` || "icon table"}/>,
                         keywords: ['table'],
                         onSelect: () =>
                             editor.dispatchCommand(INSERT_TABLE_COMMAND, {columns, rows}),
@@ -143,7 +143,7 @@ type ShowModal = ReturnType<typeof useModal>[1];
 function getBaseOptions(editor: LexicalEditor, showModal: ShowModal) {
     return [
         new ComponentPickerOption('Paragraph', {
-            icon: <i className="icon paragraph"/>,
+            icon: <i className={`${theme.typeaheadPopover.ul.li.icon} ${theme.icon.paragraph}` || "icon paragraph"}/>,
             keywords: ['normal', 'paragraph', 'p', 'text'],
             onSelect: () =>
                 editor.update(() => {
@@ -156,7 +156,7 @@ function getBaseOptions(editor: LexicalEditor, showModal: ShowModal) {
         ...([1, 2, 3, 4] as const).map(
             (n) =>
                 new ComponentPickerOption(`Heading ${n}`, {
-                    icon: <i className={`icon h${n}`}/>,
+                    icon: <i className={`${theme.typeaheadPopover.ul.li.icon} ${theme.icon[`h${n}`]}` || `icon h${n}`}/>,
                     keywords: ['heading', 'header', `h${n}`],
                     onSelect: () =>
                         editor.update(() => {
@@ -168,7 +168,7 @@ function getBaseOptions(editor: LexicalEditor, showModal: ShowModal) {
                 }),
         ),
         new ComponentPickerOption('Table', {
-            icon: <i className="icon table"/>,
+            icon: <i className={`${theme.typeaheadPopover.ul.li.icon} ${theme.icon.table}` || "icon table"}/>,
             keywords: ['table', 'grid', 'spreadsheet', 'rows', 'columns'],
             onSelect: () =>
                 showModal('Insert Table', (onClose) => (
@@ -185,25 +185,25 @@ function getBaseOptions(editor: LexicalEditor, showModal: ShowModal) {
                 }),
         ),
         new ComponentPickerOption('Numbered List', {
-            icon: <i className="icon number"/>,
+            icon: <i className={`${theme.typeaheadPopover.ul.li.icon} ${theme.icon.number}` || "icon number"}/>,
             keywords: ['numbered list', 'ordered list', 'ol'],
             onSelect: () =>
                 editor.dispatchCommand(INSERT_ORDERED_LIST_COMMAND, undefined),
         }),
         new ComponentPickerOption('Bulleted List', {
-            icon: <i className="icon bullet"/>,
+            icon: <i className={`${theme.typeaheadPopover.ul.li.icon} ${theme.icon.bullet}` || "icon bullet"}/>,
             keywords: ['bulleted list', 'unordered list', 'ul'],
             onSelect: () =>
                 editor.dispatchCommand(INSERT_UNORDERED_LIST_COMMAND, undefined),
         }),
         new ComponentPickerOption('Check List', {
-            icon: <i className="icon check"/>,
+            icon: <i className={`${theme.typeaheadPopover.ul.li.icon} ${theme.icon.check}` || "icon check"}/>,
             keywords: ['check list', 'todo list'],
             onSelect: () =>
                 editor.dispatchCommand(INSERT_CHECK_LIST_COMMAND, undefined),
         }),
         new ComponentPickerOption('Quote', {
-            icon: <i className="icon quote"/>,
+            icon: <i className={`${theme.typeaheadPopover.ul.li.icon} ${theme.icon.quote}` || "icon quote"}/>,
             keywords: ['block quote'],
             onSelect: () =>
                 editor.update(() => {
@@ -214,7 +214,7 @@ function getBaseOptions(editor: LexicalEditor, showModal: ShowModal) {
                 }),
         }),
         new ComponentPickerOption('Code', {
-            icon: <i className="icon code"/>,
+            icon: <i className={`${theme.typeaheadPopover.ul.li.icon} ${theme.icon.code}` || "icon code"}/>,
             keywords: ['javascript', 'python', 'js', 'codeblock'],
             onSelect: () =>
                 editor.update(() => {
@@ -234,13 +234,13 @@ function getBaseOptions(editor: LexicalEditor, showModal: ShowModal) {
                 }),
         }),
         new ComponentPickerOption('Divider', {
-            icon: <i className="icon horizontal-rule"/>,
+            icon: <i className={`${theme.typeaheadPopover.ul.li.icon} ${theme.icon.horizontalRule}` || "icon horizontal-rule"}/>,
             keywords: ['horizontal rule', 'divider', 'hr'],
             onSelect: () =>
                 editor.dispatchCommand(INSERT_HORIZONTAL_RULE_COMMAND, undefined),
         }),
         new ComponentPickerOption('Image', {
-            icon: <i className="icon image"/>,
+            icon: <i className={`${theme.typeaheadPopover.ul.li.icon} ${theme.icon.image}` || "icon image"}/>,
             keywords: ['image', 'photo', 'picture', 'file'],
             onSelect: () =>
                 showModal('Insert Image', (onClose) => (
@@ -248,7 +248,7 @@ function getBaseOptions(editor: LexicalEditor, showModal: ShowModal) {
                 )),
         }),
         new ComponentPickerOption('Collapsible', {
-            icon: <i className="icon caret-right"/>,
+            icon: <i className={`${theme.typeaheadPopover.ul.li.icon} ${theme.icon.caretRight}` || "icon caret-right"}/>,
             keywords: ['collapse', 'collapsible', 'toggle'],
             onSelect: () =>
                 editor.dispatchCommand(INSERT_COLLAPSIBLE_COMMAND, undefined),

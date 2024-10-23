@@ -153,20 +153,20 @@ const theme = {
   // editor: "flex-auto relative resize-y z-negative", //editor
   testRecorderOutput: "my-5 mx-auto w-full", //test-recorder-output
   treeViewOutput:
-    "block bg-gray-900 text-white p-0 text-xs my-[1px] mx-auto mb-2.5 relative overflow-hidden rounded-lg", //tree-view-output
+    "block bg-gray-900 text-white p-0 text-xs my-[1px] mx-auto mb-[10px] relative overflow-hidden rounded-lg", //tree-view-output
   editorDevButton: {
     base: "relative block w-10 h-10 text-xs rounded-[20px] border-none cursor-pointer outline-none shadow-[0px_1px_10px_rgba(0,0,0,0.3)] bg-gray-700 hover:bg-gray-600 after:content-[''] after:absolute after:top-[10px] after:right-[10px] after:bottom-[10px] after:left-[10px] after:block after:bg-contain after:filter invert", //editor-dev-button
     active: "bg-red-600", //editor-dev-button .active
   },
   testRecorderToolbar: "flex", //test-recorder-toolbar
   testRecorderButton: {
-    base: "relative block w-8 h-8 text-xs p-1.5 rounded-md border-none cursor-pointer outline-none shadow-md bg-gray-800 transition-shadow duration-75 ease-out after:content-[''] after:absolute after:top-2 after:right-2 after:bottom-2 after:left-2 after:block after:bg-contain after:filter-invert", //test-recorder-button
+    base: "relative block w-8 h-8 text-xs p-[6px] rounded-md border-none cursor-pointer outline-none shadow-md bg-gray-800 transition-shadow duration-75 ease-out after:content-[''] after:absolute after:top-2 after:right-2 after:bottom-2 after:left-2 after:block after:bg-contain after:filter-invert", //test-recorder-button
     active: "shadow-lg", //test-recorder-button .active
   },
-  componentPickerMenu: "w[200px]", //component-picker-menu
-  mentionsMenu: "w[250px]", // mentions-menu
-  autoEmbedMenu: "w[150px]", //auto-embed-menu
-  emojiMenu: "w[200px]", //emoji-menu
+  componentPickerMenu: "w-[200px]", //component-picker-menu
+  mentionsMenu: "w-[250px]", // mentions-menu
+  autoEmbedMenu: "w-[150px]", //auto-embed-menu
+  emojiMenu: "w-[200px]", //emoji-menu
 
   i: {
     palette: "bg-[url(/images/icons/palette.svg)]",
@@ -210,7 +210,7 @@ const theme = {
     fontFamily: "bg-[url(/images/icons/font-family.svg)]",
     bgColor: "bg-[url(/images/icons/bg-color.svg)]",
     table:
-      "bg-[#6c757d] mask-[url(/images/icons/table.svg)] mask-no-repeat mask-size-contain",
+      "bg-[#6c757d] bg-[url(/images/icons/table.svg)]  mask-[url(/images/icons/table.svg)] mask-no-repeat mask-size-contain",
     paragraph: "bg-[url(/images/icons/text-paragraph.svg)]",
     h1: "bg-[url(/images/icons/type-h1.svg)]",
     h2: "bg-[url(/images/icons/type-h2.svg)]",
@@ -267,7 +267,7 @@ const theme = {
   },
   iconChevronDown: 'bg-transparent bg-contain inline-block h-[8px] w-[8px] bg-[url(/images/icons/chevron-down.svg)]', // i.chevron-down
   switch: {
-    base: "block text-gray-700 my-1.5 bg-gray-200 bg-opacity-70 py-1 px-2.5 rounded-lg", // switch
+    base: "block text-gray-700 my-[5px] bg-gray-200 bg-opacity-70 py-[5px] px-[10px] rounded-lg", // switch
     richTextSwitch: "absolute right-0", // #rich-text-switch
     characterCountSwitch: "absolute right-[130px]", // #character-count-switch
     label:
@@ -319,7 +319,7 @@ const theme = {
       focusVisible: "focus-visible:border-blue-500", // #block-controls button:focus-visible
     },
     span: {
-      base: "block w-4.5 h-4.5 m-0.5 bg-contain", // #block-controls span.block-type
+      base: "block w-[18px] h-[18px] m-[2px] bg-contain", // #block-controls span.block-type
       paragraph: "bg-[url(/images/icons/text-paragraph.svg)]", // #block-controls span.block-type.paragraph
       h1: "bg-[url(/images/icons/type-h1.svg)]", // #block-controls span.block-type.h1
       h2: "bg-[url(/images/icons/type-h2.svg)]", // #block-controls span.block-type.h2
@@ -348,7 +348,7 @@ const theme = {
     divider: "w-auto bg-gray-200 my-1 h-[1px] mx-2", // .dropdown .divider
   },
   switchbase:
-    "block text-gray-700 my-1 bg-[rgba(238,_238,_238,_0.7)] p-1 px-2.5 rounded-lg", //.switch
+    "block text-gray-700 my-1 bg-[rgba(238,_238,_238,_0.7)] p-1 px-[10px] rounded-lg", //.switch
   switchlabel: "mr-1 leading-6 w-[100px] text-sm inline-block align-middle", // .switch label
   switchbutton:
     "bg-gray-300 h-[24px] box-border rounded-full w-[44px] inline-block align-middle relative outline-none cursor-pointer transition-colors duration-100 border-2 border-transparent", //.switch button
@@ -400,7 +400,7 @@ const theme = {
       captionContainer:
         "block bg-gray-200 min-w-full text-black overflow-hidden", //.editor-shell .inline-editor-image .image-caption-container
       editButton: {
-        base: "block absolute top-3 right-3 p-1.5 border border-white/30 rounded bg-black bg-opacity-50 min-w-[60px] text-white cursor-pointer select-none hover:bg-blue-500", //.editor-shell .inline-editor-image .image-edit-button
+        base: "block absolute top-3 right-3 py-[6px] px-[8px] border border-white/30 rounded-md bg-black/50 min-w-[60px] text-white cursor-pointer select-none hover:bg-blue-500", //.editor-shell .inline-editor-image .image-edit-button
         hide: "hidden", // For .view-scroller .inline-editor-image .image-edit-button
       },
       position: {
@@ -443,7 +443,7 @@ const theme = {
       li: {
         base: "m-0 min-w-[180px] text-[14px] outline-none cursor-pointer rounded-[8px]", // .typeahead-popover ul li
         selected: "bg-[#eee]", // .typeahead-popover ul li.selected
-        item: "m-[0_8px] p-[8px] text-[#050505] cursor-pointer leading-[16px] text-[15px] flex items-center shrink-0 bg-white rounded-[8px] border-0",
+        item: "mx-[8px] p-[8px] text-[#050505] cursor-pointer leading-[16px] text-[15px] flex items-center shrink-0 bg-white rounded-[8px] border-0",
         active: "flex w-[20px] h-[20px] bg-contain", // .typeahead-popover li.active
         firstChild: "rounded-t-[8px]", // .typeahead-popover li:first-child
         lastChild: "rounded-b-[8px]", // .typeahead-popover li:last-child
@@ -558,12 +558,12 @@ const theme = {
     base: "pointer-events-none bg-deepskyblue h-1 absolute left-0 top-0 opacity-0 will-change-transform", // .draggable-block-target-line
   },
   floatingTextFormatPopup: {
-    base: "flex bg-white p-1 align-middle absolute top-0 left-0 z-10 opacity-0 shadow-lg rounded-lg transition-opacity duration-500 h-11 will-change-transform", // .floating-text-format-popup
+    base: "flex bg-white p-1 align-middle absolute top-0 left-0 z-10 opacity-0 shadow-md rounded-lg transition-opacity duration-500 h-11 will-change-transform", // .floating-text-format-popup
     popupItem: {
       base: "border-0 flex bg-transparent rounded-lg p-2 cursor-pointer align-middle", // .floating-text-format-popup button.popup-item
       disabled: "cursor-not-allowed", // .floating-text-format-popup button.popup-item:disabled
-      spaced: "mr-0.5", // .floating-text-format-popup button.popup-item.spaced
-      icon: "bg-contain inline-block h-4.5 w-4.5 mt-0.5 flex opacity-60", // .floating-text-format-popup button.popup-item i.format
+      spaced: "mr-[2px]", // .floating-text-format-popup button.popup-item.spaced
+      icon: "bg-contain inline-block h-[18px] w-[18px] mt-[2px] flex opacity-60", // .floating-text-format-popup button.popup-item i.format
       disabledIcon: "opacity-20", // .floating-text-format-popup button.popup-item:disabled i.format
       active: "bg-[rgba(223,232,250,0.3)]", // .floating-text-format-popup button.popup-item.active
       activeIcon: "opacity-100", // .floating-text-format-popup button.popup-item.active i
@@ -577,7 +577,7 @@ const theme = {
     icon: "flex w-5 h-5 select-none mr-2 leading-4 bg-contain", // .floating-text-format-popup .popup-item .icon
     chevronDown: "mt-0.75 w-4 h-4 flex select-none", // .floating-text-format-popup i.chevron-down
     chevronInside:
-      "w-4 h-4 flex ml-[-6.25rem] mt-2.75 mr-2.5 pointer-events-none", // .floating-text-format-popup i.chevron-down.inside
+      "w-4 h-4 flex ml-[-6.25rem] mt-[11px] mr-[10px] pointer-events-none", // .floating-text-format-popup i.chevron-down.inside
     divider: "w-px bg-gray-200 mx-1", // .floating-text-format-popup .divider
     insertComment: "hidden md:block",
   },
@@ -591,16 +591,16 @@ const theme = {
     titleBeforeClosed: "border-[0.25rem_0.375rem_0.25rem_0.375rem]", // .Collapsible__container[open] .Collapsible__title:before
     titleBeforeOpen:
       "border-[0.375rem_0.25rem_0_0.25rem] border-t-black bg-transparent", // .Collapsible__container[open]
-    content: "p-0 pl-5 pb-1.25", // .Collapsible__content
+    content: "p-0 pl-5 pb-[5px]", // .Collapsible__content
     collapsedContent: "hidden select-none", // .Collapsible__collapsed .Collapsible__content
   },
   tableOfContents: {
     container:
-      "fixed top-52 right-[-35px] p-2.5 w-[250px] flex flex-row justify-start z-10 h-[300px] text-[#65676b]", // .table-of-contents
+      "fixed top-52 right-[-35px] p-[10px] w-[250px] flex flex-row justify-start z-10 h-[300px] text-[#65676b]", // .table-of-contents
     headings:
-      "list-none mt-0 ml-2.5 p-0 overflow-scroll w-[200px] h-[220px] overflow-x-hidden overflow-y-auto scrollbar-hide", // .headings
+      "list-none mt-0 ml-[10px] p-0 overflow-scroll w-[200px] h-[220px] overflow-x-hidden overflow-y-auto scrollbar-hide", // .headings
     heading1: "text-black font-bold cursor-pointer", // .first-heading
-    heading2: "ml-2.5", // .table-of-contents .heading2
+    heading2: "ml-[10px]", // .table-of-contents .heading2
     heading3: "ml-5", // .table-of-contents .heading3
     normalHeading: "cursor-pointer leading-5 text-base",
     selectedHeading: "text-[#3578e5] relative", // .selected-heading
