@@ -183,7 +183,7 @@ export default function ActionsPlugin({
         onClick={() => importFile(editor)}
         title="Import"
         aria-label="Import editor state from JSON">
-        <i className="import" />
+        <i className={theme.icon.import || "import"} />
       </button>
       <button
         className={`${theme.actionButton.base} export` || "action-button export"}
@@ -195,7 +195,7 @@ export default function ActionsPlugin({
         }
         title="Export"
         aria-label="Export editor state to JSON">
-        <i className="export" />
+        <i className={theme.icon.export || "export"} />
       </button>
       <button
         className={`${theme.actionButton.base} clear` || "action-button clear"}
@@ -207,7 +207,7 @@ export default function ActionsPlugin({
         }}
         title="Clear"
         aria-label="Clear editor contents">
-        <i className="clear" />
+        <i className={theme.icon.clear || "clear"} />
       </button>
       <button
         className={`${theme.actionButton.base} ${!isEditable ? 'unlock' : 'lock'}`}
@@ -227,7 +227,7 @@ export default function ActionsPlugin({
         onClick={handleMarkdownToggle}
         title="Convert From Markdown"
         aria-label="Convert from markdown">
-        <i className="markdown" />
+        <i className={theme.icon.markdown || "markdown"} />
       </button>
       {/*isCollabActive && (
         <button

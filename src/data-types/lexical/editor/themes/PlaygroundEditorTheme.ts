@@ -258,14 +258,15 @@ const theme = {
     prettier: "bg-[url(/images/icons/prettier.svg)]",
     prettierError: "bg-[url(/images/icons/prettier-error.svg)]",
     image: "bg-[url(/images/icons/file-image.svg)]",
-    close: 'bg-[url(/images/icons/close.svg)]',
-    figma: 'bg-[url(/images/icons/figma.svg)]',
-    poll: 'bg-[url(/images/icons/card-checklist.svg)]',
-    tweet: 'bg-[url(/images/icons/tweet.svg)]',
-    youtube: 'bg-[url(/images/icons/youtube.svg)]',
-    leftAlign: 'bg-[url(/images/icons/text-left.svg)]',
+    close: "bg-[url(/images/icons/close.svg)]",
+    figma: "bg-[url(/images/icons/figma.svg)]",
+    poll: "bg-[url(/images/icons/card-checklist.svg)]",
+    tweet: "bg-[url(/images/icons/tweet.svg)]",
+    youtube: "bg-[url(/images/icons/youtube.svg)]",
+    leftAlign: "bg-[url(/images/icons/text-left.svg)]",
   },
-  iconChevronDown: 'bg-transparent bg-contain inline-block h-[8px] w-[8px] bg-[url(/images/icons/chevron-down.svg)]', // i.chevron-down
+  iconChevronDown:
+    "bg-transparent bg-contain inline-block h-[8px] w-[8px] bg-[url(/images/icons/chevron-down.svg)]", // i.chevron-down
   switch: {
     base: "block text-gray-700 my-[5px] bg-gray-200 bg-opacity-70 py-[5px] px-[10px] rounded-lg", // switch
     richTextSwitch: "absolute right-0", // #rich-text-switch
@@ -280,8 +281,12 @@ const theme = {
     buttonCheckedSpan: "translate-x-[20px]",
   },
   linkEditor: {
+    base: "flex absolute top-0 left-0 z-10 max-w-[400px] w-full opacity-0 bg-white shadow-lg rounded-b-lg transition-opacity duration-500 will-change-transform", // .link-editor
     button: {
-      active: "bg-[rgb(223,232,250)]", // .link-editor .button.active
+      active: "bg-[rgb(223,232,250)]", // .link-editor .button.active,
+      base: "w-[20px] h-[20px] inline-block p-[6px] rounded-lg cursor-pointer mx-[2px]", // .link-editor .button
+      hovered: "w-[20px] h-[20px] inline-block bg-gray-200", // .link-editor .button.hovered,
+      i: "bg-contain inline-block h-[20px] w-[20px] align-middle", // .link-editor .button i
     },
     linkInput: {
       base: "block w-[calc(100%-75px)] box-border m-3 p-2 rounded-[15px] bg-[#eee] text-[15px] text-[rgb(5,5,5)] border-0 outline-0 relative font-inherit", // .link-editor .link-input
@@ -304,7 +309,6 @@ const theme = {
     fontSizeWrapper: "flex mx-[4px]", // .link-editor .font-size-wrapper,
     fontFamilyWrapper: "flex mx-[4px]", // .link-editor .font-family-wrapper
     select: "p-[6px] border-0 bg-[rgba(0,0,0,0.075)] rounded-[4px]", // .link-editor select
-    base: "flex absolute top-0 left-0 z-10 max-w-[400px] w-full opacity-0 bg-white shadow-lg rounded-b-lg transition-opacity duration-500 will-change-transform", // .link-editor
     // button: 'w-5 h-5 inline-block p-1.5 rounded-lg cursor-pointer mx-0.5', // .link-editor .button
     buttonHovered: "w-5 h-5 inline-block bg-gray-200", // .link-editor .button.hovered
     icon: "bg-contain inline-block h-5 w-5 align-middle", // .link-editor .button i, .actions i
@@ -441,13 +445,13 @@ const theme = {
     ul: {
       base: "p-0 list-none m-0 rounded-[8px] max-h-[200px] overflow-y-scroll scrollbar-none", // .typeahead-popover ul
       li: {
-        base: "m-0 min-w-[180px] text-[14px] outline-none cursor-pointer rounded-[8px]", // .typeahead-popover ul li
-        selected: "bg-[#eee]", // .typeahead-popover ul li.selected
-        item: "mx-[8px] p-[8px] text-[#050505] cursor-pointer leading-[16px] text-[15px] flex items-center shrink-0 bg-white rounded-[8px] border-0",
+        base: "m-0 min-w-[180px] text-[14px] outline-none cursor-pointer rounded-[8px] hover:bg-grey-200", // .typeahead-popover ul li
+        selected: "bg-grey-200", // .typeahead-popover ul li.selected
+        item: "mx-[8px] p-[8px] text-[#050505] cursor-pointer leading-[16px] text-[15px] flex items-center shrink-0 rounded-[8px] border-0",
         active: "flex w-[20px] h-[20px] bg-contain", // .typeahead-popover li.active
         firstChild: "rounded-t-[8px]", // .typeahead-popover li:first-child
         lastChild: "rounded-b-[8px]", // .typeahead-popover li:last-child
-        hover: "bg-[#eee]", // .typeahead-popover li:hover
+        hover: "bg-grey-200", // .typeahead-popover li:hover
         text: "flex items-center leading-[20px] grow min-w-[150px]", // .typeahead-popover li .text
         icon: "flex w-[20px] h-[20px] select-none mr-[8px] leading-[16px] bg-contain bg-no-repeat bg-center", // .typeahead-popover li .icon
       },
@@ -496,6 +500,10 @@ const theme = {
   },
   stickyNote: {
     base: "relative block cursor-move text-left w-[120px] m-6 p-[20px] border border-[#e8e8e8] font-[Reenie_Beanie] text-[24px] rounded-br-[60px]", //.sticky-note
+    contentEditable:
+      "min-h-[20px] border-0 resize-none cursor-text text-[24px] caret-black block relative tab-[1] outline-none p-[10px] select-text whitespace-pre-wrap break-words", // .StickyNode__contentEditable
+    placeholder:
+      "text-[24px] text-gray-500 overflow-hidden absolute truncate top-[30px] left-[20px] w-[120px] select-none whitespace-nowrap inline-block pointer-events-none", // .StickyNode__placeholder
     after:
       "absolute z-[-1] right-0 bottom-[20px] w-[120px] h-[25px] bg-black/20 shadow-[2px_15px_5px_rgba(0,0,0,0.4)] transform -scale-x-100", // .sticky-note:after
     yellow:
@@ -551,7 +559,7 @@ const theme = {
   },
   draggableBlockMenu: {
     base: "rounded-md p-0.5 cursor-grab opacity-0 absolute left-0 top-0 will-change-transform hover:bg-gray-200", // .draggable-block-menu
-    icon: 'w-4 h-4 opacity-30 bg-[url(/images/icons/draggable-block-menu.svg)]', // .draggable-block-menu .icon
+    icon: "w-4 h-4 opacity-30 bg-[url(/images/icons/draggable-block-menu.svg)]", // .draggable-block-menu .icon
     active: "cursor-grabbing", // .draggable-block-menu:active
   },
   draggableBlockTargetLine: {

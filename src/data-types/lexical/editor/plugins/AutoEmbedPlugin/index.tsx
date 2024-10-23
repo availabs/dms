@@ -174,7 +174,7 @@ function AutoEmbedMenuItem({
     <li
       key={option.key}
       tabIndex={-1}
-      className={className}
+      className={`${theme.typeaheadPopover.ul.li.base} ${className}`}
       ref={option.setRefElement}
       role="option"
       aria-selected={isSelected}
@@ -199,7 +199,7 @@ function AutoEmbedMenu({
 }) {
   return (
     <div className={`${theme.typeaheadPopover.base}` || "typeahead-popover"}>
-      <ul>
+      <ul className={theme.typeaheadPopover.ul.base}>
         {options.map((option: AutoEmbedOption, i: number) => (
           <AutoEmbedMenuItem
             index={i}

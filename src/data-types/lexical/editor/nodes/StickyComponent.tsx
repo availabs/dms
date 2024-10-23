@@ -234,7 +234,7 @@ export default function StickyComponent({
           className={`${theme.stickyNote.color}` || "color"}
           aria-label="Change sticky note color"
           title="Color">
-          <i className="bucket" />
+          <i className={theme.icon.bucket || "bucket"} />
         </button>
         <LexicalNestedComposer
           initialEditor={caption}
@@ -250,10 +250,10 @@ export default function StickyComponent({
           )}
           <PlainTextPlugin
             contentEditable={
-              <ContentEditable className="StickyNode__contentEditable" />
+              <ContentEditable className={theme.stickyNote.contentEditable || "StickyNode__contentEditable"} />
             }
             placeholder={
-              <Placeholder className="StickyNode__placeholder">
+              <Placeholder className={theme.stickyNote.placeholder || "StickyNode__placeholder"}>
                 Whats up?
               </Placeholder>
             }

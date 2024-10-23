@@ -88,13 +88,13 @@ function ComponentPickerMenuItem({
 }) {
     let className = theme.typeaheadPopover.ul.li.item || 'item';
     if (isSelected) {
-        className += ` ${theme.typeaheadPopover.ul.li.selected}` || ' selected';
+      className += ` ${theme.typeaheadPopover.ul.li.selected}` || ' selected';
     }
     return (
         <li
             key={option.key}
             tabIndex={-1}
-            className={className}
+            className={`${className} ${theme.typeaheadPopover.ul.li.base}`}
             ref={option.setRefElement}
             role="option"
             aria-selected={isSelected}
