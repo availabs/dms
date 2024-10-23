@@ -154,7 +154,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
 
     // render form selector if no config is passed.
     if(!format?.config) return (
-        <div className={'p-1 flex'}>
+        <div className={'p-1'}>
             Form data not available. Please make a selection:
             <FormsSelector siteType={siteType} apiLoad={apiLoad} app={pageFormat?.app} format={format} setFormat={setFormat} formatFromProps={formatFromProps} />
         </div>
@@ -162,6 +162,10 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
 
     return (
         <div className={'w-full h-full'}>
+            {
+                showChangeFormatModal ?
+                    <FormsSelector siteType={siteType} apiLoad={apiLoad} app={pageFormat?.app} format={format} setFormat={setFormat} formatFromProps={formatFromProps} /> : null
+            }
             {
                 isEdit &&
                 <div className={'flex items-center'}>
@@ -219,11 +223,6 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
                         </div>
                     </div>
                 </div>
-            }
-
-            {
-                showChangeFormatModal ?
-                    <FormsSelector siteType={siteType} apiLoad={apiLoad} app={pageFormat?.app} format={format} setFormat={setFormat} formatFromProps={formatFromProps} /> : null
             }
 
             <RenderFilters attributes={attributes} filters={filters} setFilters={setFilters} apiLoad={apiLoad}
