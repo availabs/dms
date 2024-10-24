@@ -44,7 +44,7 @@ const TableView = ({
                             onChange={() => {
                             }}
                             size={1}
-                            format={{app: item.app, type: item.doc_type, config: item.config}}
+                            format={{app: item.app, type: item.doc_type, doc_type: item.doc_type, config: item.config}}
                             apiLoad={apiLoad}
                             apiUpdate={apiUpdate}
                             value={JSON.stringify({

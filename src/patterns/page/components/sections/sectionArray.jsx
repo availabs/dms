@@ -182,7 +182,7 @@ const handlePaste = async (e, setKey, value, onChange, ) => {
     }
 }
 
-function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, onRemove, siteType, apiLoad, format}) {
+function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, onRemove, siteType, apiLoad, apiUpdate, format}) {
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     let sectionTitleCondition = value?.['title'] 
     let {theme} = React.useContext(CMSContext) || {}
@@ -375,6 +375,7 @@ function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, o
                     size={size}
                     siteType={siteType}
                     apiLoad={apiLoad}
+                    apiUpdate={apiUpdate}
                     pageFormat={format}
                 />
             </div>
@@ -382,7 +383,7 @@ function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, o
     )
 }
 
-function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove, siteType, apiLoad, format}) {
+function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove, siteType, apiLoad, apiUpdate, format}) {
     let [referenceElement, setReferenceElement] = useState()
     let [popperElement, setPopperElement] = useState()
     let { styles, attributes:popperAttributes } = usePopper(referenceElement, popperElement)
@@ -403,7 +404,7 @@ function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove, si
     let showEditIcons = edit && typeof onEdit === 'function' && !isTemplateSectionCondition
 
     const element = React.useMemo(() => {
-        return <ElementComp value={value?.['element']} siteType={siteType} apiLoad={apiLoad} pageFormat={format}/>
+        return <ElementComp value={value?.['element']} siteType={siteType} apiLoad={apiLoad} apiUpdate={apiUpdate} pageFormat={format}/>
     }, 
     [value])
     if(!value?.element?.['element-type'] && !value?.element?.['element-data']) return null;
@@ -667,7 +668,7 @@ const ScrollToHashElement = () => {
     return null;
 };
 
-const Edit = ({Component, value, onChange, attr, full_width = false, siteType, apiLoad, format, ...rest }) => {
+const Edit = ({Component, value, onChange, attr, full_width = false, siteType, apiLoad, apiUpdate, format, ...rest }) => {
     // console.log('.............', rest, attr, value)
     if (!value || !value.map) { 
         value = []
@@ -801,6 +802,7 @@ const Edit = ({Component, value, onChange, attr, full_width = false, siteType, a
                                 i={i}
                                 siteType={siteType}
                                 apiLoad={apiLoad}
+                                apiUpdate={apiUpdate}
                                 format={format}
                             />
                             : ''
@@ -818,6 +820,7 @@ const Edit = ({Component, value, onChange, attr, full_width = false, siteType, a
                                 addAbove={() => setEditIndex(i)}
                                 siteType={siteType}
                                 apiLoad={apiLoad}
+                                apiUpdate={apiUpdate}
                                 format={format}
                             /> : v?.status?.length > 1 ? <RenderError data={v} /> : ''}
 
@@ -835,7 +838,7 @@ const Edit = ({Component, value, onChange, attr, full_width = false, siteType, a
     )
 }
 
-const View = ({Component, value, attr, full_width, siteType, apiLoad, format}) => {
+const View = ({Component, value, attr, full_width, siteType, apiLoad, apiUpdate, format}) => {
     if (!value || !value.map) { return '' }
     const { baseUrl, user, theme } = React.useContext(CMSContext) || {}
 
@@ -883,6 +886,7 @@ const View = ({Component, value, attr, full_width, siteType, apiLoad, format}) =
                                     value={v}
                                     siteType={siteType}
                                     apiLoad={apiLoad}
+                                    apiUpdate={apiUpdate}
                                     format={format}
                                 />
                             </div>

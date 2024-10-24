@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect }from 'react'
 import RenderColumnControls from "./components/RenderColumnControls";
 import RenderFilterControls from "./components/RenderFilterControls";
+import RenderGroupControls from "./components/RenderGroupControls";
 import {RenderSimple} from "./components/SimpleSpreadsheet";
 import {RenderPagination} from "./components/RenderPagination";
 import {isJson, getLength, getData, convertToUrlParams} from "./utils";
@@ -24,6 +25,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     const [newItem, setNewItem] = useState({})
     const [orderBy, setOrderBy] = useState(cachedData.orderBy || {});
     const [filters, setFilters] = useState(cachedData.filters || []);
+    const [groupBy, setGroupBy] = useState(cachedData.groupBy || []);
     const [allowEditInView, setAllowEditInView] = useState(cachedData.allowEditInView);
     const [currentPage, setCurrentPage] = useState(0);
     const [actionUrls, setActionUrls] = useState(cachedData.actionUrls || {viewUrl: '', editUrl: ''});
@@ -62,8 +64,10 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
             if(data?.length || !format?.config) return;
             // init stuff
             setLoading(true)
-            const length = await getLength({format, apiLoad, filters});
-            const d = await getData({format, apiLoad, currentPage, pageSize, length, orderBy, filters});
+            const length = await getLength({format, apiLoad, filters, groupBy});
+            const d = await getData({
+                format, apiLoad, currentPage, pageSize, length, orderBy, filters, groupBy, visibleAttributes
+            });
             setData(d);
             setLength(length);
             !visibleAttributes?.length && setVisibleAttributes((attributes || []).slice(0, 5).map(attr => attr.name));
@@ -80,8 +84,10 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
         async function load() {
             if(!format?.config) return;
             setLoading(true)
-            const length = await getLength({format, apiLoad, filters});
-            const data = await getData({format, apiLoad, currentPage, pageSize, length, orderBy, filters});
+            const length = await getLength({format, apiLoad, filters, groupBy});
+            const data = await getData({
+                format, apiLoad, currentPage, pageSize, length, orderBy, filters, groupBy, visibleAttributes
+            });
             setLength(length);
             setData(data);
             setHasMore((currentPage * pageSize + pageSize) < length)
@@ -89,13 +95,15 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
         }
 
         load()
-    }, [format, orderBy, filters]);
+    }, [format, orderBy, filters, groupBy, visibleAttributes]);
 
     useEffect(() => {
         const observer = new IntersectionObserver(
             async (entries) => {
                 if (entries[0].isIntersecting && hasMore) {
-                    const data = await getData({format, apiLoad, currentPage: currentPage+1, pageSize, length, orderBy, filters});
+                    const data = await getData({
+                        format, apiLoad, currentPage: currentPage+1, pageSize, length, orderBy, filters, groupBy, visibleAttributes
+                    });
                     setCurrentPage(currentPage+1)
                     setData(prevData => [...prevData, ...data])
                     setHasMore((currentPage * pageSize + pageSize) < length)
@@ -117,8 +125,8 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     useEffect(() => {
         if (!isEdit) return;
 
-        onChange(JSON.stringify({visibleAttributes, pageSize, attributes, orderBy, colSizes, filters, allowEditInView, format, actionUrls}));
-    }, [visibleAttributes, attributes, orderBy, colSizes, filters, allowEditInView, format, actionUrls])
+        onChange(JSON.stringify({visibleAttributes, pageSize, attributes, orderBy, colSizes, filters, groupBy, allowEditInView, format, actionUrls}));
+    }, [visibleAttributes, attributes, orderBy, colSizes, filters, groupBy, allowEditInView, format, actionUrls])
     // =========================================== saving settings end =================================================
 
     // =========================================== filters 2/2 begin ===================================================
@@ -126,7 +134,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
         const url = `?${convertToUrlParams(filters, filterValueDelimiter)}`;
         navigate(url)
     }, [filters]);
-    // =========================================== filters 2/2 end ===================================================
+    // =========================================== filters 2/2 end =====================================================
 
     // =========================================== util fns begin ======================================================
     const updateItem = (value, attribute, d) => {
@@ -176,6 +184,9 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
                                           filters={filters} setFilters={setFilters} delimiter={filterValueDelimiter}
                                           navigate={navigate}
                     />
+                    <RenderGroupControls attributes={attributes} visibleAttributes={visibleAttributes}
+                                          groupBy={groupBy} setGroupBy={setGroupBy}
+                    />
 
                     <div>
                         <div
@@ -186,20 +197,6 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
                             <RenderSwitch
                                 size={'small'}
                                 enabled={allowEditInView}
-                                setEnabled={() => {}}
-                            />
-                        </div>
-                    </div>
-
-                    <div>
-                        <div
-                             className={`inline-flex w-full justify-center items-center rounded-md px-1.5 py-1 text-sm font-regular text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 bg-white hover:bg-gray-50 cursor-pointer`}
-                             onClick={() => setShowChangeFormatModal(!showChangeFormatModal)}
-                        >
-                            <span className={'flex-1 select-none mr-1'}>show set format modal </span>
-                            <RenderSwitch
-                                size={'small'}
-                                enabled={showChangeFormatModal}
                                 setEnabled={() => {}}
                             />
                         </div>
@@ -268,6 +265,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
     const [colSizes, setColSizes] = useState(cachedData.colSizes || {});
     const [orderBy, setOrderBy] = useState(cachedData.orderBy || {});
     const [filters, setFilters] = useState(cachedData.filters || []);
+    const groupBy = cachedData.groupBy;
     const [actionUrls, setActionUrls] = useState(cachedData.actionUrls || {viewUrl: '', editUrl: ''});
 
     const [newItem, setNewItem] = useState({})
@@ -311,8 +309,10 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
             if(data?.length || !format.config) return;
             // init stuff
             setLoading(true)
-            const length = await getLength({format, apiLoad, filters});
-            const d = await getData({format, apiLoad, currentPage, pageSize, length, orderBy, filters});
+            const length = await getLength({format, apiLoad, filters, groupBy});
+            const d = await getData({
+                format, apiLoad, currentPage, pageSize, length, orderBy, filters, groupBy, visibleAttributes
+            });
             setData(d);
             setLength(length);
             setLoading(false)
@@ -328,8 +328,10 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
         async function load() {
             if(!format?.config) return;
             setLoading(true)
-            const length = await getLength({format, apiLoad, filters});
-            const data = await getData({format, apiLoad, currentPage, pageSize, length, orderBy, filters});
+            const length = await getLength({format, apiLoad, filters, groupBy});
+            const data = await getData({
+                format, apiLoad, currentPage, pageSize, length, orderBy, filters, groupBy, visibleAttributes
+            });
             setLength(length);
             setData(data);
             setHasMore((currentPage * pageSize + pageSize) < length)
@@ -343,7 +345,9 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
         const observer = new IntersectionObserver(
             async (entries) => {
                 if (entries[0].isIntersecting && hasMore) {
-                    const data = await getData({format, apiLoad, currentPage: currentPage+1, pageSize, length, orderBy, filters});
+                    const data = await getData({
+                        format, apiLoad, currentPage: currentPage+1, pageSize, length, orderBy, filters, groupBy, visibleAttributes
+                    });
                     setCurrentPage(currentPage+1)
                     setData(prevData => [...prevData, ...data])
                     setHasMore((currentPage * pageSize + pageSize) < length)

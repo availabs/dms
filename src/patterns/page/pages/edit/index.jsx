@@ -117,6 +117,7 @@ function PageEdit ({
                 attributes={sectionAttr}
                 siteType={siteType}
                 apiLoad={isDynamicPage ? apiLoad : undefined}
+                apiUpdate={isDynamicPage ? apiUpdate : undefined}
                 format={isDynamicPage ? format : undefined}
               />
             </div>

@@ -123,6 +123,8 @@ const validate = ({value, required, options, name}) => {
     // if (!(requiredValidation && optionsValidation)) console.log('----', name, requiredValidation, optionsValidation, options, value)
     return requiredValidation && optionsValidation;
 }
+
+const DisplayCalculatedCell = ({value, className}) => <div className={className}>{value}</div>
 const RenderCell = ({
                         attribute, i, item, updateItem, width, onPaste,
                         isFrozen, isSelected, isSelecting, editing, edge, loading, allowEdit,
@@ -130,7 +132,7 @@ const RenderCell = ({
     // const [editing, setEditing] = useState(false);
     const [newItem, setNewItem] = useState(item);
     // const Comp = DataTypes[attribute.type]?.[isSelecting ? 'ViewComp' : 'EditComp'];
-    const Comp = loading ? LoadingComp : DataTypes[attribute.type]?.[editing && allowEdit ? 'EditComp' : 'ViewComp'];
+    const Comp = loading ? LoadingComp : (DataTypes[attribute.type]?.[editing && allowEdit ? 'EditComp' : 'ViewComp'] || DisplayCalculatedCell);
     const selectionColor = '#2100f8'
     const selectionEdgeClassNames = {
         top: {borderTopColor: selectionColor},
@@ -685,7 +687,6 @@ export const RenderSimple = ({
                         visibleAttributes.map(va => attributes.find(attr => attr.name === va))
                             .filter(a => a)
                             .map((attribute, attrI) => {
-                                const Comp = DataTypes[attribute?.type || 'text']?.EditComp;
                                 return (
                                     <div
                                         className={`flex border bg-gray-50`}
@@ -723,7 +724,7 @@ export const RenderSimple = ({
                                 visibleAttributes.map(va => attributes.find(attr => attr.name === va))
                                     .filter(a => a)
                                     .map((attribute, attrI) => {
-                                        const Comp = DataTypes[attribute?.type || 'text']?.EditComp;
+                                        const Comp = DataTypes[attribute?.type || 'text']?.EditComp || DisplayCalculatedCell;
                                         return (
                                             <div
                                                 className={`flex border`}

@@ -10,7 +10,8 @@ const fieldTypes = {
     'select': 'dropdown',
     'multiselect': 'dropdown (multiple choice)',
     'lexical': 'rich text',
-    'radio': 'radio'
+    'radio': 'radio',
+    'calculated': 'calculated' // can't be inputted, always calculated. don't use data->> to access.
 }
 
 const behaviourTypes = {
