@@ -274,7 +274,7 @@ function BlockFormatDropDown({
     <DropDown
       disabled={disabled}
       buttonClassName={`${theme.toolbar.toolbarItem.base} block-controls` || "toolbar-item block-controls"}
-      buttonIconClassName={`${theme.dropdown.item.icon} block-type ${theme.icon[blockType]}` || 'icon block-type ' + blockType}
+      buttonIconClassName={`${theme.toolbar.toolbarItem.icon} block-type ${theme.icon[blockType]}` || 'icon block-type ' + blockType}
       buttonLabel={blockTypeToBlockName[blockType]}
       buttonAriaLabel="Formatting options for text style">
       <DropDownItem

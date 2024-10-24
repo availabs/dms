@@ -181,7 +181,7 @@ function AutoEmbedMenuItem({
       id={'typeahead-item-' + index}
       onMouseEnter={onMouseEnter}
       onClick={onClick}>
-      <span className={theme.dropdown.item.text || "text"}>{option.title}</span>
+      <span className={theme.typeaheadPopover.ul.li.text || "text"}>{option.title}</span>
     </li>
   );
 }

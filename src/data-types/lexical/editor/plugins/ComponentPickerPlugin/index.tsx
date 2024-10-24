@@ -88,7 +88,7 @@ function ComponentPickerMenuItem({
 }) {
     let className = theme.typeaheadPopover.ul.li.item || 'item';
     if (isSelected) {
-      className += ` ${theme.typeaheadPopover.ul.li.selected}` || ' selected';
+      className += (` ${theme.typeaheadPopover.ul.li.selected}` || ' selected');
     }
     return (
         <li
@@ -102,7 +102,7 @@ function ComponentPickerMenuItem({
             onMouseEnter={onMouseEnter}
             onClick={onClick}>
             {option.icon}
-            <span className={theme.dropdown.item.text || "text"}>{option.title}</span>
+            <span className={theme.typeaheadPopover.ul.li.text || "text"}>{option.title}</span>
         </li>
     );
 }

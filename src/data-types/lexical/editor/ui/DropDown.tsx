@@ -236,7 +236,7 @@ export default function DropDown({
         ref={buttonRef}>
         {buttonIconClassName && <span className={buttonIconClassName} />}
         {buttonLabel && (
-          <span className={`${theme.dropdown.item.base} display-none` || "text dropdown-button-text"}>{buttonLabel}</span>
+          <span className={`${theme.toolbar.toolbarItem.text} display-none` || "text dropdown-button-text"}>{buttonLabel}</span>
         )}
         <i className={`${theme.iconChevronDown}` || "chevron-down"} />
       </button>

@@ -298,13 +298,13 @@ const theme = {
     },
     div: {
       linkEdit:
-        "bg-[url(/images/icons/pencil-fill.svg)] bg-cover w-[35px] align-middle absolute right-[30px] top-0 bottom-0 cursor-pointer", //.link-editor div.link-edit
+        "bg-[url(/images/icons/pencil-fill.svg)] bg-[length:16px] bg-center bg-no-repeat w-[35px] align-middle absolute right-[30px] top-0 bottom-0 cursor-pointer", //.link-editor div.link-edit
       linkTrash:
-        "bg-[url(/images/icons/trash.svg)] bg-cover w-[35px] align-middle absolute right-0 top-0 bottom-0 cursor-pointer", //.link-editor div.link-trash
+        "bg-[url(/images/icons/trash.svg)] bg-[length:16px] bg-center bg-no-repeat w-[35px] align-middle absolute right-0 top-0 bottom-0 cursor-pointer", //.link-editor div.link-trash
       linkCancel:
-        "bg-[url(/images/icons/close.svg)] bg-cover w-[35px] align-middle absolute right-0 top-0 bottom-0 cursor-pointer mr-[28px]", //.link-editor div.link-cancel
+        "bg-[url(/images/icons/close.svg)] bg-[length:16px] bg-center bg-no-repeat w-[35px] align-middle absolute right-0 top-0 bottom-0 cursor-pointer mr-[28px]", //.link-editor div.link-cancel
       linkConfirm:
-        "bg-[url(/images/icons/success-alt.svg)] bg-cover w-[35px] align-middle absolute right-0 top-0 bottom-0 cursor-pointer mr-[2px]", //link-editor div.link-confirm
+        "bg-[url(/images/icons/success-alt.svg)] bg-[length:16px] bg-center bg-no-repeat w-[35px] align-middle absolute right-0 top-0 bottom-0 cursor-pointer mr-[2px]", //link-editor div.link-confirm
     },
     fontSizeWrapper: "flex mx-[4px]", // .link-editor .font-size-wrapper,
     fontFamilyWrapper: "flex mx-[4px]", // .link-editor .font-family-wrapper
@@ -471,7 +471,7 @@ const theme = {
   toolbar: {
     base: "flex flex-wrap h-fit overflow-hidden mb[1px] p-1 rounded-tl-lg rounded-tr-lg sticky top-0 z-20 items-center", // .toolbar
     toolbarItem: {
-      base: "border-0 flex bg-none rounded-lg p-2 cursor-pointer align-middle flex-shrink-0 items-center justify-between", // .toolbar .toolbar-item
+      base: "border-0 flex bg-none rounded-lg p-2 cursor-pointer align-middle flex-shrink-0 items-center justify-between hover:bg-gray-200", // .toolbar .toolbar-item
       disabled: {
         base: "cursor-not-allowed", // .toolbar .toolbar-item:disabled
         icon: "opacity-20", // .toolbar .toolbar-item:disabled .icon,

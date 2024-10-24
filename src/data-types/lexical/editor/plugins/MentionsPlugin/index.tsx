@@ -601,7 +601,7 @@ function MentionsTypeaheadMenuItem({
       onMouseEnter={onMouseEnter}
       onClick={onClick}>
       {option.picture}
-      <span className={theme.dropdown.item.text || "text"}>{option.name}</span>
+      <span className={theme.typeaheadPopover.ul.li.text || "text"}>{option.name}</span>
     </li>
   );
 }
