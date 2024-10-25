@@ -447,7 +447,7 @@ const theme = {
       li: {
         base: "m-0 min-w-[180px] text-[14px] outline-none cursor-pointer rounded-[8px] hover:bg-grey-200", // .typeahead-popover ul li
         selected: "bg-grey-200", // .typeahead-popover ul li.selected
-        item: "mx-[8px] p-[8px] text-[#050505] cursor-pointer leading-[16px] text-[15px] flex items-center shrink-0 rounded-[8px] border-0",
+        item: "p-[8px] text-[#050505] cursor-pointer leading-[16px] text-[15px] flex items-center shrink-0 rounded-[8px] border-0",
         active: "flex w-[20px] h-[20px] bg-contain", // .typeahead-popover li.active
         firstChild: "rounded-t-[8px]", // .typeahead-popover li:first-child
         lastChild: "rounded-b-[8px]", // .typeahead-popover li:last-child
@@ -456,6 +456,7 @@ const theme = {
         icon: "flex w-[20px] h-[20px] select-none mr-[8px] leading-[16px] bg-contain bg-no-repeat bg-center", // .typeahead-popover li .icon
       },
     },
+    li: 'm-0 mx-2 p-2 text-[#050505] cursor-pointer leading-4 text-[15px] flex items-center flex-row flex-shrink-0 bg-white rounded-lg border-0'
   },
   debugTimetravelPanel: {
     base: "overflow-hidden p-0 pb-2.5 m-auto flex", // .debug-timetravel-panel
