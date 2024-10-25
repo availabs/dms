@@ -166,7 +166,7 @@ function AutoEmbedMenuItem({
   onMouseEnter: () => void;
   option: AutoEmbedOption;
 }) {
-  let className = theme.typeaheadPopover.ul.li.item || 'item';
+  let className = `${theme.typeaheadPopover.ul.li.item}` || 'item';
   if (isSelected) {
     className += ` ${theme.typeaheadPopover.ul.li.selected}` || ' selected';
   }
@@ -199,7 +199,7 @@ function AutoEmbedMenu({
 }) {
   return (
     <div className={`${theme.typeaheadPopover.base}` || "typeahead-popover"}>
-      <ul className={theme.typeaheadPopover.ul.base}>
+      <ul>
         {options.map((option: AutoEmbedOption, i: number) => (
           <AutoEmbedMenuItem
             index={i}

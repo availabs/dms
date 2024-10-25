@@ -445,13 +445,13 @@ const theme = {
     ul: {
       base: "p-0 list-none m-0 rounded-[8px] max-h-[200px] overflow-y-scroll scrollbar-none", // .typeahead-popover ul
       li: {
-        base: "m-0 min-w-[180px] text-[14px] outline-none cursor-pointer rounded-[8px] hover:bg-grey-200", // .typeahead-popover ul li
-        selected: "bg-grey-200", // .typeahead-popover ul li.selected
+        base: "m-0 min-w-[180px] text-[14px] outline-none cursor-pointer rounded-[8px] hover:bg-gray-200", // .typeahead-popover ul li
+        selected: "bg-gray-200", // .typeahead-popover ul li.selected
         item: "p-[8px] text-[#050505] cursor-pointer leading-[16px] text-[15px] flex items-center shrink-0 rounded-[8px] border-0",
         active: "flex w-[20px] h-[20px] bg-contain", // .typeahead-popover li.active
         firstChild: "rounded-t-[8px]", // .typeahead-popover li:first-child
         lastChild: "rounded-b-[8px]", // .typeahead-popover li:last-child
-        hover: "bg-grey-200", // .typeahead-popover li:hover
+        hover: "bg-gray-200", // .typeahead-popover li:hover
         text: "flex items-center leading-[20px] grow min-w-[150px]", // .typeahead-popover li .text
         icon: "flex w-[20px] h-[20px] select-none mr-[8px] leading-[16px] bg-contain bg-no-repeat bg-center", // .typeahead-popover li .icon
       },

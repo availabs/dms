@@ -86,7 +86,7 @@ function ComponentPickerMenuItem({
     onMouseEnter: () => void;
     option: ComponentPickerOption;
 }) {
-    let className = theme.typeaheadPopover.ul.li.item || 'item';
+    let className = `${theme.typeaheadPopover.ul.li.item}` || 'item';
     if (isSelected) {
       className += (` ${theme.typeaheadPopover.ul.li.selected}` || ' selected');
     }
