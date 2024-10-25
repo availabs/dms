@@ -86,7 +86,7 @@ function LazyImage({
   useSuspenseImage(src);
   return (
     <img
-      className={className || undefined}
+      className={`${className} cursor-default` || undefined}
       src={src}
       alt={altText}
       ref={imageRef}
@@ -387,7 +387,7 @@ export default function InlineImageComponent({
   return (
     <Suspense fallback={null}>
       <>
-        <div draggable={draggable}>
+        <div draggable={draggable} className={`${theme.editor.inlineImage.base}` }>
           <button
             className={'image-edit-button'}
             ref={buttonRef}
@@ -405,7 +405,7 @@ export default function InlineImageComponent({
           <LazyImage
             className={
               isFocused
-                ? `focused ${$isNodeSelection(selection) ? 'draggable' : ''}`
+                ? `${theme.editor.inlineImage.img.focused} ${$isNodeSelection(selection) ? `${theme.editor.inlineImage.img.draggable.base}` : ''}`
                 : null
             }
             src={src}

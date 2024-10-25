@@ -150,7 +150,7 @@ const ELEMENT_FORMAT_OPTIONS: {
 } = {
   center: {
     icon: 'centerAlign',
-    iconRTL: 'right-align',
+    iconRTL: 'rightAlign',
     name: 'Center Align',
   },
   end: {
@@ -160,22 +160,22 @@ const ELEMENT_FORMAT_OPTIONS: {
   },
   justify: {
     icon: 'justifyAlign',
-    iconRTL: 'justify-align',
+    iconRTL: 'justifyAlign',
     name: 'Justify Align',
   },
   left: {
     icon: 'leftAlign',
-    iconRTL: 'left-align',
+    iconRTL: 'leftAlign',
     name: 'Left Align',
   },
   right: {
     icon: 'rightAlign',
-    iconRTL: 'left-align',
+    iconRTL: 'leftAlign',
     name: 'Right Align',
   },
   start: {
     icon: 'leftAlign',
-    iconRTL: 'right-align',
+    iconRTL: 'rightAlign',
     name: 'Start Align',
   },
 };
