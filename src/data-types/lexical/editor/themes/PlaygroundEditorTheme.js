@@ -532,7 +532,7 @@ const theme = {
     focused: "outline-2 outline-solid outline-[#3c84f4]", // .editor-equation.focused
   },
   buttonItemIcon: "opacity-60", // button.item i
-  dropdownItemActive: "bg-[rgba(223,232,250,0.3)]", // button.item.dropdown-item-active
+  dropdownItemActive: "bg-[#dfe8fa4d]", // button.item.dropdown-item-active
   dropdownItemActiveIcon: "opacity-100", // button.item.dropdown-item-active i
   tableNodeContentEditable:
     "min-h-[20px] border-0 resize-none cursor-text block relative tab-size-1 outline-0 p-0 select-text text-[15px] whitespace-pre-wrap break-words z-3", //.TableNode__contentEditable

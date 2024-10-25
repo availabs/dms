@@ -182,7 +182,7 @@ const ELEMENT_FORMAT_OPTIONS: {
 };
 
 function dropDownActiveClass(active: boolean) {
-  if (active) return `${theme.dropdown.item.active} ${theme.dropdownItemActive}` || 'active dropdown-item-active';
+  if (active) return `${theme.dropdownItemActive}` || 'active dropdown-item-active';
   else return '';
 }
 
