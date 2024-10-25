@@ -149,32 +149,32 @@ const ELEMENT_FORMAT_OPTIONS: {
   };
 } = {
   center: {
-    icon: 'center-align',
+    icon: 'centerAlign',
     iconRTL: 'right-align',
     name: 'Center Align',
   },
   end: {
-    icon: 'right-align',
+    icon: 'rightAlign',
     iconRTL: 'left-align',
     name: 'End Align',
   },
   justify: {
-    icon: 'justify-align',
+    icon: 'justifyAlign',
     iconRTL: 'justify-align',
     name: 'Justify Align',
   },
   left: {
-    icon: 'left-align',
+    icon: 'leftAlign',
     iconRTL: 'left-align',
     name: 'Left Align',
   },
   right: {
-    icon: 'right-align',
+    icon: 'rightAlign',
     iconRTL: 'left-align',
     name: 'Right Align',
   },
   start: {
-    icon: 'left-align',
+    icon: 'leftAlign',
     iconRTL: 'right-align',
     name: 'Start Align',
   },
