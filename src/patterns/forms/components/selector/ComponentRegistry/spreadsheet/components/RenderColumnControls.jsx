@@ -1,6 +1,6 @@
 import RenderSwitch from "./Switch";
 import React, {useEffect, useRef, useState} from "react";
-import {ArrowDown, ChevronDownSquare} from "../../../../../../admin/ui/icons";
+import {ArrowDown} from "../../../../../ui/icons";
 
 export default function RenderColumnControls({
     attributes, setAttributes, visibleAttributes, setVisibleAttributes, groupBy, fn, setFn

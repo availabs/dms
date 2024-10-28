@@ -1,5 +1,5 @@
 import RenderSwitch from "./Switch";
-import {ArrowDown, Filter} from "../../../../../../admin/ui/icons";
+import {ArrowDown, Filter} from "../../../../../ui/icons";
 import {useRef, useState, useEffect} from "react";
 
 export default function RenderColumnControls({

@@ -1,5 +1,5 @@
 import RenderSwitch from "./Switch";
-import {ArrowDown, Filter} from "../../../../../../admin/ui/icons";
+import {ArrowDown, Group} from "../../../../../ui/icons";
 import {useRef, useState, useEffect} from "react";
 
 export default function RenderGroupControls({
@@ -8,7 +8,7 @@ export default function RenderGroupControls({
     const menuRef = useRef(null);
     const [search, setSearch] = useState();
     const [isOpen, setIsOpen] = useState(false);
-    const menuBtnId = 'menu-btn-filter-controls'
+    const menuBtnId = 'menu-btn-group-controls'
 
     // ================================================== close on outside click start =================================
     const handleClickOutside = (e) => {
@@ -58,7 +58,7 @@ export default function RenderGroupControls({
                                     }}
                                 >
                                     <div className={'h-4 w-4 m-1 cursor-pointer text-gray-800'}>
-                                        <Filter height={14} width={14} />
+                                        <Group height={14} width={14} />
                                     </div>
 
                                     <div className={'flex justify-between m-1 w-full'}>
