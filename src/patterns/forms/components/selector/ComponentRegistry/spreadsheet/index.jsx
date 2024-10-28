@@ -23,9 +23,12 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     const [visibleAttributes, setVisibleAttributes] = useState(cachedData.visibleAttributes || []);
     const [colSizes, setColSizes] = useState(cachedData.colSizes || {});
     const [newItem, setNewItem] = useState({})
+
     const [orderBy, setOrderBy] = useState(cachedData.orderBy || {});
     const [filters, setFilters] = useState(cachedData.filters || []);
     const [groupBy, setGroupBy] = useState(cachedData.groupBy || []);
+    const [fn, setFn] = useState(cachedData.fn || {});
+
     const [allowEditInView, setAllowEditInView] = useState(cachedData.allowEditInView);
     const [currentPage, setCurrentPage] = useState(0);
     const [actionUrls, setActionUrls] = useState(cachedData.actionUrls || {viewUrl: '', editUrl: ''});
@@ -66,7 +69,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
             setLoading(true)
             const length = await getLength({format, apiLoad, filters, groupBy});
             const d = await getData({
-                format, apiLoad, currentPage, pageSize, length, orderBy, filters, groupBy, visibleAttributes
+                format, apiLoad, currentPage, pageSize, length, orderBy, filters, groupBy, visibleAttributes, fn
             });
             setData(d);
             setLength(length);
@@ -86,7 +89,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
             setLoading(true)
             const length = await getLength({format, apiLoad, filters, groupBy});
             const data = await getData({
-                format, apiLoad, currentPage, pageSize, length, orderBy, filters, groupBy, visibleAttributes
+                format, apiLoad, currentPage, pageSize, length, orderBy, filters, groupBy, visibleAttributes, fn
             });
             setLength(length);
             setData(data);
@@ -95,14 +98,14 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
         }
 
         load()
-    }, [format, orderBy, filters, groupBy, visibleAttributes]);
+    }, [format, orderBy, filters, groupBy, visibleAttributes, fn]);
 
     useEffect(() => {
         const observer = new IntersectionObserver(
             async (entries) => {
                 if (entries[0].isIntersecting && hasMore) {
                     const data = await getData({
-                        format, apiLoad, currentPage: currentPage+1, pageSize, length, orderBy, filters, groupBy, visibleAttributes
+                        format, apiLoad, currentPage: currentPage+1, pageSize, length, orderBy, filters, groupBy, visibleAttributes, fn
                     });
                     setCurrentPage(currentPage+1)
                     setData(prevData => [...prevData, ...data])
@@ -125,8 +128,8 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     useEffect(() => {
         if (!isEdit) return;
 
-        onChange(JSON.stringify({visibleAttributes, pageSize, attributes, orderBy, colSizes, filters, groupBy, allowEditInView, format, actionUrls}));
-    }, [visibleAttributes, attributes, orderBy, colSizes, filters, groupBy, allowEditInView, format, actionUrls])
+        onChange(JSON.stringify({visibleAttributes, pageSize, attributes, orderBy, colSizes, filters, groupBy, fn, allowEditInView, format, actionUrls}));
+    }, [visibleAttributes, attributes, orderBy, colSizes, filters, groupBy, fn, allowEditInView, format, actionUrls])
     // =========================================== saving settings end =================================================
 
     // =========================================== filters 2/2 begin ===================================================
@@ -179,7 +182,8 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
                 <div className={'flex items-center'}>
                     <RenderColumnControls attributes={attributes} setAttributes={setAttributes}
                                           visibleAttributes={visibleAttributes}
-                                          setVisibleAttributes={setVisibleAttributes}/>
+                                          setVisibleAttributes={setVisibleAttributes} groupBy={groupBy}
+                                          fn={fn} setFn={setFn}/>
                     <RenderFilterControls attributes={attributes} visibleAttributes={visibleAttributes}
                                           filters={filters} setFilters={setFilters} delimiter={filterValueDelimiter}
                                           navigate={navigate}
@@ -265,7 +269,6 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
     const [colSizes, setColSizes] = useState(cachedData.colSizes || {});
     const [orderBy, setOrderBy] = useState(cachedData.orderBy || {});
     const [filters, setFilters] = useState(cachedData.filters || []);
-    const groupBy = cachedData.groupBy;
     const [actionUrls, setActionUrls] = useState(cachedData.actionUrls || {viewUrl: '', editUrl: ''});
 
     const [newItem, setNewItem] = useState({})
@@ -276,6 +279,8 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
 
     const attributes = cachedData.attributes;
     const visibleAttributes = cachedData.visibleAttributes || [];
+    const groupBy = cachedData.groupBy;
+    const fn = cachedData.fn;
     const allowEdit = cachedData.allowEditInView;
     const pageSize = 500// cachedData.pageSize || 5;
     const filterValueDelimiter = '|||'
@@ -311,7 +316,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
             setLoading(true)
             const length = await getLength({format, apiLoad, filters, groupBy});
             const d = await getData({
-                format, apiLoad, currentPage, pageSize, length, orderBy, filters, groupBy, visibleAttributes
+                format, apiLoad, currentPage, pageSize, length, orderBy, filters, groupBy, visibleAttributes, fn
             });
             setData(d);
             setLength(length);
@@ -330,7 +335,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
             setLoading(true)
             const length = await getLength({format, apiLoad, filters, groupBy});
             const data = await getData({
-                format, apiLoad, currentPage, pageSize, length, orderBy, filters, groupBy, visibleAttributes
+                format, apiLoad, currentPage, pageSize, length, orderBy, filters, groupBy, visibleAttributes, fn
             });
             setLength(length);
             setData(data);
@@ -346,7 +351,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
             async (entries) => {
                 if (entries[0].isIntersecting && hasMore) {
                     const data = await getData({
-                        format, apiLoad, currentPage: currentPage+1, pageSize, length, orderBy, filters, groupBy, visibleAttributes
+                        format, apiLoad, currentPage: currentPage+1, pageSize, length, orderBy, filters, groupBy, visibleAttributes, fn
                     });
                     setCurrentPage(currentPage+1)
                     setData(prevData => [...prevData, ...data])

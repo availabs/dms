@@ -1,9 +1,9 @@
 import RenderSwitch from "./Switch";
-import React, {useRef, useState} from "react";
+import React, {useEffect, useRef, useState} from "react";
 import {ArrowDown, ChevronDownSquare} from "../../../../../../admin/ui/icons";
 
 export default function RenderColumnControls({
-    attributes, setAttributes, visibleAttributes, setVisibleAttributes
+    attributes, setAttributes, visibleAttributes, setVisibleAttributes, groupBy, fn, setFn
                                             }) {
     const dragItem = useRef();
     const dragOverItem = useRef();
@@ -11,6 +11,27 @@ export default function RenderColumnControls({
     const [search, setSearch] = useState();
     const [isOpen, setIsOpen] = useState(false);
     const menuBtnId = 'menu-btn-column-controls'; // used to control isOpen on menu-btm click;
+    // ================================================== group by updates start =======================================
+    useEffect(() => {
+        // when entering/exiting group by mode, columns need to have appropriate fns applied.
+
+        if(!attributes.length) return; // attributes are not immediately available
+
+        if(groupBy.length){
+            // add fns
+            const newFns = visibleAttributes
+                .map(va => attributes.find(a => a.name === va))
+                .filter(a => a.type !== 'calculated' && a.display !== 'calculated' && !groupBy.includes(a.name)) // calculated and grouped columns need not have fns
+                .reduce((acc, a) => ({...acc, [a.name]: fn[a.name] || a.defaultFn || 'list'}) , {});
+
+            setFn(newFns);
+        }else if(!groupBy.length && Object.keys(fn).length){
+            // remove fns
+            setFn({});
+        }
+    }, [attributes, visibleAttributes, groupBy]);
+    // ================================================== group by updates end =========================================
+
     // ================================================== drag utils start =============================================
     const dragStart = (e, position) => {
         dragItem.current = position;
@@ -66,7 +87,7 @@ export default function RenderColumnControls({
             </div>
 
             <div ref={menuRef}
-                className={`${isOpen ? 'visible transition ease-in duration-200' : 'hidden transition ease-in duration-200'} absolute left-0 z-10 w-72 origin-top-left divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 transition focus:outline-none`}
+                className={`${isOpen ? 'visible transition ease-in duration-200' : 'hidden transition ease-in duration-200'} absolute left-0 z-10 w-96 origin-top-left divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 transition focus:outline-none`}
             >
                 <input className={'px-4 py-1 w-full rounded-md'} placeholder={'search...'}
                        onChange={e => {
@@ -96,18 +117,33 @@ export default function RenderColumnControls({
                                         </svg>
                                     </div>
 
-                                    <div className={'flex justify-between m-1 w-full cursor-pointer '}
-                                         onClick={() => !visibleAttributes.includes(attribute.name) ?
-                                             setVisibleAttributes([...visibleAttributes, attribute.name]) :
-                                             setVisibleAttributes(visibleAttributes.filter(attr => attr !== attribute.name))}
+                                    <div className={'grid grid-cols-3 m-1 w-full cursor-pointer'}
+                                         style={{gridTemplateColumns: '2fr 1fr 1fr'}}
+                                         // onClick={() => !visibleAttributes.includes(attribute.name) ?
+                                         //     setVisibleAttributes([...visibleAttributes, attribute.name]) :
+                                         //     setVisibleAttributes(visibleAttributes.filter(attr => attr !== attribute.name))}
                                     >
-                                        {attribute.display_name || attribute.name}
+                                        <label className={'place-self-stretch'}>{attribute.display_name || attribute.name}</label>
 
-                                        <RenderSwitch
-                                            id={attribute.name}
-                                            enabled={visibleAttributes.includes(attribute.name)}
-                                            setEnabled={() => {}}
-                                        />
+                                        <select
+                                            className={'p-0.5 rounded-md bg-white border h-fit'}
+                                            value={fn[attribute.name]}
+                                            onClick={e => setFn({...fn, [attribute.name]: e.target.value})}
+                                        >
+                                            {
+                                                visibleAttributes.includes(attribute.name) ?
+                                                    ['none', 'list', 'sum', 'count']
+                                                        .map(fnOption => <option key={fnOption} value={fnOption}>{fnOption}</option> ) : []
+                                            }
+                                        </select>
+                                        <div className={'justify-self-end'}>
+                                            <RenderSwitch
+                                                id={attribute.name}
+                                                enabled={visibleAttributes.includes(attribute.name)}
+                                                setEnabled={(value) => value ? setVisibleAttributes([...visibleAttributes, attribute.name]) :
+                                                    setVisibleAttributes(visibleAttributes.filter(attr => attr !== attribute.name))}
+                                            />
+                                        </div>
                                     </div>
                                 </div>
                         ))

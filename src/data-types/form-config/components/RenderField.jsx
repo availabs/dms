@@ -18,7 +18,8 @@ const behaviourTypes = {
     'data': 'Simple Data',
     'meta': 'Group-able/Meta',
     'fips': 'fips',
-    'geoid': 'geoid'
+    'geoid': 'geoid',
+    'calculated': 'calculated'
 }
 
 const defaultFnTypes = {
@@ -552,7 +553,7 @@ export const RenderField = ({i, theme, item, attribute, placeholder, className, 
                                 value={item.display}
                                 col={item.name}
                                 attr={'display'}
-                                options={behaviourTypes}
+                                options={item.type  === 'calculated' ? {'calculated': 'calculated'} : behaviourTypes} // don't rely on user selecting display. even if type is calculated, consider the column to be calculated.
                                 updateAttribute={updateAttribute}
                                 placeholder={'Please select behaviour type'}
                             />
