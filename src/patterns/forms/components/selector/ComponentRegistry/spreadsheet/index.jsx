@@ -254,7 +254,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
                     pageSize,
                     loading,
                     ...actionUrls,
-                    allowEdit: true
+                    allowEdit: !groupBy.length
                         }} />
             }
         </div>
@@ -427,7 +427,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
                             currentPage,
                             pageSize,
                             loading,
-                            allowEdit,
+                            allowEdit: groupBy.length ? false : allowEdit,
                             ...actionUrls
                         }} />
             }
