@@ -156,7 +156,7 @@ const ELEMENT_FORMAT_OPTIONS: {
   },
   end: {
     icon: 'rightAlign',
-    iconRTL: 'left-align',
+    iconRTL: 'leftAlign',
     name: 'End Align',
   },
   justify: {
@@ -417,9 +417,7 @@ function ElementFormatDropdown({
     <DropDown
       disabled={disabled}
       buttonLabel={formatOption.name}
-      buttonIconClassName={`${theme.actions.i.base} ${
-        isRTL ? formatOption.iconRTL : formatOption.icon
-      }`}
+      buttonIconClassName={`${theme.actions.i.base} mr-[8px] ${theme.icon[isRTL ? formatOption.iconRTL : formatOption.icon]}`}
       buttonClassName={`${theme.toolbar.toolbarItem.base} ${theme.toolbar.toolbarItem.spaced} alignment` || "toolbar-item spaced alignment"}
       buttonAriaLabel="Formatting options for text alignment">
       <DropDownItem
@@ -820,7 +818,7 @@ export default function ToolbarPlugin({
         }}
         title={IS_APPLE ? 'Redo (⌘Y)' : 'Redo (Ctrl+Y)'}
         type="button"
-        className={`${theme.toolbar.toolbarItem}` || "toolbar-item"}
+        className={`${theme.toolbar.toolbarItem.base  }` || "toolbar-item"}
         aria-label="Redo">
         <i className={`${theme.toolbar.toolbarItem.iconFormat} ${theme.i.redo}` || "format redo"} />
       </button>

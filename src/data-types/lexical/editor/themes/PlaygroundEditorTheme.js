@@ -493,7 +493,7 @@ const theme = {
     codeLanguage: "w-[150px]", // .toolbar .code-language
     chevronDownIcon: "mt-1 w-4 h-4 flex select-none", // .toolbar i.chevron-down
     chevronDownIconInside: "w-4 h-4 flex ml-6 mt-2.5 mr-2 pointer-events-none", //.toolbar i.chevron-down.inside
-    divider: "w-[1px] bg-[#eee] mx-1", // .toolbar .divider
+    divider: "w-[1px] bg-[#eee] mx-[4px] h-[35px]", // .toolbar .divider
   },
   stickyNoteContainer: {
     base: "absolute z-9 w-[120px] inline-block", //.sticky-note-container
