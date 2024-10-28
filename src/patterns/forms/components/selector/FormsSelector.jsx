@@ -50,41 +50,56 @@ const getForms = async ({app, siteType, apiLoad}) => {
     // there may be deleted patterns which are not in the site.patterns array. don't wanna show them :shrug:
     const existingPatterns = (siteData?.[0]?.data?.value?.patterns || []).map(p => p.id)
 
-    const config = getConfig({
+    const formPatternConfig = getConfig({
         app,
         type: 'pattern',
-        filter: {[`data->>'pattern_type'`]: ['form'], id: existingPatterns}
+        filter: {[`data->>'pattern_type'`]: ['forms'], id: existingPatterns}
     })
-    return await apiLoad(config);
+    const forms = await apiLoad(formPatternConfig); // these are the meta forms patterns holding sources.
+    const sources = forms.reduce((acc, form) => [...acc, ...(form.data.value.sources || [])] , []);
+    if(!sources.length) return;
+
+    const sourceIds = sources.map(source => source.id);
+    const sourceRef = (sources[0]?.ref || '').split('+');
+
+    const sourceConfig = getConfig({
+        app,
+        type: sourceRef[1],
+        filter: {id: sourceIds}
+    })
+    return await apiLoad(sourceConfig);
 
 }
 
 
 export const FormsSelector = ({app, siteType, formatFromProps, format, setFormat, apiLoad}) => {
     const [forms, setForms] = useState([]);
-    console.log('props passed', app, siteType, formatFromProps, format)
+
     if(formatFromProps?.config) return null;
 
     useEffect(() => {
         getForms({app, siteType, apiLoad}).then(data => setForms((data || [])));
     }, []);
-    console.log('forms', format)
-    return (
-        <select
-            className={'p-1 w-full bg-white border'}
-            value={JSON.stringify(format)}
-            onChange={e => {
-                console.log('val', e.target.value)
-                const tmpFormat = JSON.parse(e.target.value || '{}');
-                // add type, as we only get doc_type here.
-                setFormat({...tmpFormat, type: tmpFormat.type || tmpFormat.doc_type})
-            }}
-        >
-            <option key={'default'} value={undefined}>Please Select a form</option>
-            {
-                forms.map(form => <option key={form?.data?.value.doc_type} value={JSON.stringify(form?.data?.value || {})}>{form?.data?.value.doc_type}</option>)
-            }
 
-        </select>
+    return (
+        <div className={'flex w-full bg-white my-1'}>
+            <label className={'p-1'}>Source: </label>
+            <select
+                className={'p-1 w-full bg-white border'}
+                value={JSON.stringify(format)}
+                onChange={e => {
+                    const tmpFormat = JSON.parse(e.target.value || '{}');
+                    // add type, as we only get doc_type here.
+                    setFormat({...tmpFormat, type: tmpFormat.type || tmpFormat.doc_type})
+                }}
+            >
+                <option key={'default'} value={undefined}>Please Select</option>
+                {
+                    forms.map(form => <option key={form?.data?.value.doc_type}
+                                              value={JSON.stringify(form?.data?.value || {})}>{form?.data?.value.doc_type}</option>)
+                }
+
+            </select>
+        </div>
     )
 }
