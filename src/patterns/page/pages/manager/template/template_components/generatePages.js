@@ -90,7 +90,7 @@ export const generatePages = async ({
                 // update the defaultValue here
                 const attrName = variable.name;
                 const sectionControlMappedName = dataControls?.sectionControls?.[section_id]?.[attrName];
-                variable.defaultValue = activeDataRow?.[sectionControlMappedName];
+                variable.defaultValue = activeDataRow?.[sectionControlMappedName] || variable.defaultValue; // default to the value user set in template. some filters may not change for each page.
                 return variable
             })
 
