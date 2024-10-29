@@ -9,6 +9,7 @@ import {RenderFilters} from "./components/RenderFilters";
 import {useSearchParams, useNavigate} from "react-router-dom";
 import RenderSwitch from "./components/Switch";
 import {FormsSelector} from "../../FormsSelector";
+import RenderActionControls from "./components/RenderActionControls";
 
 const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLoad, apiUpdate, siteType, ...rest}) => {
     const isEdit = Boolean(onChange);
@@ -189,6 +190,9 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
                                           navigate={navigate}
                     />
                     <RenderGroupControls attributes={attributes} visibleAttributes={visibleAttributes}
+                                          groupBy={groupBy} setGroupBy={setGroupBy}
+                    />
+                    <RenderActionControls attributes={attributes} visibleAttributes={visibleAttributes}
                                           groupBy={groupBy} setGroupBy={setGroupBy}
                     />
 
