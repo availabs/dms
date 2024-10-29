@@ -1,4 +1,5 @@
 import React, {useEffect, useState} from "react";
+import _ from "lodash";
 
 
 const getConfig = ({
@@ -78,8 +79,12 @@ export const FormsSelector = ({app, siteType, formatFromProps, format, setFormat
     if(formatFromProps?.config) return null;
 
     useEffect(() => {
-        getForms({app, siteType, apiLoad}).then(data => setForms((data || [])));
-    }, []);
+        getForms({app, siteType, apiLoad}).then(data => {
+            setForms((data || []))
+            const existingFormat = data.find(form => form.id === format.id)?.data?.value;
+            if(existingFormat && !_.isEqual(format?.config, existingFormat?.config)) setFormat({...existingFormat, type: existingFormat.type || existingFormat.doc_type}); // to update meta changes
+        });
+    }, [app, siteType]);
 
     return (
         <div className={'flex w-full bg-white my-1'}>

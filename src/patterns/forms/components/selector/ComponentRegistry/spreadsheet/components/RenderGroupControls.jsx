@@ -1,14 +1,14 @@
 import RenderSwitch from "./Switch";
-import {ArrowDown, Filter} from "../../../../../ui/icons";
+import {ArrowDown, Group} from "../../../../../ui/icons";
 import {useRef, useState, useEffect} from "react";
 
-export default function RenderColumnControls({
-                                                 attributes, filters, setFilters, delimiter, navigate
+export default function RenderGroupControls({
+                                                 attributes, groupBy, setGroupBy
                                              }) {
     const menuRef = useRef(null);
     const [search, setSearch] = useState();
     const [isOpen, setIsOpen] = useState(false);
-    const menuBtnId = 'menu-btn-filter-controls'
+    const menuBtnId = 'menu-btn-group-controls'
 
     // ================================================== close on outside click start =================================
     const handleClickOutside = (e) => {
@@ -31,7 +31,7 @@ export default function RenderColumnControls({
                 <div id={menuBtnId}
                     className={`inline-flex w-full justify-center items-center rounded-md px-1.5 py-1 text-sm font-regular text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 ${isOpen ? `bg-gray-50` : `bg-white hover:bg-gray-50`} cursor-pointer`}
                     onClick={e => setIsOpen(!isOpen)}>
-                    Filters <ArrowDown height={18} width={18} className={'mt-1'}/>
+                    Group <ArrowDown height={18} width={18} className={'mt-1'}/>
                 </div>
             </div>
 
@@ -50,22 +50,22 @@ export default function RenderColumnControls({
                                 <div
                                     className="flex items-center cursor-pointer px-2 py-1 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900"
                                     onClick={() => {
-                                        const newFilters = !filters.find(f => f.column === attribute.name) ?
-                                            [...filters, {column: attribute.name}] :
-                                            filters.filter(attr => attr.column !== attribute.name);
+                                        const newFilters = !groupBy.find(f => f === attribute.name) ?
+                                            [...groupBy, attribute.name] :
+                                            groupBy.filter(attr => attr !== attribute.name);
 
-                                        setFilters(newFilters);
+                                        setGroupBy(newFilters);
                                     }}
                                 >
                                     <div className={'h-4 w-4 m-1 cursor-pointer text-gray-800'}>
-                                        <Filter height={14} width={14} />
+                                        <Group height={14} width={14} />
                                     </div>
 
                                     <div className={'flex justify-between m-1 w-full'}>
                                         {attribute.display_name || attribute.name}
 
                                         <RenderSwitch
-                                            enabled={filters.find(f => f.column === attribute.name) ? true : false}
+                                            enabled={groupBy.find(f => f === attribute.name) ? true : false}
                                             setEnabled={() => {}}
                                         />
                                     </div>
