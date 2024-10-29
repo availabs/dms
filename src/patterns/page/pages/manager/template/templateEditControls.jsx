@@ -455,6 +455,12 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
                                     tmpDataControls = {...item?.data_controls, ...v }
                                 }
 
+                                if (k === 'urlSuffixCol') {
+                                    tmpDataControls = {...item?.data_controls, [k]: v }
+                                    setDataControls(tmpDataControls);
+                                    return; // no need to loadUpdates
+                                }
+
                                 setDataControls(tmpDataControls);
                                 loadUpdates(tmpDataControls);
                                 

@@ -13,7 +13,7 @@ export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatu
     const { falcor, falcorCache, pgEnv, app, type } = React.useContext(CMSContext);
     const [generatedPages, setGeneratedPages] = useState([]);
     const [showAdditionalOptions, setShowAdditionalOptions] = useState(false);
-    const [urlSuffixCol, setUrlSuffixCol] = useState('geoid');
+    const [urlSuffixCol, setUrlSuffixCol] = useState(item?.data_controls?.urlSuffixCol || 'geoid');
     const [customGenerationOptions, setCustomGenerationOptions] = useState({}); // from, to
     const {
         url, 
@@ -143,7 +143,10 @@ export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatu
                 value={urlSuffixCol}
                 nameAccessor={d => d?.name}
                 valueAccessor={d => d?.name}
-                onChange={d => setUrlSuffixCol(d)}
+                onChange={d => {
+                    setUrlSuffixCol(d)
+                    onChange('urlSuffixCol', d)
+                }}
             />
 
             <Selector
