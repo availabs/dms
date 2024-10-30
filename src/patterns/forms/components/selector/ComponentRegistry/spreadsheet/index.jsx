@@ -10,6 +10,7 @@ import {useSearchParams, useNavigate} from "react-router-dom";
 import RenderSwitch from "./components/Switch";
 import {FormsSelector} from "../../FormsSelector";
 import RenderActionControls from "./components/RenderActionControls";
+import _ from "lodash";
 
 const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLoad, apiUpdate, siteType, ...rest}) => {
     const isEdit = Boolean(onChange);
@@ -28,6 +29,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     const [orderBy, setOrderBy] = useState(cachedData.orderBy || {});
     const [filters, setFilters] = useState(cachedData.filters || []);
     const [groupBy, setGroupBy] = useState(cachedData.groupBy || []);
+    const [actions, setActions] = useState(cachedData.actions || []);
     const [fn, setFn] = useState(cachedData.fn || {});
 
     const [allowEditInView, setAllowEditInView] = useState(cachedData.allowEditInView);
@@ -53,9 +55,10 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
         const filterCols = Array.from(searchParams.keys());
         const filtersFromURL = filterCols.map(col => ({column: col, values: searchParams.get(col)?.split(filterValueDelimiter)}));
         if(filtersFromURL.length) {
+            // if filters !== url search params, set filters. no need to navigate.
             setFilters(filtersFromURL)
-            const url = `?${convertToUrlParams(filters, filterValueDelimiter)}`;
-            if(url !== window.location.search) navigate(url);
+            setLength(undefined)
+            setHasMore(undefined)
         }else if(!filtersFromURL.length && filters.length){
             // this means url didn't keep url params. so we need to navigate
             const url = `?${convertToUrlParams(filters, filterValueDelimiter)}`;
@@ -104,7 +107,9 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     useEffect(() => {
         const observer = new IntersectionObserver(
             async (entries) => {
-                if (entries[0].isIntersecting && hasMore) {
+                // const length = await getLength({format, apiLoad, filters, groupBy});
+
+                if (entries[0].isIntersecting && (currentPage * pageSize + pageSize) < length) {
                     const data = await getData({
                         format, apiLoad, currentPage: currentPage+1, pageSize, length, orderBy, filters, groupBy, visibleAttributes, fn
                     });
@@ -129,8 +134,8 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     useEffect(() => {
         if (!isEdit) return;
 
-        onChange(JSON.stringify({visibleAttributes, pageSize, attributes, orderBy, colSizes, filters, groupBy, fn, allowEditInView, format, actionUrls}));
-    }, [visibleAttributes, attributes, orderBy, colSizes, filters, groupBy, fn, allowEditInView, format, actionUrls])
+        onChange(JSON.stringify({visibleAttributes, pageSize, attributes, orderBy, colSizes, filters, groupBy, fn, allowEditInView, format, actions}));
+    }, [visibleAttributes, attributes, orderBy, colSizes, filters, groupBy, fn, allowEditInView, format, actions])
     // =========================================== saving settings end =================================================
 
     // =========================================== filters 2/2 begin ===================================================
@@ -193,7 +198,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
                                           groupBy={groupBy} setGroupBy={setGroupBy}
                     />
                     <RenderActionControls attributes={attributes} visibleAttributes={visibleAttributes}
-                                          groupBy={groupBy} setGroupBy={setGroupBy}
+                                          actions={actions} setActions={setActions}
                     />
 
                     <div>
@@ -207,24 +212,6 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
                                 enabled={allowEditInView}
                                 setEnabled={() => {}}
                             />
-                        </div>
-                    </div>
-
-                    <div>
-                        <div
-                             className={`inline-flex w-full justify-center items-center rounded-md px-1.5 py-1 text-sm font-regular text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 bg-white hover:bg-gray-50`}
-                        >
-                            <span className={'flex-1 select-none mr-1'}>View URL </span>
-                            <input className={'border rounded-lg px-1'} value={actionUrls.viewUrl} onChange={e => setActionUrls({...actionUrls, viewUrl: e.target.value}) } />
-                        </div>
-                    </div>
-
-                    <div>
-                        <div
-                             className={`inline-flex w-full justify-center items-center rounded-md px-1.5 py-1 text-sm font-regular text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 bg-white hover:bg-gray-50`}
-                        >
-                            <span className={'flex-1 select-none mr-1'}>Edit URL </span>
-                            <input className={'border rounded-lg px-1'} value={actionUrls.editUrl} onChange={e => setActionUrls({...actionUrls, editUrl: e.target.value}) } />
                         </div>
                     </div>
                 </div>
@@ -247,6 +234,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
                     setOrderBy,
                     filters,
                     setFilters,
+                    groupBy,
                     updateItem,
                     removeItem,
                     addItem,
@@ -257,7 +245,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
                     currentPage,
                     pageSize,
                     loading,
-                    ...actionUrls,
+                    actions: actions.filter(a => ['edit only', 'both'].includes(a.display)),
                     allowEdit: !groupBy.length
                         }} />
             }
@@ -273,7 +261,6 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
     const [colSizes, setColSizes] = useState(cachedData.colSizes || {});
     const [orderBy, setOrderBy] = useState(cachedData.orderBy || {});
     const [filters, setFilters] = useState(cachedData.filters || []);
-    const [actionUrls, setActionUrls] = useState(cachedData.actionUrls || {viewUrl: '', editUrl: ''});
 
     const [newItem, setNewItem] = useState({})
     const [data, setData] = useState([]);
@@ -283,7 +270,8 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
 
     const attributes = cachedData.attributes;
     const visibleAttributes = cachedData.visibleAttributes || [];
-    const groupBy = cachedData.groupBy;
+    const groupBy = cachedData.groupBy || [];
+    const actions = cachedData.actions || [];
     const fn = cachedData.fn;
     const allowEdit = cachedData.allowEditInView;
     const pageSize = 500// cachedData.pageSize || 5;
@@ -301,11 +289,10 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
         const filterCols = Array.from(searchParams.keys());
         const filtersFromURL = filterCols.map(col => ({column: col, values: searchParams.get(col)?.split(filterValueDelimiter)}));
         if(filtersFromURL.length) {
+            // if filters !== url search params, set filters. no need to navigate.
             setFilters(filtersFromURL)
-            const url = `?${convertToUrlParams(filters, filterValueDelimiter)}`;
-            if(url !== window.location.search) {
-                navigate(url);
-            }
+            setLength(undefined)
+            setHasMore(undefined)
         }else if(!filtersFromURL.length && filters.length){
             // this means url didn't keep url params. so we need to navigate
             const url = `?${convertToUrlParams(filters, filterValueDelimiter)}`;
@@ -421,6 +408,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
                             setOrderBy,
                             filters,
                             setFilters,
+                            groupBy,
                             updateItem,
                             removeItem,
                             addItem,
@@ -432,7 +420,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
                             pageSize,
                             loading,
                             allowEdit: groupBy.length ? false : allowEdit,
-                            ...actionUrls
+                            actions: actions.filter(a => ['view only', 'both'].includes(a.display))
                         }} />
             }
             {/*Pagination*/}
