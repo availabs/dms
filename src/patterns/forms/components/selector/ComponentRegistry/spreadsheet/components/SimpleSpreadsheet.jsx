@@ -83,7 +83,7 @@ function useCopy(callback) {
 
 const RenderActions = ({isLastCell, allowEdit, newItem, removeItem, groupBy=[], actions=[]}) => {
     if(!isLastCell || !actions.length) return null;
-    const searchParams = groupBy.length ? groupBy.map(col => `${col}=${newItem[col]}`).join('&') : `id=${newItem.id}`
+    const searchParams = groupBy.length ? groupBy.filter(col => newItem[col]).map(col => `${col}=${newItem[col]}`).join('&') : `id=${newItem.id}`
     return (
         <div className={'flex items-center border'}>
             <div className={'flex flex-row h-fit justify-evenly'} style={{width: actionsColSize}}>
