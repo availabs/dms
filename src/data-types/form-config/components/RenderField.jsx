@@ -97,7 +97,7 @@ const RenderOptions = ({col, drivingAttribute, attr, value=[], updateAttribute})
     const options = useMemo(() => value?.map(v => v.label ? v : ({label: v, value: v})), [value]);
 
     const addNewValue = (oldValue, newItem) => {
-        const newValue = newItem?.label ? [...oldValue, newItem] : [...oldValue, {label: newItem, value: newItem}]
+        const newValue = newItem?.label ? [...(oldValue || []), newItem] : [...(oldValue || []), {label: newItem, value: newItem}]
         updateAttribute(col, {[attr]: newValue})
         setNewOption('')
     }
@@ -128,7 +128,7 @@ const RenderOptions = ({col, drivingAttribute, attr, value=[], updateAttribute})
                 </div>
                 <div className={'flex flex-row flex-wrap'}>
                     {
-                        options.map(option => (
+                        options?.map(option => (
                             <div className={'bg-red-500 hover:bg-red-700 text-white text-xs font-semibold px-1.5 py-1 m-1 flex no-wrap items-center rounded-md'}>
                                 {option?.label || option}
                                 <div title={'remove'}
