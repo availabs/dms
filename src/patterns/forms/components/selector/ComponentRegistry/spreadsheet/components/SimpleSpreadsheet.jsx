@@ -81,32 +81,31 @@ function useCopy(callback) {
     }, [callback]);
 }
 
-const RenderActions = ({isLastCell, allowEdit, newItem, removeItem, viewUrl, editUrl}) => {
-    if(!isLastCell || !allowEdit) return null;
-
+const RenderActions = ({isLastCell, allowEdit, newItem, removeItem, groupBy=[], actions=[]}) => {
+    if(!isLastCell || !actions.length) return null;
+    const searchParams = groupBy.length ? groupBy.filter(col => newItem[col]).map(col => `${col}=${newItem[col]}`).join('&') : `id=${newItem.id}`
     return (
         <div className={'flex items-center border'}>
             <div className={'flex flex-row h-fit justify-evenly'} style={{width: actionsColSize}}>
-                <Link
-                    title={'view'}
-                    className={'flex items-center w-fit p-0.5 bg-blue-300 hover:bg-blue-500 text-white rounded-lg'}
-                    to={`${viewUrl}${newItem.id}`}>
-                    <ViewIcon className={'text-white'} height={20} width={20}/>
-                </Link>
-                <Link
-                    title={'edit'}
-                    className={'flex items-center w-fit p-0.5 bg-blue-300 hover:bg-blue-500 text-white rounded-lg'}
-                    to={`${editUrl}${newItem.id}`}>
-                    <PencilIcon className={'text-white'} height={18} width={18}/>
-                </Link>
-                <button
-                    title={'delete'}
-                    className={'w-fit p-0.5 bg-red-300 hover:bg-red-500 text-white rounded-lg'}
-                    onClick={e => {
-                        removeItem(newItem)
-                    }}>
-                    <Delete className={'text-white'} height={20} width={20}/>
-                </button>
+                {
+                    actions.map(action => action.type === 'url' ? (
+                        <Link
+                            title={action.name}
+                            className={'flex items-center w-fit p-0.5 bg-blue-300 hover:bg-blue-500 text-white rounded-lg'}
+                            to={`${action.url}?${searchParams}`}>
+                            {action.name}
+                        </Link>
+                    ) : (
+                        <button
+                            title={'delete'}
+                            className={'w-fit p-0.5 bg-red-300 hover:bg-red-500 text-white rounded-lg'}
+                            onClick={e => {
+                                removeItem(newItem)
+                            }}>
+                            <Delete className={'text-white'} height={20} width={20}/>
+                        </button>
+                    ))
+                }
             </div>
         </div>
     )
@@ -225,6 +224,7 @@ export const RenderSimple = ({
                                  setOrderBy,
                                  filters,
                                  setFilters,
+                                 groupBy,
                                  updateItem,
                                  removeItem,
                                  addItem,
@@ -237,8 +237,7 @@ export const RenderSimple = ({
                                  pageSize,
                                  loading,
                                  allowEdit,
-                                 viewUrl,
-                                 editUrl
+                                 actions
                              }) => {
     const gridRef = useRef(null);
     const [isSelecting, setIsSelecting] = useState(false);
@@ -583,7 +582,7 @@ export const RenderSimple = ({
                                      onMouseDown={handleMouseDownHeader(attribute?.name)}/>
                             </div>)}
                     {
-                        allowEdit ? (
+                        allowEdit && actions.length ? (
                             <div className={'flex shrink-0 justify-between'} style={{width: actionsColSize}}>
                                 <div key={'actions'}
                                      className={'w-full flex items-center px-3 py-1 font-semibold border bg-gray-50 text-gray-900 select-none'}>
@@ -659,8 +658,9 @@ export const RenderSimple = ({
                                         allowEdit={allowEdit}
                                     />)}
 
-                            <RenderActions allowEdit={allowEdit} isLastCell={true} newItem={d}
-                                           removeItem={removeItem} viewUrl={viewUrl} editUrl={editUrl}/>
+                            <RenderActions allowEdit={allowEdit} isEdit={isEdit} isLastCell={true} newItem={d}
+                                           groupBy={groupBy}
+                                           removeItem={removeItem} actions={actions}/>
 
                             <div className={'flex items-center border'}>
                                 <div key={'##'}

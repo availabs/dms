@@ -1,9 +1,64 @@
 import React, {useEffect, useMemo, useState} from "react";
 import {useNavigate, useSearchParams} from "react-router-dom";
-import {getLength, getValues} from "../../../../../../../data-types/form-config/components/RenderField";
+// import {getLength, getValues} from "../../../../../../../data-types/form-config/components/RenderField";
 import {dmsDataTypes} from "../../../../../../../data-types";
 import {formattedAttributeStr, attributeAccessorStr, convertToUrlParams} from "../utils";
 import {Filter} from "../../../../../../admin/ui/icons";
+import {isJson} from "../../../index";
+
+export const getValues = async ({format, apiLoad, length, attributes, groupBy=[], filterBy={}}) =>{
+    // fetch all data items based on app and type. see if you can associate those items to its pattern. this will be useful when you have multiple patterns.
+    const finalAttributes = attributes || (
+        isJson(format?.config) ? (format.config?.attributes || []) :
+            JSON.parse(format?.config || '{}')?.attributes || []
+    );
+    const fromIndex = 0;
+    const toIndex = length-1;
+    const children = [{
+        type: () => {
+        },
+        action: 'load',
+        path: '/',
+        filter: {
+            fromIndex: path => fromIndex,
+            toIndex: path => toIndex,
+            options: JSON.stringify({groupBy, aggregatedLen: groupBy.length, filter: filterBy}),
+            attributes: finalAttributes,
+            stopFullDataLoad: true
+        },
+    }]
+    const data = await apiLoad({
+        app: format.app,
+        type: format.type,
+        format,
+        attributes: finalAttributes,
+        children
+    });
+    return data;
+}
+
+export const getLength = async ({format, apiLoad, groupBy= [], filterBy}) =>{
+    const finalAttributes = isJson(format?.config) ? (format.config?.attributes || []) :
+        JSON.parse(format?.config || '{}')?.attributes || [];
+
+    const children = [{
+        type: () => {
+        },
+        action: 'filteredLength',
+        path: '/',
+        filter: {
+            options: JSON.stringify({groupBy, aggregatedLen: groupBy.length, filter: filterBy})
+        },
+    }]
+    const length = await apiLoad({
+        app: format.app,
+        type: format.type,
+        format,
+        attributes: finalAttributes,
+        children
+    });
+    return length;
+}
 
 export const RenderFilters = ({attributes, filters, setFilters, format, apiLoad, delimiter}) => {
     const navigate = useNavigate();
@@ -25,10 +80,10 @@ export const RenderFilters = ({attributes, filters, setFilters, format, apiLoad,
                             acc[attributeAccessorStr(f.column)] = f.values.filter(fv => fv.length);
                             return acc;
                         }, {});
-                    const length = await getLength({format, apiLoad, groupBy: [attributeAccessorStr(filter.column)], filterBy});
+                    const length = await getLength({format: {...format, type: format.doc_type}, apiLoad, groupBy: [attributeAccessorStr(filter.column)], filterBy});
 
                     const data = await getValues({
-                        format,
+                        format: {...format, type: format.doc_type},
                         apiLoad,
                         length,
                         attributes: [formattedAttributeStr(filter.column)],

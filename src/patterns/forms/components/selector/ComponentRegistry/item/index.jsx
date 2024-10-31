@@ -97,7 +97,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     useEffect(() => {
         async function load(){
             if(!itemId) return;
-            const {data, attributes} = await getData({format, apiLoad, itemId});
+            const {data, attributes} = await getData({format: {...format, type: format.doc_type}, apiLoad, itemId});
             setNewItem(data)
             setAttributes(attributes)
         }
@@ -160,9 +160,9 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
         </div>
     )
 
-    if(!itemId){
-        return <div className={'p-1 flex'}>Invalid item id.</div>
-    }
+    // if(!itemId){
+    //     return <div className={'p-1 flex'}>Invalid item id.</div>
+    // }
     return (
         <div>
             {
@@ -310,7 +310,9 @@ const View = ({value, format:formatFromProps, apiLoad, apiUpdate, ...rest}) => {
                 setAttributes(orderedAttributes);
                 return;
             }
-            const {data, attributes} = await getData({format, apiLoad, itemId});
+            const {data, attributes} = await getData({format: {...format, type: format.doc_type}, apiLoad, itemId});
+            console.log('data', data)
+
             setData(data)
             setTmpItem(data)
             setAttributes(attributes)

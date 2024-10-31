@@ -79,10 +79,10 @@ export const getData = async ({format, apiLoad, currentPage, pageSize, length, v
     const originalAttributes = JSON.parse(format?.config || '{}')?.attributes || [];
     const attributesToFetch = visibleAttributes.map(col => getColAccessor(getFullCol(col, originalAttributes), groupBy, fn)).filter(c => c) //JSON.parse(format?.config || '{}')?.attributes || [];
     const fromIndex = currentPage*pageSize;
-    const toIndex = Math.min(length-1, currentPage*pageSize + pageSize);
+    const toIndex = Math.min(length, currentPage*pageSize + pageSize);
     if(fromIndex > length - 1) return [];
 
-    console.log('fetching', fromIndex, toIndex, attributesToFetch)
+    console.log('fetching', fromIndex, toIndex)
     const children = [{
         type: () => {
         },
@@ -108,7 +108,7 @@ export const getData = async ({format, apiLoad, currentPage, pageSize, length, v
         children
     });
 
-    console.log('data', visibleAttributes, fn, data)
+    console.log('data', data)
     // todo: known bug, and possible solution
     // after changing fn for a column multiple times, all previously selected fns are also included in data.
     // this makes it so that sometimes wrong fn is displayed.
@@ -116,7 +116,7 @@ export const getData = async ({format, apiLoad, currentPage, pageSize, length, v
     // using visible attributes and fn, maybe filter out Object.keys(row)
     const d = groupBy.length ? data.map(row => Object.keys(row).reduce((acc, column) => ({...acc, [cleanColName(column, groupBy.length)]: cleanValue(row[column])}) , {})) :
         data;
-    console.log('d?', d)
+    console.log('processed data?', d)
     return d;
 
 }
@@ -143,7 +143,7 @@ export const getLength = async ({format, apiLoad, filters=[], groupBy=[]}) =>{
         attributes,
         children
     });
-    console.log('length', length)
+
     return length;
 }
 
