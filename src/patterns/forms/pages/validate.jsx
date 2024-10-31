@@ -67,7 +67,7 @@ const Validate = ({
 
     const {app, doc_type, config} = item;
     const columns = JSON.parse(config || '{}')?.attributes || [];
-    const invalidEntriesFormat = {app, type: `${doc_type}-invalid-entry`, config}
+    const invalidEntriesFormat = {app, type: `${doc_type}-invalid-entry`, doc_type: `${doc_type}-invalid-entry`, config}
     console.log('?????//', invalidEntriesFormat, app, doc_type, config)
     useEffect(() => {
         async function load(){
