@@ -56,7 +56,7 @@ const parseIfJson = value => {
 const getColAccessor = (col, groupBy, fn) => {
     const isGrouping = groupBy.length;
 
-    return col.type === 'calculated' && !isGrouping ?
+    return !col || (col.type === 'calculated' && !isGrouping) ?
         null : // calculated columns in non-grouped mode are not allowed. todo: remove them from columns dropdown and from visibleAttributes on groupBy select
         col.type === 'calculated' || !isGrouping ?
             col.name : // calculated columns don't need accessors. if you're not grouping, you use list api call. it takes care of accessors.
@@ -68,8 +68,14 @@ const cleanColName = (colName, isGrouping) => {
     return !isGrouping ? colName : removeFn(colName)
 }
 
-const cleanValue = value => typeof value === "object" && value?.value ? cleanValue(value.value) :
-    typeof value === "object" && !value?.value ? undefined : parseIfJson(value);
+const cleanValue = value => {
+
+    return typeof value === 'boolean' ? JSON.stringify(value) :
+        typeof value === "object" && value?.value ? cleanValue(value.value) :
+            typeof value === "object" && !value?.value ? undefined :
+                typeof value === 'string' ? value :
+                parseIfJson(value);
+}
 
 const getFullCol = (colName, attributes) => attributes.find(attr => attr.name === colName)
 
@@ -82,7 +88,7 @@ export const getData = async ({format, apiLoad, currentPage, pageSize, length, v
     const toIndex = Math.min(length, currentPage*pageSize + pageSize);
     if(fromIndex > length - 1) return [];
 
-    console.log('fetching', fromIndex, toIndex)
+    console.log('fetching', fromIndex, toIndex, attributesToFetch)
     const children = [{
         type: () => {
         },

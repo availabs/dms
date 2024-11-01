@@ -33,6 +33,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     const [fn, setFn] = useState(cachedData.fn || {});
 
     const [allowEditInView, setAllowEditInView] = useState(cachedData.allowEditInView);
+    const [allowSearchParams, setAllowSearchParams] = useState(cachedData.allowSearchParams === undefined ? true : cachedData.allowSearchParams);
     const [currentPage, setCurrentPage] = useState(0);
     const [actionUrls, setActionUrls] = useState(cachedData.actionUrls || {viewUrl: '', editUrl: ''});
     const pageSize = 500// cachedData.pageSize || 5;
@@ -52,6 +53,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     // useEffect(() => setLength(data.length), [data]); // on data change, reset length.
     // ========================================= filters 1/2 begin======================================================
     useEffect(() => {
+        if(!allowSearchParams) return;
         const filterCols = Array.from(searchParams.keys());
         const filtersFromURL = filterCols.map(col => ({column: col, values: searchParams.get(col)?.split(filterValueDelimiter)}));
         if(filtersFromURL.length) {
@@ -64,7 +66,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
             const url = `?${convertToUrlParams(filters, filterValueDelimiter)}`;
             navigate(url)
         }
-    }, [searchParams]);
+    }, [allowSearchParams, searchParams]);
     // ========================================= filters 1/2 end =======================================================
     useEffect(() => {
         async function load() {
@@ -134,15 +136,16 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     useEffect(() => {
         if (!isEdit) return;
 
-        onChange(JSON.stringify({visibleAttributes, pageSize, attributes, orderBy, colSizes, filters, groupBy, fn, allowEditInView, format, actions}));
-    }, [visibleAttributes, attributes, orderBy, colSizes, filters, groupBy, fn, allowEditInView, format, actions])
+        onChange(JSON.stringify({visibleAttributes, pageSize, attributes, orderBy, colSizes, filters, groupBy, fn, allowEditInView, format, actions, allowSearchParams}));
+    }, [visibleAttributes, attributes, orderBy, colSizes, filters, groupBy, fn, allowEditInView, format, actions, allowSearchParams])
     // =========================================== saving settings end =================================================
 
     // =========================================== filters 2/2 begin ===================================================
     useEffect(() => {
+        if(!allowSearchParams) return;
         const url = `?${convertToUrlParams(filters, filterValueDelimiter)}`;
         navigate(url)
-    }, [filters]);
+    }, [allowSearchParams, filters]);
     // =========================================== filters 2/2 end =====================================================
 
     // =========================================== util fns begin ======================================================
@@ -214,6 +217,20 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
                             />
                         </div>
                     </div>
+
+                    <div>
+                        <div
+                             className={`inline-flex w-full justify-center items-center rounded-md px-1.5 py-1 text-sm font-regular text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 bg-white hover:bg-gray-50 cursor-pointer`}
+                             onClick={() => setAllowSearchParams(!allowSearchParams)}
+                        >
+                            <span className={'flex-1 select-none mr-1'}>Use Search Params </span>
+                            <RenderSwitch
+                                size={'small'}
+                                enabled={allowSearchParams}
+                                setEnabled={() => {}}
+                            />
+                        </div>
+                    </div>
                 </div>
             }
 
@@ -274,6 +291,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
     const actions = cachedData.actions || [];
     const fn = cachedData.fn;
     const allowEdit = cachedData.allowEditInView;
+    const allowSearchParams = cachedData.allowSearchParams;
     const pageSize = 500// cachedData.pageSize || 5;
     const filterValueDelimiter = '|||'
     const navigate = useNavigate();
@@ -286,6 +304,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
     }, [formatFromProps]);
     // ========================================= filters 1/2 begin======================================================
     useEffect(() => {
+        if(!allowSearchParams) return;
         const filterCols = Array.from(searchParams.keys());
         const filtersFromURL = filterCols.map(col => ({column: col, values: searchParams.get(col)?.split(filterValueDelimiter)}));
         if(filtersFromURL.length) {
@@ -298,7 +317,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
             const url = `?${convertToUrlParams(filters, filterValueDelimiter)}`;
             navigate(url)
         }
-    }, [searchParams]);
+    }, [allowSearchParams, searchParams]);
     // ========================================= filters 1/2 end =======================================================
     useEffect(() => {
         async function load() {
@@ -363,11 +382,12 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
 
     // =========================================== filters 2/2 begin ===================================================
     useEffect(() => {
+        if(!allowSearchParams) return;
         const url = convertToUrlParams(filters, filterValueDelimiter);
         if(url.length && url !== window.location.search.replace('?', '')) {
             navigate(`?${url}`)
         }
-    }, [filters]);
+    }, [allowSearchParams, filters]);
     // =========================================== filters 2/2 end ===================================================
 
     // =========================================== util fns begin ======================================================

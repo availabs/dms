@@ -21,7 +21,7 @@ export default function RenderColumnControls({
             // add fns
             const newFns = visibleAttributes
                 .map(va => attributes.find(a => a.name === va))
-                .filter(a => a.type !== 'calculated' && a.display !== 'calculated' && !groupBy.includes(a.name)) // calculated and grouped columns need not have fns
+                .filter(a => a && a.type !== 'calculated' && a.display !== 'calculated' && !groupBy.includes(a.name)) // calculated and grouped columns need not have fns
                 .reduce((acc, a) => ({...acc, [a.name]: fn[a.name] || a.defaultFn || 'list'}) , {});
 
             setFn(newFns);
