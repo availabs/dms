@@ -126,14 +126,13 @@ export default function RenderColumnControls({
                                         <label className={'place-self-stretch'}>{attribute.display_name || attribute.name}</label>
 
                                         <select
-                                            className={'p-0.5 rounded-md bg-white border h-fit'}
+                                            className={groupBy?.includes(attribute.name) || !visibleAttributes.includes(attribute.name) ? 'invisible' : 'p-0.5 rounded-md bg-white border h-fit'}
                                             value={fn[attribute.name]}
                                             onClick={e => setFn({...fn, [attribute.name]: e.target.value})}
                                         >
                                             {
-                                                visibleAttributes.includes(attribute.name) ?
                                                     ['none', 'list', 'sum', 'count']
-                                                        .map(fnOption => <option key={fnOption} value={fnOption}>{fnOption}</option> ) : []
+                                                        .map(fnOption => <option key={fnOption} value={fnOption}>{fnOption}</option> )
                                             }
                                         </select>
                                         <div className={'justify-self-end'}>
