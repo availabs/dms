@@ -75,13 +75,15 @@ const getForms = async ({app, siteType, apiLoad}) => {
 
 export const FormsSelector = ({app, siteType, formatFromProps, format, setFormat, apiLoad}) => {
     const [forms, setForms] = useState([]);
-
+    const [existingFormat, setExistingFormat] = useState(format);
     if(formatFromProps?.config) return null;
 
     useEffect(() => {
         getForms({app, siteType, apiLoad}).then(data => {
             setForms((data || []))
             const existingFormat = data.find(form => form.id === format.id)?.data?.value;
+            console.log('existing format', existingFormat)
+            setExistingFormat(existingFormat)
             if(existingFormat && !_.isEqual(format?.config, existingFormat?.config)) setFormat({...existingFormat, type: existingFormat.type || existingFormat.doc_type}); // to update meta changes
         });
     }, [app, siteType]);
@@ -91,7 +93,7 @@ export const FormsSelector = ({app, siteType, formatFromProps, format, setFormat
             <label className={'p-1'}>Source: </label>
             <select
                 className={'p-1 w-full bg-white border'}
-                value={JSON.stringify(format)}
+                value={JSON.stringify(existingFormat)}
                 onChange={e => {
                     const tmpFormat = JSON.parse(e.target.value || '{}');
                     // add type, as we only get doc_type here.
