@@ -87,7 +87,7 @@ export const getData = async ({format, apiLoad, currentPage, pageSize, length, v
     const fromIndex = currentPage*pageSize;
     const toIndex = Math.min(length, currentPage*pageSize + pageSize);
     if(fromIndex > length - 1) return [];
-
+    if(groupBy.length && !attributesToFetch.length) return [];
     console.log('fetching', fromIndex, toIndex, attributesToFetch)
     const children = [{
         type: () => {
