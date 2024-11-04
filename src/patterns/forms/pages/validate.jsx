@@ -7,7 +7,7 @@ const getBlankValueSql = col => `SUM(CASE WHEN data->>'${col}' IS NULL OR data->
 const getFilledValueSql = col => `SUM(CASE WHEN data->>'${col}' IS NOT NULL AND data->>'${col}'::text != '' THEN 1 ELSE 0 END) AS ${col}_value`;
 const getErrorValueSql = (col, options, required) =>
     `SUM(CASE ${required ? `WHEN (data->>'${col}' IS NULL OR data->>'${col}'::text = '') THEN 1` : ``}
-              ${options?.length ? `WHEN (data->>'${col}' IS NOT NULL AND data->>'${col}'::text != '') AND data->>'${col}' NOT IN (${options.map(o => `'${(o.value || o).replace(/'/, "''")}'`)}) THEN 1` : ``} ELSE 0 END) AS ${col}_error`;
+              ${options?.length ? `WHEN data->>'${col}' NOT IN (${options.map(o => `'${(o.value || o).replace(/'/, "''")}'`)}) THEN 1` : ``} ELSE 0 END) AS ${col}_error`;
 const getValidValueSql = (col, options, required) =>
     `SUM(CASE ${required ? `WHEN (data->>'${col}' IS NOT NULL ANd data->>'${col}'::text != '') THEN 1` : ``}
               ${options?.length ? `WHEN data->>'${col}' IN (${options.map(o => `'${(o.value || o).replace(/'/, "''")}'`)}) THEN 1` : ``} ELSE 0 END) AS ${col}_valid`;
@@ -66,7 +66,11 @@ const Validate = ({
     const dmsServerPath = `${API_HOST}/dama-admin`;
 
     const {app, doc_type, config} = item;
-    const columns = JSON.parse(config || '{}')?.attributes || [];
+    const columns = (JSON.parse(config || '{}')?.attributes || []).filter(col => col.type !== 'calculated');
+    // make sure after upload, you can make corrections and re-validate.
+    // validate correct records on meta change should be possible
+    // valid entries on upload should also be checked as updated meta may make them invalid
+    // const validEntriesFormat = {app, type: `${doc_type}`, doc_type: `${doc_type}`, config}
     const invalidEntriesFormat = {app, type: `${doc_type}-invalid-entry`, doc_type: `${doc_type}-invalid-entry`, config}
     console.log('?????//', invalidEntriesFormat, app, doc_type, config)
     useEffect(() => {
@@ -76,10 +80,10 @@ const Validate = ({
                 ...acc,
                 getBlankValueSql(col.name),
                 getFilledValueSql(col.name),
-                ((['select', 'multiselect'].includes(col.type) && col.options?.length) || col.required === 'yes') && getErrorValueSql(col.name, col.options, col.required === 'yes'),
-                ((['select', 'multiselect'].includes(col.type) && col.options?.length) || col.required === 'yes') && getValidValueSql(col.name, col.options, col.required === 'yes'),
+                ((['select', 'multiselect', 'radio'].includes(col.type) && col.options?.length) || col.required === 'yes') && getErrorValueSql(col.name, col.options, col.required === 'yes'),
+                ((['select', 'multiselect', 'radio'].includes(col.type) && col.options?.length) || col.required === 'yes') && getValidValueSql(col.name, col.options, col.required === 'yes'),
             ], []).filter(f => f)
-
+            // console.log('attrs to fetch', attrToFetch)
             const children = [{
                 type: () => {
                 },
@@ -108,10 +112,10 @@ const Validate = ({
                 ...acc,
                 [`${col.name}_blank`]: +data?.[0]?.[getBlankValueSql(col.name)],
                 [`${col.name}_filled`]: +data?.[0]?.[getFilledValueSql(col.name)],
-                ...((['select', 'multiselect'].includes(col.type) && col.options?.length) || col.required === 'yes') && {[`${col.name}_error`]: +data?.[0]?.[getErrorValueSql(col.name, col.options, col.required === 'yes')]},
-                ...((['select', 'multiselect'].includes(col.type) && col.options?.length) || col.required === 'yes') && {[`${col.name}_valid`]: +data?.[0]?.[getValidValueSql(col.name, col.options, col.required === 'yes')]},
+                ...((['select', 'multiselect', 'radio'].includes(col.type) && col.options?.length) || col.required === 'yes') && {[`${col.name}_error`]: +data?.[0]?.[getErrorValueSql(col.name, col.options, col.required === 'yes')]},
+                ...((['select', 'multiselect', 'radio'].includes(col.type) && col.options?.length) || col.required === 'yes') && {[`${col.name}_valid`]: +data?.[0]?.[getValidValueSql(col.name, col.options, col.required === 'yes')]},
             }), {});
-
+            // console.log('data', data, mappedData)
             setData(mappedData);
             setLoading(false);
             console.timeEnd('setData')
