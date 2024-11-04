@@ -40,7 +40,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     const filterValueDelimiter = '|||'
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
-    const [loadMoreId, setLoadMoreId] = useState(cachedData.loadMoreId || `id${Date.now()}`);
+    const [loadMoreId, setLoadMoreId] = useState(cachedData.loadMoreId);
 
     // ========================================= init comp begin =======================================================
     useEffect(() => {
@@ -74,6 +74,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
             if(data?.length || !format?.config) return;
             // init stuff
             setLoading(true)
+            if(!loadMoreId) setLoadMoreId(`id${Date.now()}`)
             const length = await getLength({format, apiLoad, filters, groupBy});
             const d = await getData({
                 format, apiLoad, currentPage, pageSize, length, orderBy, filters, groupBy, visibleAttributes, fn
@@ -99,25 +100,25 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
                 format, apiLoad, currentPage, pageSize, length, orderBy, filters, groupBy, visibleAttributes, fn
             });
             setLength(length);
-            setData(data);
+            setData(prevData => [...prevData, ...data]);
             setHasMore((currentPage * pageSize + pageSize) < length)
             setLoading(false)
         }
 
         load()
-    }, [format, orderBy, filters, groupBy, visibleAttributes, fn]);
+    }, [format, orderBy, filters, groupBy, visibleAttributes, fn, currentPage]);
 
     useEffect(() => {
         const observer = new IntersectionObserver(
             async (entries) => {
-                // const length = await getLength({format, apiLoad, filters, groupBy});
+                const length = await getLength({format, apiLoad, filters, groupBy});
 
                 if (entries[0].isIntersecting && (currentPage * pageSize + pageSize) < length) {
-                    const data = await getData({
-                        format, apiLoad, currentPage: currentPage+1, pageSize, length, orderBy, filters, groupBy, visibleAttributes, fn
-                    });
+                    // const data = await getData({
+                    //     format, apiLoad, currentPage: currentPage+1, pageSize, length, orderBy, filters, groupBy, visibleAttributes, fn
+                    // });
                     setCurrentPage(currentPage+1)
-                    setData(prevData => [...prevData, ...data])
+                    // setData(prevData => [...prevData, ...data])
                     setHasMore((currentPage * pageSize + pageSize) < length)
                 }
             },
@@ -130,7 +131,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
         return () => {
             if (target) observer.unobserve(target);
         };
-    }, [format, data, loading, loadMoreId]);
+    }, [format, loadMoreId]);
     // =========================================== get data end ========================================================
 
     // =========================================== saving settings begin ===============================================
@@ -182,7 +183,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     )
 
     return (
-        <div className={'w-full h-full'}>
+        <div className={'w-full h-full overflow-hidden'}>
             {
                 showChangeFormatModal ?
                     <FormsSelector siteType={siteType} apiLoad={apiLoad} app={pageFormat?.app} format={format} setFormat={setFormat} formatFromProps={formatFromProps} /> : null
@@ -351,23 +352,23 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
                 format, apiLoad, currentPage, pageSize, length, orderBy, filters, groupBy, visibleAttributes, fn
             });
             setLength(length);
-            setData(data);
+            setData(prevData => [...prevData, ...data]);
             setHasMore((currentPage * pageSize + pageSize) < length)
             setLoading(false)
         }
 
         load()
-    }, [format, orderBy, filters]);
+    }, [format, orderBy, filters, currentPage]);
 
     useEffect(() => {
         const observer = new IntersectionObserver(
             async (entries) => {
                 if (entries[0].isIntersecting && hasMore) {
-                    const data = await getData({
-                        format, apiLoad, currentPage: currentPage+1, pageSize, length, orderBy, filters, groupBy, visibleAttributes, fn
-                    });
+                    // const data = await getData({
+                    //     format, apiLoad, currentPage: currentPage+1, pageSize, length, orderBy, filters, groupBy, visibleAttributes, fn
+                    // });
                     setCurrentPage(currentPage+1)
-                    setData(prevData => [...prevData, ...data])
+                    // setData(prevData => [...prevData, ...data])
                     setHasMore((currentPage * pageSize + pageSize) < length)
                 }
             },

@@ -701,13 +701,7 @@ export const RenderSimple = ({
                     }
                     <div className={'bg-white flex flex-row h-fit justify-evenly'}
                          style={{width: actionsColSize}}>
-                        <button
-                            className={'w-fit p-0.5 bg-blue-300 hover:bg-blue-500 text-white rounded-lg'}
-                            onClick={e => {
-                                addItem()
-                            }}>
-                            <Add className={'text-white'} height={20} width={20}/>
-                        </button>
+
                     </div>
                 </div>
 
