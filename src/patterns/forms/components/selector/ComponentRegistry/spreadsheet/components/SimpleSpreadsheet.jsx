@@ -238,7 +238,8 @@ export const RenderSimple = ({
                                  pageSize,
                                  loading,
                                  allowEdit,
-                                 actions
+                                 actions,
+                                 loadMoreId
                              }) => {
     const gridRef = useRef(null);
     const [isSelecting, setIsSelecting] = useState(false);
@@ -671,7 +672,7 @@ export const RenderSimple = ({
                             </div>
                         </div>
                     ))}
-                    <div id="loadMoreTrigger"></div>
+                    <div id={loadMoreId}></div>
                 {/*</div>*/}
 
                 {/*gutter*/}

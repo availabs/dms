@@ -40,6 +40,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     const filterValueDelimiter = '|||'
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
+    const [loadMoreId, setLoadMoreId] = useState(cachedData.loadMoreId || `id${Date.now()}`);
 
     // ========================================= init comp begin =======================================================
     useEffect(() => {
@@ -123,21 +124,21 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
             { threshold: 0 }
         );
 
-        const target = document.querySelector('#loadMoreTrigger');
+        const target = document.querySelector(`#${loadMoreId}`);
         if (target) observer.observe(target);
 
         return () => {
             if (target) observer.unobserve(target);
         };
-    }, [format, data, loading]);
+    }, [format, data, loading, loadMoreId]);
     // =========================================== get data end ========================================================
 
     // =========================================== saving settings begin ===============================================
     useEffect(() => {
         if (!isEdit) return;
 
-        onChange(JSON.stringify({visibleAttributes, pageSize, attributes, orderBy, colSizes, filters, groupBy, fn, allowEditInView, format, actions, allowSearchParams}));
-    }, [visibleAttributes, attributes, orderBy, colSizes, filters, groupBy, fn, allowEditInView, format, actions, allowSearchParams])
+        onChange(JSON.stringify({visibleAttributes, pageSize, attributes, orderBy, colSizes, filters, groupBy, fn, allowEditInView, format, actions, allowSearchParams, loadMoreId}));
+    }, [visibleAttributes, attributes, orderBy, colSizes, filters, groupBy, fn, allowEditInView, format, actions, allowSearchParams, loadMoreId])
     // =========================================== saving settings end =================================================
 
     // =========================================== filters 2/2 begin ===================================================
@@ -262,6 +263,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
                     currentPage,
                     pageSize,
                     loading,
+                    loadMoreId,
                     actions: actions.filter(a => ['edit only', 'both'].includes(a.display)),
                     allowEdit: !groupBy.length
                         }} />
@@ -297,6 +299,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams(window.location.search);
     // useEffect(() => setLength(data.length), [data]); // on data change, reset length.
+    const loadMoreId = cachedData.loadMoreId;
 
     useEffect(() => {
         // if there's no format passed, the user should be given option to select one. to achieve thia, format needs to be a state variable.
@@ -371,13 +374,13 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
             { threshold: 0 }
         );
 
-        const target = document.querySelector('#loadMoreTrigger');
+        const target = document.querySelector(`#${loadMoreId}`);
         if (target) observer.observe(target);
 
         return () => {
             if (target) observer.unobserve(target);
         };
-    }, [format, data, loading]);
+    }, [format, data, loading, loadMoreId]);
     // =========================================== get data end ========================================================
 
     // =========================================== filters 2/2 begin ===================================================
@@ -439,6 +442,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
                             currentPage,
                             pageSize,
                             loading,
+                            loadMoreId,
                             allowEdit: groupBy.length ? false : allowEdit,
                             actions: actions.filter(a => ['view only', 'both'].includes(a.display))
                         }} />
