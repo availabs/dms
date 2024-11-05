@@ -81,6 +81,18 @@ export const InfoCircle = (props) => (
   </svg>
 );
 
+export const Alert = ({title, height=16, width=16, ...rest}) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={height} height={width} color={"#000000"} fill={"none"} {...rest}>
+        <title>{title}</title>
+        <path
+            d="M5.32171 9.6829C7.73539 5.41196 8.94222 3.27648 10.5983 2.72678C11.5093 2.42437 12.4907 2.42437 13.4017 2.72678C15.0578 3.27648 16.2646 5.41196 18.6783 9.6829C21.092 13.9538 22.2988 16.0893 21.9368 17.8293C21.7376 18.7866 21.2469 19.6548 20.535 20.3097C19.241 21.5 16.8274 21.5 12 21.5C7.17265 21.5 4.75897 21.5 3.46496 20.3097C2.75308 19.6548 2.26239 18.7866 2.06322 17.8293C1.70119 16.0893 2.90803 13.9538 5.32171 9.6829Z"
+            stroke="currentColor" strokeWidth="1.5"/>
+        <path d="M11.992 16H12.001" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M12 13L12 8.99997" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"
+              strokeLinejoin="round"/>
+    </svg>
+);
+
 export const TrashCan = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={24} height={24} color={"#000000"} fill={"none"} {...props}>
     <path d="M19.5 5.5L18.8803 15.5251C18.7219 18.0864 18.6428 19.3671 18.0008 20.2879C17.6833 20.7431 17.2747 21.1273 16.8007 21.416C15.8421 22 14.559 22 11.9927 22C9.42312 22 8.1383 22 7.17905 21.4149C6.7048 21.1257 6.296 20.7408 5.97868 20.2848C5.33688 19.3626 5.25945 18.0801 5.10461 15.5152L4.5 5.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -245,6 +257,7 @@ const Icons = {
   MenuIcon,
   ClockIcon,
   InfoCircle,
+  Alert,
   TrashCan,
   RemoveCircle,
   CancelCircle,

@@ -1,4 +1,4 @@
-import React, {useContext, useEffect, useState} from "react";
+import React, {useContext, useEffect, useMemo, useState} from "react";
 import { FormsContext } from '../siteConfig'
 import SourcesLayout from "../components/selector/ComponentRegistry/patternListComponent/layout";
 import Spreadsheet from "../components/selector/ComponentRegistry/spreadsheet";
@@ -67,12 +67,13 @@ const Validate = ({
 
     const {app, doc_type, config} = item;
     const columns = (JSON.parse(config || '{}')?.attributes || []).filter(col => col.type !== 'calculated');
+    const is_dirty = (JSON.parse(config || '{}')?.is_dirty);
     // make sure after upload, you can make corrections and re-validate.
     // validate correct records on meta change should be possible
     // valid entries on upload should also be checked as updated meta may make them invalid
     // const validEntriesFormat = {app, type: `${doc_type}`, doc_type: `${doc_type}`, config}
     const invalidEntriesFormat = {app, type: `${doc_type}-invalid-entry`, doc_type: `${doc_type}-invalid-entry`, config}
-    console.log('?????//', invalidEntriesFormat, app, doc_type, config)
+    console.log('?????//', invalidEntriesFormat, app, doc_type, config, is_dirty)
     useEffect(() => {
         async function load(){
             setLoading(true)
@@ -123,10 +124,11 @@ const Validate = ({
 
         load()
     }, [item])
+    const page = useMemo(() => ({name: 'Validate', href: `${pageBaseUrl}/${params.id}/validate`, /*warn: is_dirty*/}), [is_dirty, pageBaseUrl, params.id])
     return (
         <SourcesLayout ffullWidth={false} baseUrl={baseUrl} pageBaseUrl={pageBaseUrl} isListAll={false} hideBreadcrumbs={false}
                        form={{name: item.name || item.doc_type, href: item.url_slug}}
-                       page={{name: 'Validate', href: `${pageBaseUrl}/${params.id}/validate`}}
+                       page={page}
                        id={params.id} //page id to use for navigation
 
         >
@@ -136,11 +138,27 @@ const Validate = ({
                         {status ? <div>{JSON.stringify(status)}</div> : ''}
                         {/* stat boxes */}
                         <div className='w-full max-w-6xl mx-auto'>
-                            {
-                                columns.find(col => data[`${col.name}_error`]) || loading ?
-                                    <div className={'w-full p-2 font-semibold bg-gray-100 rounded-md my-1'}>Columns with errors</div> :
-                                    <div className={'w-full p-2 font-semibold bg-gray-100 rounded-md'}>All records are valid.</div>
-                            }
+                            <div className={'flex justify-between w-full p-2 font-semibold bg-gray-100 rounded-md my-1'}>
+                                {
+                                    columns.find(col => data[`${col.name}_error`]) || loading ? 'Columns with errors' : 'All records are valid.'
+                                }
+                                <button
+                                    className={`p-1 text-sm text-white ${error ? `bg-red-300 hover:bg-red-600` : `bg-blue-300 hover:bg-blue-600`} rounded-md`}
+                                    onClick={() =>
+                                        reValidate({
+                                            app,
+                                            type: invalidEntriesFormat.type,
+                                            // parentId: parent.id,
+                                            parentDocType: doc_type,
+                                            dmsServerPath,
+                                            setValidating,
+                                            setError
+                                        })}
+                                >
+                                    {error ? JSON.stringify(error) : validating ? 'Validating' : 'Re - Validate'}
+                                </button>
+                            </div>
+
                             <div className={'grid grid-cols-2 gap-1'}>
                                 {
                                     columns
@@ -174,28 +192,30 @@ const Validate = ({
                             {/* invalid rows */}
                             {
                                 columns.find(col => data[`${col.name}_error`]) || loading ?
-                                    <div className={'w-full flex items-center justify-between p-2 font-semibold bg-gray-100 rounded-md my-1'}>
+                                    <div
+                                        className={'w-full flex items-center justify-between p-2 font-semibold bg-gray-100 rounded-md my-1'}>
                                         Invalid Rows
-                                        <button className={`p-1 text-sm text-white ${error ? `bg-red-300 hover:bg-red-600` : `bg-blue-300 hover:bg-blue-600`} rounded-md float-right`}
-                                                onClick={() =>
-                                                    reValidate({
-                                                        app,
-                                                        type: invalidEntriesFormat.type,
-                                                        parentId: parent.id,
-                                                        parentDocType: parent.doc_type,
-                                                        dmsServerPath,
-                                                        setValidating,
-                                                        setError
-                                                    })}
-                                        >
-                                            {error ? JSON.stringify(error) : validating ? 'Validating' : 'Re - Validate'}
-                                        </button>
+                                        {/*<button className={`p-1 text-sm text-white ${error ? `bg-red-300 hover:bg-red-600` : `bg-blue-300 hover:bg-blue-600`} rounded-md float-right`}*/}
+                                        {/*        onClick={() =>*/}
+                                        {/*            reValidate({*/}
+                                        {/*                app,*/}
+                                        {/*                type: invalidEntriesFormat.type,*/}
+                                        {/*                parentId: parent.id,*/}
+                                        {/*                parentDocType: parent.doc_type,*/}
+                                        {/*                dmsServerPath,*/}
+                                        {/*                setValidating,*/}
+                                        {/*                setError*/}
+                                        {/*            })}*/}
+                                        {/*>*/}
+                                        {/*    {error ? JSON.stringify(error) : validating ? 'Validating' : 'Re - Validate'}*/}
+                                        {/*</button>*/}
                                     </div> : null
                             }
                             {
                                 !columns.find(col => data[`${col.name}_error`]) || loading ? null :
                                     <Spreadsheet.EditComp
-                                        onChange={() => {}}
+                                        onChange={() => {
+                                        }}
                                         size={1}
                                         format={invalidEntriesFormat}
                                         apiLoad={apiLoad}

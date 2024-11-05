@@ -1,6 +1,6 @@
 import React from 'react';
-
 import { Link, useParams } from 'react-router-dom'
+import {Alert} from "../../../../ui/icons";
 
 const navPages = [
   {name: 'Overview', href: ``},
@@ -34,7 +34,7 @@ const Nav = ({baseUrl, navPages, page, hideNav, id}) => hideNav ? null : (
               `p-2 mx-1 font-display font-medium text-l text-slate-700
                 ${p.name === page.name ? `border-b-2 border-blue-600` : `hover:border-b-2 hover:border-gray-300`}`}
                   to={`${baseUrl}/${id}/${p.href}`}>
-              {p.name}
+              <div className={'flex items-center'}><span className={'pr-0.5'}>{p.name}</span> {page.warn && p.name === page.name ? <Alert /> : ''}</div>
             </Link>))
       }
     </nav>
