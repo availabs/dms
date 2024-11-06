@@ -1,14 +1,37 @@
-import React, {useState} from "react";
+import React, {useEffect, useState} from "react";
 import { FormsContext } from '../siteConfig'
 import SourcesLayout from "../components/selector/ComponentRegistry/patternListComponent/layout";
-import {DeleteModal} from "../../page/ui";
-const buttonClass = 'p-2 mx-1 bg-red-500 hover:bg-red-700 text-white rounded-md'
+import {DeleteModal, Modal} from "../../page/ui";
+import cloneDeep from "lodash/cloneDeep";
+import {useNavigate} from "react-router-dom";
+const buttonRedClass = 'p-2 mx-1 bg-red-500 hover:bg-red-700 text-white rounded-md';
 
-const DeleteSourceBtn = ({}) => {
+const DeleteSourceBtn = ({parent, item, apiUpdate, baseUrl}) => {
+    // update parent to exclude item. the item still stays in the DB.
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const navigate = useNavigate();
+
+    const deleteSource = async () => {
+        const parentType = parent.ref.split('+')[1];
+        if(!parentType) return;
+
+        const config = {
+            format: {
+                app: parent.app,
+                type: parentType
+            }
+        }
+        const data = cloneDeep(parent);
+        data.sources = data.sources.filter(s => s.id !== item.id);
+        console.log('parent', config, data, item)
+
+        await apiUpdate({data, config});
+        // navigate(baseUrl)
+        window.location.assign(baseUrl);
+    }
     return (
         <>
-            <button className={buttonClass} onClick={() => setShowDeleteModal(true)}>Delete Source</button>
+            <button className={buttonRedClass} onClick={() => setShowDeleteModal(true)}>Delete Source</button>
 
             <DeleteModal
                 title={`Delete Source`} open={showDeleteModal}
@@ -17,7 +40,7 @@ const DeleteSourceBtn = ({}) => {
                 setOpen={(v) => setShowDeleteModal(v)}
                 onDelete={() => {
                     async function deleteItem() {
-                        // await onRemove()
+                        await deleteSource()
                         setShowDeleteModal(false)
                     }
 
@@ -28,11 +51,41 @@ const DeleteSourceBtn = ({}) => {
     )
 }
 
-const ClearDataBtn = ({}) => {
+const ClearDataBtn = ({app, type, apiLoad, apiUpdate}) => {
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const clearData = async () => {
+        // fetch all ids based on app and type (doc_type of source), and then call dmsDataEditor with config={app, type}, data={id}, requestType='delete
+        const attributes = ['id']
+        const action = 'load'
+        const config = {
+            format: {
+                app: app,
+                type: type,
+                attributes
+            },
+            children: [
+                {
+                    type: () => {},
+                    action,
+                    filter: {
+                        options: JSON.stringify({}),
+                        attributes
+                    },
+                    path: '/'
+                }
+            ]
+        }
+
+        const res = await apiLoad(config);
+        if(!res?.length) return;
+        const ids = res.map(r => r.id).filter(r => r);
+        if(!ids?.length) return;
+
+        await apiUpdate({data: {id: ids}, config, requestType: 'delete'});
+    }
     return (
         <>
-            <button className={buttonClass} onClick={() => setShowDeleteModal(true)}>Clear Data</button>
+            <button className={buttonRedClass} onClick={() => setShowDeleteModal(true)}>Clear Data</button>
 
             <DeleteModal
                 title={`Clear Uploaded Data`} open={showDeleteModal}
@@ -40,7 +93,7 @@ const ClearDataBtn = ({}) => {
                 setOpen={(v) => setShowDeleteModal(v)}
                 onDelete={() => {
                     async function deleteItem() {
-                        // await onRemove()
+                        await clearData()
                         setShowDeleteModal(false)
                     }
 
@@ -65,12 +118,11 @@ const Admin = ({
                    submit,
                    parent,
                    manageTemplates = false,
-                   // ...rest
+                   ...r
                }) => {
     const {API_HOST, baseUrl, pageBaseUrl, theme, user, ...rest} = React.useContext(FormsContext) || {};
-
     const {app, type, config} = parent;
-    console.log('what am i passing', item, parent)
+
     return (
         <SourcesLayout fullWidth={false} baseUrl={baseUrl} pageBaseUrl={pageBaseUrl} isListAll={false}
                        hideBreadcrumbs={false}
@@ -80,9 +132,8 @@ const Admin = ({
         >
             <div className={`${theme?.page?.wrapper1}`}>
                 <div className={'w-full p-2 bg-white flex'}>
-
-                    <ClearDataBtn />
-                    <DeleteSourceBtn />
+                    <ClearDataBtn app={app} type={item.doc_type} apiLoad={apiLoad} apiUpdate={apiUpdate}/>
+                    <DeleteSourceBtn parent={parent} item={item} apiUpdate={apiUpdate} baseUrl={baseUrl}/>
                 </div>
             </div>
         </SourcesLayout>

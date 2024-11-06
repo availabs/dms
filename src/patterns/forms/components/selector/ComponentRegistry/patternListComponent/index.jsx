@@ -5,6 +5,8 @@ import {Link, useSearchParams} from "react-router-dom";
 import SourcesLayout from "./layout";
 import {dmsDataTypes} from "../../../../../../"
 import {FormsContext} from "../../../../siteConfig";
+import {Modal} from "../../../../ui";
+import cloneDeep from "lodash/cloneDeep";
 
 export const makeLexicalFormat = value => (isJson(value) ? JSON.parse(value) : value)?.root?.children ? value : {
         root: {
@@ -122,12 +124,33 @@ const SourceThumb = ({ source }) => {
 const RenderAddPattern = ({isAdding, setIsAdding, updateData, sources, setSources, submit}) => {
     const blankData = {doc_type: '', name: ''}
     const [data, setData] = useState(blankData);
-    if(!isAdding) return null;
 
+    console.log('sources', sources, data)
     return (
-        <div className={'w-full p-4 bg-white hover:bg-blue-50 block border shadow flex items-center'}>
+        <Modal open={isAdding} setOpen={setIsAdding} className={'w-full p-4 bg-white hover:bg-blue-50 block border shadow flex items-center'}>
+            <select className={'w-full p-1 rounded-md border bg-white'}
+                    value={data.id}
+                    onChange={e => {
+                        const matchingSource = sources.find(s => s.id === e.target.value);
+                        if(matchingSource) {
+                            const numMatchingDocTypes = sources.filter(s => s.doc_type.includes(`${matchingSource.doc_type}_copy_`)).length;
+                            const clone = cloneDeep(matchingSource);
+                            // delete clone.id; remove on btn click since it's used to ID in select.
+                            clone.doc_type = `${clone.doc_type}_copy_${numMatchingDocTypes+1}`
+                            clone.name = `${clone.name} copy (${numMatchingDocTypes+1})`
+                            setData(clone)
+                        }else{
+                            setData(blankData)
+                        }
+                    }}>
+                <option key={'create-new'} value={undefined}>Create new</option>
+                {
+                    sources.map(source => <option key={source.id} value={source.id}>{source.name} ({source.doc_type})</option> )
+                }
+            </select>
+
             <input className={'p-1 mx-1 text-sm font-light w-full block'}
-                   key={'new-form-url-slug'}
+                   key={'new-form-name'}
                    value={data.name}
                    placeholder={'Name'}
                    onChange={e => setData({...data, name: e.target.value})}
@@ -141,10 +164,10 @@ const RenderAddPattern = ({isAdding, setIsAdding, updateData, sources, setSource
 
             <button className={'p-1 mx-1 bg-blue-300 hover:bg-blue-500 text-white'}
                     disabled={!data.doc_type}
-                    onClick={() => {
-                        updateData({sources: [...sources, data]})
-                        // setSources([...sources, data])
-                        submit()
+                    onClick={async () => {
+                        delete data.id
+                        await updateData({sources: [...sources, data]})
+                        window.location.reload()
                     }}
             >add</button>
             <button className={'p-1 mx-1 bg-red-300 hover:bg-red-500 text-white'}
@@ -153,7 +176,7 @@ const RenderAddPattern = ({isAdding, setIsAdding, updateData, sources, setSource
                         setIsAdding(false)
                     }}
             >cancel</button>
-        </div>
+        </Modal>
     )
 }
 const Edit = ({attributes, item, dataItems, apiLoad, apiUpdate, updateAttribute, parent, format, submit, ...r}) => {
@@ -169,7 +192,7 @@ const Edit = ({attributes, item, dataItems, apiLoad, apiUpdate, updateAttribute,
     const filteredCategories = []; // categories you want to exclude from landing list page.
     const cat1 = searchParams.get('cat');
     const cat2 = undefined;
-
+    console.log('??????????????????', item, parent)
     const updateData = (data) => {
         console.log('updating data', parent, data, format)
         return apiUpdate({data: {...parent, ...data}, config: {format}})
