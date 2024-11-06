@@ -20,10 +20,6 @@ const TableView = ({
     manageTemplates = false,
     // ...rest
 }) => {
-    const [data, setData] = useState({});
-    const [loading, setLoading] = useState(false);
-    const [validating, setValidating] = useState(false);
-    const [error, setError] = useState();
     const { API_HOST, baseUrl, pageBaseUrl, theme, user, ...rest } = React.useContext(FormsContext) || {};
 
     const {app, type, config} = parent;

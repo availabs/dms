@@ -24,6 +24,7 @@ import UploadPage from "./pages/upload";
 import ManageMeta from "./pages/manage/metadata"
 import PatternListComponent from "./components/selector/ComponentRegistry/patternListComponent";
 import AvailLayout from "./ui/avail-layout";
+import Admin from "./pages/admin";
 
 // import {updateAttributes, updateRegisteredFormats} from "../admin/siteConfig";
 
@@ -262,7 +263,17 @@ const formsSourceConfig = ({
                         },
                         action: 'edit',
                         path: `:id/validate`
-                    }
+                    },
+                    {
+                        type: props => <Admin parent={parent} {...props} adminPath={adminPath}/>,
+                        filter: {
+                            stopFullDataLoad: true,
+                            fromIndex: () => 0,
+                            toIndex: () => 0,
+                        },
+                        action: 'edit',
+                        path: `:id/admin`
+                    },
                 ]
             }
         ]

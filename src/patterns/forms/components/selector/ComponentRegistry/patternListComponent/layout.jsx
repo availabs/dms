@@ -8,6 +8,7 @@ const navPages = [
   {name: 'Validate', href: `validate`},
   {name: 'Metadata', href: `metadata`},
   {name: 'Upload', href: `upload`},
+  {name: 'Admin', href: `admin`},
 ]
 
 const SourcesLayout = ({children, fullWidth, hideBreadcrumbs, hideNav, form, page, baseUrl, pageBaseUrl, id }) => {

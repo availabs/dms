@@ -70,9 +70,10 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     }, [allowSearchParams, searchParams]);
     // ========================================= filters 1/2 end =======================================================
     useEffect(() => {
+        // init stuff. only run when format changes.
+
         async function load() {
             if(data?.length || !format?.config) return;
-            // init stuff
             setLoading(true)
             if(!loadMoreId) setLoadMoreId(`id${Date.now()}`)
             const length = await getLength({format, apiLoad, filters, groupBy});
@@ -91,35 +92,54 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
 
     // ========================================== get data begin =======================================================
     useEffect(() => {
-        // onPageChange
+        // only run when controls change
+
+        async function load() {
+            if(!format?.config) return;
+
+            setLoading(true)
+            const newCurrentPage = 0; // for all the deps here, it's okay to fetch from page 1.
+            const length = await getLength({format, apiLoad, filters, groupBy});
+            const data = await getData({
+                format, apiLoad, currentPage: newCurrentPage, pageSize, length, orderBy, filters, groupBy, visibleAttributes, fn
+            });
+            setLength(length);
+            setData(data); // if page didn't change, set data as it comes
+            setCurrentPage(newCurrentPage);
+            setHasMore((newCurrentPage * pageSize + pageSize) < length)
+            setLoading(false)
+        }
+
+        load()
+    }, [orderBy, filters, groupBy, visibleAttributes, fn]);
+
+    useEffect(() => {
+        // only run when page changes
+
         async function load() {
             if(!format?.config) return;
             setLoading(true)
-            const length = await getLength({format, apiLoad, filters, groupBy});
+            // const length = await getLength({format, apiLoad, filters, groupBy});
             const data = await getData({
                 format, apiLoad, currentPage, pageSize, length, orderBy, filters, groupBy, visibleAttributes, fn
             });
-            setLength(length);
-            setData(prevData => [...prevData, ...data]);
+            // setLength(length);
+            setData(prevData => [...prevData, ...data]); // on page change append
             setHasMore((currentPage * pageSize + pageSize) < length)
             setLoading(false)
         }
 
         load()
-    }, [format, orderBy, filters, groupBy, visibleAttributes, fn, currentPage]);
+    }, [currentPage]);
 
     useEffect(() => {
+        // observer that sets current page on scroll. no data fetching should happen here
         const observer = new IntersectionObserver(
             async (entries) => {
                 const length = await getLength({format, apiLoad, filters, groupBy});
-
-                if (entries[0].isIntersecting && (currentPage * pageSize + pageSize) < length) {
-                    // const data = await getData({
-                    //     format, apiLoad, currentPage: currentPage+1, pageSize, length, orderBy, filters, groupBy, visibleAttributes, fn
-                    // });
+                if (data.length && entries[0].isIntersecting && hasMore) {
                     setCurrentPage(currentPage+1)
-                    // setData(prevData => [...prevData, ...data])
-                    setHasMore((currentPage * pageSize + pageSize) < length)
+                    setHasMore(((currentPage+1) * pageSize + pageSize) < length)
                 }
             },
             { threshold: 0 }
@@ -131,7 +151,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
         return () => {
             if (target) observer.unobserve(target);
         };
-    }, [format, loadMoreId]);
+    }, [format, loadMoreId, data.length]);
     // =========================================== get data end ========================================================
 
     // =========================================== saving settings begin ===============================================
@@ -183,7 +203,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     )
 
     return (
-        <div className={'w-full h-full overflow-hidden'}>
+        <div className={'w-full h-full'}>
             {
                 showChangeFormatModal ?
                     <FormsSelector siteType={siteType} apiLoad={apiLoad} app={pageFormat?.app} format={format} setFormat={setFormat} formatFromProps={formatFromProps} /> : null
@@ -269,6 +289,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
                     allowEdit: !groupBy.length
                         }} />
             }
+            <button className={'p-2'} onClick={() => setCurrentPage(currentPage+1)}>next</button>
         </div>
     )
 }
@@ -343,33 +364,54 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
 
     // ========================================== get data begin =======================================================
     useEffect(() => {
-        // onPageChange
+        // only run when controls change
+
         async function load() {
             if(!format?.config) return;
             setLoading(true)
+            const newCurrentPage = 0; // for all the deps here, it's okay to fetch from page 1.
             const length = await getLength({format, apiLoad, filters, groupBy});
+            const data = await getData({
+                format, apiLoad, currentPage: newCurrentPage, pageSize, length, orderBy, filters, groupBy, visibleAttributes, fn
+            });
+            setLength(length);
+            setData(data); // if page didn't change, set data as it comes
+            setCurrentPage(newCurrentPage);
+            setHasMore((newCurrentPage * pageSize + pageSize) < length)
+            setLoading(false)
+        }
+
+        load()
+    }, [orderBy, filters]);
+
+    useEffect(() => {
+        // only run when page changes
+
+        async function load() {
+            if(!format?.config) return;
+            setLoading(true)
+            // const length = await getLength({format, apiLoad, filters, groupBy});
             const data = await getData({
                 format, apiLoad, currentPage, pageSize, length, orderBy, filters, groupBy, visibleAttributes, fn
             });
-            setLength(length);
-            setData(prevData => [...prevData, ...data]);
+            // setLength(length);
+            setData(prevData => [...prevData, ...data]); // on page change append
             setHasMore((currentPage * pageSize + pageSize) < length)
             setLoading(false)
         }
 
         load()
-    }, [format, orderBy, filters, currentPage]);
+    }, [currentPage]);
 
     useEffect(() => {
+        // observer that sets current page on scroll. no data fetching should happen here
         const observer = new IntersectionObserver(
             async (entries) => {
-                if (entries[0].isIntersecting && hasMore) {
-                    // const data = await getData({
-                    //     format, apiLoad, currentPage: currentPage+1, pageSize, length, orderBy, filters, groupBy, visibleAttributes, fn
-                    // });
+                const length = await getLength({format, apiLoad, filters, groupBy});
+
+                if (data.length && entries[0].isIntersecting && hasMore) {
                     setCurrentPage(currentPage+1)
-                    // setData(prevData => [...prevData, ...data])
-                    setHasMore((currentPage * pageSize + pageSize) < length)
+                    setHasMore(((currentPage+1) * pageSize + pageSize) < length)
                 }
             },
             { threshold: 0 }
@@ -381,7 +423,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
         return () => {
             if (target) observer.unobserve(target);
         };
-    }, [format, data, loading, loadMoreId]);
+    }, [format, loadMoreId, data.length]);
     // =========================================== get data end ========================================================
 
     // =========================================== filters 2/2 begin ===================================================

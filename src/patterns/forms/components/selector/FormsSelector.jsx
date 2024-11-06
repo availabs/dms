@@ -97,6 +97,7 @@ export const FormsSelector = ({app, siteType, formatFromProps, format, setFormat
                 onChange={e => {
                     const tmpFormat = JSON.parse(e.target.value || '{}');
                     // add type, as we only get doc_type here.
+                    setExistingFormat({...tmpFormat, type: tmpFormat.type || tmpFormat.doc_type})
                     setFormat({...tmpFormat, type: tmpFormat.type || tmpFormat.doc_type})
                 }}
             >

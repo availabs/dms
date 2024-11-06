@@ -153,6 +153,15 @@ async function getSections({app, pattern, falcor, setLoading}){
     setLoading(true)
     const dataPath = ['dms', 'data', `${app}+${pattern}`, 'sections'];
     await falcor.get(dataPath);
+
+    // console.log('getting sections', dataPath)
+    // const sections = await falcor.get(dataPath);
+    // console.log('sections', sections)
+    // const pageDataWithSectionIds = get(falcor.getCache(), [...dataPath, 'value'], {});
+    //
+    // const sectionIds = pageDataWithSectionIds.map(d => d.section_id);
+    // console.log('sections', sectionIds, pageDataWithSectionIds)
+    //
     return get(falcor.getCache(), [...dataPath, 'value'], {});
 }
 
@@ -181,18 +190,11 @@ const Edit = ({value, onChange, size}) => {
         getPatterns({app, falcor}).then(patterns => {
             setPatterns(patterns);
             setLoading(false);
-
-            if(!pattern) return;
-            setLoading(true)
-            getSections({app, pattern, falcor, setLoading}).then(sections => {
-                setSections(processSections(sections));
-                setLoading(false);
-            })
         });
     }, [])
 
     useEffect(() => {
-        if(!patterns?.length || !pattern) return;
+        if(!pattern) return;
         getSections({app, pattern, falcor, setLoading}).then(sections => {
             setSections(processSections(sections));
             setLoading(false);
