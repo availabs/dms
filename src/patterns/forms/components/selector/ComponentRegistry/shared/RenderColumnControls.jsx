@@ -3,7 +3,7 @@ import React, {useEffect, useRef, useState} from "react";
 import {ArrowDown} from "../../../../ui/icons";
 
 export default function RenderColumnControls({
-    attributes, setAttributes, visibleAttributes, setVisibleAttributes, groupBy, fn, setFn
+    attributes, setAttributes, visibleAttributes, setVisibleAttributes, customColNames, setCustomColNames, groupBy, fn, setFn
                                             }) {
     if(!setAttributes || !setVisibleAttributes || !setFn) return;
     const dragItem = useRef();
@@ -22,7 +22,7 @@ export default function RenderColumnControls({
             // add fns
             const newFns = visibleAttributes
                 .map(va => attributes.find(a => a.name === va))
-                .filter(a => a && a.type !== 'calculated' && a.display !== 'calculated' && !groupBy.includes(a.name)) // calculated and grouped columns need not have fns
+                .filter(a => a && !groupBy.includes(a.name)) // grouped columns need not have fns
                 .reduce((acc, a) => ({...acc, [a.name]: fn[a.name] || a.defaultFn || 'list'}) , {});
 
             setFn(newFns);
@@ -124,7 +124,10 @@ export default function RenderColumnControls({
                                          //     setVisibleAttributes([...visibleAttributes, attribute.name]) :
                                          //     setVisibleAttributes(visibleAttributes.filter(attr => attr !== attribute.name))}
                                     >
-                                        <label className={'place-self-stretch'}>{attribute.display_name || attribute.name}</label>
+                                        <input className={'place-self-stretch'}
+                                               value={customColNames[attribute.name] || attribute.display_name || attribute.name}
+                                               onChange={e => setCustomColNames({...customColNames, [attribute.name]: e.target.value})}
+                                        />
 
                                         <select
                                             className={groupBy?.includes(attribute.name) || !visibleAttributes.includes(attribute.name) ? 'invisible' : 'p-0.5 rounded-md bg-white border h-fit'}

@@ -1,31 +1,24 @@
-const applyFn = (col, fn={}, groupBy=[]) => {
+const splitColNameOnAS = name => name.includes(' AS ') ? name.split(' AS ') : name.split(' as ');
+export const applyFn = (col={}, fn={}, groupBy=[]) => {
     const colName = col.name;
-    const mustHaveFnCondition = (col.type !== 'calculated' || col.display !== 'calculated') && // should not be a calculated col
-                                !groupBy.includes(col.name) // should not be grouped by
+    // apply fns if: column is not calculated column or
+    // if it is calculated, and does not have function in name
+    const isCalculatedCol = col.type === 'calculated' || col.display === 'calculated';
+    const colNameWithAccessor = isCalculatedCol ? splitColNameOnAS(colName)[0] : `data->>'${colName}'`;
+    const colNameAfterAS = isCalculatedCol ? splitColNameOnAS(colName)[1] : colName;
 
+    const mustHaveFnCondition = !isCalculatedCol && // if not a calculated col and
+                                !groupBy.includes(col.name) // if not grouped by
     const functions = {
-        [undefined]: `data->>'${colName}' as ${colName}`,
-        list: `array_to_string(array_agg(distinct data->>'${colName}'), ', ') as ${colName}`,
-        sum: `sum(data->>'${colName}') as ${colName}`,
-        count: `count(data->>'${colName}') as ${colName}`,
+        [undefined]: `${colNameWithAccessor} as ${colNameAfterAS}`,
+        list: `array_to_string(array_agg(distinct ${colNameWithAccessor}), ', ') as ${colNameAfterAS}`,
+        sum: `sum(${colNameWithAccessor}) as ${colNameAfterAS}`,
+        count: `count(${colNameWithAccessor}) as ${colNameAfterAS}`,
     }
+    console.log('applyFn', colName, colNameWithAccessor, mustHaveFnCondition, fn)
 
     if(mustHaveFnCondition && !fn[colName]) return null;
     return functions[fn[colName]]
-}
-// test
-// action number : count
-// funding allocated: sum
-
-const removeFn = (colName) => {
-    const patterns = [
-        /^data->>'([^']+)' as ([^\s]+)$/,
-        /^array_to_string\(array_agg\(distinct data->>'([^']+)'\), ', '\) as ([^\s]+)$/,
-        /^sum\(data->>'([^']+)'\) as ([^\s]+)$/,
-        /^count\(data->>'([^']+)'\) as ([^\s]+)$/
-    ];
-
-    return patterns.find(pattern => pattern.exec(colName))?.exec(colName)[1] || colName;
 }
 
 export const isJson = (str)  => {
@@ -58,14 +51,9 @@ const getColAccessor = (col, groupBy, fn) => {
 
     return !col || (col.type === 'calculated' && !isGrouping) ?
         null : // calculated columns in non-grouped mode are not allowed. todo: remove them from columns dropdown and from visibleAttributes on groupBy select
-        col.type === 'calculated' || !isGrouping ?
+        /*col.type === 'calculated' ||*/ !isGrouping ?
             col.name : // calculated columns don't need accessors. if you're not grouping, you use list api call. it takes care of accessors.
             applyFn(col, fn, groupBy) // in a grouped mode, all columns except grouped and calculated columns need fn
-}
-
-const cleanColName = (colName, isGrouping) => {
-
-    return !isGrouping ? colName : removeFn(colName)
 }
 
 const cleanValue = value => {
@@ -83,7 +71,11 @@ export const getData = async ({format, apiLoad, currentPage, pageSize, length, v
     // fetch all data items based on app and type. see if you can associate those items to its pattern. this will be useful when you have multiple patterns.
     // if grouping, use load. disable editing.
     const originalAttributes = JSON.parse(format?.config || '{}')?.attributes || [];
-    const attributesToFetch = visibleAttributes.map(col => getColAccessor(getFullCol(col, originalAttributes), groupBy, fn)).filter(c => c) //JSON.parse(format?.config || '{}')?.attributes || [];
+    const attributesToFetch = visibleAttributes.map(col => ({
+        originalName: col,
+        reqName: getColAccessor(getFullCol(col, originalAttributes), groupBy, fn),
+        resName: splitColNameOnAS(col)[1] || splitColNameOnAS(col)[0] // regular columns won't have 'as', so [1] will only be available for calculated columns
+    }))
     const fromIndex = currentPage*pageSize;
     const toIndex = Math.min(length, currentPage*pageSize + pageSize);
     if(fromIndex > length - 1) return [];
@@ -102,7 +94,7 @@ export const getData = async ({format, apiLoad, currentPage, pageSize, length, v
                 filter: formatFilters(filters),
                 ...groupBy.length && {groupBy: groupBy.map(col => `data->>'${col}'`)}
             }),
-            attributes: attributesToFetch,
+            attributes: attributesToFetch.map(a => a.reqName).filter(a => a),
             stopFullDataLoad: true
         },
     }]
@@ -110,7 +102,7 @@ export const getData = async ({format, apiLoad, currentPage, pageSize, length, v
         app: format.app,
         type: format.doc_type, //doc_type when format is not passed, but the user selects it in pageEdit.
         format: {...format, type: format.doc_type},
-        attributes: attributesToFetch,
+        attributes: attributesToFetch.map(a => a.reqName).filter(a => a),
         children
     });
 
@@ -120,7 +112,8 @@ export const getData = async ({format, apiLoad, currentPage, pageSize, length, v
     // this makes it so that sometimes wrong fn is displayed.
     // find a way to tell which key to use from data.
     // using visible attributes and fn, maybe filter out Object.keys(row)
-    const d = groupBy.length ? data.map(row => Object.keys(row).reduce((acc, column) => ({...acc, [cleanColName(column, groupBy.length)]: cleanValue(row[column])}) , {})) :
+    const d = groupBy.length ?
+        data.map(row => attributesToFetch.reduce((acc, column) => ({...acc, [column.originalName]: cleanValue(row[column.reqName])}) , {})) :
         data;
     console.log('processed data?', d)
     return d;

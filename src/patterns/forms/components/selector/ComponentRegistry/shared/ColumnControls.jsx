@@ -9,6 +9,7 @@ import {RenderAllowSearchParamsControls} from "./RenderAllowSearchParamsControls
 export const ColumnControls = ({
     attributes, setAttributes,
     visibleAttributes, setVisibleAttributes,
+    customColNames, setCustomColNames,
     groupBy, setGroupBy,
     fn, setFn,
     filters, setFilters,
@@ -19,6 +20,7 @@ export const ColumnControls = ({
     <div className={'flex items-center'}>
         <RenderColumnControls attributes={attributes} setAttributes={setAttributes}
                               visibleAttributes={visibleAttributes} setVisibleAttributes={setVisibleAttributes}
+                              customColNames={customColNames} setCustomColNames={setCustomColNames}
                               fn={fn} setFn={setFn} groupBy={groupBy}
         />
         <RenderFilterControls attributes={attributes} filters={filters} setFilters={setFilters} />

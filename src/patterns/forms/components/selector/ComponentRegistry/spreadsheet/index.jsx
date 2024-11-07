@@ -6,8 +6,9 @@ import {RenderFilters} from "./components/RenderFilters";
 import {useSearchParams, useNavigate} from "react-router-dom";
 import {FormsSelector} from "../../FormsSelector";
 import {ColumnControls} from "../shared/ColumnControls";
+import {Card} from "../Card";
 
-const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLoad, apiUpdate, siteType, ...rest}) => {
+const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLoad, apiUpdate, siteType, renderCard, ...rest}) => {
     const isEdit = Boolean(onChange);
     const cachedData = isJson(value) ? JSON.parse(value) : {};
     const [format, setFormat] = useState(formatFromProps || cachedData.format);
@@ -17,6 +18,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     const [loading, setLoading] = useState(false);
     const [attributes, setAttributes] = useState([]);
     const [visibleAttributes, setVisibleAttributes] = useState(cachedData.visibleAttributes || []);
+    const [customColNames, setCustomColNames] = useState(cachedData.customColNames || {});
     const [colSizes, setColSizes] = useState(cachedData.colSizes || {});
     const [newItem, setNewItem] = useState({})
 
@@ -36,7 +38,6 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     const [searchParams, setSearchParams] = useSearchParams();
     const [loadMoreId, setLoadMoreId] = useState(cachedData.loadMoreId);
     const showChangeFormatModal = !formatFromProps;
-
     // ========================================= init comp begin =======================================================
     useEffect(() => {
         // if there's no format passed, the user should be given option to select one. to achieve thia, format needs to be a state variable.
@@ -153,8 +154,8 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     useEffect(() => {
         if (!isEdit) return;
 
-        onChange(JSON.stringify({visibleAttributes, pageSize, attributes, orderBy, colSizes, filters, groupBy, fn, allowEditInView, format, actions, allowSearchParams, loadMoreId}));
-    }, [visibleAttributes, attributes, orderBy, colSizes, filters, groupBy, fn, allowEditInView, format, actions, allowSearchParams, loadMoreId])
+        onChange(JSON.stringify({visibleAttributes, pageSize, attributes, customColNames, orderBy, colSizes, filters, groupBy, fn, allowEditInView, format, actions, allowSearchParams, loadMoreId}));
+    }, [visibleAttributes, attributes, customColNames, orderBy, colSizes, filters, groupBy, fn, allowEditInView, format, actions, allowSearchParams, loadMoreId])
     // =========================================== saving settings end =================================================
 
     // =========================================== filters 2/2 begin ===================================================
@@ -207,6 +208,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
                 isEdit ?
                     <ColumnControls attributes={attributes} setAttributes={setAttributes}
                                     visibleAttributes={visibleAttributes} setVisibleAttributes={setVisibleAttributes}
+                                    customColNames={customColNames} setCustomColNames={setCustomColNames}
                                     groupBy={groupBy} setGroupBy={setGroupBy}
                                     fn={fn} setFn={setFn}
                                     filters={filters} setFilters={setFilters}
@@ -218,43 +220,47 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
 
             <RenderFilters attributes={attributes} filters={filters} setFilters={setFilters} apiLoad={apiLoad}
                            format={format} delimiter={filterValueDelimiter}/>
-            {/*Pagination*/}
-            <RenderPagination totalPages={length} loadedRows={data.length} pageSize={pageSize} currentPage={currentPage}
-                              setVCurrentPage={setCurrentPage} visibleAttributes={visibleAttributes}/>
             {
-                <RenderSimple {...{
-                    data,
-                    setData,
-                    visibleAttributes,
-                    setVisibleAttributes,
-                    attributes,
-                    isEdit,
-                    orderBy,
-                    setOrderBy,
-                    filters,
-                    setFilters,
-                    groupBy,
-                    updateItem,
-                    removeItem,
-                    addItem,
-                    newItem,
-                    setNewItem,
-                    colSizes,
-                    setColSizes,
-                    currentPage,
-                    pageSize,
-                    loading,
-                    loadMoreId,
-                    actions: actions.filter(a => ['edit only', 'both'].includes(a.display)),
-                    allowEdit: !groupBy.length
+                renderCard ? <Card data={data} visibleAttributes={visibleAttributes} attributes={attributes} customColNames={customColNames}/> : (
+                    <>
+                        {/*Pagination*/}
+                        <RenderPagination totalPages={length} loadedRows={data.length} pageSize={pageSize} currentPage={currentPage}
+                                          setVCurrentPage={setCurrentPage} visibleAttributes={visibleAttributes}/>
+
+                        <RenderSimple {...{
+                            data,
+                            setData,
+                            visibleAttributes,
+                            setVisibleAttributes,
+                            attributes,
+                            isEdit,
+                            orderBy,
+                            setOrderBy,
+                            filters,
+                            setFilters,
+                            groupBy,
+                            updateItem,
+                            removeItem,
+                            addItem,
+                            newItem,
+                            setNewItem,
+                            colSizes,
+                            setColSizes,
+                            currentPage,
+                            pageSize,
+                            loading,
+                            loadMoreId,
+                            actions: actions.filter(a => ['edit only', 'both'].includes(a.display)),
+                            allowEdit: !groupBy.length
                         }} />
+                    </>
+                )
             }
-            <button className={'p-2'} onClick={() => setCurrentPage(currentPage+1)}>next</button>
         </div>
     )
 }
 
-const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate, ...rest}) => {
+const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate, renderCard, ...rest}) => {
     const isEdit = false;
     const cachedData = isJson(value) ? JSON.parse(value) : {};
     const [format, setFormat] = useState(formatFromProps || cachedData.format);
@@ -271,6 +277,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
 
     const attributes = cachedData.attributes;
     const visibleAttributes = cachedData.visibleAttributes || [];
+    const customColNames = cachedData.customColNames || {};
     const groupBy = cachedData.groupBy || [];
     const actions = cachedData.actions || [];
     const fn = cachedData.fn;
@@ -420,7 +427,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
     }
     // =========================================== util fns end ========================================================
     if(!format?.config) return <div className={'p-1 text-center'}>Form data not available.</div>
-    return (
+    return renderCard ? <Card data={data} visibleAttributes={visibleAttributes} attributes={attributes} customColNames={customColNames}/> : (
         <div className={'w-full'}>
             <RenderFilters attributes={attributes} filters={filters} setFilters={setFilters} apiLoad={apiLoad} format={format} delimiter={filterValueDelimiter}/>
             {
