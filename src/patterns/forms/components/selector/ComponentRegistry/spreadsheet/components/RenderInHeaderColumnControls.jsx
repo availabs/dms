@@ -1,5 +1,5 @@
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react'
-import RenderSwitch from "./Switch";
+import RenderSwitch from "../../shared/Switch";
 import {useRef} from "react";
 import {ArrowDown, SortAsc, SortDesc} from "../../../../../../admin/ui/icons";
 

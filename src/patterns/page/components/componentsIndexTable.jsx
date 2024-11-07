@@ -7,7 +7,7 @@ import writeXlsxFile from 'write-excel-file';
 import {Download} from '../ui/icons'
 import {getUrlSlug} from "../pages/_utils";
 import Switch from "../../../data-types/lexical/editor/ui/Switch";
-import RenderSwitch from "../../forms/components/selector/ComponentRegistry/spreadsheet/components/Switch";
+import RenderSwitch from "../../forms/components/selector/ComponentRegistry/shared/Switch";
 
 
 const parseIfJson = str => {

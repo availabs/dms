@@ -1,5 +1,5 @@
 import RenderSwitch from "./Switch";
-import {ArrowDown, TouchInteraction} from "../../../../../ui/icons";
+import {ArrowDown, TouchInteraction} from "../../../../ui/icons";
 import {useRef, useState, useEffect} from "react";
 
 const RenderAction = ({actions, setActions, action={}}) => {

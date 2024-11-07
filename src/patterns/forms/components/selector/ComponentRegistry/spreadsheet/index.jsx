@@ -1,16 +1,11 @@
-import React, { useMemo, useState, useEffect }from 'react'
-import RenderColumnControls from "./components/RenderColumnControls";
-import RenderFilterControls from "./components/RenderFilterControls";
-import RenderGroupControls from "./components/RenderGroupControls";
+import React, { useState, useEffect }from 'react'
 import {RenderSimple} from "./components/SimpleSpreadsheet";
 import {RenderPagination} from "./components/RenderPagination";
 import {isJson, getLength, getData, convertToUrlParams} from "./utils";
 import {RenderFilters} from "./components/RenderFilters";
 import {useSearchParams, useNavigate} from "react-router-dom";
-import RenderSwitch from "./components/Switch";
 import {FormsSelector} from "../../FormsSelector";
-import RenderActionControls from "./components/RenderActionControls";
-import _ from "lodash";
+import {ColumnControls} from "../shared/ColumnControls";
 
 const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLoad, apiUpdate, siteType, ...rest}) => {
     const isEdit = Boolean(onChange);
@@ -211,48 +206,16 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
             {
                 isEdit &&
                 <div className={'flex items-center'}>
-                    <RenderColumnControls attributes={attributes} setAttributes={setAttributes}
-                                          visibleAttributes={visibleAttributes}
-                                          setVisibleAttributes={setVisibleAttributes} groupBy={groupBy}
-                                          fn={fn} setFn={setFn}/>
-                    <RenderFilterControls attributes={attributes} visibleAttributes={visibleAttributes}
-                                          filters={filters} setFilters={setFilters} delimiter={filterValueDelimiter}
-                                          navigate={navigate}
-                    />
-                    <RenderGroupControls attributes={attributes} visibleAttributes={visibleAttributes}
+                    <ColumnControls       attributes={attributes} setAttributes={setAttributes}
+                                          visibleAttributes={visibleAttributes} setVisibleAttributes={setVisibleAttributes}
                                           groupBy={groupBy} setGroupBy={setGroupBy}
-                    />
-                    <RenderActionControls attributes={attributes} visibleAttributes={visibleAttributes}
+                                          fn={fn} setFn={setFn}
+                                          filters={filters} setFilters={setFilters} filterValueDelimiter={filterValueDelimiter}
                                           actions={actions} setActions={setActions}
+                                          allowEditInView={allowEditInView} setAllowEditInView={setAllowEditInView}
+                                          allowSearchParams={allowSearchParams} setAllowSearchParams={setAllowSearchParams}
+
                     />
-
-                    <div>
-                        <div
-                             className={`inline-flex w-full justify-center items-center rounded-md px-1.5 py-1 text-sm font-regular text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 bg-white hover:bg-gray-50 cursor-pointer`}
-                             onClick={() => setAllowEditInView(!allowEditInView)}
-                        >
-                            <span className={'flex-1 select-none mr-1'}>Allow Edit </span>
-                            <RenderSwitch
-                                size={'small'}
-                                enabled={allowEditInView}
-                                setEnabled={() => {}}
-                            />
-                        </div>
-                    </div>
-
-                    <div>
-                        <div
-                             className={`inline-flex w-full justify-center items-center rounded-md px-1.5 py-1 text-sm font-regular text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 bg-white hover:bg-gray-50 cursor-pointer`}
-                             onClick={() => setAllowSearchParams(!allowSearchParams)}
-                        >
-                            <span className={'flex-1 select-none mr-1'}>Use Search Params </span>
-                            <RenderSwitch
-                                size={'small'}
-                                enabled={allowSearchParams}
-                                setEnabled={() => {}}
-                            />
-                        </div>
-                    </div>
                 </div>
             }
 

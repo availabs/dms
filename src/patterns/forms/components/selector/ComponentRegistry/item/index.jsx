@@ -2,7 +2,7 @@ import React, {useMemo, useState, useEffect, useRef} from 'react'
 import {useParams, useLocation} from "react-router"
 import DataTypes from "../../../../../../data-types";
 import {InfoCircle} from "../../../../../admin/ui/icons";
-import RenderSwitch from "../spreadsheet/components/Switch";
+import RenderSwitch from "../shared/Switch";
 import {FormsSelector} from "../../FormsSelector";
 import {useSearchParams} from "react-router-dom";
 export const isJson = (str)  => {
