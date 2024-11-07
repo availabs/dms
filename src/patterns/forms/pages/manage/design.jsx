@@ -36,14 +36,17 @@ function SelectControl ({ themeOptions, theme, newTheme, setNewTheme, sectionKey
 }
 
 
-function MenuItemEditor({onSave, onCancel}) {
-  let [newItem, setNewItem] = React.useState({
+function MenuItemEditor({onSave, onCancel, item}) {
+  const blankItem = {
     name:'',
     icon: '',
     path: '',
     className: '',
     authLevel: '-1'
-  })
+  }
+  let [newItem, setNewItem] = React.useState(item || blankItem )
+
+  React.useEffect(() => { setNewItem(item || blankItem )},[item])
 
   return (
     <div>
@@ -71,67 +74,114 @@ function MenuItemEditor({onSave, onCancel}) {
   )
 }
 
+function MenuItemsEditor({onSave, onCancel, items}) {
+  
+  let [newItems, setNewItems] = React.useState(JSON.stringify( (items || []), null , 3 ))
+
+  //React.useEffect(() => { setNewItem(item || blankItem )},[item])
+
+  return (
+    <div>
+      (
+          <div>
+            
+            <div className='w-full'>
+              <textarea 
+                className='p-2 bg-white w-full' 
+                value={newItems} 
+                onChange={(e) => setNewItems(e.target.value)}
+              />
+            </div>
+          </div>
+     
+      <div className='flex justify-end py-2'>
+        <div className='bg-slate-300 rounded px-2 py-1 text-slate-100 cursor-pointer' onClick={onCancel} >Cancel</div>
+        <div className='bg-blue-500 rounded px-2 py-1 text-white cursor-pointer ml-2' onClick={() => onSave(JSON.parse(newItems) || items)}>Save</div>
+      </div>
+    </div>
+  )
+}
+
+
 function MenuControl ({ themeOptions, theme, newTheme, setNewTheme, sectionKey, navKey, controlKey })  {
     let [editIndex, setEditIndex] = React.useState(-2)
 
-    console.log('test 123', navKey, controlKey, newTheme.navOptions?.[navKey]?.[controlKey])
+    //console.log('test 123', navKey, controlKey, newTheme.navOptions?.[navKey]?.[controlKey])
     let control = themeOptions[sectionKey][navKey].controls[controlKey]
     let menuItems = newTheme?.[sectionKey]?.[navKey]?.[controlKey] || []
 
     return (
       <div className='w-full'>
         <div className='text-xs font-medium pt-1 text-slate-400 w-full flex justify-between'>
-          <div>{control.label} {editIndex}</div>
-          <div><button className='bg-blue-500 rounded px-2 py-1 text-white cursor-pointer' onClick={() => setEditIndex(-1)}>Add Item</button></div>
+          <div className='flex-1'>{control.label} {editIndex}</div>
+          <div><button className='bg-blue-500 rounded px-0.5 py-1 text-white cursor-pointer' onClick={() => setEditIndex(-3)}>{'</>'}</button></div>
+          <div><button className='bg-blue-500 rounded px-0.5 py-1 text-white cursor-pointer' onClick={() => setEditIndex(-1)}>Add Item</button></div>
+
           
         </div>
-        <div>
-        {
-          menuItems.length === 0 ? 
-            'No Items' : menuItems.map((d,i) => (
-              <div className='flex w-full text-sm items-center py-1 border-b' key={i}>
-                <div className='flex-1'>
-                  <span className='font-medium text-slate-600'>{d.name}</span> <span className='text-slate-400'>{d.path}</span> 
-                </div>
-                <div>
-                  <Icons.PencilIcon onClick={() => { console.log('pencil click'); setEditIndex(i); }}
-                    className='h-5 w-5 cursor-pointer text-slate-500 hover:text-blue-500'
-                  />
-                </div>
-                <div>
-                  <Icons.RemoveCircle 
-                    onClick={() => {
-                      console.log('menuItems', menuItems)
-                      menuItems.splice(i,1)
-                      let newItems = menuItems
-                      console.log('splice', newItems, i)
-                      setNewTheme(merge(cloneDeep(newTheme), {[sectionKey]: {[navKey]: {[controlKey]: newItems}}}))
-                    }}
-                    className='h-5 w-5 cursor-pointer text-slate-500 hover:text-red-500'
-                  />
-                </div>
-              </div>
-            ))
-        }
-        </div>
-        <div>
-          {editIndex !== -2 ? 
-            <MenuItemEditor 
+        { editIndex === -3 ? 
+          <div>
+            <MenuItemsEditor 
               onCancel={(e) =>  setEditIndex(-2)}
-              onSave={(newItem) => {
-                const newItems = menuItems
-                if(editIndex === -1) {
-                  newItems.push(newItem)
-                } else {
-                  newItems[editIndex] = newItem
-                }
-                
+              items={menuItems}
+              onSave={(newItems) => {
                 setNewTheme(merge(cloneDeep(newTheme), {[sectionKey]: {[navKey]: {[controlKey]: newItems}}}))
                 setEditIndex(-2)
 
               }} 
-            />: ''}
-        </div>
+            />
+          </div> : 
+          (<div>
+              {
+                menuItems.length === 0 ? 
+                  'No Items' : menuItems.map((d,i) => (
+                    <div className='flex w-full text-sm items-center py-1 border-b' key={i}>
+                      <div className='flex-1'>
+                        <span className='font-medium text-slate-600'>{d.name}</span> <span className='text-slate-400'>{d.path}</span> 
+                      </div>
+                      <div onClick={() => { console.log('pencil click', i); setEditIndex(i); }}>
+                        <Icons.PencilIcon 
+                          className='h-5 w-5 cursor-pointer text-slate-500 hover:text-blue-500'
+                        />
+                      </div>
+                      <div>
+                        <Icons.RemoveCircle 
+                          onClick={() => {
+                            console.log('menuItems', menuItems)
+                            menuItems.splice(i,1)
+                            let newItems = menuItems
+                            console.log('splice', newItems, i)
+                            setNewTheme(merge(cloneDeep(newTheme), {[sectionKey]: {[navKey]: {[controlKey]: newItems}}}))
+                          }}
+                          className='h-5 w-5 cursor-pointer text-slate-500 hover:text-red-500'
+                        />
+                      </div>
+                    </div>
+                  ))
+              }
+            </div>
+            )
+          }
+          <div>
+            {editIndex !== -2 ? 
+              <MenuItemEditor 
+                onCancel={(e) =>  setEditIndex(-2)}
+                item={menuItems?.[editIndex]}
+                onSave={(newItem) => {
+                  const newItems = menuItems
+                  if(editIndex === -1) {
+                    newItems.push(newItem)
+                  } else {
+                    newItems[editIndex] = newItem
+                  }
+                  
+                  setNewTheme(merge(cloneDeep(newTheme), {[sectionKey]: {[navKey]: {[controlKey]: newItems}}}))
+                  setEditIndex(-2)
+
+                }} 
+              />: ''}
+          </div>
+
       </div>
     )
 }

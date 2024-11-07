@@ -39,6 +39,8 @@ const MobileSidebar = ({
 	const theme = (fullTheme?.['sidenav'] || {})//(themeOptions);
 	// theme = props.theme || theme;
 
+
+
 	return (
 		<>
 			<div className="md:hidden" onClick={() => toggle(!open)}>
@@ -100,6 +102,8 @@ const DesktopSidebar = ({
 	//let theme = useTheme()['sidenav'](themeOptions);
 	const { theme: fullTheme  } = React.useContext(FormsContext)
 	const theme = (fullTheme?.['sidenav'] || {})//(themeOptions);
+
+	console.log('sidenav theme', theme)
 	// console.log('SideNav', themeOptions, theme, useTheme()['sidenav'](themeOptions))
 	// console.log('sideNav', menuItems)
 	return (
