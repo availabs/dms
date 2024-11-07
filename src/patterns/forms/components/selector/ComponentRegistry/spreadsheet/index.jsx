@@ -210,7 +210,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
                                           visibleAttributes={visibleAttributes} setVisibleAttributes={setVisibleAttributes}
                                           groupBy={groupBy} setGroupBy={setGroupBy}
                                           fn={fn} setFn={setFn}
-                                          filters={filters} setFilters={setFilters} filterValueDelimiter={filterValueDelimiter}
+                                          filters={filters} setFilters={setFilters}
                                           actions={actions} setActions={setActions}
                                           allowEditInView={allowEditInView} setAllowEditInView={setAllowEditInView}
                                           allowSearchParams={allowSearchParams} setAllowSearchParams={setAllowSearchParams}

@@ -3,8 +3,9 @@ import {ArrowDown, Filter} from "../../../../ui/icons";
 import {useRef, useState, useEffect} from "react";
 
 export default function RenderColumnControls({
-                                                 attributes, filters, setFilters, delimiter, navigate
+                                                 attributes, filters, setFilters
                                              }) {
+    if(!setFilters) return;
     const menuRef = useRef(null);
     const [search, setSearch] = useState();
     const [isOpen, setIsOpen] = useState(false);

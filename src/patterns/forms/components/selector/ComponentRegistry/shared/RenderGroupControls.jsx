@@ -5,6 +5,7 @@ import {useRef, useState, useEffect} from "react";
 export default function RenderGroupControls({
                                                  attributes, groupBy, setGroupBy
                                              }) {
+    if(!setGroupBy) return;
     const menuRef = useRef(null);
     const [search, setSearch] = useState();
     const [isOpen, setIsOpen] = useState(false);

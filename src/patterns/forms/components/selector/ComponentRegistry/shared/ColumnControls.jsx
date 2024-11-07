@@ -14,33 +14,25 @@ export const ColumnControls = ({
     visibleAttributes, setVisibleAttributes,
     groupBy, setGroupBy,
     fn, setFn,
-    filters, setFilters, filterValueDelimiter,
+    filters, setFilters,
     actions, setActions,
     allowEditInView, setAllowEditInView,
     allowSearchParams, setAllowSearchParams
 
-}) => {
-    const navigate = useNavigate();
-    return (
-        <>
-            <RenderColumnControls attributes={attributes} setAttributes={setAttributes}
-                                  visibleAttributes={visibleAttributes} setVisibleAttributes={setVisibleAttributes}
-                                  fn={fn} setFn={setFn} groupBy={groupBy}
-            />
-            <RenderFilterControls attributes={attributes} visibleAttributes={visibleAttributes}
-                                  filters={filters} setFilters={setFilters}
-                                  delimiter={filterValueDelimiter} navigate={navigate}
-            />
-            <RenderGroupControls attributes={attributes} visibleAttributes={visibleAttributes}
-                                 groupBy={groupBy} setGroupBy={setGroupBy}
-            />
-            <RenderActionControls attributes={attributes} visibleAttributes={visibleAttributes}
-                                  actions={actions} setActions={setActions}
-            />
+}) => (
+    <>
+        <RenderColumnControls attributes={attributes} setAttributes={setAttributes}
+                              visibleAttributes={visibleAttributes} setVisibleAttributes={setVisibleAttributes}
+                              fn={fn} setFn={setFn} groupBy={groupBy}
+        />
+        <RenderFilterControls attributes={attributes} filters={filters} setFilters={setFilters} />
 
-            <RenderAllowEditControls allowEditInView={allowEditInView} setAllowEditInView={setAllowEditInView} />
+        <RenderGroupControls attributes={attributes} groupBy={groupBy} setGroupBy={setGroupBy} />
 
-            <RenderAllowSearchParamsControls allowSearchParams={allowSearchParams} setAllowSearchParams={setAllowSearchParams} />
-        </>
-    )
-}
+        <RenderActionControls actions={actions} setActions={setActions} />
+
+        <RenderAllowEditControls allowEditInView={allowEditInView} setAllowEditInView={setAllowEditInView} />
+
+        <RenderAllowSearchParamsControls allowSearchParams={allowSearchParams} setAllowSearchParams={setAllowSearchParams} />
+    </>
+)

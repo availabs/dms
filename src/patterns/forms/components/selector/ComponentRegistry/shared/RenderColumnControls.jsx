@@ -5,6 +5,7 @@ import {ArrowDown} from "../../../../ui/icons";
 export default function RenderColumnControls({
     attributes, setAttributes, visibleAttributes, setVisibleAttributes, groupBy, fn, setFn
                                             }) {
+    if(!setAttributes || !setVisibleAttributes || !setFn) return;
     const dragItem = useRef();
     const dragOverItem = useRef();
     const menuRef = useRef(null);

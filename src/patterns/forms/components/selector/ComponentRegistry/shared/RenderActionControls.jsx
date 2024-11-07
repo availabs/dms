@@ -173,7 +173,7 @@ export default function RenderActionControls({
     // type: delete, url
     // url: if type is url, provide text box
     // display: edit only, view only, both
-
+    if(!setActions) return;
     const menuRef = useRef(null);
     const [search, setSearch] = useState();
     const [isOpen, setIsOpen] = useState(false);
