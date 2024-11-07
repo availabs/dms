@@ -74,7 +74,7 @@ const RenderError = ({data}) => (
     </div>)
 
 function TagComponent ({value, placeholder, onChange, edit=false}) {
-    const arrayValue = Array.isArray(value) ? value :  (value?.split(',') || [])
+    const arrayValue = Array.isArray(value) ? value :  (value?.split(',')?.filter(v => v?.length) || [])
     const [newTag, setNewTag] = useState('');
     console.log('hola', value, arrayValue)
 
@@ -107,7 +107,7 @@ function TagComponent ({value, placeholder, onChange, edit=false}) {
                 </div>
                 {tags
                     .filter(tag => (!newTag?.length || tag.toLowerCase().includes(newTag.toLowerCase())))
-                    .length > 0 && (
+                    .length ? (
                         <Combobox.Options 
                             static
                             className="max-h-96 transform-gpu scroll-py-3 overflow-y-auto p-3"
@@ -140,7 +140,7 @@ function TagComponent ({value, placeholder, onChange, edit=false}) {
                                     </Combobox.Option>
                                 ))}
                         </Combobox.Options>
-                    )
+                    ) : null
                 }
             </Combobox>}
             <div className='w-full min-h-8 border-blue-200'>
@@ -148,9 +148,9 @@ function TagComponent ({value, placeholder, onChange, edit=false}) {
                 arrayValue.map((d,i) => (
                     <div key={i} className='px-2 py-1 text-sm border border-blue-200 m-1 rounded bg-blue-100 flex justify-between items-center'>
                         <div className='text-slate-600'>{d}</div>
-                        {edit && <div className='cursor-pointer' onClick={() => onChange(arrayValue.filter(v => v !== d ).join(','))}>
+                        {edit ? <div className='cursor-pointer' onClick={() => onChange(arrayValue.filter(v => v !== d ).join(','))}>
                             <RemoveCircle className='text-red-400 hover:text-red-600  w-[16px] h-[16px]'/>
-                        </div>}
+                        </div> : null}
                     </div>
                 ))
             }
