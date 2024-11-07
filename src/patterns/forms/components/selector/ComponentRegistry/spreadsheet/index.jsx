@@ -11,7 +11,6 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     const isEdit = Boolean(onChange);
     const cachedData = isJson(value) ? JSON.parse(value) : {};
     const [format, setFormat] = useState(formatFromProps || cachedData.format);
-    const [showChangeFormatModal, setShowChangeFormatModal] = useState(!formatFromProps); // if you don't get format from props, default set to true
     const [length, setLength] = useState(cachedData.length || 0);
     const [data, setData] = useState([]);
     const [hasMore, setHasMore] = useState();
@@ -36,6 +35,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const [loadMoreId, setLoadMoreId] = useState(cachedData.loadMoreId);
+    const showChangeFormatModal = !formatFromProps;
 
     // ========================================= init comp begin =======================================================
     useEffect(() => {
@@ -204,19 +204,16 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
                     <FormsSelector siteType={siteType} apiLoad={apiLoad} app={pageFormat?.app} format={format} setFormat={setFormat} formatFromProps={formatFromProps} /> : null
             }
             {
-                isEdit &&
-                <div className={'flex items-center'}>
-                    <ColumnControls       attributes={attributes} setAttributes={setAttributes}
-                                          visibleAttributes={visibleAttributes} setVisibleAttributes={setVisibleAttributes}
-                                          groupBy={groupBy} setGroupBy={setGroupBy}
-                                          fn={fn} setFn={setFn}
-                                          filters={filters} setFilters={setFilters}
-                                          actions={actions} setActions={setActions}
-                                          allowEditInView={allowEditInView} setAllowEditInView={setAllowEditInView}
-                                          allowSearchParams={allowSearchParams} setAllowSearchParams={setAllowSearchParams}
-
-                    />
-                </div>
+                isEdit ?
+                    <ColumnControls attributes={attributes} setAttributes={setAttributes}
+                                    visibleAttributes={visibleAttributes} setVisibleAttributes={setVisibleAttributes}
+                                    groupBy={groupBy} setGroupBy={setGroupBy}
+                                    fn={fn} setFn={setFn}
+                                    filters={filters} setFilters={setFilters}
+                                    actions={actions} setActions={setActions}
+                                    allowEditInView={allowEditInView} setAllowEditInView={setAllowEditInView}
+                                    allowSearchParams={allowSearchParams} setAllowSearchParams={setAllowSearchParams}
+                    /> : null
             }
 
             <RenderFilters attributes={attributes} filters={filters} setFilters={setFilters} apiLoad={apiLoad}

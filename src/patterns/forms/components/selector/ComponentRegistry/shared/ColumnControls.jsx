@@ -1,10 +1,7 @@
-import {useNavigate} from "react-router-dom";
 import RenderColumnControls from "./RenderColumnControls";
 import RenderFilterControls from "./RenderFilterControls";
 import RenderGroupControls from "./RenderGroupControls";
 import RenderActionControls from "./RenderActionControls";
-import RenderSwitch from "./Switch";
-import React from "react";
 import {RenderAllowEditControls} from "./RenderAllowEditControls";
 import {RenderAllowSearchParamsControls} from "./RenderAllowSearchParamsControls";
 
@@ -18,9 +15,8 @@ export const ColumnControls = ({
     actions, setActions,
     allowEditInView, setAllowEditInView,
     allowSearchParams, setAllowSearchParams
-
 }) => (
-    <>
+    <div className={'flex items-center'}>
         <RenderColumnControls attributes={attributes} setAttributes={setAttributes}
                               visibleAttributes={visibleAttributes} setVisibleAttributes={setVisibleAttributes}
                               fn={fn} setFn={setFn} groupBy={groupBy}
@@ -34,5 +30,5 @@ export const ColumnControls = ({
         <RenderAllowEditControls allowEditInView={allowEditInView} setAllowEditInView={setAllowEditInView} />
 
         <RenderAllowSearchParamsControls allowSearchParams={allowSearchParams} setAllowSearchParams={setAllowSearchParams} />
-    </>
+    </div>
 )
