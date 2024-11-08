@@ -3,6 +3,7 @@ import {Link} from "react-router-dom"
 import DataTypes from "../../../../../../../data-types";
 import RenderInHeaderColumnControls from "./RenderInHeaderColumnControls";
 import {Delete, ViewIcon, Add, PencilIcon} from "../../../../../../admin/ui/icons";
+import {convertToUrlParams} from "../utils";
 const actionsColSize = 80;
 const numColSize = 20;
 const gutterColSize = 20;
@@ -83,7 +84,7 @@ function useCopy(callback) {
 
 const RenderActions = ({isLastCell, allowEdit, newItem, removeItem, groupBy=[], actions=[]}) => {
     if(!isLastCell || !actions.length) return null;
-    const searchParams = groupBy.length ? groupBy.filter(col => newItem[col]).map(col => `${col}=${newItem[col]}`).join('&') : `id=${newItem.id}`
+    const searchParams = groupBy.length ? convertToUrlParams(groupBy.filter(col => newItem[col]).map(column => ({column, values: [newItem[column]]}))) : `id=${newItem.id}`
     // console.log('SP?', searchParams, groupBy)
     return (
         <div className={'flex items-center border'}>

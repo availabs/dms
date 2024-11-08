@@ -76,20 +76,23 @@ export const getData = async ({format, apiLoad, currentPage, pageSize, length, v
         reqName: getColAccessor(getFullCol(col, originalAttributes), groupBy, fn),
         resName: splitColNameOnAS(col)[1] || splitColNameOnAS(col)[0] // regular columns won't have 'as', so [1] will only be available for calculated columns
     }))
+    const actionType = groupBy.length ? 'load' : 'list';
+    const lengthBasedOnActionType = actionType === 'load' ? length - 1 : length; // this really needs to be fixed in api
     const fromIndex = currentPage*pageSize;
-    const toIndex = Math.min(length, currentPage*pageSize + pageSize);
-    if(fromIndex > length - 1) return [];
+    const toIndex = Math.min(lengthBasedOnActionType, currentPage*pageSize + pageSize);
+    if(fromIndex > lengthBasedOnActionType) return [];
     if(groupBy.length && !attributesToFetch.length) return [];
     console.log('fetching', fromIndex, toIndex, attributesToFetch)
     const children = [{
         type: () => {
         },
-        action: groupBy.length ? 'load' : 'list',
+        action: actionType,
         path: '/',
         filter: {
             fromIndex: path => fromIndex,
             toIndex: path => toIndex,
             options: JSON.stringify({
+                aggregatedLen: groupBy.length,
                 orderBy: Object.keys(orderBy).reduce((acc, curr) => ({...acc, [`data->>'${curr}'`]: orderBy[curr]}) , {}),
                 filter: formatFilters(filters),
                 ...groupBy.length && {groupBy: groupBy.map(col => `data->>'${col}'`)}
