@@ -1,4 +1,4 @@
-import React, { useState, useEffect }from 'react'
+import React, {useState, useEffect, useRef} from 'react'
 import {RenderSimple} from "./components/SimpleSpreadsheet";
 import {RenderPagination} from "./components/RenderPagination";
 import {isJson, getLength, getData, convertToUrlParams} from "./utils";
@@ -38,6 +38,8 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     const [searchParams, setSearchParams] = useSearchParams();
     const [loadMoreId, setLoadMoreId] = useState(cachedData.loadMoreId);
     const showChangeFormatModal = !formatFromProps;
+    // const isInitialRender = useRef(true);
+
     // ========================================= init comp begin =======================================================
     useEffect(() => {
         // if there's no format passed, the user should be given option to select one. to achieve thia, format needs to be a state variable.
@@ -55,16 +57,28 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
         const filtersFromURL = filterCols.map(col => ({column: col, values: searchParams.get(col)?.split(filterValueDelimiter)}));
         if(filtersFromURL.length) {
             // if filters !== url search params, set filters. no need to navigate.
-            setFilters(filtersFromURL)
+            setFilters(oldFilters => filtersFromURL.map(({column, values}) => ({column, values: [...new Set([...values, ...((oldFilters || []).find(f => f.column === column)?.values || [])])]})))
             setLength(undefined)
             setHasMore(undefined)
-        }else if(!filtersFromURL.length && filters.length){
-            // this means url didn't keep url params. so we need to navigate
-            const url = `?${convertToUrlParams(filters, filterValueDelimiter)}`;
-            navigate(url)
         }
     }, [allowSearchParams, searchParams]);
     // ========================================= filters 1/2 end =======================================================
+    // =========================================== filters 2/2 begin ===================================================
+    useEffect(() => {
+        // this part will use the stored filters to navigate. This behaviour should be avoided on init if search params
+        // are present to avoid overriding the requested filters with saved filters.
+        // if(isInitialRender){
+        //     isInitialRender.current = false;
+        //     // it should further go to redirect if no search params are set. otherwise return so it doesn't override with old filters
+        //     const filterCols = Array.from(searchParams.keys());
+        //     if(filterCols.length) return;
+        // }
+        if(!allowSearchParams) return;
+        const url = `?${convertToUrlParams(filters, filterValueDelimiter)}`;
+        navigate(url)
+    }, [allowSearchParams, filters]);
+    // =========================================== filters 2/2 end =====================================================
+
     useEffect(() => {
         // init stuff. only run when format changes.
 
@@ -157,14 +171,6 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
         onChange(JSON.stringify({visibleAttributes, pageSize, attributes, customColNames, orderBy, colSizes, filters, groupBy, fn, allowEditInView, format, actions, allowSearchParams, loadMoreId}));
     }, [visibleAttributes, attributes, customColNames, orderBy, colSizes, filters, groupBy, fn, allowEditInView, format, actions, allowSearchParams, loadMoreId])
     // =========================================== saving settings end =================================================
-
-    // =========================================== filters 2/2 begin ===================================================
-    useEffect(() => {
-        if(!allowSearchParams) return;
-        const url = `?${convertToUrlParams(filters, filterValueDelimiter)}`;
-        navigate(url)
-    }, [allowSearchParams, filters]);
-    // =========================================== filters 2/2 end =====================================================
 
     // =========================================== util fns begin ======================================================
     const updateItem = (value, attribute, d) => {
@@ -287,30 +293,56 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
     const filterValueDelimiter = '|||'
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams(window.location.search);
-    // useEffect(() => setLength(data.length), [data]); // on data change, reset length.
+
     const loadMoreId = cachedData.loadMoreId;
+    // const isInitialRender = useRef(true);
 
     useEffect(() => {
         // if there's no format passed, the user should be given option to select one. to achieve thia, format needs to be a state variable.
         formatFromProps && setFormat(formatFromProps);
     }, [formatFromProps]);
-    // ========================================= filters 1/2 begin======================================================
+
+    // ========================================= filters 1/2 begin =====================================================
     useEffect(() => {
         if(!allowSearchParams) return;
         const filterCols = Array.from(searchParams.keys());
         const filtersFromURL = filterCols.map(col => ({column: col, values: searchParams.get(col)?.split(filterValueDelimiter)}));
         if(filtersFromURL.length) {
             // if filters !== url search params, set filters. no need to navigate.
-            setFilters(filtersFromURL)
+            setFilters(oldFilters => filtersFromURL.map(({column, values}) => ({column, values: [...new Set([...values, ...((oldFilters || []).find(f => f.column === column)?.values || [])])]})))
             setLength(undefined)
             setHasMore(undefined)
-        }else if(!filtersFromURL.length && filters.length){
-            // this means url didn't keep url params. so we need to navigate
-            const url = `?${convertToUrlParams(filters, filterValueDelimiter)}`;
-            navigate(url)
         }
     }, [allowSearchParams, searchParams]);
     // ========================================= filters 1/2 end =======================================================
+    // ========================================= filters 2/2 begin =====================================================
+    // use already set filters
+    // on init, prefer filters from url, discard already set filters
+    // BUTTTT support filter changes from the user, and navigate to the new search params
+    useEffect(() => {
+        // this part will use the stored filters to navigate. This behaviour should be avoided on init if search params
+        // are present to avoid overriding the requested filters with saved filters.
+        // console.log('debugging: isinitrener', isInitialRender, filters.map(f => f.values)[0], allowSearchParams)
+        // if(isInitialRender && isInitialRender.current){
+        //
+        //     isInitialRender.current = false;
+        //     // it should further go to redirect if no search params are set. otherwise return so it doesn't override with old filters
+        //     const filterCols = Array.from(searchParams.keys());
+        //     console.log('debugging: skipping navigation', isInitialRender, isInitialRender.current, filterCols.length)
+        //     if(filterCols.length) return;
+        // }
+        if(!allowSearchParams) return;
+        const url = convertToUrlParams(filters, filterValueDelimiter); // url based on current filters
+
+        // this triggers and the old filters (from cached data) take over.
+        if(url.length && url !== window.location.search.replace('?', '')) {
+            console.log('debugging: navigating to url 2', url, window.location.search.replace('?', ''))
+            navigate(`?${url}`)
+        }
+
+    }, [allowSearchParams, filters]);
+    // ========================================= filters 2/2 end =======================================================
+
     useEffect(() => {
         async function load() {
             if(data?.length || !format.config) return;
@@ -393,20 +425,9 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
     }, [format, loadMoreId, data.length]);
     // =========================================== get data end ========================================================
 
-    // =========================================== filters 2/2 begin ===================================================
-    useEffect(() => {
-        if(!allowSearchParams) return;
-        const url = convertToUrlParams(filters, filterValueDelimiter);
-        if(url.length && url !== window.location.search.replace('?', '')) {
-            navigate(`?${url}`)
-        }
-    }, [allowSearchParams, filters]);
-    // =========================================== filters 2/2 end ===================================================
-
     // =========================================== util fns begin ======================================================
     const updateItem = (value, attribute, d) => {
         let dataToUpdate = Array.isArray(d) ? d : [d];
-
         let tmpData = [...data];
         dataToUpdate.map(dtu => {
             const i = data.findIndex(dI => dI.id === dtu.id);
