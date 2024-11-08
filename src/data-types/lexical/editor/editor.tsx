@@ -48,7 +48,7 @@ import ListMaxIndentLevelPlugin from './plugins/ListMaxIndentLevelPlugin';
 import {MaxLengthPlugin} from './plugins/MaxLengthPlugin';
 import SpeechToTextPlugin from './plugins/SpeechToTextPlugin';
 import TabFocusPlugin from './plugins/TabFocusPlugin';
-import TableCellActionMenuPlugin from './plugins/TableActionMenuPlugin';
+//import TableCellActionMenuPlugin from './plugins/TableActionMenuPlugin';
 import TableCellResizer from './plugins/TableCellResizer';
 import TableOfContentsPlugin from './plugins/TableOfContentsPlugin';
 import {TablePlugin as NewTablePlugin} from './plugins/TablePlugin';
@@ -202,10 +202,10 @@ export default function Editor(props): JSX.Element {
                                 <DraggableBlockPlugin anchorElem={floatingAnchorElem}/>
                                 {/*<CodeActionMenuPlugin anchorElem={floatingAnchorElem}/>*/}
                                 <FloatingLinkEditorPlugin anchorElem={floatingAnchorElem} isLinkEditMode={isLinkEditMode} setIsLinkEditMode={setIsLinkEditMode}/>
-                                <TableCellActionMenuPlugin
+                               {/* <TableCellActionMenuPlugin
                                     anchorElem={floatingAnchorElem}
                                     cellMerge={true}
-                                />
+                                />*/}
                                 <FloatingTextFormatToolbarPlugin
                                     anchorElem={floatingAnchorElem}
                                     showComments
