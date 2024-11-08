@@ -50,6 +50,7 @@ import Select from '../ui/Select';
 import TextInput from '../ui/TextInput';
 import {$isInlineImageNode, InlineImageNode} from './InlineImageNode';
 import ImageResizer from "../ui/ImageResizer";
+import theme from '../themes/PlaygroundEditorTheme';
 
 const imageCache = new Set();
 
@@ -389,7 +390,7 @@ export default function InlineImageComponent({
       <>
         <div draggable={draggable} className={`${theme.editor.inlineImage.base}` }>
           <button
-            className={'image-edit-button'}
+            className={theme.editor.inlineImage.editButton.base || 'image-edit-button'}
             ref={buttonRef}
             onClick={() => {
               showModal('Update Inline Image', (onClose) => (
@@ -417,7 +418,7 @@ export default function InlineImageComponent({
           />
         </div>
         {showCaption && (
-          <div className="image-caption-container">
+          <div className={theme.editor.inlineImage.captionContainer || "image-caption-container"}>
             <LexicalNestedComposer initialEditor={caption}>
               <AutoFocusPlugin />
               <LinkPlugin />

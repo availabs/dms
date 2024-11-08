@@ -35,6 +35,7 @@ import {
   SPEECH_TO_TEXT_COMMAND,
   SUPPORT_SPEECH_RECOGNITION,
 } from '../SpeechToTextPlugin';
+import theme from '../../themes/PlaygroundEditorTheme';
 
 async function sendEditorState(editor: LexicalEditor): Promise<void> {
   const stringifiedEditorState = JSON.stringify(editor.getEditorState());
@@ -158,15 +159,16 @@ export default function ActionsPlugin({
   }, [editor]);
 
   return (
-    <div className="actions">
+    <div className={`${theme.actions.base}` || "actions"}>
       {SUPPORT_SPEECH_RECOGNITION && (
         <button
           onClick={() => {
             editor.dispatchCommand(SPEECH_TO_TEXT_COMMAND, !isSpeechToText);
             setIsSpeechToText(!isSpeechToText);
           }}
+          // action-button-mic not added to theme
           className={
-            'action-button action-button-mic ' +
+            `${theme.actionButton} action-button-mic ` || 'action-button action-button-mic ' +
             (isSpeechToText ? 'active' : '')
           }
           title="Speech To Text"
@@ -177,14 +179,14 @@ export default function ActionsPlugin({
         </button>
       )}
       <button
-        className="action-button import"
+        className={`${theme.actionButton.base} import` || "action-button import"}
         onClick={() => importFile(editor)}
         title="Import"
         aria-label="Import editor state from JSON">
-        <i className="import" />
+        <i className={theme.icon.import || "import"} />
       </button>
       <button
-        className="action-button export"
+        className={`${theme.actionButton.base} export` || "action-button export"}
         onClick={() =>
           exportFile(editor, {
             fileName: `Playground ${new Date().toISOString()}`,
@@ -193,10 +195,10 @@ export default function ActionsPlugin({
         }
         title="Export"
         aria-label="Export editor state to JSON">
-        <i className="export" />
+        <i className={theme.icon.export || "export"} />
       </button>
       <button
-        className="action-button clear"
+        className={`${theme.actionButton.base} clear` || "action-button clear"}
         disabled={isEditorEmpty}
         onClick={() => {
           showModal('Clear editor', (onClose) => (
@@ -205,10 +207,10 @@ export default function ActionsPlugin({
         }}
         title="Clear"
         aria-label="Clear editor contents">
-        <i className="clear" />
+        <i className={theme.icon.clear || "clear"} />
       </button>
       <button
-        className={`action-button ${!isEditable ? 'unlock' : 'lock'}`}
+        className={`${theme.actionButton.base} ${!isEditable ? 'unlock' : 'lock'}`}
         onClick={() => {
           // Send latest editor state to commenting validation server
           if (isEditable) {
@@ -221,11 +223,11 @@ export default function ActionsPlugin({
         <i className={!isEditable ? 'unlock' : 'lock'} />
       </button>
       <button
-        className="action-button"
+        className={`${theme.actionButton.base}` || "action-button"}
         onClick={handleMarkdownToggle}
         title="Convert From Markdown"
         aria-label="Convert from markdown">
-        <i className="markdown" />
+        <i className={theme.icon.markdown || "markdown"} />
       </button>
       {/*isCollabActive && (
         <button

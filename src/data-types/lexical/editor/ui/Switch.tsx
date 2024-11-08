@@ -8,6 +8,7 @@
 
 import * as React from 'react';
 import {useMemo} from 'react';
+import theme from "./../themes/PlaygroundEditorTheme";
 
 export default function Switch({
   checked,
@@ -22,8 +23,8 @@ export default function Switch({
 }>): JSX.Element {
   const buttonId = useMemo(() => 'id_' + Math.floor(Math.random() * 10000), []);
   return (
-    <div className="switch" id={id}>
-      <label htmlFor={buttonId}>{text}</label>
+    <div className={theme.switch.base} id={id}>
+      <label className={theme.switch.label} htmlFor={buttonId}>{text}</label>
       <button
         role="switch"
         aria-checked={checked}

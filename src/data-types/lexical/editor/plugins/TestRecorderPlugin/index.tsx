@@ -19,6 +19,7 @@ import * as React from 'react';
 import {useCallback, useEffect, useRef, useState} from 'react';
 import {IS_APPLE} from '../../shared/environment';
 import useLayoutEffect from '../../shared/useLayoutEffect';
+import theme from '../../themes/PlaygroundEditorTheme';
 
 const copy = (text: string | null) => {
   const textArea = document.createElement('textarea');
@@ -423,28 +424,28 @@ ${steps.map(formatStep).join(`\n`)}
   const button = (
     <button
       id="test-recorder-button"
-      className={`editor-dev-button ${isRecording ? 'active' : ''}`}
+      className={`${(theme.editorDevButton.base || "editor-dev-button")} ${isRecording ? (theme.editorDevButton.active || 'active') : ''}`}
       onClick={() => toggleEditorSelection(getCurrentEditor())}
       title={isRecording ? 'Disable test recorder' : 'Enable test recorder'}
     />
   );
   const output = isRecording ? (
-    <div className="test-recorder-output">
-      <div className="test-recorder-toolbar">
+    <div className={theme.testRecorderOutput || "test-recorder-output"}>
+      <div className={theme.testRecorderToolbar || "test-recorder-toolbar"}>
         <button
-          className="test-recorder-button"
+          className={`${theme.testRecorderButton}` || "test-recorder-button"}
           id="test-recorder-button-snapshot"
           title="Insert snapshot"
           onClick={onSnapshotClick}
         />
         <button
-          className="test-recorder-button"
+          className={`${theme.testRecorderButton}` || "test-recorder-button"}
           id="test-recorder-button-copy"
           title="Copy to clipboard"
           onClick={onCopyClick}
         />
         <button
-          className="test-recorder-button"
+          className={`${theme.testRecorderButton}` || "test-recorder-button"}
           id="test-recorder-button-download"
           title="Download as a file"
           onClick={onDownloadClick}
