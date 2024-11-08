@@ -336,7 +336,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
 
         // this triggers and the old filters (from cached data) take over.
         if(url.length && url !== window.location.search.replace('?', '')) {
-            console.log('debugging: navigating to url 2', url, window.location.search.replace('?', ''))
+            // console.log('debugging: navigating to url 2', url, window.location.search.replace('?', ''))
             navigate(`?${url}`)
         }
 
