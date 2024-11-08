@@ -26,7 +26,7 @@ import {
   $isTableCellNode,
   $isTableRowNode,
   $unmergeCell,
-  getTableSelectionFromTableElement,
+  // getTableSelectionFromTableElement,
   HTMLTableElementWithWithTableSelectionState,
   TableCellHeaderStates,
   TableCellNode,
@@ -39,9 +39,9 @@ import {
   $isParagraphNode,
   $isRangeSelection,
   $isTextNode,
-  DEPRECATED_$getNodeTriplet,
-  DEPRECATED_$isGridCellNode,
-  DEPRECATED_$isGridSelection,
+  // DEPRECATED_$getNodeTriplet,
+  // DEPRECATED_$isGridCellNode,
+  // DEPRECATED_$isGridSelection,
   GridSelection,
 } from 'lexical';
 import * as React from 'react';
@@ -51,6 +51,7 @@ import invariant from '../../shared/invariant';
 
 import useModal from '../../hooks/useModal';
 import ColorPicker from '../../ui/ColorPicker';
+import theme from '../../themes/PlaygroundEditorTheme';
 
 function computeSelectionCount(selection: GridSelection): {
   columns: number;
@@ -483,7 +484,7 @@ function TableActionMenu({
     if (canMergeCells) {
       mergeCellButton = (
         <button
-          className="item"
+          className={`${theme.dropdown.item.base}` || "item"}
           onClick={() => mergeTableCellsAtSelection()}
           data-test-id="table-merge-cells">
           Merge cells
@@ -492,7 +493,7 @@ function TableActionMenu({
     } else if (canUnmergeCell) {
       mergeCellButton = (
         <button
-          className="item"
+          className={`${theme.dropdown.item.base}` || "item"}
           onClick={() => unmergeTableCellsAtSelection()}
           data-test-id="table-unmerge-cells">
           Unmerge cells
@@ -503,14 +504,14 @@ function TableActionMenu({
 
   return createPortal(
     <div
-      className="dropdown"
+      className={theme.dropdown.base || "dropdown"}
       ref={dropDownRef}
       onClick={(e) => {
         e.stopPropagation();
       }}>
       {mergeCellButton}
       <button
-        className="item"
+        className={theme.dropdown.item.base || "item"}
         onClick={() =>
           showColorPickerModal('Cell background color', () => (
             <ColorPicker
@@ -520,24 +521,24 @@ function TableActionMenu({
           ))
         }
         data-test-id="table-background-color">
-        <span className="text">Background color</span>
+        <span className={theme.dropdown.item.text || "text"}>Background color</span>
       </button>
       <hr />
       <button
-        className="item"
+        className={theme.dropdown.item.base || "item"}
         onClick={() => insertTableRowAtSelection(false)}
         data-test-id="table-insert-row-above">
-        <span className="text">
+        <span className={theme.dropdown.item.text || "text"}>
           Insert{' '}
           {selectionCounts.rows === 1 ? 'row' : `${selectionCounts.rows} rows`}{' '}
           above
         </span>
       </button>
       <button
-        className="item"
+        className={theme.dropdown.item.base || "item"}
         onClick={() => insertTableRowAtSelection(true)}
         data-test-id="table-insert-row-below">
-        <span className="text">
+        <span className={theme.dropdown.item.text || "text"}>
           Insert{' '}
           {selectionCounts.rows === 1 ? 'row' : `${selectionCounts.rows} rows`}{' '}
           below
@@ -545,10 +546,10 @@ function TableActionMenu({
       </button>
       <hr />
       <button
-        className="item"
+        className={theme.dropdown.item.base || "item"}
         onClick={() => insertTableColumnAtSelection(false)}
         data-test-id="table-insert-column-before">
-        <span className="text">
+        <span className={theme.dropdown.item.text || "text"}>
           Insert{' '}
           {selectionCounts.columns === 1
             ? 'column'
@@ -557,10 +558,10 @@ function TableActionMenu({
         </span>
       </button>
       <button
-        className="item"
+        className={theme.dropdown.item.base || "item"}
         onClick={() => insertTableColumnAtSelection(true)}
         data-test-id="table-insert-column-after">
-        <span className="text">
+        <span className={theme.dropdown.item.text || "text"}>
           Insert{' '}
           {selectionCounts.columns === 1
             ? 'column'
@@ -570,26 +571,26 @@ function TableActionMenu({
       </button>
       <hr />
       <button
-        className="item"
+        className={theme.dropdown.item.base || "item"}
         onClick={() => deleteTableColumnAtSelection()}
         data-test-id="table-delete-columns">
-        <span className="text">Delete column</span>
+        <span className={theme.dropdown.item.text || "text"}>Delete column</span>
       </button>
       <button
-        className="item"
+        className={theme.dropdown.item.base || "item"}
         onClick={() => deleteTableRowAtSelection()}
         data-test-id="table-delete-rows">
-        <span className="text">Delete row</span>
+        <span className={theme.dropdown.item.text || "text"}>Delete row</span>
       </button>
       <button
-        className="item"
+        className={theme.dropdown.item.base || "item"}
         onClick={() => deleteTableAtSelection()}
         data-test-id="table-delete">
-        <span className="text">Delete table</span>
+        <span className={theme.dropdown.item.text || "text"}>Delete table</span>
       </button>
       <hr />
-      <button className="item" onClick={() => toggleTableRowIsHeader()}>
-        <span className="text">
+      <button className={theme.dropdown.item.base || "item"} onClick={() => toggleTableRowIsHeader()}>
+        <span className={theme.dropdown.item.text || "text"}>
           {(tableCellNode.__headerState & TableCellHeaderStates.ROW) ===
           TableCellHeaderStates.ROW
             ? 'Remove'
@@ -597,8 +598,8 @@ function TableActionMenu({
           row header
         </span>
       </button>
-      <button className="item" onClick={() => toggleTableColumnIsHeader()}>
-        <span className="text">
+      <button className={theme.dropdown.item.base || "item"} onClick={() => toggleTableColumnIsHeader()}>
+        <span className={theme.dropdown.item.text || "text"}>
           {(tableCellNode.__headerState & TableCellHeaderStates.COLUMN) ===
           TableCellHeaderStates.COLUMN
             ? 'Remove'
@@ -716,17 +717,17 @@ function TableCellActionMenuContainer({
   }, [prevTableCellDOM, tableCellNode]);
 
   return (
-    <div className="table-cell-action-button-container" ref={menuButtonRef}>
+    <div className={theme.cellActionButtonContainer || "table-cell-action-button-container"} ref={menuButtonRef}>
       {tableCellNode != null && (
         <>
           <button
-            className="table-cell-action-button chevron-down"
+            className={`${theme.cellActionButton} ${theme.iconChevronDown}` || "table-cell-action-button chevron-down"}
             onClick={(e) => {
               e.stopPropagation();
               setIsMenuOpen(!isMenuOpen);
             }}
             ref={menuRootRef}>
-            <i className="chevron-down" />
+            <i className={`${theme.iconChevronDown}` || "chevron-down"} />
           </button>
           {colorPickerModal}
           {isMenuOpen && (

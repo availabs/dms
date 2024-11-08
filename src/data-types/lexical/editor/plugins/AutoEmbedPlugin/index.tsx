@@ -26,6 +26,7 @@ import {DialogActions} from '../../ui/Dialog';
 //import {INSERT_FIGMA_COMMAND} from '../FigmaPlugin';
 // import {INSERT_TWEET_COMMAND} from '../TwitterPlugin';
 import {INSERT_YOUTUBE_COMMAND} from '../YouTubePlugin';
+import theme from "./../../themes/PlaygroundEditorTheme";
 
 interface PlaygroundEmbedConfig extends EmbedConfig {
   // Human readable name of the embeded content e.g. Tweet or Google Map.
@@ -50,7 +51,7 @@ export const YoutubeEmbedConfig: PlaygroundEmbedConfig = {
   exampleUrl: 'https://www.youtube.com/watch?v=jNQXAC9IVRw',
 
   // Icon for display.
-  icon: <i className="icon youtube" />,
+  icon: <i className={`${theme.typeaheadPopover.ul.li.icon} ${theme.icon.youtube}` || "icon youtube"} />,
 
   insertNode: (editor: LexicalEditor, result: EmbedMatchResult) => {
     editor.dispatchCommand(INSERT_YOUTUBE_COMMAND, result.id);
@@ -165,22 +166,22 @@ function AutoEmbedMenuItem({
   onMouseEnter: () => void;
   option: AutoEmbedOption;
 }) {
-  let className = 'item';
+  let className = `${theme.typeaheadPopover.ul.li.item}` || 'item';
   if (isSelected) {
-    className += ' selected';
+    className += ` ${theme.typeaheadPopover.ul.li.selected}` || ' selected';
   }
   return (
     <li
       key={option.key}
       tabIndex={-1}
-      className={className}
+      className={`${theme.typeaheadPopover.ul.li.base} ${className}`}
       ref={option.setRefElement}
       role="option"
       aria-selected={isSelected}
       id={'typeahead-item-' + index}
       onMouseEnter={onMouseEnter}
       onClick={onClick}>
-      <span className="text">{option.title}</span>
+      <span className={theme.typeaheadPopover.ul.li.text || "text"}>{option.title}</span>
     </li>
   );
 }
@@ -197,7 +198,7 @@ function AutoEmbedMenu({
   options: Array<AutoEmbedOption>;
 }) {
   return (
-    <div className="typeahead-popover">
+    <div className={`${theme.typeaheadPopover.base}` || "typeahead-popover"}>
       <ul>
         {options.map((option: AutoEmbedOption, i: number) => (
           <AutoEmbedMenuItem
@@ -325,7 +326,7 @@ export default function AutoEmbedPlugin(): JSX.Element {
           anchorElementRef.current
             ? ReactDOM.createPortal(
                 <div
-                  className="typeahead-popover auto-embed-menu"
+                  className={`${theme.typeaheadPopover.base} ${theme.autoEmbedMenu}` || "typeahead-popover auto-embed-menu"}
                   style={{
                     marginLeft: anchorElementRef.current.style.width,
                     width: 200,

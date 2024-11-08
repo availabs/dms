@@ -14,7 +14,7 @@ import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext
 import Editor from './editor';
 import PlaygroundNodes from './nodes/PlaygroundNodes';
 import PlaygroundEditorTheme from './themes/PlaygroundEditorTheme';
-import './lexical.css';
+// import './lexical.css';
 
 
 
@@ -68,7 +68,8 @@ function UpdateEditor ({value, onChange, bgColor, editable}) {
   }, [isFirstRender.current,value])
 
   return (
-    <div className={PlaygroundEditorTheme.editorShell}>
+
+    <div className={`${PlaygroundEditorTheme?.editor?.shell}` || "editor-shell"}>
       <Editor editable={editable} bgColor={bgColor}/>
       <OnChangePlugin onChange={onChange} />
     </div>
