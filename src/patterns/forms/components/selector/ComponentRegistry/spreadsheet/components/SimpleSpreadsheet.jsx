@@ -98,7 +98,7 @@ const RenderActions = ({isLastCell, allowEdit, newItem, removeItem, groupBy=[], 
                             to={`${action.url}?${searchParams}`}>
                             {action.name}
                         </Link>
-                    ) : (
+                    ) : groupBy.length ? null :(
                         <button
                             key={`delete`}
                             title={'delete'}
