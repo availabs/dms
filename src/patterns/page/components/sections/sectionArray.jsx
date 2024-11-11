@@ -670,15 +670,16 @@ const ScrollToHashElement = () => {
 
 const Edit = ({Component, value, onChange, attr, full_width = false, siteType, apiLoad, apiUpdate, format, ...rest }) => {
     // console.log('.............', rest, attr, value)
-    if (!value || !value.map) { 
-        value = []
-    }
     // console.log('---------------sa edit render-----------------')
     // console.log('sa edit sections', value)
     // const [values, setValues] = React.useState([...value , ''] || [''])
     const [values, setValues] = useState([]);
     React.useEffect(() => {
-        setValues([...value,''])
+        if (!value || !value.map) {
+            setValues([''])
+        }else{
+            !isEqual(value, [...value, '']) && setValues([...value,''])
+        }
     }, [value]);
 
     const [edit, setEdit] = React.useState({
