@@ -100,6 +100,7 @@ export default function RenderColumnControls({
                             .filter(a => a && (!search || (a.display_name || a.name).toLowerCase().includes(search.toLowerCase())))
                             .map((attribute, i) => (
                                 <div
+                                    key={i}
                                     className="flex items-center px-2 py-1 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900"
                                     onDragStart={(e) => dragStart(e, i)}
                                     onDragEnter={(e) => dragEnter(e, i)}

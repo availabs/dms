@@ -13,7 +13,7 @@ const RenderAction = ({actions, setActions, action={}}) => {
                     <div className={'flex flex-col w-full px-2 py-1 text-gray-500'}>
                         <input className={'px-1 my-0.5 border w-full rounded-md'} disabled
                                placeholder={'name'}
-                               value={newAction.name}
+                               value={newAction.name || ''}
                                onChange={e => setNewAction({...newAction, name: e.target.value})}
                         />
 
@@ -44,7 +44,7 @@ const RenderAction = ({actions, setActions, action={}}) => {
                                 newAction.type === 'url' ?
                                     <input className={'px-1 border w-full rounded-md'}
                                            placeholder={'url'}
-                                           value={newAction.url}
+                                           value={newAction.url || ''}
                                            onChange={e => setNewAction({...newAction, url: e.target.value})}
                                     />
                                     : null
@@ -71,17 +71,17 @@ const RenderAction = ({actions, setActions, action={}}) => {
                     <div
                         className="flex items-center cursor-pointer px-2 mx-1 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 rounded-md"
                     >
-                        <div className={'h-4 w-4 m-0.5 cursor-pointer text-gray-800'}>
+                        <div key={'icon'} className={'h-4 w-4 m-0.5 cursor-pointer text-gray-800'}>
                             <TouchInteraction height={14} width={14}/>
                         </div>
 
-                        <div className={'flex justify-between m-1 w-full'}>
+                        <div key={'action.name'} className={'flex justify-between m-1 w-full'}>
                             {action.name}
-                            <button className={'p-0.5 m-0.5 text-gray-500 text-sm border rounded-md '}
+                            <button key={'action-edit'} className={'p-0.5 m-0.5 text-gray-500 text-sm border rounded-md '}
                                     onClick={() => setIsEditing(!isEditing)}>
                                 {isEditing ? 'cancel' : 'edit'}
                             </button>
-                            <button className={'p-0.5 m-0.5 text-gray-500 text-sm border rounded-md '}
+                            <button key={'action-delete'} className={'p-0.5 m-0.5 text-gray-500 text-sm border rounded-md '}
                                     onClick={() => setActions(actions.filter(a => a.name !== action.name))}>
                                 delete
                             </button>
@@ -93,9 +93,10 @@ const RenderAction = ({actions, setActions, action={}}) => {
     )
 }
 
-const RenderAddAction = ({actions, setActions, action = {}}) => {
+const RenderAddAction = ({actions, setActions}) => {
+    const blankAction = {name: '', url: ''};
     const [isAdding, setIsAdding] = useState(false);
-    const [newAction, setNewAction] = useState(action);
+    const [newAction, setNewAction] = useState(blankAction);
 
     return (
         <div className={'w-full flex flex-col justify-end'}>
@@ -145,14 +146,14 @@ const RenderAddAction = ({actions, setActions, action = {}}) => {
                             <button className={'px-1 border rounded-md place-self-end'}
                                     onClick={() => {
                                         setActions([...actions, newAction])
-                                        setNewAction({})
+                                        setNewAction(blankAction)
                                     }}
                             >add
                             </button>
                             <button className={'px-1 border rounded-md place-self-end'}
                                     onClick={() => {
                                         setIsAdding(false)
-                                        setNewAction({})
+                                        setNewAction(blankAction)
                                     }}
                             >cancel
                             </button>
@@ -207,17 +208,17 @@ export default function RenderActionControls({
             <div ref={menuRef}
                 className={`${isOpen ? 'visible transition ease-in duration-200' : 'hidden transition ease-in duration-200'} absolute left-0 z-10 w-72 origin-top-left divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 transition focus:outline-none`}
             >
-                <input className={'px-3 py-1 w-full rounded-md'} placeholder={'search...'}
+                <input key={'search'} className={'px-3 py-1 w-full rounded-md'} placeholder={'search...'}
                        onChange={e => {
                            setSearch(e.target.value)
                        }}/>
-                <RenderAddAction actions={actions} setActions={setActions}/>
-                <div className="py-1 max-h-[500px] overflow-auto scrollbar-sm">
+                <RenderAddAction ket={'add-action'} actions={actions} setActions={setActions}/>
+                <div key={'actions'} className="py-1 max-h-[500px] overflow-auto scrollbar-sm">
                     {
                         actions
                             .filter(a => a && (!search || (a.name).toLowerCase().includes(search.toLowerCase())))
                             .map((action, i) => (
-                                <RenderAction action={action} actions={actions} setActions={setActions} />
+                                <RenderAction key={i} action={action} actions={actions} setActions={setActions} />
                             ))
                     }
 

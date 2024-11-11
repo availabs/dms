@@ -49,7 +49,7 @@ export default function RenderInHeaderColumnControls({
                     {
                         actions
                             .map((action, i) => (
-                            <MenuItem>
+                            <MenuItem key={i}>
                                 <div
                                     className="flex items-center cursor-pointer px-2 py-1 text-sm text-gray-700 data-[focus]:bg-gray-100 data-[focus]:text-gray-900"
                                     onClick={() => action.action()}

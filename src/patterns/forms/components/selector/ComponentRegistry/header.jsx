@@ -24,7 +24,7 @@ const RenderHeader = ({title, buttons=[]}) => (
         </div>
         <div>
             {
-                buttons.map(button => <RenderButton {...button} />)
+                buttons.map((button, i) => <RenderButton key={i} {...button} />)
             }
         </div>
     </div>

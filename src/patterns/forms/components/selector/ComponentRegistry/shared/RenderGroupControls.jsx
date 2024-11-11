@@ -49,6 +49,7 @@ export default function RenderGroupControls({
                             .filter(a => a && (!search || (a.display_name || a.name).toLowerCase().includes(search.toLowerCase())))
                             .map((attribute, i) => (
                                 <div
+                                    key={i}
                                     className="flex items-center cursor-pointer px-2 py-1 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900"
                                     onClick={() => {
                                         const newFilters = !groupBy.find(f => f === attribute.name) ?

@@ -13,7 +13,7 @@ export const Card = ({data, visibleAttributes, attributes, customColNames}) => {
                 visibleAttributes
                     .map(attr => attributes.find(a => a.name === attr) || {name: attr})
                     .map(attr => (
-                    <div className={'w-full p-2 rounded-md border shadow'}>
+                    <div key={attr.name} className={'w-full p-2 rounded-md border shadow'}>
                         <div className={'w-full text-gray-500 capitalize text-center'}>{customColNames[attr.name] || attr.display_name || attr.name}</div>
                         <div className={'w-full text-gray-900 font-semibold text-center'}>{data?.[0]?.[attr.name]}</div>
                     </div>

@@ -92,15 +92,17 @@ const RenderActions = ({isLastCell, allowEdit, newItem, removeItem, groupBy=[], 
                 {
                     actions.map(action => action.type === 'url' ? (
                         <Link
+                            key={`${action.name}`}
                             title={action.name}
-                            className={'flex items-center w-fit p-0.5 bg-blue-300 hover:bg-blue-500 text-white rounded-lg'}
+                            className={'flex items-center w-fit p-0.5 mx-0.5 bg-blue-300 hover:bg-blue-500 text-white rounded-lg'}
                             to={`${action.url}?${searchParams}`}>
                             {action.name}
                         </Link>
                     ) : (
                         <button
+                            key={`delete`}
                             title={'delete'}
-                            className={'w-fit p-0.5 bg-red-300 hover:bg-red-500 text-white rounded-lg'}
+                            className={'w-fit p-0.5 mx-0.5 bg-red-300 hover:bg-red-500 text-white rounded-lg'}
                             onClick={e => {
                                 removeItem(newItem)
                             }}>
@@ -559,9 +561,9 @@ export const RenderSimple = ({
                     {visibleAttributes.map(va => attributes.find(attr => attr?.name === va))
                         .filter(a => a)
                         .map((attribute, i) =>
-                            <div className={`flex justify-between ${frozenCols.includes(i) ? frozenColClass : ''}`}
+                            <div key={i} className={`flex justify-between ${frozenCols.includes(i) ? frozenColClass : ''}`}
                                  style={{width: colSizes[attribute?.name]}}>
-                                <div key={i}
+                                <div key={`controls-${i}`}
                                      className={`w-full font-semibold  border ${selection.find(s => s.attrI === i) ? `bg-blue-100 text-gray-900` : `bg-gray-50 text-gray-500`}`}>
                                     <RenderInHeaderColumnControls
                                         isEdit={isEdit}
@@ -572,7 +574,7 @@ export const RenderSimple = ({
                                         setFilters={setFilters}
                                     />
                                 </div>
-                                <div className="z-5 -ml-2"
+                                <div key={`resizer-${i}`} className="z-5 -ml-2"
                                      style={{
                                          width: '3px',
                                          height: '100%',
@@ -602,7 +604,7 @@ export const RenderSimple = ({
                 {/*Rows*/}
                 {/*<div className={`max-h-[calc(87vh_-_10px)] overflow-y-auto scrollbar-sm`}>*/}
                     {data.map((d, i) => (
-                        <div
+                        <div key={`data-${i}`}
                             className={`grid ${allowEdit ? c[visibleAttributes.length + 3] : c[visibleAttributes.length + 2]} divide-x divide-y ${isDragging ? `select-none` : ``}`}
                             style={{gridTemplateColumns: `${numColSize}px ${visibleAttributes.map(v => `${colSizes[v]}px` || 'auto').join(' ')} ${allowEdit ? `${actionsColSize}px` : ``} ${gutterColSize}px`}}
                         >
@@ -640,7 +642,7 @@ export const RenderSimple = ({
                                                 getEdge(selectionRange, i, attrI) : null}
                                         editing={editing.index === i && editing.attrI === attrI}
                                         triggerDelete={triggerSelectionDelete}
-                                        key={`${i}-${attrI}`}
+                                        key={`cell-${i}-${attrI}`}
                                         width={colSizes[attributes.find(attr => attr.name === attribute).name]}
                                         attribute={attributes.find(attr => attr.name === attribute)}
                                         loading={loading}
@@ -692,6 +694,7 @@ export const RenderSimple = ({
                             .map((attribute, attrI) => {
                                 return (
                                     <div
+                                        key={`gutter-${attrI}`}
                                         className={`flex border bg-gray-50`}
                                         style={{width: colSizes[attribute.name]}}
                                     >
@@ -700,7 +703,7 @@ export const RenderSimple = ({
                                 )
                             })
                     }
-                    <div className={'bg-white flex flex-row h-fit justify-evenly'}
+                    <div key={`gutter-actions-column`} className={'bg-white flex flex-row h-fit justify-evenly'}
                          style={{width: actionsColSize}}>
 
                     </div>
@@ -724,6 +727,7 @@ export const RenderSimple = ({
                                         const Comp = DataTypes[attribute?.type || 'text']?.EditComp || DisplayCalculatedCell;
                                         return (
                                             <div
+                                                key={`add-new-${attrI}`}
                                                 className={`flex border`}
                                                 style={{width: colSizes[attribute.name]}}
                                             >
