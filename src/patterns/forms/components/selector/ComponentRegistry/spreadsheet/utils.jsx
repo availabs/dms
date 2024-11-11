@@ -15,7 +15,7 @@ export const applyFn = (col={}, fn={}, groupBy=[]) => {
         sum: `sum(${colNameWithAccessor}) as ${colNameAfterAS}`,
         count: `count(${colNameWithAccessor}) as ${colNameAfterAS}`,
     }
-    console.log('applyFn', colName, colNameWithAccessor, mustHaveFnCondition, fn)
+    // console.log('applyFn', colName, colNameWithAccessor, mustHaveFnCondition, fn)
 
     if(mustHaveFnCondition && !fn[colName]) return null;
     return functions[fn[colName]]
