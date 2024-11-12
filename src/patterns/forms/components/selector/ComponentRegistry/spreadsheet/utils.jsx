@@ -67,7 +67,7 @@ const cleanValue = value => {
 
 const getFullCol = (colName, attributes) => attributes.find(attr => attr.name === colName)
 
-export const getData = async ({format, apiLoad, currentPage, pageSize, length, visibleAttributes, orderBy, filters, groupBy, fn}) =>{
+export const getData = async ({format, apiLoad, currentPage, pageSize, length, visibleAttributes, orderBy, filters, groupBy, fn, notNull}) =>{
     // fetch all data items based on app and type. see if you can associate those items to its pattern. this will be useful when you have multiple patterns.
     // if grouping, use load. disable editing.
     const originalAttributes = JSON.parse(format?.config || '{}')?.attributes || [];
@@ -95,7 +95,8 @@ export const getData = async ({format, apiLoad, currentPage, pageSize, length, v
                 aggregatedLen: groupBy.length,
                 orderBy: Object.keys(orderBy).reduce((acc, curr) => ({...acc, [`data->>'${curr}'`]: orderBy[curr]}) , {}),
                 filter: formatFilters(filters),
-                ...groupBy.length && {groupBy: groupBy.map(col => `data->>'${col}'`)}
+                ...groupBy.length && {groupBy: groupBy.map(col => `data->>'${col}'`)},
+                ...notNull.length && {exclude: notNull.reduce((acc, col) => ({...acc, [`data->>'${col}'`]: ['null']}), {})}
             }),
             attributes: attributesToFetch.map(a => a.reqName).filter(a => a),
             stopFullDataLoad: true
@@ -123,7 +124,7 @@ export const getData = async ({format, apiLoad, currentPage, pageSize, length, v
 
 }
 
-export const getLength = async ({format, apiLoad, filters=[], groupBy=[]}) =>{
+export const getLength = async ({format, apiLoad, filters=[], groupBy=[], notNull=[]}) =>{
     const attributes = JSON.parse(format?.config || '{}')?.attributes || [];
     const children = [{
         type: () => {
@@ -134,7 +135,8 @@ export const getLength = async ({format, apiLoad, filters=[], groupBy=[]}) =>{
             options: JSON.stringify({
                 aggregatedLen: groupBy.length,
                 filter: formatFilters(filters),
-                ...groupBy.length && {groupBy: groupBy.map(col => `data->>'${col}'`)}
+                ...groupBy.length && {groupBy: groupBy.map(col => `data->>'${col}'`)},
+                ...notNull.length && {exclude: notNull.reduce((acc, col) => ({...acc, [`data->>'${col}'`]: ['null']}), {})}
             })
         },
     }]

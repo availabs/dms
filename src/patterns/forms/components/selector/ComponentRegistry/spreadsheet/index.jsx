@@ -27,6 +27,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     const [groupBy, setGroupBy] = useState(cachedData.groupBy || []);
     const [actions, setActions] = useState(cachedData.actions || []);
     const [fn, setFn] = useState(cachedData.fn || {});
+    const [notNull, setNotNull] = useState(cachedData.notNull || []);
 
     const [allowEditInView, setAllowEditInView] = useState(cachedData.allowEditInView);
     const [allowSearchParams, setAllowSearchParams] = useState(cachedData.allowSearchParams === undefined ? true : cachedData.allowSearchParams);
@@ -86,9 +87,9 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
             if(data?.length || !format?.config) return;
             setLoading(true)
             if(!loadMoreId) setLoadMoreId(`id${Date.now()}`)
-            const length = await getLength({format, apiLoad, filters, groupBy});
+            const length = await getLength({format, apiLoad, filters, groupBy, notNull});
             const d = await getData({
-                format, apiLoad, currentPage, pageSize, length, orderBy, filters, groupBy, visibleAttributes, fn
+                format, apiLoad, currentPage, pageSize, length, orderBy, filters, groupBy, visibleAttributes, fn, notNull
             });
             setData(d);
             setLength(length);
@@ -109,9 +110,9 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
 
             setLoading(true)
             const newCurrentPage = 0; // for all the deps here, it's okay to fetch from page 1.
-            const length = await getLength({format, apiLoad, filters, groupBy});
+            const length = await getLength({format, apiLoad, filters, groupBy, notNull});
             const data = await getData({
-                format, apiLoad, currentPage: newCurrentPage, pageSize, length, orderBy, filters, groupBy, visibleAttributes, fn
+                format, apiLoad, currentPage: newCurrentPage, pageSize, length, orderBy, filters, groupBy, visibleAttributes, fn, notNull
             });
             setLength(length);
             setData(data); // if page didn't change, set data as it comes
@@ -121,7 +122,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
         }
 
         load()
-    }, [orderBy, filters, groupBy, visibleAttributes, fn]);
+    }, [orderBy, filters, groupBy, visibleAttributes, fn, notNull]);
 
     useEffect(() => {
         // only run when page changes
@@ -131,7 +132,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
             setLoading(true)
             // const length = await getLength({format, apiLoad, filters, groupBy});
             const data = await getData({
-                format, apiLoad, currentPage, pageSize, length, orderBy, filters, groupBy, visibleAttributes, fn
+                format, apiLoad, currentPage, pageSize, length, orderBy, filters, groupBy, visibleAttributes, fn, notNull
             });
             // setLength(length);
             setData(prevData => [...prevData, ...data]); // on page change append
@@ -167,9 +168,9 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     // =========================================== saving settings begin ===============================================
     useEffect(() => {
         if (!isEdit) return;
-
-        onChange(JSON.stringify({visibleAttributes, pageSize, attributes, customColNames, orderBy, colSizes, filters, groupBy, fn, allowEditInView, format, actions, allowSearchParams, loadMoreId}));
-    }, [visibleAttributes, attributes, customColNames, orderBy, colSizes, filters, groupBy, fn, allowEditInView, format, actions, allowSearchParams, loadMoreId])
+        // notNull passed through controls. setup length and data fns to use it in both edit and view
+        onChange(JSON.stringify({visibleAttributes, pageSize, attributes, customColNames, orderBy, colSizes, filters, groupBy, fn, notNull, allowEditInView, format, actions, allowSearchParams, loadMoreId}));
+    }, [visibleAttributes, attributes, customColNames, orderBy, colSizes, filters, groupBy, fn, notNull, allowEditInView, format, actions, allowSearchParams, loadMoreId])
     // =========================================== saving settings end =================================================
 
     // =========================================== util fns begin ======================================================
@@ -217,6 +218,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
                                     customColNames={customColNames} setCustomColNames={setCustomColNames}
                                     groupBy={groupBy} setGroupBy={setGroupBy}
                                     fn={fn} setFn={setFn}
+                                    notNull={notNull} setNotNull={setNotNull}
                                     filters={filters} setFilters={setFilters}
                                     actions={actions} setActions={setActions}
                                     allowEditInView={allowEditInView} setAllowEditInView={setAllowEditInView}
@@ -285,6 +287,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
     const visibleAttributes = cachedData.visibleAttributes || [];
     const customColNames = cachedData.customColNames || {};
     const groupBy = cachedData.groupBy || [];
+    const notNull = cachedData.notNull || [];
     const actions = cachedData.actions || [];
     const fn = cachedData.fn;
     const allowEdit = cachedData.allowEditInView;
@@ -348,9 +351,9 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
             if(data?.length || !format.config) return;
             // init stuff
             setLoading(true)
-            const length = await getLength({format, apiLoad, filters, groupBy});
+            const length = await getLength({format, apiLoad, filters, groupBy, notNull});
             const d = await getData({
-                format, apiLoad, currentPage, pageSize, length, orderBy, filters, groupBy, visibleAttributes, fn
+                format, apiLoad, currentPage, pageSize, length, orderBy, filters, groupBy, visibleAttributes, fn, notNull
             });
             setData(d);
             setLength(length);
@@ -369,9 +372,9 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
             if(!format?.config) return;
             setLoading(true)
             const newCurrentPage = 0; // for all the deps here, it's okay to fetch from page 1.
-            const length = await getLength({format, apiLoad, filters, groupBy});
+            const length = await getLength({format, apiLoad, filters, groupBy, notNull});
             const data = await getData({
-                format, apiLoad, currentPage: newCurrentPage, pageSize, length, orderBy, filters, groupBy, visibleAttributes, fn
+                format, apiLoad, currentPage: newCurrentPage, pageSize, length, orderBy, filters, groupBy, visibleAttributes, fn, notNull
             });
             setLength(length);
             setData(data); // if page didn't change, set data as it comes
@@ -391,7 +394,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
             setLoading(true)
             // const length = await getLength({format, apiLoad, filters, groupBy});
             const data = await getData({
-                format, apiLoad, currentPage, pageSize, length, orderBy, filters, groupBy, visibleAttributes, fn
+                format, apiLoad, currentPage, pageSize, length, orderBy, filters, groupBy, visibleAttributes, fn, notNull
             });
             // setLength(length);
             setData(prevData => [...prevData, ...data]); // on page change append

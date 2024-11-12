@@ -3,9 +3,14 @@ import React, {useEffect, useRef, useState} from "react";
 import {ArrowDown} from "../../../../ui/icons";
 
 export default function RenderColumnControls({
-    attributes, setAttributes, visibleAttributes, setVisibleAttributes, customColNames, setCustomColNames, groupBy, fn, setFn
-                                            }) {
-    if(!setAttributes || !setVisibleAttributes || !setFn) return;
+    attributes=[], setAttributes,
+    visibleAttributes=[], setVisibleAttributes,
+    customColNames={}, setCustomColNames,
+    notNull=[], setNotNull,
+    fn={}, setFn,
+    groupBy=[]
+}) {
+    if(!setAttributes || !setVisibleAttributes) return;
     const dragItem = useRef();
     const dragOverItem = useRef();
     const menuRef = useRef(null);
@@ -77,6 +82,7 @@ export default function RenderColumnControls({
         };
     }, []);
     // ================================================== close on outside click end ===================================
+    console.log('not null', notNull)
     return (
         <div className="relative inline-block text-left">
             <div>
@@ -88,9 +94,9 @@ export default function RenderColumnControls({
             </div>
 
             <div ref={menuRef}
-                className={`${isOpen ? 'visible transition ease-in duration-200' : 'hidden transition ease-in duration-200'} absolute left-0 z-10 w-96 origin-top-left divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 transition focus:outline-none`}
+                className={`${isOpen ? 'visible transition ease-in duration-200' : 'hidden transition ease-in duration-200'} absolute left-0 z-10 w-[24rem] origin-top-left divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 transition focus:outline-none`}
             >
-                <input className={'px-4 py-1 w-full rounded-md'} placeholder={'search...'}
+                <input className={'px-4 py-1 w-full text-xs rounded-md'} placeholder={'search...'}
                        onChange={e => {
                            setSearch(e.target.value)
                        }}/>
@@ -101,7 +107,7 @@ export default function RenderColumnControls({
                             .map((attribute, i) => (
                                 <div
                                     key={i}
-                                    className="flex items-center px-2 py-1 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                                    className="flex items-center px-2 py-1 text-xs text-gray-700 hover:bg-gray-100 hover:text-gray-900"
                                     onDragStart={(e) => dragStart(e, i)}
                                     onDragEnter={(e) => dragEnter(e, i)}
 
@@ -119,29 +125,49 @@ export default function RenderColumnControls({
                                         </svg>
                                     </div>
 
-                                    <div className={'grid grid-cols-3 m-1 w-full cursor-pointer'}
-                                         style={{gridTemplateColumns: '2fr 1fr 1fr'}}
+                                    <div className={'grid grid-cols-4 m-1 w-full cursor-pointer'}
+                                         style={{gridTemplateColumns: '2fr 1fr 1fr 1fr'}}
                                          // onClick={() => !visibleAttributes.includes(attribute.name) ?
                                          //     setVisibleAttributes([...visibleAttributes, attribute.name]) :
                                          //     setVisibleAttributes(visibleAttributes.filter(attr => attr !== attribute.name))}
                                     >
-                                        <input className={'place-self-stretch'}
+                                        <input className={setCustomColNames ? 'place-self-stretch' : 'hidden'}
                                                value={customColNames[attribute.name] || attribute.display_name || attribute.name}
                                                onChange={e => setCustomColNames({...customColNames, [attribute.name]: e.target.value})}
                                         />
 
                                         <select
-                                            className={groupBy?.includes(attribute.name) || !visibleAttributes.includes(attribute.name) ? 'invisible' : 'p-0.5 rounded-md bg-white border h-fit'}
+                                            className={
+                                            groupBy?.includes(attribute.name) || !visibleAttributes.includes(attribute.name) || !setFn ?
+                                                'invisible' :
+                                                'appearance-none w-fit rounded-md bg-gray-100 h-fit text-center'
+                                            }
                                             value={fn[attribute.name]}
                                             onClick={e => setFn({...fn, [attribute.name]: e.target.value})}
                                         >
                                             {
-                                                    ['none', 'list', 'sum', 'count']
+                                                    ['fn', 'list', 'sum', 'count']
                                                         .map(fnOption => <option key={fnOption} value={fnOption}>{fnOption}</option> )
+                                            }
+                                        </select>
+
+                                        <select
+                                            className={
+                                            !visibleAttributes.includes(attribute.name) || !setNotNull ?
+                                                'invisible' :
+                                                'appearance-none px-1 w-fit rounded-md bg-gray-100 h-fit text-center'
+                                            }
+                                            value={notNull.includes(attribute.name)}
+                                            onChange={e => setNotNull(e.target.value === 'true' ? [...notNull, attribute.name] : notNull.filter(c => c !== attribute.name))}
+                                        >
+                                            {
+                                                    [{label: 'include n/a', value: false}, {label: 'exclude n/a', value: true}]
+                                                        .map(({label, value}) => <option key={label} value={value}>{label}</option> )
                                             }
                                         </select>
                                         <div className={'justify-self-end'}>
                                             <RenderSwitch
+                                                size={'small'}
                                                 id={attribute.name}
                                                 enabled={visibleAttributes.includes(attribute.name)}
                                                 setEnabled={(value) => value ? setVisibleAttributes([...visibleAttributes, attribute.name]) :

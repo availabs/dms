@@ -10,6 +10,7 @@ export const ColumnControls = ({
     attributes, setAttributes,
     visibleAttributes, setVisibleAttributes,
     customColNames, setCustomColNames,
+    notNull, setNotNull,
     groupBy, setGroupBy,
     fn, setFn,
     filters, setFilters,
@@ -21,6 +22,7 @@ export const ColumnControls = ({
         <RenderColumnControls attributes={attributes} setAttributes={setAttributes}
                               visibleAttributes={visibleAttributes} setVisibleAttributes={setVisibleAttributes}
                               customColNames={customColNames} setCustomColNames={setCustomColNames}
+                              notNull={notNull} setNotNull={setNotNull}
                               fn={fn} setFn={setFn} groupBy={groupBy}
         />
         <RenderFilterControls attributes={attributes} filters={filters} setFilters={setFilters} />
