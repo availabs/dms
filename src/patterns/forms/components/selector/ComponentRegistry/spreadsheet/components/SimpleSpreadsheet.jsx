@@ -2,7 +2,7 @@ import React, {useEffect, useMemo, useRef, useState} from "react";
 import {Link} from "react-router-dom"
 import DataTypes from "../../../../../../../data-types";
 import RenderInHeaderColumnControls from "./RenderInHeaderColumnControls";
-import {Delete, ViewIcon, Add, PencilIcon} from "../../../../../../admin/ui/icons";
+import Icons, {TrashCan, Add} from "../../../../../ui/icons";
 import {convertToUrlParams} from "../utils";
 const actionsColSize = 80;
 const numColSize = 20;
@@ -81,6 +81,7 @@ function useCopy(callback) {
         };
     }, [callback]);
 }
+const getIcon = ({icon, name}) => (icon) ? Icons[icon] : () => name;
 
 const RenderActions = ({isLastCell, allowEdit, newItem, removeItem, groupBy=[], actions=[]}) => {
     if(!isLastCell || !actions.length) return null;
@@ -90,25 +91,26 @@ const RenderActions = ({isLastCell, allowEdit, newItem, removeItem, groupBy=[], 
         <div className={'flex items-center border'}>
             <div className={'flex flex-row h-fit justify-evenly'} style={{width: actionsColSize}}>
                 {
-                    actions.map(action => action.type === 'url' ? (
-                        <Link
-                            key={`${action.name}`}
-                            title={action.name}
-                            className={'flex items-center w-fit p-0.5 mx-0.5 bg-blue-300 hover:bg-blue-500 text-white rounded-lg'}
-                            to={`${action.url}?${searchParams}`}>
-                            {action.name}
-                        </Link>
-                    ) : groupBy.length ? null :(
-                        <button
-                            key={`delete`}
-                            title={'delete'}
-                            className={'w-fit p-0.5 mx-0.5 bg-red-300 hover:bg-red-500 text-white rounded-lg'}
-                            onClick={e => {
-                                removeItem(newItem)
-                            }}>
-                            <Delete className={'text-white'} height={20} width={20}/>
-                        </button>
-                    ))
+                    actions.map(action => {
+                        const Icon = getIcon({name: action.name, icon: action.icon || (action.type === 'delete' && 'TrashCan')})
+                        return action.type === 'url' ? (
+                            <Link
+                                key={`${action.name}`}
+                                title={action.name}
+                                className={'flex items-center w-fit p-0.5 mx-0.5 bg-blue-300 hover:bg-blue-500 text-white rounded-lg'}
+                                to={`${action.url}?${searchParams}`}>
+                                <Icon className={'text-white'}/>
+                            </Link>
+                        ) : groupBy.length ? null :(
+                            <button
+                                key={`delete`}
+                                title={'delete'}
+                                className={'w-fit p-0.5 mx-0.5 bg-red-300 hover:bg-red-500 text-white rounded-lg'}
+                                onClick={e => {removeItem(newItem)}}>
+                                <Icon className={'text-white'}/>
+                            </button>
+                        )
+                    })
                 }
             </div>
         </div>

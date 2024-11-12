@@ -1,8 +1,50 @@
-import RenderSwitch from "./Switch";
-import {ArrowDown, TouchInteraction} from "../../../../ui/icons";
 import {useRef, useState, useEffect} from "react";
+import Icons, {ArrowDown, TouchInteraction} from "../../../../ui/icons"
 
-const RenderAction = ({actions, setActions, action={}}) => {
+const RenderIconSelector = ({onClick, icon}) => {
+    const [open, setOpen] = useState(false);
+    const [search, setSearch] = useState('');
+    const Value = icon ? Icons[icon] : () => <span>icon</span>;
+    return (
+        <div className="p-1 bg-white border rounded-md">
+            <button
+                type="button"
+                className="flex w-full justify-between items-center bg-white rounded-md shadow-sm"
+                id="dropdown-button"
+                onClick={() => setOpen(!open)}
+            >
+                <Value />
+                <ArrowDown width={15} height={15}/>
+            </button>
+
+            <div
+                className={open ? "grid grid-cols-5 gap-2 absolute z-10 mt-2 w-full bg-white border border-gray-300 rounded-md shadow-lg" : 'hidden'}
+                role="menu"
+            >
+                <input key={'search'} className={'p-1 mx-1 text-sm rounded-md col-span-5'} placeholder={'search...'}
+                       value={search} onChange={e => setSearch(e.target.value)}/>
+                {Object.keys(Icons)
+                    .filter(icon => icon.toLowerCase().includes(search.toLowerCase()))
+                    .sort((a, b) => a.localeCompare(b))
+                    .map(icon => {
+                        const Comp = Icons[icon];
+
+                        return (
+                            <button
+                                key={icon}
+                                className="flex items-center justify-center w-full px-1 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
+                                role="menuitem"
+                                onClick={() => onClick(icon)}
+                            >
+                                <Comp height={16} width={16}/>
+                            </button>
+                        )
+                    })}
+            </div>
+        </div>
+    )
+}
+const RenderAction = ({actions, setActions, action = {}}) => {
     const [isEditing, setIsEditing] = useState(false);
     const [newAction, setNewAction] = useState(action);
 
@@ -17,7 +59,9 @@ const RenderAction = ({actions, setActions, action={}}) => {
                                onChange={e => setNewAction({...newAction, name: e.target.value})}
                         />
 
-                        <div className={'grid grid-cols-2 gap-1'}>
+                        <div className={'grid grid-cols-3 gap-1'}>
+                            <RenderIconSelector icon={newAction.icon} onClick={e => setNewAction({...newAction, icon: e})} />
+
                             <select className={'p-1 bg-white border rounded-md'}
                                     value={newAction.display}
                                     onChange={e => setNewAction({...newAction, display: e.target.value})}
@@ -111,7 +155,10 @@ const RenderAddAction = ({actions, setActions}) => {
                                onChange={e => setNewAction({...newAction, name: e.target.value})}
                         />
 
-                        <div className={'grid grid-cols-2 gap-1'}>
+                        <div className={'grid grid-cols-3 gap-1'}>
+
+                            <RenderIconSelector icon={newAction.icon} onClick={e => setNewAction({...newAction, icon: e})}/>
+
                             <select className={'p-1 bg-white border rounded-md'}
                                     value={newAction.display}
                                     onChange={e => setNewAction({...newAction, display: e.target.value})}
@@ -174,7 +221,7 @@ export default function RenderActionControls({
     // type: delete, url
     // url: if type is url, provide text box
     // display: edit only, view only, both
-    if(!setActions) return;
+    if (!setActions) return;
     const menuRef = useRef(null);
     const [search, setSearch] = useState();
     const [isOpen, setIsOpen] = useState(false);
