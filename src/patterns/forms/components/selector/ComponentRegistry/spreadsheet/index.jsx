@@ -7,6 +7,7 @@ import {useSearchParams, useNavigate} from "react-router-dom";
 import {FormsSelector} from "../../FormsSelector";
 import {ColumnControls} from "../shared/ColumnControls";
 import {Card} from "../Card";
+import isEqual from "lodash/isEqual";
 
 const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLoad, apiUpdate, siteType, renderCard, ...rest}) => {
     const isEdit = Boolean(onChange);
@@ -51,34 +52,62 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     }, [format]);
     useEffect(() => setColSizes({}), [size]); // on size change, reset column sizes.
     // useEffect(() => setLength(data.length), [data]); // on data change, reset length.
-    // ========================================= filters 1/2 begin======================================================
+    // ========================================= filters 1/2 begin =====================================================
     useEffect(() => {
         if(!allowSearchParams) return;
         const filterCols = Array.from(searchParams.keys());
         const filtersFromURL = filterCols.map(col => ({column: col, values: searchParams.get(col)?.split(filterValueDelimiter)}));
         if(filtersFromURL.length) {
             // if filters !== url search params, set filters. no need to navigate.
-            setFilters(oldFilters => filtersFromURL.map(({column, values}) => ({column, values: [...new Set([...values, ...((oldFilters || []).find(f => f.column === column)?.values || [])])]})))
+            setFilters(oldFilters => {
+                const newFilters = [
+                    ...new Set([
+                        ...(filtersFromURL.filter(f => f.column).reduce((acc, f) => [...acc, f.column], [])),
+                        ...(oldFilters.filter(f => f.column).reduce((acc, f) => [...acc, f.column], []))
+                    ])
+                ].map(column => ({
+                    column,
+                    values: [...new Set(
+                        [
+                            ...((filtersFromURL || []).find(f => f.column === column)?.values || []),
+                            ...((oldFilters || []).find(f => f.column === column)?.values || []),
+                        ].filter(f => f)
+                    )]
+                }))
+
+                return newFilters
+            })
             setLength(undefined)
             setHasMore(undefined)
         }
     }, [allowSearchParams, searchParams]);
     // ========================================= filters 1/2 end =======================================================
-    // =========================================== filters 2/2 begin ===================================================
+    // ========================================= filters 2/2 begin =====================================================
+
     useEffect(() => {
-        // this part will use the stored filters to navigate. This behaviour should be avoided on init if search params
-        // are present to avoid overriding the requested filters with saved filters.
-        // if(isInitialRender){
-        //     isInitialRender.current = false;
-        //     // it should further go to redirect if no search params are set. otherwise return so it doesn't override with old filters
-        //     const filterCols = Array.from(searchParams.keys());
-        //     if(filterCols.length) return;
-        // }
         if(!allowSearchParams) return;
-        const url = `?${convertToUrlParams(filters, filterValueDelimiter)}`;
-        navigate(url)
+
+        // if filters === cachedData.filters, and search params exist, avoid navigating
+        // the only time you should navigate is when filters change.
+        // the state variable will change before cachedData, this is one way to detect if this useEffect is being called
+        // on init values. Though navigation should happen on init values if search params don't exist.
+        const filterCols = Array.from(searchParams.keys());
+        const filtersFromURL = filterCols.map(col => ({column: col, values: searchParams.get(col)?.split(filterValueDelimiter)}));
+
+        const urlMatchesFilters = isEqual(filtersFromURL, filters);
+        const filtersMatchSavedFilters = isEqual(filters, cachedData.filters);
+        if(filtersMatchSavedFilters && filtersFromURL.length) return;
+
+        const url = convertToUrlParams(filters, filterValueDelimiter); // url based on current filters
+
+        // this triggers and the old filters (from cached data) take over.
+        if(url.length && url !== window.location.search.replace('?', '')) {
+            // console.log('debugging: navigating to url 2', url, window.location.search.replace('?', ''))
+            navigate(`?${url}`)
+        }
+
     }, [allowSearchParams, filters]);
-    // =========================================== filters 2/2 end =====================================================
+    // ========================================= filters 2/2 end =======================================================
 
     useEffect(() => {
         // init stuff. only run when format changes.
@@ -312,29 +341,45 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
         const filtersFromURL = filterCols.map(col => ({column: col, values: searchParams.get(col)?.split(filterValueDelimiter)}));
         if(filtersFromURL.length) {
             // if filters !== url search params, set filters. no need to navigate.
-            setFilters(oldFilters => filtersFromURL.map(({column, values}) => ({column, values: [...new Set([...values, ...((oldFilters || []).find(f => f.column === column)?.values || [])])]})))
+            setFilters(oldFilters => {
+                const newFilters = [
+                    ...new Set([
+                        ...(filtersFromURL.filter(f => f.column).reduce((acc, f) => [...acc, f.column], [])),
+                        ...(oldFilters.filter(f => f.column).reduce((acc, f) => [...acc, f.column], []))
+                        ])
+                ].map(column => ({
+                    column,
+                    values: [...new Set(
+                        [
+                            ...((filtersFromURL || []).find(f => f.column === column)?.values || []),
+                            ...((oldFilters || []).find(f => f.column === column)?.values || []),
+                        ].filter(f => f)
+                    )]
+                }))
+
+                return newFilters
+            })
             setLength(undefined)
             setHasMore(undefined)
         }
     }, [allowSearchParams, searchParams]);
     // ========================================= filters 1/2 end =======================================================
     // ========================================= filters 2/2 begin =====================================================
-    // use already set filters
-    // on init, prefer filters from url, discard already set filters
-    // BUTTTT support filter changes from the user, and navigate to the new search params
+
     useEffect(() => {
-        // this part will use the stored filters to navigate. This behaviour should be avoided on init if search params
-        // are present to avoid overriding the requested filters with saved filters.
-        // console.log('debugging: isinitrener', isInitialRender, filters.map(f => f.values)[0], allowSearchParams)
-        // if(isInitialRender && isInitialRender.current){
-        //
-        //     isInitialRender.current = false;
-        //     // it should further go to redirect if no search params are set. otherwise return so it doesn't override with old filters
-        //     const filterCols = Array.from(searchParams.keys());
-        //     console.log('debugging: skipping navigation', isInitialRender, isInitialRender.current, filterCols.length)
-        //     if(filterCols.length) return;
-        // }
         if(!allowSearchParams) return;
+
+        // if filters === cachedData.filters, and search params exist, avoid navigating
+        // the only time you should navigate is when filters change.
+        // the state variable will change before cachedData, this is one way to detect if this useEffect is being called
+        // on init values. Though navigation should happen on init values if search params don't exist.
+        const filterCols = Array.from(searchParams.keys());
+        const filtersFromURL = filterCols.map(col => ({column: col, values: searchParams.get(col)?.split(filterValueDelimiter)}));
+
+        const urlMatchesFilters = isEqual(filtersFromURL, filters);
+        const filtersMatchSavedFilters = isEqual(filters, cachedData.filters);
+        if(filtersMatchSavedFilters && filtersFromURL.length) return;
+
         const url = convertToUrlParams(filters, filterValueDelimiter); // url based on current filters
 
         // this triggers and the old filters (from cached data) take over.

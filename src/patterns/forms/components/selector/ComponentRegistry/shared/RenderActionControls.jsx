@@ -119,7 +119,7 @@ const RenderAction = ({actions, setActions, action = {}}) => {
                             <TouchInteraction height={14} width={14}/>
                         </div>
 
-                        <div key={'action.name'} className={'flex justify-between m-1 w-full'}>
+                        <div key={`${action.name}`} className={'grid grid-cols-3 m-1 w-full'}>
                             {action.name}
                             <button key={'action-edit'} className={'p-0.5 m-0.5 text-gray-500 text-sm border rounded-md '}
                                     onClick={() => setIsEditing(!isEditing)}>
