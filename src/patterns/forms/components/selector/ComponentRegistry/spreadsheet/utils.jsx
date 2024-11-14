@@ -15,7 +15,7 @@ export const applyFn = (col={}, fn={}, groupBy=[]) => {
         sum: `sum(${colNameWithAccessor}) as ${colNameAfterAS}`,
         count: `count(${colNameWithAccessor}) as ${colNameAfterAS}`,
     }
-    console.log('applyFn', colName, colNameWithAccessor, mustHaveFnCondition, fn)
+    // console.log('applyFn', colName, colNameWithAccessor, mustHaveFnCondition, fn)
 
     if(mustHaveFnCondition && !fn[colName]) return null;
     return functions[fn[colName]]
@@ -67,7 +67,7 @@ const cleanValue = value => {
 
 const getFullCol = (colName, attributes) => attributes.find(attr => attr.name === colName)
 
-export const getData = async ({format, apiLoad, currentPage, pageSize, length, visibleAttributes, orderBy, filters, groupBy, fn}) =>{
+export const getData = async ({format, apiLoad, currentPage, pageSize, length, visibleAttributes, orderBy, filters, groupBy, fn, notNull}) =>{
     // fetch all data items based on app and type. see if you can associate those items to its pattern. this will be useful when you have multiple patterns.
     // if grouping, use load. disable editing.
     const originalAttributes = JSON.parse(format?.config || '{}')?.attributes || [];
@@ -76,23 +76,27 @@ export const getData = async ({format, apiLoad, currentPage, pageSize, length, v
         reqName: getColAccessor(getFullCol(col, originalAttributes), groupBy, fn),
         resName: splitColNameOnAS(col)[1] || splitColNameOnAS(col)[0] // regular columns won't have 'as', so [1] will only be available for calculated columns
     }))
+    const actionType = groupBy.length ? 'load' : 'list';
+    const lengthBasedOnActionType = actionType === 'load' ? length - 1 : length; // this really needs to be fixed in api
     const fromIndex = currentPage*pageSize;
-    const toIndex = Math.min(length, currentPage*pageSize + pageSize);
-    if(fromIndex > length - 1) return [];
+    const toIndex = Math.min(lengthBasedOnActionType, currentPage*pageSize + pageSize);
+    if(fromIndex > lengthBasedOnActionType) return [];
     if(groupBy.length && !attributesToFetch.length) return [];
     console.log('fetching', fromIndex, toIndex, attributesToFetch)
     const children = [{
         type: () => {
         },
-        action: groupBy.length ? 'load' : 'list',
+        action: actionType,
         path: '/',
         filter: {
             fromIndex: path => fromIndex,
             toIndex: path => toIndex,
             options: JSON.stringify({
+                aggregatedLen: groupBy.length,
                 orderBy: Object.keys(orderBy).reduce((acc, curr) => ({...acc, [`data->>'${curr}'`]: orderBy[curr]}) , {}),
                 filter: formatFilters(filters),
-                ...groupBy.length && {groupBy: groupBy.map(col => `data->>'${col}'`)}
+                ...groupBy.length && {groupBy: groupBy.map(col => `data->>'${col}'`)},
+                ...notNull.length && {exclude: notNull.reduce((acc, col) => ({...acc, [`data->>'${col}'`]: ['null']}), {})}
             }),
             attributes: attributesToFetch.map(a => a.reqName).filter(a => a),
             stopFullDataLoad: true
@@ -120,7 +124,7 @@ export const getData = async ({format, apiLoad, currentPage, pageSize, length, v
 
 }
 
-export const getLength = async ({format, apiLoad, filters=[], groupBy=[]}) =>{
+export const getLength = async ({format, apiLoad, filters=[], groupBy=[], notNull=[]}) =>{
     const attributes = JSON.parse(format?.config || '{}')?.attributes || [];
     const children = [{
         type: () => {
@@ -131,7 +135,8 @@ export const getLength = async ({format, apiLoad, filters=[], groupBy=[]}) =>{
             options: JSON.stringify({
                 aggregatedLen: groupBy.length,
                 filter: formatFilters(filters),
-                ...groupBy.length && {groupBy: groupBy.map(col => `data->>'${col}'`)}
+                ...groupBy.length && {groupBy: groupBy.map(col => `data->>'${col}'`)},
+                ...notNull.length && {exclude: notNull.reduce((acc, col) => ({...acc, [`data->>'${col}'`]: ['null']}), {})}
             })
         },
     }]

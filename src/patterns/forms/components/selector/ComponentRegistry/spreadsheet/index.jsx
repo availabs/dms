@@ -7,6 +7,7 @@ import {useSearchParams, useNavigate} from "react-router-dom";
 import {FormsSelector} from "../../FormsSelector";
 import {ColumnControls} from "../shared/ColumnControls";
 import {Card} from "../Card";
+import isEqual from "lodash/isEqual";
 
 const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLoad, apiUpdate, siteType, renderCard, ...rest}) => {
     const isEdit = Boolean(onChange);
@@ -27,6 +28,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     const [groupBy, setGroupBy] = useState(cachedData.groupBy || []);
     const [actions, setActions] = useState(cachedData.actions || []);
     const [fn, setFn] = useState(cachedData.fn || {});
+    const [notNull, setNotNull] = useState(cachedData.notNull || []);
 
     const [allowEditInView, setAllowEditInView] = useState(cachedData.allowEditInView);
     const [allowSearchParams, setAllowSearchParams] = useState(cachedData.allowSearchParams === undefined ? true : cachedData.allowSearchParams);
@@ -50,34 +52,62 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     }, [format]);
     useEffect(() => setColSizes({}), [size]); // on size change, reset column sizes.
     // useEffect(() => setLength(data.length), [data]); // on data change, reset length.
-    // ========================================= filters 1/2 begin======================================================
+    // ========================================= filters 1/2 begin =====================================================
     useEffect(() => {
         if(!allowSearchParams) return;
         const filterCols = Array.from(searchParams.keys());
         const filtersFromURL = filterCols.map(col => ({column: col, values: searchParams.get(col)?.split(filterValueDelimiter)}));
         if(filtersFromURL.length) {
             // if filters !== url search params, set filters. no need to navigate.
-            setFilters(oldFilters => filtersFromURL.map(({column, values}) => ({column, values: [...new Set([...values, ...((oldFilters || []).find(f => f.column === column)?.values || [])])]})))
+            setFilters(oldFilters => {
+                const newFilters = [
+                    ...new Set([
+                        ...(filtersFromURL.filter(f => f.column).reduce((acc, f) => [...acc, f.column], [])),
+                        ...(oldFilters.filter(f => f.column).reduce((acc, f) => [...acc, f.column], []))
+                    ])
+                ].map(column => ({
+                    column,
+                    values: [...new Set(
+                        [
+                            ...((filtersFromURL || []).find(f => f.column === column)?.values || []),
+                            ...((oldFilters || []).find(f => f.column === column)?.values || []),
+                        ].filter(f => f)
+                    )]
+                }))
+
+                return newFilters
+            })
             setLength(undefined)
             setHasMore(undefined)
         }
     }, [allowSearchParams, searchParams]);
     // ========================================= filters 1/2 end =======================================================
-    // =========================================== filters 2/2 begin ===================================================
+    // ========================================= filters 2/2 begin =====================================================
+
     useEffect(() => {
-        // this part will use the stored filters to navigate. This behaviour should be avoided on init if search params
-        // are present to avoid overriding the requested filters with saved filters.
-        // if(isInitialRender){
-        //     isInitialRender.current = false;
-        //     // it should further go to redirect if no search params are set. otherwise return so it doesn't override with old filters
-        //     const filterCols = Array.from(searchParams.keys());
-        //     if(filterCols.length) return;
-        // }
         if(!allowSearchParams) return;
-        const url = `?${convertToUrlParams(filters, filterValueDelimiter)}`;
-        navigate(url)
+
+        // if filters === cachedData.filters, and search params exist, avoid navigating
+        // the only time you should navigate is when filters change.
+        // the state variable will change before cachedData, this is one way to detect if this useEffect is being called
+        // on init values. Though navigation should happen on init values if search params don't exist.
+        const filterCols = Array.from(searchParams.keys());
+        const filtersFromURL = filterCols.map(col => ({column: col, values: searchParams.get(col)?.split(filterValueDelimiter)}));
+
+        const urlMatchesFilters = isEqual(filtersFromURL, filters);
+        const filtersMatchSavedFilters = isEqual(filters, cachedData.filters);
+        if(filtersMatchSavedFilters && filtersFromURL.length) return;
+
+        const url = convertToUrlParams(filters, filterValueDelimiter); // url based on current filters
+
+        // this triggers and the old filters (from cached data) take over.
+        if(url.length && url !== window.location.search.replace('?', '')) {
+            // console.log('debugging: navigating to url 2', url, window.location.search.replace('?', ''))
+            navigate(`?${url}`)
+        }
+
     }, [allowSearchParams, filters]);
-    // =========================================== filters 2/2 end =====================================================
+    // ========================================= filters 2/2 end =======================================================
 
     useEffect(() => {
         // init stuff. only run when format changes.
@@ -86,9 +116,9 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
             if(data?.length || !format?.config) return;
             setLoading(true)
             if(!loadMoreId) setLoadMoreId(`id${Date.now()}`)
-            const length = await getLength({format, apiLoad, filters, groupBy});
+            const length = await getLength({format, apiLoad, filters, groupBy, notNull});
             const d = await getData({
-                format, apiLoad, currentPage, pageSize, length, orderBy, filters, groupBy, visibleAttributes, fn
+                format, apiLoad, currentPage, pageSize, length, orderBy, filters, groupBy, visibleAttributes, fn, notNull
             });
             setData(d);
             setLength(length);
@@ -109,9 +139,9 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
 
             setLoading(true)
             const newCurrentPage = 0; // for all the deps here, it's okay to fetch from page 1.
-            const length = await getLength({format, apiLoad, filters, groupBy});
+            const length = await getLength({format, apiLoad, filters, groupBy, notNull});
             const data = await getData({
-                format, apiLoad, currentPage: newCurrentPage, pageSize, length, orderBy, filters, groupBy, visibleAttributes, fn
+                format, apiLoad, currentPage: newCurrentPage, pageSize, length, orderBy, filters, groupBy, visibleAttributes, fn, notNull
             });
             setLength(length);
             setData(data); // if page didn't change, set data as it comes
@@ -121,7 +151,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
         }
 
         load()
-    }, [orderBy, filters, groupBy, visibleAttributes, fn]);
+    }, [orderBy, filters, groupBy, visibleAttributes, fn, notNull]);
 
     useEffect(() => {
         // only run when page changes
@@ -131,7 +161,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
             setLoading(true)
             // const length = await getLength({format, apiLoad, filters, groupBy});
             const data = await getData({
-                format, apiLoad, currentPage, pageSize, length, orderBy, filters, groupBy, visibleAttributes, fn
+                format, apiLoad, currentPage, pageSize, length, orderBy, filters, groupBy, visibleAttributes, fn, notNull
             });
             // setLength(length);
             setData(prevData => [...prevData, ...data]); // on page change append
@@ -167,9 +197,9 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     // =========================================== saving settings begin ===============================================
     useEffect(() => {
         if (!isEdit) return;
-
-        onChange(JSON.stringify({visibleAttributes, pageSize, attributes, customColNames, orderBy, colSizes, filters, groupBy, fn, allowEditInView, format, actions, allowSearchParams, loadMoreId}));
-    }, [visibleAttributes, attributes, customColNames, orderBy, colSizes, filters, groupBy, fn, allowEditInView, format, actions, allowSearchParams, loadMoreId])
+        // notNull passed through controls. setup length and data fns to use it in both edit and view
+        onChange(JSON.stringify({visibleAttributes, pageSize, attributes, customColNames, orderBy, colSizes, filters, groupBy, fn, notNull, allowEditInView, format, actions, allowSearchParams, loadMoreId}));
+    }, [visibleAttributes, attributes, customColNames, orderBy, colSizes, filters, groupBy, fn, notNull, allowEditInView, format, actions, allowSearchParams, loadMoreId])
     // =========================================== saving settings end =================================================
 
     // =========================================== util fns begin ======================================================
@@ -217,6 +247,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
                                     customColNames={customColNames} setCustomColNames={setCustomColNames}
                                     groupBy={groupBy} setGroupBy={setGroupBy}
                                     fn={fn} setFn={setFn}
+                                    notNull={notNull} setNotNull={setNotNull}
                                     filters={filters} setFilters={setFilters}
                                     actions={actions} setActions={setActions}
                                     allowEditInView={allowEditInView} setAllowEditInView={setAllowEditInView}
@@ -285,6 +316,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
     const visibleAttributes = cachedData.visibleAttributes || [];
     const customColNames = cachedData.customColNames || {};
     const groupBy = cachedData.groupBy || [];
+    const notNull = cachedData.notNull || [];
     const actions = cachedData.actions || [];
     const fn = cachedData.fn;
     const allowEdit = cachedData.allowEditInView;
@@ -309,29 +341,45 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
         const filtersFromURL = filterCols.map(col => ({column: col, values: searchParams.get(col)?.split(filterValueDelimiter)}));
         if(filtersFromURL.length) {
             // if filters !== url search params, set filters. no need to navigate.
-            setFilters(oldFilters => filtersFromURL.map(({column, values}) => ({column, values: [...new Set([...values, ...((oldFilters || []).find(f => f.column === column)?.values || [])])]})))
+            setFilters(oldFilters => {
+                const newFilters = [
+                    ...new Set([
+                        ...(filtersFromURL.filter(f => f.column).reduce((acc, f) => [...acc, f.column], [])),
+                        ...(oldFilters.filter(f => f.column).reduce((acc, f) => [...acc, f.column], []))
+                        ])
+                ].map(column => ({
+                    column,
+                    values: [...new Set(
+                        [
+                            ...((filtersFromURL || []).find(f => f.column === column)?.values || []),
+                            ...((oldFilters || []).find(f => f.column === column)?.values || []),
+                        ].filter(f => f)
+                    )]
+                }))
+
+                return newFilters
+            })
             setLength(undefined)
             setHasMore(undefined)
         }
     }, [allowSearchParams, searchParams]);
     // ========================================= filters 1/2 end =======================================================
     // ========================================= filters 2/2 begin =====================================================
-    // use already set filters
-    // on init, prefer filters from url, discard already set filters
-    // BUTTTT support filter changes from the user, and navigate to the new search params
+
     useEffect(() => {
-        // this part will use the stored filters to navigate. This behaviour should be avoided on init if search params
-        // are present to avoid overriding the requested filters with saved filters.
-        // console.log('debugging: isinitrener', isInitialRender, filters.map(f => f.values)[0], allowSearchParams)
-        // if(isInitialRender && isInitialRender.current){
-        //
-        //     isInitialRender.current = false;
-        //     // it should further go to redirect if no search params are set. otherwise return so it doesn't override with old filters
-        //     const filterCols = Array.from(searchParams.keys());
-        //     console.log('debugging: skipping navigation', isInitialRender, isInitialRender.current, filterCols.length)
-        //     if(filterCols.length) return;
-        // }
         if(!allowSearchParams) return;
+
+        // if filters === cachedData.filters, and search params exist, avoid navigating
+        // the only time you should navigate is when filters change.
+        // the state variable will change before cachedData, this is one way to detect if this useEffect is being called
+        // on init values. Though navigation should happen on init values if search params don't exist.
+        const filterCols = Array.from(searchParams.keys());
+        const filtersFromURL = filterCols.map(col => ({column: col, values: searchParams.get(col)?.split(filterValueDelimiter)}));
+
+        const urlMatchesFilters = isEqual(filtersFromURL, filters);
+        const filtersMatchSavedFilters = isEqual(filters, cachedData.filters);
+        if(filtersMatchSavedFilters && filtersFromURL.length) return;
+
         const url = convertToUrlParams(filters, filterValueDelimiter); // url based on current filters
 
         // this triggers and the old filters (from cached data) take over.
@@ -348,9 +396,9 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
             if(data?.length || !format.config) return;
             // init stuff
             setLoading(true)
-            const length = await getLength({format, apiLoad, filters, groupBy});
+            const length = await getLength({format, apiLoad, filters, groupBy, notNull});
             const d = await getData({
-                format, apiLoad, currentPage, pageSize, length, orderBy, filters, groupBy, visibleAttributes, fn
+                format, apiLoad, currentPage, pageSize, length, orderBy, filters, groupBy, visibleAttributes, fn, notNull
             });
             setData(d);
             setLength(length);
@@ -369,9 +417,9 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
             if(!format?.config) return;
             setLoading(true)
             const newCurrentPage = 0; // for all the deps here, it's okay to fetch from page 1.
-            const length = await getLength({format, apiLoad, filters, groupBy});
+            const length = await getLength({format, apiLoad, filters, groupBy, notNull});
             const data = await getData({
-                format, apiLoad, currentPage: newCurrentPage, pageSize, length, orderBy, filters, groupBy, visibleAttributes, fn
+                format, apiLoad, currentPage: newCurrentPage, pageSize, length, orderBy, filters, groupBy, visibleAttributes, fn, notNull
             });
             setLength(length);
             setData(data); // if page didn't change, set data as it comes
@@ -391,7 +439,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
             setLoading(true)
             // const length = await getLength({format, apiLoad, filters, groupBy});
             const data = await getData({
-                format, apiLoad, currentPage, pageSize, length, orderBy, filters, groupBy, visibleAttributes, fn
+                format, apiLoad, currentPage, pageSize, length, orderBy, filters, groupBy, visibleAttributes, fn, notNull
             });
             // setLength(length);
             setData(prevData => [...prevData, ...data]); // on page change append

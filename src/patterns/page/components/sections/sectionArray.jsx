@@ -430,7 +430,7 @@ function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove, si
                     :
                     <div className={`z-10 relative`}>
                         <div className={`absolute mr-16 top-[-14px] right-[-60px] flex items-center h-[32px]`}> 
-                            {value?.['tags']?.length && <Popover className="pr-1 h-[24px] z-20">
+                            {value?.['tags']?.length ? <Popover className="pr-1 h-[24px] z-20">
                                 <Popover.Button  className={'flex items-center cursor-pointer'} >
                                     <Tags  className='text-slate-400 hover:text-blue-500 w-[24px] h-[24px]' title="Move Up"/>
                                 </Popover.Button>
@@ -455,7 +455,7 @@ function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove, si
                                         />
                                   </Popover.Panel>
                                 </Transition>
-                            </Popover>}
+                            </Popover> : null}
                                     
                             {helpTextCondition && <Popover className="relative pr-1 h-[24px]">
                                 <Popover.Button
@@ -670,15 +670,16 @@ const ScrollToHashElement = () => {
 
 const Edit = ({Component, value, onChange, attr, full_width = false, siteType, apiLoad, apiUpdate, format, ...rest }) => {
     // console.log('.............', rest, attr, value)
-    if (!value || !value.map) { 
-        value = []
-    }
     // console.log('---------------sa edit render-----------------')
     // console.log('sa edit sections', value)
     // const [values, setValues] = React.useState([...value , ''] || [''])
     const [values, setValues] = useState([]);
     React.useEffect(() => {
-        setValues([...value,''])
+        if (!value || !value.map) {
+            setValues([''])
+        }else{
+            !isEqual(value, [...value, '']) && setValues([...value,''])
+        }
     }, [value]);
 
     const [edit, setEdit] = React.useState({
