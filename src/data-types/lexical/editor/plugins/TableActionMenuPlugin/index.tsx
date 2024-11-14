@@ -727,7 +727,7 @@ function TableCellActionMenuContainer({
               setIsMenuOpen(!isMenuOpen);
             }}
             ref={menuRootRef}>
-            <i className={`${theme.iconChevronDown}` |} />
+            <i className={`${theme.iconChevronDown}`} />
           </button>
           {colorPickerModal}
           {isMenuOpen && (

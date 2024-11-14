@@ -88,7 +88,7 @@ function ComponentPickerMenuItem({
 }) {
     let className = `${theme.typeaheadPopover.ul.li.item}` ;
     if (isSelected) {
-      className += (` ${theme.typeaheadPopover.ul.li.selected}`;
+      className += ` ${theme.typeaheadPopover.ul.li.selected}`;
     }
     return (
         <li

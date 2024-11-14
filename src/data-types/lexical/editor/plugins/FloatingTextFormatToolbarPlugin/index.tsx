@@ -163,72 +163,72 @@ function TextFormatFloatingToolbar({
   }, [editor, updateTextFormatFloatingToolbar]);
 
   return (
-    <div ref={popupCharStylesEditorRef} className={editor.isEditable() ? `${theme.floatingTextFormatPopup.base}` || 'floating-text-format-popup' : ''}>
+    <div ref={popupCharStylesEditorRef} className={editor.isEditable() ? `${theme.floatingTextFormatPopup.base}`  : ''}>
       {editor.isEditable() && (
         <>
           <button
             onClick={() => {
               editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'bold');
             }}
-            className={(`${theme.floatingTextFormatPopup.popupItem.base} ${theme.floatingTextFormatPopup.popupItem.spaced} ` || 'popup-item spaced ') + (isBold ? `${theme.floatingTextFormatPopup.popupItem.active}` || 'active' : '')}
+            className={(`${theme.floatingTextFormatPopup.popupItem.base} ${theme.floatingTextFormatPopup.popupItem.spaced} `) + (isBold ? `${theme.floatingTextFormatPopup.popupItem.active}` || 'active' : '')}
             aria-label="Format text as bold">
-            <i className={`${theme.floatingTextFormatPopup.popupItem.icon} ${theme.icon.bold}` || "format bold"} />
+            <i className={`${theme.floatingTextFormatPopup.popupItem.icon} ${theme.icon.bold}`} />
           </button>
           <button
             onClick={() => {
               editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'italic');
             }}
-            className={(`${theme.floatingTextFormatPopup.popupItem.base} ${theme.floatingTextFormatPopup.popupItem.spaced} ` || 'popup-item spaced ') + (isItalic ? `${theme.floatingTextFormatPopup.popupItem.active}` || 'active' : '')}
+            className={(`${theme.floatingTextFormatPopup.popupItem.base} ${theme.floatingTextFormatPopup.popupItem.spaced} ` ) + (isItalic ? `${theme.floatingTextFormatPopup.popupItem.active}` || 'active' : '')}
             aria-label="Format text as italics">
-            <i className={`${theme.floatingTextFormatPopup.popupItem.icon} ${theme.icon.italic}` || "format italic"} />
+            <i className={`${theme.floatingTextFormatPopup.popupItem.icon} ${theme.icon.italic}`} />
           </button>
           <button
             onClick={() => {
               editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'underline');
             }}
-            className={(`${theme.floatingTextFormatPopup.popupItem.base} ${theme.floatingTextFormatPopup.popupItem.spaced} ` || 'popup-item spaced ') + (isUnderline ? `${theme.floatingTextFormatPopup.popupItem.active}` || 'active' : '')}
+            className={(`${theme.floatingTextFormatPopup.popupItem.base} ${theme.floatingTextFormatPopup.popupItem.spaced} `) + (isUnderline ? `${theme.floatingTextFormatPopup.popupItem.active}` || 'active' : '')}
             aria-label="Format text to underlined">
-            <i className={`${theme.floatingTextFormatPopup.popupItem.icon} ${theme.icon.underline}` || "format underline"} />
+            <i className={`${theme.floatingTextFormatPopup.popupItem.icon} ${theme.icon.underline}`} />
           </button>
           <button
             onClick={() => {
               editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'strikethrough');
             }}
-            className={(`${theme.floatingTextFormatPopup.popupItem.base} ${theme.floatingTextFormatPopup.popupItem.spaced}` || 'popup-item spaced ') + (isStrikethrough ? `${theme.floatingTextFormatPopup.popupItem.active}` || 'active' : '')}
+            className={(`${theme.floatingTextFormatPopup.popupItem.base} ${theme.floatingTextFormatPopup.popupItem.spaced}`) + (isStrikethrough ? `${theme.floatingTextFormatPopup.popupItem.active}` || 'active' : '')}
             aria-label="Format text with a strikethrough">
-            <i className={`${theme.floatingTextFormatPopup.popupItem.icon} ${theme.icon.strikethrough}` || "format strikethrough"} />
+            <i className={`${theme.floatingTextFormatPopup.popupItem.icon} ${theme.icon.strikethrough}`} />
           </button>
           <button
             onClick={() => {
               editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'subscript');
             }}
-            className={(`${theme.floatingTextFormatPopup.popupItem.base} ${theme.floatingTextFormatPopup.popupItem.spaced} ` || 'popup-item spaced ') + (isSubscript ? `${theme.floatingTextFormatPopup.popupItem.active}` || 'active' : '')}
+            className={(`${theme.floatingTextFormatPopup.popupItem.base} ${theme.floatingTextFormatPopup.popupItem.spaced} `) + (isSubscript ? `${theme.floatingTextFormatPopup.popupItem.active}` || 'active' : '')}
             title="Subscript"
             aria-label="Format Subscript">
-            <i className={`${theme.floatingTextFormatPopup.popupItem.icon} ${theme.icon.subscript}` || "format subscript"} />
+            <i className={`${theme.floatingTextFormatPopup.popupItem.icon} ${theme.icon.subscript}`} />
           </button>
           <button
             onClick={() => {
               editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'superscript');
             }}
-            className={(`${theme.floatingTextFormatPopup.popupItem.base} ${theme.floatingTextFormatPopup.popupItem.spaced} ` || 'popup-item spaced ') + (isSuperscript ? `${theme.floatingTextFormatPopup.popupItem.active}` || 'active' : '')}
+            className={(`${theme.floatingTextFormatPopup.popupItem.base} ${theme.floatingTextFormatPopup.popupItem.spaced} `) + (isSuperscript ? `${theme.floatingTextFormatPopup.popupItem.active}` || 'active' : '')}
             title="Superscript"
             aria-label="Format Superscript">
-            <i className={`${theme.floatingTextFormatPopup.popupItem.icon} ${theme.icon.subscript}` || "format superscript"} />
+            <i className={`${theme.floatingTextFormatPopup.popupItem.icon} ${theme.icon.subscript}`} />
           </button>
           <button
             onClick={() => {
               editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'code');
             }}
-            className={(`${theme.floatingTextFormatPopup.popupItem.base} ${theme.floatingTextFormatPopup.popupItem.spaced}` || 'popup-item spaced ') + (isCode ? `${theme.floatingTextFormatPopup.popupItem.active}` || 'active' : '')}
+            className={(`${theme.floatingTextFormatPopup.popupItem.base} ${theme.floatingTextFormatPopup.popupItem.spaced}`) + (isCode ? `${theme.floatingTextFormatPopup.popupItem.active}` || 'active' : '')}
             aria-label="Insert code block">
-            <i className={`${theme.floatingTextFormatPopup.popupItem.icon} ${theme.icon.code}` || "format code"} />
+            <i className={`${theme.floatingTextFormatPopup.popupItem.icon} ${theme.icon.code}`} />
           </button>
           <button
             onClick={insertLink}
-            className={(`${theme.floatingTextFormatPopup.popupItem.base} ${theme.floatingTextFormatPopup.popupItem.spaced} ` || 'popup-item spaced ') + (isLink ? `${theme.floatingTextFormatPopup.popupItem.active}` || 'active' : '')}
+            className={(`${theme.floatingTextFormatPopup.popupItem.base} ${theme.floatingTextFormatPopup.popupItem.spaced}`) + (isLink ? `${theme.floatingTextFormatPopup.popupItem.active}` || 'active' : '')}
             aria-label="Insert link">
-            <i className={`${theme.floatingTextFormatPopup.popupItem.icon} ${theme.icon.link}` || "format link"} />
+            <i className={`${theme.floatingTextFormatPopup.popupItem.icon} ${theme.icon.link}`} />
           </button>
         </>
       )}
