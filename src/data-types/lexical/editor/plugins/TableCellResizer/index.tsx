@@ -388,12 +388,12 @@ function TableCellResizer({editor}: {editor: LexicalEditor}): JSX.Element {
       {activeCell != null && !isSelectingGrid && (
         <>
           <div
-            className={"absolute TableCellResizer__ui" || "TableCellResizer__resizer TableCellResizer__ui"}
+            className={"absolute TableCellResizer__ui" }
             style={resizerStyles.right || undefined}
             onMouseDown={toggleResize('right')}
           />
           <div
-            className={"absolute TableCellResizer__ui" || "TableCellResizer__resizer TableCellResizer__ui"}
+            className={"absolute TableCellResizer__ui"}
             style={resizerStyles.bottom || undefined}
             onMouseDown={toggleResize('bottom')}
           />

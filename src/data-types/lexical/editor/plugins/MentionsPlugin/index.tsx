@@ -585,9 +585,9 @@ function MentionsTypeaheadMenuItem({
   onMouseEnter: () => void;
   option: MentionTypeaheadOption;
 }) {
-  let className = `${theme.typeaheadPopover.ul.li.item}` ||'item';
+  let className = `${theme.typeaheadPopover.ul.li.item}`;
   if (isSelected) {
-    className += ` ${theme.typeaheadPopover.ul.li.selected}` || ' selected';
+    className += ` ${theme.typeaheadPopover.ul.li.selected}`;
   }
   return (
     <li
@@ -669,7 +669,7 @@ export default function NewMentionsPlugin(): JSX.Element | null {
       ) =>
         anchorElementRef.current && results.length
           ? ReactDOM.createPortal(
-              <div className={`${theme.typeaheadPopover.base} ${theme.mentionsMenu}` || "typeahead-popover mentions-menu"}>
+              <div className={`${theme.typeaheadPopover.base} ${theme.mentionsMenu}`}>
                 <ul className={theme.typeaheadPopover.ul.base}>
                   {options.map((option, i: number) => (
                     <MentionsTypeaheadMenuItem

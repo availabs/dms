@@ -273,68 +273,68 @@ function BlockFormatDropDown({
   return (
     <DropDown
       disabled={disabled}
-      buttonClassName={`${theme.toolbar.toolbarItem.base} block-controls` || "toolbar-item block-controls"}
-      buttonIconClassName={`${theme.toolbar.toolbarItem.icon} block-type ${theme.icon[blockType]}` || 'icon block-type ' + blockType}
+      buttonClassName={`${theme.toolbar.toolbarItem.base} block-controls`}
+      buttonIconClassName={`${theme.toolbar.toolbarItem.icon} block-type ${theme.icon[blockType]}` + blockType}
       buttonLabel={blockTypeToBlockName[blockType]}
       buttonAriaLabel="Formatting options for text style">
       <DropDownItem
         className={`${theme.dropdown.item.base || 'item '} ` + dropDownActiveClass(blockType === 'paragraph')}
         onClick={formatParagraph}>
-        <i className={`${theme.dropdown.item.icon} ${theme.icon.paragraph}` || "icon paragraph"} />
-        <span className={`${theme.dropdown.item.text}` || "text"}>Normal</span>
+        <i className={`${theme.dropdown.item.icon} ${theme.icon.paragraph}` } />
+        <span className={`${theme.dropdown.item.text}` }>Normal</span>
       </DropDownItem>
       <DropDownItem
         className={`${theme.dropdown.item.base || 'item '} ` + dropDownActiveClass(blockType === 'h1')}
         onClick={() => formatHeading('h1')}>
-        <i className={`${theme.dropdown.item.icon} ${theme.icon.h1}` || "icon h1"} />
-        <span className={`${theme.dropdown.item.text}` || "text"}>Heading 1</span>
+        <i className={`${theme.dropdown.item.icon} ${theme.icon.h1}` } />
+        <span className={`${theme.dropdown.item.text}`}>Heading 1</span>
       </DropDownItem>
       <DropDownItem
         className={`${theme.dropdown.item.base || 'item '} ` + dropDownActiveClass(blockType === 'h2')}
         onClick={() => formatHeading('h2')}>
-        <i className={`${theme.dropdown.item.icon} ${theme.icon.h2}` || "icon h2"} />
-        <span className={`${theme.dropdown.item.text}` || "text"}>Heading 2</span>
+        <i className={`${theme.dropdown.item.icon} ${theme.icon.h2}` } />
+        <span className={`${theme.dropdown.item.text}` }>Heading 2</span>
       </DropDownItem>
       <DropDownItem
         className={`${theme.dropdown.item.base || 'item '} ` + dropDownActiveClass(blockType === 'h3')}
         onClick={() => formatHeading('h3')}>
-        <i className={`${theme.dropdown.item.icon} ${theme.icon.h3}` || "icon h3"} />
+        <i className={`${theme.dropdown.item.icon} ${theme.icon.h3}` } />
         <span className={`${theme.dropdown.item.text}` || "text"}>Heading 3</span>
       </DropDownItem>
       <DropDownItem
         className={`${theme.dropdown.item.base || 'item '} ` + dropDownActiveClass(blockType === 'h4')}
         onClick={() => formatHeading('h4')}>
-        <i className={`${theme.dropdown.item.icon} ${theme.icon.h4}` || "icon h4"} />
+        <i className={`${theme.dropdown.item.icon} ${theme.icon.h4}`} />
         <span className={`${theme.dropdown.item.text}` || "text"}>Heading 4</span>
       </DropDownItem>
       <DropDownItem
         className={`${theme.dropdown.item.base || 'item '} ` + dropDownActiveClass(blockType === 'bullet')}
         onClick={formatBulletList}>
-        <i className={`${theme.dropdown.item.icon} ${theme.icon.bulletList}` || "icon bullet-list"} />
+        <i className={`${theme.dropdown.item.icon} ${theme.icon.bulletList}` } />
         <span className={`${theme.dropdown.item.text}` || "text"}>Bullet List</span>
       </DropDownItem>
       <DropDownItem
         className={`${theme.dropdown.item.base || 'item '} ` + dropDownActiveClass(blockType === 'number')}
         onClick={formatNumberedList}>
-        <i className={`${theme.dropdown.item.icon} ${theme.icon.numberedList}` || "icon numbered-list"} />
+        <i className={`${theme.dropdown.item.icon} ${theme.icon.numberedList}`} />
         <span className={`${theme.dropdown.item.text}` || "text"}>Numbered List</span>
       </DropDownItem>
       <DropDownItem
         className={`${theme.dropdown.item.base || 'item '} ` + dropDownActiveClass(blockType === 'check')}
         onClick={formatCheckList}>
-        <i className={`${theme.dropdown.item.icon} ${theme.icon.checkList}` || "icon check-list"} />
+        <i className={`${theme.dropdown.item.icon} ${theme.icon.checkList}` } />
         <span className={`${theme.dropdown.item.text}` || "text"}>Check List</span>
       </DropDownItem>
       <DropDownItem
         className={`${theme.dropdown.item.base || 'item '} ` + dropDownActiveClass(blockType === 'quote')}
         onClick={formatQuote}>
-        <i className={`${theme.dropdown.item.icon} ${theme.icon.quote}` || "icon quote"} />
+        <i className={`${theme.dropdown.item.icon} ${theme.icon.quote}`} />
         <span className={`${theme.dropdown.item.text}` || "text"}>Quote</span>
       </DropDownItem>
       <DropDownItem
         className={`${theme.dropdown.item.base || 'item '} ` + dropDownActiveClass(blockType === 'code')}
         onClick={formatCode}>
-        <i className={`${theme.dropdown.item.icon} ${theme.icon.code}` || "icon code"} />
+        <i className={`${theme.dropdown.item.icon} ${theme.icon.code}`} />
         <span className={`${theme.dropdown.item.text}` || "text"}>Code Block</span>
       </DropDownItem>
     </DropDown>
@@ -378,7 +378,7 @@ function FontDropDown({
   return (
     <DropDown
       disabled={disabled}
-      buttonClassName={`${theme.toolbar.toolbarItem.base} ${style}` || `toolbar-item ${style}`}
+      buttonClassName={`${theme.toolbar.toolbarItem.base} ${style}`}
       buttonLabel={value}
       buttonIconClassName={
         style === 'font-family' ? 'icon block-type font-family' : ''
@@ -392,7 +392,7 @@ function FontDropDown({
             }`}
             onClick={() => handleClick(option)}
             key={option}>
-            <span className={`${theme.dropdown.item.text}` ||"text"}>{text}</span>
+            <span className={`${theme.dropdown.item.text}` }>{text}</span>
           </DropDownItem>
         ),
       )}
@@ -418,14 +418,14 @@ function ElementFormatDropdown({
       disabled={disabled}
       buttonLabel={formatOption.name}
       buttonIconClassName={`${theme.actions.i.base} mr-[8px] ${theme.icon[isRTL ? formatOption.iconRTL : formatOption.icon]}`}
-      buttonClassName={`${theme.toolbar.toolbarItem.base} ${theme.toolbar.toolbarItem.spaced} alignment` || "toolbar-item spaced alignment"}
+      buttonClassName={`${theme.toolbar.toolbarItem.base} ${theme.toolbar.toolbarItem.spaced} alignment` }
       buttonAriaLabel="Formatting options for text alignment">
       <DropDownItem
         onClick={() => {
           editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, 'left');
         }}
         className={`${theme.dropdown.item.base}` ||"item"}>
-        <i className={`${theme.actions.i.base} ${theme.icon.leftAlign}` || "icon left-align"} />
+        <i className={`${theme.actions.i.base} ${theme.icon.leftAlign}` } />
         <span className={`${theme.dropdown.item.text}` ||"text"}>Left Align</span>
       </DropDownItem>
       <DropDownItem
@@ -433,7 +433,7 @@ function ElementFormatDropdown({
           editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, 'center');
         }}
         className={`${theme.dropdown.item.base}` ||"item"}>
-        <i className={`${theme.actions.i.base} ${theme.icon.centerAlign}` || "icon center-align"} />
+        <i className={`${theme.actions.i.base} ${theme.icon.centerAlign}` } />
         <span className={`${theme.dropdown.item.text}` ||"text"}>Center Align</span>
       </DropDownItem>
       <DropDownItem
@@ -441,7 +441,7 @@ function ElementFormatDropdown({
           editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, 'right');
         }}
         className={`${theme.dropdown.item.base}` ||"item"}>
-        <i className={`${theme.actions.i.base} ${theme.icon.rightAlign}` || "icon right-align"} />
+        <i className={`${theme.actions.i.base} ${theme.icon.rightAlign}` } />
         <span className={`${theme.dropdown.item.text}` ||"text"}>Right Align</span>
       </DropDownItem>
       <DropDownItem
@@ -449,33 +449,33 @@ function ElementFormatDropdown({
           editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, 'justify');
         }}
         className={`${theme.dropdown.item.base}` ||"item"}>
-        <i className={`${theme.actions.i.base} ${theme.icon.justifyAlign}` ||"icon justify-align"} />
+        <i className={`${theme.actions.i.base} ${theme.icon.justifyAlign}` } />
         <span className={`${theme.dropdown.item.text}` ||"text"}>Justify Align</span>
       </DropDownItem>
       <DropDownItem
         onClick={() => {
           editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, 'start');
         }}
-        className={`${theme.dropdown.item.base}` ||"item"}>
+        className={`${theme.dropdown.item.base}` }>
         <i
           className={`${theme.actions.i.base} ${theme.icon[isRTL
             ? ELEMENT_FORMAT_OPTIONS.start.iconRTL
             : ELEMENT_FORMAT_OPTIONS.start.icon]
           }`}
         />
-        <span className={`${theme.dropdown.item.text}` ||"text"}>Start Align</span>
+        <span className={`${theme.dropdown.item.text}` }>Start Align</span>
       </DropDownItem>
       <DropDownItem
         onClick={() => {
           editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, 'end');
         }}
-        className={`${theme.dropdown.item.base}` ||"item"}>
+        className={`${theme.dropdown.item.base}` }>
         <i
           className={`${theme.actions.i.base} ${theme.icon[isRTL
             ? ELEMENT_FORMAT_OPTIONS.end.iconRTL
             : ELEMENT_FORMAT_OPTIONS.end.icon]}`}
         />
-        <span className={`${theme.dropdown.item.text}` ||"text"}>End Align</span>
+        <span className={`${theme.dropdown.item.text}` }>End Align</span>
       </DropDownItem>
       <Divider />
       <DropDownItem
@@ -807,9 +807,9 @@ export default function ToolbarPlugin({
         }}
         title={IS_APPLE ? 'Undo (⌘Z)' : 'Undo (Ctrl+Z)'}
         type="button"
-        className={`${theme.toolbar.toolbarItem.base} ${theme.toolbar.toolbarItem.spaced}` || "toolbar-item spaced"}
+        className={`${theme.toolbar.toolbarItem.base} ${theme.toolbar.toolbarItem.spaced}` }
         aria-label="Undo">
-        <i className={`${theme.toolbar.toolbarItem.iconFormat} ${theme.i.undo}` || "format undo"}  />
+        <i className={`${theme.toolbar.toolbarItem.iconFormat} ${theme.i.undo}` }  />
       </button>
       <button
         disabled={!canRedo || !isEditable}
@@ -818,9 +818,9 @@ export default function ToolbarPlugin({
         }}
         title={IS_APPLE ? 'Redo (⌘Y)' : 'Redo (Ctrl+Y)'}
         type="button"
-        className={`${theme.toolbar.toolbarItem.base  }` || "toolbar-item"}
+        className={`${theme.toolbar.toolbarItem.base  }` }
         aria-label="Redo">
-        <i className={`${theme.toolbar.toolbarItem.iconFormat} ${theme.i.redo}` || "format redo"} />
+        <i className={`${theme.toolbar.toolbarItem.iconFormat} ${theme.i.redo}` } />
       </button>
       {/* <Divider /> */}
       <div className={theme.toolbar.divider} />
@@ -839,7 +839,7 @@ export default function ToolbarPlugin({
       {blockType === 'code' ? (
         <DropDown
           disabled={!isEditable}
-          buttonClassName={`${theme.toolbar.toolbarItem.base} ${theme.toolbar.codeLanguage}` || "toolbar-item code-language"}
+          buttonClassName={`${theme.toolbar.toolbarItem.base} ${theme.toolbar.codeLanguage}` }
           buttonLabel={getLanguageFriendlyName(codeLanguage)}
           buttonAriaLabel="Select language">
           {CODE_LANGUAGE_OPTIONS.map(([value, name]) => {
@@ -932,28 +932,28 @@ export default function ToolbarPlugin({
 
           <DropdownColorPicker
             disabled={!isEditable}
-            buttonClassName={`${theme.toolbar.toolbarItem.base} color-picker` || "toolbar-item color-picker"}
+            buttonClassName={`${theme.toolbar.toolbarItem.base} color-picker` }
             buttonAriaLabel="Formatting text color"
-            buttonIconClassName={`${theme.dropdown.item.icon} ${theme.icon.fontColor}` || "icon font-color"}
+            buttonIconClassName={`${theme.dropdown.item.icon} ${theme.icon.fontColor}` }
             color={fontColor}
             onChange={onFontColorSelect}
             title="text color"
           />
           <DropdownColorPicker
             disabled={!isEditable}
-            buttonClassName={`${theme.toolbar.toolbarItem.base} color-picker` || "toolbar-item color-picker"}
+            buttonClassName={`${theme.toolbar.toolbarItem.base} color-picker` }
             buttonAriaLabel="Formatting background color"
-            buttonIconClassName={`${theme.dropdown.item.icon} ${theme.icon.bgColor}` || "icon bg-color"}
+            buttonIconClassName={`${theme.dropdown.item.icon} ${theme.icon.bgColor}` }
             color={bgColor}
             onChange={onBgColorSelect}
             title="bg color"
           />
           <DropDown
             disabled={!isEditable}
-            buttonClassName={`${theme.toolbar.toolbarItem.base} ${theme.toolbar.toolbarItem.spaced}` || "toolbar-item spaced"}
+            buttonClassName={`${theme.toolbar.toolbarItem.base} ${theme.toolbar.toolbarItem.spaced}` }
             buttonLabel=""
             buttonAriaLabel="Formatting options for additional text styles"
-            buttonIconClassName={`${theme.dropdown.item.icon} ${theme.icon.dropdownMore}` || "icon dropdown-more"}>
+            buttonIconClassName={`${theme.dropdown.item.icon} ${theme.icon.dropdownMore}` }>
             <DropDownItem
               onClick={() => {
                 activeEditor.dispatchCommand(
@@ -964,7 +964,7 @@ export default function ToolbarPlugin({
               className={`${theme.dropdown.item.base || 'item '} ` + dropDownActiveClass(isStrikethrough)}
               title="Strikethrough"
               aria-label="Format text with a strikethrough">
-              <i className={`${theme.dropdown.item.icon} ${theme.icon.strikethrough}` || "icon strikethrough"} />
+              <i className={`${theme.dropdown.item.icon} ${theme.icon.strikethrough}` } />
               <span className={`${theme.dropdown.item.text}` ||"text"}>Strikethrough</span>
             </DropDownItem>
             <DropDownItem
@@ -974,8 +974,8 @@ export default function ToolbarPlugin({
               className={`${theme.dropdown.item.base || 'item '} ` + dropDownActiveClass(isSubscript)}
               title="Subscript"
               aria-label="Format text with a subscript">
-              <i className={`${theme.dropdown.item.icon} ${theme.icon.subscript}` || "icon subscript"} />
-              <span className={`${theme.dropdown.item.text}` ||"text"}>Subscript</span>
+              <i className={`${theme.dropdown.item.icon} ${theme.icon.subscript}` } />
+              <span className={`${theme.dropdown.item.text}`}>Subscript</span>
             </DropDownItem>
             <DropDownItem
               onClick={() => {
@@ -987,7 +987,7 @@ export default function ToolbarPlugin({
               className={`${theme.dropdown.item.base || 'item '} ` + dropDownActiveClass(isSuperscript)}
               title="Superscript"
               aria-label="Format text with a superscript">
-              <i className={`${theme.dropdown.item.icon} ${theme.icon.superscript}` || "icon superscript"} />
+              <i className={`${theme.dropdown.item.icon} ${theme.icon.superscript}` } />
               <span className={`${theme.dropdown.item.text}` ||"text"}>Superscript</span>
             </DropDownItem>
             <DropDownItem
@@ -995,7 +995,7 @@ export default function ToolbarPlugin({
               className={`${theme.dropdown.item.base}` || "item"}
               title="Clear text formatting"
               aria-label="Clear all text formatting">
-              <i className={`${theme.dropdown.item.icon} ${theme.icon.clear}` || "icon clear"} />
+              <i className={`${theme.dropdown.item.icon} ${theme.icon.clear}` } />
               <span className={`${theme.dropdown.item.text}` ||"text"}>Clear Formatting</span>
             </DropDownItem>
           </DropDown>
@@ -1005,10 +1005,10 @@ export default function ToolbarPlugin({
             <>
               <DropDown
                 disabled={!isEditable}
-                buttonClassName={`${theme.toolbar.toolbarItem.base} ${theme.toolbar.toolbarItem.spaced}` || "toolbar-item spaced"}
+                buttonClassName={`${theme.toolbar.toolbarItem.base} ${theme.toolbar.toolbarItem.spaced}` }
                 buttonLabel="Table"
                 buttonAriaLabel="Open table toolkit"
-                buttonIconClassName={`${theme.dropdown.item.icon} ${theme.icon.table} secondary` || "icon table secondary"}>
+                buttonIconClassName={`${theme.dropdown.item.icon} ${theme.icon.table} secondary`}>
                 <DropDownItem
                   onClick={() => {
                     /**/
@@ -1023,10 +1023,10 @@ export default function ToolbarPlugin({
           )}
           <DropDown
             disabled={!isEditable}
-            buttonClassName={`${theme.toolbar.toolbarItem.base} ${theme.toolbar.toolbarItem.spaced}` || "toolbar-item spaced"}
+            buttonClassName={`${theme.toolbar.toolbarItem.base} ${theme.toolbar.toolbarItem.spaced}` }
             buttonLabel="Insert"
             buttonAriaLabel="Insert specialized editor node"
-            buttonIconClassName={`${theme.dropdown.item.icon} ${theme.icon.plus}` || "icon plus"}>
+            buttonIconClassName={`${theme.dropdown.item.icon} ${theme.icon.plus}` }>
             <DropDownItem
               onClick={() => {
                 activeEditor.dispatchCommand(
@@ -1035,7 +1035,7 @@ export default function ToolbarPlugin({
                 );
               }}
               className={`${theme.dropdown.item.base}` || "item"}>
-              <i className={`${theme.dropdown.item.icon} ${theme.icon.horizontalRule}` || "icon horizontal-rule"} />
+              <i className={`${theme.dropdown.item.icon} ${theme.icon.horizontalRule}` } />
               <span className={`${theme.dropdown.item.text}` ||"text"}>Horizontal Rule</span>
             </DropDownItem>
 
@@ -1049,7 +1049,7 @@ export default function ToolbarPlugin({
                 ));
               }}
               className={`${theme.dropdown.item.base}` || "item"}>
-              <i className={`${theme.dropdown.item.icon} ${theme.icon.image}` || "icon image"} />
+              <i className={`${theme.dropdown.item.icon} ${theme.icon.image}`} />
               <span className={`${theme.dropdown.item.text}` ||"text"}>Image</span>
             </DropDownItem>
             {/*<DropDownItem
@@ -1084,7 +1084,7 @@ export default function ToolbarPlugin({
                 ));
               }}
               className={`${theme.dropdown.item.base}` || "item"}>
-              <i className={`${theme.dropdown.item.icon} ${theme.icon.table}` || "icon table"} />
+              <i className={`${theme.dropdown.item.icon} ${theme.icon.table}` } />
               <span className={`${theme.dropdown.item.text}` ||"text"}>Table</span>
             </DropDownItem>
             <DropDownItem
@@ -1097,7 +1097,7 @@ export default function ToolbarPlugin({
                 ));
               }}
               className={`${theme.dropdown.item.base}` || "item"}>
-              <i className={`${theme.dropdown.item.icon} ${theme.icon.table}` || "icon table"} />
+              <i className={`${theme.dropdown.item.icon} ${theme.icon.table}` } />
               <span className={`${theme.dropdown.item.text}` ||"text"}>Table (Experimental)</span>
             </DropDownItem>
             {/*<DropDownItem
@@ -1144,7 +1144,7 @@ export default function ToolbarPlugin({
                 editor.dispatchCommand(INSERT_COLLAPSIBLE_COMMAND, undefined);
               }}
               className={`${theme.dropdown.item.base}` || "item"}>
-              <i className={`${theme.dropdown.item.icon} ${theme.icon.caretRight}` || "icon caret-right"} />
+              <i className={`${theme.dropdown.item.icon} ${theme.icon.caretRight}`} />
               <span className={`${theme.dropdown.item.text}` ||"text"}>Collapsible container</span>
             </DropDownItem>
             {/*EmbedConfigs.map((embedConfig) => (
