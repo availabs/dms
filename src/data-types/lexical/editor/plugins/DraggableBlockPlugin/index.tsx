@@ -409,7 +409,7 @@ function useDraggableBlockMenu(
   return createPortal(
     <>
       <div
-        className={`icon ${theme.draggableBlockMenu.base}` || "icon draggable-block-menu"}
+        className={`icon ${theme.draggableBlockMenu.base}`}
         ref={menuRef}
         draggable={true}
         onDragStart={onDragStart}

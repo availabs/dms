@@ -87,7 +87,7 @@ function LazyImage({
   useSuspenseImage(src);
   return (
     <img
-      className={`${className} cursor-default` || undefined}
+      className={`${className} cursor-default`}
       src={src}
       alt={altText}
       ref={imageRef}

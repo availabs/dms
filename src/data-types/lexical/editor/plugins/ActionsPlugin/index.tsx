@@ -168,8 +168,7 @@ export default function ActionsPlugin({
           }}
           // action-button-mic not added to theme
           className={
-            `${theme.actionButton} action-button-mic ` || 'action-button action-button-mic ' +
-            (isSpeechToText ? 'active' : '')
+            `${theme.actionButton} action-button-mic ` + (isSpeechToText ? 'active' : '')
           }
           title="Speech To Text"
           aria-label={`${
@@ -179,14 +178,14 @@ export default function ActionsPlugin({
         </button>
       )}
       <button
-        className={`${theme.actionButton.base} import` || "action-button import"}
+        className={`${theme.actionButton.base} import`}
         onClick={() => importFile(editor)}
         title="Import"
         aria-label="Import editor state from JSON">
         <i className={theme.icon.import || "import"} />
       </button>
       <button
-        className={`${theme.actionButton.base} export` || "action-button export"}
+        className={`${theme.actionButton.base} export`}
         onClick={() =>
           exportFile(editor, {
             fileName: `Playground ${new Date().toISOString()}`,
@@ -198,7 +197,7 @@ export default function ActionsPlugin({
         <i className={theme.icon.export || "export"} />
       </button>
       <button
-        className={`${theme.actionButton.base} clear` || "action-button clear"}
+        className={`${theme.actionButton.base} clear`}
         disabled={isEditorEmpty}
         onClick={() => {
           showModal('Clear editor', (onClose) => (
@@ -223,11 +222,11 @@ export default function ActionsPlugin({
         <i className={!isEditable ? 'unlock' : 'lock'} />
       </button>
       <button
-        className={`${theme.actionButton.base}` || "action-button"}
+        className={`${theme.actionButton.base}` }
         onClick={handleMarkdownToggle}
         title="Convert From Markdown"
         aria-label="Convert from markdown">
-        <i className={theme.icon.markdown || "markdown"} />
+        <i className={theme.icon.markdown} />
       </button>
       {/*isCollabActive && (
         <button

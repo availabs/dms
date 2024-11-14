@@ -51,7 +51,7 @@ export const YoutubeEmbedConfig: PlaygroundEmbedConfig = {
   exampleUrl: 'https://www.youtube.com/watch?v=jNQXAC9IVRw',
 
   // Icon for display.
-  icon: <i className={`${theme.typeaheadPopover.ul.li.icon} ${theme.icon.youtube}` || "icon youtube"} />,
+  icon: <i className={`${theme.typeaheadPopover.ul.li.icon} ${theme.icon.youtube}`} />,
 
   insertNode: (editor: LexicalEditor, result: EmbedMatchResult) => {
     editor.dispatchCommand(INSERT_YOUTUBE_COMMAND, result.id);
@@ -166,9 +166,9 @@ function AutoEmbedMenuItem({
   onMouseEnter: () => void;
   option: AutoEmbedOption;
 }) {
-  let className = `${theme.typeaheadPopover.ul.li.item}` || 'item';
+  let className = `${theme.typeaheadPopover.ul.li.item}`;
   if (isSelected) {
-    className += ` ${theme.typeaheadPopover.ul.li.selected}` || ' selected';
+    className += `${theme.typeaheadPopover.ul.li.selected}`;
   }
   return (
     <li
@@ -181,7 +181,7 @@ function AutoEmbedMenuItem({
       id={'typeahead-item-' + index}
       onMouseEnter={onMouseEnter}
       onClick={onClick}>
-      <span className={theme.typeaheadPopover.ul.li.text || "text"}>{option.title}</span>
+      <span className={theme.typeaheadPopover.ul.li.text}>{option.title}</span>
     </li>
   );
 }
@@ -198,7 +198,7 @@ function AutoEmbedMenu({
   options: Array<AutoEmbedOption>;
 }) {
   return (
-    <div className={`${theme.typeaheadPopover.base}` || "typeahead-popover"}>
+    <div className={`${theme.typeaheadPopover.base}`}>
       <ul>
         {options.map((option: AutoEmbedOption, i: number) => (
           <AutoEmbedMenuItem
@@ -326,7 +326,7 @@ export default function AutoEmbedPlugin(): JSX.Element {
           anchorElementRef.current
             ? ReactDOM.createPortal(
                 <div
-                  className={`${theme.typeaheadPopover.base} ${theme.autoEmbedMenu}` || "typeahead-popover auto-embed-menu"}
+                  className={`${theme.typeaheadPopover.base} ${theme.autoEmbedMenu}`}
                   style={{
                     marginLeft: anchorElementRef.current.style.width,
                     width: 200,
