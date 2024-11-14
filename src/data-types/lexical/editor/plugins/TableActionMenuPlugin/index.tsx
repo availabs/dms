@@ -484,7 +484,7 @@ function TableActionMenu({
     if (canMergeCells) {
       mergeCellButton = (
         <button
-          className={`${theme.dropdown.item.base}` || "item"}
+          className={`${theme.dropdown.item.base}`}
           onClick={() => mergeTableCellsAtSelection()}
           data-test-id="table-merge-cells">
           Merge cells
@@ -493,7 +493,7 @@ function TableActionMenu({
     } else if (canUnmergeCell) {
       mergeCellButton = (
         <button
-          className={`${theme.dropdown.item.base}` || "item"}
+          className={`${theme.dropdown.item.base}`}
           onClick={() => unmergeTableCellsAtSelection()}
           data-test-id="table-unmerge-cells">
           Unmerge cells
@@ -504,14 +504,14 @@ function TableActionMenu({
 
   return createPortal(
     <div
-      className={theme.dropdown.base || "dropdown"}
+      className={theme.dropdown.base}
       ref={dropDownRef}
       onClick={(e) => {
         e.stopPropagation();
       }}>
       {mergeCellButton}
       <button
-        className={theme.dropdown.item.base || "item"}
+        className={theme.dropdown.item.base}
         onClick={() =>
           showColorPickerModal('Cell background color', () => (
             <ColorPicker
@@ -521,24 +521,24 @@ function TableActionMenu({
           ))
         }
         data-test-id="table-background-color">
-        <span className={theme.dropdown.item.text || "text"}>Background color</span>
+        <span className={theme.dropdown.item.text}>Background color</span>
       </button>
       <hr />
       <button
-        className={theme.dropdown.item.base || "item"}
+        className={theme.dropdown.item.base}
         onClick={() => insertTableRowAtSelection(false)}
         data-test-id="table-insert-row-above">
-        <span className={theme.dropdown.item.text || "text"}>
+        <span className={theme.dropdown.item.text}>
           Insert{' '}
           {selectionCounts.rows === 1 ? 'row' : `${selectionCounts.rows} rows`}{' '}
           above
         </span>
       </button>
       <button
-        className={theme.dropdown.item.base || "item"}
+        className={theme.dropdown.item.base}
         onClick={() => insertTableRowAtSelection(true)}
         data-test-id="table-insert-row-below">
-        <span className={theme.dropdown.item.text || "text"}>
+        <span className={theme.dropdown.item.text}>
           Insert{' '}
           {selectionCounts.rows === 1 ? 'row' : `${selectionCounts.rows} rows`}{' '}
           below
@@ -546,10 +546,10 @@ function TableActionMenu({
       </button>
       <hr />
       <button
-        className={theme.dropdown.item.base || "item"}
+        className={theme.dropdown.item.base}
         onClick={() => insertTableColumnAtSelection(false)}
         data-test-id="table-insert-column-before">
-        <span className={theme.dropdown.item.text || "text"}>
+        <span className={theme.dropdown.item.text }>
           Insert{' '}
           {selectionCounts.columns === 1
             ? 'column'
@@ -558,10 +558,10 @@ function TableActionMenu({
         </span>
       </button>
       <button
-        className={theme.dropdown.item.base || "item"}
+        className={theme.dropdown.item.base }
         onClick={() => insertTableColumnAtSelection(true)}
         data-test-id="table-insert-column-after">
-        <span className={theme.dropdown.item.text || "text"}>
+        <span className={theme.dropdown.item.text }>
           Insert{' '}
           {selectionCounts.columns === 1
             ? 'column'
@@ -571,26 +571,26 @@ function TableActionMenu({
       </button>
       <hr />
       <button
-        className={theme.dropdown.item.base || "item"}
+        className={theme.dropdown.item.base }
         onClick={() => deleteTableColumnAtSelection()}
         data-test-id="table-delete-columns">
-        <span className={theme.dropdown.item.text || "text"}>Delete column</span>
+        <span className={theme.dropdown.item.text }>Delete column</span>
       </button>
       <button
-        className={theme.dropdown.item.base || "item"}
+        className={theme.dropdown.item.base }
         onClick={() => deleteTableRowAtSelection()}
         data-test-id="table-delete-rows">
-        <span className={theme.dropdown.item.text || "text"}>Delete row</span>
+        <span className={theme.dropdown.item.text }>Delete row</span>
       </button>
       <button
-        className={theme.dropdown.item.base || "item"}
+        className={theme.dropdown.item.base }
         onClick={() => deleteTableAtSelection()}
         data-test-id="table-delete">
-        <span className={theme.dropdown.item.text || "text"}>Delete table</span>
+        <span className={theme.dropdown.item.text }>Delete table</span>
       </button>
       <hr />
-      <button className={theme.dropdown.item.base || "item"} onClick={() => toggleTableRowIsHeader()}>
-        <span className={theme.dropdown.item.text || "text"}>
+      <button className={theme.dropdown.item.base } onClick={() => toggleTableRowIsHeader()}>
+        <span className={theme.dropdown.item.text }>
           {(tableCellNode.__headerState & TableCellHeaderStates.ROW) ===
           TableCellHeaderStates.ROW
             ? 'Remove'
@@ -598,8 +598,8 @@ function TableActionMenu({
           row header
         </span>
       </button>
-      <button className={theme.dropdown.item.base || "item"} onClick={() => toggleTableColumnIsHeader()}>
-        <span className={theme.dropdown.item.text || "text"}>
+      <button className={theme.dropdown.item.base } onClick={() => toggleTableColumnIsHeader()}>
+        <span className={theme.dropdown.item.text }>
           {(tableCellNode.__headerState & TableCellHeaderStates.COLUMN) ===
           TableCellHeaderStates.COLUMN
             ? 'Remove'
@@ -721,13 +721,13 @@ function TableCellActionMenuContainer({
       {tableCellNode != null && (
         <>
           <button
-            className={`${theme.cellActionButton} ${theme.iconChevronDown}` || "table-cell-action-button chevron-down"}
+            className={`${theme.cellActionButton} ${theme.iconChevronDown}`}
             onClick={(e) => {
               e.stopPropagation();
               setIsMenuOpen(!isMenuOpen);
             }}
             ref={menuRootRef}>
-            <i className={`${theme.iconChevronDown}` || "chevron-down"} />
+            <i className={`${theme.iconChevronDown}` |} />
           </button>
           {colorPickerModal}
           {isMenuOpen && (

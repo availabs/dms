@@ -378,7 +378,7 @@ function FontDropDown({
   return (
     <DropDown
       disabled={disabled}
-      buttonClassName={`${theme.toolbar.toolbarItem.base} ${style}` || `toolbar-item ${style}`}
+      buttonClassName={`${theme.toolbar.toolbarItem.base} ${style}`}
       buttonLabel={value}
       buttonIconClassName={
         style === 'font-family' ? 'icon block-type font-family' : ''
@@ -1026,7 +1026,7 @@ export default function ToolbarPlugin({
             buttonClassName={`${theme.toolbar.toolbarItem.base} ${theme.toolbar.toolbarItem.spaced}` }
             buttonLabel="Insert"
             buttonAriaLabel="Insert specialized editor node"
-            buttonIconClassName={`${theme.dropdown.item.icon} ${theme.icon.plus}` || "icon plus"}>
+            buttonIconClassName={`${theme.dropdown.item.icon} ${theme.icon.plus}` }>
             <DropDownItem
               onClick={() => {
                 activeEditor.dispatchCommand(
