@@ -31,16 +31,20 @@ const TableView = ({
                        form={{name: item.name || item.doc_type, href: format.url_slug}}
                        page={{name: 'Table', href: `${pageBaseUrl}/${params.id}/table`}}
                        id={params.id} //page id to use for navigation
+                       view_id={params.view_id}
+                       views={item.views}
+                       showVersionSelector={true}
         >
             {
                 !item.config ?
                     <div className={'p-1 text-center'}>Please setup metadata.</div> :
+                !params.view_id ? 'No Version Selected' :
                     <div className={`${theme?.page?.wrapper1} h-full overflow-auto`}>
                         <Spreadsheet.EditComp
                             onChange={() => {
                             }}
                             size={1}
-                            format={{app: item.app, type: item.doc_type, doc_type: item.doc_type, config: item.config}}
+                            format={{app: item.app, type: `${item.doc_type}-${params.view_id}`, doc_type: `${item.doc_type}-${params.view_id}`, config: item.config}}
                             apiLoad={apiLoad}
                             apiUpdate={apiUpdate}
                             value={JSON.stringify({

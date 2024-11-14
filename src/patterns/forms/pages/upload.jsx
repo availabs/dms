@@ -27,13 +27,17 @@ const UploadPage = ({
                        form={{name: item.name || item.doc_type, href: format.url_slug}}
                        page={{name: 'Upload', href: `${pageBaseUrl}/${params.id}/upload`}}
                        id={params.id} //page id to use for navigation
+                       view_id={params.view_id}
+                       views={item.views}
+                       showVersionSelector={true}
 
         >
             <div className={`${theme?.page?.wrapper1}`}>
                 <Upload.EditComp
                     onChange={() => {}}
                     size={1}
-                    format={{app: item.app, type: item.doc_type, config: item.config}}
+                    format={{app: item.app, type: `${item.doc_type}-${params.view_id}`, config: item.config}}
+                    view_id={params.view_id}
                     parent={item}
                     apiLoad={apiLoad}
                     apiUpdate={apiUpdate}

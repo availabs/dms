@@ -12,6 +12,11 @@ export const isJson = (str)  => {
     return true;
 }
 
+const preventDefaults = e => {
+    e.preventDefault();
+    e.stopPropagation();
+}
+
 const uploadGisDataset = async ({file, user, etlContextId, damaServerPath, setGisUploadId, setLoading}) => {
     try {
         setLoading(true)
@@ -51,6 +56,24 @@ const uploadGisDataset = async ({file, user, etlContextId, damaServerPath, setGi
     }
 }
 
+const handleDrop = (e) => {
+    preventDefaults(e);
+    const file = e.dataTransfer.files[0];
+    if (file) {
+        return uploadGisDataset({
+            file,
+            user,
+            etlContextId,
+            damaServerPath,
+            setGisUploadId,
+            setLoading: (isLoading) => {
+                setLocalLoading(isLoading);
+                setLoading(isLoading);
+            }
+        });
+    }
+};
+
 const publish = async ({userId, email, gisUploadId, layerName, app, type, dmsServerPath, setPublishing, setPublishStatus,
                            updateMetaData, existingAttributes = [], columns = []}) => {
     const publishData = {
@@ -85,7 +108,7 @@ const publish = async ({userId, email, gisUploadId, layerName, app, type, dmsSer
     setPublishStatus(true);
     console.log('publishFinalEvent', publishFinalEvent)
 }
-const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, parent, ...rest}) => {
+const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate, parent, ...rest}) => {
     // this component should let a user:
     // 1. upload
     // 2. post upload change column name and display names -- avoiding this. this should be done in meta manager.
@@ -114,7 +137,7 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, parent, ...res
     // pivotColumns: {finalCOlName: [srcCol1, srcCol2, srcCol3, ...]}
 
     const updateMetaData = (data, attrKey) => {
-        apiUpdate({data: {...parent, ...{[attrKey]: data}}, config: {format}})
+        apiUpdate({data: {...parent, ...{[attrKey]: data}}, config: {format, type: format?.type?.replace(`-${view_id}`, '')}})
     }
     // ================================================= get etl context begin =========================================
     useEffect(() => {
@@ -167,6 +190,7 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, parent, ...res
     console.log('columns', columns)
     const pivotColumns = existingAttributes.filter(existingCol => columns.filter(c => c.existingColumnMatch === existingCol.name).length > 1);
 
+    if(!view_id) return 'No version selected.'
     if(publishStatus){
         return <div className={'flex items-center justify-center w-full h-[150px] border rounded-md'}>
             The Sheet has been Processed. To Validate your records, <Link className={'text-blue-500 hover:text-blue-700 px-1'} to={`${baseUrl}/manage/validate`}>click here</Link>
@@ -177,26 +201,43 @@ const Edit = ({value, onChange, size, format, apiLoad, apiUpdate, parent, ...res
     (
         <div className={'w-full h-[300px]'}>
 
-            <div className="flex items-center justify-center w-full">
+            <div className="flex items-center justify-center w-full"
+                 onDragOver={preventDefaults}
+                 onDragEnter={preventDefaults}
+                 onDragLeave={preventDefaults}
+                 onDrop={e => {
+                     preventDefaults(e);
+                     if(!e.dataTransfer.files[0]) return;
+                     return uploadGisDataset({
+                         file: e.dataTransfer.files[0],
+                         user,
+                         etlContextId,
+                         damaServerPath,
+                         setGisUploadId,
+                         setLoading
+                     })
+                 }}
+            >
                 <label htmlFor="dropzone-file"
-                       className="flex flex-col items-center justify-center w-full h-96 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:hover:border-gray-500 dark:hover:bg-gray-600">
+                       className="flex flex-col items-center justify-center w-full h-96 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
                     <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                        <svg className="w-8 h-8 mb-4 text-gray-500 dark:text-gray-400" aria-hidden="true"
+                        <svg className="w-8 h-8 mb-4 text-gray-500 " aria-hidden="true"
                              xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
                             <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
                                   d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
                         </svg>
                         {
-                            loading ? <p className="text-xs text-gray-500 dark:text-gray-400">Uploading...</p> : (
+                            loading ? <p className="text-xs text-gray-500 ">Uploading...</p> : (
                                 <>
-                                    <p className="mb-2 text-sm text-gray-500 dark:text-gray-400">
+                                    <p className="mb-2 text-sm text-gray-500 ">
                                         <span className="font-semibold">Click to upload</span> or drag and drop</p>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400">CSV or Excel</p>
+                                    <p className="text-xs text-gray-500">CSV or Excel</p>
                                 </>
                             )
                         }
                     </div>
-                    <input disabled={loading} id="dropzone-file" type="file" className="hidden" onChange={(e) =>
+                    <input disabled={loading} id="dropzone-file" type="file" className="hidden"
+                           onChange={(e) =>
                         uploadGisDataset({file: e.target.files[0], user, etlContextId, damaServerPath, setGisUploadId, setLoading})}/>
                 </label>
             </div>

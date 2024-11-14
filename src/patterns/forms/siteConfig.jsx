@@ -25,6 +25,7 @@ import ManageMeta from "./pages/manage/metadata"
 import PatternListComponent from "./components/selector/ComponentRegistry/patternListComponent";
 import AvailLayout from "./ui/avail-layout";
 import Admin from "./pages/admin";
+import Version from "./pages/version";
 
 // import {updateAttributes, updateRegisteredFormats} from "../admin/siteConfig";
 
@@ -235,36 +236,6 @@ const formsSourceConfig = ({
                         path: `:id/metadata`
                     },
                     {
-                        type: props => <TableView parent={parent} {...props} adminPath={adminPath}/>,
-                        filter: {
-                            stopFullDataLoad: true,
-                            fromIndex: () => 0,
-                            toIndex: () => 0,
-                        },
-                        action: 'edit',
-                        path: `:id/table`
-                    },
-                    {
-                        type: props => <UploadPage parent={parent} {...props} adminPath={adminPath}/>,
-                        filter: {
-                            stopFullDataLoad: true,
-                            fromIndex: () => 0,
-                            toIndex: () => 0,
-                        },
-                        action: 'edit',
-                        path: `:id/upload`
-                    },
-                    {
-                        type: props => <Validate parent={parent} {...props} adminPath={adminPath}/>,
-                        filter: {
-                            stopFullDataLoad: true,
-                            fromIndex: () => 0,
-                            toIndex: () => 0,
-                        },
-                        action: 'edit',
-                        path: `:id/validate`
-                    },
-                    {
                         type: props => <Admin parent={parent} {...props} adminPath={adminPath}/>,
                         filter: {
                             stopFullDataLoad: true,
@@ -274,6 +245,48 @@ const formsSourceConfig = ({
                         action: 'edit',
                         path: `:id/admin`
                     },
+                    // ============================= version dependent pages begin =====================================
+                    {
+                        type: props => <TableView parent={parent} {...props} adminPath={adminPath}/>,
+                        filter: {
+                            stopFullDataLoad: true,
+                            fromIndex: () => 0,
+                            toIndex: () => 0,
+                        },
+                        action: 'edit',
+                        path: `:id/table/:view_id?`
+                    },
+                    {
+                        type: props => <UploadPage parent={parent} {...props} adminPath={adminPath}/>,
+                        filter: {
+                            stopFullDataLoad: true,
+                            fromIndex: () => 0,
+                            toIndex: () => 0,
+                        },
+                        action: 'edit',
+                        path: `:id/upload/:view_id?`
+                    },
+                    {
+                        type: props => <Validate parent={parent} {...props} adminPath={adminPath}/>,
+                        filter: {
+                            stopFullDataLoad: true,
+                            fromIndex: () => 0,
+                            toIndex: () => 0,
+                        },
+                        action: 'edit',
+                        path: `:id/validate/:view_id?`
+                    },
+                    {
+                        type: props => <Version parent={parent} {...props} adminPath={adminPath}/>,
+                        filter: {
+                            stopFullDataLoad: true,
+                            fromIndex: () => 0,
+                            toIndex: () => 0,
+                        },
+                        action: 'edit',
+                        path: `:id/view/:view_id?`
+                    }
+                    // ============================= version dependent pages end =======================================
                 ]
             }
         ]

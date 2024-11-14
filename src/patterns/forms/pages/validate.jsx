@@ -71,8 +71,8 @@ const Validate = ({
     // make sure after upload, you can make corrections and re-validate.
     // validate correct records on meta change should be possible
     // valid entries on upload should also be checked as updated meta may make them invalid
-    // const validEntriesFormat = {app, type: `${doc_type}`, doc_type: `${doc_type}`, config}
-    const invalidEntriesFormat = {app, type: `${doc_type}-invalid-entry`, doc_type: `${doc_type}-invalid-entry`, config}
+    // const validEntriesFormat = {app, type: `${doc_type}-${params.view_id}`, doc_type: `${doc_type}-${params.view_id}`, config}
+    const invalidEntriesFormat = {app, type: `${doc_type}-${params.view_id}-invalid-entry`, doc_type: `${doc_type}-${params.view_id}-invalid-entry`, config}
     console.log('?????//', invalidEntriesFormat, app, doc_type, config, is_dirty)
     useEffect(() => {
         async function load(){
@@ -125,11 +125,15 @@ const Validate = ({
         load()
     }, [item])
     const page = useMemo(() => ({name: 'Validate', href: `${pageBaseUrl}/${params.id}/validate`, /*warn: is_dirty*/}), [is_dirty, pageBaseUrl, params.id])
+
     return (
-        <SourcesLayout ffullWidth={false} baseUrl={baseUrl} pageBaseUrl={pageBaseUrl} isListAll={false} hideBreadcrumbs={false}
+        <SourcesLayout fullWidth={false} baseUrl={baseUrl} pageBaseUrl={pageBaseUrl} isListAll={false} hideBreadcrumbs={false}
                        form={{name: item.name || item.doc_type, href: item.url_slug}}
                        page={page}
                        id={params.id} //page id to use for navigation
+                       view_id={params.view_id}
+                       views={item.views}
+                       showVersionSelector={true}
 
         >
             <div className={`${theme?.page?.wrapper1}`}>

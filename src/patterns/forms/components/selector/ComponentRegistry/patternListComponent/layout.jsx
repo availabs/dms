@@ -1,40 +1,60 @@
 import React from 'react';
-import { Link, useParams } from 'react-router-dom'
+import {Link, useNavigate, useParams} from 'react-router-dom'
 import {Alert} from "../../../../ui/icons";
 
 const navPages = [
-  {name: 'Overview', href: ``},
-  {name: 'Table', href: `table`},
-  {name: 'Validate', href: `validate`},
-  {name: 'Metadata', href: `metadata`},
-  {name: 'Upload', href: `upload`},
-  {name: 'Admin', href: `admin`},
+  {name: 'Overview', href: ``, viewDependentPage: false},
+  {name: 'Table', href: `table`, viewDependentPage: true},
+  {name: 'Validate', href: `validate`, viewDependentPage: true},
+  {name: 'Metadata', href: `metadata`, viewDependentPage: false},
+  {name: 'Upload', href: `upload`, viewDependentPage: true},
+  {name: 'Admin', href: `admin`, viewDependentPage: false},
 ]
 
-const SourcesLayout = ({children, fullWidth, hideBreadcrumbs, hideNav, form, page, baseUrl, pageBaseUrl, id }) => {
+const SourcesLayout = ({children, fullWidth, hideBreadcrumbs, hideNav, form, page, baseUrl, pageBaseUrl, id, views=[], view_id, showVersionSelector = false }) => {
+    const navigate = useNavigate();
   return (
     <div className={`${fullWidth ? '' : 'max-w-6xl mx-72'} h-full flex flex-col`}>
       {hideBreadcrumbs ? '' :  <div className=''>
         <Breadcrumbs fullWidth={fullWidth} baseUrl={baseUrl} form={form} page={page} />
       </div> }
-      <Nav navPages={navPages} page={page} hideNav={hideNav} baseUrl={pageBaseUrl} id={id}/>
-      <div className='flex-1 flex flex-col'>
-        {children}
-      </div>
+
+        <div className={'w-full flex justify-between'}>
+            <Nav navPages={navPages} page={page} hideNav={hideNav} baseUrl={pageBaseUrl} id={id} view_id={view_id}/>
+            {
+                showVersionSelector ?
+                    <select id={'version-selector'}
+                            onChange={e => navigate(`${page.href}/${e.target.value}`)}
+                            className={'w-fit p-1 rounded hover:bg-gray-100 bg-transparent'}
+                            value={view_id}
+                    >
+                        <option key={'default'} value={undefined}>No view selected</option>
+                        {views.map(view => <option key={view.id} value={view.id}>{view.name || view.id}</option>)}
+                    </select> : null
+            }
+        </div>
+
+        <div className='flex-1 flex flex-col'>
+            {children}
+        </div>
     </div>
   )
 }
 
 export default SourcesLayout
 
-const Nav = ({baseUrl, navPages, page, hideNav, id}) => hideNav ? null : (
+const Nav = ({baseUrl, navPages, page, hideNav, id, view_id}) => hideNav ? null : (
     <nav className={'w-full flex'}>
-      {
-        navPages.map(p => (
-            <Link className={
-              `p-2 mx-1 font-display font-medium text-l text-slate-700
-                ${p.name === page.name ? `border-b-2 border-blue-600` : `hover:border-b-2 hover:border-gray-300`}`}
-                  to={`${baseUrl}/${id}/${p.href}`}>
+        {
+            navPages.map(p => (
+                <Link className={
+                    `p-2 mx-1 font-display font-medium text-l text-slate-700
+                    ${p.name === page.name ? 
+                        `border-b-2 border-blue-600` : 
+                        `hover:border-b-2 hover:border-gray-300`}`
+                }
+                  to={`${baseUrl}/${id}/${p.viewDependentPage ? `${p.href}/${view_id}` : p.href}`}
+                >
               <div className={'flex items-center'}><span className={'pr-0.5'}>{p.name}</span> {page.warn && p.name === page.name ? <Alert /> : ''}</div>
             </Link>))
       }

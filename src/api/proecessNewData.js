@@ -109,16 +109,17 @@ async function loadDmsFormats (item,dmsAttrsConfigs, format, falcor) {
             item[key] = JSON.parse(item[key]) 
         } 
         // if dmstype isArray
+        const attrsToFetch = ['data', 'created_at', 'updated_at', 'created_by', 'updated_by']
         if(typeof item?.[key]?.[Symbol.iterator] === 'function') {
             for (let ref of item[key]) {
                 if(ref.id) {
-                    dmsFormatRequests.push(['dms','data', 'byId', ref.id, 'data'])
+                    dmsFormatRequests.push(['dms','data', 'byId', ref.id, attrsToFetch])
                 }
             }
         } else if(item[key]?.id) {
             // if dmstype is single
 
-            dmsFormatRequests.push(['dms','data', 'byId', item[key]?.id, 'data'])
+            dmsFormatRequests.push(['dms','data', 'byId', item[key]?.id, attrsToFetch])
         }
 
         if(dmsFormatRequests.length > 0) {
@@ -130,19 +131,24 @@ async function loadDmsFormats (item,dmsAttrsConfigs, format, falcor) {
                 for (let ref of item[key]) {
                     if(ref.id) {
                         let value = get(newData, ['json','dms','data', 'byId', ref.id, 'data'])
+                        const meta = attrsToFetch.filter(a => a !== 'data')
+                                                     .reduce((acc, metaKey) => ({...acc, [metaKey]: get(newData, ['json','dms','data', 'byId', ref.id, metaKey])}) , {})
 
                         // if new item has dms-format data, recursively fetch
                         if(Object.keys(dmsSubAttrsConfigs).length > 0){
                             await loadDmsFormats(value, dmsSubAttrsConfigs, dmsSubFormats[key], falcor)
                         }
-                        item[key][index]= {...ref,...value}
+                        item[key][index]= {...ref,...value, ...meta}
                         index += 1
                     }
                 }
             // dmstype not array
             } else {
                 let value = get(newData, ['json','dms','data', 'byId', item[key].id, 'data'])
-                item[key] = {...item[key], ...value}
+                const meta = attrsToFetch.filter(a => a !== 'data')
+                                             .reduce((acc, metaKey) => ({...acc, [metaKey]: get(newData, ['json','dms','data', 'byId', ref.id, metaKey])}) , {})
+
+                item[key] = {...item[key], ...value, ...meta}
             }
             
         }

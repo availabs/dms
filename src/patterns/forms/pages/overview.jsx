@@ -6,6 +6,7 @@ import Table from "../components/Table";
 import dmsDataTypes from "../../../data-types";
 import SourceCategories from "../components/selector/ComponentRegistry/patternListComponent/categories";
 import _ from "lodash";
+import {Link} from "react-router-dom";
 
 export const isJson = (str)  => {
     try {
@@ -16,7 +17,7 @@ export const isJson = (str)  => {
     return true;
 }
 
-const tableTheme = (opts = {color:'white', size: 'compact'}) => {
+export const tableTheme = (opts = {color:'white', size: 'compact'}) => {
     const {color = 'white', size = 'compact'} = opts
     let colors = {
         white: 'bg-white hover:bg-blue-50',
@@ -125,7 +126,7 @@ const OverViewEdit = ({
     const DescComp = useMemo(() => editing === 'description' ? attributes['description'].EditComp : attributes['description'].ViewComp, [editing]);
     const CategoriesComp = SourceCategories // useMemo(() => editing === 'categories' ? attributes['categories'].EditComp : attributes['categories'].ViewComp, [editing]);
 
-    console.log('props',item)
+    console.log('props',item, baseUrl, pageBaseUrl, params.id)
     const Lexical = dmsDataTypes.lexical.ViewComp;
 
     return (
@@ -140,7 +141,8 @@ const OverViewEdit = ({
                 </div>
 
                 <div className={'flex flex-col md:flex-row'}>
-                    <div className="w-full md:w-[70%] pl-4 py-2 sm:pl-6 flex justify-between group text-sm text-gray-500 pr-14">
+                    <div
+                        className="w-full md:w-[70%] pl-4 py-2 sm:pl-6 flex justify-between group text-sm text-gray-500 pr-14">
                         <DescComp
                             value={editing === 'description' ? item?.description : (item?.description || defaultLexicalValue)}
                             onChange={(v) => {
@@ -214,7 +216,9 @@ const OverViewEdit = ({
                                         {get(col, 'display_name', get(col, 'name')) || 'No Name'}
                                         <span className={'italic pl-1 pt-3 pr-8 font-light'}>({get(col, 'type')})</span>
                                     </div>),
-                                description: get(col, ['description', 'root']) ? <Lexical value={get(col, 'description')} /> : <div className={'pl-6'}>{JSON.stringify(get(col, 'description')) || 'No Description'}</div>
+                                description: get(col, ['description', 'root']) ?
+                                    <Lexical value={get(col, 'description')}/> : <div
+                                        className={'pl-6'}>{JSON.stringify(get(col, 'description')) || 'No Description'}</div>
                             }))
                         }
                         pageSize={pageSize}
@@ -229,10 +233,37 @@ const OverViewEdit = ({
                     }
                 </div>
 
+                <div className={'w-full p-4'}>
+                    <Table
+                        columns={
+                            ['name', 'created_at', 'updated_at'].map(col => ({
+                                Header: col.replace('_', ' '),
+                                accessor: col,
+                                align: 'left',
+                                width: col === 'name' ? '50%' : '25%',
+                                minWidth: col === 'name' ? '50%' : '25%',
+                                maxWidth: col === 'name' ? '50%' : '25%',
+                            }))
+                        }
+                        data={
+                            (item?.views || []).map(({id, name, created_at, updated_at}) => ({
+                                name: (
+                                    <div className=''>
+                                        <Link to={`${pageBaseUrl}/${params.id}/view/${id}`}>{name || 'No Name'}</Link>
+                                    </div>),
+                                created_at: (new Date(created_at.replace(/"/g, ''))).toLocaleString(),
+                                updated_at: (new Date(updated_at.replace(/"/g, ''))).toLocaleString()
+                            }))
+                        }
+                        pageSize={5}
+                        striped={true}
+                        theme={tableTheme()}
+                    />
+                </div>
 
-            </div>
+                </div>
         </SourcesLayout>
-    )
+)
 }
 
 OverViewEdit.settings = {

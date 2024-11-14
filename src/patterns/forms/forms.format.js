@@ -1,6 +1,19 @@
+export const view = {
+  app: "forms",
+  type: "view",
+  attributes: [
+    { key: "name",
+      placeholder: 'Name',
+      type: "text",
+      required: false
+    }
+  ] 
+}
+
 export const source = {
   app: "forms",
   type: "source",
+  registerFormats: [view],
   attributes: [
     { key: "name",
       placeholder: 'Name',
@@ -31,8 +44,14 @@ export const source = {
       placeholder: 'Categories',
       type: "text",
       required: true
-    }
-  ] 
+    },
+    {
+      key: 'views',
+      type: 'dms-format',
+      isArray: true,
+      format: 'forms+view',
+    },
+  ]
 }
 
 const formsFormat = {
