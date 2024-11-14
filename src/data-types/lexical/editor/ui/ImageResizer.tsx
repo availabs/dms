@@ -163,7 +163,7 @@ export default function ImageResizer({
       setStartCursor(direction);
       onResizeStart();
 
-      controlWrapper.classList.add(`${theme.imageControlWrapperResizing}` || 'image-control-wrapper--resizing');
+      controlWrapper.classList.add(`${theme.imageControlWrapperResizing}`);
       image.style.height = `${height}px`;
       image.style.width = `${width}px`;
 
@@ -240,7 +240,7 @@ export default function ImageResizer({
       positioning.currentHeight = 0;
       positioning.isResizing = false;
 
-      controlWrapper.classList.remove(`${theme.imageControlWrapperResizing}` || 'image-control-wrapper--resizing');
+      controlWrapper.classList.remove(`${theme.imageControlWrapperResizing}`);
 
       setEndCursor();
       onResizeEnd(width, height);
@@ -262,49 +262,49 @@ export default function ImageResizer({
         </button>
       )}
       <div
-        className={`${theme.editor.image.resizer.base} ${theme.editor.image.resizer.n}` || "image-resizer image-resizer-n"}
+        className={`${theme.editor.image.resizer.base} ${theme.editor.image.resizer.n}`}
         onPointerDown={(event) => {
           handlePointerDown(event, Direction.north);
         }}
       />
       <div
-        className={`${theme.editor.image.resizer.base} ${theme.editor.image.resizer.ne}` || "image-resizer image-resizer-ne"}
+        className={`${theme.editor.image.resizer.base} ${theme.editor.image.resizer.ne}`}
         onPointerDown={(event) => {
           handlePointerDown(event, Direction.north | Direction.east);
         }}
       />
       <div
-        className={`${theme.editor.image.resizer.base} ${theme.editor.image.resizer.e}` || "image-resizer image-resizer-e"}
+        className={`${theme.editor.image.resizer.base} ${theme.editor.image.resizer.e}`}
         onPointerDown={(event) => {
           handlePointerDown(event, Direction.east);
         }}
       />
       <div
-        className={`${theme.editor.image.resizer.base} ${theme.editor.image.resizer.se}` || "image-resizer image-resizer-se"}
+        className={`${theme.editor.image.resizer.base} ${theme.editor.image.resizer.se}`}
         onPointerDown={(event) => {
           handlePointerDown(event, Direction.south | Direction.east);
         }}
       />
       <div
-        className={`${theme.editor.image.resizer.base} ${theme.editor.image.resizer.s}` || "image-resizer image-resizer-s"}
+        className={`${theme.editor.image.resizer.base} ${theme.editor.image.resizer.s}`}
         onPointerDown={(event) => {
           handlePointerDown(event, Direction.south);
         }}
       />
       <div
-        className={`${theme.editor.image.resizer.base} ${theme.editor.image.resizer.sw}` || "image-resizer image-resizer-sw"}
+        className={`${theme.editor.image.resizer.base} ${theme.editor.image.resizer.sw}`}
         onPointerDown={(event) => {
           handlePointerDown(event, Direction.south | Direction.west);
         }}
       />
       <div
-        className={`${theme.editor.image.resizer.base} ${theme.editor.image.resizer.w}` || "image-resizer image-resizer-w"}
+        className={`${theme.editor.image.resizer.base} ${theme.editor.image.resizer.w}`}
         onPointerDown={(event) => {
           handlePointerDown(event, Direction.west);
         }}
       />
       <div
-        className={`${theme.editor.image.resizer.base} ${theme.editor.image.resizer.nw}` || "image-resizer image-resizer-nw"}
+        className={`${theme.editor.image.resizer.base} ${theme.editor.image.resizer.nw}`}
         onPointerDown={(event) => {
           handlePointerDown(event, Direction.north | Direction.west);
         }}
