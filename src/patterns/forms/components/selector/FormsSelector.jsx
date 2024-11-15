@@ -36,6 +36,7 @@ const getConfig = ({
     ]
 })
 
+// get forms, and their sources
 const getForms = async ({app, siteType, apiLoad}) => {
     const siteConfig = getConfig({
         app,
@@ -72,10 +73,28 @@ const getForms = async ({app, siteType, apiLoad}) => {
 
 }
 
+const getViews = async ({app, source, apiLoad}) => {
+    const views = (source.views || []);
+    if(!views.length) return;
 
-export const FormsSelector = ({app, siteType, formatFromProps, format, setFormat, apiLoad}) => {
+    const viewIds = views.map(source => source.id);
+    const viewRef = (views[0]?.ref || '').split('+');
+
+    const viewConfig = getConfig({
+        app,
+        type: viewRef[1],
+        filter: {id: viewIds}
+    })
+    const viewRes = await apiLoad(viewConfig);
+    return viewRes.map(({id, data}) => ({id, name: data?.value?.name}))
+}
+
+
+export const FormsSelector = ({app, siteType, formatFromProps, format, setFormat, view, setView, apiLoad}) => {
     const [forms, setForms] = useState([]);
     const [existingFormat, setExistingFormat] = useState(format);
+    const [views, setViews] = useState([]);
+    const [currentView, setCurrentView] = useState(view);
     if(formatFromProps?.config) return null;
 
     useEffect(() => {
@@ -84,10 +103,26 @@ export const FormsSelector = ({app, siteType, formatFromProps, format, setFormat
             const existingFormat = data.find(form => form.id === format.id)?.data?.value;
             console.log('existing format', existingFormat)
             setExistingFormat(existingFormat)
-            if(existingFormat && !_.isEqual(format?.config, existingFormat?.config)) setFormat({...existingFormat, type: existingFormat.type || existingFormat.doc_type}); // to update meta changes
         });
     }, [app, siteType]);
 
+    useEffect(() => {
+        // if source changes, get views
+        getViews({app, source: existingFormat, apiLoad}).then(v => {
+            setViews(v)
+            if(v.length === 1) setCurrentView(v?.[0]?.id)
+        })
+    }, [existingFormat])
+
+    useEffect(() => {
+        // if view changes, update type and set format
+        if(!currentView) return;
+
+        // const type = `${existingFormat.type || existingFormat.doc_type}-${currentView}`
+        // const doc_type = `${existingFormat.doc_type}-${currentView}`
+        // setFormat({...existingFormat, type, doc_type})
+        setView(currentView)
+    }, [currentView])
     return (
         <div className={'flex w-full bg-white my-1'}>
             <label className={'p-1'}>Source: </label>
@@ -101,12 +136,23 @@ export const FormsSelector = ({app, siteType, formatFromProps, format, setFormat
                     setFormat({...tmpFormat, type: tmpFormat.type || tmpFormat.doc_type})
                 }}
             >
-                <option key={'default'} value={undefined}>Please Select</option>
+                <option key={'default'} value={undefined}>Please Select a source</option>
                 {
                     forms.map(form => <option key={form?.data?.value.doc_type}
                                               value={JSON.stringify(form?.data?.value || {})}>{form?.data?.value.doc_type}</option>)
                 }
 
+            </select>
+
+            <select
+                className={'p-1 w-full bg-white border'}
+                value={currentView}
+                onChange={e => setCurrentView(e.target.value)}
+            >
+                <option key={'default'} value={undefined}>Please Select a view</option>
+                {
+                    (views || []).map(view => <option key={view.id} value={view.id}>{view.name}</option>)
+                }
             </select>
         </div>
     )

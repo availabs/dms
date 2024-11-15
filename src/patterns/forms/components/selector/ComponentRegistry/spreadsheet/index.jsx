@@ -13,6 +13,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     const isEdit = Boolean(onChange);
     const cachedData = isJson(value) ? JSON.parse(value) : {};
     const [format, setFormat] = useState(formatFromProps || cachedData.format);
+    const [view, setView] = useState(cachedData.view);
     const [length, setLength] = useState(cachedData.length || 0);
     const [data, setData] = useState([]);
     const [hasMore, setHasMore] = useState();
@@ -108,12 +109,17 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
 
     }, [allowSearchParams, filters]);
     // ========================================= filters 2/2 end =======================================================
+    useEffect(() => {
+        if(!format || !view) return;
+        const originalDocType = format.originalDocType || format.doc_type;
+        const doc_type = `${originalDocType}-${view}`
+        setFormat({...format, doc_type, originalDocType})
+    }, [view])
 
     useEffect(() => {
         // init stuff. only run when format changes.
-
         async function load() {
-            if(data?.length || !format?.config) return;
+            if(!format?.config) return;
             setLoading(true)
             if(!loadMoreId) setLoadMoreId(`id${Date.now()}`)
             const length = await getLength({format, apiLoad, filters, groupBy, notNull});
@@ -198,8 +204,8 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     useEffect(() => {
         if (!isEdit) return;
         // notNull passed through controls. setup length and data fns to use it in both edit and view
-        onChange(JSON.stringify({visibleAttributes, pageSize, attributes, customColNames, orderBy, colSizes, filters, groupBy, fn, notNull, allowEditInView, format, actions, allowSearchParams, loadMoreId}));
-    }, [visibleAttributes, attributes, customColNames, orderBy, colSizes, filters, groupBy, fn, notNull, allowEditInView, format, actions, allowSearchParams, loadMoreId])
+        onChange(JSON.stringify({visibleAttributes, pageSize, attributes, customColNames, orderBy, colSizes, filters, groupBy, fn, notNull, allowEditInView, format, view, actions, allowSearchParams, loadMoreId}));
+    }, [visibleAttributes, attributes, customColNames, orderBy, colSizes, filters, groupBy, fn, notNull, allowEditInView, format, view, actions, allowSearchParams, loadMoreId])
     // =========================================== saving settings end =================================================
 
     // =========================================== util fns begin ======================================================
@@ -230,7 +236,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     if(!format?.config) return (
         <div className={'p-1'}>
             Form data not available. Please make a selection:
-            <FormsSelector siteType={siteType} apiLoad={apiLoad} app={pageFormat?.app} format={format} setFormat={setFormat} formatFromProps={formatFromProps} />
+            <FormsSelector siteType={siteType} apiLoad={apiLoad} app={pageFormat?.app} format={format} setFormat={setFormat} view={view} setView={setView} formatFromProps={formatFromProps} />
         </div>
     )
 
@@ -238,7 +244,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
         <div className={'w-full h-full'}>
             {
                 showChangeFormatModal ?
-                    <FormsSelector siteType={siteType} apiLoad={apiLoad} app={pageFormat?.app} format={format} setFormat={setFormat} formatFromProps={formatFromProps} /> : null
+                    <FormsSelector siteType={siteType} apiLoad={apiLoad} app={pageFormat?.app} format={format} setFormat={setFormat} view={view} setView={setView} formatFromProps={formatFromProps} /> : null
             }
             {
                 isEdit ?

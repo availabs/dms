@@ -31,7 +31,7 @@ const RenderToken = ({props, selected, setSelected, onChange}) => {
 }
 const renderMenu = ({results, menuProps, labelKey, filter, filters, setFilter, onChange, ...rest}) => {
     return (
-        <Menu className={'bg-slate-100 overflow-hidden z-10 rounded-md'} {...menuProps}>
+        <Menu className={'bg-slate-100 overflow-hidden z-[100] rounded-md'} {...menuProps}>
             {
                 <div className={'flex flex-row flex-wrap items-center justify-start gap-1 p-1 bg-slate-200 text-xs font-bold'}>
                     {
