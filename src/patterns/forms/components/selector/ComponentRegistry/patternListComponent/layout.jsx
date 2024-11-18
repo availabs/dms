@@ -24,7 +24,10 @@ const SourcesLayout = ({children, fullWidth, hideBreadcrumbs, hideNav, form, pag
             {
                 showVersionSelector ?
                     <select id={'version-selector'}
-                            onChange={e => navigate(`${page.href}/${e.target.value}`)}
+                            onChange={e => {
+                                const pageUrl = page.href.replace(`/${view_id}`, '')
+                                navigate(`${pageUrl}/${e.target.value}`)
+                            }}
                             className={'w-fit p-1 rounded hover:bg-gray-100 bg-transparent'}
                             value={view_id}
                     >

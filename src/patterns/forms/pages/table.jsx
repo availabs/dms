@@ -38,7 +38,7 @@ const TableView = ({
             {
                 !item.config ?
                     <div className={'p-1 text-center'}>Please setup metadata.</div> :
-                !params.view_id ? 'No Version Selected' :
+                    !params.view_id || params.view_id === 'undefined' ? 'Please select a view' :
                     <div className={`${theme?.page?.wrapper1} h-full overflow-auto`}>
                         <Spreadsheet.EditComp
                             onChange={() => {

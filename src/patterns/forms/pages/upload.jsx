@@ -33,15 +33,18 @@ const UploadPage = ({
 
         >
             <div className={`${theme?.page?.wrapper1}`}>
-                <Upload.EditComp
-                    onChange={() => {}}
-                    size={1}
-                    format={{app: item.app, type: `${item.doc_type}-${params.view_id}`, config: item.config}}
-                    view_id={params.view_id}
-                    parent={item}
-                    apiLoad={apiLoad}
-                    apiUpdate={apiUpdate}
-                />
+                {
+                    !params.view_id || params.view_id === 'undefined' ? 'Please select a view' :
+                        <Upload.EditComp
+                            onChange={() => {}}
+                            size={1}
+                            format={{app: item.app, type: `${item.doc_type}-${params.view_id}`, config: item.config}}
+                            view_id={params.view_id}
+                            parent={item}
+                            apiLoad={apiLoad}
+                            apiUpdate={apiUpdate}
+                        />
+                }
             </div>
         </SourcesLayout>
 

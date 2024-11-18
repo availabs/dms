@@ -137,102 +137,94 @@ const Validate = ({
 
         >
             <div className={`${theme?.page?.wrapper1}`}>
-                <div>
-                    <div className={'flex flex-1 w-full flex-col shadow bg-white relative text-md font-light leading-7 p-4'}>
-                        {status ? <div>{JSON.stringify(status)}</div> : ''}
-                        {/* stat boxes */}
-                        <div className='w-full max-w-6xl mx-auto'>
-                            <div className={'flex justify-between w-full p-2 font-semibold bg-gray-100 rounded-md my-1'}>
-                                {
-                                    columns.find(col => data[`${col.name}_error`]) || loading ? 'Columns with errors' : 'All records are valid.'
-                                }
-                                <button
-                                    className={`p-1 text-sm text-white ${error ? `bg-red-300 hover:bg-red-600` : `bg-blue-300 hover:bg-blue-600`} rounded-md`}
-                                    onClick={() =>
-                                        reValidate({
-                                            app,
-                                            type: invalidEntriesFormat.type,
-                                            // parentId: parent.id,
-                                            parentDocType: doc_type,
-                                            dmsServerPath,
-                                            setValidating,
-                                            setError
-                                        })}
-                                >
-                                    {error ? JSON.stringify(error) : validating ? 'Validating' : 'Re - Validate'}
-                                </button>
-                            </div>
-
-                            <div className={'grid grid-cols-2 gap-1'}>
-                                {
-                                    columns
-                                        .filter(col => data[`${col.name}_error`])
-                                        .map(col => (
-                                            <div
-                                                className={'p-2 flex flex-col hover:bg-blue-100 transition:ease-in-out border rounded-md'}
-                                                style={{gridTemplateColumns: '2fr 1fr 1fr'}}>
-                                                <div className={'font-semibold'}>{col.display_name || col.name}</div>
-                                                <div className={'grid grid-cols-1 sm:grid-cols-2 divide-x-2'}>
-                                                    <div className={'flex flex-col px-1'}>
-                                                        <div># rows with
-                                                            value: {formatNum(loading, data[`${col.name}_filled`])}</div>
-                                                        <div># rows without
-                                                            value: {formatNum(loading, data[`${col.name}_blank`])}</div>
-                                                        <div>total: {formatNum(loading, data[`${col.name}_blank`] + data[`${col.name}_filled`])}</div>
-                                                    </div>
-                                                    <div className={'flex flex-col px-1'}>
-                                                        <div># rows with
-                                                            errors: {formatNum(loading, data[`${col.name}_error`])}</div>
-                                                        <div># rows with
-                                                            valid: {formatNum(loading, data[`${col.name}_valid`])}</div>
-                                                        <div>total: {formatNum(loading, data[`${col.name}_error`] + data[`${col.name}_valid`])}</div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))
-                                }
-                            </div>
-
-                            {/* invalid rows */}
-                            {
-                                columns.find(col => data[`${col.name}_error`]) || loading ?
+                {
+                    !params.view_id || params.view_id === 'undefined' ? 'Please select a view' :
+                        <div>
+                            <div
+                                className={'flex flex-1 w-full flex-col shadow bg-white relative text-md font-light leading-7 p-4'}>
+                                {status ? <div>{JSON.stringify(status)}</div> : ''}
+                                {/* stat boxes */}
+                                <div className='w-full max-w-6xl mx-auto'>
                                     <div
-                                        className={'w-full flex items-center justify-between p-2 font-semibold bg-gray-100 rounded-md my-1'}>
-                                        Invalid Rows
-                                        {/*<button className={`p-1 text-sm text-white ${error ? `bg-red-300 hover:bg-red-600` : `bg-blue-300 hover:bg-blue-600`} rounded-md float-right`}*/}
-                                        {/*        onClick={() =>*/}
-                                        {/*            reValidate({*/}
-                                        {/*                app,*/}
-                                        {/*                type: invalidEntriesFormat.type,*/}
-                                        {/*                parentId: parent.id,*/}
-                                        {/*                parentDocType: parent.doc_type,*/}
-                                        {/*                dmsServerPath,*/}
-                                        {/*                setValidating,*/}
-                                        {/*                setError*/}
-                                        {/*            })}*/}
-                                        {/*>*/}
-                                        {/*    {error ? JSON.stringify(error) : validating ? 'Validating' : 'Re - Validate'}*/}
-                                        {/*</button>*/}
-                                    </div> : null
-                            }
-                            {
-                                !columns.find(col => data[`${col.name}_error`]) || loading ? null :
-                                    <Spreadsheet.EditComp
-                                        onChange={() => {
-                                        }}
-                                        size={1}
-                                        format={invalidEntriesFormat}
-                                        apiLoad={apiLoad}
-                                        apiUpdate={apiUpdate}
-                                        value={JSON.stringify({
-                                            allowEditInView: true,
-                                            visibleAttributes: columns.filter(col => data[`${col.name}_error`]).map(col => col.name),
-                                        })}
-                                    />
-                            }
+                                        className={'flex justify-between w-full p-2 font-semibold bg-gray-100 rounded-md my-1'}>
+                                        {
+                                            columns.find(col => data[`${col.name}_error`]) || loading ? 'Columns with errors' : 'All records are valid.'
+                                        }
+                                        <button
+                                            className={`p-1 text-sm text-white ${error ? `bg-red-300 hover:bg-red-600` : `bg-blue-300 hover:bg-blue-600`} rounded-md`}
+                                            onClick={() =>
+                                                reValidate({
+                                                    app,
+                                                    type: invalidEntriesFormat.type,
+                                                    // parentId: parent.id,
+                                                    parentDocType: doc_type,
+                                                    dmsServerPath,
+                                                    setValidating,
+                                                    setError
+                                                })}
+                                        >
+                                            {error ? JSON.stringify(error) : validating ? 'Validating' : 'Re - Validate'}
+                                        </button>
+                                    </div>
+
+                                    <div className={'grid grid-cols-2 gap-1'}>
+                                        {
+                                            columns
+                                                .filter(col => data[`${col.name}_error`])
+                                                .map(col => (
+                                                    <div
+                                                        className={'p-2 flex flex-col hover:bg-blue-100 transition:ease-in-out border rounded-md'}
+                                                        style={{gridTemplateColumns: '2fr 1fr 1fr'}}>
+                                                        <div
+                                                            className={'font-semibold'}>{col.display_name || col.name}</div>
+                                                        <div className={'grid grid-cols-1 sm:grid-cols-2 divide-x-2'}>
+                                                            <div className={'flex flex-col px-1'}>
+                                                                <div># rows with
+                                                                    value: {formatNum(loading, data[`${col.name}_filled`])}</div>
+                                                                <div># rows without
+                                                                    value: {formatNum(loading, data[`${col.name}_blank`])}</div>
+                                                                <div>total: {formatNum(loading, data[`${col.name}_blank`] + data[`${col.name}_filled`])}</div>
+                                                            </div>
+                                                            <div className={'flex flex-col px-1'}>
+                                                                <div># rows with
+                                                                    errors: {formatNum(loading, data[`${col.name}_error`])}</div>
+                                                                <div># rows with
+                                                                    valid: {formatNum(loading, data[`${col.name}_valid`])}</div>
+                                                                <div>total: {formatNum(loading, data[`${col.name}_error`] + data[`${col.name}_valid`])}</div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))
+                                        }
+                                    </div>
+
+                                    {/* invalid rows */}
+                                    {
+                                        columns.find(col => data[`${col.name}_error`]) || loading ?
+                                            <div
+                                                className={'w-full flex items-center justify-between p-2 font-semibold bg-gray-100 rounded-md my-1'}>
+                                                Invalid Rows
+                                            </div> : null
+                                    }
+                                    {
+                                        !columns.find(col => data[`${col.name}_error`]) || loading ? null :
+                                            <Spreadsheet.EditComp
+                                                onChange={() => {
+                                                }}
+                                                size={1}
+                                                format={invalidEntriesFormat}
+                                                apiLoad={apiLoad}
+                                                apiUpdate={apiUpdate}
+                                                value={JSON.stringify({
+                                                    allowEditInView: true,
+                                                    visibleAttributes: columns.filter(col => data[`${col.name}_error`]).map(col => col.name),
+                                                })}
+                                            />
+                                    }
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                </div>
+                }
             </div>
         </SourcesLayout>
 
