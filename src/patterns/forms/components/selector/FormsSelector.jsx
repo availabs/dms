@@ -110,7 +110,7 @@ export const FormsSelector = ({app, siteType, formatFromProps, format, setFormat
         // if source changes, get views
         getViews({app, source: existingFormat, apiLoad}).then(v => {
             setViews(v)
-            if(v.length === 1) setCurrentView(v?.[0]?.id)
+            if(v?.length === 1) setCurrentView(v?.[0]?.id)
         })
     }, [existingFormat])
 

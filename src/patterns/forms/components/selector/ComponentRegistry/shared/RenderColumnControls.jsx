@@ -82,7 +82,7 @@ export default function RenderColumnControls({
         };
     }, []);
     // ================================================== close on outside click end ===================================
-    console.log('not null', notNull)
+
     return (
         <div className="relative inline-block text-left">
             <div>
