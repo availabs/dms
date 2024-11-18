@@ -146,7 +146,7 @@ async function loadDmsFormats (item,dmsAttrsConfigs, format, falcor) {
             } else {
                 let value = get(newData, ['json','dms','data', 'byId', item[key].id, 'data'])
                 const meta = attrsToFetch.filter(a => a !== 'data')
-                                             .reduce((acc, metaKey) => ({...acc, [metaKey]: get(newData, ['json','dms','data', 'byId', ref.id, metaKey])}) , {})
+                                             .reduce((acc, metaKey) => ({...acc, [metaKey]: get(newData, ['json','dms','data', 'byId', item[key].id, metaKey])}) , {})
 
                 item[key] = {...item[key], ...value, ...meta}
             }
