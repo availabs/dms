@@ -131,10 +131,15 @@ export default function RenderColumnControls({
                                          //     setVisibleAttributes([...visibleAttributes, attribute.name]) :
                                          //     setVisibleAttributes(visibleAttributes.filter(attr => attr !== attribute.name))}
                                     >
+                                        {/*if custom column names are allowed*/}
                                         <input className={setCustomColNames ? 'place-self-stretch' : 'hidden'}
                                                value={customColNames[attribute.name] || attribute.display_name || attribute.name}
                                                onChange={e => setCustomColNames({...customColNames, [attribute.name]: e.target.value})}
                                         />
+                                        {/*if custom column names are NOT allowed*/}
+                                        <label className={setCustomColNames ? 'hidden' : 'place-self-stretch'}>
+                                            {customColNames[attribute.name] || attribute.display_name || attribute.name}
+                                        </label>
 
                                         <select
                                             className={

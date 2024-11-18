@@ -5,6 +5,7 @@ import {InfoCircle} from "../../../../../admin/ui/icons";
 import RenderSwitch from "../shared/Switch";
 import {FormsSelector} from "../../FormsSelector";
 import {useSearchParams} from "react-router-dom";
+import {ColumnControls} from "../shared/ColumnControls";
 export const isJson = (str)  => {
     try {
         JSON.parse(str);
@@ -43,6 +44,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     const [searchParams, setSearchParams] = useSearchParams();
     const cachedData = isJson(value) ? JSON.parse(value) : {};
     const [format, setFormat] = useState(formatFromProps || cachedData.format);
+    const [view, setView] = useState(cachedData.view);
     const [showChangeFormatModal, setShowChangeFormatModal] = useState(!formatFromProps); // if you don't get format from props, default set to true
     const [attributes, setAttributes] = useState([]);
     const [orderedAttributes, setOrderedAttributes] = useState(cachedData.orderedAttributes || []);
@@ -95,6 +97,12 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
 
     // ============================================ data load begin ====================================================
     useEffect(() => {
+        if(!format || !view) return;
+        const originalDocType = format.originalDocType || format.doc_type;
+        const doc_type = `${originalDocType}-${view}`
+        setFormat({...format, doc_type, originalDocType})
+    }, [view])
+    useEffect(() => {
         async function load(){
             if(!itemId) return;
             const {data, attributes} = await getData({format: {...format, type: format.doc_type}, apiLoad, itemId});
@@ -109,44 +117,44 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     // ============================================ save begin =========================================================
     useEffect(() => {
         onChange(JSON.stringify({
-            ...cachedData, visibleAttributes, orderedAttributes, allowEditInView, format
+            ...cachedData, visibleAttributes, orderedAttributes, allowEditInView, format, view
         }))
-    }, [visibleAttributes, orderedAttributes, allowEditInView, format]);
+    }, [visibleAttributes, orderedAttributes, allowEditInView, format, view]);
     // ============================================ save end ===========================================================
 
-    // ============================================ search handle focus begin ==========================================
-    const checkSpace = () => {
-        const inputRect = inputRef.current.getBoundingClientRect();
-        const spaceBelow = window.innerHeight - inputRect.bottom;
-        const spaceAbove = inputRect.top;
-
-        const searchItemsHeight = searchItemsRef.current
-            ? searchItemsRef.current.offsetHeight
-            : 0;
-
-        // Check if there's more space above or below and set state accordingly
-        if (spaceBelow < searchItemsHeight && spaceAbove > searchItemsHeight) {
-            setRenderAbove(true);
-        } else {
-            setRenderAbove(false);
-        }
-    };
-    React.useEffect(() => {
-        isSearching && checkSpace();
-    }, [isSearching])
-    const handleClickOutside = (e) => {
-        if (searchItemsRef.current && !searchItemsRef.current.contains(e.target)) {
-            setIsSearching(false);
-        }
-    };
-
-    React.useEffect(() => {
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
-    }, []);
-    // ============================================ search handle focus end ============================================
+    // // ============================================ search handle focus begin ==========================================
+    // const checkSpace = () => {
+    //     const inputRect = inputRef.current.getBoundingClientRect();
+    //     const spaceBelow = window.innerHeight - inputRect.bottom;
+    //     const spaceAbove = inputRect.top;
+    //
+    //     const searchItemsHeight = searchItemsRef.current
+    //         ? searchItemsRef.current.offsetHeight
+    //         : 0;
+    //
+    //     // Check if there's more space above or below and set state accordingly
+    //     if (spaceBelow < searchItemsHeight && spaceAbove > searchItemsHeight) {
+    //         setRenderAbove(true);
+    //     } else {
+    //         setRenderAbove(false);
+    //     }
+    // };
+    // React.useEffect(() => {
+    //     isSearching && checkSpace();
+    // }, [isSearching])
+    // const handleClickOutside = (e) => {
+    //     if (searchItemsRef.current && !searchItemsRef.current.contains(e.target)) {
+    //         setIsSearching(false);
+    //     }
+    // };
+    //
+    // React.useEffect(() => {
+    //     document.addEventListener('mousedown', handleClickOutside);
+    //     return () => {
+    //         document.removeEventListener('mousedown', handleClickOutside);
+    //     };
+    // }, []);
+    // // ============================================ search handle focus end ============================================
 
     const updateItem = (value, attribute, d) => {
         return apiUpdate({data: {...d, [attribute.name]: value}, config: {format}})
@@ -156,7 +164,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     if(!format?.config) return (
         <div className={'p-1 flex'}>
             Form data not available. Please make a selection:
-            <FormsSelector siteType={siteType} apiLoad={apiLoad} app={pageFormat.app} format={format} setFormat={setFormat} formatFromProps={formatFromProps} />
+            <FormsSelector siteType={siteType} apiLoad={apiLoad} app={pageFormat.app} format={format} setFormat={setFormat} view={view} setView={setView} formatFromProps={formatFromProps} />
         </div>
     )
 
@@ -167,64 +175,17 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
         <div>
             {
                 showChangeFormatModal ?
-                    <FormsSelector siteType={siteType} apiLoad={apiLoad} app={pageFormat.app} format={format} setFormat={setFormat} formatFromProps={formatFromProps} /> : null
+                    <FormsSelector siteType={siteType} apiLoad={apiLoad} app={pageFormat.app} format={format} setFormat={setFormat} view={view} setView={setView} formatFromProps={formatFromProps} /> : null
             }
+
+            <ColumnControls attributes={attributes} setAttributes={setAttributes}
+                            visibleAttributes={visibleAttributes} setVisibleAttributes={setVisibleAttributes}
+                            allowEditInView={allowEditInView} setAllowEditInView={setAllowEditInView}
+            />
+
             <div className={'divide-y'}>
-                <div className={'flex items-center col-span-3'}>
-                    <label className={'w-1/4 p-2'}>Allow Edit: </label>
-                    <RenderSwitch
-                        className={'w-3/4 p-2'}
-                        enabled={allowEditInView}
-                        setEnabled={e => setAllowEditInView(e)}
-                    />
-                </div>
-                <div className={'col-span-3 relative'}>
-                    <input
-                        ref={inputRef}
-                        className={'p-2 w-full'}
-                        type={'text'}
-                        placeholder={'search...'}
-                        onChange={e => setSearchStr(e.target.value)}
-                        onFocus={() => setIsSearching(true)}
-                    />
-                    <div ref={searchItemsRef}
-                         className={searchStr.length || isSearching ? 'absolute bg-blue-50 z-10 w-full max-h-[200px] p-2 rounded-md overflow-auto scrollbar-sm' : 'hidden'}
-                         style={{
-                             marginTop: renderAbove ? '-3rem' : '4px',
-                             transform: renderAbove ? 'translateY(-100%)' : 'none',
-                         }}
-                    >
-                        {
-                            attributes
-                                .filter(a => !searchStr.length ? isSearching : (a.display_name || a.name).toLowerCase().includes(searchStr.toLowerCase()))
-                                .map(attribute => (
-                                    <div key={attribute.name} className={'flex hover:bg-blue-100 rounded-sm'}>
-                                        <div className={'p-2 flex items-center font-semibold text-gray-500'}>
-                                            <input id={`${attribute.name}-checkbox`} type={"checkbox"}
-                                                   checked={visibleAttributes.includes(attribute.name)}
-                                                   onChange={e => {
-                                                       const isVisible = visibleAttributes.includes(attribute.name);
-
-                                                       setVisibleAttributes(
-                                                           isVisible ?
-                                                               visibleAttributes.filter(attr => attr !== attribute.name) :
-                                                               [...visibleAttributes, attribute.name]);
-
-                                                       setOrderedAttributes(
-                                                           isVisible ?
-                                                               orderedAttributes.filter(a => a.name !== attribute.name) :
-                                                               [...orderedAttributes, attribute]
-                                                       )
-                                                   }}
-                                            />
-                                        </div>
-                                        <label htmlFor={`${attribute.name}-checkbox`} className={'select-none cursor-pointer'}>{attribute.display_name || attribute.name}</label>
-                                    </div>))
-                        }
-                    </div>
-                </div>
                 { // make this a drop down and render only selected columns in the comp
-                    orderedAttributes
+                    (attributes.filter(a => visibleAttributes.includes(a.name)))
                         .map((attribute, i) => {
                             const Comp = DataTypes[attribute.type]?.EditComp || DataTypes.text.EditComp;
                             return (
@@ -311,7 +272,6 @@ const View = ({value, format:formatFromProps, apiLoad, apiUpdate, ...rest}) => {
                 return;
             }
             const {data, attributes} = await getData({format: {...format, type: format.doc_type}, apiLoad, itemId});
-            console.log('data', data)
 
             setData(data)
             setTmpItem(data)
@@ -333,7 +293,7 @@ const View = ({value, format:formatFromProps, apiLoad, apiUpdate, ...rest}) => {
         <div>
             <div className={`divide-y w-full`}>
                 {
-                    (orderedAttributes || attributes.filter(a => visibleAttributes.includes(a.name)))
+                    (attributes.filter(a => visibleAttributes.includes(a.name)))
                         .map((attribute,i) => {
                             const Comp = DataTypes[attribute.type]?.[compType] || DataTypes.text[compType];
                             return (

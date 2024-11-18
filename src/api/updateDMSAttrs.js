@@ -18,6 +18,11 @@ export 	async function updateDMSAttrs(data, configs, falcor) {
         for (const dU of toUpdate) {
             let d = cloneDeep(dU)
             let id = d?.id || false
+
+            for(const key of ['id', 'ref', 'created_at', 'updated_at', 'created_by', 'updated_by']) {
+                delete d[key];
+            }
+
             if(id) {
                 // if id edit
                 let currentData = get(
@@ -26,10 +31,13 @@ export 	async function updateDMSAttrs(data, configs, falcor) {
                     ,{}
                 )
                 // ---
-                delete d.ref
-                delete d.id
-                currentData?.ref && delete currentData.ref
-                currentData?.id && delete currentData.id
+                // delete d.ref
+                // delete d.id
+                // currentData?.ref && delete currentData.ref
+                // currentData?.id && delete currentData.id
+                for(const key of ['id', 'ref', 'created_at', 'updated_at', 'created_by', 'updated_by']) {
+                    delete currentData[key]
+                }
                 // ---
                 //console.log(currentData,d)
 
