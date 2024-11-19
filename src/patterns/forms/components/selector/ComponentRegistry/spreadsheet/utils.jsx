@@ -98,7 +98,7 @@ export const getData = async ({format, apiLoad, currentPage, pageSize, length, v
                 ...groupBy.length && {groupBy: groupBy.map(col => `data->>'${col}'`)},
                 ...notNull.length && {exclude: notNull.reduce((acc, col) => ({...acc, [`data->>'${col}'`]: ['null']}), {})}
             }),
-            attributes: attributesToFetch.map(a => a.reqName).filter(a => a),
+            attributes: actionType === 'load' ? attributesToFetch.map(a => a.reqName).filter(a => a) : [],
             stopFullDataLoad: true
         },
     }]
@@ -106,7 +106,7 @@ export const getData = async ({format, apiLoad, currentPage, pageSize, length, v
         app: format.app,
         type: format.doc_type, //doc_type when format is not passed, but the user selects it in pageEdit.
         format: {...format, type: format.doc_type},
-        attributes: attributesToFetch.map(a => a.reqName).filter(a => a),
+        attributes: actionType === 'load' ? attributesToFetch.map(a => a.reqName).filter(a => a) : [],
         children
     });
 
