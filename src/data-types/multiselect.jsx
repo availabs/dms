@@ -35,7 +35,7 @@ const RenderMenu = ({
                         onChange,
                         theme
                     }) => {
-    const mappedValue = value.map(v => v.value || v);
+    const mappedValue = value.filter(v => v).map(v => v.value || v);
     const selectAllOption = {label: 'Select All', value: 'select-all'};
     const removeAllOption = {label: 'Remove All', value: 'remove-all'};
     return (
@@ -132,7 +132,7 @@ const Edit = ({value = [], onChange, className,placeholder, options = [], displa
         setIsSearching
     } = useComponentVisible(false);
 
-    const invalidValues = typeSafeValue.filter(v => (v.value || v) && !options.filter(o => (o.value || o) === (v.value || v))?.length);
+    const invalidValues = typeSafeValue.filter(v => v && (v.value || v) && !options.filter(o => (o.value || o) === (v.value || v))?.length);
 
     return (
         <div ref={ref} className={`${theme?.multiselect?.mainWrapper || mainWrapper} ${menuPosition === 'top' ? 'flex flex-col flex-col-reverse' : ''}`}>
