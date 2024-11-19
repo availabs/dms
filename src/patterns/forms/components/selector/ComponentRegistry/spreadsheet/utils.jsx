@@ -95,8 +95,8 @@ export const getData = async ({format, apiLoad, currentPage, pageSize, length, v
                 aggregatedLen: groupBy.length,
                 orderBy: Object.keys(orderBy).reduce((acc, curr) => ({...acc, [`data->>'${curr}'`]: orderBy[curr]}) , {}),
                 filter: formatFilters(filters),
-                ...groupBy.length && {groupBy: groupBy.map(col => `data->>'${col}'`)},
-                ...notNull.length && {exclude: notNull.reduce((acc, col) => ({...acc, [`data->>'${col}'`]: ['null']}), {})}
+                ...groupBy.length && {groupBy: groupBy.map(col => getFullCol(col, originalAttributes)?.type  === 'calculated' ? splitColNameOnAS(col)[0] : `data->>'${col}'`)},
+                ...notNull.length && {exclude: notNull.reduce((acc, col) => ({...acc, [getFullCol(col, originalAttributes)?.type  === 'calculated' ? splitColNameOnAS(col)[0] : `data->>'${col}'`]: ['null']}), {})}
             }),
             attributes: actionType === 'load' ? attributesToFetch.map(a => a.reqName).filter(a => a) : [],
             stopFullDataLoad: true
@@ -135,8 +135,8 @@ export const getLength = async ({format, apiLoad, filters=[], groupBy=[], notNul
             options: JSON.stringify({
                 aggregatedLen: groupBy.length,
                 filter: formatFilters(filters),
-                ...groupBy.length && {groupBy: groupBy.map(col => `data->>'${col}'`)},
-                ...notNull.length && {exclude: notNull.reduce((acc, col) => ({...acc, [`data->>'${col}'`]: ['null']}), {})}
+                ...groupBy.length && {groupBy: groupBy.map(col => getFullCol(col, attributes)?.type  === 'calculated' ? splitColNameOnAS(col)[0] : `data->>'${col}'`)},
+                ...notNull.length && {exclude: notNull.reduce((acc, col) => ({...acc, [getFullCol(col, attributes)?.type  === 'calculated' ? splitColNameOnAS(col)[0] : `data->>'${col}'`]: ['null']}), {})}
             })
         },
     }]
