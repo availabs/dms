@@ -83,9 +83,13 @@ function useCopy(callback) {
 }
 const getIcon = ({icon, name}) => (icon) ? Icons[icon] : () => name;
 
-const RenderActions = ({isLastCell, allowEdit, newItem, removeItem, groupBy=[], actions=[]}) => {
+const RenderActions = ({isLastCell, newItem, removeItem, groupBy=[], filters=[], actions=[]}) => {
     if(!isLastCell || !actions.length) return null;
-    const searchParams = groupBy.length ? convertToUrlParams(groupBy.filter(col => newItem[col]).map(column => ({column, values: [newItem[column]]}))) : `id=${newItem.id}`
+    const searchParams = groupBy.length ?
+        convertToUrlParams(
+            [...groupBy.filter(col => newItem[col]).map(column => ({column, values: [newItem[column]]})),
+            ...filters]
+        ) : `id=${newItem.id}`
     // console.log('SP?', searchParams, groupBy)
     return (
         <div className={'flex items-center border'}>
@@ -666,7 +670,7 @@ export const RenderSimple = ({
                                     />)}
 
                             <RenderActions allowEdit={allowEdit} isEdit={isEdit} isLastCell={true} newItem={d}
-                                           groupBy={groupBy}
+                                           groupBy={groupBy} filters={filters}
                                            removeItem={removeItem} actions={actions}/>
 
                             <div className={'flex items-center border'}>

@@ -30,9 +30,7 @@ export const isJson = (str)  => {
     return true;
 }
 
-export const getNestedValue = value =>
-    value?.value && typeof value?.value === 'object' ? getNestedValue(value.value) :
-        !value?.value && typeof value?.value === 'object' ? '' : value;
+export const getNestedValue = value => value?.value && typeof value?.value === 'object' ? getNestedValue(value.value) : !value?.value && typeof value?.value === 'object' ? '' : value;
 
 export const formattedAttributeStr = col => `data->>'${col}' as ${col}`;
 export const attributeAccessorStr = col => `data->>'${col}'`;
@@ -93,7 +91,7 @@ export const getData = async ({format, apiLoad, currentPage, pageSize, length, v
             toIndex: path => toIndex,
             options: JSON.stringify({
                 aggregatedLen: groupBy.length,
-                orderBy: Object.keys(orderBy).reduce((acc, curr) => ({...acc, [`data->>'${curr}'`]: orderBy[curr]}) , {}),
+                orderBy: Object.keys(orderBy).reduce((acc, curr) => ({...acc, [getFullCol(curr, originalAttributes)?.type  === 'calculated' ? splitColNameOnAS(curr)[0] : `data->>'${curr}'`]: orderBy[curr]}) , {}),
                 filter: formatFilters(filters),
                 ...groupBy.length && {groupBy: groupBy.map(col => getFullCol(col, originalAttributes)?.type  === 'calculated' ? splitColNameOnAS(col)[0] : `data->>'${col}'`)},
                 ...notNull.length && {exclude: notNull.reduce((acc, col) => ({...acc, [getFullCol(col, originalAttributes)?.type  === 'calculated' ? splitColNameOnAS(col)[0] : `data->>'${col}'`]: ['null']}), {})}
