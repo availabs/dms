@@ -51,6 +51,14 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     useEffect(() => {
         setAttributes(JSON.parse(format?.config || '{}')?.attributes || [])
     }, [format]);
+
+    useEffect(() => {
+        if(!format || !view) return;
+        const originalDocType = format.originalDocType || format.doc_type;
+        const doc_type = `${originalDocType}-${view}`
+        setFormat({...format, doc_type, originalDocType})
+    }, [view])
+
     useEffect(() => setColSizes({}), [size]); // on size change, reset column sizes.
     // useEffect(() => setLength(data.length), [data]); // on data change, reset length.
     // ========================================= filters 1/2 begin =====================================================
@@ -109,13 +117,6 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
 
     }, [allowSearchParams, filters]);
     // ========================================= filters 2/2 end =======================================================
-    useEffect(() => {
-        if(!format || !view) return;
-        const originalDocType = format.originalDocType || format.doc_type;
-        const doc_type = `${originalDocType}-${view}`
-        setFormat({...format, doc_type, originalDocType})
-    }, [view])
-
     useEffect(() => {
         // init stuff. only run when format changes.
         async function load() {

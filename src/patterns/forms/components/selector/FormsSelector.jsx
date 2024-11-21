@@ -1,5 +1,6 @@
 import React, {useEffect, useState} from "react";
 import _ from "lodash";
+import isEqual from "lodash/isEqual";
 
 
 const getConfig = ({
@@ -100,9 +101,11 @@ export const FormsSelector = ({app, siteType, formatFromProps, format, setFormat
     useEffect(() => {
         getForms({app, siteType, apiLoad}).then(data => {
             setForms((data || []))
-            const existingFormat = data.find(form => form.id === format.id)?.data?.value;
-            console.log('existing format', existingFormat)
-            setExistingFormat(existingFormat)
+            const existingMatch = data.find(form => form.id === format.id)?.data?.value;
+            setExistingFormat(existingMatch)
+
+            // if the format updated (mostly meta) then keep doc_type and originalDocType.
+            if(!isEqual(existingMatch, format)) setFormat({...existingMatch, doc_type: existingFormat.doc_type || existingMatch.doc_type, originalDocType: existingFormat.originalDocType});
         });
     }, [app, siteType]);
 
