@@ -1,6 +1,6 @@
 import {SourcesSelect} from "./SourceSelect";
 import {ViewsSelect} from "./ViewsSelect";
-import {ViewInfo} from "./ViewInfo";
+import ViewInfo from "./ViewInfo";
 import {SectionListControls} from "./SectionListControls";
 import React from "react";
 
