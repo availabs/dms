@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 
 import { FormsContext } from '../../siteConfig'
 
-import get from "lodash/get";
+import { get } from "lodash-es";
 
 import SidebarItem from "./Item";
 import { MobileMenu } from './Top'

@@ -1,6 +1,5 @@
 import { getViewComp, getEditComp } from '../data-types'
-import get from 'lodash/get'
-import cloneDeep from 'lodash/cloneDeep'
+import { get, cloneDeep } from "lodash-es"
 
 export function getAttributes (format, options={}, mode='') {
 	//console.log('getAttributes', format, options)

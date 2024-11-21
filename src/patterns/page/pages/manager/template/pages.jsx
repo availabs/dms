@@ -5,7 +5,7 @@ import {DeleteModal} from "./list";
 import Table from "../../../../forms/components/Table"
 import {getNestedValue} from "../../_utils";
 import { CMSContext } from "../../../siteConfig";
-import get from "lodash/get";
+import { get } from "lodash-es";;
 
 export const locationNameMap = {
     'docs-play': 'Playground',

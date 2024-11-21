@@ -10,7 +10,7 @@ import {
 // import Loading from '../Loading';
 // import {Button} from "../Button"
 // import {Select} from "../Inputs"
-import get from 'lodash/get'
+import { get } from "lodash-es"
 import {matchSorter} from 'match-sorter'
 import {useState, useEffect} from "react";
 import {useCallback, useMemo} from 'react';

@@ -1,6 +1,6 @@
 import React, {useEffect, useRef} from 'react'
 import { Link } from "react-router-dom";
-import cloneDeep from 'lodash/cloneDeep'
+import { cloneDeep } from "lodash-es"
 // -- 
 import { CMSContext } from '../siteConfig'
 import {dataItemsNav, detectNavLevel, getInPageNav} from './_utils'

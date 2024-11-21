@@ -1,8 +1,8 @@
 import React, {useEffect} from 'react'
 import { Disclosure, DisclosureButton, DisclosurePanel } from '@headlessui/react'
-import merge from 'lodash/merge'
-import cloneDeep from 'lodash/cloneDeep'
-import isEqual from 'lodash/isEqual'
+import { merge } from "lodash-es"
+import { cloneDeep } from "lodash-es"
+import { isEqual } from "lodash-es"
 import Frame from 'react-frame-component'
 //import { NavLink, Link, useSubmit, useNavigate, useLocation, useParams} from "react-router-dom";
 

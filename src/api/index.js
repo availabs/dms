@@ -1,6 +1,6 @@
 // import { falcor } from '~/index'
 import { getActiveConfig /*, filterParams*/ } from '../dms-manager/_utils'
-import get from 'lodash/get'
+import { get } from "lodash-es"
 import createRequest, {getIdPath} from './createRequest'
 import {processNewData} from "./proecessNewData";
 // import {loadFullData} from "./loadFullData";

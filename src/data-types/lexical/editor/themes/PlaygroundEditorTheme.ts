@@ -6,7 +6,6 @@
  *
  */
 
-import "./PlaygroundEditorTheme.css";
 
 const theme = {
   blockCursor: `block pointer-events-none absolute content-['']  after:absolute after:-top-[2px] after:w-[20px] after:border-t-[1px_solid_black]`,

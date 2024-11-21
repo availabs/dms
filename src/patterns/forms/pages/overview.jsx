@@ -1,5 +1,5 @@
 import React, {useMemo, useState, useEffect, useRef, useContext} from 'react'
-import get from "lodash/get";
+import { get } from "lodash-es";
 import SourcesLayout from "../components/selector/ComponentRegistry/patternListComponent/layout";
 import {FormsContext} from "../siteConfig";
 import Table from "../components/Table";

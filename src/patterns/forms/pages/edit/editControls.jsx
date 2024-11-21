@@ -1,8 +1,8 @@
 import React, { useEffect, Fragment, useRef, useState } from 'react'
 import { useLocation, useSubmit } from "react-router-dom";
-import cloneDeep from 'lodash/cloneDeep'
-import get from 'lodash/get'
-import isEqual from "lodash/isEqual"
+import { cloneDeep } from "lodash-es"
+import { get } from "lodash-es"
+import { isEqual } from "lodash-es"
 
 import { PublishButton, TitleEditComp, IconPopover, PopoverMenuItem, DeleteModal } from '../../ui'
 import { PencilIcon, CirclePlus } from '../../ui/icons'

@@ -1,12 +1,12 @@
 import React, {useMemo, useState, useEffect, useRef, useContext} from 'react'
 import {useParams, useLocation} from "react-router"
-import get from "lodash/get";
+import { get } from "lodash-es";;
 import {Link, useSearchParams} from "react-router-dom";
 import SourcesLayout from "./layout";
 import {dmsDataTypes} from "../../../../../../"
 import {FormsContext} from "../../../../siteConfig";
 import {Modal} from "../../../../ui";
-import cloneDeep from "lodash/cloneDeep";
+import { cloneDeep } from "lodash-es";
 
 export const makeLexicalFormat = value => (isJson(value) ? JSON.parse(value) : value)?.root?.children ? value : {
         root: {

@@ -1,6 +1,6 @@
 import React, {Fragment} from 'react'
 import {Dialog, Transition} from '@headlessui/react'
-import {TemplateSourceSelector} from "./template_components/TemplateSourceSelector.jsx";
+import TemplateSourceSelector from "./template_components/TemplateSourceSelector";
 
 export default function DataControls(props) {
     // console.log('dataControls',props)

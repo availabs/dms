@@ -1,7 +1,7 @@
 import React, {Fragment, useState, useLayoutEffect, useEffect} from "react"
 import { useLocation } from 'react-router-dom';
-import isEqual from 'lodash/isEqual'
-import cloneDeep from 'lodash/cloneDeep'
+import { isEqual } from "lodash-es"
+import { cloneDeep } from "lodash-es"
 import { Popover, Transition } from '@headlessui/react'
 import { Link } from "react-router-dom";
 import { usePopper } from 'react-popper'

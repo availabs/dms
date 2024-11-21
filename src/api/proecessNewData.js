@@ -1,5 +1,5 @@
-import get from "lodash/get";
-import cloneDeep from "lodash/cloneDeep"
+import { get } from "lodash-es";;
+import { cloneDeep } from "lodash-es"
 
 export async function processNewData (dataCache, activeIdsIntOrStr, stopFullDataLoad, filteredIdsLength, app, type, dmsAttrsConfigs,format,falcor) {
     const activeIds = Array.isArray(activeIdsIntOrStr) ? activeIdsIntOrStr.map(id => +id) : activeIdsIntOrStr;

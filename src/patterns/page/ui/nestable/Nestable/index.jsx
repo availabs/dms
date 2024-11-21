@@ -1,6 +1,6 @@
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
-import isEqual from 'lodash/isEqual';
+import { isEqual } from "lodash-es";
 import update from './imh';
 import { cx } from '../utils';
 
@@ -15,7 +15,7 @@ import {
 } from '../utils';
 
 import NestableItem from './NestableItem';
-import '../styles/index.css';
+//import '../styles/index.css';
 
 class Nestable extends Component {
   constructor(props) {
@@ -579,8 +579,8 @@ class Nestable extends Component {
     const options = this.getItemOptions();
 
     return (
-      <div className="nestable-drag-layer">
-        <ol className="nestable-list" style={listStyles}>
+      <div className="fixed z-[100] pointer-events-none left-0 top-0">
+        <ol className="absolute p-0 left-0 top-0" style={listStyles}>
           <NestableItem
             item={dragItem}
             options={options}
@@ -597,8 +597,8 @@ class Nestable extends Component {
     const options = this.getItemOptions();
 
     return (
-      <div className={cx(className, 'nestable', 'nestable-' + group, { 'is-drag-active': dragItem })}>
-        <ol className="nestable-list nestable-group">
+      <div className={`relative nestable-${group}`}> {/* cx(className, 'nestable', 'nestable-' + group, { 'is-drag-active': dragItem }) */}
+        <ol className="list-none p-0">
           {items.map((item, i) => {
             return (
               <NestableItem

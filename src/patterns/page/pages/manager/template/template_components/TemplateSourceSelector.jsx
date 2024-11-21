@@ -1,10 +1,10 @@
-import {SourcesSelect} from "./SourceSelect.jsx";
-import {ViewsSelect} from "./ViewsSelect.jsx";
-import {ViewInfo} from "./ViewInfo.jsx";
-import {SectionListControls} from "./SectionListControls.jsx";
+import {SourcesSelect} from "./SourceSelect";
+import {ViewsSelect} from "./ViewsSelect";
+import {ViewInfo} from "./ViewInfo";
+import {SectionListControls} from "./SectionListControls";
 import React from "react";
 
-export const TemplateSourceSelector = ({
+const TemplateSourceSelector = ({
        item, dataControls = {}, setDataControls, baseUrl,
        loadingStatus,
        setLoadingStatus
@@ -83,3 +83,5 @@ export const TemplateSourceSelector = ({
         </div>
     )
 }
+
+export default TemplateSourceSelector

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 
-import get from "lodash/get";
+import { get } from "lodash-es";;
 
 // import { useTheme } from "../../wrappers/with-theme";
 // import { MobileNav } from './awesomeNav/Top'

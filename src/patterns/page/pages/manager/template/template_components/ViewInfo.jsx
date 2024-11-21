@@ -1,13 +1,13 @@
 import React, {useMemo, useState} from "react";
-import {getConfig} from "../pages.jsx";
+import {getConfig} from "../pages";
 import {dmsDataLoader} from "../../../../../../api";
-import get from "lodash/get.js";
+import { get } from "lodash-es";;
 //import {falcor} from "~/modules/avl-falcor"
 import { CMSContext } from '../../../../siteConfig'
-import Selector from "./Selector.jsx";
-import {updatePages} from "./updatePages.js";
-import {generatePages} from "./generatePages.js";
-export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatus=() => {}}) => {
+import Selector from "./Selector";
+import {updatePages} from "./updatePages";
+import {generatePages} from "./generatePages";
+const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatus=() => {}}) => {
 
     // console.log('ViewInfo', id_column, active_id)
     const { falcor, falcorCache, pgEnv, app, type } = React.useContext(CMSContext);
@@ -308,3 +308,5 @@ export const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatu
         </div>
     );
 };
+
+export default ViewInfo

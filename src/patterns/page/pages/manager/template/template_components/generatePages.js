@@ -2,7 +2,7 @@
 import { parseJSON } from '../../../_utils'
 import { RegisteredComponents } from '../../../../components/selector'
 import {dmsDataEditor, dmsDataLoader} from '../../../../../../index'
-import cloneDeep from 'lodash/cloneDeep'
+import { cloneDeep } from "lodash-es"
 import {getConfig} from "../pages";
 
 

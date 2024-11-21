@@ -1,6 +1,6 @@
-import {useEffect, useState} from "react";
-import get from "lodash/get"
-import isEqual from "lodash/isEqual"
+import React, {useEffect, useState} from "react";
+import { get } from "lodash-es";
+import { isEqual } from "lodash-es"
 
 import {dmsDataTypes} from "../../../../index"
 

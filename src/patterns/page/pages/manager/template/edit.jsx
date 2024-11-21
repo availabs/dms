@@ -1,6 +1,6 @@
 import React, {useEffect} from 'react'
 import { NavLink, Link, useSubmit, useNavigate, useLocation, useParams} from "react-router-dom";
-import cloneDeep from 'lodash/cloneDeep'
+import { cloneDeep } from "lodash-es"
 
 
 //import Layout from '../../ui/avail-layout'

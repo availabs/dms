@@ -1,7 +1,7 @@
 import React, {useMemo, useState, useEffect, useRef, useContext} from 'react'
 import {useParams, useLocation} from "react-router"
 import {CMSContext} from "../siteConfig";
-import get from "lodash/get";
+import { get } from "lodash-es";;
 import {Link} from "react-router-dom";
 import writeXlsxFile from 'write-excel-file';
 import {Download} from '../ui/icons'

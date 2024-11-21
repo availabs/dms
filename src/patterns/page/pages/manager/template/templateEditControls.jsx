@@ -2,13 +2,13 @@ import React, { useEffect, Fragment, useRef, useState } from 'react'
 import { useSubmit, useLocation } from "react-router-dom";
 import { Dialog, Transition, Switch, Popover } from '@headlessui/react'
 import { usePopper } from 'react-popper'
-import cloneDeep from 'lodash/cloneDeep'
-import get from 'lodash/get'
-import isEqual from "lodash/isEqual"
+import { cloneDeep } from "lodash-es"
+import { get } from "lodash-es"
+import { isEqual } from "lodash-es"
 
 import ButtonSelector from './template_components/ButtonSelector'
 import TemplateDataControls from './templateDataControls'
-import {ViewInfo} from "./template_components/ViewInfo.jsx";
+import ViewInfo from "./template_components/ViewInfo";
 import {json2DmsForm, getUrlSlug, toSnakeCase, parseJSON} from '../../_utils'
 
 //import EditPagesNav  from './editPages'

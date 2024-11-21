@@ -1,7 +1,7 @@
 import React, {useEffect, useMemo} from "react";
-import get from "lodash/get.js";
+import { get } from "lodash-es";
 
-import Selector from "./Selector.jsx";
+import Selector from "./Selector";
 import {getAttributes} from './ViewsSelect'
 
 import { CMSContext } from '../../../../siteConfig'

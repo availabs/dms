@@ -24,10 +24,11 @@ class NestableItem extends Component {
 
   renderCollapseIcon = ({ isCollapsed }) => (
     <Icon
-      className={cx('nestable-item-icon', {
-        'icon-plus-gray': isCollapsed,
-        'icon-minus-gray': !isCollapsed,
-      })}
+      className={`cursor-pointer mr-[5px] w-5 h-5 ${isCollapsed ? 'fa fa-plus' : 'fa fa-minus'}`}
+      //  cx('nestable-item-icon', {
+      //   'icon-plus-gray': isCollapsed,
+      //   'icon-minus-gray': !isCollapsed,
+      // })}
     />
   );
 

@@ -4,10 +4,10 @@ import { filterParams } from '../dms-manager/_utils'
 import { getAttributes } from './_utils'
 import { dmsDataEditor, dmsDataLoader } from '../index'
 import { useFalcor } from "@availabs/avl-falcor"
-import isEqual from 'lodash/isEqual'
+import { isEqual } from "lodash-es"
 //import { useImmer } from "use-immer";
 
-import get from 'lodash/get'
+import { get } from "lodash-es"
 
 const json2DmsForm = (data,requestType='update') => {
   let out = new FormData()

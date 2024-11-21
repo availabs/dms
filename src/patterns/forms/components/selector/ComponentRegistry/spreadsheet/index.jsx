@@ -7,7 +7,7 @@ import {useSearchParams, useNavigate} from "react-router-dom";
 import {FormsSelector} from "../../FormsSelector";
 import {ColumnControls} from "../shared/ColumnControls";
 import {Card} from "../Card";
-import isEqual from "lodash/isEqual";
+import { isEqual } from "lodash-es";
 
 const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLoad, apiUpdate, siteType, renderCard, ...rest}) => {
     const isEdit = Boolean(onChange);

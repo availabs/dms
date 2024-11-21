@@ -23,6 +23,9 @@ const theme = {
       nav: 'main' 
     }
   },
+  // ----------------------------------------------------
+  // To move / remove
+  // -----------------------------------------------------
   heading: {
     "base": "p-2 w-full font-sans font-medium text-md bg-transparent",
     "1": `text-blue-500 font-bold text-xl tracking-wider py-1 pl-1`,
@@ -36,6 +39,15 @@ const theme = {
     '3': 'pl-4 pt-2 pb-1 text-sm text-slate-400 hover:underline cursor-pointer border-r-2 mr-4',
     '4': 'pl-6 pt-2 pb-1 text-sm text-slate-400 hover:underline cursor-pointer border-r-2 mr-4',
   },
+  navPadding: {
+    1: 'pt-0 ',
+    2: 'md:pt-12 pt-0',
+    3: 'md:pt-24 pt-0'
+  },
+
+  navLabel: 'px-6 pb-1 pt-6 uppercase text-xs text-blue-400',
+  bg: 'bg-slate-100',
+  //----------------------------------------------------------
   layout: {
     wrapper: '',
     topnavContainer1:``,
@@ -55,13 +67,8 @@ const theme = {
     select: 'bg-transparent border-none rounded-sm focus:ring-0 focus:border-0 pl-1',
     selectOption: 'p-4 text-md cursor-pointer hover:text-blue-500 text-slate-400 hover:bg-blue-600',
   },
-  navPadding: {
-    1: 'pt-0 ',
-    2: 'md:pt-12 pt-0',
-    3: 'md:pt-24 pt-0'
-  },
-  navLabel: 'px-6 pb-1 pt-6 uppercase text-xs text-blue-400',
-  bg: 'bg-slate-100',
+  
+  
   sidenav,
   topnav
 }

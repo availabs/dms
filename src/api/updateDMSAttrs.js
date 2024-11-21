@@ -1,6 +1,6 @@
-import get from "lodash/get";
-import isEqual from "lodash/isEqual";
-import cloneDeep from "lodash/cloneDeep"
+import { get } from "lodash-es";;
+import { isEqual } from "lodash-es";
+import { cloneDeep } from "lodash-es"
 
 export 	async function updateDMSAttrs(data, configs, falcor) {
     let updates = {}

@@ -1,6 +1,6 @@
 import React from 'react'
-import merge from 'lodash/merge'
-import cloneDeep from 'lodash/cloneDeep'
+import { merge } from "lodash-es"
+import { cloneDeep } from "lodash-es"
 
 // pages
 import PageView from "./pages/view"

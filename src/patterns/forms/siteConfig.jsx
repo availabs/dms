@@ -1,7 +1,7 @@
 import React, {useEffect, useState} from "react"
 import {Link, useParams, useLocation, matchRoutes} from "react-router-dom";
-import merge from 'lodash/merge'
-import cloneDeep from 'lodash/cloneDeep'
+import { merge } from "lodash-es"
+import { cloneDeep } from "lodash-es"
 // import TableComp from "./components/TableComp";
 // import {template, pattern} from "../admin/admin.format"
 import formsFormat, {source} from "./forms.format";

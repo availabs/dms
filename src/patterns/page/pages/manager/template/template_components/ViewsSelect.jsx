@@ -1,8 +1,8 @@
 import React, {useEffect, useMemo} from "react";
-import get from "lodash/get.js";
+import { get } from "lodash-es"
 
 import { CMSContext } from '../../../../siteConfig'
-import Selector from "./Selector.jsx";
+import Selector from "./Selector";
 //import {pgEnv} from "../utils/constants.js";
 
 export const getAttributes = (data) => {

@@ -1,6 +1,6 @@
 import React, {useEffect} from 'react'
 import { Link, useParams } from "react-router-dom";
-import cloneDeep from 'lodash/cloneDeep'
+import { cloneDeep } from "lodash-es"
 // -- 
 import { FormsContext } from '../'
 import {dataItemsNav, detectNavLevel, getInPageNav} from './_utils'

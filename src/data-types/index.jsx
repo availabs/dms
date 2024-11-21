@@ -8,7 +8,7 @@ import dmsFormat from './dms-format'
 import Array from './array'
 import Lexical from './lexical'
 
-import get from 'lodash/get'
+import { get } from "lodash-es"
 import Select from "./select";
 import Multiselect from "./multiselect";
 import Radio from "./radio";

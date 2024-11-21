@@ -1,5 +1,5 @@
 import React from "react";
-import {SectionThumb} from "./Sectionthumb.jsx";
+import {SectionThumb} from "./Sectionthumb";
 
 export const SectionListControls = ({sections=[], sectionControls, source, onChange}) => {
     //console.log('SectionListControls',sectionControls)

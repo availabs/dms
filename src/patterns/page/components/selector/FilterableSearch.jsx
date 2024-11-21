@@ -1,7 +1,8 @@
-import {Typeahead, Menu, MenuItem, Input, useToken} from 'react-bootstrap-typeahead';
-import get from "lodash/get";
 import React, {useEffect, useState} from "react";
-import placeholder from "lodash/fp/placeholder.js";
+import {Typeahead, Menu, MenuItem, Input, useToken} from 'react-bootstrap-typeahead';
+import { get } from "lodash-es";
+
+import { placeholder } from "lodash-es";
 
 const handleSearch = (text, selected, setSelected) => {
     if (selected) setSelected([])

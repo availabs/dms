@@ -1,8 +1,9 @@
+import React from 'react'
 import Wrappers from '../wrappers'
 import Components from '../components'
 import { matchRoutes } from 'react-router-dom'
-import cloneDeep from 'lodash/cloneDeep'
-import get from 'lodash/get'
+import { cloneDeep } from "lodash-es"
+import { get } from "lodash-es"
 
 const DefaultComponent = Components.devinfo
 const DefaultWrapper = Wrappers.error
