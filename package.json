@@ -1,12 +1,12 @@
 {
   "name": "@availabs/dms",
-  "version": "0.0.31",
+  "version": "0.0.34",
   "description": "AVAIL Data Management System",
   "main": "dist/index.js",
   "private": false,
   "scripts": {
     "test": "node test.js",
-    "build": "npx eslint src && babel src -d dist --extensions '.ts,.tsx,.js,.jsx'",
+    "build": "npx eslint src && babel src -d dist --extensions '.ts,.tsx,.js,.jsx' && cp src/dms.css dist",
     "publish-it": "npm run build && npm publish --access public",
     "watch": "nodemon --exec npm run build"
   },

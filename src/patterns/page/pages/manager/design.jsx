@@ -250,9 +250,8 @@ function DesignEditor ({item, dataItems, attributes, apiLoad, apiUpdate, format,
             className='flex-1 border'
             head={
               <>
-                <link type="text/css" rel="stylesheet" href="/css/build.css" />
-                <link href="/fonts/font-awesome-6/css/all.min.css" rel="stylesheet" />
-               
+                <script src="https://cdn.tailwindcss.com" />
+                <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.15/dist/tailwind.min.css" rel="stylesheet" />
               </>
             }
           >    
