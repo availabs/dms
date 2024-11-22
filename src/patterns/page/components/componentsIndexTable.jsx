@@ -43,9 +43,17 @@ const DownloadExcel = ({ sections, pattern, fileName='sections' }) => {
 
     const handleDownload = async () => {
         const data = (sections || []).map(section => sectionCols.reduce((acc, {name}) => {
-            acc[name] = name === 'url' ? getURL({name, section, pattern}) :
-                name === 'element_data' ? getAttribution({section}) :
-                section[name];
+            let value;
+
+            if(name === 'element_data'){
+                const attribution = getAttribution({section});
+                value = (attribution || []).map(attr => `${attr.version} (${attr.source})`).join(', ')
+            }else if(name === 'url'){
+                value = getURL({name, section, pattern});
+            }else{
+                value = section[name]
+            }
+            acc[name] = value;
             return acc;
         }, {}))
         // Define the schema for the Excel file (columns and their data types)
@@ -78,6 +86,15 @@ const getURL = ({name, section, pattern}) => {
     return patternBaseUrl?.length ? `${protocol}//${subDomain}/${patternBaseUrl}/${url}` : `${protocol}//${subDomain}/${url}`;
 }
 
+const getCenRepURL = ({name, section, pattern}) => {
+    const url = '/cenrep';
+    const patternBaseUrl = pattern.base_url?.replace('/', '')
+    const {protocol, host} = window.location;
+    const domain = host.split('.').length > 2 ? host.split('.').slice(1).join('.') : host; // devmny.org
+    const subDomain = typeof pattern.subdomain === 'string' ? `${pattern.subdomain}.${domain}` : domain ;
+    return patternBaseUrl?.length ? `${protocol}//${subDomain}/${patternBaseUrl}/${url}` : `${protocol}//${subDomain}/${url}`;
+}
+
 const getParentChain = (item, items, enableDebugging) => {
     enableDebugging && console.log('running for', item.page_title, item)
     if(!items?.length) return [];
@@ -94,7 +111,8 @@ const getAttribution = ({section}) => {
     if(!section.element_data) return null;
 
     const attribution = Array.isArray(section.element_data) ? section.element_data : [section.element_data];
-    return attribution.map(attr => attr.version).join(', ')
+    console.log('attribution', attribution)
+    return attribution.map(attr => ({version: attr.version, source: attr.source_id, url: `/cenrep/source/${attr.source_id}/versions/${attr.view_id}`}))
 }
 const RenderTags = ({value}) => !value ? <div className={'p-1'}>N/A</div> :
     <div className={'flex flex-wrap'}>
@@ -105,7 +123,8 @@ const RenderTags = ({value}) => !value ? <div className={'p-1'}>N/A</div> :
 
 const RenderAttribution = ({value, section}) => {
     const attribution = getAttribution({section});
-    return <div>{attribution || 'N/A'}</div>
+    const links = (attribution || []).map(attr => <Link to={attr.url} className={'p-1'}>{attr.version}</Link>)
+    return <div>{links || 'N/A'}</div>
 }
 
 const RenderText = ({value}) => <div className={'p-1 overflow-hidden'}>{value || 'N/A'}</div>;
