@@ -17,7 +17,7 @@ export const isJson = (str)  => {
 
 const getData = async ({format, apiLoad, itemId}) =>{
     // fetch all data items based on app and type. see if you can associate those items to its pattern. this will be useful when you have multiple patterns.
-    const attributes = JSON.parse(format?.config || '{}')?.attributes || [];
+    const attributes = JSON.parse(format?.config || '{}')?.attributes || format?.metadata?.columns || [];
     const children = [{
         type: () => {
         },
@@ -100,7 +100,9 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
         if(!format || !view) return;
         const originalDocType = format.originalDocType || format.doc_type;
         const doc_type = `${originalDocType}-${view}`
-        setFormat({...format, doc_type, originalDocType})
+        const view_id = view;
+        console.log('setting format', {...format, doc_type, originalDocType, view_id})
+        setFormat({...format, doc_type, originalDocType, view_id})
     }, [view])
     useEffect(() => {
         async function load(){

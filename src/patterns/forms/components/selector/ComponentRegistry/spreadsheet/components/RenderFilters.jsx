@@ -10,7 +10,7 @@ export const getValues = async ({format, apiLoad, length, attributes, groupBy=[]
     // fetch all data items based on app and type. see if you can associate those items to its pattern. this will be useful when you have multiple patterns.
     const finalAttributes = attributes || (
         isJson(format?.config) ? (format.config?.attributes || []) :
-            JSON.parse(format?.config || '{}')?.attributes || []
+            (JSON.parse(format?.config || '{}')?.attributes || format?.metadata?.columns || [])
     );
     const fromIndex = 0;
     const toIndex = length-1;
@@ -39,7 +39,7 @@ export const getValues = async ({format, apiLoad, length, attributes, groupBy=[]
 
 export const getLength = async ({format, apiLoad, groupBy= [], filterBy}) =>{
     const finalAttributes = isJson(format?.config) ? (format.config?.attributes || []) :
-        JSON.parse(format?.config || '{}')?.attributes || [];
+        (JSON.parse(format?.config || '{}')?.attributes || format?.metadata?.columns || []);
 
     const children = [{
         type: () => {

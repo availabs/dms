@@ -1,6 +1,6 @@
 const createRequest = (wrapperConfig,format, path, length) => {
 
-	const { app , type } = format
+	const { app , type, view_id, env } = format
 	//---------------------------------------------------------
 	// generate requests for config based on TYPE and FILTERS
 	//---------------------------------------------------------
@@ -52,6 +52,17 @@ const createRequest = (wrapperConfig,format, path, length) => {
 				'dms', 'data', `${ app }+${ type }`,
 				'options', options,
 				'byIndex', {from: fromIndex, to: toIndex },
+				[
+					//due to group by, simple data->>'col_name' is not sufficient.
+					...(filterAttrs.length > 0 ? filterAttrs : ['data'])
+				]
+			]
+		}
+		case 'uda': { // use a new route that can accept filter and calculate length
+			return [
+				'uda', env, 'viewsById', view_id,
+				'options', options,
+				'dataByIndex', {from: fromIndex, to: toIndex },
 				[
 					//due to group by, simple data->>'col_name' is not sufficient.
 					...(filterAttrs.length > 0 ? filterAttrs : ['data'])

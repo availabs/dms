@@ -49,14 +49,16 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
         formatFromProps && setFormat(formatFromProps);
     }, [formatFromProps]);
     useEffect(() => {
-        setAttributes(JSON.parse(format?.config || '{}')?.attributes || [])
+        setAttributes(JSON.parse(format?.config || '{}')?.attributes || format?.metadata?.columns || [])
     }, [format]);
 
     useEffect(() => {
         if(!format || !view) return;
         const originalDocType = format.originalDocType || format.doc_type;
         const doc_type = `${originalDocType}-${view}`
-        setFormat({...format, doc_type, originalDocType})
+        const view_id = view;
+
+        setFormat(format.doc_type ? {...format, doc_type, originalDocType, view_id} : {...format, view_id})
     }, [view])
 
     useEffect(() => setColSizes({}), [size]); // on size change, reset column sizes.
@@ -120,7 +122,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     useEffect(() => {
         // init stuff. only run when format changes.
         async function load() {
-            if(!format?.config) return;
+            if(!format?.config && !format?.metadata?.columns) return;
             setLoading(true)
             if(!loadMoreId) setLoadMoreId(`id${Date.now()}`)
             const length = await getLength({format, apiLoad, filters, groupBy, notNull});
@@ -142,7 +144,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
         // only run when controls change
 
         async function load() {
-            if(!format?.config) return;
+            if(!format?.config && !format?.metadata?.columns) return;
 
             setLoading(true)
             const newCurrentPage = 0; // for all the deps here, it's okay to fetch from page 1.
@@ -164,7 +166,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
         // only run when page changes
 
         async function load() {
-            if(!format?.config) return;
+            if(!format?.config && !format?.metadata?.columns) return;
             setLoading(true)
             // const length = await getLength({format, apiLoad, filters, groupBy});
             const data = await getData({
@@ -234,7 +236,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     // =========================================== util fns end ========================================================
 
     // render form selector if no config is passed.
-    if(!format?.config) return (
+    if(!format?.config && !format?.metadata?.columns) return (
         <div className={'p-1'}>
             Form data not available. Please make a selection:
             <FormsSelector siteType={siteType} apiLoad={apiLoad} app={pageFormat?.app} format={format} setFormat={setFormat} view={view} setView={setView} formatFromProps={formatFromProps} />
@@ -400,7 +402,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
 
     useEffect(() => {
         async function load() {
-            if(data?.length || !format.config) return;
+            if(data?.length || (!format.config && !format?.metadata?.columns)) return;
             // init stuff
             setLoading(true)
             const length = await getLength({format, apiLoad, filters, groupBy, notNull});
@@ -421,7 +423,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
         // only run when controls change
 
         async function load() {
-            if(!format?.config) return;
+            if(!format?.config && !format?.metadata?.columns) return;
             setLoading(true)
             const newCurrentPage = 0; // for all the deps here, it's okay to fetch from page 1.
             const length = await getLength({format, apiLoad, filters, groupBy, notNull});
@@ -442,7 +444,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
         // only run when page changes
 
         async function load() {
-            if(!format?.config) return;
+            if(!format?.config && !format?.metadata?.columns) return;
             setLoading(true)
             // const length = await getLength({format, apiLoad, filters, groupBy});
             const data = await getData({
@@ -502,7 +504,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
         return apiUpdate({data: item, config: {format}, requestType: 'delete'})
     }
     // =========================================== util fns end ========================================================
-    if(!format?.config) return <div className={'p-1 text-center'}>Form data not available.</div>
+    if(!format?.config && !format?.metadata?.columns) return <div className={'p-1 text-center'}>Form data not available.</div>
     return renderCard ? <Card data={data} visibleAttributes={visibleAttributes} attributes={attributes} customColNames={customColNames}/> : (
         <div className={'w-full'}>
             <RenderFilters attributes={attributes} filters={filters} setFilters={setFilters} apiLoad={apiLoad} format={format} delimiter={filterValueDelimiter}/>
