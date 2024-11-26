@@ -1,5 +1,34 @@
 const columnRenameRegex = /\s+as\s+/i;
+
 const splitColNameOnAS = name => name.split(columnRenameRegex); // split on as/AS/aS/As and spaces surrounding it
+
+const getFullCol = (colName, attributes) => attributes.find(attr => attr.name === colName)
+
+const isCalculatedCol = (colName, attributes) => {
+    const col = getFullCol(colName, attributes)
+    return col.display === 'calculated' || col.type === 'calculated'
+};
+
+export const formattedAttributeStr = (col, isDms, isCalculatedCol) => isCalculatedCol ? col : isDms ? `data->>'${col}' as ${col}` : col;
+
+export const attributeAccessorStr = (col, isDms, isCalculatedCol) => isCalculatedCol ? splitColNameOnAS(col)[0] : isDms ? `data->>'${col}'` : col;
+
+const formatFilters = (filters, isDms, attributes) =>
+    filters.filter(f => f.values?.length && f.values.filter(fv => fv.length).length)
+        .reduce((acc, f) => ({...acc, [attributeAccessorStr(f.column, isDms, isCalculatedCol(f.column, attributes))]: f.values}), {});
+
+const parseIfJson = value => { try { return JSON.parse(value) } catch (e) { return value } }
+
+const getColAccessor = (col, groupBy, fn, isDms) => !col ? null : applyFn(col, fn, groupBy, isDms);
+
+const cleanValue = value => typeof value === 'boolean' ? JSON.stringify(value) :
+                                typeof value === "object" && value?.value ? cleanValue(value.value) :
+                                    typeof value === "object" && !value?.value ? undefined :
+                                        typeof value === 'string' ? parseIfJson(value) :
+                                            parseIfJson(value);
+
+
+export const getNestedValue = value => value?.value && typeof value?.value === 'object' ? getNestedValue(value.value) : !value?.value && typeof value?.value === 'object' ? '' : value;
 
 export const applyFn = (col={}, fn={}, groupBy=[], isDms=false) => {
     const colName = col.name;
@@ -7,7 +36,7 @@ export const applyFn = (col={}, fn={}, groupBy=[], isDms=false) => {
     // it is calculated, and does not have function in name
     // calculated columns should never get data->>
     const isCalculatedCol = col.type === 'calculated' || col.display === 'calculated';
-    const colNameWithAccessor = isCalculatedCol ? splitColNameOnAS(colName)[0] : isDms ? `data->>'${colName}'` : colName;
+    const colNameWithAccessor = attributeAccessorStr(colName, isDms, isCalculatedCol);
     const colNameAfterAS = isCalculatedCol ? splitColNameOnAS(colName)[1] : colName;
 
     const mustHaveFnCondition = !isCalculatedCol && // if not a calculated col and
@@ -33,35 +62,6 @@ export const isJson = (str)  => {
     return true;
 }
 
-export const getNestedValue = value => value?.value && typeof value?.value === 'object' ? getNestedValue(value.value) : !value?.value && typeof value?.value === 'object' ? '' : value;
-
-export const formattedAttributeStr = col => `data->>'${col}' as ${col}`;
-export const attributeAccessorStr = col => `data->>'${col}'`;
-
-const formatFilters = filters => filters.filter(f => f.values?.length && f.values.filter(fv => fv.length).length).reduce((acc, f) => ({...acc, [attributeAccessorStr(f.column)]: f.values}), {});
-
-const parseIfJson = value => {
-    try{
-        return JSON.parse(value)
-    }catch (e) {
-        return value
-    }
-}
-const getColAccessor = (col, groupBy, fn, isDms) => {
-    return !col ? null : applyFn(col, fn, groupBy, isDms)
-}
-
-const cleanValue = value => {
-
-    return typeof value === 'boolean' ? JSON.stringify(value) :
-        typeof value === "object" && value?.value ? cleanValue(value.value) :
-            typeof value === "object" && !value?.value ? undefined :
-                typeof value === 'string' ? parseIfJson(value) :
-                parseIfJson(value);
-}
-// calculated columnns are allowed while not grouping
-const getFullCol = (colName, attributes) => attributes.find(attr => attr.name === colName)
-
 export const getData = async ({format, apiLoad, currentPage, pageSize, length, visibleAttributes, orderBy, filters, groupBy, fn, notNull}) =>{
     // fetch all data items based on app and type. see if you can associate those items to its pattern. this will be useful when you have multiple patterns.
     // if grouping, use load. disable editing.
@@ -73,7 +73,7 @@ export const getData = async ({format, apiLoad, currentPage, pageSize, length, v
         resName: splitColNameOnAS(col)[1] || splitColNameOnAS(col)[0] // regular columns won't have 'as', so [1] will only be available for calculated columns
     }))
     if(format.isDms && !groupBy.length) attributesToFetch.push({originalName: 'id', reqName: 'id', resName: 'id'})
-    if(!format.isDms && !attributesToFetch.length) return [];
+    if(!attributesToFetch.length) return [];
     const actionType = groupBy.length ? 'uda' : 'uda';
     const lengthBasedOnActionType = actionType === 'uda' ? length - 1 : length; // this really needs to be fixed in api
     const fromIndex = currentPage*pageSize;
@@ -91,10 +91,13 @@ export const getData = async ({format, apiLoad, currentPage, pageSize, length, v
             toIndex: path => toIndex,
             options: JSON.stringify({
                 aggregatedLen: groupBy.length,
-                orderBy: Object.keys(orderBy).reduce((acc, curr) => ({...acc, [getFullCol(curr, originalAttributes)?.type  === 'calculated' ? splitColNameOnAS(curr)[0] : `data->>'${curr}'`]: orderBy[curr]}) , {}),
-                filter: formatFilters(filters),
-                ...groupBy.length && {groupBy: groupBy.map(col => getFullCol(col, originalAttributes)?.type  === 'calculated' ? splitColNameOnAS(col)[0] : `data->>'${col}'`)},
-                ...notNull.length && {exclude: notNull.reduce((acc, col) => ({...acc, [getFullCol(col, originalAttributes)?.type  === 'calculated' ? splitColNameOnAS(col)[0] : `data->>'${col}'`]: ['null']}), {})}
+                orderBy: Object.keys(orderBy)
+                                .reduce((acc, curr) => ({
+                                    ...acc,
+                                    [attributeAccessorStr(curr, format.isDms, isCalculatedCol(curr, originalAttributes))]: orderBy[curr]}) , {}),
+                filter: formatFilters(filters, format.isDms, originalAttributes),
+                ...groupBy.length && {groupBy: groupBy.map(col => attributeAccessorStr(col, format.isDms, isCalculatedCol(col, originalAttributes)))},
+                ...notNull.length && {exclude: notNull.reduce((acc, col) => ({...acc, [attributeAccessorStr(col, format.isDms, isCalculatedCol(col, originalAttributes))]: ['null']}), {})}
             }),
             attributes: actionType === 'uda' ? attributesToFetch.map(a => a.reqName).filter(a => a) : [],
             stopFullDataLoad: true
@@ -120,7 +123,7 @@ export const getData = async ({format, apiLoad, currentPage, pageSize, length, v
 
 }
 
-export const getLength = async ({format, apiLoad, filters=[], groupBy=[], notNull=[]}) =>{
+export const getLength = async ({format, apiLoad, filters=[], groupBy=[], notNull=[]}) => {
     const attributes = JSON.parse(format?.config || '{}')?.attributes || format?.metadata?.columns || [];
     console.log('getLen format', format)
     const children = [{
@@ -130,10 +133,9 @@ export const getLength = async ({format, apiLoad, filters=[], groupBy=[], notNul
         path: '/',
         filter: {
             options: JSON.stringify({
-                aggregatedLen: groupBy.length,
-                filter: formatFilters(filters),
-                ...groupBy.length && {groupBy: groupBy.map(col => getFullCol(col, attributes)?.type  === 'calculated' ? splitColNameOnAS(col)[0] : `data->>'${col}'`)},
-                ...notNull.length && {exclude: notNull.reduce((acc, col) => ({...acc, [getFullCol(col, attributes)?.type  === 'calculated' ? splitColNameOnAS(col)[0] : `data->>'${col}'`]: ['null']}), {})}
+                filter: formatFilters(filters, format.isDms, attributes),
+                ...groupBy.length && {groupBy: groupBy.map(col => attributeAccessorStr(col, format.isDms, isCalculatedCol(col, attributes)))},
+                ...notNull.length && {exclude: notNull.reduce((acc, col) => ({...acc, [attributeAccessorStr(col, format.isDms, isCalculatedCol(col, attributes))]: ['null']}), {})}
             })
         },
     }]

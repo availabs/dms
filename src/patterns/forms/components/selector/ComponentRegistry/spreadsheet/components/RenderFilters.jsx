@@ -63,7 +63,10 @@ export const getLength = async ({format, apiLoad, groupBy= [], filterBy}) =>{
 export const RenderFilters = ({attributes, filters, setFilters, format, apiLoad, delimiter}) => {
     const navigate = useNavigate();
     const [filterOptions, setFilterOptions] = useState({}); // {col1: [vals], col2:[vals]}
-
+    const isCalculatedCol = (col) => {
+       const attr = (attributes || []).find(attr => attr.name === col);
+       return attr.display === 'calculated' || attr.type === 'calculated';
+    }
     useEffect(() => {
         async function load(){
 
@@ -77,20 +80,20 @@ export const RenderFilters = ({attributes, filters, setFilters, format, apiLoad,
                             fI !== filterI // and the current filter. as we're gonna use other filters' values to determine options for current filter.
                         )
                         .reduce((acc, f) => {
-                            acc[attributeAccessorStr(f.column)] = f.values.filter(fv => fv.length);
+                            acc[attributeAccessorStr(f.column, format.isDms, isCalculatedCol(f.column))] = f.values.filter(fv => fv.length);
                             return acc;
                         }, {});
-                    const length = await getLength({format: {...format, type: format.doc_type}, apiLoad, groupBy: [attributeAccessorStr(filter.column)], filterBy});
+                    const length = await getLength({format: {...format, type: format.doc_type}, apiLoad, groupBy: [attributeAccessorStr(filter.column, format.isDms, isCalculatedCol(filter.column))], filterBy});
 
                     const data = await getValues({
                         format: {...format, type: format.doc_type},
                         apiLoad,
                         length,
-                        attributes: [formattedAttributeStr(filter.column)],
-                        groupBy: [attributeAccessorStr(filter.column)],
+                        attributes: [formattedAttributeStr(filter.column, format.isDms, isCalculatedCol(filter.column))],
+                        groupBy: [attributeAccessorStr(filter.column, format.isDms, isCalculatedCol(filter.column))],
                         filterBy
                     })
-                    return {[filter.column]: data.map(d => d[formattedAttributeStr(filter.column)]).filter(d => typeof d !== "object")};
+                    return {[filter.column]: data.map(d => d[formattedAttributeStr(filter.column, format.isDms, isCalculatedCol(filter.column))]).filter(d => typeof d !== "object")};
                 })
             );
 
