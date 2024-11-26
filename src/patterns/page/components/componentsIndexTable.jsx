@@ -1,7 +1,7 @@
 import React, {useMemo, useState, useEffect, useRef, useContext} from 'react'
 import {useParams, useLocation} from "react-router"
 import {CMSContext} from "../siteConfig";
-import { get } from "lodash-es";;
+import { get } from "lodash-es";
 import {Link} from "react-router-dom";
 import writeXlsxFile from 'write-excel-file';
 import {Download} from '../ui/icons'
@@ -53,7 +53,7 @@ const DownloadExcel = ({ sections, pattern, fileName='sections' }) => {
             }else{
                 value = section[name]
             }
-            acc[name] = value;
+            acc[name] = typeof value !== 'object' ? value.toString() : value;
             return acc;
         }, {}))
         // Define the schema for the Excel file (columns and their data types)
@@ -77,7 +77,7 @@ const DownloadExcel = ({ sections, pattern, fileName='sections' }) => {
         </button>
     );
 };
-const getURL = ({name, section, pattern}) => {
+const getURL = ({name, section={}, pattern={}}) => {
     const url = name === 'page_title' ? section.url_slug : `${section.url_slug}#${section.section_id}`;
     const patternBaseUrl = pattern.base_url?.replace('/', '')
     const {protocol, host} = window.location;
@@ -115,7 +115,7 @@ const getAttribution = ({section}) => {
     return attribution.map(attr => ({version: attr.version, source: attr.source_id, url: `/cenrep/source/${attr.source_id}/versions/${attr.view_id}`}))
 }
 const RenderTags = ({value}) => !value ? <div className={'p-1'}>N/A</div> :
-    <div className={'flex flex-wrap'}>
+    <div className={'flex flex-wrap items-center'}>
         {
             value.split(',').map((tag, i) =>
                 <div key={`${tag}-${i}`} className={'text-sm font-semibold text-white m-0.5 py-0.5 px-1 rounded-lg bg-red-300 h-fit w-fit'}>{tag}</div>)}
@@ -134,15 +134,23 @@ const RenderLink = ({value, section, name, pattern}) => {
     return <Link className={'p-1 overflow-hidden'} to={url}>{name === 'url' ? 'link' : (value || 'N/A')}</Link>;
 }
 
-// const RenderParent = ({section, sections}) => {
-//     return getParentChain(section, sections).map(p => p.page_title || p.url_slug).join('/')
-// }
+const RenderParent = ({value=''}) => {
+    return <div className={'flex flex-wrap text-gray-900 text-sm items-center'}>
+        {
+            value?.split('/')
+                .map(p => <span className={'bg-blue-200 font-semibold text-white m-0.5 py-0.5 px-1 w-fit h-fit rounded-lg'}>{p}</span>)
+                .reduce((acc, curr, i) => i === 0 ? [curr] : [...acc, <span>/</span>, curr], [])
+
+        }
+    </div>
+}
+
 const RenderValue = ({value, name, section, sections, pattern}) =>
     name === 'tags' ? <RenderTags value={value} /> :
         name === 'element_data' ? <RenderAttribution value={value} section={section}/> :
             ['page_title', 'section_title', 'url'].includes(name) ?
                 <RenderLink name={name} value={value} section={section} pattern={pattern}/> :
-                    // name === 'parent' ? <RenderParent section={section} sections={sections} /> :
+                    name === 'parent' ? <RenderParent value={value} /> :
                 <RenderText value={value} />
 
 async function getPatterns({app, falcor}){
@@ -228,7 +236,7 @@ const Edit = ({value, onChange, size}) => {
         }))
     }, [pattern]);
     // ============================================ save end ===========================================================
-
+    const gridTemplateColumns = '0.5fr 2fr 1fr 1fr 1fr 1fr 1fr 1fr'
     return (
         <div>
             <div className={'flex justify-between items-center'}>
@@ -258,7 +266,7 @@ const Edit = ({value, onChange, size}) => {
                 <span className={'mr-1'}>Filter Empty Tags</span>
                 <RenderSwitch enabled={filterNullTags} setEnabled={e => setFilterNullTags(e)} label={'filter null tags'} size={'small'}/>
             </div>
-            <div className={'grid grid-cols-8 divide-x font-semibold border-x border-t'}>
+            <div className={'grid grid-cols-8 divide-x font-semibold text-sm border-x border-t'} style={{gridTemplateColumns}}>
                 {
                     sectionCols.map(c => <div key={c.name} className={'p-1'}>{c.display_name}</div>)
                 }
@@ -270,7 +278,7 @@ const Edit = ({value, onChange, size}) => {
                             (sections || [])
                                 .filter((s, sI) => !filterNullTags || s.tags?.length)
                                 .map(section => (
-                                <div key={section.section_id} className={'grid grid-cols-8 divide-x divide-y font-light hover:bg-blue-100'}>
+                                <div key={section.section_id} className={'grid grid-cols-8 font-light text-sm even:bg-blue-50 hover:bg-blue-100'} style={{gridTemplateColumns}}>
                                     {
                                         sectionCols.map(({name}) =>
                                             <RenderValue key={`${section.section_id}_${name}`}
@@ -286,31 +294,6 @@ const Edit = ({value, onChange, size}) => {
                         }
                     </div>
             }
-
-           {/* {
-                !loading && sections.length ? (
-                    <div className={'flex flex-row items-center float-right'}>
-                        <div className={'mx-1 cursor-pointer hover:text-gray-800'}
-                             onClick={() => setCurrentPage(currentPage > 0 ? currentPage - 1 : currentPage)}>{`<< prev`}</div>
-                        <select
-                            className={'p-0.5 border-2 text-gray-800 hover:bg-blue-50 rounded-lg'}
-                            value={currentPage}
-                            onChange={e => setCurrentPage(+e.target.value)}
-                        >
-                            {
-                                [...new Array( Math.ceil(sections.length / 20)).keys()]
-                                    .map((i) =>
-                                        <option
-                                            className={'p-2 border-2 text-gray-800 hover:bg-blue-50'}
-                                            value={i} key={i}>{i + 1}
-                                        </option>)
-                            }
-                        </select>
-                        <div className={'mx-1 cursor-pointer text-gray-500 hover:text-gray-800'}
-                             onClick={() => setCurrentPage(currentPage < sections.length - 1 ? currentPage + 1 : currentPage)}>{`next >>`}</div>
-            </div>
-                ) : null
-            }*/}
         </div>
     )
 }
