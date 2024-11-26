@@ -137,7 +137,7 @@ export const FormsSelector = ({
                         // add type, as we only get doc_type here.
                         setExistingSource({...tmpFormat, type: tmpFormat.type || tmpFormat.doc_type})
                         setFormat({...tmpFormat, type: tmpFormat.type || tmpFormat.doc_type})
-                        setVisibleAttributes([]);
+                        setVisibleAttributes && setVisibleAttributes([]);
                     }}
                 />
             </div>

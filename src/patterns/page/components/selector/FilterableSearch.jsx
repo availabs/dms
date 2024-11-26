@@ -60,7 +60,7 @@ const renderMenu = ({results, menuProps, labelKey, filter, filters, setFilter, o
                 </div>
             }
             {results.map((result, index) => (
-                <MenuItem key={result.label} className={"block hover:bg-slate-200 text-xl tracking-wide pl-1"} option={result}
+                <MenuItem key={`${result.label}_${index}`} className={"block hover:bg-slate-200 text-xl tracking-wide pl-1"} option={result}
                           position={index}>
                     {result.label}
                 </MenuItem>
