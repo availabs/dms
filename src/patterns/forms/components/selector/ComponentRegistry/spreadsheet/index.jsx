@@ -239,7 +239,12 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     if(!format?.config && !format?.metadata?.columns) return (
         <div className={'p-1'}>
             Form data not available. Please make a selection:
-            <FormsSelector siteType={siteType} apiLoad={apiLoad} app={pageFormat?.app} format={format} setFormat={setFormat} view={view} setView={setView} formatFromProps={formatFromProps} />
+            <FormsSelector siteType={siteType} apiLoad={apiLoad} app={pageFormat?.app}
+                           format={format} setFormat={setFormat}
+                           view={view} setView={setView}
+                           formatFromProps={formatFromProps}
+                           setVisibleAttributes={setVisibleAttributes}
+            />
         </div>
     )
 
@@ -247,7 +252,12 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
         <div className={'w-full h-full'}>
             {
                 showChangeFormatModal ?
-                    <FormsSelector siteType={siteType} apiLoad={apiLoad} app={pageFormat?.app} format={format} setFormat={setFormat} view={view} setView={setView} formatFromProps={formatFromProps} /> : null
+                    <FormsSelector siteType={siteType} apiLoad={apiLoad} app={pageFormat?.app}
+                                   format={format} setFormat={setFormat}
+                                   view={view} setView={setView}
+                                   formatFromProps={formatFromProps}
+                                   setVisibleAttributes={setVisibleAttributes}
+                    /> : null
             }
             {
                 isEdit ?

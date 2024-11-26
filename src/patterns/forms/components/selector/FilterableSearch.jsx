@@ -85,7 +85,7 @@ export default ({
         if (!value) return;
         const s = options.filter(h => h.key === value);
         setSelected(s)
-    }, [value]);
+    }, [value, options]);
 
     useEffect(() => {
         setFilteredOptions(

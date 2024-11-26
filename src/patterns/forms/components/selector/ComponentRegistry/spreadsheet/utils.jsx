@@ -73,6 +73,7 @@ export const getData = async ({format, apiLoad, currentPage, pageSize, length, v
         resName: splitColNameOnAS(col)[1] || splitColNameOnAS(col)[0] // regular columns won't have 'as', so [1] will only be available for calculated columns
     }))
     if(format.isDms && !groupBy.length) attributesToFetch.push({originalName: 'id', reqName: 'id', resName: 'id'})
+    if(!format.isDms && !attributesToFetch.length) return [];
     const actionType = groupBy.length ? 'uda' : 'uda';
     const lengthBasedOnActionType = actionType === 'uda' ? length - 1 : length; // this really needs to be fixed in api
     const fromIndex = currentPage*pageSize;

@@ -2,6 +2,7 @@ import React, {useContext, useEffect, useState} from "react";
 import isEqual from "lodash/isEqual";
 import {CMSContext} from "../../../page/siteConfig";
 import {get} from "lodash-es";
+import FilterableSearch from "./FilterableSearch";
 export const range = (start, end) => Array.from({length: (end + 1 - start)}, (v, k) => k + start);
 
 // get forms, and their sources
@@ -49,7 +50,13 @@ const getViews = async ({envs, source, falcor, apiLoad}) => {
 }
 
 
-export const FormsSelector = ({app, siteType, formatFromProps, format, setFormat, view, setView, apiLoad}) => {
+export const FormsSelector = ({
+  app, siteType, formatFromProps,
+  format, setFormat,
+  view, setView,
+  apiLoad,
+  setVisibleAttributes // to reset visible attributes reliably. remember: source can change even if its meta changes. that can't be used to detect change in source.
+}) => {
     const [sources, setSources] = useState([]);
     const [existingSource, setExistingSource] = useState(format || {});
     const [views, setViews] = useState([]);
@@ -117,36 +124,33 @@ export const FormsSelector = ({app, siteType, formatFromProps, format, setFormat
     }, [currentView])
 
     return (
-        <div className={'flex w-full bg-white my-1'}>
+        <div className={'flex w-full bg-white items-center'}>
             <label className={'p-1'}>Source: </label>
-            <select
-                className={'p-1 w-full bg-white border'}
-                value={existingSource?.id}
-                onChange={e => {
-                    const tmpFormat = sources.find(f => +f.id === +e.target.value);
-                    // add type, as we only get doc_type here.
-                    setExistingSource({...tmpFormat, type: tmpFormat.type || tmpFormat.doc_type})
-                    setFormat({...tmpFormat, type: tmpFormat.type || tmpFormat.doc_type})
-                }}
-            >
-                <option key={'default'} value={undefined}>Please Select a source</option>
-                {
-                    sources.map(source =>
-                        <option key={source.id} value={source.id}>{source.name} ({envs[source.srcEnv].label})</option>)
-                }
-
-            </select>
-
-            <select
-                className={'p-1 w-full bg-white border'}
-                value={currentView}
-                onChange={e => setCurrentView(e.target.value)}
-            >
-                <option key={'default'} value={undefined}>Please Select a view</option>
-                {
-                    (views || []).map(view => <option key={view.id} value={view.id}>{view.name || view.version}</option>)
-                }
-            </select>
+            <div className={'w-1/2'}>
+                <FilterableSearch
+                    className={'flex-row-reverse'}
+                    placeholder={'Search...'}
+                    options={sources.map(({id, name, srcEnv}) => ({key: id, label: `${name} (${envs[srcEnv].label})`}))}
+                    value={existingSource?.id}
+                    onChange={e => {
+                        const tmpFormat = sources.find(f => +f.id === +e) || {};
+                        // add type, as we only get doc_type here.
+                        setExistingSource({...tmpFormat, type: tmpFormat.type || tmpFormat.doc_type})
+                        setFormat({...tmpFormat, type: tmpFormat.type || tmpFormat.doc_type})
+                        setVisibleAttributes([]);
+                    }}
+                />
+            </div>
+            <label className={'p-1'}>View: </label>
+            <div className={'w-1/2'}>
+                <FilterableSearch
+                    className={'flex-row-reverse'}
+                    placeholder={'Search...'}
+                    options={views.map(({id, name, version}) => ({key: id, label: name || version}))}
+                    value={+currentView}
+                    onChange={e => setCurrentView(e)}
+                />
+            </div>
         </div>
     )
 }
