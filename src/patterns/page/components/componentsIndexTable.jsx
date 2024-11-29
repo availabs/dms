@@ -6,6 +6,8 @@ import writeXlsxFile from 'write-excel-file';
 import {Download} from '../ui/icons'
 import RenderSwitch from "../../forms/components/selector/ComponentRegistry/shared/Switch";
 import FilterableSearch from "./selector/FilterableSearch";
+import { RegisteredComponents } from "./selector/index";
+import {dmsDataEditor} from "../../../api";
 
 const range = (start, end) => Array.from({length: (end + 1 - start)}, (v, k) => k + start);
 
@@ -233,6 +235,68 @@ const processSections = (sections) => sections.map((s) => {
     .filter(s => s.parent && s.sortBy) // orphans
     .sort((a,b) => a.sortBy.localeCompare(b.sortBy));
 
+/*
+* [
+  {
+    "i": 1751,
+    "app": "mitigat-ny-prod",
+    "type": "shmp",
+    "page_id": "552998",
+    "url_slug": "fema_disaster_template",
+    "page_title": "FEMA Disaster Template",
+    "page_index": "99",
+    "page_parent": null,
+    "section_id": 868263,
+    "section_title": "Declared Counties",
+    "tags": null,
+    "element_type": "Table: Cenrep II",
+    "element_data": {
+      "source_id": 870,
+      "view_id": 1529,
+      "version": "AVAIL - Fusion Events V2 (10/28/2024)",
+      "_modified_timestamp": {
+        "$type": "atom",
+        "value": "2024-10-29T01:03:53.637Z"
+      }
+    },
+    "parent": "FEMA Disaster Template",
+    "sortBy": "99"
+  },
+  {
+    "i": 1758,
+    "app": "mitigat-ny-prod",
+    "type": "shmp",
+    "page_id": "552998",
+    "url_slug": "fema_disaster_template",
+    "page_title": "FEMA Disaster Template",
+    "page_index": "99",
+    "page_parent": null,
+    "section_id": 882250,
+    "section_title": "NCEI Severe Weather Data For This Disaster",
+    "tags": null,
+    "element_type": "Table: Cenrep II",
+    "element_data": {
+      "source_id": 870,
+      "view_id": 1529,
+      "version": "AVAIL - Fusion Events V2 (10/28/2024)",
+      "_modified_timestamp": {
+        "$type": "atom",
+        "value": "2024-10-29T01:03:53.637Z"
+      }
+    },
+    "parent": "FEMA Disaster Template",
+    "sortBy": "99"
+  }
+]
+* */
+const updateSections = async ({sections, newView, falcor}) => {
+    // for each section, update view. call dmsDataEditor. Update page flag too. group all page updates and do them togather. avoid duplicate page update calls.
+    const app = '', type = '';
+    const sectionConfig = {format: {app, type}}
+    // await dmsDataEditor(falcor, sectionConfig, section)
+    sections.map(section => console.log('comp', RegisteredComponents[section.element_type]))
+}
+
 const Edit = ({value, onChange, siteType}) => {
     const {app, baseUrl, falcor, falcorCache, pgEnv, ...rest} = useContext(CMSContext) || {}
     const cachedData = parseIfJson(value) ? JSON.parse(value) : {};
@@ -245,6 +309,8 @@ const Edit = ({value, onChange, siteType}) => {
     const [source, setSource] = useState({});
     const [views, setViews] = useState([]);
     const [view, setView] = useState();
+    const [newView, setNewView] = useState();
+    const [elementType, setElementType] = useState();
 
     // ============================================ data load begin ====================================================
     const envs = useMemo(() => ({
@@ -295,16 +361,21 @@ const Edit = ({value, onChange, siteType}) => {
         }))
     }, [pattern]);
     // ============================================ save end ===========================================================
-    const gridTemplateColumns = '0.5fr 2fr 1fr 1fr 1fr 1fr 1fr 1fr';
+    const gridTemplateColumns = '0.2fr 2fr 1fr 1fr 0.5fr 0.7fr 0.2fr 1fr';
 
     const filterSectionBySourceCondition = (section) => {
-        if(!source?.id) return true;
+        // if no source has been selected, return true.
+        // if a source is selected, but a view is not selected, match source
+        // regardless of source and view, if an element type has been selected, match it.
 
         const attribution = getAttribution({section});
-        console.log('?????????????/', +source?.id, !view, view, +view, attribution);
-        if(!attribution) return false;
-        return attribution.some(attr => +attr.source === +source?.id && (!view || +attr.view === +view));
+
+        const sourceViewCondition = !source?.id || attribution?.some(attr => +attr.source === +source?.id && (!view || +attr.view === +view));
+        const elementTypeCondition = !elementType || elementType === section?.element_type;
+
+        return sourceViewCondition && elementTypeCondition;
     }
+
     return (
         <div>
             <div className={'flex justify-between items-center'}>
@@ -337,8 +408,28 @@ const Edit = ({value, onChange, siteType}) => {
                               size={'small'}/>
             </div>
             <div className={'flex w-full bg-white items-center'}>
+                <label className={'p-1'}>Type: </label>
+                <div className={'w-full'}>
+                    <FilterableSearch
+                        className={'flex-row-reverse'}
+                        placeholder={'Search...'}
+                        options={
+                            Object.keys(RegisteredComponents)
+                                .filter(k => !RegisteredComponents[k].hideInSelector)
+                                .map(k => (
+                                    {
+                                        key: k, label: RegisteredComponents[k].name || k
+                                    }
+                                ))
+                        }
+                        value={elementType}
+                        onChange={e => setElementType(e)}
+                    />
+                </div>
+            </div>
+            <div className={'flex w-full bg-white items-center'}>
                 <label className={'p-1'}>Source: </label>
-                <div className={'w-1/2'}>
+                <div className={'w-1/3'}>
                     <FilterableSearch
                         className={'flex-row-reverse'}
                         placeholder={'Search...'}
@@ -353,7 +444,7 @@ const Edit = ({value, onChange, siteType}) => {
                     />
                 </div>
                 <label className={'p-1'}>View: </label>
-                <div className={'w-1/2'}>
+                <div className={'w-1/3'}>
                     <FilterableSearch
                         className={'flex-row-reverse'}
                         placeholder={'Search...'}
@@ -362,6 +453,38 @@ const Edit = ({value, onChange, siteType}) => {
                         onChange={e => setView(e)}
                     />
                 </div>
+                {
+                    view ? (
+                        <>
+                            <label className={'p-1'}>Update to View: </label>
+                            <div className={'w-1/3'}>
+                                <FilterableSearch
+                                    className={'flex-row-reverse'}
+                                    placeholder={'Search...'}
+                                    options={views.filter(v => v.id !== view).map(({id, name, version}) => ({
+                                        key: id,
+                                        label: name || version
+                                    }))}
+                                    value={newView}
+                                    onChange={e => setNewView(e)}
+                                />
+                            </div>
+                        </>
+                    ) : null
+                }
+
+                {
+                    newView && false? (
+                        <button
+                            className={'p-1 bg-blue-300 hover:bg-blue-600 text-white rounded-md'}
+                            onClick={() => updateSections({
+                                newView,
+                                sections: sections.filter((s, sI) => (!filterNullTags || s.tags?.length) && filterSectionBySourceCondition(s)),
+                                falcor
+                            })}
+                        >update</button>
+                    ) : null
+                }
             </div>
             <div className={'grid grid-cols-8 divide-x font-semibold text-sm border-x border-t'}
                  style={{gridTemplateColumns}}>
