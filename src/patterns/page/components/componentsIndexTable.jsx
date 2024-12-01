@@ -1,6 +1,6 @@
 import React, {useState, useEffect, useContext, useMemo} from 'react'
 import {CMSContext} from "../siteConfig";
-import { get } from "lodash-es";
+import {cloneDeep, get} from "lodash-es";
 import {Link} from "react-router-dom";
 import writeXlsxFile from 'write-excel-file';
 import {Download} from '../ui/icons'
@@ -37,12 +37,12 @@ const sectionCols = [
     {name: 'element_type', display_name: 'Type'},
     {name: 'tags', display_name: 'Tags'},
     {name: 'url', display_name: 'URL'},
-    {name: 'element_data', display_name: 'DataSource'}, // link to cenrep, and version name in data
+    {name: 'attribution', display_name: 'DataSource'}, // link to cenrep, and version name in data
 ]
 
-const getSources = async ({envs, falcor}) => {
+const getSources = async ({envs, falcor, setLoading}) => {
     const lenRes = await falcor.get(['uda', Object.keys(envs), 'sources', 'length']);
-
+    setLoading(true);
     const sources = await Promise.all(
         Object.keys(envs).map(async e => {
             const len = get(lenRes, ['json', 'uda', e, 'sources', 'length']);
@@ -89,7 +89,7 @@ const DownloadExcel = ({ sections, pattern, fileName='sections' }) => {
         const data = (sections || []).map(section => sectionCols.reduce((acc, {name}) => {
             let value;
 
-            if(name === 'element_data'){
+            if(name === 'attribution'){
                 const attribution = getAttribution({section});
                 value = (attribution || []).map(attr => `${attr.version} (${attr.source})`).join(', ')
             }else if(name === 'url'){
@@ -152,9 +152,9 @@ const getParentChain = (item, items, enableDebugging) => {
 };
 
 const getAttribution = ({section}) => {
-    if(!section.element_data) return null;
+    if(!section.attribution) return null;
 
-    const attribution = Array.isArray(section.element_data) ? section.element_data : [section.element_data];
+    const attribution = Array.isArray(section.attribution) ? section.attribution : [section.attribution];
     return attribution.map(attr => ({version: attr.version, source: attr.source_id, view: attr.view_id, url: `/cenrep/source/${attr.source_id}/versions/${attr.view_id}`}))
 }
 const RenderTags = ({value}) => !value ? <div className={'p-1'}>N/A</div> :
@@ -190,7 +190,7 @@ const RenderParent = ({value=''}) => {
 
 const RenderValue = ({value, name, section, sections, pattern}) =>
     name === 'tags' ? <RenderTags value={value} /> :
-        name === 'element_data' ? <RenderAttribution value={value} section={section}/> :
+        name === 'attribution' ? <RenderAttribution value={value} section={section}/> :
             ['page_title', 'section_title', 'url'].includes(name) ?
                 <RenderLink name={name} value={value} section={section} pattern={pattern}/> :
                     name === 'parent' ? <RenderParent value={value} /> :
@@ -250,7 +250,7 @@ const processSections = (sections) => sections.map((s) => {
     "section_title": "Declared Counties",
     "tags": null,
     "element_type": "Table: Cenrep II",
-    "element_data": {
+    "attribution": {
       "source_id": 870,
       "view_id": 1529,
       "version": "AVAIL - Fusion Events V2 (10/28/2024)",
@@ -275,7 +275,7 @@ const processSections = (sections) => sections.map((s) => {
     "section_title": "NCEI Severe Weather Data For This Disaster",
     "tags": null,
     "element_type": "Table: Cenrep II",
-    "element_data": {
+    "attribution": {
       "source_id": 870,
       "view_id": 1529,
       "version": "AVAIL - Fusion Events V2 (10/28/2024)",
@@ -289,16 +289,98 @@ const processSections = (sections) => sections.map((s) => {
   }
 ]
 * */
-const updateSections = async ({sections, newView, falcor}) => {
+const updateSections = async ({sections, newView, falcor, user, setUpdating}) => {
     // for each section, update view. call dmsDataEditor. Update page flag too. group all page updates and do them togather. avoid duplicate page update calls.
-    const app = '', type = '';
-    const sectionConfig = {format: {app, type}}
-    // await dmsDataEditor(falcor, sectionConfig, section)
-    sections.map(section => console.log('comp', RegisteredComponents[section.element_type]))
+    setUpdating(true);
+
+    const updatedSections = sections.map(async section => {
+        try {
+            const section_id = section.section_id;
+            const page_id = section.page_id;
+
+            const comp = RegisteredComponents[section.element_type];
+            const dataRes = await falcor.get(['dms', 'data', 'byId', [section_id], ['app', 'type', 'data']]);
+
+            const sectionData = get(dataRes, ['json', 'dms', 'data', 'byId', section_id, 'data'], {});
+            const sectionApp = get(dataRes, ['json', 'dms', 'data', 'byId', section_id, 'app'], {});
+            const sectionType = get(dataRes, ['json', 'dms', 'data', 'byId', section_id, 'type'], {});
+            const sectionConfig = {format: {app: sectionApp, type: sectionType}};
+
+            const data = sectionData?.['element']?.['element-data'] ? JSON.parse(sectionData.element['element-data']) : {};
+
+            let additionalVariables = data.additionalVariables;
+
+            let controlVars = (comp?.variables || []).reduce((out,curr) => {
+                out[curr.name] =  data[curr.name]
+                return out
+            },{})
+
+            const args = {...controlVars, version: newView, additionalVariables};
+
+            return comp?.getData ? comp.getData(args,falcor).then(async data => {
+                sectionData.element['element-data'] = JSON.stringify(data);
+                sectionData.id = section_id;
+
+                await dmsDataEditor(falcor, sectionConfig, sectionData);
+
+                return ({page_id, section_id, sectionTitle: sectionData.title})
+            }) : ({err: 'no getData'})
+        }catch (err){
+            console.error('<Update-Section> Error: ', err)
+            return ({err})
+        }
+    });
+
+    const sectionsResolvedPromises = await Promise.allSettled(updatedSections);
+
+    const updatedPages = sectionsResolvedPromises.reduce((acc, {value: {err, page_id, ...rest}}) => {
+        if(err) return acc;
+        const existingIndex = acc.findIndex(a => a.page_id === page_id);
+        const currSection = rest;
+
+        if(existingIndex >= 0){
+            acc[existingIndex].sections.push(currSection)
+        }else{
+            acc.push({page_id, sections: [currSection]})
+        }
+        return acc;
+    }, [])
+        .map(async ({page_id, sections}) => {
+            try {
+                // update page history, and has_changes to true;
+                const dataRes = await falcor.get(['dms', 'data', 'byId', [page_id], ['app', 'type', 'data']]);
+
+                const pageData = get(dataRes, ['json', 'dms', 'data', 'byId', page_id, 'data'], {});
+                const pageApp = get(dataRes, ['json', 'dms', 'data', 'byId', page_id, 'app'], {});
+                const pageType = get(dataRes, ['json', 'dms', 'data', 'byId', page_id, 'type'], {});
+                const pageConfig = {format: {app: pageApp, type: pageType}};
+
+                let historyUpdate = sections.map(({section_id, sectionTitle}) => ({
+                    type: `Updated Section ${sectionTitle || pageData.draft_sections.findIndex(s => +s.id === +section_id) + 1}`,
+                    user: user.email,
+                    time: new Date().toString()
+                }))
+
+                let history = pageData?.history ? cloneDeep(pageData.history) : []
+                history.push(...historyUpdate);
+
+                const updatedPage = {
+                    ...pageData,
+                    has_changes: true,
+                    history
+                }
+                await dmsDataEditor(falcor, pageConfig, updatedPage);
+            }catch (err){
+                console.error('<Update-Page> Error:', err)
+                return {err}
+            }
+    })
+
+    await Promise.allSettled(updatedPages).then(() => setUpdating(false));
 }
 
 const Edit = ({value, onChange, siteType}) => {
-    const {app, baseUrl, falcor, falcorCache, pgEnv, ...rest} = useContext(CMSContext) || {}
+    const {app, baseUrl, falcor, falcorCache, pgEnv, user, ...rest} = useContext(CMSContext) || {}
     const cachedData = parseIfJson(value) ? JSON.parse(value) : {};
     const [loading, setLoading] = useState(false);
     const [patterns, setPatterns] = useState([]);
@@ -311,6 +393,7 @@ const Edit = ({value, onChange, siteType}) => {
     const [view, setView] = useState();
     const [newView, setNewView] = useState();
     const [elementType, setElementType] = useState();
+    const [updating, setUpdating] = useState(false);
 
     // ============================================ data load begin ====================================================
     const envs = useMemo(() => ({
@@ -342,7 +425,10 @@ const Edit = ({value, onChange, siteType}) => {
             setLoading(false);
         })
 
-        getSources({envs, falcor}).then(data => setSources(data));
+        getSources({envs, falcor, setLoading}).then(data => {
+            setSources(data);
+            setLoading(true);
+        });
     }, [app, pattern, envs])
 
     useEffect(() => {
@@ -474,15 +560,18 @@ const Edit = ({value, onChange, siteType}) => {
                 }
 
                 {
-                    newView && false? (
+                    newView ? (
                         <button
+                            disabled={updating}
                             className={'p-1 bg-blue-300 hover:bg-blue-600 text-white rounded-md'}
                             onClick={() => updateSections({
+                                user,
                                 newView,
                                 sections: sections.filter((s, sI) => (!filterNullTags || s.tags?.length) && filterSectionBySourceCondition(s)),
-                                falcor
+                                falcor,
+                                setUpdating
                             })}
-                        >update</button>
+                        >{updating ? 'updating...' : 'update'}</button>
                     ) : null
                 }
             </div>
