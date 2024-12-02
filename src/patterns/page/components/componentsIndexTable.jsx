@@ -495,7 +495,7 @@ const Edit = ({value, onChange, siteType}) => {
             </div>
             <div className={'flex w-full bg-white items-center'}>
                 <label className={'p-1'}>Type: </label>
-                <div className={'w-full'}>
+                <div className={'w-1/6'}>
                     <FilterableSearch
                         className={'flex-row-reverse'}
                         placeholder={'Search...'}
@@ -512,10 +512,8 @@ const Edit = ({value, onChange, siteType}) => {
                         onChange={e => setElementType(e)}
                     />
                 </div>
-            </div>
-            <div className={'flex w-full bg-white items-center'}>
                 <label className={'p-1'}>Source: </label>
-                <div className={'w-1/3'}>
+                <div className={'w-1/4'}>
                     <FilterableSearch
                         className={'flex-row-reverse'}
                         placeholder={'Search...'}
@@ -530,7 +528,7 @@ const Edit = ({value, onChange, siteType}) => {
                     />
                 </div>
                 <label className={'p-1'}>View: </label>
-                <div className={'w-1/3'}>
+                <div className={'w-1/4'}>
                     <FilterableSearch
                         className={'flex-row-reverse'}
                         placeholder={'Search...'}
@@ -543,7 +541,7 @@ const Edit = ({value, onChange, siteType}) => {
                     view ? (
                         <>
                             <label className={'p-1'}>Update to View: </label>
-                            <div className={'w-1/3'}>
+                            <div className={'w-1/4'}>
                                 <FilterableSearch
                                     className={'flex-row-reverse'}
                                     placeholder={'Search...'}

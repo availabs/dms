@@ -111,7 +111,7 @@ export default ({
                     defaultSelected={selected}
                     onChange={(selected) => onChangeFilter(selected, setSelected, onChange, options)}
                     selected={selected}
-                    inputProps={{className: 'w-full flex flex-row flex-wrap p-2'}}
+                    inputProps={{className: 'w-full flex flex-row flex-wrap p-1'}}
                     renderMenu={(results, menuProps, labelKey) =>
                         renderMenu({results, menuProps, labelKey, filters, filter, setFilter, onChange})}
                     renderToken={(props) => <RenderToken props={props} selected={selected} setSelected={setSelected} onChange={onChange}/>}
