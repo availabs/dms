@@ -1,7 +1,7 @@
 import React, {useState, useEffect, useRef} from 'react'
 import {RenderSimple} from "./components/SimpleSpreadsheet";
 import {RenderPagination} from "./components/RenderPagination";
-import {isJson, getLength, getData, convertToUrlParams} from "./utils";
+import {isJson, getLength, getData, convertToUrlParams, init} from "./utils";
 import {RenderFilters} from "./components/RenderFilters";
 import {useSearchParams, useNavigate} from "react-router-dom";
 import {FormsSelector} from "../../FormsSelector";
@@ -207,8 +207,16 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     useEffect(() => {
         if (!isEdit) return;
         // notNull passed through controls. setup length and data fns to use it in both edit and view
-        onChange(JSON.stringify({visibleAttributes, pageSize, attributes, customColNames, orderBy, colSizes, filters, groupBy, fn, notNull, allowEditInView, format, view, actions, allowSearchParams, loadMoreId}));
-    }, [visibleAttributes, attributes, customColNames, orderBy, colSizes, filters, groupBy, fn, notNull, allowEditInView, format, view, actions, allowSearchParams, loadMoreId])
+        onChange(JSON.stringify({
+            visibleAttributes, pageSize, attributes,
+            customColNames, orderBy, colSizes, filters,
+            groupBy, fn, notNull, allowEditInView, format,
+            view, actions, allowSearchParams, loadMoreId,
+            attributionData: {source_id: format?.id, view_id: view, version: view}
+        }));
+    }, [visibleAttributes, attributes, customColNames,
+        orderBy, colSizes, filters, groupBy, fn, notNull, allowEditInView,
+        format, view, actions, allowSearchParams, loadMoreId])
     // =========================================== saving settings end =================================================
 
     // =========================================== util fns begin ======================================================
@@ -561,8 +569,14 @@ Edit.settings = {
 export default {
     "name": 'Spreadsheet',
     "type": 'table',
-    "variables": [],
-    getData,
+    "variables": [
+        {name: 'visibleAttributes'}, {name: 'pageSize'}, {name: 'attributes'},
+        {name: 'customColNames'}, {name: 'orderBy'}, {name: 'colSizes'}, {name: 'filters'},
+        {name: 'groupBy'}, {name: 'fn'}, {name: 'notNull'}, {name: 'allowEditInView'}, {name: 'format'},
+        {name: 'view'}, {name: 'actions'}, {name: 'allowSearchParams'}, {name: 'loadMoreId'},
+        {name: 'attributionData'}
+    ],
+    getData: init,
     "EditComp": Edit,
     "ViewComp": View
 }

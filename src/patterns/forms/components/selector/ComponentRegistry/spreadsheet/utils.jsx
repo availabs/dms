@@ -158,3 +158,23 @@ export const convertToUrlParams = (arr, delimiter) => {
 
     return params.toString();
 };
+
+// used to init data remotely (using template / other update methods).
+// Does the bear minimum of returning all args, and updating format object with correct view id.
+export const init = async ({format, view, version, attributionData, ...rest}) => {
+    const newView = version || view;
+    const originalDocType = format.originalDocType || format.doc_type;
+    const doc_type = `${originalDocType}-${newView}`
+    const view_id = newView;
+
+    const updatedFormat = format.doc_type ? {...format, doc_type, originalDocType, view_id} : {...format, view_id}
+    const updatedAttributionData = {source_id: attributionData.source_id, view_id, version: view_id}
+
+    console.log('????????????', format, updatedFormat, attributionData, updatedAttributionData)
+    return {
+        format: updatedFormat,
+        view: newView,
+        attributionData: updatedAttributionData,
+        ...rest
+    }
+}

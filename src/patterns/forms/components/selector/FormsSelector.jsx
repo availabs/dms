@@ -119,7 +119,7 @@ export const FormsSelector = ({
 
     useEffect(() => {
         // if view changes, update type and set format
-        if(!currentView) return;
+        if(!currentView || !views?.length) return;
         setView(currentView)
     }, [currentView])
 
