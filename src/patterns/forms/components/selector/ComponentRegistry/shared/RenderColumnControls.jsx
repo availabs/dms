@@ -31,10 +31,11 @@ export default function RenderColumnControls({
                 .reduce((acc, a) => ({...acc, [a.name]: fn[a.name] || a.defaultFn || 'list'}) , {});
 
             setFn(newFns);
-        }else if(!groupBy.length && Object.keys(fn).length){
-            // remove fns
-            setFn({});
         }
+        // else if(!groupBy.length && Object.keys(fn).length){
+        //     // remove fns
+        //     setFn({});
+        // }
     }, [attributes, visibleAttributes, groupBy]);
     // ================================================== group by updates end =========================================
 

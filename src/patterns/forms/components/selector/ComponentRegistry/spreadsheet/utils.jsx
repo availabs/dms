@@ -72,7 +72,9 @@ export const getData = async ({format, apiLoad, currentPage, pageSize, length, v
         reqName: getColAccessor(getFullCol(col, originalAttributes), groupBy, fn, format.isDms),
         resName: splitColNameOnAS(col)[1] || splitColNameOnAS(col)[0] // regular columns won't have 'as', so [1] will only be available for calculated columns
     }))
-    if(format.isDms && !groupBy.length) attributesToFetch.push({originalName: 'id', reqName: 'id', resName: 'id'})
+    const fnColumnsExists = visibleAttributes.some(attr => fn[attr]); // if fns exist, can't pull ids automatically.
+
+    if(format.isDms && !groupBy.length && !fnColumnsExists) attributesToFetch.push({originalName: 'id', reqName: 'id', resName: 'id'})
     if(!attributesToFetch.length) return [];
     const actionType = groupBy.length ? 'uda' : 'uda';
     const lengthBasedOnActionType = actionType === 'uda' ? length - 1 : length; // this really needs to be fixed in api
