@@ -30,12 +30,18 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     const [actions, setActions] = useState(cachedData.actions || []);
     const [fn, setFn] = useState(cachedData.fn || {});
     const [notNull, setNotNull] = useState(cachedData.notNull || []);
-
+    const [showTotal, setShowTotal] = useState(cachedData.showTotal);
+    const [striped, setStriped] = useState(cachedData.striped);
+    const [allowDownload, setAllowDownload] = useState(cachedData.allowDownload);
     const [allowEditInView, setAllowEditInView] = useState(cachedData.allowEditInView);
     const [allowSearchParams, setAllowSearchParams] = useState(cachedData.allowSearchParams === undefined ? true : cachedData.allowSearchParams);
+    const [usePagination, setUsePagination] = useState(cachedData.usePagination);
+    const [pageSize, setPageSize] = useState(cachedData.pageSize || 500);
+    // const [dataSize, setDataSize] = useState(cachedData.dataSize || 500);
+
+
     const [currentPage, setCurrentPage] = useState(0);
     const [actionUrls, setActionUrls] = useState(cachedData.actionUrls || {viewUrl: '', editUrl: ''});
-    const pageSize = 500// cachedData.pageSize || 5;
     const filterValueDelimiter = '|||'
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -277,8 +283,13 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
                                     notNull={notNull} setNotNull={setNotNull}
                                     filters={filters} setFilters={setFilters}
                                     actions={actions} setActions={setActions}
+                                    // showTotal={showTotal} setShowTotal={setShowTotal}
+                                    // striped={striped} setStriped={setStriped}
+                                    // allowDownload={allowDownload} setAllowDownload={setAllowDownload}
                                     allowEditInView={allowEditInView} setAllowEditInView={setAllowEditInView}
                                     allowSearchParams={allowSearchParams} setAllowSearchParams={setAllowSearchParams}
+                                    // usePagination={usePagination} setUsePagination={setUsePagination}
+                                    // pageSize={pageSize} setPageSize={setPageSize}
                     /> : null
             }
 
@@ -348,7 +359,13 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
     const fn = cachedData.fn;
     const allowEdit = cachedData.allowEditInView;
     const allowSearchParams = cachedData.allowSearchParams;
-    const pageSize = 500// cachedData.pageSize || 5;
+    const pageSize = cachedData.pageSize || 5;
+    const showTotal = cachedData.showTotal;
+    const striped = cachedData.striped;
+    const allowDownload = cachedData.allowDownload;
+    const allowEditInView = cachedData.allowEditInView;
+    const usePagination = cachedData.usePagination;
+    
     const filterValueDelimiter = '|||'
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams(window.location.search);
