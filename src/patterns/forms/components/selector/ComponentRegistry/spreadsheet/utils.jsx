@@ -6,7 +6,8 @@ const getFullCol = (colName, attributes) => attributes.find(attr => attr.name ==
 
 const isCalculatedCol = (colName, attributes) => {
     const col = getFullCol(colName, attributes)
-    return col.display === 'calculated' || col.type === 'calculated'
+    if(!col) console.log('col not defined', colName, attributes)
+    return col?.display === 'calculated' || col?.type === 'calculated'
 };
 
 export const formattedAttributeStr = (col, isDms, isCalculatedCol) => isCalculatedCol ? col : isDms ? `data->>'${col}' as ${col}` : col;
@@ -65,7 +66,7 @@ export const isJson = (str)  => {
 export const getData = async ({format, apiLoad, currentPage, pageSize, length, visibleAttributes, orderBy, filters, groupBy, fn, notNull}) =>{
     // fetch all data items based on app and type. see if you can associate those items to its pattern. this will be useful when you have multiple patterns.
     // if grouping, use load. disable editing.
-    console.log('getData format?', format)
+    // console.log('getData format?', format)
     const originalAttributes = JSON.parse(format?.config || '{}')?.attributes || format?.metadata?.columns || [];
     const attributesToFetch = visibleAttributes.map(col => ({
         originalName: col,
@@ -111,7 +112,7 @@ export const getData = async ({format, apiLoad, currentPage, pageSize, length, v
         children
     });
 
-    console.log('data', data)
+    // console.log('data', data)
     // todo: known bug, and possible solution
     // after changing fn for a column multiple times, all previously selected fns are also included in data.
     // this makes it so that sometimes wrong fn is displayed.
@@ -120,14 +121,14 @@ export const getData = async ({format, apiLoad, currentPage, pageSize, length, v
     const d = actionType === 'uda' ?
         data.map(row => attributesToFetch.reduce((acc, column) => ({...acc, [column.originalName]: cleanValue(row[column.reqName])}) , {})) :
         data;
-    console.log('processed data?', d)
+    // console.log('processed data?', d)
     return d;
 
 }
 
 export const getLength = async ({format, apiLoad, filters=[], groupBy=[], notNull=[]}) => {
     const attributes = JSON.parse(format?.config || '{}')?.attributes || format?.metadata?.columns || [];
-    console.log('getLen format', format)
+    // console.log('getLen format', format)
     const children = [{
         type: () => {
         },
@@ -146,7 +147,7 @@ export const getLength = async ({format, apiLoad, filters=[], groupBy=[], notNul
         attributes,
         children
     });
-    console.log('len', length)
+    // console.log('len', length)
     return length;
 }
 
@@ -172,7 +173,7 @@ export const init = async ({format, view, version, attributionData, ...rest}) =>
     const updatedFormat = format.doc_type ? {...format, doc_type, originalDocType, view_id} : {...format, view_id}
     const updatedAttributionData = {source_id: attributionData.source_id, view_id, version: view_id}
 
-    console.log('????????????', format, updatedFormat, attributionData, updatedAttributionData)
+    // console.log('????????????', format, updatedFormat, attributionData, updatedAttributionData)
     return {
         format: updatedFormat,
         view: newView,
