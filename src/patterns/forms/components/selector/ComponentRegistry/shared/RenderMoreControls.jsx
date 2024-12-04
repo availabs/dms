@@ -58,7 +58,7 @@ export default function RenderMoreControls({
                     <RenderToggleControls title={'Striped'} value={striped} setValue={setStriped}/>
                     <RenderToggleControls title={'Allow Download'} value={allowDownload} setValue={setAllowDownload}/>
                     <RenderToggleControls title={'Use Pagination'} value={usePagination} setValue={setUsePagination}/>
-                    <RenderInputControls title={'Page Size'} value={pageSize} setValue={setPageSize}/>
+                    <RenderInputControls title={'Page Size'} value={pageSize} setValue={setPageSize} displayCdn={usePagination===true}/>
                     <RenderInputControls title={'Data Size'} value={dataSize} setValue={setDataSize}/>
                 </div>
             </div>

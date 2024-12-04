@@ -1,7 +1,7 @@
 import RenderSwitch from "./Switch";
 import React from "react";
 
-export const RenderInputControls = ({value, setValue, title}) => setValue ? (
+export const RenderInputControls = ({value, setValue, title, displayCdn=true}) => setValue && displayCdn ? (
     <div>
         <div
             className={`inline-flex w-full justify-center items-center rounded-md px-1.5 py-1 text-sm font-regular 

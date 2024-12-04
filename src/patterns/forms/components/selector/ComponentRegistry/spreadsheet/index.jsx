@@ -153,6 +153,10 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
             if(!format?.config && !format?.metadata?.columns) return;
 
             setLoading(true)
+            // setData([]);
+            // setLength(0);
+            // setHasMore(false);
+
             const newCurrentPage = 0; // for all the deps here, it's okay to fetch from page 1.
             const length = await getLength({format, apiLoad, filters, groupBy, notNull});
             const data = await getData({
@@ -217,12 +221,12 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
             visibleAttributes, pageSize, attributes,
             customColNames, orderBy, colSizes, filters,
             groupBy, fn, notNull, allowEditInView, format,
-            view, actions, allowSearchParams, loadMoreId,
+            view, actions, allowSearchParams, loadMoreId, striped, showTotal, usePagination, allowDownload,
             attributionData: {source_id: format?.id, view_id: view, version: view}
         }));
-    }, [visibleAttributes, attributes, customColNames,
+    }, [visibleAttributes, pageSize, attributes, customColNames,
         orderBy, colSizes, filters, groupBy, fn, notNull, allowEditInView,
-        format, view, actions, allowSearchParams, loadMoreId])
+        format, view, actions, allowSearchParams, loadMoreId, striped, showTotal, usePagination, allowDownload])
     // =========================================== saving settings end =================================================
 
     // =========================================== util fns begin ======================================================
@@ -284,7 +288,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
                                     filters={filters} setFilters={setFilters}
                                     actions={actions} setActions={setActions}
                                     // showTotal={showTotal} setShowTotal={setShowTotal}
-                                    // striped={striped} setStriped={setStriped}
+                                    striped={striped} setStriped={setStriped}
                                     // allowDownload={allowDownload} setAllowDownload={setAllowDownload}
                                     allowEditInView={allowEditInView} setAllowEditInView={setAllowEditInView}
                                     allowSearchParams={allowSearchParams} setAllowSearchParams={setAllowSearchParams}
@@ -325,6 +329,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
                             pageSize,
                             loading,
                             loadMoreId,
+                            striped,
                             actions: actions.filter(a => ['edit only', 'both'].includes(a.display)),
                             allowEdit: !groupBy.length
                         }} />
@@ -566,6 +571,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
                             pageSize,
                             loading,
                             loadMoreId,
+                            striped,
                             allowEdit: groupBy.length ? false : allowEdit,
                             actions: actions.filter(a => ['view only', 'both'].includes(a.display))
                         }} />
