@@ -4,10 +4,9 @@ import { cloneDeep } from "lodash-es"
 
 import { json2DmsForm, getUrlSlug, toSnakeCase, getInPageNav,dataItemsNav, detectNavLevel  } from '../_utils'
 import { saveHeader, saveSection } from './editFunctions'
-import Layout from '../../ui/avail-layout'
-import SideNav from '../../ui/nav/Side'
+
+import { Layout, SideNav, SideNavContainer } from '../../ui'
 import { ViewIcon } from '../../ui/icons'
-import { SideNavContainer } from '../../ui'
 import EditControls from './editControls'
 
 

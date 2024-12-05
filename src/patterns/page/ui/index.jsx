@@ -3,7 +3,13 @@ import {PencilIcon} from './icons'
 import { CMSContext } from '../siteConfig'
 import { Dialog, Transition, Switch, Popover } from '@headlessui/react'
 import { usePopper } from 'react-popper'
-import defaultTheme from '../theme/theme'
+import defaultTheme from './theme'
+
+export { default as Layout }  from './components/layout'
+export { default as SideNav } from './components/sidenav' 
+export { default as TopNav } from './components/topnav'
+export { default as Nestable } from './components/nestable'
+
 
 
 export const useClickOutside = handleClick => {

@@ -18,7 +18,7 @@ import PageManager from './pages/manager/pages'
 import DesignEditor from './pages/manager/design'
 
 import cmsFormat from "./page.format.js"
-import defaultTheme from './theme/theme'
+import defaultTheme from './ui/theme'
 
 import { useFalcor } from "@availabs/avl-falcor"
 
@@ -48,7 +48,7 @@ export const siteConfig = ({
   //console.log('hola', pattern?.theme)
   let theme = merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern?.theme?.settings?.theme?.theme] || themes.default), pattern?.theme || {})
 
-  // console.log('pageConfig', theme, logo)
+  console.log('pageConfig', theme, themes[pattern?.theme?.settings?.theme?.theme], pattern?.theme )
   // baseUrl = baseUrl[0] === '/' ? baseUrl.slice(1) : baseUrl
   baseUrl = baseUrl === '/' ? '' : baseUrl
   const defaultLogo = (
@@ -57,11 +57,12 @@ export const siteConfig = ({
     </Link>
   )
 
-  if(!theme.navOptions.logo) {
-    theme.navOptions.logo = logo ? logo : defaultLogo
+  if(!theme?.navOptions?.logo) {
+    theme.navOptions = {...(theme?.navOptions || {}), logo: (logo ? logo : defaultLogo)}
   }
   
 
+  console.log('testing', theme.navOptions)
 
   const format = cloneDeep(cmsFormat)
   format.app = app

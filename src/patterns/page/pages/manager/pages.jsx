@@ -4,16 +4,10 @@ import { NavLink, useSubmit, useLocation } from "react-router-dom";
 //import { Dialog, Transition } from '@headlessui/react'
 
 
-import Nestable from '../../ui/nestable';
+import { Nestable } from '../../ui';
 import { json2DmsForm, getUrlSlug, dataItemsNav } from '../_utils'
 
 
-// import { json2DmsForm, getUrlSlug, toSnakeCase, getInPageNav,dataItemsNav, detectNavLevel  } from '../_utils'
-// //import { saveHeader, saveSection } from './editFunctions'
-// import Layout from '../../ui/avail-layout'
-// import SideNav from '../../ui/nav/Side'
-// import { ViewIcon } from '../../ui/icons'
-// import { SideNavContainer } from '../../ui'
  import { CMSContext } from '../../siteConfig'
 
 

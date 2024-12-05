@@ -1,12 +1,13 @@
 import React from 'react'
-import sidenav from './sidenav'
 import topnav from './topnav'
 import { Link } from 'react-router-dom'
-
+import { layoutTheme } from '../components/layout'
+import { sideNavTheme } from '../components/sidenav'
+import { topNavTheme } from '../components/topnav'
 
 const theme = {
   navOptions: {
-    logo: '',//<Link to='/' className='h-12 flex px-4 items-center'><div className='rounded-full h-8 w-8 bg-blue-500 border-2 border-blue-300 hover:bg-blue-600' /></Link>, //<Link to='/' className='h-12 flex px-4 items-center'>LOGO</Link>,
+    logo: '',
     sideNav: {
       size: 'none',
       search: 'none',
@@ -48,13 +49,7 @@ const theme = {
   navLabel: 'px-6 pb-1 pt-6 uppercase text-xs text-blue-400',
   bg: 'bg-slate-100',
   //----------------------------------------------------------
-  layout: {
-    wrapper: '',
-    topnavContainer1:``,
-    topnavContainer2:`sticky top-0 z-20 w-full max-w-[100vw]`,
-    sidenavContainer1: 'mr-44',
-    sidenavContainer2: 'fixed h-[calc(100vh_-_52px)]'
-  },
+  
   page: {
     wrapper1: 'w-full h-full flex-1 flex flex-col bg-slate-100', // first div inside Layout
     wrapper2: 'w-full h-full flex-1 flex flex-row px-1 md:px-6 py-6', // inside page header, wraps sidebar
@@ -69,8 +64,9 @@ const theme = {
   },
   
   
-  sidenav,
-  topnav
+  layout: layoutTheme,
+  sidenav: sideNavTheme,
+  topnav: topNavTheme
 }
 
 //theme.navOptions.logo = <Link to='/' className='h-12 flex px-4 items-center'><div className='rounded-full h-10 bg-blue-500 border border-slate-50' /></Link>
@@ -88,7 +84,7 @@ export const themeOptions = {
           "type": "select",
           "options": [
             "default",
-            "mnyv1"
+            "catalyst"
           ]
         }
       }

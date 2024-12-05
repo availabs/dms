@@ -1,10 +1,9 @@
-import React, {useEffect} from 'react'
+import React, { useEffect } from 'react'
 
 
 
 //import { saveHeader, saveSection } from './editFunctions'
-import Layout from '../../ui/avail-layout'
-import SideNav from '../../ui/nav/Side'
+import { Layout, SideNav } from '../../ui'
 import { ViewIcon } from '../../ui/icons'
 import { CMSContext } from '../../siteConfig'
 
