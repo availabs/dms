@@ -36,15 +36,23 @@ const TableView = ({
                        showVersionSelector={true}
         >
             {
-                !item.config ?
-                    <div className={'p-1 text-center'}>Please setup metadata.</div> :
+                !item.config ? <div className={'p-1 text-center'}>Please setup metadata.</div> :
                     !params.view_id || params.view_id === 'undefined' ? 'Please select a view' :
                     <div className={`${theme?.page?.wrapper1} h-full overflow-auto`}>
                         <Spreadsheet.EditComp
                             onChange={() => {
                             }}
                             size={1}
-                            format={{app: item.app, type: `${item.doc_type}-${params.view_id}`, doc_type: `${item.doc_type}-${params.view_id}`, config: item.config}}
+                            format={{
+                                app: item.app,
+                                type: `${item.doc_type}-${params.view_id}`,
+                                env: `${item.app}+${item.doc_type}`,
+                                doc_type: `${item.doc_type}-${params.view_id}`,
+                                isDms: true,
+                                originalDocType: item.doc_type,
+                                view_id: params.view_id,
+                                config: item.config
+                        }}
                             apiLoad={apiLoad}
                             apiUpdate={apiUpdate}
                             value={JSON.stringify({
