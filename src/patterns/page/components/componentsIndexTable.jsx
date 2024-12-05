@@ -376,7 +376,10 @@ const updateSections = async ({sections, newView, falcor, user, setUpdating}) =>
             }
     })
 
-    await Promise.allSettled(updatedPages).then(() => setUpdating(false));
+    await Promise.allSettled(updatedPages).then(() => {
+        setUpdating(false)
+        window.location = window.location;
+    });
 }
 
 const Edit = ({value, onChange, siteType}) => {

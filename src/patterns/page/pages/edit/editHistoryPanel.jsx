@@ -1,11 +1,12 @@
-import React, { Fragment } from 'react'
+import React, {Fragment, useState} from 'react'
 import { Dialog, Transition } from '@headlessui/react'
 
 import { CMSContext } from '../../siteConfig'
 import {timeAgo} from '../_utils'
+import {Add} from "../../ui/icons";
 
 
-export default function EditHistory ({item , dataItems, historyOpen, setHistoryOpen}) {
+export default function EditHistory ({item , dataItems, historyOpen, setHistoryOpen, onChange}) {
   const { baseUrl } = React.useContext(CMSContext) || {}
 
   return (
@@ -46,7 +47,7 @@ export default function EditHistory ({item , dataItems, historyOpen, setHistoryO
                       </div>
                     </div>
                     <div className="relative mt-6 flex-1 px-4 sm:px-6">
-                      <HistoryList history={item?.history || []} />
+                      <HistoryList history={item?.history || []} onChange={onChange}/>
                     </div>
                   </div>
                 </Dialog.Panel>
@@ -67,18 +68,47 @@ function classNames(...classes) {
   return classes.filter(Boolean).join(' ')
 }
 
- function HistoryList({history}) {
-  
+ function HistoryList({history, onChange}) {
+  const [addingEntry, setAddingEntry] = useState(false);
+  const [comment, setComment] = useState('');
   return (
     <>
       <ul role="list" className="space-y-6">
-        {history
-          .sort((a,b) => new Date(b.time) - new Date(a.time))
-          .map((historyItem, historyItemIdx) => (
-          <li key={historyItem.id} className="relative flex gap-x-4">
-            <div
+        <li key='add-new' className={'relative flex gap-x-4'}>
+          <div
               className={classNames(
-                historyItemIdx === history.length - 1 ? 'h-6' : '-bottom-6',
+                  history.length ? '-bottom-6' : 'h-6',
+                  'absolute left-0 top-0 flex w-6 justify-center'
+              )}
+          >
+            <div className="w-px bg-gray-200"/>
+          </div>
+          <>
+            <div className="relative flex h-6 w-6 flex-none items-center justify-center bg-white">
+              <Add width={10} height={10} className={'text-gray-400 hover:text-gray-500 cursor-pointer'}
+                   onClick={() => setAddingEntry(!addingEntry)}/>
+            </div>
+            <input className="flex-auto py-0.5 text-xs leading-5 text-gray-500 rounded-md"
+                   type={'text'}
+                   placeholder={'add a comment'}
+                   value={comment}
+                   onChange={e => setComment(e.target.value)}
+            />
+            {
+              comment?.length ? <button className={'p-1 rounded-md bg-blue-300 hover:bg-blue-600 text-white'} onClick={() => {
+                onChange(comment)
+                setComment('')
+              }} >add</button> : null
+            }
+          </>
+        </li>
+        {history
+            .sort((a, b) => new Date(b.time) - new Date(a.time))
+            .map((historyItem, historyItemIdx) => (
+                <li key={historyItem.id} className="relative flex gap-x-4">
+                  <div
+                      className={classNames(
+                          historyItemIdx === history.length - 1 ? 'h-6' : '-bottom-6',
                 'absolute left-0 top-0 flex w-6 justify-center'
               )}
             >
@@ -105,25 +135,25 @@ function classNames(...classes) {
                 </div>
               </>
             ) : */ }
-            
+
             <>
               <div className="relative flex h-6 w-6 flex-none items-center justify-center bg-white">
                   <div className="h-1.5 w-1.5 rounded-full bg-gray-100 ring-1 ring-gray-300" />
               </div>
               <p className="flex-auto py-0.5 text-xs leading-5 text-gray-500">
-                <span className="font-medium text-gray-900">{historyItem.user}</span> {historyItem.type} 
+                <span className="font-medium text-gray-900">{historyItem.user}</span> {historyItem.type}
               </p>
               <time dateTime={historyItem.time} className="flex-none py-0.5 text-xs leading-5 text-gray-500">
                 {timeAgo(historyItem.time)}
               </time>
             </>
-            
+
           </li>
         ))}
       </ul>
 
-      
-      
+
+
     </>
   )
 }
