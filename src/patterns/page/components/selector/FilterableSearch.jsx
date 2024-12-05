@@ -60,7 +60,7 @@ const renderMenu = ({results, menuProps, labelKey, filter, filters, setFilter, o
                 </div>
             }
             {results.map((result, index) => (
-                <MenuItem key={result.label} className={"block hover:bg-slate-200 text-xl tracking-wide pl-1"} option={result}
+                <MenuItem key={`${result.label}_${index}`} className={"block hover:bg-slate-200 text-xl tracking-wide pl-1"} option={result}
                           position={index}>
                     {result.label}
                 </MenuItem>
@@ -111,7 +111,7 @@ export default ({
                     defaultSelected={selected}
                     onChange={(selected) => onChangeFilter(selected, setSelected, onChange, options)}
                     selected={selected}
-                    inputProps={{className: 'w-full flex flex-row flex-wrap p-2'}}
+                    inputProps={{className: 'w-full flex flex-row flex-wrap p-1'}}
                     renderMenu={(results, menuProps, labelKey) =>
                         renderMenu({results, menuProps, labelKey, filters, filter, setFilter, onChange})}
                     renderToken={(props) => <RenderToken props={props} selected={selected} setSelected={setSelected} onChange={onChange}/>}

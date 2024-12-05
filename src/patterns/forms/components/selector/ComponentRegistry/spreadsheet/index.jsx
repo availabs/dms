@@ -1,7 +1,7 @@
 import React, {useState, useEffect, useRef} from 'react'
 import {RenderSimple} from "./components/SimpleSpreadsheet";
 import {RenderPagination} from "./components/RenderPagination";
-import {isJson, getLength, getData, convertToUrlParams} from "./utils";
+import {isJson, getLength, getData, convertToUrlParams, init} from "./utils";
 import {RenderFilters} from "./components/RenderFilters";
 import {useSearchParams, useNavigate} from "react-router-dom";
 import {FormsSelector} from "../../FormsSelector";
@@ -30,12 +30,18 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     const [actions, setActions] = useState(cachedData.actions || []);
     const [fn, setFn] = useState(cachedData.fn || {});
     const [notNull, setNotNull] = useState(cachedData.notNull || []);
-
+    const [showTotal, setShowTotal] = useState(cachedData.showTotal);
+    const [striped, setStriped] = useState(cachedData.striped);
+    const [allowDownload, setAllowDownload] = useState(cachedData.allowDownload);
     const [allowEditInView, setAllowEditInView] = useState(cachedData.allowEditInView);
     const [allowSearchParams, setAllowSearchParams] = useState(cachedData.allowSearchParams === undefined ? true : cachedData.allowSearchParams);
+    const [usePagination, setUsePagination] = useState(cachedData.usePagination);
+    const [pageSize, setPageSize] = useState(cachedData.pageSize || 500);
+    // const [dataSize, setDataSize] = useState(cachedData.dataSize || 500);
+
+
     const [currentPage, setCurrentPage] = useState(0);
     const [actionUrls, setActionUrls] = useState(cachedData.actionUrls || {viewUrl: '', editUrl: ''});
-    const pageSize = 500// cachedData.pageSize || 5;
     const filterValueDelimiter = '|||'
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -49,14 +55,16 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
         formatFromProps && setFormat(formatFromProps);
     }, [formatFromProps]);
     useEffect(() => {
-        setAttributes(JSON.parse(format?.config || '{}')?.attributes || [])
+        setAttributes(JSON.parse(format?.config || '{}')?.attributes || format?.metadata?.columns || [])
     }, [format]);
 
     useEffect(() => {
         if(!format || !view) return;
         const originalDocType = format.originalDocType || format.doc_type;
         const doc_type = `${originalDocType}-${view}`
-        setFormat({...format, doc_type, originalDocType})
+        const view_id = view;
+
+        setFormat(format.doc_type ? {...format, doc_type, originalDocType, view_id} : {...format, view_id})
     }, [view])
 
     useEffect(() => setColSizes({}), [size]); // on size change, reset column sizes.
@@ -120,7 +128,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     useEffect(() => {
         // init stuff. only run when format changes.
         async function load() {
-            if(!format?.config) return;
+            if(!format?.config && !format?.metadata?.columns) return;
             setLoading(true)
             if(!loadMoreId) setLoadMoreId(`id${Date.now()}`)
             const length = await getLength({format, apiLoad, filters, groupBy, notNull});
@@ -142,9 +150,13 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
         // only run when controls change
 
         async function load() {
-            if(!format?.config) return;
+            if(!format?.config && !format?.metadata?.columns) return;
 
             setLoading(true)
+            // setData([]);
+            // setLength(0);
+            // setHasMore(false);
+
             const newCurrentPage = 0; // for all the deps here, it's okay to fetch from page 1.
             const length = await getLength({format, apiLoad, filters, groupBy, notNull});
             const data = await getData({
@@ -164,7 +176,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
         // only run when page changes
 
         async function load() {
-            if(!format?.config) return;
+            if(!format?.config && !format?.metadata?.columns) return;
             setLoading(true)
             // const length = await getLength({format, apiLoad, filters, groupBy});
             const data = await getData({
@@ -205,8 +217,16 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     useEffect(() => {
         if (!isEdit) return;
         // notNull passed through controls. setup length and data fns to use it in both edit and view
-        onChange(JSON.stringify({visibleAttributes, pageSize, attributes, customColNames, orderBy, colSizes, filters, groupBy, fn, notNull, allowEditInView, format, view, actions, allowSearchParams, loadMoreId}));
-    }, [visibleAttributes, attributes, customColNames, orderBy, colSizes, filters, groupBy, fn, notNull, allowEditInView, format, view, actions, allowSearchParams, loadMoreId])
+        onChange(JSON.stringify({
+            visibleAttributes, pageSize, attributes,
+            customColNames, orderBy, colSizes, filters,
+            groupBy, fn, notNull, allowEditInView, format,
+            view, actions, allowSearchParams, loadMoreId, striped, showTotal, usePagination, allowDownload,
+            attributionData: {source_id: format?.id, view_id: view, version: view}
+        }));
+    }, [visibleAttributes, pageSize, attributes, customColNames,
+        orderBy, colSizes, filters, groupBy, fn, notNull, allowEditInView,
+        format, view, actions, allowSearchParams, loadMoreId, striped, showTotal, usePagination, allowDownload])
     // =========================================== saving settings end =================================================
 
     // =========================================== util fns begin ======================================================
@@ -234,10 +254,15 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     // =========================================== util fns end ========================================================
 
     // render form selector if no config is passed.
-    if(!format?.config) return (
+    if(!format?.config && !format?.metadata?.columns) return (
         <div className={'p-1'}>
             Form data not available. Please make a selection:
-            <FormsSelector siteType={siteType} apiLoad={apiLoad} app={pageFormat?.app} format={format} setFormat={setFormat} view={view} setView={setView} formatFromProps={formatFromProps} />
+            <FormsSelector siteType={siteType} apiLoad={apiLoad} app={pageFormat?.app}
+                           format={format} setFormat={setFormat}
+                           view={view} setView={setView}
+                           formatFromProps={formatFromProps}
+                           setVisibleAttributes={setVisibleAttributes}
+            />
         </div>
     )
 
@@ -245,7 +270,12 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
         <div className={'w-full h-full'}>
             {
                 showChangeFormatModal ?
-                    <FormsSelector siteType={siteType} apiLoad={apiLoad} app={pageFormat?.app} format={format} setFormat={setFormat} view={view} setView={setView} formatFromProps={formatFromProps} /> : null
+                    <FormsSelector siteType={siteType} apiLoad={apiLoad} app={pageFormat?.app}
+                                   format={format} setFormat={setFormat}
+                                   view={view} setView={setView}
+                                   formatFromProps={formatFromProps}
+                                   setVisibleAttributes={setVisibleAttributes}
+                    /> : null
             }
             {
                 isEdit ?
@@ -257,8 +287,13 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
                                     notNull={notNull} setNotNull={setNotNull}
                                     filters={filters} setFilters={setFilters}
                                     actions={actions} setActions={setActions}
+                                    // showTotal={showTotal} setShowTotal={setShowTotal}
+                                    striped={striped} setStriped={setStriped}
+                                    // allowDownload={allowDownload} setAllowDownload={setAllowDownload}
                                     allowEditInView={allowEditInView} setAllowEditInView={setAllowEditInView}
                                     allowSearchParams={allowSearchParams} setAllowSearchParams={setAllowSearchParams}
+                                    // usePagination={usePagination} setUsePagination={setUsePagination}
+                                    // pageSize={pageSize} setPageSize={setPageSize}
                     /> : null
             }
 
@@ -294,6 +329,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
                             pageSize,
                             loading,
                             loadMoreId,
+                            striped,
                             actions: actions.filter(a => ['edit only', 'both'].includes(a.display)),
                             allowEdit: !groupBy.length
                         }} />
@@ -328,7 +364,13 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
     const fn = cachedData.fn;
     const allowEdit = cachedData.allowEditInView;
     const allowSearchParams = cachedData.allowSearchParams;
-    const pageSize = 500// cachedData.pageSize || 5;
+    const pageSize = cachedData.pageSize || 5;
+    const showTotal = cachedData.showTotal;
+    const striped = cachedData.striped;
+    const allowDownload = cachedData.allowDownload;
+    const allowEditInView = cachedData.allowEditInView;
+    const usePagination = cachedData.usePagination;
+    
     const filterValueDelimiter = '|||'
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams(window.location.search);
@@ -400,7 +442,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
 
     useEffect(() => {
         async function load() {
-            if(data?.length || !format.config) return;
+            if(data?.length || (!format.config && !format?.metadata?.columns)) return;
             // init stuff
             setLoading(true)
             const length = await getLength({format, apiLoad, filters, groupBy, notNull});
@@ -421,7 +463,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
         // only run when controls change
 
         async function load() {
-            if(!format?.config) return;
+            if(!format?.config && !format?.metadata?.columns) return;
             setLoading(true)
             const newCurrentPage = 0; // for all the deps here, it's okay to fetch from page 1.
             const length = await getLength({format, apiLoad, filters, groupBy, notNull});
@@ -442,7 +484,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
         // only run when page changes
 
         async function load() {
-            if(!format?.config) return;
+            if(!format?.config && !format?.metadata?.columns) return;
             setLoading(true)
             // const length = await getLength({format, apiLoad, filters, groupBy});
             const data = await getData({
@@ -502,7 +544,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
         return apiUpdate({data: item, config: {format}, requestType: 'delete'})
     }
     // =========================================== util fns end ========================================================
-    if(!format?.config) return <div className={'p-1 text-center'}>Form data not available.</div>
+    if(!format?.config && !format?.metadata?.columns) return <div className={'p-1 text-center'}>Form data not available.</div>
     return renderCard ? <Card data={data} visibleAttributes={visibleAttributes} attributes={attributes} customColNames={customColNames}/> : (
         <div className={'w-full'}>
             <RenderFilters attributes={attributes} filters={filters} setFilters={setFilters} apiLoad={apiLoad} format={format} delimiter={filterValueDelimiter}/>
@@ -529,6 +571,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
                             pageSize,
                             loading,
                             loadMoreId,
+                            striped,
                             allowEdit: groupBy.length ? false : allowEdit,
                             actions: actions.filter(a => ['view only', 'both'].includes(a.display))
                         }} />
@@ -549,8 +592,14 @@ Edit.settings = {
 export default {
     "name": 'Spreadsheet',
     "type": 'table',
-    "variables": [],
-    getData,
+    "variables": [
+        {name: 'visibleAttributes'}, {name: 'pageSize'}, {name: 'attributes'},
+        {name: 'customColNames'}, {name: 'orderBy'}, {name: 'colSizes'}, {name: 'filters'},
+        {name: 'groupBy'}, {name: 'fn'}, {name: 'notNull'}, {name: 'allowEditInView'}, {name: 'format'},
+        {name: 'view'}, {name: 'actions'}, {name: 'allowSearchParams'}, {name: 'loadMoreId'},
+        {name: 'attributionData'}
+    ],
+    getData: init,
     "EditComp": Edit,
     "ViewComp": View
 }

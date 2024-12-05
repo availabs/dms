@@ -145,7 +145,9 @@ function TagComponent ({value, placeholder, onChange, edit=false}) {
             </Combobox>}
             <div className='w-full min-h-8 border-blue-200'>
             {
-                arrayValue.map((d,i) => (
+                arrayValue
+                    .sort((a,b) => a.localeCompare(b))
+                    .map((d,i) => (
                     <div key={i} className='px-2 py-1 text-sm border border-blue-200 m-1 rounded bg-blue-100 flex justify-between items-center'>
                         <div className='text-slate-600'>{d}</div>
                         {edit ? <div className='cursor-pointer' onClick={() => onChange(arrayValue.filter(v => v !== d ).join(','))}>

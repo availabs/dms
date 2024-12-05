@@ -1,14 +1,47 @@
-const splitColNameOnAS = name => name.includes(' AS ') ? name.split(' AS ') : name.split(' as ');
-export const applyFn = (col={}, fn={}, groupBy=[]) => {
+const columnRenameRegex = /\s+as\s+/i;
+
+const splitColNameOnAS = name => name.split(columnRenameRegex); // split on as/AS/aS/As and spaces surrounding it
+
+const getFullCol = (colName, attributes) => attributes.find(attr => attr.name === colName)
+
+const isCalculatedCol = (colName, attributes) => {
+    const col = getFullCol(colName, attributes)
+    if(!col) console.log('col not defined', colName, attributes)
+    return col?.display === 'calculated' || col?.type === 'calculated'
+};
+
+export const formattedAttributeStr = (col, isDms, isCalculatedCol) => isCalculatedCol ? col : isDms ? `data->>'${col}' as ${col}` : col;
+
+export const attributeAccessorStr = (col, isDms, isCalculatedCol) => isCalculatedCol ? splitColNameOnAS(col)[0] : isDms ? `data->>'${col}'` : col;
+
+const formatFilters = (filters, isDms, attributes) =>
+    filters.filter(f => f.values?.length && f.values.filter(fv => fv.length).length)
+        .reduce((acc, f) => ({...acc, [attributeAccessorStr(f.column, isDms, isCalculatedCol(f.column, attributes))]: f.values}), {});
+
+const parseIfJson = value => { try { return JSON.parse(value) } catch (e) { return value } }
+
+const getColAccessor = (col, groupBy, fn, isDms) => !col ? null : applyFn(col, fn, groupBy, isDms);
+
+const cleanValue = value => typeof value === 'boolean' ? JSON.stringify(value) :
+                                typeof value === "object" && value?.value ? cleanValue(value.value) :
+                                    typeof value === "object" && !value?.value ? undefined :
+                                        typeof value === 'string' ? parseIfJson(value) :
+                                            parseIfJson(value);
+
+
+export const getNestedValue = value => value?.value && typeof value?.value === 'object' ? getNestedValue(value.value) : !value?.value && typeof value?.value === 'object' ? '' : value;
+
+export const applyFn = (col={}, fn={}, groupBy=[], isDms=false) => {
     const colName = col.name;
     // apply fns if: column is not calculated column or
-    // if it is calculated, and does not have function in name
+    // it is calculated, and does not have function in name
+    // calculated columns should never get data->>
     const isCalculatedCol = col.type === 'calculated' || col.display === 'calculated';
-    const colNameWithAccessor = isCalculatedCol ? splitColNameOnAS(colName)[0] : `data->>'${colName}'`;
+    const colNameWithAccessor = attributeAccessorStr(colName, isDms, isCalculatedCol);
     const colNameAfterAS = isCalculatedCol ? splitColNameOnAS(colName)[1] : colName;
 
     const mustHaveFnCondition = !isCalculatedCol && // if not a calculated col and
-                                !groupBy.includes(col.name) // if not grouped by
+                                groupBy.length && !groupBy.includes(col.name) // if not grouped by
     const functions = {
         [undefined]: `${colNameWithAccessor} as ${colNameAfterAS}`,
         list: `array_to_string(array_agg(distinct ${colNameWithAccessor}), ', ') as ${colNameAfterAS}`,
@@ -30,52 +63,22 @@ export const isJson = (str)  => {
     return true;
 }
 
-export const getNestedValue = value => value?.value && typeof value?.value === 'object' ? getNestedValue(value.value) : !value?.value && typeof value?.value === 'object' ? '' : value;
-
-export const formattedAttributeStr = col => `data->>'${col}' as ${col}`;
-export const attributeAccessorStr = col => `data->>'${col}'`;
-
-const formatFilters = filters => filters.filter(f => f.values?.length && f.values.filter(fv => fv.length).length).reduce((acc, f) => ({...acc, [attributeAccessorStr(f.column)]: f.values}), {});
-
-const parseIfJson = value => {
-    try{
-        return JSON.parse(value)
-    }catch (e) {
-        return value
-    }
-}
-const getColAccessor = (col, groupBy, fn) => {
-    const isGrouping = groupBy.length;
-
-    return !col || (col.type === 'calculated' && !isGrouping) ?
-        null : // calculated columns in non-grouped mode are not allowed. todo: remove them from columns dropdown and from visibleAttributes on groupBy select
-        /*col.type === 'calculated' ||*/ !isGrouping ?
-            col.name : // calculated columns don't need accessors. if you're not grouping, you use list api call. it takes care of accessors.
-            applyFn(col, fn, groupBy) // in a grouped mode, all columns except grouped and calculated columns need fn
-}
-
-const cleanValue = value => {
-
-    return typeof value === 'boolean' ? JSON.stringify(value) :
-        typeof value === "object" && value?.value ? cleanValue(value.value) :
-            typeof value === "object" && !value?.value ? undefined :
-                typeof value === 'string' ? value :
-                parseIfJson(value);
-}
-
-const getFullCol = (colName, attributes) => attributes.find(attr => attr.name === colName)
-
 export const getData = async ({format, apiLoad, currentPage, pageSize, length, visibleAttributes, orderBy, filters, groupBy, fn, notNull}) =>{
     // fetch all data items based on app and type. see if you can associate those items to its pattern. this will be useful when you have multiple patterns.
     // if grouping, use load. disable editing.
-    const originalAttributes = JSON.parse(format?.config || '{}')?.attributes || [];
+    // console.log('getData format?', format)
+    const originalAttributes = JSON.parse(format?.config || '{}')?.attributes || format?.metadata?.columns || [];
     const attributesToFetch = visibleAttributes.map(col => ({
         originalName: col,
-        reqName: getColAccessor(getFullCol(col, originalAttributes), groupBy, fn),
+        reqName: getColAccessor(getFullCol(col, originalAttributes), groupBy, fn, format.isDms),
         resName: splitColNameOnAS(col)[1] || splitColNameOnAS(col)[0] // regular columns won't have 'as', so [1] will only be available for calculated columns
     }))
-    const actionType = groupBy.length ? 'load' : 'list';
-    const lengthBasedOnActionType = actionType === 'load' ? length - 1 : length; // this really needs to be fixed in api
+    const fnColumnsExists = visibleAttributes.some(attr => fn[attr]); // if fns exist, can't pull ids automatically.
+
+    if(format.isDms && !groupBy.length && !fnColumnsExists) attributesToFetch.push({originalName: 'id', reqName: 'id', resName: 'id'})
+    if(!attributesToFetch.length) return [];
+    const actionType = groupBy.length ? 'uda' : 'uda';
+    const lengthBasedOnActionType = actionType === 'uda' ? length - 1 : length; // this really needs to be fixed in api
     const fromIndex = currentPage*pageSize;
     const toIndex = Math.min(lengthBasedOnActionType, currentPage*pageSize + pageSize);
     if(fromIndex > lengthBasedOnActionType) return [];
@@ -91,61 +94,60 @@ export const getData = async ({format, apiLoad, currentPage, pageSize, length, v
             toIndex: path => toIndex,
             options: JSON.stringify({
                 aggregatedLen: groupBy.length,
-                orderBy: Object.keys(orderBy).reduce((acc, curr) => ({...acc, [getFullCol(curr, originalAttributes)?.type  === 'calculated' ? splitColNameOnAS(curr)[0] : `data->>'${curr}'`]: orderBy[curr]}) , {}),
-                filter: formatFilters(filters),
-                ...groupBy.length && {groupBy: groupBy.map(col => getFullCol(col, originalAttributes)?.type  === 'calculated' ? splitColNameOnAS(col)[0] : `data->>'${col}'`)},
-                ...notNull.length && {exclude: notNull.reduce((acc, col) => ({...acc, [getFullCol(col, originalAttributes)?.type  === 'calculated' ? splitColNameOnAS(col)[0] : `data->>'${col}'`]: ['null']}), {})}
+                orderBy: Object.keys(orderBy)
+                                .reduce((acc, curr) => ({
+                                    ...acc,
+                                    [attributeAccessorStr(curr, format.isDms, isCalculatedCol(curr, originalAttributes))]: orderBy[curr]}) , {}),
+                filter: formatFilters(filters, format.isDms, originalAttributes),
+                ...groupBy.length && {groupBy: groupBy.map(col => attributeAccessorStr(col, format.isDms, isCalculatedCol(col, originalAttributes)))},
+                ...notNull.length && {exclude: notNull.reduce((acc, col) => ({...acc, [attributeAccessorStr(col, format.isDms, isCalculatedCol(col, originalAttributes))]: ['null']}), {})}
             }),
-            attributes: actionType === 'load' ? attributesToFetch.map(a => a.reqName).filter(a => a) : [],
+            attributes: actionType === 'uda' ? attributesToFetch.map(a => a.reqName).filter(a => a) : [],
             stopFullDataLoad: true
         },
     }]
     const data = await apiLoad({
-        app: format.app,
-        type: format.doc_type, //doc_type when format is not passed, but the user selects it in pageEdit.
-        format: {...format, type: format.doc_type},
-        attributes: actionType === 'load' ? attributesToFetch.map(a => a.reqName).filter(a => a) : [],
+        format: {...format, type: format.doc_type}, // view_id already in format.
+        attributes: actionType === 'uda' ? attributesToFetch.map(a => a.reqName).filter(a => a) : [],
         children
     });
 
-    console.log('data', data)
+    // console.log('data', data)
     // todo: known bug, and possible solution
     // after changing fn for a column multiple times, all previously selected fns are also included in data.
     // this makes it so that sometimes wrong fn is displayed.
     // find a way to tell which key to use from data.
     // using visible attributes and fn, maybe filter out Object.keys(row)
-    const d = groupBy.length ?
+    const d = actionType === 'uda' ?
         data.map(row => attributesToFetch.reduce((acc, column) => ({...acc, [column.originalName]: cleanValue(row[column.reqName])}) , {})) :
         data;
-    console.log('processed data?', d)
+    // console.log('processed data?', d)
     return d;
 
 }
 
-export const getLength = async ({format, apiLoad, filters=[], groupBy=[], notNull=[]}) =>{
-    const attributes = JSON.parse(format?.config || '{}')?.attributes || [];
+export const getLength = async ({format, apiLoad, filters=[], groupBy=[], notNull=[]}) => {
+    const attributes = JSON.parse(format?.config || '{}')?.attributes || format?.metadata?.columns || [];
+    // console.log('getLen format', format)
     const children = [{
         type: () => {
         },
-        action: 'filteredLength',
+        action: 'udaLength',// make this work for dms before trying for dama
         path: '/',
         filter: {
             options: JSON.stringify({
-                aggregatedLen: groupBy.length,
-                filter: formatFilters(filters),
-                ...groupBy.length && {groupBy: groupBy.map(col => getFullCol(col, attributes)?.type  === 'calculated' ? splitColNameOnAS(col)[0] : `data->>'${col}'`)},
-                ...notNull.length && {exclude: notNull.reduce((acc, col) => ({...acc, [getFullCol(col, attributes)?.type  === 'calculated' ? splitColNameOnAS(col)[0] : `data->>'${col}'`]: ['null']}), {})}
+                filter: formatFilters(filters, format.isDms, attributes),
+                ...groupBy.length && {groupBy: groupBy.map(col => attributeAccessorStr(col, format.isDms, isCalculatedCol(col, attributes)))},
+                ...notNull.length && {exclude: notNull.reduce((acc, col) => ({...acc, [attributeAccessorStr(col, format.isDms, isCalculatedCol(col, attributes))]: ['null']}), {})}
             })
         },
     }]
     const length = await apiLoad({
-        app: format.app,
-        type: format.doc_type, //doc_type when format is not passed, but the user selects it in pageEdit.
         format: {...format, type: format.doc_type},
         attributes,
         children
     });
-
+    // console.log('len', length)
     return length;
 }
 
@@ -159,3 +161,23 @@ export const convertToUrlParams = (arr, delimiter) => {
 
     return params.toString();
 };
+
+// used to init data remotely (using template / other update methods).
+// Does the bear minimum of returning all args, and updating format object with correct view id.
+export const init = async ({format, view, version, attributionData, ...rest}) => {
+    const newView = version || view;
+    const originalDocType = format.originalDocType || format.doc_type;
+    const doc_type = `${originalDocType}-${newView}`
+    const view_id = newView;
+
+    const updatedFormat = format.doc_type ? {...format, doc_type, originalDocType, view_id} : {...format, view_id}
+    const updatedAttributionData = {source_id: attributionData.source_id, view_id, version: view_id}
+
+    // console.log('????????????', format, updatedFormat, attributionData, updatedAttributionData)
+    return {
+        format: updatedFormat,
+        view: newView,
+        attributionData: updatedAttributionData,
+        ...rest
+    }
+}

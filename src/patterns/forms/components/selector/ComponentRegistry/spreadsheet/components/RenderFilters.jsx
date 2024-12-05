@@ -10,7 +10,7 @@ export const getValues = async ({format, apiLoad, length, attributes, groupBy=[]
     // fetch all data items based on app and type. see if you can associate those items to its pattern. this will be useful when you have multiple patterns.
     const finalAttributes = attributes || (
         isJson(format?.config) ? (format.config?.attributes || []) :
-            JSON.parse(format?.config || '{}')?.attributes || []
+            (JSON.parse(format?.config || '{}')?.attributes || format?.metadata?.columns || [])
     );
     const fromIndex = 0;
     const toIndex = length-1;
@@ -39,7 +39,7 @@ export const getValues = async ({format, apiLoad, length, attributes, groupBy=[]
 
 export const getLength = async ({format, apiLoad, groupBy= [], filterBy}) =>{
     const finalAttributes = isJson(format?.config) ? (format.config?.attributes || []) :
-        JSON.parse(format?.config || '{}')?.attributes || [];
+        (JSON.parse(format?.config || '{}')?.attributes || format?.metadata?.columns || []);
 
     const children = [{
         type: () => {
@@ -59,7 +59,11 @@ export const getLength = async ({format, apiLoad, groupBy= [], filterBy}) =>{
     });
     return length;
 }
-
+const isCalculatedCol = (col, attributes) => {
+    const attr = (attributes || []).find(attr => attr.name === col);
+    // if(!attr) console.warn(`${col} not found in filters.`)
+    return attr.display === 'calculated' || attr.type === 'calculated';
+}
 export const RenderFilters = ({attributes, filters, setFilters, format, apiLoad, delimiter}) => {
     const navigate = useNavigate();
     const [filterOptions, setFilterOptions] = useState({}); // {col1: [vals], col2:[vals]}
@@ -77,20 +81,20 @@ export const RenderFilters = ({attributes, filters, setFilters, format, apiLoad,
                             fI !== filterI // and the current filter. as we're gonna use other filters' values to determine options for current filter.
                         )
                         .reduce((acc, f) => {
-                            acc[attributeAccessorStr(f.column)] = f.values.filter(fv => fv.length);
+                            acc[attributeAccessorStr(f.column, format.isDms, isCalculatedCol(f.column, attributes))] = f.values.filter(fv => fv.length);
                             return acc;
                         }, {});
-                    const length = await getLength({format: {...format, type: format.doc_type}, apiLoad, groupBy: [attributeAccessorStr(filter.column)], filterBy});
+                    const length = await getLength({format: {...format, type: format.doc_type}, apiLoad, groupBy: [attributeAccessorStr(filter.column, format.isDms, isCalculatedCol(filter.column, attributes))], filterBy});
 
                     const data = await getValues({
                         format: {...format, type: format.doc_type},
                         apiLoad,
                         length,
-                        attributes: [formattedAttributeStr(filter.column)],
-                        groupBy: [attributeAccessorStr(filter.column)],
+                        attributes: [formattedAttributeStr(filter.column, format.isDms, isCalculatedCol(filter.column, attributes))],
+                        groupBy: [attributeAccessorStr(filter.column, format.isDms, isCalculatedCol(filter.column, attributes))],
                         filterBy
                     })
-                    return {[filter.column]: data.map(d => d[formattedAttributeStr(filter.column)]).filter(d => typeof d !== "object")};
+                    return {[filter.column]: data.map(d => d[formattedAttributeStr(filter.column, format.isDms, isCalculatedCol(filter.column, attributes))]).filter(d => typeof d !== "object")};
                 })
             );
 
@@ -100,10 +104,10 @@ export const RenderFilters = ({attributes, filters, setFilters, format, apiLoad,
         }
 
         load()
-    }, [filters]);
+    }, [filters, attributes]);
 
     const MultiSelectComp = dmsDataTypes.multiselect.EditComp;
-    if(!filters.length) return null;
+    if(!filters.length || !attributes.length) return null;
     return (
         <div className={'p-4 flex flex-col border border-blue-300 rounded-md'}>
             <Filter className={'-mt-4 -mr-6 text-blue-300 bg-white self-end rounded-md'}/>

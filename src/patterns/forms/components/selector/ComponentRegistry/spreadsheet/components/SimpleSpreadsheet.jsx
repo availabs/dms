@@ -136,7 +136,7 @@ const validate = ({value, required, options, name}) => {
 const DisplayCalculatedCell = ({value, className}) => <div className={className}>{value}</div>
 const RenderCell = ({
                         attribute, i, item, updateItem, width, onPaste,
-                        isFrozen, isSelected, isSelecting, editing, edge, loading, allowEdit,
+                        isFrozen, isSelected, isSelecting, editing, edge, loading, allowEdit, striped,
                         onClick, onDoubleClick, onMouseDown, onMouseMove, onMouseUp}) => {
     // const [editing, setEditing] = useState(false);
     const [newItem, setNewItem] = useState(item);
@@ -204,7 +204,7 @@ const RenderCell = ({
                   autoFocus={editing}
                   className={`
                   min-w-full min-h-full flex flex-wrap items-center truncate
-                  ${isSelected ? 'bg-blue-50' : 'bg-white'} hover:bg-blue-50 
+                  ${striped && i % 2 !== 0 ? 'bg-gray-50' : isSelected ? 'bg-blue-50' : 'bg-white'} hover:bg-blue-50 
                   ${attribute.type === 'multiselect' && newItem[attribute.name]?.length ? 'p-0.5' :
                       attribute.type === 'multiselect' && !newItem[attribute.name]?.length ? 'p-0.5' : 'p-0.5'
                   } 
@@ -248,7 +248,8 @@ export const RenderSimple = ({
                                  loading,
                                  allowEdit,
                                  actions,
-                                 loadMoreId
+                                 loadMoreId,
+                                 striped
                              }) => {
     const gridRef = useRef(null);
     const [isSelecting, setIsSelecting] = useState(false);
@@ -611,7 +612,8 @@ export const RenderSimple = ({
                 {/*<div className={`max-h-[calc(87vh_-_10px)] overflow-y-auto scrollbar-sm`}>*/}
                     {data.map((d, i) => (
                         <div key={`data-${i}`}
-                            className={`grid ${allowEdit ? c[visibleAttributes.length + 3] : c[visibleAttributes.length + 2]} divide-x divide-y ${isDragging ? `select-none` : ``}`}
+                            className={`grid ${allowEdit ? c[visibleAttributes.length + 3] : c[visibleAttributes.length + 2]} 
+                                        divide-x divide-y ${isDragging ? `select-none` : ``} ${striped ? `odd:bg-gray-50` : ``}`}
                             style={{gridTemplateColumns: `${numColSize}px ${visibleAttributes.map(v => `${colSizes[v]}px` || 'auto').join(' ')} ${allowEdit ? `${actionsColSize}px` : ``} ${gutterColSize}px`}}
                         >
                             <div key={'#'}
@@ -667,6 +669,7 @@ export const RenderSimple = ({
                                         onDoubleClick={() => {
                                         }}
                                         allowEdit={allowEdit}
+                                        striped={striped}
                                     />)}
 
                             <RenderActions allowEdit={allowEdit} isEdit={isEdit} isLastCell={true} newItem={d}
