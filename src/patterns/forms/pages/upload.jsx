@@ -34,7 +34,7 @@ const UploadPage = ({
         >
             <div className={`${theme?.page?.wrapper1}`}>
                 {
-                    !params.view_id || params.view_id === 'undefined' ? 'Please select a view' :
+                    !params.view_id || params.view_id === 'undefined' ? 'Please select a version' :
                         <Upload.EditComp
                             onChange={() => {}}
                             size={1}

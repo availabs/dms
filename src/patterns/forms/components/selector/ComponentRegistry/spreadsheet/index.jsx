@@ -66,7 +66,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
             `${originalDocType}-${view}`;
         const view_id = view;
 
-        setFormat(format.doc_type ? {...format, doc_type, originalDocType, view_id} : {...format, view_id})
+        setFormat(format.doc_type ? {...format, doc_type, type: doc_type, originalDocType, view_id} : {...format, view_id})
     }, [view])
 
     useEffect(() => setColSizes({}), [size]); // on size change, reset column sizes.

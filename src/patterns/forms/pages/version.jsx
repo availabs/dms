@@ -27,11 +27,11 @@ const DeleteViewBtn = ({item, view_id, format, url, apiUpdate, baseUrl}) => {
     }
     return (
         <div className={'w-full'}>
-            <button className={buttonRedClass} onClick={() => setShowDeleteModal(true)}>Delete View</button>
+            <button className={buttonRedClass} onClick={() => setShowDeleteModal(true)}>Delete Version</button>
 
             <DeleteModal
                 title={`Delete View`} open={showDeleteModal}
-                prompt={`Are you sure you want to delete this source? All of the source data will be permanently removed
+                prompt={`Are you sure you want to delete this version? All of the version data will be permanently removed
                                             from our servers forever. This action cannot be undone.`}
                 setOpen={(v) => setShowDeleteModal(v)}
                 onDelete={() => {
@@ -85,7 +85,7 @@ const ClearDataBtn = ({app, type, view_id, apiLoad, apiUpdate}) => {
 
             <DeleteModal
                 title={`Clear Uploaded Data`} open={showDeleteModal}
-                prompt={`Are you sure you want to clear all uploaded data for this source? This action cannot be undone.`}
+                prompt={`Are you sure you want to clear all uploaded data for this version? This action cannot be undone.`}
                 setOpen={(v) => setShowDeleteModal(v)}
                 onDelete={() => {
                     async function deleteItem() {

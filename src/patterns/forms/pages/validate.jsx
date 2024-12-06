@@ -149,7 +149,7 @@ const Validate = ({
         >
             <div className={`${theme?.page?.wrapper1}`}>
                 {
-                    !params.view_id || params.view_id === 'undefined' ? 'Please select a view' :
+                    !params.view_id || params.view_id === 'undefined' ? 'Please select a version' :
                         <div>
                             <div
                                 className={'flex flex-1 w-full flex-col shadow bg-white relative text-md font-light leading-7 p-4'}>

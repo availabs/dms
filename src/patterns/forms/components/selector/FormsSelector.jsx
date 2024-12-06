@@ -141,7 +141,7 @@ export const FormsSelector = ({
                     }}
                 />
             </div>
-            <label className={'p-1'}>View: </label>
+            <label className={'p-1'}>Version: </label>
             <div className={'w-1/2'}>
                 <FilterableSearch
                     className={'flex-row-reverse'}
