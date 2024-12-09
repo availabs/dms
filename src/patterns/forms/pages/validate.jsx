@@ -72,7 +72,18 @@ const Validate = ({
     // validate correct records on meta change should be possible
     // valid entries on upload should also be checked as updated meta may make them invalid
     // const validEntriesFormat = {app, type: `${doc_type}-${params.view_id}`, doc_type: `${doc_type}-${params.view_id}`, config}
-    const invalidEntriesFormat = {app, type: `${doc_type}-${params.view_id}-invalid-entry`, doc_type: `${doc_type}-${params.view_id}-invalid-entry`, config}
+    const invalidEntriesFormat = {
+        app,
+        type: `${doc_type}-${params.view_id}-invalid-entry`,
+        doc_type: `${doc_type}-${params.view_id}-invalid-entry`,
+        config,
+
+        env: `${item.app}+${doc_type}-${params.view_id}-invalid-entry`,
+        isDms: true,
+        originalDocType: `${doc_type}-invalid-entry`,
+        view_id: params.view_id,
+
+    }
     console.log('?????//', invalidEntriesFormat, app, doc_type, config, is_dirty)
     useEffect(() => {
         async function load(){
@@ -138,7 +149,7 @@ const Validate = ({
         >
             <div className={`${theme?.page?.wrapper1}`}>
                 {
-                    !params.view_id || params.view_id === 'undefined' ? 'Please select a view' :
+                    !params.view_id || params.view_id === 'undefined' ? 'Please select a version' :
                         <div>
                             <div
                                 className={'flex flex-1 w-full flex-col shadow bg-white relative text-md font-light leading-7 p-4'}>

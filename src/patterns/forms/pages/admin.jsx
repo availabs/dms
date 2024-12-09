@@ -57,7 +57,7 @@ const AddViewBtn = ({item, format, apiLoad, apiUpdate}) => {
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [name, setName] = useState('');
     const navigate = useNavigate();
-    const defaultViewName = `view ${(item?.views?.length || 0) + 1}`;
+    const defaultViewName = `version ${(item?.views?.length || 0) + 1}`;
 
     const addView = async () => {
         const config = {format}
@@ -71,7 +71,7 @@ const AddViewBtn = ({item, format, apiLoad, apiUpdate}) => {
     }
     return (
         <>
-            <button disabled={!item.id} className={buttonGreenClass} onClick={() => setShowDeleteModal(true)}>Add View</button>
+            <button disabled={!item.id} className={buttonGreenClass} onClick={() => setShowDeleteModal(true)}>Add Version</button>
 
             <Modal open={showDeleteModal} setOpen={(v) => setShowDeleteModal(v)}>
                 <input key={'view-name'} placeholder={defaultViewName} value={name} onChange={e => setName(e.target.value)}/>

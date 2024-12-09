@@ -4,6 +4,7 @@ import { isEqual, cloneDeep } from "lodash-es"
 import { Popover, Transition, Combobox } from '@headlessui/react'
 import { Link } from "react-router-dom";
 import { usePopper } from 'react-popper'
+import { v4 as uuidv4 } from 'uuid';
 import { CMSContext } from '../../siteConfig'
 import { getSizeClass, sizeOptionsSVG } from './sizes'
 import {
@@ -697,9 +698,9 @@ const Edit = ({Component, value, onChange, attr, full_width = false, siteType, a
     }
 
     const save = /* async */ () => {
+
         let cloneValue = cloneDeep(value || [])
-        //console.log('save stuff', value, cloneValue)
-        
+        const trackingId = uuidv4();
         let action = ''
         // edit.value.has_changes = true
         if(edit.type === 'update') {
@@ -707,7 +708,7 @@ const Edit = ({Component, value, onChange, attr, full_width = false, siteType, a
 
             action = `edited section ${edit?.value?.title ? `${edit?.value?.title} ${edit.index+1}` : edit.index+1}`
         } else {
-            cloneValue.splice(edit.index, 0, edit.value)
+            cloneValue.splice(edit.index, 0, {trackingId, ...(edit.value || {})})
             action = `added section ${edit?.value?.title ? `${edit?.value?.title} ${edit.index+1}` : edit.index+1}`
         }
         //console.log('edit on save', edit)
@@ -761,7 +762,7 @@ const Edit = ({Component, value, onChange, attr, full_width = false, siteType, a
         fullwidth:'md:grid-cols-[_minmax(_0px,0px)_repeat(6,_1fr)_minmax(_0px,0px)]'
     }
 
-    
+    console.log('ids', values)
     return (
         <div className={`w-full grid grid-cols-6 ${layouts[full_width === 'show' ? 'fullwidth' : 'centered']} gap-1`}>
             <ScrollToHashElement />
@@ -811,7 +812,7 @@ const Edit = ({Component, value, onChange, attr, full_width = false, siteType, a
                             />
                             : ''
                         }
-                        
+
                         {/* show section if not being edited */}
                         { v !== '' && !(edit.index === i && edit.type === 'update') && (!v?.status || v?.status === 'success') ?
                             <SectionView

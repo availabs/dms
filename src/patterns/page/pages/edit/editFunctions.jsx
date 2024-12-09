@@ -154,6 +154,23 @@ export const updateTitle = async ( item, dataItems, value='', user, apiUpdate) =
     }
   }
 
+  export const updateHistory = async ( item, value='', user, apiUpdate) => {
+      let history = item.history ? cloneDeep(item.history) : []
+      let edit = {
+        type: value,
+        user: user.email,
+        time: new Date().toString()
+      }
+      history.push(edit)
+
+      const newItem = {
+        ...cloneDeep(item),
+        history
+      }
+
+      apiUpdate({data:newItem})
+  }
+
 export const toggleSidebar = async (item,type, value='', pageType, apiUpdate) => {
   const newItem = {id: item.id}
   newItem[type] = value

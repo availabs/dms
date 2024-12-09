@@ -7,7 +7,16 @@ import { isEqual } from "lodash-es"
 import {PublishButton, TitleEditComp, IconPopover, PopoverMenuItem, DeleteModal, DiscardChangesButton} from '../../ui'
 import {PencilIcon, CirclePlus, CancelCircle} from '../../ui/icons'
 import { json2DmsForm, getUrlSlug, toSnakeCase, parseJSON } from '../_utils'
-import {insertSubPage, newPage, updateTitle, toggleSidebar, publish, getMenus, discardChanges} from './editFunctions'
+import {
+    insertSubPage,
+    newPage,
+    updateTitle,
+    toggleSidebar,
+    publish,
+    getMenus,
+    discardChanges,
+    updateHistory
+} from './editFunctions'
 
 
 import EditPagesNav  from './editPagesPanel'
@@ -77,7 +86,9 @@ function EditControls({ item, dataItems, updateAttribute, setItem, apiUpdate, at
         }} 
       />
       <EditPagesNav item={item} dataItems={dataItems}  edit={true} open={editState.showNav} setOpen={(v) => setEditState({...editState, showNav: v})}/>
-      <EditHistory item={item}  historyOpen={editState.showHistory} setHistoryOpen={(v) => setEditState({...editState, showHistory: v})} />
+      <EditHistory item={item}
+                   historyOpen={editState.showHistory} setHistoryOpen={(v) => setEditState({...editState, showHistory: v})}
+                   onChange={value => updateHistory(item, value, user, apiUpdate)}/>
     </div>
   )
 }

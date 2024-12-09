@@ -61,10 +61,12 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     useEffect(() => {
         if(!format || !view) return;
         const originalDocType = format.originalDocType || format.doc_type;
-        const doc_type = `${originalDocType}-${view}`
+        const doc_type = originalDocType?.includes('-invalid-entry') ?
+            originalDocType.replace('-invalid-entry', `${view}-invalid-entry`) :
+            `${originalDocType}-${view}`;
         const view_id = view;
 
-        setFormat(format.doc_type ? {...format, doc_type, originalDocType, view_id} : {...format, view_id})
+        setFormat(format.doc_type ? {...format, doc_type, type: doc_type, originalDocType, view_id} : {...format, view_id})
     }, [view])
 
     useEffect(() => setColSizes({}), [size]); // on size change, reset column sizes.
