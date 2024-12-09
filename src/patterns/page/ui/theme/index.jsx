@@ -1,5 +1,4 @@
 import React from 'react'
-import topnav from './topnav'
 import { Link } from 'react-router-dom'
 import { layoutTheme } from '../components/layout'
 import { sideNavTheme } from '../components/sidenav'
@@ -13,6 +12,8 @@ const theme = {
       search: 'none',
       logo: 'top',
       dropdown: 'none',
+      fixedMargin: 'lg:ml-44',
+      position: 'fixed',
       nav: 'none'
     },
     topNav: {
@@ -20,7 +21,7 @@ const theme = {
       dropdown: 'right',
       search: 'right',
       logo: 'left',
-      position: 'fixed',
+      position: 'sticky',
       nav: 'main' 
     }
   },
@@ -51,7 +52,8 @@ const theme = {
   //----------------------------------------------------------
   
   page: {
-    wrapper1: 'w-full h-full flex-1 flex flex-col bg-slate-100', // first div inside Layout
+    container: 'bg-slate-100',
+    wrapper1: 'w-full h-full flex-1 flex flex-col', // first div inside Layout
     wrapper2: 'w-full h-full flex-1 flex flex-row px-1 md:px-6 py-6', // inside page header, wraps sidebar
     wrapper3: 'flex flex-1 w-full  flex-col border shadow bg-white relative text-md font-light leading-7 p-4 min-h-[calc(100vh_-_102px)]' , // content wrapepr
     iconWrapper : 'z-5 absolute right-[10px] top-[5px]',
@@ -84,7 +86,8 @@ export const themeOptions = {
           "type": "select",
           "options": [
             "default",
-            "catalyst"
+            "catalyst",
+            "mny"
           ]
         }
       }

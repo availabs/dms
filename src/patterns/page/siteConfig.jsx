@@ -85,9 +85,9 @@ export const siteConfig = ({
     API_HOST,
     children: [
       {
-        type: ({children, user={}, ...props}) => {
+        type: ({children, user=defaultUser, ...props}) => {
           const { falcor, falcorCache } = useFalcor();
-          // console.log('hola', user, defaultUser)
+          // console.log('hola', user, defaultUser, user || defaultUser)
           return (
             <CMSContext.Provider value={{baseUrl, user, theme, falcor, falcorCache, pgEnv, app, type, Menu: () => <>{rightMenu}</> }} >
               {children}

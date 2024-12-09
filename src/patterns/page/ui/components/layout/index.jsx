@@ -10,21 +10,23 @@ import { CMSContext } from '../../../siteConfig';
 const Logos = () => <div className='h-12'/>
 
 export const layoutTheme = {
-	wrapper: '',
-	topnavContainer1:``,
-	topnavContainer2:`sticky top-0 z-20 w-full max-w-[100vw]`,
-	sidenavContainer1: 'mr-44',
-	sidenavContainer2: 'fixed h-[calc(100vh_-_52px)]'
+	wrapper: 'relative isolate flex min-h-svh w-full max-lg:flex-col',
+	wrapper2: 'flex flex-1',
+	childWrapper: 'flex-1 h-full',
+	topnavContainer1:`sticky top-0 left-0 right-0 z-20 `,
+	topnavContainer2:``,
+	sidenavContainer1: 'w-44',
+	sidenavContainer2: 'sticky top-12 h-[calc(100vh_-_50px)]',
 }
 
-const Layout = ({ children, navItems, secondNav, title, theme, yPadding = '0px', ...props }) => {
+const Layout = ({ children, navItems, secondNav, title, theme, EditPane, yPadding = '0px', ...props }) => {
 	
 	// ------------------------------------------------------
 	// ------- Get Options from Context and Defaults
 	// ------------------------------------------------------ 
 	const { theme: defaultTheme, app, type, Menu } = React.useContext(CMSContext) || {}
 	theme = merge(cloneDeep(defaultTheme), cloneDeep(theme))
-	console.log('theme navOptions', theme.navOptions)
+	// console.log('theme navOptions', theme.navOptions)
 	const { sideNav={}, topNav={}, logo=Logos } = theme?.navOptions || {}
 	
 	const sideNavOptions = {
@@ -64,6 +66,7 @@ const Layout = ({ children, navItems, secondNav, title, theme, yPadding = '0px',
 	        	{topNav?.search === 'right' && <Search app={app} type={type}/>}
 	        	{topNav?.dropdown === 'right' && <Menu />}
 	        	{topNav?.logo === 'right' && logo}
+	        	{EditPane && <EditPane />}
 	      	</>
 	  	)	
 	}
@@ -100,11 +103,11 @@ const Layout = ({ children, navItems, secondNav, title, theme, yPadding = '0px',
 						</div>
 					</>)
 				}
-				<div className={`flex-1 `}>
+				<div className={`${theme.layout.wrapper2}`}>
 					{
 						sideNavOptions.size === 'none' ? '' : (
 							<div className={`${theme?.layout?.sidenavContainer1} `}>
-								<div className={`${theme?.layout?.sidenavContainer2} ${topNav.size !== 'none' && topNav.position === 'fixed' ? topNav.fixedMargin : ''}`}>
+								<div className={`${theme?.layout?.sidenavContainer2} ${topNav.size !== 'none' && topNav.position === 'fixed' ? theme.topnav.fixed : ''}`}>
 									<SideNav 
 										topMenu={sideNavOptions.topMenu}
 										bottomMenu={sideNavOptions.bottomMenu}
@@ -117,7 +120,7 @@ const Layout = ({ children, navItems, secondNav, title, theme, yPadding = '0px',
 					}
 					<div className={`
 						${theme?.layout?.childWrapper} 
-						${sideNav.size !== 'none' && sideNav.position === 'fixed' ? sideNav.fixedMargin : ''} 
+						${sideNav.size !== 'none' && sideNav.position === 'fixed' ? theme.sidenav.fixed : ''} 
 						`}
 					>
 						{children}

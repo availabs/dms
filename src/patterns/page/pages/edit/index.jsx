@@ -12,6 +12,8 @@ import EditControls from './editControls'
 
 
 import { CMSContext } from '../../siteConfig'
+import EditPane from './editPane'
+
 
 function PageEdit ({
   format, item, dataItems, updateAttribute,attributes, setItem, apiLoad, apiUpdate, status, navOptions, siteType
@@ -73,7 +75,7 @@ function PageEdit ({
   }, [])
 
   return (
-    <div>
+    <div className={`${theme?.page?.container}`}>
       {item?.header === 'above' && (
         <ContentEdit
           item={item}
@@ -83,7 +85,7 @@ function PageEdit ({
           siteType={siteType}
         />
       )} 
-      <Layout navItems={menuItems} secondNav={theme?.navOptions?.secondaryNav?.navItems || []}>
+      <Layout navItems={menuItems} secondNav={theme?.navOptions?.secondaryNav?.navItems || []} EditPane={EditPane}>
         <div className={`${theme?.page?.wrapper1} ${theme?.navPadding[level]}`}>
           {item?.header === 'below' && (
             <ContentEdit 
@@ -120,7 +122,7 @@ function PageEdit ({
                 format={isDynamicPage ? format : undefined}
               />
             </div>
-            <SideNavContainer witdh={'w-52'}>
+            {/*<SideNavContainer witdh={'w-52'}>
               <EditControls 
                 item={item} 
                 dataItems={dataItems}
@@ -132,7 +134,7 @@ function PageEdit ({
                 updateAttribute={updateAttribute}
                 pageType={'page'}
               />
-            </SideNavContainer>
+            </SideNavContainer>*/}
           </div>  
           
         </div>

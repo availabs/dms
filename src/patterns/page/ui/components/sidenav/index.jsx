@@ -11,7 +11,7 @@ import { MobileMenu } from '../topnav'
 const NOOP = () => { return {} }
 
 export const sideNavTheme = {
-   "fixed": "md:ml-44",
+   "fixed": "",
    "logoWrapper": "w-44 bg-neutral-100 text-slate-800",
    "sidenavWrapper": "hidden md:block bg-white border-r w-44 h-full z-20",
    "menuItemWrapper": "flex flex-col",

@@ -10,6 +10,7 @@ const NOOP = () => { return {} }
 import { CMSContext } from '../../../siteConfig'
 
 export const topNavTheme = {
+    "fixed": 'mt-12',
     "topnavWrapper": "w-full bg-slate-100 border-b border-gray-200",
     "topnavContent": "flex w-full h-full",
     "topnavMenu": "hidden uppercase md:flex flex-1  divide-x-2 h-full overflow-x-auto overflow-y-hidden scrollbar-sm",

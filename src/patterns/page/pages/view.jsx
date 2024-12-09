@@ -39,7 +39,7 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
 
   //console.log('inPageNav', inPageNav)
   return (
-    <div id='page_view'>
+    <div id='page_view' className={`${theme?.page?.container}`}>
       {/* Header */}
       {(item?.header === 'above') && <ContentView item={item} value={[headerSection]} attributes={sectionAttr} />}
       {/* Layout */}
