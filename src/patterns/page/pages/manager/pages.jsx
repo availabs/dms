@@ -7,7 +7,7 @@ import { CMSContext } from '../../siteConfig'
 const theme = {
   nav: {
     container: (open) => `w-full border-2 border-teal-400`,
-    navItemContainer: 'h-full border-l overflow-y-auto overflow-x-hidden pt-3 scrollbar-xs',
+    navItemContainer: 'h-full w-1/3 border-l overflow-y-auto overflow-x-hidden pt-3 scrollbar-xs',
     navItem: ({ isActive, isPending }) =>
         `block px-4 py-2 font-light ${isActive ?
             'w-[256px] bg-white text-blue-500 border-l border-y' :
@@ -18,7 +18,8 @@ const theme = {
             'w-[238px] bg-white text-blue-500 border-l border-y' :
             'w-[230px] hover:bg-blue-100 text-slate-600'
         }`,
-    addItemButton: 'cursor-pointer px-4 py-2 mt-3 hover:bg-blue-100 w-full text-slate-400 border-t border-slate-200'
+    addItemButton: 'cursor-pointer px-4 py-2 mt-3 hover:bg-blue-100 w-full text-slate-400 border-t border-slate-200',
+    expandCollapseButton: 'p-0.5 rounded-md text-white bg-blue-300 hover:bg-blue-600'
   }
 }
 
@@ -79,6 +80,7 @@ function updateNav(items, parentId='', dataItemsHash) {
   return updates
 }
 
+const getExpandableItems = (items) => items.reduce((acc, curr) => curr.children ? [...acc, curr.id, ...getExpandableItems(curr.children)] : acc, [])
 // ==================================================== util fns end ===================================================
 
 function Nav ({item, dataItems, edit, open, setOpen}) {
@@ -87,11 +89,6 @@ function Nav ({item, dataItems, edit, open, setOpen}) {
   const { baseUrl} = React.useContext(CMSContext)
   const [expandedItems, setExpandedItems] = useState({}); // State to track expanded nodes
   const nestableRef = useRef(null);
-  const collapseAll = (ids) => {
-    if (nestableRef.current) {
-      nestableRef.current.collapse(ids); // Call collapse method
-    }
-  };
 
   const toggleExpand = (id) => {
     setExpandedItems((prevState) => ({
@@ -140,8 +137,8 @@ function Nav ({item, dataItems, edit, open, setOpen}) {
     item.Comp = () => {
       const isExpanded = expandedItems[item.id]
       return (
-          <div key={d.id} onClick={() => {toggleExpand(d.id)}}>
-            {d.title} {!item.children?.length ? '' : expandedItems[d.id] ? `-` : '+'}
+          <div key={d.id} className={'flex items-center gap-1 cursor-pointer'} onClick={() => {toggleExpand(d.id)}}>
+            {d.title} {!item.children?.length ? '' : isExpanded ? `-` : '+'}
             {
               isExpanded && item.children?.length ? item.children.map(({Comp}) => <Comp />) : null
             }
@@ -182,7 +179,12 @@ function Nav ({item, dataItems, edit, open, setOpen}) {
       <>
         <div className={theme.nav.container(open)}>
           <div className={theme.nav.navItemContainer}>
-            <button onClick={() => collapseAll(items.map(i => i.id))}>Collapse All</button>
+            <div className={'flex gap-1 w-full justify-end text-xs'}>
+              <button className={theme.nav.expandCollapseButton} onClick={() => setExpandedItems({})}>Collapse All</button>
+              <button className={theme.nav.expandCollapseButton}
+                      onClick={() => setExpandedItems(getExpandableItems(items).reduce((acc, curr) => ({...acc, [curr]: true}), {}))}
+              >Expand All</button>
+            </div>
 
             <Nestable
                 ref={nestableRef}
