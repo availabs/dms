@@ -1,13 +1,27 @@
-import React, {Fragment, useRef, useState} from 'react'
-import {NavLink, useSubmit, useLocation} from "react-router-dom";
+import React, {Fragment, useEffect, useRef, useState} from 'react'
+import ReactDOM from "react-dom/client";
+import {
+    NavLink,
+    useSubmit,
+    useLocation,
+    useNavigate,
+    BrowserRouter,
+    RouterProvider,
+    createBrowserRouter, createMemoryRouter
+} from "react-router-dom";
 import Nestable from '../../ui/nestable';
-import {CancelCircle, ViewIcon} from '../../ui/icons';
+import {LinkSquare, ViewIcon} from '../../ui/icons';
 import {json2DmsForm, getUrlSlug} from '../_utils'
 import {CMSContext} from '../../siteConfig'
+import pageFormat from "../../page.format";
+import PageEdit from "../edit";
+import {applyUpdate} from "yjs";
+import Layout from "../../ui/avail-layout";
+import Frame from "react-frame-component";
 
-const theme = {
+const customTheme = {
     nav: {
-        container: (open) => `w-1/3 border-2 border-teal-400 overflow-hidden`,
+        container: (open) => open ? `w-1/3 border-r overflow-hidden` : `hidden`,
         navItemContainer: 'max-h-[80vh] w-full border-l overflow-y-auto overflow-x-hidden pt-3 scrollbar-xs',
         navItem: ({isActive, isPending}) =>
             `block px-4 py-2 font-light ${isActive ?
@@ -20,10 +34,10 @@ const theme = {
                 'w-[230px] hover:bg-blue-100 text-slate-600'
             }`,
         addItemButton: 'cursor-pointer px-4 py-2 mt-3 hover:bg-blue-100 w-full text-slate-400 border-t border-slate-200',
-        expandCollapseButton: 'p-0.5 rounded-md text-white bg-blue-300 hover:bg-blue-600'
+        expandCollapseButton: 'p-0.5 h-fit w-fit rounded-md text-white text-xs bg-blue-300 hover:bg-blue-600'
     },
   page: {
-    pageContainer: 'border-2 border-red-500 max-h-[80vh] w-2/3 overflow-y-auto overflow-x-hidden pt-3 scrollbar-xs',
+        pageContainer: (small) => `border max-h-[80vh] ${small ? `max-w-[70vw] w-2/3` : `max-w-[80vw]`} overflow-y-auto overflow-x-auto pt-3 scrollbar-xs`,
   }
 }
 
@@ -58,7 +72,7 @@ function AddItemButton({dataItems}) {
         <div className='pr-2'>
             <div
                 onClick={addItem}
-                className={theme.nav.addItemButton}
+                className={customTheme.nav.addItemButton}
             >
                 + Add Page
             </div>
@@ -88,9 +102,10 @@ const getExpandableItems = (items) => items.reduce((acc, curr) => curr.children 
 
 // ==================================================== util fns end ===================================================
 
-function Nav({item, dataItems, edit, open, setOpen, selectedPage, setSelectedPage}) {
+function Nav({dataItems, edit, open, setOpen, selectedPage, setSelectedPage}) {
     const submit = useSubmit()
     const {pathname = '/edit'} = useLocation()
+    const navigate = useNavigate();
     const {baseUrl} = React.useContext(CMSContext)
     const [expandedItems, setExpandedItems] = useState({});
     const nestableRef = useRef(null);
@@ -134,14 +149,12 @@ function Nav({item, dataItems, edit, open, setOpen, selectedPage, setSelectedPag
             id: d.id,
             index: d.index,
             title: d.title,
-            has_changes: d.has_changes
+            has_changes: d.has_changes,
+            url: d.url_slug
         }
         if (getChildNav(item, dataItems)) {
             item.children = getChildNav(d, dataItems)
         }
-        console.log('----------', selectedPage, item.id,
-            dataItems.find(dI => dI.id === selectedPage)
-            )
 
         item.Comp = ({isExpanded, hasChanges, isSelectedPage}) => {
             return (
@@ -163,6 +176,11 @@ function Nav({item, dataItems, edit, open, setOpen, selectedPage, setSelectedPag
                         e.stopPropagation();
                         setSelectedPage(item.id);
                     }} height={15} width={15} className={'text-gray-700 hover:text-gray-900'}/>
+
+                    <NavLink to={item.url}>
+                        <LinkSquare height={15} width={15} className={'text-gray-600 hover:text-blue-600'}/>
+                    </NavLink>
+
 
                     {/*{*/}
                     {/*    isExpanded && item.children?.length ? item.children.map(({Comp}) => <Comp/>) : null*/}
@@ -191,7 +209,7 @@ function Nav({item, dataItems, edit, open, setOpen, selectedPage, setSelectedPag
         if (!item) return null;
         let Comp = item.Comp;
         const isExpanded = expandedItems[item.id];
-        const hasChanges = item.has_changes === 'true';
+        const hasChanges = item.published === 'draft' || item.has_changes === 'true' || item.has_changes === true;
         const isSelectedPage = selectedPage === item.id;
         return (
             <>
@@ -201,54 +219,156 @@ function Nav({item, dataItems, edit, open, setOpen, selectedPage, setSelectedPag
         )
     }
 
+    if(!open) {
+        return <button className={customTheme.nav.expandCollapseButton}
+                       onClick={() => setOpen(true)}
+        >Show Sidebar</button>
+    }
     return (
-        <>
-            <div className={theme.nav.container(open)}>
-                <div className={theme.nav.navItemContainer}>
-                    <div className={'px-1 flex gap-1 w-full justify-end text-xs'}>
-                        <button className={theme.nav.expandCollapseButton} onClick={() => setExpandedItems({})}>
-                            Collapse All
-                        </button>
-                        <button className={theme.nav.expandCollapseButton}
-                                onClick={() => setExpandedItems(getExpandableItems(items).reduce((acc, curr) => ({
-                                    ...acc,
-                                    [curr]: true
-                                }), {}))}
-                        >Expand All
-                        </button>
-                    </div>
-
-                    <Nestable
-                        ref={nestableRef}
-                        items={items}
-                        collapsed={true}
-                        onChange={onDragEnd}
-                        maxDepth={4}
-                        renderItem={({item}) => renderItem(item)}
-                    />
-
-                    {edit && <AddItemButton dataItems={dataItems}/>}
+        <div className={customTheme.nav.container(open)}>
+            <div className={customTheme.nav.navItemContainer}>
+                <div className={'px-1 flex gap-1 w-full justify-end'}>
+                    <button className={customTheme.nav.expandCollapseButton} onClick={() => setExpandedItems({})}>
+                        Collapse All
+                    </button>
+                    <button className={customTheme.nav.expandCollapseButton}
+                            onClick={() => setExpandedItems(getExpandableItems(items).reduce((acc, curr) => ({
+                                ...acc,
+                                [curr]: true
+                            }), {}))}
+                    >Expand All
+                    </button>
+                    <button className={customTheme.nav.expandCollapseButton}
+                            onClick={() => setOpen(false)}
+                    >Hide Sidebar
+                    </button>
                 </div>
-            </div>
-            {/*<div className={`${open ? `w-64` : 'w-0'} hidden lg:block`}/>*/}
 
-        </>
+                <Nestable
+                    ref={nestableRef}
+                    items={items}
+                    collapsed={true}
+                    onChange={onDragEnd}
+                    maxDepth={4}
+                    renderItem={({item}) => renderItem(item)}
+                />
+
+                {edit && <AddItemButton dataItems={dataItems}/>}
+            </div>
+        </div>
     )
 }
 
-function RenderPage ({selectedPage, setSelectedPage}) {
-  console.log('selected page in RenderPage', selectedPage)
-  return selectedPage ? (
-      <div className={theme.page.pageContainer}>
-        <div className={'w-full flex justify-between items-center'}>
-            {selectedPage} <button className={'p-0.5 text-gray-900'} onClick={() => setSelectedPage('')} >x</button></div>
-      </div>
-  ) : <div className={theme.page.pageContainer}>no page selected</div>
+const RenderInIframe = ({ children, routes }) => {
+    const iframeRef = useRef(null);
+
+    useEffect(() => {
+        if (iframeRef.current) {
+            const iframeDoc = iframeRef.current.contentDocument || iframeRef.current.contentWindow.document;
+
+            iframeDoc.open();
+            iframeDoc.write(`
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <!-- Include Tailwind CSS -->
+          <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.15/dist/tailwind.min.css" rel="stylesheet" />
+          <title>Iframe Content</title>
+          <style>
+            body {
+              margin: 0;
+              font-family: Arial, sans-serif;
+            }
+            #iframe-root {
+              padding: 20px;
+            }
+          </style>
+        </head>
+        <body>
+          <div id="iframe-root"></div>
+        </body>
+        </html>
+      `);
+            iframeDoc.close();
+
+            const rootElement = iframeDoc.getElementById("iframe-root");
+            if (rootElement) {
+                const router = createMemoryRouter(routes);
+                const root = ReactDOM.createRoot(rootElement);
+                root.render(<RouterProvider router={router}>{children}</RouterProvider>);
+            }
+        }
+    }, [children, routes]);
+
+    return <iframe ref={iframeRef} style={{ width: "100%", height: "100%", border: "1px solid #ccc" }} />;
+};
+
+function RenderPage ({selectedPage, isNavOpen, format, attributes, dataItems, apiLoad, apiUpdate, theme}) {
+    const [page, setPage] = useState();
+    const [routes, setRoutes] = useState([]);
+
+    useEffect(() => {
+        if(!selectedPage) return;
+
+        async function load(){
+            const config = {
+                format,
+                children: [
+                    {
+                        type: () => {},
+                        action: 'view',
+                        filter: {
+                            stopFullDataLoad: true,
+                            options: JSON.stringify({
+                                filter: {id: [selectedPage]},
+                            }),
+                            // attributes: ['title', 'index', 'url_slug', 'parent', 'published', 'has_changes', 'hide_in_nav' ,'sections','sidebar','header','footer', 'full_width']
+                        },
+                        path: `view/:id`, // trying to pass params. children need to match with path. this doesn't work.
+                        params: {id: selectedPage}
+                    }
+                ]
+            }
+            const res = await apiLoad(config, `/view/${selectedPage}`);
+            console.log('res', res[0].url_slug)
+            const routes = [
+                {
+                    path: `/`,
+                    // element: <div className={'text-xl text-gray-900'}>hi</div>
+                    element: <PageEdit item={res[0]} dataItems={dataItems} attributes={attributes}
+                                       apiLoad={apiLoad} apiUpdate={apiUpdate}
+                                       format={format} siteType={'prod'}
+                                       updateAttribute={e => console.log('updateAttribute called', e)}
+                    />
+                }
+            ]
+            setPage(res[0]);
+            setRoutes(routes);
+        }
+
+        load();
+    }, [selectedPage]);
+
+    return selectedPage && page ? (
+        <div className={customTheme.page.pageContainer(isNavOpen)}>
+            <PageEdit item={page} dataItems={dataItems} attributes={attributes}
+                      apiLoad={apiLoad} apiUpdate={apiUpdate}
+                      format={format} siteType={'prod'}
+                      updateAttribute={e => console.log('updateAttribute called', e)}
+                      theme={{
+                          layout:{wrapper: 'max-w-full'},
+                          page: {'wrapper1': 'max-w-full'}
+            }}
+            />
+        </div>
+    ) : <div className={customTheme.page.pageContainer(isNavOpen)}>no page selected</div>
 }
-function PagesManager({item, dataItems, ...rest}) {
-    const {baseUrl, theme, user} = React.useContext(CMSContext) || {}
+
+function PagesManager({item, dataItems, format, attributes, apiLoad, apiUpdate, ...rest}) {
+    const {baseUrl, theme, user} = React.useContext(CMSContext) || {};
+    const [open, setOpen] = useState(true);
     const [selectedPage, setSelectedPage] = useState();
-    console.log('props', item, rest)
+
     return (
         <div className={`${theme?.page?.wrapper2}`}>
           <div className={theme?.page?.wrapper3}>
@@ -256,9 +376,13 @@ function PagesManager({item, dataItems, ...rest}) {
             <div className='flex items-center'>
               <div className='text-2xl p-3 font-thin flex-1'>Pages</div>
             </div>
-            <div className={'flex w-full h-full max-h-100vh overflow-hidden'}>
-              <Nav item={item} dataItems={dataItems} selectedPage={selectedPage} setSelectedPage={setSelectedPage} edit={true}/>
-              <RenderPage selectedPage={selectedPage} setSelectedPage={setSelectedPage}/>
+            <div className={'flex max-w-full h-full max-h-100vh overflow-hidden'}>
+              <Nav item={item} dataItems={dataItems} open={open} setOpen={setOpen} selectedPage={selectedPage} setSelectedPage={setSelectedPage} edit={true}/>
+              <RenderPage selectedPage={selectedPage} setSelectedPage={setSelectedPage}
+                          format={format} attributes={attributes}
+                          apiLoad={apiLoad} apiUpdate={apiUpdate} dataItems={dataItems}
+                          isNavOpen={open} theme={theme}
+              />
             </div>
           </div>
         </div>
