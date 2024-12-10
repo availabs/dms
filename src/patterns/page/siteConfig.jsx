@@ -152,7 +152,7 @@ export const siteConfig = ({
                   "data->>'hide_in_nav'": ['null']
                 }
               }),
-              attributes:['title', 'index', 'url_slug', 'parent','published', 'hide_in_nav']
+              attributes:['title', 'index', 'url_slug', 'parent','published', 'has_changes', 'hide_in_nav']
             },
             children: [
               { 
