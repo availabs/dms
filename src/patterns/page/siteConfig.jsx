@@ -62,7 +62,7 @@ export const siteConfig = ({
   }
   
 
-  console.log('testing', theme.navOptions)
+  // console.log('testing', theme.navOptions)
 
   const format = cloneDeep(cmsFormat)
   format.app = app

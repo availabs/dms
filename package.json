@@ -67,6 +67,7 @@
     "react-frame-component": "^5.2.7",
     "react-router-dom": "^6.26.2",
     "react-table": "^7.8.0",
+    "uuid": "^11.0.3",
     "write-excel-file": "^2.0.10"
   }
 }

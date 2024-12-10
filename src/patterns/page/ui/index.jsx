@@ -9,6 +9,7 @@ export { default as Layout }  from './components/layout'
 export { default as SideNav } from './components/sidenav' 
 export { default as TopNav } from './components/topnav'
 export { default as Nestable } from './components/nestable'
+export { default as Drawer } from './components/drawer'
 
 
 
