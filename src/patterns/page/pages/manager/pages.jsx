@@ -1,23 +1,10 @@
 import React, {Fragment, useEffect, useRef, useState} from 'react'
-import ReactDOM from "react-dom/client";
-import {
-    NavLink,
-    useSubmit,
-    useLocation,
-    useNavigate,
-    BrowserRouter,
-    RouterProvider,
-    createBrowserRouter, createMemoryRouter
-} from "react-router-dom";
-import Nestable from '../../ui/nestable';
+import {NavLink, useSubmit, useLocation, useNavigate} from "react-router-dom";
+import Nestable from '../../ui/components/nestable';
 import {LinkSquare, ViewIcon} from '../../ui/icons';
 import {json2DmsForm, getUrlSlug} from '../_utils'
 import {CMSContext} from '../../siteConfig'
-import pageFormat from "../../page.format";
 import PageEdit from "../edit";
-import {applyUpdate} from "yjs";
-import Layout from "../../ui/avail-layout";
-import Frame from "react-frame-component";
 
 const customTheme = {
     nav: {
@@ -258,50 +245,6 @@ function Nav({dataItems, edit, open, setOpen, selectedPage, setSelectedPage}) {
         </div>
     )
 }
-
-const RenderInIframe = ({ children, routes }) => {
-    const iframeRef = useRef(null);
-
-    useEffect(() => {
-        if (iframeRef.current) {
-            const iframeDoc = iframeRef.current.contentDocument || iframeRef.current.contentWindow.document;
-
-            iframeDoc.open();
-            iframeDoc.write(`
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-          <!-- Include Tailwind CSS -->
-          <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.15/dist/tailwind.min.css" rel="stylesheet" />
-          <title>Iframe Content</title>
-          <style>
-            body {
-              margin: 0;
-              font-family: Arial, sans-serif;
-            }
-            #iframe-root {
-              padding: 20px;
-            }
-          </style>
-        </head>
-        <body>
-          <div id="iframe-root"></div>
-        </body>
-        </html>
-      `);
-            iframeDoc.close();
-
-            const rootElement = iframeDoc.getElementById("iframe-root");
-            if (rootElement) {
-                const router = createMemoryRouter(routes);
-                const root = ReactDOM.createRoot(rootElement);
-                root.render(<RouterProvider router={router}>{children}</RouterProvider>);
-            }
-        }
-    }, [children, routes]);
-
-    return <iframe ref={iframeRef} style={{ width: "100%", height: "100%", border: "1px solid #ccc" }} />;
-};
 
 function RenderPage ({selectedPage, isNavOpen, format, attributes, dataItems, apiLoad, apiUpdate, theme}) {
     const [page, setPage] = useState();
