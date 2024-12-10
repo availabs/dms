@@ -2,7 +2,7 @@ import React, {Fragment, useContext, useEffect, useState} from "react";
 import {useParams, useNavigate, useSearchParams} from "react-router-dom";
 import {dmsDataLoader} from "../../../../api";
 import {getConfig} from "./index";
-import Layout from "../../ui/avail-layout";
+import { Layout } from "../../ui";
 import {CMSContext} from "../../siteConfig";
 import {dataItemsNav, detectNavLevel} from "../../pages/_utils";
 import dataTypes from "../../../../data-types";

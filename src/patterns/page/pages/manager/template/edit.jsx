@@ -3,10 +3,8 @@ import { NavLink, Link, useSubmit, useNavigate, useLocation, useParams} from "re
 import { cloneDeep } from "lodash-es"
 
 
-//import Layout from '../../ui/avail-layout'
 import { json2DmsForm, getInPageNav  } from '../../_utils'
-import { SideNavContainer } from '../../../ui'
-import SideNav from '../../../ui/nav/Side' //'../components/nav/Side'
+import { SideNavContainer, SideNav } from '../../../ui'
 import EditControls from './templateEditControls'
 import { CMSContext } from '../../../siteConfig'
 

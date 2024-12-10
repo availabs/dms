@@ -4,11 +4,9 @@ import { cloneDeep } from "lodash-es"
 // -- 
 import { CMSContext } from '../siteConfig'
 import {dataItemsNav, detectNavLevel, getInPageNav} from './_utils'
-import Layout from '../ui/avail-layout'
-import SideNav from '../ui/nav/Side'
+import { Layout, SideNav, SideNavContainer } from '../ui'
 
 import {PDF, PencilEditSquare, Printer} from '../ui/icons'
-import { SideNavContainer } from '../ui'
 import {selectablePDF} from "../components/saveAsPDF/PrintWell/selectablePDF";
 
 function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiLoad, apiUpdate, format}) {
@@ -41,7 +39,7 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
 
   //console.log('inPageNav', inPageNav)
   return (
-    <div id='page_view'>
+    <div id='page_view' className={`${theme?.page?.container}`}>
       {/* Header */}
       {(item?.header === 'above') && <ContentView item={item} value={[headerSection]} attributes={sectionAttr} />}
       {/* Layout */}

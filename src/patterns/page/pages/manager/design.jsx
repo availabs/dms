@@ -8,14 +8,13 @@ import Frame from 'react-frame-component'
 
 
 import ManagerLayout from './layout'
-import Layout from '../../ui/avail-layout'
 import Icons from '../../ui/icons'
 import {dataItemsNav, detectNavLevel, getInPageNav} from '../_utils'
 // import SideNav from '../../ui/nav/Side'
 import { ArrowUp, ArrowDown } from '../../ui/icons'
-import { SideNavContainer } from '../../ui'
+import { Layout, SideNavContainer } from '../../ui'
 import { CMSContext } from '../../siteConfig'
-import { themeOptions } from '../../theme/theme'
+import { themeOptions } from '../../ui/theme'
 
 
 function SelectControl ({ themeOptions, theme, newTheme, setNewTheme, sectionKey, navKey, controlKey }) 
@@ -229,7 +228,7 @@ function DesignEditor ({item, dataItems, attributes, apiLoad, apiUpdate, format,
             }],
             format: PatternFormat
         })
-        //console.log('got data', data)
+        // console.log('got data', data, format.type)
         setNewTheme( cloneDeep(data?.[0]?.theme || {}))
         setPattern( cloneDeep( {theme: {},...data?.[0]} || {}))
       }
@@ -245,13 +244,14 @@ function DesignEditor ({item, dataItems, attributes, apiLoad, apiUpdate, format,
 
   return (
       <div className='flex h-full'>
-        <div className='flex-1 h-full flex p-4'>
+        <div className='flex-1 h-full flex p-4 h-[calc(100vh_-_6rem)] overflow-y-auto'>
           <Frame
-            className='flex-1 border'
+            className='flex-1 h-[calc(100vh_-_6rem)] border'
             head={
               <>
-                <script src="https://cdn.tailwindcss.com" />
+                
                 <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.15/dist/tailwind.min.css" rel="stylesheet" />
+                <link href="/build.css" rel="stylesheet" />
               </>
             }
           >    

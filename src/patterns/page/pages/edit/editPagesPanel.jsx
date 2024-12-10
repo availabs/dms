@@ -4,7 +4,7 @@ import { Dialog, Transition } from '@headlessui/react'
 
 import { CMSContext } from '../../siteConfig'
 
-import Nestable from '../../ui/nestable';
+import { Nestable } from '../../ui';
 import { json2DmsForm, getUrlSlug, dataItemsNav } from '../_utils'
 
 

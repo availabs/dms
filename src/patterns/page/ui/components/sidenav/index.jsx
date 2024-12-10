@@ -1,14 +1,40 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 
-import { CMSContext } from '../../siteConfig'
+import { CMSContext } from '../../../siteConfig'
 
 import { get } from "lodash-es";;
 
 import SidebarItem from "./Item";
-import { MobileMenu } from './Top'
+import { MobileMenu } from '../topnav'
 
 const NOOP = () => { return {} }
+
+export const sideNavTheme = {
+   "fixed": "",
+   "logoWrapper": "w-44 bg-neutral-100 text-slate-800",
+   "sidenavWrapper": "hidden md:block bg-white border-r w-44 h-full z-20",
+   "menuItemWrapper": "flex flex-col",
+   "menuIconSide": "group w-6 mr-2 text-blue-500  group-hover:text-blue-800",
+   "menuIconSideActive": "group w-6 mr-2 text-blue-500  group-hover:text-blue-800",
+   "itemsWrapper": "border-slate-200 pt-5  ",
+   "navItemContent": "transition-transform duration-300 ease-in-out",
+   "navitemSide": `
+   	group  flex flex-col
+   	group flex px-3 py-1.5 text-[14px] font-light hover:bg-blue-50 text-slate-700 mx-2
+   	focus:outline-none focus:text-gray-800 focus:bg-gray-50 focus:border-gray-300
+   	transition-all cursor-pointer`,
+   "navitemSideActive": `
+   	group  flex flex-col
+   	px-3 py-1.5 text-[14px] font-light hover:bg-blue-50 text-slate-700  mx-2   
+    	focus:outline-none focus:text-gray-800 focus:bg-gray-50 focus:border-gray-300
+   	transition-all cursor-pointer`,
+   "indicatorIcon": "fa fa-angle-right pt-2.5",
+   "indicatorIconOpen": "fal fa-angle-down pt-2.5",
+   "subMenuWrapper": "pl-2 w-full",
+   "subMenuParentWrapper": "flex flex-col w-full",
+   "bottomMenuWrapper": ""
+}
 
 const sideBarItem = ({i, item, themeOptions, subMenuActivate}) => (
 	<SidebarItem
@@ -68,14 +94,14 @@ const MobileSidebar = ({
 								</Link>
 							</div>*/}
 							<div>{topMenu}</div>
-							<nav className="flex-1 ">
+							<nav className="flex-1">
 								{menuItems.map((page, i) => (
 									<div key={i} className={page.sectionClass}>
 										{sideBarItem({i, page, themeOptions, subMenuActivate})}
 									</div>
 								))}
 							</nav>
-							<div>
+							<div className={theme.bottomMenuWrapper}>
 								{bottomMenu}
 							</div>
 						</div>
@@ -113,7 +139,9 @@ const DesktopSidebar = ({
 						sideBarItem({i, item, themeOptions, subMenuActivate})
 					)}
 				</nav>
+				<div className={theme.bottomMenuWrapper}>
 				{bottomMenu}
+				</div>
 			</div>
 			{mobile === 'side' ? '' :
 				<div className={`${theme?.topnavWrapper} md:hidden`}>

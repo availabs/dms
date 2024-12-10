@@ -1,7 +1,6 @@
 import React, { Fragment, useState, useLayoutEffect, useRef } from "react"
 import { useLocation } from 'react-router-dom';
-import { isEqual } from "lodash-es"
-import { cloneDeep } from "lodash-es"
+import { isEqual, cloneDeep } from "lodash-es"
 import { Popover, Transition, Combobox } from '@headlessui/react'
 import { Link } from "react-router-dom";
 import { usePopper } from 'react-popper'
@@ -699,8 +698,9 @@ const Edit = ({Component, value, onChange, attr, full_width = false, siteType, a
     }
 
     const save = /* async */ () => {
+
+        let cloneValue = cloneDeep(value || [])
         const trackingId = uuidv4();
-        let cloneValue = cloneDeep(value)
         let action = ''
         // edit.value.has_changes = true
         if(edit.type === 'update') {

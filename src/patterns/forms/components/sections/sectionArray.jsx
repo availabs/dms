@@ -1,7 +1,6 @@
 import React, {Fragment, useState, useLayoutEffect, useEffect} from "react"
 import { useLocation } from 'react-router-dom';
-import { isEqual } from "lodash-es"
-import { cloneDeep } from "lodash-es"
+import { isEqual, cloneDeep } from "lodash-es"
 import { Popover, Transition } from '@headlessui/react'
 import { Link } from "react-router-dom";
 import { usePopper } from 'react-popper'
@@ -664,7 +663,7 @@ const View = ({Component, value, attr, full_width, format, apiLoad, apiUpdate}) 
     }
 
 
-    console.log('render SA view', full_width)
+    ///console.log('render SA view', full_width)
 
     return (
         <div className={`w-full grid grid-cols-6 ${layouts[full_width === 'show' ? 'fullwidth' : 'centered']} gap-1`}>

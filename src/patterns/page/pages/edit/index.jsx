@@ -4,15 +4,16 @@ import { cloneDeep } from "lodash-es"
 
 import { json2DmsForm, getUrlSlug, toSnakeCase, getInPageNav,dataItemsNav, detectNavLevel  } from '../_utils'
 import { saveHeader, saveSection } from './editFunctions'
-import Layout from '../../ui/avail-layout'
-import SideNav from '../../ui/nav/Side'
+
+import { Layout, SideNav, SideNavContainer } from '../../ui'
 import { ViewIcon } from '../../ui/icons'
-import { SideNavContainer } from '../../ui'
 import EditControls from './editControls'
 
 
 
 import { CMSContext } from '../../siteConfig'
+import EditPane from './editPane'
+
 
 function PageEdit ({
   format, item, dataItems, updateAttribute,attributes, setItem, apiLoad, apiUpdate, status, navOptions, siteType
@@ -74,7 +75,7 @@ function PageEdit ({
   }, [])
 
   return (
-    <div>
+    <div className={`${theme?.page?.container}`}>
       {item?.header === 'above' && (
         <ContentEdit
           item={item}
@@ -84,7 +85,7 @@ function PageEdit ({
           siteType={siteType}
         />
       )} 
-      <Layout navItems={menuItems} secondNav={theme?.navOptions?.secondaryNav?.navItems || []}>
+      <Layout navItems={menuItems} secondNav={theme?.navOptions?.secondaryNav?.navItems || []} /*EditPane={EditPane}*/>
         <div className={`${theme?.page?.wrapper1} ${theme?.navPadding[level]}`}>
           {item?.header === 'below' && (
             <ContentEdit 
