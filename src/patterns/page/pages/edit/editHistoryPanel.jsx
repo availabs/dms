@@ -69,7 +69,6 @@ function classNames(...classes) {
 }
 
  function HistoryList({history, onChange}) {
-  const [addingEntry, setAddingEntry] = useState(false);
   const [comment, setComment] = useState('');
   return (
     <>
@@ -85,8 +84,7 @@ function classNames(...classes) {
           </div>
           <>
             <div className="relative flex h-6 w-6 flex-none items-center justify-center bg-white">
-              <Add width={10} height={10} className={'text-gray-400 hover:text-gray-500 cursor-pointer'}
-                   onClick={() => setAddingEntry(!addingEntry)}/>
+              <Add width={10} height={10} className={'text-gray-400 hover:text-gray-500 cursor-pointer'} />
             </div>
             <input className="flex-auto py-0.5 text-xs leading-5 text-gray-500 rounded-md"
                    type={'text'}
@@ -96,7 +94,7 @@ function classNames(...classes) {
             />
             {
               comment?.length ? <button className={'p-1 rounded-md bg-blue-300 hover:bg-blue-600 text-white'} onClick={() => {
-                onChange(comment)
+                onChange(`commented: ${comment}`)
                 setComment('')
               }} >add</button> : null
             }
@@ -104,58 +102,42 @@ function classNames(...classes) {
         </li>
         {history
             .sort((a, b) => new Date(b.time) - new Date(a.time))
-            .map((historyItem, historyItemIdx) => (
-                <li key={historyItem.id} className="relative flex gap-x-4">
-                  <div
-                      className={classNames(
-                          historyItemIdx === history.length - 1 ? 'h-6' : '-bottom-6',
-                'absolute left-0 top-0 flex w-6 justify-center'
-              )}
-            >
-              <div className="w-px bg-gray-200" />
-            </div>
-            {/*
-              historyItem.type === 'commented' ? (
-              <>
-                <img
-                  src={historyItem.person.imageUrl}
-                  alt=""
-                  className="relative mt-3 h-6 w-6 flex-none rounded-full bg-gray-50"
-                />
-                <div className="flex-auto rounded-md p-3 ring-1 ring-inset ring-gray-200">
-                  <div className="flex justify-between gap-x-4">
-                    <div className="py-0.5 text-xs leading-5 text-gray-500">
-                      <span className="font-medium text-gray-900">{historyItem.time}</span> commented
+            .map((historyItem, historyItemIdx) => {
+              const isComment = historyItem.type.startsWith('commented:');
+              const comment = isComment ? historyItem.type.split('commented:')[1] : null;
+              return (
+                  <li key={historyItem.id} className="relative flex gap-x-4">
+                    <div
+                        className={classNames(
+                            historyItemIdx === history.length - 1 ? 'h-6' : '-bottom-6',
+                            'absolute left-0 top-0 flex w-6 justify-center'
+                        )}
+                    >
+                      <div className="w-px bg-gray-200"/>
                     </div>
-                    <time dateTime={historyItem.dateTime} className="flex-none py-0.5 text-xs leading-5 text-gray-500">
-                      {historyItem.date}
-                    </time>
-                  </div>
-                  <p className="text-sm leading-6 text-gray-500">{historyItem.comment}</p>
-                </div>
-              </>
-            ) : */ }
+                    <div className="relative flex h-6 w-6 flex-none items-center justify-center bg-white">
+                      <div className="h-1.5 w-1.5 rounded-full bg-gray-100 ring-1 ring-gray-300"/>
+                    </div>
+                    <div className={`${isComment ? 'border p-2 rounded-md' : ''} w-full`}>
+                      <p className={`flex-auto py-0.5 text-xs leading-5 text-gray-500`}>
+                        <span className="font-medium text-gray-900">{historyItem.user}</span>
+                        <span className={'ml-0.5'}>{isComment ? 'commented' : historyItem.type}</span>
+                        <time dateTime={historyItem.time}
+                              className={`float-right flex-none py-0.5 text-xs leading-5 text-gray-500`}>
+                          {timeAgo(historyItem.time)}
+                        </time>
+                        {isComment ? <div className={'text-sm/6 text-gray-500'}>{comment}</div> : null}
+                      </p>
+                    </div>
 
-            <>
-              <div className="relative flex h-6 w-6 flex-none items-center justify-center bg-white">
-                  <div className="h-1.5 w-1.5 rounded-full bg-gray-100 ring-1 ring-gray-300" />
-              </div>
-              <p className="flex-auto py-0.5 text-xs leading-5 text-gray-500">
-                <span className="font-medium text-gray-900">{historyItem.user}</span> {historyItem.type}
-              </p>
-              <time dateTime={historyItem.time} className="flex-none py-0.5 text-xs leading-5 text-gray-500">
-                {timeAgo(historyItem.time)}
-              </time>
-            </>
-
-          </li>
-        ))}
+                  </li>
+              )
+            })}
       </ul>
-
 
 
     </>
   )
-}
+ }
 
 
