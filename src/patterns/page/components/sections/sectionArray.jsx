@@ -794,7 +794,6 @@ const Edit = ({Component, value, onChange, attr, full_width = false, siteType, a
                                 edit.index === -1 || i > 0 ? '' : <div className='' />
                         */ }
 
-                        {v.trackingId}
                         {/* edit new or existing section */}
                         {edit.index === i 
                             ? <SectionEdit 
