@@ -8,7 +8,7 @@ import PageEdit from "../edit";
 
 const customTheme = {
     nav: {
-        container: (open) => open ? `w-1/3 border-r overflow-hidden` : `hidden`,
+        container: (open) => open ? `w-1/4 max-w-[25%] border-r overflow-hidden` : `hidden`,
         navItemContainer: 'max-h-[80vh] w-full border-l overflow-y-auto overflow-x-hidden pt-3 scrollbar-xs',
         navItem: ({isActive, isPending}) =>
             `block px-4 py-2 font-light ${isActive ?
@@ -24,7 +24,7 @@ const customTheme = {
         expandCollapseButton: 'p-0.5 h-fit w-fit rounded-md text-white text-xs bg-blue-300 hover:bg-blue-600'
     },
   page: {
-        pageContainer: (small) => `border max-h-[80vh] ${small ? `max-w-[70vw] w-2/3` : `max-w-[80vw]`} overflow-y-auto overflow-x-auto pt-3 scrollbar-xs`,
+        pageContainer: (small) => `border max-h-[80vh] ${small ? `max-w-[90%] w-[90%]` : `max-w-[100%]`} overflow-y-auto overflow-x-auto pt-3 scrollbar-xs`,
   }
 }
 
@@ -307,19 +307,20 @@ function RenderPage ({selectedPage, isNavOpen, format, attributes, dataItems, ap
         load();
     }, [selectedPage]);
 
-    return selectedPage && page ? (
-        <div className={customTheme.page.pageContainer(isNavOpen)}>
-            <PageEdit item={page} dataItems={dataItems} attributes={attributes}
-                      apiLoad={apiLoad} apiUpdate={apiUpdate}
-                      format={format} siteType={'prod'}
-                      updateAttribute={e => console.log('updateAttribute called', e)}
-                      theme={{
-                          layout:{wrapper: 'max-w-full'},
-                          page: {'wrapper1': 'max-w-full'}
-            }}
-            />
-        </div>
-    ) : <div className={customTheme.page.pageContainer(isNavOpen)}>no page selected</div>
+    return <div className={customTheme.page.pageContainer(isNavOpen)}>
+        {
+            selectedPage && page ?
+                <PageEdit item={page} dataItems={dataItems} attributes={attributes}
+                          apiLoad={apiLoad} apiUpdate={apiUpdate}
+                          format={format} siteType={'prod'}
+                          updateAttribute={e => console.log('updateAttribute called', e)}
+                          theme={{
+                              layout: {wrapper: 'max-w-full'},
+                              page: {'wrapper1': 'max-w-full'}
+                          }}
+                /> : <div className={customTheme.page.pageContainer(isNavOpen)}>no page selected</div>
+        }
+    </div>
 }
 
 function PagesManager({item, dataItems, format, attributes, apiLoad, apiUpdate, ...rest}) {
@@ -329,12 +330,12 @@ function PagesManager({item, dataItems, format, attributes, apiLoad, apiUpdate, 
 
     return (
         <div className={`${theme?.page?.wrapper2}`}>
-          <div className={theme?.page?.wrapper3}>
+          <div className={`${theme?.page?.wrapper3} max-w-[100vw]`}>
             {/* Content */}
             <div className='flex items-center'>
               <div className='text-2xl p-3 font-thin flex-1'>Pages</div>
             </div>
-            <div className={'flex max-w-full h-full max-h-100vh overflow-hidden'}>
+            <div className={'flex w-full max-w-[85%] h-full overflow-hidden'}>
               <Nav item={item} dataItems={dataItems} open={open} setOpen={setOpen} selectedPage={selectedPage} setSelectedPage={setSelectedPage} edit={true}/>
               <RenderPage selectedPage={selectedPage} setSelectedPage={setSelectedPage}
                           format={format} attributes={attributes}
