@@ -127,16 +127,17 @@ function Nav({dataItems, edit, open, setOpen, selectedPage, setSelectedPage}) {
         Promise.all(
             updates.map((item) => {
                 submit(json2DmsForm(item), {method: "post", action: pathname})
-            }))//.then(values => {console.log('updating nav', values)})
+            }))
     }, []);
 
+    const detectHasChanges = item => item.published === 'draft' || item.has_changes === 'true' || item.has_changes === true;
 
     const mapDataItemToItem = (d, i) => {
         let item = {
             id: d.id,
             index: d.index,
             title: d.title,
-            has_changes: d.has_changes,
+            has_changes: detectHasChanges(d),
             url: d.url_slug
         }
         if (getChildNav(item, dataItems)) {
@@ -144,6 +145,9 @@ function Nav({dataItems, edit, open, setOpen, selectedPage, setSelectedPage}) {
         }
 
         item.Comp = ({isExpanded, hasChanges, isSelectedPage}) => {
+            const unpublishedChildren = getUnpublishedChildrenCount(item, dataItems);
+            const allChildren = getAllChildrenCount(item, dataItems);
+
             return (
                 <div key={item.id}
                      className={`px-1 flex items-center gap-1 cursor-pointer ${isSelectedPage ? `bg-gray-100` : ``} hover:bg-gray-100 rounded-md`}
@@ -151,11 +155,15 @@ function Nav({dataItems, edit, open, setOpen, selectedPage, setSelectedPage}) {
                          toggleExpand(item.id)
                      }}>
 
-                    {item.title}
+                    <span className={'max-w-[50%] truncate'}>{item.title}</span>
 
-                    <div className={`px-0.5 text-white text-xs ${hasChanges ? `bg-red-600` : `bg-blue-600`} rounded-lg`}>
-                        {hasChanges ? 'unpublished' : 'published'}
-                    </div>
+                    {/*unpublished pill*/}
+                    {hasChanges ? <div className={`px-0.5 text-white text-xs bg-red-600 rounded-lg`}>unpublished</div> : null}
+                    {/*total children pill*/}
+                    {allChildren ? <div className={`px-0.5 text-white text-xs bg-blue-600 rounded-lg`}>{allChildren}</div> : null}
+                    {/*unpublished children pill*/}
+                    {unpublishedChildren ? <div className={`px-0.5 text-white text-xs bg-red-600 rounded-lg`}>{unpublishedChildren}</div> : null}
+
 
                     {!item.children?.length ? '' : isExpanded ? `-` : '+'}
 
@@ -178,6 +186,28 @@ function Nav({dataItems, edit, open, setOpen, selectedPage, setSelectedPage}) {
         return item
     }
 
+    function getUnpublishedChildrenCount (item, dataItems) {
+        let children = dataItems.filter(d => d.parent === item.id)
+
+        if (children.length === 0) return 0 // detectHasChanges(item) ? 1 : 0;
+
+        return children.reduce((acc, c) => acc +
+                (detectHasChanges(c) ? 1 : 0) + // count current item
+                getUnpublishedChildrenCount(c, dataItems) // count current item's unpublished children
+            , 0)
+    }
+
+    function getAllChildrenCount (item, dataItems) {
+        let children = dataItems.filter(d => d.parent === item.id)
+
+        if (children.length === 0) return 0 // detectHasChanges(item) ? 1 : 0;
+
+        return children.reduce((acc, c) => acc +
+                1 + // count current item
+                getAllChildrenCount(c, dataItems) // count current item's unpublished children
+            , 0)
+    }
+
     function getChildNav(item, dataItems) {
         let children = dataItems
             .filter(d => d.parent === item.id)
@@ -196,7 +226,7 @@ function Nav({dataItems, edit, open, setOpen, selectedPage, setSelectedPage}) {
         if (!item) return null;
         let Comp = item.Comp;
         const isExpanded = expandedItems[item.id];
-        const hasChanges = item.published === 'draft' || item.has_changes === 'true' || item.has_changes === true;
+        const hasChanges = detectHasChanges(item);
         const isSelectedPage = selectedPage === item.id;
         return (
             <>
@@ -248,7 +278,6 @@ function Nav({dataItems, edit, open, setOpen, selectedPage, setSelectedPage}) {
 
 function RenderPage ({selectedPage, isNavOpen, format, attributes, dataItems, apiLoad, apiUpdate, theme}) {
     const [page, setPage] = useState();
-    const [routes, setRoutes] = useState([]);
 
     useEffect(() => {
         if(!selectedPage) return;
@@ -265,28 +294,14 @@ function RenderPage ({selectedPage, isNavOpen, format, attributes, dataItems, ap
                             options: JSON.stringify({
                                 filter: {id: [selectedPage]},
                             }),
-                            // attributes: ['title', 'index', 'url_slug', 'parent', 'published', 'has_changes', 'hide_in_nav' ,'sections','sidebar','header','footer', 'full_width']
                         },
-                        path: `view/:id`, // trying to pass params. children need to match with path. this doesn't work.
+                        path: `view/:id`,
                         params: {id: selectedPage}
                     }
                 ]
             }
             const res = await apiLoad(config, `/view/${selectedPage}`);
-            console.log('res', res[0].url_slug)
-            const routes = [
-                {
-                    path: `/`,
-                    // element: <div className={'text-xl text-gray-900'}>hi</div>
-                    element: <PageEdit item={res[0]} dataItems={dataItems} attributes={attributes}
-                                       apiLoad={apiLoad} apiUpdate={apiUpdate}
-                                       format={format} siteType={'prod'}
-                                       updateAttribute={e => console.log('updateAttribute called', e)}
-                    />
-                }
-            ]
             setPage(res[0]);
-            setRoutes(routes);
         }
 
         load();
