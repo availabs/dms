@@ -1,7 +1,7 @@
 import React, {Fragment, useEffect, useRef, useState} from 'react'
 import {NavLink, useSubmit, useLocation, useNavigate} from "react-router-dom";
 import Nestable from '../../ui/components/nestable';
-import {ArrowDown, ArrowUp} from '../../ui/icons';
+import {ArrowDown, ArrowUp, ArrowRight, ArrowLeft, DraftPage} from '../../ui/icons';
 import {json2DmsForm, getUrlSlug} from '../_utils'
 import {CMSContext} from '../../siteConfig'
 import PageEdit from "../edit";
@@ -21,7 +21,7 @@ const customTheme = {
                 'w-[230px] hover:bg-blue-100 text-slate-600'
             }`,
         addItemButton: 'cursor-pointer px-4 py-2 mt-3 hover:bg-blue-100 w-full text-slate-400 border-t border-slate-200',
-        expandCollapseButton: 'p-0.5 h-fit w-fit rounded-md text-white text-xs bg-blue-300 hover:bg-blue-600'
+        expandCollapseButton: 'p-0.5 h-fit w-fit rounded-md text-blue-400 text-xs  hover:text-blue-500'
     },
   page: {
         pageContainer: (small) => `border max-h-[80vh] ${small ? `max-w-[90%] w-[90%]` : `max-w-[100%]`} overflow-y-auto overflow-x-auto scrollbar-xs`,
@@ -92,7 +92,8 @@ const getExpandableItems = (items) => items.reduce((acc, curr) => curr.children 
 const Pill = ({color, text}) => {
     const colors = {
         orange: `bg-orange-500/15 text-orange-700 group-data-[hover]:bg-orange-500/25`,
-        blue: `bg-blue-500/15 text-blue-700 group-data-[hover]:bg-blue-500/25`
+        blue: `bg-blue-500/15 text-blue-700 group-data-[hover]:bg-blue-500/25`,
+        gray: `text-gray-400`
     };
     return (
         <div
@@ -167,30 +168,29 @@ function Nav({dataItems, edit, open, setOpen, selectedPage, setSelectedPage}) {
                 <div key={item.id}
                      className={`p-1.5 flex items-center gap-1 cursor-pointer ${isSelectedPage ? `bg-gray-100` : ``} hover:bg-gray-100 rounded-md`}>
 
-                    <span className={'flex-1 max-w-[50%] truncate'}
+                    <span className={'flex-1 truncate'}
                           title={item.title}
                           onClick={e => {
                               e.stopPropagation();
                               setSelectedPage(item.id);
-                          }}>{item.title}</span>
+                          }}>{item.title}
+                    </span>
 
-                    <div className={'flex-1'}>
-                        <div className={'flex gap-0.5'}>
+                        <div className={'flex gap-0.5 items-center'}>
                             {/*unpublished pill*/}
-                            {hasChanges ? <Pill text={'unpublished'} color={'orange'} /> : null}
-                            {/*total children pill*/}
-                            {allChildren ? <Pill text={allChildren} color={'blue'} /> : null}
+                            {hasChanges ?  <DraftPage className={'text-orange-500'} />  : null}
                             {/*unpublished children pill*/}
                             {unpublishedChildren ? <Pill text={unpublishedChildren} color={'orange'} /> : null}
+                            {/*total children pill*/}
+                            {allChildren ? <Pill text={allChildren} color={'gray'} /> : null}
                         </div>
-                    </div>
 
 
                     {!item.children?.length ? '' : isExpanded ?
-                        <ArrowUp onClick={() => {
+                        <ArrowUp className={'text-gray-400 hover:text-gray-500'}  onClick={() => {
                             toggleExpand(item.id)
                         }}/> :
-                        <ArrowDown onClick={() => {
+                        <ArrowDown className={'text-gray-400 hover:text-gray-500'} onClick={() => {
                             toggleExpand(item.id)
                         }}/>
                     }
@@ -255,9 +255,7 @@ function Nav({dataItems, edit, open, setOpen, selectedPage, setSelectedPage}) {
     }
 
     if(!open) {
-        return <button className={customTheme.nav.expandCollapseButton}
-                       onClick={() => setOpen(true)}
-        >Show Sidebar</button>
+        return <ArrowRight className={'cursor-pointer text-blue-400 hover:text-blue-500'} onClick={() => setOpen(true)} />
     }
     return (
         <div className={customTheme.nav.container(open)}>
@@ -273,10 +271,7 @@ function Nav({dataItems, edit, open, setOpen, selectedPage, setSelectedPage}) {
                             }), {}))}
                     >Expand All
                     </button>
-                    <button className={customTheme.nav.expandCollapseButton}
-                            onClick={() => setOpen(false)}
-                    >Hide Sidebar
-                    </button>
+                    <ArrowLeft className={'cursor-pointer text-blue-400 hover:text-blue-500'} onClick={() => setOpen(false)} />
                 </div>
 
                 <Nestable
