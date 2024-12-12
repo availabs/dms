@@ -211,6 +211,7 @@ export const publish = async (user,item, apiUpdate) => {
     history
   }
 
+  // no use: draft_id is never saved
   let sectionsByDraftId = cloneDeep(item.sections || [])
     .reduce((o,s) => { 
       if(s.draft_id){
@@ -221,7 +222,7 @@ export const publish = async (user,item, apiUpdate) => {
 
   newItem.sections = cloneDeep(item.draft_sections || [])
     .reduce((sections, draft) => {
-      if(sectionsByDraftId[draft.id]) {
+      if(sectionsByDraftId[draft.id]) { // never triggers
         draft.id = sectionsByDraftId[draft.id].id
       } else {
         delete draft.id

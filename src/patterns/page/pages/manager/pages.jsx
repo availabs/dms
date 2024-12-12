@@ -1,7 +1,7 @@
 import React, {Fragment, useEffect, useRef, useState} from 'react'
 import {NavLink, useSubmit, useLocation, useNavigate} from "react-router-dom";
 import Nestable from '../../ui/components/nestable';
-import {LinkSquare, ViewIcon} from '../../ui/icons';
+import {ArrowDown, ArrowUp} from '../../ui/icons';
 import {json2DmsForm, getUrlSlug} from '../_utils'
 import {CMSContext} from '../../siteConfig'
 import PageEdit from "../edit";
@@ -9,7 +9,7 @@ import PageEdit from "../edit";
 const customTheme = {
     nav: {
         container: (open) => open ? `w-1/4 max-w-[25%] border-r overflow-hidden` : `hidden`,
-        navItemContainer: 'max-h-[80vh] w-full border-l overflow-y-auto overflow-x-hidden pt-3 scrollbar-xs',
+        navItemContainer: 'max-h-[80vh] w-full overflow-y-auto overflow-x-hidden pt-3 scrollbar-xs',
         navItem: ({isActive, isPending}) =>
             `block px-4 py-2 font-light ${isActive ?
                 'w-[256px] bg-white text-blue-500 border-l border-y' :
@@ -24,7 +24,7 @@ const customTheme = {
         expandCollapseButton: 'p-0.5 h-fit w-fit rounded-md text-white text-xs bg-blue-300 hover:bg-blue-600'
     },
   page: {
-        pageContainer: (small) => `border max-h-[80vh] ${small ? `max-w-[90%] w-[90%]` : `max-w-[100%]`} overflow-y-auto overflow-x-auto pt-3 scrollbar-xs`,
+        pageContainer: (small) => `border max-h-[80vh] ${small ? `max-w-[90%] w-[90%]` : `max-w-[100%]`} overflow-y-auto overflow-x-auto scrollbar-xs`,
   }
 }
 
@@ -89,6 +89,18 @@ const getExpandableItems = (items) => items.reduce((acc, curr) => curr.children 
 
 // ==================================================== util fns end ===================================================
 
+const Pill = ({color, text}) => {
+    const colors = `bg-${color}-500/15 text-${color}-700 group-data-[hover]:bg-${color}-500/25`;
+    return (
+        <div
+            className="group relative inline-flex rounded-md focus:outline-none">
+            <span className={`inline-flex items-center gap-x-1.5 rounded-md px-1.5 py-0.5 text-sm/5 font-medium sm:text-xs/5 forced-colors:outline
+            ${colors}
+            `}>{text}</span>
+        </div>
+    )
+}
+
 function Nav({dataItems, edit, open, setOpen, selectedPage, setSelectedPage}) {
     const submit = useSubmit()
     const {pathname = '/edit'} = useLocation()
@@ -150,36 +162,39 @@ function Nav({dataItems, edit, open, setOpen, selectedPage, setSelectedPage}) {
 
             return (
                 <div key={item.id}
-                     className={`px-1 flex items-center gap-1 cursor-pointer ${isSelectedPage ? `bg-gray-100` : ``} hover:bg-gray-100 rounded-md`}
-                     onClick={() => {
-                         toggleExpand(item.id)
-                     }}>
+                     className={`p-1.5 flex items-center gap-1 cursor-pointer ${isSelectedPage ? `bg-gray-100` : ``} hover:bg-gray-100 rounded-md`}>
 
-                    <span className={'max-w-[50%] truncate'}>{item.title}</span>
+                    <span className={'flex-1 max-w-[50%] truncate'}
+                          title={item.title}
+                          onClick={e => {
+                              e.stopPropagation();
+                              setSelectedPage(item.id);
+                          }}>{item.title}</span>
 
-                    {/*unpublished pill*/}
-                    {hasChanges ? <div className={`px-0.5 text-white text-xs bg-red-600 rounded-lg`}>unpublished</div> : null}
-                    {/*total children pill*/}
-                    {allChildren ? <div className={`px-0.5 text-white text-xs bg-blue-600 rounded-lg`}>{allChildren}</div> : null}
-                    {/*unpublished children pill*/}
-                    {unpublishedChildren ? <div className={`px-0.5 text-white text-xs bg-red-600 rounded-lg`}>{unpublishedChildren}</div> : null}
-
-
-                    {!item.children?.length ? '' : isExpanded ? `-` : '+'}
-
-                    <ViewIcon onClick={e => {
-                        e.stopPropagation();
-                        setSelectedPage(item.id);
-                    }} height={15} width={15} className={'text-gray-700 hover:text-gray-900'}/>
-
-                    <NavLink to={item.url}>
-                        <LinkSquare height={15} width={15} className={'text-gray-600 hover:text-blue-600'}/>
-                    </NavLink>
+                    <div className={'flex-1'}>
+                        <div className={'flex gap-0.5'}>
+                            {/*unpublished pill*/}
+                            {hasChanges ? <Pill text={'unpublished'} color={'orange'} /> : null}
+                            {/*total children pill*/}
+                            {allChildren ? <Pill text={allChildren} color={'blue'} /> : null}
+                            {/*unpublished children pill*/}
+                            {unpublishedChildren ? <Pill text={unpublishedChildren} color={'orange'} /> : null}
+                        </div>
+                    </div>
 
 
-                    {/*{*/}
-                    {/*    isExpanded && item.children?.length ? item.children.map(({Comp}) => <Comp/>) : null*/}
-                    {/*}*/}
+                    {!item.children?.length ? '' : isExpanded ?
+                        <ArrowUp onClick={() => {
+                            toggleExpand(item.id)
+                        }}/> :
+                        <ArrowDown onClick={() => {
+                            toggleExpand(item.id)
+                        }}/>
+                    }
+
+                    {/*<NavLink to={item.url}>*/}
+                    {/*    <LinkSquare height={15} width={15} className={'text-gray-600 hover:text-blue-600'}/>*/}
+                    {/*</NavLink>*/}
                 </div>
             )
         };
@@ -231,7 +246,7 @@ function Nav({dataItems, edit, open, setOpen, selectedPage, setSelectedPage}) {
         return (
             <>
                 <Comp isExpanded={isExpanded} hasChanges={hasChanges} isSelectedPage={isSelectedPage}/>
-                {isExpanded ? <div className={'pl-5 border-l'}>{item.children.map(renderItem)}</div> : null}
+                {isExpanded ? <div className={'pl-3 ml-2 border-l'}>{item.children.map(renderItem)}</div> : null}
             </>
         )
     }
@@ -318,7 +333,7 @@ function RenderPage ({selectedPage, isNavOpen, format, attributes, dataItems, ap
                               layout: {wrapper: 'max-w-full'},
                               page: {'wrapper1': 'max-w-full'}
                           }}
-                /> : <div className={customTheme.page.pageContainer(isNavOpen)}>no page selected</div>
+                /> : <div className={'text-center mt-16'}>Please click on a page title to preview it.</div>
         }
     </div>
 }
