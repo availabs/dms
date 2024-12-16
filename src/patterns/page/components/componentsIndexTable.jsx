@@ -127,7 +127,7 @@ const getURL = ({name, section={}, pattern={}}) => {
     const {protocol, host} = window.location;
     const domain = host.split('.').length > 2 ? host.split('.').slice(1).join('.') : host; // devmny.org
     const subDomain = typeof pattern.subdomain === 'string' ? `${pattern.subdomain}.${domain}` : domain ;
-    return patternBaseUrl?.length ? `${protocol}//${subDomain}/${patternBaseUrl}/${url}` : `${protocol}//${subDomain}/${url}`;
+    return patternBaseUrl?.length ? `${protocol}//${subDomain}/${patternBaseUrl}/edit/${url}` : `${protocol}//${subDomain}/edit/${url}`;
 }
 
 const getCenRepURL = ({name, section, pattern}) => {
