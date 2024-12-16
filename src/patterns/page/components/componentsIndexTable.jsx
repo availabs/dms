@@ -387,6 +387,11 @@ const Edit = ({value, onChange, siteType}) => {
             // if(v?.length === 1) setView(v?.[0]?.id)
         })
     }, [source, app, pattern, envs]);
+
+    const sectionTypeCount = useMemo(() => sections.reduce((acc, curr) => {
+        acc[curr.element_type] = (acc[curr.element_type] || 0) + 1;
+        return acc;
+    }, {}), [sections]);
     // ============================================ data load end ======================================================
 
     // ============================================ save begin =========================================================
@@ -451,9 +456,10 @@ const Edit = ({value, onChange, siteType}) => {
                         options={
                             Object.keys(RegisteredComponents)
                                 .filter(k => !RegisteredComponents[k].hideInSelector)
+                                .sort((a,b) => (sectionTypeCount[a] || 0) - (sectionTypeCount[b] || 0))
                                 .map(k => (
                                     {
-                                        key: k, label: RegisteredComponents[k].name || k
+                                        key: k, label: `${RegisteredComponents[k].name} (${sectionTypeCount[k] || 0})` || RegisteredComponents[k].name || k
                                     }
                                 ))
                         }

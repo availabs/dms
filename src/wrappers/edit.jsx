@@ -57,7 +57,7 @@ export default function EditWrapper({ Component, format, options, params, user, 
 	}
 
 	const submitForm = () => {
-		submit(json2DmsForm(item), { method: "post", action: pathname })
+		submit(json2DmsForm(item), { method: "post", action: `${pathname}${search}` })
 	}
 
 	const apiLoad = async (config, path) => {
