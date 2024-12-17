@@ -30,7 +30,7 @@ const cols = {
 
 const sectionCols = [
     // {name: 'sortBy', display_name: 'sort'},
-    {name: 'section_id', display_name: 'id'},
+    {name: 'tracking_id', display_name: 'id'},
     {name: 'parent', display_name: 'Parent'},
     {name: 'page_title', display_name: 'Page Title'},
     {name: 'section_title', display_name: 'Section Title'},
@@ -127,7 +127,7 @@ const getURL = ({name, section={}, pattern={}}) => {
     const {protocol, host} = window.location;
     const domain = host.split('.').length > 2 ? host.split('.').slice(1).join('.') : host; // devmny.org
     const subDomain = typeof pattern.subdomain === 'string' ? `${pattern.subdomain}.${domain}` : domain ;
-    return patternBaseUrl?.length ? `${protocol}//${subDomain}/${patternBaseUrl}/${url}` : `${protocol}//${subDomain}/${url}`;
+    return patternBaseUrl?.length ? `${protocol}//${subDomain}/${patternBaseUrl}/edit/${url}` : `${protocol}//${subDomain}/edit/${url}`;
 }
 
 const getCenRepURL = ({name, section, pattern}) => {
@@ -235,60 +235,6 @@ const processSections = (sections) => sections.map((s) => {
     .filter(s => s.parent && s.sortBy) // orphans
     .sort((a,b) => a.sortBy.localeCompare(b.sortBy));
 
-/*
-* [
-  {
-    "i": 1751,
-    "app": "mitigat-ny-prod",
-    "type": "shmp",
-    "page_id": "552998",
-    "url_slug": "fema_disaster_template",
-    "page_title": "FEMA Disaster Template",
-    "page_index": "99",
-    "page_parent": null,
-    "section_id": 868263,
-    "section_title": "Declared Counties",
-    "tags": null,
-    "element_type": "Table: Cenrep II",
-    "attribution": {
-      "source_id": 870,
-      "view_id": 1529,
-      "version": "AVAIL - Fusion Events V2 (10/28/2024)",
-      "_modified_timestamp": {
-        "$type": "atom",
-        "value": "2024-10-29T01:03:53.637Z"
-      }
-    },
-    "parent": "FEMA Disaster Template",
-    "sortBy": "99"
-  },
-  {
-    "i": 1758,
-    "app": "mitigat-ny-prod",
-    "type": "shmp",
-    "page_id": "552998",
-    "url_slug": "fema_disaster_template",
-    "page_title": "FEMA Disaster Template",
-    "page_index": "99",
-    "page_parent": null,
-    "section_id": 882250,
-    "section_title": "NCEI Severe Weather Data For This Disaster",
-    "tags": null,
-    "element_type": "Table: Cenrep II",
-    "attribution": {
-      "source_id": 870,
-      "view_id": 1529,
-      "version": "AVAIL - Fusion Events V2 (10/28/2024)",
-      "_modified_timestamp": {
-        "$type": "atom",
-        "value": "2024-10-29T01:03:53.637Z"
-      }
-    },
-    "parent": "FEMA Disaster Template",
-    "sortBy": "99"
-  }
-]
-* */
 const updateSections = async ({sections, newView, falcor, user, setUpdating}) => {
     // for each section, update view. call dmsDataEditor. Update page flag too. group all page updates and do them togather. avoid duplicate page update calls.
     setUpdating(true);
@@ -356,7 +302,7 @@ const updateSections = async ({sections, newView, falcor, user, setUpdating}) =>
                 const pageConfig = {format: {app: pageApp, type: pageType}};
 
                 let historyUpdate = sections.map(({section_id, sectionTitle}) => ({
-                    type: `Updated Section ${sectionTitle || pageData.draft_sections.findIndex(s => +s.id === +section_id) + 1}`,
+                    type: `Updated Section remotely ${sectionTitle || pageData.draft_sections.findIndex(s => +s.id === +section_id) + 1}`,
                     user: user.email,
                     time: new Date().toString()
                 }))
@@ -441,6 +387,11 @@ const Edit = ({value, onChange, siteType}) => {
             // if(v?.length === 1) setView(v?.[0]?.id)
         })
     }, [source, app, pattern, envs]);
+
+    const sectionTypeCount = useMemo(() => sections.reduce((acc, curr) => {
+        acc[curr.element_type] = (acc[curr.element_type] || 0) + 1;
+        return acc;
+    }, {}), [sections]);
     // ============================================ data load end ======================================================
 
     // ============================================ save begin =========================================================
@@ -505,9 +456,10 @@ const Edit = ({value, onChange, siteType}) => {
                         options={
                             Object.keys(RegisteredComponents)
                                 .filter(k => !RegisteredComponents[k].hideInSelector)
+                                .sort((a,b) => (sectionTypeCount[a] || 0) - (sectionTypeCount[b] || 0))
                                 .map(k => (
                                     {
-                                        key: k, label: RegisteredComponents[k].name || k
+                                        key: k, label: `${RegisteredComponents[k].name} (${sectionTypeCount[k] || 0})` || RegisteredComponents[k].name || k
                                     }
                                 ))
                         }

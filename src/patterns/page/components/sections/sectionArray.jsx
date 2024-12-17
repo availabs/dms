@@ -708,7 +708,7 @@ const Edit = ({Component, value, onChange, attr, full_width = false, siteType, a
 
             action = `edited section ${edit?.value?.title ? `${edit?.value?.title} ${edit.index+1}` : edit.index+1}`
         } else {
-            cloneValue.splice(edit.index, 0, {trackingId, ...(edit.value || {})})
+            cloneValue.splice(edit.index, 0, {...(edit.value || {}), trackingId})
             action = `added section ${edit?.value?.title ? `${edit?.value?.title} ${edit.index+1}` : edit.index+1}`
         }
         //console.log('edit on save', edit)

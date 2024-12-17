@@ -35,8 +35,7 @@ function EditControls({ item, dataItems, updateAttribute, setItem, apiUpdate, at
     showHistory: false,
     showDelete: false
   })
-
-  const hasChanges = item.published === 'draft' || item.has_changes
+  const hasChanges = item.published === 'draft' || item.has_changes === 'true' || item.has_changes === true
   const popOverMenus = getMenus(item, dataItems, user, pageType, editState, setEditState, apiUpdate)
 
   return (

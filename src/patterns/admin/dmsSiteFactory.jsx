@@ -7,7 +7,6 @@ import { falcorGraph, useFalcor } from "@availabs/avl-falcor"
 import { cloneDeep } from "lodash-es"
 
 
-import formsConfig from '../forms'
 import metaFormsConfig from '../forms/siteConfig'; // meta level forms config. this "pattern" serves as parent for all forms.
 
 import pageConfig from '../page/siteConfig'
@@ -41,7 +40,6 @@ import {useLocation} from "react-router";
 // --
 const configs = {
     page: pageConfig,
-    form: formsConfig,
     forms: metaFormsConfig,
 }
 

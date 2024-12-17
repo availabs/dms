@@ -1,14 +1,15 @@
-import React, {Fragment, useRef, useState} from 'react'
-import { NavLink, useSubmit, useLocation } from "react-router-dom";
-import { Nestable } from '../../ui';
-import { json2DmsForm, getUrlSlug } from '../_utils'
-import {CancelCircle, ViewIcon} from '../../ui/icons';
-import { CMSContext } from '../../siteConfig'
+import React, {Fragment, useEffect, useRef, useState} from 'react'
+import {NavLink, useSubmit, useLocation, useNavigate} from "react-router-dom";
+import Nestable from '../../ui/components/nestable';
+import {ArrowDown, ArrowUp, ArrowRight, ArrowLeft, DraftPage} from '../../ui/icons';
+import {json2DmsForm, getUrlSlug} from '../_utils'
+import {CMSContext} from '../../siteConfig'
+import PageEdit from "../edit";
 
-const theme = {
+const customTheme = {
     nav: {
-        container: (open) => `w-1/3 border-2 border-teal-400 overflow-hidden`,
-        navItemContainer: 'max-h-[80vh] w-full border-l overflow-y-auto overflow-x-hidden pt-3 scrollbar-xs',
+        container: (open) => open ? `w-1/4 max-w-[25%] border-r overflow-hidden` : `hidden`,
+        navItemContainer: 'max-h-[80vh] w-full overflow-y-auto overflow-x-hidden pt-3 scrollbar-xs',
         navItem: ({isActive, isPending}) =>
             `block px-4 py-2 font-light ${isActive ?
                 'w-[256px] bg-white text-blue-500 border-l border-y' :
@@ -20,10 +21,10 @@ const theme = {
                 'w-[230px] hover:bg-blue-100 text-slate-600'
             }`,
         addItemButton: 'cursor-pointer px-4 py-2 mt-3 hover:bg-blue-100 w-full text-slate-400 border-t border-slate-200',
-        expandCollapseButton: 'p-0.5 rounded-md text-white bg-blue-300 hover:bg-blue-600'
+        expandCollapseButton: 'p-0.5 h-fit w-fit rounded-md text-blue-400 text-xs  hover:text-blue-500'
     },
   page: {
-    pageContainer: 'border-2 border-red-500 max-h-[80vh] w-2/3 overflow-y-auto overflow-x-hidden pt-3 scrollbar-xs',
+        pageContainer: (small) => `border max-h-[80vh] ${small ? `max-w-[90%] w-[90%]` : `max-w-[100%]`} overflow-y-auto overflow-x-auto scrollbar-xs`,
   }
 }
 
@@ -58,7 +59,7 @@ function AddItemButton({dataItems}) {
         <div className='pr-2'>
             <div
                 onClick={addItem}
-                className={theme.nav.addItemButton}
+                className={customTheme.nav.addItemButton}
             >
                 + Add Page
             </div>
@@ -88,9 +89,26 @@ const getExpandableItems = (items) => items.reduce((acc, curr) => curr.children 
 
 // ==================================================== util fns end ===================================================
 
-function Nav({item, dataItems, edit, open, setOpen, selectedPage, setSelectedPage}) {
+const Pill = ({color, text}) => {
+    const colors = {
+        orange: `bg-orange-500/15 text-orange-700 group-data-[hover]:bg-orange-500/25`,
+        blue: `bg-blue-500/15 text-blue-700 group-data-[hover]:bg-blue-500/25`,
+        gray: `text-gray-400`
+    };
+    return (
+        <div
+            className="group relative inline-flex rounded-md focus:outline-none">
+            <span className={`inline-flex items-center gap-x-1.5 rounded-md px-1.5 py-0.5 text-sm/5 font-medium sm:text-xs/5 forced-colors:outline
+            ${colors[color]}
+            `}>{text}</span>
+        </div>
+    )
+}
+
+function Nav({dataItems, edit, open, setOpen, selectedPage, setSelectedPage}) {
     const submit = useSubmit()
     const {pathname = '/edit'} = useLocation()
+    const navigate = useNavigate();
     const {baseUrl} = React.useContext(CMSContext)
     const [expandedItems, setExpandedItems] = useState({});
     const nestableRef = useRef(null);
@@ -125,52 +143,87 @@ function Nav({item, dataItems, edit, open, setOpen, selectedPage, setSelectedPag
         Promise.all(
             updates.map((item) => {
                 submit(json2DmsForm(item), {method: "post", action: pathname})
-            }))//.then(values => {console.log('updating nav', values)})
+            }))
     }, []);
 
+    const detectHasChanges = item => item.published === 'draft' || item.has_changes === 'true' || item.has_changes === true;
 
     const mapDataItemToItem = (d, i) => {
         let item = {
             id: d.id,
             index: d.index,
             title: d.title,
-            has_changes: d.has_changes
+            has_changes: detectHasChanges(d),
+            url: d.url_slug
         }
         if (getChildNav(item, dataItems)) {
             item.children = getChildNav(d, dataItems)
         }
-        console.log('----------', selectedPage, item.id,
-            dataItems.find(dI => dI.id === selectedPage)
-            )
 
         item.Comp = ({isExpanded, hasChanges, isSelectedPage}) => {
+            const unpublishedChildren = getUnpublishedChildrenCount(item, dataItems);
+            const allChildren = getAllChildrenCount(item, dataItems);
+
             return (
                 <div key={item.id}
-                     className={`px-1 flex items-center gap-1 cursor-pointer ${isSelectedPage ? `bg-gray-100` : ``} hover:bg-gray-100 rounded-md`}
-                     onClick={() => {
-                         toggleExpand(item.id)
-                     }}>
+                     className={`p-1.5 flex items-center gap-1 cursor-pointer ${isSelectedPage ? `bg-gray-100` : ``} hover:bg-gray-100 rounded-md`}>
 
-                    {item.title}
+                    <span className={'flex-1 truncate'}
+                          title={item.title}
+                          onClick={e => {
+                              e.stopPropagation();
+                              setSelectedPage(item.id);
+                          }}>{item.title}
+                    </span>
 
-                    <div className={`px-0.5 text-white text-xs ${hasChanges ? `bg-red-600` : `bg-blue-600`} rounded-lg`}>
-                        {hasChanges ? 'unpublished' : 'published'}
-                    </div>
+                        <div className={'flex gap-0.5 items-center'}>
+                            {/*unpublished pill*/}
+                            {hasChanges ?  <DraftPage className={'text-orange-500'} />  : null}
+                            {/*unpublished children pill*/}
+                            {unpublishedChildren ? <Pill text={unpublishedChildren} color={'orange'} /> : null}
+                            {/*total children pill*/}
+                            {allChildren ? <Pill text={allChildren} color={'gray'} /> : null}
+                        </div>
 
-                    {!item.children?.length ? '' : isExpanded ? `-` : '+'}
 
-                    <ViewIcon onClick={e => {
-                        e.stopPropagation();
-                        setSelectedPage(item.id);
-                    }} height={15} width={15} className={'text-gray-700 hover:text-gray-900'}/>
+                    {!item.children?.length ? '' : isExpanded ?
+                        <ArrowUp className={'text-gray-400 hover:text-gray-500'}  onClick={() => {
+                            toggleExpand(item.id)
+                        }}/> :
+                        <ArrowDown className={'text-gray-400 hover:text-gray-500'} onClick={() => {
+                            toggleExpand(item.id)
+                        }}/>
+                    }
 
-                    {/*{*/}
-                    {/*    isExpanded && item.children?.length ? item.children.map(({Comp}) => <Comp/>) : null*/}
-                    {/*}*/}
+                    {/*<NavLink to={item.url}>*/}
+                    {/*    <LinkSquare height={15} width={15} className={'text-gray-600 hover:text-blue-600'}/>*/}
+                    {/*</NavLink>*/}
                 </div>
             )
         };
         return item
+    }
+
+    function getUnpublishedChildrenCount (item, dataItems) {
+        let children = dataItems.filter(d => d.parent === item.id)
+
+        if (children.length === 0) return 0 // detectHasChanges(item) ? 1 : 0;
+
+        return children.reduce((acc, c) => acc +
+                (detectHasChanges(c) ? 1 : 0) + // count current item
+                getUnpublishedChildrenCount(c, dataItems) // count current item's unpublished children
+            , 0)
+    }
+
+    function getAllChildrenCount (item, dataItems) {
+        let children = dataItems.filter(d => d.parent === item.id)
+
+        if (children.length === 0) return 0 // detectHasChanges(item) ? 1 : 0;
+
+        return children.reduce((acc, c) => acc +
+                1 + // count current item
+                getAllChildrenCount(c, dataItems) // count current item's unpublished children
+            , 0)
     }
 
     function getChildNav(item, dataItems) {
@@ -191,74 +244,117 @@ function Nav({item, dataItems, edit, open, setOpen, selectedPage, setSelectedPag
         if (!item) return null;
         let Comp = item.Comp;
         const isExpanded = expandedItems[item.id];
-        const hasChanges = item.has_changes === 'true';
+        const hasChanges = detectHasChanges(item);
         const isSelectedPage = selectedPage === item.id;
         return (
             <>
                 <Comp isExpanded={isExpanded} hasChanges={hasChanges} isSelectedPage={isSelectedPage}/>
-                {isExpanded ? <div className={'pl-5 border-l'}>{item.children.map(renderItem)}</div> : null}
+                {isExpanded ? <div className={'pl-3 ml-2 border-l'}>{item.children.map(renderItem)}</div> : null}
             </>
         )
     }
 
+    if(!open) {
+        return <ArrowRight className={'cursor-pointer text-blue-400 hover:text-blue-500'} onClick={() => setOpen(true)} />
+    }
     return (
-        <>
-            <div className={theme.nav.container(open)}>
-                <div className={theme.nav.navItemContainer}>
-                    <div className={'px-1 flex gap-1 w-full justify-end text-xs'}>
-                        <button className={theme.nav.expandCollapseButton} onClick={() => setExpandedItems({})}>
-                            Collapse All
-                        </button>
-                        <button className={theme.nav.expandCollapseButton}
-                                onClick={() => setExpandedItems(getExpandableItems(items).reduce((acc, curr) => ({
-                                    ...acc,
-                                    [curr]: true
-                                }), {}))}
-                        >Expand All
-                        </button>
-                    </div>
-
-                    <Nestable
-                        ref={nestableRef}
-                        items={items}
-                        collapsed={true}
-                        onChange={onDragEnd}
-                        maxDepth={4}
-                        renderItem={({item}) => renderItem(item)}
-                    />
-
-                    {edit && <AddItemButton dataItems={dataItems}/>}
+        <div className={customTheme.nav.container(open)}>
+            <div className={customTheme.nav.navItemContainer}>
+                <div className={'px-1 flex gap-1 w-full justify-end'}>
+                    <button className={customTheme.nav.expandCollapseButton} onClick={() => setExpandedItems({})}>
+                        Collapse All
+                    </button>
+                    <button className={customTheme.nav.expandCollapseButton}
+                            onClick={() => setExpandedItems(getExpandableItems(items).reduce((acc, curr) => ({
+                                ...acc,
+                                [curr]: true
+                            }), {}))}
+                    >Expand All
+                    </button>
+                    <ArrowLeft className={'cursor-pointer text-blue-400 hover:text-blue-500'} onClick={() => setOpen(false)} />
                 </div>
-            </div>
-            {/*<div className={`${open ? `w-64` : 'w-0'} hidden lg:block`}/>*/}
 
-        </>
+                <Nestable
+                    ref={nestableRef}
+                    items={items}
+                    collapsed={true}
+                    onChange={onDragEnd}
+                    maxDepth={4}
+                    renderItem={({item}) => renderItem(item)}
+                />
+
+                {edit && <AddItemButton dataItems={dataItems}/>}
+            </div>
+        </div>
     )
 }
 
-function RenderPage ({selectedPage, setSelectedPage}) {
-  console.log('selected page in RenderPage', selectedPage)
-  return selectedPage ? (
-      <div className={theme.page.pageContainer}>
-        <div className={'w-full flex justify-between items-center'}>
-            {selectedPage} <button className={'p-0.5 text-gray-900'} onClick={() => setSelectedPage('')} >x</button></div>
-      </div>
-  ) : <div className={theme.page.pageContainer}>no page selected</div>
+function RenderPage ({selectedPage, isNavOpen, format, attributes, dataItems, apiLoad, apiUpdate, theme}) {
+    const [page, setPage] = useState();
+
+    useEffect(() => {
+        if(!selectedPage) return;
+
+        async function load(){
+            const config = {
+                format,
+                children: [
+                    {
+                        type: () => {},
+                        action: 'view',
+                        filter: {
+                            stopFullDataLoad: true,
+                            options: JSON.stringify({
+                                filter: {id: [selectedPage]},
+                            }),
+                        },
+                        path: `view/:id`,
+                        params: {id: selectedPage}
+                    }
+                ]
+            }
+            const res = await apiLoad(config, `/view/${selectedPage}`);
+            setPage(res[0]);
+        }
+
+        load();
+    }, [selectedPage]);
+
+    return <div className={customTheme.page.pageContainer(isNavOpen)}>
+        {
+            selectedPage && page ?
+                <PageEdit item={page} dataItems={dataItems} attributes={attributes}
+                          apiLoad={apiLoad} apiUpdate={apiUpdate}
+                          format={format} siteType={'prod'}
+                          updateAttribute={e => console.log('updateAttribute called', e)}
+                          theme={{
+                              layout: {wrapper: 'max-w-full'},
+                              page: {'wrapper1': 'max-w-full'}
+                          }}
+                /> : <div className={'text-center mt-16'}>Please click on a page title to preview it.</div>
+        }
+    </div>
 }
-function PagesManager({item, dataItems, ...rest}) {
-    const {baseUrl, theme, user} = React.useContext(CMSContext) || {}
+
+function PagesManager({item, dataItems, format, attributes, apiLoad, apiUpdate, ...rest}) {
+    const {baseUrl, theme, user} = React.useContext(CMSContext) || {};
+    const [open, setOpen] = useState(true);
     const [selectedPage, setSelectedPage] = useState();
-    console.log('props', item, rest)
+
     return (
         <div className={`${theme?.page?.wrapper2}`}>
-          <div className={theme?.page?.wrapper3}>
+          <div className={`${theme?.page?.wrapper3} max-w-[100vw]`}>
             {/* Content */}
             <div className='flex items-center'>
               <div className='text-2xl p-3 font-thin flex-1'>Pages</div>
             </div>
-            <div className={'flex w-full h-full max-h-100vh overflow-hidden'}>
-              <Nav item={item} dataItems={dataItems} selectedPage={selectedPage} setSelectedPage={setSelectedPage} edit={true}/>
-              <RenderPage selectedPage={selectedPage} setSelectedPage={setSelectedPage}/>
+            <div className={'flex w-full max-w-[85%] h-full overflow-hidden'}>
+              <Nav item={item} dataItems={dataItems} open={open} setOpen={setOpen} selectedPage={selectedPage} setSelectedPage={setSelectedPage} edit={true}/>
+              <RenderPage selectedPage={selectedPage} setSelectedPage={setSelectedPage}
+                          format={format} attributes={attributes}
+                          apiLoad={apiLoad} apiUpdate={apiUpdate} dataItems={dataItems}
+                          isNavOpen={open} theme={theme}
+              />
             </div>
           </div>
         </div>
