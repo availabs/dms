@@ -51,7 +51,7 @@ const getViews = async ({envs, source, falcor, apiLoad}) => {
 
 
 export const FormsSelector = ({
-  app, siteType, formatFromProps,
+  formatFromProps,
   format, setFormat,
   view, setView,
   apiLoad,
@@ -61,7 +61,7 @@ export const FormsSelector = ({
     const [existingSource, setExistingSource] = useState(format || {});
     const [views, setViews] = useState([]);
     const [currentView, setCurrentView] = useState(view);
-    const {falcor, falcorCache, pgEnv} = useContext(CMSContext);
+    const {app, siteType, falcor, falcorCache, pgEnv} = useContext(CMSContext);
 
     if(formatFromProps?.config) return null;
 

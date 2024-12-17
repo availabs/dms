@@ -1,12 +1,11 @@
 import React, {useEffect, useMemo, useState} from "react";
 import {useNavigate, useSearchParams} from "react-router-dom";
-// import {getLength, getValues} from "../../../../../../../data-types/form-config/components/RenderField";
 import {dmsDataTypes} from "../../../../../../../data-types";
 import {formattedAttributeStr, attributeAccessorStr, convertToUrlParams} from "../utils";
 import {Filter} from "../../../../../../admin/ui/icons";
 import {isJson} from "../../../index";
 
-export const getValues = async ({format, apiLoad, length, attributes, groupBy=[], filterBy={}}) =>{
+export const getData = async ({format, apiLoad, length, attributes, groupBy=[], filterBy={}}) =>{
     // fetch all data items based on app and type. see if you can associate those items to its pattern. this will be useful when you have multiple patterns.
     const finalAttributes = attributes || (
         isJson(format?.config) ? (format.config?.attributes || []) :
@@ -17,7 +16,7 @@ export const getValues = async ({format, apiLoad, length, attributes, groupBy=[]
     const children = [{
         type: () => {
         },
-        action: 'load',
+        action: 'uda',
         path: '/',
         filter: {
             fromIndex: path => fromIndex,
@@ -44,7 +43,7 @@ export const getLength = async ({format, apiLoad, groupBy= [], filterBy}) =>{
     const children = [{
         type: () => {
         },
-        action: 'filteredLength',
+        action: 'udaLength',
         path: '/',
         filter: {
             options: JSON.stringify({groupBy, aggregatedLen: groupBy.length, filter: filterBy})
@@ -61,16 +60,16 @@ export const getLength = async ({format, apiLoad, groupBy= [], filterBy}) =>{
 }
 const isCalculatedCol = (col, attributes) => {
     const attr = (attributes || []).find(attr => attr.name === col);
-    // if(!attr) console.warn(`${col} not found in filters.`)
-    return attr.display === 'calculated' || attr.type === 'calculated';
+    if(!attr) console.log(`${col} not found in filters.`, attributes)
+    return attr.display === 'calculated' || attr.type === 'calculated' || attr.origin === 'calculated-column';
 }
 export const RenderFilters = ({attributes, filters, setFilters, format, apiLoad, delimiter}) => {
     const navigate = useNavigate();
     const [filterOptions, setFilterOptions] = useState({}); // {col1: [vals], col2:[vals]}
-
+    // console.log('render filters props', format, attributes)
     useEffect(() => {
         async function load(){
-
+            if(!attributes.length) return;
 
             const data = await Promise.all(
                 filters.map(async (filter, filterI) => {
@@ -84,13 +83,16 @@ export const RenderFilters = ({attributes, filters, setFilters, format, apiLoad,
                             acc[attributeAccessorStr(f.column, format.isDms, isCalculatedCol(f.column, attributes))] = f.values.filter(fv => fv.length);
                             return acc;
                         }, {});
-                    const length = await getLength({format: {...format, type: format.doc_type}, apiLoad, groupBy: [attributeAccessorStr(filter.column, format.isDms, isCalculatedCol(filter.column, attributes))], filterBy});
+                    const length = await getLength({
+                        format: {...format, type: format.doc_type}, apiLoad,
+                        groupBy: [attributeAccessorStr(filter.column, format.isDms, isCalculatedCol(filter.column, attributes))], filterBy});
 
-                    const data = await getValues({
+                    const data = await getData({
                         format: {...format, type: format.doc_type},
                         apiLoad,
                         length,
                         attributes: [formattedAttributeStr(filter.column, format.isDms, isCalculatedCol(filter.column, attributes))],
+                        // visibleAttributes: [formattedAttributeStr(filter.column, format.isDms, isCalculatedCol(filter.column, attributes))],
                         groupBy: [attributeAccessorStr(filter.column, format.isDms, isCalculatedCol(filter.column, attributes))],
                         filterBy
                     })

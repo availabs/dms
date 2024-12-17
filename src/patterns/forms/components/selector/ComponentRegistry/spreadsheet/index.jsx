@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useRef} from 'react'
+import React, {useState, useEffect} from 'react'
 import {RenderSimple} from "./components/SimpleSpreadsheet";
 import {RenderPagination} from "./components/RenderPagination";
 import {isJson, getLength, getData, convertToUrlParams, init} from "./utils";
@@ -9,7 +9,7 @@ import {ColumnControls} from "../shared/ColumnControls";
 import {Card} from "../Card";
 import { isEqual } from "lodash-es";
 
-const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLoad, apiUpdate, siteType, renderCard, ...rest}) => {
+const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLoad, apiUpdate, renderCard, ...rest}) => {
     const isEdit = Boolean(onChange);
     const cachedData = isJson(value) ? JSON.parse(value) : {};
     const [format, setFormat] = useState(formatFromProps || cachedData.format);
@@ -259,7 +259,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     if(!format?.config && !format?.metadata?.columns) return (
         <div className={'p-1'}>
             Form data not available. Please make a selection:
-            <FormsSelector siteType={siteType} apiLoad={apiLoad} app={pageFormat?.app}
+            <FormsSelector apiLoad={apiLoad} app={pageFormat?.app}
                            format={format} setFormat={setFormat}
                            view={view} setView={setView}
                            formatFromProps={formatFromProps}
@@ -272,7 +272,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
         <div className={'w-full h-full'}>
             {
                 showChangeFormatModal ?
-                    <FormsSelector siteType={siteType} apiLoad={apiLoad} app={pageFormat?.app}
+                    <FormsSelector apiLoad={apiLoad} app={pageFormat?.app}
                                    format={format} setFormat={setFormat}
                                    view={view} setView={setView}
                                    formatFromProps={formatFromProps}

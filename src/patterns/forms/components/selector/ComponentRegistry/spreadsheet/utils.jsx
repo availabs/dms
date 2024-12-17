@@ -7,7 +7,7 @@ const getFullCol = (colName, attributes) => attributes.find(attr => attr.name ==
 const isCalculatedCol = (colName, attributes) => {
     const col = getFullCol(colName, attributes)
     if(!col) console.log('col not defined', colName, attributes)
-    return col?.display === 'calculated' || col?.type === 'calculated'
+    return col?.display === 'calculated' || col?.type === 'calculated' || col?.origin === 'calculated-column'
 };
 
 export const formattedAttributeStr = (col, isDms, isCalculatedCol) => isCalculatedCol ? col : isDms ? `data->>'${col}' as ${col}` : col;
@@ -36,7 +36,7 @@ export const applyFn = (col={}, fn={}, groupBy=[], isDms=false) => {
     // apply fns if: column is not calculated column or
     // it is calculated, and does not have function in name
     // calculated columns should never get data->>
-    const isCalculatedCol = col.type === 'calculated' || col.display === 'calculated';
+    const isCalculatedCol = col.type === 'calculated' || col.display === 'calculated' || col.origin === 'calculated-column';
     const colNameWithAccessor = attributeAccessorStr(colName, isDms, isCalculatedCol);
     const colNameAfterAS = isCalculatedCol ? splitColNameOnAS(colName)[1] : colName;
 
@@ -63,7 +63,7 @@ export const isJson = (str)  => {
     return true;
 }
 
-export const getData = async ({format, apiLoad, currentPage, pageSize, length, visibleAttributes, orderBy, filters, groupBy, fn, notNull}) =>{
+export const getData = async ({format, apiLoad, currentPage, pageSize, length, visibleAttributes=[], orderBy={}, filters=[], groupBy=[], fn={}, notNull}) =>{
     // fetch all data items based on app and type. see if you can associate those items to its pattern. this will be useful when you have multiple patterns.
     // if grouping, use load. disable editing.
     // console.log('getData format?', format)
