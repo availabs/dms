@@ -2,7 +2,11 @@ import React, { useEffect, Fragment, useRef, useState } from 'react'
 import { useLocation, useSubmit } from "react-router-dom";
 import { cloneDeep, get, isEqual } from "lodash-es"
 
-import { Drawer, PublishButton, TitleEditComp, IconPopover, PopoverMenuItem, DeleteModal, DiscardChangesButton} from '../../ui'
+import { 
+  Drawer,
+  Tabs,  
+  PublishButton, 
+  TitleEditComp, IconPopover, PopoverMenuItem, DeleteModal, DiscardChangesButton} from '../../ui'
 import { AdjustmentsHorizontal , PencilIcon, CirclePlus, CancelCircle} from '../../ui/icons'
 import { json2DmsForm, getUrlSlug, toSnakeCase, parseJSON } from '../_utils'
 import {insertSubPage, newPage, updateTitle, toggleSidebar, publish, getMenus, discardChanges} from './editFunctions'
@@ -17,6 +21,8 @@ import { CMSContext } from '../../siteConfig'
 
 function EditPane () {
   const [open, setOpen] = useState(false)
+  const tabs = []
+
 
   return (
     <>
@@ -24,7 +30,16 @@ function EditPane () {
         <div className='bg-blue-500 rounded px-4 py-2'> Publish </div>
         <div className='flex items-cemter  px-4 py-2 ' onClick={() => setOpen(!open)}> <AdjustmentsHorizontal className='size-6 hover:text-blue-500 text-slate-400'/> </div>
         <Drawer open={open} setOpen={setOpen}>
-          Hola
+          <div className='h-8' />
+          <Tabs tabs={[
+              {name: <div>1</div>, Component: () => <div>1</div>},
+              {name: "2", Component: () => <div>2</div>},
+              {name: "3", Component: () => <div>3</div>},
+              {name: "4", Component: () => <div>4</div>},
+              {name: "5", Component: () => <div>5</div>},
+            ]} 
+          />
+            
         </Drawer>
       </div>
     </>

@@ -1,7 +1,7 @@
 import React, {Fragment, useState, useEffect} from 'react'
 import { Dialog, Transition } from '@headlessui/react'
 import { XMark } from '../../icons'
-
+import { CMSContext } from '../../../siteConfig';
 
 
 export default function Drawer ({ open, setOpen, CloseIcon=XMark, children }) {
@@ -10,9 +10,9 @@ export default function Drawer ({ open, setOpen, CloseIcon=XMark, children }) {
     <Transition.Root show={open} as={Fragment}>
       <Dialog as="div" className="relative z-30" onClose={setOpen}>
         
-        <div className="fixed inset-0 overflow-hidden">
-          <div className="absolute inset-0 overflow-hidden">
-            <div className="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10">
+        {/*<div className="fixed inset-0 overflow-hidden">
+          <div className="absolute inset-0 overflow-hidden">*/}
+            <div className=" fixed inset-y-0 right-0 flex max-w-[300px] pl-10">
               <Transition.Child
                 as={Fragment}
                 enter="transform transition ease-in-out duration-500 sm:duration-700"
@@ -36,14 +36,12 @@ export default function Drawer ({ open, setOpen, CloseIcon=XMark, children }) {
                       </button>
                     </div>
                   </div>
-                    
-
                   {children}
                 </Dialog.Panel>
               </Transition.Child>
             </div>
-          </div>
-        </div>
+        {/*  </div>
+        </div>*/}
       </Dialog>
     </Transition.Root>
   )

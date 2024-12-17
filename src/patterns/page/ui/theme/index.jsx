@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import { layoutTheme } from '../components/layout'
 import { sideNavTheme } from '../components/sidenav'
 import { topNavTheme } from '../components/topnav'
+import { tabsTheme } from '../components/tabs'
+import { buttonTheme } from '../components/button'
 
 const theme = {
   navOptions: {
@@ -65,10 +67,11 @@ const theme = {
     selectOption: 'p-4 text-md cursor-pointer hover:text-blue-500 text-slate-400 hover:bg-blue-600',
   },
   
-  
   layout: layoutTheme,
   sidenav: sideNavTheme,
-  topnav: topNavTheme
+  topnav: topNavTheme,
+  tabs: tabsTheme,
+  button: buttonTheme
 }
 
 //theme.navOptions.logo = <Link to='/' className='h-12 flex px-4 items-center'><div className='rounded-full h-10 bg-blue-500 border border-slate-50' /></Link>

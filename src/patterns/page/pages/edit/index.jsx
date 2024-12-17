@@ -85,7 +85,7 @@ function PageEdit ({
           siteType={siteType}
         />
       )} 
-      <Layout navItems={menuItems} secondNav={theme?.navOptions?.secondaryNav?.navItems || []} /*EditPane={EditPane}*/>
+      <Layout navItems={menuItems} secondNav={theme?.navOptions?.secondaryNav?.navItems || []} EditPane={EditPane}>
         <div className={`${theme?.page?.wrapper1} ${theme?.navPadding[level]}`}>
           {item?.header === 'below' && (
             <ContentEdit 
