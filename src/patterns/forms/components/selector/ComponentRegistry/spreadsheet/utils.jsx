@@ -172,12 +172,14 @@ export const init = async ({format, view, version, attributionData, ...rest}) =>
 
     const updatedFormat = format.doc_type ? {...format, doc_type, originalDocType, view_id} : {...format, view_id}
     const updatedAttributionData = {source_id: attributionData.source_id, view_id, version: view_id}
-
-    // console.log('????????????', format, updatedFormat, attributionData, updatedAttributionData)
-    return {
+    const newSetup = {
         format: updatedFormat,
         view: newView,
         attributionData: updatedAttributionData,
         ...rest
     }
+
+    const length = await getLength(newSetup);
+    const data = await getData({...newSetup, length});
+    return {...newSetup, data}
 }

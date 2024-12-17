@@ -8,6 +8,7 @@ import {FormsSelector} from "../../FormsSelector";
 import {ColumnControls} from "../shared/ColumnControls";
 import {Card} from "../Card";
 import { isEqual } from "lodash-es";
+import { v4 as uuidv4 } from 'uuid';
 
 const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLoad, apiUpdate, renderCard, ...rest}) => {
     const isEdit = Boolean(onChange);
@@ -15,7 +16,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     const [format, setFormat] = useState(formatFromProps || cachedData.format);
     const [view, setView] = useState(cachedData.view);
     const [length, setLength] = useState(cachedData.length || 0);
-    const [data, setData] = useState([]);
+    const [data, setData] = useState(cachedData.data || []);
     const [hasMore, setHasMore] = useState();
     const [loading, setLoading] = useState(false);
     const [attributes, setAttributes] = useState([]);
@@ -52,14 +53,18 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     // ========================================= init comp begin =======================================================
     useEffect(() => {
         // if there's no format passed, the user should be given option to select one. to achieve thia, format needs to be a state variable.
+        if(isEqual(format, formatFromProps)) return;
         formatFromProps && setFormat(formatFromProps);
     }, [formatFromProps]);
+
     useEffect(() => {
+        const newAttributes = JSON.parse(format?.config || '{}')?.attributes || format?.metadata?.columns || [];
+        if(isEqual(attributes, newAttributes)) return;
         setAttributes(JSON.parse(format?.config || '{}')?.attributes || format?.metadata?.columns || [])
     }, [format]);
 
     useEffect(() => {
-        if(!format || !view) return;
+        if(!format || !view || format.view_id === view) return;
         const originalDocType = format.originalDocType || format.doc_type;
         const doc_type = originalDocType?.includes('-invalid-entry') ?
             originalDocType.replace('-invalid-entry', `${view}-invalid-entry`) :
@@ -132,14 +137,14 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
         async function load() {
             if(!format?.config && !format?.metadata?.columns) return;
             setLoading(true)
-            if(!loadMoreId) setLoadMoreId(`id${Date.now()}`)
+            if(!loadMoreId) setLoadMoreId(`id${uuidv4()}`)
             const length = await getLength({format, apiLoad, filters, groupBy, notNull});
             const d = await getData({
                 format, apiLoad, currentPage, pageSize, length, orderBy, filters, groupBy, visibleAttributes, fn, notNull
             });
             setData(d);
             setLength(length);
-            !visibleAttributes?.length && setVisibleAttributes((attributes || []).slice(0, 5).map(attr => attr.name));
+            // !visibleAttributes?.length && setVisibleAttributes((attributes || []).slice(0, 5).map(attr => attr.name));
             setLoading(false)
         }
 
@@ -153,7 +158,6 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
 
         async function load() {
             if(!format?.config && !format?.metadata?.columns) return;
-
             setLoading(true)
             // setData([]);
             // setLength(0);
@@ -224,11 +228,12 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
             customColNames, orderBy, colSizes, filters,
             groupBy, fn, notNull, allowEditInView, format,
             view, actions, allowSearchParams, loadMoreId, striped, showTotal, usePagination, allowDownload,
+            data,
             attributionData: {source_id: format?.id, view_id: view, version: view}
         }));
     }, [visibleAttributes, pageSize, attributes, customColNames,
         orderBy, colSizes, filters, groupBy, fn, notNull, allowEditInView,
-        format, view, actions, allowSearchParams, loadMoreId, striped, showTotal, usePagination, allowDownload])
+        format, view, actions, allowSearchParams, loadMoreId, striped, showTotal, usePagination, allowDownload, data])
     // =========================================== saving settings end =================================================
 
     // =========================================== util fns begin ======================================================
@@ -352,7 +357,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
     const [filters, setFilters] = useState(cachedData.filters || []);
 
     const [newItem, setNewItem] = useState({})
-    const [data, setData] = useState([]);
+    const [data, setData] = useState(cachedData.data || []);
     const [hasMore, setHasMore] = useState();
     const [loading, setLoading] = useState(false);
     const [currentPage, setCurrentPage] = useState(0);
@@ -595,11 +600,11 @@ export default {
     "name": 'Spreadsheet',
     "type": 'table',
     "variables": [
-        {name: 'visibleAttributes'}, {name: 'pageSize'}, {name: 'attributes'},
-        {name: 'customColNames'}, {name: 'orderBy'}, {name: 'colSizes'}, {name: 'filters'},
-        {name: 'groupBy'}, {name: 'fn'}, {name: 'notNull'}, {name: 'allowEditInView'}, {name: 'format'},
-        {name: 'view'}, {name: 'actions'}, {name: 'allowSearchParams'}, {name: 'loadMoreId'},
-        {name: 'attributionData'}
+        {name: 'visibleAttributes', hidden: true}, {name: 'pageSize', hidden: true}, {name: 'attributes', hidden: true},
+        {name: 'customColNames', hidden: true}, {name: 'orderBy', hidden: true}, {name: 'colSizes', hidden: true}, {name: 'filters'},
+        {name: 'groupBy', hidden: true}, {name: 'fn', hidden: true}, {name: 'notNull', hidden: true}, {name: 'allowEditInView', hidden: true}, {name: 'format', hidden: true},
+        {name: 'view', hidden: true}, {name: 'actions', hidden: true}, {name: 'allowSearchParams', hidden: true}, {name: 'loadMoreId', hidden: true},
+        {name: 'attributionData', hidden: true}
     ],
     getData: init,
     "EditComp": Edit,
