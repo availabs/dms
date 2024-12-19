@@ -12,7 +12,8 @@ export default function RenderInHeaderColumnControls({
     attribute, customColName, isEdit,
     orderBy, setOrderBy,
     filters, setFilters,
-    format, setFormat
+    colJustify, setColJustify,
+    format,
 }) {
     const dragItem = useRef();
     const dragOverItem = useRef();
@@ -39,17 +40,17 @@ export default function RenderInHeaderColumnControls({
     const sortOptions = [
         {
             label: 'Sorted A->Z',
-            value: 'asc',
-            action: () => setOrderBy({[attribute.name]: 'asc nulls last', id: 'asc'}) //todo: remove id for non dms sources
+            value: 'asc nulls last',
+            action: () => setOrderBy({[attribute.name]: 'asc nulls last', ...format.isDms && {id: 'asc'}})
         },
         {
             label: 'Sorted Z->A',
-            value: 'decs',
-            action: () => setOrderBy({[attribute.name]: 'desc nulls last', id: 'desc'})
+            value: 'desc nulls last',
+            action: () => setOrderBy({[attribute.name]: 'desc nulls last', ...format.isDms && {id: 'desc'}})
         },
         {
             label: orderBy[attribute.name] ? 'Clear Sort' : 'Not Sorted By',
-            value: '',
+            value: 'default',
             action: () => setOrderBy({})
         },
     ];
@@ -105,15 +106,16 @@ export default function RenderInHeaderColumnControls({
                         <div className={'w-full cursor-pointer'}>
                             <select
                                 className={selectClasses}
-                                value={''}
-                                onClick={e => {
-                                    const action = sortOptions.find(o => o.label === e.target.value)?.action;
+                                value={orderBy[attribute.name] || 'default'}
+                                onChange={e => {
+
+                                    const action = sortOptions.find(o => o.value === e.target.value || o.value === 'default')?.action;
                                     action();
                                 }}
                             >
                                 {
                                     sortOptions
-                                        .map(sortOption => <option key={sortOption.label} value={sortOption.label}>{sortOption.label}</option>)
+                                        .map(sortOption => <option key={sortOption.value} value={sortOption.value}>{sortOption.label}</option>)
                                 }
                             </select>
                         </div>
@@ -122,7 +124,7 @@ export default function RenderInHeaderColumnControls({
                             <select
                                 className={selectClasses}
                                 value={''}
-                                onClick={e => {}}
+                                onChange={e => {}}
                             >
                                 {
                                     formatOptions
@@ -131,11 +133,11 @@ export default function RenderInHeaderColumnControls({
                             </select>
                         </div>
 
-                        <div className={'w-full cursor-pointer'}>
+                        <div className={setColJustify ? 'w-full cursor-pointer' : 'hidden'}>
                             <select
                                 className={selectClasses}
-                                value={''}
-                                onClick={e => {}}
+                                value={colJustify[attribute.name]}
+                                onChange={e => setColJustify({...colJustify, [attribute.name]: e.target.value})}
                             >
                                 {
                                     justifyOptions
@@ -148,7 +150,7 @@ export default function RenderInHeaderColumnControls({
                             <select
                                 className={selectClasses}
                                 value={''}
-                                onClick={e => {}}
+                                onChange={e => {}}
                             >
                                 {
                                     fontSizeOptions

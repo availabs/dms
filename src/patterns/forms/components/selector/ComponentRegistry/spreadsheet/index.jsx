@@ -25,6 +25,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     const [colSizes, setColSizes] = useState(cachedData.colSizes || {});
     const [newItem, setNewItem] = useState({})
 
+    const [colJustify, setColJustify] = useState(cachedData.colJustify || {});
     const [orderBy, setOrderBy] = useState(cachedData.orderBy || {});
     const [filters, setFilters] = useState(cachedData.filters || []);
     const [groupBy, setGroupBy] = useState(cachedData.groupBy || []);
@@ -82,7 +83,6 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
         const filterCols = Array.from(searchParams.keys());
         const filtersFromURL = filterCols.map(col => ({column: col, values: searchParams.get(col)?.split(filterValueDelimiter)}));
         if(filtersFromURL.length) {
-            console.log('???????????', filters)
             // if filters !== url search params, set filters. no need to navigate.
             setFilters(oldFilters => {
                 const newFilters = [
@@ -230,12 +230,13 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
             customColNames, orderBy, colSizes, filters,
             groupBy, fn, notNull, allowEditInView, format,
             view, actions, allowSearchParams, loadMoreId, striped, showTotal, usePagination, allowDownload,
+            colJustify,
             data,
             attributionData: {source_id: format?.id, view_id: view, version: view}
         }));
     }, [visibleAttributes, pageSize, attributes, customColNames,
         orderBy, colSizes, filters, groupBy, fn, notNull, allowEditInView,
-        format, view, actions, allowSearchParams, loadMoreId, striped, showTotal, usePagination, allowDownload, data])
+        format, view, actions, allowSearchParams, loadMoreId, striped, showTotal, usePagination, allowDownload, colJustify, data])
     // =========================================== saving settings end =================================================
 
     // =========================================== util fns begin ======================================================
@@ -296,6 +297,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
                                     notNull={notNull} setNotNull={setNotNull}
                                     filters={filters} setFilters={setFilters}
                                     actions={actions} setActions={setActions}
+                                    colJustify={colJustify} setColJustify={setColJustify}
                                     // showTotal={showTotal} setShowTotal={setShowTotal}
                                     striped={striped} setStriped={setStriped}
                                     // allowDownload={allowDownload} setAllowDownload={setAllowDownload}
@@ -340,6 +342,9 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
                             loading,
                             loadMoreId,
                             striped,
+                            format,
+                            colJustify,
+                            setColJustify,
                             actions: actions.filter(a => ['edit only', 'both'].includes(a.display)),
                             allowEdit: !groupBy.length
                         }} />
@@ -371,6 +376,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
     const groupBy = cachedData.groupBy || [];
     const notNull = cachedData.notNull || [];
     const actions = cachedData.actions || [];
+    const colJustify = cachedData.colJustify || {};
     const fn = cachedData.fn;
     const allowEdit = cachedData.allowEditInView;
     const allowSearchParams = cachedData.allowSearchParams;
@@ -584,6 +590,8 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
                             loading,
                             loadMoreId,
                             striped,
+                            format,
+                            colJustify,
                             allowEdit: groupBy.length ? false : allowEdit,
                             actions: actions.filter(a => ['view only', 'both'].includes(a.display))
                         }} />

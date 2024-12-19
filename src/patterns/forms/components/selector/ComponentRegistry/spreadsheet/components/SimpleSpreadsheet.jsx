@@ -135,13 +135,18 @@ const validate = ({value, required, options, name}) => {
 
 const DisplayCalculatedCell = ({value, className}) => <div className={className}>{value}</div>
 const RenderCell = ({
-                        attribute, i, item, updateItem, width, onPaste,
+                        attribute, justify, i, item, updateItem, width, onPaste,
                         isFrozen, isSelected, isSelecting, editing, edge, loading, allowEdit, striped,
                         onClick, onDoubleClick, onMouseDown, onMouseMove, onMouseUp}) => {
     // const [editing, setEditing] = useState(false);
     const [newItem, setNewItem] = useState(item);
     // const Comp = DataTypes[attribute.type]?.[isSelecting ? 'ViewComp' : 'EditComp'];
     const Comp = loading ? LoadingComp : (DataTypes[attribute.type]?.[editing && allowEdit ? 'EditComp' : 'ViewComp'] || DisplayCalculatedCell);
+    const justifyClass = {
+        left: 'justify-start',
+        right: 'justify-end',
+        center: 'justify-center'
+    }
     const selectionColor = '#2100f8'
     const selectionEdgeClassNames = {
         top: {borderTopColor: selectionColor},
@@ -203,7 +208,7 @@ const RenderCell = ({
                   onClick={onClick}
                   autoFocus={editing}
                   className={`
-                  min-w-full min-h-full flex flex-wrap items-center truncate
+                  min-w-full min-h-full flex flex-wrap ${justifyClass[justify]} items-center truncate
                   ${striped && i % 2 !== 0 ? 'bg-gray-50' : isSelected ? 'bg-blue-50' : 'bg-white'} hover:bg-blue-50 
                   ${attribute.type === 'multiselect' && newItem[attribute.name]?.length ? 'p-0.5' :
                       attribute.type === 'multiselect' && !newItem[attribute.name]?.length ? 'p-0.5' : 'p-0.5'
@@ -250,7 +255,10 @@ export const RenderSimple = ({
                                  allowEdit,
                                  actions,
                                  loadMoreId,
-                                 striped
+                                 striped,
+                                 format,
+                                 colJustify,
+                                 setColJustify
                              }) => {
     const gridRef = useRef(null);
     const [isSelecting, setIsSelecting] = useState(false);
@@ -580,7 +588,10 @@ export const RenderSimple = ({
                                         setOrderBy={setOrderBy}
                                         filters={filters}
                                         setFilters={setFilters}
+                                        colJustify={colJustify}
+                                        setColJustify={setColJustify}
                                         customColName={customColNames[attribute.name]}
+                                        format={format}
                                     />
                                 </div>
                                 <div key={`resizer-${i}`} className="z-5 -ml-2"
@@ -655,6 +666,7 @@ export const RenderSimple = ({
                                         key={`cell-${i}-${attrI}`}
                                         width={colSizes[attributes.find(attr => attr.name === attribute).name]}
                                         attribute={attributes.find(attr => attr.name === attribute)}
+                                        justify={colJustify[attribute]}
                                         loading={loading}
                                         updateItem={updateItem}
                                         removeItem={removeItem}

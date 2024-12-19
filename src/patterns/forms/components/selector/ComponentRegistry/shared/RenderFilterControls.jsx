@@ -1,5 +1,5 @@
 import RenderSwitch from "./Switch";
-import {ArrowDown, Filter} from "../../../../ui/icons";
+import {ArrowDown, Filter, FilterRemove} from "../../../../ui/icons";
 import {useRef, useState, useEffect} from "react";
 
 export default function RenderColumnControls({
@@ -44,6 +44,19 @@ export default function RenderColumnControls({
                            setSearch(e.target.value)
                        }}/>
                 <div className="py-1 max-h-[500px] overflow-auto scrollbar-sm">
+                    <div
+                        key={'clear-filters'}
+                        className="flex items-center cursor-pointer px-2 py-1 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                        onClick={() => setFilters([])}
+                    >
+                        <div className={'h-4 w-4 m-1 cursor-pointer text-gray-800'}>
+                            <FilterRemove height={14} width={14}/>
+                        </div>
+
+                        <div className={'flex justify-between m-1 w-full'}>
+                            Clear filters
+                        </div>
+                    </div>
                     {
                         attributes
                             .filter(a => a && (!search || (a.display_name || a.name).toLowerCase().includes(search.toLowerCase())))
@@ -60,7 +73,7 @@ export default function RenderColumnControls({
                                     }}
                                 >
                                     <div className={'h-4 w-4 m-1 cursor-pointer text-gray-800'}>
-                                        <Filter height={14} width={14} />
+                                        <Filter height={14} width={14}/>
                                     </div>
 
                                     <div className={'flex justify-between m-1 w-full'}>
@@ -68,7 +81,8 @@ export default function RenderColumnControls({
 
                                         <RenderSwitch
                                             enabled={filters.find(f => f.column === attribute.name) ? true : false}
-                                            setEnabled={() => {}}
+                                            setEnabled={() => {
+                                            }}
                                         />
                                     </div>
                                 </div>
