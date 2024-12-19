@@ -610,5 +610,5 @@ export default {
     ],
     getData: init,
     "EditComp": Edit,
-    "ViewComp": Edit
+    "ViewComp": View
 }
