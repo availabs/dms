@@ -229,6 +229,7 @@ const getLocation = selectionPoint => {
 export const RenderSimple = ({
                                  visibleAttributes,
                                  attributes,
+                                 customColNames,
                                  isEdit,
                                  orderBy,
                                  setOrderBy,
@@ -579,6 +580,7 @@ export const RenderSimple = ({
                                         setOrderBy={setOrderBy}
                                         filters={filters}
                                         setFilters={setFilters}
+                                        customColName={customColNames[attribute.name]}
                                     />
                                 </div>
                                 <div key={`resizer-${i}`} className="z-5 -ml-2"

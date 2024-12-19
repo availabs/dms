@@ -16,7 +16,7 @@ export const attributeAccessorStr = (col, isDms, isCalculatedCol) => isCalculate
 
 const formatFilters = (filters, isDms, attributes) =>
     filters.filter(f => f.values?.length && f.values.filter(fv => fv.length).length)
-        .reduce((acc, f) => ({...acc, [attributeAccessorStr(f.column, isDms, isCalculatedCol(f.column, attributes))]: f.values}), {});
+        .reduce((acc, f) => ({...acc, [attributeAccessorStr(f.column, isDms, isCalculatedCol(f.column, attributes))]: f.valueSets}), {});
 
 const parseIfJson = value => { try { return JSON.parse(value) } catch (e) { return value } }
 

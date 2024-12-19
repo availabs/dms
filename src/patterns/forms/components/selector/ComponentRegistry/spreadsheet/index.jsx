@@ -319,6 +319,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
                             visibleAttributes,
                             setVisibleAttributes,
                             attributes,
+                            customColNames,
                             isEdit,
                             orderBy,
                             setOrderBy,
@@ -561,6 +562,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
                             setData,
                             visibleAttributes,
                             attributes,
+                            customColNames,
                             isEdit,
                             orderBy,
                             setOrderBy,
@@ -608,5 +610,5 @@ export default {
     ],
     getData: init,
     "EditComp": Edit,
-    "ViewComp": View
+    "ViewComp": Edit
 }

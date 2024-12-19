@@ -328,8 +328,8 @@ const updateSections = async ({sections, newView, falcor, user, setUpdating}) =>
     });
 }
 
-const Edit = ({value, onChange, siteType}) => {
-    const {app, baseUrl, falcor, falcorCache, pgEnv, user, ...rest} = useContext(CMSContext) || {}
+const Edit = ({value, onChange}) => {
+    const {app, siteType, baseUrl, falcor, falcorCache, pgEnv, user, ...rest} = useContext(CMSContext) || {}
     const cachedData = parseIfJson(value) ? JSON.parse(value) : {};
     const [loading, setLoading] = useState(false);
     const [patterns, setPatterns] = useState([]);
