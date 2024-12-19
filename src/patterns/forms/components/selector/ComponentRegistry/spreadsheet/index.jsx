@@ -96,7 +96,8 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
                             ...((filtersFromURL || []).find(f => f.column === column)?.values || []),
                             ...((oldFilters || []).find(f => f.column === column)?.values || []),
                         ].filter(f => f)
-                    )]
+                    )],
+                    valueSet: (oldFilters || []).find(f => f.column === column)?.valueSet
                 }))
 
                 return newFilters
@@ -411,7 +412,8 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
                             ...((filtersFromURL || []).find(f => f.column === column)?.values || []),
                             ...((oldFilters || []).find(f => f.column === column)?.values || []),
                         ].filter(f => f)
-                    )]
+                    )],
+                    valueSet: (oldFilters || []).find(f => f.column === column)?.valueSet
                 }))
 
                 return newFilters
