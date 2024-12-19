@@ -21,16 +21,18 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     const [loading, setLoading] = useState(false);
     const [attributes, setAttributes] = useState([]);
     const [visibleAttributes, setVisibleAttributes] = useState(cachedData.visibleAttributes || []);
-    const [customColNames, setCustomColNames] = useState(cachedData.customColNames || {});
-    const [colSizes, setColSizes] = useState(cachedData.colSizes || {});
     const [newItem, setNewItem] = useState({})
 
+    // can these merge into one variable? colStyle, setColStyle
+    const [customColNames, setCustomColNames] = useState(cachedData.customColNames || {});
+    const [colSizes, setColSizes] = useState(cachedData.colSizes || {});
     const [colJustify, setColJustify] = useState(cachedData.colJustify || {});
     const [orderBy, setOrderBy] = useState(cachedData.orderBy || {});
+    const [fn, setFn] = useState(cachedData.fn || {});
+
     const [filters, setFilters] = useState(cachedData.filters || []);
     const [groupBy, setGroupBy] = useState(cachedData.groupBy || []);
     const [actions, setActions] = useState(cachedData.actions || []);
-    const [fn, setFn] = useState(cachedData.fn || {});
     const [notNull, setNotNull] = useState(cachedData.notNull || []);
     const [showTotal, setShowTotal] = useState(cachedData.showTotal);
     const [striped, setStriped] = useState(cachedData.striped);

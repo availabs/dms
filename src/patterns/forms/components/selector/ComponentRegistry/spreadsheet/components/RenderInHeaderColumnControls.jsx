@@ -13,6 +13,8 @@ export default function RenderInHeaderColumnControls({
     orderBy, setOrderBy,
     filters, setFilters,
     colJustify, setColJustify,
+    formatFn, setFormatFn,
+    fontSize, setFontSize,
     format,
 }) {
     const dragItem = useRef();
@@ -115,20 +117,8 @@ export default function RenderInHeaderColumnControls({
                             >
                                 {
                                     sortOptions
-                                        .map(sortOption => <option key={sortOption.value} value={sortOption.value}>{sortOption.label}</option>)
-                                }
-                            </select>
-                        </div>
-
-                        <div className={'w-full cursor-pointer'}>
-                            <select
-                                className={selectClasses}
-                                value={''}
-                                onChange={e => {}}
-                            >
-                                {
-                                    formatOptions
-                                        .map(({label, value}) => <option key={label} value={value}>{label}</option>)
+                                        .map(sortOption => <option key={sortOption.value}
+                                                                   value={sortOption.value}>{sortOption.label}</option>)
                                 }
                             </select>
                         </div>
@@ -146,11 +136,26 @@ export default function RenderInHeaderColumnControls({
                             </select>
                         </div>
 
-                        <div className={'w-full cursor-pointer'}>
+                        <div className={setFormatFn ? 'w-full cursor-pointer' : 'hidden'}>
                             <select
                                 className={selectClasses}
                                 value={''}
-                                onChange={e => {}}
+                                onChange={e => {
+                                }}
+                            >
+                                {
+                                    formatOptions
+                                        .map(({label, value}) => <option key={label} value={value}>{label}</option>)
+                                }
+                            </select>
+                        </div>
+
+                        <div className={setFontSize ? 'w-full cursor-pointer' : 'hidden'}>
+                            <select
+                                className={selectClasses}
+                                value={''}
+                                onChange={e => {
+                                }}
                             >
                                 {
                                     fontSizeOptions
