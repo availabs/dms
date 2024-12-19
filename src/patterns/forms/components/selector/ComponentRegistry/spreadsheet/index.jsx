@@ -82,6 +82,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
         const filterCols = Array.from(searchParams.keys());
         const filtersFromURL = filterCols.map(col => ({column: col, values: searchParams.get(col)?.split(filterValueDelimiter)}));
         if(filtersFromURL.length) {
+            console.log('???????????', filters)
             // if filters !== url search params, set filters. no need to navigate.
             setFilters(oldFilters => {
                 const newFilters = [
@@ -97,7 +98,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
                             ...((oldFilters || []).find(f => f.column === column)?.values || []),
                         ].filter(f => f)
                     )],
-                    valueSet: (oldFilters || []).find(f => f.column === column)?.valueSet
+                    valueSets: (oldFilters || []).find(f => f.column === column)?.valueSets
                 }))
 
                 return newFilters
@@ -413,7 +414,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
                             ...((oldFilters || []).find(f => f.column === column)?.values || []),
                         ].filter(f => f)
                     )],
-                    valueSet: (oldFilters || []).find(f => f.column === column)?.valueSet
+                    valueSets: (oldFilters || []).find(f => f.column === column)?.valueSets
                 }))
 
                 return newFilters
