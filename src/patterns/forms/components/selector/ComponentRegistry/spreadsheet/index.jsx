@@ -27,6 +27,8 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     const [customColNames, setCustomColNames] = useState(cachedData.customColNames || {});
     const [colSizes, setColSizes] = useState(cachedData.colSizes || {});
     const [colJustify, setColJustify] = useState(cachedData.colJustify || {});
+    const [formatFn, setFormatFn] = useState(cachedData.formatFn || {});
+    const [fontSize, setFontSize] = useState(cachedData.fontSize || {});
     const [orderBy, setOrderBy] = useState(cachedData.orderBy || {});
     const [fn, setFn] = useState(cachedData.fn || {});
 
@@ -40,7 +42,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     const [allowEditInView, setAllowEditInView] = useState(cachedData.allowEditInView);
     const [allowSearchParams, setAllowSearchParams] = useState(cachedData.allowSearchParams === undefined ? true : cachedData.allowSearchParams);
     const [usePagination, setUsePagination] = useState(cachedData.usePagination);
-    const [pageSize, setPageSize] = useState(cachedData.pageSize || 500);
+    const [pageSize, setPageSize] = useState(cachedData.pageSize || 5);
     // const [dataSize, setDataSize] = useState(cachedData.dataSize || 500);
 
 
@@ -188,12 +190,12 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
         async function load() {
             if(!format?.config && !format?.metadata?.columns) return;
             setLoading(true)
-            // const length = await getLength({format, apiLoad, filters, groupBy});
+            const length = await getLength({format, apiLoad, filters, groupBy});
             const data = await getData({
                 format, apiLoad, currentPage, pageSize, length, orderBy, filters, groupBy, visibleAttributes, fn, notNull
             });
             // setLength(length);
-            setData(prevData => [...prevData, ...data]); // on page change append
+            setData(prevData => currentPage > 0 ? [...prevData, ...data] : data); // on page change append
             setHasMore((currentPage * pageSize + pageSize) < length)
             setLoading(false)
         }
@@ -232,13 +234,15 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
             customColNames, orderBy, colSizes, filters,
             groupBy, fn, notNull, allowEditInView, format,
             view, actions, allowSearchParams, loadMoreId, striped, showTotal, usePagination, allowDownload,
-            colJustify,
+            colJustify, formatFn, fontSize,
             data,
             attributionData: {source_id: format?.id, view_id: view, version: view}
         }));
     }, [visibleAttributes, pageSize, attributes, customColNames,
         orderBy, colSizes, filters, groupBy, fn, notNull, allowEditInView,
-        format, view, actions, allowSearchParams, loadMoreId, striped, showTotal, usePagination, allowDownload, colJustify, data])
+        format, view, actions, allowSearchParams, loadMoreId, striped, showTotal, usePagination, allowDownload,
+        colJustify, formatFn, fontSize,
+        data])
     // =========================================== saving settings end =================================================
 
     // =========================================== util fns begin ======================================================
@@ -345,8 +349,9 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
                             loadMoreId,
                             striped,
                             format,
-                            colJustify,
-                            setColJustify,
+                            colJustify, setColJustify,
+                            formatFn, setFormatFn,
+                            fontSize, setFontSize,
                             actions: actions.filter(a => ['edit only', 'both'].includes(a.display)),
                             allowEdit: !groupBy.length
                         }} />
@@ -368,7 +373,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
 
     const [newItem, setNewItem] = useState({})
     const [data, setData] = useState(cachedData.data || []);
-    const [hasMore, setHasMore] = useState();
+    const [hasMore, setHasMore] = useState(false);
     const [loading, setLoading] = useState(false);
     const [currentPage, setCurrentPage] = useState(0);
 
@@ -379,6 +384,8 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
     const notNull = cachedData.notNull || [];
     const actions = cachedData.actions || [];
     const colJustify = cachedData.colJustify || {};
+    const formatFn = cachedData.formatFn || {};
+    const fontSize = cachedData.fontSize || {};
     const fn = cachedData.fn;
     const allowEdit = cachedData.allowEditInView;
     const allowSearchParams = cachedData.allowSearchParams;
@@ -428,7 +435,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
                 return newFilters
             })
             setLength(undefined)
-            setHasMore(undefined)
+            setHasMore(false)
         }
     }, [allowSearchParams, searchParams]);
     // ========================================= filters 1/2 end =======================================================
@@ -505,12 +512,12 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
         async function load() {
             if(!format?.config && !format?.metadata?.columns) return;
             setLoading(true)
-            // const length = await getLength({format, apiLoad, filters, groupBy});
+            const length = await getLength({format, apiLoad, filters, groupBy});
             const data = await getData({
                 format, apiLoad, currentPage, pageSize, length, orderBy, filters, groupBy, visibleAttributes, fn, notNull
             });
             // setLength(length);
-            setData(prevData => [...prevData, ...data]); // on page change append
+            setData(prevData => currentPage > 0 ? [...prevData, ...data] : data); // on page change append
             setHasMore((currentPage * pageSize + pageSize) < length)
             setLoading(false)
         }
@@ -594,6 +601,8 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
                             striped,
                             format,
                             colJustify,
+                            formatFn,
+                            fontSize,
                             allowEdit: groupBy.length ? false : allowEdit,
                             actions: actions.filter(a => ['view only', 'both'].includes(a.display))
                         }} />

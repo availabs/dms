@@ -1,3 +1,26 @@
+const fnum = (number, currency = false) => `${currency ? '$ ' : ''} ${isNaN(number) ? 0 : parseInt(number).toLocaleString()}`;
+const fnumIndex = (d, fractions = 2, currency = false) => {
+        if(isNaN(d)) return 'No Data'
+        if(typeof d === 'number' && d < 1) return `${currency ? '$' : ``} ${d?.toFixed(fractions)}`
+        if (d >= 1_000_000_000_000_000) {
+            return `${currency ? '$' : ``} ${(d / 1_000_000_000_000_000).toFixed(fractions)} Q`;
+        }else if (d >= 1_000_000_000_000) {
+            return `${currency ? '$' : ``} ${(d / 1_000_000_000_000).toFixed(fractions)} T`;
+        } else if (d >= 1_000_000_000) {
+            return `${currency ? '$' : ``} ${(d / 1_000_000_000).toFixed(fractions)} B`;
+        } else if (d >= 1_000_000) {
+            return `${currency ? '$' : ``} ${(d / 1_000_000).toFixed(fractions)} M`;
+        } else if (d >= 1_000) {
+            return `${currency ? '$' : ``} ${(d / 1_000).toFixed(fractions)} K`;
+        } else {
+            return typeof d === "object" ? `` : `${currency ? '$' : ``} ${parseInt(d)}`;
+        }
+    }
+;
+export const formatFunctions = {
+    'abbreviate': (d, isDollar) => fnumIndex(d, 1, isDollar),
+    'comma': (d, isDollar) => fnum(d, isDollar)
+}
 const columnRenameRegex = /\s+as\s+/i;
 
 const splitColNameOnAS = name => name.split(columnRenameRegex); // split on as/AS/aS/As and spaces surrounding it
@@ -112,7 +135,7 @@ export const getData = async ({format, apiLoad, currentPage, pageSize, length, v
         children
     });
 
-    // console.log('data', data)
+    console.log('fetched data', data)
     // todo: known bug, and possible solution
     // after changing fn for a column multiple times, all previously selected fns are also included in data.
     // this makes it so that sometimes wrong fn is displayed.

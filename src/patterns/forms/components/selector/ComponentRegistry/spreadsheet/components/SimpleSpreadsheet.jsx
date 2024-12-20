@@ -3,7 +3,7 @@ import {Link} from "react-router-dom"
 import DataTypes from "../../../../../../../data-types";
 import RenderInHeaderColumnControls from "./RenderInHeaderColumnControls";
 import Icons, {TrashCan, Add} from "../../../../../ui/icons";
-import {convertToUrlParams} from "../utils";
+import {convertToUrlParams, formatFunctions} from "../utils";
 const actionsColSize = 80;
 const numColSize = 20;
 const gutterColSize = 20;
@@ -135,7 +135,8 @@ const validate = ({value, required, options, name}) => {
 
 const DisplayCalculatedCell = ({value, className}) => <div className={className}>{value}</div>
 const RenderCell = ({
-                        attribute, justify, i, item, updateItem, width, onPaste,
+                        attribute, justify, formatFn, fontSize,
+                        i, item, updateItem, width, onPaste,
                         isFrozen, isSelected, isSelecting, editing, edge, loading, allowEdit, striped,
                         onClick, onDoubleClick, onMouseDown, onMouseMove, onMouseUp}) => {
     // const [editing, setEditing] = useState(false);
@@ -217,7 +218,7 @@ const RenderCell = ({
                   `}
                   // displayInvalidMsg={false}
                   {...attribute}
-                  value={newItem[attribute.name]}
+                  value={formatFn ? formatFunctions[formatFn](newItem[attribute.name], attribute.isDollar) : newItem[attribute.name]}
                   onChange={e => {
                       setNewItem({...newItem, [attribute.name]: e})
                   }}
@@ -258,7 +259,9 @@ export const RenderSimple = ({
                                  striped,
                                  format,
                                  colJustify,
-                                 setColJustify
+                                 setColJustify,
+                                 formatFn, setFormatFn,
+                                 fontSize, setFontSize,
                              }) => {
     const gridRef = useRef(null);
     const [isSelecting, setIsSelecting] = useState(false);
@@ -584,12 +587,11 @@ export const RenderSimple = ({
                                     <RenderInHeaderColumnControls
                                         isEdit={isEdit}
                                         attribute={attribute}
-                                        orderBy={orderBy}
-                                        setOrderBy={setOrderBy}
-                                        filters={filters}
-                                        setFilters={setFilters}
-                                        colJustify={colJustify}
-                                        setColJustify={setColJustify}
+                                        orderBy={orderBy} setOrderBy={setOrderBy}
+                                        filters={filters} setFilters={setFilters}
+                                        colJustify={colJustify} setColJustify={setColJustify}
+                                        formatFn={formatFn} setFormatFn={setFormatFn}
+                                        fontSize={fontSize} setFontSize={setFontSize}
                                         customColName={customColNames[attribute.name]}
                                         format={format}
                                     />
@@ -667,6 +669,8 @@ export const RenderSimple = ({
                                         width={colSizes[attributes.find(attr => attr.name === attribute).name]}
                                         attribute={attributes.find(attr => attr.name === attribute)}
                                         justify={colJustify[attribute]}
+                                        formatFn={formatFn[attribute]}
+                                        fontSize={fontSize[attribute]}
                                         loading={loading}
                                         updateItem={updateItem}
                                         removeItem={removeItem}

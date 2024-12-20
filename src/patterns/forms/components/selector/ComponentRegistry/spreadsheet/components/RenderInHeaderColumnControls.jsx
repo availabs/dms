@@ -17,10 +17,7 @@ export default function RenderInHeaderColumnControls({
     fontSize, setFontSize,
     format,
 }) {
-    const dragItem = useRef();
-    const dragOverItem = useRef();
     const menuRef = useRef(null);
-    const [search, setSearch] = useState();
     const [isOpen, setIsOpen] = useState(false);
     const menuBtnId = `menu-btn-${attribute.name}-in-header-column-controls`; // used to control isOpen on menu-btm click;
 
@@ -139,9 +136,8 @@ export default function RenderInHeaderColumnControls({
                         <div className={setFormatFn ? 'w-full cursor-pointer' : 'hidden'}>
                             <select
                                 className={selectClasses}
-                                value={''}
-                                onChange={e => {
-                                }}
+                                value={formatFn[attribute.name]}
+                                onChange={e => setFormatFn({...formatFn, [attribute.name]: e.target.value})}
                             >
                                 {
                                     formatOptions
@@ -153,9 +149,8 @@ export default function RenderInHeaderColumnControls({
                         <div className={setFontSize ? 'w-full cursor-pointer' : 'hidden'}>
                             <select
                                 className={selectClasses}
-                                value={''}
-                                onChange={e => {
-                                }}
+                                value={fontSize[attribute.name]}
+                                onChange={e => setFontSize({...fontSize, [attribute.name]: e.target.value})}
                             >
                                 {
                                     fontSizeOptions
