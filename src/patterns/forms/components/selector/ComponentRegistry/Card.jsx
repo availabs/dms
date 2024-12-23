@@ -1,5 +1,5 @@
 
-import {getData} from "./spreadsheet/utils";
+import {getData} from "./spreadsheet/utils/utils";
 import SpreadSheet from "./spreadsheet";
 
 export const Card = ({data, visibleAttributes, attributes, customColNames}) => {

@@ -1,7 +1,7 @@
 import React, {useState, useEffect} from 'react'
 import {RenderSimple} from "./components/SimpleSpreadsheet";
 import {RenderPagination} from "./components/RenderPagination";
-import {isJson, getLength, getData, convertToUrlParams, init} from "./utils";
+import {isJson, getLength, getData, convertToUrlParams, init} from "./utils/utils";
 import {RenderFilters} from "./components/RenderFilters";
 import {useSearchParams, useNavigate} from "react-router-dom";
 import {FormsSelector} from "../../FormsSelector";
@@ -213,7 +213,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
                     setHasMore(((currentPage+1) * pageSize + pageSize) < length)
                 }
             },
-            { threshold: 1 }
+            { threshold: 0 }
         );
 
         const target = document.querySelector(`#${loadMoreId}`);
@@ -537,7 +537,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
                     setHasMore(((currentPage+1) * pageSize + pageSize) < length)
                 }
             },
-            { threshold: 1 }
+            { threshold: 0 }
         );
 
         const target = document.querySelector(`#${loadMoreId}`);

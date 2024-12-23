@@ -1,7 +1,7 @@
 import React, {useEffect, useMemo, useState} from "react";
 import {useNavigate, useSearchParams} from "react-router-dom";
 import {dmsDataTypes} from "../../../../../../../data-types";
-import {formattedAttributeStr, attributeAccessorStr, convertToUrlParams} from "../utils";
+import {formattedAttributeStr, attributeAccessorStr, convertToUrlParams} from "../utils/utils";
 import {Filter} from "../../../../../../admin/ui/icons";
 import {isJson} from "../../../index";
 
