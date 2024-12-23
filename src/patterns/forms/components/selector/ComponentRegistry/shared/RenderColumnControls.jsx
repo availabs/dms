@@ -1,6 +1,7 @@
 import RenderSwitch from "./Switch";
 import React, {useEffect, useRef, useState} from "react";
 import {ArrowDown} from "../../../../ui/icons";
+import {cloneDeep} from "lodash-es";
 
 export default function RenderColumnControls({
     attributes=[], setAttributes,
@@ -144,16 +145,26 @@ export default function RenderColumnControls({
 
                                         <select
                                             className={
-                                            groupBy?.includes(attribute.name) || !visibleAttributes.includes(attribute.name) || !setFn ?
-                                                'invisible' :
-                                                'appearance-none w-fit rounded-md bg-gray-100 h-fit text-center'
+                                                groupBy?.includes(attribute.name) || !visibleAttributes.includes(attribute.name) || !setFn ?
+                                                    'invisible' :
+                                                    'appearance-none w-fit rounded-md bg-gray-100 h-fit text-center'
                                             }
                                             value={fn[attribute.name]}
-                                            onClick={e => setFn({...fn, [attribute.name]: e.target.value})}
+                                            onClick={e => {
+                                                if (!e.target.value) {
+                                                    const newFn = cloneDeep(fn);
+                                                    delete newFn[attribute.name];
+                                                    setFn(newFn)
+                                                } else {
+                                                    setFn({...fn, [attribute.name]: e.target.value})
+                                                }
+                                            }}
                                         >
+                                            <option key={'fn'} value={undefined}>fn</option>
                                             {
-                                                    ['fn', 'list', 'sum', 'count']
-                                                        .map(fnOption => <option key={fnOption} value={fnOption}>{fnOption}</option> )
+                                                ['list', 'sum', 'count']
+                                                    .map(fnOption => <option key={fnOption}
+                                                                             value={fnOption}>{fnOption}</option>)
                                             }
                                         </select>
 

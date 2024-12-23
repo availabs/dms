@@ -31,7 +31,7 @@ export const ColumnControls = ({
         />
         <RenderFilterControls attributes={attributes} filters={filters} setFilters={setFilters}/>
 
-        <RenderGroupControls attributes={attributes} groupBy={groupBy} setGroupBy={setGroupBy}/>
+        <RenderGroupControls attributes={attributes} groupBy={groupBy} setGroupBy={setGroupBy} setFn={setFn}/>
 
         <RenderActionControls actions={actions} setActions={setActions}/>
 

@@ -17,6 +17,21 @@ const fnumIndex = (d, fractions = 2, currency = false) => {
         }
     }
 ;
+function convertToNumeric(value) {
+    if (typeof value === 'number' && !isNaN(value)) {
+        return value;
+    }
+
+    if (typeof value === 'string' && value.trim() !== '') {
+        const num = Number(value.trim());
+        if (!isNaN(num)) {
+            return num;
+        }
+    }
+
+    return null;
+}
+
 export const formatFunctions = {
     'abbreviate': (d, isDollar) => fnumIndex(d, 1, isDollar),
     'comma': (d, isDollar) => fnum(d, isDollar)
@@ -56,8 +71,10 @@ export const getNestedValue = value => value?.value && typeof value?.value === '
 
 export const applyFn = (col={}, fn={}, groupBy=[], isDms=false) => {
     const colName = col.name;
-    // apply fns if: column is not calculated column or
-    // it is calculated, and does not have function in name
+    // don't apply fn if: there exists more than one columns, and at least one of them doesn't have fn.
+
+    // apply fns if: column is not calculated column or it is calculated, and does not have function in name
+
     // calculated columns should never get data->>
     const isCalculatedCol = col.type === 'calculated' || col.display === 'calculated' || col.origin === 'calculated-column';
     const colNameWithAccessor = attributeAccessorStr(colName, isDms, isCalculatedCol);
@@ -91,9 +108,18 @@ export const getData = async ({format, apiLoad, currentPage, pageSize, length, v
     // if grouping, use load. disable editing.
     // console.log('getData format?', format)
     const originalAttributes = JSON.parse(format?.config || '{}')?.attributes || format?.metadata?.columns || [];
+    // invalid state: while NOT grouping by, there are some columns with fn applied. either all of them need fn, or none.
+    const noGroupSomeFnCondition = visibleAttributes.length > 1 && !groupBy.length && Object.keys(fn).length > 0 && Object.keys(fn).length < visibleAttributes.length;
+    const groupNoFnCondition = groupBy.length && Object.keys(fn).length + groupBy.length !== visibleAttributes.length; // while grouping, all the non-grouped columns should have a fn
+    const isInvalidState = noGroupSomeFnCondition || groupNoFnCondition;
+    if(isInvalidState) {
+        console.log('invalid state', noGroupSomeFnCondition, groupNoFnCondition, visibleAttributes.length, groupBy.length, fn)
+        return [];
+    }
     const attributesToFetch = visibleAttributes.map(col => ({
         originalName: col,
         reqName: getColAccessor(getFullCol(col, originalAttributes), groupBy, fn, format.isDms),
+        totalName: `SUM(CASE WHEN (${attributeAccessorStr(col, format.isDms, isCalculatedCol(col, originalAttributes))})::text ~ '^-?\\d+(\\.\\d+)?$' THEN (${attributeAccessorStr(col, format.isDms, isCalculatedCol(col, originalAttributes))})::numeric ELSE NULL END ) as ${splitColNameOnAS(col)[1] || splitColNameOnAS(col)[0]}_total`,
         resName: splitColNameOnAS(col)[1] || splitColNameOnAS(col)[0] // regular columns won't have 'as', so [1] will only be available for calculated columns
     }))
     const fnColumnsExists = visibleAttributes.some(attr => fn[attr]); // if fns exist, can't pull ids automatically.
@@ -101,12 +127,12 @@ export const getData = async ({format, apiLoad, currentPage, pageSize, length, v
     if(format.isDms && !groupBy.length && !fnColumnsExists) attributesToFetch.push({originalName: 'id', reqName: 'id', resName: 'id'})
     if(!attributesToFetch.length) return [];
     const actionType = groupBy.length ? 'uda' : 'uda';
-    const lengthBasedOnActionType = actionType === 'uda' ? length - 1 : length; // this really needs to be fixed in api
+    const lengthBasedOnActionType = actionType === 'uda' ? length - 1 : length; // this really needs to be fixed in api for list
     const fromIndex = currentPage*pageSize;
     const toIndex = Math.min(lengthBasedOnActionType, currentPage*pageSize + pageSize);
     if(fromIndex > lengthBasedOnActionType) return [];
     if(groupBy.length && !attributesToFetch.length) return [];
-    console.log('fetching', fromIndex, toIndex, attributesToFetch)
+    console.log('fetching', fromIndex, toIndex, attributesToFetch, orderBy)
     const children = [{
         type: () => {
         },
@@ -118,22 +144,58 @@ export const getData = async ({format, apiLoad, currentPage, pageSize, length, v
             options: JSON.stringify({
                 aggregatedLen: groupBy.length,
                 orderBy: Object.keys(orderBy)
-                                .reduce((acc, curr) => ({
-                                    ...acc,
-                                    [attributeAccessorStr(curr, format.isDms, isCalculatedCol(curr, originalAttributes))]: orderBy[curr]}) , {}),
+                                .reduce((acc, curr) => {
+                                    const isCalcCol = isCalculatedCol(curr, originalAttributes);
+                                    const idx = attributesToFetch.findIndex(a => a.originalName === curr) + 1; // +1 for postgres index
+                                    if(isCalcCol && idx === 0) return acc;
+                                    return {
+                                        ...acc,
+                                        [ isCalcCol ? idx  : attributeAccessorStr(curr, format.isDms, isCalcCol) ]: orderBy[curr]
+                                    }
+                                } , {}),
                 filter: formatFilters(filters, format.isDms, originalAttributes),
                 ...groupBy.length && {groupBy: groupBy.map(col => attributeAccessorStr(col, format.isDms, isCalculatedCol(col, originalAttributes)))},
                 ...notNull.length && {exclude: notNull.reduce((acc, col) => ({...acc, [attributeAccessorStr(col, format.isDms, isCalculatedCol(col, originalAttributes))]: ['null']}), {})}
             }),
-            attributes: actionType === 'uda' ? attributesToFetch.map(a => a.reqName).filter(a => a) : [],
+            attributes: attributesToFetch.map(a => a.reqName).filter(a => a),
             stopFullDataLoad: true
         },
     }]
     const data = await apiLoad({
         format: {...format, type: format.doc_type}, // view_id already in format.
-        attributes: actionType === 'uda' ? attributesToFetch.map(a => a.reqName).filter(a => a) : [],
+        attributes: attributesToFetch.map(a => a.reqName).filter(a => a),
         children
     });
+
+    // =============================================== fetch total row =================================================
+    if(true) {
+        const totalRowChildren = [{
+            type: () => {
+            },
+            action: actionType,
+            path: '/',
+            filter: {
+                fromIndex: path => 0,
+                toIndex: path => 1,
+                options: JSON.stringify({
+                    aggregatedLen: groupBy.length,
+                    filter: formatFilters(filters, format.isDms, originalAttributes),
+                    ...notNull.length && {exclude: notNull.reduce((acc, col) => ({...acc, [attributeAccessorStr(col, format.isDms, isCalculatedCol(col, originalAttributes))]: ['null']}), {})}
+                }),
+                attributes: attributesToFetch.map(a => a.totalName).filter(a => a),
+                stopFullDataLoad: true
+            },
+        }]
+        const totalRowData = await apiLoad({
+            format: {...format, type: format.doc_type}, // view_id already in format.
+            attributes: attributesToFetch.map(a => a.totalName).filter(a => a),
+            children: totalRowChildren
+        });
+
+        data.push({...totalRowData[0], totalRow: true})
+    }
+    // ============================================== fetch total row end ==============================================
+
 
     console.log('fetched data', data)
     // todo: known bug, and possible solution
@@ -141,11 +203,11 @@ export const getData = async ({format, apiLoad, currentPage, pageSize, length, v
     // this makes it so that sometimes wrong fn is displayed.
     // find a way to tell which key to use from data.
     // using visible attributes and fn, maybe filter out Object.keys(row)
-    const d = actionType === 'uda' ?
-        data.map(row => attributesToFetch.reduce((acc, column) => ({...acc, [column.originalName]: cleanValue(row[column.reqName])}) , {})) :
-        data;
-    // console.log('processed data?', d)
-    return d;
+    return data.map(row => attributesToFetch.reduce((acc, column) => ({
+        ...acc,
+        totalRow: row.totalRow,
+        [column.originalName]: cleanValue(row[row.totalRow ? column.totalName : column.reqName])
+    }) , {}));
 
 }
 

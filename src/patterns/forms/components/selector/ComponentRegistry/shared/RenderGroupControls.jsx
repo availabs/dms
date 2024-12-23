@@ -3,7 +3,7 @@ import {ArrowDown, Group} from "../../../../ui/icons";
 import {useRef, useState, useEffect} from "react";
 
 export default function RenderGroupControls({
-                                                 attributes, groupBy, setGroupBy
+                                                 attributes, groupBy, setGroupBy, setFn
                                              }) {
     if(!setGroupBy) return;
     const menuRef = useRef(null);
@@ -57,6 +57,7 @@ export default function RenderGroupControls({
                                             groupBy.filter(attr => attr !== attribute.name);
 
                                         setGroupBy(newFilters);
+                                        if(!groupBy.length) setFn && setFn({});
                                     }}
                                 >
                                     <div className={'h-4 w-4 m-1 cursor-pointer text-gray-800'}>

@@ -195,7 +195,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
                 format, apiLoad, currentPage, pageSize, length, orderBy, filters, groupBy, visibleAttributes, fn, notNull
             });
             // setLength(length);
-            setData(prevData => currentPage > 0 ? [...prevData, ...data] : data); // on page change append
+            setData(prevData => currentPage > 0 ? [...prevData.filter(r => !r.totalRow), ...data] : data); // on page change append
             setHasMore((currentPage * pageSize + pageSize) < length)
             setLoading(false)
         }
@@ -213,7 +213,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
                     setHasMore(((currentPage+1) * pageSize + pageSize) < length)
                 }
             },
-            { threshold: 0 }
+            { threshold: 1 }
         );
 
         const target = document.querySelector(`#${loadMoreId}`);
@@ -304,7 +304,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
                                     filters={filters} setFilters={setFilters}
                                     actions={actions} setActions={setActions}
                                     colJustify={colJustify} setColJustify={setColJustify}
-                                    // showTotal={showTotal} setShowTotal={setShowTotal}
+                                    showTotal={showTotal} setShowTotal={setShowTotal}
                                     striped={striped} setStriped={setStriped}
                                     // allowDownload={allowDownload} setAllowDownload={setAllowDownload}
                                     allowEditInView={allowEditInView} setAllowEditInView={setAllowEditInView}
@@ -349,6 +349,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
                             loadMoreId,
                             striped,
                             format,
+                            showTotal,
                             colJustify, setColJustify,
                             formatFn, setFormatFn,
                             fontSize, setFontSize,
@@ -517,7 +518,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
                 format, apiLoad, currentPage, pageSize, length, orderBy, filters, groupBy, visibleAttributes, fn, notNull
             });
             // setLength(length);
-            setData(prevData => currentPage > 0 ? [...prevData, ...data] : data); // on page change append
+            setData(prevData => currentPage > 0 ? [...prevData.filter(r => !r.totalRow), ...data] : data); // on page change append
             setHasMore((currentPage * pageSize + pageSize) < length)
             setLoading(false)
         }
@@ -536,7 +537,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
                     setHasMore(((currentPage+1) * pageSize + pageSize) < length)
                 }
             },
-            { threshold: 0 }
+            { threshold: 1 }
         );
 
         const target = document.querySelector(`#${loadMoreId}`);
@@ -603,6 +604,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
                             colJustify,
                             formatFn,
                             fontSize,
+                            showTotal,
                             allowEdit: groupBy.length ? false : allowEdit,
                             actions: actions.filter(a => ['view only', 'both'].includes(a.display))
                         }} />
