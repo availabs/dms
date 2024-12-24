@@ -64,6 +64,7 @@ export const RenderSimple = ({
      fontSize, setFontSize,
      colSizes, setColSizes,
      colJustify, setColJustify,
+     linkCols, setLinkCols,
      updateItem, removeItem, addItem,
     }) => {
     const gridRef = useRef(null);
@@ -241,6 +242,7 @@ export const RenderSimple = ({
                                         colJustify={colJustify} setColJustify={setColJustify}
                                         formatFn={formatFn} setFormatFn={setFormatFn}
                                         fontSize={fontSize} setFontSize={setFontSize}
+                                        linkCols={linkCols} setLinkCols={setLinkCols}
                                         customColName={customColNames[attribute.name]}
                                         format={format}
                                     />
@@ -288,7 +290,7 @@ export const RenderSimple = ({
                         allowEdit, isDragging, isSelecting, editing, setEditing, loading,
                         striped, visibleAttributes, attributes, frozenCols,
                         colSizes, selection, setSelection, selectionRange, triggerSelectionDelete,
-                        isEdit, groupBy, filters, actions,
+                        isEdit, groupBy, filters, actions, linkCols,
                         colJustify, formatFn, fontSize,
                         handleMouseDown, handleMouseMove, handleMouseUp,
                         setIsDragging, startCellCol, startCellRow,
@@ -311,7 +313,7 @@ export const RenderSimple = ({
                             allowEdit, isDragging, isSelecting, editing, setEditing, loading,
                             striped, visibleAttributes, attributes, frozenCols,
                             colSizes, selection, setSelection, selectionRange, triggerSelectionDelete,
-                            isEdit, groupBy, filters, actions,
+                            isEdit, groupBy, filters, actions, linkCols,
                             colJustify, formatFn, fontSize,
                             handleMouseDown, handleMouseMove, handleMouseUp,
                             setIsDragging, startCellCol, startCellRow,

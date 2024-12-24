@@ -29,7 +29,7 @@ export const RenderRow = ({
                               allowEdit, isDragging, isSelecting, editing, setEditing, loading,
                               striped, visibleAttributes, attributes, frozenCols,
                               colSizes, selection, setSelection, selectionRange, triggerSelectionDelete,
-                              isEdit, groupBy, filters, actions,
+                              isEdit, groupBy, filters, actions, linkCols,
                               colJustify, formatFn, fontSize,
                               handleMouseDown, handleMouseMove, handleMouseUp,
                               setIsDragging, startCellCol, startCellRow,
@@ -76,6 +76,7 @@ export const RenderRow = ({
                     width={colSizes[attributes.find(attr => attr.name === attribute).name]}
                     attribute={attributes.find(attr => attr.name === attribute)}
                     justify={colJustify[attribute]}
+                    linkCol={linkCols[attribute]}
                     formatFn={formatFn[attribute]}
                     fontSize={fontSize[attribute]}
                     loading={loading}

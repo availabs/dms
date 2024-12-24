@@ -32,6 +32,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     const [fontSize, setFontSize] = useState(cachedData.fontSize || {});
     const [orderBy, setOrderBy] = useState(cachedData.orderBy || {});
     const [fn, setFn] = useState(cachedData.fn || {});
+    const [linkCols, setLinkCols] = useState(cachedData.linkCols || {}); // {isLink, linkText, location}
 
     const [filters, setFilters] = useState(cachedData.filters || []);
     const [groupBy, setGroupBy] = useState(cachedData.groupBy || []);
@@ -244,14 +245,14 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
             customColNames, orderBy, colSizes, filters,
             groupBy, fn, notNull, allowEditInView, format,
             view, actions, allowSearchParams, loadMoreId, striped, showTotal, usePagination, allowDownload,
-            colJustify, formatFn, fontSize,
+            colJustify, formatFn, fontSize, linkCols,
             data,
             attributionData: {source_id: format?.id, view_id, version}
         }));
     }, [visibleAttributes, pageSize, attributes, customColNames,
         orderBy, colSizes, filters, groupBy, fn, notNull, allowEditInView,
         format, view, actions, allowSearchParams, loadMoreId, striped, showTotal, usePagination, allowDownload,
-        colJustify, formatFn, fontSize,
+        colJustify, formatFn, fontSize, linkCols,
         data])
     // =========================================== saving settings end =================================================
 
@@ -363,6 +364,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
                             colJustify, setColJustify,
                             formatFn, setFormatFn,
                             fontSize, setFontSize,
+                            linkCols, setLinkCols,
                             usePagination,
                             actions: actions.filter(a => ['edit only', 'both'].includes(a.display)),
                             allowEdit: !groupBy.length
@@ -401,6 +403,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
     const colJustify = cachedData.colJustify || {};
     const formatFn = cachedData.formatFn || {};
     const fontSize = cachedData.fontSize || {};
+    const linkCols = cachedData.linkCols || {};
     const fn = cachedData.fn;
     const allowEdit = cachedData.allowEditInView;
     const allowSearchParams = cachedData.allowSearchParams;
@@ -630,6 +633,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
                             formatFn,
                             fontSize,
                             showTotal,
+                            linkCols,
                             allowEdit: groupBy.length ? false : allowEdit,
                             actions: actions.filter(a => ['view only', 'both'].includes(a.display))
                         }} />

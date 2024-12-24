@@ -1,10 +1,13 @@
 import React, {useEffect, useState} from "react";
+import {Link} from "react-router-dom";
 import DataTypes from "../../../../../../../data-types";
 import {formatFunctions} from "../utils/utils";
 
 const DisplayCalculatedCell = ({value, className}) => <div className={className}>{value}</div>
 const stringifyIfObj = obj => typeof obj === "object" ? JSON.stringify(obj) : obj;
 const LoadingComp = ({className}) => <div className={className}>loading...</div>
+const LinkComp = ({linkCol, value, Comp}) => linkCol?.isLink ?
+    () => <Link to={`${linkCol.location}${encodeURIComponent(value)}`} >{linkCol.linkText || value}</Link> : Comp;
 
 const validate = ({value, required, options, name}) => {
     const requiredValidation = !required || (required && value && value !== '')
@@ -22,7 +25,7 @@ const validate = ({value, required, options, name}) => {
 const frozenColClass = '' //'sticky left-0 z-10'
 
 export const RenderCell = ({
-                               attribute, justify, formatFn, fontSize,
+                               attribute, justify, formatFn, fontSize, linkCol,
                                i, item, updateItem, width, onPaste,
                                isFrozen, isSelected, isSelecting, editing, edge, loading, allowEdit, striped,
                                onClick, onDoubleClick, onMouseDown, onMouseMove, onMouseUp}) => {
@@ -30,6 +33,7 @@ export const RenderCell = ({
     const [newItem, setNewItem] = useState(item);
     // const Comp = DataTypes[attribute.type]?.[isSelecting ? 'ViewComp' : 'EditComp'];
     const Comp = loading ? LoadingComp : (DataTypes[attribute.type]?.[editing && allowEdit ? 'EditComp' : 'ViewComp'] || DisplayCalculatedCell);
+    const CompWithLink = LinkComp({linkCol, value: newItem[attribute.name], Comp});
     const justifyClass = {
         left: 'justify-start',
         right: 'justify-end',
@@ -90,7 +94,7 @@ export const RenderCell = ({
             {
                 isValid ? null : <span className={'absolute top-0 right-0 text-red-900 font-bold h-fit w-fit'} title={'Invalid Value'}>*</span>
             }
-            <Comp key={`${attribute.name}-${i}`}
+            <CompWithLink key={`${attribute.name}-${i}`}
                   onClick={onClick}
                   autoFocus={editing}
                   className={`

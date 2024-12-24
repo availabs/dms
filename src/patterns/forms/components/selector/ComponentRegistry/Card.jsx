@@ -7,6 +7,7 @@ export const Card = ({data, visibleAttributes, attributes, customColNames}) => {
         visibleAttributes,
         attributes
     )
+    // todo render in header controls here. from spreadsheet, only pass setters in edit mode
     return (
         <div className={'w-full flex gap-2'}>
             {

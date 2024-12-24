@@ -1,22 +1,61 @@
-import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react'
-import RenderSwitch from "../../shared/Switch";
-import React, {useRef, useState} from "react";
+import React, {useEffect, useRef, useState} from "react";
 import {ArrowDown, SortAsc, SortDesc} from "../../../../../../admin/ui/icons";
+import {RenderToggleControls} from "../../shared/RenderToggleControls";
+import {current} from "@reduxjs/toolkit";
+import {RenderInputControls} from "../../shared/RenderInputControls";
 
-// not sorted by -- sorted asc -- sorted desc
-// no format applied -- comma seperated -- abbreviated
-// right justified -- left justified
-// small fonts -- medium fonts -- large fonts
+const RenderLinkControls = ({attribute, linkCols={}, setLinkCols}) => {
+    const [tmpValue, setTmpValue] = useState(linkCols[attribute.name] || {});
+
+    useEffect(() => {
+        let isCanceled = false;
+        setTimeout(() => !isCanceled && setLinkCols({...linkCols, ...{[attribute.name]: tmpValue}}), 500)
+
+        return () => {
+            isCanceled = true;
+        }
+    }, [tmpValue]);
+
+    if (!setLinkCols) return null;
+    const inputWrapperClassName = `w-full rounded-sm cursor-pointer`
+    const inputClassName = `p-0.5 rounded-sm`
+    return (
+        <div className={'p-1 w-full rounded-md bg-white hover:bg-gray-100 cursor-pointer'}>
+            <RenderToggleControls className={`inline-flex w-full justify-center items-center rounded-md cursor-pointer`}
+                                  title={'Is Link'}
+                                  value={tmpValue?.isLink}
+                                  setValue={e => setTmpValue({...tmpValue, isLink: e})}
+            />
+            <div className={tmpValue.isLink ? `mt-0.5 flex flex-col gap-0.5 border rounded-md divide-y` : `hidden`}>
+                <RenderInputControls className={inputWrapperClassName}
+                                     inputClassName={inputClassName}
+                                     type={'text'}
+                                     value={tmpValue.linkText}
+                                     placeHolder={'Link Text'}
+                                     setValue={e => setTmpValue({...tmpValue, linkText: e})}
+                />
+                <RenderInputControls className={inputWrapperClassName}
+                                     inputClassName={inputClassName}
+                                     type={'text'}
+                                     value={tmpValue.location}
+                                     placeHolder={'Location'}
+                                     setValue={e => setTmpValue({...tmpValue, location: e})}
+                />
+            </div>
+        </div>
+    )
+}
 // in header menu for each column
 export default function RenderInHeaderColumnControls({
-    attribute, customColName, isEdit,
-    orderBy, setOrderBy,
-    filters, setFilters,
-    colJustify, setColJustify,
-    formatFn, setFormatFn,
-    fontSize, setFontSize,
-    format,
-}) {
+                                                         attribute, customColName,
+                                                         orderBy, setOrderBy,
+                                                         filters, setFilters,
+                                                         colJustify, setColJustify,
+                                                         formatFn, setFormatFn,
+                                                         fontSize, setFontSize,
+                                                         linkCols, setLinkCols,
+                                                         format,
+                                                     }) {
     const menuRef = useRef(null);
     const [isOpen, setIsOpen] = useState(false);
     const menuBtnId = `menu-btn-${attribute.name}-in-header-column-controls`; // used to control isOpen on menu-btm click;
@@ -73,14 +112,11 @@ export default function RenderInHeaderColumnControls({
         {label: 'Large Fonts', value: 'large'}
     ]
 
-    const actions = [
-        {
-            label: filters.find(f => f.column === attribute.name) ? 'Remove Filter' : 'Add Filter',
-            action: () => setFilters(filters.find(f => f.column === attribute.name) ?
-                filters.filter(f => f.column !== attribute.name) :
-                [...filters, {column: attribute.name}])
-        }
+    const filterOptions = [
+        {label: filters.find(f => f.column === attribute.name) ? 'Filtered By' : 'Add Filter', value: 'true', action: () => setFilters([...filters, {column: attribute.name}])},
+        {label: filters.find(f => f.column === attribute.name) ? 'Remove Filter' : 'Not Filtered By', value: 'false', action: () => setFilters(filters.filter(f => f.column !== attribute.name))},
     ]
+
     const selectClasses = 'p-1 w-full rounded-md bg-white hover:bg-gray-100 cursor-pointer'
     return (
         <div className="relative w-full">
@@ -158,6 +194,21 @@ export default function RenderInHeaderColumnControls({
                                 }
                             </select>
                         </div>
+
+                        <div className={setFilters ? 'w-full cursor-pointer' : 'hidden'}>
+                            <select
+                                className={selectClasses}
+                                value={filters.find(f => f.column === attribute.name) ? 'true' : 'false'}
+                                onChange={e => filterOptions.find(f => f.value === e.target.value).action()}
+                            >
+                                {
+                                    filterOptions
+                                        .map(({label, value}) => <option key={label} value={value}>{label}</option>)
+                                }
+                            </select>
+                        </div>
+
+                        <RenderLinkControls linkCols={linkCols} setLinkCols={setLinkCols} attribute={attribute} />
                     </div>
                 </div>
             </div>
