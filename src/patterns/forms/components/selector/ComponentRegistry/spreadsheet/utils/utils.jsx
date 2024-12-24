@@ -52,9 +52,13 @@ export const formattedAttributeStr = (col, isDms, isCalculatedCol) => isCalculat
 
 export const attributeAccessorStr = (col, isDms, isCalculatedCol) => isCalculatedCol ? splitColNameOnAS(col)[0] : isDms ? `data->>'${col}'` : col;
 
-const formatFilters = (filters, isDms, attributes) =>
-    filters.filter(f => f.values?.length && f.values.filter(fv => fv.length).length)
-        .reduce((acc, f) => ({...acc, [attributeAccessorStr(f.column, isDms, isCalculatedCol(f.column, attributes))]: f.valueSets}), {});
+const formatFilters = (filters, isDms, attributes) => {
+    const res = filters
+        // .filter(f => f.valueSets?.length && f.valueSets.filter(fv => fv.length).length)
+        .reduce((acc, f) => ({...acc, [attributeAccessorStr(f.column, isDms, isCalculatedCol(f.column, attributes))]: f.values.length > f.valueSets.length ? f.values : f.valueSets}), {});
+    console.log('formatted filters:', filters, res)
+    return res
+}
 
 const parseIfJson = value => { try { return JSON.parse(value) } catch (e) { return value } }
 
@@ -103,7 +107,7 @@ export const isJson = (str)  => {
     return true;
 }
 
-export const getData = async ({format, apiLoad, currentPage, pageSize, length, visibleAttributes=[], orderBy={}, filters=[], groupBy=[], fn={}, notNull}) =>{
+export const getData = async ({format, apiLoad, currentPage, pageSize, length, showTotal, visibleAttributes=[], orderBy={}, filters=[], groupBy=[], fn={}, notNull}) =>{
     // fetch all data items based on app and type. see if you can associate those items to its pattern. this will be useful when you have multiple patterns.
     // if grouping, use load. disable editing.
     // console.log('getData format?', format)
@@ -127,12 +131,12 @@ export const getData = async ({format, apiLoad, currentPage, pageSize, length, v
     if(format.isDms && !groupBy.length && !fnColumnsExists) attributesToFetch.push({originalName: 'id', reqName: 'id', resName: 'id'})
     if(!attributesToFetch.length) return [];
     const actionType = groupBy.length ? 'uda' : 'uda';
-    const lengthBasedOnActionType = actionType === 'uda' ? length - 1 : length; // this really needs to be fixed in api for list
     const fromIndex = currentPage*pageSize;
-    const toIndex = Math.min(lengthBasedOnActionType, currentPage*pageSize + pageSize);
-    if(fromIndex > lengthBasedOnActionType) return [];
+    const toIndex = Math.min(length, currentPage*pageSize + pageSize) - 1;
+    if(fromIndex > length) return [];
     if(groupBy.length && !attributesToFetch.length) return [];
-    console.log('fetching', fromIndex, toIndex, attributesToFetch, orderBy)
+    console.log('fetching', length, fromIndex, toIndex, attributesToFetch, orderBy, filters[0])
+    console.log('calling format filters for data', filters[0])
     const children = [{
         type: () => {
         },
@@ -168,7 +172,8 @@ export const getData = async ({format, apiLoad, currentPage, pageSize, length, v
     });
 
     // =============================================== fetch total row =================================================
-    if(true) {
+    if(showTotal) {
+        console.log('calling format filters for total', filters[0])
         const totalRowChildren = [{
             type: () => {
             },
@@ -214,6 +219,7 @@ export const getData = async ({format, apiLoad, currentPage, pageSize, length, v
 export const getLength = async ({format, apiLoad, filters=[], groupBy=[], notNull=[]}) => {
     const attributes = JSON.parse(format?.config || '{}')?.attributes || format?.metadata?.columns || [];
     // console.log('getLen format', format)
+    console.log('calling format filters from len', filters[0])
     const children = [{
         type: () => {
         },

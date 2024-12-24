@@ -75,6 +75,7 @@ export const RenderFilters = ({attributes, filters, setFilters, format, apiLoad,
     const navigate = useNavigate();
     const [filterOptions, setFilterOptions] = useState({}); // {col1: [vals], col2:[vals]}
     // console.log('render filters props', format, attributes)
+    // filters don't work for newly added values. this has started happening after accomodating multiselect filters using valueSets. can be solved by using merge of values and valuesets in format filters.
     useEffect(() => {
         async function load(){
             if(!attributes.length) return;
@@ -130,7 +131,7 @@ export const RenderFilters = ({attributes, filters, setFilters, format, apiLoad,
 
         load()
     }, [filters, attributes]);
-    console.log('foptions', filterOptions)
+    console.log('foptions', filterOptions, filters)
     const MultiSelectComp = dmsDataTypes.multiselect.EditComp;
     if(!filters.length || !attributes.length) return null;
     return (
@@ -153,10 +154,11 @@ export const RenderFilters = ({attributes, filters, setFilters, format, apiLoad,
                                             values: e,
                                             valueSets:
                                                 (filterOptions?.[f.column]?.allValues || [])
-                                                    .filter(v => e.some(e1 => v.includes(e1)))
+                                                    .filter(v => e.some(e1 => Array.isArray(v) ? v.includes(e1) : v === e1))
                                                     // .filter(v => Array.isArray(v) ? v.some(v1 => e.includes(v1)) : e.includes(v)).map(v => `[${v.map(v1 => `"${v1}"`)}]`)
                                         } : filter);
                                 // const url = `?${convertToUrlParams(newFilters, delimiter)}`;
+                                console.log('new filters', newFilters)
                                 setFilters(newFilters)
                                 // navigate(url)
                             }}

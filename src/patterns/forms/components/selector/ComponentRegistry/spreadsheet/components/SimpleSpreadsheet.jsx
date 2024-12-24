@@ -329,8 +329,8 @@ export const RenderSimple = ({
                         style={{gridTemplateColumns: `${numColSize}px ${visibleAttributes.map(v => `${colSizes[v]}px` || 'auto').join(' ')} ${allowEdit ? `${actionsColSize}px` : ``} ${gutterColSize}px`}}
                     >
                         <div className={'flex justify-between sticky left-0 z-[1]'} style={{width: numColSize}}>
-                            <div key={'#'}
-                                 className={`w-full font-semibold border bg-gray-50 text-gray-500`}>
+                            <div key={'#'} className={`w-full font-semibold border bg-gray-50 text-gray-500`}>
+                                *
                             </div>
                         </div>
                         {

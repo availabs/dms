@@ -89,7 +89,9 @@ export default function RenderColumnControls({
         <div className="relative inline-block text-left">
             <div>
                 <div id={menuBtnId}
-                     className={`inline-flex w-full justify-center items-center rounded-md px-1.5 py-1 text-sm font-regular text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 ${isOpen ? `bg-gray-50` : `bg-white hover:bg-gray-50`} cursor-pointer`}
+                     className={`inline-flex w-full justify-center items-center rounded-md px-1.5 py-1 text-sm font-regular 
+                     text-gray-900 shadow-sm ring-1 ring-inset ${visibleAttributes?.length ? `ring-blue-300` : `ring-gray-300`} 
+                     ${isOpen ? `bg-gray-50` : `bg-white hover:bg-gray-50`} cursor-pointer`}
                      onClick={e => setIsOpen(!isOpen)}>
                     Columns <ArrowDown height={18} width={18} className={'mt-1'}/>
                 </div>
