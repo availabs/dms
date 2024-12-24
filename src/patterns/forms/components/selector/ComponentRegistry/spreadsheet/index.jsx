@@ -99,7 +99,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
         const url = convertToUrlParams(filters, filterValueDelimiter); // url based on current filters
 
         // this triggers and the old filters (from cached data) take over.
-        if(url.length && url !== window.location.search.replace('?', '')) {
+        if(url.length && url !== window.location.search.replace('?', '') || (!url.length && !filters.length)) {
             // console.log('debugging: navigating to url 2', url, window.location.search.replace('?', ''))
             navigate(`?${url}`)
         }
@@ -186,7 +186,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
         return () => {
             isCancelled = true;
         };
-    }, [orderBy, filters, groupBy, visibleAttributes, fn, notNull, showTotal]);
+    }, [orderBy, filters, groupBy, visibleAttributes, fn, notNull, showTotal, pageSize]);
 
     useEffect(() => {
         // only run when page changes
@@ -199,7 +199,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
                 format, apiLoad, currentPage, pageSize, length, orderBy, filters, groupBy, visibleAttributes, fn, notNull, showTotal
             });
             // setLength(length);
-            setData(prevData => currentPage > 0 ? [...prevData.filter(r => !r.totalRow), ...data] : data); // on page change append
+            setData(prevData => currentPage > 0 && !usePagination ? [...prevData.filter(r => !r.totalRow), ...data] : data); // on page change append unless using pagination
             setHasMore((currentPage * pageSize + pageSize) < length)
             setLoading(false)
         }
@@ -222,7 +222,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
 
         const target = document.querySelector(`#${loadMoreId}`);
         if (target && !usePagination) observer.observe(target);
-        if (target && usePagination) observer.unobserve(target);
+        if (target && usePagination) observer.unobserve(target); // unobserve if using pagination
 
         return () => {
             if (target) observer.unobserve(target);
@@ -314,8 +314,8 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
                                     // allowDownload={allowDownload} setAllowDownload={setAllowDownload}
                                     allowEditInView={allowEditInView} setAllowEditInView={setAllowEditInView}
                                     allowSearchParams={allowSearchParams} setAllowSearchParams={setAllowSearchParams}
-                                    // usePagination={usePagination} setUsePagination={setUsePagination}
-                                    // pageSize={pageSize} setPageSize={setPageSize}
+                                    usePagination={usePagination} setUsePagination={setUsePagination}
+                                    pageSize={pageSize} setPageSize={setPageSize}
                     /> : null
             }
 
@@ -325,8 +325,8 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
                 renderCard ? <Card data={data} visibleAttributes={visibleAttributes} attributes={attributes} customColNames={customColNames}/> : (
                     <>
                         {/*Pagination*/}
-                        <RenderPagination totalPages={length} loadedRows={data.length} pageSize={pageSize} currentPage={currentPage}
-                                          setVCurrentPage={setCurrentPage} visibleAttributes={visibleAttributes}/>
+                        <RenderPagination usePagination={usePagination} totalPages={length} loadedRows={data.length} pageSize={pageSize} currentPage={currentPage}
+                                          setCurrentPage={setCurrentPage} visibleAttributes={visibleAttributes}/>
 
                         <RenderSimple {...{
                             data,
@@ -358,6 +358,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
                             colJustify, setColJustify,
                             formatFn, setFormatFn,
                             fontSize, setFontSize,
+                            usePagination,
                             actions: actions.filter(a => ['edit only', 'both'].includes(a.display)),
                             allowEdit: !groupBy.length
                         }} />
@@ -432,7 +433,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
         const url = convertToUrlParams(filters, filterValueDelimiter); // url based on current filters
 
         // this triggers and the old filters (from cached data) take over.
-        if(url.length && url !== window.location.search.replace('?', '')) {
+        if(url.length && url !== window.location.search.replace('?', '')) { // todo !url.length && !filter.length: this seems like an invitation to bug when you navigate to this component with search params, but there are no saved filters.
             // console.log('debugging: navigating to url 2', url, window.location.search.replace('?', ''))
             navigate(`?${url}`)
         }
@@ -533,7 +534,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
                 format, apiLoad, currentPage, pageSize, length, orderBy, filters, groupBy, visibleAttributes, fn, notNull, showTotal
             });
             // setLength(length);
-            setData(prevData => currentPage > 0 ? [...prevData.filter(r => !r.totalRow), ...data] : data); // on page change append
+            setData(prevData => currentPage > 0 && !usePagination ? [...prevData.filter(r => !r.totalRow), ...data] : data); // on page change append unless using pagination
             setHasMore((currentPage * pageSize + pageSize) < length)
             setLoading(false)
         }
@@ -556,7 +557,8 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
         );
 
         const target = document.querySelector(`#${loadMoreId}`);
-        if (target) observer.observe(target);
+        if (target && !usePagination) observer.observe(target);
+        if (target && usePagination) observer.unobserve(target);
 
         return () => {
             if (target) observer.unobserve(target);
@@ -625,8 +627,8 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
                         }} />
             }
             {/*Pagination*/}
-            <RenderPagination totalPages={length} loadedRows={data.length} pageSize={pageSize} currentPage={currentPage}
-                              setVCurrentPage={setCurrentPage} visibleAttributes={visibleAttributes}/>
+            <RenderPagination usePagination={usePagination} totalPages={length} loadedRows={data.length} pageSize={pageSize} currentPage={currentPage}
+                              setCurrentPage={setCurrentPage} visibleAttributes={visibleAttributes}/>
         </div>
     )
 }

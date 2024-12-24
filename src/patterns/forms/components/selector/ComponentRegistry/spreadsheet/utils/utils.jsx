@@ -55,7 +55,8 @@ export const attributeAccessorStr = (col, isDms, isCalculatedCol) => isCalculate
 const formatFilters = (filters, isDms, attributes) => {
     const res = filters
         // .filter(f => f.valueSets?.length && f.valueSets.filter(fv => fv.length).length)
-        .reduce((acc, f) => ({...acc, [attributeAccessorStr(f.column, isDms, isCalculatedCol(f.column, attributes))]: f.values.length > f.valueSets.length ? f.values : f.valueSets}), {});
+        .reduce((acc, f) => ({...acc, [
+            attributeAccessorStr(f.column, isDms, isCalculatedCol(f.column, attributes))]: f.values.length > f.valueSets?.length ? f.values : f.valueSets}), {});
     console.log('formatted filters:', filters, res)
     return res
 }
@@ -108,10 +109,12 @@ export const isJson = (str)  => {
 }
 
 export const getData = async ({format, apiLoad, currentPage, pageSize, length, showTotal, visibleAttributes=[], orderBy={}, filters=[], groupBy=[], fn={}, notNull}) =>{
-    // fetch all data items based on app and type. see if you can associate those items to its pattern. this will be useful when you have multiple patterns.
-    // if grouping, use load. disable editing.
-    // console.log('getData format?', format)
-    const originalAttributes = JSON.parse(format?.config || '{}')?.attributes || format?.metadata?.columns || [];
+    const actionType = groupBy.length ? 'uda' : 'uda';
+    const fromIndex = currentPage*pageSize;
+    const toIndex = Math.min(length, currentPage*pageSize + pageSize) - 1;
+    if(fromIndex > length) return [];
+    console.log('what is going on', currentPage, pageSize, length)
+
     // invalid state: while NOT grouping by, there are some columns with fn applied. either all of them need fn, or none.
     const noGroupSomeFnCondition = visibleAttributes.length > 1 && !groupBy.length && Object.keys(fn).length > 0 && Object.keys(fn).length < visibleAttributes.length;
     const groupNoFnCondition = groupBy.length && Object.keys(fn).length + groupBy.length !== visibleAttributes.length; // while grouping, all the non-grouped columns should have a fn
@@ -120,6 +123,8 @@ export const getData = async ({format, apiLoad, currentPage, pageSize, length, s
         console.log('invalid state', noGroupSomeFnCondition, groupNoFnCondition, visibleAttributes.length, groupBy.length, fn)
         return [];
     }
+
+    const originalAttributes = JSON.parse(format?.config || '{}')?.attributes || format?.metadata?.columns || [];
     const attributesToFetch = visibleAttributes.map(col => ({
         originalName: col,
         reqName: getColAccessor(getFullCol(col, originalAttributes), groupBy, fn, format.isDms),
@@ -128,13 +133,10 @@ export const getData = async ({format, apiLoad, currentPage, pageSize, length, s
     }))
     const fnColumnsExists = visibleAttributes.some(attr => fn[attr]); // if fns exist, can't pull ids automatically.
 
-    if(format.isDms && !groupBy.length && !fnColumnsExists) attributesToFetch.push({originalName: 'id', reqName: 'id', resName: 'id'})
     if(!attributesToFetch.length) return [];
-    const actionType = groupBy.length ? 'uda' : 'uda';
-    const fromIndex = currentPage*pageSize;
-    const toIndex = Math.min(length, currentPage*pageSize + pageSize) - 1;
-    if(fromIndex > length) return [];
-    if(groupBy.length && !attributesToFetch.length) return [];
+    if(format.isDms && !groupBy.length && !fnColumnsExists) attributesToFetch.push({originalName: 'id', reqName: 'id', resName: 'id'})
+
+
     console.log('fetching', length, fromIndex, toIndex, attributesToFetch, orderBy, filters[0])
     console.log('calling format filters for data', filters[0])
     const children = [{

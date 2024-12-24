@@ -1,7 +1,7 @@
 import RenderSwitch from "./Switch";
 import React from "react";
 
-export const RenderInputControls = ({value, setValue, title, displayCdn=true}) => setValue && displayCdn ? (
+export const RenderInputControls = ({type, value, setValue, title, displayCdn=true}) => setValue && displayCdn ? (
     <div>
         <div
             className={`inline-flex w-full justify-center items-center rounded-md px-1.5 py-1 text-sm font-regular 
@@ -9,6 +9,7 @@ export const RenderInputControls = ({value, setValue, title, displayCdn=true}) =
         >
             <span className={'flex-1 select-none mr-1'}>{title}</span>
             <input className={'p-0.5'}
+                   type={type}
                    value={value}
                    onChange={e => setValue(e.target.value)}
                    onWheel={e => e.target.blur()}
