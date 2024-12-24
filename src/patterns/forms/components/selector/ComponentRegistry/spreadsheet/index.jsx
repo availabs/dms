@@ -441,7 +441,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
         const url = convertToUrlParams(filters, filterValueDelimiter); // url based on current filters
 
         // this triggers and the old filters (from cached data) take over.
-        if(url.length && url !== window.location.search.replace('?', '')) { // todo !url.length && !filter.length: this seems like an invitation to bug when you navigate to this component with search params, but there are no saved filters.
+        if(url.length && url !== window.location.search.replace('?', '') || (!url.length && !filters.length)) {
             // console.log('debugging: navigating to url 2', url, window.location.search.replace('?', ''))
             navigate(`?${url}`)
         }
