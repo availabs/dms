@@ -3,6 +3,7 @@ import {RenderSimple} from "./components/SimpleSpreadsheet";
 import {RenderPagination} from "./components/RenderPagination";
 import {isJson, getLength, getData, convertToUrlParams, init} from "./utils/utils";
 import {RenderFilters} from "./components/RenderFilters";
+import {RenderAttribution} from "./components/RenderAttribution";
 import {useSearchParams, useNavigate} from "react-router-dom";
 import {FormsSelector} from "../../FormsSelector";
 import {ColumnControls} from "../shared/ColumnControls";
@@ -69,12 +70,14 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     }, [format]);
 
     useEffect(() => {
-        if(!format || !view || format.view_id === view) return;
+        // transitioning from int view to obj view
+        const tmpViewId = typeof view === 'object' ? view.id : view;
+        if(!format || !view || format.view_id === tmpViewId) return;
         const originalDocType = format.originalDocType || format.doc_type;
         const doc_type = originalDocType?.includes('-invalid-entry') ?
-            originalDocType.replace('-invalid-entry', `${view}-invalid-entry`) :
-            `${originalDocType}-${view}`;
-        const view_id = view;
+            originalDocType.replace('-invalid-entry', `${tmpViewId}-invalid-entry`) :
+            `${originalDocType}-${tmpViewId}`;
+        const view_id = tmpViewId; // this has to be the id. API uses this for UDA call.
 
         setFormat(format.doc_type ? {...format, doc_type, type: doc_type, originalDocType, view_id} : {...format, view_id})
     }, [view])
@@ -234,6 +237,8 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     useEffect(() => {
         if (!isEdit) return;
         // notNull passed through controls. setup length and data fns to use it in both edit and view
+        const view_id = typeof view === 'object' ? view.id : view;
+        const version = typeof view === 'object' ? (view.name || view.version) : view;
         onChange(JSON.stringify({
             visibleAttributes, pageSize, attributes,
             customColNames, orderBy, colSizes, filters,
@@ -241,7 +246,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
             view, actions, allowSearchParams, loadMoreId, striped, showTotal, usePagination, allowDownload,
             colJustify, formatFn, fontSize,
             data,
-            attributionData: {source_id: format?.id, view_id: view, version: view}
+            attributionData: {source_id: format?.id, view_id, version}
         }));
     }, [visibleAttributes, pageSize, attributes, customColNames,
         orderBy, colSizes, filters, groupBy, fn, notNull, allowEditInView,
@@ -365,6 +370,8 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
                     </>
                 )
             }
+            {/*Attribution*/}
+            <RenderAttribution format={format} view={view} />
         </div>
     )
 }
@@ -384,6 +391,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
     const [loading, setLoading] = useState(false);
     const [currentPage, setCurrentPage] = useState(0);
 
+    const view = cachedData.view;
     const attributes = cachedData.attributes;
     const visibleAttributes = cachedData.visibleAttributes || [];
     const customColNames = cachedData.customColNames || {};
@@ -626,9 +634,13 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
                             actions: actions.filter(a => ['view only', 'both'].includes(a.display))
                         }} />
             }
-            {/*Pagination*/}
-            <RenderPagination usePagination={usePagination} totalPages={length} loadedRows={data.length} pageSize={pageSize} currentPage={currentPage}
-                              setCurrentPage={setCurrentPage} visibleAttributes={visibleAttributes}/>
+           <div className={'flex justify-between'}>
+               {/*Attribution*/}
+               <RenderAttribution format={format} view={view} />
+               {/*Pagination*/}
+               <RenderPagination usePagination={usePagination} totalPages={length} loadedRows={data.length} pageSize={pageSize} currentPage={currentPage}
+                                 setCurrentPage={setCurrentPage} visibleAttributes={visibleAttributes}/>
+           </div>
         </div>
     )
 }

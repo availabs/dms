@@ -3,7 +3,7 @@ import isEqual from "lodash/isEqual";
 import {CMSContext} from "../../../page/siteConfig";
 import {get} from "lodash-es";
 import FilterableSearch from "./FilterableSearch";
-export const range = (start, end) => Array.from({length: (end + 1 - start)}, (v, k) => k + start);
+const range = (start, end) => Array.from({length: (end + 1 - start)}, (v, k) => k + start);
 
 // get forms, and their sources
 const getSources = async ({envs, falcor, apiLoad}) => {
@@ -69,13 +69,13 @@ export const FormsSelector = ({
         [pgEnv]: {
             label: 'external',
             srcAttributes: ['name', 'metadata'],
-            viewAttributes: ['version']
+            viewAttributes: ['version', '_modified_timestamp']
         },
         [`${app}+${siteType}`]: {
             label: 'managed',
             isDms: true,
             srcAttributes: ['app', 'name', 'doc_type', 'config'],
-            viewAttributes: ['name']
+            viewAttributes: ['name', 'updated_at']
         }
     };
 
@@ -86,7 +86,7 @@ export const FormsSelector = ({
     }, [format]);
 
     useEffect(() => {
-        if(view === currentView) return;
+        if(isEqual(view, currentView)) return;
         setCurrentView(view)
     }, [view]);
     // ===================================== handle post init prop changes end =========================================
@@ -114,6 +114,8 @@ export const FormsSelector = ({
         getViews({envs, source: existingSource, falcor, apiLoad}).then(v => {
             setViews(v)
             if(v?.length === 1) setCurrentView(v?.[0]?.id)
+            // transitioning from int to obj version
+            if(typeof view !== 'object' && v.find(v1 => v1.id === view)) setView(v.find(v1 => v1.id === view))
         })
     }, [existingSource])
 
@@ -147,8 +149,8 @@ export const FormsSelector = ({
                     className={'flex-row-reverse'}
                     placeholder={'Search...'}
                     options={views.map(({id, name, version}) => ({key: id, label: name || version}))}
-                    value={+currentView}
-                    onChange={e => setCurrentView(e)}
+                    value={typeof currentView === 'object' ? +currentView?.id : currentView}
+                    onChange={e => setCurrentView(views.find(v => +v.id === +e))}
                 />
             </div>
         </div>
