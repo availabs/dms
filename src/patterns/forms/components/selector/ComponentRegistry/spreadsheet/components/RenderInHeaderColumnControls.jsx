@@ -235,8 +235,8 @@ export default function RenderInHeaderColumnControls({
                                         onChange={e => setCardSpan({...cardSpan, [attribute.name]: e.target.value})}
                                     >
                                         {
-                                            Array.from({length: maxCardSpan}, (v, k) => k+1)
-                                                .map((span) => <option key={span} value={span}>{span}</option>)
+                                            Array.from({length: maxCardSpan}, (v, k) => ({label: `Card Span: ${k+1}`, value: k+1}))
+                                                .map(({label, value}) => <option key={value} value={value}>{label}</option>)
                                         }
                                     </select>
                                 </div>
