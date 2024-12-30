@@ -111,10 +111,17 @@ export const RenderCell = ({
                 isValid ? null : <span className={'absolute top-0 right-0 text-red-900 font-bold h-fit w-fit'} title={'Invalid Value'}>*</span>
             }
             {showOpenOutCaret ?
-                <div className={''}>
+                <div className={'cursor-pointer'}>
                     {
-                        showOpenOut ? <ArrowDown className={'hover:text-gray-900'} width={18} height={18} onClick={() => setShowOpenOut(false)}/> :
-                            <ArrowRight className={'text-gray-500 group-hover:text-gray-600'} width={18} height={18} onClick={() => setShowOpenOut(true)}/>
+                        showOpenOut ?
+                            <ArrowDown className={'text-gray-500 group-hover:text-gray-600'}
+                                       title={'Hide Open Out'}
+                                       width={18} height={18}
+                                       onClick={() => setShowOpenOut(false)}/> :
+                            <ArrowRight className={'text-gray-500 group-hover:text-gray-600'}
+                                        title={'Show Open Out'}
+                                        width={18} height={18}
+                                        onClick={() => setShowOpenOut(true)}/>
                     }
                 </div> : null}
             {openOut ? <span className={'font-semibold text-gray-600 px-2'}>{customColName || attribute.display_name || attribute.name}</span> : null}

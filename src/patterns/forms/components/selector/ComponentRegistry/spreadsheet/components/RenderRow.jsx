@@ -157,115 +157,118 @@ export const RenderRow = ({
             {/************************************************ open out row ******************************************/}
             {/********************************************************************************************************/}
             { showOpenOut ?
-                openOutAttributes.map((attribute, attrI) => (
-                    <div key={`data-open-out-${i}`}
-                         className={openOutAttributes?.length ? `${d.totalRow ? `sticky bottom-0 z-[1]` : ``} 
+                openOutAttributes.map((attribute, openOutAttrI) => {
+                    const attrI = visibleAttrsWithoutOpenOutsLen + 1 + openOutAttrI;
+                    return (
+                        <div key={`data-open-out-${i}`}
+                             className={openOutAttributes?.length ? `${d.totalRow ? `sticky bottom-0 z-[1]` : ``} 
                             grid ${c[visibleAttrsWithoutOpenOutsLen]}
                             divide-x divide-y
                             ${isDragging ? `select-none` : ``} 
                             ${striped ? `odd:bg-gray-50` : ``} 
                             ${d.totalRow ? `bg-gray-100` : ``}` : 'hidden'}
-                         style={{gridTemplateColumns: `${numColSize}px ${visibleAttrsWithoutOpenOut.map(v => `${colSizes[v]}px` || 'auto').join(' ')} ${allowEdit ? `${actionsColSize}px` : ``} ${gutterColSize}px`}}
-                    >
-                        <div key={'#'}
-                             className={`p-1 flex text-xs items-center justify-center border cursor-pointer sticky left-0 z-[1]
-                             ${selection.find(s => (s.index !== undefined ? s.index : s) === i) ? 'bg-blue-100 text-gray-900' : 'bg-gray-50 text-gray-500'}`}
-                             style={{width: numColSize}}
-                             onClick={e => {
-                                 // single click = replace selection
-                                 // click and mouse move = add to selection
-                                 // ctrl + click add
-                                 if (e.ctrlKey) {
-                                     setSelection(selection.includes(i) ? selection.filter(v => v !== i) : [...selection, i])
-                                 } else {
-                                     setSelection([i])
-                                 }
-                             }}
-                             onMouseDown={e => handleMouseDown({
-                                 e,
-                                 index: i,
-                                 setSelection,
-                                 setIsDragging,
-                                 startCellCol,
-                                 startCellRow,
-                                 selection
-                             })}
-                             onMouseMove={e => handleMouseMove({
-                                 e,
-                                 index: i,
-                                 isDragging,
-                                 startCellCol,
-                                 startCellRow,
-                                 setSelection
-                             })}
-                             onMouseUp={e => handleMouseUp({setIsDragging})}
+                             style={{gridTemplateColumns: `${numColSize}px ${visibleAttrsWithoutOpenOut.map(v => `${colSizes[v]}px` || 'auto').join(' ')} ${allowEdit ? `${actionsColSize}px` : ``} ${gutterColSize}px`}}
                         >
-                            >
-                        </div>
-
-                        <RenderCell
-                            isSelecting={isSelecting}
-                            isSelected={selection.find(s => s.index === i && s.attrI === attrI) || selection.includes(i)}
-                            isFrozen={frozenCols.includes(attrI)}
-                            edge={
-                                selection.find(s => s.index === i && s.attrI === attrI) || selection.includes(i) ?
-                                    getEdge(selectionRange, i, attrI) : null}
-                            editing={editing.index === i && editing.attrI === attrI}
-                            triggerDelete={triggerSelectionDelete}
-                            key={`cell-${i}-${attrI}`}
-                            width={colSizes[attributes.find(attr => attr.name === attribute).name]}
-                            attribute={attributes.find(attr => attr.name === attribute)}
-                            justify={colJustify[attribute]}
-                            linkCol={linkCols[attribute]}
-                            formatFn={formatFn[attribute]}
-                            fontSize={fontSize[attribute]}
-                            openOut={true}
-                            colSpan={visibleAttrsWithoutOpenOutsLen}
-                            customColName={customColNames[attribute.name]}
-                            loading={loading}
-                            updateItem={updateItem}
-                            removeItem={removeItem}
-
-                            i={i}
-                            item={d}
-                            onMouseDown={e => handleMouseDown({
-                                e,
-                                index: i,
-                                attrI,
-                                setSelection,
-                                setIsDragging,
-                                startCellCol,
-                                startCellRow,
-                                selection
-                            })}
-                            onMouseMove={e => handleMouseMove({
-                                e,
-                                index: i,
-                                attrI,
-                                isDragging,
-                                startCellCol,
-                                startCellRow,
-                                setSelection
-                            })}
-                            onMouseUp={e => handleMouseUp({setIsDragging})}
-                            onClick={() => {
-                                setSelection([{index: i, attrI}]);
-                                setEditing({index: i, attrI});
-                            }}
-                            onDoubleClick={() => {
-                            }}
-                            allowEdit={allowEdit}
-                            striped={striped}
-                        />
-
-                        <div className={'flex items-center border'}>
-                            <div key={'##'}
-                                 className={`bg-gray-50 h-full flex shrink-0 justify-between`}
+                            <div key={'#'}
+                                 className={`p-1 flex text-xs items-center justify-center border cursor-pointer sticky left-0 z-[1]
+                             ${selection.find(s => (s.index !== undefined ? s.index : s) === i) ? 'bg-blue-100 text-gray-900' : 'bg-gray-50 text-gray-500'}`}
                                  style={{width: numColSize}}
-                            > {` `}</div>
+                                 onClick={e => {
+                                     // single click = replace selection
+                                     // click and mouse move = add to selection
+                                     // ctrl + click add
+                                     if (e.ctrlKey) {
+                                         setSelection(selection.includes(i) ? selection.filter(v => v !== i) : [...selection, i])
+                                     } else {
+                                         setSelection([i])
+                                     }
+                                 }}
+                                 onMouseDown={e => handleMouseDown({
+                                     e,
+                                     index: i,
+                                     setSelection,
+                                     setIsDragging,
+                                     startCellCol,
+                                     startCellRow,
+                                     selection
+                                 })}
+                                 onMouseMove={e => handleMouseMove({
+                                     e,
+                                     index: i,
+                                     isDragging,
+                                     startCellCol,
+                                     startCellRow,
+                                     setSelection
+                                 })}
+                                 onMouseUp={e => handleMouseUp({setIsDragging})}
+                            >
+                                >
+                            </div>
+
+                            <RenderCell
+                                isSelecting={isSelecting}
+                                isSelected={selection.find(s => s.index === i && s.attrI === attrI) || selection.includes(i)}
+                                isFrozen={frozenCols.includes(attrI)}
+                                edge={
+                                    selection.find(s => s.index === i && s.attrI === attrI) || selection.includes(i) ?
+                                        getEdge(selectionRange, i, attrI) : null}
+                                editing={editing.index === i && editing.attrI === attrI}
+                                triggerDelete={triggerSelectionDelete}
+                                key={`cell-${i}-${attrI}`}
+                                width={colSizes[attributes.find(attr => attr.name === attribute).name]}
+                                attribute={attributes.find(attr => attr.name === attribute)}
+                                justify={colJustify[attribute]}
+                                linkCol={linkCols[attribute]}
+                                formatFn={formatFn[attribute]}
+                                fontSize={fontSize[attribute]}
+                                openOut={true}
+                                colSpan={visibleAttrsWithoutOpenOutsLen}
+                                customColName={customColNames[attribute.name]}
+                                loading={loading}
+                                updateItem={updateItem}
+                                removeItem={removeItem}
+
+                                i={i}
+                                item={d}
+                                onMouseDown={e => handleMouseDown({
+                                    e,
+                                    index: i,
+                                    attrI,
+                                    setSelection,
+                                    setIsDragging,
+                                    startCellCol,
+                                    startCellRow,
+                                    selection
+                                })}
+                                onMouseMove={e => handleMouseMove({
+                                    e,
+                                    index: i,
+                                    attrI,
+                                    isDragging,
+                                    startCellCol,
+                                    startCellRow,
+                                    setSelection
+                                })}
+                                onMouseUp={e => handleMouseUp({setIsDragging})}
+                                onClick={() => {
+                                    setSelection([{index: i, attrI}]);
+                                    setEditing({index: i, attrI});
+                                }}
+                                onDoubleClick={() => {
+                                }}
+                                allowEdit={allowEdit}
+                                striped={striped}
+                            />
+
+                            <div className={'flex items-center border'}>
+                                <div key={'##'}
+                                     className={`bg-gray-50 h-full flex shrink-0 justify-between`}
+                                     style={{width: numColSize}}
+                                > {` `}</div>
+                            </div>
                         </div>
-                    </div>
-                )) : null
+                    )
+                }) : null
             }
         </>
     )
