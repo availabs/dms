@@ -208,7 +208,7 @@ export default function RenderInHeaderColumnControls({
                             </select>
                         </div>
 
-                        <RenderLinkControls linkCols={linkCols} setLinkCols={setLinkCols} attribute={attribute} />
+                        <RenderLinkControls linkCols={linkCols} setLinkCols={setLinkCols} attribute={attribute}/>
                     </div>
                 </div>
             </div>

@@ -65,6 +65,7 @@ export const RenderSimple = ({
      colSizes, setColSizes,
      colJustify, setColJustify,
      linkCols, setLinkCols,
+     openOutCols, setOpenOutCols,
      updateItem, removeItem, addItem,
     }) => {
     const gridRef = useRef(null);
@@ -108,18 +109,22 @@ export const RenderSimple = ({
                 }, {})).join('\n') // join rows
     })
     useEffect(() => {
-        if (gridRef.current && (!Object.keys(colSizes).length || Object.keys(colSizes).length !== visibleAttributes.length)) {
-            const availableVisibleAttributesLen = visibleAttributes.filter(v => attributes.find(attr => attr.name === v)).length; // ignoring the once not in attributes anymore
+        const visibleAttrsWithoutOpenOutsLen = visibleAttributes.filter(va => !openOutCols.includes(va)).length;
+
+        if (gridRef.current && (!Object.keys(colSizes).length || Object.keys(colSizes).length !== visibleAttrsWithoutOpenOutsLen)) {
+            const availableVisibleAttributesLen = visibleAttributes.filter(v => !openOutCols.includes(v) && attributes.find(attr => attr.name === v)).length; // ignoring the once not in attributes anymore
             const gridWidth = gridRef.current.offsetWidth - numColSize - gutterColSize - (allowEdit ? actionsColSize : 0);
             const initialColumnWidth = Math.max(minColSize, gridWidth / availableVisibleAttributesLen);
             setColSizes(
-                visibleAttributes.map(va => attributes.find(attr => attr.name === va)).filter(a => a).reduce((acc, attr) => ({
+                visibleAttributes
+                    .filter(va => !openOutCols.includes(va))
+                    .map(va => attributes.find(attr => attr.name === va)).filter(a => a).reduce((acc, attr) => ({
                     ...acc,
                     [attr.name]: initialColumnWidth
                 }), {})
             );
         }
-    }, [visibleAttributes.length, attributes.length, Object.keys(colSizes).length]);
+    }, [visibleAttributes.length, attributes.length, Object.keys(colSizes).length, openOutCols]);
 
     useEffect(() => {
         async function deleteFn() {
@@ -175,7 +180,7 @@ export const RenderSimple = ({
             const restColsWidthSum = Object.keys(colSizes).filter(k => k !== col).reduce((acc, curr) => acc + (colSizes[curr] || 0), 0);
 
             if(restColsWidthSum > gridWidth){
-                const availableVisibleAttributesLen = visibleAttributes.filter(v => attributes.find(attr => attr.namr === v)).length;
+                const availableVisibleAttributesLen = visibleAttributes.filter(v => !openOutCols.includes(v) && attributes.find(attr => attr.name === v)).length;
 
                 const diff = (restColsWidthSum - gridWidth) / availableVisibleAttributesLen;
                 const newColSizes = Object.keys(colSizes).reduce((acc, curr) => {
@@ -212,21 +217,25 @@ export const RenderSimple = ({
     };
 
     if(!visibleAttributes.length) return <div className={'p-2'}>No columns selected.</div>;
+
+    const visibleAttrsWithoutOpenOut = visibleAttributes.filter(va => !openOutCols.includes(va));
+    const visibleAttrsWithoutOpenOutsLen = visibleAttrsWithoutOpenOut.length;
+
     return (
         <div className={`flex flex-col w-full h-full overflow-x-auto scrollbar-sm`} ref={gridRef}>
             <div className={'flex flex-col no-wrap text-sm max-h-[calc(87vh_-_10px)] overflow-y-auto scrollbar-sm'}
                  onMouseLeave={e => handleMouseUp({setIsDragging})}>
 
                 {/****************************************** Header begin ********************************************/}
-                <div className={`sticky top-0 grid ${allowEdit ? c[visibleAttributes.length + 3] : c[visibleAttributes.length + 2]}`} style={{
+                <div className={`sticky top-0 grid ${allowEdit ? c[visibleAttrsWithoutOpenOutsLen + 3] : c[visibleAttrsWithoutOpenOutsLen + 2]}`} style={{
                     zIndex: 5,
-                    gridTemplateColumns: `${numColSize}px ${visibleAttributes.map(v => `${colSizes[v]}px` || 'auto').join(' ')} ${allowEdit ? `${actionsColSize}px` : ``} ${gutterColSize}px`
+                    gridTemplateColumns: `${numColSize}px ${visibleAttrsWithoutOpenOut.map(v => `${colSizes[v]}px` || 'auto').join(' ')} ${allowEdit ? `${actionsColSize}px` : ``} ${gutterColSize}px`
                 }}>
                     <div className={'flex justify-between sticky left-0 z-[1]'} style={{width: numColSize}}>
                         <div key={'#'} className={`w-full font-semibold border bg-gray-50 text-gray-500 ${frozenColClass}`} />
                     </div>
                     {visibleAttributes.map(va => attributes.find(attr => attr?.name === va))
-                        .filter(a => a)
+                        .filter(a => a && !openOutCols.includes(a.name))
                         .map((attribute, i) =>
                             <div key={i}
                                  className={`flex justify-between ${frozenCols.includes(i) ? frozenColClass : ''}`}
@@ -243,6 +252,7 @@ export const RenderSimple = ({
                                         formatFn={formatFn} setFormatFn={setFormatFn}
                                         fontSize={fontSize} setFontSize={setFontSize}
                                         linkCols={linkCols} setLinkCols={setLinkCols}
+                                        openOutCols={openOutCols} setOpenOutCols={setOpenOutCols}
                                         customColName={customColNames[attribute.name]}
                                         format={format}
                                     />
@@ -288,9 +298,9 @@ export const RenderSimple = ({
                     <RenderRow {...{
                         i, c, d,
                         allowEdit, isDragging, isSelecting, editing, setEditing, loading,
-                        striped, visibleAttributes, attributes, frozenCols,
+                        striped, visibleAttributes, attributes, customColNames, frozenCols,
                         colSizes, selection, setSelection, selectionRange, triggerSelectionDelete,
-                        isEdit, groupBy, filters, actions, linkCols,
+                        isEdit, groupBy, filters, actions, linkCols, openOutCols,
                         colJustify, formatFn, fontSize,
                         handleMouseDown, handleMouseMove, handleMouseUp,
                         setIsDragging, startCellCol, startCellRow,
@@ -311,9 +321,9 @@ export const RenderSimple = ({
                         <RenderRow {...{
                             i, c, d,
                             allowEdit, isDragging, isSelecting, editing, setEditing, loading,
-                            striped, visibleAttributes, attributes, frozenCols,
+                            striped, visibleAttributes, attributes, customColNames, frozenCols,
                             colSizes, selection, setSelection, selectionRange, triggerSelectionDelete,
-                            isEdit, groupBy, filters, actions, linkCols,
+                            isEdit, groupBy, filters, actions, linkCols, openOutCols,
                             colJustify, formatFn, fontSize,
                             handleMouseDown, handleMouseMove, handleMouseUp,
                             setIsDragging, startCellCol, startCellRow,

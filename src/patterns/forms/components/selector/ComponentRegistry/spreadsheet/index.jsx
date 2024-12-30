@@ -25,6 +25,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     const [newItem, setNewItem] = useState({})
 
     // can these merge into one variable? colStyle, setColStyle
+    // column settings
     const [customColNames, setCustomColNames] = useState(cachedData.customColNames || {});
     const [colSizes, setColSizes] = useState(cachedData.colSizes || {});
     const [colJustify, setColJustify] = useState(cachedData.colJustify || {});
@@ -33,11 +34,15 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     const [orderBy, setOrderBy] = useState(cachedData.orderBy || {});
     const [fn, setFn] = useState(cachedData.fn || {});
     const [linkCols, setLinkCols] = useState(cachedData.linkCols || {}); // {isLink, linkText, location}
+    const [openOutCols, setOpenOutCols] = useState(cachedData.openOutCols || []);
 
+    // data req settings
     const [filters, setFilters] = useState(cachedData.filters || []);
     const [groupBy, setGroupBy] = useState(cachedData.groupBy || []);
     const [actions, setActions] = useState(cachedData.actions || []);
     const [notNull, setNotNull] = useState(cachedData.notNull || []);
+
+    // table settings
     const [showTotal, setShowTotal] = useState(cachedData.showTotal);
     const [striped, setStriped] = useState(cachedData.striped);
     const [allowDownload, setAllowDownload] = useState(cachedData.allowDownload);
@@ -245,14 +250,14 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
             customColNames, orderBy, colSizes, filters,
             groupBy, fn, notNull, allowEditInView, format,
             view, actions, allowSearchParams, loadMoreId, striped, showTotal, usePagination, allowDownload,
-            colJustify, formatFn, fontSize, linkCols,
+            colJustify, formatFn, fontSize, linkCols, openOutCols,
             data,
             attributionData: {source_id: format?.id, view_id, version}
         }));
     }, [visibleAttributes, pageSize, attributes, customColNames,
         orderBy, colSizes, filters, groupBy, fn, notNull, allowEditInView,
         format, view, actions, allowSearchParams, loadMoreId, striped, showTotal, usePagination, allowDownload,
-        colJustify, formatFn, fontSize, linkCols,
+        colJustify, formatFn, fontSize, linkCols, openOutCols,
         data])
     // =========================================== saving settings end =================================================
 
@@ -318,6 +323,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
                                     showTotal={showTotal} setShowTotal={setShowTotal}
                                     striped={striped} setStriped={setStriped}
                                     // allowDownload={allowDownload} setAllowDownload={setAllowDownload}
+                                    openOutCols={openOutCols} setOpenOutCols={setOpenOutCols}
                                     allowEditInView={allowEditInView} setAllowEditInView={setAllowEditInView}
                                     allowSearchParams={allowSearchParams} setAllowSearchParams={setAllowSearchParams}
                                     usePagination={usePagination} setUsePagination={setUsePagination}
@@ -365,6 +371,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
                             formatFn, setFormatFn,
                             fontSize, setFontSize,
                             linkCols, setLinkCols,
+                            openOutCols, setOpenOutCols,
                             usePagination,
                             actions: actions.filter(a => ['edit only', 'both'].includes(a.display)),
                             allowEdit: !groupBy.length
@@ -404,6 +411,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
     const formatFn = cachedData.formatFn || {};
     const fontSize = cachedData.fontSize || {};
     const linkCols = cachedData.linkCols || {};
+    const openOutCols = cachedData.openOutCols || [];
     const fn = cachedData.fn;
     const allowEdit = cachedData.allowEditInView;
     const allowSearchParams = cachedData.allowSearchParams;
@@ -634,6 +642,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
                             fontSize,
                             showTotal,
                             linkCols,
+                            openOutCols,
                             allowEdit: groupBy.length ? false : allowEdit,
                             actions: actions.filter(a => ['view only', 'both'].includes(a.display))
                         }} />

@@ -2,12 +2,13 @@ import React, {useEffect, useState} from "react";
 import {Link} from "react-router-dom";
 import DataTypes from "../../../../../../../data-types";
 import {formatFunctions} from "../utils/utils";
+import {ArrowDown, ArrowRight} from "../../../../../ui/icons";
 
 const DisplayCalculatedCell = ({value, className}) => <div className={className}>{value}</div>
 const stringifyIfObj = obj => typeof obj === "object" ? JSON.stringify(obj) : obj;
 const LoadingComp = ({className}) => <div className={className}>loading...</div>
 const LinkComp = ({linkCol, value, Comp}) => linkCol?.isLink ?
-    () => <Link to={`${linkCol.location}${encodeURIComponent(value)}`} >{linkCol.linkText || value}</Link> : Comp;
+    (props) => <Link {...props} to={`${linkCol.location}${encodeURIComponent(value)}`} >{linkCol.linkText || value}</Link> : Comp;
 
 const validate = ({value, required, options, name}) => {
     const requiredValidation = !required || (required && value && value !== '')
@@ -23,9 +24,23 @@ const validate = ({value, required, options, name}) => {
 }
 
 const frozenColClass = '' //'sticky left-0 z-10'
+const colSpanClass = {
+    1: 'col-span-1',
+    2: 'col-span-2',
+    3: 'col-span-3',
+    4: 'col-span-4',
+    5: 'col-span-5',
+    6: 'col-span-6',
+    7: 'col-span-7',
+    8: 'col-span-8',
+    9: 'col-span-9',
+    10: 'col-span-10',
+    11: 'col-span-11',
+}
 
 export const RenderCell = ({
-                               attribute, justify, formatFn, fontSize, linkCol,
+                               showOpenOutCaret, showOpenOut, setShowOpenOut,
+                               attribute, justify, formatFn, fontSize, linkCol, openOut, colSpan, customColName,
                                i, item, updateItem, width, onPaste,
                                isFrozen, isSelected, isSelecting, editing, edge, loading, allowEdit, striped,
                                onClick, onDoubleClick, onMouseDown, onMouseMove, onMouseUp}) => {
@@ -79,9 +94,10 @@ export const RenderCell = ({
             className={`relative flex items-center min-h-[35px] 
             ${isFrozen ? frozenColClass : ''} ${isSelecting ? 'select-none' : ``}
             ${isSelected ? 'bg-blue-50' : 'bg-white'}
+            ${openOut ? colSpanClass[colSpan] : ``}
             `}
             style={{
-                width,
+                ...!openOut && width,
                 ...isSelected && {borderWidth: '1px', ...selectionEdgeClassNames[edge]}
             }}
             onClick={onClick}
@@ -94,6 +110,14 @@ export const RenderCell = ({
             {
                 isValid ? null : <span className={'absolute top-0 right-0 text-red-900 font-bold h-fit w-fit'} title={'Invalid Value'}>*</span>
             }
+            {showOpenOutCaret ?
+                <div className={''}>
+                    {
+                        showOpenOut ? <ArrowDown className={'hover:text-gray-900'} width={18} height={18} onClick={() => setShowOpenOut(false)}/> :
+                            <ArrowRight className={'text-gray-500 group-hover:text-gray-600'} width={18} height={18} onClick={() => setShowOpenOut(true)}/>
+                    }
+                </div> : null}
+            {openOut ? <span className={'font-semibold text-gray-600 px-2'}>{customColName || attribute.display_name || attribute.name}</span> : null}
             <CompWithLink key={`${attribute.name}-${i}`}
                   onClick={onClick}
                   autoFocus={editing}
