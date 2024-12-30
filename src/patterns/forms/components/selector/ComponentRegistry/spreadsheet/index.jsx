@@ -31,6 +31,8 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     const [colJustify, setColJustify] = useState(cachedData.colJustify || {});
     const [formatFn, setFormatFn] = useState(cachedData.formatFn || {});
     const [fontSize, setFontSize] = useState(cachedData.fontSize || {});
+    const [hideHeader, setHideHeader] = useState(cachedData.hideHeader || []);
+    const [cardSpan, setCardSpan] = useState(cachedData.cardSpan || {});
     const [orderBy, setOrderBy] = useState(cachedData.orderBy || {});
     const [fn, setFn] = useState(cachedData.fn || {});
     const [linkCols, setLinkCols] = useState(cachedData.linkCols || {}); // {isLink, linkText, location}
@@ -250,14 +252,14 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
             customColNames, orderBy, colSizes, filters,
             groupBy, fn, notNull, allowEditInView, format,
             view, actions, allowSearchParams, loadMoreId, striped, showTotal, usePagination, allowDownload,
-            colJustify, formatFn, fontSize, linkCols, openOutCols,
+            colJustify, formatFn, fontSize, linkCols, openOutCols, hideHeader, cardSpan,
             data,
             attributionData: {source_id: format?.id, view_id, version}
         }));
     }, [visibleAttributes, pageSize, attributes, customColNames,
         orderBy, colSizes, filters, groupBy, fn, notNull, allowEditInView,
         format, view, actions, allowSearchParams, loadMoreId, striped, showTotal, usePagination, allowDownload,
-        colJustify, formatFn, fontSize, linkCols, openOutCols,
+        colJustify, formatFn, fontSize, linkCols, openOutCols, hideHeader, cardSpan,
         data])
     // =========================================== saving settings end =================================================
 
@@ -334,7 +336,18 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
             <RenderFilters attributes={attributes} filters={filters} setFilters={setFilters} apiLoad={apiLoad}
                            format={format} delimiter={filterValueDelimiter}/>
             {
-                renderCard ? <Card data={data} visibleAttributes={visibleAttributes} attributes={attributes} customColNames={customColNames}/> : (
+                renderCard ?
+                    <Card {...{
+                              data, visibleAttributes, attributes, customColNames,
+                              isEdit,
+                              colJustify, setColJustify,
+                              formatFn, setFormatFn,
+                              fontSize, setFontSize,
+                              linkCols, setLinkCols,
+                              hideHeader, setHideHeader,
+                              cardSpan, setCardSpan
+                          }}
+                    /> : (
                     <>
                         {/*Pagination*/}
                         <RenderPagination usePagination={usePagination} totalPages={length} loadedRows={data.length} pageSize={pageSize} currentPage={currentPage}
@@ -412,6 +425,8 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
     const fontSize = cachedData.fontSize || {};
     const linkCols = cachedData.linkCols || {};
     const openOutCols = cachedData.openOutCols || [];
+    const hideHeader = cachedData.hideHeader || [];
+    const cardSpan = cachedData.cardSpan || {};
     const fn = cachedData.fn;
     const allowEdit = cachedData.allowEditInView;
     const allowSearchParams = cachedData.allowSearchParams;
@@ -419,7 +434,6 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
     const showTotal = cachedData.showTotal;
     const striped = cachedData.striped;
     const allowDownload = cachedData.allowDownload;
-    const allowEditInView = cachedData.allowEditInView;
     const usePagination = cachedData.usePagination;
     
     const filterValueDelimiter = '|||'
@@ -608,7 +622,11 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
     }
     // =========================================== util fns end ========================================================
     if(!format?.config && !format?.metadata?.columns) return <div className={'p-1 text-center'}>Form data not available.</div>
-    return renderCard ? <Card data={data} visibleAttributes={visibleAttributes} attributes={attributes} customColNames={customColNames}/> : (
+    return renderCard ? <Card {...{
+                                data, visibleAttributes, attributes, customColNames,
+                                colJustify, formatFn, fontSize, linkCols, hideHeader, cardSpan
+                            }}
+                        />  : (
         <div className={'w-full'}>
             <RenderFilters attributes={attributes} filters={filters} setFilters={setFilters} apiLoad={apiLoad} format={format} delimiter={filterValueDelimiter}/>
             {

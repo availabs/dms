@@ -1,7 +1,6 @@
 import React, {useEffect, useRef, useState} from "react";
 import {ArrowDown, SortAsc, SortDesc} from "../../../../../../admin/ui/icons";
 import {RenderToggleControls} from "../../shared/RenderToggleControls";
-import {current} from "@reduxjs/toolkit";
 import {RenderInputControls} from "../../shared/RenderInputControls";
 
 const RenderLinkControls = ({attribute, linkCols={}, setLinkCols}) => {
@@ -47,15 +46,17 @@ const RenderLinkControls = ({attribute, linkCols={}, setLinkCols}) => {
 }
 // in header menu for each column
 export default function RenderInHeaderColumnControls({
-                                                         attribute, customColName,
-                                                         orderBy, setOrderBy,
-                                                         filters, setFilters,
-                                                         colJustify, setColJustify,
-                                                         formatFn, setFormatFn,
-                                                         fontSize, setFontSize,
-                                                         linkCols, setLinkCols,
-                                                         format,
-                                                     }) {
+     attribute, customColName,
+     orderBy={}, setOrderBy,
+     filters=[], setFilters,
+     colJustify, setColJustify,
+     formatFn, setFormatFn,
+     fontSize, setFontSize,
+     linkCols, setLinkCols,
+     hideHeader, setHideHeader,
+     cardSpan, setCardSpan, maxCardSpan,
+     format,
+ }) {
     const menuRef = useRef(null);
     const [isOpen, setIsOpen] = useState(false);
     const menuBtnId = `menu-btn-${attribute.name}-in-header-column-controls`; // used to control isOpen on menu-btm click;
@@ -109,7 +110,9 @@ export default function RenderInHeaderColumnControls({
     const fontSizeOptions = [
         {label: 'Small Fonts', value: 'small'},
         {label: 'Medium Fonts', value: 'medium'},
-        {label: 'Large Fonts', value: 'large'}
+        {label: 'Large Fonts', value: 'large'},
+        {label: 'XL Fonts', value: 'xl'},
+        {label: '2XL Fonts', value: '2xl'},
     ]
 
     const filterOptions = [
@@ -138,7 +141,7 @@ export default function RenderInHeaderColumnControls({
             >
                 <div className="py-0.5 w-1/2 min-w-fit max-h-[500px] overflow-auto scrollbar-sm">
                     <div className="flex flex-col gap-0.5 items-center px-1 py-1 text-xs text-gray-700">
-                        <div className={'w-full cursor-pointer'}>
+                        <div className={setOrderBy ? 'w-full cursor-pointer' : 'hidden'}>
                             <select
                                 className={selectClasses}
                                 value={orderBy[attribute.name] || 'default'}
@@ -209,6 +212,36 @@ export default function RenderInHeaderColumnControls({
                         </div>
 
                         <RenderLinkControls linkCols={linkCols} setLinkCols={setLinkCols} attribute={attribute}/>
+
+                        {
+                            setHideHeader ? (
+                                <div className={'p-1 w-full rounded-md bg-white hover:bg-gray-100 cursor-pointer'}>
+                                    <RenderToggleControls
+                                        className={`inline-flex w-full justify-center items-center rounded-md cursor-pointer`}
+                                        title={'Hide Header'}
+                                        value={hideHeader.includes(attribute.name)}
+                                        setValue={e => setHideHeader(e ? [...hideHeader, attribute.name] : hideHeader.filter(col => col !== attribute.name))}
+                                    />
+                                </div>
+                            ) : null
+                        }
+
+                        {
+                            setCardSpan ? (
+                                <div className={'w-full cursor-pointer'}>
+                                    <select
+                                        className={selectClasses}
+                                        value={cardSpan[attribute.name]}
+                                        onChange={e => setCardSpan({...cardSpan, [attribute.name]: e.target.value})}
+                                    >
+                                        {
+                                            Array.from({length: maxCardSpan}, (v, k) => k+1)
+                                                .map((span) => <option key={span} value={span}>{span}</option>)
+                                        }
+                                    </select>
+                                </div>
+                            ) : null
+                        }
                     </div>
                 </div>
             </div>

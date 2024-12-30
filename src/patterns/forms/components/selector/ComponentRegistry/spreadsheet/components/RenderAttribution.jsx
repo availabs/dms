@@ -1,7 +1,7 @@
 import {Link} from "react-router-dom";
 import React from "react";
 
-    export const RenderAttribution = ({format, view}) => {
+    export const RenderAttribution = ({format, view={}}) => {
     const isDms = format.isDms
     const sourceName = format.name;
     const versionName = typeof view === 'object' ? view.name || view.version : view;
