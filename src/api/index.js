@@ -112,7 +112,8 @@ export async function dmsDataLoader (falcor, config, path='/') {
 	if(activeConfigs.find(ac => ac.action === 'uda')){
 		// special return for 'uda' action
 		const path =  newRequests[0].filter((r, i) => i <= newRequests[0].indexOf('dataByIndex'));
-		return Object.values(get(newReqFalcor, path, {}));
+		const {from, to} = newRequests[0][newRequests[0].indexOf('dataByIndex') + 1]
+		return Array.from({length: (to + 1 - from)}, (v, k) => get(newReqFalcor, [...path, k+from], {}));
 	}
 
 

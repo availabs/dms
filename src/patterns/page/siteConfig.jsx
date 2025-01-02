@@ -89,7 +89,7 @@ export const siteConfig = ({
           const { falcor, falcorCache } = useFalcor();
           // console.log('hola', user, defaultUser, user || defaultUser)
           return (
-            <CMSContext.Provider value={{baseUrl, user, theme, falcor, falcorCache, pgEnv, app, type, Menu: () => <>{rightMenu}</> }} >
+            <CMSContext.Provider value={{API_HOST, baseUrl, user, theme, falcor, falcorCache, pgEnv, app, type, siteType, Menu: () => <>{rightMenu}</> }} >
               {children}
             </CMSContext.Provider>
           )
@@ -110,7 +110,6 @@ export const siteConfig = ({
             type: (props) => (
               <PageEdit
                 {...props}
-                siteType={siteType}
               />
             ),
             path: "edit/*",
@@ -120,7 +119,6 @@ export const siteConfig = ({
             type: (props) => (
               <PageView
                 {...props}
-                siteType={siteType}
               />
             ),
             filter: {

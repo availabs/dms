@@ -12,7 +12,7 @@ import { CMSContext } from '../../../siteConfig'
 
 
 function TemplateEdit ({
-  item, dataItems, updateAttribute ,attributes, setItem, status, params, logo, rightMenu, sideNav=[]
+  item, dataItems, updateAttribute ,attributes, setItem, status, params, apiLoad, apiUpdate, logo, rightMenu, sideNav=[]
 }) {
   const navigate = useNavigate()
   const submit = useSubmit()
@@ -127,7 +127,9 @@ function TemplateEdit ({
               <ContentEdit
                 full_width={item.full_width}
                 value={draftSections} 
-                onChange={saveSection}         
+                onChange={saveSection}
+                apiLoad={apiLoad}
+                apiUpdate={apiUpdate}
                 {...attributes['sections']}
               />
                 

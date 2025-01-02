@@ -37,7 +37,7 @@ const sectionCols = [
     {name: 'element_type', display_name: 'Type'},
     {name: 'tags', display_name: 'Tags'},
     {name: 'url', display_name: 'URL'},
-    {name: 'attribution', display_name: 'DataSource'}, // link to cenrep, and version name in data
+    {name: 'attribution', display_name: 'Current Version'}, // link to cenrep, and version name in data
 ]
 
 const getSources = async ({envs, falcor, setLoading}) => {
@@ -328,8 +328,8 @@ const updateSections = async ({sections, newView, falcor, user, setUpdating}) =>
     });
 }
 
-const Edit = ({value, onChange, siteType}) => {
-    const {app, baseUrl, falcor, falcorCache, pgEnv, user, ...rest} = useContext(CMSContext) || {}
+const Edit = ({value, onChange}) => {
+    const {app, siteType, baseUrl, falcor, falcorCache, pgEnv, user, ...rest} = useContext(CMSContext) || {}
     const cachedData = parseIfJson(value) ? JSON.parse(value) : {};
     const [loading, setLoading] = useState(false);
     const [patterns, setPatterns] = useState([]);
@@ -420,7 +420,7 @@ const Edit = ({value, onChange, siteType}) => {
         <div>
             <div className={'flex justify-between items-center'}>
                 <div className={'flex w-full'}>
-                    <label htmlFor={'pattern-selector'}>Pattern: </label>
+                    <label htmlFor={'pattern-selector'}>Site: </label>
                     <select
                         id={'pattern-selector'}
                         className={'flex-0 w-full p-1 bg-blue-100 hover:bg-blue-300 border rounded-md'}
@@ -482,7 +482,7 @@ const Edit = ({value, onChange, siteType}) => {
                         }}
                     />
                 </div>
-                <label className={'p-1'}>View: </label>
+                <label className={'p-1'}>Current Version: </label>
                 <div className={'w-1/4'}>
                     <FilterableSearch
                         className={'flex-row-reverse'}
@@ -495,7 +495,7 @@ const Edit = ({value, onChange, siteType}) => {
                 {
                     view ? (
                         <>
-                            <label className={'p-1'}>Update to View: </label>
+                            <label className={'p-1'}>Update to Version: </label>
                             <div className={'w-1/4'}>
                                 <FilterableSearch
                                     className={'flex-row-reverse'}

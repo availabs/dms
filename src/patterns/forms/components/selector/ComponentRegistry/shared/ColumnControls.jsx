@@ -20,7 +20,8 @@ export const ColumnControls = ({
    allowEditInView, setAllowEditInView,
    allowSearchParams, setAllowSearchParams,
    usePagination, setUsePagination,
-   pageSize, setPageSize
+   pageSize, setPageSize,
+   openOutCols, setOpenOutCols
 }) => (
     <div className={'flex items-center'}>
         <RenderColumnControls attributes={attributes} setAttributes={setAttributes}
@@ -28,10 +29,11 @@ export const ColumnControls = ({
                               customColNames={customColNames} setCustomColNames={setCustomColNames}
                               notNull={notNull} setNotNull={setNotNull}
                               fn={fn} setFn={setFn} groupBy={groupBy}
+                              openOutCols={openOutCols} setOpenOutCols={setOpenOutCols}
         />
         <RenderFilterControls attributes={attributes} filters={filters} setFilters={setFilters}/>
 
-        <RenderGroupControls attributes={attributes} groupBy={groupBy} setGroupBy={setGroupBy}/>
+        <RenderGroupControls attributes={attributes} groupBy={groupBy} setGroupBy={setGroupBy} setFn={setFn}/>
 
         <RenderActionControls actions={actions} setActions={setActions}/>
 

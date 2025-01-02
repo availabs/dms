@@ -1,12 +1,11 @@
 import React, {useEffect, useMemo, useState} from "react";
 import {useNavigate, useSearchParams} from "react-router-dom";
-// import {getLength, getValues} from "../../../../../../../data-types/form-config/components/RenderField";
 import {dmsDataTypes} from "../../../../../../../data-types";
-import {formattedAttributeStr, attributeAccessorStr, convertToUrlParams} from "../utils";
+import {formattedAttributeStr, attributeAccessorStr, convertToUrlParams} from "../utils/utils";
 import {Filter} from "../../../../../../admin/ui/icons";
 import {isJson} from "../../../index";
 
-export const getValues = async ({format, apiLoad, length, attributes, groupBy=[], filterBy={}}) =>{
+export const getData = async ({format, apiLoad, length, attributes, groupBy=[], filterBy={}}) =>{
     // fetch all data items based on app and type. see if you can associate those items to its pattern. this will be useful when you have multiple patterns.
     const finalAttributes = attributes || (
         isJson(format?.config) ? (format.config?.attributes || []) :
@@ -17,7 +16,7 @@ export const getValues = async ({format, apiLoad, length, attributes, groupBy=[]
     const children = [{
         type: () => {
         },
-        action: 'load',
+        action: 'uda',
         path: '/',
         filter: {
             fromIndex: path => fromIndex,
@@ -44,7 +43,7 @@ export const getLength = async ({format, apiLoad, groupBy= [], filterBy}) =>{
     const children = [{
         type: () => {
         },
-        action: 'filteredLength',
+        action: 'udaLength',
         path: '/',
         filter: {
             options: JSON.stringify({groupBy, aggregatedLen: groupBy.length, filter: filterBy})
@@ -61,40 +60,67 @@ export const getLength = async ({format, apiLoad, groupBy= [], filterBy}) =>{
 }
 const isCalculatedCol = (col, attributes) => {
     const attr = (attributes || []).find(attr => attr.name === col);
-    // if(!attr) console.warn(`${col} not found in filters.`)
-    return attr.display === 'calculated' || attr.type === 'calculated';
+    if(!attr) console.log(`${col} not found in filters.`, attributes)
+    return attr.display === 'calculated' || attr.type === 'calculated' || attr.origin === 'calculated-column';
+}
+
+const parseIfJson = value => {
+    try {
+        return JSON.parse(value)
+    }catch (e){
+        return value;
+    }
 }
 export const RenderFilters = ({attributes, filters, setFilters, format, apiLoad, delimiter}) => {
     const navigate = useNavigate();
     const [filterOptions, setFilterOptions] = useState({}); // {col1: [vals], col2:[vals]}
-
+    // console.log('render filters props', format, attributes)
+    // filters don't work for newly added values. this has started happening after accomodating multiselect filters using valueSets. can be solved by using merge of values and valuesets in format filters.
     useEffect(() => {
         async function load(){
-
+            if(!attributes.length) return;
 
             const data = await Promise.all(
                 filters.map(async (filter, filterI) => {
                     const filterBy = filters
                         .filter((f, fI) =>
-                            f.values?.length &&  // filters all other filters without any values
-                            f.values.filter(fv => fv.length).length && // and even blank values
+                            f.valueSets?.length &&  // filters all other filters without any values
+                            f.valueSets.filter(fv => fv.length).length && // and even blank values
                             fI !== filterI // and the current filter. as we're gonna use other filters' values to determine options for current filter.
                         )
                         .reduce((acc, f) => {
-                            acc[attributeAccessorStr(f.column, format.isDms, isCalculatedCol(f.column, attributes))] = f.values.filter(fv => fv.length);
+                            acc[attributeAccessorStr(f.column, format.isDms, isCalculatedCol(f.column, attributes))] = f.valueSets.filter(fv => fv.length);
                             return acc;
                         }, {});
-                    const length = await getLength({format: {...format, type: format.doc_type}, apiLoad, groupBy: [attributeAccessorStr(filter.column, format.isDms, isCalculatedCol(filter.column, attributes))], filterBy});
+                    const length = await getLength({
+                        format: {...format, type: format.doc_type}, apiLoad,
+                        groupBy: [attributeAccessorStr(filter.column, format.isDms, isCalculatedCol(filter.column, attributes))], filterBy});
 
-                    const data = await getValues({
+                    const data = await getData({
                         format: {...format, type: format.doc_type},
                         apiLoad,
                         length,
                         attributes: [formattedAttributeStr(filter.column, format.isDms, isCalculatedCol(filter.column, attributes))],
+                        // visibleAttributes: [formattedAttributeStr(filter.column, format.isDms, isCalculatedCol(filter.column, attributes))],
                         groupBy: [attributeAccessorStr(filter.column, format.isDms, isCalculatedCol(filter.column, attributes))],
                         filterBy
                     })
-                    return {[filter.column]: data.map(d => d[formattedAttributeStr(filter.column, format.isDms, isCalculatedCol(filter.column, attributes))]).filter(d => typeof d !== "object")};
+                    return {[filter.column]: {
+                            uniqValues: data.reduce((acc, d) => {
+                                // for multiselect, you get arrays that need to be spread
+                                const originalValue = d[formattedAttributeStr(filter.column, format.isDms, isCalculatedCol(filter.column, attributes))];
+                                const parsedValue = parseIfJson(originalValue);
+                                const value = Array.isArray(parsedValue) ? parsedValue : originalValue;
+                                return [...new Set([...acc, ...(Array.isArray(parsedValue) ? value : [value])])]
+                            }, []).filter(d => typeof d !== "object"),
+                            allValues: data.reduce((acc, d) => {
+                                const parsedValue =
+                                    d[formattedAttributeStr(filter.column, format.isDms, isCalculatedCol(filter.column, attributes))]
+
+                                return [...acc, parsedValue];
+                                // for multiselect: [[], [], []], for others: [val1, val2, val3]
+                        }, []).filter(d => Array.isArray(d) || typeof d !== "object")
+                        }}
                 })
             );
 
@@ -105,7 +131,7 @@ export const RenderFilters = ({attributes, filters, setFilters, format, apiLoad,
 
         load()
     }, [filters, attributes]);
-
+    console.log('foptions', filterOptions, filters)
     const MultiSelectComp = dmsDataTypes.multiselect.EditComp;
     if(!filters.length || !attributes.length) return null;
     return (
@@ -122,12 +148,21 @@ export const RenderFilters = ({attributes, filters, setFilters, format, apiLoad,
                             placeholder={'Search...'}
                             value={f.values}
                             onChange={e => {
-                                const newFilters = filters.map((filter, fI) => fI === i ? {...f, values: e} : filter);
+                                const newFilters =
+                                    filters.map((filter, fI) => fI === i ?
+                                        {...f,
+                                            values: e,
+                                            valueSets:
+                                                (filterOptions?.[f.column]?.allValues || [])
+                                                    .filter(v => e.some(e1 => Array.isArray(v) ? v.includes(e1) : v === e1))
+                                                    // .filter(v => Array.isArray(v) ? v.some(v1 => e.includes(v1)) : e.includes(v)).map(v => `[${v.map(v1 => `"${v1}"`)}]`)
+                                        } : filter);
                                 // const url = `?${convertToUrlParams(newFilters, delimiter)}`;
+                                console.log('new filters', newFilters)
                                 setFilters(newFilters)
                                 // navigate(url)
                             }}
-                            options={filterOptions[f.column]}
+                            options={filterOptions?.[f.column]?.uniqValues || []}
                             displayInvalidMsg={false}
                         />
                     </div>

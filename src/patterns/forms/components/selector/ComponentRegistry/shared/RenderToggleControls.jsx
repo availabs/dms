@@ -1,10 +1,10 @@
 import RenderSwitch from "./Switch";
 import React from "react";
 
-export const RenderToggleControls = ({value, setValue, title}) => setValue ? (
+export const RenderToggleControls = ({value, setValue, title, className}) => setValue ? (
     <div>
         <div
-            className={`inline-flex w-full justify-center items-center rounded-md px-1.5 py-1 text-sm font-regular 
+            className={className || `inline-flex w-full justify-center items-center rounded-md px-1.5 py-1 text-sm font-regular 
             text-gray-900 bg-white hover:bg-gray-50 cursor-pointer`}
             onClick={() => setValue(!value)}
         >

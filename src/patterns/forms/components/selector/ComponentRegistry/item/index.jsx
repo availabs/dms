@@ -1,8 +1,6 @@
-import React, {useMemo, useState, useEffect, useRef} from 'react'
-import {useParams, useLocation} from "react-router"
+import React, {useState, useEffect, useRef} from 'react'
 import DataTypes from "../../../../../../data-types";
 import {InfoCircle} from "../../../../../admin/ui/icons";
-import RenderSwitch from "../shared/Switch";
 import {FormsSelector} from "../../FormsSelector";
 import {useSearchParams} from "react-router-dom";
 import {ColumnControls} from "../shared/ColumnControls";
@@ -40,7 +38,7 @@ const getData = async ({format, apiLoad, itemId}) =>{
   return {data: data.find(d => d.id === itemId), attributes}
 }
 
-const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLoad, apiUpdate, siteType, ...rest}) => {
+const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLoad, apiUpdate, ...rest}) => {
     const [searchParams, setSearchParams] = useSearchParams();
     const cachedData = isJson(value) ? JSON.parse(value) : {};
     const [format, setFormat] = useState(formatFromProps || cachedData.format);
@@ -166,7 +164,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     if(!format?.config) return (
         <div className={'p-1 flex'}>
             Form data not available. Please make a selection:
-            <FormsSelector siteType={siteType} apiLoad={apiLoad} app={pageFormat.app} format={format} setFormat={setFormat} view={view} setView={setView} formatFromProps={formatFromProps} />
+            <FormsSelector apiLoad={apiLoad} app={pageFormat.app} format={format} setFormat={setFormat} view={view} setView={setView} formatFromProps={formatFromProps} />
         </div>
     )
 
@@ -177,7 +175,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
         <div>
             {
                 showChangeFormatModal ?
-                    <FormsSelector siteType={siteType} apiLoad={apiLoad} app={pageFormat.app} format={format} setFormat={setFormat} view={view} setView={setView} formatFromProps={formatFromProps} /> : null
+                    <FormsSelector apiLoad={apiLoad} app={pageFormat.app} format={format} setFormat={setFormat} view={view} setView={setView} formatFromProps={formatFromProps} /> : null
             }
 
             <ColumnControls attributes={attributes} setAttributes={setAttributes}

@@ -1,6 +1,7 @@
 import RenderSwitch from "./Switch";
 import React, {useEffect, useRef, useState} from "react";
 import {ArrowDown} from "../../../../ui/icons";
+import {cloneDeep} from "lodash-es";
 
 export default function RenderColumnControls({
     attributes=[], setAttributes,
@@ -8,6 +9,7 @@ export default function RenderColumnControls({
     customColNames={}, setCustomColNames,
     notNull=[], setNotNull,
     fn={}, setFn,
+    openOutCols=[], setOpenOutCols,
     groupBy=[]
 }) {
     if(!setAttributes || !setVisibleAttributes) return;
@@ -83,24 +85,65 @@ export default function RenderColumnControls({
         };
     }, []);
     // ================================================== close on outside click end ===================================
-
+    const gridTemplateColumns = '10rem 5rem 5rem 5rem 5rem'
     return (
         <div className="relative inline-block text-left">
             <div>
                 <div id={menuBtnId}
-                     className={`inline-flex w-full justify-center items-center rounded-md px-1.5 py-1 text-sm font-regular text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 ${isOpen ? `bg-gray-50` : `bg-white hover:bg-gray-50`} cursor-pointer`}
+                     className={`inline-flex w-full justify-center items-center rounded-md px-1.5 py-1 text-sm font-regular 
+                     text-gray-900 shadow-sm ring-1 ring-inset ${visibleAttributes?.length ? `ring-blue-300` : `ring-gray-300`} 
+                     ${isOpen ? `bg-gray-50` : `bg-white hover:bg-gray-50`} cursor-pointer`}
                      onClick={e => setIsOpen(!isOpen)}>
                     Columns <ArrowDown height={18} width={18} className={'mt-1'}/>
                 </div>
             </div>
 
             <div ref={menuRef}
-                className={`${isOpen ? 'visible transition ease-in duration-200' : 'hidden transition ease-in duration-200'} absolute left-0 z-10 w-[24rem] origin-top-left divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 transition focus:outline-none`}
+                 className={`${isOpen ? 'visible transition ease-in duration-200' : 'hidden transition ease-in duration-200'} absolute left-0 z-10 w-[35rem] origin-top-left divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 transition focus:outline-none`}
             >
                 <input className={'px-4 py-1 w-full text-xs rounded-md'} placeholder={'search...'}
                        onChange={e => {
                            setSearch(e.target.value)
                        }}/>
+
+                <div className="py-1">
+                    <div key={'header'}
+                         className="flex items-center px-2 py-1 text-xs text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                    >
+                        <div className={'h-4 w-4 m-1 text-gray-800'}>
+                            <svg data-v-4e778f45=""
+                                 className="nc-icon cursor-move !h-3.75 text-gray-600 mr-1"
+                                 viewBox="0 0 24 24" width="1.2em" height="1.2em">
+                                <path fill="currentColor"
+                                      d="M8.5 7a1.5 1.5 0 1 0 0-3a1.5 1.5 0 0 0 0 3m0 6.5a1.5 1.5 0 1 0 0-3a1.5 1.5 0 0 0 0 3m1.5 5a1.5 1.5 0 1 1-3 0a1.5 1.5 0 0 1 3 0M15.5 7a1.5 1.5 0 1 0 0-3a1.5 1.5 0 0 0 0 3m1.5 5a1.5 1.5 0 1 1-3 0a1.5 1.5 0 0 1 3 0m-1.5 8a1.5 1.5 0 1 0 0-3a1.5 1.5 0 0 0 0 3"></path>
+                            </svg>
+                        </div>
+
+                        <div className={'grid grid-cols-5 gap-0.5 m-1 w-full cursor-pointer'}
+                             style={{gridTemplateColumns}}
+                        >
+                            <div className={'place-self-stretch'}>
+                                Column
+                            </div>
+                            <div
+                                className={'px-1 w-fit rounded-md text-center'}>
+                                Fn
+                            </div>
+                            <div
+                                className={'px-1 w-fit rounded-md text-center'}>
+                                N/A
+                            </div>
+                            <div className={'justify-self-end'}>
+                                Show
+                            </div>
+
+                            <div className={'justify-self-end'}>
+                                Open Out
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div className="py-1 max-h-[500px] overflow-auto scrollbar-sm">
                     {
                         attributes
@@ -126,49 +169,65 @@ export default function RenderColumnControls({
                                         </svg>
                                     </div>
 
-                                    <div className={'grid grid-cols-4 m-1 w-full cursor-pointer'}
-                                         style={{gridTemplateColumns: '2fr 1fr 1fr 1fr'}}
-                                         // onClick={() => !visibleAttributes.includes(attribute.name) ?
-                                         //     setVisibleAttributes([...visibleAttributes, attribute.name]) :
-                                         //     setVisibleAttributes(visibleAttributes.filter(attr => attr !== attribute.name))}
+                                    <div className={'grid grid-cols-5 gap-0.5 m-1 w-full cursor-pointer'}
+                                         style={{gridTemplateColumns}}
                                     >
                                         {/*if custom column names are allowed*/}
-                                        <input className={setCustomColNames ? 'place-self-stretch' : 'hidden'}
-                                               value={customColNames[attribute.name] || attribute.display_name || attribute.name}
-                                               onChange={e => setCustomColNames({...customColNames, [attribute.name]: e.target.value})}
-                                        />
-                                        {/*if custom column names are NOT allowed*/}
-                                        <label className={setCustomColNames ? 'hidden' : 'place-self-stretch'}>
-                                            {customColNames[attribute.name] || attribute.display_name || attribute.name}
-                                        </label>
+                                        {
+                                            setCustomColNames ?
+                                                <input className={'place-self-stretch'}
+                                                       value={customColNames[attribute.name] || attribute.display_name || attribute.name}
+                                                       onChange={e => setCustomColNames({
+                                                           ...customColNames,
+                                                           [attribute.name]: e.target.value
+                                                       })}
+                                                /> :
+                                                <label className={'place-self-stretch'}>
+                                                    {customColNames[attribute.name] || attribute.display_name || attribute.name}
+                                                </label>
+                                        }
 
                                         <select
                                             className={
-                                            groupBy?.includes(attribute.name) || !visibleAttributes.includes(attribute.name) || !setFn ?
-                                                'invisible' :
-                                                'appearance-none w-fit rounded-md bg-gray-100 h-fit text-center'
+                                                groupBy?.includes(attribute.name) || !visibleAttributes.includes(attribute.name) || !setFn ?
+                                                    'invisible' :
+                                                    'appearance-none w-fit rounded-md bg-gray-100 h-fit text-center'
                                             }
                                             value={fn[attribute.name]}
-                                            onClick={e => setFn({...fn, [attribute.name]: e.target.value})}
+                                            onClick={e => {
+                                                if (!e.target.value) {
+                                                    const newFn = cloneDeep(fn);
+                                                    delete newFn[attribute.name];
+                                                    setFn(newFn)
+                                                } else {
+                                                    setFn({...fn, [attribute.name]: e.target.value})
+                                                }
+                                            }}
                                         >
+                                            <option key={'fn'} value={undefined}>fn</option>
                                             {
-                                                    ['fn', 'list', 'sum', 'count']
-                                                        .map(fnOption => <option key={fnOption} value={fnOption}>{fnOption}</option> )
+                                                ['list', 'sum', 'count']
+                                                    .map(fnOption => <option key={fnOption}
+                                                                             value={fnOption}>{fnOption}</option>)
                                             }
                                         </select>
 
                                         <select
                                             className={
-                                            !visibleAttributes.includes(attribute.name) || !setNotNull ?
-                                                'invisible' :
-                                                'appearance-none px-1 w-fit rounded-md bg-gray-100 h-fit text-center'
+                                                !visibleAttributes.includes(attribute.name) || !setNotNull ?
+                                                    'invisible' :
+                                                    'appearance-none px-1 w-fit rounded-md bg-gray-100 h-fit text-center'
                                             }
                                             value={notNull.includes(attribute.name)}
                                             onChange={e => setNotNull(e.target.value === 'true' ? [...notNull, attribute.name] : notNull.filter(c => c !== attribute.name))}
                                         >
                                             {
-                                                    [{label: 'include n/a', value: false}, {label: 'exclude n/a', value: true}]
-                                                        .map(({label, value}) => <option key={label} value={value}>{label}</option> )
+                                                [{label: 'include n/a', value: false}, {
+                                                    label: 'exclude n/a',
+                                                    value: true
+                                                }]
+                                                    .map(({label, value}) => <option key={label}
+                                                                                     value={value}>{label}</option>)
                                             }
                                         </select>
                                         <div className={'justify-self-end'}>
@@ -180,9 +239,19 @@ export default function RenderColumnControls({
                                                     setVisibleAttributes(visibleAttributes.filter(attr => attr !== attribute.name))}
                                             />
                                         </div>
+
+                                        <div className={'justify-self-end'}>
+                                            <RenderSwitch
+                                                size={'small'}
+                                                id={attribute.name}
+                                                enabled={openOutCols.includes(attribute.name)}
+                                                setEnabled={(value) => value ? setOpenOutCols([...openOutCols, attribute.name]) :
+                                                    setOpenOutCols(openOutCols.filter(attr => attr !== attribute.name))}
+                                            />
+                                        </div>
                                     </div>
                                 </div>
-                        ))
+                            ))
                     }
                 </div>
             </div>

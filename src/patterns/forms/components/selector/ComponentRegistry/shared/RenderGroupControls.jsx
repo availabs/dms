@@ -3,7 +3,7 @@ import {ArrowDown, Group} from "../../../../ui/icons";
 import {useRef, useState, useEffect} from "react";
 
 export default function RenderGroupControls({
-                                                 attributes, groupBy, setGroupBy
+                                                 attributes, groupBy, setGroupBy, setFn
                                              }) {
     if(!setGroupBy) return;
     const menuRef = useRef(null);
@@ -30,7 +30,9 @@ export default function RenderGroupControls({
         <div className="relative inline-block text-left">
             <div>
                 <div id={menuBtnId}
-                    className={`inline-flex w-full justify-center items-center rounded-md px-1.5 py-1 text-sm font-regular text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 ${isOpen ? `bg-gray-50` : `bg-white hover:bg-gray-50`} cursor-pointer`}
+                    className={`inline-flex w-full justify-center items-center rounded-md px-1.5 py-1 text-sm font-regular 
+                    text-gray-900 shadow-sm ring-1 ring-inset ${groupBy.length ? `ring-blue-300` : `ring-gray-300`} 
+                    ${isOpen ? `bg-gray-50` : `bg-white hover:bg-gray-50`} cursor-pointer`}
                     onClick={e => setIsOpen(!isOpen)}>
                     Group <ArrowDown height={18} width={18} className={'mt-1'}/>
                 </div>
@@ -57,6 +59,7 @@ export default function RenderGroupControls({
                                             groupBy.filter(attr => attr !== attribute.name);
 
                                         setGroupBy(newFilters);
+                                        if(!groupBy.length) setFn && setFn({});
                                     }}
                                 >
                                     <div className={'h-4 w-4 m-1 cursor-pointer text-gray-800'}>
