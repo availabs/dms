@@ -5,6 +5,9 @@ import { sideNavTheme } from '../components/sidenav'
 import { topNavTheme } from '../components/topnav'
 import { tabsTheme } from '../components/tabs'
 import { buttonTheme } from '../components/button'
+import { inputTheme, fieldTheme } from '../components/input'
+
+import { menuTheme } from '../components/menu'
 
 const theme = {
   navOptions: {
@@ -71,7 +74,10 @@ const theme = {
   sidenav: sideNavTheme,
   topnav: topNavTheme,
   tabs: tabsTheme,
-  button: buttonTheme
+  button: buttonTheme,
+  menu: menuTheme,
+  input: inputTheme,
+  field: fieldTheme
 }
 
 //theme.navOptions.logo = <Link to='/' className='h-12 flex px-4 items-center'><div className='rounded-full h-10 bg-blue-500 border border-slate-50' /></Link>

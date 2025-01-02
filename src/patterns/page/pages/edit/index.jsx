@@ -85,7 +85,18 @@ function PageEdit ({
           siteType={siteType}
         />
       )} 
-      <Layout navItems={menuItems} secondNav={theme?.navOptions?.secondaryNav?.navItems || []} EditPane={EditPane}>
+      <Layout navItems={menuItems} secondNav={theme?.navOptions?.secondaryNav?.navItems || []} 
+        EditPane={() => (<EditPane 
+          item={item} 
+          dataItems={dataItems}
+          setItem={setItem}
+          status={status}
+          apiUpdate={apiUpdate}
+          attributes={attributes}
+          updateAttribute={updateAttribute}
+          />)
+        }
+      >
         <div className={`${theme?.page?.wrapper1} ${theme?.navPadding[level]}`}>
           {item?.header === 'below' && (
             <ContentEdit 
@@ -122,7 +133,7 @@ function PageEdit ({
                 format={isDynamicPage ? format : undefined}
               />
             </div>
-            <SideNavContainer witdh={'w-52'}>
+            {/*<SideNavContainer witdh={'w-52'}>
               <EditControls 
                 item={item} 
                 dataItems={dataItems}
@@ -134,7 +145,7 @@ function PageEdit ({
                 updateAttribute={updateAttribute}
                 pageType={'page'}
               />
-            </SideNavContainer>
+            </SideNavContainer>*/}
           </div>  
           
         </div>

@@ -4,11 +4,11 @@ import { XMark } from '../../icons'
 import { CMSContext } from '../../../siteConfig';
 
 
-export default function Drawer ({ open, setOpen, CloseIcon=XMark, children }) {
+export default function Drawer ({ open, setOpen, CloseIcon=XMark, width='max-w-64', children, closeOnClick=true }) {
   
   return (
     <Transition.Root show={open} as={Fragment}>
-      <Dialog as="div" className="relative z-30" onClose={setOpen}>
+      <Dialog as="div" className="relative z-30 border-2 border-pink-500" onClose={ closeOnClick ? setOpen : () => {} }>
         
         {/*<div className="fixed inset-0 overflow-hidden">
           <div className="absolute inset-0 overflow-hidden">*/}
@@ -22,7 +22,7 @@ export default function Drawer ({ open, setOpen, CloseIcon=XMark, children }) {
                 leaveFrom="translate-x-0"
                 leaveTo="translate-x-full"
               >
-                <Dialog.Panel className="pointer-events-auto w-screen max-w-52 bg-white shadow">
+                <Dialog.Panel className={`pointer-events-auto ${width} bg-white shadow`}>
                   <div className="">
                     <div className="fixed right-2 top-2">
                       <button

@@ -11,8 +11,10 @@ export { default as TopNav } from './components/topnav'
 export { default as Nestable } from './components/nestable'
 export { default as Drawer } from './components/drawer'
 export { default as Tabs } from './components/tabs'
-
-
+export { default as Button } from './components/button'
+export { default as Menu } from './components/menu'
+export { default as Input, ConfirmInput } from './components/input'
+export { default as DraggableNav } from './components/nestable/draggableNav'
 
 export const useClickOutside = handleClick => {
   const [node, setNode] = React.useState(null);
