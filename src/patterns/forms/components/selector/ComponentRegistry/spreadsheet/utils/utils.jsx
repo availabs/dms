@@ -56,7 +56,8 @@ const formatFilters = (filters, isDms, attributes) => {
     const res = filters
         // .filter(f => f.valueSets?.length && f.valueSets.filter(fv => fv.length).length)
         .reduce((acc, f) => ({...acc, [
-            attributeAccessorStr(f.column, isDms, isCalculatedCol(f.column, attributes))]: f.values.length > f.valueSets?.length ? f.values : f.valueSets}), {});
+            attributeAccessorStr(f.column, isDms, isCalculatedCol(f.column, attributes))]:
+                f.values?.length > f.valueSets?.length ? (f.values || []).map(v => v?.value || v) : f.valueSets}), {});
     console.log('formatted filters:', filters, res)
     return res
 }
@@ -109,7 +110,7 @@ export const isJson = (str)  => {
 }
 
 export const getData = async ({format, apiLoad, currentPage, pageSize, length, showTotal, visibleAttributes=[], orderBy={}, filters=[], groupBy=[], fn={}, notNull}) =>{
-    const actionType = groupBy.length ? 'uda' : 'uda';
+    const actionType = 'uda';
     const fromIndex = currentPage*pageSize;
     const toIndex = Math.min(length, currentPage*pageSize + pageSize) - 1;
     if(fromIndex > length) return [];
@@ -139,6 +140,13 @@ export const getData = async ({format, apiLoad, currentPage, pageSize, length, s
 
     console.log('fetching', length, fromIndex, toIndex, attributesToFetch, orderBy, filters[0])
     console.log('calling format filters for data', filters[0])
+
+    const meta =
+        originalAttributes?.filter(md => visibleAttributes.includes(md.name) && ['meta-variable', 'geoid-variable', 'meta'].includes(md.display) && md.meta_lookup)
+            .reduce((acc, {name, meta_lookup}) => {
+                acc[name] = meta_lookup;
+                return acc;
+            }, {});
     const children = [{
         type: () => {
         },
@@ -149,6 +157,7 @@ export const getData = async ({format, apiLoad, currentPage, pageSize, length, s
             toIndex: path => toIndex,
             options: JSON.stringify({
                 aggregatedLen: groupBy.length,
+                meta,
                 orderBy: Object.keys(orderBy)
                                 .reduce((acc, curr) => {
                                     const isCalcCol = isCalculatedCol(curr, originalAttributes);

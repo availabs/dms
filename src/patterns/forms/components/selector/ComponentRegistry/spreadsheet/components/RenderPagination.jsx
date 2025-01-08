@@ -1,10 +1,9 @@
 import React from "react";
 
-export const RenderPagination = ({usePagination, totalPages=0, loadedRows, pageSize=10, currentPage, setCurrentPage, visibleAttributes}) => {
+export const RenderPagination = ({usePagination, loadedRows, pageSize=10, currentPage, setCurrentPage, visibleAttributes}) => {
     if(!visibleAttributes.length) return;
     const rangeSize = 5;
-    const numNavBtns = Math.ceil(totalPages / pageSize);
-
+    const totalPages=Math.ceil(loadedRows / pageSize);
     const halfRange = Math.floor(rangeSize / 2);
 
     // Determine the start and end of the range

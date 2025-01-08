@@ -7,6 +7,8 @@ const RenderLinkControls = ({attribute, linkCols={}, setLinkCols}) => {
     const [tmpValue, setTmpValue] = useState(linkCols[attribute.name] || {});
 
     useEffect(() => {
+        if(!setLinkCols) return;
+
         let isCanceled = false;
         setTimeout(() => !isCanceled && setLinkCols({...linkCols, ...{[attribute.name]: tmpValue}}), 500)
 

@@ -123,6 +123,17 @@ export const FormsSelector = ({
         // if view changes, update type and set format
         if(!currentView || !views?.length) return;
         setView(currentView)
+
+        // transitioning from int view to obj view
+        const tmpViewId = typeof currentView === 'object' ? currentView.id : currentView;
+        if(!format || !currentView || format.view_id === tmpViewId) return;
+        const originalDocType = format.originalDocType || format.doc_type;
+        const doc_type = originalDocType?.includes('-invalid-entry') ?
+            originalDocType.replace('-invalid-entry', `${tmpViewId}-invalid-entry`) :
+            `${originalDocType}-${tmpViewId}`;
+        const view_id = tmpViewId; // this has to be the id. API uses this for UDA call.
+
+        setFormat(format.doc_type ? {...format, doc_type, type: doc_type, originalDocType, view_id} : {...format, view_id})
     }, [currentView])
 
     return (

@@ -72,7 +72,7 @@ const RenderMenu = ({
             </div>
             {
                 (options || [])
-                    .filter(o => !mappedValue.includes(o.value || o) && (o.label || o)?.toLowerCase().includes(searchKeyword?.toLowerCase()))
+                    .filter(o => !mappedValue.includes(o.value || o) && (o.label || o)?.toString()?.toLowerCase().includes(searchKeyword?.toLowerCase()))
                     .map((o, i) =>
                         <div
                             key={`option-${i}`}
@@ -133,7 +133,7 @@ const Edit = ({value = [], onChange, className,placeholder, options = [], displa
     } = useComponentVisible(false);
 
     const invalidValues = typeSafeValue.filter(v => v && (v.value || v) && !options?.filter(o => (o.value || o) === (v.value || v))?.length);
-
+console.log('token?', typeSafeValue)
     return (
         <div ref={ref} className={`${theme?.multiselect?.mainWrapper || mainWrapper} ${menuPosition === 'top' ? 'flex flex-col flex-col-reverse' : ''}`}>
             {
@@ -142,7 +142,7 @@ const Edit = ({value = [], onChange, className,placeholder, options = [], displa
             }
             <div className={className || (theme?.multiselect?.inputWrapper) || inputWrapper} onClick={() => {
                 setIsSearching(!isSearching)
-                console.log('ms?', ref.current.top)
+                // console.log('ms?', ref.current.top)
             }}>
                 {
                     typeSafeValue
