@@ -75,12 +75,13 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
         const newAttributes = JSON.parse(format?.config || '{}')?.attributes || format?.metadata?.columns || [];
         if(isEqual(attributes, newAttributes)) return;
         setAttributes(newAttributes)
-        // const staleVisibleAttributes = newAttributes.filter(newAttribute => visibleAttributes.includes(newAttribute.name));
-        // if(staleVisibleAttributes.length){
-        //     setVisibleAttributes([]);
-        //     setFilters([]);
-        //     setGroupBy([]);
-        // }
+
+        if(format?.id !== cachedData?.format?.id){
+            // source change
+            setVisibleAttributes([]);
+            setFilters([]);
+            setGroupBy([]);
+        }
     }, [format]);
 
     useEffect(() => {
