@@ -25,7 +25,7 @@ export const getData = async ({format, apiLoad, length, attributes, allAttribute
         filter: {
             fromIndex: path => fromIndex,
             toIndex: path => toIndex,
-            options: JSON.stringify({groupBy, aggregatedLen: groupBy.length, filter: filterBy, meta, keepOriginalValues: true}),
+            options: JSON.stringify({groupBy, aggregatedLen: groupBy.length, filter: filterBy, exclude: {[groupBy[0]]: ['null']}, meta, keepOriginalValues: true}),
             attributes: finalAttributes,
             stopFullDataLoad: true
         },
@@ -75,7 +75,7 @@ const parseIfJson = value => {
         return value;
     }
 }
-export const RenderFilters = ({attributes, filters, setFilters, format, apiLoad, delimiter}) => {
+export const RenderFilters = ({attributes, filters, setFilters, format, apiLoad}) => {
     const [filterOptions, setFilterOptions] = useState({}); // {col1: [vals], col2:[vals]}
     // console.log('render filters props', format, attributes)
     // filters don't work for newly added values. this has started happening after accommodating multiselect filters using valueSets. can be solved by using merge of values and valuesets in format filters.
@@ -86,61 +86,64 @@ export const RenderFilters = ({attributes, filters, setFilters, format, apiLoad,
         async function load(){
             if(!attributes.length) return;
 
-            const data = await Promise.all(
-                filters.map(async (filter, filterI) => {
-                    // only fetch data relevant to already set filters.
-                    // const filterBy = filters
-                    //     .filter((f, fI) =>
-                    //         f.valueSets?.length &&  // filters all other filters without any values
-                    //         f.valueSets.filter(fv => fv.length).length && // and even blank values
-                    //         fI !== filterI // and the current filter. as we're gonna use other filters' values to determine options for current filter.
-                    //     )
-                    //     .reduce((acc, f) => {
-                    //         acc[getAttributeAccessorStr(f.column, format.isDms, attributes)] = f.valueSets.filter(fv => fv.length);
-                    //         return acc;
-                    //     }, {});
-                    const filterBy = {};
-                    const length = await getLength({
-                        format: {...format, type: format.doc_type}, apiLoad,
-                        groupBy: [getAttributeAccessorStr(filter.column, format.isDms, attributes)],
-                        filterBy
-                    });
+            const data = await filters.reduce(async (acc, filter, filterI) => {
+                await acc;
+                // only fetch data relevant to already set filters.
+                // const filterBy = filters
+                //     .filter((f, fI) =>
+                //         f.valueSets?.length &&  // filters all other filters without any values
+                //         f.valueSets.filter(fv => fv.length).length && // and even blank values
+                //         fI !== filterI // and the current filter. as we're gonna use other filters' values to determine options for current filter.
+                //     )
+                //     .reduce((acc, f) => {
+                //         acc[getAttributeAccessorStr(f.column, format.isDms, attributes)] = f.valueSets.filter(fv => fv.length);
+                //         return acc;
+                //     }, {});
+                const filterBy = {};
+                const length = await getLength({
+                    format: {...format, type: format.doc_type}, apiLoad,
+                    groupBy: [getAttributeAccessorStr(filter.column, format.isDms, attributes)],
+                    filterBy
+                });
 
-                    const data = await getData({
-                        format: {...format, type: format.doc_type},
-                        apiLoad,
-                        length,
-                        attributes: [getFormattedAttributeStr(filter.column, format.isDms, attributes)],
-                        allAttributes: attributes,
-                        groupBy: [getAttributeAccessorStr(filter.column, format.isDms, attributes)],
-                        filterBy
-                    })
-                    return {[filter.column]: {
-                            uniqValues: data.reduce((acc, d) => {
-                                // array values flattened here for multiselects.
-                                const formattedAttrStr = getFormattedAttributeStr(filter.column, format.isDms, attributes);
-                                // if meta column, value: {value, originalValue}, else direct value comes in response
-                                const responseValue = d[formattedAttrStr]?.value || d[formattedAttrStr];
-                                const metaValue = parseIfJson(responseValue?.value || responseValue); // meta processed value
-                                const originalValue = parseIfJson(responseValue?.originalValue || responseValue);
-                                const value = Array.isArray(originalValue) ?
-                                    originalValue.map((pv, i) => ({label: metaValue?.[i] || pv, value: pv})) :
-                                    {label: metaValue || originalValue, value: originalValue};
-
-                                return uniqBy([...acc, ...(Array.isArray(value) ? value : [value])], d => d.value)
-                            }, []),
-                            allValues: data.reduce((acc, d) => {
-                                // everything we get
-                                const parsedValue = d[getFormattedAttributeStr(filter.column, format.isDms, attributes)]
-                                return [...acc, parsedValue];
-                                // for multiselect: [[], [], []], for others: [val1, val2, val3]
-                        }, []).filter(d => Array.isArray(d) || typeof d !== "object")
-                        }}
+                const data = await getData({
+                    format: {...format, type: format.doc_type},
+                    apiLoad,
+                    length,
+                    attributes: [getFormattedAttributeStr(filter.column, format.isDms, attributes)],
+                    allAttributes: attributes,
+                    groupBy: [getAttributeAccessorStr(filter.column, format.isDms, attributes)],
+                    filterBy
                 })
-            );
-            console.log('filter data useeffect', data)
+
+                acc[filter.column] = {
+                        uniqValues: data.reduce((acc, d) => {
+                            // array values flattened here for multiselects.
+                            const formattedAttrStr = getFormattedAttributeStr(filter.column, format.isDms, attributes);
+                            // if meta column, value: {value, originalValue}, else direct value comes in response
+                            const responseValue = d[formattedAttrStr]?.value || d[formattedAttrStr];
+                            const metaValue = parseIfJson(responseValue?.value || responseValue); // meta processed value
+                            const originalValue = parseIfJson(responseValue?.originalValue || responseValue);
+                            const value =
+                                Array.isArray(originalValue) ?
+                                    originalValue.map((pv, i) => ({label: metaValue?.[i] || pv, value: pv})) :
+                                [{label: metaValue || originalValue, value: originalValue}];
+
+                            return uniqBy([...acc, ...value.filter(({label, value}) => label && typeof label !== 'object')], d => d.value)
+                        }, []),
+                        allValues: data.reduce((acc, d) => {
+                            // everything we get
+                            const parsedValue = d[getFormattedAttributeStr(filter.column, format.isDms, attributes)]
+                            return [...acc, parsedValue];
+                            // for multiselect: [[], [], []], for others: [val1, val2, val3]
+                        }, []).filter(d => Array.isArray(d) || typeof d !== "object")
+                    };
+
+                return acc;
+            }, {});
+
             setFilterOptions(
-                data.reduce((acc, d) => ({...acc, ...d}), {})
+                data
             )
         }
 

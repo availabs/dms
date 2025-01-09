@@ -55,9 +55,16 @@ export const attributeAccessorStr = (col, isDms, isCalculatedCol) => isCalculate
 const formatFilters = (filters, isDms, attributes) => {
     const res = filters
         // .filter(f => f.valueSets?.length && f.valueSets.filter(fv => fv.length).length)
-        .reduce((acc, f) => ({...acc, [
-            attributeAccessorStr(f.column, isDms, isCalculatedCol(f.column, attributes))]:
-                f.values?.length > f.valueSets?.length ? (f.values || []).map(v => v?.value || v) : f.valueSets}), {});
+        .reduce((acc, f) => {
+            const attr = attributeAccessorStr(f.column, isDms, isCalculatedCol(f.column, attributes))
+            // console.log('filter????', f.column, attr, f.values?.length > f.valueSets?.length, f.values, (f.values || []).map(v => v?.value || v) )
+            return ({
+                ...acc, [attr]:
+                    (f.values || [])?.length > (f.valueSets || [])?.length ?
+                        (f.values || []).map(v => v?.value || v) :
+                        f.valueSets
+            })
+        }, {});
     console.log('formatted filters:', filters, res)
     return res
 }
