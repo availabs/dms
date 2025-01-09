@@ -133,7 +133,7 @@ const Edit = ({value = [], onChange, className,placeholder, options = [], displa
     } = useComponentVisible(false);
 
     const invalidValues = typeSafeValue.filter(v => v && (v.value || v) && !options?.filter(o => (o.value || o) === (v.value || v))?.length);
-console.log('token?', typeSafeValue)
+
     return (
         <div ref={ref} className={`${theme?.multiselect?.mainWrapper || mainWrapper} ${menuPosition === 'top' ? 'flex flex-col flex-col-reverse' : ''}`}>
             {

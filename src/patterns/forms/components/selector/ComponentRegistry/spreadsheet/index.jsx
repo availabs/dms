@@ -608,6 +608,8 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
 
     // =========================================== util fns begin ======================================================
     const updateItem = (value, attribute, d) => {
+        if (!apiUpdate || !allowEdit) return;
+
         let dataToUpdate = Array.isArray(d) ? d : [d];
         let tmpData = [...data];
         dataToUpdate.map(dtu => {
@@ -619,11 +621,15 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
     }
 
     const addItem = () => {
+        if (!apiUpdate || !allowEdit) return;
+
         setData([...data, newItem]);
         return apiUpdate({data: newItem, config: {format}}) && setNewItem({})
     }
 
     const removeItem = item => {
+        if (!apiUpdate || !allowEdit) return;
+
         setData(data.filter(d => d.id !== item.id))
         return apiUpdate({data: item, config: {format}, requestType: 'delete'})
     }

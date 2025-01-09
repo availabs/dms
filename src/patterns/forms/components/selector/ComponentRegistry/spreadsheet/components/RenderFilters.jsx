@@ -79,7 +79,7 @@ export const RenderFilters = ({attributes, filters, setFilters, format, apiLoad}
     const [filterOptions, setFilterOptions] = useState({}); // {col1: [vals], col2:[vals]}
     // console.log('render filters props', format, attributes)
     // filters don't work for newly added values. this has started happening after accommodating multiselect filters using valueSets. can be solved by using merge of values and valuesets in format filters.
-
+    const debug = false;
     const getFormattedAttributeStr = useCallback((column, isDms, attributes) => formattedAttributeStr(column, isDms, isCalculatedCol(column, attributes)), [attributes]);
     const getAttributeAccessorStr = useCallback((column, isDms, attributes) => attributeAccessorStr(column, isDms, isCalculatedCol(column, attributes)), [attributes]);
     useEffect(() => {
@@ -87,7 +87,8 @@ export const RenderFilters = ({attributes, filters, setFilters, format, apiLoad}
             if(!attributes.length) return;
 
             const data = await filters.reduce(async (acc, filter, filterI) => {
-                await acc;
+                const prev = await acc;
+                debug && console.log('debug filters: ', filter)
                 // only fetch data relevant to already set filters.
                 // const filterBy = filters
                 //     .filter((f, fI) =>
@@ -106,6 +107,8 @@ export const RenderFilters = ({attributes, filters, setFilters, format, apiLoad}
                     filterBy
                 });
 
+                debug && console.log('debug filters: length', length)
+
                 const data = await getData({
                     format: {...format, type: format.doc_type},
                     apiLoad,
@@ -115,8 +118,8 @@ export const RenderFilters = ({attributes, filters, setFilters, format, apiLoad}
                     groupBy: [getAttributeAccessorStr(filter.column, format.isDms, attributes)],
                     filterBy
                 })
-
-                acc[filter.column] = {
+                debug && console.log('debug filters: data', data, acc)
+                prev[filter.column] = {
                         uniqValues: data.reduce((acc, d) => {
                             // array values flattened here for multiselects.
                             const formattedAttrStr = getFormattedAttributeStr(filter.column, format.isDms, attributes);
@@ -139,11 +142,11 @@ export const RenderFilters = ({attributes, filters, setFilters, format, apiLoad}
                         }, []).filter(d => Array.isArray(d) || typeof d !== "object")
                     };
 
-                return acc;
+                return prev;
             }, {});
-
+            debug && console.log('debug filters: filter data use effect', data)
             setFilterOptions(
-                data
+                data//.reduce((acc, d) => ({...acc, ...d}), {})
             )
         }
 
