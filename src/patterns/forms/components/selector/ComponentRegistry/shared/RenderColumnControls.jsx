@@ -210,8 +210,8 @@ export default function RenderColumnControls({
                                                     'appearance-none w-fit rounded-md bg-gray-100 h-fit text-center'
                                             }
                                             value={fn[attribute.name]}
-                                            onClick={e => {
-                                                if (!e.target.value) {
+                                            onChange={e => {
+                                                if (!e.target.value || e.target.value === 'fn') {
                                                     const newFn = cloneDeep(fn);
                                                     delete newFn[attribute.name];
                                                     setFn(newFn)
