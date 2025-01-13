@@ -29,7 +29,7 @@ const theme = {
   }
 }
 
-function EditControls({ item, dataItems, updateAttribute,attributes, edit, status, setItem  }) {
+function EditControls({ item, dataItems, updateAttribute,attributes, edit, status, setItem, apiLoad  }) {
   const submit = useSubmit()
   const { pathname = '/edit' } = useLocation()
   //console.log('pathname editcontrols', pathname)
@@ -42,12 +42,12 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
   const [ type, setType] = useState(item.type);
   const [loadingStatus, setLoadingStatus] = useState();
   // const [dataControls, setDataControls] = useState(item.data_controls ||)
-  
-  
+
+
 
   const { baseUrl, user, falcor, falcorCache} = React.useContext(CMSContext)
   const NoOp = () => {}
-  
+
   const saveItem = async (newSections) => {
     let newItem = {
       id: item.id,
@@ -66,18 +66,16 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
         setLoadingStatus('Loading sections...');
 
         const updates = await Object.keys(dataControls.sectionControls)
-            .filter((id, i) => id && id !== 'undefined')
+            .filter((id, i) => id && id !== 'undefined' && item.sections.find(s => s.id === id))
             .reduce(async (acc, section_id, i) => {
                 const prev = await acc;
                 let section = item.sections.filter(d => d.id === section_id)?.[0] || {}
-                //console.log('section testing', section, item.sections, section_id)
+
                 setLoadingStatus(`Updating section ${section?.title}  ${section?.element?.['element-type']}  ${i+1}/${totalSections}`)
-                
+
                 let data = parseJSON(section?.element?.['element-data'] || {})
                 let type = section?.element?.['element-type'] || ''
                 let comp = RegisteredComponents[type] || {}
-
-                console.log('section data testing', data)
 
                 // here, identify if any sectionControls are in data.additionalControls and pass them as additionalcontrols.
                 // this will let getData detect them as filters
@@ -104,8 +102,19 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
                     return variable
                 })
 
-                let args = {...controlVars, ...updateVars, additionalVariables}
-                console.log('args',type ,args, controlVars, updateVars, additionalVariables)
+                let filters = Array.isArray(data.filters) ? data.filters.map(filter => {
+                    // update the defaultValue here
+                    const attrName = filter.column;
+                    const sectionControlMappedName = dataControls?.sectionControls?.[section_id]?.[attrName];
+                    if(sectionControlMappedName){
+                        filter.values = [dataControls?.active_row?.[sectionControlMappedName]]
+                        filter.valueSets = [dataControls?.active_row?.[sectionControlMappedName]]
+                    }
+
+                    return filter
+                }) : data.filters;
+
+                let args = {...controlVars, ...updateVars, additionalVariables, filters, apiLoad}
                 const curr = comp?.getData ? await comp.getData(args, falcor).then(data => ({section_id, data})) : null
                 return curr ? [...prev, curr] : prev
             }, Promise.resolve([]))
@@ -123,85 +132,7 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
         }
 
         setLoadingStatus(undefined)
-    }
-
-  
-
-  const duplicateItem = () => {
-    const highestIndex = dataItems
-    .filter(d => !d.parent)
-    .reduce((out,d) => {
-      return Math.max(isNaN(d.index) ? -1 : d.index  , out)
-    },-1)
-
-    const newItem = cloneDeep(item)
-    delete newItem.id
-    newItem.title += ' Dup'
-    newItem.index = highestIndex + 1
-    newItem.url_slug = getUrlSlug(newItem, dataItems)
-    newItem.sections.forEach(s => {
-      delete s.ref
-      delete s.id
-    })
-      newItem.draft_sections.forEach(s => {
-      delete s.ref
-      delete s.id
-    })
-    
-    submit(json2DmsForm(newItem), { method: "post", action: pathname })
   }
-
-
-
-  const insertSubPage = async () => {
-    const highestIndex = dataItems
-    .filter(d => d.parent === item.id)
-    .reduce((out,d) => {
-      return Math.max(isNaN(d.index) ? 0 : d.index  , out)
-    },0)
-
-    //console.log(highestIndex, dataItems)
-    const newItem = {
-      title: 'New Page',
-      parent: item.id,
-      index: highestIndex + 1,
-      published: 'draft',
-      history: [{
-        type:' created Page.',
-        user: user.email, 
-        time: new Date().toString()
-      }]
-    }
-    newItem.url_slug = `${getUrlSlug(newItem,dataItems)}`
-
-    submit(json2DmsForm(newItem), { method: "post", action: `${baseUrl}/edit/${newItem.url_slug}` })
-  }
-  
-  const newPage = async () => {
-    const highestIndex = dataItems
-    .filter(d => !d.parent)
-    .reduce((out,d) => {
-      return Math.max(isNaN(d.index) ? 0 : d.index  , out)
-    },0)
-
-    //console.log(highestIndex, dataItems)
-    const newItem = {
-      title: 'New Page',
-      parent: item.id,
-      index: highestIndex + 1,
-      published: 'draft',
-      history: [{
-        type:' created Page.',
-        user: user.email, 
-        time: new Date().toString()
-      }]
-    }
-    newItem.url_slug = `${getUrlSlug(newItem,dataItems)}`
-
-    submit(json2DmsForm(newItem), { method: "post", action: `${baseUrl}/edit/${newItem.url_slug}` })
-  } 
-
-  
 
   const getChildren = ({item, dataItems, children}) => {
     const currentChildren = dataItems.filter(di => di.parent === item.id);
@@ -211,30 +142,13 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
     }
   }
 
-  const movePages = async (type) => {
-    const children = []
-    getChildren({item, dataItems, children});
-
-    [...children, item]
-    .reduce(async (acc, currItem) => {
-      await acc;
-      const newItem = {id: currItem.id, type}
-      submit(json2DmsForm(newItem, 'updateType'), { method: "post", action: `${baseUrl}/edit/` })
-
-    }, Promise.resolve())
-    setMoving(false);
-    setType(item.type);
-  }
 
   const toggleSidebar = async (type, value='') => {
     const newItem = cloneDeep(item)
     newItem[type] = value
-   
-    // console.log('item', newItem, value)
+
     let sectionType = 'sections' ;
     if(type === 'header' && !newItem?.[sectionType]?.filter(d => d.is_header)?.[0]){
-      //console.log('toggleHeader add header', newItem[sectionType])
-      
       newItem[sectionType].unshift({
         is_header: true,
         element : {
@@ -242,7 +156,6 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
           "element-data": {}
         }
       })
-      //console.log('new item', newItem)
       updateAttribute('','',{
         header: value,
         [sectionType]: newItem[sectionType]
@@ -270,55 +183,9 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
       }
 
       newItem.url_slug = getUrlSlug(newItem, dataItems)
-      // console.log('create new item', newItem, baseUrl)
       updateAttribute('title', value)
       submit(json2DmsForm(newItem), { method: "post", action: `${baseUrl}/edit/${newItem.url_slug}` })
     }
-  }
-
-  const publish = async () => {
-    let edit = {
-      type: 'published changes.',
-      user: user.email, 
-      time: new Date().toString()
-    }
-
-    let history = item.history ? cloneDeep(item.history) : []
-    history.push(edit)
-
-    const newItem = {
-      id: item.id,
-      has_changes: false,
-      published: '',
-      history
-    }
-    let sectionsByDraftId = cloneDeep(item.sections || [])
-      .reduce((o,s) => { 
-        if(s.draft_id){
-          o[s.draft_id] = s;
-        }
-        return o
-      },{})
-
-    newItem.sections = cloneDeep(item.draft_sections)
-      .reduce((sections, draft) => {
-        if(sectionsByDraftId[draft.id]) {
-          draft.id = sectionsByDraftId[draft.id].id
-        } else {
-          delete draft.id
-        }
-        sections.push(draft)
-        return sections
-      },[])
-
-    updateAttribute('','',{
-      has_changes:false,
-      published: '',
-      history
-    })
-
-    submit(json2DmsForm(newItem), { method: "post", action: pathname })
-
   }
 
   const setDataControls = (v) => {
@@ -335,10 +202,6 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
           //console.log('equal', item.data_controls, dataControls)
       }
   }
-  // console.log('nbool test', pageType === 'template', item?.data_controls?.id_column, pageType === 'template' && item?.data_controls?.id_column)
-  // console.log('render', item?.data_controls)
-  
-
 
   return (
     <>
@@ -353,6 +216,7 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
           loadingStatus={loadingStatus}
           setLoadingStatus={setLoadingStatus}
           baseUrl={baseUrl}
+          apiLoad={apiLoad}
       />
         {edit &&
           <div className='p-4'>
@@ -447,7 +311,6 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
                             submit={submit}
                             onChange={(k, v) => {
                                 let tmpDataControls;
-                                console.log('test123', k,v)
                                 if (k === 'id_column') {
                                     tmpDataControls = {...item?.data_controls, ...{id_column: v, active_row: {}}};
                                 }
@@ -467,6 +330,7 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
                             }}
                             loadingStatus={loadingStatus}
                             setLoadingStatus={setLoadingStatus}
+                            apiLoad={apiLoad}
                             baseUrl={baseUrl}
                         />
             </div>}
@@ -534,29 +398,6 @@ function TitleEditComp({value, onChange}) {
         </dd>
       </div> 
      
-    </div>
-  )
-}
-
-function PublishButton({item, onClick}) {
-
-  const hasChanges = item.published === 'draft' || item.has_changes
-
-  return (
-    <div 
-      onClick={() => hasChanges ? onClick() : null}
-      className={`${ hasChanges ? 
-        'inline-flex w-36 justify-center rounded-lg cursor-pointer text-sm font-semibold py-2 px-2 bg-blue-600 text-white hover:bg-blue-500 shadow-lg border border-b-4 border-blue-800 hover:border-blue-700 active:border-b-2 active:mb-[2px] active:shadow-none':
-        'inline-flex w-36 justify-center rounded-lg cursor-not-allowed text-sm font-semibold py-2 px-2 bg-slate-300 text-white shadow border border-slate-400 border-b-4'
-      }`}
-    >
-      <span className='flex items-center'>
-        <span className='pr-2'>{hasChanges ? `Publish` : `No Changes`}</span>
-        {hasChanges ? <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg> : ''}
-
-      </span>
     </div>
   )
 }

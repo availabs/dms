@@ -762,7 +762,6 @@ const Edit = ({Component, value, onChange, attr, full_width = false, siteType, a
         fullwidth:'md:grid-cols-[_minmax(_0px,0px)_repeat(6,_1fr)_minmax(_0px,0px)]'
     }
 
-    console.log('ids', values)
     return (
         <div className={`w-full grid grid-cols-6 ${layouts[full_width === 'show' ? 'fullwidth' : 'centered']} gap-1`}>
             {values.map((v,i) => {

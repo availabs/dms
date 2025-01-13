@@ -7,7 +7,7 @@ import React from "react";
 const TemplateSourceSelector = ({
        item, dataControls = {}, setDataControls, baseUrl,
        loadingStatus,
-       setLoadingStatus
+       setLoadingStatus, apiLoad
     }) => {
     // console.log('TemplateSourceSelector', dataControls)
     const updateDataControls = (k, v) => {
@@ -61,6 +61,7 @@ const TemplateSourceSelector = ({
                         loadingStatus={loadingStatus}
                         setLoadingStatus={setLoadingStatus}
                         baseUrl={baseUrl}
+                        apiLoad={apiLoad}
                     />
 
                     <SectionListControls

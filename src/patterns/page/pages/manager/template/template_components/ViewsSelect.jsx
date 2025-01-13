@@ -1,4 +1,4 @@
-import React, {useEffect, useMemo} from "react";
+import React, {useEffect, useMemo, useState} from "react";
 import { get } from "lodash-es"
 
 import { CMSContext } from '../../../../siteConfig'
@@ -19,28 +19,25 @@ export const getAttributes = (data) => {
 export const ViewsSelect = ({source_id, value, onChange}) => {
 
     const { falcor, falcorCache, pgEnv} = React.useContext(CMSContext)
-
+    const [views, setViews] = useState([]);
     useEffect(() => {
         async function fetchData() {
             const lengthPath = ["dama", pgEnv, "sources", "byId", source_id, "views", "length"];;
             const resp = await falcor.get(lengthPath);
-            // console.log('length', get(resp.json, lengthPath, 0) - 1)
-            const dataResp = await falcor.get([
+            await falcor.get([
                 "dama", pgEnv, "sources", "byId", source_id, "views", "byIndex",
                 { from: 0, to: get(resp.json, lengthPath, 0) - 1 },
                 "attributes", ['view_id', 'version']
             ]);
-            //console.log('dataResp', dataResp)
+
+            const falcorCache = falcor.getCache();
+            const views = Object.values(get(falcorCache, ["dama", pgEnv, "sources", "byId", source_id, "views", "byIndex"], {}))
+                .map(v => get(falcorCache, v.value)?.attributes)
+            setViews(views)
         }
 
         fetchData();
     }, [falcor, pgEnv]);
-
-    const views = useMemo(() => {
-        return Object.values(get(falcorCache, ["dama", pgEnv, "sources", "byId", source_id, "views", "byIndex"], {}))
-            .map(v => getAttributes(get(falcorCache, v.value, { "attributes": {} })["attributes"]));
-    }, [falcorCache, source_id, pgEnv]);
-
 
     useEffect(() => {
         if(!value && views?.[0]?.view_id) {

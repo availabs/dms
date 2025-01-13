@@ -60,7 +60,7 @@ export 	async function updateDMSAttrs(data, configs, falcor) {
                 )
                 let newId = Object.keys(res?.json?.dms?.data?.byId || {})
                     .filter(d => d !== "$__path")?.[0] || -1
-                console.log(newId)
+
                 if(newId !== -1) {
                     updates[attr].push({ref:`${app}+${type}`, id:newId})
                 }

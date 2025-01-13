@@ -1,5 +1,5 @@
 
-import {formatFunctions, getData} from "./spreadsheet/utils/utils";
+import {formatFunctions, init} from "./spreadsheet/utils/utils";
 import SpreadSheet from "./spreadsheet";
 import RenderInHeaderColumnControls from "./spreadsheet/components/RenderInHeaderColumnControls";
 import React, {useMemo} from "react";
@@ -126,8 +126,17 @@ export const Card = ({
 export default {
     "name": 'Card',
     "type": 'card',
-    "variables": [],
-    getData,
+    "variables": [
+        {name: 'visibleAttributes', hidden: true}, {name: 'attributes', hidden: true},
+        {name: 'customColNames', hidden: true}, {name: 'orderBy', hidden: true},
+        {name: 'colSizes', hidden: true}, {name: 'filters'},
+        {name: 'groupBy', hidden: true}, {name: 'fn', hidden: true},
+        {name: 'notNull', hidden: true}, {name: 'allowEditInView', hidden: true},
+        {name: 'format', hidden: true}, {name: 'view', hidden: true},
+        {name: 'actions', hidden: true}, {name: 'allowSearchParams', hidden: true},
+        {name: 'loadMoreId', hidden: true}, {name: 'attributionData', hidden: true}
+    ],
+    getData: init,
     "EditComp": props => <SpreadSheet.EditComp {...props} renderCard={true}/>,
     "ViewComp": props => <SpreadSheet.ViewComp {...props} renderCard={true}/>,
 }

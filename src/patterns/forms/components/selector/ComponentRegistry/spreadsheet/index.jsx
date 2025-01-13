@@ -49,8 +49,8 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     const [striped, setStriped] = useState(cachedData.striped);
     const [allowDownload, setAllowDownload] = useState(cachedData.allowDownload);
     const [allowEditInView, setAllowEditInView] = useState(cachedData.allowEditInView);
-    const [allowSearchParams, setAllowSearchParams] = useState(cachedData.allowSearchParams === undefined ? true : cachedData.allowSearchParams);
-    const [usePagination, setUsePagination] = useState(cachedData.usePagination);
+    const [allowSearchParams, setAllowSearchParams] = useState(cachedData.allowSearchParams === undefined ? false : cachedData.allowSearchParams);
+    const [usePagination, setUsePagination] = useState(cachedData.usePagination || true);
     const [pageSize, setPageSize] = useState(cachedData.pageSize || 5);
     // const [dataSize, setDataSize] = useState(cachedData.dataSize || 500);
 
@@ -205,7 +205,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
         return () => {
             isCancelled = true;
         };
-    }, [orderBy, filters, groupBy, visibleAttributes, fn, notNull, showTotal, pageSize]);
+    }, [orderBy, filters, groupBy, visibleAttributes, fn, notNull, showTotal, usePagination, pageSize]);
 
     useEffect(() => {
         // only run when page changes
@@ -256,7 +256,8 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
         const view_id = typeof view === 'object' ? view.id : view;
         const version = typeof view === 'object' ? (view.name || view.version) : view;
         onChange(JSON.stringify({
-            visibleAttributes, pageSize, attributes,
+            visibleAttributes, pageSize,
+            attributes, // avoid saving.
             customColNames, orderBy, colSizes, filters,
             groupBy, fn, notNull, allowEditInView, format,
             view, actions, allowSearchParams, loadMoreId, striped, showTotal, usePagination, allowDownload,
@@ -421,7 +422,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
     const [currentPage, setCurrentPage] = useState(0);
 
     const view = cachedData.view;
-    const attributes = cachedData.attributes;
+    const attributes = cachedData.attributes; // pull from format to avoid saving.
     const visibleAttributes = cachedData.visibleAttributes || [];
     const customColNames = cachedData.customColNames || {};
     const groupBy = cachedData.groupBy || [];

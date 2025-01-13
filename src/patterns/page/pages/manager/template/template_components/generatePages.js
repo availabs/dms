@@ -9,7 +9,7 @@ import {getConfig} from "../pages";
 
 export const generatePages = async ({
                                         item, url, destination, id_column, dataRows, falcor, setLoadingStatus, locationNameMap,
-                                        setGeneratedPages, from, to, urlSuffixCol='geoid', app, type
+                                        setGeneratedPages, from, to, urlSuffixCol='geoid', app, type, apiLoad
                                     }) => {
     setLoadingStatus('Generating Pages...', dataRows)
     const idColAttr =
@@ -94,7 +94,19 @@ export const generatePages = async ({
                 return variable
             })
 
-            let args = {...controlVars, ...updateVars, additionalVariables}
+            let filters = Array.isArray(data.filters) ? data.filters.map(filter => {
+                // update the defaultValue here
+                const attrName = filter.column;
+                const sectionControlMappedName = dataControls?.sectionControls?.[section_id]?.[attrName];
+                if(sectionControlMappedName){
+                    filter.values = [dataControls?.active_row?.[sectionControlMappedName]]
+                    filter.valueSets = [dataControls?.active_row?.[sectionControlMappedName]]
+                }
+
+                return filter
+            }) : data.filters;
+
+            let args = {...controlVars, ...updateVars, additionalVariables, filters, apiLoad}
 
             try {
                 // if(pageI > 8){

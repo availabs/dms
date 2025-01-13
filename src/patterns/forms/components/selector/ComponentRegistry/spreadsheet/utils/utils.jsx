@@ -116,7 +116,7 @@ export const isJson = (str)  => {
     return true;
 }
 
-export const getData = async ({format, apiLoad, currentPage, pageSize, length, showTotal, visibleAttributes=[], orderBy={}, filters=[], groupBy=[], fn={}, notNull}) =>{
+export const getData = async ({format, apiLoad, currentPage=0, pageSize, length, showTotal, visibleAttributes=[], orderBy={}, filters=[], groupBy=[], fn={}, notNull}) =>{
     const actionType = 'uda';
     const fromIndex = currentPage*pageSize;
     const toIndex = Math.min(length, currentPage*pageSize + pageSize) - 1;
@@ -124,8 +124,11 @@ export const getData = async ({format, apiLoad, currentPage, pageSize, length, s
     console.log('what is going on', currentPage, pageSize, length)
 
     // invalid state: while NOT grouping by, there are some columns with fn applied. either all of them need fn, or none.
-    const noGroupSomeFnCondition = visibleAttributes.length > 1 && !groupBy.length && Object.keys(fn).length > 0 && Object.keys(fn).length < visibleAttributes.length;
-    const groupNoFnCondition = groupBy.length && Object.keys(fn).length + groupBy.length !== visibleAttributes.length; // while grouping, all the non-grouped columns should have a fn
+    const nonGroupedColumnsLength = visibleAttributes.filter(va => !groupBy.includes(va)).length
+    // no column is grouped by, and fns don't equal visible columns (using length but maybe more nuanced matching can be used)
+    const noGroupSomeFnCondition = visibleAttributes.length > 1 && !groupBy.length && Object.keys(fn).length > 0 && Object.keys(fn).length !== visibleAttributes.length;
+    // grouping by some column(s), but fns don't equal non-grouped columns (using length but maybe more nuanced matching can be used)
+    const groupNoFnCondition = groupBy.length && Object.keys(fn).length !== nonGroupedColumnsLength; // while grouping, all the non-grouped columns should have a fn
     const isInvalidState = noGroupSomeFnCondition || groupNoFnCondition;
     if(isInvalidState) {
         console.log('invalid state', noGroupSomeFnCondition, groupNoFnCondition, visibleAttributes.length, groupBy.length, fn)
@@ -273,22 +276,27 @@ export const convertToUrlParams = (arr, delimiter) => {
 
 // used to init data remotely (using template / other update methods).
 // Does the bear minimum of returning all args, and updating format object with correct view id.
-export const init = async ({format, view, version, attributionData, ...rest}) => {
-    const newView = version || view;
+export const init = async ({format, view, version, attributionData, apiLoad, ...rest}) => {
+    const view_id = version || view || format?.view_id;
     const originalDocType = format.originalDocType || format.doc_type;
-    const doc_type = `${originalDocType}-${newView}`
-    const view_id = newView;
+    const doc_type = `${originalDocType}-${view_id}`
 
-    const updatedFormat = format.doc_type ? {...format, doc_type, originalDocType, view_id} : {...format, view_id}
+
+    const updatedFormat = format.doc_type ? {...format, doc_type, originalDocType, view_id: view_id?.id} : {...format, view_id: view_id?.id}
     const updatedAttributionData = {source_id: attributionData.source_id, view_id, version: view_id}
     const newSetup = {
         format: updatedFormat,
-        view: newView,
+        view: view_id,
         attributionData: updatedAttributionData,
         ...rest
     }
 
-    const length = await getLength(newSetup);
-    const data = await getData({...newSetup, length});
-    return {...newSetup, data}
+    if(apiLoad){
+        const length = await getLength({...newSetup, apiLoad});
+        const data = await getData({...newSetup, length, apiLoad});
+        console.log('do i fucking get called?', length, data, newSetup)
+        return  {...newSetup, data}
+    }
+
+    return newSetup
 }

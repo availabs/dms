@@ -138,6 +138,7 @@ function TemplateEdit ({
             <div className='w-52 hidden xl:block'>
               <div className='w-52 sticky top-12 hidden xl:block h-screen'> 
                 <EditControls
+                    apiLoad={apiLoad}
                   item={item}
                   dataItems={dataItems}
                   setItem={setItem}
