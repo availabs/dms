@@ -19,8 +19,8 @@ export const tabsTheme = {
     py-1 px-3 font-semibold text-slate-600 focus:outline-none border-b-2 border-white text-xs hover:text-slate-900
     data-[selected]:border-blue-500 data-[selected]:bg-white/10 data-[hover]:bg-white/5 data-[selected]:data-[hover]:bg-white/10 data-[focus]:outline-1 data-[focus]:outline-white
   `,
-  tabpanels: 'mt-3',
-  tabpanel: 'rounded-xl bg-white/5 p-3'
+  tabpanels: '',
+  tabpanel: 'rounded-xl bg-white/5'
 }
 
 export default function Tabs ({tabs=defaultTabs, selectedIndex=0}) {

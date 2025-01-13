@@ -3,6 +3,7 @@ import { Dialog, Transition } from '@headlessui/react'
 import { XMark } from '../../icons'
 import { CMSContext } from '../../../siteConfig';
 
+// TO DO - theme this comp
 
 export default function Drawer ({ open, setOpen, CloseIcon=XMark, width='max-w-64', children, closeOnClick=true }) {
   
@@ -22,7 +23,7 @@ export default function Drawer ({ open, setOpen, CloseIcon=XMark, width='max-w-6
                 leaveFrom="translate-x-0"
                 leaveTo="translate-x-full"
               >
-                <Dialog.Panel className={`pointer-events-auto ${width} bg-white shadow`}>
+                <Dialog.Panel className={`pointer-events-auto ${width} bg-white shadow-lg`}>
                   <div className="">
                     <div className="fixed right-2 top-2">
                       <button

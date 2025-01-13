@@ -283,3 +283,27 @@ export function compare (a, b) {
 }
 
 export const getNestedValue = (obj) => typeof obj?.value === 'object' ? getNestedValue(obj.value) : obj?.value || obj;
+
+export const updateRegisteredFormats = (registerFormats, app, type) => {
+  if(Array.isArray(registerFormats)){
+    registerFormats = registerFormats.map(rFormat => {
+      rFormat.app = app;
+      rFormat.type = `${type}|${rFormat.type}`
+      rFormat.registerFormats = updateRegisteredFormats(rFormat.registerFormats, app, type);
+      rFormat.attributes = updateAttributes(rFormat.attributes, app, type);
+      return rFormat;
+    })
+  }
+  return registerFormats;
+}
+
+export const updateAttributes = (attributes, app, type) => {
+  if(Array.isArray(attributes)){
+    attributes = attributes.map(attr => {
+      attr.format = attr.format ? `${app}+${type}|${attr.format.split('+')[1]}`: undefined;
+      return updateRegisteredFormats(attr, app, type);
+    })
+    //console.log('attr', attributes)
+  }
+  return attributes;
+}

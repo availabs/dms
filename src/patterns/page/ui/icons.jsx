@@ -312,6 +312,12 @@ export const CircleX = ({className='size-6', ...props}) => (
   <path strokeLinecap="round" strokeLinejoin="round" d="m9.75 9.75 4.5 4.5m0-4.5-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
 </svg>
 )
+export const EllipsisVertical = ({className='size-6', ...props}) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className} {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 12.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 18.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5Z" />
+  </svg>
+)
+
 const Icons = {
   CaretDown,
   CaretUp,
@@ -349,7 +355,8 @@ const Icons = {
   XMark,
   AdjustmentsHorizontal,
   LinkSquare,
-  DraftPage
+  DraftPage,
+  EllipsisVertical
 }
 
 
