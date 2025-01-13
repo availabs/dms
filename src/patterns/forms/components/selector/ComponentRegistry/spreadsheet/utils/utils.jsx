@@ -294,7 +294,6 @@ export const init = async ({format, view, version, attributionData, apiLoad, ...
     if(apiLoad){
         const length = await getLength({...newSetup, apiLoad});
         const data = await getData({...newSetup, length, apiLoad});
-        console.log('do i fucking get called?', length, data, newSetup)
         return  {...newSetup, data}
     }
 

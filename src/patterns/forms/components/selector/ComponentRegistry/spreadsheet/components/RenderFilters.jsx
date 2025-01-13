@@ -1,9 +1,9 @@
-import React, {useCallback, useEffect, useMemo, useState} from "react";
+import React, {memo, useCallback, useEffect, useState} from "react";
 import {dmsDataTypes} from "../../../../../../../data-types";
-import {formattedAttributeStr, attributeAccessorStr, convertToUrlParams} from "../utils/utils";
+import {formattedAttributeStr, attributeAccessorStr} from "../utils/utils";
 import {Filter} from "../../../../../../admin/ui/icons";
 import {isJson} from "../../../index";
-import {uniqBy} from "lodash-es"
+import {isEqual, uniqBy} from "lodash-es"
 
 export const getData = async ({format, apiLoad, length, attribute, allAttributes, groupBy=[], filterBy={}}) =>{
     const prependWithDistinct = !attribute.toLowerCase().startsWith('distinct');
@@ -40,7 +40,7 @@ export const getData = async ({format, apiLoad, length, attribute, allAttributes
         attributes: [mappedAttributeName],
         children
     });
-    console.log('debug filters data:', attribute, mappedAttributeName, data)
+    // console.log('debug filters data:', attribute, mappedAttributeName, data)
     return data.map(row => ({[attribute]: row[mappedAttributeName]}));
 }
 
@@ -79,17 +79,18 @@ const parseIfJson = value => {
         return value;
     }
 }
-export const RenderFilters = ({attributes, filters, setFilters, format, defaultOpen=false, apiLoad}) => {
+export const RenderFilters = memo(({attributes, filters, setFilters, format, defaultOpen=false, apiLoad}) => {
     const [open, setOpen] = useState(defaultOpen);
     const [filterOptions, setFilterOptions] = useState({}); // {col1: [vals], col2:[vals]}
     // console.log('render filters props', format, attributes)
     // filters don't work for newly added values. this has started happening after accommodating multiselect filters using valueSets. can be solved by using merge of values and valuesets in format filters.
-    const debug = true;
+    const debug = false;
     const getFormattedAttributeStr = useCallback((column, isDms, attributes) => formattedAttributeStr(column, isDms, isCalculatedCol(column, attributes)), [attributes]);
     const getAttributeAccessorStr = useCallback((column, isDms, attributes) => attributeAccessorStr(column, isDms, isCalculatedCol(column, attributes)), [attributes]);
     useEffect(() => {
         async function load(){
             if(!attributes.length) return;
+            debug && console.log('debug filters: ', filters.length, attributes)
 
             const data = await filters.reduce(async (acc, filter, filterI) => {
                 const prev = await acc;
@@ -124,27 +125,27 @@ export const RenderFilters = ({attributes, filters, setFilters, format, defaultO
                 })
                 debug && console.log('debug filters: data', data, acc)
                 prev[filter.column] = {
-                        uniqValues: data.reduce((acc, d) => {
-                            // array values flattened here for multiselects.
-                            const formattedAttrStr = getFormattedAttributeStr(filter.column, format.isDms, attributes);
-                            // if meta column, value: {value, originalValue}, else direct value comes in response
-                            const responseValue = d[formattedAttrStr]?.value || d[formattedAttrStr];
-                            const metaValue = parseIfJson(responseValue?.value || responseValue); // meta processed value
-                            const originalValue = parseIfJson(responseValue?.originalValue || responseValue);
-                            const value =
-                                Array.isArray(originalValue) ?
-                                    originalValue.map((pv, i) => ({label: metaValue?.[i] || pv, value: pv})) :
+                    uniqValues: data.reduce((acc, d) => {
+                        // array values flattened here for multiselects.
+                        const formattedAttrStr = getFormattedAttributeStr(filter.column, format.isDms, attributes);
+                        // if meta column, value: {value, originalValue}, else direct value comes in response
+                        const responseValue = d[formattedAttrStr]?.value || d[formattedAttrStr];
+                        const metaValue = parseIfJson(responseValue?.value || responseValue); // meta processed value
+                        const originalValue = parseIfJson(responseValue?.originalValue || responseValue);
+                        const value =
+                            Array.isArray(originalValue) ?
+                                originalValue.map((pv, i) => ({label: metaValue?.[i] || pv, value: pv})) :
                                 [{label: metaValue || originalValue, value: originalValue}];
 
-                            return uniqBy([...acc, ...value.filter(({label, value}) => label && typeof label !== 'object')], d => d.value)
-                        }, []),
-                        allValues: data.reduce((acc, d) => {
-                            // everything we get
-                            const parsedValue = d[getFormattedAttributeStr(filter.column, format.isDms, attributes)]
-                            return [...acc, parsedValue];
-                            // for multiselect: [[], [], []], for others: [val1, val2, val3]
-                        }, []).filter(d => Array.isArray(d) || typeof d !== "object")
-                    };
+                        return uniqBy([...acc, ...value.filter(({label, value}) => label && typeof label !== 'object')], d => d.value)
+                    }, []),
+                    allValues: data.reduce((acc, d) => {
+                        // everything we get
+                        const parsedValue = d[getFormattedAttributeStr(filter.column, format.isDms, attributes)]
+                        return [...acc, parsedValue];
+                        // for multiselect: [[], [], []], for others: [val1, val2, val3]
+                    }, []).filter(d => Array.isArray(d) || typeof d !== "object")
+                };
 
                 return prev;
             }, {});
@@ -172,6 +173,7 @@ export const RenderFilters = ({attributes, filters, setFilters, format, defaultO
                         </div>
                         <div className={'w-3/4 p-1 relative'}>
                             <MultiSelectComp
+                                key={`filter-${i}`}
                                 className={`max-h-[150px] flex text-xs overflow-auto scrollbar-sm border rounded-md bg-white ${f.values?.length ? `p-1` : `p-4`}`}
                                 placeholder={'Search...'}
                                 value={f.values}
@@ -206,4 +208,6 @@ export const RenderFilters = ({attributes, filters, setFilters, format, defaultO
                 <Filter className={'-mr-6 text-blue-300 bg-white self-end rounded-md hover:cursor-pointer'} onClick={() => setOpen(true)}/>
             </div>
     )
-}
+}, (prev, next) => {
+    return isEqual(prev.filters, next.filters) && isEqual(prev.attributes, next.attributes) && isEqual(prev.format, next.format)
+})
