@@ -10,7 +10,8 @@ export default function RenderColumnControls({
     notNull=[], setNotNull,
     fn={}, setFn,
     openOutCols=[], setOpenOutCols,
-    groupBy=[]
+    filters=[], setFilters,
+    groupBy=[], setGroupBy
 }) {
     if(!setAttributes || !setVisibleAttributes) return;
     const dragItem = useRef();
@@ -19,6 +20,12 @@ export default function RenderColumnControls({
     const [search, setSearch] = useState();
     const [isOpen, setIsOpen] = useState(false);
     const menuBtnId = 'menu-btn-column-controls'; // used to control isOpen on menu-btm click;
+
+    const controlsToShow = [
+        {
+            label: 'Column'
+        }
+    ]
     // ================================================== group by updates start =======================================
     useEffect(() => {
         // when entering/exiting group by mode, columns need to have appropriate fns applied.
@@ -85,7 +92,8 @@ export default function RenderColumnControls({
         };
     }, []);
     // ================================================== close on outside click end ===================================
-    const gridTemplateColumns = '10rem 5rem 5rem 5rem 5rem'
+    const gridClass = 'grid grid-cols-7'
+    const gridTemplateColumns = '10rem 5rem 5rem 5rem 5rem 5rem 5rem';
     return (
         <div className="relative inline-block text-left">
             <div>
@@ -99,7 +107,7 @@ export default function RenderColumnControls({
             </div>
 
             <div ref={menuRef}
-                 className={`${isOpen ? 'visible transition ease-in duration-200' : 'hidden transition ease-in duration-200'} absolute left-0 z-10 w-[35rem] origin-top-left divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 transition focus:outline-none`}
+                 className={`${isOpen ? 'visible transition ease-in duration-200' : 'hidden transition ease-in duration-200'} absolute left-0 z-10 w-[45rem] origin-top-left divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 transition focus:outline-none`}
             >
                 <input className={'px-4 py-1 w-full text-xs rounded-md'} placeholder={'search...'}
                        onChange={e => {
@@ -119,7 +127,7 @@ export default function RenderColumnControls({
                             </svg>
                         </div>
 
-                        <div className={'grid grid-cols-5 gap-0.5 m-1 w-full cursor-pointer'}
+                        <div className={`${gridClass} gap-0.5 m-1 w-full cursor-pointer`}
                              style={{gridTemplateColumns}}
                         >
                             <div className={'place-self-stretch'}>
@@ -139,6 +147,14 @@ export default function RenderColumnControls({
 
                             <div className={'justify-self-end'}>
                                 Open Out
+                            </div>
+
+                            <div className={'justify-self-end'}>
+                                Filter
+                            </div>
+
+                            <div className={'justify-self-end'}>
+                                Group
                             </div>
                         </div>
                     </div>
@@ -169,7 +185,7 @@ export default function RenderColumnControls({
                                         </svg>
                                     </div>
 
-                                    <div className={'grid grid-cols-5 gap-0.5 m-1 w-full cursor-pointer'}
+                                    <div className={`${gridClass} gap-0.5 m-1 w-full cursor-pointer`}
                                          style={{gridTemplateColumns}}
                                     >
                                         {/*if custom column names are allowed*/}
@@ -194,8 +210,8 @@ export default function RenderColumnControls({
                                                     'appearance-none w-fit rounded-md bg-gray-100 h-fit text-center'
                                             }
                                             value={fn[attribute.name]}
-                                            onClick={e => {
-                                                if (!e.target.value) {
+                                            onChange={e => {
+                                                if (!e.target.value || e.target.value === 'fn') {
                                                     const newFn = cloneDeep(fn);
                                                     delete newFn[attribute.name];
                                                     setFn(newFn)
@@ -247,6 +263,35 @@ export default function RenderColumnControls({
                                                 enabled={openOutCols.includes(attribute.name)}
                                                 setEnabled={(value) => value ? setOpenOutCols([...openOutCols, attribute.name]) :
                                                     setOpenOutCols(openOutCols.filter(attr => attr !== attribute.name))}
+                                            />
+                                        </div>
+
+                                        <div className={'justify-self-end'}>
+                                            <RenderSwitch
+                                                size={'small'}
+                                                id={attribute.name}
+                                                enabled={filters.find(f => f.column === attribute.name) ? true : false}
+                                                setEnabled={(value) => {
+                                                    const newFilters = value ?
+                                                        [...filters, {column: attribute.name}] :
+                                                        filters.filter(attr => attr.column !== attribute.name);
+                                                    setFilters(newFilters);
+                                                }}
+                                            />
+                                        </div>
+
+                                        <div className={'justify-self-end'}>
+                                            <RenderSwitch
+                                                size={'small'}
+                                                id={attribute.name}
+                                                enabled={groupBy.find(f => f === attribute.name) ? true : false}
+                                                setEnabled={(value) => {
+                                                    const newGroups = value ?
+                                                        [...groupBy, attribute.name] :
+                                                        groupBy.filter(attr => attr !== attribute.name);
+                                                    setGroupBy(newGroups);
+                                                    if(!groupBy.length) setFn && setFn({});
+                                                }}
                                             />
                                         </div>
                                     </div>

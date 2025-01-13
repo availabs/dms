@@ -77,7 +77,7 @@ export const RenderSimple = ({
     const startCellRow = useRef(null);
     const startCellCol = useRef(null);
     const selectionRange = useMemo(() => {
-        const rows = [...new Set(selection.map(s => s.index !== undefined ? s.index : s))].sort((a, b) => a - b);
+        const rows = [...new Set(selection.map(s => s?.index !== undefined ? s.index : s))].sort((a, b) => a - b);
         const cols = [...new Set(selection.map(s => s.attrI).sort((a, b) => a - b) || visibleAttributes.map((v, i) => i))];
         return {
             startI: rows[0],

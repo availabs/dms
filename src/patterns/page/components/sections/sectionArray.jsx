@@ -1,4 +1,4 @@
-import React, { Fragment, useState, useLayoutEffect, useRef } from "react"
+import React, {Fragment, useState, useLayoutEffect, useRef, useEffect} from "react"
 import { useLocation } from 'react-router-dom';
 import { isEqual, cloneDeep } from "lodash-es"
 import { Popover, Transition, Combobox } from '@headlessui/react'
@@ -645,7 +645,7 @@ const AddSectionButton = ({onClick, showpageToggle}) => {
 const ScrollToHashElement = () => {
     const location = useLocation();
 
-    useLayoutEffect(() => {
+    useEffect(() => {
         const { hash } = location;
         const removeHashCharacter = (str) => {
             const result = str.slice(1);
@@ -765,7 +765,6 @@ const Edit = ({Component, value, onChange, attr, full_width = false, siteType, a
     //console.log('ids', values)
     return (
         <div className={`w-full grid grid-cols-6 ${layouts[full_width === 'show' ? 'fullwidth' : 'centered']} gap-1`}>
-            <ScrollToHashElement />
             {values.map((v,i) => {
                 //console.log()
                 const size = (edit.index === i ? edit?.value?.size : v?.size) || "1";
@@ -786,7 +785,7 @@ const Edit = ({Component, value, onChange, attr, full_width = false, siteType, a
                 return (
                     <div
                         key={i}
-                        id={`${v?.id}`}
+                        id={v?.id}
                         className={`${v?.size ? "h-full" : ""} ${sizeClass} ${hideDebug ? '' : 'border border-green-500'}`}>
                         {/* add to top */}
                         { /*edit.index === -1 && i === 0 ? 
@@ -816,7 +815,7 @@ const Edit = ({Component, value, onChange, attr, full_width = false, siteType, a
                         {/* show section if not being edited */}
                         { v !== '' && !(edit.index === i && edit.type === 'update') && (!v?.status || v?.status === 'success') ?
                             <SectionView
-                                value={v} 
+                                value={v}
                                 i={i}
                                 moveItem={moveItem}
                                 attributes={attr.attributes}
@@ -839,6 +838,7 @@ const Edit = ({Component, value, onChange, attr, full_width = false, siteType, a
                 )
             })
         }
+            <ScrollToHashElement />
         </div>
     )
 }

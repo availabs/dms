@@ -202,7 +202,7 @@ export const RenderRow = ({
                                  })}
                                  onMouseUp={e => handleMouseUp({setIsDragging})}
                             >
-                                >
+                                {">"}
                             </div>
 
                             <RenderCell

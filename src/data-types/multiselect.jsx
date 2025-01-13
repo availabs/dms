@@ -72,7 +72,7 @@ const RenderMenu = ({
             </div>
             {
                 (options || [])
-                    .filter(o => !mappedValue.includes(o.value || o) && (o.label || o)?.toLowerCase().includes(searchKeyword?.toLowerCase()))
+                    .filter(o => !mappedValue.includes(o.value || o) && (o.label || o)?.toString()?.toLowerCase().includes(searchKeyword?.toLowerCase()))
                     .map((o, i) =>
                         <div
                             key={`option-${i}`}
@@ -142,7 +142,7 @@ const Edit = ({value = [], onChange, className,placeholder, options = [], displa
             }
             <div className={className || (theme?.multiselect?.inputWrapper) || inputWrapper} onClick={() => {
                 setIsSearching(!isSearching)
-                console.log('ms?', ref.current.top)
+                // console.log('ms?', ref.current.top)
             }}>
                 {
                     typeSafeValue

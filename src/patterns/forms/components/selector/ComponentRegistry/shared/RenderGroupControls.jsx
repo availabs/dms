@@ -46,6 +46,22 @@ export default function RenderGroupControls({
                            setSearch(e.target.value)
                        }}/>
                 <div className="py-1 max-h-[500px] overflow-auto scrollbar-sm">
+                    <div
+                        key={'clear'}
+                        className="flex items-center cursor-pointer px-2 py-1 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                        onClick={() => {
+                            setGroupBy([]);
+                            setFn && setFn({});
+                        }}
+                    >
+                        <div className={'h-4 w-4 m-1 cursor-pointer text-gray-800'}>
+                            <Group height={14} width={14}/>
+                        </div>
+
+                        <div className={'flex justify-between m-1 w-full'}>
+                            {"Clear Groups"}
+                        </div>
+                    </div>
                     {
                         attributes
                             .filter(a => a && (!search || (a.display_name || a.name).toLowerCase().includes(search.toLowerCase())))
@@ -59,11 +75,11 @@ export default function RenderGroupControls({
                                             groupBy.filter(attr => attr !== attribute.name);
 
                                         setGroupBy(newFilters);
-                                        if(!groupBy.length) setFn && setFn({});
+                                        if (!groupBy.length) setFn && setFn({});
                                     }}
                                 >
                                     <div className={'h-4 w-4 m-1 cursor-pointer text-gray-800'}>
-                                        <Group height={14} width={14} />
+                                        <Group height={14} width={14}/>
                                     </div>
 
                                     <div className={'flex justify-between m-1 w-full'}>
@@ -71,7 +87,8 @@ export default function RenderGroupControls({
 
                                         <RenderSwitch
                                             enabled={groupBy.find(f => f === attribute.name) ? true : false}
-                                            setEnabled={() => {}}
+                                            setEnabled={() => {
+                                            }}
                                         />
                                     </div>
                                 </div>

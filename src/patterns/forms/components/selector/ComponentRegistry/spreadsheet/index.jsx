@@ -74,10 +74,18 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     useEffect(() => {
         const newAttributes = JSON.parse(format?.config || '{}')?.attributes || format?.metadata?.columns || [];
         if(isEqual(attributes, newAttributes)) return;
-        setAttributes(JSON.parse(format?.config || '{}')?.attributes || format?.metadata?.columns || [])
+        setAttributes(newAttributes)
+
+        if(format?.id !== cachedData?.format?.id){
+            // source change
+            setVisibleAttributes([]);
+            setFilters([]);
+            setGroupBy([]);
+        }
     }, [format]);
 
     useEffect(() => {
+        if(!formatFromProps) return; // format from props comes only from admin pages. on admin pages, FormsSelector is not present to handle view changes, so we handle them here.
         // transitioning from int view to obj view
         const tmpViewId = typeof view === 'object' ? view.id : view;
         if(!format || !view || format.view_id === tmpViewId) return;
@@ -350,9 +358,8 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
                     /> : (
                     <>
                         {/*Pagination*/}
-                        <RenderPagination usePagination={usePagination} totalPages={length} loadedRows={data.length} pageSize={pageSize} currentPage={currentPage}
+                        <RenderPagination usePagination={usePagination} loadedRows={length} pageSize={pageSize} currentPage={currentPage}
                                           setCurrentPage={setCurrentPage} visibleAttributes={visibleAttributes}/>
-
                         <RenderSimple {...{
                             data,
                             setData,
@@ -601,6 +608,8 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
 
     // =========================================== util fns begin ======================================================
     const updateItem = (value, attribute, d) => {
+        if (!apiUpdate || !allowEdit) return;
+
         let dataToUpdate = Array.isArray(d) ? d : [d];
         let tmpData = [...data];
         dataToUpdate.map(dtu => {
@@ -612,11 +621,15 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
     }
 
     const addItem = () => {
+        if (!apiUpdate || !allowEdit) return;
+
         setData([...data, newItem]);
         return apiUpdate({data: newItem, config: {format}}) && setNewItem({})
     }
 
     const removeItem = item => {
+        if (!apiUpdate || !allowEdit) return;
+
         setData(data.filter(d => d.id !== item.id))
         return apiUpdate({data: item, config: {format}, requestType: 'delete'})
     }
@@ -669,7 +682,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
                {/*Attribution*/}
                <RenderAttribution format={format} view={view} />
                {/*Pagination*/}
-               <RenderPagination usePagination={usePagination} totalPages={length} loadedRows={data.length} pageSize={pageSize} currentPage={currentPage}
+               <RenderPagination usePagination={usePagination} loadedRows={length} pageSize={pageSize} currentPage={currentPage}
                                  setCurrentPage={setCurrentPage} visibleAttributes={visibleAttributes}/>
            </div>
         </div>

@@ -28,8 +28,10 @@ export const ColumnControls = ({
                               visibleAttributes={visibleAttributes} setVisibleAttributes={setVisibleAttributes}
                               customColNames={customColNames} setCustomColNames={setCustomColNames}
                               notNull={notNull} setNotNull={setNotNull}
-                              fn={fn} setFn={setFn} groupBy={groupBy}
+                              fn={fn} setFn={setFn}
                               openOutCols={openOutCols} setOpenOutCols={setOpenOutCols}
+                              filters={filters} setFilters={setFilters}
+                              groupBy={groupBy} setGroupBy={setGroupBy}
         />
         <RenderFilterControls attributes={attributes} filters={filters} setFilters={setFilters}/>
 
