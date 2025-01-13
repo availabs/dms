@@ -295,7 +295,7 @@ export const RenderSimple = ({
                 {data
                     .filter(d => !d.totalRow)
                     .map((d, i) => (
-                    <RenderRow {...{
+                    <RenderRow key={i} {...{
                         i, c, d,
                         allowEdit, isDragging, isSelecting, editing, setEditing, loading,
                         striped, visibleAttributes, attributes, customColNames, frozenCols,
@@ -318,7 +318,7 @@ export const RenderSimple = ({
                 {data
                     .filter(d => showTotal && d.totalRow)
                     .map((d, i) => (
-                        <RenderRow {...{
+                        <RenderRow key={'total row'} {...{
                             i, c, d,
                             allowEdit, isDragging, isSelecting, editing, setEditing, loading,
                             striped, visibleAttributes, attributes, customColNames, frozenCols,

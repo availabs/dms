@@ -6,7 +6,9 @@ import {isJson} from "../../../index";
 import {uniqBy} from "lodash-es"
 
 export const getData = async ({format, apiLoad, length, attribute, allAttributes, groupBy=[], filterBy={}}) =>{
-    const mappedAttributeName = attribute.toLowerCase().startsWith('distinct') ? attribute : `distinct ${attribute} as ${attribute}`; // to get uniq values
+    const prependWithDistinct = !attribute.toLowerCase().startsWith('distinct');
+    const appendWithAS = !attribute.toLowerCase().includes(' as ');
+    const mappedAttributeName = `${prependWithDistinct ? `distinct ` : ``}${attribute}${appendWithAS ? ` as ${attribute}` : ``}` // to get uniq values
     // const attributeNameForExclude = attribute.toLowerCase().be
     const {name, display, meta_lookup} = allAttributes.find(attr => attr.name === attribute) || {};
     const meta = ['meta-variable', 'geoid-variable', 'meta'].includes(display) && meta_lookup ? {[name]: meta_lookup} : {};
@@ -38,6 +40,7 @@ export const getData = async ({format, apiLoad, length, attribute, allAttributes
         attributes: [mappedAttributeName],
         children
     });
+    console.log('debug filters data:', attribute, mappedAttributeName, data)
     return data.map(row => ({[attribute]: row[mappedAttributeName]}));
 }
 
@@ -81,7 +84,7 @@ export const RenderFilters = ({attributes, filters, setFilters, format, defaultO
     const [filterOptions, setFilterOptions] = useState({}); // {col1: [vals], col2:[vals]}
     // console.log('render filters props', format, attributes)
     // filters don't work for newly added values. this has started happening after accommodating multiselect filters using valueSets. can be solved by using merge of values and valuesets in format filters.
-    const debug = false;
+    const debug = true;
     const getFormattedAttributeStr = useCallback((column, isDms, attributes) => formattedAttributeStr(column, isDms, isCalculatedCol(column, attributes)), [attributes]);
     const getAttributeAccessorStr = useCallback((column, isDms, attributes) => attributeAccessorStr(column, isDms, isCalculatedCol(column, attributes)), [attributes]);
     useEffect(() => {
@@ -163,7 +166,7 @@ export const RenderFilters = ({attributes, filters, setFilters, format, defaultO
                 <Filter className={'-mt-4 -mr-6 text-blue-300 bg-white self-end rounded-md hover:cursor-pointer'}
                         onClick={() => setOpen(false)}/>
                 {filters.map((f, i) => (
-                    <div className={'w-full flex flex-row items-center'}>
+                    <div key={i} className={'w-full flex flex-row items-center'}>
                         <div className={'w-1/4 p-1 text-sm'}>
                             {attributes.find(attr => attr.name === f.column)?.display_name || f.column}
                         </div>
