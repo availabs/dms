@@ -27,8 +27,9 @@ const ViewInfo = ({submit, item, onChange, loadingStatus, apiLoad, setLoadingSta
     const locationNameMap = [type]
 
     React.useEffect(() => {
+        const cache = falcor.getCache();
         const getDataLength = async () => await falcor.get(["dama", pgEnv, "viewsbyId", view.view_id, "data", "length"])
-            .then(() => setDataLength(get(falcor.getCache(), ["dama", pgEnv, "viewsbyId", view.view_id, "data", "length"], 0)))
+            .then(() => setDataLength(get(cache, ["dama", pgEnv, "viewsbyId", view.view_id, "data", "length"], 0)))
 
         getDataLength();
     }, [pgEnv,  view.view_id]);
@@ -58,13 +59,14 @@ const ViewInfo = ({submit, item, onChange, loadingStatus, apiLoad, setLoadingSta
                             attributes.map(d => d.name),
                         ]
                     ).then(() => {
-                        const dataRows = Object.values(get(falcor.getCache(),[
+                        const cache = falcor.getCache();
+                        const dataRows = Object.values(get(cache,[
                             "dama",
                             pgEnv,
                             "viewsbyId",
                             view.view_id,
                             "databyIndex"
-                        ],{})).map(v => get(falcor.getCache(),[...v.value],''));
+                        ],{})).map(v => get(cache,[...v.value],''));
                         setDataRows(dataRows)
                 })
             }
