@@ -117,7 +117,7 @@ export const newPage = async (item, dataItems, user, apiUpdate) => {
     },0)
 
     const newItem = {
-      title: 'New Page',
+      title: `Page ${highestIndex + 1}`,
       parent: item?.parent,
       index: highestIndex + 1,
       published: 'draft',

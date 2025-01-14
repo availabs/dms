@@ -14,7 +14,7 @@ export const nestableTheme = {
     navListContainer: 'h-full border-l  pt-3 pl-2 scrollbar-xs',
     navItemContainer:'text-slate-600 border-l border-y rounded border-transparent flex items-center gap-1 cursor-pointer group group-hover:bg-blue-100',
     navItemContainerActive: 'bg-white text-blue-500  border-l rounded border-y border-slate-300 flex items-center gap-1 cursor-pointer group group-hover:bg-blue-100', 
-    navLink: `flex-1 px-4 py-2 font-light`,
+    navLink: `flex-1 px-4 py-2 font-light text-nowrap text-clip`,
     subList: 'pl-[30px]',
     collapseIcon: 'text-gray-400 hover:text-gray-500',
     dragBefore: 'before:absolute before:top-0 before:left-0 before:right-0 before:bottom-0 before:bg-blue-300 before:border-dashed before:rounded before:border before:border-blue-600',
@@ -27,8 +27,6 @@ function DefaultNavItem ({item, dataItems, handleCollapseIconClick, isCollapsed,
     const { baseUrl, user, theme = { nestable: nestableTheme } } = React.useContext(CMSContext);
 
     const { pathname = '/edit' } = useLocation()
-
-
 
     //-- this is not ideal, better to check id and parent
     const isActive = pathname.includes(item.url_slug)
@@ -138,7 +136,8 @@ function DraggableNav ({item, dataItems, NavComp=DefaultNavItem, edit=true}) {
             maxDepth={4}
             renderItem={(props) => {
                 return (
-                    <NavComp 
+                    <NavComp
+                        activeItem={item}
                         edit={edit}
                         item={props.item} 
                         dataItems={dataItems}

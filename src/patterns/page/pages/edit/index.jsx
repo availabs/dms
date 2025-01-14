@@ -7,7 +7,7 @@ import { saveHeader, saveSection } from './editFunctions'
 
 import { Layout, SideNav, SideNavContainer } from '../../ui'
 import { ViewIcon } from '../../ui/icons'
-import EditControls from './editControls'
+//import EditControls from './editControls'
 
 
 

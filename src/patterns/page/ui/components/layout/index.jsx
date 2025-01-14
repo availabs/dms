@@ -11,7 +11,8 @@ const Logos = () => <div className='h-12'/>
 
 export const layoutTheme = {
 	wrapper: 'relative isolate flex min-h-svh w-full max-lg:flex-col',
-	wrapper2: 'flex flex-1',
+	wrapper2: 'flex-1 flex items-start flex-col items-stretch max-w-full',
+	wrapper3: 'flex flex-1',
 	childWrapper: 'flex-1 h-full',
 	topnavContainer1:`sticky top-0 left-0 right-0 z-20 `,
 	topnavContainer2:``,
@@ -79,10 +80,10 @@ const Layout = ({ children, navItems, secondNav, title, theme, EditPane, yPaddin
 
 	return (
 		
-		<div className={`${theme?.layout?.wrapper}`} >
+		<div className={theme?.layout?.wrapper} >
 			
 			<div 
-				className={`flex-1 flex items-start flex-col items-stretch max-w-full`} 
+				className={theme?.layout?.wrapper2} 
 				style={{
 					minHeight: `calc(100vh - ${yPadding}`,
 				}}
@@ -103,7 +104,7 @@ const Layout = ({ children, navItems, secondNav, title, theme, EditPane, yPaddin
 						</div>
 					</>)
 				}
-				<div className={`${theme.layout.wrapper2}`}>
+				<div className={`${theme.layout.wrapper3}`}>
 					{
 						sideNavOptions.size === 'none' ? '' : (
 							<div className={`${theme?.layout?.sidenavContainer1} `}>

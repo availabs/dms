@@ -83,7 +83,7 @@ const MobileSidebar = ({
 							/>
 						</div>
 						<div
-							className={`flex-1 h-0 border border-orange-400 pt-2 pb-4 overflow-y-auto overflow-x-hidden flex`}
+							className={`flex-1 h-0 pt-2 pb-4 overflow-y-auto overflow-x-hidden flex`}
 						>
 							{/*<div className="px-6 pt-4 pb-8 logo-text gray-900">
 								<Link

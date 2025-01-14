@@ -7,6 +7,8 @@ import { tabsTheme } from '../components/tabs'
 import { buttonTheme } from '../components/button'
 import { inputTheme, fieldTheme } from '../components/input'
 import { nestableTheme } from '../components/nestable/draggableNav'
+import { dialogTheme } from '../components/dialog'
+import { sectionArrayTheme} from '../dataComponents/sections/sectionArray'
 
 
 import { menuTheme } from '../components/menu'
@@ -80,7 +82,9 @@ const theme = {
   menu: menuTheme,
   input: inputTheme,
   field: fieldTheme,
-  nestable: nestableTheme
+  nestable: nestableTheme,
+  dialog: dialogTheme,
+  sectionArray: sectionArrayTheme
 }
 
 //theme.navOptions.logo = <Link to='/' className='h-12 flex px-4 items-center'><div className='rounded-full h-10 bg-blue-500 border border-slate-50' /></Link>

@@ -9,7 +9,7 @@ export default function Drawer ({ open, setOpen, CloseIcon=XMark, width='max-w-6
   
   return (
     <Transition.Root show={open} as={Fragment}>
-      <Dialog as="div" className="relative z-30 border-2 border-pink-500" onClose={ closeOnClick ? setOpen : () => {} }>
+      <Dialog as="div" className="relative z-30" onClose={ closeOnClick ? setOpen : () => {} }>
         
         {/*<div className="fixed inset-0 overflow-hidden">
           <div className="absolute inset-0 overflow-hidden">*/}

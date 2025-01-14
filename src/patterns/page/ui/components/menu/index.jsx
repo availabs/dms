@@ -20,7 +20,7 @@ export default function MenuComp ({ children, items=defaultItems }) {
   const { theme = { menu: menuTheme } } = React.useContext(CMSContext) || {}
   return (
     <div className="">
-      <Menu as="div" className="relative  block">
+      <Menu as="div" className="relative block">
         <MenuButton className="">
           <span className="sr-only">Open options</span>
           {children}
@@ -30,10 +30,10 @@ export default function MenuComp ({ children, items=defaultItems }) {
           className={theme.menu.menuItems}
         >
           <div className="py-1">
-            {items.map((item) => (
-              <MenuItem key={item.name}>
+            {items.map((item, i) => (
+              <MenuItem key={ i }>
                 <span
-                  onClick={item.href}
+                  onClick={item.onClick}
                   className="block px-4 py-2 text-sm text-gray-700 data-[focus]:bg-gray-100 data-[focus]:text-gray-900 data-[focus]:outline-none"
                 >
                   {item.name}

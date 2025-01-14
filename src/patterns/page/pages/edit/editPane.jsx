@@ -8,9 +8,10 @@ import {
   Button,
   Menu, 
   Input,
-  ConfirmInput,
   DraggableNav,
-  TitleEditComp, IconPopover, PopoverMenuItem, DeleteModal, DiscardChangesButton} from '../../ui'
+  Dialog
+} 
+  from '../../ui'
 import { ArrowRight, ArrowDown, AdjustmentsHorizontal , PencilIcon, CirclePlus, CancelCircle, CaretDown, EllipsisVertical} from '../../ui/icons'
 import { json2DmsForm, getUrlSlug, toSnakeCase, parseJSON } from '../_utils'
 import {insertSubPage, newPage, updateTitle, toggleSidebar, publish, getMenus, discardChanges} from './editFunctions'
@@ -20,7 +21,7 @@ import {insertSubPage, newPage, updateTitle, toggleSidebar, publish, getMenus, d
 
 import { CMSContext } from '../../siteConfig'
 
-function EditPane ({item, open, apiUpdate, setOpen }) {
+export default function EditPane ({item, open, apiUpdate, setOpen }) {
   const { baseUrl, user, falcor, falcorCache} = React.useContext(CMSContext) || {}
   const hasChanges = item.published === 'draft' || item.has_changes
 
@@ -59,7 +60,11 @@ export function EditDrawer({item, dataItems,  apiUpdate, open, setOpen }) {
                     <ConfirmInput value={item.title} label={'Page Name'} />
                   </div>*/}
                   <div className='flex-1'>
-                   <DraggableNav item={item} dataItems={dataItems} NavComp={DraggableNavItem} />
+                   <DraggableNav 
+                      item={item} 
+                      dataItems={dataItems} 
+                      NavComp={DraggableNavItem} 
+                    />
                   </div>
                 </div>
             },
@@ -75,11 +80,12 @@ export function EditDrawer({item, dataItems,  apiUpdate, open, setOpen }) {
   )
 }
 
-function DraggableNavItem ({item, dataItems, handleCollapseIconClick, isCollapsed, edit}) {
-    const { baseUrl, user, theme = { nestable: nestableTheme } } = React.useContext(CMSContext);
+function DraggableNavItem ({activeItem, item, dataItems, handleCollapseIconClick, isCollapsed, edit}) {
+    const { baseUrl, user, theme } = React.useContext(CMSContext);
     const { pathname = '/edit' } = useLocation();
-
-
+    const submit = useSubmit()
+    const [showDelete, setShowDelete] = React.useState(false)
+    const [showRename, setShowRename] = React.useState(false)
 
 
     //-- this is not ideal, better to check id and parent
@@ -99,11 +105,14 @@ function DraggableNavItem ({item, dataItems, handleCollapseIconClick, isCollapse
                       items={[
                          {
                           name: (<span className=''>Rename</span>), 
-                          onClick: () => {}
+                          onClick: () => setShowRename(true)
                         },
                         {
                           name: (<span className='text-red-400'>Delete</span>), 
-                          onClick: () => {}
+                          onClick: () =>  {
+                            
+                            setShowDelete(true)
+                          }
                         }
                       ]}
                     > 
@@ -131,9 +140,155 @@ function DraggableNavItem ({item, dataItems, handleCollapseIconClick, isCollapse
             {/*<div className='border-t border-transparent hover:border-blue-500 w-full relative'>
                 <div className='hidden group-hover:block absolute left-0 -bottom-0 hover:bg-blue-500 size-4 flex items-center rounded-full p-1'>+</div>
             </div>*/}
+            <DeleteModal 
+              item={item} 
+              open={showDelete} 
+              setOpen={() => setShowDelete(!showDelete)} 
+              onDelete={() => {
+                async function deleteItem () {
+                    await submit(json2DmsForm(item,'delete'), { method: "post", action: pathname })
+                    setShowDelete(!showDelete)
+                }
+                deleteItem()
+              }}
+            />
+
+            <RenameModal 
+              activeItem={activeItem}
+              item={item}
+              dataItems={dataItems}
+              open={showRename} 
+              setOpen={() => setShowRename(!showRename)} 
+            />
         </div>
     )
   
+}
+
+function DeleteModal ({title, prompt, item={}, open, setOpen, onDelete})  {
+  const cancelButtonRef = useRef(null)
+  //const { baseUrl } = React.useContext(CMSContext) || {}
+  const [loading, setLoading] = useState(false)
+
+  return (
+    <Dialog
+      open={open}
+      onClose={setOpen}
+      initialFocus={cancelButtonRef}
+    >
+      <div className="sm:flex sm:items-start">
+        <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+          <i className="fa fa-danger h-6 w-6 text-red-600" aria-hidden="true" />
+        </div>
+        <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left">
+          <h3 className="text-base font-semibold leading-6 text-gray-900">
+              {title || `Delete ${item.title || ''} ${item.id}`}
+          </h3>
+          <div className="mt-2">
+            <p className="text-sm text-gray-500">
+                {prompt || `Are you sure you want to delete this page? All of the page data will be permanently removed
+              from our servers forever. This action cannot be undone.`}
+            </p>
+          </div>
+        </div>
+      </div>
+      <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
+        <Button
+          disabled={loading}
+          onClick={onDelete}
+        >
+          Delet{loading ? 'ing...' : 'e'}
+        </Button>
+        <Button
+          type="plain"
+          className='mr-1'
+          onClick={() => setOpen()}
+          ref={cancelButtonRef}
+        >
+          Cancel
+        </Button>
+      </div>
+    </Dialog>
+  )
+}
+
+
+function RenameModal ({title, prompt, item={}, dataItems, open, setOpen})  {
+  const cancelButtonRef = useRef(null)
+  const {  user } = React.useContext(CMSContext) || {}
+  const submit = useSubmit()
+  const { pathname = '/edit' } = useLocation();
+  const [loading, setLoading] = useState(false)
+  const [newName, setNewName] = useState(item.title)
+
+  const update = () => {
+    // ----------
+    // to do --- update child urls of parent that gets changed
+    // ----------
+    const updateItem = async () => {
+      let editItem = dataItems.filter(d => d.id === item.id)?.[0] || item
+      if(newName !== editItem.title) {
+        let history = editItem.history ? cloneDeep(item.history) : []
+        let edit = {
+          type: `changed page title to ${newName}`,
+          user: user.email, 
+          time: new Date().toString()
+        }
+        history.push(edit)
+        
+        const newItem = {
+          id: item.id,
+          title:newName,
+          history
+        }
+
+        newItem.url_slug = getUrlSlug(newItem, dataItems)
+        setLoading(true)
+        await submit(json2DmsForm(newItem), { method: "post", action: pathname })
+        setLoading(false)
+        setOpen()
+      }
+    }
+    updateItem()
+  }
+  
+  return (
+    <Dialog
+      open={open}
+      onClose={() => {}}
+      initialFocus={cancelButtonRef}
+    >
+      <div className="sm:flex sm:items-start">
+        <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 sm:mx-0 sm:h-10 sm:w-10">
+          <i className="fa fa-danger h-6 w-6 text-red-600" aria-hidden="true" />
+        </div>
+        <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left w-full">
+          <h3 className="text-base font-semibold leading-6 text-gray-900">
+              Rename {item.title}
+          </h3>
+          <div className="mt-2 w-full">
+            <Input value={newName} onChange={e => setNewName(e.target.value)} />
+          </div>
+        </div>
+      </div>
+      <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
+        <Button
+          disabled={loading}
+          onClick={update}
+        >
+          { loading ? 'Saving...' : 'Submit' } 
+        </Button>
+        <Button
+          type="plain"
+          className='mr-1'
+          onClick={() => setOpen()}
+          ref={cancelButtonRef}
+        >
+          Cancel
+        </Button>
+      </div>
+    </Dialog>
+  )
 }
 
 
@@ -162,66 +317,5 @@ function PublishButton ({item, apiUpdate}) {
   )
 }
 
-
-
-function EditControls({ item, dataItems,  apiUpdate, attributes, edit, status,  pageType = 'page' }) {
-  const { baseUrl, user, falcor, falcorCache} = React.useContext(CMSContext) || {}
-  const submit = useSubmit(0)
-  
-  const [ editState, setEditState ] = React.useState({
-    showNav: false,
-    showHistory: false,
-    showDelete: false
-  })
-
-  
-  const popOverMenus = getMenus(item, dataItems, user, pageType, editState, setEditState, apiUpdate)
-
-  return (
-    <div className='p-4'>
-      <div className='w-full flex justify-center pb-6'>
-        <PublishButton active={hasChanges} onClick={() => publish(user,item, apiUpdate)} >
-          <span> {hasChanges ? `Publish` : `No Changes`} </span>
-            {hasChanges ?  <CirclePlus className='w-6 h-6' />: ''}
-        </PublishButton>
-      </div>
-
-        <div className='w-full flex justify-center pb-6'>
-        <DiscardChangesButton active={hasChanges} onClick={() => discardChanges(user,item, apiUpdate)} >
-          <span> {hasChanges ? `Discard` : `No Changes`} </span>
-            {hasChanges ?  <CancelCircle className='w-6 h-6' />: ''}
-        </DiscardChangesButton>
-      </div>
-     
-      <TitleEditComp
-        value={item?.title}
-        onChange={(v) => updateTitle(item, dataItems, v, user, apiUpdate)}
-        label={'page name'}
-      />
-            
-      <div className='flex w-full h-12 px-4'>
-        {
-          popOverMenus.map((menu,i) => {
-            return (
-              <IconPopover key={i} icon={menu.icon} onClick={menu.onClick}>
-                {menu.name && <div className='py-2'>
-                  <div className='px-6 font-medium text-sm'> {menu.name} </div>
-                  {
-                    menu.items.map((d,ii) => <PopoverMenuItem key={ii} onClick={d.onClick}>{d.item}</PopoverMenuItem >)
-                  }
-                </div>}
-              </IconPopover>
-            )
-          })
-        }
-      </div>            
-      
-      <EditPagesNav item={item} dataItems={dataItems}  edit={true} open={editState.showNav} setOpen={(v) => setEditState({...editState, showNav: v})}/>
-      <EditHistory item={item}  historyOpen={editState.showHistory} setHistoryOpen={(v) => setEditState({...editState, showHistory: v})} />
-    </div>
-  )
-}
-
-export default EditPane
 
 

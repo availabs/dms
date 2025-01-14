@@ -28,7 +28,7 @@ export default function InputComp ({ type='text', label, description, value, onC
       {description && <Description className={theme?.field?.description}>{description}</Description>}
       
       <span className={`${theme?.input?.inputContainer}`}>
-        <Input type={type} className={`${theme?.input?.input}`} />
+        <Input type={type} className={`${theme?.input?.input}`} value={value} onChange={onChange}/>
       </span>
     </Field>
   )
