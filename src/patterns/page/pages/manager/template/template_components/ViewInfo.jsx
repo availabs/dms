@@ -5,16 +5,15 @@ import { get } from "lodash-es";;
 //import {falcor} from "~/modules/avl-falcor"
 import { CMSContext } from '../../../../siteConfig'
 import Selector from "./Selector";
-import {updatePages} from "./updatePages";
 import {generatePages} from "./generatePages";
-const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatus=() => {}}) => {
-
-    // console.log('ViewInfo', id_column, active_id)
+const ViewInfo = ({submit, item, onChange, loadingStatus, apiLoad, setLoadingStatus=() => {}}) => {
     const { falcor, falcorCache, pgEnv, app, type } = React.useContext(CMSContext);
     const [generatedPages, setGeneratedPages] = useState([]);
     const [showAdditionalOptions, setShowAdditionalOptions] = useState(false);
     const [urlSuffixCol, setUrlSuffixCol] = useState(item?.data_controls?.urlSuffixCol || 'geoid');
     const [customGenerationOptions, setCustomGenerationOptions] = useState({}); // from, to
+    const [dataLength, setDataLength] = useState(0);
+    const [dataRows, setDataRows] = useState([]);
     const {
         url, 
         destination = item.type,
@@ -27,24 +26,17 @@ const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatus=() =>
     if (!view?.view_id) return null;
     const locationNameMap = [type]
 
-    console.log('testing viewInfo', destination, type)
-
-
     React.useEffect(() => {
-        falcor.get(["dama", pgEnv, "viewsbyId", view.view_id, "data", "length"])
-    }, [pgEnv,  view.view_id]);
+        const cache = falcor.getCache();
+        const getDataLength = async () => await falcor.get(["dama", pgEnv, "viewsbyId", view.view_id, "data", "length"])
+            .then(() => setDataLength(get(cache, ["dama", pgEnv, "viewsbyId", view.view_id, "data", "length"], 0)))
 
-    const dataLength = React.useMemo(() => {
-        return get(
-            falcorCache,
-            ["dama", pgEnv, "viewsbyId", view.view_id, "data", "length"],
-            0
-        );
-    }, [pgEnv, view.view_id, falcorCache]);
+        getDataLength();
+    }, [pgEnv,  view.view_id]);
 
     const attributes = React.useMemo(() => {
 
-        let md = get(source, ["metadata", "columns"], get(source, "metadata", []));
+        let md = get(source, ["metadata", "value", "columns"], get(source, "metadata", []));
         if (!Array.isArray(md)) {
             md = [];
         }
@@ -53,34 +45,36 @@ const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatus=() =>
 
     }, [source]);
 
-    // console.log('attributes', attributes)
-
     React.useEffect(() =>{
         if(view?.view_id && id_column?.name && dataLength ) {
-            falcor
-                .get(
-                    [
-                        "dama",
-                        pgEnv,
-                        "viewsbyId",
-                        view.view_id,
-                        "databyIndex",
-                        {"from":0, "to": dataLength-1},
-                        attributes.map(d => d.name),
-                    ]
-                )
+            const fetchDataRows = async () => {
+                await falcor.get(
+                        [
+                            "dama",
+                            pgEnv,
+                            "viewsbyId",
+                            view.view_id,
+                            "databyIndex",
+                            {"from":0, "to": dataLength-1},
+                            attributes.map(d => d.name),
+                        ]
+                    ).then(() => {
+                        const cache = falcor.getCache();
+                        const dataRows = Object.values(get(cache,[
+                            "dama",
+                            pgEnv,
+                            "viewsbyId",
+                            view.view_id,
+                            "databyIndex"
+                        ],{})).map(v => get(cache,[...v.value],''));
+                        setDataRows(dataRows)
+                })
+            }
+
+            fetchDataRows();
         }
     },[id_column,view.view_id,dataLength])
 
-    const dataRows = React.useMemo(()=>{
-        return Object.values(get(falcorCache,[
-            "dama",
-            pgEnv,
-            "viewsbyId",
-            view.view_id,
-            "databyIndex"
-        ],{})).map(v => get(falcorCache,[...v.value],''))
-    },[id_column,view.view_id,falcorCache])
 
     //const [idCol, setIdCol] = useState('')
     React.useEffect(() => {
@@ -103,7 +97,6 @@ const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatus=() =>
                     attributes
                 }), '/');
 
-                console.log('currentPages', currentPages, app, item_type, item.id)
 
                 currentPages = currentPages.map(page => attributes.reduce((acc, curr) => {
                         acc[curr.label] = page[curr.key]
@@ -183,7 +176,7 @@ const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatus=() =>
                                                 item, url, destination, id_column,
                                                 dataRows, falcor, setLoadingStatus,
                                                 locationNameMap, setGeneratedPages,
-                                                urlSuffixCol, app, type
+                                                urlSuffixCol, app, type, apiLoad
                                             })}
                                 >
                                     {loadingStatus || (generatedPages?.length ? 'Update Pages' : 'Generate Pages')}
@@ -215,7 +208,7 @@ const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatus=() =>
                                                 item, url, destination, id_column,
                                                 dataRows: missingPagesDataRows, falcor, setLoadingStatus,
                                                 locationNameMap, setGeneratedPages,
-                                                urlSuffixCol, app, type
+                                                urlSuffixCol, app, type, apiLoad
                                             })
                                         }}
                                 >
@@ -234,7 +227,7 @@ const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatus=() =>
                                                 item, url, destination, id_column,
                                                 dataRows: errorPagesDataRows, falcor, setLoadingStatus,
                                                 locationNameMap, setGeneratedPages,
-                                                urlSuffixCol, app, type
+                                                urlSuffixCol, app, type, apiLoad
                                             })
                                         }}
                                 >
@@ -286,7 +279,7 @@ const ViewInfo = ({submit, item, onChange, loadingStatus, setLoadingStatus=() =>
                                                     item, url, destination, id_column,
                                                     dataRows, falcor, setLoadingStatus,
                                                     locationNameMap, setGeneratedPages, ...customGenerationOptions,
-                                                    urlSuffixCol, app, type
+                                                    urlSuffixCol, app, type, apiLoad
                                                 })
                                             }}
                                         >

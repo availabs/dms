@@ -9,10 +9,14 @@ export const SectionThumb =({section,source,sectionControl={},updateSectionContr
     let data = parseJSON(section?.element?.['element-data']) || {}
     let type = section?.element?.['element-type'] || ''
     let comp = RegisteredComponents[type] || {}
-    let controlVars = [...(comp?.variables || []), ...(data?.additionalVariables || [])] // add filters here
+    let controlVars = [
+        ...(comp?.variables || []),
+        ...(data?.additionalVariables || []),
+        ...(Array.isArray(data?.filters) ? data.filters : []).map(f => ({name: f.column}))
+    ] // add filters here
     const attributes = React.useMemo(() => {
 
-        let md = get(source, ["metadata", "columns"], get(source, "metadata", []));
+        let md = get(source, ["metadata", "value", "columns"], get(source, "metadata", []));
         if (!Array.isArray(md)) {
             md = [];
         }

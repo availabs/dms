@@ -65,4 +65,3 @@ export const getSizeClass = (size, requiredSpace, availableSpace, runningColTota
         `${spans[size]} md:col-start-2` : `${spans[size]} md:col-start-${runningColTotal}`;
 }
 
-//export const sizeGridTemplate = {gridTemplateColumns: '1fr repeat(6, minmax(100px, 190px)) 1fr'}

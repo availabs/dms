@@ -36,6 +36,10 @@ const isJson = (str)  => {
 }
 
 
+export const sectionTheme = {
+    
+}
+
 export function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, onRemove, siteType, apiLoad, apiUpdate, format}) {
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     let sectionTitleCondition = value?.['title'] 
