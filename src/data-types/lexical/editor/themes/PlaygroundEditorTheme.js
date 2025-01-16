@@ -7,6 +7,30 @@
  */
 
 const theme = {
+  contentEditable: 'border-none relative [tab-size:1] outline-none ',
+  editorShell: "rounded-[2px] relative", //'.editor-shell',
+  heading: {
+    h1: "font-semibold text-3xl scroll-mt-36 font-display", //'PlaygroundEditorTheme__h1',
+    h2: "font-medium text-xl scroll-mt-36 font-display", //'PlaygroundEditorTheme__h2',
+    h3: "font-medium text-lg scroll-mt-36 font-display", //'PlaygroundEditorTheme__h3',
+    h4: "font-medium scroll-mt-36 font-display", //'PlaygroundEditorTheme__h4',
+    h5: "scroll-mt-36 font-display", //'PlaygroundEditorTheme__h5',
+    h6: "scroll-mt-36 font-display", //'PlaygroundEditorTheme__h6',
+  },
+  paragraph: "m-0 relative", //'PlaygroundEditorTheme__paragraph',
+  text: {
+    bold: "font-[700]", //'PlaygroundEditorTheme__textBold',
+    code: "bg-gray-200 px-1 py-0.5 font-mono text-[94%]", //'PlaygroundEditorTheme__textCode',
+    italic: "italic", //'PlaygroundEditorTheme__textItalic',
+    strikethrough: "line-through", //'PlaygroundEditorTheme__textStrikethrough',
+    subscript: "align-sub text-[0.8em]", //'PlaygroundEditorTheme__textSubscript',
+    superscript: "align-super text-[0.8em]", //'PlaygroundEditorTheme__textSuperscript',
+    underline: "underline", //'PlaygroundEditorTheme__textUnderline',
+    underlineStrikethrough: "underline line-through", //'PlaygroundEditorTheme__textUnderlineStrikethrough',
+  },
+  card: 'p-[12px] shadow-[0px_0px_6px_0px_rgba(0,0,0,0.02),0px_2px_4px_0px_rgba(0,0,0,0.08)]',
+  quote:
+    "m-0 ml-5 mb-2 text-[15px] text-[rgb(101,103,107)] border-l-4 border-l-[rgb(206,208,212)] pl-4", //'PlaygroundEditorTheme__quote',
   blockCursor: `block pointer-events-none absolute content-['']  after:absolute after:-top-[2px] after:w-[20px] after:border-t-[1px_solid_black]`,
   characterLimit: "inline !bg-[#ffbbbb]",
   code: `bg-[rgb(240,_242,_245)] font-[Menlo,_Consolas,_Monaco,_monospace] block pl-[52px] pr-[8px] py-[8px] leading-[1.53] text-[13px] m-0 mt-[8px] mb-[8px] [tab-size:2] relative after:content-[attr(data-gutter)] after:absolute after:bg-[#eee] after:left-[0] after:top-[0] after:border-r-[1px_solid_#ccc] after:p-[8px] after:text-[#777] after:whitespace-pre-wrap after:text-right after:min-w-[25px]`,
@@ -48,15 +72,7 @@ const theme = {
   },
   hashtag:
     "bg-[rgba(88,_144,_255,_0.15)] border-b-[1px_solid_rgba(88,_144,_255,_0.3)]",
-  heading: {
-    h1: "font-semibold text-2xl scroll-mt-36 font-display", //'PlaygroundEditorTheme__h1',
-    h2: "font-medium text-xl scroll-mt-36 font-display", //'PlaygroundEditorTheme__h2',
-    h3: "font-medium text-lg scroll-mt-36 font-display", //'PlaygroundEditorTheme__h3',
-    h4: "font-medium scroll-mt-36 font-display", //'PlaygroundEditorTheme__h4',
-    h5: "scroll-mt-36 font-display", //'PlaygroundEditorTheme__h5',
-    h6: "scroll-mt-36 font-display", //'PlaygroundEditorTheme__h6',
-  },
-  // code: "bg-[rgb(240,242,245)] font-[Menlo,_Consolas,_Monaco,_monospace] block p-[8px] pl-[52px] leading-[1.53] text-[13px] m-0 mt-[8px] mb-[8px] [tab-size:2] relative overflow-x-auto before:content-[attr(data-gutter)] before:absolute before:bg-[#eee] before:left-0 before:top-0 before:border-r before:border-solid before:border-[#ccc] before:p-[8px] before:text-[#777] before:whitespace-pre-wrap before:min-w-[25px] before:text-right", //PlaygroundEditorTheme__code
+  
   image: "editor-image",
   indent: "PlaygroundEditorTheme__indent",
   inlineImage: "inline-editor-image",
@@ -98,9 +114,7 @@ const theme = {
     selected:
       "bg-[rgba(255,212,0,0.7)] border-b-2 border-b-[rgba(255,212,0,0.7)]", //'PlaygroundEditorTheme__markOverlap .selected'
   },
-  paragraph: "m-0 relative", //'PlaygroundEditorTheme__paragraph',
-  quote:
-    "m-0 ml-5 mb-2 text-[15px] text-[rgb(101,103,107)] border-l-4 border-l-[rgb(206,208,212)] pl-4", //'PlaygroundEditorTheme__quote',
+  
   rtl: "text-right", //'PlaygroundEditorTheme__rtl',
   table:
     "border-collapse border-spacing-0 max-w-full overflow-y-scroll table-fixed w-[calc(100%-25px)] my-7", //'PlaygroundEditorTheme__table',
@@ -138,7 +152,7 @@ const theme = {
 
   // lexical stuff
 
-  editorShell: "mx-auto my-0 rounded-[2px] relative", //'.editor-shell',
+  
   editorScroller:
     "min-h-[150px] border-0 flex relative outline-0 z-0 overflow-auto resize-y", //'editor-scroller'
   editorContainer: "relative block rounded-[10px] min-h-[50px]", //'.editor-shell .editor-container'
@@ -362,7 +376,7 @@ const theme = {
 
   editor: {
     base: "flex-auto relative resize-y z-negative", // .editor
-    shell: "m-[2px] mx-auto rounded-[2px] relative", // Assuming this is for the .editor-shell class
+     // Assuming this is for the .editor-shell class
     image: {
       base: "inline-block relative cursor-default select-none", //.editor-shell span.editor-image
       img: {

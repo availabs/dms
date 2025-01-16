@@ -9,6 +9,7 @@ import React from 'react';
 import {LexicalComposer} from '@lexical/react/LexicalComposer';
 import {OnChangePlugin} from '@lexical/react/LexicalOnChangePlugin';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
+import { merge } from 'lodash-es'
 
 
 import Editor from './editor';
@@ -18,8 +19,9 @@ import PlaygroundEditorTheme from './themes/PlaygroundEditorTheme';
 
 
 
-export default function Lexicals ({value, onChange, bgColor, editable=false, id}) {
+export default function Lexicals ({value, onChange, bgColor, editable=false, id, theme}) {
   
+  const lexicalTheme = merge(PlaygroundEditorTheme, theme?.lexical || {})
   const initialConfig = {
     editorState:
         JSON.parse(value || '{}')?.root &&
@@ -32,23 +34,26 @@ export default function Lexicals ({value, onChange, bgColor, editable=false, id}
     onError: (error) => {
       throw error;
     },
-    theme: PlaygroundEditorTheme
+    theme: lexicalTheme
   };
 
   
   return (
     <LexicalComposer key={id} initialConfig={initialConfig}>
-      <UpdateEditor 
-        value={value}
-        onChange={onChange}
-        bgColor={bgColor}
-        editable={editable}
-      />
+      <div className={`${lexicalTheme.editorShell}`}>
+        <UpdateEditor 
+          value={value}
+          onChange={onChange}
+          bgColor={bgColor}
+          editable={editable}
+          theme={lexicalTheme}
+        />
+      </div>
     </LexicalComposer>
   );
 }
 
-function UpdateEditor ({value, onChange, bgColor, editable}) {
+function UpdateEditor ({value, onChange, bgColor, theme, editable}) {
   const isFirstRender = React.useRef(true);
   const [editor] = useLexicalComposerContext()
 
@@ -70,7 +75,7 @@ function UpdateEditor ({value, onChange, bgColor, editable}) {
   return (
 
     <div className={`${PlaygroundEditorTheme?.editor?.shell}` || "editor-shell"}>
-      <Editor editable={editable} bgColor={bgColor}/>
+      <Editor theme={theme} editable={editable} bgColor={bgColor}/>
       <OnChangePlugin onChange={onChange} />
     </div>
   )

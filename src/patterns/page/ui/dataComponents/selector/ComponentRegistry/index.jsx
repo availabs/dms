@@ -1,10 +1,11 @@
 import React, {useEffect, useState} from "react"
 import {isJson} from "../index";
-import { dmsDataTypes } from "../../../../../index.js"
+import { dmsDataTypes } from "../../../../../../index.js"
+
 import Header from './header'
-import ComponentsIndexTable from "../../componentsIndexTable";
+// import ComponentsIndexTable from "../../componentsIndexTable";
 // import Spreadsheet from "../../../../forms/components/selector/ComponentRegistry/spreadsheet";
-import CustomHeader from "../../../../forms/components/selector/ComponentRegistry/header";
+//import CustomHeader from "../../../../forms/components/selector/ComponentRegistry/header";
 // import Item from "../../../../forms/components/selector/ComponentRegistry/item";
 // import Upload from "../../../../forms/components/selector/ComponentRegistry/upload";
 // import PatternListComponent from "../../../../forms/components/selector/ComponentRegistry/patternListComponent";
@@ -41,7 +42,7 @@ const RenderColorPicker = ({title, className, color, setColor}) => (
             {
                 [
                     // blues
-                    'rgba(0,0,0,0)','#1e3a8a', '#1e40af', '#1d4ed8', '#2563eb', '#3b82f6','#60a5fa', '#93c5fd', '#bfdbfe', '#dbeafe', '#eff6ff',
+                    'rgba(0,0,0,0)','#F3F8F9',
 
                     // yellows
                     '#713f12', '#854d0e', '#a16207', '#ca8a04', '#eab308', '#facc15', '#fde047', '#fef08a', '#fef9c3', '#fefce8',
@@ -54,9 +55,9 @@ const RenderColorPicker = ({title, className, color, setColor}) => (
     </div>
 )
 
-const Edit = ({value, onChange}) => {
+const Edit = ({value, onChange, theme}) => {
     const cachedData = parseJson(value)
-    const emptyTextBlock = {text: '', size: '4xl', color: 'rgab(0,0,0,0)'};
+    const emptyTextBlock = {text: '', size: '4xl', color: 'rgba(0,0,0,0)'};
     const [bgColor, setBgColor] = useState(cachedData?.bgColor || 'rgba(0,0,0,0)');
     const [text, setText] = useState(cachedData?.text || value || emptyTextBlock);
 
@@ -74,7 +75,7 @@ const Edit = ({value, onChange}) => {
                     className={'w-full px-2 py-1 flex flex-row text-sm items-center border border-dashed'}
                     color={bgColor} setColor={setBgColor}/>
 
-                    <LexicalComp value={text} onChange={setText} bgColor={bgColor}/>
+                    <LexicalComp value={text} onChange={setText} bgColor={bgColor} theme={theme} />
             </div>
         </div>
     )
@@ -85,7 +86,7 @@ Edit.settings = {
     name: 'ElementEdit'
 }
 
-const View = ({value}) => {
+const View = ({value, theme}) => {
     if (!value) return ''
     let data = typeof value === 'object' ?
         value['element-data'] :
@@ -101,7 +102,7 @@ const View = ({value}) => {
     //console.log('lexical comp', dataOrValue)
     return (
         <div>
-            <LexicalComp value={dataOrValue} bgColor={data?.bgColor} />
+            <LexicalComp value={dataOrValue} bgColor={data?.bgColor} theme={theme}/>
         </div>
     )
 }
@@ -115,8 +116,8 @@ const lexical  = {
  const ComponentRegistry = {
     lexical,
     "Header: Default Header": Header,
-     "Title": CustomHeader,
-     "Table: Components Index": ComponentsIndexTable,
+     //"Title": CustomHeader,
+     //"Table: Components Index": ComponentsIndexTable,
  }
 
 

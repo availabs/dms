@@ -1,11 +1,11 @@
 import React, {Fragment, useState, useLayoutEffect, useRef, useEffect} from "react"
 //import { useLocation } from 'react-router-dom';
 import { isEqual } from "lodash-es"
-import { Popover, Transition, Combobox } from '@headlessui/react'
+import { Combobox } from '@headlessui/react'
 import { Link } from "react-router-dom";
 import { usePopper } from 'react-popper'
 import { CMSContext } from '../../../siteConfig'
-import { getSizeClass, sizeOptionsSVG } from './sizes'
+
 import {
     SquarePlus,
     InfoCircle,
@@ -24,7 +24,7 @@ import {
     Tags,
     Copy
 } from '../../icons'
-import { Modal } from "../../";
+import { Modal, Popover, Button } from "../../";
 
 const isJson = (str)  => {
     try {
@@ -37,13 +37,13 @@ const isJson = (str)  => {
 
 
 export const sectionTheme = {
-    
+
 }
 
 export function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, onRemove, siteType, apiLoad, apiUpdate, format}) {
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     let sectionTitleCondition = value?.['title'] 
-    let {theme} = React.useContext(CMSContext) || {}
+    let { theme } = React.useContext(CMSContext) || {}
 
     const updateAttribute = (k, v) => {
         if(!isEqual(value, {...value, [k]: v})) {
@@ -65,13 +65,9 @@ export function SectionEdit ({value, i, onChange, attributes, size, onCancel, on
                     <div className={`z-10 relative`}>
                         <div className={`absolute mr-16 top-[-14px] right-[-60px] flex`}>
                             {/*delete*/}
-                            <button className={'flex items-center text-md cursor-pointer pr-1'}
-                                    onClick={() => setShowDeleteModal(!showDeleteModal)}
-                            >
-                                {/*<i className="fa-light fa-angle-down text-xl fa-fw" title="Move Down"/>*/}
-                                <TrashCan className='text-red-400 hover:text-red-600 w-[24px] h-[24px]'
-                                          title="Move Down"/>
-                            </button>
+                            <Button type='plain' padding='p-1' onClick={() => setShowDeleteModal(!showDeleteModal)}>
+                                <TrashCan className='text-red-400 hover:text-red-600 w-[24px] h-[24px]' title="Delete Section"/>
+                            </Button>
                             <DeleteModal
                                 title={`Delete Section ${value?.title || ''} ${value?.id}`} open={showDeleteModal}
                                 prompt={`Are you sure you want to delete this section? All of the section data will be permanently removed
@@ -87,156 +83,93 @@ export function SectionEdit ({value, i, onChange, attributes, size, onCancel, on
                                 }}
                             />
                             {/*help text*/}
-                            <Popover className="relative">
-                                <Popover.Button className={'flex items-center cursor-pointer pt-1 pr-1'}>
-                                    <InfoSquare className='text-blue-400 hover:text-blue-600  w-[24px] h-[24px]'
-                                                title="Help Text"/>
-                                </Popover.Button>
-                                <Transition
-                                    as={Fragment}
-                                    enter="transition ease-out duration-200"
-                                    enterFrom="opacity-0 translate-y-1"
-                                    enterTo="opacity-100 translate-y-0"
-                                    leave="transition ease-in duration-150"
-                                    leaveFrom="opacity-100 translate-y-0"
-                                    leaveTo="opacity-0 translate-y-1"
-                                >
-                                    <Popover.Panel
-                                        anchor="bottom"
-                                        className="absolute shadow-lg bg-white z-10 w-screen max-w-sm transform px-4 border border-blue-200 lg:max-w-lg">
-
-                                        <HelpComp
-                                            value={value?.['helpText']}
-                                            onChange={(v) => updateAttribute('helpText', v)}
-                                        />
-                                    </Popover.Panel>
-                                </Transition>
+                            <Popover button={<InfoSquare className='text-blue-400 hover:text-blue-600  w-[24px] h-[24px]' title="Help Text"/>} >
+                                <HelpComp
+                                    value={value?.['helpText']}
+                                    onChange={(v) => updateAttribute('helpText', v)}
+                                />
                             </Popover>
                             {/*tags*/}
-                            <Popover className="relative">
-                                <Popover.Button className={'flex items-center cursor-pointer pt-1 pr-1'}>
-                                    <Tags className='text-blue-400 hover:text-blue-600  w-[24px] h-[24px]'
-                                          title="Tags"/>
-                                </Popover.Button>
-                                <Transition
-                                    as={Fragment}
-                                    enter="transition ease-out duration-200"
-                                    enterFrom="opacity-0 translate-y-1"
-                                    enterTo="opacity-100 translate-y-0"
-                                    leave="transition ease-in duration-150"
-                                    leaveFrom="opacity-100 translate-y-0"
-                                    leaveTo="opacity-0 translate-y-1"
-                                >
-                                    <Popover.Panel
-                                        anchor="bottom"
-                                        className="absolute -left-[100px] shadow-lg bg-white z-10 w-[200px] transform border border-blue-200 ">
-
-                                        <TagComponent
-                                            edit={true}
-                                            className='p-2 flex-0'
-                                            value={value?.['tags']}
-                                            placeholder={'Add Tag...'}
-                                            onChange={(v) => updateAttribute('tags', v)}
-                                        />
-                                    </Popover.Panel>
-                                </Transition>
+                            <Popover button={<Tags className='text-blue-400 hover:text-blue-600  w-[24px] h-[24px]' title="Tags"/>} >
+                                <TagComponent
+                                    edit={true}
+                                    className='p-2 flex-0'
+                                    value={value?.['tags']}
+                                    placeholder={'Add Tag...'}
+                                    onChange={(v) => updateAttribute('tags', v)}
+                                />
                             </Popover>
                             {/*save*/}
-                            <button className={'text-lg cursor-pointer hover:text-blue-500 text-slate-400 pr-1'}
-                                    onClick={onSave}>
+                            <Button type='plain' padding='p-1' onClick={onSave}>
                                 <FloppyDisk className='text-slate-400 hover:text-blue-500 w-[24px] h-[24px]'/>
-                            </button>
+                            </Button>
                             {/*cancel*/}
-                            <button
-                                className={' flex items-center text-md cursor-pointer  py-1 pr-1 text-slate-400'}
-                                onClick={onCancel}
-                            >
-                                {/*<i className="fa-light fa-pencil text-xl fa-fw" title="Edit"></i>*/}
+                            <Button type='plain' padding='p-1' onClick={onCancel}>
                                 <CancelCircle className='text-slate-400 hover:text-red-500 w-[24px] h-[24px]'/>
-
-                            </button>
+                            </Button>
                             {/*section details*/}
-                            <Popover className="relative">
-                                <Popover.Button className={'flex items-center cursor-pointer pt-1 pr-1'}>
-                                    <MoreSquare className='text-blue-400 hover:text-blue-600  w-[24px] h-[24px]'
-                                                title="section details"/>
-                                </Popover.Button>
-                                <Transition
-                                    as={Fragment}
-                                    enter="transition ease-out duration-200"
-                                    enterFrom="opacity-0 translate-y-1"
-                                    enterTo="opacity-100 translate-y-0"
-                                    leave="transition ease-in duration-150"
-                                    leaveFrom="opacity-100 translate-y-0"
-                                    leaveTo="opacity-0 translate-y-1"
-                                >
-                                    <Popover.Panel
-                                        anchor="bottom"
-                                        className="fixed right-0 lg:absolute lg:left-[35px] lg:top-[14px] shadow bg-blue-50 z-10 w-[280px] min-h-[250px] z-40 rounded border border-blue-300 transform px-4">
-
-                                        <div className='flex flex-col'>
-                                            <div className='flex-0 grow'>
-                                                <TitleComp //todo make it blue if H!
-                                                    className={`${theme?.heading?.base} ${theme?.heading[value?.['level']] || theme?.heading['default']}`}
-                                                    placeholder={'Section Title'}
-                                                    value={value?.['title']}
-                                                    onChange={(v) => updateAttribute('title', v)}
-                                                />
-                                            </div>
-                                            <div>
-                                                <LevelComp
-                                                    className='p-2 w-full bg-transparent'
-                                                    value={value?.['level']}
-                                                    placeholder={'level'}
-                                                    options={attributes.level.options}
-                                                    onChange={(v) => updateAttribute('level', v)}
-                                                />
-                                            </div>
-                                            <div className={'self-center pl-2'}>
-                                                <SizeSelect
-                                                    size={value?.['size']}
-                                                    onChange={v => updateAttribute('size', v)}
-                                                />
-                                            </div>
-                                        </div>
-                                    </Popover.Panel>
-                                </Transition>
+                            <Popover button={<MoreSquare className='text-blue-400 hover:text-blue-600  w-[24px] h-[24px]' title="section details"/>} >
+                                <div className='flex flex-col'>
+                                    <div className='flex-0 grow'>
+                                        <TitleComp //todo make it blue if H!
+                                            className={`${theme?.heading?.base} ${theme?.heading[value?.['level']] || theme?.heading['default']}`}
+                                            placeholder={'Section Title'}
+                                            value={value?.['title']}
+                                            onChange={(v) => updateAttribute('title', v)}
+                                        />
+                                    </div>
+                                    <div>
+                                        <LevelComp
+                                            className='p-2 w-full bg-transparent'
+                                            value={value?.['level']}
+                                            placeholder={'level'}
+                                            options={attributes.level.options}
+                                            onChange={(v) => updateAttribute('level', v)}
+                                        />
+                                    </div>
+                                    <div className={'self-center pl-2'}>
+                                        <SizeSelect
+                                            size={value?.['size']}
+                                            onChange={v => updateAttribute('size', v)}
+                                        />
+                                    </div>
+                                </div>
                             </Popover>
                         </div>
                     </div>
-            </div>
-            {sectionTitleCondition && (
-                <div className='flex h-[50px]'>
-                    <div className='flex'>
-                        <TitleComp //todo make it blue if H!
-                            className={`p-2 w-full font-sans font-medium text-md  ${
-                                (value?.['level']) === '1' ?
-                                    `text-blue-500 font-bold text-xl tracking-wider py-1 pl-1` :
-                                    value?.['level'] === '2' ?
-                                        `text-lg tracking-wider` :
-                                        value?.['level'] === '3' ?
-                                            `text-md tracking-wide` :
-                                            ``}`}
-                            placeholder={'Section Title'}
-                            value={value?.['title']}
-
-                            onChange={(v) => updateAttribute('title', v)}
-                        />
-                    </div>
                 </div>
-            )}
-            <div className={''}>
-                <ElementComp
-                    value={value?.['element']}
-                    onChange={(v) => updateAttribute('element', v)}
-                    handlePaste={(e, setKey) => handlePaste(e, setKey, value, onChange)}
-                    size={size}
-                    siteType={siteType}
-                    apiLoad={apiLoad}
-                    apiUpdate={apiUpdate}
-                    pageFormat={format}
-                />
-            </div>
+                {sectionTitleCondition && (
+                    <div className='flex h-[50px]'>
+                        <div className='flex'>
+                            <TitleComp //todo make it blue if H!
+                                className={`p-2 w-full font-sans font-medium text-md  ${
+                                    (value?.['level']) === '1' ?
+                                        `text-blue-500 font-bold text-xl tracking-wider py-1 pl-1` :
+                                        value?.['level'] === '2' ?
+                                            `text-lg tracking-wider` :
+                                            value?.['level'] === '3' ?
+                                                `text-md tracking-wide` :
+                                                ``}`}
+                                placeholder={'Section Title'}
+                                value={value?.['title']}
+
+                                onChange={(v) => updateAttribute('title', v)}
+                            />
+                        </div>
+                    </div>
+                )}
+                <div className={''}>
+                    <ElementComp
+                        value={value?.['element']}
+                        onChange={(v) => updateAttribute('element', v)}
+                        handlePaste={(e, setKey) => handlePaste(e, setKey, value, onChange)}
+                        size={size}
+                        siteType={siteType}
+                        apiLoad={apiLoad}
+                        apiUpdate={apiUpdate}
+                        pageFormat={format}
+                    />
+                </div>
         </div>
     )
 }
@@ -268,126 +201,60 @@ export function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAb
     if(!value?.element?.['element-type'] && !value?.element?.['element-data']) return null;
         
     return (
-        <div className={`h-full ${hideDebug ? '' : ''}`} style={{pageBreakInside: "avoid"}}>
+        <div className={`h-full`} style={{pageBreakInside: "avoid"}}>
             {/* -------------------top line buttons ----------------------*/}
-            <div className={`flex w-full ${hideDebug ? '' : ''}`}>
+            <div className={`flex w-full`}>
                 <div className='flex-1'/>
                     
-                    {value?.is_header && edit ?  <div className={`z-10 relative ${hideDebug ? '': ''}`}>
+                    {value?.is_header && edit ?  <div className={`z-10 relative`}>
                         <div className={`absolute mr-16 right-[-60px] flex`}>
-                            <button
-                                className={' flex items-center text-md cursor-pointer hover:text-blue-500 text-slate-400'}
+                            <Button type='plain' padding='p-1' 
                                 onClick={ onEdit }
                             >
                                 {/*<i className="fa-light fa-pencil text-xl fa-fw" title="Edit"></i>*/}
                                 <PencilSquare className='text-slate-400 hover:text-blue-500'/>
                                
-                            </button>
+                            </Button>
                         </div>
                     </div>
                     :
                     <div className={`z-10 relative`}>
                         <div className={`absolute mr-16 top-[-14px] right-[-60px] flex items-center h-[32px]`}> 
-                            {value?.['tags']?.length ? <Popover className="pr-1 h-[24px] z-20">
-                                <Popover.Button  className={'flex items-center cursor-pointer'} >
-                                    <Tags  className='text-slate-400 hover:text-blue-500 w-[24px] h-[24px]' title="Move Up"/>
-                                </Popover.Button>
-                                <Transition
-                                    as={Fragment}
-                                    enter="transition ease-out duration-200"
-                                    enterFrom="opacity-0 translate-y-1"
-                                    enterTo="opacity-100 translate-y-0"
-                                    leave="transition ease-in duration-150"
-                                    leaveFrom="opacity-100 translate-y-0"
-                                    leaveTo="opacity-0 translate-y-1"
-                                >
-                                    <Popover.Panel 
-                                        anchor="bottom"
-                                        className="absolute -left-[174px] shadow-lg bg-white z-30 w-[200px] transform border border-blue-200 ">
-                                        <TagComponent
-                                            
-                                            className='p-2 flex-0'
-                                            value={value?.['tags']}
-                                            placeholder={'Add Tag...'} 
-                                            onChange={(v) => updateAttribute('tags', v)}
-                                        />
-                                  </Popover.Panel>
-                                </Transition>
-                            </Popover> : null}
+                            {value?.['tags']?.length ? 
+                            (<Popover button={<Tags  className='text-slate-400 hover:text-blue-500 w-[24px] h-[24px]' title="Move Up"/>}>
+                                <TagComponent
                                     
-                            {helpTextCondition && <Popover className="relative pr-1 h-[24px]">
-                                <Popover.Button
+                                    className='p-2 flex-0'
+                                    value={value?.['tags']}
+                                    placeholder={'Add Tag...'} 
+                                    onChange={(v) => updateAttribute('tags', v)}
+                                />
+                            </Popover>) : null}
                                     
-                                    className={' cursor-pointer '}>
-                                    {/*<i className="fa fa-circle-info text-2xl fa-fw" title="Help"/>*/}
-                                    <InfoSquare className='text-blue-400 hover:text-blue-500 w-[24px] h-[24px]' title="Move Up"/>
-                                </Popover.Button>
-                                <Transition
-                                    as={Fragment}
-                                    enter="transition ease-out duration-200"
-                                    enterFrom="opacity-0 translate-y-1"
-                                    enterTo="opacity-100 translate-y-0"
-                                    leave="transition ease-in duration-150"
-                                    leaveFrom="opacity-100 translate-y-0"
-                                    leaveTo="opacity-0 translate-y-1"
-                                >
-                                    <Popover.Panel 
-                                        
-                                        
-                                        className="absolute shadow bg-white z-10 w-screen max-w-sm transform px-4 border border-blue-200 lg:max-w-lg">
-                                        
-                                            <HelpComp
-                                                value={value?.['helpText']}
-                                            />
-                                        
-
-
-                                    </Popover.Panel>
-                                </Transition>
-                            </Popover>}
+                            {helpTextCondition && (
+                                <Popover button={<InfoSquare className='text-blue-400 hover:text-blue-500 w-[24px] h-[24px]' title="Move Up"/>}>
+                                    <HelpComp value={value?.['helpText']} />
+                                </Popover>)
+                            }
                             {showEditIcons && (
                                 <>
-                                    <button 
-                                        className={'flex items-center text-md cursor-pointer hover:text-blue-500 text-slate-400 pr-1'}
-                                        onClick={ () => moveItem(i,-1) }
-                                    >
-                                        {/*<i className="fa-light fa-angle-up text-xl fa-fw"  />*/}
+                                    <Button type='plain' padding='p-0.5' onClick={ () => moveItem(i,-1) }>
                                         <ChevronUpSquare className='text-slate-400 hover:text-blue-500 w-[24px] h-[24px]' title="Move Up"/>
-                                       
-                                    </button>
-                                    <button className={'flex items-center text-md cursor-pointer hover:text-blue-500 text-slate-400 pr-1'}
-                                        onClick={ () =>  moveItem(i,1) }
-                                    >
-                                        {/*<i className="fa-light fa-angle-down text-xl fa-fw" title="Move Down"/>*/}
+                                    </Button>
+                                    <Button type='plain' padding='p-0.5' onClick={ () =>  moveItem(i,1) }>
                                         <ChevronDownSquare className='text-slate-400 hover:text-blue-500 w-[24px] h-[24px]' title="Move Down"/>
-                                    </button>
-                               
-                                    <button
-                                        className={' flex items-center text-md cursor-pointer hover:text-blue-500 py-1 pr-1 text-slate-400'}
-                                        onClick={() => navigator.clipboard.writeText(JSON.stringify(value))}
-                                    >
-                                        {/*<i className="fa-light fa-pencil text-xl fa-fw" title="Edit"></i>*/}
+                                    </Button>
+                                    <Button type='plain' padding='p-0.5' onClick={() => navigator.clipboard.writeText(JSON.stringify(value))} >
                                         <Copy title={'Copy Section'} className='text-slate-400 hover:text-blue-500 w-[24px] h-[24px]'/>
-                                       
-                                    </button>
-
-                                    <button
-                                        className={' flex items-center text-md cursor-pointer hover:text-blue-500 py-1 pr-1 text-slate-400'}
-                                        onClick={ onEdit }
-                                    >
-                                        {/*<i className="fa-light fa-pencil text-xl fa-fw" title="Edit"></i>*/}
+                                    </Button>
+                                    <Button type='plain' padding='p-0.5' onClick={ onEdit }>
                                         <PencilSquare className='text-slate-400 hover:text-blue-500 w-[24px] h-[24px]'/>
-
-                                    </button>
-                                    <button className={'text-lg cursor-pointer hover:text-blue-500 text-slate-400 pr-3'} onClick={addAbove}> 
+                                    </Button>
+                                    <Button type='plain' padding='p-0.5' onClick={addAbove}> 
                                         <SquarePlus className='text-slate-400 hover:text-blue-500 w-[24px] h-[24px]'/>
-                                    </button>
+                                    </Button>
                                 </>
                             )}
-                                
-                            
-                    
-                         
                         </div>
                     </div>
                     }
@@ -464,20 +331,50 @@ export function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAb
     )
 }
 
+// ---------------------------------------------
+// Supporting Functions & components
+//----------------------------------------------
+const pageSplitIcons = (size1=50, height=20, width=30, lines=false) => {
+    let size2 = 100 - size1
+    return (
+        <svg width={width} height={height} >
+            <line
+                x1="0"
+                y1="0"
+                x2="0"
+                y2={height}
+                stroke="black"
+                strokeDasharray="4 1.5 4 1.5" />
+            <rect x={size1 === 100 ? 0 : 5} y="0"
+                  width={Math.max(Math.floor(width * size1 / 100) - (size1 === 100 ? 0 : 6),0)} height={height} rx="1" ry="1"
+                  style={{fill:'white', stroke:'black', strokeWidth:1, opacity:0.5}} />
+            <rect x={(width * size1 / 100) - 1} y="0"
+                  width={Math.max(Math.floor(width * size2 / 100) -  (size1 === 100 ? 0 : 6),0)} height={height} rx="1" ry="1"
+                  style={{fill:'white', stroke:'black', strokeWidth:1, opacity:0.5}} />
+            <line
+                x1={width}
+                y1="0"
+                x2={width}
+                y2={height}
+                stroke="black"
+                strokeDasharray="4 1.5 4 1.5" />
+        </svg>
+    )
+}
 
 function SizeSelect ({size='1', setSize, onChange}) {
-    
+    const { baseUrl, user, theme } = React.useContext(CMSContext) || {}
     return (
         <div
           className="flex space-x-1 rounded-lg bg-blue-50 p-0.5"
           role="tablist"
           aria-orientation="horizontal"
         >        
-        {sizeOptionsSVG.map((s,i) => (
+        {Object.keys(theme?.sectionArray?.sizes || {}).map((name,i) => (
             <button
                 key={i}
                 className={
-                    s.name === size ?
+                    name === size ?
                     "flex items-center rounded-md py-[0.4375rem] pl-2 pr-2 text-sm font-semibold lg:pr-3 bg-white shadow" :
                     "flex items-center rounded-md py-[0.4375rem] pl-2 pr-2 text-sm font-semibold lg:pr-3 hover:text-blue-500"
                 }
@@ -485,12 +382,9 @@ function SizeSelect ({size='1', setSize, onChange}) {
                 role="tab"
                 type="button"
                 tabIndex={-1}
-                onClick={() => {
-                    onChange(s.name) 
-                }}
+                onClick={() => onChange(name)}
               >
-                
-                {s.icon}
+                {pageSplitIcons(theme?.sectionArray?.sizes?.[name].iconSize || 100)}
               </button>
         ))}
         </div>
@@ -661,3 +555,4 @@ export function DeleteModal ({title, prompt, item={}, open, setOpen, onDelete}) 
   )
 
 }
+

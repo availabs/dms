@@ -13,7 +13,7 @@ export default function Drawer ({ open, setOpen, CloseIcon=XMark, width='max-w-6
         
         {/*<div className="fixed inset-0 overflow-hidden">
           <div className="absolute inset-0 overflow-hidden">*/}
-            <div className=" fixed inset-y-0 right-0 flex max-w-[300px] pl-10">
+            <div className=" fixed inset-y-0 right-0 flex max-w-[300px] pointer-events-none">
               <Transition.Child
                 as={Fragment}
                 enter="transform transition ease-in-out duration-500 sm:duration-700"

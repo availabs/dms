@@ -19,7 +19,7 @@ export { default as Button } from './components/button'
 export { default as Menu } from './components/menu'
 export { default as Input, ConfirmInput } from './components/input'
 export { default as Dialog } from './components/dialog'
-
+export { default as Popover } from './components/popover'
 
 
 export const useClickOutside = handleClick => {

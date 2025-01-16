@@ -24,7 +24,7 @@ function PageEdit ({
   const { pathname = '/edit' } = useLocation()
   const { baseUrl, user, theme } = React.useContext(CMSContext) || {}
   const [ creating, setCreating ] = React.useState(false)
-  const [ openEdit, setOpenEdit ] = React.useState(true)
+  const [ openEdit, setOpenEdit ] = React.useState(false)
   const isDynamicPage = true; // map this flag to the UI. when true, the page gets data loading capabilities.
   // console.log('item', item, dataItems, status)
   
@@ -131,19 +131,6 @@ function PageEdit ({
                 format={isDynamicPage ? format : undefined}
               />
             </div>
-            {/*<SideNavContainer witdh={'w-52'}>
-              <EditControls 
-                item={item} 
-                dataItems={dataItems}
-                setItem={setItem}
-                edit={true}
-                status={status}
-                apiUpdate={apiUpdate}
-                attributes={attributes}
-                updateAttribute={updateAttribute}
-                pageType={'page'}
-              />
-            </SideNavContainer>*/}
           </div>  
           
         </div>

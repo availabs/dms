@@ -8,7 +8,9 @@ import { buttonTheme } from '../components/button'
 import { inputTheme, fieldTheme } from '../components/input'
 import { nestableTheme } from '../components/nestable/draggableNav'
 import { dialogTheme } from '../components/dialog'
+import { popoverTheme } from '../components/popover'
 import { sectionArrayTheme} from '../dataComponents/sections/sectionArray'
+
 
 
 import { menuTheme } from '../components/menu'
@@ -55,7 +57,6 @@ const theme = {
     2: 'md:pt-12 pt-0',
     3: 'md:pt-24 pt-0'
   },
-
   navLabel: 'px-6 pb-1 pt-6 uppercase text-xs text-blue-400',
   bg: 'bg-slate-100',
   //----------------------------------------------------------
@@ -84,7 +85,16 @@ const theme = {
   field: fieldTheme,
   nestable: nestableTheme,
   dialog: dialogTheme,
-  sectionArray: sectionArrayTheme
+  popover: popoverTheme,
+
+  sectionArray: sectionArrayTheme,
+
+
+  // --- component themes
+  lexical : {
+    editorShell: 'font'
+  }
+  
 }
 
 //theme.navOptions.logo = <Link to='/' className='h-12 flex px-4 items-center'><div className='rounded-full h-10 bg-blue-500 border border-slate-50' /></Link>

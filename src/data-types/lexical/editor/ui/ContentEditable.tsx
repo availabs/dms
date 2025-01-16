@@ -10,11 +10,12 @@
 
 import {ContentEditable} from '@lexical/react/LexicalContentEditable';
 import * as React from 'react';
+import theme from '../themes/PlaygroundEditorTheme'
 
 export default function LexicalContentEditable({
   className,
 }: {
   className?: string;
 }): JSX.Element {
-  return <ContentEditable className={className || 'border-none relative [tab-size:1] outline-none pt-[8px] px-[8px] lg:px-[28px] pb-[14px]'} />;
+  return <ContentEditable className={className || theme.contentEditable} />;
 }

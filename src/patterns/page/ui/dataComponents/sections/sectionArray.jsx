@@ -3,7 +3,6 @@ import { useLocation } from 'react-router-dom'
 import { isEqual, cloneDeep } from "lodash-es"
 import { v4 as uuidv4 } from 'uuid';
 import { CMSContext } from '../../../siteConfig'
-import { getSizeClass, sizeOptionsSVG } from './sizes'
 import {
     SquarePlus,
     InfoCircle,
@@ -37,8 +36,14 @@ const isJson = (str)  => {
 export const sectionArrayTheme = {
     container: 'w-full grid grid-cols-6 gap-1',
     layouts: {
-        centered: 'md:grid-cols-[1fr_repeat(6,_minmax(_100px,_170px))_1fr]',
-        fullwidth:'md:grid-cols-[_minmax(_0px,0px)_repeat(6,_1fr)_minmax(_0px,0px)]'
+        centered: 'max-w-[1020px] mx-auto',
+        fullwidth: ''
+    },
+    sizes: {
+        "1/3": { className: 'col-span-6 md:col-span-2', iconSize: 33 },
+        "1/2": { className: 'col-span-6 md:col-span-3', iconSize: 50 },
+        "2/3": { className: 'col-span-6 md:col-span-4', iconSize: 66 },
+        "1":   { className: 'col-span-6 md:col-spam-6', iconSize: 100 },
     }
 }
 
@@ -118,33 +123,15 @@ const Edit = ({Component, value, onChange, attr, full_width = false, siteType, a
         cloneValue.splice(to, 0, f);
         onChange(cloneValue)
     }
-    let runningColTotal = 8;
-    const hideDebug = true
     
-    // each component should have md and lg col-start- class
-    // 1 row can fit different components totaling in size 1 OR one component with size 1 or 2
-    // col-start for md and lg depends upon previous components from the same row
-    // every time component size total reaches 1, row changes
+    const hideDebug = true
 
-
-    //console.log('ids', values)
     return (
-        <div className={`${theme.sectionArray.container} ${theme.sectionArray.layouts[full_width === 'show' ? 'fullwidth' : 'centered']} `}>
+        <div className={`${theme.sectionArray.container} ${theme.sectionArray.layouts[full_width === 'show' ? 'fullwidth' : 'centered']}`}>
             {values.map((v,i) => {
                 //console.log()
                 const size = (edit.index === i ? edit?.value?.size : v?.size) || "1";
-                const requiredSpace = sizeOptionsSVG.find(s => s.name === size)?.value;
-                const availableSpace = 6 - runningColTotal;
-
-                if(runningColTotal === 0){
-                    runningColTotal = requiredSpace
-                }else if(requiredSpace <= availableSpace){
-                    runningColTotal += requiredSpace
-                }else{
-                    runningColTotal = requiredSpace
-                }
-
-                const sizeClass = getSizeClass(size, requiredSpace, availableSpace, runningColTotal);
+                const sizeClass = (theme?.sectionArray?.sizes?.[size] || theme?.sectionArray?.sizes?.["1"])?.className;
 
                 // console.log('section', v, v.error)
                 return (
@@ -212,11 +199,6 @@ const View = ({Component, value, attr, full_width, siteType, apiLoad, apiUpdate,
     if (!value || !value.map) { return '' }
     const { baseUrl, user, theme } = React.useContext(CMSContext) || {}
 
-    let runningColTotal = 8;
-    let layouts = {
-        centered: 'md:grid-cols-[1fr_repeat(6,_minmax(_100px,_170px))_1fr]',
-        fullwidth:'md:grid-cols-[_minmax(_0px,0px)_repeat(6,_1fr)_minmax(_0px,0px)]'
-    }
     const hideSectionCondition = section => {
         //console.log('hideSectionCondition', section?.element?.['element-data'] || '{}')
         let value = section?.element?.['element-data']
@@ -225,30 +207,16 @@ const View = ({Component, value, attr, full_width, siteType, apiLoad, apiUpdate,
         return !elementData?.hideSection
     }
 
-
-    // console.log('props in sectionArray.view', siteType)
-
     return (
-        <div className={`w-full grid grid-cols-6 ${layouts[full_width === 'show' ? 'fullwidth' : 'centered']} gap-1`}>
+        <div className={`${theme.sectionArray.container} ${theme.sectionArray.layouts[full_width === 'show' ? 'fullwidth' : 'centered']}`}>
             {
                 value.filter(v => hideSectionCondition(v))
                     .map((v, i) => {
                         const size = v?.size || "1";
-                        const requiredSpace = sizeOptionsSVG.find(s => s.name === size)?.value;
-                        const availableSpace = 6 - runningColTotal;
-
-                        if (runningColTotal === 0) {
-                            runningColTotal = requiredSpace
-                        } else if (requiredSpace <= availableSpace) {
-                            runningColTotal += requiredSpace
-                        } else {
-                            runningColTotal = requiredSpace
-                        }
-
-                        const sizeClass = getSizeClass(size, requiredSpace, availableSpace, runningColTotal);
+                        const sizeClass = (theme?.sectionArray?.sizes?.[size] || theme?.sectionArray?.sizes?.["1"])?.className;
 
                         return (
-                            <div id={v?.id} key={i} className={`${sizeClass}`} data-size={requiredSpace}>
+                            <div id={v?.id} key={i} className={`${sizeClass}`}>
                                 <SectionView
                                     attributes={attr.attributes}
                                     key={i}

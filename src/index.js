@@ -8,4 +8,4 @@ export { CMSContext } from './patterns/page/siteConfig'
 export { default as dmsSiteFactory, DmsSite } from "./patterns/admin/dmsSiteFactory";
 export { default as pageConfig } from './patterns/page/siteConfig'
 export { default as adminConfig }  from './patterns/admin/siteConfig'
-export { default as Selector, registerComponents } from "./patterns/page/components/selector"
+export { default as Selector, registerComponents } from "./patterns/page/ui/dataComponents/selector"

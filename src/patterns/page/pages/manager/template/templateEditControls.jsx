@@ -15,7 +15,7 @@ import {json2DmsForm, getUrlSlug, toSnakeCase, parseJSON} from '../../_utils'
 //import EditHistory from './editHistory'
 
 import {Modal, DeleteModal} from '../../../ui/'
-import { RegisteredComponents } from '../../../components/selector'
+import { RegisteredComponents } from '../../../ui/dataComponents/selector'
 
 import { CMSContext } from '../../../siteConfig'
 
