@@ -348,6 +348,8 @@ const Icons = {
   Tags,
   ArrowUp,
   ArrowDown,
+  ArrowRight,
+  ArrowLeft,
   Copy,
   PDF,
   Printer,

@@ -228,18 +228,17 @@ function RenameModal ({title, prompt, item={}, dataItems, open, setOpen})  {
     const updateItem = async () => {
       let editItem = dataItems.filter(d => d.id === item.id)?.[0] || item
       if(newName !== editItem.title) {
-        let history = editItem.history ? cloneDeep(item.history) : []
-        let edit = {
-          type: `changed page title to ${newName}`,
-          user: user.email, 
-          time: new Date().toString()
-        }
-        history.push(edit)
+        // let history = editItem.history ? cloneDeep(item.history) : []
+        // let edit = {
+        //   type: `changed page title to ${newName}`,
+        //   user: user.email, 
+        //   time: new Date().toString()
+        // }
+        // history.push(edit)
         
         const newItem = {
           id: item.id,
-          title:newName,
-          history
+          title:newName   
         }
 
         newItem.url_slug = getUrlSlug(newItem, dataItems)
