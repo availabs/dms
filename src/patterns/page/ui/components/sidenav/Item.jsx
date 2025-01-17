@@ -116,6 +116,7 @@ const NavItem = ({
 								{children}
 							</div>
 							<div
+								className='pr-2'
 								onClick={() => {
 									if (subMenuActivate === 'onClick') {
 										console.log('click ', to )
