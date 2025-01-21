@@ -10,11 +10,11 @@ import {ArrowDown, ArrowUp, ArrowRight, ArrowLeft, DraftPage} from '../../icons'
 
 
 export const nestableTheme = {
-    container: `w-full max-h-full  pb-6 `,
-    navListContainer: 'h-full border-l  pt-3 pl-2 scrollbar-xs',
+    container: `max-w-full max-h-full  pb-6 `,
+    navListContainer: 'h-full border-l  pt-3 pl-2 overflow-auto h-[calc(99vh_-_150px)]   scrollbar-xs',
     navItemContainer:'text-slate-600 border-l border-y rounded border-transparent flex items-center gap-1 cursor-pointer group group-hover:bg-blue-100',
     navItemContainerActive: 'bg-white text-blue-500  border-l rounded border-y border-slate-300 flex items-center gap-1 cursor-pointer group group-hover:bg-blue-100', 
-    navLink: `flex-1 px-4 py-2 font-light text-nowrap text-clip`,
+    navLink: `flex-1 px-4 py-2 font-light text-elipses`,
     subList: 'pl-[30px]',
     collapseIcon: 'text-gray-400 hover:text-gray-500',
     dragBefore: 'before:absolute before:top-0 before:left-0 before:right-0 before:bottom-0 before:bg-blue-300 before:border-dashed before:rounded before:border before:border-blue-600',

@@ -92,11 +92,11 @@ function DraggableNavItem ({activeItem, item, dataItems, handleCollapseIconClick
     const isActive = pathname.includes(item.url_slug)
 
     return (
-        <div key={item.id} className='group'>
+        <div key={item.id} className='group max-w-full'>
             {/*<div className='border-t border-transparent hover:border-blue-500 w-full relative'>
                 <div className='hidden group-hover:block absolute -left-[5px] -top-[10px] hover:bg-blue-500 size-4 flex items-center rounded-full p-1 center'>+</div>
             </div>*/}
-            <div className={`${isActive ? theme?.nestable?.navItemContainerActive : theme?.nestable?.navItemContainer}`}>
+            <div className={`${isActive ? theme?.nestable?.navItemContainerActive : theme?.nestable?.navItemContainer} `}>
 
                 <NavLink className={theme?.nestable?.navLink} to={`${edit ? `${baseUrl}/edit` : baseUrl}/${item.url_slug || item.id}`}>{item.title}</NavLink>
 

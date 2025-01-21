@@ -81,7 +81,7 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
         </div>
       </Layout>
       {/*Footer*/}
-      { <div className='h-[300px]'/>}
+      {/* <div className='h-[300px]'/> */}
     </div>
   )
 }

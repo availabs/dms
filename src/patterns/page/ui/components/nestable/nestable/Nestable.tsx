@@ -618,13 +618,13 @@ class Nestable extends Component {
   }
 
   render() {
-    const { group, className, idProp } = this.props;
+    const { group, className='', idProp } = this.props;
     const { items, dragItem } = this.state;
     const options = this.getItemOptions();
 
     return (
-      <div className={`${className} nestable relative nestable-${group}`}> 
-        <ol className="nestable-list list-none ">
+      <div className={`${className} nestable relative max-w-full nestable-${group}`}> 
+        <ol className="nestable-list list-none max-w-full">
           {items.map((item, i) => {
             return (
               <NestableItem
