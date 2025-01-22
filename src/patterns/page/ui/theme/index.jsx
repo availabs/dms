@@ -185,14 +185,14 @@ export const themeOptions = {
             "full"
           ]
         },
-        "color": {
-          "label": "Color",
+        "depth": {
+          "label": "Depth",
           "type": "select",
           "options": [
             "transparent",
-            "white",
-            "bright",
-            "dark"
+            1,
+            2,
+            3
           ]
         },
         "logo": {
