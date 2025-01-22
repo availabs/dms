@@ -8,10 +8,12 @@ import { json2DmsForm, getUrlSlug } from '../../../pages/_utils'
 
 import {ArrowDown, ArrowUp, ArrowRight, ArrowLeft, DraftPage} from '../../icons';
 
+import { Button } from '../../';
+
 
 export const nestableTheme = {
     container: `max-w-full max-h-full  pb-6 `,
-    navListContainer: 'h-full border-l  pt-3 pl-2 overflow-auto h-[calc(99vh_-_150px)] scrollbar-xs',
+    navListContainer: 'h-full border-l  pt-3 pl-2 overflow-auto h-[calc(100vh_-_190px)] scrollbar-xs',
     navItemContainer:'text-slate-600 border-l border-y rounded border-transparent flex items-center gap-1 cursor-pointer group group-hover:bg-blue-100',
     navItemContainerActive: 'bg-white text-blue-500  border-l rounded border-y border-slate-300 flex items-center gap-1 cursor-pointer group group-hover:bg-blue-100', 
     navLink: `flex-1 px-4 py-2 font-light text-elipses`,
@@ -186,13 +188,13 @@ function AddItemButton ({dataItems}) {
     submit(json2DmsForm(item), { method: "post", action: pathname })
   }
   return (
-    <div className='pr-2'>
-      <div 
+    <div className='border px-4 py-2 rounded '>
+      <Button 
         onClick={addItem}
-        className={theme.nestable.addItemButton}
+        className={'w-full'}
       >
         + Add Page
-      </div>
+      </Button>
     </div>
   )
 }
