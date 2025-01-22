@@ -35,7 +35,7 @@ const NavItem = ({
 	subMenuActivate = 'onClick',
 	subMenuOpen = false
 }) => {
-	console.log('renderMenu', subMenuActivate)
+	//console.log('renderMenu', subMenuActivate)
 	const { theme: fullTheme  } = React.useContext(CMSContext) || {}
 	const theme = (fullTheme?.[type === 'side' ? 'sidenav' : 'topnav'] || {}) //(themeOptions);
 
@@ -76,7 +76,7 @@ const NavItem = ({
 
 	//       setShowSubMenu(routeMatch);
 	// }, [showSubMenu,to]);
-
+	console.log('test 123', className)
 	return (
 			<div className={type === "side" ? theme?.subMenuParentWrapper : null}
 				 onMouseOutCapture={() =>
@@ -106,7 +106,7 @@ const NavItem = ({
 									}
 								/>
 							)}
-							<div className={`${theme?.navItemContent} ${theme?.navItemContents?.[depth]}`}
+							<div className={`${theme?.navItemContent} ${className ? '' : theme?.navItemContents?.[depth]}`}
 								onClick={(e) => {
 									e.stopPropagation();
 									if (onClick) return onClick(To[0]);
@@ -119,7 +119,7 @@ const NavItem = ({
 								className='pr-2'
 								onClick={() => {
 									if (subMenuActivate === 'onClick') {
-										console.log('click ', to )
+										//console.log('click ', to )
 										// localStorage.setItem(`${to}_toggled`, `${!showSubMenu}`);
 										setShowSubMenu(!showSubMenu);
 									}
