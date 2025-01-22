@@ -126,7 +126,7 @@ export default async function dmsSiteFactory(props) {
     console.time('load routes')
     let data = await dmsDataLoader(falcor, dmsConfigUpdated, `/`);
     console.timeEnd('load routes')
-    //console.log('data', data)
+    console.log('data -- get site data here', data)
 
     return pattern2routes(data, props)
 }
@@ -172,7 +172,7 @@ export function DmsSite ({
                 //theme   
             });
             console.timeEnd('dmsSiteFactory')
-            // console.log('dynamicRoutes', dynamicRoutes)
+            //console.log('dynamicRoutes ', dynamicRoutes)
             setDynamicRoutes(dynamicRoutes);
         })()
     }, []);

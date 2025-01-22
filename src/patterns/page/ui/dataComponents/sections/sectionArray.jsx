@@ -43,7 +43,7 @@ export const sectionArrayTheme = {
         "1/3": { className: 'col-span-6 md:col-span-2', iconSize: 33 },
         "1/2": { className: 'col-span-6 md:col-span-3', iconSize: 50 },
         "2/3": { className: 'col-span-6 md:col-span-4', iconSize: 66 },
-        "1":   { className: 'col-span-6 md:col-spam-6', iconSize: 100 },
+        "1":   { className: 'col-span-6 md:col-span-6', iconSize: 100 },
     }
 }
 

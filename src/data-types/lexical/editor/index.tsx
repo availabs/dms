@@ -22,6 +22,8 @@ import PlaygroundEditorTheme from './themes/PlaygroundEditorTheme';
 export default function Lexicals ({value, onChange, bgColor, editable=false, id, theme}) {
   
   const lexicalTheme = merge(PlaygroundEditorTheme, theme?.lexical || {})
+
+  //console.log(PlaygroundEditorTheme, theme?.lexical, lexicalTheme)
   const initialConfig = {
     editorState:
         JSON.parse(value || '{}')?.root &&
