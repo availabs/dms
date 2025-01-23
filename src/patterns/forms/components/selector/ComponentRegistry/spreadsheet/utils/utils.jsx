@@ -166,8 +166,12 @@ export const getData = async ({state, apiLoad, currentPage=0}) => {
         return {length, data: []}
     };
     if(state.sourceInfo.isDms && !options.groupBy.length && !fnColumnsExists) {
-        columnsToFetch.push({originalName: 'id', reqName: 'id'});
+        columnsToFetch.push({name: 'id', reqName: 'id'});
         options.orderBy.id = Object.values(options.orderBy || {})?.[0] || 'asc';
+    }else {
+        const idx = columnsToFetch.findIndex(column => column.name === 'id');
+        if(idx !== -1) columnsToFetch.splice(idx, 1);
+        delete options.orderBy.id
     }
     // ======================================= check for attributes to fetch end =======================================
 

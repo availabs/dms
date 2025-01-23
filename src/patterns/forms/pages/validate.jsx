@@ -84,7 +84,28 @@ const Validate = ({
         view_id: params.view_id,
 
     }
-    console.log('?????//', invalidEntriesFormat, app, doc_type, config, is_dirty)
+
+    const ssProps = {
+        sourceInfo: {
+            app,
+            type: `${doc_type}-${params.view_id}-invalid-entry`,
+            doc_type: `${doc_type}-${params.view_id}-invalid-entry`,
+
+            env: `${item.app}+${doc_type}-${params.view_id}-invalid-entry`,
+            isDms: true,
+            originalDocType: `${doc_type}-invalid-entry`,
+            view_id: params.view_id,
+            columns
+        },
+        display: {
+            usePagination: false,
+            pageSize: 10,
+            loadMoreId: `id-validate-page`,
+            allowSearchParams: false,
+        },
+        columns: columns.filter(col => data[`${col.name}_error`]).map(c => ({...c, show:true})),
+    }
+
     useEffect(() => {
         async function load(){
             setLoading(true)
@@ -223,13 +244,9 @@ const Validate = ({
                                                 onChange={() => {
                                                 }}
                                                 size={1}
-                                                format={invalidEntriesFormat}
+                                                format={ssProps}
                                                 apiLoad={apiLoad}
                                                 apiUpdate={apiUpdate}
-                                                value={JSON.stringify({
-                                                    allowEditInView: true,
-                                                    visibleAttributes: columns.filter(col => data[`${col.name}_error`]).map(col => col.name),
-                                                })}
                                             />
                                     }
                                 </div>

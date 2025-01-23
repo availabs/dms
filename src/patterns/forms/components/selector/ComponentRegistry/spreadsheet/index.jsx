@@ -218,7 +218,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
         setState(draft => {
             draft.data = tmpData
         });
-        return Promise.all(dataToUpdate.map(dtu => apiUpdate({data: dtu, config: state.sourceInfo})));
+        return Promise.all(dataToUpdate.map(dtu => apiUpdate({data: dtu, config: {format: state.sourceInfo}})));
     }
 
     const addItem = () => {
@@ -226,7 +226,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
         setState(draft => {
             draft.data.push(newItem)
         })
-        return apiUpdate({data: newItem, config: state.sourceInfo}) && setNewItem({})
+        return apiUpdate({data: newItem, config: {format: state.sourceInfo}}) && setNewItem({})
     }
 
     const removeItem = item => {
@@ -234,7 +234,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
         setState(draft => {
             draft.data = draft.data.filter(d => d.id !== item.id);
         })
-        return apiUpdate({data: item, config: state.sourceInfo, requestType: 'delete'})
+        return apiUpdate({data: item, config: {format: state.sourceInfo}, requestType: 'delete'})
     }
     // =========================================== util fns end ========================================================
     console.log('state?', state)
