@@ -75,10 +75,10 @@ export function PopoverMenuItem ({children,onClick}) {
     const {theme = defaultTheme} = React.useContext(CMSContext)
     return (
         <div 
-            onClick={onClick}
-            className={theme.pageControls.controlItem}
+          onClick={onClick}
+          className={theme.pageControls.controlItem}
         >
-                {children}
+          {children}
         </div>
     )
 }
