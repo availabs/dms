@@ -263,7 +263,7 @@ export const RenderSimple = ({isEdit, updateItem, removeItem, addItem, newItem, 
                     .map((d, i) => (
                         <RenderRow key={i} {...{
                             i, c, d,  isEdit, frozenCols,
-                            allowEdit, isDragging, isSelecting, editing, setEditing, loading,
+                            allowEdit, isDragging, isSelecting, editing, setEditing, loading:false,
                             selection, setSelection, selectionRange, triggerSelectionDelete,
                             handleMouseDown, handleMouseMove, handleMouseUp,
                             setIsDragging, startCellCol, startCellRow,

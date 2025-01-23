@@ -12,7 +12,6 @@ import { isEqual } from "lodash-es";
 import { v4 as uuidv4 } from 'uuid';
 import {useImmer} from "use-immer";
 import {getFilters, parseIfJson} from "../shared/filters/utils";
-import {column} from "@observablehq/plot";
 import {convertOldState} from "./utils/convertOldState";
 export const SpreadSheetContext = React.createContext({});
 
@@ -55,14 +54,15 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
 
     const [currentPage, setCurrentPage] = useState(0);
     const showChangeFormatModal = !formatFromProps || !state?.sourceInfo?.columns;
-    const isValidState = state?.dataRequest;
-
+    const isValidState = Boolean(state?.dataRequest);
     // ========================================= init comp begin =======================================================
     useEffect(() => {
         // if there's no format passed, the user should be given option to select one. to achieve thia, format needs to be a state variable.
         if(isEqual(state.sourceInfo, formatFromProps)) return;
         formatFromProps && setState(draft => {
-            draft.sourceInfo = formatFromProps;
+            draft.display = formatFromProps?.display;
+            draft.sourceInfo = formatFromProps?.sourceInfo;
+            draft.columns = formatFromProps?.columns;
         });
     }, [formatFromProps]);
 
@@ -141,7 +141,11 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
         return () => {
             isStale = true;
         };
-    }, [state.dataRequest, state.sourceInfo, isValidState]);
+    }, [state.columns.length,
+        state.dataRequest,
+        state.sourceInfo.source_id,
+        state.sourceInfo.view_id,
+        isValidState]);
 
     // useGetDataOnPageChange
     useEffect(() => {
@@ -176,12 +180,12 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
         // observer that sets current page on scroll. no data fetching should happen here
         const observer = new IntersectionObserver(
             async (entries) => {
-                const hasMore = (currentPage * state.display.pageSize + state.display.pageSize) < state.display.totalLength;
+                const hasMore = true //(currentPage * state.display.pageSize + state.display.pageSize) < state.display.totalLength;
                 if (state.data.length && entries[0].isIntersecting && hasMore) {
                     setCurrentPage(currentPage+1)
                 }
             },
-            { threshold: 0 }
+            { threshold: 0.5 }
         );
 
         const target = document.querySelector(`#${state.display.loadMoreId}`);
@@ -191,7 +195,9 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
         return () => {
             if (target) observer.unobserve(target);
         };
-    }, [state.display?.loadMoreId, state.display?.totalLength, state.display?.usePagination]);
+    }, [state.display?.loadMoreId, state.display?.totalLength, state.display?.usePagination,
+        ((currentPage * state.display.pageSize + state.display.pageSize) < state.display.totalLength)
+]);
     // // =========================================== get data end ========================================================
 
     // =========================================== saving settings begin ===============================================

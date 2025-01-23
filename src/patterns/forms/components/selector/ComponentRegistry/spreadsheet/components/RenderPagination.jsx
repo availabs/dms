@@ -47,7 +47,7 @@ export const RenderPagination = ({currentPage, setCurrentPage}) => {
                     </div>
                 ) : (
                     <div className={'text-xs italic'}>
-                        showing {Math.min(state.display.totalLength, totalPages)} of {isNaN(totalPages) ? 0 : parseInt(totalPages).toLocaleString()} rows
+                        showing {state.display.totalLength} rows
                     </div>
                 )
             }
