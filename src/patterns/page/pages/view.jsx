@@ -28,6 +28,8 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
     return items
   }, [dataItems])
 
+  console.log('menuItems', menuItems)
+
   const level = item?.index == '999' || theme?.navOptions?.topNav?.nav !== 'main' ? 1 : detectNavLevel(dataItems, baseUrl);
 
   const inPageNav = getInPageNav(item,theme);
@@ -81,7 +83,7 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
         </div>
       </Layout>
       {/*Footer*/}
-      {item?.footer && <div className='h-[300px] bg-slate-100'/>}
+      {/* <div className='h-[300px]'/> */}
     </div>
   )
 }

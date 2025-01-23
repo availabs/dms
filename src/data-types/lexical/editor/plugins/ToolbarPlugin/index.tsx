@@ -770,6 +770,8 @@ export default function ToolbarPlugin({
       applyStyleText({'border': '1px solid'});
       applyStyleText({'border-color': '#60a5fa'});
       applyStyleText({'border-radius': '8px'});
+      applyStyleText({'padding': '6px'});
+      applyStyleText({'display': 'block'})
     },
     [applyStyleText],
   );

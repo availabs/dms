@@ -1,8 +1,8 @@
 import React, {useEffect, useState} from "react";
-import { get } from "lodash-es";
-import { isEqual } from "lodash-es"
+import { get,isEqual } from "lodash-es";
 
-import {dmsDataTypes} from "../../../../index"
+import {dmsDataTypes} from "../../../../../"
+import { CMSContext } from '../../../siteConfig'
 
 import FilterableSearch from "./FilterableSearch";
 
@@ -31,6 +31,7 @@ const icons = {
 
 function EditComp(props) {
     const {value, onChange, size, handlePaste, ...rest} = props;
+    const { theme } = React.useContext(CMSContext);
     const [key, setKey] = useState();
     // console.log("selector props", props, value)
     // console.log('selector edit', rest)
@@ -47,7 +48,7 @@ function EditComp(props) {
         }
     }, []);
 
-    // console.log('RegisteredComponents', RegisteredComponents)
+    console.log('RegisteredComponents', RegisteredComponents, value?.['element-type'])
 
     let DataComp = (RegisteredComponents[get(value, "element-type", "lexical")] || RegisteredComponents['lexical']).EditComp
 
@@ -103,6 +104,7 @@ function EditComp(props) {
                     value={value?.['element-data'] || ''}
                     onChange={v => updateAttribute('element-data', v)}
                     size={size}
+                    theme={theme}
                     {...rest}
                 />
             </div>
@@ -113,12 +115,13 @@ function EditComp(props) {
 function ViewComp({value, ...rest}) {
     // if (!value) return false
     // console.log('selector view', rest)
+    const { theme } = React.useContext(CMSContext);
     let Comp = RegisteredComponents[get(value, "element-type", 'lexical')] ?
         RegisteredComponents[get(value, "element-type", "lexical")].ViewComp :
         () => <div> Component {value["element-type"]} Not Registered </div>
 
     return (
-        <Comp value={value?.['element-data'] || ''} {...rest}/>
+        <Comp value={value?.['element-data'] || ''} theme={theme} {...rest}/>
     )
 }
 

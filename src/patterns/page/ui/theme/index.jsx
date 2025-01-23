@@ -3,6 +3,17 @@ import { Link } from 'react-router-dom'
 import { layoutTheme } from '../components/layout'
 import { sideNavTheme } from '../components/sidenav'
 import { topNavTheme } from '../components/topnav'
+import { tabsTheme } from '../components/tabs'
+import { buttonTheme } from '../components/button'
+import { inputTheme, fieldTheme } from '../components/input'
+import { nestableTheme } from '../components/nestable/draggableNav'
+import { dialogTheme } from '../components/dialog'
+import { popoverTheme } from '../components/popover'
+import { sectionArrayTheme} from '../dataComponents/sections/sectionArray'
+
+
+
+import { menuTheme } from '../components/menu'
 
 const theme = {
   navOptions: {
@@ -46,7 +57,6 @@ const theme = {
     2: 'md:pt-12 pt-0',
     3: 'md:pt-24 pt-0'
   },
-
   navLabel: 'px-6 pb-1 pt-6 uppercase text-xs text-blue-400',
   bg: 'bg-slate-100',
   //----------------------------------------------------------
@@ -65,10 +75,26 @@ const theme = {
     selectOption: 'p-4 text-md cursor-pointer hover:text-blue-500 text-slate-400 hover:bg-blue-600',
   },
   
-  
   layout: layoutTheme,
   sidenav: sideNavTheme,
-  topnav: topNavTheme
+  topnav: topNavTheme,
+  tabs: tabsTheme,
+  button: buttonTheme,
+  menu: menuTheme,
+  input: inputTheme,
+  field: fieldTheme,
+  nestable: nestableTheme,
+  dialog: dialogTheme,
+  popover: popoverTheme,
+
+  sectionArray: sectionArrayTheme,
+
+
+  // --- component themes
+  lexical : {
+    editorShell: 'font'
+  }
+  
 }
 
 //theme.navOptions.logo = <Link to='/' className='h-12 flex px-4 items-center'><div className='rounded-full h-10 bg-blue-500 border border-slate-50' /></Link>
@@ -159,14 +185,14 @@ export const themeOptions = {
             "full"
           ]
         },
-        "color": {
-          "label": "Color",
+        "depth": {
+          "label": "Depth",
           "type": "select",
           "options": [
             "transparent",
-            "white",
-            "bright",
-            "dark"
+            1,
+            2,
+            3
           ]
         },
         "logo": {

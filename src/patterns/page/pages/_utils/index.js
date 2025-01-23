@@ -1,3 +1,5 @@
+import { matchRoutes } from 'react-router-dom'
+
 //import {getCurrentDataItem} from "./navItems.js";
 // const baseUrl = ''
 
@@ -61,7 +63,7 @@ export function detectNavLevel(dataItems, baseUrl) {
     return level + (isParent ? 1 : 0);
 }
 
-export function dataItemsNav(dataItems, baseUrl = '', edit = false) {
+export function dataItemsNav(dataItems, baseUrl = '', level=1, edit = false) {
     // console.log('dataItemsnav', dataItems)
     return dataItems
         .sort((a, b) => a.index - b.index)
@@ -82,6 +84,7 @@ export function dataItemsNav(dataItems, baseUrl = '', edit = false) {
 
             return item
         })
+    //return dataItems
 }
 
 export const json2DmsForm = (data,requestType='update') => {
@@ -283,3 +286,27 @@ export function compare (a, b) {
 }
 
 export const getNestedValue = (obj) => typeof obj?.value === 'object' ? getNestedValue(obj.value) : obj?.value || obj;
+
+export const updateRegisteredFormats = (registerFormats, app, type) => {
+  if(Array.isArray(registerFormats)){
+    registerFormats = registerFormats.map(rFormat => {
+      rFormat.app = app;
+      rFormat.type = `${type}|${rFormat.type}`
+      rFormat.registerFormats = updateRegisteredFormats(rFormat.registerFormats, app, type);
+      rFormat.attributes = updateAttributes(rFormat.attributes, app, type);
+      return rFormat;
+    })
+  }
+  return registerFormats;
+}
+
+export const updateAttributes = (attributes, app, type) => {
+  if(Array.isArray(attributes)){
+    attributes = attributes.map(attr => {
+      attr.format = attr.format ? `${app}+${type}|${attr.format.split('+')[1]}`: undefined;
+      return updateRegisteredFormats(attr, app, type);
+    })
+    //console.log('attr', attributes)
+  }
+  return attributes;
+}

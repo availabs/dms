@@ -111,7 +111,7 @@ function getChildNav(item, dataItems, baseUrl, edit) {
   
 }
 
-function Nav ({item, dataItems, edit, open, setOpen}) {
+export function Nav ({item, dataItems, edit, open, setOpen}) {
   const submit = useSubmit()
   const { pathname = '/edit' } = useLocation()
   const { baseUrl} = React.useContext(CMSContext)
@@ -267,6 +267,4 @@ function AddItemButton ({dataItems}) {
     </div>
   )
 }
-
-
 

@@ -1,3 +1,3 @@
-import Nestable from './Nestable';
+import Nestable from './nestable';
 
 export default Nestable;

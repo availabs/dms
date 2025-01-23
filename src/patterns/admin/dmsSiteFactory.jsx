@@ -2,7 +2,7 @@ import React, {useState, useEffect} from 'react'
 import {createBrowserRouter, Outlet, RouterProvider} from "react-router-dom";
 
 //import {  adminConfig } from "./modules/dms/src/"
-import { dmsDataLoader, dmsPageFactory, registerDataType } from '../../'
+import { dmsDataLoader, dmsPageFactory, registerDataType, Selector } from '../../'
 import { falcorGraph, useFalcor } from "@availabs/avl-falcor"
 import { cloneDeep } from "lodash-es"
 
@@ -10,7 +10,6 @@ import { cloneDeep } from "lodash-es"
 import metaFormsConfig from '../forms/siteConfig'; // meta level forms config. this "pattern" serves as parent for all forms.
 
 import pageConfig from '../page/siteConfig'
-import Selector from '../page/components/selector'
 //import {template} from "./admin.format"
 
 
@@ -127,7 +126,7 @@ export default async function dmsSiteFactory(props) {
     console.time('load routes')
     let data = await dmsDataLoader(falcor, dmsConfigUpdated, `/`);
     console.timeEnd('load routes')
-    //console.log('data', data)
+    console.log('data -- get site data here', data)
 
     return pattern2routes(data, props)
 }
@@ -173,7 +172,7 @@ export function DmsSite ({
                 //theme   
             });
             console.timeEnd('dmsSiteFactory')
-            // console.log('dynamicRoutes', dynamicRoutes)
+            //console.log('dynamicRoutes ', dynamicRoutes)
             setDynamicRoutes(dynamicRoutes);
         })()
     }, []);

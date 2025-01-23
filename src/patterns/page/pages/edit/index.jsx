@@ -7,12 +7,12 @@ import { saveHeader, saveSection } from './editFunctions'
 
 import { Layout, SideNav, SideNavContainer } from '../../ui'
 import { ViewIcon } from '../../ui/icons'
-import EditControls from './editControls'
+//import EditControls from './editControls'
 
 
 
 import { CMSContext } from '../../siteConfig'
-import EditPane from './editPane'
+import EditPane, {EditDrawer} from './editPane'
 
 
 function PageEdit ({
@@ -24,6 +24,7 @@ function PageEdit ({
   const { pathname = '/edit' } = useLocation()
   const { baseUrl, user, theme } = React.useContext(CMSContext) || {}
   const [ creating, setCreating ] = React.useState(false)
+  const [ openEdit, setOpenEdit ] = React.useState(false)
   const isDynamicPage = true; // map this flag to the UI. when true, the page gets data loading capabilities.
   // console.log('item', item, dataItems, status)
   
@@ -85,7 +86,15 @@ function PageEdit ({
           siteType={siteType}
         />
       )} 
-      <Layout navItems={menuItems} secondNav={theme?.navOptions?.secondaryNav?.navItems || []} /*EditPane={EditPane}*/>
+      <EditDrawer 
+        item={item}
+        dataItems={dataItems}
+        open={openEdit} setOpen={setOpenEdit}
+        apiUpdate={apiUpdate}
+      />
+      <Layout navItems={menuItems} secondNav={theme?.navOptions?.secondaryNav?.navItems || []} 
+        EditPane={() => (<EditPane item={item} open={openEdit} setOpen={setOpenEdit} apiUpdate={apiUpdate} />)}
+      >
         <div className={`${theme?.page?.wrapper1} ${theme?.navPadding[level]}`}>
           {item?.header === 'below' && (
             <ContentEdit 
@@ -122,19 +131,6 @@ function PageEdit ({
                 format={isDynamicPage ? format : undefined}
               />
             </div>
-            <SideNavContainer witdh={'w-52'}>
-              <EditControls 
-                item={item} 
-                dataItems={dataItems}
-                setItem={setItem}
-                edit={true}
-                status={status}
-                apiUpdate={apiUpdate}
-                attributes={attributes}
-                updateAttribute={updateAttribute}
-                pageType={'page'}
-              />
-            </SideNavContainer>
           </div>  
           
         </div>

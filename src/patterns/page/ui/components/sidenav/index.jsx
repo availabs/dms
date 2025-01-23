@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 
 import { CMSContext } from '../../../siteConfig'
 
-import { get } from "lodash-es";;
+import { get } from "lodash-es";
 
 import SidebarItem from "./Item";
 import { MobileMenu } from '../topnav'
@@ -21,16 +21,18 @@ export const sideNavTheme = {
    "navItemContent": "transition-transform duration-300 ease-in-out",
    "navitemSide": `
    	group  flex flex-col
-   	group flex px-3 py-1.5 text-[14px] font-light hover:bg-blue-50 text-slate-700 mx-2
+   	group flex text-[14px] font-light hover:bg-blue-50 text-slate-700 mx-2
    	focus:outline-none focus:text-gray-800 focus:bg-gray-50 focus:border-gray-300
    	transition-all cursor-pointer`,
    "navitemSideActive": `
    	group  flex flex-col
-   	px-3 py-1.5 text-[14px] font-light hover:bg-blue-50 text-slate-700  mx-2   
+   	text-[14px] font-light hover:bg-blue-50 text-slate-700  mx-2   
     	focus:outline-none focus:text-gray-800 focus:bg-gray-50 focus:border-gray-300
-   	transition-all cursor-pointer`,
-   "indicatorIcon": "fa fa-angle-right pt-2.5",
-   "indicatorIconOpen": "fal fa-angle-down pt-2.5",
+   	transition-all cursor-pointer border-l-2 border-slate-800`,
+   "indicatorIcon": "ArrowRight",
+   "indicatorIconOpen": "ArrowDown",
+   "subMenuWrappers": ['w-full bg-[#F3F8F9] rounded-[12px]','w-full bg-[#E0EBF0]'],
+   "subMenuOuterWrappers": ['pl-4'],
    "subMenuWrapper": "pl-2 w-full",
    "subMenuParentWrapper": "flex flex-col w-full",
    "bottomMenuWrapper": ""
@@ -83,7 +85,7 @@ const MobileSidebar = ({
 							/>
 						</div>
 						<div
-							className={`flex-1 h-0 border border-orange-400 pt-2 pb-4 overflow-y-auto overflow-x-hidden flex`}
+							className={`flex-1 h-0 pt-2 pb-4 overflow-y-auto overflow-x-hidden flex`}
 						>
 							{/*<div className="px-6 pt-4 pb-8 logo-text gray-900">
 								<Link
@@ -121,7 +123,8 @@ const DesktopSidebar = ({
 	open,
 	mobile,
 	themeOptions={},
-	subMenuActivate, subMenuStyle,
+	subMenuActivate='onClick', 
+	subMenuStyle,
 	...props }) => {
 	//let theme = useTheme()['sidenav'](themeOptions);
 	const { theme: fullTheme  } = React.useContext(CMSContext)

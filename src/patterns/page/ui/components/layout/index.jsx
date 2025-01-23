@@ -1,22 +1,41 @@
 import React from "react";
-import { merge } from "lodash-es"
-import { cloneDeep } from "lodash-es";
+import { merge, cloneDeep } from "lodash-es"
 
 import TopNav from '../topnav';
 import SideNav from '../sidenav';
 import { Search } from '../../../components/search';
 import { CMSContext } from '../../../siteConfig';
+import { matchRoutes, useLocation } from 'react-router-dom'
+
 
 const Logos = () => <div className='h-12'/>
 
 export const layoutTheme = {
 	wrapper: 'relative isolate flex min-h-svh w-full max-lg:flex-col',
-	wrapper2: 'flex flex-1',
+	wrapper2: 'flex-1 flex items-start flex-col items-stretch max-w-full',
+	wrapper3: 'flex flex-1',
 	childWrapper: 'flex-1 h-full',
 	topnavContainer1:`sticky top-0 left-0 right-0 z-20 `,
 	topnavContainer2:``,
 	sidenavContainer1: 'w-44',
 	sidenavContainer2: 'sticky top-12 h-[calc(100vh_-_50px)]',
+	navTitle: `flex-1 text-[24px] font-['Oswald'] font-[500] leading-[24px] text-[#2D3E4C] py-3 px-4`
+}
+
+function nav2Level(items, level=1, path, navTitle='') {
+	let output =  null
+	if(level > 1) {
+		let levelPath = '/'+path.split('/').filter(d => d).filter((d,i) => i < level-1).join('/')
+		let matches = matchRoutes(items, {pathname: levelPath })
+		output = matches?.[0]?.route?.subMenus || []
+		if(navTitle && matches?.[0]?.route?.name) {
+			output = [{name: matches?.[0]?.route?.name, className: navTitle},...output]
+		}
+		//console.log('nav2Level', items, output, matches, levelPath, navTitle)
+	}
+
+	
+	return output || items
 }
 
 const Layout = ({ children, navItems, secondNav, title, theme, EditPane, yPadding = '0px', ...props }) => {
@@ -25,14 +44,15 @@ const Layout = ({ children, navItems, secondNav, title, theme, EditPane, yPaddin
 	// ------- Get Options from Context and Defaults
 	// ------------------------------------------------------ 
 	const { theme: defaultTheme, app, type, Menu } = React.useContext(CMSContext) || {}
+	const { pathname } = useLocation();
 	theme = merge(cloneDeep(defaultTheme), cloneDeep(theme))
 	// console.log('theme navOptions', theme.navOptions)
-	const { sideNav={}, topNav={}, logo=Logos } = theme?.navOptions || {}
+	const { sideNav={ }, topNav={}, logo=Logos } = theme?.navOptions || {}
 	
 	const sideNavOptions = {
 		size: sideNav.size || 'none',
 		color: sideNav.color || 'transparent',
-		menuItems: (sideNav?.nav === 'main' ? navItems : sideNav?.nav === 'secondary' ? secondNav || [] : []).filter(page => !page.hideInNav),
+		menuItems: (sideNav?.nav === 'main' ? nav2Level(navItems, sideNav.depth, pathname, theme.layout.navTitle)  : sideNav?.nav === 'secondary' ? secondNav || [] : []).filter(page => !page.hideInNav),
 		topMenu: (
 			<div className={'flex flex-row md:flex-col'}>
 	      		{sideNav?.logo === 'top' && logo}
@@ -79,10 +99,10 @@ const Layout = ({ children, navItems, secondNav, title, theme, EditPane, yPaddin
 
 	return (
 		
-		<div className={`${theme?.layout?.wrapper}`} >
+		<div className={theme?.layout?.wrapper} >
 			
 			<div 
-				className={`flex-1 flex items-start flex-col items-stretch max-w-full`} 
+				className={theme?.layout?.wrapper2} 
 				style={{
 					minHeight: `calc(100vh - ${yPadding}`,
 				}}
@@ -103,7 +123,7 @@ const Layout = ({ children, navItems, secondNav, title, theme, EditPane, yPaddin
 						</div>
 					</>)
 				}
-				<div className={`${theme.layout.wrapper2}`}>
+				<div className={`${theme.layout.wrapper3}`}>
 					{
 						sideNavOptions.size === 'none' ? '' : (
 							<div className={`${theme?.layout?.sidenavContainer1} `}>

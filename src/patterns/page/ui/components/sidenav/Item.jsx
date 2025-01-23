@@ -22,7 +22,7 @@ function Icon ({ icon, className }) {
 const NOOP = () => { return {} }
 
 const NavItem = ({
-	i = 0,
+	depth = 0,
 	children,
 	icon,
 	to,
@@ -35,7 +35,7 @@ const NavItem = ({
 	subMenuActivate = 'onClick',
 	subMenuOpen = false
 }) => {
-	// console.log('renderMenu')
+	//console.log('renderMenu', subMenuActivate)
 	const { theme: fullTheme  } = React.useContext(CMSContext) || {}
 	const theme = (fullTheme?.[type === 'side' ? 'sidenav' : 'topnav'] || {}) //(themeOptions);
 
@@ -72,30 +72,26 @@ const NavItem = ({
 	// when subMenuActivate !== onHover, and submenu needs to flyout for non-active menuItem
 	const [hovering, setHovering] = React.useState(false);
 
-	useEffect(() => {
-	      setShowSubMenu(routeMatch);
-	}, [routeMatch,showSubMenu,to]);
+	// useEffect(() => {
 
+	//       setShowSubMenu(routeMatch);
+	// }, [showSubMenu,to]);
+	console.log('test 123', className)
 	return (
 			<div className={type === "side" ? theme?.subMenuParentWrapper : null}
 				 onMouseOutCapture={() =>
-					 (subMenuActivate === 'onHover' && setShowSubMenu(false)) ||
-					 (subMenuActivate !== 'onHover' && setHovering(false) && setShowSubMenu(false))
+					 (subMenuActivate === 'onHover' && setHovering(true) && setShowSubMenu(false)) 
+					
 				 }
 				 onMouseMove={() =>
-					 (subMenuActivate === 'onHover' && setShowSubMenu(true)) ||
-					 (subMenuActivate !== 'onHover' && setHovering(true) && setShowSubMenu(true))
+					 (subMenuActivate === 'onHover' && setHovering(true) && setShowSubMenu(true))
 				 }
 			>
 				
 				<div
 					className={`${className ? className : navClass}`}
 					
-					onClick={(e) => {
-						e.stopPropagation();
-						if (onClick) return onClick(To[0]);
-						if (To[0]) navigate(To[0]);
-					}}
+					
 				>
 					<div className={theme.menuItemWrapper}>
 						<div className='flex-1 flex items-center' >
@@ -104,18 +100,26 @@ const NavItem = ({
 									icon={icon}
 									className={
 										type === "side" ? 
-											(isActive ? theme?.menuIconSideActive : theme?.menuIconSide)
-											: (isActive ? theme?.menuIconTopActive : theme?.menuIconTop)
+											(isActive ? theme?.menuIconSideActive : theme?.menuIconSide )
+											: (isActive ? theme?.menuIconTopActive : theme?.menuIconTop )
 
 									}
 								/>
 							)}
-							<div className={theme?.navItemContent}>
+							<div className={`${theme?.navItemContent} ${className ? '' : theme?.navItemContents?.[depth]}`}
+								onClick={(e) => {
+									e.stopPropagation();
+									if (onClick) return onClick(To[0]);
+									if (To[0]) navigate(To[0]);
+								}}
+							>	
 								{children}
 							</div>
 							<div
+								className='pr-2'
 								onClick={() => {
 									if (subMenuActivate === 'onClick') {
+										//console.log('click ', to )
 										// localStorage.setItem(`${to}_toggled`, `${!showSubMenu}`);
 										setShowSubMenu(!showSubMenu);
 									}
@@ -125,16 +129,16 @@ const NavItem = ({
 									subMenus.length ?
 										<Icon
 
-											icon={showSubMenu ? theme?.indicatorIconOpen : theme?.indicatorIcon}/>
+											icon={showSubMenu ? theme?.indicatorIconOpen || 'ArrowRight' : theme?.indicatorIcon || 'ArrowDown'}/>
 										: null
 								}
 								
 							</div>
 						</div>
-						
+						<div className={theme?.subMenuOuterWrappers?.[depth]}>
 						{	subMenus.length ?
 								<SubMenu
-									i={i}
+									depth={depth}
 									showSubMenu={showSubMenu}
 									subMenuActivate={subMenuActivate}
 									active={routeMatch}
@@ -144,7 +148,8 @@ const NavItem = ({
 									themeOptions={themeOptions}
 									className={className}
 								/> : ''
-							}
+						}
+						</div>
 					</div>
 				</div>
 			</div>
@@ -152,7 +157,7 @@ const NavItem = ({
 };
 export default NavItem;
 
-const SubMenu = ({ i, showSubMenu, subMenus, type, hovering, subMenuActivate, active, themeOptions }) => {
+const SubMenu = ({ depth, showSubMenu, subMenus, type, hovering, subMenuActivate, active, themeOptions }) => {
 	const { theme: fullTheme  } = React.useContext(CMSContext)
 	const theme = (fullTheme?.[type === 'side' ? 'sidenav' : 'topnav'] || {}) //(themeOptions);
 
@@ -162,12 +167,14 @@ const SubMenu = ({ i, showSubMenu, subMenus, type, hovering, subMenuActivate, ac
 		return null;
 	}
 
+	// console.log('subMenu theme', i, type, theme?.subMenuWrappers?.[i], theme)
+
 	return (
 		<div
 			className={ type === "side" ?
-				theme?.subMenuWrapper :
-				inactiveHoveing && i === 0 ? theme?.subMenuWrapperInactiveFlyout :
-					inactiveHoveing && i > 0 ? theme?.subMenuWrapperInactiveFlyoutBelow :
+				(theme?.subMenuWrappers?.[depth] || theme?.subMenuWrapper) :
+				inactiveHoveing && depth === 0 ? theme?.subMenuWrapperInactiveFlyout :
+					inactiveHoveing && depth > 0 ? theme?.subMenuWrapperInactiveFlyoutBelow :
 					theme?.subMenuWrapperTop
 		}
 		>
@@ -181,7 +188,7 @@ const SubMenu = ({ i, showSubMenu, subMenus, type, hovering, subMenuActivate, ac
 			>
 				{subMenus.map((sm, i) => (
 					<NavItem
-						i={i+1}
+						depth={depth+1}
 						key={i}
 						to={sm.path}
 						icon={sm.icon} 
