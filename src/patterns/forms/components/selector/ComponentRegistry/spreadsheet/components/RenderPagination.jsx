@@ -1,9 +1,12 @@
-import React from "react";
+import React, {useContext} from "react";
+import {SpreadSheetContext} from "../index";
 
-export const RenderPagination = ({usePagination, loadedRows, pageSize=10, currentPage, setCurrentPage, visibleAttributes}) => {
-    if(!visibleAttributes.length) return;
+export const RenderPagination = ({currentPage, setCurrentPage}) => {
+    const {state} = useContext(SpreadSheetContext)
+    if(!state.columns.filter(column => column.show).length) return;
+
     const rangeSize = 5;
-    const totalPages=Math.ceil(loadedRows / pageSize);
+    const totalPages=Math.ceil(state.display.totalLength / state.display.pageSize);
     const halfRange = Math.floor(rangeSize / 2);
 
     // Determine the start and end of the range
@@ -25,7 +28,7 @@ export const RenderPagination = ({usePagination, loadedRows, pageSize=10, curren
     return (
         <div className={'float-right flex flex-col items-end p-1 text-xs text-gray-500'}>
             {
-                usePagination ? (
+                state.display.usePagination ? (
                     <div className={'flex flex-row gap-1 items-center'}>
                         <div className={'cursor-pointer text-gray-500 hover:text-gray-800'}
                              onClick={() => setCurrentPage(currentPage > 0 ? currentPage - 1 : currentPage)}>{`<< prev`}</div>
@@ -44,7 +47,7 @@ export const RenderPagination = ({usePagination, loadedRows, pageSize=10, curren
                     </div>
                 ) : (
                     <div className={'text-xs italic'}>
-                        showing {Math.min(loadedRows, totalPages)} of {isNaN(totalPages) ? 0 : parseInt(totalPages).toLocaleString()} rows
+                        showing {Math.min(state.display.totalLength, totalPages)} of {isNaN(totalPages) ? 0 : parseInt(totalPages).toLocaleString()} rows
                     </div>
                 )
             }

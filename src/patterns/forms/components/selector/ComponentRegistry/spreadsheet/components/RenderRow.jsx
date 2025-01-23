@@ -1,7 +1,8 @@
-import React, {useState} from "react";
+import React, {useContext, useMemo, useState} from "react";
 import {actionsColSize, numColSize, gutterColSize} from "../constants"
 import {RenderCell} from "./RenderCell";
-import {RenderActions} from "./RenderActions";
+import {SpreadSheetContext} from "../index";
+import {handleMouseDown, handleMouseMove, handleMouseUp} from "../utils/mouse";
 
 const getEdge = ({startI, endI, startCol, endCol}, i, attrI) => {
     const e =
@@ -25,29 +26,34 @@ const getEdge = ({startI, endI, startCol, endCol}, i, attrI) => {
 }
 
 export const RenderRow = ({
+                              frozenCols,
+
                               i, c, d,
                               allowEdit, isDragging, isSelecting, editing, setEditing, loading,
-                              striped, visibleAttributes, attributes, customColNames, frozenCols,
-                              colSizes, selection, setSelection, selectionRange, triggerSelectionDelete,
-                              isEdit, groupBy, filters, actions, linkCols, openOutCols,
-                              colJustify, formatFn, fontSize,
+                              selection, setSelection, selectionRange, triggerSelectionDelete,
                               handleMouseDown, handleMouseMove, handleMouseUp,
                               setIsDragging, startCellCol, startCellRow,
-                              updateItem, removeItem,
+                              updateItem, removeItem
                           }) => {
+    const {state: {columns, display}, setState} = useContext(SpreadSheetContext);
     const [showOpenOut, setShowOpenOut] = useState(false);
-    const visibleAttrsWithoutOpenOut = visibleAttributes.filter(va => !openOutCols.includes(va));
+
+    const visibleAttributes = useMemo(() => columns.filter(({show}) => show), [columns]);
+    const visibleAttrsWithoutOpenOut = visibleAttributes.filter(({openOut, actionType}) => !openOut || actionType);
     const visibleAttrsWithoutOpenOutsLen = visibleAttrsWithoutOpenOut.length;
-    const openOutAttributes = visibleAttributes.filter(attribute => attributes.find(attr => attr.name === attribute) && openOutCols.includes(attribute))
+    const openOutAttributes = visibleAttributes.filter(({openOut}) => openOut);
+
+    const gridClass = `grid ${c[visibleAttrsWithoutOpenOut.length + 2]}`;
+    const gridTemplateColumns = `${numColSize}px ${visibleAttrsWithoutOpenOut.map(v => `${v.size}px` || 'auto').join(' ')} ${gutterColSize}px`;
+
     return (
         <>
             <div key={`data-${i}`}
-                 className={`${d.totalRow ? `sticky bottom-0 z-[1]` : ``} 
-                            grid ${allowEdit ? c[visibleAttrsWithoutOpenOutsLen + 3] : c[visibleAttrsWithoutOpenOutsLen + 2]} 
+                 className={`${d.totalRow ? `sticky bottom-0 z-[1]` : ``} ${gridClass}
                             divide-x divide-y ${isDragging ? `select-none` : ``} 
-                            ${striped ? `odd:bg-gray-50` : ``} ${d.totalRow ? `bg-gray-100` : ``}`
+                            ${display.striped ? `odd:bg-gray-50` : ``} ${d.totalRow ? `bg-gray-100` : ``}`
                             }
-                 style={{gridTemplateColumns: `${numColSize}px ${visibleAttrsWithoutOpenOut.map(v => `${colSizes[v]}px` || 'auto').join(' ')} ${allowEdit ? `${actionsColSize}px` : ``} ${gutterColSize}px`}}
+                 style={{gridTemplateColumns}}
             >
                 <div key={'#'}
                      className={`p-1 flex text-xs items-center justify-center border cursor-pointer sticky left-0 z-[1]
@@ -84,8 +90,7 @@ export const RenderRow = ({
                 >
                     {d.totalRow ? 'T' : i + 1}
                 </div>
-                {visibleAttributes
-                    .filter(attribute => attributes.find(attr => attr.name === attribute) && !openOutCols.includes(attribute))
+                {visibleAttrsWithoutOpenOut
                     .map((attribute, attrI) =>
                         <RenderCell
                             showOpenOutCaret={openOutAttributes.length && attrI === 0}
@@ -99,12 +104,8 @@ export const RenderRow = ({
                             editing={editing.index === i && editing.attrI === attrI}
                             triggerDelete={triggerSelectionDelete}
                             key={`cell-${i}-${attrI}`}
-                            width={colSizes[attributes.find(attr => attr.name === attribute).name]}
-                            attribute={attributes.find(attr => attr.name === attribute)}
-                            justify={colJustify[attribute]}
-                            linkCol={linkCols[attribute]}
-                            formatFn={formatFn[attribute]}
-                            fontSize={fontSize[attribute]}
+
+                            attribute={attribute}
                             loading={loading}
                             updateItem={updateItem}
                             removeItem={removeItem}
@@ -135,15 +136,14 @@ export const RenderRow = ({
                                 setSelection([{index: i, attrI}]);
                                 setEditing({index: i, attrI});
                             }}
-                            onDoubleClick={() => {
-                            }}
+                            onDoubleClick={() => {}}
                             allowEdit={allowEdit}
-                            striped={striped}
+                            // striped={striped}
                         />)}
 
-                <RenderActions allowEdit={allowEdit} isEdit={isEdit} isLastCell={true} newItem={d}
-                               groupBy={groupBy} filters={filters}
-                               removeItem={removeItem} actions={actions}/>
+                {/*<RenderActions allowEdit={allowEdit} isEdit={isEdit} isLastCell={true} newItem={d}*/}
+                {/*               groupBy={groupBy} filters={filters}*/}
+                {/*               removeItem={removeItem} actions={actions}/>*/}
 
                 <div className={'flex items-center border'}>
                     <div key={'##'}
@@ -161,13 +161,10 @@ export const RenderRow = ({
                     const attrI = visibleAttrsWithoutOpenOutsLen + 1 + openOutAttrI;
                     return (
                         <div key={`data-open-out-${i}`}
-                             className={openOutAttributes?.length ? `${d.totalRow ? `sticky bottom-0 z-[1]` : ``} 
-                            grid ${c[visibleAttrsWithoutOpenOutsLen]}
-                            divide-x divide-y
-                            ${isDragging ? `select-none` : ``} 
-                            ${striped ? `odd:bg-gray-50` : ``} 
+                             className={openOutAttributes?.length ? `${d.totalRow ? `sticky bottom-0 z-[1]` : ``} ${gridClass}
+                            divide-x divide-y ${isDragging ? `select-none` : ``} ${display.striped ? `odd:bg-gray-50` : ``} 
                             ${d.totalRow ? `bg-gray-100` : ``}` : 'hidden'}
-                             style={{gridTemplateColumns: `${numColSize}px ${visibleAttrsWithoutOpenOut.map(v => `${colSizes[v]}px` || 'auto').join(' ')} ${allowEdit ? `${actionsColSize}px` : ``} ${gutterColSize}px`}}
+                             style={{gridTemplateColumns}}
                         >
                             <div key={'#'}
                                  className={`p-1 flex text-xs items-center justify-center border cursor-pointer sticky left-0 z-[1]
@@ -215,15 +212,10 @@ export const RenderRow = ({
                                 editing={editing.index === i && editing.attrI === attrI}
                                 triggerDelete={triggerSelectionDelete}
                                 key={`cell-${i}-${attrI}`}
-                                width={colSizes[attributes.find(attr => attr.name === attribute).name]}
-                                attribute={attributes.find(attr => attr.name === attribute)}
-                                justify={colJustify[attribute]}
-                                linkCol={linkCols[attribute]}
-                                formatFn={formatFn[attribute]}
-                                fontSize={fontSize[attribute]}
+
+                                attribute={attribute}
                                 openOut={true}
                                 colSpan={visibleAttrsWithoutOpenOutsLen}
-                                customColName={customColNames[attribute.name]}
                                 loading={loading}
                                 updateItem={updateItem}
                                 removeItem={removeItem}
@@ -254,10 +246,9 @@ export const RenderRow = ({
                                     setSelection([{index: i, attrI}]);
                                     setEditing({index: i, attrI});
                                 }}
-                                onDoubleClick={() => {
-                                }}
+                                onDoubleClick={() => {}}
                                 allowEdit={allowEdit}
-                                striped={striped}
+                                // striped={striped}
                             />
 
                             <div className={'flex items-center border'}>

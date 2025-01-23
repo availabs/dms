@@ -1,8 +1,8 @@
 
-import {formatFunctions, init} from "./spreadsheet/utils/utils";
-import SpreadSheet from "./spreadsheet";
+import {formatFunctions, getData} from "./spreadsheet/utils/utils";
+import SpreadSheet, {SpreadSheetContext} from "./spreadsheet";
 import RenderInHeaderColumnControls from "./spreadsheet/components/RenderInHeaderColumnControls";
-import React, {useMemo} from "react";
+import React, {useContext, useMemo} from "react";
 import {Link} from "react-router-dom";
 
 const justifyClass = {
@@ -43,71 +43,51 @@ const colSpanClass = {
     10: 'col-span-10',
     11: 'col-span-11',
 }
-export const Card = ({
-    data, visibleAttributes, attributes, customColNames,
-    // in header control props
-     isEdit,
-     colJustify, setColJustify,
-     formatFn, setFormatFn,
-     fontSize, setFontSize,
-     linkCols, setLinkCols,
-     hideHeader, setHideHeader,
-     cardSpan, setCardSpan
-}) => {
-    const defaultColJustify = useMemo(() => visibleAttributes.reduce((acc, curr) => ({...acc, [curr]: colJustify[curr] || 'center'}), {}), [visibleAttributes, colJustify]);
-    const cardsWithoutSpanLength = visibleAttributes.filter(v => !cardSpan[v]).length;
+export const Card = ({isEdit}) => {
+    const {state:{columns, data}, setState} = useContext(SpreadSheetContext);
+    const visibleColumns = useMemo(() => columns.filter(({show}) => show), [columns]);
+    const cardsWithoutSpanLength = useMemo(() => columns.filter(({show, cardSpan}) => show && !cardSpan).length, [columns]);
+
     return (
         <>
             {
                 isEdit ? <div className={'flex gap-1'}>
-                    {visibleAttributes
-                        .map(va => attributes.find(attr => attr?.name === va))
-                        .filter(a => a)
+                    {visibleColumns
                         .map((attribute, i) =>
                             <div key={`controls-${i}`}
                                  className={`w-full font-semibold border bg-gray-50 text-gray-500`}>
                                 <RenderInHeaderColumnControls
                                     isEdit={isEdit}
                                     attribute={attribute}
-                                    // filters={filters} setFilters={setFilters}
-                                    colJustify={defaultColJustify} setColJustify={setColJustify}
-                                    formatFn={formatFn} setFormatFn={setFormatFn}
-                                    fontSize={fontSize} setFontSize={setFontSize}
-                                    linkCols={linkCols} setLinkCols={setLinkCols}
-                                    hideHeader={hideHeader} setHideHeader={setHideHeader}
-                                    cardSpan={cardSpan} setCardSpan={setCardSpan} maxCardSpan={cardsWithoutSpanLength}
-                                    customColName={customColNames[attribute.name]}
                                 />
                             </div>)}
                 </div> : null
             }
             <div className={`w-full ${gridColsClass[cardsWithoutSpanLength]} gap-2`}>
                 {
-                    visibleAttributes
-                        .map(attr => attributes.find(a => a.name === attr) || {name: attr})
+                    visibleColumns
                         .map(attr => {
-                            const value = formatFn[attr.name] ?
-                                formatFunctions[formatFn[attr.name]](data?.[0]?.[attr.name], attr.isDollar) :
+                            const value = attr.formatFn ?
+                                formatFunctions[attr.formatFn](data?.[0]?.[attr.name], attr.isDollar) :
                                 data?.[0]?.[attr.name]
-                            const {isLink, location, linkText} = linkCols[attr.name] || {};
+                            const {isLink, location, linkText} = attr || {};
                             return (
                                 <div key={attr.name}
-                                     className={`flex flex-col justify-center ${colSpanClass[Math.min(cardSpan[attr.name] || 1, cardsWithoutSpanLength)]} w-full p-2 rounded-md border shadow items-center`}>
+                                     className={`flex flex-col justify-center ${colSpanClass[Math.min(attr.cardSpan || 1, cardsWithoutSpanLength)]} w-full p-2 rounded-md border shadow items-center`}>
                                     {
-                                        hideHeader.includes(attr.name) ? null : (
+                                        attr.hideHeader ? null : (
                                             <div className={
                                                 `w-full text-gray-500 capitalize 
-                                             ${justifyClass[colJustify[attr.name] || 'center']}
-                                             ${fontSizeClass[fontSize[attr.name]]?.header}`
+                                             ${justifyClass[attr.justify || 'center']}
+                                             ${fontSizeClass[attr.fontSize]?.header}`
                                             }>
-                                                {customColNames[attr.name] || attr.display_name || attr.name}
+                                                {attr.customName || attr.display_name || attr.name}
                                             </div>
                                         )
                                     }
                                     <div className={
                                         `w-full text-gray-900 font-semibold 
-                                    ${justifyClass[colJustify[attr.name] || 'center']}
-                                    ${fontSizeClass[fontSize[attr.name]]?.value}`
+                                    ${justifyClass[attr.justify || 'center']} ${fontSizeClass[attr.fontSize]?.value}`
                                     }>
                                         {
                                             isLink ? <Link to={`${location}${encodeURIComponent(value)}`}>{linkText || value}</Link> :
@@ -136,7 +116,7 @@ export default {
         {name: 'actions', hidden: true}, {name: 'allowSearchParams', hidden: true},
         {name: 'loadMoreId', hidden: true}, {name: 'attributionData', hidden: true}
     ],
-    getData: init,
+    getData,
     "EditComp": props => <SpreadSheet.EditComp {...props} renderCard={true}/>,
     "ViewComp": props => <SpreadSheet.ViewComp {...props} renderCard={true}/>,
 }

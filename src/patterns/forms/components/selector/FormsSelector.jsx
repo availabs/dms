@@ -22,8 +22,19 @@ const getSources = async ({envs, falcor, apiLoad}) => {
                 const app = valueGetter(i, 'app');
                 const env = doc_type ? `${app}+${doc_type}` : e;
                 return {
-                    ...envs[e].srcAttributes.reduce((acc, attr) => ({...acc, [attr]: valueGetter(i, attr)}), {}),
-                    id: get(r, ['json', 'uda', e, 'sources', 'byIndex', i, '$__path', 4]),
+                    ...envs[e].srcAttributes.reduce((acc, attr) => {
+                        let value = valueGetter(i, attr);
+                        if(['metadata'].includes(attr)) {
+                            value = value?.columns || [];
+                            return ({...acc, ['columns']: value})
+                        }
+                        if(['config'].includes(attr)) {
+                            value =  JSON.parse(value || '{}')?.attributes || [];
+                            return ({...acc, ['columns']: value})
+                        }
+                        return ({...acc, [attr]: value})
+                    }, {}),
+                    source_id: get(r, ['json', 'uda', e, 'sources', 'byIndex', i, '$__path', 4]),
                     env, // to fetch data
                     srcEnv: e, // to refer back
                     isDms: envs[e].isDms // mostly to apply data->>
@@ -34,34 +45,31 @@ const getSources = async ({envs, falcor, apiLoad}) => {
 }
 
 const getViews = async ({envs, source, falcor, apiLoad}) => {
-    if(!source || !source.srcEnv || !source.id) return [];
-    const {srcEnv, id} = source;
+    if(!source || !source.srcEnv || !source.source_id) return [];
+    const {srcEnv, source_id} = source;
 
-    const lenRes = await falcor.get(['uda', srcEnv, 'sources', 'byId', id, 'views', 'length']);
-    const len = get(lenRes, ['json', 'uda', srcEnv, 'sources', 'byId', id, 'views', 'length']);
+    const lenRes = await falcor.get(['uda', srcEnv, 'sources', 'byId', source_id, 'views', 'length']);
+    const len = get(lenRes, ['json', 'uda', srcEnv, 'sources', 'byId', source_id, 'views', 'length']);
     if(!len) return [];
 
-    const byIndexRes = await falcor.get(['uda', srcEnv, 'sources', 'byId', id, 'views', 'byIndex', {from:0, to: len - 1}, envs[srcEnv].viewAttributes]);
+    const byIndexRes = await falcor.get(['uda', srcEnv, 'sources', 'byId', source_id, 'views', 'byIndex', {from:0, to: len - 1}, envs[srcEnv].viewAttributes]);
 
     return range(0, len - 1).map(i => ({
-        id: get(byIndexRes, ['json', 'uda', srcEnv, 'sources', 'byId', id, 'views', 'byIndex', i, '$__path', 4]),
-        ...envs[srcEnv].viewAttributes.reduce((acc, attr) => ({...acc, [attr]: get(byIndexRes, ['json', 'uda', srcEnv, 'sources', 'byId', id, 'views', 'byIndex', i, attr])}), {})
+        view_id: get(byIndexRes, ['json', 'uda', srcEnv, 'sources', 'byId', source_id, 'views', 'byIndex', i, '$__path', 4]),
+        ...envs[srcEnv].viewAttributes.reduce((acc, attr) => ({...acc, [attr]: get(byIndexRes, ['json', 'uda', srcEnv, 'sources', 'byId', source_id, 'views', 'byIndex', i, attr])}), {})
     }));
 }
 
 
 export const FormsSelector = ({
+    // this comp isn't using context as it's intended to be reused by multiple components with their own states.
+  state, setState,
   formatFromProps,
-  format, setFormat,
-  view, setView,
   apiLoad,
-  setVisibleAttributes // to reset visible attributes reliably. remember: source can change even if its meta changes. that can't be used to detect change in source.
 }) => {
+    const {app, siteType, falcor, pgEnv} = useContext(CMSContext);
     const [sources, setSources] = useState([]);
-    const [existingSource, setExistingSource] = useState(format || {});
     const [views, setViews] = useState([]);
-    const [currentView, setCurrentView] = useState(view);
-    const {app, siteType, falcor, falcorCache, pgEnv} = useContext(CMSContext);
 
     if(formatFromProps?.config) return null;
 
@@ -74,67 +82,58 @@ export const FormsSelector = ({
         [`${app}+${siteType}`]: {
             label: 'managed',
             isDms: true,
+            // {doc_type}-{view_id} is used as type to fetch data items for dms views.
+            // for invalid entries, it should be {doc_type}-{view_id}-invalid-entry.
             srcAttributes: ['app', 'name', 'doc_type', 'config'],
             viewAttributes: ['name', 'updated_at']
         }
     };
 
-    // ===================================== handle post init prop changes begin =======================================
     useEffect(() => {
-        if(isEqual(format, existingSource)) return;
-        setExistingSource(format)
-    }, [format]);
-
-    useEffect(() => {
-        if(isEqual(view, currentView)) return;
-        setCurrentView(view)
-    }, [view]);
-    // ===================================== handle post init prop changes end =========================================
-
-    useEffect(() => {
+        let isStale = false;
         getSources({envs, falcor, apiLoad}).then(data => {
-            setSources((data || []))
-            const existingMatch = data.find(form => +form.id === +format.id);
-            setExistingSource(existingMatch)
+            if(isStale) return;
+            setSources((data || []));
 
-            // if the format updated (mostly meta) then keep doc_type and originalDocType.
-            if(existingMatch && !isEqual(existingMatch, format)) {
-                setFormat({
-                    ...existingMatch,
-                    view_id: existingSource.view_id,
-                    doc_type: existingSource.doc_type || existingMatch.doc_type,
-                    originalDocType: existingSource.originalDocType
+            const existingSource = data.find(d => d.source_id === state.sourceInfo?.source_id);
+            // meta or config
+            if(existingSource && (
+                !isEqual(existingSource.metadata, state.sourceInfo.metadata) ||
+                !isEqual(existingSource.config, state.sourceInfo.config)
+            )) {
+                // meta update
+                setState(draft => {
+                    draft.sourceInfo = {...draft.sourceInfo, ...existingSource};
                 })
-            };
+            }
         });
+
+        return () => {
+            isStale = true;
+        }
     }, [app, siteType]);
 
     useEffect(() => {
         // if source changes, get views
-        getViews({envs, source: existingSource, falcor, apiLoad}).then(v => {
-            setViews(v)
-            if(v?.length === 1) setCurrentView(v?.[0]?.id)
-            // transitioning from int to obj version
-            if(typeof view !== 'object' && v.find(v1 => v1.id === view)) setView(v.find(v1 => v1.id === view))
+        let isStale = false;
+        getViews({envs, source: state.sourceInfo, falcor, apiLoad}).then(views => {
+            if(isStale) return;
+            setViews(views)
+
+            const existingView = views.find(view => view.view_id === state.sourceInfo?.view_id);
+            if(existingView && (existingView.view_id !== state.sourceInfo.view_id)) {
+                const {view_id, name, version, updated_at, _modified_timestamp} = existingView;
+                // meta update
+                setState(draft => {
+                    draft.sourceInfo = {...draft.sourceInfo, view_id, view_name: version || name, updated_at: _modified_timestamp || updated_at};
+                })
+            }
         })
-    }, [existingSource])
 
-    useEffect(() => {
-        // if view changes, update type and set format
-        if(!currentView || !views?.length) return;
-        setView(currentView)
-
-        // transitioning from int view to obj view
-        const tmpViewId = typeof currentView === 'object' ? currentView.id : currentView;
-        if(!format || !currentView || format.view_id === tmpViewId) return;
-        const originalDocType = format.originalDocType || format.doc_type;
-        const doc_type = originalDocType?.includes('-invalid-entry') ?
-            originalDocType.replace('-invalid-entry', `${tmpViewId}-invalid-entry`) :
-            `${originalDocType}-${tmpViewId}`;
-        const view_id = tmpViewId; // this has to be the id. API uses this for UDA call.
-
-        setFormat(format.doc_type ? {...format, doc_type, type: doc_type, originalDocType, view_id} : {...format, view_id})
-    }, [currentView])
+        return () => {
+            isStale = true;
+        }
+    }, [state.sourceInfo.source_id])
 
     return (
         <div className={'flex w-full bg-white items-center'}>
@@ -143,14 +142,17 @@ export const FormsSelector = ({
                 <FilterableSearch
                     className={'flex-row-reverse'}
                     placeholder={'Search...'}
-                    options={sources.map(({id, name, srcEnv}) => ({key: id, label: `${name} (${envs[srcEnv].label})`}))}
-                    value={existingSource?.id}
+                    options={sources.map(({source_id, name, srcEnv}) => ({key: source_id, label: `${name} (${envs[srcEnv].label})`}))}
+                    value={state.sourceInfo?.source_id}
                     onChange={e => {
-                        const tmpFormat = sources.find(f => +f.id === +e) || {};
-                        // add type, as we only get doc_type here.
-                        setExistingSource({...tmpFormat, type: tmpFormat.type || tmpFormat.doc_type})
-                        setFormat({...tmpFormat, type: tmpFormat.type || tmpFormat.doc_type})
-                        setVisibleAttributes && setVisibleAttributes([]);
+                        const {doc_type, ...source} = sources.find(f => +f.source_id === +e) || {};
+                        setState(draft => {
+                            // reset values, set source
+                            draft.columns = []; // clears our visible columns, and all of their settings (group, filter, etc).
+                            draft.sourceInfo = source;
+                            // for internally sourced data-sources, doc_type becomes type when we fetch their data items.
+                            draft.sourceInfo.type = doc_type;
+                        })
                     }}
                 />
             </div>
@@ -159,9 +161,17 @@ export const FormsSelector = ({
                 <FilterableSearch
                     className={'flex-row-reverse'}
                     placeholder={'Search...'}
-                    options={views.map(({id, name, version}) => ({key: id, label: name || version}))}
-                    value={typeof currentView === 'object' ? +currentView?.id : currentView}
-                    onChange={e => setCurrentView(views.find(v => +v.id === +e))}
+                    options={views.map(({view_id, name, version}) => ({key: view_id, label: name || version}))}
+                    value={state.sourceInfo?.view_id}
+                    onChange={e => {
+                        const currView = views.find(v => +v.view_id === +e);
+                        if(currView) {
+                            const {view_id, name, version, updated_at, _modified_timestamp} = currView;
+                            setState(draft => {
+                                draft.sourceInfo = {...draft.sourceInfo, view_id, view_name: version || name, updated_at: _modified_timestamp || updated_at};
+                            })
+                        }
+                    }}
                 />
             </div>
         </div>

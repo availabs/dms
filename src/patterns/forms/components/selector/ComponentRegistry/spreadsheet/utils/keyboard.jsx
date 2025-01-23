@@ -8,7 +8,7 @@ export const handleKeyDown = ({
         let lastSelected = selection[selection.length - 1]; // [int or {index, attrI}]
         let attrIRange = selection.map(s => s.attrI).filter(s => s !== undefined).sort((a,b) => a-b);
         if(!attrIRange?.length){
-            attrIRange = visibleAttributes.map((va, i) => i);
+            attrIRange = visibleAttributes.map((_, i) => i);
         }
         attrIRange = [...new Set(attrIRange)].sort((a,b) => a-b);
         let indexRange = [...new Set(selection.map(s => s.index !== undefined ? s.index : s))].sort((a,b) => a-b);

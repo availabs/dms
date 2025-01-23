@@ -1,14 +1,29 @@
-import React, {useEffect, useState} from "react";
+import React, {useContext, useEffect, useState} from "react";
 import {Link} from "react-router-dom";
 import DataTypes from "../../../../../../../data-types";
 import {formatFunctions} from "../utils/utils";
 import {ArrowDown, ArrowRight} from "../../../../../ui/icons";
+import {SpreadSheetContext} from "../index";
+import {isEqual} from "lodash-es";
+import {RenderAction} from "./RenderActions";
 
 const DisplayCalculatedCell = ({value, className}) => <div className={className}>{value}</div>
 const stringifyIfObj = obj => typeof obj === "object" ? JSON.stringify(obj) : obj;
 const LoadingComp = ({className}) => <div className={className}>loading...</div>
-const LinkComp = ({linkCol, value, Comp}) => linkCol?.isLink ?
-    (props) => <Link {...props} to={`${linkCol.location}${encodeURIComponent(value)}`} >{linkCol.linkText || value}</Link> : Comp;
+
+const LinkComp = ({attribute, columns, newItem, removeItem, value, Comp}) => {
+    const {actionType, location, linkText, isLink} = attribute;
+
+    if(isLink){
+        return (props) => <Link {...props} to={`${location}${encodeURIComponent(value)}`} >{linkText || value}</Link>
+    }
+
+    if(actionType){
+        return (props) => <RenderAction {...props} action={attribute} newItem={newItem} removeItem={removeItem} columns={columns} />
+    }
+
+    return Comp;
+}
 
 const validate = ({value, required, options, name}) => {
     const requiredValidation = !required || (required && value && value !== '')
@@ -40,15 +55,15 @@ const colSpanClass = {
 
 export const RenderCell = ({
                                showOpenOutCaret, showOpenOut, setShowOpenOut,
-                               attribute, justify, formatFn, fontSize, linkCol, openOut, colSpan, customColName,
-                               i, item, updateItem, width, onPaste,
-                               isFrozen, isSelected, isSelecting, editing, edge, loading, allowEdit, striped,
+                               attribute, colSpan,
+                               i, item, updateItem, removeItem, onPaste,
+                               isFrozen, isSelected, isSelecting, editing, edge, loading, allowEdit,
                                onClick, onDoubleClick, onMouseDown, onMouseMove, onMouseUp}) => {
-    // const [editing, setEditing] = useState(false);
+    const {state: {columns, display}, setState} = useContext(SpreadSheetContext);
     const [newItem, setNewItem] = useState(item);
     // const Comp = DataTypes[attribute.type]?.[isSelecting ? 'ViewComp' : 'EditComp'];
     const Comp = loading ? LoadingComp : (DataTypes[attribute.type]?.[editing && allowEdit ? 'EditComp' : 'ViewComp'] || DisplayCalculatedCell);
-    const CompWithLink = LinkComp({linkCol, value: newItem[attribute.name], Comp});
+    const CompWithLink = LinkComp({attribute, columns, newItem, removeItem, value: newItem[attribute.name], Comp});
     const justifyClass = {
         left: 'justify-start',
         right: 'justify-end',
@@ -77,11 +92,11 @@ export const RenderCell = ({
 
     useEffect(() => {
         // send update to api
-        if (stringifyIfObj(newItem[attribute.name]) !== stringifyIfObj(item[attribute.name])){
+        if (!isEqual(newItem[attribute.name], item[attribute.name])){
             updateItem(undefined, undefined, newItem)
         }
 
-    }, [newItem]);
+    }, [newItem[attribute.name]]);
     const isValid = validate({
         value: newItem[attribute.name],
         options: attribute.options,
@@ -94,10 +109,10 @@ export const RenderCell = ({
             className={`relative flex items-center min-h-[35px] 
             ${isFrozen ? frozenColClass : ''} ${isSelecting ? 'select-none' : ``}
             ${isSelected ? 'bg-blue-50' : 'bg-white'}
-            ${openOut ? colSpanClass[colSpan] : ``}
+            ${attribute.openOut ? colSpanClass[colSpan] : ``}
             `}
             style={{
-                ...!openOut && width,
+                ...!attribute.openOut && {width: attribute.size},
                 ...isSelected && {borderWidth: '1px', ...selectionEdgeClassNames[edge]}
             }}
             onClick={onClick}
@@ -114,31 +129,30 @@ export const RenderCell = ({
                 <div className={'cursor-pointer'}>
                     {
                         showOpenOut ?
-                            <ArrowDown className={'text-gray-500 group-hover:text-gray-600'}
+                            <ArrowDown className={'bg-transparent text-gray-500 group-hover:text-gray-600'}
                                        title={'Hide Open Out'}
                                        width={18} height={18}
                                        onClick={() => setShowOpenOut(false)}/> :
-                            <ArrowRight className={'text-gray-500 group-hover:text-gray-600'}
+                            <ArrowRight className={'bg-transparent group-hover:text-gray-600'}
                                         title={'Show Open Out'}
                                         width={18} height={18}
                                         onClick={() => setShowOpenOut(true)}/>
                     }
                 </div> : null}
-            {openOut ? <span className={'font-semibold text-gray-600 px-2'}>{customColName || attribute.display_name || attribute.name}</span> : null}
+            {attribute.openOut ? <span className={'font-semibold text-gray-600 px-2'}>{attribute.customName || attribute.display_name || attribute.name}</span> : null}
             <CompWithLink key={`${attribute.name}-${i}`}
                   onClick={onClick}
                   autoFocus={editing}
                   className={`
-                  min-w-full min-h-full flex flex-wrap ${justifyClass[justify]} items-center truncate
-                  ${isTotalRow ? `bg-gray-100` : striped && i % 2 !== 0 ? 'bg-gray-50' : isSelected ? 'bg-blue-50' : 'bg-white'} hover:bg-blue-50 
+                  w-full min-h-full flex flex-wrap ${justifyClass[attribute.justify]} items-center truncate
+                  ${isTotalRow ? `bg-gray-100` : display.striped && i % 2 !== 0 ? 'bg-gray-50' : isSelected ? 'bg-blue-50' : 'bg-white'} hover:bg-blue-50 
                   ${attribute.type === 'multiselect' && newItem[attribute.name]?.length ? 'p-0.5' :
                       attribute.type === 'multiselect' && !newItem[attribute.name]?.length ? 'p-0.5' : 'p-0.5'
                   } 
-                
                   `}
                 // displayInvalidMsg={false}
                   {...attribute}
-                  value={formatFn ? formatFunctions[formatFn](newItem[attribute.name], attribute.isDollar) : newItem[attribute.name]}
+                  value={attribute.formatFn ? formatFunctions[attribute.formatFn](newItem[attribute.name], attribute.isDollar) : newItem[attribute.name]}
                   onChange={e => isTotalRow ? null : setNewItem({...newItem, [attribute.name]: e})}
                 // onPaste={onPaste}
             />

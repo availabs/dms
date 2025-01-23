@@ -1,40 +1,32 @@
-import React, {useRef, useState, useEffect} from "react";
+import React, {useRef, useState, useEffect, useContext, useCallback} from "react";
 import {ArrowDown} from "../../../../ui/icons"
 import {RenderToggleControls} from "./RenderToggleControls";
 import RenderSwitch from "./Switch";
 import {RenderInputControls} from "./RenderInputControls";
+import {SpreadSheetContext} from "../spreadsheet";
+import {useHandleClickOutside} from "./utils";
 
 export default function RenderMoreControls({
-   showTotal, setShowTotal,
-   striped, setStriped,
-   allowDownload, setAllowDownload,
-   allowEditInView, setAllowEditInView,
-   allowSearchParams, setAllowSearchParams,
-   usePagination, setUsePagination,
-   pageSize, setPageSize,
-   dataSize, setDataSize,
-}) {
-    if (!setShowTotal && !setStriped && !setAllowDownload && !setAllowEditInView &&
-        !setAllowSearchParams && !setUsePagination && !setPageSize && !setDataSize) return;
-
+                                               allowShowTotalToggle=true,
+                                               allowStripedToggle=true,
+                                               allowDownloadToggle=true,
+                                               allowEditInViewToggle=true,
+                                               allowSearchParamsToggle=true,
+                                               allowUsePaginationToggle=true,
+                                               allowPageSizeInput=true,
+                                               allowDataSizeInput=false,
+                                           }) {
+    const {state: {display}, setState} = useContext(SpreadSheetContext);
     const menuRef = useRef(null);
     const [isOpen, setIsOpen] = useState(false);
     const menuBtnId = 'menu-btn-more-controls'
+    useHandleClickOutside(menuRef, menuBtnId, () => setIsOpen(false));
 
-    // ================================================== close on outside click start =================================
-    const handleClickOutside = (e) => {
-        if (menuRef.current && !menuRef.current.contains(e.target) && e.target.id !== menuBtnId) {
-            setIsOpen(false);
-        }
-    };
-
-    useEffect(() => {
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
+    const updateDisplayValue = useCallback((key, value) => {
+        setState(draft => {
+            draft.display[key] = value;
+        })
     }, []);
-    // ================================================== close on outside click end ===================================
 
     return (
         <div className="relative inline-block text-left">
@@ -42,7 +34,7 @@ export default function RenderMoreControls({
                 <div id={menuBtnId}
                      className={`inline-flex w-full justify-center items-center rounded-md px-1.5 py-1 text-sm font-regular text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 ${isOpen ? `bg-gray-50` : `bg-white hover:bg-gray-50`} cursor-pointer`}
                      onClick={e => setIsOpen(!isOpen)}>
-                    More <ArrowDown height={18} width={18} className={'mt-1'}/>
+                    More <ArrowDown id={menuBtnId} height={18} width={18} className={'mt-1'}/>
                 </div>
             </div>
 
@@ -51,15 +43,31 @@ export default function RenderMoreControls({
             >
 
                 <div key={'more'} className="py-1 max-h-[500px] overflow-auto scrollbar-sm">
-                    <RenderToggleControls title={'Allow Edit'} value={allowEditInView} setValue={setAllowEditInView}/>
-                    <RenderToggleControls title={'Use Search Params'} value={allowSearchParams}
-                                          setValue={setAllowSearchParams}/>
-                    <RenderToggleControls title={'Show Total'} value={showTotal} setValue={setShowTotal}/>
-                    <RenderToggleControls title={'Striped'} value={striped} setValue={setStriped}/>
-                    <RenderToggleControls title={'Allow Download'} value={allowDownload} setValue={setAllowDownload}/>
-                    <RenderToggleControls title={'Use Pagination'} value={usePagination} setValue={setUsePagination}/>
-                    <RenderInputControls title={'Page Size'} type={'number'} value={pageSize} setValue={setPageSize ? v => setPageSize(+v) : null} displayCdn={usePagination===true}/>
-                    <RenderInputControls title={'Data Size'} type={'number'} value={dataSize} setValue={setDataSize ? v => setDataSize(+v) : null}/>
+                    {allowEditInViewToggle ?
+                            <RenderToggleControls title={'Allow Edit'} value={display.allowEditInView}
+                                                  setValue={value => updateDisplayValue('allowEditInView', value)}/> : null}
+                    {allowSearchParamsToggle ?
+                        <RenderToggleControls title={'Use Search Params'} value={display.allowSearchParams}
+                                              setValue={value => updateDisplayValue('allowSearchParams', value)}/> : null}
+                    {allowShowTotalToggle ?
+                        <RenderToggleControls title={'Show Total'} value={display.showTotal}
+                                              setValue={value => updateDisplayValue('showTotal', value)}/> : null}
+                    {allowStripedToggle ?
+                        <RenderToggleControls title={'Striped'} value={display.striped}
+                                              setValue={value => updateDisplayValue('striped', value)}/> : null}
+                    {allowDownloadToggle ?
+                        <RenderToggleControls title={'Allow Download'} value={display.allowDownload}
+                                              setValue={value => updateDisplayValue('allowDownload', value)}/> : null}
+                    {allowUsePaginationToggle ?
+                        <RenderToggleControls title={'Use Pagination'} value={display.usePagination}
+                                              setValue={value => updateDisplayValue('usePagination', value)}/> : null}
+                    {allowPageSizeInput ?
+                        <RenderInputControls title={'Page Size'} type={'number'} value={display.pageSize}
+                                             setValue={value => updateDisplayValue('pageSize', +value)}
+                                             displayCdn={display.usePagination === true}/> : null}
+                    {allowDataSizeInput ?
+                        <RenderInputControls title={'Data Size'} type={'number'} value={display.dataSize}
+                                             setValue={value => updateDisplayValue('dataSize', +value)}/> : null}
                 </div>
             </div>
         </div>
