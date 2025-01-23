@@ -195,9 +195,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
         return () => {
             if (target) observer.unobserve(target);
         };
-    }, [state.display?.loadMoreId, state.display?.totalLength, state.display?.usePagination,
-        ((currentPage * state.display.pageSize + state.display.pageSize) < state.display.totalLength)
-]);
+    }, [state.display?.loadMoreId, state.display?.totalLength, state.display?.usePagination]);
     // // =========================================== get data end ========================================================
 
     // =========================================== saving settings begin ===============================================
