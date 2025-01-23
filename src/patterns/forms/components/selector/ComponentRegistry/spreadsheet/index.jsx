@@ -235,7 +235,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     // =========================================== util fns end ========================================================
     console.log('state?', state)
     return (
-        <SpreadSheetContext.Provider value={{state, setState, apiLoad}}>
+        <SpreadSheetContext.Provider value={{state, setState, apiLoad, compType: renderCard ? 'card' : 'spreadsheet'}}>
             <div className={'w-full h-full'}>
                 {
                     showChangeFormatModal ?
@@ -443,7 +443,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
     if(showChangeFormatModal || !isValidState) return <div className={'p-1 text-center'}>Form data not available.</div>;
     console.log('testing state', state.columns?.[4]?.externalFilter)
     return (
-        <SpreadSheetContext.Provider value={{state, setState, apiLoad}}>
+        <SpreadSheetContext.Provider value={{state, setState, apiLoad, compType: renderCard ? 'card' : 'spreadsheet'}}>
             <div className={'w-full h-full'}>
                 <div className={'w-full'}>
                     <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={isEdit} cachedFilters={cachedFilters} defaultOpen={true}/>

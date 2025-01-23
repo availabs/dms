@@ -1,20 +1,76 @@
 import RenderSwitch from "./Switch";
-import React, {useCallback, useContext, useEffect, useRef, useState} from "react";
+import React, {useCallback, useContext, useEffect, useMemo, useRef, useState} from "react";
 import {ArrowDown, RestoreBin} from "../../../../ui/icons";
 import {cloneDeep} from "lodash-es";
 import {SpreadSheetContext} from "../spreadsheet";
-import {useHandleClickOutside} from "./utils";
-// todo don't allow editing action columns unless they are data action columns (action that uses column data: aka linkCol)
-export default function RenderColumnControls({
-    allowCustomColNames= true,
-    allowFnSelector=true,
-    allowExcludeNASelector= true,
-    allowShowToggle=true,
-    allowFilterToggle=true,
-    allowGroupToggle=true,
-    allowOpenOutToggle=true,
-                                             }) {
-    const {state: {columns=[], sourceInfo}, setState} = useContext(SpreadSheetContext);
+import {getControlConfig, useHandleClickOutside} from "./utils";
+
+const gridClasses = {
+    2: {
+        gridClass: 'grid grid-cols-2',
+        gridTemplateColumns: '10rem 3rem',
+        width: '13rem',
+    },
+    3: {
+        gridClass: 'grid grid-cols-3',
+        gridTemplateColumns: '10rem 5rem 3rem',
+        width: '18rem',
+    },
+    4: {
+        gridClass: 'grid grid-cols-4',
+        gridTemplateColumns: '10rem 5rem 5rem 3rem',
+        width: '23rem',
+    },
+    5: {
+        gridClass: 'grid grid-cols-5',
+        gridTemplateColumns: '10rem 5rem 5rem 5rem 3rem',
+        width: '28rem',
+    },
+    6: {
+        gridClass: 'grid grid-cols-6',
+        gridTemplateColumns: '10rem 5rem 5rem 5rem 5rem 3rem',
+        width: '33rem',
+    },
+    7: {
+        gridClass: 'grid grid-cols-7',
+        gridTemplateColumns: '10rem 5rem 5rem 5rem 5rem 5rem 3rem',
+        width: '38rem',
+    },
+    8: {
+        gridClass: 'grid grid-cols-8',
+        gridTemplateColumns: '10rem 5rem 5rem 5rem 5rem 5rem 5rem 3rem',
+        width: '43rem',
+    },
+    9: {
+        gridClass: 'grid grid-cols-9',
+        gridTemplateColumns: '10rem 5rem 5rem 5rem 5rem 5rem 5rem 5rem 3rem',
+        width: '48rem',
+    },
+    10: {
+        gridClass: 'grid grid-cols-10',
+        gridTemplateColumns: '10rem 5rem 5rem 5rem 5rem 5rem 5rem 5rem 5rem 3rem',
+        width: '53rem',
+    },
+    11: {
+        gridClass: 'grid grid-cols-11',
+        gridTemplateColumns: '10rem 5rem 5rem 5rem 5rem 5rem 5rem 5rem 5rem 5rem 3rem',
+        width: '58rem',
+    },
+};
+
+
+export default function RenderColumnControls() {
+    const {state: {columns=[], sourceInfo}, setState, compType} = useContext(SpreadSheetContext);
+    const {
+        allowCustomColNames,
+        allowFnSelector,
+        allowExcludeNASelector,
+        allowShowToggle,
+        allowFilterToggle,
+        allowGroupToggle,
+        allowOpenOutToggle,
+    } = getControlConfig(compType);
+
     const dragItem = useRef();
     const dragOverItem = useRef();
     const menuRef = useRef(null);
@@ -97,8 +153,10 @@ export default function RenderColumnControls({
         }
     }), [columns]);
 
-    const gridClass = 'grid grid-cols-9'
-    const gridTemplateColumns = '10rem 5rem 5rem 5rem 5rem 5rem 5rem 5rem 3rem';
+    const totalControlColsLen = 2 + +allowCustomColNames + +allowFnSelector + +allowExcludeNASelector +
+        +allowShowToggle + +allowFilterToggle + +allowGroupToggle + +allowOpenOutToggle;
+    const {gridClass, gridTemplateColumns, width} = gridClasses[totalControlColsLen];
+
     return (
         <div className="relative inline-block text-left">
             <button id={menuBtnId}
@@ -113,7 +171,7 @@ export default function RenderColumnControls({
             </button>
             <div ref={menuRef}
                  role="menu"
-                 className={`${isOpen ? 'visible transition ease-in duration-200' : 'hidden transition ease-in duration-200'} absolute left-0 z-10 w-[53rem] origin-top-left divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 transition focus:outline-none`}
+                 className={`${isOpen ? 'visible transition ease-in duration-200' : 'hidden transition ease-in duration-200'} absolute left-0 z-10 w-[${width}] origin-top-left divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 transition focus:outline-none`}
             >
                 <input className={'px-4 py-1 w-full text-xs rounded-md'} placeholder={'search...'}
                        onChange={e => {
@@ -137,13 +195,13 @@ export default function RenderColumnControls({
                              style={{gridTemplateColumns}}
                         >
                             <div className={'place-self-stretch'}>Column</div>
-                            <div className={'px-1 w-fit rounded-md text-center'}>Fn</div>
-                            <div className={'px-1 w-fit rounded-md text-center'}>Exclude N/A</div>
-                            <div className={'justify-self-end'}>Show</div>
-                            <div className={'justify-self-end'}>Open Out</div>
-                            <div className={'justify-self-end'}>Int Filter</div>
-                            <div className={'justify-self-end'}>Ext Filter</div>
-                            <div className={'justify-self-end'}>Group</div>
+                            {allowFnSelector ? <div className={'px-1 w-fit rounded-md text-center'}>Fn</div> : null}
+                            {allowExcludeNASelector ? <div className={'px-1 w-fit rounded-md text-center'}>Exclude N/A</div> : null}
+                            {allowShowToggle ? <div className={'justify-self-end'}>Show</div> : null}
+                            {allowOpenOutToggle ? <div className={'justify-self-end'}>Open Out</div> : null}
+                            {allowFilterToggle ? <div className={'justify-self-end'}>Int Filter</div> : null}
+                            {allowFilterToggle ? <div className={'justify-self-end'}>Ext Filter</div> : null}
+                            {allowGroupToggle ? <div className={'justify-self-end'}>Group</div> : null}
                             <div className={'justify-self-end'}>Reset</div>
                         </div>
                     </div>

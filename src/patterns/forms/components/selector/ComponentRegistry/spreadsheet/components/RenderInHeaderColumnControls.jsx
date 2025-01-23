@@ -2,7 +2,7 @@ import React, {useCallback, useContext, useEffect, useRef, useState} from "react
 import {ArrowDown, SortAsc, SortDesc} from "../../../../../../admin/ui/icons";
 import {RenderToggleControls} from "../../shared/RenderToggleControls";
 import {RenderInputControls} from "../../shared/RenderInputControls";
-import {useHandleClickOutside} from "../../shared/utils";
+import {getControlConfig, useHandleClickOutside} from "../../shared/utils";
 import {SpreadSheetContext} from "../index";
 
 const RenderLinkControls = ({attribute, updateColumns}) => {
@@ -69,16 +69,16 @@ const fontSizeOptions = [
 const selectClasses = 'p-1 w-full rounded-md bg-white hover:bg-gray-100 cursor-pointer'
 
 // in header menu for each column
-export default function RenderInHeaderColumnControls({
-                                                         attribute,
-    allowSortBy=true,
-    allowJustify=true,
-    allowFormat=true,
-    allowFontSize=true,
-    allowHideHeader=true,
-    allowCardSpan=true
-}) {
-    const {state: {columns = []}, setState} = useContext(SpreadSheetContext);
+export default function RenderInHeaderColumnControls({attribute}) {
+    const {state: {columns = []}, setState, compType} = useContext(SpreadSheetContext);
+    const {
+        allowSortBy,
+        allowJustify,
+        allowFormat,
+        allowFontSize,
+        allowHideHeader,
+        allowCardSpan,
+    } = getControlConfig(compType);
     const menuRef = useRef(null);
     const [isOpen, setIsOpen] = useState(false);
     const menuBtnId = `menu-btn-${attribute.name}-in-header-column-controls`; // used to control isOpen on menu-btm click;
@@ -123,7 +123,7 @@ export default function RenderInHeaderColumnControls({
                  className={`group inline-flex items-center w-full justify-between gap-x-1.5 rounded-md px-3 py-1 text-sm font-semibold text-gray-600 cursor-pointer`}
                  onClick={e => setIsOpen(!isOpen)}>
                 {attribute.customName || attribute.display_name || attribute.name}
-                <div id={'col-icons'} className={'flex items-center'}>
+                <div id={menuBtnId} className={'flex items-center'}>
                     {attribute.sort === 'asc nulls last' ? <SortAsc className={'text-gray-500'}/> :
                         attribute.sort === 'desc nulls last' ? <SortDesc className={'text-gray-500'}/> : null}
                     <ArrowDown id={menuBtnId} className={'text-gray-500 group-hover:text-gray-600'}/>
