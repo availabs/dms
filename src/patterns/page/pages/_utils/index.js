@@ -63,7 +63,7 @@ export function detectNavLevel(dataItems, baseUrl) {
     return level + (isParent ? 1 : 0);
 }
 
-export function dataItemsNav(dataItems, baseUrl = '', level=1, edit = false) {
+export function dataItemsNav(dataItems, baseUrl = '', edit = false, level=1) {
     // console.log('dataItemsnav', dataItems)
     return dataItems
         .sort((a, b) => a.index - b.index)

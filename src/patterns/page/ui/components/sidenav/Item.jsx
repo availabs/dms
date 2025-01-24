@@ -76,7 +76,7 @@ const NavItem = ({
 
 	//       setShowSubMenu(routeMatch);
 	// }, [showSubMenu,to]);
-	console.log('test 123', className)
+	//console.log('test 123', className)
 	return (
 			<div className={type === "side" ? theme?.subMenuParentWrapper : null}
 				 onMouseOutCapture={() =>

@@ -25,13 +25,16 @@ export const layoutTheme = {
 function nav2Level(items, level=1, path, navTitle='') {
 	let output =  null
 	if(level > 1) {
-		let levelPath = '/'+path.split('/').filter(d => d).filter((d,i) => i < level-1).join('/')
-		let matches = matchRoutes(items, {pathname: levelPath })
+		let levelPath = '/'+path.replace('/edit','').split('/').filter(d => d).filter((d,i) => i < level-1).join('/')
+		let matchItems = items.map(d => {
+			return {...d, path: d.path.replace('/edit','') }
+		})
+		let matches = matchRoutes(matchItems, {pathname: levelPath })
 		output = matches?.[0]?.route?.subMenus || []
 		if(navTitle && matches?.[0]?.route?.name) {
 			output = [{name: matches?.[0]?.route?.name, className: navTitle},...output]
 		}
-		//console.log('nav2Level', items, output, matches, levelPath, navTitle)
+		// console.log('nav2Level', matchItems, output, matches, levelPath, path)
 	}
 
 	
