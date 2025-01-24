@@ -1,5 +1,5 @@
 import React, {Fragment, useState, useEffect, useRef, useMemo} from 'react'
-import { NavLink, useSubmit, useLocation } from "react-router-dom";
+import { NavLink, useSubmit, useLocation, matchPath, matchRoutes, useMatch } from "react-router-dom";
 import { CMSContext } from '../../../siteConfig'
 
 import Nestable from './index';
@@ -13,7 +13,7 @@ import { Button } from '../../';
 
 export const nestableTheme = {
     container: `max-w-full max-h-full  pb-6 `,
-    navListContainer: 'h-full border-l  pt-3 pl-2 overflow-auto h-[calc(100vh_-_190px)] scrollbar-xs',
+    navListContainer: 'h-full border-l  pt-3 pl-2 overflow-auto max-h-[calc(100vh_-_155px)] h-[calc(100vh_-_155px)]',
     navItemContainer:'text-slate-600 border-l border-y rounded border-transparent flex items-center gap-1 cursor-pointer group group-hover:bg-blue-100',
     navItemContainerActive: 'bg-white text-blue-500  border-l rounded border-y border-slate-300 flex items-center gap-1 cursor-pointer group group-hover:bg-blue-100', 
     navLink: `flex-1 px-4 py-2 font-light text-elipses`,
@@ -31,7 +31,7 @@ function DefaultNavItem ({item, dataItems, handleCollapseIconClick, isCollapsed,
     const { pathname = '/edit' } = useLocation()
 
     //-- this is not ideal, better to check id and parent
-    const isActive = pathname.includes(item.url_slug)
+    const isActive = matchRoutes([{path: item.url_slug}], pathname.replace('/edit')).length > 0
 
     return (
         <div key={item.id} className='group'>
@@ -73,6 +73,7 @@ function DefaultNavItem ({item, dataItems, handleCollapseIconClick, isCollapsed,
 function DraggableNav ({item, dataItems, NavComp=DefaultNavItem, edit=true}) {
     const { baseUrl, theme = { nestable: nestableTheme } } = React.useContext(CMSContext) || {}
     const submit = useSubmit()
+    
     const { pathname = '/edit' } = useLocation()
     
   
@@ -115,15 +116,29 @@ function DraggableNav ({item, dataItems, NavComp=DefaultNavItem, edit=true}) {
     //send updates to API
     //---------------------------------
     Promise.all(updates.map((item) => {
+      // apiUpdate(item)
       submit(json2DmsForm(item), { method: "post", action: pathname })
     })).then(values => {
       //console.log('updating nav', values)
     })
 
   }, []);
-  
 
-  //console.log('items', items)
+  const findParents = (dataitems,id) => {
+    let parent = dataItems.filter(d => +d.id === +id)?.[0]?.parent
+    if(!parent) {
+      return [id]
+    }
+    return [id, ...findParents(dataitems, parent)].filter(d => d)
+  }
+  
+  let matchItems = dataItems.map(d => {
+    return {...d, path: `${d.url_slug}/*` }
+  })
+
+  let matchId = matchRoutes(matchItems, {pathname:  pathname.replace('edit/','')})?.[0]?.route?.id || -1
+  let matches = findParents(dataItems, matchId)
+  console.log('item matches', matchId, matches)
   return ( 
 
     <div className={theme?.nestable?.container}>
@@ -131,8 +146,8 @@ function DraggableNav ({item, dataItems, NavComp=DefaultNavItem, edit=true}) {
           <Nestable
             items={items}
             onChange={onDragEnd}
-            collapsedIds={items
-                .filter(d => d?.children?.length > 0 && !pathname.includes(d.url_slug))
+            collapsedIds={matchItems
+                .filter(d => !matches.includes(d.id))
                 .map(d => d.id)
             }
             maxDepth={4}

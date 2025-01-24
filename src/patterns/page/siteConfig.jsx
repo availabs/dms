@@ -98,9 +98,9 @@ export const pagesConfig = ({
         path: "/*",
         filter: {
           options: JSON.stringify({
-            // filter: {
-            //   "data->>'hide_in_nav'": ['null']
-            // }
+            filter: {
+              "data->>'hide_in_nav'": ['null']
+            }
           }),
           attributes:['title', 'index', 'url_slug', 'parent','published', 'hide_in_nav']
         },

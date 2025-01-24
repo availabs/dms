@@ -2,17 +2,17 @@ import React, {useEffect} from 'react'
 import { NavLink, Link, useSubmit, useNavigate, useLocation, useParams} from "react-router-dom";
 import { cloneDeep } from "lodash-es"
 
-import { json2DmsForm, getUrlSlug, toSnakeCase, getInPageNav,dataItemsNav, detectNavLevel  } from '../_utils'
+import { json2DmsForm, getUrlSlug, toSnakeCase, getInPageNav, dataItemsNav, detectNavLevel  } from '../_utils'
 import { saveHeader, saveSection } from './editFunctions'
 
 import { Layout, SideNav, SideNavContainer } from '../../ui'
 import { ViewIcon } from '../../ui/icons'
 //import EditControls from './editControls'
-
+import { PageContext } from '../view'
 
 
 import { CMSContext } from '../../siteConfig'
-import EditPane, {EditDrawer} from './editPane'
+import EditPane from './editPane'
 
 
 function PageEdit ({
@@ -76,67 +76,74 @@ function PageEdit ({
   }, [])
 
   return (
-    <div className={`${theme?.page?.container}`}>
-      {item?.header === 'above' && (
-        <ContentEdit
-          item={item}
-          value={[headerSection]} 
-          onChange={(v,action) => saveHeader(v, item, user, apiUpdate)}         
-          attributes={sectionAttr}
-          siteType={siteType}
-        />
-      )} 
-      <EditDrawer 
-        item={item}
-        dataItems={dataItems}
-        open={openEdit} setOpen={setOpenEdit}
-        apiUpdate={apiUpdate}
-      />
-      <Layout navItems={menuItems} secondNav={theme?.navOptions?.secondaryNav?.navItems || []} 
-        EditPane={() => (<EditPane item={item} open={openEdit} setOpen={setOpenEdit} apiUpdate={apiUpdate} />)}
-      >
-        <div className={`${theme?.page?.wrapper1} ${theme?.navPadding[level]}`}>
-          {item?.header === 'below' && (
-            <ContentEdit 
-              item={item} 
-              value={[headerSection]} 
-              onChange={(v,action) => saveHeader(v, item, user, apiUpdate)} 
-              attributes={sectionAttr} 
-              siteType={siteType}
+    <PageContext.Provider value={{ item, dataItems, apiLoad, apiUpdate, openEdit, setOpenEdit }} >
+      <div className={`${theme?.page?.container}`}>
+        {item?.header === 'above' && (
+          <ContentEdit
+            item={item}
+            value={[headerSection]} 
+            onChange={(v,action) => saveHeader(v, item, user, apiUpdate)}         
+            attributes={sectionAttr}
+            siteType={siteType}
+          />
+        )} 
+        
+        <Layout 
+          navItems={menuItems} 
+          secondNav={theme?.navOptions?.secondaryNav?.navItems || []} 
+          EditPane={() => (
+            <EditPane 
+              item={item}
+              dataItems={dataItems}
+              open={openEdit}
+              setOpen={setOpenEdit}
+              apiUpdate={apiUpdate} 
             />
           )}
-          <div className={`${theme?.page?.wrapper2}`}>
-            {item?.sidebar === 'show' && (
-              <SideNavContainer>
-                <SideNav {...inPageNav} /> 
-              </SideNavContainer>
-            )}  
-            <div className={theme?.page?.wrapper3 + ''}>
-              {item?.header === 'inpage' && (
-                 <ContentEdit item={item} value={[headerSection]} onChange={(val,action) => saveHeader(v, item, user, apiUpdate)} attributes={sectionAttr} siteType={siteType}/>
-              )} 
-              {user?.authLevel >= 5 && (
-                <Link className={theme?.page?.iconWrapper} to={`${baseUrl}/${item?.url_slug || ''}${window.location.search}`}>
-                  <ViewIcon className={theme?.page?.icon} />
-                </Link>
-              )}
-              <ContentEdit
-                full_width={item.full_width}
-                value={draftSections} 
-                onChange={(val,action) => saveSection(val, action, item, user, apiUpdate)}         
-                attributes={sectionAttr}
+        >
+          <div className={`${theme?.page?.wrapper1} ${theme?.navPadding[level]}`}>
+            {item?.header === 'below' && (
+              <ContentEdit 
+                item={item} 
+                value={[headerSection]} 
+                onChange={(v,action) => saveHeader(v, item, user, apiUpdate)} 
+                attributes={sectionAttr} 
                 siteType={siteType}
-                apiLoad={isDynamicPage ? apiLoad : undefined}
-                apiUpdate={isDynamicPage ? apiUpdate : undefined}
-                format={isDynamicPage ? format : undefined}
               />
-            </div>
-          </div>  
-          
-        </div>
-      </Layout>
-      {item?.footer && <div className='h-[300px] bg-slate-100' />} 
-    </div>
+            )}
+            <div className={`${theme?.page?.wrapper2}`}>
+              {item?.sidebar === 'show' && (
+                <SideNavContainer>
+                  <SideNav {...inPageNav} /> 
+                </SideNavContainer>
+              )}  
+              <div className={theme?.page?.wrapper3 + ''}>
+                {item?.header === 'inpage' && (
+                   <ContentEdit item={item} value={[headerSection]} onChange={(val,action) => saveHeader(v, item, user, apiUpdate)} attributes={sectionAttr} siteType={siteType}/>
+                )} 
+                {user?.authLevel >= 5 && (
+                  <Link className={theme?.page?.iconWrapper} to={`${baseUrl}/${item?.url_slug || ''}${window.location.search}`}>
+                    <ViewIcon className={theme?.page?.icon} />
+                  </Link>
+                )}
+                <ContentEdit
+                  full_width={item.full_width}
+                  value={draftSections} 
+                  onChange={(val,action) => saveSection(val, action, item, user, apiUpdate)}         
+                  attributes={sectionAttr}
+                  siteType={siteType}
+                  apiLoad={isDynamicPage ? apiLoad : undefined}
+                  apiUpdate={isDynamicPage ? apiUpdate : undefined}
+                  format={isDynamicPage ? format : undefined}
+                />
+              </div>
+            </div>  
+            
+          </div>
+        </Layout>
+        {item?.footer && <div className='h-[300px] bg-slate-100' />} 
+      </div>
+    </PageContext.Provider>
   ) 
 }
 

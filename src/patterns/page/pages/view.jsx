@@ -8,6 +8,8 @@ import { Layout, SideNav, SideNavContainer } from '../ui'
 
 import {PDF, PencilEditSquare, Printer} from '../ui/icons'
 import {selectablePDF} from "../components/saveAsPDF/PrintWell/selectablePDF";
+export const PageContext = React.createContext(undefined);
+
 
 function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiLoad, apiUpdate, format}) {
   // console.log('page_view')
@@ -41,50 +43,52 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
 
   //console.log('inPageNav', inPageNav)
   return (
-    <div id='page_view' className={`${theme?.page?.container}`}>
-      {/* Header */}
-      {(item?.header === 'above') && <ContentView item={item} value={[headerSection]} attributes={sectionAttr} />}
-      {/* Layout */}
-      <Layout navItems={menuItems} secondNav={theme?.navOptions?.secondaryNav?.navItems || []}>
-        <div className={`${theme?.page?.wrapper1} ${theme?.navPadding[level]}`}>
-          {(item?.header === 'below') && <ContentView item={item} value={[headerSection]} attributes={sectionAttr} />}
-          <div className={`${theme?.page?.wrapper2}`}>
-            {item?.sidebar === 'show' && (
-              <SideNavContainer>
-                <SideNav {...inPageNav} /> 
-              </SideNavContainer>
-            )}
-            <div className={theme?.page?.wrapper3} ref={pdfRef}>
-              {/* Content */}
-              {(item?.header === 'inpage') &&
-                  <ContentView item={item} value={[headerSection]} attributes={sectionAttr}/>}
-              {user?.authLevel >= 5 && (
-                  <Link className={theme?.page?.iconWrapper} to={`${baseUrl}/edit/${item?.url_slug || ''}${window.location.search}`}>
-                    <PencilEditSquare className={theme?.page?.icon}/>
-                  </Link>
+    <PageContext.Provider value={{ item, dataItems, apiLoad, apiUpdate }} >
+      <div id='page_view' className={`${theme?.page?.container}`}>
+        {/* Header */}
+        {(item?.header === 'above') && <ContentView item={item} value={[headerSection]} attributes={sectionAttr} />}
+        {/* Layout */}
+        <Layout navItems={menuItems} secondNav={theme?.navOptions?.secondaryNav?.navItems || []}>
+          <div className={`${theme?.page?.wrapper1} ${theme?.navPadding[level]}`}>
+            {(item?.header === 'below') && <ContentView item={item} value={[headerSection]} attributes={sectionAttr} />}
+            <div className={`${theme?.page?.wrapper2}`}>
+              {item?.sidebar === 'show' && (
+                <SideNavContainer>
+                  <SideNav {...inPageNav} /> 
+                </SideNavContainer>
               )}
-              <div className={'flex absolute right-10 top-2'}>
-                <button className={'mx-1'} onClick={() => selectablePDF(pdfRef, API_HOST)}>
-                  <PDF className={'hover:text-blue-500 text-blue-300'}/>
-                </button>
+              <div className={theme?.page?.wrapper3} ref={pdfRef}>
+                {/* Content */}
+                {(item?.header === 'inpage') &&
+                    <ContentView item={item} value={[headerSection]} attributes={sectionAttr}/>}
+                {user?.authLevel >= 5 && (
+                    <Link className={theme?.page?.iconWrapper} to={`${baseUrl}/edit/${item?.url_slug || ''}${window.location.search}`}>
+                      <PencilEditSquare className={theme?.page?.icon}/>
+                    </Link>
+                )}
+                <div className={'flex absolute right-10 top-2'}>
+                  <button className={'mx-1'} onClick={() => selectablePDF(pdfRef, API_HOST)}>
+                    <PDF className={'hover:text-blue-500 text-blue-300'}/>
+                  </button>
+                </div>
+                <ContentView
+                    full_width={item.full_width}
+                    item={item}
+                    value={sections}
+                    attributes={sectionAttr}
+                    siteType={siteType}
+                    apiLoad={apiLoad}
+                    apiUpdate={apiUpdate}
+                    format={format}
+                />
               </div>
-              <ContentView
-                  full_width={item.full_width}
-                  item={item}
-                  value={sections}
-                  attributes={sectionAttr}
-                  siteType={siteType}
-                  apiLoad={apiLoad}
-                  apiUpdate={apiUpdate}
-                  format={format}
-              />
             </div>
           </div>
-        </div>
-      </Layout>
-      {/*Footer*/}
-      {/* <div className='h-[300px]'/> */}
-    </div>
+        </Layout>
+        {/*Footer*/}
+        {/* <div className='h-[300px]'/> */}
+      </div>
+    </PageContext.Provider>
   )
 }
 

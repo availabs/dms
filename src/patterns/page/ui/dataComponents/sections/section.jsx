@@ -195,7 +195,15 @@ export function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAb
     let showEditIcons = edit && typeof onEdit === 'function' && !isTemplateSectionCondition
 
     const element = React.useMemo(() => {
-        return <ElementComp value={value?.['element']} siteType={siteType} apiLoad={apiLoad} apiUpdate={apiUpdate} pageFormat={format}/>
+        return (
+            <ElementComp 
+                value={value?.['element']} 
+                siteType={siteType} 
+                apiLoad={apiLoad} 
+                apiUpdate={apiUpdate} 
+                pageFormat={format}
+            />
+        )
     }, 
     [value])
     if(!value?.element?.['element-type'] && !value?.element?.['element-data']) return null;
