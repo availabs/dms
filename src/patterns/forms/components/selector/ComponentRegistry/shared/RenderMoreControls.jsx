@@ -4,19 +4,21 @@ import {RenderToggleControls} from "./RenderToggleControls";
 import RenderSwitch from "./Switch";
 import {RenderInputControls} from "./RenderInputControls";
 import {SpreadSheetContext} from "../spreadsheet";
-import {useHandleClickOutside} from "./utils";
+import {getControlConfig, useHandleClickOutside} from "./utils";
 
-export default function RenderMoreControls({
-                                               allowShowTotalToggle=true,
-                                               allowStripedToggle=true,
-                                               allowDownloadToggle=true,
-                                               allowEditInViewToggle=true,
-                                               allowSearchParamsToggle=true,
-                                               allowUsePaginationToggle=true,
-                                               allowPageSizeInput=true,
-                                               allowDataSizeInput=false,
-                                           }) {
-    const {state: {display}, setState} = useContext(SpreadSheetContext);
+export default function RenderMoreControls({context}) {
+    const {state: {display}, setState, compType} = useContext(context || SpreadSheetContext);
+    const {
+        allowShowTotalToggle,
+        allowStripedToggle,
+        allowDownloadToggle,
+        allowEditInViewToggle,
+        allowSearchParamsToggle,
+        allowUsePaginationToggle,
+        allowPageSizeInput,
+        allowDataSizeInput=false
+    } = getControlConfig(compType);
+
     const menuRef = useRef(null);
     const [isOpen, setIsOpen] = useState(false);
     const menuBtnId = 'menu-btn-more-controls'

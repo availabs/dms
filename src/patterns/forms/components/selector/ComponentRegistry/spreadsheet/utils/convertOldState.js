@@ -38,11 +38,13 @@ export const convertOldState = (state, initialState) => {
         allowDownload: oldState.allowDownload,
     }
     const sourceInfo = {
+        app: oldState.format?.app,
+        type: oldState.format?.type,
         isDms: oldState.format?.isDms,
         env: oldState.format?.env,
         srcEnv: oldState.format?.srcEnv,
         source_id: oldState.format?.id,
-        view_id: oldState.format?.view_id,
+        view_id: typeof oldState.format?.view_id === "object" ? oldState.format?.view_id?.id : oldState.format?.view_id,
         view_name: oldState.format?.version || oldState.format?.name,
         updated_at: oldState.format?._modified_timestamp || oldState.format?.updated_at,
         columns: oldState.format?.metadata?.columns || JSON.parse(oldState?.format?.config || '{}')?.attributes || [],

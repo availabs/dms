@@ -5,15 +5,10 @@ import RenderActionControls from "./RenderActionControls";
 import RenderMoreControls from "./RenderMoreControls";
 
 // renders controls based on props passed. if any setters are not passed for a controller, it's not rendered.
-export const ColumnControls = () => (
+export const ColumnControls = ({context}) => (
     <div className={'flex items-center'}>
-        <RenderColumnControls />
-        {/*<RenderFilterControls attributes={attributes} filters={filters} setFilters={setFilters}/>*/}
-
-        {/*<RenderGroupControls attributes={attributes} groupBy={groupBy} setGroupBy={setGroupBy} setFn={setFn}/>*/}
-
-        <RenderActionControls />
-
-        <RenderMoreControls />
+        <RenderColumnControls context={context}/>
+        <RenderActionControls context={context}/>
+        <RenderMoreControls context={context}/>
     </div>
 )
