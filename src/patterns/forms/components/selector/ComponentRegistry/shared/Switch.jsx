@@ -29,12 +29,13 @@ export default function RenderSwitch({ enabled=false, setEnabled, label, size='m
         <div
             role="switch"
             aria-checked={enabled}
+            aria-label={label}
             tabIndex={0}
             onClick={() => setEnabled && setEnabled(!enabled)}
             onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
-                    return !enabled;
+                    setEnabled && setEnabled(!enabled);
                 }
             }}
             className={`relative inline-flex ${sizeClassesPill[size]} items-center ${roundedClasses[size]} cursor-pointer transition-colors duration-200 ease-in-out ${enabled ? 'bg-indigo-600' : 'bg-gray-200'}`}

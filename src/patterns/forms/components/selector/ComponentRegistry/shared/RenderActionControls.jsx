@@ -1,5 +1,6 @@
-import {useRef, useState, useEffect} from "react";
+import {useRef, useState, useEffect, useContext, useCallback} from "react";
 import Icons, {ArrowDown, TouchInteraction} from "../../../../ui/icons"
+import {SpreadSheetContext} from "../spreadsheet";
 
 const RenderIconSelector = ({onClick, icon}) => {
     const [open, setOpen] = useState(false);
@@ -44,7 +45,7 @@ const RenderIconSelector = ({onClick, icon}) => {
         </div>
     )
 }
-const RenderAction = ({actions, setActions, action = {}}) => {
+const RenderAction = ({actions, updateAction, deleteAction, action = {}}) => {
     const [isEditing, setIsEditing] = useState(false);
     const [newAction, setNewAction] = useState(action);
 
@@ -53,10 +54,10 @@ const RenderAction = ({actions, setActions, action = {}}) => {
             {
                 isEditing ? (
                     <div className={'flex flex-col w-full px-2 py-1 text-gray-500'}>
-                        <input className={'px-1 my-0.5 border w-full rounded-md'} disabled
+                        <input className={'px-1 my-0.5 border w-full rounded-md cursor-disabled'} disabled
                                placeholder={'name'}
                                value={newAction.name || ''}
-                               onChange={e => setNewAction({...newAction, name: e.target.value})}
+                               // onChange={e => setNewAction({...newAction, name: e.target.value})}
                         />
 
                         <div className={'grid grid-cols-3 gap-1'}>
@@ -73,8 +74,8 @@ const RenderAction = ({actions, setActions, action = {}}) => {
                                 }
                             </select>
                             <select className={'p-1 bg-white border rounded-md'}
-                                    value={newAction.type}
-                                    onChange={e => setNewAction({...newAction, type: e.target.value})}
+                                    value={newAction.actionType}
+                                    onChange={e => setNewAction({...newAction, actionType: e.target.value})}
                             >
                                 {
                                     [undefined, 'delete', 'url'].map(option => <option key={option || 'default'}
@@ -96,7 +97,7 @@ const RenderAction = ({actions, setActions, action = {}}) => {
                             <div>
                                 <button className={'px-1 border rounded-md place-self-end'}
                                         onClick={() => {
-                                            setActions(actions.map(oldA => oldA.name === newAction.name ? newAction : oldA))
+                                            updateAction(newAction);
                                             setIsEditing(false)
                                         }}
                                 >save
@@ -126,7 +127,7 @@ const RenderAction = ({actions, setActions, action = {}}) => {
                                 {isEditing ? 'cancel' : 'edit'}
                             </button>
                             <button key={'action-delete'} className={'p-0.5 m-0.5 text-gray-500 text-sm border rounded-md '}
-                                    onClick={() => setActions(actions.filter(a => a.name !== action.name))}>
+                                    onClick={() => deleteAction(action)}>
                                 delete
                             </button>
                         </div>
@@ -137,8 +138,9 @@ const RenderAction = ({actions, setActions, action = {}}) => {
     )
 }
 
-const RenderAddAction = ({actions, setActions}) => {
-    const blankAction = {name: '', url: ''};
+const RenderAddAction = ({addAction}) => {
+    // {type: action, actionType: link / delete, name, url}
+    const blankAction = {show: true, actionType: '', name: '', url: ''};
     const [isAdding, setIsAdding] = useState(false);
     const [newAction, setNewAction] = useState(blankAction);
 
@@ -170,8 +172,8 @@ const RenderAddAction = ({actions, setActions}) => {
                                 }
                             </select>
                             <select className={'p-1 bg-white border rounded-md'}
-                                    value={newAction.type}
-                                    onChange={e => setNewAction({...newAction, type: e.target.value})}
+                                    value={newAction.actionType}
+                                    onChange={e => setNewAction({...newAction, actionType: e.target.value})}
                             >
                                 {
                                     [undefined, 'delete', 'url'].map(option => <option key={option || 'default'}
@@ -182,7 +184,7 @@ const RenderAddAction = ({actions, setActions}) => {
 
                         <div className={'my-0.5 flex w-full justify-end'}>
                             {
-                                newAction.type === 'url' ?
+                                ['url'].includes(newAction.actionType) ?
                                     <input className={'px-1 border w-full rounded-md'}
                                            placeholder={'url'}
                                            value={newAction.url}
@@ -192,7 +194,7 @@ const RenderAddAction = ({actions, setActions}) => {
                             }
                             <button className={'px-1 border rounded-md place-self-end'}
                                     onClick={() => {
-                                        setActions([...actions, newAction])
+                                        addAction(newAction)
                                         setNewAction(blankAction)
                                     }}
                             >add
@@ -212,21 +214,59 @@ const RenderAddAction = ({actions, setActions}) => {
         </div>
     )
 }
-export default function RenderActionControls({
-                                                 actions = [], setActions
-                                             }) {
+
+// action columns can be:
+// data link columns: uses existing column to show links with provided text or the cell's value. these can receive the cell's value in search params
+// other link columns: adds a column; these are simply links to the address mentioned. these can receive grouped column value as search param
+// delete
+
+// linkCol: {isLink, linkText, linkAddress}
+// action: {name, actionType: delete/url, icon, display: edit/view/both}
+export default function RenderActionControls() {
     // each action has:
-    // name: used as title, fallback if no icon is selected
+    // name: used as title, fallback if no icon is selected. only needed if it's not data column.
+    // name: if action is related to a column, use its name. oterwise empty
     // icon: used as text on button
-    // type: delete, url
+    // actionType: delete, link, dataLink; link and dataLink may get used to differentiate
     // url: if type is url, provide text box
     // display: edit only, view only, both
-    if (!setActions) return;
+    // attach search params
+    const {state:{columns, sourceInfo}, setState} = useContext(SpreadSheetContext);
     const menuRef = useRef(null);
     const [search, setSearch] = useState();
     const [isOpen, setIsOpen] = useState(false);
     const menuBtnId = 'menu-btn-action-controls'
+    const actionColumns = columns.filter(column => column.actionType); //two types of actions.
 
+    // takes in one action, adds or updates it.
+    const updateAction = useCallback((action={}) => {
+        setState(draft => {
+            // find index of the action passed. make sure to only refer action, and not a column with the same name.
+            // columns array can have multiple objects with same name in the future as there can be
+            const idx = draft.columns.findIndex(column => column.name === action.name && (column.actionType));
+            if(idx !== -1) {
+                draft.columns[idx] = action;
+            }else{
+                draft.columns.push(action);
+            }
+
+        })
+    }, [columns])
+
+    const deleteAction = useCallback((action={})=> {
+        setState(draft => {
+            const idx = draft.columns.findIndex(column => column.actionType && column.name === action.name);
+            if(idx !== -1){
+                draft.columns.splice(idx, 1);
+            }
+        })
+    }, [columns])
+
+    const addAction = useCallback((action={})=> {
+        setState(draft => {
+            draft.columns.push(action)
+        })
+    }, [columns])
     // ================================================== close on outside click start =================================
     const handleClickOutside = (e) => {
         if (menuRef.current && !menuRef.current.contains(e.target) && e.target.id !== menuBtnId) {
@@ -247,27 +287,27 @@ export default function RenderActionControls({
             <div>
                 <div id={menuBtnId}
                     className={`inline-flex w-full justify-center items-center rounded-md px-1.5 py-1 text-sm font-regular 
-                    text-gray-900 shadow-sm ring-1 ring-inset ${actions.length ? `ring-blue-300` : `ring-gray-300`} 
+                    text-gray-900 shadow-sm ring-1 ring-inset ${actionColumns.length ? `ring-blue-300` : `ring-gray-300`} 
                     ${isOpen ? `bg-gray-50` : `bg-white hover:bg-gray-50`} cursor-pointer`}
                     onClick={e => setIsOpen(!isOpen)}>
-                    Action <ArrowDown height={18} width={18} className={'mt-1'}/>
+                    Action <ArrowDown id={menuBtnId} height={18} width={18} className={'mt-1'}/>
                 </div>
             </div>
 
             <div ref={menuRef}
                 className={`${isOpen ? 'visible transition ease-in duration-200' : 'hidden transition ease-in duration-200'} absolute left-0 z-10 w-72 origin-top-left divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 transition focus:outline-none`}
             >
-                <input key={'search'} className={'px-3 py-1 w-full rounded-md'} placeholder={'search...'}
-                       onChange={e => {
-                           setSearch(e.target.value)
-                       }}/>
-                <RenderAddAction ket={'add-action'} actions={actions} setActions={setActions}/>
+                <input key={'search'}
+                       className={'px-3 py-1 w-full rounded-md'}
+                       placeholder={'search...'}
+                       onChange={e => setSearch(e.target.value)}/>
+                <RenderAddAction ket={'add-action'} actions={actionColumns} addAction={addAction} />
                 <div key={'actions'} className="py-1 max-h-[500px] overflow-auto scrollbar-sm">
                     {
-                        actions
+                        actionColumns
                             .filter(a => a && (!search || (a.name).toLowerCase().includes(search.toLowerCase())))
                             .map((action, i) => (
-                                <RenderAction key={i} action={action} actions={actions} setActions={setActions} />
+                                <RenderAction key={i} action={action} actions={actionColumns} updateAction={updateAction} deleteAction={deleteAction} />
                             ))
                     }
 

@@ -1,52 +1,95 @@
 import RenderSwitch from "./Switch";
-import React, {useEffect, useRef, useState} from "react";
-import {ArrowDown} from "../../../../ui/icons";
+import React, {useCallback, useContext, useEffect, useMemo, useRef, useState} from "react";
+import {ArrowDown, RestoreBin} from "../../../../ui/icons";
 import {cloneDeep} from "lodash-es";
+import {SpreadSheetContext} from "../spreadsheet";
+import {getControlConfig, useHandleClickOutside} from "./utils";
 
-export default function RenderColumnControls({
-    attributes=[], setAttributes,
-    visibleAttributes=[], setVisibleAttributes,
-    customColNames={}, setCustomColNames,
-    notNull=[], setNotNull,
-    fn={}, setFn,
-    openOutCols=[], setOpenOutCols,
-    filters=[], setFilters,
-    groupBy=[], setGroupBy
-}) {
-    if(!setAttributes || !setVisibleAttributes) return;
+const gridClasses = {
+    2: {
+        gridClass: 'grid grid-cols-2',
+        gridTemplateColumns: '10rem 3rem',
+        width: '13rem',
+    },
+    3: {
+        gridClass: 'grid grid-cols-3',
+        gridTemplateColumns: '10rem 5rem 3rem',
+        width: '18rem',
+    },
+    4: {
+        gridClass: 'grid grid-cols-4',
+        gridTemplateColumns: '10rem 5rem 5rem 3rem',
+        width: '23rem',
+    },
+    5: {
+        gridClass: 'grid grid-cols-5',
+        gridTemplateColumns: '10rem 5rem 5rem 5rem 3rem',
+        width: '28rem',
+    },
+    6: {
+        gridClass: 'grid grid-cols-6',
+        gridTemplateColumns: '10rem 5rem 5rem 5rem 5rem 3rem',
+        width: '33rem',
+    },
+    7: {
+        gridClass: 'grid grid-cols-7',
+        gridTemplateColumns: '10rem 5rem 5rem 5rem 5rem 5rem 3rem',
+        width: '38rem',
+    },
+    8: {
+        gridClass: 'grid grid-cols-8',
+        gridTemplateColumns: '10rem 5rem 5rem 5rem 5rem 5rem 5rem 3rem',
+        width: '43rem',
+    },
+    9: {
+        gridClass: 'grid grid-cols-9',
+        gridTemplateColumns: '10rem 5rem 5rem 5rem 5rem 5rem 5rem 5rem 3rem',
+        width: '48rem',
+    },
+    10: {
+        gridClass: 'grid grid-cols-10',
+        gridTemplateColumns: '10rem 5rem 5rem 5rem 5rem 5rem 5rem 5rem 5rem 3rem',
+        width: '53rem',
+    },
+    11: {
+        gridClass: 'grid grid-cols-11',
+        gridTemplateColumns: '10rem 5rem 5rem 5rem 5rem 5rem 5rem 5rem 5rem 5rem 3rem',
+        width: '58rem',
+    },
+};
+
+
+export default function RenderColumnControls() {
+    const {state: {columns=[], sourceInfo}, setState, compType} = useContext(SpreadSheetContext);
+    const {
+        allowCustomColNames,
+        allowFnSelector,
+        allowExcludeNASelector,
+        allowShowToggle,
+        allowFilterToggle,
+        allowGroupToggle,
+        allowOpenOutToggle,
+    } = getControlConfig(compType);
+
     const dragItem = useRef();
     const dragOverItem = useRef();
     const menuRef = useRef(null);
     const [search, setSearch] = useState();
     const [isOpen, setIsOpen] = useState(false);
     const menuBtnId = 'menu-btn-column-controls'; // used to control isOpen on menu-btm click;
-
-    const controlsToShow = [
-        {
-            label: 'Column'
-        }
-    ]
-    // ================================================== group by updates start =======================================
-    useEffect(() => {
-        // when entering/exiting group by mode, columns need to have appropriate fns applied.
-
-        if(!attributes.length) return; // attributes are not immediately available
-
-        if(groupBy.length){
-            // add fns
-            const newFns = visibleAttributes
-                .map(va => attributes.find(a => a.name === va))
-                .filter(a => a && !groupBy.includes(a.name)) // grouped columns need not have fns
-                .reduce((acc, a) => ({...acc, [a.name]: fn[a.name] || a.defaultFn || 'list'}) , {});
-
-            setFn(newFns);
-        }
-        // else if(!groupBy.length && Object.keys(fn).length){
-        //     // remove fns
-        //     setFn({});
-        // }
-    }, [attributes, visibleAttributes, groupBy]);
-    // ================================================== group by updates end =========================================
+    useHandleClickOutside(menuRef, menuBtnId, () => setIsOpen(false));
+    const columnsToRender =
+        (sourceInfo?.columns || [])
+            .map(attribute => columns.find(c => c.name === attribute.name) || attribute) // map to current settings
+            .sort((a,b) => {
+                const orderA = columns.findIndex(column => column.name === a.Name);
+                const orderB = columns.findIndex(column => column.name === b.Name);
+                return orderA - orderB;
+            })
+            .filter(attribute => (
+                !search ||
+                (attribute.customName || attribute.display_name || attribute.name).toLowerCase().includes(search.toLowerCase()))
+            )
 
     // ================================================== drag utils start =============================================
     const dragStart = (e, position) => {
@@ -63,51 +106,72 @@ export default function RenderColumnControls({
     };
 
     const drop = (e) => {
-        const copyListItems =
-            [
-                ...visibleAttributes.map(va => attributes.find(attr => attr.name === va)),
-                ...attributes.filter(attr => !visibleAttributes.includes(attr.name))
-            ];
+        const copyListItems = cloneDeep(sourceInfo.columns);
         const dragItemContent = copyListItems[dragItem.current];
         copyListItems.splice(dragItem.current, 1);
         copyListItems.splice(dragOverItem.current, 0, dragItemContent);
         dragItem.current = null;
         dragOverItem.current = null;
-        setAttributes(copyListItems);
-        setVisibleAttributes(copyListItems.filter(attr => visibleAttributes.includes(attr.name)).map(attr => attr.name))
+        setState(draft => {
+            // map original columns to columns with settings, and then filter out extra columns.
+            draft.columns = copyListItems.map(originalColumn => columns.find(colWithSettings => colWithSettings.name === originalColumn.name)).filter(c => c);
+            draft.sourceInfo.columns = copyListItems;
+        })
     };
     // ================================================== drag utils end ===============================================
 
-    // ================================================== close on outside click start =================================
-    const handleClickOutside = (e) => {
-        if (menuRef.current && !menuRef.current.contains(e.target) && e.target.id !== menuBtnId) {
-            setIsOpen(false);
+    // updates column if present, else adds it with the change the user made.
+    const updateColumns = useCallback((originalAttribute, key, value) => setState(draft => {
+        // update requested key
+        const idx = columns.findIndex(column => column.name === originalAttribute.name);
+        if (idx !== -1) {
+            draft.columns[idx][key] = value;
+        }else{
+            draft.columns.push({...originalAttribute, [key]: value});
         }
-    };
+        // update dependent keys
+        if(key === 'show' && value === false){
+            // stop sorting when column is not visible
+            draft.columns[idx]['sort'] = undefined;
+        }
 
-    React.useEffect(() => {
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
-    }, []);
-    // ================================================== close on outside click end ===================================
-    const gridClass = 'grid grid-cols-7'
-    const gridTemplateColumns = '10rem 5rem 5rem 5rem 5rem 5rem 5rem';
+        if(key === 'group' && value === true){
+            // make sure other visible columns have a fn
+            const idxWithInvalidFn =
+                columns.filter(c => c.name !== originalAttribute.name && !c.groupBy && !c.fn)
+                    .map(c => columns.findIndex(column => column.name === c.name));
+
+            idxWithInvalidFn.forEach(idx => draft.columns[idx]['fn'] = draft.columns[idx].defaultFn || 'list');
+        }
+    }), [columns]);
+
+    // removes it from the columns array if present
+    const resetColumn = useCallback((originalAttribute) => setState(draft => {
+        const idx = columns.findIndex(column => column.name === originalAttribute.name);
+        if (idx !== -1) {
+            draft.columns.splice(idx, 1);
+        }
+    }), [columns]);
+
+    const totalControlColsLen = 2 + +allowCustomColNames + +allowFnSelector + +allowExcludeNASelector +
+        +allowShowToggle + +allowFilterToggle + +allowGroupToggle + +allowOpenOutToggle;
+    const {gridClass, gridTemplateColumns, width} = gridClasses[totalControlColsLen];
+
     return (
         <div className="relative inline-block text-left">
-            <div>
-                <div id={menuBtnId}
-                     className={`inline-flex w-full justify-center items-center rounded-md px-1.5 py-1 text-sm font-regular 
-                     text-gray-900 shadow-sm ring-1 ring-inset ${visibleAttributes?.length ? `ring-blue-300` : `ring-gray-300`} 
-                     ${isOpen ? `bg-gray-50` : `bg-white hover:bg-gray-50`} cursor-pointer`}
-                     onClick={e => setIsOpen(!isOpen)}>
-                    Columns <ArrowDown height={18} width={18} className={'mt-1'}/>
-                </div>
-            </div>
-
+            <button id={menuBtnId}
+                 className={`inline-flex w-full justify-center items-center rounded-md px-1.5 py-1 text-sm font-regular 
+                 text-gray-900 shadow-sm ring-1 ring-inset ${columns?.length ? `ring-blue-300` : `ring-gray-300`} 
+                 ${isOpen ? `bg-gray-50` : `bg-white hover:bg-gray-50`} cursor-pointer`}
+                 onClick={() => {
+                     setIsOpen(!isOpen);
+                     setSearch(undefined);
+                 }}>
+                Columns <ArrowDown id={menuBtnId} height={18} width={18} className={'mt-1'}/>
+            </button>
             <div ref={menuRef}
-                 className={`${isOpen ? 'visible transition ease-in duration-200' : 'hidden transition ease-in duration-200'} absolute left-0 z-10 w-[45rem] origin-top-left divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 transition focus:outline-none`}
+                 role="menu"
+                 className={`${isOpen ? 'visible transition ease-in duration-200' : 'hidden transition ease-in duration-200'} absolute left-0 z-10 w-[${width}] origin-top-left divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 transition focus:outline-none`}
             >
                 <input className={'px-4 py-1 w-full text-xs rounded-md'} placeholder={'search...'}
                        onChange={e => {
@@ -127,46 +191,28 @@ export default function RenderColumnControls({
                             </svg>
                         </div>
 
-                        <div className={`${gridClass} gap-0.5 m-1 w-full cursor-pointer`}
+                        <div className={`${gridClass} gap-0.5 m-1 w-full`}
                              style={{gridTemplateColumns}}
                         >
-                            <div className={'place-self-stretch'}>
-                                Column
-                            </div>
-                            <div
-                                className={'px-1 w-fit rounded-md text-center'}>
-                                Fn
-                            </div>
-                            <div
-                                className={'px-1 w-fit rounded-md text-center'}>
-                                N/A
-                            </div>
-                            <div className={'justify-self-end'}>
-                                Show
-                            </div>
-
-                            <div className={'justify-self-end'}>
-                                Open Out
-                            </div>
-
-                            <div className={'justify-self-end'}>
-                                Filter
-                            </div>
-
-                            <div className={'justify-self-end'}>
-                                Group
-                            </div>
+                            <div className={'place-self-stretch'}>Column</div>
+                            {allowFnSelector ? <div className={'px-1 w-fit rounded-md text-center'}>Fn</div> : null}
+                            {allowExcludeNASelector ? <div className={'px-1 w-fit rounded-md text-center'}>Exclude N/A</div> : null}
+                            {allowShowToggle ? <div className={'justify-self-end'}>Show</div> : null}
+                            {allowOpenOutToggle ? <div className={'justify-self-end'}>Open Out</div> : null}
+                            {allowFilterToggle ? <div className={'justify-self-end'}>Int Filter</div> : null}
+                            {allowFilterToggle ? <div className={'justify-self-end'}>Ext Filter</div> : null}
+                            {allowGroupToggle ? <div className={'justify-self-end'}>Group</div> : null}
+                            <div className={'justify-self-end'}>Reset</div>
                         </div>
                     </div>
                 </div>
 
                 <div className="py-1 max-h-[500px] overflow-auto scrollbar-sm">
                     {
-                        attributes
-                            .filter(a => a && (!search || (a.display_name || a.name).toLowerCase().includes(search.toLowerCase())))
+                        columnsToRender
                             .map((attribute, i) => (
                                 <div
-                                    key={i}
+                                    key={attribute.name}
                                     className="flex items-center px-2 py-1 text-xs text-gray-700 hover:bg-gray-100 hover:text-gray-900"
                                     onDragStart={(e) => dragStart(e, i)}
                                     onDragEnter={(e) => dragEnter(e, i)}
@@ -174,7 +220,7 @@ export default function RenderColumnControls({
                                     onDragOver={dragOver}
 
                                     onDragEnd={drop}
-                                    draggable
+                                    draggable={attribute.show}
                                 >
                                     <div className={'h-4 w-4 m-1 text-gray-800'}>
                                         <svg data-v-4e778f45=""
@@ -185,115 +231,116 @@ export default function RenderColumnControls({
                                         </svg>
                                     </div>
 
-                                    <div className={`${gridClass} gap-0.5 m-1 w-full cursor-pointer`}
+                                    <div className={`${gridClass} gap-0.5 m-1 w-full`}
                                          style={{gridTemplateColumns}}
                                     >
                                         {/*if custom column names are allowed*/}
                                         {
-                                            setCustomColNames ?
+                                            allowCustomColNames ?
                                                 <input className={'place-self-stretch'}
-                                                       value={customColNames[attribute.name] || attribute.display_name || attribute.name}
-                                                       onChange={e => setCustomColNames({
-                                                           ...customColNames,
-                                                           [attribute.name]: e.target.value
-                                                       })}
+                                                       value={attribute.customName || attribute.display_name || attribute.name}
+                                                       onChange={e => updateColumns(attribute, 'customName', e.target.value)}
                                                 /> :
                                                 <label className={'place-self-stretch'}>
-                                                    {customColNames[attribute.name] || attribute.display_name || attribute.name}
+                                                    {attribute.customName || attribute.display_name || attribute.name}
                                                 </label>
                                         }
 
-                                        <select
-                                            className={
-                                                groupBy?.includes(attribute.name) || !visibleAttributes.includes(attribute.name) || !setFn ?
-                                                    'invisible' :
-                                                    'appearance-none w-fit rounded-md bg-gray-100 h-fit text-center'
-                                            }
-                                            value={fn[attribute.name]}
-                                            onChange={e => {
-                                                if (!e.target.value || e.target.value === 'fn') {
-                                                    const newFn = cloneDeep(fn);
-                                                    delete newFn[attribute.name];
-                                                    setFn(newFn)
-                                                } else {
-                                                    setFn({...fn, [attribute.name]: e.target.value})
-                                                }
-                                            }}
-                                        >
-                                            <option key={'fn'} value={undefined}>fn</option>
-                                            {
-                                                ['list', 'sum', 'count']
-                                                    .map(fnOption => <option key={fnOption}
-                                                                             value={fnOption}>{fnOption}</option>)
-                                            }
-                                        </select>
+                                        {
+                                            allowFnSelector ?
+                                                <select
+                                                    key={attribute.fn}
+                                                    className={'appearance-none w-fit rounded-md bg-gray-100 h-fit text-center cursor-pointer'}
+                                                    value={attribute.fn}
+                                                    onChange={e => updateColumns(attribute, 'fn', e.target.value)}
+                                                >
+                                                    <option key={'fn'} value={''}>fn</option>
+                                                    {
+                                                        ['list', 'sum', 'count']
+                                                            .map(fnOption => <option key={fnOption}
+                                                                                     value={fnOption}>{fnOption}</option>)
+                                                    }
+                                                </select> : null
+                                        }
 
-                                        <select
-                                            className={
-                                                !visibleAttributes.includes(attribute.name) || !setNotNull ?
-                                                    'invisible' :
-                                                    'appearance-none px-1 w-fit rounded-md bg-gray-100 h-fit text-center'
-                                            }
-                                            value={notNull.includes(attribute.name)}
-                                            onChange={e => setNotNull(e.target.value === 'true' ? [...notNull, attribute.name] : notNull.filter(c => c !== attribute.name))}
-                                        >
-                                            {
-                                                [{label: 'include n/a', value: false}, {
-                                                    label: 'exclude n/a',
-                                                    value: true
-                                                }]
-                                                    .map(({label, value}) => <option key={label}
-                                                                                     value={value}>{label}</option>)
-                                            }
-                                        </select>
-                                        <div className={'justify-self-end'}>
-                                            <RenderSwitch
-                                                size={'small'}
-                                                id={attribute.name}
-                                                enabled={visibleAttributes.includes(attribute.name)}
-                                                setEnabled={(value) => value ? setVisibleAttributes([...visibleAttributes, attribute.name]) :
-                                                    setVisibleAttributes(visibleAttributes.filter(attr => attr !== attribute.name))}
-                                            />
-                                        </div>
+                                        {
+                                            allowExcludeNASelector ?
+                                                <select
+                                                    key={attribute.excludeNA}
+                                                    className={'appearance-none px-1 w-fit rounded-md bg-gray-100 h-fit text-center cursor-pointer'}
+                                                    value={attribute.excludeNA}
+                                                    onChange={e => updateColumns(attribute, 'excludeNA', e.target.value)}
+                                                >
+                                                    {
+                                                        [{label: 'include n/a', value: false}, {label: 'exclude n/a', value: true}]
+                                                            .map(({label, value}) => <option key={label} value={value}>{label}</option>)
+                                                    }
+                                                </select> : null
+                                        }
 
-                                        <div className={'justify-self-end'}>
-                                            <RenderSwitch
-                                                size={'small'}
-                                                id={attribute.name}
-                                                enabled={openOutCols.includes(attribute.name)}
-                                                setEnabled={(value) => value ? setOpenOutCols([...openOutCols, attribute.name]) :
-                                                    setOpenOutCols(openOutCols.filter(attr => attr !== attribute.name))}
-                                            />
-                                        </div>
+                                        {
+                                            allowShowToggle ?
+                                                <div className={'justify-self-end'}>
+                                                    <RenderSwitch
+                                                        size={'small'}
+                                                        id={attribute.name}
+                                                        enabled={attribute.show}
+                                                        setEnabled={(value) => updateColumns(attribute, 'show', value)}
+                                                    />
+                                                </div> : null
+                                        }
 
-                                        <div className={'justify-self-end'}>
-                                            <RenderSwitch
-                                                size={'small'}
-                                                id={attribute.name}
-                                                enabled={filters.find(f => f.column === attribute.name) ? true : false}
-                                                setEnabled={(value) => {
-                                                    const newFilters = value ?
-                                                        [...filters, {column: attribute.name}] :
-                                                        filters.filter(attr => attr.column !== attribute.name);
-                                                    setFilters(newFilters);
-                                                }}
-                                            />
-                                        </div>
+                                        {
+                                            allowOpenOutToggle ?
+                                                <div className={'justify-self-end'}>
+                                                    <RenderSwitch
+                                                        size={'small'}
+                                                        id={attribute.name}
+                                                        enabled={attribute.openOut}
+                                                        setEnabled={(value) => updateColumns(attribute, 'openOut', value)}
+                                                    />
+                                                </div> : null
+                                        }
 
-                                        <div className={'justify-self-end'}>
-                                            <RenderSwitch
-                                                size={'small'}
-                                                id={attribute.name}
-                                                enabled={groupBy.find(f => f === attribute.name) ? true : false}
-                                                setEnabled={(value) => {
-                                                    const newGroups = value ?
-                                                        [...groupBy, attribute.name] :
-                                                        groupBy.filter(attr => attr !== attribute.name);
-                                                    setGroupBy(newGroups);
-                                                    if(!groupBy.length) setFn && setFn({});
-                                                }}
-                                            />
-                                        </div>
+                                        {
+                                            allowFilterToggle ?
+                                                <div className={'justify-self-end'}>
+                                                    <RenderSwitch
+                                                        size={'small'}
+                                                        id={attribute.name}
+                                                        enabled={Array.isArray(attribute.internalFilter)}
+                                                        setEnabled={(value) => updateColumns(attribute, 'internalFilter', value ? [] : undefined)}
+                                                    />
+                                                </div> : null
+                                        }
+
+                                        {
+                                            allowFilterToggle ?
+                                                <div className={'justify-self-end'}>
+                                                    <RenderSwitch
+                                                        size={'small'}
+                                                        id={attribute.name}
+                                                        enabled={Array.isArray(attribute.externalFilter)}
+                                                        setEnabled={(value) => updateColumns(attribute, 'externalFilter', value ? [] : undefined)}
+                                                    />
+                                                </div> : null
+                                        }
+
+                                        {
+                                            allowGroupToggle ?
+                                                <div className={'justify-self-end'}>
+                                                    <RenderSwitch
+                                                        size={'small'}
+                                                        id={attribute.name}
+                                                        enabled={attribute.group}
+                                                        setEnabled={(value) => updateColumns(attribute, 'group', value)}
+                                                    />
+                                                </div> : null
+                                        }
+
+                                        <button className={'w-fit place-self-end'} onClick={() => resetColumn(attribute)}>
+                                            <RestoreBin className={'text-orange-500 hover:text-orange-700'} />
+                                        </button>
                                     </div>
                                 </div>
                             ))
