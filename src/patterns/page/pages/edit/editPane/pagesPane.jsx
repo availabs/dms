@@ -22,15 +22,15 @@ import { PageContext } from '../../view'
 function PagesPane () {
   const { item, dataItems } =  React.useContext(PageContext) || {}
   return (
-    <div className="flex h-full flex-col bg-white shadow-xl  ">
+    <div className="flex h-full flex-col flex-1">
       <div className="px-4 sm:px-6 py-2">
         <div className="flex items-start justify-between">
-          <h1 className="text-base font-semibold leading-6 text-gray-900">
+          <h1 className="text-base font-semibold leading-6 text-slate-900">
             Pages
           </h1>
         </div>
       </div>
-      <div className="relative flex-1 w-full h-full">
+      <div className="relative flex-1 w-full ">
         <DraggableNav 
           item={item} 
           dataItems={dataItems} 
