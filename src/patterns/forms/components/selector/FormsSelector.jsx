@@ -96,11 +96,8 @@ export const FormsSelector = ({
             setSources((data || []));
 
             const existingSource = data.find(d => d.source_id === state.sourceInfo?.source_id);
-            // meta or config
-            if(existingSource && (
-                !isEqual(existingSource.metadata, state.sourceInfo.metadata) ||
-                !isEqual(existingSource.config, state.sourceInfo.config)
-            )) {
+
+            if(existingSource && !isEqual(existingSource.columns, state.sourceInfo.columns)) {
                 // meta update
                 setState(draft => {
                     draft.sourceInfo = {...draft.sourceInfo, ...existingSource};

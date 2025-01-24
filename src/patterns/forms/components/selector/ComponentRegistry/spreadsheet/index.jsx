@@ -30,7 +30,7 @@ const initialState = {
     display: {
         // dataTransform: 'asdasd', if any post processing done on the fetched data, and it's likely to have variations to chose from
         allowSearchParams: false,
-        usePagination: false,
+        usePagination: true,
         pageSize: 5,
         totalLength: 0,
         transform: '', // transform fn to be applied
