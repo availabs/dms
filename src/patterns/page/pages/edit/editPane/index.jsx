@@ -45,9 +45,9 @@ export function EditDrawer() {
           <Tabs tabs={[
             {
               name: <div>1</div>, 
-              Component: SettingsPane,
+              Component: PagesPane,
             },
-            {name: "2", Component: PagesPane},
+            {name: "2", Component: SettingsPane },
             {name: "3", Component: HistoryPane },
             {name: "4", Component: () => <div>4</div>},
             {name: "5", Component: () => <div>5</div>},

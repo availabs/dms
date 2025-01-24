@@ -116,8 +116,8 @@ function DraggableNav ({item, dataItems, NavComp=DefaultNavItem, edit=true}) {
     //send updates to API
     //---------------------------------
     Promise.all(updates.map((item) => {
-       apiUpdate(item)
-       //submit(json2DmsForm(item), { method: "post", action: pathname })
+      // apiUpdate(item)
+      submit(json2DmsForm(item), { method: "post", action: pathname })
     })).then(values => {
       //console.log('updating nav', values)
     })
