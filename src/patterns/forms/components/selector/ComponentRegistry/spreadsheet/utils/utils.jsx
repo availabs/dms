@@ -137,11 +137,14 @@ export const getData = async ({state, apiLoad, currentPage=0}) => {
 
                 return {...acc, [isCalculatedColumn ? idx : refName]: orderBy[columnName] }
             }, {}),
-        filter, // todo: for now, use filters as they come. later, for multiselect columns, fetch valuesets.
+        filter: Object.keys(filter).reduce((acc, columnName) => {
+            const refName = getFullColumn(columnName, columnsWithSettings)?.refName;
+            return {...acc, [refName]: filter[columnName]}
+        } , {}), // todo: for now, use filters as they come. later, for multiselect columns, fetch valuesets.
         exclude: Object.keys(exclude).reduce((acc, columnName) => ({...acc, [getFullColumn(columnName, columnsWithSettings)?.refName]: exclude[columnName] }), {}),
         meta
     }
-
+    console.log('options for spreadsheet getData', options)
     // =================================================================================================================
     // ========================================== check for proper indices begin =======================================
     // =================================================================================================================
