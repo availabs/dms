@@ -3,14 +3,14 @@ import { FormsContext } from '../siteConfig'
 import SourcesLayout from "../components/selector/ComponentRegistry/patternListComponent/layout";
 import Spreadsheet from "../components/selector/ComponentRegistry/spreadsheet";
 
-const getBlankValueSql = col => `SUM(CASE WHEN data->>'${col}' IS NULL OR data->>'${col}'::text = '' THEN 1 ELSE 0 END) AS ${col}_blank`;
-const getFilledValueSql = col => `SUM(CASE WHEN data->>'${col}' IS NOT NULL AND data->>'${col}'::text != '' THEN 1 ELSE 0 END) AS ${col}_value`;
-const getErrorValueSql = (col, options, required) =>
-    `SUM(CASE ${required ? `WHEN (data->>'${col}' IS NULL OR data->>'${col}'::text = '') THEN 1` : ``}
-              ${options?.length ? `WHEN data->>'${col}' NOT IN (${options.map(o => `'${(o.value || o).replace(/'/, "''")}'`)}) THEN 1` : ``} ELSE 0 END) AS ${col}_error`;
-const getValidValueSql = (col, options, required) =>
-    `SUM(CASE ${required ? `WHEN (data->>'${col}' IS NOT NULL ANd data->>'${col}'::text != '') THEN 1` : ``}
-              ${options?.length ? `WHEN data->>'${col}' IN (${options.map(o => `'${(o.value || o).replace(/'/, "''")}'`)}) THEN 1` : ``} ELSE 0 END) AS ${col}_valid`;
+const getBlankValueSql = (fullName, shortName) => `SUM(CASE WHEN data->>'${fullName}' IS NULL OR data->>'${fullName}'::text = '' THEN 1 ELSE 0 END) AS ${shortName}_blank`;
+const getFilledValueSql = (fullName, shortName) => `SUM(CASE WHEN data->>'${fullName}' IS NOT NULL AND data->>'${fullName}'::text != '' THEN 1 ELSE 0 END) AS ${shortName}_value`;
+const getErrorValueSql = (fullName, shortName, options, required) =>
+    `SUM(CASE ${required ? `WHEN (data->>'${fullName}' IS NULL OR data->>'${fullName}'::text = '') THEN 1` : ``}
+              ${options?.length ? `WHEN data->>'${fullName}' NOT IN (${options.map(o => `'${(o.value || o).replace(/'/, "''")}'`)}) THEN 1` : ``} ELSE 0 END) AS ${shortName}_error`;
+const getValidValueSql = (fullName, shortName, options, required) =>
+    `SUM(CASE ${required ? `WHEN (data->>'${fullName}' IS NOT NULL ANd data->>'${fullName}'::text != '') THEN 1` : ``}
+              ${options?.length ? `WHEN data->>'${fullName}' IN (${options.map(o => `'${(o.value || o).replace(/'/, "''")}'`)}) THEN 1` : ``} ELSE 0 END) AS ${shortName}_valid`;
 
 const formatNum = (isLoading, value='') => isLoading ? 'loading...' : value.toString().toLocaleString();
 
@@ -66,7 +66,7 @@ const Validate = ({
     const dmsServerPath = `${API_HOST}/dama-admin`;
 
     const {app, doc_type, config} = item;
-    const columns = (JSON.parse(config || '{}')?.attributes || []).filter(col => col.type !== 'calculated');
+    const columns = (JSON.parse(config || '{}')?.attributes || []).filter(col => col.type !== 'calculated').map((col, i) => ({...col, shortName: `col_${i}`}));
     const is_dirty = (JSON.parse(config || '{}')?.is_dirty);
     // make sure after upload, you can make corrections and re-validate.
     // validate correct records on meta change should be possible
@@ -103,7 +103,7 @@ const Validate = ({
             loadMoreId: `id-validate-page`,
             allowSearchParams: false,
         },
-        columns: columns.filter(col => data[`${col.name}_error`]).map(c => ({...c, show:true})),
+        columns: columns.filter(col => data[`${col.shortName}_error`]).map(c => ({...c, show:true})),
     }
 
     useEffect(() => {
@@ -111,16 +111,16 @@ const Validate = ({
             setLoading(true)
             const attrToFetch = columns.reduce((acc, col) => [
                 ...acc,
-                getBlankValueSql(col.name),
-                getFilledValueSql(col.name),
-                ((['select', 'multiselect', 'radio'].includes(col.type) && col.options?.length) || col.required === 'yes') && getErrorValueSql(col.name, col.options, col.required === 'yes'),
-                ((['select', 'multiselect', 'radio'].includes(col.type) && col.options?.length) || col.required === 'yes') && getValidValueSql(col.name, col.options, col.required === 'yes'),
+                getBlankValueSql(col.name, col.shortName),
+                getFilledValueSql(col.name, col.shortName),
+                ((['select', 'multiselect', 'radio'].includes(col.type) && col.options?.length) || col.required === 'yes') && getErrorValueSql(col.name, col.shortName, col.options, col.required === 'yes'),
+                ((['select', 'multiselect', 'radio'].includes(col.type) && col.options?.length) || col.required === 'yes') && getValidValueSql(col.name, col.shortName, col.options, col.required === 'yes'),
             ], []).filter(f => f)
             // console.log('attrs to fetch', attrToFetch)
             const children = [{
                 type: () => {
                 },
-                action: 'load',
+                action: 'uda',
                 path: '/',
                 filter: {
                     fromIndex: 0,
@@ -132,8 +132,8 @@ const Validate = ({
             }]
             console.time('getData')
             const data = await apiLoad({
-                app: invalidEntriesFormat.app,
-                type: invalidEntriesFormat.type,
+                // app: invalidEntriesFormat.app,
+                // type: invalidEntriesFormat.type,
                 format: invalidEntriesFormat,
                 attributes: attrToFetch,
                 children
@@ -143,10 +143,10 @@ const Validate = ({
             console.time('setData')
             const mappedData = columns.reduce((acc, col) => ({
                 ...acc,
-                [`${col.name}_blank`]: +data?.[0]?.[getBlankValueSql(col.name)],
-                [`${col.name}_filled`]: +data?.[0]?.[getFilledValueSql(col.name)],
-                ...((['select', 'multiselect', 'radio'].includes(col.type) && col.options?.length) || col.required === 'yes') && {[`${col.name}_error`]: +data?.[0]?.[getErrorValueSql(col.name, col.options, col.required === 'yes')]},
-                ...((['select', 'multiselect', 'radio'].includes(col.type) && col.options?.length) || col.required === 'yes') && {[`${col.name}_valid`]: +data?.[0]?.[getValidValueSql(col.name, col.options, col.required === 'yes')]},
+                [`${col.name}_blank`]: +data?.[0]?.[getBlankValueSql(col.name, col.shortName)],
+                [`${col.name}_filled`]: +data?.[0]?.[getFilledValueSql(col.name, col.shortName)],
+                ...((['select', 'multiselect', 'radio'].includes(col.type) && col.options?.length) || col.required === 'yes') && {[`${col.shortName}_error`]: +data?.[0]?.[getErrorValueSql(col.name, col.shortName, col.options, col.required === 'yes')]},
+                ...((['select', 'multiselect', 'radio'].includes(col.type) && col.options?.length) || col.required === 'yes') && {[`${col.shortName}_valid`]: +data?.[0]?.[getValidValueSql(col.name, col.shortName, col.options, col.required === 'yes')]},
             }), {});
             // console.log('data', data, mappedData)
             setData(mappedData);
@@ -180,7 +180,7 @@ const Validate = ({
                                     <div
                                         className={'flex justify-between w-full p-2 font-semibold bg-gray-100 rounded-md my-1'}>
                                         {
-                                            columns.find(col => data[`${col.name}_error`]) || loading ? 'Columns with errors' : 'All records are valid.'
+                                            columns.find(col => data[`${col.shortName}_error`]) || loading ? 'Columns with errors' : 'All records are valid.'
                                         }
                                         <button
                                             className={`p-1 text-sm text-white ${error ? `bg-red-300 hover:bg-red-600` : `bg-blue-300 hover:bg-blue-600`} rounded-md`}
@@ -202,7 +202,7 @@ const Validate = ({
                                     <div className={'grid grid-cols-2 gap-1'}>
                                         {
                                             columns
-                                                .filter(col => data[`${col.name}_error`])
+                                                .filter(col => data[`${col.shortName}_error`])
                                                 .map(col => (
                                                     <div
                                                         className={'p-2 flex flex-col hover:bg-blue-100 transition:ease-in-out border rounded-md'}
@@ -212,17 +212,17 @@ const Validate = ({
                                                         <div className={'grid grid-cols-1 sm:grid-cols-2 divide-x-2'}>
                                                             <div className={'flex flex-col px-1'}>
                                                                 <div># rows with
-                                                                    value: {formatNum(loading, data[`${col.name}_filled`])}</div>
+                                                                    value: {formatNum(loading, data[`${col.shortName}_filled`])}</div>
                                                                 <div># rows without
-                                                                    value: {formatNum(loading, data[`${col.name}_blank`])}</div>
-                                                                <div>total: {formatNum(loading, data[`${col.name}_blank`] + data[`${col.name}_filled`])}</div>
+                                                                    value: {formatNum(loading, data[`${col.shortName}_blank`])}</div>
+                                                                <div>total: {formatNum(loading, data[`${col.shortName}_blank`] + data[`${col.shortName}_filled`])}</div>
                                                             </div>
                                                             <div className={'flex flex-col px-1'}>
                                                                 <div># rows with
-                                                                    errors: {formatNum(loading, data[`${col.name}_error`])}</div>
+                                                                    errors: {formatNum(loading, data[`${col.shortName}_error`])}</div>
                                                                 <div># rows with
-                                                                    valid: {formatNum(loading, data[`${col.name}_valid`])}</div>
-                                                                <div>total: {formatNum(loading, data[`${col.name}_error`] + data[`${col.name}_valid`])}</div>
+                                                                    valid: {formatNum(loading, data[`${col.shortName}_valid`])}</div>
+                                                                <div>total: {formatNum(loading, data[`${col.shortName}_error`] + data[`${col.shortName}_valid`])}</div>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -232,14 +232,14 @@ const Validate = ({
 
                                     {/* invalid rows */}
                                     {
-                                        columns.find(col => data[`${col.name}_error`]) || loading ?
+                                        columns.find(col => data[`${col.shortName}_error`]) || loading ?
                                             <div
                                                 className={'w-full flex items-center justify-between p-2 font-semibold bg-gray-100 rounded-md my-1'}>
                                                 Invalid Rows
                                             </div> : null
                                     }
                                     {
-                                        !columns.find(col => data[`${col.name}_error`]) || loading ? null :
+                                        !columns.find(col => data[`${col.shortName}_error`]) || loading ? null :
                                             <Spreadsheet.EditComp
                                                 onChange={() => {
                                                 }}
