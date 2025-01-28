@@ -146,6 +146,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
         state.dataRequest,
         state.sourceInfo.source_id,
         state.sourceInfo.view_id,
+        state.display.pageSize,
         isValidState]);
 
     // useGetDataOnPageChange
@@ -281,7 +282,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
 
 const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate, renderCard, ...rest}) => {
     const isEdit = false;
-    const [state, setState] = useImmer(convertOldState(value));
+    const [state, setState] = useImmer(convertOldState(value, initialState   ));
 
     const [newItem, setNewItem] = useState({})
     const [loading, setLoading] = useState(false);
