@@ -144,7 +144,7 @@ export const getData = async ({state, apiLoad, currentPage=0}) => {
         exclude: Object.keys(exclude).reduce((acc, columnName) => ({...acc, [getFullColumn(columnName, columnsWithSettings)?.refName]: exclude[columnName] }), {}),
         meta
     }
-    console.log('options for spreadsheet getData', options)
+    console.log('options for spreadsheet getData', options, state)
     // =================================================================================================================
     // ========================================== check for proper indices begin =======================================
     // =================================================================================================================

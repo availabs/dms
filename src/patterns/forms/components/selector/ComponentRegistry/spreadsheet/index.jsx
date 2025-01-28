@@ -95,7 +95,8 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
             orderBy: state.columns.filter(column => column.sort).reduce((acc, column) => ({...acc, [column.name]: column.sort}), {}),
             filter: getFilters(state.columns), // {colName: []}
             fn: state.columns.filter(column => column.fn).reduce((acc, column) => ({...acc, [column.name]: column.fn}), {}),
-            exclude: state.columns.filter(column => column.excludeNA).reduce((acc, column) => ({...acc, [column.name]: ['null']}), {}),
+            exclude: state.columns.filter(column => column.excludeNA || Array.isArray(column.internalExclude))
+                .reduce((acc, {name, excludeNA, internalExclude}) => ({...acc, [name]: [...excludeNA ? ['null'] : [], ...Array.isArray(internalExclude) ? internalExclude : []]}), {}),
             meta: state.columns.filter(column => column.show && 
                                                  ['meta-variable', 'geoid-variable', 'meta'].includes(column.display) && 
                                                  column.meta_lookup)
@@ -445,7 +446,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
     }
     // =========================================== util fns end ========================================================
     if(showChangeFormatModal || !isValidState) return <div className={'p-1 text-center'}>Form data not available.</div>;
-    console.log('testing state', state.columns?.[4]?.externalFilter)
+    console.log('testing state', state)
     return (
         <SpreadSheetContext.Provider value={{state, setState, apiLoad, compType: renderCard ? 'card' : 'spreadsheet'}}>
             <div className={'w-full h-full'}>
