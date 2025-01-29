@@ -85,6 +85,7 @@ function PageEdit ({
             onChange={(v,action) => saveHeader(v, item, user, apiUpdate)}         
             attributes={sectionAttr}
             siteType={siteType}
+            full_width={'show'}
           />
         )} 
         
