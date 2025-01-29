@@ -52,13 +52,6 @@ const formatOptions = [
     {label: 'Abbreviated', value: 'abbreviate'},
 ]
 
-const justifyOptions = [
-    {label: 'Not Justified', value: ''},
-    {label: 'Left Justified', value: 'left'},
-    {label: 'Centered', value: 'center'},
-    {label: 'Right Justified', value: 'right'}
-]
-
 const fontSizeOptions = [
     {label: 'Small Fonts', value: 'small'},
     {label: 'Medium Fonts', value: 'medium'},
@@ -117,6 +110,13 @@ export default function RenderInHeaderColumnControls({attribute}) {
             action: () => updateColumns('sort', ''),
         },
     ];
+
+    const justifyOptions = [
+        {label: 'Not Justified', value: ''},
+        {label: 'Left Justified', value: 'left'},
+        {label: 'Centered', value: 'center'},
+        {label: 'Right Justified', value: 'right'},
+    ]
     if(compType === 'card') justifyOptions.push({label: 'Full Justified', value: 'full'})
     return (
         <div className="relative w-full">
