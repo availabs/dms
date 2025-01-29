@@ -5,7 +5,7 @@ import { Combobox } from '@headlessui/react'
 import { Link } from "react-router-dom";
 import { usePopper } from 'react-popper'
 import { CMSContext } from '../../../siteConfig'
-
+import {convert} from './convertToSpreadSheet'
 import {
     SquarePlus,
     InfoCircle,
@@ -173,7 +173,17 @@ export function SectionEdit ({value, i, onChange, attributes, size, onCancel, on
         </div>
     )
 }
-
+let handleCopy = (value) => {
+    const elementType = value?.element?.['element-type'];
+    if(elementType === 'Table: Cenrep II'){
+        const spreadsheetData = convert(JSON.parse(value.element['element-data']));
+        const ssElement = {...value, element: {'element-type': 'Spreadsheet', 'element-data': JSON.stringify(spreadsheetData)}};
+        console.log(ssElement);
+        navigator.clipboard.writeText(JSON.stringify(ssElement))
+        return;
+    }
+    navigator.clipboard.writeText(JSON.stringify(value))
+}
 export function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove, siteType, apiLoad, apiUpdate, format}) {
     let [referenceElement, setReferenceElement] = useState()
     let [popperElement, setPopperElement] = useState()
@@ -252,7 +262,7 @@ export function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAb
                                     <Button type='plain' padding='p-0.5' onClick={ () =>  moveItem(i,1) }>
                                         <ChevronDownSquare className='text-slate-400 hover:text-blue-500 w-[24px] h-[24px]' title="Move Down"/>
                                     </Button>
-                                    <Button type='plain' padding='p-0.5' onClick={() => navigator.clipboard.writeText(JSON.stringify(value))} >
+                                    <Button type='plain' padding='p-0.5' onClick={() => handleCopy(value)} >
                                         <Copy title={'Copy Section'} className='text-slate-400 hover:text-blue-500 w-[24px] h-[24px]'/>
                                     </Button>
                                     <Button type='plain' padding='p-0.5' onClick={ onEdit }>

@@ -115,11 +115,11 @@ export const RenderCell = ({
                 ...!attribute.openOut && {width: attribute.size},
                 ...isSelected && {borderWidth: '1px', ...selectionEdgeClassNames[edge]}
             }}
-            onClick={onClick}
-            onMouseDown={onMouseDown}
-            onMouseMove={onMouseMove}
-            onMouseUp={onMouseUp}
-            onDoubleClick={onDoubleClick}
+            onClick={attribute.isLink || attribute.actionType ? undefined : onClick}
+            onMouseDown={attribute.isLink || attribute.actionType ? undefined : onMouseDown}
+            onMouseMove={attribute.isLink || attribute.actionType ? undefined : onMouseMove}
+            onMouseUp={attribute.isLink || attribute.actionType ? undefined : onMouseUp}
+            onDoubleClick={attribute.isLink || attribute.actionType ? undefined : onDoubleClick}
             onPaste={onPaste}
         >
             {

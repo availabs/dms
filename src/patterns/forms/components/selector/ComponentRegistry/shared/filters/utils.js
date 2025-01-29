@@ -1,13 +1,24 @@
 import {isJson} from "../../../index";
 import {uniq} from "lodash-es";
 
-export const getData = async ({format, apiLoad, length, attribute, allAttributes, groupBy=[], filterBy={}}) =>{
-    const prependWithDistinct = !attribute.toLowerCase().startsWith('distinct');
-    const appendWithAS = !attribute.toLowerCase().includes(' as ');
-    const mappedAttributeName = `${prependWithDistinct ? `distinct ` : ``}${attribute}${appendWithAS ? ` as ${attribute}` : ``}` // to get uniq values
+// applies data->> and AS on a column name
+export const formattedAttributeStr = (col, isDms, isCalculatedCol) => isCalculatedCol ? col : isDms ? `data->>'${col}' as ${col}` : col;
+
+export const getData = async ({format, apiLoad,
+                                  // length,
+                                  reqName, refName, allAttributes, filterBy={}}) =>{
+    const prependWithDistinct = !reqName.toLowerCase().startsWith('distinct');
+    const appendWithAS = !reqName.toLowerCase().includes(' as ');
+    const mappedAttributeName = `${prependWithDistinct ? `distinct ` : ``}${reqName}${appendWithAS ? ` as ${reqName}` : ``}` // to get uniq values
     // const attributeNameForExclude = attribute.toLowerCase().be
-    const {name, display, meta_lookup} = allAttributes.find(attr => attr.name === attribute) || {};
+    const {name, display, meta_lookup} = allAttributes.find(attr => attr.name === reqName) || {};
     const meta = ['meta-variable', 'geoid-variable', 'meta'].includes(display) && meta_lookup ? {[name]: meta_lookup} : {};
+
+    const length = await getLength({
+        format, apiLoad,
+        groupBy: [refName],
+        filterBy
+    });
     const fromIndex = 0;
     const toIndex = length-1;
     const children = [{
@@ -36,7 +47,7 @@ export const getData = async ({format, apiLoad, length, attribute, allAttributes
         children
     });
     // console.log('debug filters data:', attribute, mappedAttributeName, data)
-    return data.map(row => ({[attribute]: row[mappedAttributeName]}));
+    return data.map(row => ({[reqName]: row[mappedAttributeName]}));
 }
 
 export const getLength = async ({format, apiLoad, groupBy= [], filterBy}) =>{
