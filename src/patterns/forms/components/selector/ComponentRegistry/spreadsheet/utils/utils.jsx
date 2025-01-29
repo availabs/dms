@@ -67,7 +67,7 @@ export const applyFn = (col={}, isDms=false) => {
     // calculated columns should never get data->>
     const isCalculatedCol = col.type === 'calculated' || col.display === 'calculated' || col.origin === 'calculated-column';
     const colNameWithAccessor = attributeAccessorStr(col.name, isDms, isCalculatedCol);
-    const colNameAfterAS = isCalculatedCol ? splitColNameOnAS(col.name)[1] : col.name;
+    const colNameAfterAS = (isCalculatedCol ? splitColNameOnAS(col.name)[1] : col.name).toLowerCase();
 
     const functions = {
         [undefined]: `${colNameWithAccessor} as ${colNameAfterAS}`,
