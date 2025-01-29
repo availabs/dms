@@ -44,9 +44,9 @@ export default function EditWrapper({ Component, format, options, params, user, 
 
 	const apiUpdate = async ({data, config = {format}, requestType=''}) => {
 		const res = await dmsDataEditor(falcor, config, data, requestType);
+		submit(null, {action: `${pathname}${search}`})
 		if(!data.id) return res; // return id if apiUpdate was used to create an entry.
 		if(data.app !== app || data.type !== type) return; // if apiUpdate was used to manually update something, don't refresh.
-		submit(null, {action: `${pathname}${search}`})
 	}
 
 	const updateAttribute = (attr, value, multi) => {
