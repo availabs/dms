@@ -48,7 +48,7 @@ const initialState = {
 const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLoad, apiUpdate, renderCard, ...rest}) => {
     const isEdit = Boolean(onChange);
     // const [state, setState] = useImmer(isJson(value) ? JSON.parse(value) : initialState);
-    const [state, setState] = useImmer(convertOldState(value, initialState   ));
+    const [state, setState] = useImmer(convertOldState(formatFromProps ? formatFromProps : value, initialState   ));
     const [loading, setLoading] = useState(false);
     const [newItem, setNewItem] = useState({})
 
@@ -62,7 +62,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
         formatFromProps && setState(draft => {
             draft.display = formatFromProps?.display;
             draft.sourceInfo = formatFromProps?.sourceInfo;
-            draft.columns = formatFromProps?.columns;
+            if(!draft.columns?.length) draft.columns = formatFromProps?.columns;
         });
     }, [formatFromProps]);
 
@@ -202,7 +202,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
 
     // =========================================== saving settings begin ===============================================
     useEffect(() => {
-        if (!isEdit || !isValidState) return;
+        if (!isEdit || !isValidState || formatFromProps) return;
         onChange(JSON.stringify(state));
     }, [state])
     // =========================================== saving settings end =================================================
