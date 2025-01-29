@@ -190,7 +190,9 @@ export const getData = async ({state, apiLoad, currentPage=0}) => {
     // =================================================================================================================
     // ========================================== check for proper indices begin =======================================
     // =================================================================================================================
-    const length = await getLength({options, state, apiLoad});
+    // not grouping by, and all visible columns have fn applied
+    const isRequestingSingleRow = !options.groupBy.length && columnsToFetch.filter(col => col.fn).length === columnsToFetch.length;
+    const length = isRequestingSingleRow ? 1 : await getLength({options, state, apiLoad});
     const actionType = 'uda';
     const fromIndex = currentPage * state.display.pageSize;
     const toIndex = Math.min(length, currentPage * state.display.pageSize + state.display.pageSize) - 1;
