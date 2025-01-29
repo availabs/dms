@@ -6,9 +6,10 @@ import React, {useContext, useMemo} from "react";
 import {Link} from "react-router-dom";
 
 const justifyClass = {
-    left: 'text-start',
-    right: 'text-end',
-    center: 'text-center'
+    left: {header: 'text-start', value: 'text-start'},
+    right: {header: 'text-end', value: 'text-end'},
+    center: {header: 'text-center', value: 'text-center'},
+    full: {header: 'text-start', value: 'text-end'}
 }
 const fontSizeClass = {
     small: {header: 'text-xs', value: 'text-sm'},
@@ -43,19 +44,26 @@ const colSpanClass = {
     10: 'col-span-10',
     11: 'col-span-11',
 }
+
+const defaultTheme = ({
+    headerWrapper: 'flex gap-1',
+    columnControlWrapper: `w-full font-semibold border bg-gray-50 text-gray-500`
+})
+// cards can be:
+// one cell per row, that carries one column's data,
+// one cell per row, that can carry multiple column's data
 export const Card = ({isEdit}) => {
-    const {state:{columns, data}, setState} = useContext(SpreadSheetContext);
+    const {state:{columns, data, display: {compactView, gridSize, headerValueLayout}}} = useContext(SpreadSheetContext);
     const visibleColumns = useMemo(() => columns.filter(({show}) => show), [columns]);
     const cardsWithoutSpanLength = useMemo(() => columns.filter(({show, cardSpan}) => show && !cardSpan).length, [columns]);
+    const {headerWrapper, columnControlWrapper} = defaultTheme;
 
     return (
         <>
             {
-                isEdit ? <div className={'flex gap-1'}>
-                    {visibleColumns
-                        .map((attribute, i) =>
-                            <div key={`controls-${i}`}
-                                 className={`w-full font-semibold border bg-gray-50 text-gray-500`}>
+                isEdit ? <div className={headerWrapper}>
+                    {visibleColumns.map((attribute, i) =>
+                            <div key={`controls-${i}`} className={columnControlWrapper}>
                                 <RenderInHeaderColumnControls
                                     isEdit={isEdit}
                                     attribute={attribute}
@@ -63,40 +71,39 @@ export const Card = ({isEdit}) => {
                             </div>)}
                 </div> : null
             }
-            <div className={`w-full ${gridColsClass[cardsWithoutSpanLength]} gap-2`}>
+            <div className={compactView ? gridColsClass[Math.min(gridSize, data.length)] : ``}>
                 {
-                    visibleColumns
-                        .map(attr => {
-                            const value = attr.formatFn ?
-                                formatFunctions[attr.formatFn](data?.[0]?.[attr.name], attr.isDollar) :
-                                data?.[0]?.[attr.name]
-                            const {isLink, location, linkText} = attr || {};
-                            return (
-                                <div key={attr.name}
-                                     className={`flex flex-col justify-center ${colSpanClass[Math.min(attr.cardSpan || 1, cardsWithoutSpanLength)]} w-full p-2 rounded-md border shadow items-center`}>
-                                    {
-                                        attr.hideHeader ? null : (
-                                            <div className={
-                                                `w-full text-gray-500 capitalize 
-                                             ${justifyClass[attr.justify || 'center']}
-                                             ${fontSizeClass[attr.fontSize]?.header}`
-                                            }>
-                                                {attr.customName || attr.display_name || attr.name}
+                    data.map(item => (
+                        <div className={`w-full ${compactView ? `flex flex-col border shadow` : gridColsClass[cardsWithoutSpanLength]} gap-2`}>
+                            {
+                                visibleColumns
+                                    .map(attr => {
+                                        const value = attr.formatFn ?
+                                            formatFunctions[attr.formatFn](item?.[attr.name], attr.isDollar) :
+                                            item?.[attr.name]
+                                        const {isLink, location, linkText} = attr || {};
+                                        return (
+                                            <div key={attr.name}
+                                                 className={`flex flex-${headerValueLayout} justify-center ${compactView ? colSpanClass[1] : colSpanClass[Math.min(attr.cardSpan || 1, cardsWithoutSpanLength)]} w-full p-2 rounded-md ${compactView ? `` : `border shadow`} items-center`}>
+                                                {
+                                                    attr.hideHeader ? null : (
+                                                        <div className={`w-full text-gray-500 capitalize ${justifyClass[attr.justify || 'center'].header} ${fontSizeClass[attr.fontSize]?.header}`}>
+                                                            {attr.customName || attr.display_name || attr.name}
+                                                        </div>
+                                                    )
+                                                }
+                                                <div className={`w-full text-gray-900 font-semibold ${justifyClass[attr.justify || 'center'].value} ${fontSizeClass[attr.fontSize]?.value}`}>
+                                                    {
+                                                        isLink ? <Link to={`${location}${encodeURIComponent(value)}`}>{linkText || value}</Link> :
+                                                            value
+                                                    }
+                                                </div>
                                             </div>
                                         )
-                                    }
-                                    <div className={
-                                        `w-full text-gray-900 font-semibold 
-                                    ${justifyClass[attr.justify || 'center']} ${fontSizeClass[attr.fontSize]?.value}`
-                                    }>
-                                        {
-                                            isLink ? <Link to={`${location}${encodeURIComponent(value)}`}>{linkText || value}</Link> :
-                                            value
-                                        }
-                                    </div>
-                                </div>
-                            )
-                        })
+                                    })
+                            }
+                        </div>
+                    ))
                 }
             </div>
         </>

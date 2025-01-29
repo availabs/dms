@@ -16,6 +16,9 @@ export default function RenderMoreControls({context}) {
         allowSearchParamsToggle,
         allowUsePaginationToggle,
         allowPageSizeInput,
+        allowCompactViewToggle,
+        allowGridSizeSelect,
+        allowHeaderValueLayoutSelect,
         allowDataSizeInput=false
     } = getControlConfig(compType);
 
@@ -30,6 +33,10 @@ export default function RenderMoreControls({context}) {
         })
     }, []);
 
+    const headerValueOptions = [
+        {label: `Inline`, value: 'row'},
+        {label: `Stacked`, value: 'col'},
+    ]
     return (
         <div className="relative inline-block text-left">
             <div>
@@ -60,6 +67,9 @@ export default function RenderMoreControls({context}) {
                     {allowDownloadToggle ?
                         <RenderToggleControls title={'Allow Download'} value={display.allowDownload}
                                               setValue={value => updateDisplayValue('allowDownload', value)}/> : null}
+                    {allowCompactViewToggle ?
+                    <RenderToggleControls title={'Compact View'} value={display.compactView}
+                                          setValue={value => updateDisplayValue('compactView', value)}/> : null}
                     {allowUsePaginationToggle ?
                         <RenderToggleControls title={'Use Pagination'} value={display.usePagination}
                                               setValue={value => updateDisplayValue('usePagination', value)}/> : null}
@@ -70,6 +80,27 @@ export default function RenderMoreControls({context}) {
                     {allowDataSizeInput ?
                         <RenderInputControls title={'Data Size'} type={'number'} value={display.dataSize}
                                              setValue={value => updateDisplayValue('dataSize', +value)}/> : null}
+                    {allowGridSizeSelect ?
+                        <RenderInputControls title={'Grid Size'} type={'number'} value={display.gridSize}
+                                             setValue={value => updateDisplayValue('gridSize', +value)}/> : null}
+                    {
+                        allowHeaderValueLayoutSelect ? (
+                            <div
+                                className={`group inline-flex w-full justify-between items-center rounded-md px-1.5 py-1 text-sm font-regular text-gray-900 bg-white hover:bg-gray-50 cursor-pointer`}
+                            >
+                                <span className={'flex-0 select-none mr-1'}>Value Placement</span>
+                                <select
+                                    className={'flex-1 p-1 w-full rounded-md bg-white group-hover:bg-gray-50 cursor-pointer'}
+                                    value={display.headerValueLayout}
+                                    onChange={e => updateDisplayValue('headerValueLayout', e.target.value)}
+                                >
+                                    {
+                                        headerValueOptions.map(({label, value}) => <option key={value} value={value}>{label}</option>)
+                                    }
+                                </select>
+                            </div>
+                        ) : null
+                    }
                 </div>
             </div>
         </div>

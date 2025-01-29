@@ -53,6 +53,7 @@ const formatOptions = [
 ]
 
 const justifyOptions = [
+    {label: 'Not Justified', value: ''},
     {label: 'Left Justified', value: 'left'},
     {label: 'Centered', value: 'center'},
     {label: 'Right Justified', value: 'right'}
@@ -116,7 +117,7 @@ export default function RenderInHeaderColumnControls({attribute}) {
             action: () => updateColumns('sort', ''),
         },
     ];
-
+    if(compType === 'card') justifyOptions.push({label: 'Full Justified', value: 'full'})
     return (
         <div className="relative w-full">
             <div id={menuBtnId}
