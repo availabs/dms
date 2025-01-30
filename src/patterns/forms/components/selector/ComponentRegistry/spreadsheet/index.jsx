@@ -416,7 +416,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
 
     // =========================================== util fns begin ======================================================
     const updateItem = (value, attribute, d) => {
-        if(!state.sourceInfo?.isDms) return;
+        if(!state.sourceInfo?.isDms || !apiUpdate) return;
         let dataToUpdate = Array.isArray(d) ? d : [d];
 
         let tmpData = [...state.data];
@@ -431,7 +431,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
     }
 
     const addItem = () => {
-        if(!state.sourceInfo?.isDms) return;
+        if(!state.sourceInfo?.isDms || !apiUpdate) return;
         setState(draft => {
             draft.data.push(newItem)
         })
@@ -439,7 +439,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
     }
 
     const removeItem = item => {
-        if(!state.sourceInfo?.isDms) return;
+        if(!state.sourceInfo?.isDms || !apiUpdate) return;
         setState(draft => {
             draft.data = draft.data.filter(d => d.id !== item.id);
         })
@@ -461,7 +461,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
                                         newItem, setNewItem,
                                         updateItem, removeItem, addItem,
                                         currentPage, loading, isEdit,
-                                        allowEdit: groupByColumnsLength ? false : state.display.allowEditInView
+                                        allowEdit: groupByColumnsLength ? false : state.display.allowEditInView && apiUpdate
                                     }} />
                                 </>
                             )
