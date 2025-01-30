@@ -1,10 +1,9 @@
-import React, {useEffect} from 'react'
+import React, { useEffect } from 'react'
 
 
 
 //import { saveHeader, saveSection } from './editFunctions'
-import Layout from '../../ui/avail-layout'
-import SideNav from '../../ui/nav/Side'
+import { Layout, SideNav } from '../../ui'
 import { ViewIcon } from '../../ui/icons'
 import { CMSContext } from '../../siteConfig'
 
@@ -14,7 +13,7 @@ const managerTheme={
     sideNav: {
       size: 'compact',
       search: 'none',
-      logo: 'top',
+      logo: 'none',
       dropdown: 'none',
       nav: 'main'
     },
@@ -22,7 +21,7 @@ const managerTheme={
       size: 'compact',
       dropdown: 'right',
       search: 'none',
-      logo: 'none',
+      logo: 'left',
       position: 'fixed',
       nav: 'none' 
     }

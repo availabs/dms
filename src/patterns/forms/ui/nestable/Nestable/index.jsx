@@ -1,6 +1,6 @@
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
-import isEqual from 'lodash/isEqual';
+import { isEqual } from "lodash-es";
 import update from './imh';
 import { cx } from '../utils';
 

@@ -25,7 +25,7 @@ const RenderToken = ({token, value, onChange, theme, isSearching, setIsSearching
 }
 
 const RenderMenu = ({
-                        options,
+                        options=[],
                         isSearching,
                         setIsSearching,
                         placeholder,
@@ -35,7 +35,7 @@ const RenderMenu = ({
                         onChange,
                         theme
                     }) => {
-    const mappedValue = value.map(v => v.value || v);
+    const mappedValue = value.filter(v => v).map(v => v.value || v);
     const selectAllOption = {label: 'Select All', value: 'select-all'};
     const removeAllOption = {label: 'Remove All', value: 'remove-all'};
     return (
@@ -52,7 +52,7 @@ const RenderMenu = ({
                 {
                     [selectAllOption, removeAllOption]
                         .filter(o =>
-                            o.value === 'select-all' ? value.length !== options.length :
+                            o.value === 'select-all' ? value.length !== options?.length :
                                 o.value === 'remove-all' ? value.length : true)
                         .map((o, i) =>
                             <div
@@ -71,8 +71,8 @@ const RenderMenu = ({
                 }
             </div>
             {
-                options
-                    .filter(o => !mappedValue.includes(o.value || o) && (o.label || o)?.toLowerCase().includes(searchKeyword?.toLowerCase()))
+                (options || [])
+                    .filter(o => !mappedValue.includes(o.value || o) && (o.label || o)?.toString()?.toLowerCase().includes(searchKeyword?.toLowerCase()))
                     .map((o, i) =>
                         <div
                             key={`option-${i}`}
@@ -132,7 +132,7 @@ const Edit = ({value = [], onChange, className,placeholder, options = [], displa
         setIsSearching
     } = useComponentVisible(false);
 
-    const invalidValues = typeSafeValue.filter(v => (v.value || v) && !options.filter(o => (o.value || o) === (v.value || v))?.length);
+    const invalidValues = typeSafeValue.filter(v => v && (v.value || v) && !options?.filter(o => (o.value || o) === (v.value || v))?.length);
 
     return (
         <div ref={ref} className={`${theme?.multiselect?.mainWrapper || mainWrapper} ${menuPosition === 'top' ? 'flex flex-col flex-col-reverse' : ''}`}>
@@ -142,7 +142,7 @@ const Edit = ({value = [], onChange, className,placeholder, options = [], displa
             }
             <div className={className || (theme?.multiselect?.inputWrapper) || inputWrapper} onClick={() => {
                 setIsSearching(!isSearching)
-                console.log('ms?', ref.current.top)
+                // console.log('ms?', ref.current.top)
             }}>
                 {
                     typeSafeValue
@@ -181,10 +181,6 @@ const View = ({className, value, options = []}) => {
     if (!value) return <div className={theme?.multiselect?.mainWrapper} />
 
     const mappedValue = (Array.isArray(value) ? value : [value]).map(v => v.value || v)
-    const option =
-        options
-            .filter(o => mappedValue.includes(o.value || o))
-            .map(o => o.label || o);
 
     return (
         <div className={theme?.multiselect?.mainWrapper}>

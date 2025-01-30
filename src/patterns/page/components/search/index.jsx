@@ -1,6 +1,5 @@
-import {Fragment, useEffect, useContext, useState} from "react";
+import React, {Fragment, useEffect, useContext, useState} from "react";
 import {Combobox, Dialog, DialogPanel, Input, Transition} from '@headlessui/react'
-// import {getConfig} from "../layout/template/pages";
 import {dmsDataLoader} from "../../../../api";
 import {CMSContext} from "../../siteConfig";
 import {Link} from "react-router-dom";

@@ -1,4 +1,4 @@
-import cloneDeep from 'lodash/cloneDeep'
+import { cloneDeep } from "lodash-es"
 import { json2DmsForm, getUrlSlug, toSnakeCase, parseJSON } from '../_utils'
 import { PencilIcon, CirclePlus, WrenchIcon, SlidersIcon, MenuIcon , ClockIcon} from '../../ui/icons'
 import { ButtonSelector,SidebarSwitch } from '../../ui'
@@ -97,6 +97,10 @@ const duplicateItem = (item, dataItems, user, apiUpdate) => {
         delete s.ref
         delete s.id
     })
+    newItem.draft_sections.forEach(s => {
+        delete s.ref
+        delete s.id
+    })
     newItem.history = [{
         type:'Created Duplicate Page.',
         user: user.email,
@@ -113,7 +117,7 @@ export const newPage = async (item, dataItems, user, apiUpdate) => {
     },0)
 
     const newItem = {
-      title: 'New Page',
+      title: `Page ${highestIndex + 1}`,
       parent: item?.parent,
       index: highestIndex + 1,
       published: 'draft',
@@ -148,6 +152,23 @@ export const updateTitle = async ( item, dataItems, value='', user, apiUpdate) =
       // console.log('create new item', newItem, baseUrl)
       apiUpdate({data:newItem})
     }
+  }
+
+  export const updateHistory = async ( item, value='', user, apiUpdate) => {
+      let history = item.history ? cloneDeep(item.history) : []
+      let edit = {
+        type: value,
+        user: user.email,
+        time: new Date().toString()
+      }
+      history.push(edit)
+
+      const newItem = {
+        ...cloneDeep(item),
+        history
+      }
+
+      apiUpdate({data:newItem})
   }
 
 export const toggleSidebar = async (item,type, value='', pageType, apiUpdate) => {
@@ -190,6 +211,7 @@ export const publish = async (user,item, apiUpdate) => {
     history
   }
 
+  // no use: draft_id is never saved
   let sectionsByDraftId = cloneDeep(item.sections || [])
     .reduce((o,s) => { 
       if(s.draft_id){
@@ -200,7 +222,7 @@ export const publish = async (user,item, apiUpdate) => {
 
   newItem.sections = cloneDeep(item.draft_sections || [])
     .reduce((sections, draft) => {
-      if(sectionsByDraftId[draft.id]) {
+      if(sectionsByDraftId[draft.id]) { // never triggers
         draft.id = sectionsByDraftId[draft.id].id
       } else {
         delete draft.id

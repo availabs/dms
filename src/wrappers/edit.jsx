@@ -4,10 +4,10 @@ import { filterParams } from '../dms-manager/_utils'
 import { getAttributes } from './_utils'
 import { dmsDataEditor, dmsDataLoader } from '../index'
 import { useFalcor } from "@availabs/avl-falcor"
-import isEqual from 'lodash/isEqual'
+import { isEqual } from "lodash-es"
 //import { useImmer } from "use-immer";
 
-import get from 'lodash/get'
+import { get } from "lodash-es"
 
 const json2DmsForm = (data,requestType='update') => {
   let out = new FormData()
@@ -18,6 +18,7 @@ const json2DmsForm = (data,requestType='update') => {
 
 export default function EditWrapper({ Component, format, options, params, user, ...props}) {
 	const { falcor } = useFalcor()
+	const {app, type} = format;
 	const attributes = getAttributes(format, options, 'edit')
 	const submit = useSubmit();
 	const { pathname, search } = useLocation()
@@ -41,11 +42,11 @@ export default function EditWrapper({ Component, format, options, params, user, 
 	},[data,params])
 
 
-	const apiUpdate = async ({data, config={format}, requestType=''}) => {  
-			// update the data
-		console.log('apiUpdate', data, config)
-			await dmsDataEditor(falcor, config, data, requestType)
-			submit(null, {action: `${pathname}${search}`})
+	const apiUpdate = async ({data, config = {format}, requestType=''}) => {
+		const res = await dmsDataEditor(falcor, config, data, requestType);
+		submit(null, {action: `${pathname}${search}`})
+		if(!data.id) return res; // return id if apiUpdate was used to create an entry.
+		if(data.app !== app || data.type !== type) return; // if apiUpdate was used to manually update something, don't refresh.
 	}
 
 	const updateAttribute = (attr, value, multi) => {
@@ -57,7 +58,7 @@ export default function EditWrapper({ Component, format, options, params, user, 
 	}
 
 	const submitForm = () => {
-		submit(json2DmsForm(item), { method: "post", action: pathname })
+		submit(json2DmsForm(item), { method: "post", action: `${pathname}${search}` })
 	}
 
 	const apiLoad = async (config, path) => {

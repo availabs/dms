@@ -50,6 +50,7 @@ import Select from '../ui/Select';
 import TextInput from '../ui/TextInput';
 import {$isInlineImageNode, InlineImageNode} from './InlineImageNode';
 import ImageResizer from "../ui/ImageResizer";
+import theme from '../themes/PlaygroundEditorTheme';
 
 const imageCache = new Set();
 
@@ -86,7 +87,7 @@ function LazyImage({
   useSuspenseImage(src);
   return (
     <img
-      className={className || undefined}
+      className={`${className} cursor-default`}
       src={src}
       alt={altText}
       ref={imageRef}
@@ -387,9 +388,9 @@ export default function InlineImageComponent({
   return (
     <Suspense fallback={null}>
       <>
-        <div draggable={draggable}>
+        <div draggable={draggable} className={`${theme.editor.inlineImage.base}` }>
           <button
-            className={'image-edit-button'}
+            className={theme.editor.inlineImage.editButton.base || 'image-edit-button'}
             ref={buttonRef}
             onClick={() => {
               showModal('Update Inline Image', (onClose) => (
@@ -405,7 +406,7 @@ export default function InlineImageComponent({
           <LazyImage
             className={
               isFocused
-                ? `focused ${$isNodeSelection(selection) ? 'draggable' : ''}`
+                ? `${theme.editor.inlineImage.img.focused} ${$isNodeSelection(selection) ? `${theme.editor.inlineImage.img.draggable.base}` : ''}`
                 : null
             }
             src={src}
@@ -417,7 +418,7 @@ export default function InlineImageComponent({
           />
         </div>
         {showCaption && (
-          <div className="image-caption-container">
+          <div className={theme.editor.inlineImage.captionContainer || "image-caption-container"}>
             <LexicalNestedComposer initialEditor={caption}>
               <AutoFocusPlugin />
               <LinkPlugin />

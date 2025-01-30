@@ -1,7 +1,7 @@
 import React from "react"
 import { Dropdown } from '../ui/index'
 import {Link, useLocation} from 'react-router-dom'
-import { FormsContext } from '../'
+import { FormsContext } from '../siteConfig'
 import { User } from '../ui/icons'
 
 // import {NavItem, NavMenu, NavMenuItem, NavMenuSeparator, withAuth} from 'components/avl-components/src'
@@ -47,7 +47,6 @@ export const Item = ({to, icon,children}) => (
 export default ({title, children, adminPath}) => {
     const { user, baseUrl, parent, theme } = React.useContext(FormsContext)
     const location = useLocation();
-    console.log('here')
     let authMenuItems = theme?.navOptions?.authMenu?.navItems || [
             {
                 name: 'Patterns',

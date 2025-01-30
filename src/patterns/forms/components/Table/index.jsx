@@ -10,7 +10,7 @@ import {
 // import Loading from '../Loading';
 // import {Button} from "../Button"
 // import {Select} from "../Inputs"
-import get from 'lodash/get'
+import { get } from "lodash-es"
 import {matchSorter} from 'match-sorter'
 import {useState, useEffect} from "react";
 import {useCallback, useMemo} from 'react';
@@ -49,6 +49,7 @@ export default ({
     csvDownload = false,
     onCsvDownload,
     themeOptions = {},
+    theme = {},
     ...props
 }) => {
     const [pageData, setPageData] = React.useState(data || []);
@@ -56,8 +57,6 @@ export default ({
     const [currentPage, setCurrentPage] = useState(manualCurrentPage || 0);
     const [pageValue, setPageValue] = useState(0);
     const [loading, setLoading] = useState(false);
-
-    const theme = {}
 
     const filterTypes = React.useMemo(
         () => ({

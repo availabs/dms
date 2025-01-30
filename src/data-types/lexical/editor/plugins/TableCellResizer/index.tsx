@@ -5,13 +5,14 @@
  * LICENSE file in the root directory of this source tree.
  *
  */
+import React from 'react';
 import type {TableDOMCell} from '@lexical/table';
 import type {LexicalEditor} from 'lexical';
 
-import './index.css';
+//import './index.css';
 
 import {useLexicalComposerContext} from '@lexical/react/LexicalComposerContext';
-import useLexicalEditable from '@lexical/react/useLexicalEditable';
+//import  useLexicalEditable from '@lexical/react/useLexicalEditable';
 import {
   $getTableColumnIndexFromTableCellNode,
   $getTableNodeFromLexicalNodeOrThrow,
@@ -28,7 +29,7 @@ import {
   COMMAND_PRIORITY_HIGH,
   SELECTION_CHANGE_COMMAND,
 } from 'lexical';
-import * as React from 'react';
+
 import {
   MouseEventHandler,
   ReactPortal,
@@ -388,12 +389,12 @@ function TableCellResizer({editor}: {editor: LexicalEditor}): JSX.Element {
       {activeCell != null && !isSelectingGrid && (
         <>
           <div
-            className="TableCellResizer__resizer TableCellResizer__ui"
+            className={"absolute TableCellResizer__ui" }
             style={resizerStyles.right || undefined}
             onMouseDown={toggleResize('right')}
           />
           <div
-            className="TableCellResizer__resizer TableCellResizer__ui"
+            className={"absolute TableCellResizer__ui"}
             style={resizerStyles.bottom || undefined}
             onMouseDown={toggleResize('bottom')}
           />
@@ -405,7 +406,7 @@ function TableCellResizer({editor}: {editor: LexicalEditor}): JSX.Element {
 
 export default function TableCellResizerPlugin(): null | ReactPortal {
   const [editor] = useLexicalComposerContext();
-  const isEditable = useLexicalEditable();
+  const isEditable = false//useLexicalEditable();
 
   return useMemo(
     () =>

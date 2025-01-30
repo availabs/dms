@@ -1,6 +1,6 @@
-import get from "lodash/get";
-import isEqual from "lodash/isEqual";
-import cloneDeep from "lodash/cloneDeep"
+import { get } from "lodash-es";;
+import { isEqual } from "lodash-es";
+import { cloneDeep } from "lodash-es"
 
 export 	async function updateDMSAttrs(data, configs, falcor) {
     let updates = {}
@@ -18,6 +18,11 @@ export 	async function updateDMSAttrs(data, configs, falcor) {
         for (const dU of toUpdate) {
             let d = cloneDeep(dU)
             let id = d?.id || false
+
+            for(const key of ['id', 'ref', 'created_at', 'updated_at', 'created_by', 'updated_by']) {
+                delete d[key];
+            }
+
             if(id) {
                 // if id edit
                 let currentData = get(
@@ -26,10 +31,13 @@ export 	async function updateDMSAttrs(data, configs, falcor) {
                     ,{}
                 )
                 // ---
-                delete d.ref
-                delete d.id
-                currentData?.ref && delete currentData.ref
-                currentData?.id && delete currentData.id
+                // delete d.ref
+                // delete d.id
+                // currentData?.ref && delete currentData.ref
+                // currentData?.id && delete currentData.id
+                for(const key of ['id', 'ref', 'created_at', 'updated_at', 'created_by', 'updated_by']) {
+                    delete currentData[key]
+                }
                 // ---
                 //console.log(currentData,d)
 
@@ -45,14 +53,14 @@ export 	async function updateDMSAttrs(data, configs, falcor) {
                 updates[attr].push({ref:`${app}+${type}`, id})
             } else {
                 // else create
-                // console.log('create dms-format', `${app}+${type}`)
+                // console.log('create dms-format', `${app}+${type}`, d)
                 const res = await falcor.call(
                     ["dms", "data", "create"],
                     [app, type, d]
                 )
                 let newId = Object.keys(res?.json?.dms?.data?.byId || {})
                     .filter(d => d !== "$__path")?.[0] || -1
-                console.log(newId)
+
                 if(newId !== -1) {
                     updates[attr].push({ref:`${app}+${type}`, id:newId})
                 }

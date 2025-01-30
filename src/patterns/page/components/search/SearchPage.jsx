@@ -2,7 +2,7 @@ import React, {Fragment, useContext, useEffect, useState} from "react";
 import {useParams, useNavigate, useSearchParams} from "react-router-dom";
 import {dmsDataLoader} from "../../../../api";
 import {getConfig} from "./index";
-import Layout from "../../ui/avail-layout";
+import { Layout } from "../../ui";
 import {CMSContext} from "../../siteConfig";
 import {dataItemsNav, detectNavLevel} from "../../pages/_utils";
 import dataTypes from "../../../../data-types";
@@ -13,7 +13,7 @@ export const searchTypeMapping = {
     page_title: 'byPageTitle'
 }
 
-const getSearchURL = ({value, baseUrl, type='tags'}) => !baseUrl || baseUrl === '' ? `/search/?q=${value}&type=${type}` : `/${baseUrl}/search/?q=${value}&type=${type}`;
+const getSearchURL = ({value, baseUrl, type='tags'}) => !baseUrl || baseUrl === '' ? `/search/?q=${value}&type=${type}` : `${baseUrl}/search/?q=${value}&type=${type}`;
 
 export const getScore = (valuesToMatch, query) => {
     const regex = new RegExp(`(${query})`, 'gi');
@@ -233,7 +233,7 @@ export const SearchPage = ({item, dataItems, format, attributes, logo, rightMenu
 
         setItems(pagesForQuery || {})
     }, [data, query])
-    console.log('query', query, loading, items)
+    console.log('query', baseUrl, query, loading, items)
     return (
         <Layout navItems={menuItems}>
             <div className={`${theme?.page?.wrapper1} ${theme?.navPadding[0]}`}>

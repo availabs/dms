@@ -1,5 +1,4 @@
-import SectionArray from './components/sections/sectionArray'
-//import femaReqs from './data/fema-requirement-tags'
+import SectionArray from './ui/dataComponents/sections/sectionArray'
 
 export const cmsSection = {
   app: "dms-site",

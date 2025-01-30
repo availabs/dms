@@ -190,9 +190,8 @@ export function getInPageNav(item, theme) {
     };
 }
 
-import isEqual from 'lodash/isEqual'
-import reduce from 'lodash/reduce'
-import map from 'lodash/map'
+import { isEqual, map, reduce } from "lodash-es"
+
 
 export const parseJSON = (d, fallback={}) => {
     let out = fallback

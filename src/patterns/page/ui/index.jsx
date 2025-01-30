@@ -1,9 +1,25 @@
 import React, { useEffect, Fragment, useRef, useState } from 'react'
 import {PencilIcon} from './icons'
 import { CMSContext } from '../siteConfig'
-import { Dialog, Transition, Switch, Popover } from '@headlessui/react'
+import { Transition, Switch, Popover } from '@headlessui/react'
 import { usePopper } from 'react-popper'
-import defaultTheme from '../theme/theme'
+import defaultTheme from './theme'
+
+import * as Headless from '@headlessui/react'
+
+
+export { default as DraggableNav } from './components/nestable/draggableNav'
+export { default as Layout }  from './components/layout'
+export { default as SideNav } from './components/sidenav' 
+export { default as TopNav } from './components/topnav'
+export { default as Nestable } from './components/nestable'
+export { default as Drawer } from './components/drawer'
+export { default as Tabs } from './components/tabs'
+export { default as Button } from './components/button'
+export { default as Menu } from './components/menu'
+export { default as Input, ConfirmInput } from './components/input'
+export { default as Dialog } from './components/dialog'
+export { default as Popover } from './components/popover'
 
 
 export const useClickOutside = handleClick => {
@@ -59,10 +75,10 @@ export function PopoverMenuItem ({children,onClick}) {
     const {theme = defaultTheme} = React.useContext(CMSContext)
     return (
         <div 
-            onClick={onClick}
-            className={theme.pageControls.controlItem}
+          onClick={onClick}
+          className={theme.pageControls.controlItem}
         >
-                {children}
+          {children}
         </div>
     )
 }
@@ -229,7 +245,7 @@ export const ButtonSelector = ({
 export function SideNavContainer({children, width='w-64', custom='top-20'}) {
   return (
     <div className={`${width} hidden xl:block`}>
-      <div className={`${width} sticky ${custom} hidden xl:block`}> 
+      <div className={`${width} sticky ${custom}  hidden xl:block`}> 
         {children}
       </div>
     </div>
@@ -313,9 +329,9 @@ export function DeleteModal ({title, prompt, item={}, open, setOpen, onDelete}) 
           <i className="fa fa-danger h-6 w-6 text-red-600" aria-hidden="true" />
         </div>
         <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left">
-          <Dialog.Title as="h3" className="text-base font-semibold leading-6 text-gray-900">
+          <Headless.DialogTitle as="h3" className="text-base font-semibold leading-6 text-gray-900">
               {title || `Delete ${item.title || ''} ${item.id}`}
-          </Dialog.Title>
+          </Headless.DialogTitle>
           <div className="mt-2">
             <p className="text-sm text-gray-500">
                 {prompt || `Are you sure you want to delete this page? All of the page data will be permanently removed
@@ -350,7 +366,7 @@ export function DeleteModal ({title, prompt, item={}, open, setOpen, onDelete}) 
 export function Modal({open, setOpen, initialFocus, children}) {
   return (
     <Transition.Root show={open} as={Fragment}>
-      <Dialog as="div" className="relative z-30" initialFocus={initialFocus} onClose={setOpen}>
+      <Headless.Dialog as="div" className="relative z-30" initialFocus={initialFocus} onClose={setOpen}>
         <Transition.Child
           as={Fragment}
           enter="ease-out duration-300"
@@ -377,13 +393,13 @@ export function Modal({open, setOpen, initialFocus, children}) {
               leaveFrom="opacity-100 translate-y-0 sm:scale-100"
               leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
             >
-              <Dialog.Panel className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6">
+              <Headless.DialogPanel className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6">
                 {children}
-              </Dialog.Panel>
+              </Headless.DialogPanel>
             </Transition.Child>
           </div>
         </div>
-      </Dialog>
+      </Headless.Dialog>
     </Transition.Root>
   )
 }

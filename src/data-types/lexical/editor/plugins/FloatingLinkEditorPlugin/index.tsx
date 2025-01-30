@@ -5,7 +5,7 @@
  * LICENSE file in the root directory of this source tree.
  *
  */
-import './index.css';
+//import './index.css';
 
 import {$isAutoLinkNode, $isLinkNode, TOGGLE_LINK_COMMAND} from '@lexical/link';
 import {useLexicalComposerContext} from '@lexical/react/LexicalComposerContext';
@@ -31,6 +31,7 @@ import {createPortal} from 'react-dom';
 import {getSelectedNode} from '../../utils/getSelectedNode';
 import {setFloatingElemPositionForLinkEditor} from '../../utils/setFloatingElemPositionForLinkEditor';
 import {sanitizeUrl} from '../../utils/url';
+import theme from '../../themes/PlaygroundEditorTheme';
 
 function FloatingLinkEditor({
   editor,
@@ -92,7 +93,7 @@ function FloatingLinkEditor({
         setFloatingElemPositionForLinkEditor(domRect, editorElem, anchorElem);
       }
       setLastSelection(selection);
-    } else if (!activeElement || activeElement.className !== 'link-input') {
+    } else if (!activeElement || activeElement.className !== (theme.linkEditor.linkInput.base)) {
       if (rootElement !== null) {
         setFloatingElemPositionForLinkEditor(null, editorElem, anchorElem);
       }
@@ -193,12 +194,12 @@ function FloatingLinkEditor({
   };
 
   return (
-    <div ref={editorRef} className="link-editor">
+    <div ref={editorRef} className={theme.linkEditor.base || "link-editor"}>
       {!isLink ? null : isLinkEditMode ? (
         <>
           <input
             ref={inputRef}
-            className="link-input"
+            className={theme.linkEditor.linkInput.base || "link-input"}
             value={editedLinkUrl}
             onChange={(event) => {
               setEditedLinkUrl(event.target.value);
@@ -209,7 +210,7 @@ function FloatingLinkEditor({
           />
           <div>
             <div
-              className="link-cancel"
+              className={theme.linkEditor.div.linkCancel || "link-cancel"}
               role="button"
               tabIndex={0}
               onMouseDown={(event) => event.preventDefault()}
@@ -219,7 +220,7 @@ function FloatingLinkEditor({
             />
 
             <div
-              className="link-confirm"
+              className={theme.linkEditor.div.linkConfirm || "link-confirm"}
               role="button"
               tabIndex={0}
               onMouseDown={(event) => event.preventDefault()}
@@ -228,15 +229,16 @@ function FloatingLinkEditor({
           </div>
         </>
       ) : (
-        <div className="link-view">
+        <div className={theme.linkEditor.linkView.base || "link-view"}>
           <a
+            className={theme.linkEditor.linkView.a}
             href={sanitizeUrl(linkUrl)}
             target="_blank"
             rel="noopener noreferrer">
             {linkUrl}
           </a>
           <div
-            className="link-edit"
+            className={theme.linkEditor.div.linkEdit || "link-edit"}
             role="button"
             tabIndex={0}
             onMouseDown={(event) => event.preventDefault()}
@@ -246,7 +248,7 @@ function FloatingLinkEditor({
             }}
           />
           <div
-            className="link-trash"
+            className={theme.linkEditor.div.linkTrash || "link-trash"}
             role="button"
             tabIndex={0}
             onMouseDown={(event) => event.preventDefault()}

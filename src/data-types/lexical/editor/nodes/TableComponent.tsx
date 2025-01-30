@@ -640,7 +640,7 @@ function TableCell({
               setShowMenu(!showMenu);
               e.stopPropagation();
             }}>
-            <i className="chevron-down" />
+            <i className={theme.iconChevronDown || "chevron-down"} />
           </button>
         </div>
       )}

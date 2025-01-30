@@ -1,6 +1,6 @@
 import React from 'react'
 import {useTheme} from '../theme'
-import get from 'lodash/get'
+import { get } from "lodash-es"
 
 export default function EditCard({
                                      item={},

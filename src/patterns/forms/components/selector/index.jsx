@@ -1,10 +1,10 @@
 import {useEffect} from "react";
-import get from "lodash/get"
-import isEqual from "lodash/isEqual"
+import { get } from "lodash-es";
+import { isEqual } from "lodash-es"
 
 import {dmsDataTypes} from "../../../../index"
 
-import FilterableSearch from "./FilterableSearch.jsx";
+import FilterableSearch from "./FilterableSearch";
 
 import ComponentRegistry from './ComponentRegistry'
 

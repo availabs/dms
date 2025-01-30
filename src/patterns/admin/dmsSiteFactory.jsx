@@ -1,13 +1,14 @@
 import React, {useState, useEffect} from 'react'
-import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import {createBrowserRouter, Outlet, RouterProvider} from "react-router-dom";
 
 //import {  adminConfig } from "./modules/dms/src/"
 import { dmsDataLoader, dmsPageFactory, registerDataType, Selector } from '../../'
 import { falcorGraph, useFalcor } from "@availabs/avl-falcor"
+import { cloneDeep } from "lodash-es"
 
 
+import metaFormsConfig from '../forms/siteConfig'; // meta level forms config. this "pattern" serves as parent for all forms.
 
-import formsConfig from '../forms'
 import pageConfig from '../page/siteConfig'
 //import {template} from "./admin.format"
 
@@ -18,12 +19,19 @@ const getSubdomain = (host) => {
     // only works with single depth subdomains 
     // ---
     //console.log('host', host,  host.split('.'));
-    return host.split('.').length > 2 ?
-        window.location.host.split('.')[0].toLowerCase() :
-            false
+    if (process.env.NODE_ENV === "development") {
+        return host.split('.').length >= 2 ?
+            window.location.host.split('.')[0].toLowerCase() :
+                false
+    } else {
+        return host.split('.').length > 2 ?
+            window.location.host.split('.')[0].toLowerCase() :
+                false
+    }
 }
 
 import {updateAttributes, updateRegisteredFormats} from "./siteConfig";
+import {useLocation} from "react-router";
 
 // --
 // to do:
@@ -31,37 +39,38 @@ import {updateAttributes, updateRegisteredFormats} from "./siteConfig";
 // --
 const configs = {
     page: pageConfig,
-    form: formsConfig
+    forms: metaFormsConfig,
 }
 
 registerDataType("selector", Selector)
 
-export default async function dmsSiteFactory({
-    dmsConfig,
-    adminPath = '/list',
-    authWrapper = Component => Component,
-    themes = { default: {} },
-    falcor,
-    API_HOST = 'https://graph.availabs.org'
-}) {
-    let dmsConfigUpdated = {...dmsConfig};
+
+function pattern2routes (siteData, props) {
+    let {
+        dmsConfig,
+        adminPath = '/list',
+        authWrapper = Component => Component,
+        themes = { default: {} },
+        falcor,
+        API_HOST = 'https://graph.availabs.org'
+    } = props
+
+    const patterns = siteData.reduce((acc, curr) => [...acc, ...(curr?.patterns || [])], []) || [];
+    let SUBDOMAIN = getSubdomain(window.location.host)
+    SUBDOMAIN = SUBDOMAIN === 'hazardmitigation' ? '' : SUBDOMAIN
+    
     themes = themes?.default ? themes : { ...themes, default: {} }
+    
+    let dmsConfigUpdated = cloneDeep(dmsConfig);
     dmsConfigUpdated.registerFormats = updateRegisteredFormats(dmsConfigUpdated.registerFormats, dmsConfig.app)
     dmsConfigUpdated.attributes = updateAttributes(dmsConfigUpdated.attributes, dmsConfig.app)
 
-    falcor = falcor || falcorGraph(API_HOST)
-    let data = await dmsDataLoader(falcor, dmsConfigUpdated, `/`);
 
-    const patterns = data.reduce((acc, curr) => [...acc, ...(curr?.patterns || [])], []) || [];
-    const SUBDOMAIN = getSubdomain(window.location.host)
-    //console.log('subdomain')
-
-    // call dmsPageFactory here assuming patterns are page type
-    // export multiple routes based on patterns.
     return [
         //pattern manager
         dmsPageFactory({
-            ...dmsConfigUpdated, 
+            ...dmsConfigUpdated,
+            siteType: dmsConfigUpdated.type,
             baseUrl: adminPath, 
             API_HOST, 
             theme: themes['default']
@@ -72,7 +81,7 @@ export default async function dmsSiteFactory({
             if(pattern?.pattern_type && (!SUBDOMAIN || pattern.subdomain === SUBDOMAIN)){
                 //console.log('add patterns', pattern, SUBDOMAIN)
                 const c = configs[pattern.pattern_type];
-
+                if(!c) return acc;
                 //console.log('register pattern', pattern, theme)
                 acc.push(
                     ...c.map(config => {
@@ -80,12 +89,15 @@ export default async function dmsSiteFactory({
                             app: dmsConfigUpdated?.format?.app || dmsConfigUpdated.app,
                             // type: pattern.doc_type,
                             type: pattern.doc_type || pattern?.base_url?.replace(/\//g, ''),
+                            siteType: dmsConfigUpdated?.format?.type || dmsConfigUpdated.type,
                             baseUrl: `/${pattern.base_url?.replace(/^\/|\/$/g, '')}`, // only leading slash allowed
                             adminPath,
                             format: pattern?.config,
                             pattern: pattern,
+                            pattern_type:pattern?.pattern_type,
                             parent: pattern,
                             authLevel: +pattern.authLevel || -1,
+                            pgEnv:'hazmit_dama',
                             themes,
                             useFalcor,
                             API_HOST,
@@ -99,8 +111,29 @@ export default async function dmsSiteFactory({
     ]
 }
 
+export default async function dmsSiteFactory(props) {
+    let {
+        dmsConfig,
+        falcor,
+        API_HOST = 'https://graph.availabs.org'
+    } = props
+
+    let dmsConfigUpdated = cloneDeep(dmsConfig);
+    dmsConfigUpdated.registerFormats = updateRegisteredFormats(dmsConfigUpdated.registerFormats, dmsConfig.app)
+    dmsConfigUpdated.attributes = updateAttributes(dmsConfigUpdated.attributes, dmsConfig.app)
+
+    falcor = falcor || falcorGraph(API_HOST)
+    console.time('load routes')
+    let data = await dmsDataLoader(falcor, dmsConfigUpdated, `/`);
+    console.timeEnd('load routes')
+    console.log('data -- get site data here', data)
+
+    return pattern2routes(data, props)
+}
+
 export function DmsSite ({
     dmsConfig,
+    defaultData,
     adminPath = '/list',
     authWrapper = Component => Component,
     themes = { default: {} },
@@ -112,9 +145,23 @@ export function DmsSite ({
     // to do:
     // could save sites to localstorage cache clear on load.
     //-----------
-    const [dynamicRoutes, setDynamicRoutes] = useState([]);
+    const [dynamicRoutes, setDynamicRoutes] = useState(
+        defaultData ? 
+            pattern2routes(defaultData, {
+                dmsConfig,
+                adminPath,
+                themes,
+                falcor,
+                API_HOST,
+                authWrapper
+                //theme   
+            }) 
+            : []
+        );
+    
     useEffect(() => {
         (async function() {
+            console.time('dmsSiteFactory')
             const dynamicRoutes = await dmsSiteFactory({
                 dmsConfig,
                 adminPath,
@@ -124,6 +171,8 @@ export function DmsSite ({
                 authWrapper
                 //theme   
             });
+            console.timeEnd('dmsSiteFactory')
+            //console.log('dynamicRoutes ', dynamicRoutes)
             setDynamicRoutes(dynamicRoutes);
         })()
     }, []);
@@ -134,14 +183,14 @@ export function DmsSite ({
         Component: () => (<div className={'w-screen h-screen flex items-center bg-blue-50'}>404</div>)
     }
 
-    console.log('routes', routes, dynamicRoutes)
+    //console.log('routes', routes, dynamicRoutes)
 
     return (
         <RouterProvider router={createBrowserRouter([
             ...dynamicRoutes,
             ...routes,
             PageNotFoundRoute
-          ])} 
+          ])}
         />
     )
 } 

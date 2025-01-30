@@ -1,5 +1,4 @@
-const sidenav = (opts={}) =>  {
-  let {color = 'white', size = 'compact',  subMenuStyle = 'inline', responsive = 'top'} = opts
+ let {color = 'white', size = 'compact',  subMenuStyle = 'inline', responsive = 'top'} = {}
       
   let mobile = {
     top : 'hidden md:block',
@@ -65,7 +64,7 @@ const sidenav = (opts={}) =>  {
       sideItem: "group flex px-3 py-1.5 text-[14px] font-light hover:bg-blue-50 text-slate-700 mx-2 ",
       sideItemActive: "group flex px-3 py-1.5 text-[14px] font-light hover:bg-blue-50 text-slate-700  mx-2 ", //"border-r-4 border-blue-500 ",
       topItem: "flex items-center text-sm px-4 border-r h-12",
-      icon: "group w-6 mr-2 text-[#5d87a1] ",
+      icon: "group w-6 mr-2 text-blue-500 ",
       iconActive: "group w-6 mr-2 text-blue-500 ",
       sideItemContent: 'transition-transform duration-300 ease-in-out',
     },
@@ -75,7 +74,7 @@ const sidenav = (opts={}) =>  {
       sideItem: "group flex px-3 py-2 text-[14px] font-light hover:bg-blue-50 text-slate-700 mx-2 border-r-4 border-white",
       sideItemActive: "group flex px-3 py-2 text-[14px] font-light hover:bg-blue-50 text-slate-700 mx-2 border-r-4  border-white",
       topItem: "flex pr-4 py-2  font-",
-      icon: "group w-6 mr-2 text-[#5d87a1]  ",
+      icon: "group w-6 mr-2 text-blue-500  ",
       iconActive: "group w-6 mr-2 text-blue-500",
       sideItemContent: 'group-hover:translate-x-1.5 transition-transform duration-300 ease-in-out',
     },
@@ -123,10 +122,11 @@ const sidenav = (opts={}) =>  {
         },
     }
 
-  return {
+  const sidenav = {
     fixed: `md:${sizes[size].fixed}`,
     logoWrapper: `${sizes[size].wrapper} ${colors[color].contentBgAccent} ${colors[color].textColorAccent}`,
     sidenavWrapper: `${mobile[responsive]} ${colors[color].contentBg} ${sizes[size].wrapper} h-full z-20`,
+    menuItemWrapper: 'flex flex-col',
     menuIconSide: `${sizes[size].icon} group-hover:${colors[color].highlightColor}`,
     menuIconSideActive: `${sizes[size].iconActive} group-hover:${colors[color].highlightColor}`,
     
@@ -154,6 +154,6 @@ const sidenav = (opts={}) =>  {
         mobile
       }
   }
-}
+
 
 export default sidenav

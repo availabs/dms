@@ -48,14 +48,13 @@ import ListMaxIndentLevelPlugin from './plugins/ListMaxIndentLevelPlugin';
 import {MaxLengthPlugin} from './plugins/MaxLengthPlugin';
 import SpeechToTextPlugin from './plugins/SpeechToTextPlugin';
 import TabFocusPlugin from './plugins/TabFocusPlugin';
-import TableCellActionMenuPlugin from './plugins/TableActionMenuPlugin';
+//import TableCellActionMenuPlugin from './plugins/TableActionMenuPlugin';
 import TableCellResizer from './plugins/TableCellResizer';
 import TableOfContentsPlugin from './plugins/TableOfContentsPlugin';
 import {TablePlugin as NewTablePlugin} from './plugins/TablePlugin';
 import ToolbarPlugin from './plugins/ToolbarPlugin';
 import TreeViewPlugin from './plugins/TreeViewPlugin';
 import YouTubePlugin from './plugins/YouTubePlugin';
-import PlaygroundEditorTheme from './themes/PlaygroundEditorTheme';
 import ContentEditable from './ui/ContentEditable';
 import Placeholder from './ui/Placeholder';
 import InlineImagePlugin from "./plugins/InlineImagePlugin";
@@ -79,7 +78,8 @@ export default function Editor(props): JSX.Element {
         showActionBar,
         placeholderText = '',
         editable = true,
-        bgColor
+        bgColor,
+        theme
     } = props;
     const placeholder = <Placeholder>{placeholderText}</Placeholder>;
     const [floatingAnchorElem, setFloatingAnchorElem] =
@@ -100,7 +100,7 @@ export default function Editor(props): JSX.Element {
         onError: (error: Error) => {
             throw error;
         },
-        theme: PlaygroundEditorTheme,
+        theme,
     };
 
     useEffect(() => {
@@ -124,9 +124,11 @@ export default function Editor(props): JSX.Element {
         <>
             {isRichText && editable && <ToolbarPlugin/>}
             <div
-                className={`${editable ? `editor-container` : `view-container`} ${showTreeView ? 'tree-view' : ''} ${
-                    !isRichText ? 'plain-text' : ''
-                }`}
+                className={`
+                    ${editable ? `${theme.editorContainer}` || `editor-container` : `${theme.editorViewContainer}` || `view-container`} 
+                    ${showTreeView ? 'tree-view' : ''} ${!isRichText ? 'plain-text' : ''}
+                    ${bgColor !== 'rgba(0,0,0,0)' ? theme.card : ''}
+                `}
                 style={{backgroundColor: bgColor}}
             >
                 {isMaxLength && <MaxLengthPlugin maxLength={30}/>}
@@ -155,8 +157,8 @@ export default function Editor(props): JSX.Element {
                         <HistoryPlugin externalHistoryState={historyState}/>
                         <RichTextPlugin
                             contentEditable={
-                                <div className={editable ? "editor-scroller" : "view-scroller"}>
-                                    <div className="editor" ref={onRef}>
+                                <div className={editable ? `${theme.editorScroller}` || "editor-scroller" : `${theme.viewScroller}` || "view-scroller"}>
+                                    <div className={theme.editor.base || "editor"} ref={onRef}>
                                         <ContentEditable/>
                                     </div>
                                 </div>
@@ -202,10 +204,10 @@ export default function Editor(props): JSX.Element {
                                 <DraggableBlockPlugin anchorElem={floatingAnchorElem}/>
                                 {/*<CodeActionMenuPlugin anchorElem={floatingAnchorElem}/>*/}
                                 <FloatingLinkEditorPlugin anchorElem={floatingAnchorElem} isLinkEditMode={isLinkEditMode} setIsLinkEditMode={setIsLinkEditMode}/>
-                                <TableCellActionMenuPlugin
+                               {/* <TableCellActionMenuPlugin
                                     anchorElem={floatingAnchorElem}
                                     cellMerge={true}
-                                />
+                                />*/}
                                 <FloatingTextFormatToolbarPlugin
                                     anchorElem={floatingAnchorElem}
                                     showComments

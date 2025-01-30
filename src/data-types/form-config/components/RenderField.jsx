@@ -10,14 +10,16 @@ const fieldTypes = {
     'select': 'dropdown',
     'multiselect': 'dropdown (multiple choice)',
     'lexical': 'rich text',
-    'radio': 'radio'
+    'radio': 'radio',
+    'calculated': 'calculated' // can't be inputted, always calculated. don't use data->> to access.
 }
 
 const behaviourTypes = {
     'data': 'Simple Data',
     'meta': 'Group-able/Meta',
     'fips': 'fips',
-    'geoid': 'geoid'
+    'geoid': 'geoid',
+    'calculated': 'calculated'
 }
 
 const defaultFnTypes = {
@@ -95,7 +97,7 @@ const RenderOptions = ({col, drivingAttribute, attr, value=[], updateAttribute})
     const options = useMemo(() => value?.map(v => v.label ? v : ({label: v, value: v})), [value]);
 
     const addNewValue = (oldValue, newItem) => {
-        const newValue = newItem?.label ? [...oldValue, newItem] : [...oldValue, {label: newItem, value: newItem}]
+        const newValue = newItem?.label ? [...(oldValue || []), newItem] : [...(oldValue || []), {label: newItem, value: newItem}]
         updateAttribute(col, {[attr]: newValue})
         setNewOption('')
     }
@@ -126,7 +128,7 @@ const RenderOptions = ({col, drivingAttribute, attr, value=[], updateAttribute})
                 </div>
                 <div className={'flex flex-row flex-wrap'}>
                     {
-                        options.map(option => (
+                        options?.map(option => (
                             <div className={'bg-red-500 hover:bg-red-700 text-white text-xs font-semibold px-1.5 py-1 m-1 flex no-wrap items-center rounded-md'}>
                                 {option?.label || option}
                                 <div title={'remove'}
@@ -494,17 +496,11 @@ const RenderRemoveBtn = ({col, removeAttribute}) => {
 export const RenderField = ({i, theme, item, attribute, placeholder, className, updateAttribute, removeAttribute, apiLoad, format}) => {
     const [showAdvanced, setShowAdvanced] = useState(false);
     return (
-        Array.isArray(item[attribute]) ?
-            <div>{
-                item[attribute].map((item, i) => <RenderField i={i} item={item} placeholder={placeholder}
-                                                              attribute={item?.name}
-                                                              theme={theme} updateAttribute={updateAttribute}
-                                                              removeAttribute={removeAttribute} apiLoad={apiLoad} format={format}/>)
-            }</div> :
-            <div
+            <div key={i}
                 className={`${i % 2 ? 'bg-blue-50' : 'bg-white'} hover:bg-blue-100 border-l-4 border-blue-100 hover:border-blue-300 mb-1 px-2 pb-2 w-full flex flex-col`}>
                 <div className={'flex flex-wrap justify-between flex-col sm:flex-row items-center'}>
                     <RenderInputText
+                        key={`${item.name}-name`}
                         label={'name'}
                         attr={'name'}
                         value={attribute}
@@ -513,6 +509,7 @@ export const RenderField = ({i, theme, item, attribute, placeholder, className, 
                     />
 
                     <RenderInputText
+                        key={`${item.name}-display_name`}
                         label={'display name'}
                         attr={'display_name'}
                         value={item.display_name}
@@ -521,6 +518,7 @@ export const RenderField = ({i, theme, item, attribute, placeholder, className, 
                     />
 
                     <RenderInputSelect
+                        key={`${item.name}-type`}
                         label={'Input Type'}
                         value={item.type}
                         col={item.name}
@@ -539,6 +537,7 @@ export const RenderField = ({i, theme, item, attribute, placeholder, className, 
                 <div className={showAdvanced ? 'flex flex-col' : 'hidden'}>
                     <div className={'flex flex-row justify-between items-center'}>
                         <RenderInputLexical
+                            key={`${item.name}-description`}
                             label={'description'}
                             attr={'description'}
                             value={item.description}
@@ -547,16 +546,18 @@ export const RenderField = ({i, theme, item, attribute, placeholder, className, 
                         />
                         <div className={'flex flex-col'}>
                             <RenderInputSelect
+                                key={`${item.name}-display`}
                                 label={'Behaviour Type'}
                                 value={item.display}
                                 col={item.name}
                                 attr={'display'}
-                                options={behaviourTypes}
+                                options={item.type  === 'calculated' ? {'calculated': 'calculated'} : behaviourTypes} // don't rely on user selecting display. even if type is calculated, consider the column to be calculated.
                                 updateAttribute={updateAttribute}
                                 placeholder={'Please select behaviour type'}
                             />
 
                             <RenderInputSelect
+                                key={`${item.name}-defaultFn`}
                                 label={'Default Fn'}
                                 value={item.defaultFn}
                                 col={item.name}
@@ -567,6 +568,7 @@ export const RenderField = ({i, theme, item, attribute, placeholder, className, 
                             />
 
                             <RenderInputSelect
+                                key={`${item.name}-required`}
                                 label={'Required'}
                                 value={item.required}
                                 col={item.name}
@@ -578,17 +580,18 @@ export const RenderField = ({i, theme, item, attribute, placeholder, className, 
                         </div>
                     </div>
                     <RenderInputText
+                        key={`${item.name}-prompt`}
                         label={'prompt'}
                         attr={'prompt'}
                         value={item.prompt}
                         col={item.name}
                         updateAttribute={updateAttribute}
                     />
-                    <RenderOptions col={item.name} drivingAttribute={item.type} value={item.options} attr={'options'} updateAttribute={updateAttribute}/>
-                    <RenderMeta col={item.name} drivingAttribute={item.display} value={item.meta_lookup} attr={'meta_lookup'} updateAttribute={updateAttribute}/>
-                    <RenderMappings col={item.name} drivingAttribute={item.display} value={item.mappings} attr={'mappings'}
+                    <RenderOptions key={`${item.name}-options`} col={item.name} drivingAttribute={item.type} value={item.options} attr={'options'} updateAttribute={updateAttribute}/>
+                    <RenderMeta key={`${item.name}-meta_lookup`} col={item.name} drivingAttribute={item.display} value={item.meta_lookup} attr={'meta_lookup'} updateAttribute={updateAttribute}/>
+                    <RenderMappings key={`${item.name}-mappings`} col={item.name} drivingAttribute={item.display} value={item.mappings} attr={'mappings'}
                                     updateAttribute={updateAttribute} apiLoad={apiLoad} format={format}/>
-                    <RenderRemoveBtn col={item.name} removeAttribute={removeAttribute}/>
+                    <RenderRemoveBtn key={`${item.name}-removeBtn`} col={item.name} removeAttribute={removeAttribute}/>
 
                 </div>
             </div>);

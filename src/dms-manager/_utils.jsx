@@ -1,8 +1,9 @@
+import React from 'react'
 import Wrappers from '../wrappers'
 import Components from '../components'
 import { matchRoutes } from 'react-router-dom'
-import cloneDeep from 'lodash/cloneDeep'
-import get from 'lodash/get'
+import { cloneDeep } from "lodash-es"
+import { get } from "lodash-es"
 
 const DefaultComponent = Components.devinfo
 const DefaultWrapper = Wrappers.error
@@ -151,3 +152,32 @@ export const json2DmsForm = (data,requestType='update') => {
   out.append('requestType', requestType)
   return out
 }
+
+export const updateRegisteredFormats = (registerFormats, app, type) => {
+	if (Array.isArray(registerFormats)) {
+	  registerFormats = registerFormats.map((rFormat) => {
+		rFormat.app = app;
+		rFormat.type = `${type}|${rFormat.type}`;
+		rFormat.registerFormats = updateRegisteredFormats(
+		  rFormat.registerFormats,
+		  app,
+		  type
+		);
+		rFormat.attributes = updateAttributes(rFormat.attributes, app, type);
+		return rFormat;
+	  });
+	}
+	return registerFormats;
+  };
+  
+  export const updateAttributes = (attributes, app, type) => {
+	if (Array.isArray(attributes)) {
+	  attributes = attributes.map((attr) => {
+		attr.format = attr.format
+		  ? `${app}+${type}|${attr.format.split("+")[1]}`
+		  : undefined;
+		return updateRegisteredFormats(attr, app, type);
+	  });
+	}
+	return attributes;
+  };

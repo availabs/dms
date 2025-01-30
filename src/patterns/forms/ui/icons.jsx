@@ -1,4 +1,4 @@
-
+import React from 'react'
 
 export const PencilEditSquare = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={24} height={24} color={"#000000"} fill={"none"} {...props}>
@@ -14,8 +14,8 @@ export const ViewIcon = (props) => (
   </svg>
 );
 
-export const PencilIcon = ({size=24, className}) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={size} height={size} color={"#000000"} fill={"none"} className={className}>
+export const PencilIcon = ({size=24, className, ...rest}) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={size} height={size} color={"#000000"} fill={"none"} className={className} {...rest}>
     <path d="M15.2141 5.98239L16.6158 4.58063C17.39 3.80646 18.6452 3.80646 19.4194 4.58063C20.1935 5.3548 20.1935 6.60998 19.4194 7.38415L18.0176 8.78591M15.2141 5.98239L6.98023 14.2163C5.93493 15.2616 5.41226 15.7842 5.05637 16.4211C4.70047 17.058 4.3424 18.5619 4 20C5.43809 19.6576 6.94199 19.2995 7.57889 18.9436C8.21579 18.5877 8.73844 18.0651 9.78375 17.0198L18.0176 8.78591M15.2141 5.98239L18.0176 8.78591" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     <path d="M11 20H17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
   </svg>
@@ -79,6 +79,18 @@ export const InfoCircle = (props) => (
     <path d="M12.2422 17V12C12.2422 11.5286 12.2422 11.2929 12.0957 11.1464C11.9493 11 11.7136 11 11.2422 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     <path d="M11.992 8H12.001" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
+);
+
+export const Alert = ({title, height=16, width=16, ...rest}) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={height} height={width} color={"#000000"} fill={"none"} {...rest}>
+        <title>{title}</title>
+        <path
+            d="M5.32171 9.6829C7.73539 5.41196 8.94222 3.27648 10.5983 2.72678C11.5093 2.42437 12.4907 2.42437 13.4017 2.72678C15.0578 3.27648 16.2646 5.41196 18.6783 9.6829C21.092 13.9538 22.2988 16.0893 21.9368 17.8293C21.7376 18.7866 21.2469 19.6548 20.535 20.3097C19.241 21.5 16.8274 21.5 12 21.5C7.17265 21.5 4.75897 21.5 3.46496 20.3097C2.75308 19.6548 2.26239 18.7866 2.06322 17.8293C1.70119 16.0893 2.90803 13.9538 5.32171 9.6829Z"
+            stroke="currentColor" strokeWidth="1.5"/>
+        <path d="M11.992 16H12.001" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M12 13L12 8.99997" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"
+              strokeLinejoin="round"/>
+    </svg>
 );
 
 export const TrashCan = (props) => (
@@ -210,7 +222,57 @@ export const ArrowDown = (props) => (
   </svg>
 );
 
+export const Group = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={16} height={16} color={"#000000"} fill={"none"} {...props}>
+        <path d="M8 7H20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M4 7H4.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M8 12H8.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M8 17H8.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M12 12H20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M12 17H20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+);
 
+export const Filter = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={24} height={24} color={"#000000"} fill={"none"} {...props}>
+        <path d="M8.85746 12.5061C6.36901 10.6456 4.59564 8.59915 3.62734 7.44867C3.3276 7.09253 3.22938 6.8319 3.17033 6.3728C2.96811 4.8008 2.86701 4.0148 3.32795 3.5074C3.7889 3 4.60404 3 6.23433 3H17.7657C19.396 3 20.2111 3 20.672 3.5074C21.133 4.0148 21.0319 4.8008 20.8297 6.37281C20.7706 6.83191 20.6724 7.09254 20.3726 7.44867C19.403 8.60062 17.6261 10.6507 15.1326 12.5135C14.907 12.6821 14.7583 12.9567 14.7307 13.2614C14.4837 15.992 14.2559 17.4876 14.1141 18.2442C13.8853 19.4657 12.1532 20.2006 11.226 20.8563C10.6741 21.2466 10.0043 20.782 9.93278 20.1778C9.79643 19.0261 9.53961 16.6864 9.25927 13.2614C9.23409 12.9539 9.08486 12.6761 8.85746 12.5061Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+);
+
+export const FilterRemove = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={24} height={24} color={"#000000"} fill={"none"} {...props}>
+        <path d="M20.9987 4.5C20.9869 4.06504 20.8956 3.75346 20.672 3.5074C20.2111 3 19.396 3 17.7657 3H6.23433C4.60404 3 3.7889 3 3.32795 3.5074C2.86701 4.0148 2.96811 4.8008 3.17033 6.3728C3.22938 6.8319 3.3276 7.09253 3.62734 7.44867C4.59564 8.59915 6.36901 10.6456 8.85746 12.5061C9.08486 12.6761 9.23409 12.9539 9.25927 13.2614C9.53961 16.6864 9.79643 19.0261 9.93278 20.1778C10.0043 20.782 10.6741 21.2466 11.226 20.8563C12.1532 20.2006 13.8853 19.4657 14.1141 18.2442C14.1986 17.7934 14.3136 17.0803 14.445 16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M21 7L15 13M21 13L15 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+);
+
+export const TouchInteraction = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={16} height={16} color={"#000000"} fill={"none"} {...props}>
+        <path d="M7 7.99678H6.17647C4.67907 7.99678 3.93037 7.99678 3.46518 7.55782C3 7.11886 3 6.41236 3 4.99937C3 3.58638 3 2.87988 3.46518 2.44091C3.93037 2.00195 4.67907 2.00195 6.17647 2.00195H17.8235C19.3209 2.00195 20.0696 2.00195 20.5348 2.44091C21 2.87988 21 3.58638 21 4.99937C21 6.41236 21 7.11886 20.5348 7.55782C20.0696 7.99678 19.3209 7.99678 17.8235 7.99678H16.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M18.0296 21.9913C17.9799 20.2775 18.1199 20.0519 18.2514 19.6706C18.3828 19.2893 19.1984 17.9357 19.5236 16.9534C20.576 13.7752 19.7712 13.2378 18.5104 12.2723C17.0658 11.1661 14.6208 10.6032 13.0946 10.7248V6.63467C13.0946 5.77207 12.2692 5.02148 11.3432 5.02148C10.4172 5.02148 9.59704 5.77207 9.59704 6.63467V14.3866L7.62568 12.7092C7.0938 12.1718 6.24275 12.221 5.62664 12.6277C5.43494 12.7543 5.27952 12.9319 5.18075 13.1393C4.90045 13.7279 4.98135 14.3942 5.42292 14.9396L6.54372 16.3843M9.52799 21.9972V21.0506C9.60063 19.8883 8.54484 18.9548 7.42153 17.516M7.42153 17.516C7.34059 17.4123 7.49821 17.613 7.42153 17.516ZM7.42153 17.516C7.08118 17.0856 6.81124 16.708 6.54372 16.3843M7.42153 17.516L8.52852 18.8698M7.42153 17.516L6.54372 16.3843" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+);
+
+export const Add = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={24} height={24} color={"#000000"} fill={"none"} {...props}>
+        <path d="M12 4V20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M4 12H20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+);
+
+export const ArrowRight = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={22} height={22} color={"#000000"} fill={"none"} {...props}>
+        <path d="M9.00005 6C9.00005 6 15 10.4189 15 12C15 13.5812 9 18 9 18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+);
+
+export const RestoreBin = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={16} height={16} color={"#000000"} fill={"none"} {...props}>
+        <path d="M19.75 5.5L19.25 11.5M4.75 5.5L5.35461 15.5368C5.50945 18.1073 5.58688 19.3925 6.22868 20.3167C6.546 20.7737 6.9548 21.1594 7.42905 21.4493C8.01127 21.8051 8.71343 21.945 9.75 22" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        <path d="M11.25 15.5L12.3863 16.9657C12.958 14.8319 15.1514 13.5655 17.2852 14.1373C18.3775 14.43 19.2425 15.1475 19.75 16.0646M21.25 20.5L20.1137 19.0363C19.5419 21.1701 17.3486 22.4365 15.2147 21.8647C14.1478 21.5788 13.2977 20.8875 12.7859 20.001" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M3.25 5.5H21.25M16.3057 5.5L15.6231 4.09173C15.1696 3.15626 14.9428 2.68852 14.5517 2.39681C14.465 2.3321 14.3731 2.27454 14.277 2.2247C13.8439 2 13.3241 2 12.2845 2C11.2188 2 10.686 2 10.2457 2.23412C10.1481 2.28601 10.055 2.3459 9.96729 2.41317C9.57164 2.7167 9.35063 3.20155 8.90861 4.17126L8.30292 5.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+);
 
 const Icons = {
   PencilEditSquare,
@@ -223,6 +285,7 @@ const Icons = {
   MenuIcon,
   ClockIcon,
   InfoCircle,
+  Alert,
   TrashCan,
   RemoveCircle,
   CancelCircle,
@@ -239,6 +302,12 @@ const Icons = {
   User,
   Tags,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  ArrowRight,
+  Group,
+  Filter,
+  FilterRemove,
+  TouchInteraction,
+  Add
 }
 export default Icons

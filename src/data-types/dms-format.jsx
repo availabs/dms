@@ -1,6 +1,6 @@
 import React from "react"
 import { getAttributes } from '../wrappers/_utils'
-import isEqual from "lodash/isEqual"
+import { isEqual } from "lodash-es"
 
 
 

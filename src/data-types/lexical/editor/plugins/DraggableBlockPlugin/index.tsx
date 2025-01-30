@@ -5,7 +5,7 @@
  * LICENSE file in the root directory of this source tree.
  *
  */
-import './index.css';
+//import './index.css';
 
 import {useLexicalComposerContext} from '@lexical/react/LexicalComposerContext';
 import {eventFiles} from '@lexical/rich-text';
@@ -27,6 +27,7 @@ import {createPortal} from 'react-dom';
 import {isHTMLElement} from '../../utils/guard';
 import {Point} from '../../utils/point';
 import {Rect} from '../../utils/rect';
+import theme from '../../themes/PlaygroundEditorTheme';
 
 const SPACE = 4;
 const TARGET_LINE_HALF_HEIGHT = 2;
@@ -408,14 +409,14 @@ function useDraggableBlockMenu(
   return createPortal(
     <>
       <div
-        className="icon draggable-block-menu"
+        className={`icon ${theme.draggableBlockMenu.base}`}
         ref={menuRef}
         draggable={true}
         onDragStart={onDragStart}
         onDragEnd={onDragEnd}>
-        <div className={isEditable ? 'icon' : ''} />
+        <div className={isEditable ? (theme.draggableBlockMenu.icon || 'icon') : ''} />
       </div>
-      <div className="draggable-block-target-line" ref={targetLineRef} />
+      <div className={theme.draggableBlockTargetLine.base || "draggable-block-target-line"} ref={targetLineRef} />
     </>,
     anchorElem,
   );

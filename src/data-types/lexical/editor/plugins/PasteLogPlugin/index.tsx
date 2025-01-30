@@ -10,6 +10,7 @@ import {useLexicalComposerContext} from '@lexical/react/LexicalComposerContext';
 import {COMMAND_PRIORITY_NORMAL, PASTE_COMMAND} from 'lexical';
 import * as React from 'react';
 import {useEffect, useState} from 'react';
+import theme from "../../themes/PlaygroundEditorTheme";
 
 export default function PasteLogPlugin(): JSX.Element {
   const [editor] = useLexicalComposerContext();
@@ -40,7 +41,7 @@ export default function PasteLogPlugin(): JSX.Element {
     <>
       <button
         id="paste-log-button"
-        className={`editor-dev-button ${isActive ? 'active' : ''}`}
+        className={`${theme.editorDevButton.base} ${isActive ? theme.editorDevButton.active : ''}`}
         onClick={() => {
           setIsActive(!isActive);
         }}

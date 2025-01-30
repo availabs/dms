@@ -1,6 +1,6 @@
 // import { falcor } from '~/index'
 import { getActiveConfig /*, filterParams*/ } from '../dms-manager/_utils'
-import get from 'lodash/get'
+import { get } from "lodash-es"
 import createRequest, {getIdPath} from './createRequest'
 import {processNewData} from "./proecessNewData";
 // import {loadFullData} from "./loadFullData";
@@ -36,7 +36,7 @@ export async function dmsDataLoader (falcor, config, path='/') {
 	//---------------------------------------------------------
 	const { format } = config
 	//console.log('2 - ', config, config.dmsConfig.format)
-	const { app , type, /*defaultSearch,*/ attributes = {} } = format
+	const { app , type, view_id, env, /*defaultSearch,*/ attributes = {} } = format
 
 	const activeConfigs = getActiveConfig(config.children, path)
 	// console.log('------------dmsDataLoader-------------')
@@ -54,15 +54,19 @@ export async function dmsDataLoader (falcor, config, path='/') {
 	let lengthReq = ['dms', 'data', `${ app }+${ type }`, 'length' ]
 
 	if(activeConfigs.find(ac => ['list','load','filteredLength'].includes(ac.action))){
-		// special routes for 'load' action
+		// special routes for 'load', 'uda' action
 		const options = activeConfigs.find(ac => ['list','load','filteredLength'].includes(ac.action))?.filter?.options;
 		if(options) lengthReq = ['dms', 'data', `${ app }+${ type }`, 'options', options, 'length' ];
 	}
+	if(activeConfigs.find(ac => ['udaLength'].includes(ac.action))){
+		// special routes for 'load', 'uda' action
+		const options = activeConfigs.find(ac => ['udaLength'].includes(ac.action))?.filter?.options;
+		if(options) lengthReq = ['uda', env, 'viewsById', view_id, 'options', options, 'length' ];
+	}
 
-	// console.log('lengthReq', lengthReq)
 	const length = get(await falcor.get(lengthReq), ['json',...lengthReq], 0)
 	// console.log('length',length)
-	if(activeConfigs.find(ac => ['length', 'filteredLength'].includes(ac.action))){
+	if(activeConfigs.find(ac => ['length', 'filteredLength', 'udaLength', 'udaLength'].includes(ac.action))){
 		return length;
 	}
 	let options = activeConfigs[0]?.filter?.options || '{}';
@@ -104,6 +108,12 @@ export async function dmsDataLoader (falcor, config, path='/') {
 		// special return for 'load' action
 		const path =  newRequests[0].filter((r, i) => i <= newRequests[0].indexOf('byIndex'));
 		return Object.values(get(newReqFalcor, path, {}));
+	}
+	if(activeConfigs.find(ac => ac.action === 'uda')){
+		// special return for 'uda' action
+		const path =  newRequests[0].filter((r, i) => i <= newRequests[0].indexOf('dataByIndex'));
+		const {from, to} = newRequests[0][newRequests[0].indexOf('dataByIndex') + 1]
+		return Array.from({length: (to + 1 - from)}, (v, k) => get(newReqFalcor, [...path, k+from], {}));
 	}
 
 

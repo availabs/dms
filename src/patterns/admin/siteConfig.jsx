@@ -1,5 +1,5 @@
 import React from 'react'
-import cloneDeep from 'lodash/cloneDeep'
+import { cloneDeep } from "lodash-es"
 
 import PatternList from "./components/patternList";
 import SiteEdit from "./pages/siteEdit"

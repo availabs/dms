@@ -1,7 +1,7 @@
 import {Typeahead, Menu, MenuItem, Input, useToken} from 'react-bootstrap-typeahead';
-import get from "lodash/get";
+import { get } from "lodash-es";;
 import React, {useEffect, useState} from "react";
-import placeholder from "lodash/fp/placeholder.js";
+//import placeholder from "lodash-es/fp/placeholder.js";
 
 const handleSearch = (text, selected, setSelected) => {
     if (selected) setSelected([])
@@ -59,7 +59,7 @@ const renderMenu = ({results, menuProps, labelKey, filter, filters, setFilter, o
                 </div>
             }
             {results.map((result, index) => (
-                <MenuItem className={"block hover:bg-slate-200 text-xl tracking-wide pl-1"} option={result}
+                <MenuItem key={`${result.label}_${index}`} className={"block hover:bg-slate-200 text-xl tracking-wide pl-1"} option={result}
                           position={index}>
                     {result.label}
                 </MenuItem>
@@ -85,7 +85,7 @@ export default ({
         if (!value) return;
         const s = options.filter(h => h.key === value);
         setSelected(s)
-    }, [value]);
+    }, [value, options]);
 
     useEffect(() => {
         setFilteredOptions(

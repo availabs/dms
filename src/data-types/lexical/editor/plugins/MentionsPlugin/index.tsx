@@ -19,6 +19,7 @@ import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 
 import {$createMentionNode} from '../../nodes/MentionNode';
+import theme from "./../../themes/PlaygroundEditorTheme";
 
 const PUNCTUATION =
   '\\.,\\+\\*\\?\\$\\@\\|#{}\\(\\)\\^\\-\\[\\]\\\\/!%\'"~=<>_:;';
@@ -584,9 +585,9 @@ function MentionsTypeaheadMenuItem({
   onMouseEnter: () => void;
   option: MentionTypeaheadOption;
 }) {
-  let className = 'item';
+  let className = `${theme.typeaheadPopover.ul.li.item}`;
   if (isSelected) {
-    className += ' selected';
+    className += ` ${theme.typeaheadPopover.ul.li.selected}`;
   }
   return (
     <li
@@ -600,7 +601,7 @@ function MentionsTypeaheadMenuItem({
       onMouseEnter={onMouseEnter}
       onClick={onClick}>
       {option.picture}
-      <span className="text">{option.name}</span>
+      <span className={theme.typeaheadPopover.ul.li.text || "text"}>{option.name}</span>
     </li>
   );
 }
@@ -668,8 +669,8 @@ export default function NewMentionsPlugin(): JSX.Element | null {
       ) =>
         anchorElementRef.current && results.length
           ? ReactDOM.createPortal(
-              <div className="typeahead-popover mentions-menu">
-                <ul>
+              <div className={`${theme.typeaheadPopover.base} ${theme.mentionsMenu}`}>
+                <ul className={theme.typeaheadPopover.ul.base}>
                   {options.map((option, i: number) => (
                     <MentionsTypeaheadMenuItem
                       index={i}
