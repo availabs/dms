@@ -7,7 +7,7 @@ import {handleKeyDown} from "../utils/keyboard";
 import {handleMouseUp, handleMouseMove, handleMouseDown} from "../utils/mouse";
 import {RenderRow} from "./RenderRow";
 import {RenderGutter} from "./RenderGutter";
-import {actionsColSize, numColSize, gutterColSize, minColSize} from "../constants"
+import {actionsColSize, numColSize, gutterColSize, minColSize, minInitColSize} from "../constants"
 import {SpreadSheetContext} from "../index";
 
 const DisplayCalculatedCell = ({value, className}) => <div className={className}>{value}</div>
@@ -100,7 +100,7 @@ export const RenderSimple = ({isEdit, updateItem, removeItem, addItem, newItem, 
         if (gridRef.current && (!columnsWithSizeLength || columnsWithSizeLength !== visibleAttrsWithoutOpenOut.length)) {
             const availableVisibleAttributes = visibleAttrsWithoutOpenOut.filter(v => v.actionType || sourceInfo.columns.find(attr => attr.name === v.name));
             const gridWidth = gridRef.current.offsetWidth - numColSize - gutterColSize - (allowEdit ? actionColumns.length * actionsColSize : 0);
-            const initialColumnWidth = Math.max(minColSize, gridWidth / availableVisibleAttributes.length);
+            const initialColumnWidth = Math.max(minInitColSize, gridWidth / availableVisibleAttributes.length);
             setState(draft => {
                 availableVisibleAttributes.forEach(attr => {
                     const idx = draft.columns.findIndex(column => column.name === attr.name);
@@ -207,7 +207,7 @@ export const RenderSimple = ({isEdit, updateItem, removeItem, addItem, newItem, 
 
     return (
         <div className={`flex flex-col w-full h-full overflow-x-auto scrollbar-sm`} ref={gridRef}>
-            <div className={'flex flex-col no-wrap text-sm min-h-[250px] max-h-[calc(87vh_-_10px)] overflow-y-auto scrollbar-sm'}
+            <div className={'flex flex-col no-wrap text-sm min-h-[250px] max-h-[calc(78vh_-_10px)] overflow-y-auto scrollbar-sm'}
                  onMouseLeave={e => handleMouseUp({setIsDragging})}>
 
                 {/****************************************** Header begin ********************************************/}

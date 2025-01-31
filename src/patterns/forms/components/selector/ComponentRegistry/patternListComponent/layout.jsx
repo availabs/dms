@@ -31,7 +31,7 @@ const SourcesLayout = ({children, fullWidth, hideBreadcrumbs, hideNav, form, pag
                             className={'w-fit p-1 rounded hover:bg-gray-100 bg-transparent'}
                             value={view_id}
                     >
-                        <option key={'default'} value={undefined}>No view selected</option>
+                        <option key={'default'} value={undefined}>No version selected</option>
                         {views.map(view => <option key={view.id} value={view.id}>{view.name || view.id}</option>)}
                     </select> : null
             }

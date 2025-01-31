@@ -1,4 +1,4 @@
-import React, {useContext, useEffect, useMemo, useState} from "react";
+import React, {memo, useContext, useEffect, useMemo, useState} from "react";
 import { FormsContext } from '../siteConfig'
 import SourcesLayout from "../components/selector/ComponentRegistry/patternListComponent/layout";
 import Spreadsheet from "../components/selector/ComponentRegistry/spreadsheet";
@@ -40,6 +40,28 @@ const reValidate = async ({app, type, parentId, parentDocType, dmsServerPath, se
     }
 }
 
+const getInitState = ({columns, app, doc_type, params, data}) => JSON.stringify({
+    dataRequest: {},
+    data: [],
+    columns: columns.filter(({defaultShow, shortName}) => defaultShow || data[`${shortName}_error`]).map(c => ({...c, show: true})),
+    sourceInfo: {
+        app,
+        type: `${doc_type}-${params.view_id}-invalid-entry`,
+        doc_type: `${doc_type}-${params.view_id}-invalid-entry`,
+
+        env: `${app}+${doc_type}-${params.view_id}-invalid-entry`,
+        isDms: true,
+        originalDocType: `${doc_type}-invalid-entry`,
+        view_id: params.view_id,
+        columns
+    },
+    display: {
+        usePagination: false,
+        pageSize: 1000,
+        loadMoreId: `id-validate-page`,
+        allowSearchParams: false,
+    },
+})
 const Validate = ({
     adminPath,
     status,
@@ -59,6 +81,7 @@ const Validate = ({
 }) => {
     // assumes meta is already setup. if a user changes meta after upload, validation is incomplete.
     const [data, setData] = useState({});
+    const [lengths, setLengths] = useState({});
     const [loading, setLoading] = useState(false);
     const [validating, setValidating] = useState(false);
     const [error, setError] = useState();
@@ -68,95 +91,105 @@ const Validate = ({
     const {app, doc_type, config} = item;
     const columns = (JSON.parse(config || '{}')?.attributes || []).filter(col => col.type !== 'calculated').map((col, i) => ({...col, shortName: `col_${i}`}));
     const is_dirty = (JSON.parse(config || '{}')?.is_dirty);
-    // make sure after upload, you can make corrections and re-validate.
-    // validate correct records on meta change should be possible
-    // valid entries on upload should also be checked as updated meta may make them invalid
-    // const validEntriesFormat = {app, type: `${doc_type}-${params.view_id}`, doc_type: `${doc_type}-${params.view_id}`, config}
-    const invalidEntriesFormat = {
+
+    const [value, setValue] = useState(getInitState({columns, app, doc_type, params, data}));
+    const validEntriesFormat = {
         app,
-        type: `${doc_type}-${params.view_id}-invalid-entry`,
-        doc_type: `${doc_type}-${params.view_id}-invalid-entry`,
-        config,
-
-        env: `${item.app}+${doc_type}-${params.view_id}-invalid-entry`,
+        type: `${doc_type}-${params.view_id}`,
+        doc_type: `${doc_type}-${params.view_id}`,
+        env: `${item.app}+${doc_type}-${params.view_id}`,
         isDms: true,
-        originalDocType: `${doc_type}-invalid-entry`,
+        originalDocType: `${doc_type}`,
         view_id: params.view_id,
-
-    }
-
-    const ssProps = {
-        sourceInfo: {
-            app,
-            type: `${doc_type}-${params.view_id}-invalid-entry`,
-            doc_type: `${doc_type}-${params.view_id}-invalid-entry`,
-
-            env: `${item.app}+${doc_type}-${params.view_id}-invalid-entry`,
-            isDms: true,
-            originalDocType: `${doc_type}-invalid-entry`,
-            view_id: params.view_id,
-            columns
-        },
-        display: {
-            usePagination: false,
-            pageSize: 10,
-            loadMoreId: `id-validate-page`,
-            allowSearchParams: false,
-        },
-        columns: columns.filter(col => data[`${col.shortName}_error`]).map(c => ({...c, show:true})),
     }
 
     useEffect(() => {
         async function load(){
             setLoading(true)
-            const attrToFetch = columns.reduce((acc, col) => [
+
+            // ==================================== get # invalid rows begin ===========================================
+            const invalidLength = await apiLoad({
+                format: JSON.parse(value).sourceInfo,
+                children: [{
+                    type: () => {},
+                    action: 'udaLength',
+                    path: '/',
+                    filter: {
+                        options: JSON.stringify({}),
+                        stopFullDataLoad: true
+                    },
+                }]
+            });
+            const validLength = await apiLoad({
+                format: validEntriesFormat,
+                children: [{
+                    type: () => {},
+                    action: 'udaLength',
+                    path: '/',
+                    filter: {
+                        options: JSON.stringify({}),
+                        stopFullDataLoad: true
+                    },
+                }]
+            });
+            setLengths({validLength, invalidLength});
+            // ==================================== get # invalid rows end =============================================
+            const attrToFetch = columns
+                .reduce((acc, col) => [
                 ...acc,
-                getBlankValueSql(col.name, col.shortName),
-                getFilledValueSql(col.name, col.shortName),
-                ((['select', 'multiselect', 'radio'].includes(col.type) && col.options?.length) || col.required === 'yes') && getErrorValueSql(col.name, col.shortName, col.options, col.required === 'yes'),
-                ((['select', 'multiselect', 'radio'].includes(col.type) && col.options?.length) || col.required === 'yes') && getValidValueSql(col.name, col.shortName, col.options, col.required === 'yes'),
+                ((['select', 'multiselect', 'radio'].includes(col.type) && col.options?.length) || col.required === 'yes') && getErrorValueSql(col.name, col.shortName, col.options, col.required === 'yes')
             ], []).filter(f => f)
-            // console.log('attrs to fetch', attrToFetch)
-            const children = [{
-                type: () => {
-                },
-                action: 'uda',
-                path: '/',
-                filter: {
-                    fromIndex: 0,
-                    toIndex: 0,
-                    options: JSON.stringify({aggregatedLen: true, filter: {}, orderBy: {1: 'asc'}}),
-                    attributes: attrToFetch,
-                    stopFullDataLoad: true
-                },
-            }]
+            console.log('validation columns',
+                columns.filter(({type, options, required}) => (['select', 'multiselect', 'radio'].includes(type) && options?.length) || required === 'yes').length,
+                attrToFetch.length
+            )
+
+
             console.time('getData')
             const data = await apiLoad({
-                // app: invalidEntriesFormat.app,
-                // type: invalidEntriesFormat.type,
-                format: invalidEntriesFormat,
+                format: JSON.parse(value).sourceInfo,
                 attributes: attrToFetch,
-                children
+                children: [{
+                    type: () => {},
+                    action: 'uda',
+                    path: '/',
+                    filter: {
+                        fromIndex: 0,
+                        toIndex: 0,
+                        options: JSON.stringify({orderBy: {1: 'asc'}}),
+                        attributes: attrToFetch,
+                        stopFullDataLoad: true
+                    },
+                }]
             });
             console.timeEnd('getData')
 
             console.time('setData')
             const mappedData = columns.reduce((acc, col) => ({
                 ...acc,
-                [`${col.name}_blank`]: +data?.[0]?.[getBlankValueSql(col.name, col.shortName)],
-                [`${col.name}_filled`]: +data?.[0]?.[getFilledValueSql(col.name, col.shortName)],
                 ...((['select', 'multiselect', 'radio'].includes(col.type) && col.options?.length) || col.required === 'yes') && {[`${col.shortName}_error`]: +data?.[0]?.[getErrorValueSql(col.name, col.shortName, col.options, col.required === 'yes')]},
-                ...((['select', 'multiselect', 'radio'].includes(col.type) && col.options?.length) || col.required === 'yes') && {[`${col.shortName}_valid`]: +data?.[0]?.[getValidValueSql(col.name, col.shortName, col.options, col.required === 'yes')]},
             }), {});
             // console.log('data', data, mappedData)
             setData(mappedData);
+            setValue(getInitState({columns, app, doc_type, params, data: mappedData}))
             setLoading(false);
             console.timeEnd('setData')
         }
 
         load()
     }, [item])
+
     const page = useMemo(() => ({name: 'Validate', href: `${pageBaseUrl}/${params.id}/validate`, /*warn: is_dirty*/}), [is_dirty, pageBaseUrl, params.id])
+
+    const RenderSS = memo(({value}) => <Spreadsheet.EditComp
+        key={'validate-page-spreadsheet'}
+        value={value}
+        onChange={(stringValue) => {setValue(stringValue)}}
+        hideSourceSelector={true}
+        size={1}
+        apiLoad={apiLoad}
+        apiUpdate={apiUpdate}
+    />)
 
     return (
         <SourcesLayout fullWidth={false} baseUrl={baseUrl} pageBaseUrl={pageBaseUrl} isListAll={false} hideBreadcrumbs={false}
@@ -178,16 +211,18 @@ const Validate = ({
                                 {/* stat boxes */}
                                 <div className='w-full max-w-6xl mx-auto'>
                                     <div
-                                        className={'flex justify-between w-full p-2 font-semibold bg-gray-100 rounded-md my-1'}>
-                                        {
-                                            columns.find(col => data[`${col.shortName}_error`]) || loading ? 'Columns with errors' : 'All records are valid.'
-                                        }
+                                        className={'flex justify-between w-full'}>
+                                        <div className={'flex gap-2 text-gray-500'}>
+                                            <div className={'bg-gray-100 rounded-md px-2 py-1'}>Total Rows: <span className={'text-gray-900'}>{(lengths.validLength || 0) + (lengths.invalidLength || 0)}</span></div>
+                                            <div className={'bg-gray-100 rounded-md px-2 py-1'}>Invalid Rows: <span className={'text-gray-900'}>{(lengths.invalidLength || 0)}</span></div>
+                                            <div className={'bg-gray-100 rounded-md px-2 py-1'}>Valid Rows: <span className={'text-gray-900'}>{(lengths.validLength || 0)}</span></div>
+                                        </div>
                                         <button
                                             className={`p-1 text-sm text-white ${error ? `bg-red-300 hover:bg-red-600` : `bg-blue-300 hover:bg-blue-600`} rounded-md`}
                                             onClick={() =>
                                                 reValidate({
                                                     app,
-                                                    type: invalidEntriesFormat.type,
+                                                    type: JSON.parse(value).sourceInfo.type,
                                                     // parentId: parent.id,
                                                     parentDocType: doc_type,
                                                     dmsServerPath,
@@ -199,55 +234,17 @@ const Validate = ({
                                         </button>
                                     </div>
 
-                                    <div className={'grid grid-cols-2 gap-1'}>
-                                        {
-                                            columns
-                                                .filter(col => data[`${col.shortName}_error`])
-                                                .map(col => (
-                                                    <div
-                                                        className={'p-2 flex flex-col hover:bg-blue-100 transition:ease-in-out border rounded-md'}
-                                                        style={{gridTemplateColumns: '2fr 1fr 1fr'}}>
-                                                        <div
-                                                            className={'font-semibold'}>{col.display_name || col.name}</div>
-                                                        <div className={'grid grid-cols-1 sm:grid-cols-2 divide-x-2'}>
-                                                            <div className={'flex flex-col px-1'}>
-                                                                <div># rows with
-                                                                    value: {formatNum(loading, data[`${col.shortName}_filled`])}</div>
-                                                                <div># rows without
-                                                                    value: {formatNum(loading, data[`${col.shortName}_blank`])}</div>
-                                                                <div>total: {formatNum(loading, data[`${col.shortName}_blank`] + data[`${col.shortName}_filled`])}</div>
-                                                            </div>
-                                                            <div className={'flex flex-col px-1'}>
-                                                                <div># rows with
-                                                                    errors: {formatNum(loading, data[`${col.shortName}_error`])}</div>
-                                                                <div># rows with
-                                                                    valid: {formatNum(loading, data[`${col.shortName}_valid`])}</div>
-                                                                <div>total: {formatNum(loading, data[`${col.shortName}_error`] + data[`${col.shortName}_valid`])}</div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                ))
-                                        }
-                                    </div>
-
                                     {/* invalid rows */}
                                     {
                                         columns.find(col => data[`${col.shortName}_error`]) || loading ?
                                             <div
-                                                className={'w-full flex items-center justify-between p-2 font-semibold bg-gray-100 rounded-md my-1'}>
+                                                className={'w-full flex items-center justify-between px-2 py-1 text-gray-500 bg-gray-100 rounded-md my-2'}>
                                                 Invalid Rows
                                             </div> : null
                                     }
                                     {
                                         !columns.find(col => data[`${col.shortName}_error`]) || loading ? null :
-                                            <Spreadsheet.EditComp
-                                                onChange={() => {
-                                                }}
-                                                size={1}
-                                                format={ssProps}
-                                                apiLoad={apiLoad}
-                                                apiUpdate={apiUpdate}
-                                            />
+                                            <RenderSS value={value} />
                                     }
                                 </div>
                             </div>
