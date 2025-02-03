@@ -5,7 +5,6 @@ import {FormsContext} from "../siteConfig";
 import Table from "../components/Table";
 import dmsDataTypes from "../../../data-types";
 import SourceCategories from "../components/selector/ComponentRegistry/patternListComponent/categories";
-import _ from "lodash";
 import {Link} from "react-router-dom";
 
 export const isJson = (str)  => {
@@ -257,6 +256,8 @@ const OverViewEdit = ({
                         }
                         pageSize={5}
                         striped={true}
+                        sortBy={'created_at'}
+                        sortOrder={'desc'}
                         theme={tableTheme()}
                     />
                 </div>

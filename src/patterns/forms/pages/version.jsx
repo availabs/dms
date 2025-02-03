@@ -53,7 +53,7 @@ const ClearDataBtn = ({app, type, view_id, apiLoad, apiUpdate}) => {
         // fetch all ids based on app and type (doc_type of source), and then call dmsDataEditor with config={app, type}, data={id}, requestType='delete
         const attributes = ['id']
         const action = 'load'
-        const config = {
+        const validDataconfig = {
             format: {
                 app: app,
                 type: `${type}-${view_id}`,
@@ -71,13 +71,32 @@ const ClearDataBtn = ({app, type, view_id, apiLoad, apiUpdate}) => {
                 }
             ]
         }
+        const invalidDataconfig = {
+            format: {
+                app: app,
+                type: `${type}-${view_id}-invalid-entry`,
+                attributes
+            },
+            children: [
+                {
+                    type: () => {},
+                    action,
+                    filter: {
+                        options: JSON.stringify({}),
+                        attributes
+                    },
+                    path: '/'
+                }
+            ]
+        }
 
-        const res = await apiLoad(config);
-        if(!res?.length) return;
-        const ids = res.map(r => r.id).filter(r => r);
+        const validDataRes = await apiLoad(validDataconfig);
+        const invalidDataRes = await apiLoad(invalidDataconfig);
+        if(!validDataRes?.length && !invalidDataRes?.length) return;
+        const ids = [...validDataRes, ...invalidDataRes].map(r => r.id).filter(r => r);
         if(!ids?.length) return;
 
-        await apiUpdate({data: {id: ids}, config, requestType: 'delete'});
+        await apiUpdate({data: {id: ids}, config: validDataconfig, requestType: 'delete'});
     }
     return (
         <div className={'w-full'}>
