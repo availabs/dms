@@ -23,14 +23,9 @@ export const fieldTheme = {
 export default function InputComp ({ type='text', label, description, value, onChange=() => {}, placeholder, disabled, onClick=()=>{}, rounded}) {
   const { theme = { input: inputTheme, field: fieldTheme } } = React.useContext(CMSContext) || {}
   return (
-    <Field>
-      {label && <Label className={theme?.field?.label}>{label}</Label>}
-      {description && <Description className={theme?.field?.description}>{description}</Description>}
-      
-      <span className={`${theme?.input?.inputContainer}`}>
-        <Input type={type} className={`${theme?.input?.input}`} value={value} onChange={onChange}/>
-      </span>
-    </Field>
+    <span className={`${theme?.input?.inputContainer}`}>
+      <Input type={type} className={`${theme?.input?.input}`} value={value} onChange={onChange}/>
+    </span>
   )
 }
 
@@ -42,28 +37,23 @@ export function ConfirmInput ({ type='text', label, description, value, onChange
   React.useEffect(() => setTempValue(value), value)
 
   return (
-    <Field>
-      {label && <Label className={theme?.field?.label}>{label}</Label>}
-      {description && <Description className={theme?.field?.description}>{description}</Description>}
+    <span className={`${theme?.input?.inputContainer}`}>
+      { editing ? 
+        <Input type={type} value={tempValue} onChange={e => setTempValue(e.target.value)} className={`${theme?.input?.input}`} /> : 
+        <div className={`${theme?.input?.input}`}>{tempValue}</div>
+      }
       
-      <span className={`${theme?.input?.inputContainer}`}>
-        { editing ? 
-          <Input type={type} value={tempValue} onChange={e => setTempValue(e.target.value)} className={`${theme?.input?.input}`} /> : 
-          <div className={`${theme?.input?.input}`}>{tempValue}</div>
-        }
+      {!editing ? 
+        (<div className={`${theme?.input?.confirmButtonContainer} ${theme?.input?.editButton}`} onClick={() => setEditing(true)}><EditIcon className={'size-5.5'} /></div>) : 
+        (<div className={`${theme?.input?.confirmButtonContainer}`}>
         
-        {!editing ? 
-          (<div className={`${theme?.input?.confirmButtonContainer} ${theme?.input?.editButton}`} onClick={() => setEditing(true)}><EditIcon className={'size-5.5'} /></div>) : 
-          (<div className={`${theme?.input?.confirmButtonContainer}`}>
-          
-              <div className={`${theme?.input?.confirmButton}`} onClick={() => { onChange(tempValue); setEditing(false); }}><ConfirmIcon /></div>
-              <div className={`${theme?.input?.cancelButton}`} onClick={() => { setTempValue(value);setEditing(false);}}><CancelIcon /></div>
-           
-          </div>
-          )
-        }
-        
-      </span>
-    </Field>
+            <div className={`${theme?.input?.confirmButton}`} onClick={() => { onChange(tempValue); setEditing(false); }}><ConfirmIcon /></div>
+            <div className={`${theme?.input?.cancelButton}`} onClick={() => { setTempValue(value);setEditing(false);}}><CancelIcon /></div>
+         
+        </div>
+        )
+      }
+      
+    </span>
   )
 }

@@ -38,7 +38,6 @@ function PageEdit ({
   const inPageNav = getInPageNav(item, theme);
   const sectionAttr = attributes?.['sections']?.attributes || {}
 
-
   React.useEffect(() => {
     if(!item?.url_slug ) { 
       let defaultUrl = dataItems
@@ -47,8 +46,6 @@ function PageEdit ({
       defaultUrl && defaultUrl.url_slug && navigate(`edit/${defaultUrl.url_slug}`)
     }
   },[])
-
-
 
   React.useEffect(() => {
     // ------------------------------------------------------------
@@ -80,6 +77,7 @@ function PageEdit ({
       <div className={`${theme?.page?.container}`}>
         {item?.header === 'above' && (
           <ContentEdit
+            full_width={'show'}
             item={item}
             value={[headerSection]} 
             onChange={(v,action) => saveHeader(v, item, user, apiUpdate)}         
@@ -103,7 +101,8 @@ function PageEdit ({
         >
           <div className={`${theme?.page?.wrapper1} ${theme?.navPadding[level]}`}>
             {item?.header === 'below' && (
-              <ContentEdit 
+              <ContentEdit
+                full_width={'show'}
                 item={item} 
                 value={[headerSection]} 
                 onChange={(v,action) => saveHeader(v, item, user, apiUpdate)} 
@@ -112,14 +111,21 @@ function PageEdit ({
               />
             )}
             <div className={`${theme?.page?.wrapper2}`}>
-              {item?.sidebar === 'show' && (
+              {item?.sidebar === 'left' && (
                 <SideNavContainer>
                   <SideNav {...inPageNav} /> 
                 </SideNavContainer>
               )}  
               <div className={theme?.page?.wrapper3 + ''}>
                 {item?.header === 'inpage' && (
-                   <ContentEdit item={item} value={[headerSection]} onChange={(val,action) => saveHeader(v, item, user, apiUpdate)} attributes={sectionAttr} siteType={siteType}/>
+                  <ContentEdit
+                    full_width={'show'}
+                    item={item} 
+                    value={[headerSection]} 
+                    onChange={(val,action) => saveHeader(v, item, user, apiUpdate)}
+                    attributes={sectionAttr}
+                    siteType={siteType}
+                  />
                 )} 
                 {user?.authLevel >= 5 && (
                   <Link className={theme?.page?.iconWrapper} to={`${baseUrl}/${item?.url_slug || ''}${window.location.search}`}>
@@ -137,8 +143,13 @@ function PageEdit ({
                   format={isDynamicPage ? format : undefined}
                 />
               </div>
-            </div>  
-            
+              {item?.sidebar === 'right' && (
+                <SideNavContainer>
+                  <SideNav {...inPageNav} /> 
+                </SideNavContainer>
+              )}
+            </div>
+
           </div>
         </Layout>
         {item?.footer && <div className='h-[300px] bg-slate-100' />} 

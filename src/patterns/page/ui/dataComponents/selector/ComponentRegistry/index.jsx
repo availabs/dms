@@ -2,7 +2,7 @@ import React, {useEffect, useState} from "react"
 import {isJson} from "../index";
 import { dmsDataTypes } from "../../../../../../index.js"
 
-import Header from './header'
+import Header from './mnyHeader'
 // import ComponentsIndexTable from "../../componentsIndexTable";
 // import Spreadsheet from "../../../../forms/components/selector/ComponentRegistry/spreadsheet";
 //import CustomHeader from "../../../../forms/components/selector/ComponentRegistry/header";

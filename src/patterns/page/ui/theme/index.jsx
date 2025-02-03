@@ -1,15 +1,19 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
+// -- Components
 import { layoutTheme } from '../components/layout'
 import { sideNavTheme } from '../components/sidenav'
 import { topNavTheme } from '../components/topnav'
 import { tabsTheme } from '../components/tabs'
 import { buttonTheme } from '../components/button'
-import { inputTheme, fieldTheme } from '../components/input'
+import { inputTheme  } from '../components/input'
 import { nestableTheme } from '../components/nestable/draggableNav'
 import { dialogTheme } from '../components/dialog'
 import { popoverTheme } from '../components/popover'
-import { sectionArrayTheme} from '../dataComponents/sections/sectionArray'
+import { selectTheme } from '../components/select'
+import { fieldTheme } from '../components/fieldset'
+// --- Data Components
+import { sectionArrayTheme } from '../dataComponents/sections/sectionArray'
 
 
 
@@ -69,11 +73,11 @@ const theme = {
     iconWrapper : 'z-5 absolute right-[10px] top-[5px]',
     icon: 'text-slate-400 hover:text-blue-500'
   },
-  pageControls: {
+  /*pageControls: {
     controlItem: 'pl-6 py-0.5 text-md cursor-pointer hover:text-blue-500 text-slate-400 flex items-center',
     select: 'bg-transparent border-none rounded-sm focus:ring-0 focus:border-0 pl-1',
     selectOption: 'p-4 text-md cursor-pointer hover:text-blue-500 text-slate-400 hover:bg-blue-600',
-  },
+  },*/
   
   layout: layoutTheme,
   sidenav: sideNavTheme,
@@ -86,6 +90,7 @@ const theme = {
   nestable: nestableTheme,
   dialog: dialogTheme,
   popover: popoverTheme,
+  select: selectTheme,
 
   sectionArray: sectionArrayTheme,
 

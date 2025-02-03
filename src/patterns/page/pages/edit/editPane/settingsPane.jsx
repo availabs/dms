@@ -1,9 +1,10 @@
 import React, {Fragment, useState} from 'react'
-
-import { Button, Menu } from '../../../ui'
+import { cloneDeep } from 'lodash-es'
+import { Button, Menu, FieldSet } from '../../../ui'
 import { CMSContext } from '../../../siteConfig'
 import { timeAgo } from '../../_utils'
 import { Add, CaretDown } from "../../../ui/icons";
+
 
 import { PageContext } from '../../view'
 
@@ -21,17 +22,86 @@ function SettingsPane () {
           </h1>
         </div>
       </div>
-      <div className='w-full flex justify-center py-4'>
+      {/*<div className='w-full flex justify-center py-4'>
         <PublishButton />
-      </div>
+      </div>*/}
       <div className="relative mt-6 flex-1 px-4 sm:px-6 w-full   max-h-[calc(100vh_-_135px)] overflow-y-auto">
-        ...
+        <FieldSet components={[
+          {
+            type:'ConfirmInput',
+            label: 'Page Name',
+            value: item.title
+          },
+          {
+            type:'Select',
+            label: 'Show Header',
+            value: item.header,
+            options: [
+              {label: 'None', value: 'none'}, 
+                  {label: 'Above', value: 'above'},
+                  {label: 'Below', value: 'below'},
+                  {label: 'In page', value: 'inpage'}
+            ],
+            onChange:(e) => {
+              togglePageSetting(item, 'header', e.target.value,  apiUpdate)
+            }
+          },
+          {
+            type:'Select',
+            label: 'Show Footer',
+            value: item.header,
+            options: [
+              {label: 'None', value: ''}, 
+              {label: 'Show', value: 'show'}
+            ],
+            onChange:(e) => {
+              togglePageSetting(item, 'footer', e.target.value,  apiUpdate)
+            }
+          },
+          {
+            type:'Select',
+            label: 'Show Sidebar',
+            value: item.sidebar,
+            options: [
+                  {label: 'None', value: ''}, 
+                  {label: 'Left', value: 'left'},
+                  {label: 'Right', value: 'right'},
+                  
+            ],
+            onChange:(e) => {
+              togglePageSetting(item, 'sidebar', e.target.value,  apiUpdate)
+            }
+          }
+        ]} />
       </div>
     </div>          
   )
 }
 
 export default SettingsPane
+
+export const togglePageSetting = async (item,type, value='', apiUpdate) => {
+  const newItem = {id: item.id}
+  newItem[type] = value
+ 
+  // console.log('item', newItem, value)
+  let sectionType = 'draft_sections';
+  if(type === 'header' && !item?.[sectionType]?.filter(d => d.is_header)?.[0]) {
+    //console.log('toggleHeader add header', newItem[sectionType])
+    newItem[sectionType] = cloneDeep(item[sectionType] || [])
+    newItem[sectionType].unshift({
+      is_header: true,
+      size: 2,
+      element : {
+        "element-type": "Header: Default Header",
+        "element-data": {}
+      }
+    })
+   
+  } 
+
+  apiUpdate({data:newItem})
+}
 
 export function PublishButton () {
   const {item, apiUpdate } =  React.useContext(PageContext) || {}

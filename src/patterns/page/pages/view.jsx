@@ -52,7 +52,7 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
           <div className={`${theme?.page?.wrapper1} ${theme?.navPadding[level]}`}>
             {(item?.header === 'below') && <ContentView item={item} value={[headerSection]} attributes={sectionAttr} />}
             <div className={`${theme?.page?.wrapper2}`}>
-              {item?.sidebar === 'show' && (
+              {item?.sidebar === 'left' && (
                 <SideNavContainer>
                   <SideNav {...inPageNav} /> 
                 </SideNavContainer>
@@ -82,6 +82,11 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
                     format={format}
                 />
               </div>
+              {item?.sidebar === 'right' && (
+                <SideNavContainer>
+                  <SideNav {...inPageNav} /> 
+                </SideNavContainer>
+              )}
             </div>
           </div>
         </Layout>
