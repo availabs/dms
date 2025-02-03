@@ -1,6 +1,7 @@
 import {useRef, useState, useEffect, useContext, useCallback} from "react";
 import Icons, {ArrowDown, TouchInteraction} from "../../../../ui/icons"
 import {SpreadSheetContext} from "../spreadsheet";
+import {useHandleClickOutside} from "./utils";
 
 const RenderIconSelector = ({onClick, icon}) => {
     const [open, setOpen] = useState(false);
@@ -222,7 +223,7 @@ const RenderAddAction = ({addAction}) => {
 
 // linkCol: {isLink, linkText, linkAddress}
 // action: {name, actionType: delete/url, icon, display: edit/view/both}
-export default function RenderActionControls() {
+export default function RenderActionControls({context}) {
     // each action has:
     // name: used as title, fallback if no icon is selected. only needed if it's not data column.
     // name: if action is related to a column, use its name. oterwise empty
@@ -231,12 +232,13 @@ export default function RenderActionControls() {
     // url: if type is url, provide text box
     // display: edit only, view only, both
     // attach search params
-    const {state:{columns, sourceInfo}, setState} = useContext(SpreadSheetContext);
+    const {state:{columns, sourceInfo}, setState, compType} = useContext(context || SpreadSheetContext);
     const menuRef = useRef(null);
     const [search, setSearch] = useState();
     const [isOpen, setIsOpen] = useState(false);
     const menuBtnId = 'menu-btn-action-controls'
     const actionColumns = columns.filter(column => column.actionType); //two types of actions.
+    useHandleClickOutside(menuRef, menuBtnId, () => setIsOpen(false));
 
     // takes in one action, adds or updates it.
     const updateAction = useCallback((action={}) => {
@@ -267,21 +269,7 @@ export default function RenderActionControls() {
             draft.columns.push(action)
         })
     }, [columns])
-    // ================================================== close on outside click start =================================
-    const handleClickOutside = (e) => {
-        if (menuRef.current && !menuRef.current.contains(e.target) && e.target.id !== menuBtnId) {
-            setIsOpen(false);
-        }
-    };
-
-    useEffect(() => {
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
-    }, []);
-    // ================================================== close on outside click end ===================================
-
+    if(compType === 'item') return null;
     return (
         <div className="relative inline-block text-left">
             <div>

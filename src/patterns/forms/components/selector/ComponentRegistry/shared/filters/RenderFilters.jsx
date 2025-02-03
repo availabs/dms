@@ -1,8 +1,8 @@
 import React, {memo, useCallback, useEffect, useMemo, useState} from "react";
 import dataTypes from "../../../../../../../data-types";
-import {formattedAttributeStr, attributeAccessorStr} from "../../spreadsheet/utils/utils";
+import {attributeAccessorStr} from "../../spreadsheet/utils/utils";
 import {Filter} from "../../../../../ui/icons";
-import {getLength, getData, getDataToTrack, parseIfJson, getFilters, isCalculatedCol, convertToUrlParams} from "./utils"
+import {getData, parseIfJson, getFilters, isCalculatedCol, convertToUrlParams, formattedAttributeStr} from "./utils"
 import {isEqual, mergeWith, uniq, uniqBy} from "lodash-es"
 import {RenderFilterValueSelector} from "./Components/RenderFilterValueSelector";
 import {useNavigate, useSearchParams} from "react-router-dom";
@@ -171,19 +171,12 @@ export const RenderFilters =
 
                 const filterBy = {};
 
-                const length = await getLength({
-                    format: state.sourceInfo, apiLoad,
-                    groupBy: [getAttributeAccessorStr(columnName)],
-                    filterBy
-                });
-                if(isStale) return;
-
-                debug && console.log('debug filters: length', length)
                 const data = await getData({
                     format: state.sourceInfo,
                     apiLoad,
-                    length,
-                    attribute: getFormattedAttributeStr(columnName),
+                    // length,
+                    reqName: getFormattedAttributeStr(columnName), // column name with as
+                    refName: getAttributeAccessorStr(columnName), // column name without as
                     allAttributes: state.columns,
                     filterBy
                 })

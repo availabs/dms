@@ -45,46 +45,15 @@ const initialState = {
         // doc_type, type -- should be the same
     }
 }
-const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLoad, apiUpdate, renderCard, ...rest}) => {
+const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, renderCard, hideSourceSelector}) => {
     const isEdit = Boolean(onChange);
-    // const [state, setState] = useImmer(isJson(value) ? JSON.parse(value) : initialState);
-    const [state, setState] = useImmer(convertOldState(value, initialState   ));
+    const [state, setState] = useImmer(convertOldState(value, initialState));
     const [loading, setLoading] = useState(false);
     const [newItem, setNewItem] = useState({})
-
     const [currentPage, setCurrentPage] = useState(0);
-    const showChangeFormatModal = !formatFromProps || !state?.sourceInfo?.columns;
+    const showChangeFormatModal = !hideSourceSelector || !state?.sourceInfo?.columns;
     const isValidState = Boolean(state?.dataRequest);
     // ========================================= init comp begin =======================================================
-    useEffect(() => {
-        // if there's no format passed, the user should be given option to select one. to achieve thia, format needs to be a state variable.
-        if(isEqual(state.sourceInfo, formatFromProps)) return;
-        formatFromProps && setState(draft => {
-            draft.display = formatFromProps?.display;
-            draft.sourceInfo = formatFromProps?.sourceInfo;
-            draft.columns = formatFromProps?.columns;
-        });
-    }, [formatFromProps]);
-
-    // useEffect(() => {
-    // todo formatFromProp should change to source_info. state should use it by default. and the invalid-entry change should happen where the comp is called.
-    // this useEffect should not exist
-
-
-    //     // format from props comes only from admin pages. on admin pages, FormsSelector is not present to handle view changes, so we handle them here.
-    //     if(!formatFromProps) return;
-    //
-    //     const tmpViewId = typeof view === 'object' ? view.id : view;
-    //     if(!format || !view || format.view_id === tmpViewId) return;
-    //     const originalDocType = format.originalDocType || format.doc_type;
-    //     const doc_type = originalDocType?.includes('-invalid-entry') ?
-    //         originalDocType.replace('-invalid-entry', `${tmpViewId}-invalid-entry`) :
-    //         `${originalDocType}-${tmpViewId}`;
-    //     const view_id = tmpViewId; // this has to be the id. API uses this for UDA call.
-    //
-    //     setFormat(format.doc_type ? {...format, doc_type, type: doc_type, originalDocType, view_id} : {...format, view_id})
-    // }, [view])
-
     // useSetDataRequest
     useEffect(() => {
         if(!isValidState) return;
@@ -95,7 +64,8 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
             orderBy: state.columns.filter(column => column.sort).reduce((acc, column) => ({...acc, [column.name]: column.sort}), {}),
             filter: getFilters(state.columns), // {colName: []}
             fn: state.columns.filter(column => column.fn).reduce((acc, column) => ({...acc, [column.name]: column.fn}), {}),
-            exclude: state.columns.filter(column => column.excludeNA).reduce((acc, column) => ({...acc, [column.name]: ['null']}), {}),
+            exclude: state.columns.filter(column => column.excludeNA || Array.isArray(column.internalExclude))
+                .reduce((acc, {name, excludeNA, internalExclude}) => ({...acc, [name]: [...excludeNA ? ['null'] : [], ...Array.isArray(internalExclude) ? internalExclude : []]}), {}),
             meta: state.columns.filter(column => column.show && 
                                                  ['meta-variable', 'geoid-variable', 'meta'].includes(column.display) && 
                                                  column.meta_lookup)
@@ -108,7 +78,6 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
             draft.dataRequest = newDataReq;
         })
         // todo: save settings such that they can be directly used by getData and getLength
-        // todo: update in header controls as well
 
         return () => {
             isStale = true;
@@ -145,6 +114,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
         state.dataRequest,
         state.sourceInfo.source_id,
         state.sourceInfo.view_id,
+        state.display.pageSize,
         isValidState]);
 
     // useGetDataOnPageChange
@@ -180,7 +150,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
         // observer that sets current page on scroll. no data fetching should happen here
         const observer = new IntersectionObserver(
             async (entries) => {
-                const hasMore = true //(currentPage * state.display.pageSize + state.display.pageSize) < state.display.totalLength;
+                const hasMore = (currentPage * state.display.pageSize + state.display.pageSize) < state.display.totalLength;
                 if (state.data.length && entries[0].isIntersecting && hasMore) {
                     setCurrentPage(currentPage+1)
                 }
@@ -191,11 +161,10 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
         const target = document.querySelector(`#${state.display.loadMoreId}`);
         if (target && !state.display.usePagination) observer.observe(target);
         if (target && state.display.usePagination) observer.unobserve(target); // unobserve if using pagination
-
         return () => {
             if (target) observer.unobserve(target);
         };
-    }, [state.display?.loadMoreId, state.display?.totalLength, state.display?.usePagination]);
+    }, [state.display?.loadMoreId, state.display?.totalLength, state.data?.length, state.display?.usePagination]);
     // // =========================================== get data end ========================================================
 
     // =========================================== saving settings begin ===============================================
@@ -237,7 +206,6 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
         return apiUpdate({data: item, config: {format: state.sourceInfo}, requestType: 'delete'})
     }
     // =========================================== util fns end ========================================================
-    console.log('state?', state)
     return (
         <SpreadSheetContext.Provider value={{state, setState, apiLoad, compType: renderCard ? 'card' : 'spreadsheet'}}>
             <div className={'w-full h-full'}>
@@ -246,7 +214,6 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
                         <div className={'p-1'}>
                             Form data not available. Please make a selection:
                             <FormsSelector apiLoad={apiLoad} app={pageFormat?.app}
-                                           formatFromProps={formatFromProps}
                                            state={state} setState={setState} // passing as props as other components will use it as well.
                             />
                         </div> : null
@@ -278,9 +245,9 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     )
 }
 
-const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate, renderCard, ...rest}) => {
+const View = ({value, onChange, size, apiLoad, apiUpdate, renderCard, ...rest}) => {
     const isEdit = false;
-    const [state, setState] = useImmer(convertOldState(value));
+    const [state, setState] = useImmer(convertOldState(value, initialState   ));
 
     const [newItem, setNewItem] = useState({})
     const [loading, setLoading] = useState(false);
@@ -298,14 +265,6 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
         const newState = convertOldState(value)
         setState(newState)
     }, [value]);
-
-    useEffect(() => {
-        // if there's no format passed, the user should be given option to select one. to achieve thia, format needs to be a state variable.
-        if(isEqual(state.sourceInfo, formatFromProps)) return;
-        formatFromProps && setState(draft => {
-            draft.sourceInfo = formatFromProps;
-        });
-    }, [formatFromProps]);
 
     // ========================================== get data begin =======================================================
     useEffect(() => {
@@ -409,12 +368,12 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
         return () => {
             if (target) observer.unobserve(target);
         };
-    }, [state?.display?.loadMoreId, state?.display?.totalLength, state?.display?.usePagination, isValidState]);
+    }, [state?.display?.loadMoreId, state?.display?.totalLength, state?.data?.length, state?.display?.usePagination, isValidState]);
     // =========================================== get data end ========================================================
 
     // =========================================== util fns begin ======================================================
     const updateItem = (value, attribute, d) => {
-        if(!state.sourceInfo?.isDms) return;
+        if(!state.sourceInfo?.isDms || !apiUpdate) return;
         let dataToUpdate = Array.isArray(d) ? d : [d];
 
         let tmpData = [...state.data];
@@ -425,27 +384,27 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
         setState(draft => {
             draft.data = tmpData
         });
-        return Promise.all(dataToUpdate.map(dtu => apiUpdate({data: dtu, config: state.sourceInfo})));
+        return Promise.all(dataToUpdate.map(dtu => apiUpdate({data: dtu, config: {format: state.sourceInfo}})));
     }
 
     const addItem = () => {
-        if(!state.sourceInfo?.isDms) return;
+        if(!state.sourceInfo?.isDms || !apiUpdate) return;
         setState(draft => {
             draft.data.push(newItem)
         })
-        return apiUpdate({data: newItem, config: state.sourceInfo}) && setNewItem({})
+        return apiUpdate({data: newItem, config: {format: state.sourceInfo}}) && setNewItem({})
     }
 
     const removeItem = item => {
-        if(!state.sourceInfo?.isDms) return;
+        if(!state.sourceInfo?.isDms || !apiUpdate) return;
         setState(draft => {
             draft.data = draft.data.filter(d => d.id !== item.id);
         })
-        return apiUpdate({data: item, config: state.sourceInfo, requestType: 'delete'})
+        return apiUpdate({data: item, config: {format: state.sourceInfo}, requestType: 'delete'})
     }
     // =========================================== util fns end ========================================================
     if(showChangeFormatModal || !isValidState) return <div className={'p-1 text-center'}>Form data not available.</div>;
-    console.log('testing state', state.columns?.[4]?.externalFilter)
+    console.log('testing state', state)
     return (
         <SpreadSheetContext.Provider value={{state, setState, apiLoad, compType: renderCard ? 'card' : 'spreadsheet'}}>
             <div className={'w-full h-full'}>
@@ -459,7 +418,7 @@ const View = ({value, onChange, size, format:formatFromProps, apiLoad, apiUpdate
                                         newItem, setNewItem,
                                         updateItem, removeItem, addItem,
                                         currentPage, loading, isEdit,
-                                        allowEdit: groupByColumnsLength ? false : state.display.allowEditInView
+                                        allowEdit: groupByColumnsLength ? false : state.display.allowEditInView && apiUpdate
                                     }} />
                                 </>
                             )

@@ -59,8 +59,8 @@ const gridClasses = {
 };
 
 
-export default function RenderColumnControls() {
-    const {state: {columns=[], sourceInfo}, setState, compType} = useContext(SpreadSheetContext);
+export default function RenderColumnControls({context}) {
+    const {state: {columns=[], sourceInfo}, setState, compType} = useContext(context || SpreadSheetContext);
     const {
         allowCustomColNames,
         allowFnSelector,
@@ -212,7 +212,7 @@ export default function RenderColumnControls() {
                         columnsToRender
                             .map((attribute, i) => (
                                 <div
-                                    key={attribute.name}
+                                    key={`${attribute.name}-${i}`}
                                     className="flex items-center px-2 py-1 text-xs text-gray-700 hover:bg-gray-100 hover:text-gray-900"
                                     onDragStart={(e) => dragStart(e, i)}
                                     onDragEnter={(e) => dragEnter(e, i)}

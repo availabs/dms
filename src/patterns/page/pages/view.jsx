@@ -46,7 +46,7 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
     <PageContext.Provider value={{ item, dataItems, apiLoad, apiUpdate }} >
       <div id='page_view' className={`${theme?.page?.container}`}>
         {/* Header */}
-        {(item?.header === 'above') && <ContentView item={item} value={[headerSection]} attributes={sectionAttr} />}
+        {(item?.header === 'above') && <ContentView full_width={'show'} item={item} value={[headerSection]} attributes={sectionAttr} />}
         {/* Layout */}
         <Layout navItems={menuItems} secondNav={theme?.navOptions?.secondaryNav?.navItems || []}>
           <div className={`${theme?.page?.wrapper1} ${theme?.navPadding[level]}`}>

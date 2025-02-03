@@ -52,12 +52,6 @@ const formatOptions = [
     {label: 'Abbreviated', value: 'abbreviate'},
 ]
 
-const justifyOptions = [
-    {label: 'Left Justified', value: 'left'},
-    {label: 'Centered', value: 'center'},
-    {label: 'Right Justified', value: 'right'}
-]
-
 const fontSizeOptions = [
     {label: 'Small Fonts', value: 'small'},
     {label: 'Medium Fonts', value: 'medium'},
@@ -117,12 +111,21 @@ export default function RenderInHeaderColumnControls({attribute}) {
         },
     ];
 
+    const justifyOptions = [
+        {label: 'Not Justified', value: ''},
+        {label: 'Left Justified', value: 'left'},
+        {label: 'Centered', value: 'center'},
+        {label: 'Right Justified', value: 'right'},
+    ]
+    if(compType === 'card') justifyOptions.push({label: 'Full Justified', value: 'full'})
     return (
         <div className="relative w-full">
             <div id={menuBtnId}
                  className={`group inline-flex items-center w-full justify-between gap-x-1.5 rounded-md px-3 py-1 text-sm font-semibold text-gray-600 cursor-pointer`}
                  onClick={e => setIsOpen(!isOpen)}>
-                {attribute.customName || attribute.display_name || attribute.name}
+                <span className={'truncate select-none'}
+                      title={attribute.customName || attribute.display_name || attribute.name}>
+                    {attribute.customName || attribute.display_name || attribute.name}</span>
                 <div id={menuBtnId} className={'flex items-center'}>
                     {attribute.sort === 'asc nulls last' ? <SortAsc className={'text-gray-500'}/> :
                         attribute.sort === 'desc nulls last' ? <SortDesc className={'text-gray-500'}/> : null}

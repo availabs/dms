@@ -1,3 +1,5 @@
+import {getData as getFilterData} from "../../shared/filters/utils";
+
 const fnum = (number, currency = false) => `${currency ? '$ ' : ''} ${isNaN(number) ? 0 : parseInt(number).toLocaleString()}`;
 const fnumIndex = (d, fractions = 2, currency = false) => {
         if(isNaN(d)) return 'No Data'
@@ -26,8 +28,7 @@ const isCalculatedCol = ({display, type, origin}) => {
     return display === 'calculated' || type === 'calculated' || origin === 'calculated-column'
 };
 
-// applies data->> and AS on a column name
-export const formattedAttributeStr = (col, isDms, isCalculatedCol) => isCalculatedCol ? col : isDms ? `data->>'${col}' as ${col}` : col;
+
 // returns column name to be used as key for options. these are names without 'as' and data->> applied.
 export const attributeAccessorStr = (col, isDms, isCalculatedCol) => isCalculatedCol ? splitColNameOnAS(col)[0] : isDms ? `data->>'${col}'` : col;
 
@@ -66,7 +67,7 @@ export const applyFn = (col={}, isDms=false) => {
     // calculated columns should never get data->>
     const isCalculatedCol = col.type === 'calculated' || col.display === 'calculated' || col.origin === 'calculated-column';
     const colNameWithAccessor = attributeAccessorStr(col.name, isDms, isCalculatedCol);
-    const colNameAfterAS = isCalculatedCol ? splitColNameOnAS(col.name)[1] : col.name;
+    const colNameAfterAS = (isCalculatedCol ? splitColNameOnAS(col.name)[1] : col.name).toLowerCase();
 
     const functions = {
         [undefined]: `${colNameWithAccessor} as ${colNameAfterAS}`,
@@ -126,6 +127,43 @@ export const getData = async ({state, apiLoad, currentPage=0}) => {
     const columnsToFetch = columnsWithSettings.filter(column => column.show);
     console.log('columns with settings:', columnsWithSettings, columnsToFetch);
     const {groupBy=[], orderBy={}, filter={}, fn={}, exclude={}, meta={}} = state.dataRequest;
+
+    const multiselectFilterValueSets = {};
+    for (const columnName of Object.keys(filter)) {
+        const { name, display, meta, refName, type } = getFullColumn(columnName, columnsWithSettings);
+        const fullColumn = { name, display, meta, refName, type };
+        const reqName = getColAccessor({ ...fullColumn, fn: undefined }, state.sourceInfo.isDms);
+
+        if (type === 'multiselect') {
+            const options = await getFilterData({
+                reqName,
+                refName,
+                allAttributes: [{ name, display, meta }],
+                apiLoad,
+                format: state.sourceInfo
+            });
+
+            const selectedValues = (filter[columnName] || []).map(o => o.value || o);
+            if (!selectedValues.length) continue;
+
+            try {
+                const matchedOptions = options
+                    .map(row => {
+                        const option = row[reqName];
+                        const parsedOption = isJson(option) && Array.isArray(JSON.parse(option)) ? JSON.parse(option) : [];
+                        return parsedOption.find(o => selectedValues.includes(o)) ? option : null;
+                    })
+                    .filter(option => option);
+
+                multiselectFilterValueSets[columnName] = matchedOptions;
+            } catch (e) {
+                console.error('Could not load options for', columnName, e);
+            }
+        }
+    }
+
+    console.log('options for multiselect:', multiselectFilterValueSets);
+
     // should this be saved in state directly?
     const options = {
         groupBy: groupBy.map(columnName => getFullColumn(columnName, columnsWithSettings)?.refName),
@@ -137,15 +175,24 @@ export const getData = async ({state, apiLoad, currentPage=0}) => {
 
                 return {...acc, [isCalculatedColumn ? idx : refName]: orderBy[columnName] }
             }, {}),
-        filter, // todo: for now, use filters as they come. later, for multiselect columns, fetch valuesets.
+        filter: Object.keys(filter).reduce((acc, columnName) => {
+            const {refName, type} = getFullColumn(columnName, columnsWithSettings);
+            if(type === 'multiselect'){
+                console.log('option for ms column', columnName, multiselectFilterValueSets[columnName]);
+                return {...acc, [refName]: multiselectFilterValueSets[columnName]}
+            }
+            return {...acc, [refName]: filter[columnName]}
+        } , {}),
         exclude: Object.keys(exclude).reduce((acc, columnName) => ({...acc, [getFullColumn(columnName, columnsWithSettings)?.refName]: exclude[columnName] }), {}),
         meta
     }
-
+    console.log('options for spreadsheet getData', options, state)
     // =================================================================================================================
     // ========================================== check for proper indices begin =======================================
     // =================================================================================================================
-    const length = await getLength({options, state, apiLoad});
+    // not grouping by, and all visible columns have fn applied
+    const isRequestingSingleRow = !options.groupBy.length && columnsToFetch.filter(col => col.fn).length === columnsToFetch.length;
+    const length = isRequestingSingleRow ? 1 : await getLength({options, state, apiLoad});
     const actionType = 'uda';
     const fromIndex = currentPage * state.display.pageSize;
     const toIndex = Math.min(length, currentPage * state.display.pageSize + state.display.pageSize) - 1;

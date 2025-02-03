@@ -28,7 +28,7 @@ export const RenderPagination = ({currentPage, setCurrentPage}) => {
     return (
         <div className={'float-right flex flex-col items-end p-1 text-xs text-gray-500'}>
             {
-                state.display.usePagination ? (
+                state.display.usePagination ? paginationRange.length === 1 ? null : (
                     <div className={'flex flex-row gap-1 items-center'}>
                         <div className={'cursor-pointer text-gray-500 hover:text-gray-800'}
                              onClick={() => setCurrentPage(currentPage > 0 ? currentPage - 1 : currentPage)}>{`<< prev`}</div>

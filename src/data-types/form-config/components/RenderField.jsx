@@ -36,7 +36,7 @@ const defaultReqTypes = {
 const labelClass = 'text-sm font-light capitalize font-gray-700';
 const inputClass = 'bg-white w-full border p-2 rounded-md'
 
-const RenderInputText = ({label, value, col, attr, updateAttribute}) => {
+const RenderInputText = ({label, value, col, attr, disabled, updateAttribute}) => {
     const [newValue, setNewValue] = useState(value);
 
     const delayedUpdate = (val) => setTimeout(updateAttribute(col, {[attr]: val}), 500);
@@ -45,6 +45,7 @@ const RenderInputText = ({label, value, col, attr, updateAttribute}) => {
         <div className={'flex flex-col items-start'}>
             <label className={labelClass}>{label}</label>
             <input
+                disabled={disabled}
                 className={inputClass}
                 value={newValue}
                 placeholder={label}
@@ -493,44 +494,63 @@ const RenderRemoveBtn = ({col, removeAttribute}) => {
     )
 }
 
-export const RenderField = ({i, theme, item, attribute, placeholder, className, updateAttribute, removeAttribute, apiLoad, format}) => {
+export const RenderField = ({i, item, attribute, updateAttribute, removeAttribute, apiLoad, format, dragStart, dragEnter, dragOver, drop}) => {
     const [showAdvanced, setShowAdvanced] = useState(false);
     return (
             <div key={i}
-                className={`${i % 2 ? 'bg-blue-50' : 'bg-white'} hover:bg-blue-100 border-l-4 border-blue-100 hover:border-blue-300 mb-1 px-2 pb-2 w-full flex flex-col`}>
-                <div className={'flex flex-wrap justify-between flex-col sm:flex-row items-center'}>
-                    <RenderInputText
-                        key={`${item.name}-name`}
-                        label={'name'}
-                        attr={'name'}
-                        value={attribute}
-                        col={item.name}
-                        updateAttribute={updateAttribute}
-                    />
+                 className={`${i % 2 ? 'bg-blue-50' : 'bg-white'} hover:bg-blue-100 border-l-4 border-blue-100 hover:border-blue-300 mb-1 px-2 pb-2 w-full flex flex-col`}
+                 onDragStart={(e) => dragStart(e, i)}
+                 onDragEnter={(e) => dragEnter(e, i)}
 
-                    <RenderInputText
-                        key={`${item.name}-display_name`}
-                        label={'display name'}
-                        attr={'display_name'}
-                        value={item.display_name}
-                        col={item.name}
-                        updateAttribute={updateAttribute}
-                    />
+                 onDragOver={dragOver}
 
-                    <RenderInputSelect
-                        key={`${item.name}-type`}
-                        label={'Input Type'}
-                        value={item.type}
-                        col={item.name}
-                        attr={'type'}
-                        options={fieldTypes}
-                        updateAttribute={updateAttribute}
-                    />
+                 onDragEnd={drop}
+                 draggable={true}
+            >
+                <div className={'flex items-center w-full gap-2'}>
+                    <div className={'h-4 w-4 m-1 text-gray-800'}>
+                        <svg data-v-4e778f45=""
+                             className="nc-icon cursor-move !h-3.75 text-gray-600 mr-1"
+                             viewBox="0 0 24 24" width="1.2em" height="1.2em">
+                            <path fill="currentColor"
+                                  d="M8.5 7a1.5 1.5 0 1 0 0-3a1.5 1.5 0 0 0 0 3m0 6.5a1.5 1.5 0 1 0 0-3a1.5 1.5 0 0 0 0 3m1.5 5a1.5 1.5 0 1 1-3 0a1.5 1.5 0 0 1 3 0M15.5 7a1.5 1.5 0 1 0 0-3a1.5 1.5 0 0 0 0 3m1.5 5a1.5 1.5 0 1 1-3 0a1.5 1.5 0 0 1 3 0m-1.5 8a1.5 1.5 0 1 0 0-3a1.5 1.5 0 0 0 0 3"></path>
+                        </svg>
+                    </div>
+                    <div className={'w-full flex flex-wrap justify-between flex-col sm:flex-row items-center'}>
+                        <RenderInputText
+                            key={`${item.name}-name`}
+                            disabled={true}
+                            label={'name'}
+                            attr={'name'}
+                            value={attribute}
+                            col={item.name}
+                            // updateAttribute={updateAttribute}
+                        />
 
-                    <div title={'Advanced Settings'}
-                         className={'cursor-pointer p-2 text-gray-500 hover:text-gray-900 text-xl'}
-                         onClick={() => setShowAdvanced(!showAdvanced)}
-                    >...
+                        <RenderInputText
+                            key={`${item.name}-display_name`}
+                            label={'display name'}
+                            attr={'display_name'}
+                            value={item.display_name}
+                            col={item.name}
+                            updateAttribute={updateAttribute}
+                        />
+
+                        <RenderInputSelect
+                            key={`${item.name}-type`}
+                            label={'Input Type'}
+                            value={item.type}
+                            col={item.name}
+                            attr={'type'}
+                            options={fieldTypes}
+                            updateAttribute={updateAttribute}
+                        />
+
+                        <div title={'Advanced Settings'}
+                             className={'cursor-pointer p-2 text-gray-500 hover:text-gray-900 text-xl'}
+                             onClick={() => setShowAdvanced(!showAdvanced)}
+                        >...
+                        </div>
                     </div>
                 </div>
 

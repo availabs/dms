@@ -24,22 +24,31 @@ export const useHandleClickOutside = (menuRef, menuBtnId, onClose) => {
 
 export const getControlConfig = compType => ({
     // ========main controls==============
-    allowCustomColNames: ['card', 'spreadsheet'].includes(compType),
+    allowCustomColNames: ['item', 'card', 'spreadsheet'].includes(compType),
     allowFnSelector: ['card', 'spreadsheet'].includes(compType),
     allowExcludeNASelector: ['card', 'spreadsheet'].includes(compType),
-    allowShowToggle: ['card', 'spreadsheet'].includes(compType),
+    allowShowToggle: ['item', 'card', 'spreadsheet'].includes(compType),
     allowFilterToggle: ['card', 'spreadsheet'].includes(compType),
     allowGroupToggle: ['card', 'spreadsheet'].includes(compType),
-    // spreadsheet only
     allowOpenOutToggle: ['spreadsheet'].includes(compType),
+    allowShowTotalToggle: ['spreadsheet'].includes(compType),
+    allowStripedToggle: ['spreadsheet'].includes(compType),
+    allowDownloadToggle: ['spreadsheet'].includes(compType),
+    allowUsePaginationToggle: ['spreadsheet'].includes(compType),
+    allowPageSizeInput: ['spreadsheet', 'card'].includes(compType),
+    allowCompactViewToggle: ['card'].includes(compType),
+    allowGridSizeSelect: ['card'].includes(compType),
+    allowHeaderValueLayoutSelect: ['card'].includes(compType),
 
     // ==========in header===============
     allowSortBy: ['spreadsheet'].includes(compType),
     allowJustify: ['card', 'spreadsheet'].includes(compType),
     allowFormat: ['card', 'spreadsheet'].includes(compType),
-
-    // card only
     allowHideHeader: ['card'].includes(compType),
     allowCardSpan: ['card'].includes(compType),
     allowFontSize: ['card'].includes(compType),
+    allowEditInViewToggle: ['item', 'spreadsheet'].includes(compType),
+    allowSearchParamsToggle: ['item', 'card', 'spreadsheet'].includes(compType),
+
+    // allowDataSizeInput: ['spreadsheet'].includes(compType)
 })

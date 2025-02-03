@@ -1,13 +1,13 @@
 import React, {useMemo, useState, useEffect, useRef, useContext} from 'react'
 import {useParams, useLocation} from "react-router"
-import { get } from "lodash-es";;
+import { get } from "lodash-es";
 import {Link, useSearchParams} from "react-router-dom";
 import SourcesLayout from "./layout";
 import {dmsDataTypes} from "../../../../../../"
 import {FormsContext} from "../../../../siteConfig";
 import {Modal} from "../../../../ui";
 import { cloneDeep } from "lodash-es";
-
+import { v4 as uuidv4 } from 'uuid';
 export const makeLexicalFormat = value => (isJson(value) ? JSON.parse(value) : value)?.root?.children ? value : {
         root: {
             "children": [
@@ -100,7 +100,7 @@ const SourceThumb = ({ source }) => {
         <div className="w-full p-4 bg-white hover:bg-blue-50 block border shadow flex">
             <div>
                 <Link to={`source/${source.id}`} className="text-xl font-medium w-full block">
-                    <span>{source?.doc_type}</span>
+                    <span>{source?.name || source?.doc_type}</span>
                 </Link>
                 <div>
                     {(get(source, ['data', 'value', "categories"], []) || [])
@@ -122,9 +122,7 @@ const SourceThumb = ({ source }) => {
 };
 
 const RenderAddPattern = ({isAdding, setIsAdding, updateData, sources, setSources, submit}) => {
-    const blankData = {doc_type: '', name: ''}
-    const [data, setData] = useState(blankData);
-
+    const [data, setData] = useState({name: ''});
     console.log('sources', sources, data)
     return (
         <Modal open={isAdding} setOpen={setIsAdding} className={'w-full p-4 bg-white hover:bg-blue-50 block border shadow flex items-center'}>
@@ -136,11 +134,10 @@ const RenderAddPattern = ({isAdding, setIsAdding, updateData, sources, setSource
                             const numMatchingDocTypes = sources.filter(s => s.doc_type.includes(`${matchingSource.doc_type}_copy_`)).length;
                             const clone = cloneDeep(matchingSource);
                             // delete clone.id; remove on btn click since it's used to ID in select.
-                            clone.doc_type = `${clone.doc_type}_copy_${numMatchingDocTypes+1}`
                             clone.name = `${clone.name} copy (${numMatchingDocTypes+1})`
                             setData(clone)
                         }else{
-                            setData(blankData)
+                            setData({name: ''})
                         }
                     }}>
                 <option key={'create-new'} value={undefined}>Create new</option>
@@ -155,24 +152,21 @@ const RenderAddPattern = ({isAdding, setIsAdding, updateData, sources, setSource
                    placeholder={'Name'}
                    onChange={e => setData({...data, name: e.target.value})}
             />
-            <input className={'p-1 mx-1 text-sm font-medium w-full block'}
-                     key={'new-form-doc-type'}
-                     value={data.doc_type}
-                     placeholder={'Doc Type'}
-                     onChange={e => setData({...data, doc_type: e.target.value})}
-            />
 
             <button className={'p-1 mx-1 bg-blue-300 hover:bg-blue-500 text-white'}
-                    disabled={!data.doc_type}
+                    disabled={!data.name}
                     onClick={async () => {
-                        delete data.id
-                        await updateData({sources: [...sources, data]})
+                        const clonedData = cloneDeep(data);
+                        delete clonedData.id;
+                        delete clonedData.views;
+                        clonedData.doc_type = uuidv4();
+                        await updateData({sources: [...sources, clonedData]})
                         window.location.reload()
                     }}
             >add</button>
             <button className={'p-1 mx-1 bg-red-300 hover:bg-red-500 text-white'}
                     onClick={() => {
-                        setData(blankData)
+                        setData({name: ''})
                         setIsAdding(false)
                     }}
             >cancel</button>
@@ -296,7 +290,7 @@ const Edit = ({attributes, item, dataItems, apiLoad, apiUpdate, updateAttribute,
                                 return output;
                             })
                             .filter(source => {
-                                let searchTerm = (source?.doc_type + " " + (
+                                let searchTerm = ((source?.name || source?.doc_type) + " " + (
                                     (Array.isArray(source?.categories) ? source?.categories : [source?.categories]) || [])
                                     .reduce((out,cat) => {
                                         out += Array.isArray(cat) ? cat.join(' ') : typeof cat === 'string' ? cat : '';
