@@ -58,7 +58,7 @@ const formsAdminConfig = ({
 
     checkAuth = () => {}
 }) => {
-    console.log('parent theme', parent.theme)
+    //console.log('parent theme', parent.theme)
     let theme = merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern.theme_name] || themes.default), parent?.theme || {})
     baseUrl = baseUrl === '/' ? '' : baseUrl
     const defaultLogo = (
@@ -181,7 +181,7 @@ const formsSourceConfig = ({
         theme.navOptions.logo = logo ? logo : defaultLogo
     }
 
-    console.log('forms siteconfig theme', theme )
+    //console.log('forms siteconfig theme', theme )
 
     const patternFormat = cloneDeep(source);
     const newType = `${type}|source`;
