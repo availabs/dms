@@ -68,9 +68,9 @@ const TableView = ({
                     <div className={`${theme?.page?.wrapper1}`}>
                         {
                             user.authLevel >= 10 ?
-                                <button className={'w-fit p-1 bg-blue-100 bg-blue-200 text-blue-500 text-sm place-self-end rounded-md'}
+                                <button className={'w-fit p-1 bg-blue-100 hover:bg-blue-200 text-blue-500 text-sm place-self-end rounded-md'}
                                         onClick={saveSettings}>
-                                    Set as Default View
+                                    Set Default Columns
                                 </button> :
                                 null
                         }
