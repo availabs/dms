@@ -57,7 +57,7 @@ const getInitState = ({columns, app, doc_type, params, data}) => JSON.stringify(
     },
     display: {
         usePagination: false,
-        pageSize: 1000,
+        pageSize: 100,
         loadMoreId: `id-validate-page`,
         allowSearchParams: false,
     },
@@ -139,11 +139,6 @@ const Validate = ({
                 ...acc,
                 ((['select', 'multiselect', 'radio'].includes(col.type) && col.options?.length) || col.required === 'yes') && getErrorValueSql(col.name, col.shortName, col.options, col.required === 'yes')
             ], []).filter(f => f)
-            console.log('validation columns',
-                columns.filter(({type, options, required}) => (['select', 'multiselect', 'radio'].includes(type) && options?.length) || required === 'yes').length,
-                attrToFetch.length
-            )
-
 
             console.time('getData')
             const data = await apiLoad({
@@ -154,8 +149,8 @@ const Validate = ({
                     action: 'uda',
                     path: '/',
                     filter: {
-                        fromIndex: 0,
-                        toIndex: 0,
+                        fromIndex: () => 0,
+                        toIndex: () => 0,
                         options: JSON.stringify({orderBy: {1: 'asc'}}),
                         attributes: attrToFetch,
                         stopFullDataLoad: true
@@ -180,16 +175,6 @@ const Validate = ({
     }, [item])
 
     const page = useMemo(() => ({name: 'Validate', href: `${pageBaseUrl}/${params.id}/validate`, /*warn: is_dirty*/}), [is_dirty, pageBaseUrl, params.id])
-
-    const RenderSS = memo(({value}) => <Spreadsheet.EditComp
-        key={'validate-page-spreadsheet'}
-        value={value}
-        onChange={(stringValue) => {setValue(stringValue)}}
-        hideSourceSelector={true}
-        size={1}
-        apiLoad={apiLoad}
-        apiUpdate={apiUpdate}
-    />)
 
     return (
         <SourcesLayout fullWidth={false} baseUrl={baseUrl} pageBaseUrl={pageBaseUrl} isListAll={false} hideBreadcrumbs={false}
@@ -239,12 +224,20 @@ const Validate = ({
                                         columns.find(col => data[`${col.shortName}_error`]) || loading ?
                                             <div
                                                 className={'w-full flex items-center justify-between px-2 py-1 text-gray-500 bg-gray-100 rounded-md my-2'}>
-                                                Invalid Rows
+                                                {loading ? 'loading' : ''} Invalid Rows
                                             </div> : null
                                     }
                                     {
                                         !columns.find(col => data[`${col.shortName}_error`]) || loading ? null :
-                                            <RenderSS value={value} />
+                                            <Spreadsheet.EditComp
+                                                key={'validate-page-spreadsheet'}
+                                                value={value}
+                                                onChange={(stringValue) => {setValue(stringValue)}}
+                                                hideSourceSelector={true}
+                                                size={1}
+                                                apiLoad={apiLoad}
+                                                apiUpdate={apiUpdate}
+                                            />
                                     }
                                 </div>
                             </div>

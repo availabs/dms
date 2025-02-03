@@ -123,7 +123,9 @@ export default function RenderInHeaderColumnControls({attribute}) {
             <div id={menuBtnId}
                  className={`group inline-flex items-center w-full justify-between gap-x-1.5 rounded-md px-3 py-1 text-sm font-semibold text-gray-600 cursor-pointer`}
                  onClick={e => setIsOpen(!isOpen)}>
-                <span className={'truncate select-none'}>{attribute.customName || attribute.display_name || attribute.name}</span>
+                <span className={'truncate select-none'}
+                      title={attribute.customName || attribute.display_name || attribute.name}>
+                    {attribute.customName || attribute.display_name || attribute.name}</span>
                 <div id={menuBtnId} className={'flex items-center'}>
                     {attribute.sort === 'asc nulls last' ? <SortAsc className={'text-gray-500'}/> :
                         attribute.sort === 'desc nulls last' ? <SortDesc className={'text-gray-500'}/> : null}
