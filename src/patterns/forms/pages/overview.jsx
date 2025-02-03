@@ -136,7 +136,7 @@ const OverViewEdit = ({
         >
             <div className={'p-4 bg-white flex flex-col'}>
                 <div className={'mt-1 text-2xl text-blue-600 font-medium overflow-hidden sm:mt-0 sm:col-span-3'}>
-                    {item.doc_type}
+                    {item.name || item.doc_type}
                 </div>
 
                 <div className={'flex flex-col md:flex-row'}>
