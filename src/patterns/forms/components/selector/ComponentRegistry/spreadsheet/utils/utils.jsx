@@ -177,11 +177,9 @@ export const getData = async ({state, apiLoad, currentPage=0}) => {
             }, {}),
         filter: Object.keys(filter).reduce((acc, columnName) => {
             const {refName, type} = getFullColumn(columnName, columnsWithSettings);
-            if(type === 'multiselect'){
-                console.log('option for ms column', columnName, multiselectFilterValueSets[columnName]);
-                return {...acc, [refName]: multiselectFilterValueSets[columnName]}
-            }
-            return {...acc, [refName]: filter[columnName]}
+            const valueSets = (multiselectFilterValueSets[columnName] || filter[columnName] || []).filter(d => d.length);
+            if(!valueSets?.length) return acc;
+            return {...acc, [refName]: valueSets}
         } , {}),
         exclude: Object.keys(exclude).reduce((acc, columnName) => ({...acc, [getFullColumn(columnName, columnsWithSettings)?.refName]: exclude[columnName] }), {}),
         meta

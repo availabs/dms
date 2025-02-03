@@ -56,7 +56,7 @@ const Nav = ({baseUrl, navPages, page, hideNav, id, view_id}) => hideNav ? null 
                         `border-b-2 border-blue-600` : 
                         `hover:border-b-2 hover:border-gray-300`}`
                 }
-                  to={`${baseUrl}/${id}/${p.viewDependentPage ? `${p.href}/${view_id}` : p.href}`}
+                  to={`${baseUrl}/${id}/${p.viewDependentPage ? `${p.href}/${view_id || ''}` : p.href}`}
                 >
               <div className={'flex items-center'}><span className={'pr-0.5'}>{p.name}</span> {page.warn && p.name === page.name ? <Alert /> : ''}</div>
             </Link>))

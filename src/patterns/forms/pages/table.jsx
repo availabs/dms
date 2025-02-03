@@ -2,6 +2,7 @@ import React, {useCallback, useContext, useEffect, useState} from "react";
 import { FormsContext } from '../siteConfig'
 import SourcesLayout from "../components/selector/ComponentRegistry/patternListComponent/layout";
 import Spreadsheet from "../components/selector/ComponentRegistry/spreadsheet";
+import {useNavigate} from "react-router-dom";
 
 const TableView = ({
     adminPath,
@@ -20,7 +21,8 @@ const TableView = ({
     manageTemplates = false,
     // ...rest
 }) => {
-    const { API_HOST, baseUrl, pageBaseUrl, theme, user } = React.useContext(FormsContext) || {};
+    const { API_HOST, baseUrl, pageBaseUrl, theme, user } = useContext(FormsContext) || {};
+    const navigate = useNavigate();
     const columns = JSON.parse(item?.config || '{}')?.attributes || [];
     const [value, setValue] = useState(JSON.stringify({
         dataRequest: {},
@@ -52,7 +54,14 @@ const TableView = ({
         newConfig.attributes = newConfig.attributes.map(attr => ({...attr, defaultShow: columns.includes(attr.name)}) )
         apiUpdate({data: {...item, config: JSON.stringify(newConfig)}, config: {format}});
     }, [value]);
-    console.log('value', JSON.parse(value))
+
+    useEffect(() => {
+        if(!params.view_id && item?.views?.length){
+            const recentView = Math.max(...item.views.map(({id}) => id));
+            navigate(`${pageBaseUrl}/${params.id}/table/${recentView}`)
+        }
+    }, [item.views]);
+
     return (
         <SourcesLayout fullWidth={false} baseUrl={baseUrl} pageBaseUrl={pageBaseUrl} isListAll={false} hideBreadcrumbs={false}
                        form={{name: item.name || item.doc_type, href: format.url_slug}}

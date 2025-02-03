@@ -1,18 +1,21 @@
-import React, {memo, useContext, useEffect, useMemo, useState} from "react";
+import React, {useEffect, useMemo, useState} from "react";
 import { FormsContext } from '../siteConfig'
 import SourcesLayout from "../components/selector/ComponentRegistry/patternListComponent/layout";
 import Spreadsheet from "../components/selector/ComponentRegistry/spreadsheet";
+import {useNavigate, useSearchParams} from "react-router-dom";
+import {getData as getFilterData} from "../components/selector/ComponentRegistry/shared/filters/utils";
+import {applyFn, attributeAccessorStr, isJson} from "../components/selector/ComponentRegistry/spreadsheet/utils/utils";
+import {uniq} from "lodash-es";
 
-const getBlankValueSql = (fullName, shortName) => `SUM(CASE WHEN data->>'${fullName}' IS NULL OR data->>'${fullName}'::text = '' THEN 1 ELSE 0 END) AS ${shortName}_blank`;
-const getFilledValueSql = (fullName, shortName) => `SUM(CASE WHEN data->>'${fullName}' IS NOT NULL AND data->>'${fullName}'::text != '' THEN 1 ELSE 0 END) AS ${shortName}_value`;
 const getErrorValueSql = (fullName, shortName, options, required) =>
     `SUM(CASE ${required ? `WHEN (data->>'${fullName}' IS NULL OR data->>'${fullName}'::text = '') THEN 1` : ``}
               ${options?.length ? `WHEN data->>'${fullName}' NOT IN (${options.map(o => `'${(o.value || o).replace(/'/, "''")}'`)}) THEN 1` : ``} ELSE 0 END) AS ${shortName}_error`;
-const getValidValueSql = (fullName, shortName, options, required) =>
-    `SUM(CASE ${required ? `WHEN (data->>'${fullName}' IS NOT NULL ANd data->>'${fullName}'::text != '') THEN 1` : ``}
-              ${options?.length ? `WHEN data->>'${fullName}' IN (${options.map(o => `'${(o.value || o).replace(/'/, "''")}'`)}) THEN 1` : ``} ELSE 0 END) AS ${shortName}_valid`;
-
-const formatNum = (isLoading, value='') => isLoading ? 'loading...' : value.toString().toLocaleString();
+const getFullColumn = (columnName, columns) => columns.find(col => col.name === columnName);
+const getColAccessor = (col, isDms) => !col ? null : applyFn(col, isDms);
+const isCalculatedCol = ({display, type, origin}) => {
+    return display === 'calculated' || type === 'calculated' || origin === 'calculated-column'
+};
+const filterValueDelimiter = '|||';
 
 const reValidate = async ({app, type, parentId, parentDocType, dmsServerPath, setValidating, setError}) => {
     try {
@@ -31,7 +34,6 @@ const reValidate = async ({app, type, parentId, parentDocType, dmsServerPath, se
             });
 
         const publishFinalEvent = await res.json();
-        console.log('--------------------res', publishFinalEvent)
         setValidating(false)
         window.location = window.location;
     }catch (e){
@@ -59,7 +61,7 @@ const getInitState = ({columns, app, doc_type, params, data}) => JSON.stringify(
         usePagination: false,
         pageSize: 100,
         loadMoreId: `id-validate-page`,
-        allowSearchParams: false,
+        allowSearchParams: true,
     },
 })
 const Validate = ({
@@ -80,12 +82,14 @@ const Validate = ({
     // ...rest
 }) => {
     // assumes meta is already setup. if a user changes meta after upload, validation is incomplete.
+    const navigate = useNavigate();
     const [data, setData] = useState({});
     const [lengths, setLengths] = useState({});
     const [loading, setLoading] = useState(false);
     const [validating, setValidating] = useState(false);
     const [error, setError] = useState();
     const { API_HOST, baseUrl, pageBaseUrl, theme, user, ...rest } = React.useContext(FormsContext) || {};
+    const [searchParams] = useSearchParams();
     const dmsServerPath = `${API_HOST}/dama-admin`;
 
     const {app, doc_type, config} = item;
@@ -104,9 +108,70 @@ const Validate = ({
     }
 
     useEffect(() => {
+        if(!params.view_id && item?.views?.length){
+            const recentView = Math.max(...item.views.map(({id}) => id));
+            navigate(`${pageBaseUrl}/${params.id}/validate/${recentView}`)
+        }
+    }, [item.views]);
+
+    useEffect(() => {
+        if(!params.view_id) return;
+        let isStale = false;
         async function load(){
             setLoading(true)
+            const filterFromUrl =
+                Array.from(searchParams.keys()).reduce((acc, column) => ({
+                ...acc,
+                [column]: searchParams.get(column)?.split(filterValueDelimiter)?.filter(d => d.length),
+            }), {});
 
+            const multiselectFilterValueSets = {};
+            for (const columnName of searchParams.keys()) {
+                const { name, display, meta, type } = getFullColumn(columnName, columns);
+                const isCalculatedColumn = isCalculatedCol(getFullColumn(columnName, columns));
+                const refName = attributeAccessorStr(columnName, true, isCalculatedColumn);
+                const fullColumn = { name, display, meta, refName, type };
+                const reqName = getColAccessor({ ...fullColumn, fn: undefined }, true);
+
+                if (type === 'multiselect') {
+                    const invalidEntriesOptions = await getFilterData({
+                        reqName,
+                        refName,
+                        allAttributes: [{ name, display, meta }],
+                        apiLoad,
+                        format: JSON.parse(value).sourceInfo // invalid entries
+                    });
+
+                    const validEntriesOptions = await getFilterData({
+                        reqName,
+                        refName,
+                        allAttributes: [{ name, display, meta }],
+                        apiLoad,
+                        format: validEntriesFormat
+                    });
+
+                    const selectedValues = (filterFromUrl[columnName] || []).map(o => o.value || o);
+                    if (!selectedValues.length) continue;
+
+                    try {
+                        const matchedOptions = uniq([...invalidEntriesOptions, ...validEntriesOptions])
+                            .map(row => {
+                                const option = row[reqName];
+                                const parsedOption = isJson(option) && Array.isArray(JSON.parse(option)) ? JSON.parse(option) : [];
+                                return parsedOption.find(o => selectedValues.includes(o)) ? option : null;
+                            })
+                            .filter(option => option);
+
+                        multiselectFilterValueSets[columnName] = matchedOptions;
+                    } catch (e) {
+                        console.error('Could not load options for', columnName, e);
+                    }
+                }
+            }
+            const filter = Object.keys(filterFromUrl)
+                .filter(columnName => multiselectFilterValueSets[columnName]?.length || filterFromUrl[columnName]?.length)
+                .reduce((acc, columnName) => ({...acc, [`data->>'${columnName}'`]: multiselectFilterValueSets[columnName] || filterFromUrl[columnName] }), {})
+            console.log('...............', filter)
             // ==================================== get # invalid rows begin ===========================================
             const invalidLength = await apiLoad({
                 format: JSON.parse(value).sourceInfo,
@@ -115,7 +180,7 @@ const Validate = ({
                     action: 'udaLength',
                     path: '/',
                     filter: {
-                        options: JSON.stringify({}),
+                        options: JSON.stringify({filter}),
                         stopFullDataLoad: true
                     },
                 }]
@@ -127,7 +192,7 @@ const Validate = ({
                     action: 'udaLength',
                     path: '/',
                     filter: {
-                        options: JSON.stringify({}),
+                        options: JSON.stringify({filter}),
                         stopFullDataLoad: true
                     },
                 }]
@@ -140,6 +205,7 @@ const Validate = ({
                 ((['select', 'multiselect', 'radio'].includes(col.type) && col.options?.length) || col.required === 'yes') && getErrorValueSql(col.name, col.shortName, col.options, col.required === 'yes')
             ], []).filter(f => f)
 
+            if(isStale) return;
             console.time('getData')
             const data = await apiLoad({
                 format: JSON.parse(value).sourceInfo,
@@ -160,11 +226,12 @@ const Validate = ({
             console.timeEnd('getData')
 
             console.time('setData')
+            if(isStale) return;
             const mappedData = columns.reduce((acc, col) => ({
                 ...acc,
                 ...((['select', 'multiselect', 'radio'].includes(col.type) && col.options?.length) || col.required === 'yes') && {[`${col.shortName}_error`]: +data?.[0]?.[getErrorValueSql(col.name, col.shortName, col.options, col.required === 'yes')]},
             }), {});
-            // console.log('data', data, mappedData)
+
             setData(mappedData);
             setValue(getInitState({columns, app, doc_type, params, data: mappedData}))
             setLoading(false);
@@ -172,7 +239,11 @@ const Validate = ({
         }
 
         load()
-    }, [item])
+
+        return () => {
+            isStale = true;
+        }
+    }, [item, searchParams])
 
     const page = useMemo(() => ({name: 'Validate', href: `${pageBaseUrl}/${params.id}/validate`, /*warn: is_dirty*/}), [is_dirty, pageBaseUrl, params.id])
 

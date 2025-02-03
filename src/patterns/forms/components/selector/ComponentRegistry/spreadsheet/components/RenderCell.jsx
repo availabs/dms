@@ -103,7 +103,9 @@ export const RenderCell = ({
         required: attribute.required === "yes"
     });
     const isTotalRow = newItem.totalRow;
-
+    const bgColor = !isValid ? `bg-red-50 hover:bg-red-100` : isTotalRow ? `bg-gray-100` :
+                                display.striped && i % 2 !== 0 ? 'bg-gray-50 hover:bg-gray-100' :
+                                    isSelected ? 'bg-blue-50 hover:bg-blue-100' : 'bg-white bg-blue-50';
     return (
         <div
             className={`relative flex items-center min-h-[35px] 
@@ -122,9 +124,6 @@ export const RenderCell = ({
             onDoubleClick={attribute.isLink || attribute.actionType ? undefined : onDoubleClick}
             onPaste={onPaste}
         >
-            {
-                isValid ? null : <span className={'absolute top-0 right-0 text-red-900 font-bold h-fit w-fit'} title={'Invalid Value'}>*</span>
-            }
             {showOpenOutCaret ?
                 <div className={'cursor-pointer'}>
                     {
@@ -145,7 +144,7 @@ export const RenderCell = ({
                   autoFocus={editing}
                   className={`
                   w-full min-h-full flex flex-wrap ${justifyClass[attribute.justify]} items-center truncate
-                  ${isTotalRow ? `bg-gray-100` : display.striped && i % 2 !== 0 ? 'bg-gray-50' : isSelected ? 'bg-blue-50' : 'bg-white'} hover:bg-blue-50 
+                  ${bgColor}
                   ${attribute.type === 'multiselect' && newItem[attribute.name]?.length ? 'p-0.5' :
                       attribute.type === 'multiselect' && !newItem[attribute.name]?.length ? 'p-0.5' : 'p-0.5'
                   } 
