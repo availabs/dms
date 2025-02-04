@@ -1,6 +1,5 @@
 import React, {useEffect, useMemo, useState} from "react";
 import Lexical from "../../lexical";
-import {isJson} from "../../../patterns/forms/components/selector";
 import {dmsDataTypes} from "../../index";
 
 const fieldTypes = {
@@ -35,6 +34,15 @@ const defaultReqTypes = {
 
 const labelClass = 'text-sm font-light capitalize font-gray-700';
 const inputClass = 'bg-white w-full border p-2 rounded-md'
+
+const isJson = (str)  => {
+    try {
+        JSON.parse(str);
+    } catch (e) {
+        return false;
+    }
+    return true;
+}
 
 const RenderInputText = ({label, value, col, attr, disabled, updateAttribute}) => {
     const [newValue, setNewValue] = useState(value);

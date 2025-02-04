@@ -1,7 +1,7 @@
 import React, {useCallback, useContext, useEffect, useState} from "react";
 import { FormsContext } from '../siteConfig'
-import SourcesLayout from "../components/selector/ComponentRegistry/patternListComponent/layout";
-import Spreadsheet from "../components/selector/ComponentRegistry/spreadsheet";
+import SourcesLayout from "../components/patternListComponent/layout";
+import Spreadsheet from "../../page/ui/dataComponents/selector/ComponentRegistry/spreadsheet";
 import {useNavigate} from "react-router-dom";
 
 const TableView = ({

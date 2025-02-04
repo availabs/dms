@@ -14,7 +14,6 @@ export const pattern = {
       default: "page",
         options: [
         {value: 'page', label: 'Page'},
-        {value: 'form', label: 'Form'},
         {value: 'forms', label: 'Forms'}
       ],
     },

@@ -1,10 +1,10 @@
 import React, {useEffect, useMemo, useState} from "react";
 import { FormsContext } from '../siteConfig'
-import SourcesLayout from "../components/selector/ComponentRegistry/patternListComponent/layout";
-import Spreadsheet from "../components/selector/ComponentRegistry/spreadsheet";
+import SourcesLayout from "../components/patternListComponent/layout";
+import Spreadsheet from "../../page/ui/dataComponents/selector/ComponentRegistry/spreadsheet";
 import {useNavigate, useSearchParams} from "react-router-dom";
-import {getData as getFilterData} from "../components/selector/ComponentRegistry/shared/filters/utils";
-import {applyFn, attributeAccessorStr, isJson} from "../components/selector/ComponentRegistry/spreadsheet/utils/utils";
+import {getData as getFilterData} from "../../page/ui/dataComponents/selector/ComponentRegistry/shared/filters/utils";
+import {applyFn, attributeAccessorStr, isJson} from "../../page/ui/dataComponents/selector/ComponentRegistry/spreadsheet/utils/utils";
 import {uniq} from "lodash-es";
 
 const getErrorValueSql = (fullName, shortName, options, required) =>
@@ -41,11 +41,16 @@ const reValidate = async ({app, type, parentId, parentDocType, dmsServerPath, se
         setError(e)
     }
 }
+const getFilterFromSearchParams = searchParams => Array.from(searchParams.keys()).reduce((acc, column) => ({
+    ...acc,
+    [column]: searchParams.get(column)?.split(filterValueDelimiter)?.filter(d => d.length),
+}), {});
 
-const getInitState = ({columns, app, doc_type, params, data}) => JSON.stringify({
-    dataRequest: {},
+const getInitState = ({columns, app, doc_type, params, data, searchParams}) => JSON.stringify({
+    dataRequest: {filter: getFilterFromSearchParams(searchParams)},
     data: [],
-    columns: columns.filter(({defaultShow, shortName}) => defaultShow || data[`${shortName}_error`]).map(c => ({...c, show: true})),
+    columns: columns.filter(({defaultShow, shortName}) => defaultShow || data[`${shortName}_error`])
+        .map(c => ({...c, show: true, externalFilter: searchParams.get(c.name)?.split(filterValueDelimiter)?.filter(d => d.length)})),
     sourceInfo: {
         app,
         type: `${doc_type}-${params.view_id}-invalid-entry`,
@@ -96,7 +101,7 @@ const Validate = ({
     const columns = (JSON.parse(config || '{}')?.attributes || []).filter(col => col.type !== 'calculated').map((col, i) => ({...col, shortName: `col_${i}`}));
     const is_dirty = (JSON.parse(config || '{}')?.is_dirty);
 
-    const [value, setValue] = useState(getInitState({columns, app, doc_type, params, data}));
+    const [value, setValue] = useState(getInitState({columns, app, doc_type, params, data, searchParams}));
     const validEntriesFormat = {
         app,
         type: `${doc_type}-${params.view_id}`,
@@ -119,11 +124,7 @@ const Validate = ({
         let isStale = false;
         async function load(){
             setLoading(true)
-            const filterFromUrl =
-                Array.from(searchParams.keys()).reduce((acc, column) => ({
-                ...acc,
-                [column]: searchParams.get(column)?.split(filterValueDelimiter)?.filter(d => d.length),
-            }), {});
+            const filterFromUrl = getFilterFromSearchParams(searchParams);
 
             const multiselectFilterValueSets = {};
             for (const columnName of searchParams.keys()) {
@@ -171,7 +172,7 @@ const Validate = ({
             const filter = Object.keys(filterFromUrl)
                 .filter(columnName => multiselectFilterValueSets[columnName]?.length || filterFromUrl[columnName]?.length)
                 .reduce((acc, columnName) => ({...acc, [`data->>'${columnName}'`]: multiselectFilterValueSets[columnName] || filterFromUrl[columnName] }), {})
-            console.log('...............', filter)
+
             // ==================================== get # invalid rows begin ===========================================
             const invalidLength = await apiLoad({
                 format: JSON.parse(value).sourceInfo,
@@ -233,7 +234,7 @@ const Validate = ({
             }), {});
 
             setData(mappedData);
-            setValue(getInitState({columns, app, doc_type, params, data: mappedData}))
+            setValue(getInitState({columns, app, doc_type, params, data: mappedData, searchParams}))
             setLoading(false);
             console.timeEnd('setData')
         }

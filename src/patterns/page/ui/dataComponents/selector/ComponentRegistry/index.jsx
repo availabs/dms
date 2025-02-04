@@ -3,12 +3,9 @@ import {isJson} from "../index";
 import { dmsDataTypes } from "../../../../../../index.js"
 
 import Header from './header'
-// import ComponentsIndexTable from "../../componentsIndexTable";
-// import Spreadsheet from "../../../../forms/components/selector/ComponentRegistry/spreadsheet";
-//import CustomHeader from "../../../../forms/components/selector/ComponentRegistry/header";
-// import Item from "../../../../forms/components/selector/ComponentRegistry/item";
-// import Upload from "../../../../forms/components/selector/ComponentRegistry/upload";
-// import PatternListComponent from "../../../../forms/components/selector/ComponentRegistry/patternListComponent";
+import Spreadsheet from "./spreadsheet";
+import Card from "./Card";
+import Item from "./item";
 
 export const RenderCalloutBox = ({text = {}, backgroundColor, ...rest}) => {
     return (
@@ -113,9 +110,12 @@ const lexical  = {
     "EditComp": Edit,
     "ViewComp": View
 }
- const ComponentRegistry = {
+const ComponentRegistry = {
     lexical,
     "Header: Default Header": Header,
+     Card,
+     Spreadsheet,
+     Item,
      //"Title": CustomHeader,
      //"Table: Components Index": ComponentsIndexTable,
  }

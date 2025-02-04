@@ -25,16 +25,17 @@ const RenderToken = ({token, value, onChange, theme, isSearching, setIsSearching
 }
 
 const RenderMenu = ({
-                        options=[],
-                        isSearching,
-                        setIsSearching,
-                        placeholder,
-                        setSearchKeyword,
-                        searchKeyword,
-                        value,
-                        onChange,
-                        theme
-                    }) => {
+    loading,
+    options=[],
+    isSearching,
+    setIsSearching,
+    placeholder,
+    setSearchKeyword,
+    searchKeyword,
+    value,
+    onChange,
+    theme
+}) => {
     const mappedValue = value.filter(v => v).map(v => v.value || v);
     const selectAllOption = {label: 'Select All', value: 'select-all'};
     const removeAllOption = {label: 'Remove All', value: 'remove-all'};
@@ -70,7 +71,7 @@ const RenderMenu = ({
                             </div>)
                 }
             </div>
-            {
+            { loading ? <div className={theme?.multiselect?.menuItem || menuItem}>loading...</div> :
                 (options || [])
                     .filter(o => !mappedValue.includes(o.value || o) && (o.label || o)?.toString()?.toLowerCase().includes(searchKeyword?.toLowerCase()))
                     .map((o, i) =>
@@ -121,7 +122,7 @@ function useComponentVisible(initial) {
 }
 
 
-const Edit = ({value = [], onChange, className,placeholder, options = [], displayInvalidMsg=true, menuPosition='bottom'}) => {
+const Edit = ({value = [], loading, onChange, className,placeholder, options = [], displayInvalidMsg=true, menuPosition='bottom'}) => {
     // options: ['1', 's', 't'] || [{label: '1', value: '1'}, {label: 's', value: '2'}, {label: 't', value: '3'}]
     const [searchKeyword, setSearchKeyword] = useState('');
     const typeSafeValue = Array.isArray(value) ? value : [value];
@@ -135,7 +136,7 @@ const Edit = ({value = [], onChange, className,placeholder, options = [], displa
     const invalidValues = typeSafeValue.filter(v => v && (v.value || v) && !options?.filter(o => (o.value || o) === (v.value || v))?.length);
 
     return (
-        <div ref={ref} className={`${theme?.multiselect?.mainWrapper || mainWrapper} ${menuPosition === 'top' ? 'flex flex-col flex-col-reverse' : ''}`}>
+        <div ref={ref} className={`${theme?.multiselect?.mainWrapper || mainWrapper} ${menuPosition === 'top' ? 'flex flex-col flex-col-reverse' : ''} ${loading ? 'cursor-wait' : ''}`}>
             {
                 invalidValues.length && displayInvalidMsg ?
                     <Alert className={theme?.multiselect?.error} title={`Invalid Values: ${JSON.stringify(invalidValues)}`} /> : null
@@ -158,10 +159,11 @@ const Edit = ({value = [], onChange, className,placeholder, options = [], displa
                                 theme={theme}
                             />)
                 }
-                <ArrowDown className={'ml-auto self-center font-bold'} width-={16} height={16}/>
+                <ArrowDown className={'ml-auto self-center font-bold'} width={16} height={16}/>
             </div>
 
             <RenderMenu
+                loading={loading}
                 isSearching={isSearching}
                 setIsSearching={setIsSearching}
                 placeholder={placeholder}
