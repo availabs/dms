@@ -140,7 +140,7 @@ export const RenderFilters =
     const MultiSelectComp = dataTypes.multiselect.EditComp;
     return (
         open ?
-            <div className={'p-4 flex flex-col border border-blue-300 rounded-md'}>
+            <div className={'px-4 py-6 flex flex-col border border-blue-300 rounded-md'}>
                 <Filter className={'-mt-4 -mr-6 text-blue-300 bg-white self-end rounded-md hover:cursor-pointer'}
                         onClick={() => setOpen(false)}/>
                 {filterColumnsToRender.map((filterColumn, i) => (
@@ -173,7 +173,7 @@ export const RenderFilters =
                     </div>
                 ))}
             </div> :
-            <div className={'px-4 flex flex-col'}>
+            <div className={'px-4 pt-2 flex flex-col'}>
                 <Filter className={'-mr-6 text-blue-300 bg-white self-end rounded-md hover:cursor-pointer'} onClick={() => setOpen(true)}/>
             </div>
     )

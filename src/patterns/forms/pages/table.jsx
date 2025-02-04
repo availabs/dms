@@ -4,26 +4,11 @@ import SourcesLayout from "../components/patternListComponent/layout";
 import Spreadsheet from "../../page/ui/dataComponents/selector/ComponentRegistry/spreadsheet";
 import {useNavigate} from "react-router-dom";
 
-const TableView = ({
-    adminPath,
-    status,
-    apiUpdate,
-    apiLoad,
-    attributes={},
-    dataItems,
-    format,
-    item,
-    setItem,
-    updateAttribute,
-    params,
-    submit,
-    parent,
-    manageTemplates = false,
-    // ...rest
-}) => {
-    const { API_HOST, baseUrl, pageBaseUrl, theme, user } = useContext(FormsContext) || {};
+const TableView = ({apiUpdate, apiLoad, format, item, params}) => {
+    const { baseUrl, pageBaseUrl, theme, user } = useContext(FormsContext) || {};
     const navigate = useNavigate();
     const columns = JSON.parse(item?.config || '{}')?.attributes || [];
+    const defaultColumns = item.defaultColumns;
     const [value, setValue] = useState(JSON.stringify({
         dataRequest: {},
         data: [],
@@ -43,16 +28,14 @@ const TableView = ({
             loadMoreId: `id-table-page`,
             allowSearchParams: false,
         },
-        columns: columns.find(({defaultShow}) => defaultShow) ?
-                    columns.filter(({defaultShow}) => defaultShow).map(c => ({...c, show: true})) :
+        columns: defaultColumns?.length ?
+                    defaultColumns.map(dc => columns.find(col => col.name === dc.name)).filter(c => c).map(c => ({...c, show: true})) :
                         columns.slice(0, 3).map(c => ({...c, show:true})),
     }))
 
     const saveSettings = useCallback(() => {
-        const columns = (JSON.parse(value)?.columns || []).filter(({show}) => show).map(({name}) => name);
-        const newConfig = JSON.parse(item.config || '{}');
-        newConfig.attributes = newConfig.attributes.map(attr => ({...attr, defaultShow: columns.includes(attr.name)}) )
-        apiUpdate({data: {...item, config: JSON.stringify(newConfig)}, config: {format}});
+        const columns = (JSON.parse(value)?.columns || []).filter(({show}) => show).map(({name, display_name, show}) => ({name, display_name, show}));
+        apiUpdate({data: {...item, defaultColumns: columns}, config: {format}});
     }, [value]);
 
     useEffect(() => {

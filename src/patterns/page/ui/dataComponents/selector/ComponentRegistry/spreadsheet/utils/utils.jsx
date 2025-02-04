@@ -85,7 +85,7 @@ export const getLength = async ({options, state, apiLoad}) => {
 const getFullColumn = (columnName, columns) => columns.find(col => col.name === columnName);
 
 export const getData = async ({state, apiLoad, currentPage=0}) => {
-    const debug = true;
+    const debug = false;
     debug && console.log('=======getDAta called===========')
     // get columns with all settings and info about them.
     const columnsWithSettings = state.columns.filter(({actionType}) => !actionType).map(column => {

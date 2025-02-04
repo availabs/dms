@@ -46,10 +46,13 @@ const getFilterFromSearchParams = searchParams => Array.from(searchParams.keys()
     [column]: searchParams.get(column)?.split(filterValueDelimiter)?.filter(d => d.length),
 }), {});
 
-const getInitState = ({columns, app, doc_type, params, data, searchParams}) => JSON.stringify({
+const getInitState = ({columns, defaultColumns=[], app, doc_type, params, data, searchParams}) => JSON.stringify({
     dataRequest: {filter: getFilterFromSearchParams(searchParams)},
     data: [],
-    columns: columns.filter(({defaultShow, shortName}) => defaultShow || data[`${shortName}_error`])
+    columns: [
+        ...defaultColumns.filter(dc => columns.find(c => c.name === dc.name)), // default columns
+        ...columns.filter(({name, shortName}) => !defaultColumns.find(dc => dc.name === name) && data[`${shortName}_error`]) // error columns minus default columns
+    ]
         .map(c => ({...c, show: true, externalFilter: searchParams.get(c.name)?.split(filterValueDelimiter)?.filter(d => d.length)})),
     sourceInfo: {
         app,
@@ -97,11 +100,11 @@ const Validate = ({
     const [searchParams] = useSearchParams();
     const dmsServerPath = `${API_HOST}/dama-admin`;
 
-    const {app, doc_type, config} = item;
+    const {app, doc_type, config, defaultColumns} = item;
     const columns = (JSON.parse(config || '{}')?.attributes || []).filter(col => col.type !== 'calculated').map((col, i) => ({...col, shortName: `col_${i}`}));
     const is_dirty = (JSON.parse(config || '{}')?.is_dirty);
 
-    const [value, setValue] = useState(getInitState({columns, app, doc_type, params, data, searchParams}));
+    const [value, setValue] = useState(getInitState({columns, defaultColumns, app, doc_type, params, data, searchParams}));
     const validEntriesFormat = {
         app,
         type: `${doc_type}-${params.view_id}`,
@@ -234,7 +237,7 @@ const Validate = ({
             }), {});
 
             setData(mappedData);
-            setValue(getInitState({columns, app, doc_type, params, data: mappedData, searchParams}))
+            setValue(getInitState({columns, defaultColumns, app, doc_type, params, data: mappedData, searchParams}))
             setLoading(false);
             console.timeEnd('setData')
         }

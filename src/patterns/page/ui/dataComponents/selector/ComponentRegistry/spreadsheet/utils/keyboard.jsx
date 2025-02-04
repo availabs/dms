@@ -69,6 +69,8 @@ export const handleKeyDown = ({
         setIsSelecting(true);
     } else if (e.key === 'Delete'){
         setTriggerSelectionDelete(true)
+    } else if (e.key === 'Escape'){
+        setSelection([])
     } else if (e.key.includes('Arrow')){
         let {index, attrI} = typeof selection[selection.length - 1] === 'number' ?
             { index: selection[selection.length - 1], attrI: undefined } :

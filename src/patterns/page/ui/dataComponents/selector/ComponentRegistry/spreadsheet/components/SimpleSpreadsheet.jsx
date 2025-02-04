@@ -207,7 +207,7 @@ export const RenderSimple = ({isEdit, updateItem, removeItem, addItem, newItem, 
 
     return (
         <div className={`flex flex-col w-full h-full overflow-x-auto scrollbar-sm`} ref={gridRef}>
-            <div className={'flex flex-col no-wrap text-sm min-h-[250px] max-h-[calc(78vh_-_10px)] overflow-y-auto scrollbar-sm'}
+            <div className={'flex flex-col no-wrap text-sm min-h-[200px] max-h-[calc(78vh_-_10px)] overflow-y-auto scrollbar-sm'}
                  onMouseLeave={e => handleMouseUp({setIsDragging})}>
 
                 {/****************************************** Header begin ********************************************/}

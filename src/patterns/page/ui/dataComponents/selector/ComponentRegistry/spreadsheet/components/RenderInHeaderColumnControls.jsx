@@ -4,6 +4,7 @@ import {RenderToggleControls} from "../../shared/RenderToggleControls";
 import {RenderInputControls} from "../../shared/RenderInputControls";
 import {getControlConfig, useHandleClickOutside} from "../../shared/utils";
 import {SpreadSheetContext} from "../index";
+import {InfoCircle} from "../../../../../icons";
 
 const RenderLinkControls = ({attribute, updateColumns}) => {
     const [tmpValue, setTmpValue] = useState(attribute || {});
@@ -127,6 +128,7 @@ export default function RenderInHeaderColumnControls({attribute}) {
                       title={attribute.customName || attribute.display_name || attribute.name}>
                     {attribute.customName || attribute.display_name || attribute.name}</span>
                 <div id={menuBtnId} className={'flex items-center'}>
+                    {/*/!*<InfoCircle width={16} height={16} className={'text-gray-500'} />*!/ needs a lexical modal*/}
                     {attribute.sort === 'asc nulls last' ? <SortAsc className={'text-gray-500'}/> :
                         attribute.sort === 'desc nulls last' ? <SortDesc className={'text-gray-500'}/> : null}
                     <ArrowDown id={menuBtnId} className={'text-gray-500 group-hover:text-gray-600'}/>

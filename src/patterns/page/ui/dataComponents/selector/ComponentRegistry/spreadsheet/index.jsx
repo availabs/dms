@@ -409,7 +409,7 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, renderCard, ...rest}) 
         <SpreadSheetContext.Provider value={{state, setState, apiLoad, compType: renderCard ? 'card' : 'spreadsheet'}}>
             <div className={'w-full h-full'}>
                 <div className={'w-full'}>
-                    <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={isEdit} cachedFilters={cachedFilters} defaultOpen={true}/>
+                    <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={isEdit} cachedFilters={cachedFilters} defaultOpen={false}/>
                     {
                         renderCard ?
                             <Card isEdit={isEdit}/> : (
