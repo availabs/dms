@@ -1,12 +1,9 @@
-import React, {useEffect, useState} from "react";
+import React, {useState} from "react";
 import { FormsContext } from '../siteConfig'
 import SourcesLayout from "../components/patternListComponent/layout";
-import {DeleteModal, Modal} from "../../page/ui";
+import {DeleteModal} from "../../page/ui";
 import { cloneDeep } from "lodash-es";
-import {Link, useNavigate} from "react-router-dom";
-import Table from "../components/Table";
-import {tableTheme} from "./overview";
-import {validateUrl} from "../../../data-types/lexical/editor/utils/url";
+import {useNavigate} from "react-router-dom";
 const buttonRedClass = 'w-full p-2 mx-1 bg-red-300 hover:bg-red-500 text-gray-800 rounded-md';
 const buttonGreenClass = 'p-2 mx-1 bg-green-500 hover:bg-green-700 text-white rounded-md';
 
