@@ -12,7 +12,7 @@ import {
   from '../../../ui'
 import { ArrowRight, ArrowDown, CaretDown, EllipsisVertical} from '../../../ui/icons'
 import { json2DmsForm, getUrlSlug } from '../../_utils'
-import { publish, discardChanges} from '../editFunctions'
+import { publish, discardChanges, insertSubPage} from '../editFunctions'
 
 import { CMSContext } from '../../../siteConfig'
 import { PageContext } from '../../view'
@@ -45,6 +45,7 @@ export default PagesPane
 
 function DraggableNavItem ({activeItem, item, dataItems, handleCollapseIconClick, isCollapsed, edit}) {
     const { baseUrl, user, theme } = React.useContext(CMSContext);
+    const { apiUpdate } =  React.useContext(PageContext) || {}
     const { pathname = '/edit' } = useLocation();
     const submit = useSubmit()
     const [showDelete, setShowDelete] = React.useState(false)
@@ -53,10 +54,11 @@ function DraggableNavItem ({activeItem, item, dataItems, handleCollapseIconClick
 
     //-- this is not ideal, better to check id and parent
     const isActive = pathname.includes(item.url_slug)
+    console.log('apiUpdate', apiUpdate)
 
     return (
         <div key={item.id} className='group max-w-full'>
-            {/*<div className='border-t border-transparent hover:border-blue-500 w-full relative'>
+           {/* <div className='border-t border-transparent hover:border-blue-500 w-full relative'>
                 <div className='hidden group-hover:block absolute -left-[5px] -top-[10px] hover:bg-blue-500 size-4 flex items-center rounded-full p-1 center'>+</div>
             </div>*/}
             <div className={`${isActive ? theme?.nestable?.navItemContainerActive : theme?.nestable?.navItemContainer} `}>
@@ -66,10 +68,14 @@ function DraggableNavItem ({activeItem, item, dataItems, handleCollapseIconClick
                 <div className={'flex gap-0.5 items-center'}>
                     <Menu 
                       items={[
-                         {
+                        {
                           name: (<span className=''>Rename</span>), 
                           onClick: () => setShowRename(true)
                         },
+                        // {
+                        //   name: (<span className=''>Insert Subpage</span>), 
+                        //   onClick: () => insertSubPage(item, dataItems, apiUpdate)
+                        // },
                         {
                           name: (<span className='text-red-400'>Delete</span>), 
                           onClick: () =>  {

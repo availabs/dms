@@ -384,7 +384,7 @@ function SizeSelect ({size='1', setSize, onChange}) {
     const { baseUrl, user, theme } = React.useContext(CMSContext) || {}
     return (
         <div
-          className="flex space-x-1 rounded-lg bg-blue-50 p-0.5"
+          className="flex space-x-1 z-50 rounded-lg bg-blue-50 p-0.5"
           role="tablist"
           aria-orientation="horizontal"
         >        

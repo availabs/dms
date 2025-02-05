@@ -30,7 +30,7 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
     return items
   }, [dataItems])
 
-  console.log('menuItems', menuItems)
+  //console.log('menuItems', menuItems)
 
   const level = item?.index == '999' || theme?.navOptions?.topNav?.nav !== 'main' ? 1 : detectNavLevel(dataItems, baseUrl);
 
@@ -46,13 +46,13 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
     <PageContext.Provider value={{ item, dataItems, apiLoad, apiUpdate }} >
       <div id='page_view' className={`${theme?.page?.container}`}>
         {/* Header */}
-        {(item?.header === 'above') && <ContentView full_width={'show'} item={item} value={[headerSection]} attributes={sectionAttr} />}
+        {(item?.header === 'above') && <ContentView item={item} value={[headerSection]} attributes={sectionAttr} full_width={'show'}/>}
         {/* Layout */}
-        <Layout navItems={menuItems} secondNav={theme?.navOptions?.secondaryNav?.navItems || []}>
+        <Layout navItems={menuItems} secondNav={theme?.navOptions?.secondaryNav?.navItems || []} pageTheme={{navOptions: item.navOptions || {}}}>
           <div className={`${theme?.page?.wrapper1} ${theme?.navPadding[level]}`}>
-            {(item?.header === 'below') && <ContentView item={item} value={[headerSection]} attributes={sectionAttr} />}
+            {(item?.header === 'below') && <ContentView item={item} value={[headerSection]} attributes={sectionAttr} full_width={'show'}/>}
             <div className={`${theme?.page?.wrapper2}`}>
-              {item?.sidebar === 'show' && (
+              {item?.sidebar === 'left' && (
                 <SideNavContainer>
                   <SideNav {...inPageNav} /> 
                 </SideNavContainer>
@@ -60,7 +60,7 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
               <div className={theme?.page?.wrapper3} ref={pdfRef}>
                 {/* Content */}
                 {(item?.header === 'inpage') &&
-                    <ContentView item={item} value={[headerSection]} attributes={sectionAttr}/>}
+                    <ContentView item={item} value={[headerSection]} attributes={sectionAttr} full_width={'show'}/>}
                 {user?.authLevel >= 5 && (
                     <Link className={theme?.page?.iconWrapper} to={`${baseUrl}/edit/${item?.url_slug || ''}${window.location.search}`}>
                       <PencilEditSquare className={theme?.page?.icon}/>
@@ -82,11 +82,15 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
                     format={format}
                 />
               </div>
+              {item?.sidebar === 'right' && (
+                <SideNavContainer>
+                  <SideNav {...inPageNav} /> 
+                </SideNavContainer>
+              )}
             </div>
           </div>
         </Layout>
-        {/*Footer*/}
-        {/* <div className='h-[300px]'/> */}
+        {item?.footer && <div className='h-[300px]' />}
       </div>
     </PageContext.Provider>
   )

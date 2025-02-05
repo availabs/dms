@@ -38,7 +38,6 @@ function PageEdit ({
   const inPageNav = getInPageNav(item, theme);
   const sectionAttr = attributes?.['sections']?.attributes || {}
 
-
   React.useEffect(() => {
     if(!item?.url_slug ) { 
       let defaultUrl = dataItems
@@ -47,8 +46,6 @@ function PageEdit ({
       defaultUrl && defaultUrl.url_slug && navigate(`edit/${defaultUrl.url_slug}`)
     }
   },[])
-
-
 
   React.useEffect(() => {
     // ------------------------------------------------------------
@@ -69,7 +66,7 @@ function PageEdit ({
   const headerSection = item['draft_sections']?.filter(d => d.is_header)?.[0]
   const draftSections = item['draft_sections']?.filter(d => !d.is_header && !d.is_footer)
 
-  // console.log('page edit render', draftSections)
+  //console.log('page edit render', item)
 
   const ContentEdit = React.useMemo(() => {
     return attributes['sections'].EditComp
@@ -80,18 +77,19 @@ function PageEdit ({
       <div className={`${theme?.page?.container}`}>
         {item?.header === 'above' && (
           <ContentEdit
+            full_width={'show'}
             item={item}
             value={[headerSection]} 
             onChange={(v,action) => saveHeader(v, item, user, apiUpdate)}         
             attributes={sectionAttr}
             siteType={siteType}
-            full_width={'show'}
           />
         )} 
         
         <Layout 
           navItems={menuItems} 
-          secondNav={theme?.navOptions?.secondaryNav?.navItems || []} 
+          secondNav={theme?.navOptions?.secondaryNav?.navItems || []}
+          pageTheme={{navOptions: item.navOptions || {}}}
           EditPane={() => (
             <EditPane 
               item={item}
@@ -104,7 +102,8 @@ function PageEdit ({
         >
           <div className={`${theme?.page?.wrapper1} ${theme?.navPadding[level]}`}>
             {item?.header === 'below' && (
-              <ContentEdit 
+              <ContentEdit
+                full_width={'show'}
                 item={item} 
                 value={[headerSection]} 
                 onChange={(v,action) => saveHeader(v, item, user, apiUpdate)} 
@@ -113,14 +112,21 @@ function PageEdit ({
               />
             )}
             <div className={`${theme?.page?.wrapper2}`}>
-              {item?.sidebar === 'show' && (
+              {item?.sidebar === 'left' && (
                 <SideNavContainer>
                   <SideNav {...inPageNav} /> 
                 </SideNavContainer>
               )}  
               <div className={theme?.page?.wrapper3 + ''}>
                 {item?.header === 'inpage' && (
-                   <ContentEdit item={item} value={[headerSection]} onChange={(val,action) => saveHeader(v, item, user, apiUpdate)} attributes={sectionAttr} siteType={siteType}/>
+                  <ContentEdit
+                    full_width={'show'}
+                    item={item} 
+                    value={[headerSection]} 
+                    onChange={(val,action) => saveHeader(v, item, user, apiUpdate)}
+                    attributes={sectionAttr}
+                    siteType={siteType}
+                  />
                 )} 
                 {user?.authLevel >= 5 && (
                   <Link className={theme?.page?.iconWrapper} to={`${baseUrl}/${item?.url_slug || ''}${window.location.search}`}>
@@ -138,11 +144,17 @@ function PageEdit ({
                   format={isDynamicPage ? format : undefined}
                 />
               </div>
-            </div>  
-            
+              {item?.sidebar === 'right' && (
+                <SideNavContainer>
+                  <SideNav {...inPageNav} /> 
+                </SideNavContainer>
+              )}
+            </div>
+
           </div>
+
         </Layout>
-        {item?.footer && <div className='h-[300px] bg-slate-100' />} 
+        {item?.footer && <div className='h-[300px]' />} 
       </div>
     </PageContext.Provider>
   ) 
