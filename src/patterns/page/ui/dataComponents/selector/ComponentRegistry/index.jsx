@@ -116,7 +116,7 @@ const lexical  = {
 const ComponentRegistry = {
     lexical,
     "Header: Default Header": Header,
-    "Header: MNY": MNYHeader
+    "Header: MNY": MNYHeader,
      Card,
      Spreadsheet,
      Item,
