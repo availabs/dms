@@ -4,19 +4,11 @@ import { dmsDataTypes } from "../../../../../../index.js";
 
 import MNYHeader from './mnyHeader';
 import Header from './header'
-<<<<<<< HEAD
-// import Spreadsheet from "../../../../../forms/components/selector/ComponentRegistry/spreadsheet/index.jsx";
-// import Item from "../../../../../forms/components/selector/ComponentRegistry/item";
-// import Card from "../../../../../forms/components/selector/ComponentRegistry/Card";
 
-// import Upload from "../../../../forms/components/selector/ComponentRegistry/upload";
-// import PatternListComponent from "../../../../forms/components/selector/ComponentRegistry/patternListComponent";
-// console.log("Spreadsheet", Spreadsheet)
-=======
 import Spreadsheet from "./spreadsheet";
 import Card from "./Card";
 import Item from "./item";
->>>>>>> 464fbf1f89944b1613cdb43c47f1104eb8484d28
+
 
 export const RenderCalloutBox = ({text = {}, backgroundColor, ...rest}) => {
     return (
