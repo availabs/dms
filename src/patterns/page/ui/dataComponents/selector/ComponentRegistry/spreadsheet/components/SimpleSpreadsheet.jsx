@@ -260,7 +260,7 @@ export const RenderSimple = ({isEdit, updateItem, removeItem, addItem, newItem, 
                             updateItem, removeItem
                         }} />
                     ))}
-                <div id={display.loadMoreId} className={'min-h-8 w-full text-center'}>{loading ? 'loading...' : ''}</div>
+                <div id={display.loadMoreId} className={`${display.usePagination ? 'hidden' : ''} min-h-2 w-full text-center`}>{loading ? 'loading...' : ''}</div>
 
 
                 {/*/!****************************************** Gutter Row **********************************************!/*/}
