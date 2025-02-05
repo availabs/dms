@@ -22,7 +22,7 @@ import Overview from "./pages/overview";
 import TableView from "./pages/table";
 import UploadPage from "./pages/upload";
 import ManageMeta from "./pages/manage/metadata"
-import PatternListComponent from "./components/selector/ComponentRegistry/patternListComponent";
+import PatternListComponent from "./components/patternListComponent";
 import AvailLayout from "./ui/avail-layout";
 import Admin from "./pages/admin";
 import Version from "./pages/version";

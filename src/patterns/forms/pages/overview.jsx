@@ -1,10 +1,10 @@
 import React, {useMemo, useState, useEffect, useRef, useContext} from 'react'
 import { get } from "lodash-es";
-import SourcesLayout from "../components/selector/ComponentRegistry/patternListComponent/layout";
+import SourcesLayout from "../components/patternListComponent/layout";
 import {FormsContext} from "../siteConfig";
 import Table from "../components/Table";
 import dmsDataTypes from "../../../data-types";
-import SourceCategories from "../components/selector/ComponentRegistry/patternListComponent/categories";
+import SourceCategories from "../components/patternListComponent/categories";
 import {Link} from "react-router-dom";
 
 export const isJson = (str)  => {

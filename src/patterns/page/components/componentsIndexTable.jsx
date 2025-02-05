@@ -4,7 +4,7 @@ import {cloneDeep, get} from "lodash-es";
 import {Link} from "react-router-dom";
 import writeXlsxFile from 'write-excel-file';
 import {Download} from '../ui/icons'
-import RenderSwitch from "../../forms/components/selector/ComponentRegistry/shared/Switch";
+import RenderSwitch from "../ui/dataComponents/selector/ComponentRegistry/shared/Switch";
 import FilterableSearch from "./selector/FilterableSearch";
 import { RegisteredComponents } from "./selector/index";
 import {dmsDataEditor} from "../../../api";

@@ -1,7 +1,7 @@
 import React, {useEffect, useState} from "react";
 import Layout from '../../ui/avail-layout'
 import { FormsContext } from '../../siteConfig'
-import SourcesLayout from "../../components/selector/ComponentRegistry/patternListComponent/layout";
+import SourcesLayout from "../../components/patternListComponent/layout";
 
 
 const ManageForm = ({
