@@ -36,20 +36,18 @@ function nav2Level(items, level=1, path, navTitle='') {
 		}
 		// console.log('nav2Level', matchItems, output, matches, levelPath, path)
 	}
-
-	
 	return output || items
 }
 
-const Layout = ({ children, navItems, secondNav, title, theme, EditPane, yPadding = '0px', ...props }) => {
+const Layout = ({ children, navItems, secondNav, title, pageTheme, EditPane, yPadding = '0px', ...props }) => {
 	
 	// ------------------------------------------------------
 	// ------- Get Options from Context and Defaults
 	// ------------------------------------------------------ 
 	const { theme: defaultTheme, app, type, Menu } = React.useContext(CMSContext) || {}
 	const { pathname } = useLocation();
-	theme = merge(cloneDeep(defaultTheme), cloneDeep(theme))
-	// console.log('theme navOptions', theme.navOptions)
+	const theme = merge(cloneDeep(defaultTheme), cloneDeep(pageTheme))
+	// console.log('theme navOptions', pageTheme)
 	const { sideNav={ }, topNav={}, logo=Logos } = theme?.navOptions || {}
 	
 	const sideNavOptions = {

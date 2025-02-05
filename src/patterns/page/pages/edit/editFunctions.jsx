@@ -1,7 +1,7 @@
 import { cloneDeep } from "lodash-es"
 import { json2DmsForm, getUrlSlug, toSnakeCase, parseJSON } from '../_utils'
 import { PencilIcon, CirclePlus, WrenchIcon, SlidersIcon, MenuIcon , ClockIcon} from '../../ui/icons'
-import { ButtonSelector,SidebarSwitch } from '../../ui'
+// import { ButtonSelector,SidebarSwitch } from '../../ui'
 
 export const saveHeader = (v, item, user, apiUpdate ) => {
     const draftSections = item['draft_sections']?.filter(d => !d.is_header && !d.is_footer)
@@ -260,73 +260,73 @@ export const discardChanges = async (user,item, apiUpdate) => {
 
 }
 
-export function getMenus (item, dataItems, user, pageType, editState, setEditState, apiUpdate) {
-  return [
-      {
-        "icon": <WrenchIcon className='text-blue-400 hover:text-blue-700 cursor-pointer h-10 w-10 p-2 ' />,
-        "name": "Page Controls",
-        "items": [
-          {item: '☲ New Page', "onClick": () => newPage(item, dataItems, user, apiUpdate) },
-          {item: '☲ Insert Subpage', "onClick":() =>  insertSubPage(item, dataItems, user, apiUpdate) },
-          {item: '☳ Duplicate', "onClick":() =>  duplicateItem(item, dataItems, user, apiUpdate) },
-          {item: '☵ Delete', "onClick": () => setEditState({...editState, showDelete: true}) }
-        ]
-      },
-      {
-        "icon": <SlidersIcon className='text-blue-400 hover:text-blue-700 cursor-pointer h-10 w-10 p-2' />,
-        "name": "Page Settings",
-        "items": [
-          {item: (
-            <>
-              <SidebarSwitch
-                value={item['sidebar']}
-                toggleSidebar={() => toggleSidebar(item, 'sidebar', item['sidebar'] === 'show' ? null : 'show',  pageType, apiUpdate) }
-              />
-              Show Sidebar
-            </>
-          )},
-          {item: (
-            <>
-              <SidebarSwitch
-                value={item['full_width'] }
-                toggleSidebar={() => toggleSidebar(item, 'full_width', item['full_width'] === 'show' ? null : 'show',  pageType, apiUpdate)}
-              />
-              Full Width
-            </>
-          )},
-          {item: (
-            <>
-              <SidebarSwitch
-                value={item['hide_in_nav'] }
-                toggleSidebar={() => toggleSidebar(item, 'hide_in_nav', item['hide_in_nav'] === 'show' ? null : 'show',  pageType, apiUpdate)}
-              />
-              Hide In Nav
-            </>
-          )},
-          {item: (
-            <>
-              <ButtonSelector
-                label={'Header:'}
-                types={[
-                  {label: 'None', value: 'none'}, 
-                  {label: 'Above', value: 'above'},
-                  {label: 'Below', value: 'below'},
-                  {label: 'In page', value: 'inpage'}
-                ]}
-                type={item.header}
-                setType={(e) => toggleSidebar(item, 'header', e,  pageType, apiUpdate)}
-              />
-            </>
-          )},
-        ]
-      },
-      {
-        "icon": <MenuIcon className='text-blue-400 hover:text-blue-700 cursor-pointer h-10 w-10 p-2' />,
-        "onClick": () => setEditState({...editState, showNav: true})
-      },
-      {
-        "icon": <ClockIcon className='text-blue-400 hover:text-blue-700 cursor-pointer h-10 w-10 p-2' />,
-        "onClick": () => setEditState({...editState, showHistory: true})
-      }
-  ]
-}
+// export function getMenus (item, dataItems, user, pageType, editState, setEditState, apiUpdate) {
+//   return [
+//       {
+//         "icon": <WrenchIcon className='text-blue-400 hover:text-blue-700 cursor-pointer h-10 w-10 p-2 ' />,
+//         "name": "Page Controls",
+//         "items": [
+//           {item: '☲ New Page', "onClick": () => newPage(item, dataItems, user, apiUpdate) },
+//           {item: '☲ Insert Subpage', "onClick":() =>  insertSubPage(item, dataItems, user, apiUpdate) },
+//           {item: '☳ Duplicate', "onClick":() =>  duplicateItem(item, dataItems, user, apiUpdate) },
+//           {item: '☵ Delete', "onClick": () => setEditState({...editState, showDelete: true}) }
+//         ]
+//       },
+//       {
+//         "icon": <SlidersIcon className='text-blue-400 hover:text-blue-700 cursor-pointer h-10 w-10 p-2' />,
+//         "name": "Page Settings",
+//         "items": [
+//           {item: (
+//             <>
+//               <SidebarSwitch
+//                 value={item['sidebar']}
+//                 toggleSidebar={() => toggleSidebar(item, 'sidebar', item['sidebar'] === 'show' ? null : 'show',  pageType, apiUpdate) }
+//               />
+//               Show Sidebar
+//             </>
+//           )},
+//           {item: (
+//             <>
+//               <SidebarSwitch
+//                 value={item['full_width'] }
+//                 toggleSidebar={() => toggleSidebar(item, 'full_width', item['full_width'] === 'show' ? null : 'show',  pageType, apiUpdate)}
+//               />
+//               Full Width
+//             </>
+//           )},
+//           {item: (
+//             <>
+//               <SidebarSwitch
+//                 value={item['hide_in_nav'] }
+//                 toggleSidebar={() => toggleSidebar(item, 'hide_in_nav', item['hide_in_nav'] === 'show' ? null : 'show',  pageType, apiUpdate)}
+//               />
+//               Hide In Nav
+//             </>
+//           )},
+//           {item: (
+//             <>
+//               <ButtonSelector
+//                 label={'Header:'}
+//                 types={[
+//                   {label: 'None', value: 'none'}, 
+//                   {label: 'Above', value: 'above'},
+//                   {label: 'Below', value: 'below'},
+//                   {label: 'In page', value: 'inpage'}
+//                 ]}
+//                 type={item.header}
+//                 setType={(e) => toggleSidebar(item, 'header', e,  pageType, apiUpdate)}
+//               />
+//             </>
+//           )},
+//         ]
+//       },
+//       {
+//         "icon": <MenuIcon className='text-blue-400 hover:text-blue-700 cursor-pointer h-10 w-10 p-2' />,
+//         "onClick": () => setEditState({...editState, showNav: true})
+//       },
+//       {
+//         "icon": <ClockIcon className='text-blue-400 hover:text-blue-700 cursor-pointer h-10 w-10 p-2' />,
+//         "onClick": () => setEditState({...editState, showHistory: true})
+//       }
+//   ]
+// }

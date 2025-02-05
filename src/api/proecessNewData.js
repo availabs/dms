@@ -18,20 +18,29 @@ export async function processNewData (dataCache, activeIdsIntOrStr, stopFullData
         d.app === app &&
         d.type === type
     ))
-    
+    const attrHash = format.attributes.reduce((out,curr) => {
+        out[curr.key] = curr;
+        return out
+    },{})
     
     for(const k in newDataVals) {
         // flatten data into single object
         let d = cloneDeep(newDataVals[k])
         let out = d?.data?.value || {}
         //console.log('hola', k, out, newDataVals)
+       
 
         Object.keys(d)
             .filter(k => k !== 'data')
             .forEach(col => {
                 if(col.includes('data ->> ')){
                     let attr = col.split('->>')[1].trim().replace(/[']/g, '')
-                    out[attr] = d[col]
+                    let val = d[col]
+                    // handles JSON TYPE
+                    if(attrHash[attr].type === 'json' && typeof val !== 'object'){
+                        val = JSON.parse(val) || {}
+                    }
+                    out[attr] = val
                 } else {
                     //console.log('testing', d, col, d[col])
                     out[col] = d[col]

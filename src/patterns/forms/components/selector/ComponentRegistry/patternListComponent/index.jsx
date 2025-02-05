@@ -121,7 +121,7 @@ const SourceThumb = ({ source }) => {
     );
 };
 
-const RenderAddPattern = ({isAdding, setIsAdding, updateData, sources, setSources, submit}) => {
+const RenderAddPattern = ({isAdding, setIsAdding, updateData, sources=[], setSources, submit}) => {
     const [data, setData] = useState({name: ''});
     console.log('sources', sources, data)
     return (
@@ -142,7 +142,7 @@ const RenderAddPattern = ({isAdding, setIsAdding, updateData, sources, setSource
                     }}>
                 <option key={'create-new'} value={undefined}>Create new</option>
                 {
-                    sources.map(source => <option key={source.id} value={source.id}>{source.name} ({source.doc_type})</option> )
+                    (sources || []).map(source => <option key={source.id} value={source.id}>{source.name} ({source.doc_type})</option> )
                 }
             </select>
 
@@ -160,7 +160,7 @@ const RenderAddPattern = ({isAdding, setIsAdding, updateData, sources, setSource
                         delete clonedData.id;
                         delete clonedData.views;
                         clonedData.doc_type = uuidv4();
-                        await updateData({sources: [...sources, clonedData]})
+                        await updateData({sources: [...(sources || []), clonedData]})
                         window.location.reload()
                     }}
             >add</button>
@@ -186,7 +186,7 @@ const Edit = ({attributes, item, dataItems, apiLoad, apiUpdate, updateAttribute,
     const filteredCategories = []; // categories you want to exclude from landing list page.
     const cat1 = searchParams.get('cat');
     const cat2 = undefined;
-    console.log('??????????????????', item, parent)
+    console.log('??????????????????', item, parent, sources)
     const updateData = (data) => {
         console.log('updating data', parent, data, format)
         return apiUpdate({data: {...parent, ...data}, config: {format}})
@@ -197,7 +197,7 @@ const Edit = ({attributes, item, dataItems, apiLoad, apiUpdate, updateAttribute,
     }, [format, parent.sources]);
 
     const categories = [...new Set(
-        sources
+        (sources || [])
             .filter(source => {
                 return isListAll || (
                     // we're not listing all sources
@@ -210,7 +210,7 @@ const Edit = ({attributes, item, dataItems, apiLoad, apiUpdate, updateAttribute,
 
 
       const categoriesCount = categories.reduce((acc, cat) => {
-        acc[cat] = sources.filter(p => p?.categories).filter(pattern => {
+        acc[cat] = (sources || []).filter(p => p?.categories).filter(pattern => {
             return (Array.isArray(pattern?.categories) ? pattern?.categories : [pattern?.categories])
                 ?.find(category => category.includes(cat))
         })?.length
@@ -267,7 +267,7 @@ const Edit = ({attributes, item, dataItems, apiLoad, apiUpdate, updateAttribute,
                 <div className={'w-3/4 flex flex-col space-y-1.5 ml-1.5 max-h-[80dvh] overflow-auto scrollbar-sm'}>
                     <RenderAddPattern sources={sources} setSources={setSources} updateData={updateData} isAdding={isAdding} setIsAdding={setIsAdding} submit={submit}/>
                     {
-                        sources
+                        (sources || [])
                             .filter(source => {
                                 return isListAll || (
                                     // we're not listing all sources

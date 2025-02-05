@@ -74,7 +74,7 @@ export const pagesConfig = ({
   // console.log('pgEnv siteConfig', app, type, pgEnv)
   // for instances without auth turned on, default user can edit
   // should move this to dmsFactory default authWrapper
-  const defaultUser = { email: "user", authLevel: 5, authed: true, fake: true}
+  const defaultUser = { email: "user", authLevel: 10, authed: true, fake: true}
 
   // const rightMenuWithSearch = rightMenu; // for live site
   return {
@@ -99,7 +99,7 @@ export const pagesConfig = ({
         filter: {
           options: JSON.stringify({
             filter: {
-              "data->>'hide_in_nav'": ['null']
+              "data->>'template_id'": ['null']
             }
           }),
           attributes:['title', 'index', 'url_slug', 'parent','published', 'hide_in_nav']
@@ -121,7 +121,7 @@ export const pagesConfig = ({
               />
             ),
             filter: {
-              attributes:['title', 'index', 'url_slug', 'parent', 'published', 'hide_in_nav' ,'sections','sidebar','header','footer', 'full_width']
+              attributes:['title', 'index', 'url_slug', 'parent', 'published', 'hide_in_nav' ,'sections','sidebar','header','footer', 'full_width','navOptions']
             },
             path: "/*",
             action: "view"

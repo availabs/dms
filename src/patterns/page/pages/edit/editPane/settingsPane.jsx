@@ -1,5 +1,5 @@
 import React, {Fragment, useState} from 'react'
-import { cloneDeep } from 'lodash-es'
+import { cloneDeep,set } from 'lodash-es'
 import { Button, Menu, FieldSet } from '../../../ui'
 import { CMSContext } from '../../../siteConfig'
 import { timeAgo } from '../../_utils'
@@ -34,6 +34,18 @@ function SettingsPane () {
           },
           {
             type:'Select',
+            label: 'Hide in Nav',
+            value: item.hide_in_nav,
+            options: [
+              {label: 'Show', value: ''}, 
+              {label: 'Hide', value: 'hide'}
+            ],
+            onChange:(e) => {
+              togglePageSetting(item, 'hide_in_nav', e.target.value,  apiUpdate)
+            }
+          },
+          {
+            type:'Select',
             label: 'Show Header',
             value: item.header,
             options: [
@@ -49,7 +61,7 @@ function SettingsPane () {
           {
             type:'Select',
             label: 'Show Footer',
-            value: item.header,
+            value: item.footer,
             options: [
               {label: 'None', value: ''}, 
               {label: 'Show', value: 'show'}
@@ -60,7 +72,7 @@ function SettingsPane () {
           },
           {
             type:'Select',
-            label: 'Show Sidebar',
+            label: 'Show Content Sidebar',
             value: item.sidebar,
             options: [
                   {label: 'None', value: ''}, 
@@ -70,6 +82,19 @@ function SettingsPane () {
             ],
             onChange:(e) => {
               togglePageSetting(item, 'sidebar', e.target.value,  apiUpdate)
+            }
+          },
+          {
+            type:'Select',
+            label: 'Show SideNav',
+            value: item?.navOptions?.sideNav?.size,
+            options: [
+                  {label: 'Show', value: 'compact'}, 
+                  {label: 'Hide', value: 'none'}
+                  
+            ],
+            onChange:(e) => {
+              togglePageSetting(item, 'navOptions.sideNav.size', e.target.value,  apiUpdate)
             }
           }
         ]} />
@@ -82,7 +107,8 @@ export default SettingsPane
 
 export const togglePageSetting = async (item,type, value='', apiUpdate) => {
   const newItem = {id: item.id}
-  newItem[type] = value
+  set(newItem, type, value)
+  console.log('update', type, newItem)
  
   // console.log('item', newItem, value)
   let sectionType = 'draft_sections';

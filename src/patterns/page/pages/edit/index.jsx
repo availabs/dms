@@ -66,7 +66,7 @@ function PageEdit ({
   const headerSection = item['draft_sections']?.filter(d => d.is_header)?.[0]
   const draftSections = item['draft_sections']?.filter(d => !d.is_header && !d.is_footer)
 
-  // console.log('page edit render', draftSections)
+  //console.log('page edit render', item)
 
   const ContentEdit = React.useMemo(() => {
     return attributes['sections'].EditComp
@@ -83,13 +83,13 @@ function PageEdit ({
             onChange={(v,action) => saveHeader(v, item, user, apiUpdate)}         
             attributes={sectionAttr}
             siteType={siteType}
-            full_width={'show'}
           />
         )} 
         
         <Layout 
           navItems={menuItems} 
-          secondNav={theme?.navOptions?.secondaryNav?.navItems || []} 
+          secondNav={theme?.navOptions?.secondaryNav?.navItems || []}
+          pageTheme={{navOptions: item.navOptions || {}}}
           EditPane={() => (
             <EditPane 
               item={item}
@@ -152,8 +152,9 @@ function PageEdit ({
             </div>
 
           </div>
+
         </Layout>
-        {item?.footer && <div className='h-[300px] bg-slate-100' />} 
+        {item?.footer && <div className='h-[300px]' />} 
       </div>
     </PageContext.Provider>
   ) 

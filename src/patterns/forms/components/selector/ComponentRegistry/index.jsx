@@ -4,6 +4,7 @@ import { dmsDataTypes } from "../../../../../index.js"
 import Header from './header'
 import Spreadsheet from "./spreadsheet";
 import Item from "./item";
+import Card from './Card';
 
 export const RenderCalloutBox = ({text = {}, backgroundColor, ...rest}) => {
     return (

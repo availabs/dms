@@ -1,23 +1,23 @@
 import React, { useMemo, useState, useEffect }from 'react'
+import {Select} from '../../../'
 import {isJson} from "../index";
 
 
-export function Header ({position = 'above',bgImg = '', logo = '', title = 'Title', bgClass='', subTitle='subTitle', note='note', height=773}) {
-  background: ;
+export function Header ({position = 'above',bgImg = '/themes/mny/takeaction_landuse_2tp.png' , logo = '', title = 'Title', note='note', height=673}) {
 
   return (
-    <div className={`bg-fit bg-center w-full flex flex-col lg:flex-row w-full  overflow-hidden ${true ? '' : 'absolute inset-0'}`} style={{ backgroundImage: `url("${bgImg}")`, height: 773 }}>
-      <div className='lg:order-last h-[608px] rounded-bl-[395px] flex-1' style={{background: 'linear-gradient(0deg, #1A2732, #1A2732),linear-gradient(81.58deg, #213440 67.87%, #37576B 189.24%)' }}>
-        <img className='relative top-[100px] w-[708px] w-[708px]' src='/themes/mny/header_image1.png' />
+    <div className={`lg:-mb-[145px] bg-fit bg-center w-full flex flex-col lg:flex-row w-full lg:h-[773px]`}>
+      <div className='lg:order-last h-[699px] rounded-bl-[395px] flex-1' style={{background: 'linear-gradient(0deg, #1A2732, #1A2732),linear-gradient(81.58deg, #213440 67.87%, #37576B 189.24%)' }}>
+        <img className='relative top-[90px] w-[708px] w-[708px]' src={bgImg} />
       </div>
-      <div className='flex-1 border-2 border-blue-900'>
-        <div className='lg:max-w-[656px] w-full flex lg:ml-auto border-2 border-red-900 h-full items-center'>
+      <div className='lg:flex-1'>
+        <div className='pt-12 lg:pt-0 lg:max-w-[656px]  w-full flex lg:ml-auto  h-full items-center'>
           
-          <div className=''> 
+          <div className='pr-[64px] xl:pl-0 px-[15px]'> 
             <div>
-            {title && <div className='text-3xl sm:text-[72px] font-[500] font-["Oswald"] text-[#2D3E4C] leading-[72px] uppercase'>{title}</div>}
+            {title && <div className='text-3xl sm:text-[72px] font-[500] font-["Oswald"] text-[#2D3E4C] sm:leading-[72px] uppercase'>{title}</div>}
             </div>
-            <div className='text-lg tracking-wider sm:text-xl font-bold text-slate-200 text-right w-full uppercase'>
+            <div className='text-[16px] leading-[24px] text-[#37576B] w-full p-1 pt-2'>
               {note && <div>{note}</div>}
             </div>
           </div>
@@ -49,18 +49,51 @@ const Edit = ({value, onChange, size}) => {
     }, [value]);
 
     //console.log('Edit: value,', size)
+
+    const imageOptions = [
+      {
+        label: 'Planetary Home',
+        value: '/themes/mny/header_home.png'
+      },
+      {
+        label: 'Planetary Buildings',
+        value: '/themes/mny/header_image1.png'
+      },
+      {
+        label: 'Hazards - Coastal',
+        value: '/themes/mny/hazards_coastal_2tp.png'
+      },
+      {
+        label: 'Hazards - Flood',
+        value: '/themes/mny/hazards_flood_2tp.png'
+      },
+      {
+        label: 'Hazards - Landslide',
+        value: '/themes/mny/hazards_landslide_1tp.png'
+      },
+      {
+        label: 'Hazards - Wildfire',
+        value: '/themes/mny/hazards_wildfire_1tp.png'
+      },
+      {
+        label: 'Take Action - Capabilities',
+        value: '/themes/mny/takeaction_capab_2tp.png'
+      },
+      {
+        label: 'Take Action - Landuse',
+        value: '/themes/mny/takeaction_landuse_2tp.png'
+      }
+
+    ]
    
     const baseUrl = '/';
     const [loading, setLoading] = useState(true);
     const [status, setStatus] = useState('');
     const [compData, setCompData] = useState({
         bgImg: cachedData.bgImg || '',//'/img/header.png', 
-        logo: cachedData.logo || '',//'/img/nygov-logo.png', 
         title: cachedData.title || 'Title', 
-        subTitle: cachedData.subTitle || 'subTitle', 
         note: cachedData.note || 'note',
-        bgClass: cachedData.bgClass || '',
-        height: 773
+        
     })
 
     useEffect(() => {
@@ -72,7 +105,8 @@ const Edit = ({value, onChange, size}) => {
     return (
       <div className='w-full'>
         <div className='relative'>
-          <div className={'border rounded-md border-blue-500 bg-blue-50 p-2 m-1 pt-64'}>
+          <div className={'border rounded-md border-blue-500 bg-blue-50 p-2 m-1 pt-[100px]'}>
+
             <div className={'flex flex-row flex-wrap justify-between'}>
               <label className={'shrink-0 pr-2 py-1 my-1 w-1/4'}>Title:</label>
               <div className={`flex flex row w-3/4 shrink my-1`}>
@@ -80,12 +114,7 @@ const Edit = ({value, onChange, size}) => {
               </div>
             </div>
 
-            <div className={'flex flex-row flex-wrap justify-between'}>
-              <label className={'shrink-0 pr-2 py-1 my-1 w-1/4'}>subTitle:</label>
-              <div className={`flex flex row w-3/4 shrink my-1`}>
-                <input type='text' value={compData.subTitle} onChange={(e) => setCompData({...compData, subTitle: e.target.value})} />
-              </div>
-            </div>
+            
 
             <div className={'flex flex-row flex-wrap justify-between'}>
               <label className={'shrink-0 pr-2 py-1 my-1 w-1/4'}>Note:</label>
@@ -94,17 +123,12 @@ const Edit = ({value, onChange, size}) => {
               </div>
             </div>
 
-            <div className={'flex flex-row flex-wrap justify-between'}>
-              <label className={'shrink-0 pr-2 py-1 my-1 w-1/4'}>Bg Class:</label>
-              <div className={`flex flex row w-3/4 shrink my-1`}>
-                <input type='text' value={compData.bgClass} onChange={(e) => setCompData({...compData, bgClass: e.target.value})} />
-              </div>
-            </div>
+           
 
             <div className={'flex flex-row flex-wrap justify-between'}>
               <label className={'shrink-0 pr-2 py-1 my-1 w-1/4'}>bgImg:</label>
               <div className={`flex flex row w-3/4 shrink my-1`}>
-                <input type='text' value={compData.bgImg} onChange={(e) => setCompData({...compData, bgImg: e.target.value})} />
+                <Select options={imageOptions} value={compData.bgImg} onChange={(e) => setCompData({...compData, bgImg: e.target.value})} />
               </div>
             </div>
 
@@ -114,12 +138,7 @@ const Edit = ({value, onChange, size}) => {
                 <input type='text' value={compData.logo} onChange={(e) => setCompData({...compData, logo: e.target.value})} />
               </div>
             </div>
-             <div className={'flex flex-row flex-wrap justify-between'}>
-              <label className={'shrink-0 pr-2 py-1 my-1 w-1/4'}>height:</label>
-              <div className={`flex flex row w-3/4 shrink my-1`}>
-                <input type='text' value={compData.logo} onChange={(e) => setCompData({...compData, height: e.target.value})} />
-              </div>
-            </div>
+
           </div>
           <Header {...compData}/>
         </div>
@@ -145,7 +164,7 @@ Edit.settings = {
 
 
 export default {
-    "name": 'Header: Default',
+    "name": 'Header: MNY1',
     "type": 'Header',
     "variables": [
         { 

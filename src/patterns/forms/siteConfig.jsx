@@ -34,7 +34,7 @@ import Version from "./pages/version";
 export const FormsContext = React.createContext(undefined);
 // for instances without auth turned on can edit
 // move this to dmsFactory default authWrapper?
-const defaultUser = { email: "user", authLevel: 5, authed: true, fake: true}
+const defaultUser = { email: "user", authLevel: 10, authed: true, fake: true}
 
 
 

@@ -23,10 +23,10 @@ export default function FieldSetComp ({ components }) {
   return (
     <Fieldset>
       {
-        components.map(c => {
+        components.map((c,i) => {
           let Comp = componentRegistry[c.type] || Input
           return (
-            <FieldComp {...c}>
+            <FieldComp key={i} {...c}>
               <Comp {...c} />
             </FieldComp>
           )

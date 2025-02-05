@@ -1,14 +1,16 @@
-import React, {useEffect, useState} from "react"
+import React, {useEffect, useState} from "react";
 import {isJson} from "../index";
-import { dmsDataTypes } from "../../../../../../index.js"
+import { dmsDataTypes } from "../../../../../../index.js";
 
-import Header from './mnyHeader'
-// import ComponentsIndexTable from "../../componentsIndexTable";
-// import Spreadsheet from "../../../../forms/components/selector/ComponentRegistry/spreadsheet";
-//import CustomHeader from "../../../../forms/components/selector/ComponentRegistry/header";
-// import Item from "../../../../forms/components/selector/ComponentRegistry/item";
+import MNYHeader from './mnyHeader';
+import Header from './header'
+// import Spreadsheet from "../../../../../forms/components/selector/ComponentRegistry/spreadsheet/index.jsx";
+// import Item from "../../../../../forms/components/selector/ComponentRegistry/item";
+// import Card from "../../../../../forms/components/selector/ComponentRegistry/Card";
+
 // import Upload from "../../../../forms/components/selector/ComponentRegistry/upload";
 // import PatternListComponent from "../../../../forms/components/selector/ComponentRegistry/patternListComponent";
+// console.log("Spreadsheet", Spreadsheet)
 
 export const RenderCalloutBox = ({text = {}, backgroundColor, ...rest}) => {
     return (
@@ -116,6 +118,7 @@ const lexical  = {
  const ComponentRegistry = {
     lexical,
     "Header: Default Header": Header,
+    "Header: MNY": MNYHeader
      //"Title": CustomHeader,
      //"Table: Components Index": ComponentsIndexTable,
  }

@@ -151,6 +151,11 @@ const cmsPageFormat = {
       type: "text",
       hidden: true
     },
+    {
+      key: 'navOptions',
+      type: "json",
+      hidden: true
+    },
     //content
     {
       key: 'sections',

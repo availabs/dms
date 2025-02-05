@@ -6,7 +6,7 @@ import { InfoSquare } from '../../icons'
 
 export const popoverTheme = {
   button: 'flex items-center cursor-pointer pt-1 pr-1',
-  container: "absolute shadow-lg bg-white z-10 transform px-4 border border-blue-200 "
+  container: "absolute shadow-lg bg-white z-30 transform px-4 border border-blue-200 "
 
 }
 

@@ -34,7 +34,7 @@ export function ConfirmInput ({ type='text', label, description, value, onChange
   const { theme = { input: inputTheme, field: fieldTheme } } = React.useContext(CMSContext) || {}
   const [tempValue, setTempValue] = React.useState(value)
   const [editing, setEditing] = React.useState(false)
-  React.useEffect(() => setTempValue(value), value)
+  React.useEffect(() => setTempValue(value), [value])
 
   return (
     <span className={`${theme?.input?.inputContainer}`}>
