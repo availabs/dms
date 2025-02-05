@@ -238,16 +238,6 @@ export const RenderSimple = ({isEdit, updateItem, removeItem, addItem, newItem, 
                                      onMouseDown={colResizer(attribute?.name)}/>
 
                             </div>)}
-                    {/*{*/}
-                    {/*    allowEdit && actions.length ? (*/}
-                    {/*        <div className={'flex shrink-0 justify-between'} style={{width: actionsColSize}}>*/}
-                    {/*            <div key={'actions'}*/}
-                    {/*                 className={'w-full flex items-center px-3 py-1 font-semibold border bg-gray-50 text-gray-900 select-none'}>*/}
-                    {/*                Actions*/}
-                    {/*            </div>*/}
-                    {/*        </div>*/}
-                    {/*    ) : null*/}
-                    {/*}*/}
 
                     {/*gutter column cell*/}
                     <div key={'##'}
@@ -270,7 +260,7 @@ export const RenderSimple = ({isEdit, updateItem, removeItem, addItem, newItem, 
                             updateItem, removeItem
                         }} />
                     ))}
-                <div id={display.loadMoreId}></div>
+                <div id={display.loadMoreId} className={'min-h-8 w-full text-center'}>{loading ? 'loading...' : ''}</div>
 
 
                 {/*/!****************************************** Gutter Row **********************************************!/*/}

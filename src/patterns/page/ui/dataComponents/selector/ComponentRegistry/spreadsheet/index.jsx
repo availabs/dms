@@ -152,18 +152,19 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, renderCard, hide
             async (entries) => {
                 const hasMore = (currentPage * state.display.pageSize + state.display.pageSize) < state.display.totalLength;
                 if (state.data.length && entries[0].isIntersecting && hasMore) {
-                    setCurrentPage(currentPage+1)
+                    setCurrentPage(prevPage => prevPage+1)
                 }
             },
-            { threshold: 0.5 }
+            { threshold: 0 }
         );
 
         const target = document.querySelector(`#${state.display.loadMoreId}`);
         if (target && !state.display.usePagination) observer.observe(target);
-        if (target && state.display.usePagination) observer.unobserve(target); // unobserve if using pagination
-        return () => {
-            if (target) observer.unobserve(target);
-        };
+        // unobserve if using pagination
+        if (target && state.display.usePagination) observer.unobserve(target);
+        // return () => {
+        //     if (target) observer.unobserve(target);
+        // };
     }, [state.display?.loadMoreId, state.display?.totalLength, state.data?.length, state.display?.usePagination]);
     // // =========================================== get data end ========================================================
 
@@ -355,7 +356,7 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, renderCard, ...rest}) 
             async (entries) => {
                 const hasMore = (currentPage * state.display.pageSize + state.display.pageSize) < state.display.totalLength;
                 if (state.data.length && entries[0].isIntersecting && hasMore) {
-                    setCurrentPage(currentPage+1)
+                    setCurrentPage(prevPage => prevPage+1)
                 }
             },
             { threshold: 0 }
@@ -363,11 +364,12 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, renderCard, ...rest}) 
 
         const target = document.querySelector(`#${state.display.loadMoreId}`);
         if (target && !state.display.usePagination) observer.observe(target);
-        if (target && state.display.usePagination) observer.unobserve(target); // unobserve if using pagination
+        // unobserve if using pagination
+        if (target && state.display.usePagination) observer.unobserve(target);
 
-        return () => {
-            if (target) observer.unobserve(target);
-        };
+        // return () => {
+        //     if (target) observer.unobserve(target);
+        // };
     }, [state?.display?.loadMoreId, state?.display?.totalLength, state?.data?.length, state?.display?.usePagination, isValidState]);
     // =========================================== get data end ========================================================
 

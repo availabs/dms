@@ -72,23 +72,7 @@ const getInitState = ({columns, defaultColumns=[], app, doc_type, params, data, 
         allowSearchParams: true,
     },
 })
-const Validate = ({
-    adminPath,
-    status,
-    apiUpdate,
-    apiLoad,
-    attributes={},
-    dataItems,
-    // format,
-    item,
-    setItem,
-    updateAttribute,
-    params,
-    submit,
-    // parent,
-    manageTemplates = false,
-    // ...rest
-}) => {
+const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
     // assumes meta is already setup. if a user changes meta after upload, validation is incomplete.
     const navigate = useNavigate();
     const [data, setData] = useState({});
