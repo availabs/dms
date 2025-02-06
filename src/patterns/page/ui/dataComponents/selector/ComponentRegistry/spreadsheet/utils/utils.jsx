@@ -84,7 +84,7 @@ export const getLength = async ({options, state, apiLoad}) => {
 
 const getFullColumn = (columnName, columns) => columns.find(col => col.name === columnName);
 
-export const getData = async ({state, apiLoad, currentPage=0}) => {
+export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => {
     const debug = false;
     debug && console.log('=======getDAta called===========')
     // get columns with all settings and info about them.
@@ -172,8 +172,8 @@ export const getData = async ({state, apiLoad, currentPage=0}) => {
     const isRequestingSingleRow = !options.groupBy.length && columnsToFetch.filter(col => col.fn).length === columnsToFetch.length;
     const length = isRequestingSingleRow ? 1 : await getLength({options, state, apiLoad});
     const actionType = 'uda';
-    const fromIndex = currentPage * state.display.pageSize;
-    const toIndex = Math.min(length, currentPage * state.display.pageSize + state.display.pageSize) - 1;
+    const fromIndex = fullDataLoad ? 0 : currentPage * state.display.pageSize;
+    const toIndex = fullDataLoad ? length : Math.min(length, currentPage * state.display.pageSize + state.display.pageSize) - 1;
     if(fromIndex > length) {
         debug && console.log('debug getdata: going over limit', fromIndex, toIndex, length);
         return {length, data: []}

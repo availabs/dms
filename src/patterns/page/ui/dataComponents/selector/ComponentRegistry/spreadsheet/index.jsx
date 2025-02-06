@@ -1,4 +1,5 @@
-import React, {useState, useEffect, createContext, useMemo} from 'react'
+import React, {useState, useEffect, createContext, useMemo, useRef} from 'react'
+import writeXlsxFile from 'write-excel-file';
 import {RenderSimple} from "./components/SimpleSpreadsheet";
 import {RenderPagination} from "./components/RenderPagination";
 import {isJson, getData} from "./utils/utils";
@@ -13,6 +14,8 @@ import { v4 as uuidv4 } from 'uuid';
 import {useImmer} from "use-immer";
 import {getFilters, parseIfJson} from "../shared/filters/utils";
 import {convertOldState} from "./utils/convertOldState";
+import {Download, LoadingHourGlass} from "../../../../icons";
+import {useHandleClickOutside} from "../shared/utils";
 export const SpreadSheetContext = React.createContext({});
 
 const initialState = {
@@ -44,6 +47,74 @@ const initialState = {
         // version,
         // doc_type, type -- should be the same
     }
+}
+
+const triggerDownload = async ({state, apiLoad, loadAllColumns, setLoading}) => {
+    setLoading(true);
+    const tmpState = loadAllColumns ?
+        {
+            ...state,
+            columns: [
+                ...state.columns,
+                ...state.sourceInfo.columns.filter(originalColumn => !state.columns.find(c => c.name === originalColumn.name))
+            ].map(c => ({...c, show: true}))
+        } : state;
+    const {data} = await getData({
+        state: tmpState,
+        apiLoad, fullDataLoad: true});
+
+    const schema = tmpState.columns.map(({name, display_name, customName}) => ({
+        column: customName || display_name || name,
+        // type: String,
+        value: data => data?.[name],
+        // ...name === 'url' && {'hyperlink': data => data?.[name]}
+    }));
+    const fileName = `${state.sourceInfo.view_name || Date.now()}`;
+
+    await writeXlsxFile(data, {
+        schema,
+        fileName: `${fileName}.xlsx`,
+    });
+    setLoading(false);
+}
+const RenderDownload = ({state, apiLoad}) => {
+    // two options:
+    // 1. download visible columns: add primary column if set
+    // 2. download all columns: unavailable for grouped mode
+    const [open, setOpen] = React.useState(false);
+    const [loading, setLoading] = React.useState(false);
+    const menuRef = useRef(null);
+    const menuBtnId = `download-btn`;
+    const Icon = loading ? LoadingHourGlass : Download;
+    const isGrouping = state.dataRequest?.groupBy?.length;
+    useHandleClickOutside(menuRef, menuBtnId, () => setOpen(false));
+
+    if(!state.display.allowDownload) return;
+    return (
+        <div className={'pt-2'}>
+            <div className={'relative flex flex-col'}>
+                <Icon id={menuBtnId}
+                      className={`p-0.5 inline-flex text-blue-300 hover:text-blue-500 hover:bg-zinc-950/5 rounded-md ${loading ? 'hover:cursor-wait' : 'hover:cursor-pointer'} transition ease-in-out duration-200`}
+                      onClick={() => {!loading && setOpen(!open)}}
+                      title={loading ? 'Processing...' : 'Excel Download'}
+                      width={20} height={20}/>
+                <div ref={menuRef} className={open ? 'absolute right-0 mt-4 p-0.5 text-xs text-nowrap select-none bg-white shadow-lg rounded-md z-[10]' : 'hidden'}>
+                    <div className={`px-1 py-0.5 hover:bg-blue-50 ${loading ? 'hover:cursor-wait' : 'hover:cursor-pointer'} rounded-md`} onClick={() => {
+                        setOpen(false);
+                        return triggerDownload({state, apiLoad, loading, setLoading});
+                    }}>Visible Columns</div>
+                    {
+                        isGrouping ? null : (
+                            <div className={`px-1 py-0.5 hover:bg-blue-50 ${loading ? 'hover:cursor-wait' : 'hover:cursor-pointer'} rounded-md`} onClick={() => {
+                                setOpen(false);
+                                return triggerDownload({state, apiLoad, loading, setLoading, loadAllColumns: true})
+                            }}>All Columns</div>
+                        )
+                    }
+                </div>
+            </div>
+        </div>
+    )
 }
 const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, renderCard, hideSourceSelector}) => {
     const isEdit = Boolean(onChange);
@@ -224,7 +295,10 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, renderCard, hide
                         <ColumnControls /> : null
                 }
 
-                <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={isEdit} defaultOpen={true} />
+                <div className={'w-full pt-2 flex justify-end gap-2'}>
+                    <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={isEdit} defaultOpen={true} />
+                    <RenderDownload state={state} apiLoad={apiLoad}/>
+                </div>
                 {
                     renderCard ?
                         <Card isEdit={isEdit}/> : (
@@ -287,7 +361,6 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, renderCard, ...rest}) 
             draft.dataRequest = newDataReq;
         })
         // todo: save settings such that they can be directly used by getData and getLength
-        // todo: update in header controls as well
 
         return () => {
             isStale = true;
@@ -411,7 +484,10 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, renderCard, ...rest}) 
         <SpreadSheetContext.Provider value={{state, setState, apiLoad, compType: renderCard ? 'card' : 'spreadsheet'}}>
             <div className={'w-full h-full'}>
                 <div className={'w-full'}>
-                    <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={isEdit} cachedFilters={cachedFilters} defaultOpen={false}/>
+                    <div className={'w-full pt-2 flex justify-end gap-2'}>
+                        <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={isEdit} cachedFilters={cachedFilters} defaultOpen={false}/>
+                        <RenderDownload state={state} apiLoad={apiLoad}/>
+                    </div>
                     {
                         renderCard ?
                             <Card isEdit={isEdit}/> : (

@@ -262,7 +262,7 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
                                             <div className={'bg-gray-100 rounded-md px-2 py-1'}>Valid Rows: <span className={'text-gray-900'}>{(lengths.validLength || 0)}</span></div>
                                         </div>
                                         <button
-                                            className={`p-1 text-sm text-white ${error ? `bg-red-300 hover:bg-red-600` : `bg-blue-300 hover:bg-blue-600`} rounded-md`}
+                                            className={`px-2 py-1 text-sm ${error ? `bg-red-300 hover:bg-red-600 text-white` : `bg-blue-500/15 text-blue-700 hover:bg-blue-500/25`} rounded-md`}
                                             onClick={() =>
                                                 reValidate({
                                                     app,

@@ -1,7 +1,7 @@
 import React, {memo, useCallback, useEffect, useMemo, useState} from "react";
 import dataTypes from "../../../../../../../../data-types";
 import {attributeAccessorStr} from "../../spreadsheet/utils/utils";
-import {Filter} from "../../../../../../../forms/ui/icons";
+import {Filter} from "../../../../../icons";
 import {getData, parseIfJson, getFilters, isCalculatedCol, convertToUrlParams, formattedAttributeStr} from "./utils"
 import {isEqual, mergeWith, uniq, uniqBy} from "lodash-es"
 import {RenderFilterValueSelector} from "./Components/RenderFilterValueSelector";
@@ -140,8 +140,9 @@ export const RenderFilters =
     const MultiSelectComp = dataTypes.multiselect.EditComp;
     return (
         open ?
-            <div className={'px-4 py-6 flex flex-col border border-blue-300 rounded-md'}>
-                <Filter className={'-mt-4 -mr-6 text-blue-300 bg-white self-end rounded-md hover:cursor-pointer'}
+            <div className={'w-full px-4 py-6 flex flex-col border border-blue-300 rounded-md'}>
+                <Filter className={'-mt-4 -mr-6 p-0.5 text-blue-300 hover:text-blue-500 hover:bg-zinc-950/5 rounded-md bg-white self-end rounded-md hover:cursor-pointer'}
+                        title={'Filter'}
                         onClick={() => setOpen(false)}/>
                 {filterColumnsToRender.map((filterColumn, i) => (
                     <div key={i} className={'w-full flex flex-row items-center'}>
@@ -174,7 +175,7 @@ export const RenderFilters =
                 ))}
             </div> :
             <div className={'px-4 pt-2 flex flex-col'}>
-                <Filter className={'-mr-6 text-blue-300 bg-white self-end rounded-md hover:cursor-pointer'} onClick={() => setOpen(true)}/>
+                <Filter className={'-mr-6 p-0.5 text-blue-300 hover:text-blue-500 hover:bg-zinc-950/5 rounded-md bg-white self-end rounded-md hover:cursor-pointer'} onClick={() => setOpen(true)}/>
             </div>
     )
 }/*, (prev, next) => {
