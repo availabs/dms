@@ -82,11 +82,14 @@ export async function dmsDataLoader (falcor, config, path='/') {
 
 	//console.log('newRequests',newRequests)
     //--------- Route Data Loading ------------------------
+	//let dataresp = null
 	if (newRequests.length > 0 ) {
 		await falcor.get(...newRequests)
 	}
 	// get api response
 	let newReqFalcor = falcor.getCache()
+
+	//console.log('data response', newReqFalcor, dataresp)
 
 	if(activeConfigs.find(ac => ac.action === 'search')){
 		const searchType = activeConfigs.find(ac => ac.action === 'search')?.filter?.searchType || 'byTag';

@@ -27,7 +27,7 @@ function defaultTheme () {
 			mainWrapper: 'w-full h-full',
 			inputWrapper: 'flex px-2 py-1 w-full text-sm font-light border focus:border-blue-300 rounded-md bg-white hover:bg-blue-100 transition ease-in',
 			input: 'w-full px-2 border rounded-lg focus:outline-none',
-			tokenWrapper: 'w-fit flex m-0.5 px-2 py-1 mx-1 bg-blue-400 hover:bg-blue-600 text-white rounded-md transition ease-in',
+			tokenWrapper: 'w-fit flex m-0.5 px-2 py-1 mx-1 bg-blue-500/15 text-blue-700 hover:bg-blue-500/25 rounded-md transition ease-in',
 			removeIcon: 'fa fa-xmark px-1 text-xs text-red-500 hover:text-red-600 self-center cursor-pointer transition ease-in',
 			menuWrapper: 'absolute p-2 bg-white w-full max-h-[150px] overflow-auto scrollbar-sm shadow-lg z-10 rounded-lg',
 			menuItem: 'px-2 py-1 text-sm hover:bg-blue-300 hover:cursor-pointer transition ease-in rounded-md',

@@ -1,12 +1,9 @@
-import React, {useEffect, useState} from "react";
+import React, {useState} from "react";
 import { FormsContext } from '../siteConfig'
-import SourcesLayout from "../components/selector/ComponentRegistry/patternListComponent/layout";
-import {DeleteModal, Modal} from "../../page/ui";
+import SourcesLayout from "../components/patternListComponent/layout";
+import {DeleteModal} from "../../page/ui";
 import { cloneDeep } from "lodash-es";
-import {Link, useNavigate} from "react-router-dom";
-import Table from "../components/Table";
-import {tableTheme} from "./overview";
-import {validateUrl} from "../../../data-types/lexical/editor/utils/url";
+import {useNavigate} from "react-router-dom";
 const buttonRedClass = 'w-full p-2 mx-1 bg-red-300 hover:bg-red-500 text-gray-800 rounded-md';
 const buttonGreenClass = 'p-2 mx-1 bg-green-500 hover:bg-green-700 text-white rounded-md';
 
@@ -53,7 +50,7 @@ const ClearDataBtn = ({app, type, view_id, apiLoad, apiUpdate}) => {
         // fetch all ids based on app and type (doc_type of source), and then call dmsDataEditor with config={app, type}, data={id}, requestType='delete
         const attributes = ['id']
         const action = 'load'
-        const config = {
+        const validDataconfig = {
             format: {
                 app: app,
                 type: `${type}-${view_id}`,
@@ -71,13 +68,32 @@ const ClearDataBtn = ({app, type, view_id, apiLoad, apiUpdate}) => {
                 }
             ]
         }
+        const invalidDataconfig = {
+            format: {
+                app: app,
+                type: `${type}-${view_id}-invalid-entry`,
+                attributes
+            },
+            children: [
+                {
+                    type: () => {},
+                    action,
+                    filter: {
+                        options: JSON.stringify({}),
+                        attributes
+                    },
+                    path: '/'
+                }
+            ]
+        }
 
-        const res = await apiLoad(config);
-        if(!res?.length) return;
-        const ids = res.map(r => r.id).filter(r => r);
+        const validDataRes = await apiLoad(validDataconfig);
+        const invalidDataRes = await apiLoad(invalidDataconfig);
+        if(!validDataRes?.length && !invalidDataRes?.length) return;
+        const ids = [...validDataRes, ...invalidDataRes].map(r => r.id).filter(r => r);
         if(!ids?.length) return;
 
-        await apiUpdate({data: {id: ids}, config, requestType: 'delete'});
+        await apiUpdate({data: {id: ids}, config: validDataconfig, requestType: 'delete'});
     }
     return (
         <div className={'w-full'}>

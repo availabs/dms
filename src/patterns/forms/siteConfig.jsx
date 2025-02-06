@@ -22,7 +22,7 @@ import Overview from "./pages/overview";
 import TableView from "./pages/table";
 import UploadPage from "./pages/upload";
 import ManageMeta from "./pages/manage/metadata"
-import PatternListComponent from "./components/selector/ComponentRegistry/patternListComponent";
+import PatternListComponent from "./components/patternListComponent";
 import AvailLayout from "./ui/avail-layout";
 import Admin from "./pages/admin";
 import Version from "./pages/version";
@@ -34,7 +34,7 @@ import Version from "./pages/version";
 export const FormsContext = React.createContext(undefined);
 // for instances without auth turned on can edit
 // move this to dmsFactory default authWrapper?
-const defaultUser = { email: "user", authLevel: 5, authed: true, fake: true}
+const defaultUser = { email: "user", authLevel: 10, authed: true, fake: true}
 
 
 
@@ -58,7 +58,7 @@ const formsAdminConfig = ({
 
     checkAuth = () => {}
 }) => {
-    console.log('parent theme', parent.theme)
+    //console.log('parent theme', parent.theme)
     let theme = merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern.theme_name] || themes.default), parent?.theme || {})
     baseUrl = baseUrl === '/' ? '' : baseUrl
     const defaultLogo = (
@@ -181,7 +181,7 @@ const formsSourceConfig = ({
         theme.navOptions.logo = logo ? logo : defaultLogo
     }
 
-    console.log('forms siteconfig theme', theme )
+    //console.log('forms siteconfig theme', theme )
 
     const patternFormat = cloneDeep(source);
     const newType = `${type}|source`;

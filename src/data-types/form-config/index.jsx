@@ -1,8 +1,9 @@
-import React, {useEffect, useMemo, useState} from "react"
+import React, {useEffect, useRef, useState} from "react"
 import {useTheme} from '../../theme'
 import {RenderField} from "./components/RenderField";
 import {RenderAddField} from "./components/RenderAddField";
 import {Alert} from "../../patterns/forms/ui/icons"
+import {cloneDeep} from "lodash-es";
 const parseJson = value => {
     try {
         return JSON.parse(value)
@@ -15,8 +16,37 @@ const Edit = ({value = '{}', onChange, className, placeholder, manageTemplates, 
     const theme = useTheme()
     const [item, setItem] = useState(parseJson(value))
     const [search, setSearch] = useState('');
+    const dragItem = useRef();
+    const dragOverItem = useRef();
 
     useEffect(() => setItem(parseJson(value)), [value]);
+
+    // ================================================== drag utils start =============================================
+    const dragStart = (e, position) => {
+        dragItem.current = position;
+        e.dataTransfer.effectAllowed = "move";
+    };
+
+    const dragEnter = (e, position) => {
+        dragOverItem.current = position;
+    };
+    const dragOver = (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+    };
+
+    const drop = (e) => {
+        const copyListItems = cloneDeep(item.attributes);
+        const dragItemContent = copyListItems[dragItem.current];
+        copyListItems.splice(dragItem.current, 1);
+        copyListItems.splice(dragOverItem.current, 0, dragItemContent);
+        dragItem.current = null;
+        dragOverItem.current = null;
+        const newItem = {...item, 'attributes': copyListItems}
+        setItem(newItem)
+        onChange(JSON.stringify(newItem))
+    };
+    // ================================================== drag utils end ===============================================
 
     // after changing meta, set a flag to say validation needs to re-run
     const updateAttribute = (col, value) => {
@@ -66,7 +96,9 @@ const Edit = ({value = '{}', onChange, className, placeholder, manageTemplates, 
                                 <RenderField i={i} item={attribute} placeholder={placeholder} id={`field-comp-${i}`} key={`field-comp-${i}`}
                                              attribute={attribute?.name}
                                              theme={theme} updateAttribute={updateAttribute}
-                                             removeAttribute={removeAttribute} apiLoad={apiLoad} format={format}/>
+                                             removeAttribute={removeAttribute} apiLoad={apiLoad} format={format}
+                                             dragStart={dragStart} dragEnter={dragEnter} dragOver={dragOver} drop={drop}
+                                />
                             )
                         })
                 }

@@ -1,11 +1,10 @@
 import React, {useMemo, useState, useEffect, useRef, useContext} from 'react'
 import { get } from "lodash-es";
-import SourcesLayout from "../components/selector/ComponentRegistry/patternListComponent/layout";
+import SourcesLayout from "../components/patternListComponent/layout";
 import {FormsContext} from "../siteConfig";
 import Table from "../components/Table";
 import dmsDataTypes from "../../../data-types";
-import SourceCategories from "../components/selector/ComponentRegistry/patternListComponent/categories";
-import _ from "lodash";
+import SourceCategories from "../components/patternListComponent/categories";
 import {Link} from "react-router-dom";
 
 export const isJson = (str)  => {
@@ -137,7 +136,7 @@ const OverViewEdit = ({
         >
             <div className={'p-4 bg-white flex flex-col'}>
                 <div className={'mt-1 text-2xl text-blue-600 font-medium overflow-hidden sm:mt-0 sm:col-span-3'}>
-                    {item.doc_type}
+                    {item.name || item.doc_type}
                 </div>
 
                 <div className={'flex flex-col md:flex-row'}>
@@ -257,6 +256,8 @@ const OverViewEdit = ({
                         }
                         pageSize={5}
                         striped={true}
+                        sortBy={'created_at'}
+                        sortOrder={'desc'}
                         theme={tableTheme()}
                     />
                 </div>

@@ -1,7 +1,7 @@
 import React, {useContext, useEffect, useState} from "react";
 import { FormsContext } from '../siteConfig'
-import SourcesLayout from "../components/selector/ComponentRegistry/patternListComponent/layout";
-import Upload from "../components/selector/ComponentRegistry/upload";
+import SourcesLayout from "../components/patternListComponent/layout";
+import Upload from "../components/upload";
 
 const UploadPage = ({
     adminPath,

@@ -1,6 +1,6 @@
 import React, {useEffect, useState} from "react";
 import { FormsContext } from '../siteConfig'
-import SourcesLayout from "../components/selector/ComponentRegistry/patternListComponent/layout";
+import SourcesLayout from "../components/patternListComponent/layout";
 import {DeleteModal, Modal} from "../../page/ui";
 import { cloneDeep } from "lodash-es";
 import {useNavigate} from "react-router-dom";
