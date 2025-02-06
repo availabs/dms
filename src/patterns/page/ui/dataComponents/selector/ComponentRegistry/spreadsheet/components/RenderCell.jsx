@@ -28,8 +28,9 @@ const LinkComp = ({attribute, columns, newItem, removeItem, value, Comp}) => {
 const validate = ({value, required, options, name}) => {
     const requiredValidation = !required || (required && value && value !== '')
     const optionsValidation = !options || !options?.length || (
-        Array.isArray(options) && typeof value === "string" ? // select
-            options.map(o => o.value || o).includes(value) :
+        Array.isArray(options) && !value && !required ? true : // blank value with not required condition
+        Array.isArray(options) && (typeof value === "string" || typeof value === "boolean") ? // select
+            options.map(o => o.value || o).includes(value.toString()) :
             Array.isArray(options) && Array.isArray(value) ?  // multiselect
                 value.reduce((acc, v) => acc && options.map(o => o.value || o).includes(v.value || v), true) :
                 false
@@ -97,11 +98,12 @@ export const RenderCell = ({
         }
 
     }, [newItem[attribute.name]]);
-    const isValid = validate({
+    const isValid = ['multiselect', 'select'].includes(attribute.type) || attribute.required === 'yes' ? validate({
         value: newItem[attribute.name],
         options: attribute.options,
         required: attribute.required === "yes"
-    });
+    }) : true;
+
     const isTotalRow = newItem.totalRow;
     const bgColor = !isValid ? `bg-red-50 hover:bg-red-100` : isTotalRow ? `bg-gray-100` :
                                 display.striped && i % 2 !== 0 ? 'bg-gray-50 hover:bg-gray-100' :
