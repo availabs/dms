@@ -57,6 +57,7 @@ const uploadGisDataset = async ({file, user, etlContextId, damaServerPath, setGi
 
                 try {
                     const fetchData = async (gisUploadId) => {
+                        setLoading(true)
                         const url = `${damaServerPath}/gis-dataset/${gisUploadId}/layers`;
                         console.log('waiting for url:', url);
                         await delay(5000);
@@ -66,6 +67,7 @@ const uploadGisDataset = async ({file, user, etlContextId, damaServerPath, setGi
                         console.log('layers', layers);
                         setLayers(layers)
                         setLayerName(layers?.[0]?.layerName)
+                        setLoading(false)
                     }
                     fetchData(id)
                 } catch (err) {
@@ -296,11 +298,11 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate, paren
                 }
 
                 {/*Render primary column selector*/}
-                <div className={'w-full pb-4'}>
+                <div className={'w-full pb-4 text-red-500'}>
                     <label htmlFor={'layer-selector'}>Primary Column <span className={'text-xs italic'}>(If selected, existing records will be updated for matching column values)</span>:</label>
                     <select
                         id={'primary-col-selector'}
-                        className={'p-2 ml-4 bg-transparent border rounded-md hover:cursor-pointer'}
+                        className={'p-2 ml-4 bg-transparent border rounded-md hover:cursor-pointer border-red-500'}
                         value={columns.find(c => c.isPrimary)?.name}
                         onChange={e => setColumns(columns.map(c => c.name === e.target.value ? ({
                             ...c,

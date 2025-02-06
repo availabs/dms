@@ -70,6 +70,7 @@ const getInitState = ({columns, defaultColumns=[], app, doc_type, params, data, 
         pageSize: 100,
         loadMoreId: `id-validate-page`,
         allowSearchParams: true,
+        allowDownload: true,
     },
 })
 const Validate = ({status, apiUpdate, apiLoad, item, params}) => {

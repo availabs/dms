@@ -27,6 +27,7 @@ const TableView = ({apiUpdate, apiLoad, format, item, params}) => {
             pageSize: 1000,
             loadMoreId: `id-table-page`,
             allowSearchParams: false,
+            allowDownload: true,
         },
         columns: defaultColumns?.length ?
                     defaultColumns.map(dc => columns.find(col => col.name === dc.name)).filter(c => c).map(c => ({...c, show: true})) :
