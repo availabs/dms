@@ -16,8 +16,10 @@ const preventDefaults = e => {
     e.preventDefault();
     e.stopPropagation();
 }
-
-const uploadGisDataset = async ({file, user, etlContextId, damaServerPath, setGisUploadId, setLoading}) => {
+function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+const uploadGisDataset = async ({file, user, etlContextId, damaServerPath, setGisUploadId, setLoading, setLayers, setLayerName}) => {
     try {
         setLoading(true)
         // Prepare upload request
@@ -41,9 +43,37 @@ const uploadGisDataset = async ({file, user, etlContextId, damaServerPath, setGi
         // update state from request
         const resValue = await res.json();
         if (Array.isArray(resValue)) {
+            console.log('res', resValue);
             const [{ id }] = resValue;
             console.log('gisUploadId', id)
             setGisUploadId(id)
+            if(id){
+                // const url = `${damaServerPath}/gis-dataset/${id}/layers`;
+                // const layerNamesRes = await fetch(url);
+                // const layers = await layerNamesRes.json();
+                // console.log('debug upload: layers', layers)
+                // setLayers(layers)
+                // setLayerName(layers?.[0]?.layerName)
+
+                try {
+                    const fetchData = async (gisUploadId) => {
+                        setLoading(true)
+                        const url = `${damaServerPath}/gis-dataset/${gisUploadId}/layers`;
+                        console.log('waiting for url:', url);
+                        await delay(5000);
+                        console.log('calling for url:', url);
+                        const layerNamesRes = await fetch(url);
+                        const layers = await layerNamesRes.json();
+                        console.log('layers', layers);
+                        setLayers(layers)
+                        setLayerName(layers?.[0]?.layerName)
+                        setLoading(false)
+                    }
+                    fetchData(id)
+                } catch (err) {
+                    console.error(err)
+                }
+            }
             setLoading(false)
         } else {
             setLoading(false)
@@ -55,24 +85,6 @@ const uploadGisDataset = async ({file, user, etlContextId, damaServerPath, setGi
         console.error(err?.message)
     }
 }
-
-const handleDrop = (e) => {
-    preventDefaults(e);
-    const file = e.dataTransfer.files[0];
-    if (file) {
-        return uploadGisDataset({
-            file,
-            user,
-            etlContextId,
-            damaServerPath,
-            setGisUploadId,
-            setLoading: (isLoading) => {
-                setLocalLoading(isLoading);
-                setLoading(isLoading);
-            }
-        });
-    }
-};
 
 const publish = async ({userId, email, gisUploadId, layerName, app, type, dmsServerPath, setPublishing, setPublishStatus,
                            updateMetaData, existingAttributes = [], columns = []}) => {
@@ -126,7 +138,7 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate, paren
     const [publishStatus, setPublishStatus] = useState(false)
     const [search, setSearch] = useState('');
     const [etlContextId, setEtlContextId] = useState();
-    const [gisUploadId, setGisUploadId] = useState(); // 'shaun-XPS-13-9340_7ae040fc-3854-480e-8279-622a6c199f69'
+    const [gisUploadId, setGisUploadId] = useState(); // 'shaun-XPS-13-9340_bd0942ec-3506-4197-aa8f-b2b3da37ab44'
     const [layers, setLayers] =useState([]);
     const [layerName, setLayerName] = useState('');
     const inputClass = `p-1.5 hover:bg-blue-100 rounded-sm`;
@@ -153,22 +165,13 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate, paren
     // ================================================= get etl context end ===========================================
 
     // ================================================= get layers begin ==============================================
-    useEffect(() => {
-        if (gisUploadId) {
-            try {
-                const fetchData = async (gisUploadId) => {
-                    const url = `${damaServerPath}/gis-dataset/${gisUploadId}/layers`;
-                    const layerNamesRes = await fetch(url);
-                    const layers = await layerNamesRes.json();
-                    setLayers(layers)
-                    setLayerName(layers?.[0]?.layerName)
-                }
-                fetchData(gisUploadId)
-            } catch (err) {
-                console.error(err)
-            }
-        }
-    }, [ gisUploadId, damaServerPath ]);
+    // useEffect(() => {
+    //     // todo remove
+    //
+    //     if (gisUploadId) {
+    //
+    //     }
+    // }, [ gisUploadId, damaServerPath ]);
 
     useEffect(() => {
         if(layers.find(layer => layer.layerName === layerName)?.fieldsMetadata){
@@ -214,7 +217,9 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate, paren
                          etlContextId,
                          damaServerPath,
                          setGisUploadId,
-                         setLoading
+                         setLoading,
+                         setLayers,
+                         setLayerName
                      })
                  }}
             >
@@ -238,7 +243,7 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate, paren
                     </div>
                     <input disabled={loading} id="dropzone-file" type="file" className="hidden"
                            onChange={(e) =>
-                        uploadGisDataset({file: e.target.files[0], user, etlContextId, damaServerPath, setGisUploadId, setLoading})}/>
+                        uploadGisDataset({file: e.target.files[0], user, etlContextId, damaServerPath, setGisUploadId, setLoading, setLayers, setLayerName})}/>
                 </label>
             </div>
 
@@ -293,11 +298,11 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate, paren
                 }
 
                 {/*Render primary column selector*/}
-                <div className={'w-full pb-4'}>
+                <div className={'w-full pb-4 text-red-500'}>
                     <label htmlFor={'layer-selector'}>Primary Column <span className={'text-xs italic'}>(If selected, existing records will be updated for matching column values)</span>:</label>
                     <select
                         id={'primary-col-selector'}
-                        className={'p-2 ml-4 bg-transparent border rounded-md hover:cursor-pointer'}
+                        className={'p-2 ml-4 bg-transparent border rounded-md hover:cursor-pointer border-red-500'}
                         value={columns.find(c => c.isPrimary)?.name}
                         onChange={e => setColumns(columns.map(c => c.name === e.target.value ? ({
                             ...c,

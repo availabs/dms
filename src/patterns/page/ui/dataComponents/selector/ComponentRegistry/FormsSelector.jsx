@@ -131,7 +131,8 @@ export const FormsSelector = ({
             isStale = true;
         }
     }, [state.sourceInfo.source_id])
-
+    const sourceOptions = sources.map(({source_id, name, srcEnv}) => ({key: source_id, label: `${name} (${envs[srcEnv].label})`}));
+    const viewOptions = views.map(({view_id, name, version}) => ({key: view_id, label: name || version}));
     return (
         <div className={'flex w-full bg-white items-center'}>
             <label className={'p-1'}>Source: </label>
@@ -139,7 +140,7 @@ export const FormsSelector = ({
                 <FilterableSearch
                     className={'flex-row-reverse'}
                     placeholder={'Search...'}
-                    options={sources.map(({source_id, name, srcEnv}) => ({key: source_id, label: `${name} (${envs[srcEnv].label})`}))}
+                    options={sourceOptions}
                     value={state.sourceInfo?.source_id}
                     onChange={e => {
                         const {doc_type, ...source} = sources.find(f => +f.source_id === +e) || {};
@@ -158,7 +159,7 @@ export const FormsSelector = ({
                 <FilterableSearch
                     className={'flex-row-reverse'}
                     placeholder={'Search...'}
-                    options={views.map(({view_id, name, version}) => ({key: view_id, label: name || version}))}
+                    options={viewOptions}
                     value={state.sourceInfo?.view_id}
                     onChange={e => {
                         const currView = views.find(v => +v.view_id === +e);
