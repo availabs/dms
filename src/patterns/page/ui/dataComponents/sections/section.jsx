@@ -63,7 +63,7 @@ export function SectionEdit ({value, i, onChange, attributes, size, onCancel, on
             <div className={`flex w-full`}>
                 <div className='flex-1'/>
                     <div className={`z-10 relative`}>
-                        <div className={`absolute mr-16 top-[-14px] right-[-60px] flex`}>
+                        <div className={`absolute mr-16 top-[-24px] right-[-60px] flex`}>
                             {/*delete*/}
                             <Button type='plain' padding='p-1' onClick={() => setShowDeleteModal(!showDeleteModal)}>
                                 <TrashCan className='text-red-400 hover:text-red-600 w-[24px] h-[24px]' title="Delete Section"/>
