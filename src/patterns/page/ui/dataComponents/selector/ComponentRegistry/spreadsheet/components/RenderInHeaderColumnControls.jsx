@@ -65,7 +65,7 @@ const selectClasses = 'p-1 w-full rounded-md bg-white hover:bg-gray-100 cursor-p
 
 // in header menu for each column
 export default function RenderInHeaderColumnControls({attribute}) {
-    const {state: {columns = []}, setState, compType} = useContext(SpreadSheetContext);
+    const {state: {columns = [], display}, setState, compType} = useContext(SpreadSheetContext);
     const {
         allowSortBy,
         allowJustify,
@@ -221,7 +221,7 @@ export default function RenderInHeaderColumnControls({attribute}) {
                         }
 
                         {
-                            allowCardSpan ? (
+                            allowCardSpan && !display.compactView ? (
                                 <div className={'w-full cursor-pointer'}>
                                     <select
                                         className={selectClasses}
