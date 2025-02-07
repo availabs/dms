@@ -122,7 +122,6 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, renderCard, hide
     const [loading, setLoading] = useState(false);
     const [newItem, setNewItem] = useState({})
     const [currentPage, setCurrentPage] = useState(0);
-    const showChangeFormatModal = !hideSourceSelector || !state?.sourceInfo?.columns;
     const isValidState = Boolean(state?.dataRequest);
     // ========================================= init comp begin =======================================================
     // useSetDataRequest
@@ -282,13 +281,10 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, renderCard, hide
         <SpreadSheetContext.Provider value={{state, setState, apiLoad, compType: renderCard ? 'card' : 'spreadsheet'}}>
             <div className={'w-full h-full'}>
                 {
-                    showChangeFormatModal ?
-                        <div className={'p-1'}>
-                            Form data not available. Please make a selection:
-                            <FormsSelector apiLoad={apiLoad} app={pageFormat?.app}
-                                           state={state} setState={setState} // passing as props as other components will use it as well.
-                            />
-                        </div> : null
+                    !hideSourceSelector ?
+                        <FormsSelector apiLoad={apiLoad} app={pageFormat?.app}
+                                       state={state} setState={setState} // passing as props as other components will use it as well.
+                        /> : null
                 }
                 {
                     isEdit ?
@@ -479,7 +475,6 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, renderCard, ...rest}) 
     }
     // =========================================== util fns end ========================================================
     if(showChangeFormatModal || !isValidState) return <div className={'p-1 text-center'}>Form data not available.</div>;
-    console.log('testing state', state)
     return (
         <SpreadSheetContext.Provider value={{state, setState, apiLoad, compType: renderCard ? 'card' : 'spreadsheet'}}>
             <div className={'w-full h-full'}>
