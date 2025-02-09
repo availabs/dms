@@ -94,12 +94,17 @@ export const RenderSimple = ({isEdit, updateItem, removeItem, addItem, newItem, 
     // =========================================== auto resize begin ===================================================
     // =================================================================================================================
     useEffect(() => {
-        const columnsWithSizeLength = visibleAttributes.filter(({size}) => size).length;
-        if(visibleAttrsWithoutOpenOut.every(c => c.size)) return;
+        if(!gridRef.current) return;
 
-        if (gridRef.current && (!columnsWithSizeLength || columnsWithSizeLength !== visibleAttrsWithoutOpenOut.length)) {
+        const columnsWithSizeLength = visibleAttributes.filter(({size}) => size).length;
+        const gridWidth = gridRef.current.offsetWidth - numColSize - gutterColSize - (allowEdit ? actionColumns.length * actionsColSize : 0);
+        const currUsedWidth = visibleAttributes.reduce((acc, {size}) => acc + +(size || 0), 0);
+        if (
+            !columnsWithSizeLength ||
+            columnsWithSizeLength !== visibleAttrsWithoutOpenOut.length ||
+            currUsedWidth < gridWidth // resize to use full width
+        ) {
             const availableVisibleAttributes = visibleAttrsWithoutOpenOut.filter(v => v.actionType || sourceInfo.columns.find(attr => attr.name === v.name));
-            const gridWidth = gridRef.current.offsetWidth - numColSize - gutterColSize - (allowEdit ? actionColumns.length * actionsColSize : 0);
             const initialColumnWidth = Math.max(minInitColSize, gridWidth / availableVisibleAttributes.length);
             setState(draft => {
                 availableVisibleAttributes.forEach(attr => {

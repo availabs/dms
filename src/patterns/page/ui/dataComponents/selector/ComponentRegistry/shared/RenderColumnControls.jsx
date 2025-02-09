@@ -121,31 +121,67 @@ export default function RenderColumnControls({context}) {
     // ================================================== drag utils end ===============================================
 
     // updates column if present, else adds it with the change the user made.
-    const updateColumns = useCallback((originalAttribute, key, value) => setState(draft => {
-        // update requested key
-        const idx = columns.findIndex(column => column.name === originalAttribute.name);
-        if (idx !== -1) {
-            draft.columns[idx][key] = value;
-        }else{
-            draft.columns.push({...originalAttribute, [key]: value});
-        }
-        // update dependent keys
-        if(key === 'show' && value === false){
-            // stop sorting when column is not visible
-            draft.columns[idx]['sort'] = undefined;
-        }
+    const updateColumns = useCallback((originalAttribute, key, value) => {
+        setState(draft => {
+            let idx = draft.columns.findIndex(column => column.name === originalAttribute.name);
 
-        if(key === 'group' && value === true){
-            // make sure other visible columns have a fn
-            const idxWithInvalidFn =
-                columns.filter(c => c.name !== originalAttribute.name && !c.groupBy && !c.fn)
-                    .map(c => columns.findIndex(column => column.name === c.name));
+            if (idx === -1) {
+                draft.columns.push({ ...originalAttribute, [key]: value });
+                idx = draft.columns.length - 1; // new index
+            } else {
+                draft.columns[idx][key] = value;
+            }
 
-            idxWithInvalidFn.forEach(idx => draft.columns[idx]['fn'] = draft.columns[idx].defaultFn || 'list');
-        }
-    }), [columns]);
+            // special cases
+            if (key === 'show' && value === false) {
+                // stop sorting and applying fn when column is hidden
+                draft.columns[idx].sort = undefined;
+                draft.columns[idx].fn = undefined;
+            } else if (key === 'show' && value === true && draft.columns.some(c => c.name !== originalAttribute.name && c.group)) {
+                // apply fn if at least one column is grouped
+                draft.columns[idx].fn = draft.columns[idx].defaultFn || 'list';
+            }
 
-    // removes it from the columns array if present
+            if (key === 'group' && value === true) {
+                // all other visible columns must have a function
+                draft.columns[idx].fn = undefined;
+                draft.columns
+                    .filter(c => c.name !== originalAttribute.name && c.show && !c.group && !c.fn)
+                    .forEach(col => {
+                        col.fn = col.defaultFn || 'list';
+                    });
+            }
+
+            if (key === 'group' && value === false && draft.columns.some(c => c.name !== originalAttribute.name && c.group)) {
+                // if grouping by other columns, apply fn when removing group for current column
+                draft.columns[idx].fn = draft.columns[idx].defaultFn || 'list';
+            }
+        });
+    }, [setState]);
+
+    const toggleGlobalVisibility = useCallback((show = true) => {
+        setState(draft => {
+            const isGrouping = draft.columns.some(({group}) => group);
+            (draft.sourceInfo.columns || []).forEach(column => {
+                let idx = draft.columns.findIndex(({name}) => name === column.name);
+
+                if (idx === -1) {
+                    draft.columns.push({ ...column, show });
+                    idx = draft.columns.length - 1; // new index
+                } else {
+                    draft.columns[idx]['show'] = show;
+                }
+
+                if (show && isGrouping && !draft.columns[idx].group && !draft.columns[idx].fn) {
+                    draft.columns[idx]['fn'] = draft.columns[idx].defaultFn || 'list';
+                } else if (!show){
+                    draft.columns[idx].sort = undefined;
+                    draft.columns[idx].fn = undefined;
+                }
+            });
+        });
+    }, [setState]);
+
     const resetColumn = useCallback((originalAttribute) => setState(draft => {
         const idx = columns.findIndex(column => column.name === originalAttribute.name);
         if (idx !== -1) {
@@ -153,10 +189,16 @@ export default function RenderColumnControls({context}) {
         }
     }), [columns]);
 
+    const resetAllColumns = useCallback(() => setState(draft => {
+        draft.columns = []
+        draft.dataRequest = {}
+    }), [columns]);
+
     const totalControlColsLen = 2 + +allowCustomColNames + +allowFnSelector + +allowExcludeNASelector +
         +allowShowToggle + +allowFilterToggle + +allowGroupToggle + +allowOpenOutToggle;
     const {gridClass, gridTemplateColumns, width} = gridClasses[totalControlColsLen];
 
+    const isEveryColVisible = (sourceInfo.columns || []).map(({name}) => columns.find(column => column.name === name)).every(column => column?.show);
     return (
         <div className="relative inline-block text-left">
             <button id={menuBtnId}
@@ -178,7 +220,7 @@ export default function RenderColumnControls({context}) {
                            setSearch(e.target.value)
                        }}/>
 
-                <div className="py-1">
+                <div className="py-1 select-none">
                     <div key={'header'}
                          className="flex items-center px-2 py-1 text-xs text-gray-700 hover:bg-gray-100 hover:text-gray-900"
                     >
@@ -203,6 +245,46 @@ export default function RenderColumnControls({context}) {
                             {allowFilterToggle ? <div className={'justify-self-end'}>Ext Filter</div> : null}
                             {allowGroupToggle ? <div className={'justify-self-end'}>Group</div> : null}
                             <div className={'justify-self-end'}>Reset</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="py-1 select-none">
+                    <div key={'global-controls'}
+                         className="flex items-center px-2 py-1 text-xs text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                    >
+                        <div className={'h-4 w-4 m-1 text-gray-800'}>
+                            <svg data-v-4e778f45=""
+                                 className="nc-icon cursor-move !h-3.75 text-gray-600 mr-1"
+                                 viewBox="0 0 24 24" width="1.2em" height="1.2em">
+                                <path fill="currentColor"
+                                      d="M8.5 7a1.5 1.5 0 1 0 0-3a1.5 1.5 0 0 0 0 3m0 6.5a1.5 1.5 0 1 0 0-3a1.5 1.5 0 0 0 0 3m1.5 5a1.5 1.5 0 1 1-3 0a1.5 1.5 0 0 1 3 0M15.5 7a1.5 1.5 0 1 0 0-3a1.5 1.5 0 0 0 0 3m1.5 5a1.5 1.5 0 1 1-3 0a1.5 1.5 0 0 1 3 0m-1.5 8a1.5 1.5 0 1 0 0-3a1.5 1.5 0 0 0 0 3"></path>
+                            </svg>
+                        </div>
+
+                        <div className={`${gridClass} gap-0.5 m-1 w-full`}
+                             style={{gridTemplateColumns}}
+                        >
+                            <div className={'place-self-stretch'}>Apply to All</div>
+                            {allowFnSelector ? <div className={'px-1 w-fit rounded-md text-center'}></div> : null}
+                            {allowExcludeNASelector ? <div className={'px-1 w-fit rounded-md text-center'}></div> : null}
+                            {allowShowToggle ? <div className={'justify-self-end'}>
+                                <div className={'justify-self-end'}>
+                                    <RenderSwitch
+                                        size={'small'}
+                                        id={'all'}
+                                        enabled={isEveryColVisible}
+                                        setEnabled={() => toggleGlobalVisibility(!isEveryColVisible)}
+                                    />
+                                </div>
+                            </div> : null}
+                            {allowOpenOutToggle ? <div className={'justify-self-end'}></div> : null}
+                            {allowFilterToggle ? <div className={'justify-self-end'}></div> : null}
+                            {allowFilterToggle ? <div className={'justify-self-end'}></div> : null}
+                            {allowGroupToggle ? <div className={'justify-self-end'}></div> : null}
+                            <button className={'w-fit place-self-end'} onClick={() => resetAllColumns()}>
+                                <RestoreBin className={'text-orange-500 hover:text-orange-700'} />
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -250,7 +332,7 @@ export default function RenderColumnControls({context}) {
                                             allowFnSelector ?
                                                 <select
                                                     key={attribute.fn}
-                                                    className={'appearance-none w-fit rounded-md bg-gray-100 h-fit text-center cursor-pointer'}
+                                                    className={`px-0.5 appearance-none w-fit rounded-md ${attribute.fn ? `bg-blue-500/15 text-blue-700 hover:bg-blue-500/25` : `bg-gray-100`} h-fit text-center cursor-pointer`}
                                                     value={attribute.fn}
                                                     onChange={e => updateColumns(attribute, 'fn', e.target.value)}
                                                 >
@@ -267,7 +349,7 @@ export default function RenderColumnControls({context}) {
                                             allowExcludeNASelector ?
                                                 <select
                                                     key={attribute.excludeNA}
-                                                    className={'appearance-none px-1 w-fit rounded-md bg-gray-100 h-fit text-center cursor-pointer'}
+                                                    className={`px-0.5 appearance-none px-1 w-fit rounded-md ${attribute.excludeNA ? `bg-blue-500/15 text-blue-700 hover:bg-blue-500/25` : `bg-gray-100`} h-fit text-center cursor-pointer`}
                                                     value={attribute.excludeNA}
                                                     onChange={e => updateColumns(attribute, 'excludeNA', e.target.value)}
                                                 >

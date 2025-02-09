@@ -219,7 +219,8 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
 
     if(isInvalidState) {
         debug && console.log('debug getdata: invalid state', noGroupSomeFnCondition, groupNoFnCondition, visibleColumnsLength, groupedColumnsLength, fnColumnsLength)
-        return {length, data: []};
+        // const invalidState = noGroupSomeFnCondition ? ''
+        return {length, data: [], invalidState: ''};
     }
     // ========================================== check for invalid state end ==========================================
 

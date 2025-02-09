@@ -331,7 +331,83 @@ export const EllipsisVertical = ({className='size-6', ...props}) => (
     <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 12.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 18.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5Z" />
   </svg>
 )
+export const TallyMark = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={16} height={16} color={"#000000"} fill={"none"} {...props}>
+        <path d="M5 4V20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+        <path d="M9 4V20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+        <path d="M13 4V20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+        <path d="M17 4V20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
 
+        <path d="M4 18L18 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>
+)
+
+export const LeftToRightListBullet = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={16} height={16} color={"#000000"} fill={"none"} {...props}>
+        <path d="M8 5L20 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        <path d="M4 5H4.00898" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M4 12H4.00898" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M4 19H4.00898" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M8 12L20 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        <path d="M8 19L20 19" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+);
+export const Sum = (props) => (
+    <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        width={14}
+        height={14}
+        color="#000000"
+        fill="none"
+        {...props}
+    >
+        <path
+            d="M19 17.14c0 1.5 0 2.25-.35 2.8-.18.29-.43.53-.72.71-.56.35-1.32.35-2.85.35H9.2c-2.59 0-3.88 0-4.15-.74-.27-.73.71-1.56 2.68-3.22l3.94-3.33c.94-.8 1.41-1.19 1.41-1.7 0-.52-.47-.91-1.41-1.71L7.72 6.96C5.75 5.3 4.77 4.47 5.05 3.73c.28-.73 1.57-.73 4.15-.73h5.89c1.53 0 2.3 0 2.85.34.29.18.54.43.72.72.35.55.35 1.31.35 2.81"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+        />
+    </svg>
+);
+
+
+export const Group = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={16} height={16} color={"#000000"} fill={"none"} {...props}>
+
+        <path d="M4 6H16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+        <path d="M4 12H16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+        <path d="M4 18H16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+
+        <path d="M19 4V8C19 9 20 10 21 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+        <path d="M19 20V16C19 15 20 14 21 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>
+)
+
+export const SortAsc = props => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={16} height={16} color={"#000000"} fill={"#fff"} {...props}>
+        <path
+            d="M4 14H8.42109C9.35119 14 9.81624 14 9.94012 14.2801C10.064 14.5603 9.74755 14.8963 9.11466 15.5684L5.47691 19.4316C4.84402 20.1037 4.52757 20.4397 4.65145 20.7199C4.77533 21 5.24038 21 6.17048 21H10"
+            stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M4 9L6.10557 4.30527C6.49585 3.43509 6.69098 3 7 3C7.30902 3 7.50415 3.43509 7.89443 4.30527L10 9"
+              stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M17.5 20V4M17.5 20C16.7998 20 15.4915 18.0057 15 17.5M17.5 20C18.2002 20 19.5085 18.0057 20 17.5"
+              stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+)
+
+export const SortDesc = props => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={16} height={16} color={"#000000"} fill={"#fff"} {...props}>
+        <path
+            d="M4 3H8.42109C9.35119 3 9.81624 3 9.94012 3.28013C10.064 3.56026 9.74755 3.89632 9.11466 4.56842L5.47691 8.43158C4.84402 9.10368 4.52757 9.43974 4.65145 9.71987C4.77533 10 5.24038 10 6.17048 10H10"
+            stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M4 21L6.10557 16.3053C6.49585 15.4351 6.69098 15 7 15C7.30902 15 7.50415 15.4351 7.89443 16.3053L10 21"
+              stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M17.5 20V4M17.5 20C16.7998 20 15.4915 18.0057 15 17.5M17.5 20C18.2002 20 19.5085 18.0057 20 17.5"
+              stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+)
 const Icons = {
   CaretDown,
   CaretUp,
@@ -374,7 +450,13 @@ const Icons = {
   DraftPage,
   EllipsisVertical,
   Filter,
-  LoadingHourGlass
+  LoadingHourGlass,
+  TallyMark,
+  LeftToRightListBullet,
+  Sum,
+  Group,
+  SortAsc,
+  SortDesc
 }
 
 
