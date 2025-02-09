@@ -163,7 +163,7 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, renderCard, hide
         async function load() {
             setLoading(true)
             const newCurrentPage = 0; // for all the deps here, it's okay to fetch from page 1.
-            const {length, data} = await getData({state, apiLoad});
+            const {length, data, invalidState} = await getData({state, apiLoad});
             if(isStale) {
                 setLoading(false);
                 return;
@@ -171,6 +171,7 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, renderCard, hide
             setState(draft => {
                 draft.data = data;
                 draft.display.totalLength = length;
+                draft.display.invalidState = invalidState;
             })
             setCurrentPage(newCurrentPage);
             setLoading(false)
@@ -301,6 +302,7 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, renderCard, hide
                             <>
                                 {/*Pagination*/}
                                 <RenderPagination currentPage={currentPage} setCurrentPage={setCurrentPage} />
+                                <span className={'text-xs'}>{loading ? 'loading...' : state.display.invalidState ? state.display.invalidState : null}</span>
                                 <RenderSimple {...{
                                     newItem, setNewItem,
                                     updateItem, removeItem, addItem,

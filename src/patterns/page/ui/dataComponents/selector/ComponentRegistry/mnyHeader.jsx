@@ -153,13 +153,6 @@ const Edit = ({value, onChange, size}) => {
             </div>
 
             <div className={'flex flex-row flex-wrap justify-between'}>
-              <label className={'shrink-0 pr-2 py-1 my-1 w-1/4'}>bgImg:</label>
-              <div className={`flex flex row w-3/4 shrink my-1`}>
-                <Select options={imageOptions} value={compData.} onChange={(e) => setCompData({...compData, bgImg: e.target.value})} />
-              </div>
-            </div>
-
-            <div className={'flex flex-row flex-wrap justify-between'}>
               <label className={'shrink-0 pr-2 py-1 my-1 w-1/4'}>logo:</label>
               <div className={`flex flex row w-3/4 shrink my-1`}>
                 <input type='text' value={compData.logo} onChange={(e) => setCompData({...compData, logo: e.target.value})} />

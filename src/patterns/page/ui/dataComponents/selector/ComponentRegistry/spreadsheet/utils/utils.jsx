@@ -219,8 +219,10 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
 
     if(isInvalidState) {
         debug && console.log('debug getdata: invalid state', noGroupSomeFnCondition, groupNoFnCondition, visibleColumnsLength, groupedColumnsLength, fnColumnsLength)
-        // const invalidState = noGroupSomeFnCondition ? ''
-        return {length, data: [], invalidState: ''};
+        const invalidStateText = noGroupSomeFnCondition ?
+            `All visible columns don't have a function. # Visible columns: ${visibleColumnsLength}, # Function applied: ${fnColumnsLength}` :
+            groupNoFnCondition ? `All Non grouped columns must have a function applied. # Non grouped columns: ${nonGroupedColumnsLength}, # Function applied: ${fnColumnsLength}.` : ''
+        return {length, data: [], invalidState: invalidStateText};
     }
     // ========================================== check for invalid state end ==========================================
 
