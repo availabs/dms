@@ -20,7 +20,7 @@ export { default as Menu } from './components/menu';
 export { default as Input, ConfirmInput } from './components/input';
 export { default as Dialog } from './components/dialog';
 export { default as Popover } from './components/popover';
-export { default as SelectUI } from './components/selectui';
+export { default as Select } from './components/select';
 export { default as FieldSet } from './components/fieldset';
 
 
