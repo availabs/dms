@@ -8,6 +8,7 @@ import Header from './header'
 import Spreadsheet from "./spreadsheet";
 import Card from "./Card";
 import Item from "./item";
+import ComponentsIndexTable from "../componentsIndexTable";
 
 
 export const RenderCalloutBox = ({text = {}, backgroundColor, ...rest}) => {
@@ -121,7 +122,7 @@ const ComponentRegistry = {
      Spreadsheet,
      Item,
      //"Title": CustomHeader,
-     //"Table: Components Index": ComponentsIndexTable,
+     "Table: Components Index": ComponentsIndexTable,
  }
 
 

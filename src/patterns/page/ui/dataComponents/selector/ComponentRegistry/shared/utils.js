@@ -38,6 +38,7 @@ export const getControlConfig = compType => ({
     allowPageSizeInput: ['spreadsheet', 'card'].includes(compType),
     allowCompactViewToggle: ['card'].includes(compType),
     allowGridSizeSelect: ['card'].includes(compType),
+    allowGridGapSelect: ['card'].includes(compType),
     allowHeaderValueLayoutSelect: ['card'].includes(compType),
 
     // ==========in header===============

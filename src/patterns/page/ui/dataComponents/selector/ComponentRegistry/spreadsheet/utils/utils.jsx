@@ -157,7 +157,7 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
             }, {}),
         filter: Object.keys(filter).reduce((acc, columnName) => {
             const {refName, type} = getFullColumn(columnName, columnsWithSettings);
-            const valueSets = (multiselectFilterValueSets[columnName] || filter[columnName] || []).filter(d => d.length);
+            const valueSets = multiselectFilterValueSets[columnName] ? (multiselectFilterValueSets[columnName]).filter(d => d.length) : (filter[columnName] || []);
             if(!valueSets?.length) return acc;
             return {...acc, [refName]: valueSets}
         } , {}),
@@ -219,7 +219,10 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
 
     if(isInvalidState) {
         debug && console.log('debug getdata: invalid state', noGroupSomeFnCondition, groupNoFnCondition, visibleColumnsLength, groupedColumnsLength, fnColumnsLength)
-        return {length, data: []};
+        const invalidStateText = noGroupSomeFnCondition ?
+            `All visible columns don't have a function. # Visible columns: ${visibleColumnsLength}, # Function applied: ${fnColumnsLength}` :
+            groupNoFnCondition ? `All Non grouped columns must have a function applied. # Non grouped columns: ${nonGroupedColumnsLength}, # Function applied: ${fnColumnsLength}.` : ''
+        return {length, data: [], invalidState: invalidStateText};
     }
     // ========================================== check for invalid state end ==========================================
 

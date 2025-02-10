@@ -31,6 +31,19 @@ const gridColsClass = {
     10: 'grid grid-cols-10',
     11: 'grid grid-cols-11',
 };
+const gridGapClass = {
+    1: 'gap-1',
+    2: 'gap-2',
+    3: 'gap-3',
+    4: 'gap-4',
+    5: 'gap-5',
+    6: 'gap-6',
+    7: 'gap-7',
+    8: 'gap-8',
+    9: 'gap-9',
+    10: 'gap-10',
+    11: 'gap-11',
+};
 const colSpanClass = {
     1: 'col-span-1',
     2: 'col-span-2',
@@ -53,7 +66,7 @@ const defaultTheme = ({
 // one cell per row, that carries one column's data,
 // one cell per row, that can carry multiple column's data
 export const Card = ({isEdit}) => {
-    const {state:{columns, data, display: {compactView, gridSize, headerValueLayout}}} = useContext(SpreadSheetContext);
+    const {state:{columns, data, display: {compactView, gridSize, gridGap, headerValueLayout}}} = useContext(SpreadSheetContext);
     const visibleColumns = useMemo(() => columns.filter(({show}) => show), [columns]);
     const cardsWithoutSpanLength = useMemo(() => columns.filter(({show, cardSpan}) => show && !cardSpan).length, [columns]);
     const {headerWrapper, columnControlWrapper} = defaultTheme;
@@ -71,7 +84,7 @@ export const Card = ({isEdit}) => {
                             </div>)}
                 </div> : null
             }
-            <div className={compactView ? gridColsClass[Math.min(gridSize, data.length)] : ``}>
+            <div className={`${compactView ? gridColsClass[Math.min(gridSize, data.length)] : ``} ${gridGapClass[gridGap]}`}>
                 {
                     data.map(item => (
                         <div className={`w-full ${compactView ? `flex flex-col border shadow` : gridColsClass[cardsWithoutSpanLength]} gap-2`}>

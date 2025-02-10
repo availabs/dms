@@ -39,44 +39,46 @@ export const RenderFilters =
         const getFormattedAttributeStr = useCallback((column) => formattedAttributeStr(column, isDms, isCalculatedCol(column, state.columns)), [state.columns, isDms]);
         const getAttributeAccessorStr = useCallback((column) => attributeAccessorStr(column, isDms, isCalculatedCol(column, state.columns)), [state.columns, isDms]);
 
-        function customizer(objValue, srcValue) {
-            console.log('customizer', objValue, srcValue);
-            if (Array.isArray(objValue)) {
-                // return srcValue ? uniq(srcValue) : objValue;
-                return uniq(objValue.concat(srcValue)); //can't always merge. find a way to determine if value has been removed.
-            }
-        }
         useEffect(() => {
-            // handle post init filter updates. update the url to match filter change
+            // run only when using search params
             if (!state.display.allowSearchParams) return;
             // Extract filters from the URL
-            const urlFilters = Array.from(searchParams.keys()).reduce((acc, column) => ({
-                ...acc,
-                [column]: searchParams.get(column)?.split(filterValueDelimiter),
-            }), {});
+            const urlFilters = Array.from(searchParams.keys()).reduce((acc, searchKey) => {
+                const column = state.columns.find(c => c.searchParamKey === searchKey);
+                if (column) acc[column.name] = searchParams.get(searchKey)?.split(filterValueDelimiter);
+                return acc;
+            }, {});
+
             console.log('debug filters: isEqual', isEqual(urlFilters, filters), urlFilters, filters);
-            // Check if filters match the URL filters or cached filters
             const filtersMatchURL = isEqual(urlFilters, filters);
 
-            // Handle initial load or mismatch between filters and search params
+            // If searchParams have changed, they should take priority and update the state
             if (!filtersMatchURL) {
-                const mergedFilters = mergeWith(filters, urlFilters, customizer); // Merge filters and URL params
                 setState(draft => {
                     draft.columns.forEach(column => {
                         const urlFilterValues = urlFilters[column.name] || [];
-                        if (urlFilterValues?.length && !isEqual(column.externalFilter, urlFilterValues)) {
-                            column.externalFilter = urlFilterValues; // Replace with URL filters (handles removal)
+                        if (!isEqual(column.externalFilter, urlFilterValues) && urlFilterValues?.length) {
+                            console.log('debug filters: updating state', column.name, urlFilterValues);
+                            column.externalFilter = urlFilterValues;
                         }
                     });
                 });
 
-                // Navigate to the merged filters if they differ from the current URL
-                const newUrl = convertToUrlParams(mergedFilters, filterValueDelimiter);
-                if (newUrl !== window.location.search.replace('?', '')) {
-                    navigate(`?${newUrl}`);
-                }
+                // return;
             }
-        }, [state.display.allowSearchParams, filters]);
+
+            // // If filters have changed (but not from searchParams), update the URL
+            // const filtersWithSearchParams = Object.keys(filters).reduce((acc, column) => {
+            //     const searchKey = state.columns.find(c => c.name === column)?.searchParamKey || column;
+            //     acc[searchKey] = filters[column];
+            //     return acc;
+            // }, {});
+            //
+            // const newUrl = convertToUrlParams(filtersWithSearchParams, filterValueDelimiter);
+            // if (newUrl !== window.location.search.replace('?', '')) {
+            //     navigate(`?${newUrl}`);
+            // }
+        }, [state.display.allowSearchParams, searchParams, filters]);
 
         useEffect(() => {
             let isStale = false;
@@ -135,9 +137,10 @@ export const RenderFilters =
             }
     }, [filterColumnsToTrack]);
 
-    const filterColumnsToRender = state.columns.filter(column => isEdit ? (Array.isArray(column.internalFilter) || Array.isArray(column.externalFilter)) : Array.isArray(column.externalFilter));
+    const filterColumnsToRender = state.columns.filter(column => isEdit ? column.filter : Array.isArray(column.externalFilter));
     if(!filterColumnsToRender.length) return null;
-    const MultiSelectComp = dataTypes.multiselect.EditComp;
+    const MultiSelectComp = dataTypes.multiselect[state.display.allowSearchParams ? 'ViewComp' : 'EditComp'];
+
     return (
         open ?
             <div className={'w-full px-4 py-6 flex flex-col border border-blue-300 rounded-md'}>
@@ -146,8 +149,29 @@ export const RenderFilters =
                         onClick={() => setOpen(false)}/>
                 {filterColumnsToRender.map((filterColumn, i) => (
                     <div key={i} className={'w-full flex flex-row items-center'}>
-                        <div className={'w-1/4 p-1 text-sm'}>
-                            {filterColumn.customName || filterColumn.display_name || filterColumn.name}
+                        <div className={'w-1/4 p-1 text-sm flex flex-col'}>
+                            <span className={'py-0.5 text-gray-500 font-medium'}>{filterColumn.customName || filterColumn.display_name || filterColumn.name}</span>
+                            {/* UI to match to search params. only show if using search params.*/}
+                            {
+                                state.display.allowSearchParams && isEdit ?
+                                    <div className={'flex items-center'}>
+                                        <label className={'text-xs text-gray-900 font-regular'}>Search key: </label>
+                                        <select className={'p-1 text-xs rounded-md bg-blue-500/15 text-blue-700 hover:bg-blue-500/25'}
+                                                value={filterColumn.searchParamKey}
+                                                onChange={e => setState(draft => {
+                                                    const idx = draft.columns.findIndex(column => column.name === filterColumn.name);
+                                                    if (idx !== -1) {
+                                                        draft.columns[idx].searchParamKey = e.target.value;
+                                                    }
+                                                })}
+                                        >
+                                            <option key={'default'} value={''}></option>
+                                            {
+                                                Array.from(searchParams.keys()).map(key => <option key={key} value={key}>{key}</option>)
+                                            }
+                                        </select>
+                                    </div>: null
+                            }
                         </div>
                         <div className={'flex flex-col w-3/4'}>
                             <RenderFilterValueSelector key={`${filterColumn.name}-internalFilter`}

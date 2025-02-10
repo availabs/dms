@@ -18,6 +18,7 @@ export default function RenderMoreControls({context}) {
         allowPageSizeInput,
         allowCompactViewToggle,
         allowGridSizeSelect,
+        allowGridGapSelect,
         allowHeaderValueLayoutSelect,
         allowDataSizeInput=false
     } = getControlConfig(compType);
@@ -70,6 +71,12 @@ export default function RenderMoreControls({context}) {
                     {allowCompactViewToggle ?
                     <RenderToggleControls title={'Compact View'} value={display.compactView}
                                           setValue={value => updateDisplayValue('compactView', value)}/> : null}
+                    {allowGridSizeSelect && display.compactView ?
+                        <RenderInputControls title={'Grid Size'} type={'number'} value={display.gridSize}
+                                             setValue={value => updateDisplayValue('gridSize', +value)}/> : null}
+                    {allowGridGapSelect && display.compactView ?
+                        <RenderInputControls title={'Grid Gap'} type={'number'} value={display.gridGap}
+                                             setValue={value => updateDisplayValue('gridGap', +value)}/> : null}
                     {allowUsePaginationToggle ?
                         <RenderToggleControls title={'Use Pagination'} value={display.usePagination}
                                               setValue={value => updateDisplayValue('usePagination', value)}/> : null}
@@ -80,9 +87,6 @@ export default function RenderMoreControls({context}) {
                     {allowDataSizeInput ?
                         <RenderInputControls title={'Data Size'} type={'number'} value={display.dataSize}
                                              setValue={value => updateDisplayValue('dataSize', +value)}/> : null}
-                    {allowGridSizeSelect ?
-                        <RenderInputControls title={'Grid Size'} type={'number'} value={display.gridSize}
-                                             setValue={value => updateDisplayValue('gridSize', +value)}/> : null}
                     {
                         allowHeaderValueLayoutSelect ? (
                             <div

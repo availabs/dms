@@ -1,10 +1,9 @@
 import React, {useCallback, useContext, useEffect, useRef, useState} from "react";
-import {ArrowDown, SortAsc, SortDesc} from "../../../../../../../admin/ui/icons";
 import {RenderToggleControls} from "../../shared/RenderToggleControls";
 import {RenderInputControls} from "../../shared/RenderInputControls";
 import {getControlConfig, useHandleClickOutside} from "../../shared/utils";
 import {SpreadSheetContext} from "../index";
-import {InfoCircle} from "../../../../../icons";
+import {Group, InfoCircle, LeftToRightListBullet, TallyMark, Sum, ArrowDown, SortAsc, SortDesc} from "../../../../../icons";
 
 const RenderLinkControls = ({attribute, updateColumns}) => {
     const [tmpValue, setTmpValue] = useState(attribute || {});
@@ -65,7 +64,7 @@ const selectClasses = 'p-1 w-full rounded-md bg-white hover:bg-gray-100 cursor-p
 
 // in header menu for each column
 export default function RenderInHeaderColumnControls({attribute}) {
-    const {state: {columns = []}, setState, compType} = useContext(SpreadSheetContext);
+    const {state: {columns = [], display}, setState, compType} = useContext(SpreadSheetContext);
     const {
         allowSortBy,
         allowJustify,
@@ -119,6 +118,14 @@ export default function RenderInHeaderColumnControls({attribute}) {
         {label: 'Right Justified', value: 'right'},
     ]
     if(compType === 'card') justifyOptions.push({label: 'Full Justified', value: 'full'})
+    const iconClass = 'text-gray-400';
+    const iconSizes = {width: 14 , height: 14}
+    const fnIcons = {
+        count: <TallyMark key={'count-icon'} className={iconClass} {...iconSizes} />,
+        list: <LeftToRightListBullet key={'list-icon'} className={iconClass} {...iconSizes} />,
+        sum: <Sum key={'sum-icon'} className={iconClass} {...iconSizes} />,
+    }
+
     return (
         <div className="relative w-full">
             <div id={menuBtnId}
@@ -129,9 +136,16 @@ export default function RenderInHeaderColumnControls({attribute}) {
                     {attribute.customName || attribute.display_name || attribute.name}</span>
                 <div id={menuBtnId} className={'flex items-center'}>
                     {/*/!*<InfoCircle width={16} height={16} className={'text-gray-500'} />*!/ needs a lexical modal*/}
-                    {attribute.sort === 'asc nulls last' ? <SortAsc className={'text-gray-500'}/> :
-                        attribute.sort === 'desc nulls last' ? <SortDesc className={'text-gray-500'}/> : null}
-                    <ArrowDown id={menuBtnId} className={'text-gray-500 group-hover:text-gray-600'}/>
+                    {
+                        attribute.group ? <Group key={'group-icon'} className={iconClass} {...iconSizes} /> :
+                            attribute.fn ? fnIcons[attribute.fn] || attribute.fn : null
+                    }
+                    {
+                        attribute.sort === 'asc nulls last' ? <SortAsc key={'sort-icon'} className={iconClass} {...iconSizes} /> :
+                            attribute.sort === 'desc nulls last' ? <SortDesc key={'sort-icon'} className={iconClass} {...iconSizes} /> : null
+                    }
+
+                    <ArrowDown id={menuBtnId} className={'text-gray-400 group-hover:text-gray-600 transition ease-in-out duration-200'}/>
                 </div>
             </div>
 
@@ -221,7 +235,7 @@ export default function RenderInHeaderColumnControls({attribute}) {
                         }
 
                         {
-                            allowCardSpan ? (
+                            allowCardSpan && !display.compactView ? (
                                 <div className={'w-full cursor-pointer'}>
                                     <select
                                         className={selectClasses}

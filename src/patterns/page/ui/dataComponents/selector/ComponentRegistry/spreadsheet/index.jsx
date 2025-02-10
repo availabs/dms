@@ -163,7 +163,7 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, renderCard, hide
         async function load() {
             setLoading(true)
             const newCurrentPage = 0; // for all the deps here, it's okay to fetch from page 1.
-            const {length, data} = await getData({state, apiLoad});
+            const {length, data, invalidState} = await getData({state, apiLoad});
             if(isStale) {
                 setLoading(false);
                 return;
@@ -171,6 +171,7 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, renderCard, hide
             setState(draft => {
                 draft.data = data;
                 draft.display.totalLength = length;
+                draft.display.invalidState = invalidState;
             })
             setCurrentPage(newCurrentPage);
             setLoading(false)
@@ -301,6 +302,7 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, renderCard, hide
                             <>
                                 {/*Pagination*/}
                                 <RenderPagination currentPage={currentPage} setCurrentPage={setCurrentPage} />
+                                <span className={'text-xs'}>{loading ? 'loading...' : state.display.invalidState ? state.display.invalidState : null}</span>
                                 <RenderSimple {...{
                                     newItem, setNewItem,
                                     updateItem, removeItem, addItem,
@@ -323,10 +325,6 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, renderCard, ...rest}) 
     const [newItem, setNewItem] = useState({})
     const [loading, setLoading] = useState(false);
     const [currentPage, setCurrentPage] = useState(0);
-
-    const filterValueDelimiter = '|||'
-    const navigate = useNavigate();
-    const [searchParams, setSearchParams] = useSearchParams(window.location.search);
     const groupByColumnsLength = useMemo(() => state?.columns?.filter(({group}) => group).length, [state?.columns]);
     const showChangeFormatModal = !state?.sourceInfo?.columns;
     const isValidState = state?.dataRequest; // new state structure
@@ -483,6 +481,8 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, renderCard, ...rest}) 
                         <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={isEdit} cachedFilters={cachedFilters} defaultOpen={false}/>
                         <RenderDownload state={state} apiLoad={apiLoad}/>
                     </div>
+                    <span className={'text-xs'}>{loading ? 'loading...' : state.display.invalidState ? state.display.invalidState : null}</span>
+
                     {
                         renderCard ?
                             <Card isEdit={isEdit}/> : (
