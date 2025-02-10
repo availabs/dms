@@ -4,7 +4,7 @@ import {useMemo} from "react";
 export const RenderFilterValueSelector = ({loading, isEdit, filterType, filterColumn, filterOptions=[], MultiSelectComp, state, setState, delimiter}) => {
     const options = useMemo(() => filterOptions.find(fo => fo.column === filterColumn.name)?.uniqValues, [filterOptions, filterColumn.name]);
 
-    return (!isEdit && filterType === 'internalFilter') || !Array.isArray(filterColumn[filterType]) ? null : (
+    return (!isEdit && filterType === 'internalFilter') ? null : (
         <div className={'w-full p-1 relative'}>
             <Pill text={filterType.replace('Filter', '')} color={'orange'} />
 

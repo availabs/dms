@@ -325,10 +325,6 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, renderCard, ...rest}) 
     const [newItem, setNewItem] = useState({})
     const [loading, setLoading] = useState(false);
     const [currentPage, setCurrentPage] = useState(0);
-
-    const filterValueDelimiter = '|||'
-    const navigate = useNavigate();
-    const [searchParams, setSearchParams] = useSearchParams(window.location.search);
     const groupByColumnsLength = useMemo(() => state?.columns?.filter(({group}) => group).length, [state?.columns]);
     const showChangeFormatModal = !state?.sourceInfo?.columns;
     const isValidState = state?.dataRequest; // new state structure
@@ -485,6 +481,8 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, renderCard, ...rest}) 
                         <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={isEdit} cachedFilters={cachedFilters} defaultOpen={false}/>
                         <RenderDownload state={state} apiLoad={apiLoad}/>
                     </div>
+                    <span className={'text-xs'}>{loading ? 'loading...' : state.display.invalidState ? state.display.invalidState : null}</span>
+
                     {
                         renderCard ?
                             <Card isEdit={isEdit}/> : (

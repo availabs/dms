@@ -241,8 +241,7 @@ export default function RenderColumnControls({context}) {
                             {allowExcludeNASelector ? <div className={'px-1 w-fit rounded-md text-center'}>Exclude N/A</div> : null}
                             {allowShowToggle ? <div className={'justify-self-end'}>Show</div> : null}
                             {allowOpenOutToggle ? <div className={'justify-self-end'}>Open Out</div> : null}
-                            {allowFilterToggle ? <div className={'justify-self-end'}>Int Filter</div> : null}
-                            {allowFilterToggle ? <div className={'justify-self-end'}>Ext Filter</div> : null}
+                            {allowFilterToggle ? <div className={'justify-self-end'}>Filter</div> : null}
                             {allowGroupToggle ? <div className={'justify-self-end'}>Group</div> : null}
                             <div className={'justify-self-end'}>Reset</div>
                         </div>
@@ -279,7 +278,6 @@ export default function RenderColumnControls({context}) {
                                 </div>
                             </div> : null}
                             {allowOpenOutToggle ? <div className={'justify-self-end'}></div> : null}
-                            {allowFilterToggle ? <div className={'justify-self-end'}></div> : null}
                             {allowFilterToggle ? <div className={'justify-self-end'}></div> : null}
                             {allowGroupToggle ? <div className={'justify-self-end'}></div> : null}
                             <button className={'w-fit place-self-end'} onClick={() => resetAllColumns()}>
@@ -390,20 +388,8 @@ export default function RenderColumnControls({context}) {
                                                     <RenderSwitch
                                                         size={'small'}
                                                         id={attribute.name}
-                                                        enabled={Array.isArray(attribute.internalFilter)}
-                                                        setEnabled={(value) => updateColumns(attribute, 'internalFilter', value ? [] : undefined)}
-                                                    />
-                                                </div> : null
-                                        }
-
-                                        {
-                                            allowFilterToggle ?
-                                                <div className={'justify-self-end'}>
-                                                    <RenderSwitch
-                                                        size={'small'}
-                                                        id={attribute.name}
-                                                        enabled={Array.isArray(attribute.externalFilter)}
-                                                        setEnabled={(value) => updateColumns(attribute, 'externalFilter', value ? [] : undefined)}
+                                                        enabled={attribute.filter}
+                                                        setEnabled={(value) => updateColumns(attribute, 'filter', value)}
                                                     />
                                                 </div> : null
                                         }
