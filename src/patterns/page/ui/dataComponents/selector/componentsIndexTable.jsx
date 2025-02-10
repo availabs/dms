@@ -1,13 +1,13 @@
 import React, {useState, useEffect, useContext, useMemo} from 'react'
-import {CMSContext} from "../siteConfig";
+import {CMSContext} from "../../../siteConfig";
 import {cloneDeep, get} from "lodash-es";
 import {Link} from "react-router-dom";
 import writeXlsxFile from 'write-excel-file';
-import {Download} from '../ui/icons'
-import RenderSwitch from "../ui/dataComponents/selector/ComponentRegistry/shared/Switch";
-import FilterableSearch from "./selector/FilterableSearch";
-import { RegisteredComponents } from "./selector/index";
-import {dmsDataEditor} from "../../../api";
+import {Download} from '../../icons'
+import RenderSwitch from "./ComponentRegistry/shared/Switch";
+import FilterableSearch from "./FilterableSearch";
+import { RegisteredComponents } from "./index";
+import {dmsDataEditor} from "../../../../../api";
 
 const range = (start, end) => Array.from({length: (end + 1 - start)}, (v, k) => k + start);
 
