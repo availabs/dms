@@ -28,7 +28,6 @@ export function Header ({position = 'above',bgImg = '/themes/mny/takeaction_land
           </div>
         </div>
       </div>
-      
     </div>
   )
 }
