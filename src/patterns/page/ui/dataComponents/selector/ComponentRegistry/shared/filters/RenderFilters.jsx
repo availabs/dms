@@ -64,20 +64,20 @@ export const RenderFilters =
                     });
                 });
 
-                return; // Prevent navigating in the same effect cycle
+                // return;
             }
 
-            // If filters have changed (but not from searchParams), update the URL
-            const filtersWithSearchParams = Object.keys(filters).reduce((acc, column) => {
-                const searchKey = state.columns.find(c => c.name === column)?.searchParamKey || column;
-                acc[searchKey] = filters[column];
-                return acc;
-            }, {});
-
-            const newUrl = convertToUrlParams(filtersWithSearchParams, filterValueDelimiter);
-            if (newUrl !== window.location.search.replace('?', '')) {
-                navigate(`?${newUrl}`);
-            }
+            // // If filters have changed (but not from searchParams), update the URL
+            // const filtersWithSearchParams = Object.keys(filters).reduce((acc, column) => {
+            //     const searchKey = state.columns.find(c => c.name === column)?.searchParamKey || column;
+            //     acc[searchKey] = filters[column];
+            //     return acc;
+            // }, {});
+            //
+            // const newUrl = convertToUrlParams(filtersWithSearchParams, filterValueDelimiter);
+            // if (newUrl !== window.location.search.replace('?', '')) {
+            //     navigate(`?${newUrl}`);
+            // }
         }, [state.display.allowSearchParams, searchParams, filters]);
 
         useEffect(() => {
@@ -140,7 +140,7 @@ export const RenderFilters =
     const filterColumnsToRender = state.columns.filter(column => isEdit ? column.filter : Array.isArray(column.externalFilter));
     if(!filterColumnsToRender.length) return null;
     const MultiSelectComp = dataTypes.multiselect[state.display.allowSearchParams ? 'ViewComp' : 'EditComp'];
-    console.log('fdata?', filterOptions, state.columns)
+
     return (
         open ?
             <div className={'w-full px-4 py-6 flex flex-col border border-blue-300 rounded-md'}>
