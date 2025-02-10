@@ -5,7 +5,7 @@ import { cloneDeep, get, isEqual } from "lodash-es"
 import { 
   Button,
   Menu, 
-  Input,
+  /*Input,*/
   DraggableNav,
   Dialog
 } 
@@ -235,7 +235,7 @@ function RenameModal ({title, prompt, item={}, dataItems, open, setOpen})  {
               Rename {item.title}
           </h3>
           <div className="mt-2 w-full">
-            <Input value={newName} onChange={e => setNewName(e.target.value)} />
+            <input value={newName} onChange={e => setNewName(e.target.value)} />
           </div>
         </div>
       </div>

@@ -2,7 +2,7 @@ import React, {useEffect, useMemo, useState} from "react";
 import { get } from "lodash-es"
 
 import { CMSContext } from '../../../../siteConfig'
-import Selector from "./Selector";
+import TemplateSelector from "./TemplateSelector";
 //import {pgEnv} from "../utils/constants.js";
 
 export const getAttributes = (data) => {
@@ -49,7 +49,7 @@ export const ViewsSelect = ({source_id, value, onChange}) => {
 
     // console.log('sources select', views)
     return (
-        <Selector
+        <TemplateSelector
             options={['',...views]}
             value={value}
             nameAccessor={d => d?.version }

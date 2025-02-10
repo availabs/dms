@@ -1,12 +1,12 @@
 {
   "name": "@availabs/dms",
-  "version": "0.0.34",
+  "version": "0.0.54",
   "description": "AVAIL Data Management System",
   "main": "dist/index.js",
   "private": false,
   "scripts": {
     "test": "node test.js",
-    "build": "npx eslint src && babel src -d dist --extensions '.ts,.tsx,.js,.jsx' && cp src/dms.css dist",
+    "build": "npx eslint src && babel src -d dist --extensions '.ts,.tsx,.js,.jsx'",
     "publish-it": "npm run build && npm publish --access public",
     "watch": "nodemon --exec npm run build"
   },
@@ -57,6 +57,7 @@
     "@lexical/selection": "0.17.1",
     "@lexical/table": "0.17.1",
     "@lexical/utils": "0.17.1",
+    "immutability-helper": "^3.1.1",
     "katex": "^0.16.10",
     "lexical": "0.17.1",
     "lodash-es": "^4.17.21",
@@ -67,6 +68,7 @@
     "react-frame-component": "^5.2.7",
     "react-router-dom": "^6.26.2",
     "react-table": "^7.8.0",
+    "use-immer": "^0.11.0",
     "uuid": "^11.0.3",
     "write-excel-file": "^2.0.10"
   }

@@ -39,7 +39,7 @@ export const selectTheme = {
 }
  
 
-const Select = forwardRef(function Select({ className, multiple, options=[], value, onChange=()=>{}, ...props }, ref) {
+const SelectUI = forwardRef(function Select({ className, multiple, options=[], value, onChange=()=>{}, ...props }, ref) {
   const { theme = { select: selectTheme } } = React.useContext(CMSContext) || {}
   return (
     <span
@@ -73,4 +73,4 @@ const Select = forwardRef(function Select({ className, multiple, options=[], val
   )
 })
 
-export default Select
+export default SelectUI

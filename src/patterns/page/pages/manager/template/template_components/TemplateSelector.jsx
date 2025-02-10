@@ -3,7 +3,7 @@ import { Combobox, Transition } from '@headlessui/react'
 
 
 
-export default function Selector({options=[], onChange, value, nameAccessor=d => d?.name || d , valueAccessor, className }) {
+export default function TemplateSelector({options=[], onChange, value, nameAccessor=d => d?.name || d , valueAccessor, className }) {
   const [query, setQuery] = useState('')
   const filteredOptions =
     query === ''

@@ -2,7 +2,8 @@ import React, {useState, useEffect} from 'react'
 import {createBrowserRouter, Outlet, RouterProvider} from "react-router-dom";
 
 //import {  adminConfig } from "./modules/dms/src/"
-import { dmsDataLoader, dmsPageFactory, registerDataType, Selector } from '../../'
+import { dmsDataLoader, dmsPageFactory, registerDataType } from '../../'
+import Selector from '../../patterns/page/ui/dataComponents/selector'
 import { falcorGraph, useFalcor } from "@availabs/avl-falcor"
 import { cloneDeep } from "lodash-es"
 
