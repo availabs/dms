@@ -1,6 +1,6 @@
 import React from 'react'
 import { Field, Fieldset, Label, Description } from '@headlessui/react'
-import { Select } from '../select/'
+import Select from '../select/'
 import Input, {ConfirmInput} from '../input'
 
 import { CMSContext } from '../../../siteConfig';

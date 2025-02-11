@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect }from 'react'
-import { SelectUI } from '../../../'
+import SelectUI from '../../../../ui/components/select/'
 import {isJson} from "../index";
 
 
