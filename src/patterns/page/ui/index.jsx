@@ -1,28 +1,27 @@
 import React, { useEffect, Fragment, useRef, useState } from 'react'
 import {PencilIcon} from './icons'
 import { CMSContext } from '../siteConfig'
-import { Transition, Switch, Popover } from '@headlessui/react'
+import { Transition, } from '@headlessui/react'
 import { usePopper } from 'react-popper'
 import defaultTheme from './theme'
 
 import * as Headless from '@headlessui/react'
 
 
-export { default as DraggableNav } from './components/nestable/draggableNav'
-export { default as Layout }  from './components/layout'
-export { default as SideNav } from './components/sidenav' 
-export { default as TopNav } from './components/topnav'
-export { default as Nestable } from './components/nestable'
-export { default as Drawer } from './components/drawer'
-export { default as Tabs } from './components/tabs'
-export { default as Button } from './components/button'
-export { default as Menu } from './components/menu'
-export { default as Input } from './components/input'
-export { ConfirmInput } from './components/input'
-export { default as Dialog } from './components/dialog'
-export { default as Popover } from './components/popover'
-export { default as Select } from './components/select'
-export { default as FieldSet } from './components/fieldset'
+export { default as DraggableNav } from './components/nestable/draggableNav';
+export { default as Layout }  from './components/layout';
+export { default as SideNav } from './components/sidenav'; 
+export { default as TopNav } from './components/topnav';
+export { default as Nestable } from './components/nestable';
+export { default as Drawer } from './components/drawer';
+export { default as Tabs } from './components/tabs';
+export { default as Button } from './components/button';
+export { default as Menu } from './components/menu';
+export { default as Input, ConfirmInput } from './components/input';
+export { default as Dialog } from './components/dialog';
+export { default as Popover } from './components/popover';
+export { default as Select } from './components/select';
+export { default as FieldSet } from './components/fieldset';
 
 
 export const useClickOutside = handleClick => {

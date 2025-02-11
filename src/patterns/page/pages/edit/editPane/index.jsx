@@ -2,7 +2,7 @@ import React, { useEffect, Fragment, useRef, useState } from 'react'
 import { useLocation, useSubmit, NavLink} from "react-router-dom";
 import { cloneDeep, get, isEqual } from "lodash-es"
 
-import { Drawer, Tabs, Button, Menu, Input, DraggableNav, Dialog } from '../../../ui'
+import { Drawer, Tabs, Button, Menu, DraggableNav, Dialog } from '../../../ui'
 import { ArrowRight, ArrowDown, AdjustmentsHorizontal, CaretDown, EllipsisVertical} from '../../../ui/icons'
 import { json2DmsForm, getUrlSlug, toSnakeCase, parseJSON } from '../../_utils'
 import { publish, discardChanges} from '../editFunctions'

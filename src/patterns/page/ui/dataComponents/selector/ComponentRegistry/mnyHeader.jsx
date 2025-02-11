@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect }from 'react'
-import {Select} from '../../../'
+import { SelectUI } from '../../../'
 import {isJson} from "../index";
 
 
@@ -28,7 +28,6 @@ export function Header ({position = 'above',bgImg = '/themes/mny/takeaction_land
           </div>
         </div>
       </div>
-      
     </div>
   )
 }
@@ -148,9 +147,16 @@ const Edit = ({value, onChange, size}) => {
             <div className={'flex flex-row flex-wrap justify-between'}>
               <label className={'shrink-0 pr-2 py-1 my-1 w-1/4'}>bgImg:</label>
               <div className={`flex flex row w-3/4 shrink my-1`}>
-                <Select options={imageOptions} value={compData.bgImg} onChange={(e) => setCompData({...compData, bgImg: e.target.value})} />
+                <SelectUI options={imageOptions} value={compData.bgImg} onChange={(e) => setCompData({...compData, bgImg: e.target.value})} />
               </div>
             </div>
+
+           {/* <div className={'flex flex-row flex-wrap justify-between'}>
+              <label className={'shrink-0 pr-2 py-1 my-1 w-1/4'}>bgImg:</label>
+              <div className={`flex flex row w-3/4 shrink my-1`}>
+                <SelectUI options={imageOptions} value={compData.} onChange={(e) => setCompData({...compData, bgImg: e.target.value})} />
+              </div>
+            </div>*/}
 
             <div className={'flex flex-row flex-wrap justify-between'}>
               <label className={'shrink-0 pr-2 py-1 my-1 w-1/4'}>logo:</label>

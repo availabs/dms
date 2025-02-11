@@ -1,6 +1,6 @@
 import React from 'react'
 
-export function Input({label, value, placeholder="", onChange}) {
+export function InputComp({label, value, placeholder="", onChange}) {
   return (
     
       <div className="w-full [&>[data-slot=label]+[data-slot=control]]:mt-3 [&>[data-slot=label]+[data-slot=description]]:mt-1 [&>[data-slot=description]+[data-slot=control]]:mt-3 [&>[data-slot=control]+[data-slot=description]]:mt-3 [&>[data-slot=control]+[data-slot=error]]:mt-3 [&>[data-slot=label]]:font-medium" data-headlessui-state="">

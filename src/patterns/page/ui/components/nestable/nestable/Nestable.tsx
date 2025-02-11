@@ -55,7 +55,8 @@ class Nestable extends Component {
   };
 
   componentDidMount() {
-    let { items, collapsedIds, childrenProp } = this.props;
+    let { items } = this.props
+    const { collapsedIds, childrenProp } = this.props;
 
     // make sure every item has property 'children'
     items = listWithChildren(items, childrenProp);
@@ -230,7 +231,7 @@ class Nestable extends Component {
 
       // is last (by order) item in array
       if (itemIndex + 1 === parent[childrenProp].length) {
-        let pathTo = pathFrom.slice(0, -1);
+        const pathTo = pathFrom.slice(0, -1);
         pathTo[pathTo.length - 1] += 1;
 
         // if collapsed by default

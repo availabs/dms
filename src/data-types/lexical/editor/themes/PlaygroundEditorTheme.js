@@ -32,8 +32,6 @@ const theme = {
   // },
   // quote:
   //   "m-0 ml-5 mb-2 text-[15px] text-[rgb(101,103,107)] border-l-4 border-l-[rgb(206,208,212)] pl-4", //'PlaygroundEditorTheme__quote',
-  
-  paragraph: "m-0 relative", //'PlaygroundEditorTheme__paragraph',
   text: {
     bold: "font-[700]", //'PlaygroundEditorTheme__textBold',
     code: "bg-gray-200 px-1 py-0.5 font-mono text-[94%]", //'PlaygroundEditorTheme__textCode',
@@ -152,16 +150,7 @@ const theme = {
   tableResizeRuler: "block absolute w-[1px] bg-[rgb(60,132,244)] h-full top-0", //'PlaygroundEditorTheme__tableCellResizeRuler',
   tableSelected: "outline outline-2 outline-[rgb(60,132,244)]", //'PlaygroundEditorTheme__tableSelected',
   charLimit: "inline bg-[#ffbbbb] !important", //PlaygroundEditorTheme__characterLimit
-  text: {
-    bold: "font-bold", //'PlaygroundEditorTheme__textBold',
-    code: "bg-gray-200 px-1 py-0.5 font-mono text-[94%]", //'PlaygroundEditorTheme__textCode',
-    italic: "italic", //'PlaygroundEditorTheme__textItalic',
-    strikethrough: "line-through", //'PlaygroundEditorTheme__textStrikethrough',
-    subscript: "align-sub text-[0.8em]", //'PlaygroundEditorTheme__textSubscript',
-    superscript: "align-super text-[0.8em]", //'PlaygroundEditorTheme__textSuperscript',
-    underline: "underline", //'PlaygroundEditorTheme__textUnderline',
-    underlineStrikethrough: "underline line-through", //'PlaygroundEditorTheme__textUnderlineStrikethrough',
-  },
+  
 
   // lexical stuff
 

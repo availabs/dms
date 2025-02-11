@@ -4,7 +4,7 @@ import {dmsDataLoader} from "../../../../../../api";
 import { get } from "lodash-es";;
 //import {falcor} from "~/modules/avl-falcor"
 import { CMSContext } from '../../../../siteConfig'
-import Selector from "./Selector";
+import TemplateSelector from "./TemplateSelector";
 import {generatePages} from "./generatePages";
 const ViewInfo = ({submit, item, onChange, loadingStatus, apiLoad, setLoadingStatus=() => {}}) => {
     const { falcor, falcorCache, pgEnv, app, type } = React.useContext(CMSContext);
@@ -132,7 +132,7 @@ const ViewInfo = ({submit, item, onChange, loadingStatus, apiLoad, setLoadingSta
             <div>Attributes : {attributes?.length || 0}</div>*/}
 
             <span className='text-xs uppercase font-bold text-slate-400 ml-4'> url suffix </span>
-            <Selector
+            <TemplateSelector
                 className={'ml-2.5 relative w-full cursor-default overflow-hidden bg-transparent border-b-2 border-slate-300 text-slate-500 text-left sm:text-sm'}
                 options={attributes.map(d => d.name)}
                 value={urlSuffixCol}
@@ -144,7 +144,7 @@ const ViewInfo = ({submit, item, onChange, loadingStatus, apiLoad, setLoadingSta
                 }}
             />
 
-            <Selector
+            <TemplateSelector
                 options={['',...attributes]}
                 value={id_column}
                 nameAccessor={d => d?.name}
@@ -153,7 +153,7 @@ const ViewInfo = ({submit, item, onChange, loadingStatus, apiLoad, setLoadingSta
             />
 
             {id_column?.name ?
-                <Selector
+                <TemplateSelector
                     options={dataRows}
                     value={active_row}
                     nameAccessor={d => id_column?.name === 'geoid' ? d?.['county'] || d?.['name'] || d?.[id_column?.name] : d?.[id_column?.name] }
