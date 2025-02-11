@@ -16,7 +16,7 @@ export const RenderAction = ({ newItem={}, removeItem=() => {}, columns=[], acti
         .filter(({internalFilter, externalFilter}) => Array.isArray(internalFilter) || Array.isArray(externalFilter))
         .map(({name, internalFilter=[], externalFilter=[]}) => ({column: name, values: uniq([...internalFilter, ...externalFilter])}));
 
-    const searchParams = groupBy.length ? convertToUrlParams([...groupBy, ...filters]) : `id=${newItem.id}`;
+    const searchParams = groupBy.length ? convertToUrlParams([...groupBy, ...filters], '|||') : `id=${newItem.id}`;
 
     const Icon = getIcon({name: action.name, icon: action.icon || (action.type === 'delete' && 'TrashCan')})
     return (

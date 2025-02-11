@@ -301,7 +301,7 @@ export const convertToUrlParams = (arr, delimiter) => {
 
     arr.forEach(item => {
         const { column, values = [] } = item;
-        params.append(column, values.filter(v => Array.isArray(v) ? v.length : v).join(delimiter));
+        params.append(column, values.filter(v => Array.isArray(v) ? v.length : v).map(v => Array.isArray(v) ? v.join(delimiter) : v).join(delimiter));
     });
 
     return params.toString();

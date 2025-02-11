@@ -1,13 +1,15 @@
 import React, {useEffect} from 'react'
-import { useLoaderData } from "react-router-dom";
+import {useLoaderData, useLocation, useSubmit} from "react-router-dom";
 import { filterParams } from '../dms-manager/_utils'
 import { getAttributes } from './_utils'
-import {dmsDataLoader} from "../api";
+import {dmsDataEditor, dmsDataLoader} from "../api";
 import {useFalcor} from "@availabs/avl-falcor";
 
 
 export default function ViewWrapper({ Component, format, options, params, user, ...props}) {
 	const { falcor } = useFalcor()
+	const submit = useSubmit();
+	const { pathname, search } = useLocation()
 	let attributes = getAttributes(format,options)
 	const { data=[] } = useLoaderData() || {}
 	const {defaultSort = (d) => d } = format
@@ -27,7 +29,6 @@ export default function ViewWrapper({ Component, format, options, params, user, 
 		const res = await dmsDataEditor(falcor, config, data, requestType);
 		submit(null, {action: `${pathname}${search}`})
 		if(!data.id) return res; // return id if apiUpdate was used to create an entry.
-		if(data.app !== app || data.type !== type) return; // if apiUpdate was used to manually update something, don't refresh.
 	}
 
 	return (
