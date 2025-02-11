@@ -128,14 +128,27 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, renderCard, hide
     useEffect(() => {
         if(!isValidState) return;
         let isStale = false;
+
+        // builds an object with filter, exclude, gt, gte, lt, lte, like as keys. columnName: [values] as values
+        const filterOptions = state.columns.reduce((acc, column) => {
+            (column.filters || []).forEach(({type, operation, values}) => {
+                acc[operation] = {...acc[operation] || {}, [column.name]: values};
+            })
+
+            if(column.excludeNA){
+                acc.exclude = acc.exclude && acc.exclude[column.name] ?
+                                {...acc.exclude, [column.name]: [...acc.exclude[column.name], 'null']} :
+                                {...acc.exclude || [], [column.name]: ['null']}
+
+            }
+            return acc;
+        }, {})
         const newDataReq = {
             // visibleColumns: state.columns.filter(column => column.show),
+            ...filterOptions,
             groupBy: state.columns.filter(column => column.group).map(column => column.name),
             orderBy: state.columns.filter(column => column.sort).reduce((acc, column) => ({...acc, [column.name]: column.sort}), {}),
-            filter: getFilters(state.columns), // {colName: []}
             fn: state.columns.filter(column => column.fn).reduce((acc, column) => ({...acc, [column.name]: column.fn}), {}),
-            exclude: state.columns.filter(column => column.excludeNA || Array.isArray(column.internalExclude))
-                .reduce((acc, {name, excludeNA, internalExclude}) => ({...acc, [name]: [...excludeNA ? ['null'] : [], ...Array.isArray(internalExclude) ? internalExclude : []]}), {}),
             meta: state.columns.filter(column => column.show && 
                                                  ['meta-variable', 'geoid-variable', 'meta'].includes(column.display) && 
                                                  column.meta_lookup)
@@ -328,7 +341,6 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, renderCard, ...rest}) 
     const groupByColumnsLength = useMemo(() => state?.columns?.filter(({group}) => group).length, [state?.columns]);
     const showChangeFormatModal = !state?.sourceInfo?.columns;
     const isValidState = state?.dataRequest; // new state structure
-    const cachedFilters = useMemo(() => getFilters(isJson(value) ? JSON.parse(value)?.columns?.map(({name, externalFilter}) => ({name, externalFilter})) : []), [value]);
 
     useEffect(() => {
         const newState = convertOldState(value)
@@ -339,9 +351,24 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, renderCard, ...rest}) 
     useEffect(() => {
         if(!isValidState) return;
         let isStale = false;
+
+        // builds an object with filter, exclude, gt, gte, lt, lte, like as keys. columnName: [values] as values
+        const filterOptions = state.columns.reduce((acc, column) => {
+            (column.filters || []).forEach(({type, operation, values}) => {
+                acc[operation] = {...acc[operation] || {}, [column.name]: values};
+            })
+
+            if(column.excludeNA){
+                acc.exclude = acc.exclude && acc.exclude[column.name] ?
+                    {...acc.exclude, [column.name]: [...acc.exclude[column.name], 'null']} :
+                    {...acc.exclude || [], [column.name]: ['null']}
+
+            }
+            return acc;
+        }, {})
         const newDataReq = {
            ...state.dataRequest || {},
-            filter: getFilters(state.columns),
+            ...filterOptions,
             orderBy: state.columns.filter(column => column.sort).reduce((acc, column) => ({...acc, [column.name]: column.sort}), {}),
             meta: state.columns.filter(column => column.show &&
                 ['meta-variable', 'geoid-variable', 'meta'].includes(column.display) &&
@@ -478,7 +505,7 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, renderCard, ...rest}) 
             <div className={'w-full h-full'}>
                 <div className={'w-full'}>
                     <div className={'w-full pt-2 flex justify-end gap-2'}>
-                        <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={isEdit} cachedFilters={cachedFilters} defaultOpen={false}/>
+                        <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={isEdit} defaultOpen={false}/>
                         <RenderDownload state={state} apiLoad={apiLoad}/>
                     </div>
                     <span className={'text-xs'}>{loading ? 'loading...' : state.display.invalidState ? state.display.invalidState : null}</span>

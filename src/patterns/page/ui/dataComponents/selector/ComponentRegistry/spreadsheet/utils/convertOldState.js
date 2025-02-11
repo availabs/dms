@@ -3,6 +3,26 @@ import {isJson} from "./utils";
 
 export const convertOldState = (state, initialState) => {
     const oldState = isJson(state) ? JSON.parse(state) : {};
+
+    // handle filter structure change
+    const oldFilters = oldState?.dataRequest && (oldState.columns || [])
+        .filter(c => Array.isArray(c.internalFilter) || Array.isArray(c.externalFilter) || Array.isArray(c.internalExclude))
+        .map(c => c.name);
+    if(oldFilters?.length) {
+        oldState.columns = oldState.columns.map(column => ({
+            ...column,
+            internalFilter: undefined,
+            externalFilter: undefined,
+            ...oldFilters.includes(column.name) && {
+                filters: [
+                    Array.isArray(column.internalFilter) ? {type: 'internal', operation: 'filter', values: column.internalFilter, allowSearchParams: oldState.display?.allowSearchParams, searchParamKey: column.name} : null,
+                    Array.isArray(column.externalFilter) ? {type: 'external', operation: 'filter', values: column.externalFilter, allowSearchParams: oldState.display?.allowSearchParams, searchParamKey: column.name} : null,
+                    Array.isArray(column.internalExclude) ? {type: 'internal', operation: 'exclude', values: column.internalExclude, allowSearchParams: oldState.display?.allowSearchParams, searchParamKey: column.name} : null,
+                ].filter(f => f)
+            }
+        }))
+        return oldState;
+    }
     if(oldState?.dataRequest) return oldState; // return already valid state.
 
     if(!Array.isArray(oldState?.attributes)) {
@@ -15,7 +35,6 @@ export const convertOldState = (state, initialState) => {
         show: (oldState.visibleAttributes || []).includes(column.name),
         group: (oldState.groupBy || []).includes(column.name),
         sort: oldState.orderBy?.[column.name],
-        externalFilter: (oldState.filters || []).find(f => f.column === column.name)?.values,
         size: oldState.colSizes?.[column.name],
         customName: oldState.customColNames?.[column.name],
         fn: oldState.fn?.[column.name],
@@ -49,12 +68,26 @@ export const convertOldState = (state, initialState) => {
         updated_at: oldState.format?._modified_timestamp || oldState.format?.updated_at,
         columns: oldState.format?.metadata?.columns || JSON.parse(oldState?.format?.config || '{}')?.attributes || [],
     }
+
+    // builds an object with filter, exclude, gt, gte, lt, lte, like as keys. columnName: [values] as values
+    const filterOptions = columns.reduce((acc, column) => {
+        (column.filters || []).forEach(({type, operation, values}) => {
+            acc[operation] = {...acc[operation] || {}, [column.name]: values};
+        })
+
+        if(column.excludeNA){
+            acc.exclude = acc.exclude && acc.exclude[column.name] ?
+                {...acc.exclude, [column.name]: [...acc.exclude[column.name], 'null']} :
+                {...acc.exclude || [], [column.name]: ['null']}
+
+        }
+        return acc;
+    }, {})
     const dataRequest = {
+        ...filterOptions,
         groupBy: columns.filter(column => column.group).map(column => column.name),
         orderBy: columns.filter(column => column.sort).reduce((acc, column) => ({...acc, [column.name]: column.sort}), {}),
-        filter: getFilters(columns), // {colName: []}
         fn: columns.filter(column => column.fn).reduce((acc, column) => ({...acc, [column.name]: column.fn}), {}),
-        exclude: columns.filter(column => column.excludeNA).reduce((acc, column) => ({...acc, [column.name]: ['null']}), {}),
         meta: columns.filter(column => column.show &&
             ['meta-variable', 'geoid-variable', 'meta'].includes(column.display) &&
             column.meta_lookup)

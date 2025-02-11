@@ -1,4 +1,5 @@
 import {getData as getFilterData} from "../../shared/filters/utils";
+import {uniq} from "lodash-es";
 
 const fnum = (number, currency = false) => `${currency ? '$ ' : ''} ${isNaN(number) ? 0 : parseInt(number).toLocaleString()}`;
 const fnumIndex = (d, fractions = 2, currency = false) => {
@@ -108,10 +109,11 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
     })
     const columnsToFetch = columnsWithSettings.filter(column => column.show);
     debug && console.log('debug getdata: columns with settings:', columnsWithSettings, columnsToFetch);
-    const {groupBy=[], orderBy={}, filter={}, fn={}, exclude={}, meta={}} = state.dataRequest;
+    const {groupBy=[], orderBy={}, filter={}, fn={}, exclude={}, meta={}, ...restOfDataRequestOptions} = state.dataRequest;
 
-    const multiselectFilterValueSets = {};
-    for (const columnName of Object.keys(filter)) {
+    const multiselectValueSets = {};
+    const filterAndExcludeColumns = [...Object.keys(filter), ...Object.keys(exclude).filter(col => !(exclude[col]?.length === 1 && exclude[col][0] === 'null'))]
+    for (const columnName of uniq(filterAndExcludeColumns)) {
         const { name, display, meta, refName, type } = getFullColumn(columnName, columnsWithSettings);
         const fullColumn = { name, display, meta, refName, type };
         const reqName = getColAccessor({ ...fullColumn, fn: undefined }, state.sourceInfo.isDms);
@@ -125,7 +127,7 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
                 format: state.sourceInfo
             });
 
-            const selectedValues = (filter[columnName] || []).map(o => o.value || o);
+            const selectedValues = (filter[columnName] || exclude[columnName] || []).map(o => o.value || o);
             if (!selectedValues.length) continue;
 
             try {
@@ -137,7 +139,7 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
                     })
                     .filter(option => option);
 
-                multiselectFilterValueSets[columnName] = matchedOptions;
+                multiselectValueSets[columnName] = matchedOptions;
             } catch (e) {
                 console.error('Could not load options for', columnName, e);
             }
@@ -157,12 +159,22 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
             }, {}),
         filter: Object.keys(filter).reduce((acc, columnName) => {
             const {refName, type} = getFullColumn(columnName, columnsWithSettings);
-            const valueSets = multiselectFilterValueSets[columnName] ? (multiselectFilterValueSets[columnName]).filter(d => d.length) : (filter[columnName] || []);
+            const valueSets = multiselectValueSets[columnName] ? (multiselectValueSets[columnName]).filter(d => d.length) : (filter[columnName] || []);
             if(!valueSets?.length) return acc;
             return {...acc, [refName]: valueSets}
         } , {}),
-        exclude: Object.keys(exclude).reduce((acc, columnName) => ({...acc, [getFullColumn(columnName, columnsWithSettings)?.refName]: exclude[columnName] }), {}),
-        meta
+        exclude: Object.keys(exclude).reduce((acc, columnName) => {
+            const currValues = exclude[columnName] || [];
+            const finalValues = currValues?.length === 1 && currValues[0] === 'null' ? currValues :
+                multiselectValueSets[columnName] ? (multiselectValueSets[columnName]).filter(d => d.length) : currValues;
+            return {...acc, [getFullColumn(columnName, columnsWithSettings)?.refName]: finalValues}
+        }, {}),
+        meta,
+        ...Object.keys(restOfDataRequestOptions).reduce((acc, filterOperation) => {
+            const columnsForOperation = Object.keys(restOfDataRequestOptions[filterOperation]);
+            acc[filterOperation] = columnsForOperation.reduce((acc, columnName) => ({...acc, [getFullColumn(columnName, columnsWithSettings)?.refName]: restOfDataRequestOptions[filterOperation][columnName] }), {});
+            return acc;
+        }, {})
     }
     debug && console.log('debug getdata: options for spreadsheet getData', options, state)
     // =================================================================================================================

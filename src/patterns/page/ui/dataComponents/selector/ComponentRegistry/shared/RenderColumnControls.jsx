@@ -388,8 +388,8 @@ export default function RenderColumnControls({context}) {
                                                     <RenderSwitch
                                                         size={'small'}
                                                         id={attribute.name}
-                                                        enabled={attribute.filter}
-                                                        setEnabled={(value) => updateColumns(attribute, 'filter', value)}
+                                                        enabled={attribute.filters?.length > 0}
+                                                        setEnabled={(value) => updateColumns(attribute, 'filters', value ? [{type: 'internal', operation: 'filter', values: []}] : value)}
                                                     />
                                                 </div> : null
                                         }

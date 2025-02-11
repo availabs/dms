@@ -49,7 +49,7 @@ export const getControlConfig = compType => ({
     allowCardSpan: ['card'].includes(compType),
     allowFontSize: ['card'].includes(compType),
     allowEditInViewToggle: ['item', 'spreadsheet'].includes(compType),
-    allowSearchParamsToggle: ['item', 'card', 'spreadsheet'].includes(compType),
+    // allowSearchParamsToggle: ['item', 'card', 'spreadsheet'].includes(compType),
 
     // allowDataSizeInput: ['spreadsheet'].includes(compType)
 })
