@@ -21,9 +21,13 @@ export const convertOldState = (state, initialState) => {
                 ].filter(f => f)
             }
         }))
+        if(oldState.columns.find(c => Array.isArray(c.filters) && c.filters?.find(f => f.allowSearchParams))) oldState.data = [];
         return oldState;
     }
-    if(oldState?.dataRequest) return oldState; // return already valid state.
+    if(oldState?.dataRequest) {
+        if(oldState.columns.find(c => Array.isArray(c.filters) && c.filters?.find(f => f.allowSearchParams))) oldState.data = [];
+        return oldState; // return already valid state.}
+    }
 
     if(!Array.isArray(oldState?.attributes)) {
         console.log('oldState', oldState);
