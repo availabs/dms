@@ -24,6 +24,13 @@ export const RenderFilters = ({
         const debug = false;
         const getFormattedAttributeStr = useCallback((column) => formattedAttributeStr(column, isDms, isCalculatedCol(column, state.columns)), [state.columns, isDms]);
         const getAttributeAccessorStr = useCallback((column) => attributeAccessorStr(column, isDms, isCalculatedCol(column, state.columns)), [state.columns, isDms]);
+        const filterWithSearchParamKeys = useMemo(() => showNavigate ?
+            Object.keys(filters).reduce((acc, filterColumn) => {
+                const currFilters = state.columns.find(c => c.name === filterColumn)?.filters; // for now, it's always just 1 filter.
+                acc[currFilters?.[0]?.searchParamKey || filterColumn] = filters[filterColumn];
+                return acc;
+            }, {}) : [],
+        [filters, showNavigate]);
 
         useEffect(() => {
             // Extract filters from the URL
@@ -115,13 +122,6 @@ export const RenderFilters = ({
     // add UI dropdown to change filter type
     // add UI to change filter operation
 
-    const filterWithSearchParamKeys = useMemo(() => showNavigate ?
-        Object.keys(filters).reduce((acc, filterColumn) => {
-            const currFilters = state.columns.find(c => c.name === filterColumn)?.filters; // for now, it's always just 1 filter.
-            acc[currFilters?.[0]?.searchParamKey || filterColumn] = filters[filterColumn];
-            return acc;
-        }, {}) : [],
-        [filters, showNavigate]);
     const url = convertToUrlParams(filterWithSearchParamKeys, filterValueDelimiter);
     return (
         open ?
