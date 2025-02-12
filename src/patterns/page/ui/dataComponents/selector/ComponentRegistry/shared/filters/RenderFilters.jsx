@@ -4,14 +4,14 @@ import {Filter} from "../../../../../icons";
 import {getData, parseIfJson, getFilters, isCalculatedCol, convertToUrlParams, formattedAttributeStr} from "./utils"
 import {isEqual, mergeWith, uniq, uniqBy} from "lodash-es"
 import {RenderFilterValueSelector} from "./Components/RenderFilterValueSelector";
-import {useSearchParams} from "react-router-dom";
+import {Link, useSearchParams} from "react-router-dom";
 
 const filterValueDelimiter = '|||';
 
 export const RenderFilters = ({
   isEdit,
   state = {columns: [], sourceInfo: {}}, setState,
-  apiLoad, defaultOpen = false
+  apiLoad, defaultOpen = false, showNavigate = false,
 }) => {
         const [open, setOpen] = useState(defaultOpen);
         const [filterOptions, setFilterOptions] = useState([]); // [{column, uniqValues}]
@@ -114,6 +114,15 @@ export const RenderFilters = ({
     // initially you'll have internal filter
     // add UI dropdown to change filter type
     // add UI to change filter operation
+
+    const filterWithSearchParamKeys = useMemo(() => showNavigate ?
+        Object.keys(filters).reduce((acc, filterColumn) => {
+            const currFilters = state.columns.find(c => c.name === filterColumn)?.filters; // for now, it's always just 1 filter.
+            acc[currFilters?.[0]?.searchParamKey || filterColumn] = filters[filterColumn];
+            return acc;
+        }, {}) : [],
+        [filters, showNavigate]);
+    const url = convertToUrlParams(filterWithSearchParamKeys, filterValueDelimiter);
     return (
         open ?
             <div className={'w-full px-4 py-6 flex flex-col border border-blue-300 rounded-md'}>
@@ -138,6 +147,12 @@ export const RenderFilters = ({
                         </div>
                     </div>
                 ))}
+                {
+                    showNavigate ? (
+                        <Link className={'px-1.5 py-1 bg-blue-500/15 text-blue-700 hover:bg-blue-500/25 rounded-md text-xs w-fit self-end'}
+                              to={`?${url}`}>navigate</Link>
+                    ) : null
+                }
             </div> :
             <div className={'px-4 pt-2 flex flex-col'}>
                 <Filter className={'-mr-6 p-0.5 text-blue-300 hover:text-blue-500 hover:bg-zinc-950/5 rounded-md bg-white self-end rounded-md hover:cursor-pointer'} onClick={() => setOpen(true)}/>

@@ -28,7 +28,7 @@ export const getControlConfig = compType => ({
     allowFnSelector: ['card', 'spreadsheet'].includes(compType),
     allowExcludeNASelector: ['card', 'spreadsheet'].includes(compType),
     allowShowToggle: ['item', 'card', 'spreadsheet'].includes(compType),
-    allowFilterToggle: ['card', 'spreadsheet'].includes(compType),
+    allowFilterToggle: ['card', 'spreadsheet', 'filter'].includes(compType),
     allowGroupToggle: ['card', 'spreadsheet'].includes(compType),
     allowOpenOutToggle: ['spreadsheet'].includes(compType),
     allowShowTotalToggle: ['spreadsheet'].includes(compType),
