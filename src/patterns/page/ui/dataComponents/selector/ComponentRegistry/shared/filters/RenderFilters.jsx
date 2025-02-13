@@ -2,9 +2,9 @@ import React, {useCallback, useEffect, useMemo, useState} from "react";
 import {attributeAccessorStr} from "../../spreadsheet/utils/utils";
 import {Filter} from "../../../../../icons";
 import {getData, parseIfJson, getFilters, isCalculatedCol, convertToUrlParams, formattedAttributeStr} from "./utils"
-import {isEqual, mergeWith, uniq, uniqBy} from "lodash-es"
+import {isEqual, uniqBy} from "lodash-es"
 import {RenderFilterValueSelector} from "./Components/RenderFilterValueSelector";
-import {Link, useSearchParams} from "react-router-dom";
+import {useSearchParams} from "react-router-dom";
 
 const filterValueDelimiter = '|||';
 
@@ -143,16 +143,12 @@ export const RenderFilters = ({
                                                        setState={setState}
                                                        searchParams={searchParams}
                                                        loading={loading}
+                                                       filterWithSearchParamKeys={filterWithSearchParamKeys}
+                                                       delimiter={filterValueDelimiter}
                             />
                         </div>
                     </div>
                 ))}
-                {
-                    showNavigate ? (
-                        <Link className={'px-1.5 py-1 bg-blue-500/15 text-blue-700 hover:bg-blue-500/25 rounded-md text-xs w-fit self-end'}
-                              to={`?${url}`}>navigate</Link>
-                    ) : null
-                }
             </div> :
             <div className={'px-4 pt-2 flex flex-col'}>
                 <Filter className={'-mr-6 p-0.5 text-blue-300 hover:text-blue-500 hover:bg-zinc-950/5 rounded-md bg-white self-end rounded-md hover:cursor-pointer'} onClick={() => setOpen(true)}/>

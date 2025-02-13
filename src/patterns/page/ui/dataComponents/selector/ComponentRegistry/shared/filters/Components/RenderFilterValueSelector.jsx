@@ -2,6 +2,8 @@ import React, {useMemo} from "react";
 import dataTypes from "../../../../../../../../../data-types";
 import RenderSwitch from "../../Switch";
 import {useHandleClickOutside} from "../../utils";
+import {convertToUrlParams} from "../utils";
+import {useNavigate} from "react-router-dom";
 
 const RenderSearchKeySelector = ({filter, searchParams, onChange}) => {
     const [open, setOpen] = React.useState(false);
@@ -48,7 +50,10 @@ const RenderSearchKeySelector = ({filter, searchParams, onChange}) => {
     )
 }
 
-export const RenderFilterValueSelector = ({loading, isEdit, filterColumn, filterOptions=[], state, setState, searchParams, delimiter}) => {
+export const RenderFilterValueSelector = ({
+    loading, isEdit, filterColumn, filterOptions=[], setState, searchParams, delimiter, filterWithSearchParamKeys
+}) => {
+    const navigate = useNavigate();
     const options = useMemo(() => filterOptions.find(fo => fo.column === filterColumn.name)?.uniqValues, [filterOptions, filterColumn.name]);
 
     const updateFilter = ({key, value, filterColumn, filter, setState}) => setState(draft => {
@@ -67,10 +72,10 @@ export const RenderFilterValueSelector = ({loading, isEdit, filterColumn, filter
         filterColumn.filters || [])
         .filter(filter => isEdit || (!isEdit && filter.type === 'external'))
         .map((filter) => {
-            const MultiSelectComp = dataTypes.multiselect[filter.allowSearchParams ? 'ViewComp' : 'EditComp'];
+            const MultiSelectComp = dataTypes.multiselect[filter.allowSearchParams ? 'EditComp' : 'EditComp'];
             return (
                 <div className={'w-full p-1 relative text-xs'}>
-                    <div className={'flex gap-1'}>
+                    <div className={'flex flex-row flex-wrap gap-1'}>
                         <select
                             className={`${isEdit ? 'cursor-pointer' : 'hidden'} px-1 py-0.5 bg-orange-500/15 text-orange-700 hover:bg-orange-500/25 rounded-md`}
                             value={filter.type}
@@ -101,7 +106,24 @@ export const RenderFilterValueSelector = ({loading, isEdit, filterColumn, filter
                             <option key="filter" value="filter">include</option>
                             <option key="exclude" value="exclude">exclude</option>
                         </select>
-
+                        {
+                            isEdit ? (
+                                <div className={'flex items-center gap-1'}>
+                                    <label className={'text-gray-900 font-regular'}>Multiselect: </label>
+                                    <RenderSwitch label={'Use Search Params'}
+                                                  enabled={filter.isMulti}
+                                                  setEnabled={value => updateFilter({
+                                                      key: 'isMulti',
+                                                      value,
+                                                      filterColumn,
+                                                      filter,
+                                                      setState
+                                                  })}
+                                                  size={'xs'}
+                                    />
+                                </div>
+                            ) : null
+                        }
                         {/* UI to match to search params. only show if using search params.*/}
                         {
                             isEdit ? (
@@ -145,9 +167,17 @@ export const RenderFilterValueSelector = ({loading, isEdit, filterColumn, filter
                         loading={loading}
                         value={filter.values || []}
                         options={options || []}
+                        singleSelectOnly={!filter.isMulti}
                         onChange={e => {
                             const newValues = (e || []).map(filterItem => filterItem?.value || filterItem);
-                            updateFilter({key: 'values', value: newValues, filterColumn, filter, setState})
+
+                            if(filter.allowSearchParams) {
+                                const newFilters = {...filterWithSearchParamKeys, [filter.searchParamKey || filterColumn.name]: newValues}
+                                const url = convertToUrlParams(newFilters, delimiter);
+                                navigate(`?${url}`)
+                            }else {
+                                updateFilter({key: 'values', value: newValues, filterColumn, filter, setState})
+                            }
                         }}
                         displayInvalidMsg={false}
                     />

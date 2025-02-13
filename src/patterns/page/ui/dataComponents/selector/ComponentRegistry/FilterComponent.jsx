@@ -60,7 +60,7 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, renderCard, ...rest}) 
     return (
             <div className={'w-full h-full min-h-[50px]'}>
                 <div className={'w-full pt-2 flex justify-end gap-2'}>
-                    <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={isEdit} defaultOpen={false} showNavigate={true}/>
+                    <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={isEdit} defaultOpen={true} showNavigate={true}/>
                 </div>
             </div>
 )
