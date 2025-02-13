@@ -139,7 +139,7 @@ export default function RenderColumnControls({context}) {
                 draft.columns[idx].fn = undefined;
             } else if (key === 'show' && value === true && draft.columns.some(c => c.name !== originalAttribute.name && c.group)) {
                 // apply fn if at least one column is grouped
-                draft.columns[idx].fn = draft.columns[idx].defaultFn || 'list';
+                draft.columns[idx].fn = draft.columns[idx].defaultFn?.toLowerCase() || 'list';
             }
 
             if (key === 'group' && value === true) {
@@ -388,8 +388,8 @@ export default function RenderColumnControls({context}) {
                                                     <RenderSwitch
                                                         size={'small'}
                                                         id={attribute.name}
-                                                        enabled={attribute.filter}
-                                                        setEnabled={(value) => updateColumns(attribute, 'filter', value)}
+                                                        enabled={attribute.filters?.length > 0}
+                                                        setEnabled={(value) => updateColumns(attribute, 'filters', value ? [{type: 'internal', operation: 'filter', values: []}] : value)}
                                                     />
                                                 </div> : null
                                         }

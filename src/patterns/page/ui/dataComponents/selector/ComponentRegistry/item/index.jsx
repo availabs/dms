@@ -80,12 +80,12 @@ const getData = async ({state, apiLoad, itemId}) =>{
         params: {id: itemId},
         format: {
             ...state.sourceInfo,
+            attributes: state?.columns?.filter(({show}) => show).map(attr => ({...attr, type: attr.type === 'multiselect' ? 'json' : attr.type, key: attr.name})),
             type: state.sourceInfo?.type?.includes(`-${state.sourceInfo.view_id}`) ? state.sourceInfo.type : `${state.sourceInfo.type}-${state.sourceInfo.view_id}`,
         },
         children,
     }
     const data = await apiLoad(config, `/view/${itemId}`);
-    console.log('got data?????????/', state)
   return {data: data.find(d => d.id === itemId)}
 }
 
