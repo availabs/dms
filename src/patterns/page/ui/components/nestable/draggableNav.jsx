@@ -13,7 +13,7 @@ import { Button } from '../../';
 
 export const nestableTheme = {
     container: `max-w-full max-h-full  pb-6 `,
-    navListContainer: 'h-full border-l  pt-3 pl-2 overflow-auto max-h-[calc(100vh_-_155px)] h-[calc(100vh_-_155px)]',
+    navListContainer: 'h-full border-l  pt-3 pl-2 overflow-auto max-h-[calc(100vh_-_155px)] min-h-[calc(100vh_-_155px)]',
     navItemContainer:'text-slate-600 border-l border-y rounded border-transparent flex items-center gap-1 cursor-pointer group group-hover:bg-blue-100',
     navItemContainerActive: 'bg-white text-blue-500  border-l rounded border-y border-slate-300 flex items-center gap-1 cursor-pointer group group-hover:bg-blue-100', 
     navLink: `flex-1 px-4 py-2 font-light text-elipses`,

@@ -1,19 +1,19 @@
 import React, { useMemo, useState, useEffect }from 'react'
-import { SelectUI } from '../../../'
+import { Select } from '../../../'
 import {isJson} from "../index";
 
 
-export function Header ({position = 'above',bgImg = '/themes/mny/takeaction_landuse_2tp.png' , logo = '', title = 'Title', inset=true, note='note', height=673}) {
+export function Header ({position = 'above',bgImg = '/themes/mny/takeaction_landuse_2tp.png' , logo = '', title = 'Title', overlay='overlay', note='note', height=673}) {
 
   return (
     <div className={`lg:-mb-[145px] bg-fit bg-center w-full flex flex-col lg:flex-row w-full lg:h-[773px]`}>
       <div 
         className='lg:order-last h-[699px] rounded-bl-[395px] flex-1' 
-        style={inset ? 
-          { background: `url('/themes/mny/inset_hazard.png')`} :
+        style={overlay === 'inset' ? 
+          { background: `url('${bgImg}')`} :
           { background: 'linear-gradient(0deg, #1A2732, #1A2732),linear-gradient(81.58deg, #213440 67.87%, #37576B 189.24%)'}}
         >
-        <img className='relative top-[90px] w-[708px] w-[708px]' src={bgImg} />
+        {overlay === 'overlay' && <img className='relative top-[90px] w-[708px] w-[708px]' src={bgImg} />}
       </div>
       <div className='lg:flex-1'>
         <div className='pt-12 lg:pt-0 lg:max-w-[656px]  w-full flex lg:ml-auto  h-full items-center'>
@@ -92,16 +92,12 @@ const Edit = ({value, onChange, size}) => {
 
     const insetImageOptions = [
       {
-        label: 'Planetary Home',
-        value: '/themes/mny/insert_disaster.png'
-      },
-      {
         label: 'Planetary Hazard',
         value: '/themes/mny/inset_hazard.png'
       },
       {
         label: 'Planetary County',
-        value: '/themes/mny/inset_county.jpg'
+        value: '/themes/mny/inset_county.jpeg'
       }
     ]
    
@@ -112,7 +108,7 @@ const Edit = ({value, onChange, size}) => {
         bgImg: cachedData.bgImg || overlayImageOptions[1].value,//'/img/header.png', 
         title: cachedData.title || 'Title', 
         note: cachedData.note || 'note',
-        
+        overlay: cachedData.overlay || 'overlay'
     })
 
     useEffect(() => {
@@ -147,16 +143,31 @@ const Edit = ({value, onChange, size}) => {
             <div className={'flex flex-row flex-wrap justify-between'}>
               <label className={'shrink-0 pr-2 py-1 my-1 w-1/4'}>bgImg:</label>
               <div className={`flex flex row w-3/4 shrink my-1`}>
-                <SelectUI options={imageOptions} value={compData.bgImg} onChange={(e) => setCompData({...compData, bgImg: e.target.value})} />
+                <Select options={compData.overlay === 'inset' ? insetImageOptions : overlayImageOptions } value={compData.bgImg} onChange={(e) => setCompData({...compData, bgImg: e.target.value})} />
               </div>
             </div>
 
-           {/* <div className={'flex flex-row flex-wrap justify-between'}>
-              <label className={'shrink-0 pr-2 py-1 my-1 w-1/4'}>bgImg:</label>
+           <div className={'flex flex-row flex-wrap justify-between'}>
+              <label className={'shrink-0 pr-2 py-1 my-1 w-1/4'}>Img Position</label>
               <div className={`flex flex row w-3/4 shrink my-1`}>
-                <SelectUI options={imageOptions} value={compData.} onChange={(e) => setCompData({...compData, bgImg: e.target.value})} />
+                <Select 
+                  options={[{
+                    label: 'Overlay',
+                    value: 'overlay'
+                  },
+                  {
+                    label: 'Inset',
+                    value: 'inset'
+                  }]} 
+                  value={compData.overlay} 
+                  onChange={(e) => {
+                    setCompData({...compData,
+                      bgImg: e.target.value === 'inset' ? insetImageOptions[0].value : overlayImageOptions[0].value,
+                      overlay: e.target.value
+                    })
+                  }} />
               </div>
-            </div>*/}
+            </div>
 
             <div className={'flex flex-row flex-wrap justify-between'}>
               <label className={'shrink-0 pr-2 py-1 my-1 w-1/4'}>logo:</label>

@@ -21,7 +21,7 @@ export default function MenuComp ({ children, items=defaultItems }) {
   return (
     <div className="">
       <Menu as="div" className="relative block">
-        <MenuButton className="">
+        <MenuButton as="div" className="">
           <span className="sr-only">Open options</span>
           {children}
         </MenuButton>

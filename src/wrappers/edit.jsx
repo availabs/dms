@@ -4,7 +4,7 @@ import { filterParams } from '../dms-manager/_utils'
 import { getAttributes } from './_utils'
 import { dmsDataEditor, dmsDataLoader } from '../index'
 import { useFalcor } from "@availabs/avl-falcor"
-import { isEqual } from "lodash-es"
+import { isEqual, merge } from "lodash-es"
 //import { useImmer } from "use-immer";
 
 import { get } from "lodash-es"
@@ -23,8 +23,13 @@ export default function EditWrapper({ Component, format, options, params, user, 
 	const submit = useSubmit();
 	const { pathname, search } = useLocation()
 	const { data=[] } = useLoaderData() || []
+	const [ busy, setBusy ] = React.useState({updating: 0, loading: 0})
 	let status = useActionData()
 	const {defaultSort = (d) => d } = format
+
+	//useEffect(() => {console.log('edit wrapper on load')},[])
+
+	//useEffect(()=> console.log('status change', status), [status])
 
 
 	const [item, setItem] = React.useState(
@@ -42,13 +47,6 @@ export default function EditWrapper({ Component, format, options, params, user, 
 	},[data,params])
 
 
-	const apiUpdate = async ({data, config = {format}, requestType=''}) => {
-		const res = await dmsDataEditor(falcor, config, data, requestType);
-		submit(null, {action: `${pathname}${search}`})
-		if(!data.id) return res; // return id if apiUpdate was used to create an entry.
-		if(data.app !== app || data.type !== type) return; // if apiUpdate was used to manually update something, don't refresh.
-	}
-
 	const updateAttribute = (attr, value, multi) => {
 		if(multi) {
 			setItem({...item, ...multi})
@@ -61,29 +59,43 @@ export default function EditWrapper({ Component, format, options, params, user, 
 		submit(json2DmsForm(item), { method: "post", action: `${pathname}${search}` })
 	}
 
+	const apiUpdate = async ({data, config = {format}, requestType='', newPath=`${pathname}${search}`}) => {
+		setBusy((prevState) => { return {...prevState, updating: prevState.updating+1 }})
+		const res = await dmsDataEditor(falcor, config, data, requestType);
+		submit(null, {action: newPath })
+		setBusy((prevState) => { return {...prevState, updating: prevState.updating-1 }})
+		if(!data.id) return res; // return id if apiUpdate was used to create an entry.
+		if(data.app !== app || data.type !== type) return; // if apiUpdate was used to manually update something, don't refresh.
+	}
+
 	const apiLoad = async (config, path) => {
-		//console.log('<apiLoad> edit', config)
-		return await dmsDataLoader(falcor, config, path || '/')
+		setBusy((prevState) => { return {...prevState, loading: prevState.loading+1 }})
+		let data = await dmsDataLoader(falcor, config, path || '/')
+		setBusy((prevState) => { return {...prevState, loading: prevState.loading-1 }})
+		return data
 	}
 
 	const EditComponent = React.useMemo(() => Component, [])
 
 	return (
 		<EditComponent 
-			{...props} 
+			{...props}
 			format={format}
 			attributes={attributes}
 			item={item}
 			dataItems={data}
+			busy={busy}
 			params={params}
 			apiUpdate={apiUpdate}
 			apiLoad={apiLoad}
-			updateAttribute={updateAttribute}
-			setItem={setItem}
 			options={options}
-			status={status}
 			user={user}
+			// -- I believe these are deprecated to apiLoad / apiUpdate / busy
 			submit={submitForm}
+			updateAttribute={updateAttribute}
+			// setItem={setItem}
+			// --status={status}		
+			
 		/>
 	)	
 } 

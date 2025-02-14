@@ -39,7 +39,7 @@ export const selectTheme = {
 }
  
 
-const SelectUI = forwardRef(function Select({ className, multiple, options=[], value, onChange=()=>{}, ...props }, ref) {
+const Select = forwardRef(function Select({ className, multiple, options=[], value, onChange=()=>{}, ...props }, ref) {
   const { theme = { select: selectTheme } } = React.useContext(CMSContext) || {}
   return (
     <span
@@ -54,7 +54,7 @@ const SelectUI = forwardRef(function Select({ className, multiple, options=[], v
         value={value}
         onChange={onChange}
       >
-        {options.map(opt => <option value={opt.value}>{opt.label}</option>)}
+        {options.map(opt => <option key={opt.label} value={opt.value}>{opt.label}</option>)}
       </Headless.Select>
       {!multiple && (
         <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
@@ -73,4 +73,4 @@ const SelectUI = forwardRef(function Select({ className, multiple, options=[], v
   )
 })
 
-export default SelectUI
+export default Select

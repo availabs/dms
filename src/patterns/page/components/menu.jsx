@@ -67,8 +67,8 @@ export default ({title, children}) => {
         <>
             {!user.authed ?            
                 <Link className={`flex items-center px-8 text-lg font-bold h-12 text-slate-500 px-4`} to="/auth/login" state={{from: location?.pathname}}>Login</Link> :
-                <Dropdown control={<UserMenu user={user}/>} className={`hover:bg-blue-500 group z-40 `} >
-                    <div className='p-1 bg-blue-500 z-40'>
+                <Dropdown control={<UserMenu user={user}/>} className={`hover:bg-blue-500 group z-30 `} >
+                    <div className='p-1 bg-blue-500 z-30'>
                        
                         <div className='py-2'>
                             {authMenuItems.map((item,i) => {

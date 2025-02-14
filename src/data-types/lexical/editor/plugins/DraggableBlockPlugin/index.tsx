@@ -414,9 +414,9 @@ function useDraggableBlockMenu(
         draggable={true}
         onDragStart={onDragStart}
         onDragEnd={onDragEnd}>
-        <div className={isEditable ? (theme.draggableBlockMenu.icon || 'icon') : ''} />
+        <div className={isEditable ? (`${theme.draggableBlockMenu.icon}  icon`) : ''} />
       </div>
-      <div className={theme.draggableBlockTargetLine.base || "draggable-block-target-line"} ref={targetLineRef} />
+      <div className={`draggable-block-target-line ${theme.draggableBlockTargetLine.base}`} ref={targetLineRef} />
     </>,
     anchorElem,
   );
