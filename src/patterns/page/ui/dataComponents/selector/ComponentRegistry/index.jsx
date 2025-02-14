@@ -9,7 +9,7 @@ import Spreadsheet from "./spreadsheet";
 import Card from "./Card";
 import Item from "./item";
 import ComponentsIndexTable from "../componentsIndexTable";
-
+import FilterComponent from "./FilterComponent";
 
 export const RenderCalloutBox = ({text = {}, backgroundColor, ...rest}) => {
     return (
@@ -121,6 +121,7 @@ const ComponentRegistry = {
      Card,
      Spreadsheet,
      Item,
+    Filter: FilterComponent,
      //"Title": CustomHeader,
      "Table: Components Index": ComponentsIndexTable,
  }

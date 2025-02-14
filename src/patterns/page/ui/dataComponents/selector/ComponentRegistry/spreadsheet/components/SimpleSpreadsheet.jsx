@@ -110,7 +110,7 @@ export const RenderSimple = ({isEdit, updateItem, removeItem, addItem, newItem, 
                 availableVisibleAttributes.forEach(attr => {
                     const idx = draft.columns.findIndex(column => column.name === attr.name);
                     if(idx !== -1) {
-                        draft.columns[idx].size = initialColumnWidth;
+                        draft.columns[idx].size = draft.columns[idx].size || initialColumnWidth;
                     }
                 })
             });

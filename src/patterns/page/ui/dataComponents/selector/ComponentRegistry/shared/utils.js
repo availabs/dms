@@ -28,7 +28,7 @@ export const getControlConfig = compType => ({
     allowFnSelector: ['card', 'spreadsheet'].includes(compType),
     allowExcludeNASelector: ['card', 'spreadsheet'].includes(compType),
     allowShowToggle: ['item', 'card', 'spreadsheet'].includes(compType),
-    allowFilterToggle: ['card', 'spreadsheet'].includes(compType),
+    allowFilterToggle: ['card', 'spreadsheet', 'filter'].includes(compType),
     allowGroupToggle: ['card', 'spreadsheet'].includes(compType),
     allowOpenOutToggle: ['spreadsheet'].includes(compType),
     allowShowTotalToggle: ['spreadsheet'].includes(compType),
@@ -49,7 +49,7 @@ export const getControlConfig = compType => ({
     allowCardSpan: ['card'].includes(compType),
     allowFontSize: ['card'].includes(compType),
     allowEditInViewToggle: ['item', 'spreadsheet'].includes(compType),
-    allowSearchParamsToggle: ['item', 'card', 'spreadsheet'].includes(compType),
+    // allowSearchParamsToggle: ['item', 'card', 'spreadsheet'].includes(compType),
 
     // allowDataSizeInput: ['spreadsheet'].includes(compType)
 })

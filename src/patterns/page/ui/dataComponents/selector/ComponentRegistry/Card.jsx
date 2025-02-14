@@ -87,7 +87,7 @@ export const Card = ({isEdit}) => {
             <div className={`${compactView ? gridColsClass[Math.min(gridSize, data.length)] : ``} ${gridGapClass[gridGap]}`}>
                 {
                     data.map(item => (
-                        <div className={`w-full ${compactView ? `flex flex-col border shadow` : gridColsClass[cardsWithoutSpanLength]} gap-2`}>
+                        <div className={`w-full ${compactView ? `flex flex-col border shadow rounded-md` : gridColsClass[cardsWithoutSpanLength]} gap-2`}>
                             {
                                 visibleColumns
                                     .map(attr => {
@@ -97,7 +97,7 @@ export const Card = ({isEdit}) => {
                                         const {isLink, location, linkText} = attr || {};
                                         return (
                                             <div key={attr.name}
-                                                 className={`flex flex-${headerValueLayout} justify-center ${compactView ? colSpanClass[1] : colSpanClass[Math.min(attr.cardSpan || 1, cardsWithoutSpanLength)]} w-full p-2 rounded-md ${compactView ? `` : `border shadow`} items-center`}>
+                                                 className={`flex flex-${headerValueLayout} justify-center ${compactView ? `${colSpanClass[1]} px-2` : `${colSpanClass[Math.min(attr.cardSpan || 1, cardsWithoutSpanLength)]} p-2`} w-full rounded-md ${compactView ? `` : `border shadow`} items-center`}>
                                                 {
                                                     attr.hideHeader ? null : (
                                                         <div className={`w-full text-gray-500 capitalize ${justifyClass[attr.justify || 'center'].header} ${fontSizeClass[attr.fontSize]?.header}`}>

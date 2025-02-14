@@ -90,8 +90,11 @@ export const parseIfJson = value => {
 }
 
 export const getFilters = (columns= []) => columns.reduce((acc, column) => {
-    const values = uniq([...(column.internalFilter || []), ...(column.externalFilter || [])]);
-    if(values.length || Array.isArray(column.internalFilter) || Array.isArray(column.externalFilter) || column.filter) acc[column.name] = values;
+    // returns internal and external values, regardless of operation type. it is assumed to be the same for a column.
+    if (!Array.isArray(column.filters)) return acc;
+
+    const values = (column.filters).reduce((acc, f) => [...acc, ...(f.values || [])], []);
+    acc[column.name] = uniq(values);
     return acc;
 }, {});
 
