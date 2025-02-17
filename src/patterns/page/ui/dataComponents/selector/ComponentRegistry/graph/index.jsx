@@ -82,7 +82,7 @@ export const Graph = ({isEdit}) => {
             }
             <GraphComponent
             graphFormat={ display }
-            activeGraphType={{GraphComp: 'BarGraph'} }
+            activeGraphType={{GraphComp: display.graphType} }
             viewData={ graphData }
             showCategories={ Boolean(categoryColumn) || (dataColumns.length > 1) }
             xAxisColumn={ indexColumn }

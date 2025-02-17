@@ -19,6 +19,7 @@ import {getColorRange} from "../graph/GraphComponent";
 export const SpreadSheetContext = React.createContext({});
 const DefaultPalette = getColorRange(12, "Set3");
 const graphOptions = {
+    graphType: 'BarGraph',
     groupMode: 'stacked',
     orientation: 'vertical',
     title: {

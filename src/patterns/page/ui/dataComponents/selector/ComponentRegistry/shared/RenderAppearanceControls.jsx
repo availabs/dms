@@ -43,6 +43,24 @@ export default function RenderAppearanceControls({context}) {
                  className={`${isOpen ? 'visible transition ease-in duration-200' : 'hidden transition ease-in duration-200'} absolute left-0 z-10 w-72 origin-top-left divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 transition focus:outline-none`}
             >
                 <div key={'appearance'} className="py-1 max-h-[500px] overflow-auto scrollbar-sm">
+                    <div
+                        className={`group inline-flex w-full justify-between items-center rounded-md px-1.5 py-1 text-sm font-regular text-gray-900 bg-white hover:bg-gray-50 cursor-pointer`}
+                    >
+                        <span className={'flex-0 select-none mr-1'}>Type</span>
+                        <select
+                            className={'flex-1 p-1 text-end w-full rounded-md bg-white group-hover:bg-gray-50 cursor-pointer'}
+                            value={display.graphType}
+                            onChange={e => updateDisplayValue(null, 'graphType', e.target.value)}
+                        >
+                            {
+                                [
+                                    {label: 'Bar', value: 'BarGraph'},
+                                    {label: 'Line', value: 'LineGraph'},
+                                    {label: 'Scatter', value: 'ScatterPlot'},
+                                ].map(({label, value}) => <option key={value} value={value}>{label}</option>)
+                            }
+                        </select>
+                    </div>
                     {/* X Axis */}
                     <div className={'border-t mt-2 mx-4'}>
                         <div className={'-mt-2 -ml-4 px-2 text-xs font-medium font-gray-800 w-fit bg-white'}>X Axis</div>
@@ -91,14 +109,19 @@ export default function RenderAppearanceControls({context}) {
                                           setValue={value => updateDisplayValue('tooltip', 'show', value)}/>
 
                     {/* Layout */}
-                    <div className={'border-t mt-2 mx-4'}>
-                        <div className={'-mt-2 -ml-4 px-2 text-xs font-medium font-gray-800 w-fit bg-white'}>Layout</div>
-                    </div>
-                    <RenderToggleControls title={'Vertical'} value={display.orientation === 'vertical'}
-                                          setValue={value => updateDisplayValue(null, 'orientation', value ? 'vertical' : 'horizontal')}/>
+                    {
+                        display.graphType === 'BarGraph' ?
+                            <>
+                                <div className={'border-t mt-2 mx-4'}>
+                                    <div className={'-mt-2 -ml-4 px-2 text-xs font-medium font-gray-800 w-fit bg-white'}>Layout</div>
+                                </div>
+                                <RenderToggleControls title={'Vertical'} value={display.orientation === 'vertical'}
+                                                      setValue={value => updateDisplayValue(null, 'orientation', value ? 'vertical' : 'horizontal')}/>
 
-                    <RenderToggleControls title={'Stacked'} value={display.groupMode === 'stacked'}
-                                          setValue={value => updateDisplayValue(null, 'groupMode', value ? 'stacked' : 'grouped')}/>
+                                <RenderToggleControls title={'Stacked'} value={display.groupMode === 'stacked'}
+                                                      setValue={value => updateDisplayValue(null, 'groupMode', value ? 'stacked' : 'grouped')}/>
+                            </> : null
+                    }
                 </div>
             </div>
         </div>
