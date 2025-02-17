@@ -26,7 +26,7 @@ export const getControlConfig = compType => ({
     // ========main controls==============
     allowCustomColNames: ['item', 'card', 'spreadsheet'].includes(compType),
     allowFnSelector: ['card', 'spreadsheet', 'graph'].includes(compType),
-    allowExcludeNASelector: ['card', 'spreadsheet'].includes(compType),
+    allowExcludeNASelector: ['card', 'spreadsheet', 'graph'].includes(compType),
     allowShowToggle: ['item', 'card', 'spreadsheet'].includes(compType),
     allowXAxisToggle: ['graph'].includes(compType),
     allowYAxisToggle: ['graph'].includes(compType),

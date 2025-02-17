@@ -114,7 +114,7 @@ const AggFuncs = {
   count: d3sum
 }
 const getAggFunc = aggMethod => {
-  return AggFuncs[aggMethod] //|| d3sum;
+  return d => d //AggFuncs[aggMethod] //|| d3sum;
 }
 
 export const GraphComponent = props => {
