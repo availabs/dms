@@ -145,12 +145,13 @@ export const updateTitle = async ( item, dataItems, value='', user, apiUpdate) =
       const newItem = {
         id: item.id,
         title:value,
+        parent: item?.parent || '',
         history
       }
 
       newItem.url_slug = getUrlSlug(newItem, dataItems)
       // console.log('create new item', newItem, baseUrl)
-      apiUpdate({data:newItem})
+      apiUpdate({data:newItem, newPath: `/edit/${newItem.url_slug}`})
     }
   }
 

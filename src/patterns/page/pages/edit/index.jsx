@@ -16,7 +16,7 @@ import EditPane from './editPane'
 
 
 function PageEdit ({
-  format, item, dataItems, updateAttribute,attributes, setItem, apiLoad, apiUpdate, status, navOptions, siteType
+  format, item, dataItems, updateAttribute,attributes, setItem, apiLoad, apiUpdate, status, navOptions, siteType, busy
 }) {
   // console.log('props in pageEdit', siteType)
   const navigate = useNavigate()
@@ -24,7 +24,7 @@ function PageEdit ({
   const { pathname = '/edit' } = useLocation()
   const { baseUrl, user, theme } = React.useContext(CMSContext) || {}
   const [ creating, setCreating ] = React.useState(false)
-  const [ openEdit, setOpenEdit ] = React.useState(false)
+  const [ editPane, setEditPane ] = React.useState({ open: false, index: 0 })
   const isDynamicPage = true; // map this flag to the UI. when true, the page gets data loading capabilities.
   // console.log('item', item, dataItems, status)
   
@@ -73,7 +73,7 @@ function PageEdit ({
   }, [])
 
   return (
-    <PageContext.Provider value={{ item, dataItems, apiLoad, apiUpdate, openEdit, setOpenEdit }} >
+    <PageContext.Provider value={{ item, dataItems, apiLoad, apiUpdate, editPane, setEditPane }} >
       <div className={`${theme?.page?.container}`}>
         {item?.header === 'above' && (
           <ContentEdit
@@ -90,15 +90,8 @@ function PageEdit ({
           navItems={menuItems} 
           secondNav={theme?.navOptions?.secondaryNav?.navItems || []}
           pageTheme={{navOptions: item.navOptions || {}}}
-          EditPane={() => (
-            <EditPane 
-              item={item}
-              dataItems={dataItems}
-              open={openEdit}
-              setOpen={setOpenEdit}
-              apiUpdate={apiUpdate} 
-            />
-          )}
+          EditPane={() => <EditPane /> }
+           
         >
           <div className={`${theme?.page?.wrapper1} ${theme?.navPadding[level]}`}>
             {item?.header === 'below' && (
@@ -149,10 +142,15 @@ function PageEdit ({
                   <SideNav {...inPageNav} /> 
                 </SideNavContainer>
               )}
+              {/*<div className='w-64 h-screen border-2 border-blue-400' />*/}
             </div>
 
           </div>
-
+          <div className={`fixed bottom-4 right-4 p-6 border rounded bg-white shadow ${busy.loading > 0 || busy.updating > 0 ? 'block' : 'hidden'} `}>
+            <div>{busy.updating > 0 && `Updating... ${busy.updating}`}</div>
+            <div>{busy.loading > 0 && `Loading... ${busy.loading}`}</div>
+          </div>
+          
         </Layout>
         {item?.footer && <div className='h-[300px]' />} 
       </div>

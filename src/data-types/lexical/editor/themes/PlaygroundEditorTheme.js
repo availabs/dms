@@ -7,7 +7,10 @@
  */
 
 const theme = {
-  contentEditable: 'border-none relative [tab-size:1] outline-none ',
+  contentEditable: 'border-none relative pl-6 [tab-size:1] outline-none ',
+  editorScroller:
+    "min-h-[150px] border-0 flex relative outline-0 z-0bh resize-y", //'editor-scroller'
+  editorContainer: "relative block rounded-[10px] min-h-[50px]", //'.editor-shell .editor-container'
   editorShell: "font-['Proxima_Nova'] font-[400] text-[16px] text-[#37576B] leading-[22.4px]",
     heading: {
       h1: "font-[500]  text-[#2D3E4C] text-[36px] leading-[36px] tracking-[-.02em] font-[500] underline-offset-8 underline decoration-4 decoration-[#EAAD43] uppercase font-['Oswald'] pb-[12px]", //'PlaygroundEditorTheme__h1',
@@ -155,9 +158,6 @@ const theme = {
   // lexical stuff
 
   
-  editorScroller:
-    "min-h-[150px] border-0 flex relative outline-0 z-0 overflow-auto resize-y", //'editor-scroller'
-  editorContainer: "relative block rounded-[10px] min-h-[50px]", //'.editor-shell .editor-container'
   editorEditTreeView: "rounded-none", // .editor-shell .editor-container.tree-view
   editorViewContainer: "relative block rounded-[10px]", // .editor-shell .view-container
   editorViewTreeView: "rounded-none", // .editor-shell .view-container.tree-view
@@ -573,7 +573,7 @@ const theme = {
     iconMinusGray: 'w-5 h-5 bg-[url("./icon-minus-gray.svg")]', // .icon-minus-gray
   },
   draggableBlockMenu: {
-    base: "rounded-md p-0.5 cursor-grab opacity-0 absolute left-0 top-0 will-change-transform hover:bg-gray-200", // .draggable-block-menu
+    base: "rounded-md p-0.5 cursor-grab opacity-0 absolute -left-0 top-0 will-change-transform hover:bg-gray-200", // .draggable-block-menu
     icon: "w-4 h-4 opacity-30 bg-[url(/images/icons/draggable-block-menu.svg)]", // .draggable-block-menu .icon
     active: "cursor-grabbing", // .draggable-block-menu:active
   },

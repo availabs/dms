@@ -112,7 +112,8 @@ export const pagesConfig = ({
               />
             ),
             path: "edit/*",
-            action: "edit"
+            action: "edit",
+            authLevel:5
           },
           {
             type: (props) => (

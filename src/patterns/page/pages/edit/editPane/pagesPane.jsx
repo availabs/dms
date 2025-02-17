@@ -54,7 +54,7 @@ function DraggableNavItem ({activeItem, item, dataItems, handleCollapseIconClick
 
     //-- this is not ideal, better to check id and parent
     const isActive = pathname.includes(item.url_slug)
-    console.log('apiUpdate', apiUpdate)
+   //console.log('apiUpdate', apiUpdate)
 
     return (
         <div key={item.id} className='group max-w-full'>
@@ -212,7 +212,7 @@ function RenameModal ({title, prompt, item={}, dataItems, open, setOpen})  {
 
         newItem.url_slug = getUrlSlug(newItem, dataItems)
         setLoading(true)
-        await submit(json2DmsForm(newItem), { method: "post", action: pathname })
+        await submit(json2DmsForm(newItem), { method: "post", action: `/edit/${newItem.url_slug}` })
         setLoading(false)
         setOpen()
       }

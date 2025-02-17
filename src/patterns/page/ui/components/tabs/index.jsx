@@ -23,10 +23,14 @@ export const tabsTheme = {
   tabpanel: 'rounded-xl bg-white/5'
 }
 
-export default function Tabs ({tabs=defaultTabs, selectedIndex=0}) {
+export default function Tabs ({tabs=defaultTabs, defaultIndex=0, selectedIndex, setSelectedIndex}) {
+  const [internalIndex, setInternalIndex] = React.useState(selectedIndex || defaultIndex)
+
+  React.useEffect(() => setInternalIndex(selectedIndex),[selectedIndex])
+
   const { theme = { tabs: tabsTheme } } = React.useContext(CMSContext) || {}
   return (  
-    <TabGroup defaultIndex={selectedIndex}>
+    <TabGroup selectedIndex={internalIndex} onChange={setSelectedIndex || setInternalIndex}>
       <TabList className={theme?.tabs?.tablist}>
         {tabs.map(({ name }) => (
           <Tab
