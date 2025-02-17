@@ -2,50 +2,96 @@ import React, {useState, useEffect, createContext, useMemo, useRef} from 'react'
 import writeXlsxFile from 'write-excel-file';
 import {RenderSimple} from "./components/SimpleSpreadsheet";
 import {RenderPagination} from "./components/RenderPagination";
-import {isJson, getData} from "./utils/utils";
+import {getData} from "./utils/utils";
 import {RenderFilters} from "../shared/filters/RenderFilters";
 import {RenderAttribution} from "./components/RenderAttribution";
-import {useSearchParams, useNavigate} from "react-router-dom";
 import {FormsSelector} from "../FormsSelector";
 import {ColumnControls} from "../shared/ColumnControls";
 import {Card} from "../Card";
+import {Graph} from "../graph"
 import { isEqual } from "lodash-es";
 import { v4 as uuidv4 } from 'uuid';
 import {useImmer} from "use-immer";
-import {getFilters, parseIfJson} from "../shared/filters/utils";
 import {convertOldState} from "./utils/convertOldState";
 import {Download, LoadingHourGlass} from "../../../../icons";
 import {useHandleClickOutside} from "../shared/utils";
+import {getColorRange} from "../graph/GraphComponent";
 export const SpreadSheetContext = React.createContext({});
-
-const initialState = {
-    dataRequest: {},
-    columns: [
-        //     visible columns or Actions
-        //     {name, display_name, custom_name,
-        //      justify, width, fn,
-        //      groupBy: t/f, orderBy: t/f, excludeNull: t/f, openOut: t/f,
-        //      formatFn, fontSize, hideHeader, cardSpan,
-        //      isLink: t/f, linkText: ‘’, linkLocation: ‘’, actionName, actionType, icon,
-        //      }
-    ],
-    data: [],
-    display: {
-        // dataTransform: 'asdasd', if any post processing done on the fetched data, and it's likely to have variations to chose from
+const DefaultPalette = getColorRange(12, "Set3");
+const graphOptions = {
+    groupMode: 'stacked',
+    orientation: 'vertical',
+    title: {
+        title: "",
+        position: "start",
+        fontSize: 32,
+        fontWeight: "bold"
+    },
+    description: "",
+    bgColor: "#ffffff",
+    textColor: "#000000",
+    colors: {
+        type: "palette",
+        value: [...DefaultPalette]
+    },
+    height: 300,
+    width: undefined,
+    margins: {
+        marginTop: 20,
+        marginRight: 20,
+        marginBottom: 50,
+        marginLeft: 100
+    },
+    xAxis: {
+        label: "",
+        rotateLabels: false,
+        showGridLines: false,
+        tickSpacing: 1
+    },
+    yAxis: {
+        label: "",
+        showGridLines: true,
+        tickFormat: "Integer"
+    },
+    legend: {
+        show: true,
+        label: "",
+    },
+    tooltip: {
+        show: true,
+        fontSize: 12
+    }
+}
+const initialState = compType => {
+    const otherOptions = {
         allowSearchParams: false,
         usePagination: true,
         pageSize: 5,
         totalLength: 0,
         transform: '', // transform fn to be applied
-        loadMoreId:`id${uuidv4()}`
-    },
-    sourceInfo: {
-        columns: [],
-        // pgEnv,
-        // source_id
-        // view_id
-        // version,
-        // doc_type, type -- should be the same
+        loadMoreId:`id${uuidv4()}`,
+    }
+    return {
+        dataRequest: {},
+        columns: [
+            //     visible columns or Actions
+            //     {name, display_name, custom_name,
+            //      justify, width, fn,
+            //      groupBy: t/f, orderBy: t/f, excludeNull: t/f, openOut: t/f,
+            //      formatFn, fontSize, hideHeader, cardSpan,
+            //      isLink: t/f, linkText: ‘’, linkLocation: ‘’, actionName, actionType, icon,
+            //      }
+        ],
+        data: [],
+        display: compType === 'graph' ? graphOptions : otherOptions,
+        sourceInfo: {
+            columns: [],
+            // pgEnv,
+            // source_id
+            // view_id
+            // version,
+            // doc_type, type -- should be the same
+        }
     }
 }
 
@@ -116,13 +162,14 @@ const RenderDownload = ({state, apiLoad}) => {
         </div>
     )
 }
-const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, renderCard, hideSourceSelector}) => {
+const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, compType='spreadsheet', hideSourceSelector}) => {
     const isEdit = Boolean(onChange);
-    const [state, setState] = useImmer(convertOldState(value, initialState));
+    const [state, setState] = useImmer(convertOldState(value, initialState(compType)));
     const [loading, setLoading] = useState(false);
     const [newItem, setNewItem] = useState({})
     const [currentPage, setCurrentPage] = useState(0);
     const isValidState = Boolean(state?.dataRequest);
+    const Comp = useMemo(() => compType === 'card' ? Card : compType === 'graph' ? Graph : undefined, [compType]);
     // ========================================= init comp begin =======================================================
     // useSetDataRequest
     useEffect(() => {
@@ -176,7 +223,7 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, renderCard, hide
         async function load() {
             setLoading(true)
             const newCurrentPage = 0; // for all the deps here, it's okay to fetch from page 1.
-            const {length, data, invalidState} = await getData({state, apiLoad});
+            const {length, data, invalidState} = await getData({state, apiLoad, fullDataLoad: compType === 'graph'});
             if(isStale) {
                 setLoading(false);
                 return;
@@ -203,7 +250,7 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, renderCard, hide
 
     // useGetDataOnPageChange
     useEffect(() => {
-        if(!isValidState) return;
+        if(!isValidState || compType === 'graph') return;
         // only run when page changes
         let isStale = false;
         async function load() {
@@ -230,7 +277,7 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, renderCard, hide
 
     // useInfiniteScroll
     useEffect(() => {
-        if(!isValidState) return;
+        if(!isValidState || compType === 'graph') return;
         // observer that sets current page on scroll. no data fetching should happen here
         const observer = new IntersectionObserver(
             async (entries) => {
@@ -292,7 +339,7 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, renderCard, hide
     }
     // =========================================== util fns end ========================================================
     return (
-        <SpreadSheetContext.Provider value={{state, setState, apiLoad, compType: renderCard ? 'card' : 'spreadsheet'}}>
+        <SpreadSheetContext.Provider value={{state, setState, apiLoad, compType}}>
             <div className={'w-full h-full'}>
                 {
                     !hideSourceSelector ?
@@ -309,13 +356,14 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, renderCard, hide
                     <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={isEdit} defaultOpen={true} />
                     <RenderDownload state={state} apiLoad={apiLoad}/>
                 </div>
+                <span className={'text-xs'}>{loading ? 'loading...' : state.display.invalidState ? state.display.invalidState : null}</span>
                 {
-                    renderCard ?
-                        <Card isEdit={isEdit}/> : (
+                    Comp ?
+                        <Comp isEdit={isEdit}/> : (
                             <>
                                 {/*Pagination*/}
                                 <RenderPagination currentPage={currentPage} setCurrentPage={setCurrentPage} />
-                                <span className={'text-xs'}>{loading ? 'loading...' : state.display.invalidState ? state.display.invalidState : null}</span>
+
                                 <RenderSimple {...{
                                     newItem, setNewItem,
                                     updateItem, removeItem, addItem,
@@ -331,9 +379,9 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, renderCard, hide
     )
 }
 
-const View = ({value, onChange, size, apiLoad, apiUpdate, renderCard, ...rest}) => {
+const View = ({value, onChange, size, apiLoad, apiUpdate, compType='spreadsheet', ...rest}) => {
     const isEdit = false;
-    const [state, setState] = useImmer(convertOldState(value, initialState   ));
+    const [state, setState] = useImmer(convertOldState(value, initialState(compType)));
 
     const [newItem, setNewItem] = useState({})
     const [loading, setLoading] = useState(false);
@@ -341,6 +389,7 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, renderCard, ...rest}) 
     const groupByColumnsLength = useMemo(() => state?.columns?.filter(({group}) => group).length, [state?.columns]);
     const showChangeFormatModal = !state?.sourceInfo?.columns;
     const isValidState = state?.dataRequest; // new state structure
+    const Comp = useMemo(() => compType === 'card' ? Card : compType === 'graph' ? Graph : undefined, [compType]);
 
     useEffect(() => {
         const newState = convertOldState(value)
@@ -396,7 +445,7 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, renderCard, ...rest}) 
         async function load() {
             setLoading(true)
             const newCurrentPage = 0; // for all the deps here, it's okay to fetch from page 1.
-            const {length, data} = await getData({state, apiLoad});
+            const {length, data} = await getData({state, apiLoad, fullDataLoad: compType === 'graph'});
             if(isStale) {
                 setLoading(false);
                 return;
@@ -417,7 +466,7 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, renderCard, ...rest}) 
 
     // useGetDataOnPageChange
     useEffect(() => {
-        if(!isValidState) return;
+        if(!isValidState || compType === 'graph') return;
         // only run when page changes
         let isStale = false;
         async function load() {
@@ -444,7 +493,7 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, renderCard, ...rest}) 
 
     // useInfiniteScroll
     useEffect(() => {
-        if(!isValidState) return;
+        if(!isValidState || compType === 'graph') return;
         // observer that sets current page on scroll. no data fetching should happen here
         const observer = new IntersectionObserver(
             async (entries) => {
@@ -501,7 +550,7 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, renderCard, ...rest}) 
     // =========================================== util fns end ========================================================
     if(showChangeFormatModal || !isValidState) return <div className={'p-1 text-center'}>Form data not available.</div>;
     return (
-        <SpreadSheetContext.Provider value={{state, setState, apiLoad, compType: renderCard ? 'card' : 'spreadsheet'}}>
+        <SpreadSheetContext.Provider value={{state, setState, apiLoad, compType}}>
             <div className={'w-full h-full'}>
                 <div className={'w-full'}>
                     <div className={'w-full pt-2 flex justify-end gap-2'}>
@@ -511,24 +560,22 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, renderCard, ...rest}) 
                     <span className={'text-xs'}>{loading ? 'loading...' : state.display.invalidState ? state.display.invalidState : null}</span>
 
                     {
-                        renderCard ?
-                            <Card isEdit={isEdit}/> : (
-                                <>
-                                    <RenderSimple {...{
-                                        newItem, setNewItem,
-                                        updateItem, removeItem, addItem,
-                                        currentPage, loading, isEdit,
-                                        allowEdit: groupByColumnsLength ? false : state.display.allowEditInView && apiUpdate
-                                    }} />
-                                </>
-                            )
+                        Comp ?
+                            <Comp isEdit={isEdit}/> :
+                            <RenderSimple {...{
+                                newItem, setNewItem,
+                                updateItem, removeItem, addItem,
+                                currentPage, loading, isEdit,
+                                allowEdit: groupByColumnsLength ? false : state.display.allowEditInView && apiUpdate
+                            }} />
+
                     }
 
                     <div className={'flex justify-between'}>
                         {/*Attribution*/}
                         <RenderAttribution/>
                         {/*Pagination*/}
-                        <RenderPagination currentPage={currentPage} setCurrentPage={setCurrentPage}/>
+                        <RenderPagination currentPage={currentPage} setCurrentPage={setCurrentPage} compType={compType}/>
                     </div>
                 </div>
             </div>

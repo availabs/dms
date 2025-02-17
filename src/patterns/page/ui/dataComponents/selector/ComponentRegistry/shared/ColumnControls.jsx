@@ -1,8 +1,7 @@
 import RenderColumnControls from "./RenderColumnControls";
-import RenderFilterControls from "./RenderFilterControls";
-import RenderGroupControls from "./RenderGroupControls";
 import RenderActionControls from "./RenderActionControls";
 import RenderMoreControls from "./RenderMoreControls";
+import RenderAppearanceControls from "./RenderAppearanceControls";
 
 // renders controls based on props passed. if any setters are not passed for a controller, it's not rendered.
 export const ColumnControls = ({context}) => (
@@ -10,5 +9,6 @@ export const ColumnControls = ({context}) => (
         <RenderColumnControls context={context}/>
         <RenderActionControls context={context}/>
         <RenderMoreControls context={context}/>
+        <RenderAppearanceControls context={context}/>
     </div>
 )
