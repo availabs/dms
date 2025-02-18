@@ -163,12 +163,12 @@ export function getInPageNav(item, theme) {
                                 // .__lexicalKey_cgviu
                                 elmntToView?.scrollIntoView({ behavior: "smooth"});
                             },
-                            className: `pl-2 pr-4 pb-1 text-sm text-slate-400 hover:text-slate-700 cursor-pointer border-r-2 mr-4
-                            ${
-                                [...window.document.querySelectorAll(tag)]
-                                    .find(headerElement => headerElement?.children[0]?.innerHTML === children[0]?.text)?.offsetParent 
-                                === null ? 'text-blue-200' : ''
-                            }`
+                            // className: `pl-2 pr-4 pb-1 text-sm text-slate-400 hover:text-slate-700 cursor-pointer border-r-2 mr-4
+                            // ${
+                            //     [...window.document.querySelectorAll(tag)]
+                            //         .find(headerElement => headerElement?.children[0]?.innerHTML === children[0]?.text)?.offsetParent
+                            //     === null ? 'text-blue-200' : ''
+                            // }`
                         }
                     ] : []
 
@@ -184,7 +184,7 @@ export function getInPageNav(item, theme) {
                     const elmntToView = window.document.getElementById(`#${title?.replace(/ /g, '_')}`);
                     elmntToView?.scrollIntoView({ behavior: "smooth" });
                 },
-                className: theme?.levelClasses?.[level]
+                // className: theme?.levelClasses?.[level]
             },
             ...(lexicalNavElements || [])
         ]
