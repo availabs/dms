@@ -163,26 +163,31 @@ export default function RenderColumnControls({context}) {
             // graph controls
             // group by xAxis and categories.
             // xAxis, yAxis, and categories all set to show.
+            if(key === 'yAxis'){
+                draft.columns[idx].fn = value ? draft.columns[idx].defaultFn?.toLowerCase() || 'count' : ''
+                draft.columns[idx].show = value;
+            }
+
             if(key === 'xAxis'){
                 // turn off other xAxis columns
                 draft.columns.forEach(column => {
                     // if xAxis true, for original column set to true. for others false.
                     column.xAxis = value ? column.name === originalAttribute.name : value;
-                    // if turning xAxis off, and not original column, check their yAxis and category settings.
-                    column.group = column.name === originalAttribute.name ? value : column.yAxis || column.categorize;
+                    // if turning xAxis off, and not original column, check their category settings.
+                    column.group = column.name === originalAttribute.name ? value : column.categorize;
                     column.show = column.name === originalAttribute.name ? value : column.yAxis || column.categorize;
                 })
             }
 
-            if(key === 'yAxis'){
-                draft.columns[idx].fn = value ? draft.columns[idx].defaultFn?.toLowerCase() || 'count' : ''
-                // draft.columns[idx].group = value;
-                draft.columns[idx].show = value;
-            }
-
             if(key === 'categorize'){
-                draft.columns[idx].group = value;
-                draft.columns[idx].show = value;
+                // turn off other Category columns
+                draft.columns.forEach(column => {
+                    // if Category true, for original column set to true. for others false.
+                    column.categorize = value ? column.name === originalAttribute.name : value;
+                    // if turning Category off, and not original column, check their xAxis settings.
+                    column.group = column.name === originalAttribute.name ? value : column.xAxis;
+                    column.show = column.name === originalAttribute.name ? value : column.yAxis || column.xAxis;
+                })
             }
         });
     }, [setState]);
