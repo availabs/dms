@@ -5,36 +5,12 @@ import {
   sum as d3sum
 } from "d3-array"
 import get from "lodash/get"
-import colorbrewer from "colorbrewer"
-
-
-
+import {mapColors} from "./GraphComponents/utils";
 import { GraphTypes, getGraphComponent } from "./GraphComponents"
 
-const ColorRanges = {}
-
-for (const type in colorbrewer.schemeGroups) {
-  colorbrewer.schemeGroups[type].forEach(name => {
-    const group = colorbrewer[name];
-    for (const length in group) {
-      if (!(length in ColorRanges)) {
-        ColorRanges[length] = [];
-      }
-      ColorRanges[length].push({
-        type: `${ type[0].toUpperCase() }${ type.slice(1) }`,
-        name,
-        category: "Colorbrewer",
-        colors: group[length]
-      })
-    }
-  })
-}
-
 export const getColorRange = (size, name, reverse=false) => {
-  console.log('colorRanges?????', ColorRanges)
+  let range = get(mapColors, [name, size], []).slice();
 
-  let range = get(ColorRanges, [size], [])
-      .reduce((a, c) => c.name === name ? c.colors : a, []).slice();
   if(reverse) {
     range.reverse()
   }

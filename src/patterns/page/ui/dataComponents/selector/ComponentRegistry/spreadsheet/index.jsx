@@ -17,7 +17,7 @@ import {Download, LoadingHourGlass} from "../../../../icons";
 import {useHandleClickOutside} from "../shared/utils";
 import {getColorRange} from "../graph/GraphComponent";
 export const SpreadSheetContext = React.createContext({});
-const DefaultPalette = getColorRange(12, "Set3");
+const DefaultPalette = getColorRange(20, "div7");
 const graphOptions = {
     graphType: 'BarGraph',
     groupMode: 'stacked',
