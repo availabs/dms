@@ -31,7 +31,7 @@ export function getChildNav(item, dataItems, baseUrl='', edit) {
 
     let inPageChildren =  getInPageNav(item)?.menuItems || [];
     if (children.length === 0 && inPageChildren?.length === 0) return false
-    if (children.length === 0 && inPageChildren?.length !== 0 && item.sidebar) return inPageChildren;
+    if (children.length === 0 && inPageChildren?.length !== 0) return inPageChildren;
 
     const childrenToReturn = children.map((d, i) => {
         let item = {
@@ -47,7 +47,7 @@ export function getChildNav(item, dataItems, baseUrl='', edit) {
         return item
     })
 
-    return item.sidebar ? [...inPageChildren, ...childrenToReturn] : childrenToReturn;
+    return [...inPageChildren, ...childrenToReturn];
 }
 
 export function getCurrentDataItem(dataItems, baseUrl) {
