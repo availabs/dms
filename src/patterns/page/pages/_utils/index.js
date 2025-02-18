@@ -28,20 +28,26 @@ export function getChildNav(item, dataItems, baseUrl='', edit) {
     let children = dataItems
         .filter(d => item.id && d.parent === item.id)
         .sort((a, b) => a.index - b.index)
-    if (children.length === 0) return false
 
-    return children.map((d, i) => {
+    let inPageChildren =  getInPageNav(item)?.menuItems || [];
+    if (children.length === 0 && inPageChildren?.length === 0) return false
+    if (children.length === 0 && inPageChildren?.length !== 0 && item.sidebar) return inPageChildren;
+
+    const childrenToReturn = children.map((d, i) => {
         let item = {
             id: d.id,
             path: `${edit ? `${baseUrl}/edit` : baseUrl}/${d.url_slug || d.id}`,
             name: d.title
         }
-        if (getChildNav(item, dataItems)) {
-            item.subMenus = getChildNav(d, dataItems, baseUrl, edit)
-        }
+        const inPageChildrenForD =  getInPageNav(d)?.menuItems || [];
+        const childrenForD = getChildNav(d, dataItems, baseUrl, edit) || [];
+        if (inPageChildrenForD.length) console.log('setting subMenus for ', item.name, inPageChildrenForD, childrenForD)
+        item.subMenus = childrenForD
+
         return item
     })
 
+    return item.sidebar ? [...inPageChildren, ...childrenToReturn] : childrenToReturn;
 }
 
 export function getCurrentDataItem(dataItems, baseUrl) {
@@ -138,7 +144,7 @@ export function getInPageNav(item, theme) {
 
     //console.log('test 123', theme)
    
-    const menuItems = (currentDI?.sections || []).reduce((acc, {title, element, level = '1', ...props}) => {
+    const menuItems = (Array.isArray(currentDI?.sections) ? currentDI?.sections : []).reduce((acc, {title, element, level = '1', ...props}) => {
 
         if (!element || !title || level === '0' ) return acc;
 
@@ -178,7 +184,7 @@ export function getInPageNav(item, theme) {
                     const elmntToView = window.document.getElementById(`#${title?.replace(/ /g, '_')}`);
                     elmntToView?.scrollIntoView({ behavior: "smooth" });
                 },
-                className: theme?.levelClasses[level]
+                className: theme?.levelClasses?.[level]
             },
             ...(lexicalNavElements || [])
         ]
