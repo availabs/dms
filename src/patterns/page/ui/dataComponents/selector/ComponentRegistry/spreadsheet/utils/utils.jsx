@@ -172,7 +172,13 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
         meta,
         ...Object.keys(restOfDataRequestOptions).reduce((acc, filterOperation) => {
             const columnsForOperation = Object.keys(restOfDataRequestOptions[filterOperation]);
-            acc[filterOperation] = columnsForOperation.reduce((acc, columnName) => ({...acc, [getFullColumn(columnName, columnsWithSettings)?.refName]: restOfDataRequestOptions[filterOperation][columnName] }), {});
+            acc[filterOperation] =
+                columnsForOperation.reduce((acc, columnName) => {
+                    const currOperationValues = restOfDataRequestOptions[filterOperation][columnName];
+
+                    acc[getFullColumn(columnName, columnsWithSettings)?.refName] = Array.isArray(currOperationValues) ? currOperationValues[0] : currOperationValues;
+                    return acc;
+                }, {});
             return acc;
         }, {})
     }

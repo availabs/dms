@@ -1,7 +1,7 @@
 import {useRef, useState, useEffect, useContext, useCallback} from "react";
 import Icons, {ArrowDown, TouchInteraction} from "../../../../../../forms/ui/icons"
 import {SpreadSheetContext} from "../spreadsheet";
-import {useHandleClickOutside} from "./utils";
+import {getControlConfig, useHandleClickOutside} from "./utils";
 
 const RenderIconSelector = ({onClick, icon}) => {
     const [open, setOpen] = useState(false);
@@ -238,6 +238,7 @@ export default function RenderActionControls({context}) {
     const [isOpen, setIsOpen] = useState(false);
     const menuBtnId = 'menu-btn-action-controls'
     const actionColumns = columns.filter(column => column.actionType); //two types of actions.
+    const {allowActionsControl} = getControlConfig(compType);
     useHandleClickOutside(menuRef, menuBtnId, () => setIsOpen(false));
 
     // takes in one action, adds or updates it.
@@ -269,7 +270,7 @@ export default function RenderActionControls({context}) {
             draft.columns.push(action)
         })
     }, [columns])
-    if(compType === 'item') return null;
+    if(!allowActionsControl) return null;
     return (
         <div className="relative inline-block text-left">
             <div>

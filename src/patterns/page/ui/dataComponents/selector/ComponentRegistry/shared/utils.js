@@ -25,10 +25,13 @@ export const useHandleClickOutside = (menuRef, menuBtnId, onClose) => {
 export const getControlConfig = compType => ({
     // ========main controls==============
     allowCustomColNames: ['item', 'card', 'spreadsheet'].includes(compType),
-    allowFnSelector: ['card', 'spreadsheet'].includes(compType),
-    allowExcludeNASelector: ['card', 'spreadsheet'].includes(compType),
+    allowFnSelector: ['card', 'spreadsheet', 'graph'].includes(compType),
+    allowExcludeNASelector: ['card', 'spreadsheet', 'graph'].includes(compType),
     allowShowToggle: ['item', 'card', 'spreadsheet'].includes(compType),
-    allowFilterToggle: ['card', 'spreadsheet', 'filter'].includes(compType),
+    allowXAxisToggle: ['graph'].includes(compType),
+    allowYAxisToggle: ['graph'].includes(compType),
+    allowCategoriseToggle: ['graph'].includes(compType),
+    allowFilterToggle: ['card', 'spreadsheet', 'filter', 'graph'].includes(compType),
     allowGroupToggle: ['card', 'spreadsheet'].includes(compType),
     allowOpenOutToggle: ['spreadsheet'].includes(compType),
     allowShowTotalToggle: ['spreadsheet'].includes(compType),
@@ -40,15 +43,16 @@ export const getControlConfig = compType => ({
     allowGridSizeSelect: ['card'].includes(compType),
     allowGridGapSelect: ['card'].includes(compType),
     allowHeaderValueLayoutSelect: ['card'].includes(compType),
-
+    allowActionsControl: ['spreadsheet'].includes(compType),
     // ==========in header===============
-    allowSortBy: ['spreadsheet'].includes(compType),
+    allowSortBy: ['spreadsheet', 'graph'].includes(compType),
     allowJustify: ['card', 'spreadsheet'].includes(compType),
-    allowFormat: ['card', 'spreadsheet'].includes(compType),
+    allowFormat: ['card', 'spreadsheet', 'graph'].includes(compType),
     allowHideHeader: ['card'].includes(compType),
     allowCardSpan: ['card'].includes(compType),
     allowFontSize: ['card'].includes(compType),
     allowEditInViewToggle: ['item', 'spreadsheet'].includes(compType),
+    allowLinkControl: ['card', 'spreadsheet'].includes(compType)
     // allowSearchParamsToggle: ['item', 'card', 'spreadsheet'].includes(compType),
 
     // allowDataSizeInput: ['spreadsheet'].includes(compType)

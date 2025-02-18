@@ -105,6 +105,10 @@ export const RenderFilterValueSelector = ({
                         >
                             <option key="filter" value="filter">include</option>
                             <option key="exclude" value="exclude">exclude</option>
+                            <option key="gt" value="gt"> {">"} </option>
+                            <option key="gte" value="gte"> {">="} </option>
+                            <option key="lt" value="lt"> {"<"} </option>
+                            <option key="lte" value="lte"> {"<="} </option>
                         </select>
                         {
                             isEdit ? (

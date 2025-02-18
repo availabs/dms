@@ -72,6 +72,7 @@ export default function RenderInHeaderColumnControls({attribute}) {
         allowFontSize,
         allowHideHeader,
         allowCardSpan,
+        allowLinkControl
     } = getControlConfig(compType);
     const menuRef = useRef(null);
     const [isOpen, setIsOpen] = useState(false);
@@ -157,7 +158,7 @@ export default function RenderInHeaderColumnControls({attribute}) {
                 <div className="py-0.5 w-1/2 min-w-fit max-h-[500px] overflow-auto scrollbar-sm">
                     <div className="flex flex-col gap-0.5 items-center px-1 py-1 text-xs text-gray-700">
                         {
-                            allowSortBy ?
+                            allowSortBy && (compType === 'graph' ? attribute.xAxis : true) ?
                                 <div className={'w-full cursor-pointer'}>
                                     <select
                                         className={selectClasses}
@@ -219,7 +220,9 @@ export default function RenderInHeaderColumnControls({attribute}) {
                                 </div> : null
                         }
 
-                        <RenderLinkControls attribute={attribute} updateColumns={updateColumns}/>
+                        {
+                            allowLinkControl ? <RenderLinkControls attribute={attribute} updateColumns={updateColumns}/> : null
+                        }
 
                         {
                             allowHideHeader ? (

@@ -1,9 +1,9 @@
 import React, {useContext} from "react";
 import {SpreadSheetContext} from "../index";
 
-export const RenderPagination = ({currentPage, setCurrentPage}) => {
+export const RenderPagination = ({currentPage, setCurrentPage, compType}) => {
     const {state} = useContext(SpreadSheetContext)
-    if(!state.columns.filter(column => column.show).length) return;
+    if(!state.columns.filter(column => column.show).length || compType === 'graph') return;
 
     const rangeSize = 5;
     const totalPages=Math.ceil(state.display.totalLength / state.display.pageSize);

@@ -137,6 +137,6 @@ export default {
         {name: 'loadMoreId', hidden: true}, {name: 'attributionData', hidden: true}
     ],
     getData,
-    "EditComp": props => <SpreadSheet.EditComp {...props} renderCard={true}/>,
-    "ViewComp": props => <SpreadSheet.ViewComp {...props} renderCard={true}/>,
+    "EditComp": props => <SpreadSheet.EditComp {...props} compType={'card'}/>,
+    "ViewComp": props => <SpreadSheet.ViewComp {...props} compType={'card'}/>,
 }

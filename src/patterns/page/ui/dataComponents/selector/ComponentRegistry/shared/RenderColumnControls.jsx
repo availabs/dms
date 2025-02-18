@@ -66,6 +66,9 @@ export default function RenderColumnControls({context}) {
         allowFnSelector,
         allowExcludeNASelector,
         allowShowToggle,
+        allowXAxisToggle,
+        allowYAxisToggle,
+        allowCategoriseToggle,
         allowFilterToggle,
         allowGroupToggle,
         allowOpenOutToggle,
@@ -154,7 +157,32 @@ export default function RenderColumnControls({context}) {
 
             if (key === 'group' && value === false && draft.columns.some(c => c.name !== originalAttribute.name && c.group)) {
                 // if grouping by other columns, apply fn when removing group for current column
-                draft.columns[idx].fn = draft.columns[idx].defaultFn || 'list';
+                draft.columns[idx].fn = draft.columns[idx].defaultFn?.toLowerCase() || 'list';
+            }
+
+            // graph controls
+            // group by xAxis and categories.
+            // xAxis, yAxis, and categories all set to show.
+            if(key === 'xAxis'){
+                // turn off other xAxis columns
+                draft.columns.forEach(column => {
+                    // if xAxis true, for original column set to true. for others false.
+                    column.xAxis = value ? column.name === originalAttribute.name : value;
+                    // if turning xAxis off, and not original column, check their yAxis and category settings.
+                    column.group = column.name === originalAttribute.name ? value : column.yAxis || column.categorize;
+                    column.show = column.name === originalAttribute.name ? value : column.yAxis || column.categorize;
+                })
+            }
+
+            if(key === 'yAxis'){
+                draft.columns[idx].fn = value ? draft.columns[idx].defaultFn?.toLowerCase() || 'count' : ''
+                // draft.columns[idx].group = value;
+                draft.columns[idx].show = value;
+            }
+
+            if(key === 'categorize'){
+                draft.columns[idx].group = value;
+                draft.columns[idx].show = value;
             }
         });
     }, [setState]);
@@ -195,7 +223,8 @@ export default function RenderColumnControls({context}) {
     }), [columns]);
 
     const totalControlColsLen = 2 + +allowCustomColNames + +allowFnSelector + +allowExcludeNASelector +
-        +allowShowToggle + +allowFilterToggle + +allowGroupToggle + +allowOpenOutToggle;
+        +allowShowToggle + +allowXAxisToggle + +allowYAxisToggle + +allowCategoriseToggle +
+        +allowFilterToggle + +allowGroupToggle + +allowOpenOutToggle;
     const {gridClass, gridTemplateColumns, width} = gridClasses[totalControlColsLen];
 
     const isEveryColVisible = (sourceInfo.columns || []).map(({name}) => columns.find(column => column.name === name)).every(column => column?.show);
@@ -240,6 +269,9 @@ export default function RenderColumnControls({context}) {
                             {allowFnSelector ? <div className={'px-1 w-fit rounded-md text-center'}>Fn</div> : null}
                             {allowExcludeNASelector ? <div className={'px-1 w-fit rounded-md text-center'}>Exclude N/A</div> : null}
                             {allowShowToggle ? <div className={'justify-self-end'}>Show</div> : null}
+                            {allowXAxisToggle ? <div className={'justify-self-end'}>X Axis</div> : null}
+                            {allowYAxisToggle ? <div className={'justify-self-end'}>Y Axis</div> : null}
+                            {allowCategoriseToggle ? <div className={'justify-self-end'}>Categorise</div> : null}
                             {allowOpenOutToggle ? <div className={'justify-self-end'}>Open Out</div> : null}
                             {allowFilterToggle ? <div className={'justify-self-end'}>Filter</div> : null}
                             {allowGroupToggle ? <div className={'justify-self-end'}>Group</div> : null}
@@ -277,6 +309,9 @@ export default function RenderColumnControls({context}) {
                                     />
                                 </div>
                             </div> : null}
+                            {allowXAxisToggle ? <div className={'justify-self-end'}></div> : null}
+                            {allowYAxisToggle ? <div className={'justify-self-end'}></div> : null}
+                            {allowCategoriseToggle ? <div className={'justify-self-end'}></div> : null}
                             {allowOpenOutToggle ? <div className={'justify-self-end'}></div> : null}
                             {allowFilterToggle ? <div className={'justify-self-end'}></div> : null}
                             {allowGroupToggle ? <div className={'justify-self-end'}></div> : null}
@@ -332,11 +367,12 @@ export default function RenderColumnControls({context}) {
                                                     key={attribute.fn}
                                                     className={`px-0.5 appearance-none w-fit rounded-md ${attribute.fn ? `bg-blue-500/15 text-blue-700 hover:bg-blue-500/25` : `bg-gray-100`} h-fit text-center cursor-pointer`}
                                                     value={attribute.fn}
+                                                    disabled={!attribute.yAxis}
                                                     onChange={e => updateColumns(attribute, 'fn', e.target.value)}
                                                 >
                                                     <option key={'fn'} value={''}>fn</option>
                                                     {
-                                                        ['list', 'sum', 'count']
+                                                       ['list', 'sum', 'count']
                                                             .map(fnOption => <option key={fnOption}
                                                                                      value={fnOption}>{fnOption}</option>)
                                                     }
@@ -366,6 +402,42 @@ export default function RenderColumnControls({context}) {
                                                         id={attribute.name}
                                                         enabled={attribute.show}
                                                         setEnabled={(value) => updateColumns(attribute, 'show', value)}
+                                                    />
+                                                </div> : null
+                                        }
+
+                                        {
+                                            allowXAxisToggle ?
+                                                <div className={'justify-self-end'}>
+                                                    <RenderSwitch
+                                                        size={'small'}
+                                                        id={attribute.name}
+                                                        enabled={attribute.xAxis}
+                                                        setEnabled={(value) => attribute.yAxis || attribute.categorize ? null : updateColumns(attribute, 'xAxis', value)}
+                                                    />
+                                                </div> : null
+                                        }
+
+                                        {
+                                            allowYAxisToggle ?
+                                                <div className={'justify-self-end'}>
+                                                    <RenderSwitch
+                                                        size={'small'}
+                                                        id={attribute.name}
+                                                        enabled={attribute.yAxis}
+                                                        setEnabled={(value) => attribute.xAxis || attribute.categorize ? null : updateColumns(attribute, 'yAxis', value)}
+                                                    />
+                                                </div> : null
+                                        }
+
+                                        {
+                                            allowCategoriseToggle ?
+                                                <div className={'justify-self-end'}>
+                                                    <RenderSwitch
+                                                        size={'small'}
+                                                        id={attribute.name}
+                                                        enabled={attribute.categorize}
+                                                        setEnabled={(value) => attribute.xAxis || attribute.yAxis ? null : updateColumns(attribute, 'categorize', value)}
                                                     />
                                                 </div> : null
                                         }

@@ -7,6 +7,7 @@ import Header from './header'
 
 import Spreadsheet from "./spreadsheet";
 import Card from "./Card";
+import Graph from "./graph"
 import Item from "./item";
 import ComponentsIndexTable from "../componentsIndexTable";
 import FilterComponent from "./FilterComponent";
@@ -118,12 +119,13 @@ const ComponentRegistry = {
     lexical,
     "Header: Default Header": Header,
     "Header: MNY": MNYHeader,
-     Card,
-     Spreadsheet,
-     Item,
+    Card,
+    Spreadsheet,
+    Graph,
+    Item,
     Filter: FilterComponent,
-     //"Title": CustomHeader,
-     "Table: Components Index": ComponentsIndexTable,
+    //"Title": CustomHeader,
+    "Table: Components Index": ComponentsIndexTable,
  }
 
 

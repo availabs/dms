@@ -38,6 +38,7 @@ export default function RenderMoreControls({context}) {
         {label: `Inline`, value: 'row'},
         {label: `Stacked`, value: 'col'},
     ]
+    if(compType === 'graph') return;
     return (
         <div className="relative inline-block text-left">
             <div>
