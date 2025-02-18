@@ -56,15 +56,18 @@ const Layout = ({ children, navItems, secondNav, title, pageTheme, EditPane, yPa
 		menuItems: (sideNav?.nav === 'main' ? nav2Level(navItems, sideNav.depth, pathname, theme.layout.navTitle)  : sideNav?.nav === 'secondary' ? secondNav || [] : []).filter(page => !page.hideInNav),
 		topMenu: (
 			<div className={'flex flex-row md:flex-col'}>
-	      		{sideNav?.logo === 'top' && logo}
+				{sideNav?.logo === 'top' && logo}
 	        	{sideNav?.dropdown === 'top' && <Menu />}
+	        	
 	        	{sideNav?.search === 'top' && <Search app={app} type={type}/>}
+
 	      	</div>),
 		bottomMenu:  (
 	      	<div className={'flex flex-row md:flex-col'}>
 	      		{sideNav?.logo === 'bottom' && logo}
 	      		{sideNav?.search === 'bottom' && <Search app={app} type={type}/>}
 	        	{sideNav?.dropdown === 'bottom' && <Menu />}
+	        	{(EditPane && sideNav?.dropdown) && <EditPane />}
 	      	</div>
 	  	)
 	}
