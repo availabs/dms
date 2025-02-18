@@ -20,12 +20,11 @@ export default function EditPane () {
   const hasChanges = item.published === 'draft' || item.has_changes
 
   return (
-    <div className='flex items-cemter'>
-      <div><PublishButton /></div>
+    <div className='flex items-cemter p-1'>
+      <div className='flex-1'><PublishButton /></div>
       <div className='flex items-cemter  px-4 py-2 ' onClick={() => setEditPane({...editPane, open: !editPane.open})}>
         <AdjustmentsHorizontal className='size-6 hover:text-blue-500 text-slate-400'/>
       </div>
-      <EditDrawer />   
     </div>
   )
 }
@@ -33,7 +32,8 @@ export default function EditPane () {
 export function EditDrawer() {
   const { baseUrl, user, falcor, falcorCache} = React.useContext(CMSContext) || {}
   const { item={}, dataItems=[], apiUpdate,  editPane, setEditPane } =  React.useContext(PageContext) || {}
-   const [ editState, setEditState ] = React.useState({
+  console.log('editPane', editPane)
+  const [ editState, setEditState ] = React.useState({
       deleteId: -1
   })
 

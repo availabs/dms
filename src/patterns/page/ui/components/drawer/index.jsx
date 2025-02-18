@@ -64,7 +64,7 @@ export default function Drawer ({ open, setOpen, CloseIcon=XMark, width='max-w-6
         leaveFrom="translate-x-0"
         leaveTo="translate-x-full"
       >
-        <div className={`${open ? 'fixed' : 'hidden'}  right-0 top-0 bottom-0 z-40 ${width} translate-x-0 bg-white shadow-lg transform transition ease-in-out duration-500 sm:duration-700`}>
+        <div className={`${open ? 'fixed' : 'hidden'} findmeclass right-0 top-0 bottom-0 z-50 ${width} translate-x-0 bg-white shadow-lg `}>
           <div className="">
             <div className="fixed right-2 top-2">
               <button

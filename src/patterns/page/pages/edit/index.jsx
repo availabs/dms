@@ -12,7 +12,8 @@ import { PageContext } from '../view'
 
 
 import { CMSContext } from '../../siteConfig'
-import EditPane from './editPane'
+import EditPane, { EditDrawer } from './editPane'
+
 
 
 function PageEdit ({
@@ -24,7 +25,7 @@ function PageEdit ({
   const { pathname = '/edit' } = useLocation()
   const { baseUrl, user, theme } = React.useContext(CMSContext) || {}
   const [ creating, setCreating ] = React.useState(false)
-  const [ editPane, setEditPane ] = React.useState({ open: false, index: 0 })
+  const [ editPane, setEditPane ] = React.useState({ open: false, index: 1 })
   const isDynamicPage = true; // map this flag to the UI. when true, the page gets data loading capabilities.
   // console.log('item', item, dataItems, status)
   
@@ -75,6 +76,7 @@ function PageEdit ({
   return (
     <PageContext.Provider value={{ item, dataItems, apiLoad, apiUpdate, editPane, setEditPane }} >
       <div className={`${theme?.page?.container}`}>
+        <EditDrawer /> 
         {item?.header === 'above' && (
           <ContentEdit
             full_width={'show'}
