@@ -1,6 +1,6 @@
 {
   "name": "@availabs/dms",
-  "version": "0.0.57",
+  "version": "0.0.58",
   "description": "AVAIL Data Management System",
   "main": "dist/index.js",
   "private": false,

@@ -1,6 +1,6 @@
-import React from 'react'
+
 import {Typeahead, Menu, MenuItem, Input, useToken} from 'react-bootstrap-typeahead';
-import { get } from "lodash-es";;
+import { get } from "lodash-es";
 import React, {useEffect, useState} from "react";
 //import placeholder from "lodash-es/fp/placeholder.js";
 
