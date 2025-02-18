@@ -1,6 +1,7 @@
-import RenderSwitch from "./Switch";
+
 import {ArrowDown, Filter, FilterRemove} from "../../../../../../forms/ui/icons";
-import {useRef, useState, useEffect} from "react";
+import React, {useRef, useState, useEffect} from "react";
+import RenderSwitch from "./Switch";
 
 export default function RenderColumnControls({
                                                  attributes, filters, setFilters

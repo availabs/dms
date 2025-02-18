@@ -1,3 +1,5 @@
+import React from 'react'
+
 export const Pill = ({color, text}) => {
     const colors = {
         orange: `bg-orange-500/15 text-orange-700 group-data-[hover]:bg-orange-500/25`,

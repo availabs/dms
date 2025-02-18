@@ -4,7 +4,7 @@ import {
   mean as d3mean,
   sum as d3sum
 } from "d3-array"
-import get from "lodash/get"
+import {get} from "lodash-es"
 import colorbrewer from "colorbrewer"
 
 

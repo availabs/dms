@@ -1,9 +1,8 @@
-
+import React, {useContext, useMemo} from "react";
 import {getData} from "../spreadsheet/utils/utils";
 import SpreadSheet, {SpreadSheetContext} from "../spreadsheet";
 import RenderInHeaderColumnControls from "../spreadsheet/components/RenderInHeaderColumnControls";
-import React, {useContext, useMemo} from "react";
-import get from "lodash/get";
+import {get} from "lodash-es";
 import {getColorRange, GraphComponent} from "./GraphComponent";
 
 const NaNValues = ["", null]
