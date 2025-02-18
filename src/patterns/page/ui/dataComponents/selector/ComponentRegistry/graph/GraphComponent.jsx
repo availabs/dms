@@ -4,8 +4,7 @@ import {
   mean as d3mean,
   sum as d3sum
 } from "d3-array"
-import get from "lodash/get"
-import {mapColors} from "./GraphComponents/utils";
+import {get} from "lodash-es"
 import { GraphTypes, getGraphComponent } from "./GraphComponents"
 
 export const getColorRange = (size, name, reverse=false) => {

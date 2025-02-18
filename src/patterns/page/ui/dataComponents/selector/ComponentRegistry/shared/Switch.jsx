@@ -1,3 +1,5 @@
+import React from 'react'
+
 export default function RenderSwitch({ enabled=false, setEnabled, label, size='medium' }) {
     const sizeClassesPill = {
         xs: 'h-2 w-6',

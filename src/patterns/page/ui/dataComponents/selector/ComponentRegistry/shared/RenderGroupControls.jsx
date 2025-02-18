@@ -1,6 +1,6 @@
 import RenderSwitch from "./Switch";
 import {ArrowDown, Group} from "../../../../../../forms/ui/icons";
-import {useRef, useState, useEffect} from "react";
+import React, {useRef, useState, useEffect} from "react";
 
 export default function RenderGroupControls({
                                                  attributes, groupBy, setGroupBy, setFn

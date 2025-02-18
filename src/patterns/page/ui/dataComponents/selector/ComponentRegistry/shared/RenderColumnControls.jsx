@@ -1,5 +1,5 @@
-import RenderSwitch from "./Switch";
 import React, {useCallback, useContext, useEffect, useMemo, useRef, useState} from "react";
+import RenderSwitch from "./Switch";
 import {ArrowDown, RestoreBin} from "../../../../../../forms/ui/icons";
 import {cloneDeep} from "lodash-es";
 import {SpreadSheetContext} from "../spreadsheet";
