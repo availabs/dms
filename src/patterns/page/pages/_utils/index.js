@@ -41,13 +41,12 @@ export function getChildNav(item, dataItems, baseUrl='', edit) {
         }
         const inPageChildrenForD =  getInPageNav(d)?.menuItems || [];
         const childrenForD = getChildNav(d, dataItems, baseUrl, edit) || [];
-        if (inPageChildrenForD.length) console.log('setting subMenus for ', item.name, inPageChildrenForD, childrenForD)
         item.subMenus = childrenForD
 
         return item
     })
 
-    return [...inPageChildren, ...childrenToReturn];
+    return childrenToReturn?.length ? childrenToReturn : inPageChildren;
 }
 
 export function getCurrentDataItem(dataItems, baseUrl) {
