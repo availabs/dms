@@ -63,7 +63,7 @@ const fontSizeOptions = [
 const selectClasses = 'p-1 w-full rounded-md bg-white hover:bg-gray-100 cursor-pointer'
 
 // in header menu for each column
-export default function RenderInHeaderColumnControls({attribute}) {
+export default function TableHeaderCell({attribute}) {
     const {state: {columns = [], display}, setState, compType} = useContext(SpreadSheetContext);
     const {
         allowSortBy,
@@ -130,11 +130,12 @@ export default function RenderInHeaderColumnControls({attribute}) {
     return (
         <div className="relative w-full">
             <div id={menuBtnId}
-                 className={`group inline-flex items-center w-full justify-between gap-x-1.5 rounded-md px-3 py-1 text-sm font-semibold text-gray-600 cursor-pointer`}
+                 className={`group inline-flex items-center w-full justify-between gap-x-1.5 rounded-md cursor-pointer`}
                  onClick={e => setIsOpen(!isOpen)}>
                 <span className={'truncate select-none'}
                       title={attribute.customName || attribute.display_name || attribute.name}>
-                    {attribute.customName || attribute.display_name || attribute.name}</span>
+                    {attribute.customName || attribute.display_name || attribute.name}
+                </span>
                 <div id={menuBtnId} className={'flex items-center'}>
                     {/*/!*<InfoCircle width={16} height={16} className={'text-gray-500'} />*!/ needs a lexical modal*/}
                     {

@@ -8,7 +8,7 @@ import {get} from "lodash-es"
 import { GraphTypes, getGraphComponent } from "./GraphComponents"
 import {mapColors} from "./GraphComponents/utils";
 export const getColorRange = (size, name, reverse=false) => {
-  let range = get(mapColors, [name, size], []).slice();
+  let range = get({}, [name, size], []).slice();
 
   if(reverse) {
     range.reverse()
