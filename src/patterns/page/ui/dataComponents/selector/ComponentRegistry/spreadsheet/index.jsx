@@ -1,6 +1,6 @@
 import React, {useState, useEffect, createContext, useMemo, useRef} from 'react'
 import writeXlsxFile from 'write-excel-file';
-import {RenderSimple} from "./components/SimpleSpreadsheet";
+import { RenderTable } from "./components/SimpleSpreadsheet";
 import {RenderPagination} from "./components/RenderPagination";
 import {getData} from "./utils/utils";
 import {RenderFilters} from "../shared/filters/RenderFilters";
@@ -163,6 +163,8 @@ const RenderDownload = ({state, apiLoad}) => {
         </div>
     )
 }
+
+
 const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, compType='spreadsheet', hideSourceSelector}) => {
     const isEdit = Boolean(onChange);
     const [state, setState] = useImmer(convertOldState(value, initialState(compType)));
@@ -365,7 +367,7 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, compType='spread
                                 {/*Pagination*/}
                                 <RenderPagination currentPage={currentPage} setCurrentPage={setCurrentPage} />
 
-                                <RenderSimple {...{
+                                < RenderTable  {...{
                                     newItem, setNewItem,
                                     updateItem, removeItem, addItem,
                                     currentPage, loading, isEdit
@@ -563,7 +565,7 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, compType='spreadsheet'
                     {
                         Comp ?
                             <Comp isEdit={isEdit}/> :
-                            <RenderSimple {...{
+                            <RenderTable  {...{
                                 newItem, setNewItem,
                                 updateItem, removeItem, addItem,
                                 currentPage, loading, isEdit,

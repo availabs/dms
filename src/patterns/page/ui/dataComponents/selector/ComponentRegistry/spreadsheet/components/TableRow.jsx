@@ -1,8 +1,10 @@
 import React, {useContext, useMemo, useState} from "react";
 import {actionsColSize, numColSize, gutterColSize} from "../constants"
-import {RenderCell} from "./RenderCell";
+import {TableCell} from "./TableCell";
 import {SpreadSheetContext} from "../index";
 import {handleMouseDown, handleMouseMove, handleMouseUp} from "../utils/mouse";
+import { CMSContext } from '../../../../../../siteConfig'
+import { tableTheme } from './SimpleSpreadsheet'
 
 const getEdge = ({startI, endI, startCol, endCol}, i, attrI) => {
     const e =
@@ -25,17 +27,17 @@ const getEdge = ({startI, endI, startCol, endCol}, i, attrI) => {
     return e;
 }
 
-export const RenderRow = ({
-                              frozenCols,
-
-                              i, c, d,
-                              allowEdit, isDragging, isSelecting, editing, setEditing, loading,
-                              selection, setSelection, selectionRange, triggerSelectionDelete,
-                              handleMouseDown, handleMouseMove, handleMouseUp,
-                              setIsDragging, startCellCol, startCellRow,
-                              updateItem, removeItem
-                          }) => {
+export const TableRow = ({
+  frozenCols,
+  i, d,
+  allowEdit, isDragging, isSelecting, editing, setEditing, loading,
+  selection, setSelection, selectionRange, triggerSelectionDelete,
+  handleMouseDown, handleMouseMove, handleMouseUp,
+  setIsDragging, startCellCol, startCellRow,
+  updateItem, removeItem
+}) => {
     const {state: {columns, display}, setState} = useContext(SpreadSheetContext);
+    const { theme = { table: tableTheme } } = React.useContext(CMSContext) || {}
     const [showOpenOut, setShowOpenOut] = useState(false);
 
     const visibleAttributes = useMemo(() => columns.filter(({show}) => show), [columns]);
@@ -43,17 +45,19 @@ export const RenderRow = ({
     const visibleAttrsWithoutOpenOutsLen = visibleAttrsWithoutOpenOut.length;
     const openOutAttributes = visibleAttributes.filter(({openOut}) => openOut);
 
-    const gridClass = `grid ${c[visibleAttrsWithoutOpenOut.length + 2]}`;
-    const gridTemplateColumns = `${numColSize}px ${visibleAttrsWithoutOpenOut.map(v => `${v.size}px` || 'auto').join(' ')} ${gutterColSize}px`;
 
     return (
         <>
-            <div key={`data-${i}`}
-                 className={`${d.totalRow ? `sticky bottom-0 z-[1]` : ``} ${gridClass}
+            <div 
+                key={`data-${i}`}
+                className={`${d.totalRow ? `sticky bottom-0 z-[1]` : ``} grid
                             divide-x divide-y ${isDragging ? `select-none` : ``} 
                             ${display.striped ? `odd:bg-gray-50` : ``} ${d.totalRow ? `bg-gray-100` : ``}`
                             }
-                 style={{gridTemplateColumns}}
+                style={{
+                    gridTemplateColumns: `${numColSize}px ${visibleAttrsWithoutOpenOut.map(v => `${v.size}px` || 'auto').join(' ')} ${gutterColSize}px`,
+                    gridColumn: `span ${visibleAttrsWithoutOpenOut.length + 2} / ${visibleAttrsWithoutOpenOut.length + 2}`
+                }}
             >
                 <div key={'#'}
                      className={`p-1 flex text-xs items-center justify-center border cursor-pointer sticky left-0 z-[1]
@@ -92,7 +96,7 @@ export const RenderRow = ({
                 </div>
                 {visibleAttrsWithoutOpenOut
                     .map((attribute, attrI) =>
-                        <RenderCell
+                        <TableCell
                             showOpenOutCaret={openOutAttributes.length && attrI === 0}
                             showOpenOut={showOpenOut} setShowOpenOut={setShowOpenOut}
                             isSelecting={isSelecting}
@@ -202,7 +206,7 @@ export const RenderRow = ({
                                 {">"}
                             </div>
 
-                            <RenderCell
+                            <TableCell
                                 isSelecting={isSelecting}
                                 isSelected={selection.find(s => s.index === i && s.attrI === attrI) || selection.includes(i)}
                                 isFrozen={frozenCols.includes(attrI)}

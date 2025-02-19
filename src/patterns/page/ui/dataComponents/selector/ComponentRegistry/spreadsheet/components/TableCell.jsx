@@ -54,7 +54,7 @@ const colSpanClass = {
     11: 'col-span-11',
 }
 
-export const RenderCell = ({
+export const TableCell = ({
                                showOpenOutCaret, showOpenOut, setShowOpenOut,
                                attribute, colSpan,
                                i, item, updateItem, removeItem, onPaste,

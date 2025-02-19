@@ -15,6 +15,8 @@ import { fieldTheme } from '../components/fieldset'
 // --- Data Components
 import { sectionArrayTheme } from '../dataComponents/sections/sectionArray'
 
+// -- Component Registery Components
+import { tableTheme } from '../dataComponents/selector/ComponentRegistry/spreadsheet/components/SimpleSpreadsheet'
 
 
 import { menuTheme } from '../components/menu'
@@ -91,9 +93,10 @@ const theme = {
   dialog: dialogTheme,
   popover: popoverTheme,
   select: selectTheme,
-
+  // -- 
   sectionArray: sectionArrayTheme,
-
+  // --
+  table: tableTheme,
 
   // --- component themes
   lexical : {

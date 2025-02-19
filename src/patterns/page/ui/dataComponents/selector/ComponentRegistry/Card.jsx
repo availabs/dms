@@ -1,7 +1,7 @@
 
 import {formatFunctions, getData} from "./spreadsheet/utils/utils";
 import SpreadSheet, {SpreadSheetContext} from "./spreadsheet";
-import RenderInHeaderColumnControls from "./spreadsheet/components/RenderInHeaderColumnControls";
+import TableHeaderCell from "./spreadsheet/components/TableHeaderCell";
 import React, {useContext, useMemo} from "react";
 import {Link} from "react-router-dom";
 
@@ -77,7 +77,7 @@ export const Card = ({isEdit}) => {
                 isEdit ? <div className={headerWrapper}>
                     {visibleColumns.map((attribute, i) =>
                             <div key={`controls-${i}`} className={columnControlWrapper}>
-                                <RenderInHeaderColumnControls
+                                <TableHeaderCell
                                     isEdit={isEdit}
                                     attribute={attribute}
                                 />

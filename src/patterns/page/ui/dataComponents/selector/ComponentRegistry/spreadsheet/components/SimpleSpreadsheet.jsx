@@ -1,14 +1,15 @@
 import React, {useContext, useEffect, useMemo, useRef, useState} from "react";
 import DataTypes from "../../../../../../../../data-types";
-import RenderInHeaderColumnControls from "./RenderInHeaderColumnControls";
+import TableHeaderCell from "./TableHeaderCell";
 import {Add} from "../../../../../../../forms/ui/icons";
 import {useCopy, usePaste} from "../utils/hooks";
 import {handleKeyDown} from "../utils/keyboard";
 import {handleMouseUp, handleMouseMove, handleMouseDown} from "../utils/mouse";
-import {RenderRow} from "./RenderRow";
+import { TableRow } from "./TableRow";
 import {RenderGutter} from "./RenderGutter";
 import {actionsColSize, numColSize, gutterColSize, minColSize, minInitColSize} from "../constants"
 import {SpreadSheetContext} from "../index";
+import { CMSContext } from '../../../../../../siteConfig'
 
 const DisplayCalculatedCell = ({value, className}) => <div className={className}>{value}</div>
 
@@ -42,7 +43,20 @@ const updateItemsOnPaste = ({pastedContent, e, index, attrI, data, visibleAttrib
 const frozenCols = [0,1] // testing
 const frozenColClass = '' // testing
 
-export const RenderSimple = ({isEdit, updateItem, removeItem, addItem, newItem, setNewItem, loading}) => {
+export const tableTheme = {
+    tableContainer: 'flex flex-col w-full h-full overflow-x-auto scrollbar-sm',
+    tableContainer1: 'flex flex-col no-wrap min-h-[200px] max-h-[calc(78vh_-_10px)] overflow-y-auto scrollbar-sm',
+    headerContainer: 'sticky top-0 grid',
+    thead: 'flex justify-between',
+    theadfrozen: '',
+    thContainer: 'w-full font-semibold px-3 py-1 text-sm font-semibold text-gray-600 border',
+    thContainerBg: 'bg-blue-100 text-gray-900',
+    thContainerBgSelected: 'bg-gray-50 text-gray-500'
+}
+
+
+export const RenderTable = ({isEdit, updateItem, removeItem, addItem, newItem, setNewItem, loading}) => {
+    const { theme = { table: tableTheme } } = React.useContext(CMSContext) || {}
     const {state:{columns, sourceInfo, display, data}, setState} = useContext(SpreadSheetContext);
     const gridRef = useRef(null);
     const [isSelecting, setIsSelecting] = useState(false);
@@ -192,59 +206,68 @@ export const RenderSimple = ({isEdit, updateItem, removeItem, addItem, newItem, 
     }, [triggerSelectionDelete])
     // ============================================ Trigger delete end =================================================
 
-    const c = {
-        1: 'grid grid-cols-1',
-        2: 'grid grid-cols-2',
-        3: 'grid grid-cols-3',
-        4: 'grid grid-cols-4',
-        5: 'grid grid-cols-5',
-        6: 'grid grid-cols-6',
-        7: 'grid grid-cols-7',
-        8: 'grid grid-cols-8',
-        9: 'grid grid-cols-9',
-        10: 'grid grid-cols-10',
-        11: 'grid grid-cols-11',
-    };
+    
 
     if(!visibleAttributes.length) return <div className={'p-2'}>No columns selected.</div>;
-    const gridClass = `grid ${c[visibleAttrsWithoutOpenOut.length + 2]}`;
-    const gridTemplateColumns = `${numColSize}px ${visibleAttrsWithoutOpenOut.map(v => `${v.size}px` || 'auto').join(' ')} ${gutterColSize}px`;
 
     return (
-        <div className={`flex flex-col w-full h-full overflow-x-auto scrollbar-sm`} ref={gridRef}>
-            <div className={'flex flex-col no-wrap text-sm min-h-[200px] max-h-[calc(78vh_-_10px)] overflow-y-auto scrollbar-sm'}
+        <div className={theme?.table?.tableContainer} ref={gridRef}>
+            <div className={theme?.table?.tableContainer1}
                  onMouseLeave={e => handleMouseUp({setIsDragging})}>
 
                 {/****************************************** Header begin ********************************************/}
-                <div className={`sticky top-0 ${gridClass}`} style={{zIndex: 5, gridTemplateColumns: gridTemplateColumns}}>
+                <div 
+                    className={theme?.table?.headerContainer}
+                    style={{
+                        zIndex: 5, 
+                        gridTemplateColumns: `${numColSize}px ${visibleAttrsWithoutOpenOut.map(v => `${v.size}px` || 'auto').join(' ')} ${gutterColSize}px`, 
+                        gridColumn: `span ${visibleAttrsWithoutOpenOut.length + 2} / ${visibleAttrsWithoutOpenOut.length + 2}`
+                    }}
+                >
+                    {/*********************** header left gutter *******************/}
                     <div className={'flex justify-between sticky left-0 z-[1]'} style={{width: numColSize}}>
-                        <div key={'#'} className={`w-full font-semibold border bg-gray-50 text-gray-500 ${frozenColClass}`} />
+                        <div key={'#'} className={`w-full border bg-gray-50 ${frozenColClass}`} />
                     </div>
-                    {visibleAttrsWithoutOpenOut.map((attribute, i) =>
-                            <div key={i}
-                                 className={`flex justify-between ${frozenCols.includes(i) ? frozenColClass : ''}`}
-                                 style={{width: attribute.size}}>
+                    {/******************************************&*******************/}
+
+                    {visibleAttrsWithoutOpenOut
+                        .map((attribute, i) => (
+                            <div 
+                                key={i}
+                                className={`${theme?.table?.thead} ${frozenCols.includes(i) ? theme?.table?.theadfrozen : ''}`}
+                                style={{width: attribute.size}}
+                            >
 
                                 <div key={`controls-${i}`}
-                                     className={`w-full font-semibold  border ${selection.find(s => s.attrI === i) ? `bg-blue-100 text-gray-900` : `bg-gray-50 text-gray-500`}`}>
-                                    <RenderInHeaderColumnControls attribute={attribute} />
+                                    className={`
+                                        ${theme?.table?.thContainer}  
+                                        ${selection.find(s => s.attrI === i) ? 
+                                            theme?.table?.thContainerBg : theme?.table?.thContainerBgSelected 
+                                        }`
+                                    }
+                                >
+                                    <TableHeaderCell attribute={attribute} />
                                 </div>
 
-                                <div key={`resizer-${i}`} className="z-5 -ml-2"
-                                     style={{
-                                         width: '3px',
-                                         height: '100%',
-                                         background: '#ddd',
-                                         cursor: 'col-resize',
-                                         position: 'relative',
-                                         right: 0,
-                                         top: 0
-                                     }}
-                                     onMouseDown={colResizer(attribute?.name)}/>
+                                <div 
+                                    key={`resizer-${i}`} className="z-5 -ml-2"
+                                    style={{
+                                        width: '3px',
+                                        height: '100%',
+                                        background: '#ddd',
+                                        cursor: 'col-resize',
+                                        position: 'relative',
+                                        right: 0,
+                                        top: 0
+                                    }}
+                                    onMouseDown={colResizer(attribute?.name)}
+                                />
 
-                            </div>)}
+                            </div>
+                        )
+                    )}
 
-                    {/*gutter column cell*/}
+                    {/***********gutter column cell*/}
                     <div key={'##'}
                          className={`bg-gray-50 border z-[1] flex shrink-0 justify-between`}
                          style={{width: numColSize}}
@@ -256,8 +279,8 @@ export const RenderSimple = ({isEdit, updateItem, removeItem, addItem, newItem, 
                 {/****************************************** Rows begin **********************************************/}
                 {data.filter(d => !d.totalRow)
                     .map((d, i) => (
-                        <RenderRow key={i} {...{
-                            i, c, d,  isEdit, frozenCols,
+                        <TableRow key={i} {...{
+                            i, d,  isEdit, frozenCols,
                             allowEdit, isDragging, isSelecting, editing, setEditing, loading:false,
                             selection, setSelection, selectionRange, triggerSelectionDelete,
                             handleMouseDown, handleMouseMove, handleMouseUp,
@@ -265,7 +288,9 @@ export const RenderSimple = ({isEdit, updateItem, removeItem, addItem, newItem, 
                             updateItem, removeItem
                         }} />
                     ))}
-                <div id={display.loadMoreId} className={`${display.usePagination ? 'hidden' : ''} min-h-2 w-full text-center`}>{loading ? 'loading...' : ''}</div>
+                <div id={display.loadMoreId} className={`${display.usePagination ? 'hidden' : ''} min-h-2 w-full text-center`}>
+                    {loading ? 'loading...' : ''}
+                </div>
 
 
                 {/*/!****************************************** Gutter Row **********************************************!/*/}
@@ -276,7 +301,7 @@ export const RenderSimple = ({isEdit, updateItem, removeItem, addItem, newItem, 
                 {/*{data*/}
                 {/*    .filter(d => showTotal && d.totalRow)*/}
                 {/*    .map((d, i) => (*/}
-                {/*        <RenderRow key={'total row'} {...{*/}
+                {/*        <TableRow key={'total row'} {...{*/}
                 {/*            i, c, d,*/}
                 {/*            allowEdit, isDragging, isSelecting, editing, setEditing, loading,*/}
                 {/*            striped, visibleAttributes, attributes, customColNames, frozenCols,*/}

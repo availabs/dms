@@ -1,7 +1,7 @@
 import React, {useContext, useMemo} from "react";
 import {getData} from "../spreadsheet/utils/utils";
 import SpreadSheet, {SpreadSheetContext} from "../spreadsheet";
-import RenderInHeaderColumnControls from "../spreadsheet/components/RenderInHeaderColumnControls";
+import TableHeaderCell from "../spreadsheet/components/TableHeaderCell";
 import {get} from "lodash-es";
 import {getColorRange, GraphComponent} from "./GraphComponent";
 
@@ -72,7 +72,7 @@ export const Graph = ({isEdit}) => {
                 isEdit ? <div className={headerWrapper}>
                     {[indexColumn, ...dataColumns].filter(f => f).map((attribute, i) =>
                         <div key={`controls-${i}`} className={columnControlWrapper}>
-                            <RenderInHeaderColumnControls
+                            <TableHeaderCell
                                 isEdit={isEdit}
                                 attribute={attribute}
                             />
