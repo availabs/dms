@@ -54,8 +54,8 @@ export const convert = (elementData) => {
                         ...v,
                         justify: v.align,
                         filters: [
-                            ...Array.isArray(internalFilter) ? {type: 'internal', operation: 'filter', values: internalFilter} : null,
-                            ...Array.isArray(internalExclude)? {type: 'internal', operation: 'exclude', values: internalExclude} : null,
+                            Array.isArray(internalFilter) && internalFilter.length ? {type: 'internal', operation: 'filter', values: internalFilter} : null,
+                            Array.isArray(internalExclude) && internalExclude.length ? {type: 'internal', operation: 'exclude', values: internalExclude} : null,
                         ].filter(f => f),
                         meta_lookup: v.meta_lookup ? changeDisasterNumberMeta(v.meta_lookup, v.name) : undefined,
                         ...(v.link || {}),
@@ -161,8 +161,8 @@ export const convert = (elementData) => {
             convertedState.columns.push({
                 ...(column || bkpColumn),
                 filters: [
-                    ...Array.isArray(internalFilter) ? {type: 'internal', operation: 'filter', values: internalFilter} : null,
-                    ...Array.isArray(internalExclude) ? {type: 'internal', operation: 'exclude', values: internalExclude} : null,
+                    Array.isArray(internalFilter) && internalFilter.length ? {type: 'internal', operation: 'filter', values: internalFilter} : null,
+                    Array.isArray(internalExclude) && internalExclude.length ? {type: 'internal', operation: 'exclude', values: internalExclude} : null,
                 ].filter(f => f)
             });
         })
