@@ -257,10 +257,15 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
             stopFullDataLoad: true
         },
     }]
-    const data = await apiLoad({
-        format: state.sourceInfo,
-        children
-    });
+    let data;
+    try{
+        data = await apiLoad({
+            format: state.sourceInfo,
+            children
+        });
+    }catch (e) {
+        return {length, data: [], invalidState: 'An Error occurred while fetching data.'};
+    }
 
     // =================================================================================================================
     // =========================================== fetch total row begin  ==============================================
@@ -282,10 +287,16 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
                 stopFullDataLoad: true
             },
         }]
-        const totalRowData = await apiLoad({
-            format: state.sourceInfo,
-            children: totalRowChildren
-        });
+
+        let totalRowData;
+        try{
+            totalRowData = await apiLoad({
+                format: state.sourceInfo,
+                children: totalRowChildren
+            });
+        }catch (e) {
+            return {length, data: [], invalidState: 'An Error occurred while fetching data.'};
+        }
 
         data.push({...totalRowData[0], totalRow: true})
     }

@@ -1,4 +1,4 @@
-import React, {useContext, useMemo} from "react";
+import React, {useContext, useEffect, useMemo} from "react";
 import {getData} from "../spreadsheet/utils/utils";
 import SpreadSheet, {SpreadSheetContext} from "../spreadsheet";
 import RenderInHeaderColumnControls from "../spreadsheet/components/RenderInHeaderColumnControls";
@@ -18,7 +18,7 @@ const defaultTheme = ({
 })
 
 export const Graph = ({isEdit}) => {
-    const {state:{columns, data, display}} = useContext(SpreadSheetContext);
+    const {state:{columns, data, display}, setState} = useContext(SpreadSheetContext);
     // data is restructured into: index, type, value.
     // index is X axis column's values.
     // type is either category column's values or Y axis column's display name or name.
@@ -30,7 +30,8 @@ export const Graph = ({isEdit}) => {
     const graphData = useMemo(() => {
         const tmpData = [];
         data.forEach(row => {
-            const index = row[indexColumn.name];
+            const index = row[indexColumn.name] && typeof row[indexColumn.name] !== 'object' && typeof row[indexColumn.name] !== 'string' ?
+                            row[indexColumn.name].toString() : row[indexColumn.name];
             dataColumns.forEach(dataColumn => {
                 const value = row[dataColumn.name];
                 if(!strictNaN(value)){
@@ -42,30 +43,14 @@ export const Graph = ({isEdit}) => {
         return tmpData
         }, [indexColumn, dataColumns.length, categoryColumn, data])
 
+    const colorPaletteSize = categoryColumn ? (new Set(data.map(item => item[categoryColumn.name]))).size : dataColumns ? dataColumns.length : 20;
 
-    // const colorMap = React.useMemo(() => {
-    //
-    //     const colorType = get(initGraphFormat, ["colors", "type"]);
-    //
-    //     const isPalette = ((colorType === "palette") || (colorType === "custom"));
-    //
-    //     if (!isPalette) return {};
-    //
-    //     const types = graphData.reduce((a, c) => {
-    //         const type = c.type;
-    //         if (!a.includes(type)) {
-    //             a.push(type);
-    //         }
-    //         return a;
-    //     }, []).sort((a, b) => a.localeCompare(b));
-    //
-    //     const palette = get(initGraphFormat, ["colors", "value"], []);
-    //
-    //     return types.reduce((a, c, i) => {
-    //         a[c] = palette[i % palette.length];
-    //         return a;
-    //     }, {});
-    // }, [graphData, initGraphFormat]);
+    const colors = useMemo(() => ({
+        type: "palette",
+        value: [...getColorRange(colorPaletteSize, "div7")]
+    }), [colorPaletteSize])
+
+
     return (
         <>
             {
@@ -80,7 +65,7 @@ export const Graph = ({isEdit}) => {
                 </div> : null
             }
             <GraphComponent
-            graphFormat={ display }
+            graphFormat={ {...display, colors} }
             activeGraphType={{GraphComp: display.graphType} }
             viewData={ graphData }
             showCategories={ Boolean(categoryColumn) || (dataColumns.length > 1) }

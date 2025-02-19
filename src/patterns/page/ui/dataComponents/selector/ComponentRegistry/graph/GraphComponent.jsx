@@ -106,7 +106,7 @@ export const GraphComponent = props => {
   const GraphComponent = React.useMemo(() => {
     return getGraphComponent(activeGraphType.GraphComp);
   }, [activeGraphType]);
-  console.log('graph comp', GraphComponent)
+
   const [ref, setRef] = React.useState(null);
   const [width, setWidth] = React.useState(640);
   React.useEffect(() => {

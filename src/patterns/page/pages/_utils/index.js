@@ -143,15 +143,14 @@ export function getInPageNav(item, theme) {
 
     //console.log('test 123', theme)
    
-    const menuItems = (Array.isArray(currentDI?.sections) ? currentDI?.sections : []).reduce((acc, {title, element, level = '1', ...props}) => {
-
-        if (!element || !title || level === '0' ) return acc;
+    const menuItems = (Array.isArray(currentDI?.sections) ? currentDI?.sections : []).reduce((acc, {title, element, level, ...props}) => {
+        if (!element || !title || level !== '1' ) return acc; // filtering for level 1 section header
 
         const lexicalNavElements =
             element['element-type'] === 'lexical' || !element['element-type'] ?
             parseData(element['element-data'])?.root?.children?.reduce((acc, {type, tag, children, ...rest}) => {
-
-                const heading = type === 'heading' && children[0]?.text?.length ?
+                // filtering for H1 in lexical
+                const heading = type === 'heading' && tag === 'h1' && children[0]?.text?.length ?
                     [
                         {
                             name: children[0]?.text,

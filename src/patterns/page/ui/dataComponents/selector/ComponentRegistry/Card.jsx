@@ -59,8 +59,8 @@ const colSpanClass = {
 }
 
 const defaultTheme = ({
-    headerWrapper: 'flex gap-1',
-    columnControlWrapper: `w-full font-semibold border bg-gray-50 text-gray-500`
+    headerWrapper: 'flex gap-1 flex-row flex-wrap',
+    columnControlWrapper: `w-fit font-semibold border bg-gray-50 text-gray-500 flex-wrap`
 })
 // cards can be:
 // one cell per row, that carries one column's data,
