@@ -1,5 +1,5 @@
 import React, {useContext, useMemo, useState} from "react";
-import {actionsColSize, numColSize, gutterColSize} from "../constants"
+import {actionsColSize, numColSize as numColSizeDf, gutterColSize as gutterColSizeDf, } from "../constants"
 import {TableCell} from "./TableCell";
 import {SpreadSheetContext} from "../index";
 import {handleMouseDown, handleMouseMove, handleMouseUp} from "../utils/mouse";
@@ -44,7 +44,8 @@ export const TableRow = ({
     const visibleAttrsWithoutOpenOut = visibleAttributes.filter(({openOut, actionType}) => !openOut || actionType);
     const visibleAttrsWithoutOpenOutsLen = visibleAttrsWithoutOpenOut.length;
     const openOutAttributes = visibleAttributes.filter(({openOut}) => openOut);
-
+    const numColSize = display.showGutters ? numColSizeDf : 0
+    const gutterColSize = display.showGutters ? gutterColSizeDf : 0
 
     return (
         <>
@@ -60,7 +61,7 @@ export const TableRow = ({
                 }}
             >
                 <div key={'#'}
-                     className={`p-1 flex text-xs items-center justify-center border cursor-pointer sticky left-0 z-[1]
+                     className={` flex text-xs items-center justify-center cursor-pointer sticky left-0 z-[1]
                              ${selection.find(s => (s.index !== undefined ? s.index : s) === i) ? 'bg-blue-100 text-gray-900' : 'bg-gray-50 text-gray-500'}`}
                      style={{width: numColSize}}
                      onClick={e => {
@@ -92,7 +93,7 @@ export const TableRow = ({
                      })}
                      onMouseUp={e => handleMouseUp({setIsDragging})}
                 >
-                    {d.totalRow ? 'T' : i + 1}
+                    {display.showGutters && (d.totalRow ? 'T' : i + 1)}
                 </div>
                 {visibleAttrsWithoutOpenOut
                     .map((attribute, attrI) =>

@@ -113,11 +113,11 @@ export const TableCell = ({
             className={`relative flex items-center min-h-[35px] 
             ${isFrozen ? frozenColClass : ''} ${isSelecting ? 'select-none' : ``}
             ${isSelected ? 'bg-blue-50' : 'bg-white'}
-            ${attribute.openOut ? colSpanClass[colSpan] : ``}
             `}
             style={{
                 ...!attribute.openOut && {width: attribute.size},
-                ...isSelected && {borderWidth: '1px', ...selectionEdgeClassNames[edge]}
+                ...isSelected && {borderWidth: '1px', ...selectionEdgeClassNames[edge]},
+                ...attribute.openOut && {gridColumn: `span ${colSpan} / ${colSpan}`}
             }}
             onClick={attribute.isLink || attribute.actionType ? undefined : onClick}
             onMouseDown={attribute.isLink || attribute.actionType ? undefined : onMouseDown}
