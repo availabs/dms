@@ -22,9 +22,9 @@ export const Graph = ({isEdit}) => {
     // data is restructured into: index, type, value.
     // index is X axis column's values.
     // type is either category column's values or Y axis column's display name or name.
-    const indexColumn = useMemo(() => columns.find(({xAxis}) => xAxis), [columns]);
-    const dataColumns = useMemo(() => columns.filter(({yAxis}) => yAxis), [columns]);
-    const categoryColumn = useMemo(() => columns.find(({categorize}) => categorize), [columns]);
+    const indexColumn = useMemo(() => columns.find(({xAxis}) => xAxis) || {}, [columns]);
+    const dataColumns = useMemo(() => columns.filter(({yAxis}) => yAxis) || [], [columns]);
+    const categoryColumn = useMemo(() => columns.find(({categorize}) => categorize) || {}, [columns]);
     const {headerWrapper, columnControlWrapper} = defaultTheme;
 
     const graphData = useMemo(() => {
@@ -34,8 +34,9 @@ export const Graph = ({isEdit}) => {
                             row[indexColumn.name].toString() : row[indexColumn.name];
             dataColumns.forEach(dataColumn => {
                 const value = row[dataColumn.name];
-                if(!strictNaN(value)){
-                    const type = categoryColumn ? row[categoryColumn.name] : (dataColumn.customName || dataColumn.display_name || dataColumn.name)
+                const type = categoryColumn.name ? row[categoryColumn.name] : (dataColumn.customName || dataColumn.display_name || dataColumn.name)
+
+                if(!strictNaN(value) && type){
                     tmpData.push({index, type, value, aggMethod: dataColumn.fn});
                 }
             })
@@ -43,11 +44,11 @@ export const Graph = ({isEdit}) => {
         return tmpData
         }, [indexColumn, dataColumns.length, categoryColumn, data])
 
-    const colorPaletteSize = categoryColumn ? (new Set(data.map(item => item[categoryColumn.name]))).size : dataColumns ? dataColumns.length : 20;
+    const colorPaletteSize = categoryColumn.name ? (new Set(data.map(item => item[categoryColumn.name]))).size : dataColumns.length
 
     const colors = useMemo(() => ({
         type: "palette",
-        value: [...getColorRange(colorPaletteSize, "div7")]
+        value: [...getColorRange(colorPaletteSize < 20 ? colorPaletteSize : 20, "div7")]
     }), [colorPaletteSize])
 
 
@@ -55,7 +56,7 @@ export const Graph = ({isEdit}) => {
         <>
             {
                 isEdit ? <div className={headerWrapper}>
-                    {[indexColumn, ...dataColumns].filter(f => f).map((attribute, i) =>
+                    {[indexColumn, ...dataColumns].filter(f => f.name).map((attribute, i) =>
                         <div key={`controls-${i}`} className={columnControlWrapper}>
                             <TableHeaderCell
                                 isEdit={isEdit}
@@ -68,7 +69,7 @@ export const Graph = ({isEdit}) => {
             graphFormat={ {...display, colors} }
             activeGraphType={{GraphComp: display.graphType} }
             viewData={ graphData }
-            showCategories={ Boolean(categoryColumn) || (dataColumns.length > 1) }
+            showCategories={ Boolean(categoryColumn.name) || (dataColumns.length > 1) }
             xAxisColumn={ indexColumn }
             yAxisColumns={ dataColumns }/>
         </>

@@ -164,7 +164,8 @@ export default function RenderColumnControls({context}) {
             // group by xAxis and categories.
             // xAxis, yAxis, and categories all set to show.
             if(key === 'yAxis'){
-                draft.columns[idx].fn = value ? draft.columns[idx].defaultFn?.toLowerCase() || 'count' : ''
+                const defaultFn = draft.columns[idx].defaultFn?.toLowerCase();
+                draft.columns[idx].fn = value ? (['sum', 'count'].includes(defaultFn) ? defaultFn : 'count') : ''
                 draft.columns[idx].show = value;
             }
 
