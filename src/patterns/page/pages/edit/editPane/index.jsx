@@ -32,7 +32,7 @@ export default function EditPane () {
 export function EditDrawer() {
   const { baseUrl, user, falcor, falcorCache} = React.useContext(CMSContext) || {}
   const { item={}, dataItems=[], apiUpdate,  editPane, setEditPane } =  React.useContext(PageContext) || {}
-  console.log('editPane', editPane)
+  // console.log('editPane', editPane)
   const [ editState, setEditState ] = React.useState({
       deleteId: -1
   })
