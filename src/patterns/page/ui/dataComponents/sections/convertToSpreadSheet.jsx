@@ -23,9 +23,11 @@ const getFilters = (columns= []) => columns.reduce((acc, column) => {
     if(values.length) acc[column.name] = values;
     return acc;
 }, {});
-const changeDisasterNumberMeta = (meta, columnname) => meta && columnname.toLowerCase().includes('disaster_number') ?
-    JSON.stringify({...JSON.parse(meta), view_id: 1723}) :
-    meta;
+const changeDisasterNumberMeta = (meta, columnname) => {
+    return meta && columnname.toLowerCase().includes('disaster_number') ?
+        JSON.stringify({...JSON.parse(meta), view_id: 1723}) :
+        meta;
+}
 
 export const convert = (elementData) => {
     let convertedState = {columns: [], data: [], display: {usePagination: true, pageSize: 5}, sourceInfo: {columns: [], env: 'hazmit_dama', srcEnv: 'hazmit_dama'}};
@@ -50,13 +52,15 @@ export const convert = (elementData) => {
                     const internalExclude = cenrepFilters.filter(({action}) => action === 'exclude')
                         .reduce((acc, {defaultValue}) => Array.isArray(defaultValue) ? [...acc, ...defaultValue] : [...acc, defaultValue], []);
 
+                    const filters = [
+                        Array.isArray(internalFilter) && internalFilter.length ? {type: 'internal', operation: 'filter', values: internalFilter} : null,
+                        Array.isArray(internalExclude) && internalExclude.length ? {type: 'internal', operation: 'exclude', values: internalExclude} : null,
+                    ].filter(f => f);
+
                     return {
                         ...v,
                         justify: v.align,
-                        filters: [
-                            Array.isArray(internalFilter) && internalFilter.length ? {type: 'internal', operation: 'filter', values: internalFilter} : null,
-                            Array.isArray(internalExclude) && internalExclude.length ? {type: 'internal', operation: 'exclude', values: internalExclude} : null,
-                        ].filter(f => f),
+                        filters: filters.length ? filters : undefined,
                         meta_lookup: v.meta_lookup ? changeDisasterNumberMeta(v.meta_lookup, v.name) : undefined,
                         ...(v.link || {}),
                         // extFilter,
@@ -125,7 +129,10 @@ export const convert = (elementData) => {
                         ...convertedState.sourceInfo,
                         source_id: dataSource.source_id,
                         name: dataSource.name,
-                        columns: dataSource.metadata?.columns || []
+                        columns: (dataSource.metadata?.columns || []).map(column => ({
+                            ...column,
+                            meta_lookup: column.meta_lookup ? changeDisasterNumberMeta(column.meta_lookup, column.name) : undefined
+                        }))
                     };
                 }else{
                     convertedState.sourceInfo.source_id = value;
@@ -158,12 +165,13 @@ export const convert = (elementData) => {
             const idx = findColIdx(convertedState.sourceInfo.columns, name);
             const column = convertedState.sourceInfo.columns[idx];
             const bkpColumn = {name}
+            const filters = [
+                Array.isArray(internalFilter) && internalFilter.length ? {type: 'internal', operation: 'filter', values: internalFilter} : null,
+                Array.isArray(internalExclude) && internalExclude.length ? {type: 'internal', operation: 'exclude', values: internalExclude} : null,
+            ].filter(f => f);
             convertedState.columns.push({
                 ...(column || bkpColumn),
-                filters: [
-                    Array.isArray(internalFilter) && internalFilter.length ? {type: 'internal', operation: 'filter', values: internalFilter} : null,
-                    Array.isArray(internalExclude) && internalExclude.length ? {type: 'internal', operation: 'exclude', values: internalExclude} : null,
-                ].filter(f => f)
+                filters: filters.length ? filters : undefined
             });
         })
 
