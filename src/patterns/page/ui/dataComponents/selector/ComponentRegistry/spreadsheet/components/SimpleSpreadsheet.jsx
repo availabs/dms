@@ -7,7 +7,7 @@ import {handleKeyDown} from "../utils/keyboard";
 import {handleMouseUp, handleMouseMove, handleMouseDown} from "../utils/mouse";
 import { TableRow } from "./TableRow";
 import {RenderGutter} from "./RenderGutter";
-import {actionsColSize, numColSize, gutterColSize, minColSize, minInitColSize} from "../constants"
+import {actionsColSize, numColSize as numColSizeDf, gutterColSize as gutterColSizeDf, minColSize, minInitColSize} from "../constants"
 import {SpreadSheetContext} from "../index";
 import { CMSContext } from '../../../../../../siteConfig'
 
@@ -44,15 +44,32 @@ const frozenCols = [0,1] // testing
 const frozenColClass = '' // testing
 
 export const tableTheme = {
-    tableContainer: 'flex flex-col w-full h-full overflow-x-auto scrollbar-sm',
-    tableContainer1: 'flex flex-col no-wrap min-h-[200px] max-h-[calc(78vh_-_10px)] overflow-y-auto scrollbar-sm',
+    tableContainer: 'flex flex-col overflow-x-auto',
+    tableContainerNoPagination: '',
+    tableContainer1: 'flex flex-col no-wrap min-h-[40px] max-h-[calc(78vh_-_10px)] overflow-y-auto',
     headerContainer: 'sticky top-0 grid',
     thead: 'flex justify-between',
     theadfrozen: '',
     thContainer: 'w-full font-semibold px-3 py-1 text-sm font-semibold text-gray-600 border',
-    thContainerBg: 'bg-blue-100 text-gray-900',
-    thContainerBgSelected: 'bg-gray-50 text-gray-500'
+    thContainerBgSelected: 'bg-blue-100 text-gray-900',
+    thContainerBg: 'bg-gray-50 text-gray-500',
+    cell: 'relative flex items-center min-h-[35px]  border border-slate-50',
+    cellInner: `
+        w-full min-h-full flex flex-wrap items-center truncate py-0.5 px-1
+        font-[400] text-[14px]  leading-[18px] text-slate-600
+    `,
+    cellBg: 'bg-white',
+    cellBgSelected: 'bg-blue-50',
+    cellFrozenCol: '',
+    paginationInfoContainer: '',
+    paginationPagesInfo: 'font-[500] text-[12px] uppercase text-[#2d3e4c] leading-[18px]',
+    paginationRowsInfo: 'text-xs',
+    paginationContainer: 'w-full p-2 flex items-center justify-between',
+    paginationControlsContainer: 'flex flex-row items-center overflow-hidden gap-0.5',
+    pageRangeItem: 'cursor-pointer px-3  text-[#2D3E4C] py-1  text-[12px] hover:bg-slate-50 font-[500] rounded  uppercase leading-[18px]' ,
+    pageRangeItemActive: 'bg-slate-100 '
 }
+
 
 
 export const RenderTable = ({isEdit, updateItem, removeItem, addItem, newItem, setNewItem, loading}) => {
@@ -81,6 +98,10 @@ export const RenderTable = ({isEdit, updateItem, removeItem, addItem, newItem, s
     const openOutAttributes = useMemo(() => columns.filter(({openOut}) => openOut), [columns]);
     const visibleAttrsWithoutOpenOut = useMemo(() => columns.filter(({show, openOut}) => show && !openOut), [columns]);
     const actionColumns = useMemo(() => columns.filter(({actionType}) => actionType), [columns]);
+
+    const paginationActive = display.usePagination && Math.ceil(display.totalLength / display.pageSize) > 1;
+    const numColSize = display.showGutters ? numColSizeDf : 0
+    const gutterColSize = display.showGutters ? gutterColSizeDf : 0
 
     usePaste((pastedContent, e) => {
         let {index, attrI} = typeof selection[selection.length - 1] === 'number' ?
@@ -211,7 +232,7 @@ export const RenderTable = ({isEdit, updateItem, removeItem, addItem, newItem, s
     if(!visibleAttributes.length) return <div className={'p-2'}>No columns selected.</div>;
 
     return (
-        <div className={theme?.table?.tableContainer} ref={gridRef}>
+        <div className={`${theme?.table?.tableContainer} ${!paginationActive && theme?.table?.tableContainerNoPagination}`} ref={gridRef}>
             <div className={theme?.table?.tableContainer1}
                  onMouseLeave={e => handleMouseUp({setIsDragging})}>
 
@@ -226,7 +247,7 @@ export const RenderTable = ({isEdit, updateItem, removeItem, addItem, newItem, s
                 >
                     {/*********************** header left gutter *******************/}
                     <div className={'flex justify-between sticky left-0 z-[1]'} style={{width: numColSize}}>
-                        <div key={'#'} className={`w-full border bg-gray-50 ${frozenColClass}`} />
+                        <div key={'#'} className={`w-full ${theme?.table?.thContainerBg} ${frozenColClass}`} />
                     </div>
                     {/******************************************&*******************/}
 
@@ -242,7 +263,7 @@ export const RenderTable = ({isEdit, updateItem, removeItem, addItem, newItem, s
                                     className={`
                                         ${theme?.table?.thContainer}  
                                         ${selection.find(s => s.attrI === i) ? 
-                                            theme?.table?.thContainerBg : theme?.table?.thContainerBgSelected 
+                                            theme?.table?.thContainerBgSelected : theme?.table?.thContainerBg  
                                         }`
                                     }
                                 >
@@ -250,11 +271,10 @@ export const RenderTable = ({isEdit, updateItem, removeItem, addItem, newItem, s
                                 </div>
 
                                 <div 
-                                    key={`resizer-${i}`} className="z-5 -ml-2"
+                                    key={`resizer-${i}`} 
+                                    className="z-5 -ml-2 w-[1px] hover:w-[2px] bg-gray-200 hover:bg-gray-400"
                                     style={{
-                                        width: '3px',
                                         height: '100%',
-                                        background: '#ddd',
                                         cursor: 'col-resize',
                                         position: 'relative',
                                         right: 0,
@@ -269,8 +289,7 @@ export const RenderTable = ({isEdit, updateItem, removeItem, addItem, newItem, s
 
                     {/***********gutter column cell*/}
                     <div key={'##'}
-                         className={`bg-gray-50 border z-[1] flex shrink-0 justify-between`}
-                         style={{width: numColSize}}
+                         className={`${theme?.table?.thContainerBg} z-[1] flex shrink-0 justify-between`}
                     > {` `}</div>
                 </div>
                 {/****************************************** Header end **********************************************/}
@@ -288,7 +307,7 @@ export const RenderTable = ({isEdit, updateItem, removeItem, addItem, newItem, s
                             updateItem, removeItem
                         }} />
                     ))}
-                <div id={display.loadMoreId} className={`${display.usePagination ? 'hidden' : ''} min-h-2 w-full text-center`}>
+                <div id={display.loadMoreId} className={`${paginationActive ? 'hidden' : ''} min-h-2 w-full text-center`}>
                     {loading ? 'loading...' : ''}
                 </div>
 

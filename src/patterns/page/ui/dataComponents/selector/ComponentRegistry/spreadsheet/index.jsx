@@ -1,7 +1,7 @@
 import React, {useState, useEffect, createContext, useMemo, useRef} from 'react'
 import writeXlsxFile from 'write-excel-file';
 import { RenderTable } from "./components/SimpleSpreadsheet";
-import {RenderPagination} from "./components/RenderPagination";
+import {Pagination} from "./components/Pagination";
 import {getData} from "./utils/utils";
 import {RenderFilters} from "../shared/filters/RenderFilters";
 import {RenderAttribution} from "./components/RenderAttribution";
@@ -69,6 +69,7 @@ const initialState = compType => {
         usePagination: true,
         pageSize: 5,
         totalLength: 0,
+        showGutters: false,
         transform: '', // transform fn to be applied
         loadMoreId:`id${uuidv4()}`,
     }
@@ -364,19 +365,23 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, compType='spread
                     Comp ?
                         <Comp isEdit={isEdit}/> : (
                             <>
-                                {/*Pagination*/}
-                                <RenderPagination currentPage={currentPage} setCurrentPage={setCurrentPage} />
+                                
 
                                 < RenderTable  {...{
                                     newItem, setNewItem,
                                     updateItem, removeItem, addItem,
                                     currentPage, loading, isEdit
                                 }} />
+                                
                             </>
                         )
                 }
-                {/*/!*Attribution*!/*/}
-                <RenderAttribution />
+                <div>
+                    {/*Pagination*/}
+                    <Pagination currentPage={currentPage} setCurrentPage={setCurrentPage} />
+                    {/*/!*Attribution*!/*/}
+                    <RenderAttribution />
+                </div>
             </div>
         </SpreadSheetContext.Provider>
     )
@@ -574,11 +579,12 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, compType='spreadsheet'
 
                     }
 
-                    <div className={'flex justify-between'}>
+                    <div>
+                        {/*Pagination*/}
+                        <Pagination currentPage={currentPage} setCurrentPage={setCurrentPage} compType={compType}/>
                         {/*Attribution*/}
                         <RenderAttribution/>
-                        {/*Pagination*/}
-                        <RenderPagination currentPage={currentPage} setCurrentPage={setCurrentPage} compType={compType}/>
+                        
                     </div>
                 </div>
             </div>
