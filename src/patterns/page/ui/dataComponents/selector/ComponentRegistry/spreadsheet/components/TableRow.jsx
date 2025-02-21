@@ -52,7 +52,7 @@ export const TableRow = ({
             <div 
                 key={`data-${i}`}
                 className={`${d.totalRow ? `sticky bottom-0 z-[1]` : ``} grid
-                            divide-x divide-y ${isDragging ? `select-none` : ``} 
+                             ${isDragging ? `select-none` : ``} 
                             ${display.striped ? `odd:bg-gray-50` : ``} ${d.totalRow ? `bg-gray-100` : ``}`
                             }
                 style={{

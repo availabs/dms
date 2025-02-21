@@ -43,36 +43,33 @@ const updateItemsOnPaste = ({pastedContent, e, index, attrI, data, visibleAttrib
 const frozenCols = [0,1] // testing
 const frozenColClass = '' // testing
 
-// export const tableTheme = {
-//     tableContainer: 'flex flex-col w-full h-full overflow-x-auto border',
-//     tableContainerNoPagination: '',
-//     tableContainer1: 'flex flex-col no-wrap min-h-[40px] max-h-[calc(78vh_-_10px)] overflow-y-auto',
-//     headerContainer: 'sticky top-0 grid',
-//     thead: 'flex justify-between',
-//     theadfrozen: '',
-//     thContainer: 'w-full font-semibold px-3 py-1 text-sm font-semibold text-gray-600 border',
-//     thContainerBgSelected: 'bg-blue-100 text-gray-900',
-//     thContainerBg: 'bg-gray-50 text-gray-500',
-//     paginationContainer: 'w-full p-2 flex items-center justify-between',
-//     paginationControlsContainer: 'flex flex-row gap-1 items-center'
-// }
-
 export const tableTheme = {
-    tableContainer: 'flex flex-col w-full h-full overflow-x-auto scrollbar-sm border rounded-t-[12px]',
-    tableContainerNoPagination: 'rounded-b-[12px]',
-    tableContainer1: 'flex flex-col no-wrap min-h-[200px] max-h-[calc(78vh_-_10px)] overflow-y-auto scrollbar-sm',
-    headerContainer: 'sticky top-0 grid ',
+    tableContainer: 'flex flex-col overflow-x-auto',
+    tableContainerNoPagination: '',
+    tableContainer1: 'flex flex-col no-wrap min-h-[40px] max-h-[calc(78vh_-_10px)] overflow-y-auto',
+    headerContainer: 'sticky top-0 grid',
     thead: 'flex justify-between',
     theadfrozen: '',
-    thContainer: 'w-full font-[500] py-4 pl-4 pr-0 font-[Oswald] text-[12px] uppercase text-[#2d3e4c] border-x',
-    thContainerBg: 'bg-[#F3F8F9] text-gray-900',
-    thContainerBgSelected: 'bg-gray-50 text-gray-900',
-    paginationContainer: 'w-full p-2 rounded-b-[12px] bg-[#F3F8F9] flex items-center justify-between',
-    paginationControlsContainer: 'flex flex-row gap-1 items-center',
+    thContainer: 'w-full font-semibold px-3 py-1 text-sm font-semibold text-gray-600 border',
+    thContainerBgSelected: 'bg-blue-100 text-gray-900',
+    thContainerBg: 'bg-gray-50 text-gray-500',
+    cell: 'relative flex items-center min-h-[35px]  border border-slate-50',
+    cellInner: `
+        w-full min-h-full flex flex-wrap items-center truncate py-0.5 px-1
+        font-[400] text-[14px]  leading-[18px] text-slate-600
+    `,
+    cellBg: 'bg-white',
+    cellBgSelected: 'bg-blue-50',
+    cellFrozenCol: '',
     paginationInfoContainer: '',
-    paginationPagesInfo: 'font-[500] font-[Oswald] text-[12px] uppercase text-[#2d3e4c]',
-    paginationRowsInfo: 'text-xs font-[Proxima Nova]'
+    paginationPagesInfo: 'font-[500] text-[12px] uppercase text-[#2d3e4c] leading-[18px]',
+    paginationRowsInfo: 'text-xs',
+    paginationContainer: 'w-full p-2 flex items-center justify-between',
+    paginationControlsContainer: 'flex flex-row items-center overflow-hidden gap-0.5',
+    pageRangeItem: 'cursor-pointer px-3  text-[#2D3E4C] py-1  text-[12px] hover:bg-slate-50 font-[500] rounded  uppercase leading-[18px]' ,
+    pageRangeItemActive: 'bg-slate-100 '
 }
+
 
 
 export const RenderTable = ({isEdit, updateItem, removeItem, addItem, newItem, setNewItem, loading}) => {

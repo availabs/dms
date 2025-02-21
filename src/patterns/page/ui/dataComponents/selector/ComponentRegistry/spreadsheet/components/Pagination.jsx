@@ -47,14 +47,14 @@ export const Pagination = ({currentPage, setCurrentPage, compType}) => {
                                 {
                                     paginationRange.map(i => (
                                         <div key={i}
-                                             className={`px-1 py-0.5 text-xs rounded-md border ${currentPage === i ? `border-blue-300 text-blue-500` : ``} hover:border-blue-300 cursor-pointer`}
+                                             className={`${theme?.table?.pageRangeItem}  ${currentPage === i && theme?.table?.pageRangeItemActive} `}
                                              onClick={() => setCurrentPage(i)}
                                         >{i + 1}</div>
                                     ))
                                 }
 
-                            <div className={'cursor-pointer text-gray-500 hover:text-gray-800'}
-                                 onClick={() => setCurrentPage(currentPage < totalPages ? currentPage + 1 : currentPage)}>{`next >>`}</div>
+                            <div className={theme?.table?.pageRangeItem}
+                                 onClick={() => setCurrentPage(currentPage < totalPages ? currentPage + 1 : currentPage)}>{`next >`}</div>
                         </div>
                     </>
                 ) : (
