@@ -68,7 +68,6 @@ export class CollapsibleContentNode extends ElementNode {
     return false;
   }
 
-// Function to apply styles
   applyStyles(dom: HTMLElement, isOpen: boolean) {
     dom.style.maxHeight = isOpen ? 'none' : '64px';
     dom.style.overflow = isOpen ? 'auto' : 'hidden';
