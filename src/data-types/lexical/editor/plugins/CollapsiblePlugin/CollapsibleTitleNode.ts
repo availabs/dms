@@ -44,7 +44,7 @@ export class CollapsibleTitleNode extends ElementNode {
   }
 
   createDOM(config: EditorConfig, editor: LexicalEditor): HTMLElement {
-    const dom = document.createElement('summary');
+    const dom = document.createElement('div');
     dom.classList.add(
         'Collapsible__title',
         'flex', 'flex-row', 'w-full', 'font-[Oswald]', 'font-medium', 'text-[12px]',
@@ -68,6 +68,10 @@ export class CollapsibleTitleNode extends ElementNode {
 
     // Append icon before the title text
     dom.appendChild(icon);
+
+    dom.addEventListener('click', (e) => {
+      e.preventDefault();
+    });
 
     return dom;
   }

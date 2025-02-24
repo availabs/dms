@@ -38,7 +38,6 @@ export class CollapsibleContentNode extends ElementNode {
   }
 
   createDOM(config: EditorConfig, editor: LexicalEditor): HTMLElement {
-    const minimisedContentHeight = '195px';
     const dom = document.createElement('div');
     dom.classList.add(
         'Collapsible__content',
@@ -46,12 +45,20 @@ export class CollapsibleContentNode extends ElementNode {
         'overflow-hidden', 'transition-all', 'duration-300', 'ease-in-out'
     );
 
-    dom.style.maxHeight = 'none';
+    const parent = this.getParent();
+
+    if ($isCollapsibleContainerNode(parent)) {
+      const isOpen = parent.getOpen(); // Ensure this method correctly returns the open state
+
+      requestAnimationFrame(() => {
+        dom.style.maxHeight = isOpen ? 'none' : '64px'; // Adjust as needed
+        dom.style.overflow = isOpen ? 'auto' : 'hidden';
+      });
+    }
     return dom;
   }
 
   updateDOM(prevNode: CollapsibleContentNode, dom: HTMLElement): boolean {
-    console.log('update method of content node called.')
     const parent = this.getParent();
 
     if ($isCollapsibleContainerNode(parent)) {
