@@ -1,6 +1,6 @@
 {
   "name": "@availabs/dms",
-  "version": "0.0.55",
+  "version": "0.0.58",
   "description": "AVAIL Data Management System",
   "main": "dist/index.js",
   "private": false,
@@ -57,6 +57,9 @@
     "@lexical/selection": "0.17.1",
     "@lexical/table": "0.17.1",
     "@lexical/utils": "0.17.1",
+    "@observablehq/plot": "^0.6.17",
+    "colorbrewer": "^1.5.9",
+    "d3-array": "^3.2.4",
     "immutability-helper": "^3.1.1",
     "katex": "^0.16.10",
     "lexical": "0.17.1",

@@ -67,7 +67,7 @@ const Layout = ({ children, navItems, secondNav, title, pageTheme, EditPane, yPa
 	      		{sideNav?.logo === 'bottom' && logo}
 	      		{sideNav?.search === 'bottom' && <Search app={app} type={type}/>}
 	        	{sideNav?.dropdown === 'bottom' && <Menu />}
-	        	{(EditPane && sideNav?.dropdown) && <EditPane />}
+	        	{(EditPane && sideNav?.dropdown ==='bottom') && <EditPane />}
 	      	</div>
 	  	)
 	}

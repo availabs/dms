@@ -87,7 +87,12 @@ const Edit = ({value, onChange, size}) => {
       {
         label: 'Take Action - Landuse',
         value: '/themes/mny/takeaction_landuse_2tp.png'
+      },
+      {
+        label: 'Transportation',
+        value: '/themes/mny/transportation.png'
       }
+
 
     ]
 

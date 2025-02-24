@@ -8,7 +8,7 @@ import {SpreadSheetContext} from "../index";
         const updatedTimeString = updated_at ? new Date(updated_at).toLocaleString(undefined, dateOptions) : null;
 
         return (
-            <div className={'w-fit p-1 flex gap-1 text-xs text-gray-900'}>
+            <div className={'w-full p-1 flex gap-1 text-xs text-gray-900'}>
                 Attribution:
                 <Link
                     to={`/${isDms ? `forms` : `cenrep`}/source/${source_id}/${isDms ? `view` : `versions`}/${view_id}`}>

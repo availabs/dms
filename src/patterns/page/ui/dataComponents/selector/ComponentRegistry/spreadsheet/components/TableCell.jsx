@@ -2,10 +2,12 @@ import React, {useContext, useEffect, useState} from "react";
 import {Link} from "react-router-dom";
 import DataTypes from "../../../../../../../../data-types";
 import {formatFunctions} from "../utils/utils";
-import {ArrowDown, ArrowRight} from "../../../../../../../forms/ui/icons";
-import {SpreadSheetContext} from "../index";
+import { ArrowDown, ArrowRight } from "../../../../../../../forms/ui/icons";
+import { SpreadSheetContext } from "../index";
 import {isEqual} from "lodash-es";
-import {RenderAction} from "./RenderActions";
+import { RenderAction } from "./RenderActions";
+import { tableTheme } from './SimpleSpreadsheet'
+import { CMSContext } from '../../../../../../siteConfig'
 
 const DisplayCalculatedCell = ({value, className}) => <div className={className}>{value}</div>
 const stringifyIfObj = obj => typeof obj === "object" ? JSON.stringify(obj) : obj;
@@ -40,27 +42,15 @@ const validate = ({value, required, options, name}) => {
 }
 
 const frozenColClass = '' //'sticky left-0 z-10'
-const colSpanClass = {
-    1: 'col-span-1',
-    2: 'col-span-2',
-    3: 'col-span-3',
-    4: 'col-span-4',
-    5: 'col-span-5',
-    6: 'col-span-6',
-    7: 'col-span-7',
-    8: 'col-span-8',
-    9: 'col-span-9',
-    10: 'col-span-10',
-    11: 'col-span-11',
-}
 
-export const RenderCell = ({
+export const TableCell = ({
                                showOpenOutCaret, showOpenOut, setShowOpenOut,
                                attribute, colSpan,
                                i, item, updateItem, removeItem, onPaste,
                                isFrozen, isSelected, isSelecting, editing, edge, loading, allowEdit,
                                onClick, onDoubleClick, onMouseDown, onMouseMove, onMouseUp}) => {
     const {state: {columns, display}, setState} = useContext(SpreadSheetContext);
+    const { theme = { table: tableTheme } } = React.useContext(CMSContext) || {}
     const [newItem, setNewItem] = useState(item);
     // const Comp = DataTypes[attribute.type]?.[isSelecting ? 'ViewComp' : 'EditComp'];
     const Comp = loading ? LoadingComp : (DataTypes[attribute.type]?.[editing && allowEdit ? 'EditComp' : 'ViewComp'] || DisplayCalculatedCell);
@@ -110,14 +100,16 @@ export const RenderCell = ({
                                     isSelected ? 'bg-blue-50 hover:bg-blue-100' : 'bg-white bg-blue-50';
     return (
         <div
-            className={`relative flex items-center min-h-[35px] 
-            ${isFrozen ? frozenColClass : ''} ${isSelecting ? 'select-none' : ``}
-            ${isSelected ? 'bg-blue-50' : 'bg-white'}
-            ${attribute.openOut ? colSpanClass[colSpan] : ``}
+            className={`
+                ${theme?.table.cell} 
+                ${isFrozen ? theme?.table?.cellFrozenCol : ''} 
+                ${isSelecting ? 'select-none' : ``}
+                ${isSelected ? theme?.table.cellBgSelected : theme?.table.cellBg}
             `}
             style={{
                 ...!attribute.openOut && {width: attribute.size},
-                ...isSelected && {borderWidth: '1px', ...selectionEdgeClassNames[edge]}
+                ...isSelected && {borderWidth: '1px', ...selectionEdgeClassNames[edge]},
+                ...attribute.openOut && {gridColumn: `span ${colSpan} / ${colSpan}`}
             }}
             onClick={attribute.isLink || attribute.actionType ? undefined : onClick}
             onMouseDown={attribute.isLink || attribute.actionType ? undefined : onMouseDown}
@@ -145,10 +137,11 @@ export const RenderCell = ({
                   onClick={onClick}
                   autoFocus={editing}
                   className={`
-                  w-full min-h-full flex flex-wrap ${justifyClass[attribute.justify]} items-center truncate
-                  ${bgColor}
-                  ${attribute.type === 'multiselect' && newItem[attribute.name]?.length ? 'p-0.5' :
-                      attribute.type === 'multiselect' && !newItem[attribute.name]?.length ? 'p-0.5' : 'p-0.5'
+                    ${theme?.table?.cellInner} 
+                    ${justifyClass[attribute.justify]} 
+                    ${bgColor}
+                    ${attribute.type === 'multiselect' && newItem[attribute.name]?.length ? 'p-0.5' :
+                          attribute.type === 'multiselect' && !newItem[attribute.name]?.length ? 'p-0.5' : 'p-0.5'
                   } 
                   `}
                 // displayInvalidMsg={false}

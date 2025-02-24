@@ -19,6 +19,5 @@ const [GraphTypes, GraphTypeMap, EditorOptionsMap] = GraphTypeOptions.reduce((a,
 export { GraphTypes, EditorOptionsMap };
 
 export const getGraphComponent = GraphComp => {
-  console.log('graph comp options', GraphComp, GraphTypeMap)
   return GraphTypeMap[GraphComp];
 }

@@ -1,4 +1,4 @@
-import {useRef, useState, useEffect, useContext, useCallback} from "react";
+import React, {useRef, useState, useEffect, useContext, useCallback} from "react";
 import Icons, {ArrowDown, TouchInteraction} from "../../../../../../forms/ui/icons"
 import {SpreadSheetContext} from "../spreadsheet";
 import {getControlConfig, useHandleClickOutside} from "./utils";

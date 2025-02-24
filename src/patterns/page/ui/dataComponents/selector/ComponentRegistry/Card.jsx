@@ -1,7 +1,7 @@
 
 import {formatFunctions, getData} from "./spreadsheet/utils/utils";
 import SpreadSheet, {SpreadSheetContext} from "./spreadsheet";
-import RenderInHeaderColumnControls from "./spreadsheet/components/RenderInHeaderColumnControls";
+import TableHeaderCell from "./spreadsheet/components/TableHeaderCell";
 import React, {useContext, useMemo} from "react";
 import {Link} from "react-router-dom";
 
@@ -59,8 +59,8 @@ const colSpanClass = {
 }
 
 const defaultTheme = ({
-    headerWrapper: 'flex gap-1',
-    columnControlWrapper: `w-full font-semibold border bg-gray-50 text-gray-500`
+    headerWrapper: 'grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-x-1 gap-y-0.5',
+    columnControlWrapper: `px-1 font-semibold border bg-gray-50 text-gray-500`
 })
 // cards can be:
 // one cell per row, that carries one column's data,
@@ -77,7 +77,7 @@ export const Card = ({isEdit}) => {
                 isEdit ? <div className={headerWrapper}>
                     {visibleColumns.map((attribute, i) =>
                             <div key={`controls-${i}`} className={columnControlWrapper}>
-                                <RenderInHeaderColumnControls
+                                <TableHeaderCell
                                     isEdit={isEdit}
                                     attribute={attribute}
                                 />

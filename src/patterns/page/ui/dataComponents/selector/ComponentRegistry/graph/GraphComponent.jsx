@@ -4,37 +4,12 @@ import {
   mean as d3mean,
   sum as d3sum
 } from "d3-array"
-import get from "lodash/get"
-import colorbrewer from "colorbrewer"
-
-
-
+import {get} from "lodash-es"
 import { GraphTypes, getGraphComponent } from "./GraphComponents"
-
-const ColorRanges = {}
-
-for (const type in colorbrewer.schemeGroups) {
-  colorbrewer.schemeGroups[type].forEach(name => {
-    const group = colorbrewer[name];
-    for (const length in group) {
-      if (!(length in ColorRanges)) {
-        ColorRanges[length] = [];
-      }
-      ColorRanges[length].push({
-        type: `${ type[0].toUpperCase() }${ type.slice(1) }`,
-        name,
-        category: "Colorbrewer",
-        colors: group[length]
-      })
-    }
-  })
-}
-
+import {mapColors} from "./GraphComponents/utils";
 export const getColorRange = (size, name, reverse=false) => {
-  console.log('colorRanges?????', ColorRanges)
+  let range = get(mapColors, [name, size], []).slice();
 
-  let range = get(ColorRanges, [size], [])
-      .reduce((a, c) => c.name === name ? c.colors : a, []).slice();
   if(reverse) {
     range.reverse()
   }
@@ -131,7 +106,7 @@ export const GraphComponent = props => {
   const GraphComponent = React.useMemo(() => {
     return getGraphComponent(activeGraphType.GraphComp);
   }, [activeGraphType]);
-  console.log('graph comp', GraphComponent)
+
   const [ref, setRef] = React.useState(null);
   const [width, setWidth] = React.useState(640);
   React.useEffect(() => {
