@@ -41,7 +41,7 @@ export class CollapsibleContentNode extends ElementNode {
     const dom = document.createElement('div');
     dom.classList.add(
         'Collapsible__content',
-        'text-[14px]', 'leading-[19.6px]', 'text-[#37576B]',
+        'text-[14px]', 'leading-[19.6px]',
         'overflow-hidden', 'transition-all', 'duration-300', 'ease-in-out'
     );
 
@@ -53,6 +53,14 @@ export class CollapsibleContentNode extends ElementNode {
       requestAnimationFrame(() => {
         dom.style.maxHeight = isOpen ? 'none' : '64px'; // Adjust as needed
         dom.style.overflow = isOpen ? 'auto' : 'hidden';
+
+        if (isOpen) {
+          dom.classList.remove('bg-gradient-to-b', 'from-[#2D3E4C]', 'to-[#F3F8F9]', 'bg-clip-text', 'text-transparent');
+          dom.classList.add('text-[#37576B]'); // Normal text color when open
+        } else {
+          dom.classList.add('bg-gradient-to-b', 'from-[#2D3E4C]', 'to-[#F3F8F9]', 'bg-clip-text', 'text-transparent');
+          dom.classList.remove('text-[#37576B]');
+        }
       });
     }
     return dom;
@@ -67,6 +75,14 @@ export class CollapsibleContentNode extends ElementNode {
       requestAnimationFrame(() => {
         dom.style.maxHeight = isOpen ? 'none' : '64px'; // Adjust as needed
         dom.style.overflow = isOpen ? 'auto' : 'hidden';
+
+        if (isOpen) {
+          dom.classList.remove('bg-gradient-to-b', 'from-[#2D3E4C]', 'to-[#F3F8F9]', 'bg-clip-text', 'text-transparent');
+          dom.classList.add('text-[#37576B]'); // Restore solid text color
+        } else {
+          dom.classList.remove('text-[#37576B]');
+          dom.classList.add('bg-gradient-to-b', 'from-[#2D3E4C]', 'to-[#F3F8F9]', 'bg-clip-text', 'text-transparent');
+        }
       });
 
       this.markDirty(); // Force Lexical to recognize the change
