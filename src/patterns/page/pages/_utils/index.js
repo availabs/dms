@@ -101,8 +101,6 @@ export const json2DmsForm = (data,requestType='update') => {
 }
 
 const getParentSlug = (item, dataItems) => {
-  
-
   if(!item.parent) {
     return ''
   }
