@@ -27,7 +27,7 @@ const theme = {
     sideNav: {
       size: 'none',
       search: 'none',
-      logo: 'top',
+      logo: 'none',
       dropdown: 'none',
       fixedMargin: 'lg:ml-44',
       position: 'fixed',

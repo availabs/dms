@@ -52,6 +52,7 @@ function pattern2routes (siteData, props) {
         adminPath = '/list',
         authWrapper = Component => Component,
         themes = { default: {} },
+        pgEnvs = ['hazmit_dama'],
         falcor,
         API_HOST = 'https://graph.availabs.org'
     } = props
@@ -98,7 +99,7 @@ function pattern2routes (siteData, props) {
                             pattern_type:pattern?.pattern_type,
                             parent: pattern,
                             authLevel: +pattern.authLevel || -1,
-                            pgEnv:'hazmit_dama',
+                            pgEnv:pgEnvs?.[0] || '',
                             themes,
                             useFalcor,
                             API_HOST,
