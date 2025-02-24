@@ -159,7 +159,7 @@ export default function TableHeaderCell({attribute}) {
                 <div className="py-0.5 w-1/2 min-w-fit max-h-[500px] overflow-auto scrollbar-sm">
                     <div className="flex flex-col gap-0.5 items-center px-1 py-1 text-xs text-gray-700">
                         {
-                            allowSortBy && (compType === 'graph' ? attribute.xAxis : true) ?
+                            allowSortBy ?
                                 <div className={'w-full cursor-pointer'}>
                                     <select
                                         className={selectClasses}
