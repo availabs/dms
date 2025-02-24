@@ -47,6 +47,9 @@ const getData = ({position='above',bgImg='/img/header.png', logo='/img/nygov-log
   })
 }
 
+
+
+
 const Edit = ({value, onChange, size}) => {
     
     let cachedData = useMemo(() => {
@@ -91,9 +94,111 @@ const Edit = ({value, onChange, size}) => {
       {
         label: 'Transportation',
         value: '/themes/mny/transportation.png'
+      },
+      { 
+        "label": "Set1 - Avalanche",
+        "value": "/themes/mny/Avalanche - transparent.png"
+      },
+      { 
+        "label": "Set1 - Built Environment",
+        "value": "/themes/mny/Built Environment - transparent.png"
+      },
+      { 
+        "label": "Set1 - Capabilities and Resources",
+        "value": "/themes/mny/Capabilities and Resources - transparent.png"
+      },
+      { 
+        "label": "Set1 - Coastal Hazards",
+        "value": "/themes/mny/Coastal Hazards - transparent.png"
+      },
+      { 
+        "label": "Set1 - Drought",
+        "value": "/themes/mny/Drought - transparent.png"
+      },
+      { 
+        "label": "Set1 - Earthquake",
+        "value": "/themes/mny/Earthquake - transparent.png"
+      },
+      { 
+        "label": "Set1 - Extreme Cold",
+        "value": "/themes/mny/Extreme Cold - transparent.png"
+      },
+      { 
+        "label": "Set1 - Extreme Heat",
+        "value": "/themes/mny/Extreme Heat - transparent.png"
+      },
+      { 
+        "label": "Set1 - Flooding",
+        "value": "/themes/mny/Flooding - transparent.png"
+      },
+      { 
+        "label": "Set1 - Funding",
+        "value": "/themes/mny/Funding - transparent.png"
+      },
+      { 
+        "label": "Set1 - Hail",
+        "value": "/themes/mny/Hail - transparent.png"
+      },
+      { 
+        "label": "Set1 - Hazards & Disasters",
+        "value": "/themes/mny/Hazards & Disasters - transparent.png"
+      },
+      { 
+        "label": "Set1 - Hurricane",
+        "value": "/themes/mny/Hurricane - transparent.png"
+      },
+      { 
+        "label": "Set1 - Ice Storm",
+        "value": "/themes/mny/Ice Storm - transparent.png"
+      },
+      { 
+        "label": "Set1 - Landslide",
+        "value": "/themes/mny/Landslide - transparent.png"
+      },
+      { 
+        "label": "Set1 - Lightning",
+        "value": "/themes/mny/Lightning - transparent.png"
+      },
+      { 
+        "label": "Set1 - Natural Environment",
+        "value": "/themes/mny/Natural Environment - transparent.png"
+      },
+      { 
+        "label": "Set1 - People and Communities",
+        "value": "/themes/mny/People and Communities - transparent.png"
+      },
+      { 
+        "label": "Set1 - Planning",
+        "value": "/themes/mny/Planning - transparent.png"
+      },
+      { 
+        "label": "Set1 - Snowstorm",
+        "value": "/themes/mny/Snowstorm - transparent.png"
+      },
+      { 
+        "label": "Set1 - Strategies",
+        "value": "/themes/mny/Strategies - transparent.png"
+      },
+      { 
+        "label": "Set1 - Take Action",
+        "value": "/themes/mny/Take Action - transparent.png"
+      },
+      { 
+        "label": "Set1 - Tornado",
+        "value": "/themes/mny/Tornado - transparent.png"
+      },
+      { 
+        "label": "Set1 - Whats At Risk",
+        "value": "/themes/mny/Whats At Risk - transparent.png"
+      },
+      { 
+        "label": "Set1 - Wildfire",
+        "value": "/themes/mny/Wildfire - transparent.png"
+      },
+      { 
+        "label": "Set1 - Wind",
+        "value": "/themes/mny/Wind - transparent.png"
       }
-
-
     ]
 
     const insetImageOptions = [
