@@ -15,6 +15,7 @@ import {
   LexicalNode,
   SerializedElementNode,
 } from 'lexical';
+import { $isCollapsibleContainerNode } from './CollapsibleContainerNode';
 
 type SerializedCollapsibleContentNode = SerializedElementNode;
 
@@ -36,15 +37,37 @@ export class CollapsibleContentNode extends ElementNode {
     return new CollapsibleContentNode(node.__key);
   }
 
-  createDOM(config: EditorConfig): HTMLElement {
+  createDOM(config: EditorConfig, editor: LexicalEditor): HTMLElement {
+    const minimisedContentHeight = '195px';
     const dom = document.createElement('div');
-    dom.classList.add('Collapsible__content');
+    dom.classList.add(
+        'Collapsible__content',
+        'text-[14px]', 'leading-[19.6px]', 'text-[#37576B]',
+        'overflow-hidden', 'transition-all', 'duration-300', 'ease-in-out'
+    );
+
+    dom.style.maxHeight = 'none';
     return dom;
   }
 
   updateDOM(prevNode: CollapsibleContentNode, dom: HTMLElement): boolean {
-    return false;
+    console.log('update method of content node called.')
+    const parent = this.getParent();
+
+    if ($isCollapsibleContainerNode(parent)) {
+      const isOpen = parent.getOpen(); // Ensure this method correctly returns the open state
+
+      requestAnimationFrame(() => {
+        dom.style.maxHeight = isOpen ? 'none' : '64px'; // Adjust as needed
+        dom.style.overflow = isOpen ? 'auto' : 'hidden';
+      });
+
+      this.markDirty(); // Force Lexical to recognize the change
+    }
+
+    return false; // Return false to prevent Lexical from re-creating the DOM node
   }
+
 
   static importDOM(): DOMConversionMap | null {
     return {
