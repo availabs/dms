@@ -42,17 +42,17 @@
   transform: translateY(-50%);
 }
 
-.Collapsible__container[open] .Collapsible__title:before {
-  border-color: transparent;
-  border-width: 6px 4px 0 4px;
-  border-top-color: #000;
-  background: transparent;
-}
+/*.Collapsible__container[open] .Collapsible__title:before {*/
+/*  border-color: transparent;*/
+/*  border-width: 6px 4px 0 4px;*/
+/*  border-top-color: #000;*/
+/*  background: transparent;*/
+/*}*/
 
-.Collapsible__container[open] {
-  background: transparent;
-  border: none;
-}
+/*.Collapsible__container[open] {*/
+/*  background: transparent;*/
+/*  border: none;*/
+/*}*/
 
 .Collapsible__content {
   padding: 0 5px 5px 20px;

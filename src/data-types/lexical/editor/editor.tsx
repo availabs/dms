@@ -198,7 +198,7 @@ export default function Editor(props): JSX.Element {
 
                         <TabFocusPlugin/>
                         <TabIndentationPlugin/>
-                        <CollapsiblePlugin/>
+                        <CollapsiblePlugin editable={editable}/>
                         {floatingAnchorElem && !isSmallWidthViewport && (
                             <>
                                 <DraggableBlockPlugin anchorElem={floatingAnchorElem}/>

@@ -53,15 +53,25 @@ export class CollapsibleContainerNode extends ElementNode {
   }
 
   createDOM(config: EditorConfig, editor: LexicalEditor): HTMLElement {
-    const dom = document.createElement('details');
+    const minimisedHeight = '300px';
+    const dom = document.createElement('div');
     dom.classList.add('Collapsible__container');
+    dom.classList.add('flex', 'flex-col', 'gap-4', 'bg-[#F3F8F9]', 'p-[12px]', 'pt-[16px]', 'rounded-lg', 'mb-2');
     dom.open = this.__open;
+    // Set default state (open or partially collapsed)
+    dom.style.maxHeight = this.__open ? 'none' : minimisedHeight;
+
+    // Listen for toggle event
     dom.addEventListener('toggle', () => {
-      const open = editor.getEditorState().read(() => this.getOpen());
-      if (open !== dom.open) {
-        editor.update(() => this.toggleOpen());
-      }
+      editor.update(() => {
+        const open = this.getOpen();
+
+        // Control height instead of relying on "open" attribute
+        dom.style.maxHeight = open ? 'none' : minimisedHeight;
+        dom.style.overflow = open ? 'visible' : 'hidden';
+      });
     });
+
     return dom;
   }
 
@@ -70,7 +80,9 @@ export class CollapsibleContainerNode extends ElementNode {
     dom: HTMLDetailsElement,
   ): boolean {
     if (prevNode.__open !== this.__open) {
-      dom.open = this.__open;
+      dom.open = true //this.__open;
+      dom.style.maxHeight = this.__open ? 'none' : '195px';
+      this.getChildren().forEach((child) => child.markDirty());
     }
 
     return false;
@@ -112,15 +124,31 @@ export class CollapsibleContainerNode extends ElementNode {
   setOpen(open: boolean): void {
     const writable = this.getWritable();
     writable.__open = open;
+
+    // // Find the corresponding DOM element and update max-height
+    // const dom = editor.getElementByKey(this.getKey());
+    // if (dom) {
+    //   if (open) {
+    //     dom.style.maxHeight = '500px'; // Adjust based on content size
+    //   } else {
+    //     dom.style.maxHeight = '50px'; // Minimum height when "collapsed"
+    //   }
+    // }
   }
 
+
   getOpen(): boolean {
-    return this.getLatest().__open;
+    return this.__open;
   }
 
   toggleOpen(): void {
     this.setOpen(!this.getOpen());
   }
+
+  toggleCollapsed() {
+    this.getWritable().__collapsed = !this.__collapsed;
+  }
+
 }
 
 export function $createCollapsibleContainerNode(
