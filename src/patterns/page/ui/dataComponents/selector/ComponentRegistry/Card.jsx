@@ -94,7 +94,8 @@ export const Card = ({isEdit}) => {
                                         const value = attr.formatFn ?
                                             formatFunctions[attr.formatFn](item?.[attr.name], attr.isDollar) :
                                             item?.[attr.name]
-                                        const {isLink, location, linkText} = attr || {};
+                                        const id = item?.id;
+                                        const {isLink, location, linkText, useId} = attr || {};
                                         return (
                                             <div key={attr.name}
                                                  className={`flex flex-${headerValueLayout} justify-center ${compactView ? `${colSpanClass[1]} px-2` : `${colSpanClass[Math.min(attr.cardSpan || 1, cardsWithoutSpanLength)]} p-2`} w-full rounded-md ${compactView ? `` : `border shadow`} items-center`}>
@@ -107,7 +108,7 @@ export const Card = ({isEdit}) => {
                                                 }
                                                 <div className={`w-full text-gray-900 font-semibold ${justifyClass[attr.justify || 'center'].value} ${fontSizeClass[attr.fontSize]?.value}`}>
                                                     {
-                                                        isLink ? <Link to={`${location}${encodeURIComponent(value)}`}>{linkText || value}</Link> :
+                                                        isLink ? <Link to={`${location}${encodeURIComponent(useId ? id : value)}`}>{linkText || value}</Link> :
                                                             value
                                                     }
                                                 </div>

@@ -27,6 +27,11 @@ const RenderLinkControls = ({attribute, updateColumns}) => {
                                   setValue={e => setTmpValue({...tmpValue, isLink: e})}
             />
             <div className={tmpValue.isLink ? `mt-0.5 flex flex-col gap-0.5 border rounded-md divide-y` : `hidden`}>
+                <RenderToggleControls className={`inline-flex w-full justify-center items-center rounded-md cursor-pointer`}
+                                      title={'Use ID'}
+                                      value={tmpValue?.useId}
+                                      setValue={e => setTmpValue({...tmpValue, useId: e})}
+                />
                 <RenderInputControls className={inputWrapperClassName}
                                      inputClassName={inputClassName}
                                      type={'text'}
