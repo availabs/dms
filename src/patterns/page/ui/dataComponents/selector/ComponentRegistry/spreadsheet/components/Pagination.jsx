@@ -47,13 +47,13 @@ export const Pagination = ({currentPage, setCurrentPage, compType}) => {
                                 {
                                     paginationRange.map(i => (
                                         <div key={i}
-                                             className={`${theme?.table?.pageRangeItem}  ${currentPage === i && theme?.table?.pageRangeItemActive} `}
+                                             className={`${theme?.table?.pageRangeItem}  ${currentPage === i ? theme?.table?.pageRangeItemActive : theme?.table?.pageRangeItemInactive} `}
                                              onClick={() => setCurrentPage(i)}
                                         >{i + 1}</div>
                                     ))
                                 }
 
-                            <div className={theme?.table?.pageRangeItem}
+                            <div className={`${theme?.table?.pageRangeItem} ${theme?.table?.pageRangeItemInactive}`}
                                  onClick={() => setCurrentPage(currentPage < totalPages ? currentPage + 1 : currentPage)}>{`next >`}</div>
                         </div>
                     </>
