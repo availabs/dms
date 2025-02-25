@@ -50,9 +50,9 @@ export default ({title, children}) => {
     const location = useLocation();
     let authMenuItems = theme?.navOptions?.authMenu?.navItems || [
             {
-                name: 'Patterns',
+                name: 'Datasets',
                 icon: 'fad fa-sign-out-alt pb-2 pr-1',
-                path: '/list',
+                path: '/datasets',
                 authLevel: 5
             },
             {

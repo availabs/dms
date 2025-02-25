@@ -34,7 +34,7 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
 
   const level = item?.index == '999' || theme?.navOptions?.topNav?.nav !== 'main' ? 1 : detectNavLevel(dataItems, baseUrl);
 
-  // const inPageNav = getInPageNav(item,theme);
+  const inPageNav = getInPageNav(item,theme);
 
   const headerSection = item['sections']?.filter(d => d.is_header)?.[0]
   const sections = item['sections']?.filter(d => !d.is_header && !d.is_footer)
@@ -52,11 +52,11 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
           <div className={`${theme?.page?.wrapper1} ${theme?.navPadding[level]}`}>
             {(item?.header === 'below') && <ContentView item={item} value={[headerSection]} attributes={sectionAttr} full_width={'show'}/>}
             <div className={`${theme?.page?.wrapper2}`}>
-              {/*{item?.sidebar === 'left' && (
+              {item?.sidebar === 'left' && (
                 <SideNavContainer>
                   <SideNav {...inPageNav} /> 
                 </SideNavContainer>
-              )}*/}
+              )}
               <div className={theme?.page?.wrapper3} ref={pdfRef}>
                 {/* Content */}
                 {(item?.header === 'inpage') &&
@@ -82,11 +82,11 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
                     format={format}
                 />
               </div>
-              {/*{item?.sidebar === 'right' && (
+              {item?.sidebar === 'right' && (
                 <SideNavContainer>
                   <SideNav {...inPageNav} /> 
                 </SideNavContainer>
-              )}*/}
+              )}
             </div>
           </div>
         </Layout>

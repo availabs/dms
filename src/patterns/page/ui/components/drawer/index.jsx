@@ -51,7 +51,7 @@ import { CMSContext } from '../../../siteConfig';
 export default function Drawer ({ open, setOpen, CloseIcon=XMark, width='max-w-64', children, closeOnClick=true }) {
   
   return (
-    <Transition.Root as={Fragment}>
+    <Transition.Root  as={Fragment} show={open}>
       <Transition.Child
         as={Fragment}
         enter="transform transition ease-in-out duration-500 sm:duration-700"
