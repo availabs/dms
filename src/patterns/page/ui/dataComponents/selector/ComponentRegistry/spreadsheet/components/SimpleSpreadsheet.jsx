@@ -6,7 +6,7 @@ import {useCopy, usePaste} from "../utils/hooks";
 import {handleKeyDown} from "../utils/keyboard";
 import {handleMouseUp, handleMouseMove, handleMouseDown} from "../utils/mouse";
 import { TableRow } from "./TableRow";
-import {RenderGutter} from "./RenderGutter";
+import { RenderGutter } from "./RenderGutter";
 import {actionsColSize, numColSize as numColSizeDf, gutterColSize as gutterColSizeDf, minColSize, minInitColSize} from "../constants"
 import {SpreadSheetContext} from "../index";
 import { CMSContext } from '../../../../../../siteConfig'
@@ -67,6 +67,7 @@ export const tableTheme = {
     paginationContainer: 'w-full p-2 flex items-center justify-between',
     paginationControlsContainer: 'flex flex-row items-center overflow-hidden gap-0.5',
     pageRangeItem: 'cursor-pointer px-3  text-[#2D3E4C] py-1  text-[12px] hover:bg-slate-50 font-[500] rounded  uppercase leading-[18px]' ,
+    pageRangeItemInactive: '',
     pageRangeItemActive: 'bg-slate-100 '
 }
 
