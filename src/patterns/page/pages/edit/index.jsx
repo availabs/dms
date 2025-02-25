@@ -36,7 +36,7 @@ function PageEdit ({
 
   // console.log('-----------render edit----------------')
   const level = item?.index == '999' || theme?.navOptions?.topNav?.nav !== 'main' ? 1 : detectNavLevel(dataItems, baseUrl);
-  // const inPageNav = getInPageNav(item, theme);
+  const inPageNav = getInPageNav(item, theme);
   const sectionAttr = attributes?.['sections']?.attributes || {}
 
   React.useEffect(() => {
@@ -107,11 +107,11 @@ function PageEdit ({
               />
             )}
             <div className={`${theme?.page?.wrapper2}`}>
-              {/*{item?.sidebar === 'left' && (
+              {item?.sidebar === 'left' && (
                 <SideNavContainer>
                   <SideNav {...inPageNav} /> 
                 </SideNavContainer>
-              )}  */}
+              )}  
               <div className={theme?.page?.wrapper3 + ''}>
                 {item?.header === 'inpage' && (
                   <ContentEdit
@@ -139,18 +139,18 @@ function PageEdit ({
                   format={isDynamicPage ? format : undefined}
                 />
               </div>
-              {/*{item?.sidebar === 'right' && (
+              {item?.sidebar === 'right' && (
                 <SideNavContainer>
                   <SideNav {...inPageNav} /> 
                 </SideNavContainer>
-              )}*/}
+              )}
               {/*<div className='w-64 h-screen border-2 border-blue-400' />*/}
             </div>
 
           </div>
-          <div className={`fixed bottom-4 right-4 p-6 border rounded bg-white shadow ${busy.loading > 0 || busy.updating > 0 ? 'block' : 'hidden'} `}>
-            <div>{busy.updating > 0 && `Updating... ${busy.updating}`}</div>
-            <div>{busy.loading > 0 && `Loading... ${busy.loading}`}</div>
+          <div className={`fixed bottom-4 right-4 p-6 border rounded bg-white shadow ${busy?.loading > 0 || busy?.updating > 0 ? 'block' : 'hidden'} `}>
+            <div>{busy?.updating > 0 && `Updating... ${busy?.updating}`}</div>
+            <div>{busy?.loading > 0 && `Loading... ${busy?.loading}`}</div>
           </div>
           
         </Layout>

@@ -85,8 +85,7 @@ function SiteEdit ({
 
 
 	return (
-		<Layout navItems={menuItems} >
-		
+		<>
 			{Object.keys(attributes)
 				.map((attrKey, i) => {
 					let EditComp = attributes[attrKey].EditComp
@@ -108,8 +107,7 @@ function SiteEdit ({
 					)
 				})
 			}
-			
-		</Layout>
+		</>
 	)
 }
 

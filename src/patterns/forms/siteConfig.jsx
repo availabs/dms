@@ -54,12 +54,10 @@ const formsAdminConfig = ({
     logo,
     pattern,
     themes={ default: {} },
-    pattern_type,
-
     checkAuth = () => {}
 }) => {
     //console.log('parent theme', parent.theme)
-    let theme = merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern.theme_name] || themes.default), parent?.theme || {})
+    let theme = merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern?.theme_name] || themes.default), parent?.theme || {})
     baseUrl = baseUrl === '/' ? '' : baseUrl
     const defaultLogo = (
         <Link to={baseUrl || '/'} className='h-12 flex px-4 items-center'>
@@ -70,12 +68,8 @@ const formsAdminConfig = ({
     if(!theme.navOptions.logo) {
         theme.navOptions.logo = logo ? logo : defaultLogo
     }
-    // for future use
-    const patternFormatMapping = {
-        // form: pattern,
-        forms: formsFormat
-    }
-    const patternFormat = cloneDeep(patternFormatMapping[pattern_type]);
+    
+    const patternFormat = cloneDeep(formsFormat);
     patternFormat.app = app
     patternFormat.type = type
     patternFormat.registerFormats = updateRegisteredFormats(patternFormat.registerFormats, app, type) // update app for all the children formats. this works, but dms stops providing attributes to patternList
@@ -165,11 +159,10 @@ const formsSourceConfig = ({
     logo,
     pattern,
     themes={ default: {} },
-    pattern_type,
     checkAuth = () => {}
 }) => {
     
-    let theme = merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern.theme_name] || themes.default), parent?.theme || {})
+    let theme = merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern?.theme_name] || themes.default), parent?.theme || {})
     baseUrl = baseUrl === '/' ? '' : baseUrl
     const defaultLogo = (
         <Link to={baseUrl || '/'} className='h-12 flex px-4 items-center'>

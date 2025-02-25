@@ -22,7 +22,7 @@ export default function EditPane () {
   return (
     <div className='flex items-cemter p-1'>
       <div className='flex-1'><PublishButton /></div>
-      <div className='flex items-cemter  px-4 py-2 ' onClick={() => setEditPane({...editPane, open: !editPane.open})}>
+      <div className='flex items-cemter  px-4 py-2 ' onClick={() => setEditPane({...editPane, open: !editPane.openX})}>
         <AdjustmentsHorizontal className='size-6 hover:text-blue-500 text-slate-400'/>
       </div>
     </div>
