@@ -170,17 +170,17 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
             return {...acc, [getFullColumn(columnName, columnsWithSettings)?.refName]: finalValues}
         }, {}),
         meta,
-        ...Object.keys(restOfDataRequestOptions).reduce((acc, filterOperation) => {
-            const columnsForOperation = Object.keys(restOfDataRequestOptions[filterOperation]);
-            acc[filterOperation] =
-                columnsForOperation.reduce((acc, columnName) => {
-                    const currOperationValues = restOfDataRequestOptions[filterOperation][columnName];
-
-                    acc[getFullColumn(columnName, columnsWithSettings)?.refName] = Array.isArray(currOperationValues) ? currOperationValues[0] : currOperationValues;
-                    return acc;
-                }, {});
-            return acc;
-        }, {})
+        // ...Object.keys(restOfDataRequestOptions).reduce((acc, filterOperation) => {
+        //     const columnsForOperation = Object.keys(restOfDataRequestOptions[filterOperation]);
+        //     acc[filterOperation] =
+        //         columnsForOperation.reduce((acc, columnName) => {
+        //             const currOperationValues = restOfDataRequestOptions[filterOperation][columnName];
+        //
+        //             acc[getFullColumn(columnName, columnsWithSettings)?.refName] = Array.isArray(currOperationValues) ? currOperationValues[0] : currOperationValues;
+        //             return acc;
+        //         }, {});
+        //     return acc;
+        // }, {})
     }
     debug && console.log('debug getdata: options for spreadsheet getData', options, state)
     // =================================================================================================================
@@ -302,6 +302,13 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
     }
     // ============================================== fetch total row end ==============================================
 
+    const operations = {
+        gt: (a, b) => +a > +b,
+        gte: (a, b) => +a >= +b,
+        lt: (a, b) => +a < +b,
+        lte: (a, b) => +a <= +b,
+        like: (a,b) => b.toString().toLowerCase().includes(a.toString().toLowerCase())
+    }
     return {
         length,
         data: data.map(row => columnsToFetch.reduce((acc, column) => ({
@@ -310,6 +317,18 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
             // return data with columns' original names
             [column.name]: cleanValue(row[row.totalRow ? column.totalName : column.reqName])
         }) , {}))
+            .filter(row => !Object.keys(restOfDataRequestOptions).length || (
+                Object.keys(restOfDataRequestOptions).reduce((acc, filterOperation) => {
+                    const columnsForOperation = Object.keys(restOfDataRequestOptions[filterOperation]);
+                    return acc && columnsForOperation.reduce((acc, columnName) => {
+                        const currOperationValues = restOfDataRequestOptions[filterOperation][columnName];
+                        const valueToFilterBy = Array.isArray(currOperationValues) ? currOperationValues[0] : currOperationValues;
+                        if(!valueToFilterBy) return acc && true;
+                        if(!row[columnName]) return acc && false;
+                        return acc && operations[filterOperation](row[columnName], valueToFilterBy);
+                    }, true)
+                }, true)
+            ))
     }
 }
 
