@@ -56,7 +56,7 @@ export const applyFn = (col={}, isDms=false) => {
         [undefined]: `${colNameWithAccessor} as ${colNameAfterAS}`,
         '': `${colNameWithAccessor} as ${colNameAfterAS}`,
         list: `array_to_string(array_agg(distinct ${colNameWithAccessor}), ', ') as ${colNameAfterAS}`,
-        sum: `sum(${colNameWithAccessor}) as ${colNameAfterAS}`,
+        sum: isDms ? `sum((${colNameWithAccessor})::integer) as ${colNameAfterAS}` : `sum(${colNameWithAccessor}) as ${colNameAfterAS}`,
         count: `count(${colNameWithAccessor}) as ${colNameAfterAS}`,
     }
 
