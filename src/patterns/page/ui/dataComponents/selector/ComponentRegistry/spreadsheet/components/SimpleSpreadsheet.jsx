@@ -109,7 +109,7 @@ export const RenderTable = ({isEdit, updateItem, removeItem, addItem, newItem, s
             {index: selection[selection.length - 1], attrI: undefined} :
             selection[selection.length - 1];
         updateItemsOnPaste({pastedContent, e, index, attrI, data, visibleAttributes, updateItem})
-    });
+    }, gridRef.current);
 
     useCopy(() => {
         return Object.values(
@@ -124,7 +124,7 @@ export const RenderTable = ({isEdit, updateItem, removeItem, addItem, newItem, s
                     acc[index] = acc[index] ? `${acc[index]}\t${data[index][visibleAttributes[attrI]]}` : data[index][visibleAttributes[attrI]]; // join cells of a row
                     return acc;
                 }, {})).join('\n') // join rows
-    })
+    }, gridRef.current)
 
     // =================================================================================================================
     // =========================================== auto resize begin ===================================================
@@ -158,6 +158,9 @@ export const RenderTable = ({isEdit, updateItem, removeItem, addItem, newItem, s
     // =========================================== Mouse Controls begin ================================================
     // =================================================================================================================
     const colResizer = (columnName) => (e) => {
+        const element = gridRef.current;
+        if(!element) return;
+
         const column = visibleAttributes.find(({name}) => name === columnName);
         const startX = e.clientX;
         const startWidth = column.size || 0;
@@ -170,12 +173,12 @@ export const RenderTable = ({isEdit, updateItem, removeItem, addItem, newItem, s
         };
 
         const handleMouseUp = () => {
-            document.removeEventListener('mousemove', handleMouseMove);
-            document.removeEventListener('mouseup', handleMouseUp);
+            element.removeEventListener('mousemove', handleMouseMove);
+            element.removeEventListener('mouseup', handleMouseUp);
         };
 
-        document.addEventListener('mousemove', handleMouseMove);
-        document.addEventListener('mouseup', handleMouseUp);
+        element.addEventListener('mousemove', handleMouseMove);
+        element.addEventListener('mouseup', handleMouseUp);
     };
     // =========================================== Mouse Controls end ==================================================
 
@@ -183,6 +186,8 @@ export const RenderTable = ({isEdit, updateItem, removeItem, addItem, newItem, s
     // =========================================== Keyboard Controls begin =============================================
     // =================================================================================================================
     useEffect(() => {
+        const element = gridRef.current;
+        if(!element) return;
         const handleKeyUp = () => {
             setIsSelecting(false)
             setIsDragging(false)
@@ -195,12 +200,12 @@ export const RenderTable = ({isEdit, updateItem, removeItem, addItem, newItem, s
             visibleAttributes, pageSize: display.pageSize, setIsDragging
         })
 
-        window.addEventListener('keydown', keyDownListener);
-        window.addEventListener('keyup', handleKeyUp);
+        element.addEventListener('keydown', keyDownListener);
+        element.addEventListener('keyup', handleKeyUp);
 
         return () => {
-            window.removeEventListener('keydown', keyDownListener);
-            window.removeEventListener('keyup', handleKeyUp);
+            element.removeEventListener('keydown', keyDownListener);
+            element.removeEventListener('keyup', handleKeyUp);
         };
     }, [selection, editing, data?.length]);
     // =========================================== Keyboard Controls end ===============================================

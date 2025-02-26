@@ -17,6 +17,7 @@ import { sectionArrayTheme } from '../dataComponents/sections/sectionArray'
 
 // -- Component Registery Components
 import { tableTheme } from '../dataComponents/selector/ComponentRegistry/spreadsheet/components/SimpleSpreadsheet'
+import lexicalTheme from '../dataComponents/selector/ComponentRegistry/richtext/theme';
 
 
 import { menuTheme } from '../components/menu'
@@ -99,9 +100,7 @@ const theme = {
   table: tableTheme,
 
   // --- component themes
-  lexical : {
-    editorShell: 'font'
-  }
+  lexical : lexicalTheme
   
 }
 
