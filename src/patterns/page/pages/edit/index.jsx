@@ -13,6 +13,7 @@ import { PageContext } from '../view'
 
 import { CMSContext } from '../../siteConfig'
 import EditPane, { EditDrawer } from './editPane'
+import {Footer} from "../../ui/dataComponents/selector/ComponentRegistry/footer";
 
 
 
@@ -154,7 +155,7 @@ function PageEdit ({
           </div>
           
         </Layout>
-        {item?.footer && <div className='h-[300px]' />} 
+        <Footer show={item.footer} dataItems={dataItems} />
       </div>
     </PageContext.Provider>
   ) 

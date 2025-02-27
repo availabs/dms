@@ -8,6 +8,7 @@ import { Layout, SideNav, SideNavContainer } from '../ui'
 
 import {PDF, PencilEditSquare, Printer} from '../ui/icons'
 import {selectablePDF} from "../components/saveAsPDF/PrintWell/selectablePDF";
+import {Footer} from "../ui/dataComponents/selector/ComponentRegistry/footer";
 export const PageContext = React.createContext(undefined);
 
 
@@ -90,7 +91,8 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
             </div>
           </div>
         </Layout>
-        {item?.footer && <div className='h-[300px]' />}
+
+        <Footer show={item.footer} dataItems={dataItems} />
       </div>
     </PageContext.Provider>
   )
