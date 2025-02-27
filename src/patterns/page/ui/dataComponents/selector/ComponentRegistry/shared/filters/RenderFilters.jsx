@@ -59,44 +59,51 @@ export const RenderFilters = ({
         }, [searchParams, filters]);
 
         useEffect(() => {
+            // fetch filter data
             let isStale = false;
             async function load() {
                 setLoading(true);
-                const fetchedFilterData = await Promise.all(Object.keys(filters).map(async columnName => {
-                    const filterBy = {};
+                const fetchedFilterData = await Promise.all(
+                    Object.keys(filters)
+                        // don't pull filter data for internal filters in view mode
+                        .filter(f => isEdit || state.columns.find(({name}) => name === f)?.type === 'external')
+                        .map(async columnName => {
+                            const filterBy = {};
 
-                    const data = await getData({
-                        format: state.sourceInfo,
-                        apiLoad,
-                        // length,
-                        reqName: getFormattedAttributeStr(columnName), // column name with as
-                        refName: getAttributeAccessorStr(columnName), // column name without as
-                        allAttributes: state.columns,
-                        filterBy
-                    })
-                    if(isStale) {
-                        setLoading(false)
-                        return;
-                    }
+                            const data = await getData({
+                                format: state.sourceInfo,
+                                apiLoad,
+                                // length,
+                                reqName: getFormattedAttributeStr(columnName), // column name with as
+                                refName: getAttributeAccessorStr(columnName), // column name without as
+                                allAttributes: state.columns,
+                                filterBy
+                            })
+                            if(isStale) {
+                                setLoading(false)
+                                return;
+                            }
+                            const metaOptions = state.columns.find(({name}) => name === columnName)?.options;
+                            const dataOptions = data.reduce((acc, d) => {
+                                // array values flattened here for multiselects.
+                                const formattedAttrStr = getFormattedAttributeStr(columnName);
+                                // if meta column, value: {value, originalValue}, else direct value comes in response
+                                const responseValue = d[formattedAttrStr]?.value || d[formattedAttrStr];
+                                const metaValue = parseIfJson(responseValue?.value || responseValue); // meta processed value
+                                const originalValue = parseIfJson(responseValue?.originalValue || responseValue);
+                                const value =
+                                    Array.isArray(originalValue) ?
+                                        originalValue.map((pv, i) => ({label: metaValue?.[i] || pv, value: pv})) :
+                                        [{label: metaValue || originalValue, value: originalValue}];
 
-                    debug && console.log('debug filters: data', data)
-                    return {
-                        column: columnName,
-                        uniqValues: uniqBy(data.reduce((acc, d) => {
-                            // array values flattened here for multiselects.
-                            const formattedAttrStr = getFormattedAttributeStr(columnName);
-                            // if meta column, value: {value, originalValue}, else direct value comes in response
-                            const responseValue = d[formattedAttrStr]?.value || d[formattedAttrStr];
-                            const metaValue = parseIfJson(responseValue?.value || responseValue); // meta processed value
-                            const originalValue = parseIfJson(responseValue?.originalValue || responseValue);
-                            const value =
-                                Array.isArray(originalValue) ?
-                                    originalValue.map((pv, i) => ({label: metaValue?.[i] || pv, value: pv})) :
-                                    [{label: metaValue || originalValue, value: originalValue}];
+                                return [...acc, ...value.filter(({label, value}) => label && typeof label !== 'object')];
+                            }, []);
 
-                            return [...acc, ...value.filter(({label, value}) => label && typeof label !== 'object')];
-                        }, []), d => d.value),
-                    }
+                            debug && console.log('debug filters: data', data)
+                            return {
+                                column: columnName,
+                                uniqValues: uniqBy(Array.isArray(metaOptions) ? [...metaOptions, ...dataOptions] : dataOptions, d => d.value),
+                            }
                 }));
                 // const data = fetchedFilterData.reduce((acc, filterData) => ({...acc, [filterData.column]: filterData.uniqValues}) , {})
                 if(isStale) {
@@ -122,7 +129,6 @@ export const RenderFilters = ({
     // add UI dropdown to change filter type
     // add UI to change filter operation
 
-    const url = convertToUrlParams(filterWithSearchParamKeys, filterValueDelimiter);
     return (
         open ?
             <div className={'w-full px-4 py-6 flex flex-col border border-blue-300 rounded-md'}>
