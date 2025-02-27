@@ -1,10 +1,170 @@
-import React, { useMemo, useState, useEffect }from 'react'
+import React, {useMemo, useState, useEffect, useContext} from 'react'
 
 import Select from '../../../../ui/components/select/'
 import {isJson} from "../index";
+import {PageContext} from "../../../../pages/view";
+import {ArrowRight} from "../../../icons";
+import {Link} from "react-router-dom";
+import RenderSwitch from "./shared/Switch";
+
+const overlayImageOptions = [
+    {
+        label: 'Planetary Home',
+        value: '/themes/mny/header_home.png'
+    },
+    {
+        label: 'Planetary Buildings',
+        value: '/themes/mny/header_image1.png'
+    },
+    {
+        label: 'Hazards - Coastal',
+        value: '/themes/mny/hazards_coastal_2tp.png'
+    },
+    {
+        label: 'Hazards - Flood',
+        value: '/themes/mny/hazards_flood_2tp.png'
+    },
+    {
+        label: 'Hazards - Landslide',
+        value: '/themes/mny/hazards_landslide_1tp.png'
+    },
+    {
+        label: 'Hazards - Wildfire',
+        value: '/themes/mny/hazards_wildfire_1tp.png'
+    },
+    {
+        label: 'Take Action - Capabilities',
+        value: '/themes/mny/takeaction_capab_2tp.png'
+    },
+    {
+        label: 'Take Action - Landuse',
+        value: '/themes/mny/takeaction_landuse_2tp.png'
+    },
+    {
+        label: 'Transportation',
+        value: '/themes/mny/transportation.png'
+    },
+    {
+        "label": "Set1 - Avalanche",
+        "value": "/themes/mny/Avalanche - transparent.png"
+    },
+    {
+        "label": "Set1 - Built Environment",
+        "value": "/themes/mny/Built Environment - transparent.png"
+    },
+    {
+        "label": "Set1 - Capabilities and Resources",
+        "value": "/themes/mny/Capabilities and Resources - transparent.png"
+    },
+    {
+        "label": "Set1 - Coastal Hazards",
+        "value": "/themes/mny/Coastal Hazards - transparent.png"
+    },
+    {
+        "label": "Set1 - Drought",
+        "value": "/themes/mny/Drought - transparent.png"
+    },
+    {
+        "label": "Set1 - Earthquake",
+        "value": "/themes/mny/Earthquake - transparent.png"
+    },
+    {
+        "label": "Set1 - Extreme Cold",
+        "value": "/themes/mny/Extreme Cold - transparent.png"
+    },
+    {
+        "label": "Set1 - Extreme Heat",
+        "value": "/themes/mny/Extreme Heat - transparent.png"
+    },
+    {
+        "label": "Set1 - Flooding",
+        "value": "/themes/mny/Flooding - transparent.png"
+    },
+    {
+        "label": "Set1 - Funding",
+        "value": "/themes/mny/Funding - transparent.png"
+    },
+    {
+        "label": "Set1 - Hail",
+        "value": "/themes/mny/Hail - transparent.png"
+    },
+    {
+        "label": "Set1 - Hazards & Disasters",
+        "value": "/themes/mny/Hazards & Disasters - transparent.png"
+    },
+    {
+        "label": "Set1 - Hurricane",
+        "value": "/themes/mny/Hurricane - transparent.png"
+    },
+    {
+        "label": "Set1 - Ice Storm",
+        "value": "/themes/mny/Ice Storm - transparent.png"
+    },
+    {
+        "label": "Set1 - Landslide",
+        "value": "/themes/mny/Landslide - transparent.png"
+    },
+    {
+        "label": "Set1 - Lightning",
+        "value": "/themes/mny/Lightning - transparent.png"
+    },
+    {
+        "label": "Set1 - Natural Environment",
+        "value": "/themes/mny/Natural Environment - transparent.png"
+    },
+    {
+        "label": "Set1 - People and Communities",
+        "value": "/themes/mny/People and Communities - transparent.png"
+    },
+    {
+        "label": "Set1 - Planning",
+        "value": "/themes/mny/Planning - transparent.png"
+    },
+    {
+        "label": "Set1 - Snowstorm",
+        "value": "/themes/mny/Snowstorm - transparent.png"
+    },
+    {
+        "label": "Set1 - Strategies",
+        "value": "/themes/mny/Strategies - transparent.png"
+    },
+    {
+        "label": "Set1 - Take Action",
+        "value": "/themes/mny/Take Action - transparent.png"
+    },
+    {
+        "label": "Set1 - Tornado",
+        "value": "/themes/mny/Tornado - transparent.png"
+    },
+    {
+        "label": "Set1 - Whats At Risk",
+        "value": "/themes/mny/Whats At Risk - transparent.png"
+    },
+    {
+        "label": "Set1 - Wildfire",
+        "value": "/themes/mny/Wildfire - transparent.png"
+    },
+    {
+        "label": "Set1 - Wind",
+        "value": "/themes/mny/Wind - transparent.png"
+    }
+]
+
+const Breadcrumbs = ({ chain }) => {
+    return Array.isArray(chain) ? (
+        <div className="flex items-center gap-[4px] text-[#37576B] text-[12px] leading-[14.62px] font-semibold tracking-normal">
+            {chain.map((c, index) => (
+                <div key={index} className="flex items-center shrink-0">
+                    <Link to={c.url_slug} className={'w-fit shrink-0 wrap-none'}>{c.title}</Link>
+                    {index < chain.length - 1 && <ArrowRight height={8} width={8} className="ml-1 -mt-1" />}
+                </div>
+            ))}
+        </div>
+    ) : null;
+};
 
 
-export function Header ({position = 'above',bgImg = '/themes/mny/takeaction_landuse_2tp.png' , logo = '', title = 'Title', overlay='overlay', note='note', height=673}) {
+export function Header ({position = 'above',bgImg = '/themes/mny/takeaction_landuse_2tp.png' , logo = '', title = 'Title', overlay='overlay', note='note', height=673, chain, showBreadcrumbs}) {
 
   return (
     <div className={`lg:-mb-[145px] bg-fit bg-center w-full flex flex-col lg:flex-row w-full lg:h-[773px]`}>
@@ -18,9 +178,13 @@ export function Header ({position = 'above',bgImg = '/themes/mny/takeaction_land
       </div>
       <div className='lg:flex-1'>
         <div className='pt-12 lg:pt-0 lg:max-w-[656px]  w-full flex lg:ml-auto  h-full items-center'>
-          
-          <div className='pr-[64px] xl:pl-0 px-[15px]'> 
-            <div>
+          <div className='pr-[64px] xl:pl-0 px-[15px]'>
+            <div className={'flex flex-col gap-1'}>
+                <div className={'z-10'}>
+                    {
+                        showBreadcrumbs ? <Breadcrumbs chain={chain} /> : null
+                    }
+                </div>
             {title && <div className='text-3xl sm:text-[72px] font-[500] font-["Oswald"] text-[#2D3E4C] sm:leading-[72px] uppercase'>{title}</div>}
             </div>
             <div className='text-[16px] leading-[24px] text-[#37576B] w-full p-1 pt-2'>
@@ -48,158 +212,21 @@ const getData = ({position='above',bgImg='/img/header.png', logo='/img/nygov-log
 }
 
 
+const getChain = (dataItems, currentItem) => {
+    const {id, parent, title, url_slug} = currentItem;
+    if (parent){
+        const chainForCurrItem = getChain(dataItems, dataItems.find(di => di.id === parent));
+        return [...chainForCurrItem, {id, parent, title, url_slug}]
+    }
 
+    return [{id, parent, title, url_slug}];
+}
 
 const Edit = ({value, onChange, size}) => {
-    
+    const {dataItems, menuItems, item} = useContext(PageContext);
     let cachedData = useMemo(() => {
         return value && isJson(value) ? JSON.parse(value) : {}
     }, [value]);
-
-    //console.log('Edit: value,', size)
-
-    const overlayImageOptions = [
-      {
-        label: 'Planetary Home',
-        value: '/themes/mny/header_home.png'
-      },
-      {
-        label: 'Planetary Buildings',
-        value: '/themes/mny/header_image1.png'
-      },
-      {
-        label: 'Hazards - Coastal',
-        value: '/themes/mny/hazards_coastal_2tp.png'
-      },
-      {
-        label: 'Hazards - Flood',
-        value: '/themes/mny/hazards_flood_2tp.png'
-      },
-      {
-        label: 'Hazards - Landslide',
-        value: '/themes/mny/hazards_landslide_1tp.png'
-      },
-      {
-        label: 'Hazards - Wildfire',
-        value: '/themes/mny/hazards_wildfire_1tp.png'
-      },
-      {
-        label: 'Take Action - Capabilities',
-        value: '/themes/mny/takeaction_capab_2tp.png'
-      },
-      {
-        label: 'Take Action - Landuse',
-        value: '/themes/mny/takeaction_landuse_2tp.png'
-      },
-      {
-        label: 'Transportation',
-        value: '/themes/mny/transportation.png'
-      },
-      { 
-        "label": "Set1 - Avalanche",
-        "value": "/themes/mny/Avalanche - transparent.png"
-      },
-      { 
-        "label": "Set1 - Built Environment",
-        "value": "/themes/mny/Built Environment - transparent.png"
-      },
-      { 
-        "label": "Set1 - Capabilities and Resources",
-        "value": "/themes/mny/Capabilities and Resources - transparent.png"
-      },
-      { 
-        "label": "Set1 - Coastal Hazards",
-        "value": "/themes/mny/Coastal Hazards - transparent.png"
-      },
-      { 
-        "label": "Set1 - Drought",
-        "value": "/themes/mny/Drought - transparent.png"
-      },
-      { 
-        "label": "Set1 - Earthquake",
-        "value": "/themes/mny/Earthquake - transparent.png"
-      },
-      { 
-        "label": "Set1 - Extreme Cold",
-        "value": "/themes/mny/Extreme Cold - transparent.png"
-      },
-      { 
-        "label": "Set1 - Extreme Heat",
-        "value": "/themes/mny/Extreme Heat - transparent.png"
-      },
-      { 
-        "label": "Set1 - Flooding",
-        "value": "/themes/mny/Flooding - transparent.png"
-      },
-      { 
-        "label": "Set1 - Funding",
-        "value": "/themes/mny/Funding - transparent.png"
-      },
-      { 
-        "label": "Set1 - Hail",
-        "value": "/themes/mny/Hail - transparent.png"
-      },
-      { 
-        "label": "Set1 - Hazards & Disasters",
-        "value": "/themes/mny/Hazards & Disasters - transparent.png"
-      },
-      { 
-        "label": "Set1 - Hurricane",
-        "value": "/themes/mny/Hurricane - transparent.png"
-      },
-      { 
-        "label": "Set1 - Ice Storm",
-        "value": "/themes/mny/Ice Storm - transparent.png"
-      },
-      { 
-        "label": "Set1 - Landslide",
-        "value": "/themes/mny/Landslide - transparent.png"
-      },
-      { 
-        "label": "Set1 - Lightning",
-        "value": "/themes/mny/Lightning - transparent.png"
-      },
-      { 
-        "label": "Set1 - Natural Environment",
-        "value": "/themes/mny/Natural Environment - transparent.png"
-      },
-      { 
-        "label": "Set1 - People and Communities",
-        "value": "/themes/mny/People and Communities - transparent.png"
-      },
-      { 
-        "label": "Set1 - Planning",
-        "value": "/themes/mny/Planning - transparent.png"
-      },
-      { 
-        "label": "Set1 - Snowstorm",
-        "value": "/themes/mny/Snowstorm - transparent.png"
-      },
-      { 
-        "label": "Set1 - Strategies",
-        "value": "/themes/mny/Strategies - transparent.png"
-      },
-      { 
-        "label": "Set1 - Take Action",
-        "value": "/themes/mny/Take Action - transparent.png"
-      },
-      { 
-        "label": "Set1 - Tornado",
-        "value": "/themes/mny/Tornado - transparent.png"
-      },
-      { 
-        "label": "Set1 - Whats At Risk",
-        "value": "/themes/mny/Whats At Risk - transparent.png"
-      },
-      { 
-        "label": "Set1 - Wildfire",
-        "value": "/themes/mny/Wildfire - transparent.png"
-      },
-      { 
-        "label": "Set1 - Wind",
-        "value": "/themes/mny/Wind - transparent.png"
-      }
-    ]
 
     const insetImageOptions = [
       {
@@ -219,7 +246,8 @@ const Edit = ({value, onChange, size}) => {
         bgImg: cachedData.bgImg || overlayImageOptions[1].value,//'/img/header.png', 
         title: cachedData.title || 'Title', 
         note: cachedData.note || 'note',
-        overlay: cachedData.overlay || 'overlay'
+        overlay: cachedData.overlay || 'overlay',
+        showBreadcrumbs: cachedData.showBreadcrumbs || false,
     })
 
     useEffect(() => {
@@ -227,6 +255,8 @@ const Edit = ({value, onChange, size}) => {
         onChange(JSON.stringify(compData))
       }
     },[compData])
+
+    const chain = getChain(dataItems, item);
 
     return (
       <div className='w-full'>
@@ -287,8 +317,20 @@ const Edit = ({value, onChange, size}) => {
               </div>
             </div>
 
+              <div className={'flex flex-row flex-wrap justify-between'}>
+              <label className={'shrink-0 pr-2 py-1 my-1 w-1/4'}>show breadcrumbs:</label>
+              <div className={`flex flex row w-3/4 shrink my-1`}>
+                  <RenderSwitch
+                      size={'small'}
+                      id={'show-breadcrumbs-toggle'}
+                      enabled={compData.showBreadcrumbs}
+                      setEnabled={(value) => setCompData({...compData, showBreadcrumbs: value})}
+                  />
+              </div>
+            </div>
+
           </div>
-          <Header {...compData}/>
+          <Header {...compData} chain={chain}/>
         </div>
       </div>
     ) 
@@ -296,12 +338,13 @@ const Edit = ({value, onChange, size}) => {
 }
 
 const View = ({value}) => {
+    const {dataItems, item} = useContext(PageContext);
     if(!value) return ''
     let data = typeof value === 'object' ?
         value['element-data'] : 
         JSON.parse(value)
-    
-    return <Header {...data} />
+    const chain = getChain(dataItems, item);
+    return <Header {...data} chain={chain}/>
              
 }
 

@@ -53,8 +53,12 @@ export const TableCell = ({
     const { theme = { table: tableTheme } } = React.useContext(CMSContext) || {}
     const [newItem, setNewItem] = useState(item);
     // const Comp = DataTypes[attribute.type]?.[isSelecting ? 'ViewComp' : 'EditComp'];
-    const Comp = loading ? LoadingComp : (DataTypes[attribute.type]?.[editing && allowEdit ? 'EditComp' : 'ViewComp'] || DisplayCalculatedCell);
+    const compType = attribute.type === 'calculated' && Array.isArray(newItem[attribute.name]) ? 'multiselect' : attribute.type;
+    const compMode = attribute.type === 'calculated' && Array.isArray(newItem[attribute.name]) ? 'ViewComp' :
+                            editing && allowEdit ? 'EditComp' : 'ViewComp';
+    const Comp = loading ? LoadingComp : (DataTypes[compType]?.[compMode] || DisplayCalculatedCell);
     const CompWithLink = LinkComp({attribute, columns, newItem, removeItem, value: newItem[attribute.name], Comp});
+    const value = attribute.formatFn ? formatFunctions[attribute.formatFn](newItem[attribute.name], attribute.isDollar) : newItem[attribute.name]
     const justifyClass = {
         left: 'justify-start',
         right: 'justify-end',
@@ -83,6 +87,8 @@ export const TableCell = ({
 
     useEffect(() => {
         // send update to api
+        if (!(editing && allowEdit)) return;
+
         if (!isEqual(newItem[attribute.name], item[attribute.name])){
             updateItem(undefined, undefined, newItem)
         }
@@ -146,7 +152,7 @@ export const TableCell = ({
                   `}
                 // displayInvalidMsg={false}
                   {...attribute}
-                  value={attribute.formatFn ? formatFunctions[attribute.formatFn](newItem[attribute.name], attribute.isDollar) : newItem[attribute.name]}
+                  value={value}
                   onChange={e => isTotalRow ? null : setNewItem({...newItem, [attribute.name]: e})}
                 // onPaste={onPaste}
             />

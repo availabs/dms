@@ -66,7 +66,13 @@ export const RenderFilters = ({
                 const fetchedFilterData = await Promise.all(
                     Object.keys(filters)
                         // don't pull filter data for internal filters in view mode
-                        .filter(f => isEdit || state.columns.find(({name}) => name === f)?.type === 'external')
+                        .filter(f => {
+                            if (isEdit) return true;
+
+                            const filter = state.columns.find(({name}) => name === f)?.filters?.[0];
+
+                            if(filter?.type === 'external') return true;
+                        })
                         .map(async columnName => {
                             const filterBy = {};
 
