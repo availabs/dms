@@ -8,13 +8,6 @@ import Icons, {Search, User, UserCircle} from '../ui/icons'
 // import user from "@availabs/ams/dist/reducers/user";
 
 const UserMenu = ({user}) => {
-    // const theme = useTheme()
-
-    // return (
-    //     <div className={'bg-[#37576B] p-[10px] rounded-full'}>
-    //         <Search height={12} width={12} className={'text-white'}/>
-    //     </div>
-    // )
     return (
         <div className={`h-[47px] w-[47px] border border-[#E0EBF0] rounded-full place-items-center content-center`}>
             <User height={24} width={24} />
