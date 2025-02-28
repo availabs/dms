@@ -15,7 +15,7 @@ export const Footer = ({show, dataItems=[]}) => {
                                         children: dataItems.filter(({parent}) => parent === parentItem.id)
                                     }));
     return (
-        <div className={'mt-24 flex flex-col gap-[8px] max-w-[1440px] mx-auto text-[#37576B] px-[56px] overflow-hidden'}>
+        <div className={'my-2 flex flex-col gap-[8px] max-w-[1420px] mx-auto text-[#37576B] px-[56px] overflow-hidden'}>
             <div className={'p-[56px] md:h-[386px] md:max-h-[386px] md:min-h-[386px] bg-white flex flex-col md:flex-row flex-1 px-4 xl:px-[64px] rounded-[12px] shadow-md divide-x divide-[#E0EBF0] justify-center'}>
                 {
                     parents.map(parent => (
@@ -36,7 +36,7 @@ export const Footer = ({show, dataItems=[]}) => {
                 }
             </div>
 
-            <div className={'p-[16px] md:p-[56px] flex flex-col md:flex-row items-center justify-between md:h-[70px] md:max-h-[70px] md:min-h-[70px] bg-white flex flex-1 px-4 xl:px-[64px] rounded-[12px] shadow-md'}>
+            <div className={'p-[16px] md:px-[25px] md:px-[56px] flex flex-col md:flex-row items-center justify-between md:h-[70px] md:max-h-[70px] md:min-h-[70px] bg-white flex flex-1 px-4 xl:px-[64px] rounded-[12px] shadow-md'}>
                 <div>© 2024 MitigateNY, All Rights Reserved.</div>
                 <div className={'flex gap-[24px] '}>
                     <Link to={"#"}>Privacy Policy</Link>
