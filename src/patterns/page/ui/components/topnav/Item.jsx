@@ -1,6 +1,6 @@
 import React, {useEffect} from "react";
 import { useMatch, useNavigate, Link } from "react-router-dom";
-import Icons from '../../icons'
+import Icons, {ArrowDown} from '../../icons'
 
 import { CMSContext } from '../../../siteConfig'
 
@@ -98,7 +98,7 @@ const NavItem = ({
 					}}
 				>
 					<div className={theme.menuItemWrapper}>
-						<div className='flex-1 flex items-center' >
+						<div className='flex-1 flex items-center gap-[2px]' >
 							{!icon ? null : (
 								<Icon
 									icon={icon}
@@ -122,11 +122,7 @@ const NavItem = ({
 								}}
 							>
 								{
-									subMenus.length ?
-										<Icon
-
-											icon={showSubMenu ? theme?.indicatorIconOpen : theme?.indicatorIcon}/>
-										: null
+									subMenus.length ? <ArrowDown height={12} width={12} /> : null
 								}
 								
 							</div>
