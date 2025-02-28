@@ -7,14 +7,17 @@ import {isJson} from "../index";
 export function Header ({position = 'above',bgImg = '/themes/mny/takeaction_landuse_2tp.png' , logo = '', title = 'Title', overlay='overlay', note='note', height=673}) {
 
   return (
-    <div className={`lg:-mb-[145px] bg-fit bg-center w-full flex flex-col lg:flex-row w-full lg:h-[773px]`}>
+    <div className={`lg:-mb-[145px] bg-fit bg-center w-full flex flex-col lg:flex-row w-full h-[773px]`}>
       <div 
         className='lg:order-last h-[699px] rounded-bl-[395px] flex-1' 
         style={overlay === 'inset' ? 
           { background: `url('${bgImg}')`} :
           { background: 'linear-gradient(0deg, #1A2732, #1A2732),linear-gradient(81.58deg, #213440 67.87%, #37576B 189.24%)'}}
         >
-        {overlay === 'overlay' && <img className='relative top-[90px] w-[708px] w-[708px]' src={bgImg} />}
+        {overlay === 'overlay' ? 
+          <img className='relative top-[90px] w-[708px] w-[708px]' src={bgImg} /> : 
+          <div className='relative top-[90px] w-[708px] w-[708px]' />
+        }
       </div>
       <div className='lg:flex-1'>
         <div className='pt-12 lg:pt-0 lg:max-w-[656px]  w-full flex lg:ml-auto  h-full items-center'>
@@ -46,7 +49,6 @@ const getData = ({position='above',bgImg='/img/header.png', logo='/img/nygov-log
     })
   })
 }
-
 
 
 
@@ -97,107 +99,107 @@ const Edit = ({value, onChange, size}) => {
       },
       { 
         "label": "Set1 - Avalanche",
-        "value": "/themes/mny/Avalanche - transparent.png"
+        "value": "/themes/mny/Avalanche - transparent.webp"
       },
       { 
         "label": "Set1 - Built Environment",
-        "value": "/themes/mny/Built Environment - transparent.png"
+        "value": "/themes/mny/Built Environment - transparent.webp"
       },
       { 
         "label": "Set1 - Capabilities and Resources",
-        "value": "/themes/mny/Capabilities and Resources - transparent.png"
+        "value": "/themes/mny/Capabilities and Resources - transparent.webp"
       },
       { 
         "label": "Set1 - Coastal Hazards",
-        "value": "/themes/mny/Coastal Hazards - transparent.png"
+        "value": "/themes/mny/Coastal Hazards - transparent.webp"
       },
       { 
         "label": "Set1 - Drought",
-        "value": "/themes/mny/Drought - transparent.png"
+        "value": "/themes/mny/Drought - transparent.webp"
       },
       { 
         "label": "Set1 - Earthquake",
-        "value": "/themes/mny/Earthquake - transparent.png"
+        "value": "/themes/mny/Earthquake - transparent.webp"
       },
       { 
         "label": "Set1 - Extreme Cold",
-        "value": "/themes/mny/Extreme Cold - transparent.png"
+        "value": "/themes/mny/Extreme Cold - transparent.webp"
       },
       { 
         "label": "Set1 - Extreme Heat",
-        "value": "/themes/mny/Extreme Heat - transparent.png"
+        "value": "/themes/mny/Extreme Heat - transparent.webp"
       },
       { 
         "label": "Set1 - Flooding",
-        "value": "/themes/mny/Flooding - transparent.png"
+        "value": "/themes/mny/Flooding - transparent.webp"
       },
       { 
         "label": "Set1 - Funding",
-        "value": "/themes/mny/Funding - transparent.png"
+        "value": "/themes/mny/Funding - transparent.webp"
       },
       { 
         "label": "Set1 - Hail",
-        "value": "/themes/mny/Hail - transparent.png"
+        "value": "/themes/mny/Hail - transparent.webp"
       },
       { 
         "label": "Set1 - Hazards & Disasters",
-        "value": "/themes/mny/Hazards & Disasters - transparent.png"
+        "value": "/themes/mny/Hazards & Disasters - transparent.webp"
       },
       { 
         "label": "Set1 - Hurricane",
-        "value": "/themes/mny/Hurricane - transparent.png"
+        "value": "/themes/mny/Hurricane - transparent.webp"
       },
       { 
         "label": "Set1 - Ice Storm",
-        "value": "/themes/mny/Ice Storm - transparent.png"
+        "value": "/themes/mny/Ice Storm - transparent.webp"
       },
       { 
         "label": "Set1 - Landslide",
-        "value": "/themes/mny/Landslide - transparent.png"
+        "value": "/themes/mny/Landslide - transparent.webp"
       },
       { 
         "label": "Set1 - Lightning",
-        "value": "/themes/mny/Lightning - transparent.png"
+        "value": "/themes/mny/Lightning - transparent.webp"
       },
       { 
         "label": "Set1 - Natural Environment",
-        "value": "/themes/mny/Natural Environment - transparent.png"
+        "value": "/themes/mny/Natural Environment - transparent.webp"
       },
       { 
         "label": "Set1 - People and Communities",
-        "value": "/themes/mny/People and Communities - transparent.png"
+        "value": "/themes/mny/People and Communities - transparent.webp"
       },
       { 
         "label": "Set1 - Planning",
-        "value": "/themes/mny/Planning - transparent.png"
+        "value": "/themes/mny/Planning - transparent.webp"
       },
       { 
         "label": "Set1 - Snowstorm",
-        "value": "/themes/mny/Snowstorm - transparent.png"
+        "value": "/themes/mny/Snowstorm - transparent.webp"
       },
       { 
         "label": "Set1 - Strategies",
-        "value": "/themes/mny/Strategies - transparent.png"
+        "value": "/themes/mny/Strategies - transparent.webp"
       },
       { 
         "label": "Set1 - Take Action",
-        "value": "/themes/mny/Take Action - transparent.png"
+        "value": "/themes/mny/Take Action - transparent.webp"
       },
       { 
         "label": "Set1 - Tornado",
-        "value": "/themes/mny/Tornado - transparent.png"
+        "value": "/themes/mny/Tornado - transparent.webp"
       },
       { 
         "label": "Set1 - Whats At Risk",
-        "value": "/themes/mny/Whats At Risk - transparent.png"
+        "value": "/themes/mny/Whats At Risk - transparent.webp"
       },
       { 
         "label": "Set1 - Wildfire",
-        "value": "/themes/mny/Wildfire - transparent.png"
+        "value": "/themes/mny/Wildfire - transparent.webp"
       },
       { 
         "label": "Set1 - Wind",
-        "value": "/themes/mny/Wind - transparent.png"
+        "value": "/themes/mny/Wind - transparent.webp"
       }
     ]
 

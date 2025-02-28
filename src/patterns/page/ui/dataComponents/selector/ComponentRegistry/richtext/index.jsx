@@ -1,8 +1,9 @@
 import React, {useEffect, useState} from "react"
-import { dmsDataTypes } from "~/modules/dms/src"
+import LexicalComp from "./lexical"
 import {ColorPickerComp} from "./components/colorPickerComp";
 import theme from './theme'
 import RenderSwitch from "../shared/Switch";
+import {merge, cloneDeep} from 'lodash-es'
 const isJson = (str)  => {
     try {
         JSON.parse(str);
@@ -10,6 +11,20 @@ const isJson = (str)  => {
         return false;
     }
     return true;
+}
+
+
+const cardTheme = {
+    editorContainer: "relative block rounded-[12px] min-h-[50px] shadow-[0px_0px_6px_0px_rgba(0,0,0,0.02),0px_2px_4px_0px_rgba(0,0,0,0.08)]", //'.editor-shell .editor-container'
+    editorViewContainer: "overflow-hidden relative block rounded-[12px] shadow-[0px_0px_6px_0px_rgba(0,0,0,0.02),0px_2px_4px_0px_rgba(0,0,0,0.08)]", // .editor-shell .view-container
+    heading: {
+        h1: "pl-[16px] pt-[8px] font-[500]  text-[#2D3E4C] text-[36px] leading-[40px]  font-[500]  uppercase font-['Oswald'] pb-[12px]", //'PlaygroundEditorTheme__h1',
+        h2: "pl-[16px] pt-[8px] font-[500]  text-[#2D3E4C] text-[24px] leading-[24px] scroll-mt-36 font-['Oswald']", //'PlaygroundEditorTheme__h2',
+        h3: "pl-[16px] pt-[8px] font-[500]  text-[#2D3E4C] text-[16px]  font-['Oswald']", //'PlaygroundEditorTheme__h3',
+        h4: "pl-[16px] pt-[8px] font-medium text-[#2D3E4C] scroll-mt-36 font-display", //'PlaygroundEditorTheme__h4',
+        h5: "pl-[16px] scroll-mt-36 font-display", //'PlaygroundEditorTheme__h5',
+        h6: "pl-[16px] scroll-mt-36 font-display", //'PlaygroundEditorTheme__h6',
+    },
 }
 
 const Edit = ({value, onChange}) => {
@@ -21,9 +36,9 @@ const Edit = ({value, onChange}) => {
 
     useEffect(() => {
         onChange(JSON.stringify({bgColor, text, isCard}))
-    }, [bgColor, text])
+    }, [bgColor, text, isCard])
 
-    const LexicalComp = dmsDataTypes.lexical.EditComp;
+    
 
     // add is card toggle
     return (
@@ -46,7 +61,7 @@ const Edit = ({value, onChange}) => {
                                          color={bgColor} setColor={setBgColor} title={'Background'}
                         /> : null
                 }
-                    <LexicalComp value={text} onChange={setText} bgColor={bgColor} theme={{lexical: theme}}/>
+                    <LexicalComp.EditComp value={text} onChange={setText} bgColor={bgColor} theme={{lexical: isCard ? merge(cloneDeep(theme), cloneDeep(cardTheme)) : theme}}/>
             </div>
         </div>
     )
@@ -63,17 +78,18 @@ const View = ({value}) => {
         value['element-data'] :
         JSON.parse(value)
     const dataOrValue = data?.text || value;
+    const isCard = data?.isCard
+
+    console.log('richtext view ', isCard, data)
 
     if(!dataOrValue ||
         (dataOrValue?.root?.children?.length === 1 && dataOrValue?.root?.children?.[0]?.children?.length === 0) ||
         (dataOrValue?.root?.children?.length === 0)
     ) return <div className='h-6' />;
 
-    const LexicalComp = dmsDataTypes.lexical.ViewComp;
+    
     return (
-        <div>
-            <LexicalComp value={dataOrValue} bgColor={data?.bgColor} theme={{lexical: theme}}/>
-        </div>
+        <LexicalComp.ViewComp value={dataOrValue} bgColor={data?.bgColor} theme={{lexical: isCard ? merge(cloneDeep(theme), cloneDeep(cardTheme)) : theme}}/>
     )
 }
 

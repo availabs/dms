@@ -30,7 +30,7 @@ const DmsManager = (props) => {
 		//console.log(' dmsManager:31 - user', user, props, config.format)
 		if(check && user) {
 			let activeConfig = getActiveConfig(config.children, path, config.format)
-			console.log('activeConfig', activeConfig, props)
+			//console.log('activeConfig', activeConfig, props)
 			check( checkAuth, props, activeConfig, navigate, path )
 		}
 		
