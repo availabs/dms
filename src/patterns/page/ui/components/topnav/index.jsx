@@ -11,7 +11,7 @@ import { CMSContext } from '../../../siteConfig'
 
 export const topNavTheme = {
     "fixed": 'mt-12',
-    "topnavWrapper": "px-[24px] py-[16px] w-full bg-slate-100 border-b border-gray-200",
+    "topnavWrapper": "w-full bg-slate-100 border-b border-gray-200",
     "topnavContent": "flex w-full h-full",
     "topnavMenu": "hidden uppercase md:flex flex-1  divide-x-2 h-full overflow-x-auto overflow-y-hidden scrollbar-sm",
     "menuItemWrapper": "flex",
