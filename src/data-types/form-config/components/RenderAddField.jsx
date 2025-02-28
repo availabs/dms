@@ -27,7 +27,7 @@ export const RenderAddField = ({theme, placeholder, attributes=[], className, ad
                         setError(null)
                     }
 
-                    setNewValue(e.target.value.toLowerCase());
+                    setNewValue(e.target.value.toLowerCase().replaceAll(/\s+/g, ' '));
                 }}
                 onBlur={e => {
                     if(e.target.value !== '' && !error){
