@@ -1,23 +1,32 @@
 import React, {Fragment, useEffect, useContext, useState} from "react";
-import {Combobox, Dialog, DialogPanel, Input, Transition} from '@headlessui/react'
+import {Dialog, DialogPanel, Input, Transition} from '@headlessui/react'
 import {dmsDataLoader} from "../../../../api";
 import {CMSContext} from "../../siteConfig";
 import {Link} from "react-router-dom";
 import {boldMatchingText, getScore, searchTypeMapping} from "./SearchPage";
 import {ArrowRight, Page, Section} from "../../../admin/ui/icons";
+import {Search} from "../../ui/icons";
 
-export const Search = ({app, type}) => {
+export const SearchButton = ({app, type}) => {
     const [open, setOpen] = useState(false)
 
     return (
         <>
             <button
-                className={"bg-white p-1 h-10 border w-full flex items-center text-sm leading-6 text-slate-400 hover:text-slate-600 rounded-lg shadow-sm py-1.5 pl-4 pr-8 transition ease-in"}
+                className={`
+                bg-white flex justify-between items-center 
+                h-[48px] w-[217px] py-[8px] pr-[8px] pl-[24px] 
+                border border-[#E0EBF0] rounded-[1000px]
+                shadow-sm transition ease-in
+                `}
                 onClick={() => setOpen(true)}
             >
-                <i className={'fa-light fa-search pr-2 '}/> Search
-            </button>
+                <span className={'uppercase text-[#2D3E4C] font-medium text-[12px] leading-[14.62px] tracking-none'}>Search</span>
 
+                <div className={'bg-[#37576B] p-[10px] rounded-full'}>
+                    <Search height={12} width={12} className={'text-white'}/>
+                </div>
+            </button>
             <SearchPallet open={open} setOpen={setOpen} app={app} type={type}/>
         </>
     )

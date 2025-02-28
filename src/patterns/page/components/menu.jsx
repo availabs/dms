@@ -2,28 +2,22 @@ import React from "react"
 import { Dropdown } from '../ui/index'
 import {Link, useLocation} from 'react-router-dom'
 import { CMSContext } from '../siteConfig'
-import Icons from '../ui/icons'
+import Icons, {Search, User, UserCircle} from '../ui/icons'
 
 // import {NavItem, NavMenu, NavMenuItem, NavMenuSeparator, withAuth} from 'components/avl-components/src'
 // import user from "@availabs/ams/dist/reducers/user";
 
 const UserMenu = ({user}) => {
     // const theme = useTheme()
+
+    // return (
+    //     <div className={'bg-[#37576B] p-[10px] rounded-full'}>
+    //         <Search height={12} width={12} className={'text-white'}/>
+    //     </div>
+    // )
     return (
-        <div className={`flex justify-column align-middle py-1 px-4 min-w-44`}>
-            <div className='pt-[4px]'>
-                <span className={`rounded-full border-2 border-blue-400
-                    inline-flex items-center justify-center 
-                    h-6 w-6 sm:h-8 sm:w-8 ring-white text-white 
-                    bg-blue-500 overflow-hidden`}>
-                    <Icons.User className='text-slate-50 ' />
-                </span>
-            </div>
-            
-            <span className='pl-2'>
-                <div className='text-md font-thin tracking-tighter  text-left text-blue-600 group-hover:text-white '>{user.email ? user.email : ''}</div>
-                <div className='text-xs font-medium -mt-1 tracking-widest text-left text-gray-500 group-hover:text-gray-200'>{user?.groups?.[0] ? user.groups[0] : ''}</div>
-            </span>
+        <div className={`h-[47px] w-[47px] border border-[#E0EBF0] rounded-full place-items-center content-center`}>
+            <User height={24} width={24} />
         </div>
     )
 }
@@ -67,10 +61,12 @@ export default ({title, children}) => {
         <>
             {!user.authed ?            
                 <Link className={`flex items-center px-8 text-lg font-bold h-12 text-slate-500 px-4`} to="/auth/login" state={{from: location?.pathname}}>Login</Link> :
-                <Dropdown control={<UserMenu user={user}/>} className={`hover:bg-blue-500 group z-30 `} >
+                <Dropdown control={<UserMenu user={user}/>} className={``} >
                     <div className='p-1 bg-blue-500 z-30'>
                        
-                        <div className='py-2'>
+                        <div className='text-white py-2'>
+                            <div className='text-md font-thin tracking-tighter text-left'>{user.email ? user.email : ''}</div>
+                            <div className='text-xs font-medium -mt-1 tracking-widest text-left'>{user?.groups?.[0] ? user.groups[0] : ''}</div>
                             {authMenuItems.map((item,i) => {
                                 return <div key={i}>
                                     {user.authLevel >= (+item.authLevel || -1) && (

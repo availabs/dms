@@ -135,7 +135,6 @@ function pattern2routes (siteData, props) {
                             API_HOST,
                             //rightMenu: <div>RIGHT</div>,
                         });
-                        console.log('register pattern', configObj, pattern)
                         return ({...dmsPageFactory(configObj, authWrapper)})
                 }));
             }
