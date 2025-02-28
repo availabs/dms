@@ -1,17 +1,18 @@
 
 const theme = {
+    editorContainer: "relative block min-h-[50px] ", //'.editor-shell .editor-container'
+    editorViewContainer: "relative block overflow-hidden", // .editor-shell .view-container
     heading: {
-        h1: "font-[500]  text-[#2D3E4C] text-[36px] leading-[36px] tracking-[-.02em] font-[500] underline-offset-8 underline decoration-4 decoration-[#EAAD43] uppercase font-['Oswald'] pb-[12px]", //'PlaygroundEditorTheme__h1',
-        h2: "font-[500]  text-[#2D3E4C] text-[24px] leading-[24px] scroll-mt-36 font-['Oswald'] pb-[12x]", //'PlaygroundEditorTheme__h2',
-        h3: "font-[500]  text-[#2D3E4C] text-[16px] leading-[16px] scroll-mt-36 font-['Oswald'] pb-[12x]", //'PlaygroundEditorTheme__h3',
-        h4: "font-medium text-[#2D3E4C] scroll-mt-36 font-display", //'PlaygroundEditorTheme__h4',
-        h5: "scroll-mt-36 font-display", //'PlaygroundEditorTheme__h5',
-        h6: "scroll-mt-36 font-display", //'PlaygroundEditorTheme__h6',
+        h1: "pl-[16px] pt-[8px] font-[500]  text-[#2D3E4C] text-[36px] leading-[50px]  font-[500] underline-offset-8 underline decoration-4 decoration-[#EAAD43] uppercase font-['Oswald'] pb-[12px]", //'PlaygroundEditorTheme__h1',
+        h2: "pl-[16px] pt-[8px] font-[500]  text-[#2D3E4C] text-[24px] leading-[24px] scroll-mt-36 font-['Oswald']", //'PlaygroundEditorTheme__h2',
+        h3: "pl-[16px] pt-[8px] font-[500]  text-[#2D3E4C] text-[16px]  font-['Oswald']", //'PlaygroundEditorTheme__h3',
+        h4: "pl-[16px] pt-[8px] font-medium text-[#2D3E4C] scroll-mt-36 font-display", //'PlaygroundEditorTheme__h4',
+        h5: "pl-[16px] scroll-mt-36 font-display", //'PlaygroundEditorTheme__h5',
+        h6: "pl-[16px] scroll-mt-36 font-display", //'PlaygroundEditorTheme__h6',
     },
-    paragraph: "m-0 relative", //'PlaygroundEditorTheme__paragraph',
+    paragraph: "px-[16px] relative", //'PlaygroundEditorTheme__paragraph',
     quote:
-        "m-0 mb-2 font-['Oswald'] text-[30px] leading-[36px] text-[#2D3E4C] border-l-4 border-[#37576B] pl-4 pb-[12px]", //'PlaygroundEditorTheme__quote',
-    card: 'max-w-[70%] p-[16px] shadow-[0px_0px_6px_0px_rgba(0,0,0,0.02),0px_2px_4px_0px_rgba(0,0,0,0.08)]',
+        "m-0 my-2 font-['Oswald'] text-[30px] leading-[36px] text-[#2D3E4C] border-l-4 border-[#37576B] pl-4 py-[12px]", //'PlaygroundEditorTheme__quote',
     text: {
         bold: "font-[700]", //'PlaygroundEditorTheme__textBold',
         code: "bg-gray-200 px-1 py-0.5 font-mono text-[94%]", //'PlaygroundEditorTheme__textCode',
@@ -137,10 +138,7 @@ const theme = {
     editorShell: "font-['Proxima_Nova'] font-[400] text-[16px] text-[#37576B] leading-[22.4px]",
 
     editorScroller: "min-h-[150px] border-0 flex relative outline-0 z-0bh resize-y", //'editor-scroller'
-    viewScroller: "border-0 flex relative outline-0 z-0 overflow-auto resize-none", //.view-scroller
-
-    editorContainer: "relative block rounded-[12px] p-[16px] min-h-[50px]", //'.editor-shell .editor-container'
-    editorViewContainer: "relative block rounded-[12px] p-[16px]", // .editor-shell .view-container
+    viewScroller: "border-0 flex relative outline-0 z-0 overflow-hidden resize-none", //.view-scroller
 
     editorEditTreeView: "rounded-none", // .editor-shell .editor-container.tree-view
     editorViewTreeView: "rounded-none", // .editor-shell .view-container.tree-view
@@ -387,7 +385,7 @@ const theme = {
             },
         },
         inlineImage: {
-            base: "inline-block relative z-10 cursor-default select-none", // .editor-shell span.inline-editor-image
+            base: "inline-block relative z-10 cursor-default select-none overflow-hidden -mx-[16px]", // .editor-shell span.inline-editor-image
             img: {
                 base: "cursor-default", //.editor-shell .inline-editor-image img
                 focused: "outline outline-2 outline-blue-600", // .editor-shell .inline-editor-image img.focused
@@ -397,13 +395,13 @@ const theme = {
                 },
             },
             captionContainer:
-                "block bg-gray-200 min-w-full text-black overflow-hidden", //.editor-shell .inline-editor-image .image-caption-container
+                "block bg-gray-200 min-w-full text-black overflow-hidden -ml-[16px]", //.editor-shell .inline-editor-image .image-caption-container
             editButton: {
                 base: "block absolute top-3 right-3 py-[6px] px-[8px] border border-white/30 rounded-md bg-black/50 min-w-[60px] text-white cursor-pointer select-none hover:bg-blue-500", //.editor-shell .inline-editor-image .image-edit-button
                 hide: "hidden", // For .view-scroller .inline-editor-image .image-edit-button
             },
             position: {
-                full: "my-4", //.editor-shell .inline-editor-image.position-full
+                full: "-m-[20px]", //.editor-shell .inline-editor-image.position-full
                 left: "float-left w-fit mx-1 mb-0", //.editor-shell .inline-editor-image.position-left
                 right: "float-right w-fit mb-0 mx-1", //.editor-shell .inline-editor-image.position-right
             },
@@ -554,7 +552,7 @@ const theme = {
         iconMinusGray: 'w-5 h-5 bg-[url("./icon-minus-gray.svg")]', // .icon-minus-gray
     },
     draggableBlockMenu: {
-        base: "rounded-md p-0.5 cursor-grab opacity-0 absolute -left-0 top-0 will-change-transform hover:bg-gray-200", // .draggable-block-menu
+        base: "rounded-md p-0.5 cursor-grab opacity-0 absolute -left-[4px] top-0 will-change-transform hover:bg-gray-200", // .draggable-block-menu
         icon: "w-4 h-4 opacity-30 bg-[url(/images/icons/draggable-block-menu.svg)]", // .draggable-block-menu .icon
         active: "cursor-grabbing", // .draggable-block-menu:active
     },

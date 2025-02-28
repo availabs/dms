@@ -3,7 +3,7 @@
 export const defaultCheck = ( checkAuth, {user}, activeConfig, navigate ,path) =>  {
       
   const getReqAuth = (configs) => {
-    console.log('')
+    //console.log('')
     return configs.reduce((out,config) => {
       let authLevel = config.authLevel || -1
       // if(config.children) {
