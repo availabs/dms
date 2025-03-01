@@ -1,10 +1,10 @@
 import React, {useRef, useState, useEffect, useContext, useCallback} from "react";
 import {ArrowDown} from "../../../../../../forms/ui/icons"
 import {RenderToggleControls} from "./RenderToggleControls";
-import RenderSwitch from "./Switch";
 import {RenderInputControls} from "./RenderInputControls";
 import {SpreadSheetContext} from "../spreadsheet";
 import {getControlConfig, useHandleClickOutside} from "./utils";
+import {ColorControls} from "./ColorControls";
 
 export default function RenderMoreControls({context}) {
     const {state: {display}, setState, compType} = useContext(context || SpreadSheetContext);
@@ -19,7 +19,10 @@ export default function RenderMoreControls({context}) {
         allowCompactViewToggle,
         allowGridSizeSelect,
         allowGridGapSelect,
+        allowBGColorSelector,
+        allowHeaderValuePaddingSelect,
         allowHeaderValueLayoutSelect,
+        allowReverseToggle,
         allowDataSizeInput=false
     } = getControlConfig(compType);
 
@@ -72,12 +75,15 @@ export default function RenderMoreControls({context}) {
                     {allowCompactViewToggle ?
                     <RenderToggleControls title={'Compact View'} value={display.compactView}
                                           setValue={value => updateDisplayValue('compactView', value)}/> : null}
-                    {allowGridSizeSelect && display.compactView ?
+                    {allowGridSizeSelect ?
                         <RenderInputControls title={'Grid Size'} type={'number'} value={display.gridSize}
                                              setValue={value => updateDisplayValue('gridSize', +value)}/> : null}
-                    {allowGridGapSelect && display.compactView ?
+                    {allowGridGapSelect ?
                         <RenderInputControls title={'Grid Gap'} type={'number'} value={display.gridGap}
                                              setValue={value => updateDisplayValue('gridGap', +value)}/> : null}
+                    {allowHeaderValuePaddingSelect ?
+                        <RenderInputControls title={'Padding'} type={'number'} value={display.padding}
+                                             setValue={value => updateDisplayValue('padding', +value)}/> : null}
                     {allowUsePaginationToggle ?
                         <RenderToggleControls title={'Use Pagination'} value={display.usePagination}
                                               setValue={value => updateDisplayValue('usePagination', value)}/> : null}
@@ -105,6 +111,19 @@ export default function RenderMoreControls({context}) {
                                 </select>
                             </div>
                         ) : null
+                    }
+
+                    {allowReverseToggle ?
+                        <RenderToggleControls title={'Reverse'} value={display.reverse}
+                                              setValue={value => updateDisplayValue('reverse', value)}/> : null}
+
+                    {
+                        allowBGColorSelector && display.compactView ?
+                            <ColorControls value={display.bgColor}
+                                           setValue={e => updateDisplayValue('bgColor', e)}
+                                           title={'Background Color'}
+                            />
+                            : null
                     }
                 </div>
             </div>

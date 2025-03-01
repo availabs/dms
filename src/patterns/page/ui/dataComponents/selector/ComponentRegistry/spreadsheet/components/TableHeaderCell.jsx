@@ -57,13 +57,55 @@ const formatOptions = [
     {label: 'Abbreviated', value: 'abbreviate'},
 ]
 
-const fontSizeOptions = [
-    {label: 'Small Fonts', value: 'small'},
-    {label: 'Medium Fonts', value: 'medium'},
-    {label: 'Large Fonts', value: 'large'},
-    {label: 'XL Fonts', value: 'xl'},
-    {label: '2XL Fonts', value: '2xl'},
-]
+const headerFontSizeOptions = [
+    {label: 'X-Small Header Fonts', value: 'textXS'},
+    {label: 'Small Header Fonts', value: 'textSM'},
+    {label: 'Medium Header Fonts', value: 'textMD'},
+    {label: 'Large Header Fonts', value: 'textLG'},
+    {label: 'XL Header Fonts', value: 'textXL'},
+    {label: '2XL Header Fonts', value: 'text2XL'},
+    {label: '3XL Header Fonts', value: 'text3XL'},
+    {label: '4XL Header Fonts', value: 'text4XL'},
+    {label: '5XL Header Fonts', value: 'text5XL'},
+    {label: '6XL Header Fonts', value: 'text6XL'},
+    {label: '7XL Header Fonts', value: 'text7XL'},
+    {label: '8XL Header Fonts', value: 'text8XL'},
+    {label: '9XL Header Fonts', value: 'text9XL'},
+];
+
+const valueFontSizeOptions = [
+    {label: 'X-Small Value Fonts', value: 'textXS'},
+    {label: 'Small Value Fonts', value: 'textSM'},
+    {label: 'Medium Value Fonts', value: 'textMD'},
+    {label: 'Large Value Fonts', value: 'textLG'},
+    {label: 'XL Value Fonts', value: 'textXL'},
+    {label: '2XL Value Fonts', value: 'text2XL'},
+    {label: '3XL Value Fonts', value: 'text3XL'},
+    {label: '4XL Value Fonts', value: 'text4XL'},
+    {label: '5XL Value Fonts', value: 'text5XL'},
+    {label: '6XL Value Fonts', value: 'text6XL'},
+    {label: '7XL Value Fonts', value: 'text7XL'},
+    {label: '8XL Value Fonts', value: 'text8XL'},
+    {label: '9XL Value Fonts', value: 'text9XL'},
+];
+
+const headerFontWeightOptions = [
+    { label: 'Light Header Fonts', value: 'fontLight' },
+    { label: 'Normal Header Fonts', value: 'fontNormal' },
+    { label: 'Medium Header Fonts', value: 'fontMedium' },
+    { label: 'Semi Bold Header Fonts', value: 'fontSemiBold' },
+    { label: 'Bold Header Fonts', value: 'fontBold' },
+    { label: 'Extra Bold Header Fonts', value: 'fontExtraBold' }
+];
+
+const valueFontWeightOptions = [
+    { label: 'Light Value Fonts', value: 'fontLight' },
+    { label: 'Normal Value Fonts', value: 'fontNormal' },
+    { label: 'Medium Value Fonts', value: 'fontMedium' },
+    { label: 'Semi Bold Value Fonts', value: 'fontSemiBold' },
+    { label: 'Bold Value Fonts', value: 'fontBold' },
+    { label: 'Extra Bold Value Fonts', value: 'fontExtraBold' }
+];
 
 const selectClasses = 'p-1 w-full rounded-md bg-white hover:bg-gray-100 cursor-pointer'
 
@@ -75,6 +117,7 @@ export default function TableHeaderCell({attribute}) {
         allowJustify,
         allowFormat,
         allowFontSize,
+        allowFontWeight,
         allowHideHeader,
         allowCardSpan,
         allowLinkControl
@@ -216,14 +259,62 @@ export default function TableHeaderCell({attribute}) {
                                 <div className={'w-full cursor-pointer'}>
                                     <select
                                         className={selectClasses}
-                                        value={attribute.fontSize}
-                                        onChange={e => updateColumns('fontSize', e.target.value)}
+                                        value={attribute.headerFontSize}
+                                        onChange={e => updateColumns('headerFontSize', e.target.value)}
                                     >
                                         {
-                                            fontSizeOptions.map(({label, value}) => <option key={label} value={value}>{label}</option>)
+                                            headerFontSizeOptions.map(({label, value}) => <option key={label} value={value}>{label}</option>)
                                         }
                                     </select>
                                 </div> : null
+                        }
+
+                        {
+                            allowFontSize ?
+                                <div className={'w-full cursor-pointer'}>
+                                    <select
+                                        className={selectClasses}
+                                        value={attribute.valueFontSize}
+                                        onChange={e => updateColumns('valueFontSize', e.target.value)}
+                                    >
+                                        {
+                                            valueFontSizeOptions.map(({label, value}) => <option key={label} value={value}>{label}</option>)
+                                        }
+                                    </select>
+                                </div> : null
+                        
+                        }
+
+                        {
+                            allowFontWeight ?
+                                <div className={'w-full cursor-pointer'}>
+                                    <select
+                                        className={selectClasses}
+                                        value={attribute.headerFontWeight}
+                                        onChange={e => updateColumns('headerFontWeight', e.target.value)}
+                                    >
+                                        {
+                                            headerFontWeightOptions.map(({label, value}) => <option key={label} value={value}>{label}</option>)
+                                        }
+                                    </select>
+                                </div> : null
+
+                        }
+
+                        {
+                            allowFontWeight ?
+                                <div className={'w-full cursor-pointer'}>
+                                    <select
+                                        className={selectClasses}
+                                        value={attribute.valueFontWeight}
+                                        onChange={e => updateColumns('valueFontWeight', e.target.value)}
+                                    >
+                                        {
+                                            valueFontWeightOptions.map(({label, value}) => <option key={label} value={value}>{label}</option>)
+                                        }
+                                    </select>
+                                </div> : null
+
                         }
 
                         {
