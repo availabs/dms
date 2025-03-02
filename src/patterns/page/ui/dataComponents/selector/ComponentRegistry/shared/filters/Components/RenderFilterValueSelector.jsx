@@ -13,7 +13,7 @@ const RenderSearchKeySelector = ({filter, searchParams, onChange}) => {
     useHandleClickOutside(menuRef, menuBtnId, () => {setText(filter.searchParamKey || ''); setOpen(false)})
     const optionsClass = 'p-1 hover:bg-blue-500/15 hover:text-blue-700 cursor-pointer rounded-md'
     return (
-        <div className={'w-full relative bg-white'}>
+        <div className={'min-w-fit w-full relative bg-white'}>
             <input className={'px-1 text-xs rounded-md bg-blue-500/15 text-blue-700 hover:bg-blue-500/25'}
                    id={menuBtnId}
                    value={text}
@@ -147,8 +147,8 @@ export const RenderFilterValueSelector = ({
                         </select>
                         {
                             isEdit ? (
-                                <div className={'flex items-center gap-1'}>
-                                    <label className={'text-gray-900 font-regular'}>Multiselect: </label>
+                                <div className={'flex flex-wrap items-center gap-1'}>
+                                    <label className={'text-gray-900 font-regular min-w-fit'}>Multiselect: </label>
                                     <RenderSwitch label={'Use Search Params'}
                                                   enabled={filter.isMulti}
                                                   setEnabled={value => updateFilter({
@@ -166,8 +166,8 @@ export const RenderFilterValueSelector = ({
                         {/* UI to match to search params. only show if using search params.*/}
                         {
                             isEdit ? (
-                                <div className={'flex items-center gap-1'}>
-                                    <label className={'text-gray-900 font-regular'}>Use Search Params: </label>
+                                <div className={'flex flex-wrap items-center gap-1'}>
+                                    <label className={'text-gray-900 font-regular min-w-fit'}>Use Search Params: </label>
                                     <RenderSwitch label={'Use Search Params'}
                                                   enabled={filter.allowSearchParams}
                                                   setEnabled={value => updateFilter({
@@ -184,8 +184,8 @@ export const RenderFilterValueSelector = ({
                         }
                         {
                             filter.allowSearchParams && isEdit ?
-                                <div className={'flex items-center gap-1'}>
-                                    <label className={'shrink-0 text-gray-900 font-regular'}>Search key: </label>
+                                <div className={'flex items-center gap-0.5'}>
+                                    <label className={'shrink-0 text-gray-900 font-regular min-w-fit'}>Search key: </label>
                                     <RenderSearchKeySelector searchParams={searchParams}
                                                              filter={filter}
                                                              onChange={e => updateFilter({

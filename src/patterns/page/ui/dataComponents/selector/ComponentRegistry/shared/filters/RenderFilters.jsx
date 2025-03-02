@@ -142,8 +142,8 @@ export const RenderFilters = ({
                         title={'Filter'}
                         onClick={() => setOpen(false)}/>
                 {filterColumnsToRender.map((filterColumn, i) => (
-                    <div key={i} className={'w-full flex flex-row items-center'}>
-                        <div className={'w-1/4 p-1 text-sm flex flex-col'}>
+                    <div key={i} className={'w-full flex flex-row flex-wrap items-center'}>
+                        <div className={'w-1/4 min-w-fit p-1 text-sm'}>
                             <span className={'py-0.5 text-gray-500 font-medium'}>{filterColumn.customName || filterColumn.display_name || filterColumn.name}</span>
                         </div>
                         <div className={'flex flex-col w-3/4'}>
