@@ -147,9 +147,9 @@ export const Card = ({isEdit}) => {
                                                     attr.hideHeader ? null : (
                                                         <div className={`
                                                         ${dataCard.header}
-                                                         ${theme[headerTextJustifyClass]}
-                                                          ${theme[attr.headerFontSize || 'textXS']}
-                                                          ${theme[attr.headerFontWeight || 'fontLight']}
+                                                         ${dataCard[headerTextJustifyClass]}
+                                                          ${dataCard[attr.headerFontSize || 'textXS']}
+                                                          ${dataCard[attr.headerFontWeight || 'fontLight']}
                                                           
                                                           `}>
                                                             {attr.customName || attr.display_name || attr.name}
@@ -158,9 +158,9 @@ export const Card = ({isEdit}) => {
                                                 }
                                                 <div className={`
                                                 ${dataCard.value} 
-                                                ${theme[valueTextJustifyClass]}
-                                                 ${theme[attr.valueFontSize || 'textXS']}
-                                                 ${theme[attr.valueFontWeight || 'fontLight']}
+                                                ${dataCard[valueTextJustifyClass]}
+                                                 ${dataCard[attr.valueFontSize || 'textXS']}
+                                                 ${dataCard[attr.valueFontWeight || 'fontLight']}
                                                  `}>
                                                     {
                                                         isLink ?
