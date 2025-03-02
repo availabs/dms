@@ -202,7 +202,7 @@ export default function TableHeaderCell({attribute}) {
             </div>
 
             <div ref={menuRef}
-                 className={`
+                 className={` min-w-[150px]
                  ${isOpen ? 'visible transition ease-in duration-200' : 'hidden transition ease-in duration-200'} 
                  absolute right-0 z-[10] divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 transition`}
             >

@@ -4,6 +4,7 @@ import SpreadSheet, {SpreadSheetContext} from "./spreadsheet";
 import TableHeaderCell from "./spreadsheet/components/TableHeaderCell";
 import React, {useContext, useEffect, useMemo} from "react";
 import {Link} from "react-router-dom";
+import {CMSContext} from "../../../../siteConfig";
 
 const justifyClass = {
     left: 'justifyTextLeft',
@@ -12,7 +13,7 @@ const justifyClass = {
     full: {header: 'justifyTextLeft', value: 'justifyTextRight'}
 }
 
-const defaultTheme = ({
+export const dataCardTheme = {
     columnControlWrapper: 'grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-x-1 gap-y-0.5',
     columnControlHeaderWrapper: `px-1 font-semibold border bg-gray-50 text-gray-500`,
 
@@ -20,10 +21,10 @@ const defaultTheme = ({
     mainWrapperSimpleView: 'flex flex-col',
 
     subWrapper: 'w-full',
-    subWrapperCompactView: 'flex flex-col border shadow rounded-md',
+    subWrapperCompactView: 'flex flex-col border shadow rounded-[12px]',
     subWrapperSimpleView: 'grid',
 
-    headerValueWrapper: 'w-full rounded-md flex items-center justify-center p-2',
+    headerValueWrapper: 'w-full rounded-[12px] flex items-center justify-center p-2',
     headerValueWrapperCompactView: 'py-0',
     headerValueWrapperSimpleView: 'border shadow',
     justifyTextLeft: 'text-start',
@@ -56,7 +57,7 @@ const defaultTheme = ({
 
     header: 'w-full capitalize', // #37576B
     value: 'w-full' // #2D3E4C
-})
+}
 // cards can be:
 // one cell per row, that carries one column's data,
 // one cell per row, that can carry multiple column's data
@@ -70,10 +71,13 @@ const defaultTheme = ({
 // bg color per column
 
 export const Card = ({isEdit}) => {
+    const { theme = {} } = React.useContext(CMSContext) || {};
+    const dataCard = theme.dataCard || dataCardTheme;
+
     const {state:{columns, data, display: {compactView, gridSize, gridGap, padding, headerValueLayout, reverse, hideIfNull, bgColor='#FFFFFF'}}, setState} = useContext(SpreadSheetContext);
     const visibleColumns = useMemo(() => columns.filter(({show}) => show), [columns]);
     const cardsWithoutSpanLength = useMemo(() => columns.filter(({show, cardSpan}) => show && !cardSpan).length, [columns]);
-    const theme = defaultTheme;
+
 
     const mainWrapperStyle = gridSize && compactView ? {gridTemplateColumns: `repeat(${Math.min(gridSize, data.length)}, minmax(0, 1fr))`, gap: gridGap, backgroundColor: bgColor} : {gap: gridGap};
     const subWrapperStyle = compactView ? {} : {gridTemplateColumns: `repeat(${gridSize || cardsWithoutSpanLength}, minmax(0, 1fr))`, gap: gridGap || 2}
@@ -101,9 +105,9 @@ export const Card = ({isEdit}) => {
     return (
         <>
             {
-                isEdit ? <div className={theme.columnControlWrapper}>
+                isEdit ? <div className={dataCard.columnControlWrapper}>
                     {visibleColumns.map((attribute, i) =>
-                            <div key={`controls-${i}`} className={theme.columnControlHeaderWrapper}>
+                            <div key={`controls-${i}`} className={dataCard.columnControlHeaderWrapper}>
                                 <TableHeaderCell
                                     isEdit={isEdit}
                                     attribute={attribute}
@@ -113,11 +117,11 @@ export const Card = ({isEdit}) => {
             }
 
             {/* outer wrapper: in compact view, grid applies here */}
-            <div className={gridSize && compactView ? theme.mainWrapperCompactView : theme.mainWrapperSimpleView} style={mainWrapperStyle}>
+            <div className={gridSize && compactView ? dataCard.mainWrapperCompactView : dataCard.mainWrapperSimpleView} style={mainWrapperStyle}>
                 {
                     data.map(item => (
                         //  in normal view, grid applied here
-                        <div className={`${theme.subWrapper} ${compactView ? theme.subWrapperCompactView : theme.subWrapperSimpleView}`}
+                        <div className={`${dataCard.subWrapper} ${compactView ? dataCard.subWrapperCompactView : dataCard.subWrapperSimpleView}`}
                              style={subWrapperStyle}>
                             {
                                 visibleColumns
@@ -134,15 +138,15 @@ export const Card = ({isEdit}) => {
                                         return (
                                             <div key={attr.name}
                                                  className={`
-                                                 ${theme.headerValueWrapper}
+                                                 ${dataCard.headerValueWrapper}
                                                  flex-${headerValueLayout} ${reverse && headerValueLayout === 'col' ? `flex-col-reverse` : reverse ? `flex-row-reverse` : ``}
-                                                 ${compactView ? theme.headerValueWrapperCompactView : theme.headerValueWrapperSimpleView}`}
+                                                 ${compactView ? dataCard.headerValueWrapperCompactView : dataCard.headerValueWrapperSimpleView}`}
                                                  style={{gridColumn: span, padding, backgroundColor: compactView ? undefined : attr.bgColor}}
                                             >
                                                 {
                                                     attr.hideHeader ? null : (
                                                         <div className={`
-                                                        ${theme.header}
+                                                        ${dataCard.header}
                                                          ${theme[headerTextJustifyClass]}
                                                           ${theme[attr.headerFontSize || 'textXS']}
                                                           ${theme[attr.headerFontWeight || 'fontLight']}
@@ -153,7 +157,7 @@ export const Card = ({isEdit}) => {
                                                     )
                                                 }
                                                 <div className={`
-                                                ${theme.value} 
+                                                ${dataCard.value} 
                                                 ${theme[valueTextJustifyClass]}
                                                  ${theme[attr.valueFontSize || 'textXS']}
                                                  ${theme[attr.valueFontWeight || 'fontLight']}
