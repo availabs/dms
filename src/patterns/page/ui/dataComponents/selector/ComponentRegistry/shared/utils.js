@@ -45,6 +45,7 @@ export const getControlConfig = compType => ({
     allowHeaderValuePaddingSelect: ['card'].includes(compType),
     allowBGColorSelector: ['card'].includes(compType),
     allowHideIfNullToggle: ['card'].includes(compType),
+    allowRemoveBorderToggle: ['card'].includes(compType),
     allowHeaderValueLayoutSelect: ['card'].includes(compType),
     allowActionsControl: ['spreadsheet'].includes(compType),
     // ==========in header===============

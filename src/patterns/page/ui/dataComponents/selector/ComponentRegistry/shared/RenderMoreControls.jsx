@@ -25,6 +25,7 @@ export default function RenderMoreControls({context}) {
         allowReverseToggle,
         allowDataSizeInput=false,
         allowHideIfNullToggle,
+        allowRemoveBorderToggle
     } = getControlConfig(compType);
 
     const menuRef = useRef(null);
@@ -121,6 +122,10 @@ export default function RenderMoreControls({context}) {
                     {allowHideIfNullToggle ?
                         <RenderToggleControls title={'Hide if No Data'} value={display.hideIfNull}
                                               setValue={value => updateDisplayValue('hideIfNull', value)}/> : null}
+
+                    {allowRemoveBorderToggle ?
+                        <RenderToggleControls title={'Remove Border'} value={display.removeBorder}
+                                              setValue={value => updateDisplayValue('removeBorder', value)}/> : null}
 
                     {
                         allowBGColorSelector && display.compactView ?

@@ -21,12 +21,12 @@ export const dataCardTheme = {
     mainWrapperSimpleView: 'flex flex-col',
 
     subWrapper: 'w-full',
-    subWrapperCompactView: 'flex flex-col border shadow rounded-[12px]',
+    subWrapperCompactView: 'flex flex-col rounded-[12px]',
     subWrapperSimpleView: 'grid',
 
     headerValueWrapper: 'w-full rounded-[12px] flex items-center justify-center p-2',
     headerValueWrapperCompactView: 'py-0',
-    headerValueWrapperSimpleView: 'border shadow',
+    headerValueWrapperSimpleView: '',
     justifyTextLeft: 'text-start',
     justifyTextRight: 'text-end',
     justifyTextCenter: 'text-center',
@@ -74,7 +74,7 @@ export const Card = ({isEdit}) => {
     const { theme = {} } = React.useContext(CMSContext) || {};
     const dataCard = theme.dataCard || dataCardTheme;
 
-    const {state:{columns, data, display: {compactView, gridSize, gridGap, padding, headerValueLayout, reverse, hideIfNull, bgColor='#FFFFFF'}}, setState} = useContext(SpreadSheetContext);
+    const {state:{columns, data, display: {compactView, gridSize, gridGap, padding, headerValueLayout, reverse, hideIfNull, removeBorder, bgColor='#FFFFFF'}}, setState} = useContext(SpreadSheetContext);
     const visibleColumns = useMemo(() => columns.filter(({show}) => show), [columns]);
     const cardsWithoutSpanLength = useMemo(() => columns.filter(({show, cardSpan}) => show && !cardSpan).length, [columns]);
 
@@ -121,7 +121,7 @@ export const Card = ({isEdit}) => {
                 {
                     data.map(item => (
                         //  in normal view, grid applied here
-                        <div className={`${dataCard.subWrapper} ${compactView ? dataCard.subWrapperCompactView : dataCard.subWrapperSimpleView}`}
+                        <div className={`${dataCard.subWrapper} ${compactView ? `${dataCard.subWrapperCompactView} ${removeBorder ? `` : 'border shadow'}` : dataCard.subWrapperSimpleView} `}
                              style={subWrapperStyle}>
                             {
                                 visibleColumns
@@ -140,7 +140,7 @@ export const Card = ({isEdit}) => {
                                                  className={`
                                                  ${dataCard.headerValueWrapper}
                                                  flex-${headerValueLayout} ${reverse && headerValueLayout === 'col' ? `flex-col-reverse` : reverse ? `flex-row-reverse` : ``}
-                                                 ${compactView ? dataCard.headerValueWrapperCompactView : dataCard.headerValueWrapperSimpleView}`}
+                                                 ${compactView ? dataCard.headerValueWrapperCompactView : `${dataCard.headerValueWrapperSimpleView} ${removeBorder ? `` : 'border shadow'}`}`}
                                                  style={{gridColumn: span, padding, backgroundColor: compactView ? undefined : attr.bgColor}}
                                             >
                                                 {
