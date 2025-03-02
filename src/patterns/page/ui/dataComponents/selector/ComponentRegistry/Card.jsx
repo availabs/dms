@@ -2,7 +2,7 @@
 import {formatFunctions, getData} from "./spreadsheet/utils/utils";
 import SpreadSheet, {SpreadSheetContext} from "./spreadsheet";
 import TableHeaderCell from "./spreadsheet/components/TableHeaderCell";
-import React, {useContext, useMemo} from "react";
+import React, {useContext, useEffect, useMemo} from "react";
 import {Link} from "react-router-dom";
 
 const justifyClass = {
@@ -70,15 +70,34 @@ const defaultTheme = ({
 // bg color per column
 
 export const Card = ({isEdit}) => {
-    const {state:{columns, data, display: {compactView, gridSize, gridGap, padding, headerValueLayout, reverse, bgColor='#FFFFFF'}}} = useContext(SpreadSheetContext);
+    const {state:{columns, data, display: {compactView, gridSize, gridGap, padding, headerValueLayout, reverse, hideIfNull, bgColor='#FFFFFF'}}, setState} = useContext(SpreadSheetContext);
     const visibleColumns = useMemo(() => columns.filter(({show}) => show), [columns]);
     const cardsWithoutSpanLength = useMemo(() => columns.filter(({show, cardSpan}) => show && !cardSpan).length, [columns]);
     const theme = defaultTheme;
 
-
     const mainWrapperStyle = gridSize && compactView ? {gridTemplateColumns: `repeat(${Math.min(gridSize, data.length)}, minmax(0, 1fr))`, gap: gridGap, backgroundColor: bgColor} : {gap: gridGap};
     const subWrapperStyle = compactView ? {} : {gridTemplateColumns: `repeat(${gridSize || cardsWithoutSpanLength}, minmax(0, 1fr))`, gap: gridGap || 2}
 
+    useEffect(() => {
+        // set hideSection flag
+        if(!isEdit) return;
+
+        if(!hideIfNull){
+            setState(draft => {
+                draft.hideSection = false;
+            })
+        }else{
+            const hide = data.length === 0 ||
+                         data.every(row => columns.filter(({ show }) => show)
+                                                    .every(col => {
+                                                        const value = row[col.name];
+                                                        return value === null || value === undefined || value === "";
+                                                    }));
+            setState(draft => {
+                draft.hideSection = hide;
+            })
+        }
+    }, [data, hideIfNull])
     return (
         <>
             {
@@ -118,7 +137,7 @@ export const Card = ({isEdit}) => {
                                                  ${theme.headerValueWrapper}
                                                  flex-${headerValueLayout} ${reverse && headerValueLayout === 'col' ? `flex-col-reverse` : reverse ? `flex-row-reverse` : ``}
                                                  ${compactView ? theme.headerValueWrapperCompactView : theme.headerValueWrapperSimpleView}`}
-                                                 style={{gridColumn: span, padding}}
+                                                 style={{gridColumn: span, padding, backgroundColor: compactView ? undefined : attr.bgColor}}
                                             >
                                                 {
                                                     attr.hideHeader ? null : (

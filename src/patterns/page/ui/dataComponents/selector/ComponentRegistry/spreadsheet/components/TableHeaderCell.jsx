@@ -4,6 +4,7 @@ import {RenderInputControls} from "../../shared/RenderInputControls";
 import {getControlConfig, useHandleClickOutside} from "../../shared/utils";
 import {SpreadSheetContext} from "../index";
 import {Group, InfoCircle, LeftToRightListBullet, TallyMark, Sum, ArrowDown, SortAsc, SortDesc} from "../../../../../icons";
+import {ColorControls} from "../../shared/ColorControls";
 
 const RenderLinkControls = ({attribute, updateColumns}) => {
     const [tmpValue, setTmpValue] = useState(attribute || {});
@@ -20,7 +21,7 @@ const RenderLinkControls = ({attribute, updateColumns}) => {
     const inputWrapperClassName = `w-full rounded-sm cursor-pointer`
     const inputClassName = `p-0.5 rounded-sm`
     return (
-        <div className={'p-1 w-full rounded-md bg-white hover:bg-gray-100 cursor-pointer'}>
+        <div className={'px-2 py-1 w-full rounded-md bg-white hover:bg-gray-100 cursor-pointer'}>
             <RenderToggleControls className={`inline-flex w-full justify-center items-center rounded-md cursor-pointer`}
                                   title={'Is Link'}
                                   value={tmpValue?.isLink}
@@ -120,7 +121,8 @@ export default function TableHeaderCell({attribute}) {
         allowFontWeight,
         allowHideHeader,
         allowCardSpan,
-        allowLinkControl
+        allowLinkControl,
+        allowBGColorSelector
     } = getControlConfig(compType);
     const menuRef = useRef(null);
     const [isOpen, setIsOpen] = useState(false);
@@ -205,7 +207,7 @@ export default function TableHeaderCell({attribute}) {
                  absolute right-0 z-[10] divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 transition`}
             >
                 <div className="py-0.5 w-1/2 min-w-fit max-h-[500px] overflow-auto scrollbar-sm">
-                    <div className="flex flex-col gap-0.5 items-center px-1 py-1 text-xs text-gray-700">
+                    <div className="flex flex-col gap-0.5 items-center px-1 py-1 text-xs text-gray-600 font-regular">
                         {
                             allowSortBy ?
                                 <div className={'w-full cursor-pointer'}>
@@ -323,7 +325,7 @@ export default function TableHeaderCell({attribute}) {
 
                         {
                             allowHideHeader ? (
-                                <div className={'p-1 w-full rounded-md bg-white hover:bg-gray-100 cursor-pointer'}>
+                                <div className={'px-2 py-1 w-full rounded-md bg-white hover:bg-gray-100 cursor-pointer'}>
                                     <RenderToggleControls
                                         className={`inline-flex w-full justify-center items-center rounded-md cursor-pointer`}
                                         title={'Hide Header'}
@@ -349,6 +351,15 @@ export default function TableHeaderCell({attribute}) {
                                     </select>
                                 </div>
                             ) : null
+                        }
+
+                        {
+                            allowBGColorSelector && !display.compactView ?
+                                <ColorControls value={attribute.bgColor}
+                                               setValue={e => updateColumns('bgColor', e)}
+                                               title={'Background Color'}
+                                />
+                                : null
                         }
                     </div>
                 </div>

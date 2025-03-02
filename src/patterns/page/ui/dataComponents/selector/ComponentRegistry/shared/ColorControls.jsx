@@ -13,7 +13,7 @@ export const ColorControls = ({value='#FFFFFF', setValue, title, className, colo
     const colorOptions = useMemo(() => colors || defaultColorOptions, [colors]);
 
     return (
-        <div className={'px-1.5 py-1 w-full inline-flex justify-between text-sm font-regular text-gray-900 bg-white hover:bg-gray-50 cursor-pointer'}>
+        <div className={'px-1.5 py-1 w-full inline-flex justify-between items-center bg-white hover:bg-gray-50 cursor-pointer'}>
             <label className={'shrink-0'}>{title}</label>
             <div className={''}>
                 <div id={'background'}

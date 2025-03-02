@@ -23,7 +23,8 @@ export default function RenderMoreControls({context}) {
         allowHeaderValuePaddingSelect,
         allowHeaderValueLayoutSelect,
         allowReverseToggle,
-        allowDataSizeInput=false
+        allowDataSizeInput=false,
+        allowHideIfNullToggle,
     } = getControlConfig(compType);
 
     const menuRef = useRef(null);
@@ -56,7 +57,7 @@ export default function RenderMoreControls({context}) {
                  className={`${isOpen ? 'visible transition ease-in duration-200' : 'hidden transition ease-in duration-200'} absolute left-0 z-10 w-72 origin-top-left divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 transition focus:outline-none`}
             >
 
-                <div key={'more'} className="py-1 max-h-[500px] overflow-auto scrollbar-sm">
+                <div key={'more'} className="py-1 text-sm max-h-[500px] overflow-auto scrollbar-sm">
                     {allowEditInViewToggle ?
                             <RenderToggleControls title={'Allow Edit'} value={display.allowEditInView}
                                                   setValue={value => updateDisplayValue('allowEditInView', value)}/> : null}
@@ -116,6 +117,10 @@ export default function RenderMoreControls({context}) {
                     {allowReverseToggle ?
                         <RenderToggleControls title={'Reverse'} value={display.reverse}
                                               setValue={value => updateDisplayValue('reverse', value)}/> : null}
+
+                    {allowHideIfNullToggle ?
+                        <RenderToggleControls title={'Hide if No Data'} value={display.hideIfNull}
+                                              setValue={value => updateDisplayValue('hideIfNull', value)}/> : null}
 
                     {
                         allowBGColorSelector && display.compactView ?
