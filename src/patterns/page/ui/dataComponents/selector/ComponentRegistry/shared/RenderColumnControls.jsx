@@ -164,7 +164,8 @@ export default function RenderColumnControls({context}) {
             // group by xAxis and categories.
             // xAxis, yAxis, and categories all set to show.
             if(key === 'yAxis'){
-                draft.columns[idx].fn = value ? draft.columns[idx].defaultFn?.toLowerCase() || 'count' : ''
+                const defaultFn = draft.columns[idx].defaultFn?.toLowerCase();
+                draft.columns[idx].fn = value ? (['sum', 'count'].includes(defaultFn) ? defaultFn : 'count') : ''
                 draft.columns[idx].show = value;
             }
 
@@ -372,7 +373,7 @@ export default function RenderColumnControls({context}) {
                                                     key={attribute.fn}
                                                     className={`px-0.5 appearance-none w-fit rounded-md ${attribute.fn ? `bg-blue-500/15 text-blue-700 hover:bg-blue-500/25` : `bg-gray-100`} h-fit text-center cursor-pointer`}
                                                     value={attribute.fn}
-                                                    disabled={!attribute.yAxis}
+                                                    disabled={(compType === 'graph' && !attribute.yAxis) || (compType !== 'graph' && !attribute.show)}
                                                     onChange={e => updateColumns(attribute, 'fn', e.target.value)}
                                                 >
                                                     <option key={'fn'} value={''}>fn</option>

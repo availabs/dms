@@ -113,7 +113,7 @@ export const pagesConfig = ({
             ),
             path: "edit/*",
             action: "edit",
-            authLevel:5
+            authLevel: 5
           },
           {
             type: (props) => (
@@ -172,11 +172,16 @@ export const pagesManagerConfig = ({
     </Link>
   )
 
+
+
   if(!theme?.navOptions?.logo) {
     theme.navOptions = {...(theme?.navOptions || {}), logo: (logo ? logo : defaultLogo)}
   }
-  
+  theme.navOptions.sideNav.size = 'compact'  
+  theme.navOptions.sideNav.nav = 'main'
+  theme.navOptions.topNav.nav = 'none'
 
+    
   // console.log('testing', theme.navOptions)
 
   const format = cloneDeep(cmsFormat)

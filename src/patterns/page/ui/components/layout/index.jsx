@@ -3,7 +3,7 @@ import { merge, cloneDeep } from "lodash-es"
 
 import TopNav from '../topnav';
 import SideNav from '../sidenav';
-import { Search } from '../../../components/search';
+import { SearchButton } from '../../../components/search';
 import { CMSContext } from '../../../siteConfig';
 import { matchRoutes, useLocation } from 'react-router-dom'
 
@@ -59,15 +59,15 @@ const Layout = ({ children, navItems, secondNav, title, pageTheme, EditPane, yPa
 				{sideNav?.logo === 'top' && logo}
 	        	{sideNav?.dropdown === 'top' && <Menu />}
 	        	
-	        	{sideNav?.search === 'top' && <Search app={app} type={type}/>}
+	        	{sideNav?.search === 'top' && <SearchButton app={app} type={type}/>}
 
 	      	</div>),
 		bottomMenu:  (
 	      	<div className={'flex flex-row md:flex-col'}>
 	      		{sideNav?.logo === 'bottom' && logo}
-	      		{sideNav?.search === 'bottom' && <Search app={app} type={type}/>}
+	      		{sideNav?.search === 'bottom' && <SearchButton app={app} type={type}/>}
 	        	{sideNav?.dropdown === 'bottom' && <Menu />}
-	        	{(EditPane && sideNav?.dropdown) && <EditPane />}
+	        	{(EditPane && sideNav?.dropdown ==='bottom') && <EditPane />}
 	      	</div>
 	  	)
 	}
@@ -81,13 +81,13 @@ const Layout = ({ children, navItems, secondNav, title, pageTheme, EditPane, yPa
 		leftMenu: (
 			<div className={'flex flex-col md:flex-row'}>
 	      		{topNav?.logo === 'left' && logo}
-	        	{topNav?.search === 'left' && <Search app={app} type={type}/>}
+	        	{topNav?.search === 'left' && <SearchButton app={app} type={type}/>}
 	        	{topNav?.dropdown === 'left' && <Menu />}
 	      	</div>),
 		rightMenu:  (
 	      	<>
 	      		{topNav?.rightMenu}
-	        	{topNav?.search === 'right' && <Search app={app} type={type}/>}
+	        	{topNav?.search === 'right' && <SearchButton app={app} type={type}/>}
 	        	{topNav?.dropdown === 'right' && <Menu />}
 	        	{topNav?.logo === 'right' && logo}
 	        	{EditPane && <EditPane />}

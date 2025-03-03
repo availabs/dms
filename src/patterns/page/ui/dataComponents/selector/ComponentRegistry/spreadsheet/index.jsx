@@ -1,7 +1,7 @@
 import React, {useState, useEffect, createContext, useMemo, useRef} from 'react'
 import writeXlsxFile from 'write-excel-file';
-import {RenderSimple} from "./components/SimpleSpreadsheet";
-import {RenderPagination} from "./components/RenderPagination";
+import { RenderTable } from "./components/SimpleSpreadsheet";
+import {Pagination} from "./components/Pagination";
 import {getData} from "./utils/utils";
 import {RenderFilters} from "../shared/filters/RenderFilters";
 import {RenderAttribution} from "./components/RenderAttribution";
@@ -17,7 +17,7 @@ import {Download, LoadingHourGlass} from "../../../../icons";
 import {useHandleClickOutside} from "../shared/utils";
 import {getColorRange} from "../graph/GraphComponent";
 export const SpreadSheetContext = React.createContext({});
-const DefaultPalette = getColorRange(12, "Set3");
+const DefaultPalette = getColorRange(20, "div7");
 const graphOptions = {
     graphType: 'BarGraph',
     groupMode: 'stacked',
@@ -69,6 +69,7 @@ const initialState = compType => {
         usePagination: true,
         pageSize: 5,
         totalLength: 0,
+        showGutters: false,
         transform: '', // transform fn to be applied
         loadMoreId:`id${uuidv4()}`,
     }
@@ -163,6 +164,8 @@ const RenderDownload = ({state, apiLoad}) => {
         </div>
     )
 }
+
+
 const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, compType='spreadsheet', hideSourceSelector}) => {
     const isEdit = Boolean(onChange);
     const [state, setState] = useImmer(convertOldState(value, initialState(compType)));
@@ -362,19 +365,23 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, compType='spread
                     Comp ?
                         <Comp isEdit={isEdit}/> : (
                             <>
-                                {/*Pagination*/}
-                                <RenderPagination currentPage={currentPage} setCurrentPage={setCurrentPage} />
+                                
 
-                                <RenderSimple {...{
+                                < RenderTable  {...{
                                     newItem, setNewItem,
                                     updateItem, removeItem, addItem,
                                     currentPage, loading, isEdit
                                 }} />
+                                
                             </>
                         )
                 }
-                {/*/!*Attribution*!/*/}
-                <RenderAttribution />
+                <div>
+                    {/*Pagination*/}
+                    <Pagination currentPage={currentPage} setCurrentPage={setCurrentPage} />
+                    {/*/!*Attribution*!/*/}
+                    <RenderAttribution />
+                </div>
             </div>
         </SpreadSheetContext.Provider>
     )
@@ -563,7 +570,7 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, compType='spreadsheet'
                     {
                         Comp ?
                             <Comp isEdit={isEdit}/> :
-                            <RenderSimple {...{
+                            <RenderTable  {...{
                                 newItem, setNewItem,
                                 updateItem, removeItem, addItem,
                                 currentPage, loading, isEdit,
@@ -572,11 +579,12 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, compType='spreadsheet'
 
                     }
 
-                    <div className={'flex justify-between'}>
+                    <div>
+                        {/*Pagination*/}
+                        <Pagination currentPage={currentPage} setCurrentPage={setCurrentPage} compType={compType}/>
                         {/*Attribution*/}
                         <RenderAttribution/>
-                        {/*Pagination*/}
-                        <RenderPagination currentPage={currentPage} setCurrentPage={setCurrentPage} compType={compType}/>
+                        
                     </div>
                 </div>
             </div>

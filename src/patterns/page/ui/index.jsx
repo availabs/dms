@@ -44,7 +44,7 @@ export const useClickOutside = handleClick => {
 
 // import { useTheme } from "../../wrappers/with-theme"
 
-export function Dropdown ({ control, children,className, width='w-full max-w-[200px]', openType='hover' }) {
+export function Dropdown ({ control, children,className, width='w-full min-w-[200px] max-w-[200px]', openType='hover' }) {
     const [open, setOpen] = React.useState(false),
         clickedOutside = React.useCallback(() => setOpen(false), []),
         [setRef] = useClickOutside(clickedOutside);
@@ -65,7 +65,7 @@ export function Dropdown ({ control, children,className, width='w-full max-w-[20
         >
             {control}
             {open ?
-                <div className={ `shadow fixed ${width} rounded-b-lg ${open ? `block` : `hidden`} z-10` }>
+                <div className={ `shadow absolute ${width} rounded-b-lg ${open ? `block` : `hidden`} z-10 right-0` }>
                     { children }
                 </div> : ''
 

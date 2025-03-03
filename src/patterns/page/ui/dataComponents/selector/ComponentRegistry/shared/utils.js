@@ -42,6 +42,10 @@ export const getControlConfig = compType => ({
     allowCompactViewToggle: ['card'].includes(compType),
     allowGridSizeSelect: ['card'].includes(compType),
     allowGridGapSelect: ['card'].includes(compType),
+    allowHeaderValuePaddingSelect: ['card'].includes(compType),
+    allowBGColorSelector: ['card'].includes(compType),
+    allowHideIfNullToggle: ['card'].includes(compType),
+    allowRemoveBorderToggle: ['card'].includes(compType),
     allowHeaderValueLayoutSelect: ['card'].includes(compType),
     allowActionsControl: ['spreadsheet'].includes(compType),
     // ==========in header===============
@@ -51,6 +55,8 @@ export const getControlConfig = compType => ({
     allowHideHeader: ['card'].includes(compType),
     allowCardSpan: ['card'].includes(compType),
     allowFontSize: ['card'].includes(compType),
+    allowFontWeight: ['card'].includes(compType),
+    allowReverseToggle: ['card'].includes(compType),
     allowEditInViewToggle: ['item', 'spreadsheet'].includes(compType),
     allowLinkControl: ['card', 'spreadsheet'].includes(compType)
     // allowSearchParamsToggle: ['item', 'card', 'spreadsheet'].includes(compType),

@@ -79,6 +79,7 @@ export default function Editor(props): JSX.Element {
         placeholderText = '',
         editable = true,
         bgColor,
+        isCard,
         theme
     } = props;
     const placeholder = <Placeholder>{placeholderText}</Placeholder>;
@@ -127,7 +128,7 @@ export default function Editor(props): JSX.Element {
                 className={`
                     ${editable ? `${theme.editorContainer}` || `editor-container` : `${theme.editorViewContainer}` || `view-container`} 
                     ${showTreeView ? 'tree-view' : ''} ${!isRichText ? 'plain-text' : ''}
-                    ${bgColor !== 'rgba(0,0,0,0)' ? theme.card : ''}
+                    ${isCard ? theme.card : ''}
                 `}
                 style={{backgroundColor: bgColor}}
             >
@@ -198,7 +199,7 @@ export default function Editor(props): JSX.Element {
 
                         <TabFocusPlugin/>
                         <TabIndentationPlugin/>
-                        <CollapsiblePlugin/>
+                        <CollapsiblePlugin editable={editable}/>
                         {floatingAnchorElem && !isSmallWidthViewport && (
                             <>
                                 <DraggableBlockPlugin anchorElem={floatingAnchorElem}/>

@@ -8,7 +8,7 @@ export const isJson = (str)  => {
     return true;
 }
 // applies data->> and AS on a column name
-export const formattedAttributeStr = (col, isDms, isCalculatedCol) => isCalculatedCol ? col : isDms ? `data->>'${col}' as ${col}` : col;
+export const formattedAttributeStr = (col, isDms, isCalculatedCol) => isCalculatedCol ? col : isDms ? `data->>'${col}' as ${col.toLowerCase()}` : col;
 
 export const getData = async ({format, apiLoad,
                                   // length,
@@ -16,7 +16,7 @@ export const getData = async ({format, apiLoad,
     const prependWithDistinct = !reqName.toLowerCase().startsWith('distinct');
     const appendWithAS = !reqName.toLowerCase().includes(' as ');
     const mappedAttributeName = `${prependWithDistinct ? `distinct ` : ``}${reqName}${appendWithAS ? ` as ${reqName}` : ``}` // to get uniq values
-    // const attributeNameForExclude = attribute.toLowerCase().be
+
     const {name, display, meta_lookup} = allAttributes.find(attr => attr.name === reqName) || {};
     const meta = ['meta-variable', 'geoid-variable', 'meta'].includes(display) && meta_lookup ? {[name]: meta_lookup} : {};
 

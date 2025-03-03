@@ -206,11 +206,14 @@ function RenameModal ({title, prompt, item={}, dataItems, open, setOpen})  {
         // history.push(edit)
         
         const newItem = {
-          id: item.id,
-          title:newName   
+          id: editItem.id,
+          title: newName,
+          parent: editItem?.parent   
         }
-
         newItem.url_slug = getUrlSlug(newItem, dataItems)
+
+        console.log('newItem', newItem, dataItems, item)
+
         setLoading(true)
         await submit(json2DmsForm(newItem), { method: "post", action: `/edit/${newItem.url_slug}` })
         setLoading(false)

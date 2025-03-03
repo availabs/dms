@@ -282,7 +282,7 @@ export function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAb
                 {/* -------------------Section Header ----------------------*/}
                 {
                     (sectionTitleCondition || interactCondition) &&
-                    <div className={`flex w-full h-[50px] items-center ${(value?.['level']) === '1' ? `border-b` : ``} ${hideDebug ? '' : 'border border-dashed border-pink-500'}`}>
+                    <div className={`flex w-full h-[50px] items-center pl-6 pb-2 ${hideDebug ? '' : 'border border-dashed border-pink-500'}`}>
 
                         <div id={`#${value?.title?.replace(/ /g, '_')}`}
                              className={`flex-1 flex-row py-2  font-display font-medium uppercase scroll-mt-36 ${sectionTitleCondition ? '' : 'invisible'}`}>

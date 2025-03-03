@@ -4,6 +4,7 @@ import {RenderInputControls} from "../../shared/RenderInputControls";
 import {getControlConfig, useHandleClickOutside} from "../../shared/utils";
 import {SpreadSheetContext} from "../index";
 import {Group, InfoCircle, LeftToRightListBullet, TallyMark, Sum, ArrowDown, SortAsc, SortDesc} from "../../../../../icons";
+import {ColorControls} from "../../shared/ColorControls";
 
 const RenderLinkControls = ({attribute, updateColumns}) => {
     const [tmpValue, setTmpValue] = useState(attribute || {});
@@ -20,13 +21,18 @@ const RenderLinkControls = ({attribute, updateColumns}) => {
     const inputWrapperClassName = `w-full rounded-sm cursor-pointer`
     const inputClassName = `p-0.5 rounded-sm`
     return (
-        <div className={'p-1 w-full rounded-md bg-white hover:bg-gray-100 cursor-pointer'}>
+        <div className={'px-2 py-1 w-full rounded-md bg-white hover:bg-gray-100 cursor-pointer'}>
             <RenderToggleControls className={`inline-flex w-full justify-center items-center rounded-md cursor-pointer`}
                                   title={'Is Link'}
                                   value={tmpValue?.isLink}
                                   setValue={e => setTmpValue({...tmpValue, isLink: e})}
             />
             <div className={tmpValue.isLink ? `mt-0.5 flex flex-col gap-0.5 border rounded-md divide-y` : `hidden`}>
+                <RenderToggleControls className={`inline-flex w-full justify-center items-center rounded-md cursor-pointer`}
+                                      title={'Use ID'}
+                                      value={tmpValue?.useId}
+                                      setValue={e => setTmpValue({...tmpValue, useId: e})}
+                />
                 <RenderInputControls className={inputWrapperClassName}
                                      inputClassName={inputClassName}
                                      type={'text'}
@@ -52,27 +58,71 @@ const formatOptions = [
     {label: 'Abbreviated', value: 'abbreviate'},
 ]
 
-const fontSizeOptions = [
-    {label: 'Small Fonts', value: 'small'},
-    {label: 'Medium Fonts', value: 'medium'},
-    {label: 'Large Fonts', value: 'large'},
-    {label: 'XL Fonts', value: 'xl'},
-    {label: '2XL Fonts', value: '2xl'},
-]
+const headerFontSizeOptions = [
+    {label: 'X-Small Header Fonts', value: 'textXS'},
+    {label: 'Small Header Fonts', value: 'textSM'},
+    {label: 'Medium Header Fonts', value: 'textMD'},
+    {label: 'Large Header Fonts', value: 'textLG'},
+    {label: 'XL Header Fonts', value: 'textXL'},
+    {label: '2XL Header Fonts', value: 'text2XL'},
+    {label: '3XL Header Fonts', value: 'text3XL'},
+    {label: '4XL Header Fonts', value: 'text4XL'},
+    {label: '5XL Header Fonts', value: 'text5XL'},
+    {label: '6XL Header Fonts', value: 'text6XL'},
+    {label: '7XL Header Fonts', value: 'text7XL'},
+    {label: '8XL Header Fonts', value: 'text8XL'},
+    {label: '9XL Header Fonts', value: 'text9XL'},
+];
+
+const valueFontSizeOptions = [
+    {label: 'X-Small Value Fonts', value: 'textXS'},
+    {label: 'Small Value Fonts', value: 'textSM'},
+    {label: 'Medium Value Fonts', value: 'textMD'},
+    {label: 'Large Value Fonts', value: 'textLG'},
+    {label: 'XL Value Fonts', value: 'textXL'},
+    {label: '2XL Value Fonts', value: 'text2XL'},
+    {label: '3XL Value Fonts', value: 'text3XL'},
+    {label: '4XL Value Fonts', value: 'text4XL'},
+    {label: '5XL Value Fonts', value: 'text5XL'},
+    {label: '6XL Value Fonts', value: 'text6XL'},
+    {label: '7XL Value Fonts', value: 'text7XL'},
+    {label: '8XL Value Fonts', value: 'text8XL'},
+    {label: '9XL Value Fonts', value: 'text9XL'},
+];
+
+const headerFontWeightOptions = [
+    { label: 'Light Header Fonts', value: 'fontLight' },
+    { label: 'Normal Header Fonts', value: 'fontNormal' },
+    { label: 'Medium Header Fonts', value: 'fontMedium' },
+    { label: 'Semi Bold Header Fonts', value: 'fontSemiBold' },
+    { label: 'Bold Header Fonts', value: 'fontBold' },
+    { label: 'Extra Bold Header Fonts', value: 'fontExtraBold' }
+];
+
+const valueFontWeightOptions = [
+    { label: 'Light Value Fonts', value: 'fontLight' },
+    { label: 'Normal Value Fonts', value: 'fontNormal' },
+    { label: 'Medium Value Fonts', value: 'fontMedium' },
+    { label: 'Semi Bold Value Fonts', value: 'fontSemiBold' },
+    { label: 'Bold Value Fonts', value: 'fontBold' },
+    { label: 'Extra Bold Value Fonts', value: 'fontExtraBold' }
+];
 
 const selectClasses = 'p-1 w-full rounded-md bg-white hover:bg-gray-100 cursor-pointer'
 
 // in header menu for each column
-export default function RenderInHeaderColumnControls({attribute}) {
+export default function TableHeaderCell({attribute}) {
     const {state: {columns = [], display}, setState, compType} = useContext(SpreadSheetContext);
     const {
         allowSortBy,
         allowJustify,
         allowFormat,
         allowFontSize,
+        allowFontWeight,
         allowHideHeader,
         allowCardSpan,
-        allowLinkControl
+        allowLinkControl,
+        allowBGColorSelector
     } = getControlConfig(compType);
     const menuRef = useRef(null);
     const [isOpen, setIsOpen] = useState(false);
@@ -130,11 +180,12 @@ export default function RenderInHeaderColumnControls({attribute}) {
     return (
         <div className="relative w-full">
             <div id={menuBtnId}
-                 className={`group inline-flex items-center w-full justify-between gap-x-1.5 rounded-md px-3 py-1 text-sm font-semibold text-gray-600 cursor-pointer`}
+                 className={`group inline-flex items-center w-full justify-between gap-x-1.5 rounded-md cursor-pointer`}
                  onClick={e => setIsOpen(!isOpen)}>
                 <span className={'truncate select-none'}
                       title={attribute.customName || attribute.display_name || attribute.name}>
-                    {attribute.customName || attribute.display_name || attribute.name}</span>
+                    {attribute.customName || attribute.display_name || attribute.name}
+                </span>
                 <div id={menuBtnId} className={'flex items-center'}>
                     {/*/!*<InfoCircle width={16} height={16} className={'text-gray-500'} />*!/ needs a lexical modal*/}
                     {
@@ -151,14 +202,14 @@ export default function RenderInHeaderColumnControls({attribute}) {
             </div>
 
             <div ref={menuRef}
-                 className={`
+                 className={` min-w-[150px]
                  ${isOpen ? 'visible transition ease-in duration-200' : 'hidden transition ease-in duration-200'} 
                  absolute right-0 z-[10] divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 transition`}
             >
                 <div className="py-0.5 w-1/2 min-w-fit max-h-[500px] overflow-auto scrollbar-sm">
-                    <div className="flex flex-col gap-0.5 items-center px-1 py-1 text-xs text-gray-700">
+                    <div className="flex flex-col gap-0.5 items-center px-1 py-1 text-xs text-gray-600 font-regular">
                         {
-                            allowSortBy && (compType === 'graph' ? attribute.xAxis : true) ?
+                            allowSortBy ?
                                 <div className={'w-full cursor-pointer'}>
                                     <select
                                         className={selectClasses}
@@ -210,14 +261,62 @@ export default function RenderInHeaderColumnControls({attribute}) {
                                 <div className={'w-full cursor-pointer'}>
                                     <select
                                         className={selectClasses}
-                                        value={attribute.fontSize}
-                                        onChange={e => updateColumns('fontSize', e.target.value)}
+                                        value={attribute.headerFontSize}
+                                        onChange={e => updateColumns('headerFontSize', e.target.value)}
                                     >
                                         {
-                                            fontSizeOptions.map(({label, value}) => <option key={label} value={value}>{label}</option>)
+                                            headerFontSizeOptions.map(({label, value}) => <option key={label} value={value}>{label}</option>)
                                         }
                                     </select>
                                 </div> : null
+                        }
+
+                        {
+                            allowFontSize ?
+                                <div className={'w-full cursor-pointer'}>
+                                    <select
+                                        className={selectClasses}
+                                        value={attribute.valueFontSize}
+                                        onChange={e => updateColumns('valueFontSize', e.target.value)}
+                                    >
+                                        {
+                                            valueFontSizeOptions.map(({label, value}) => <option key={label} value={value}>{label}</option>)
+                                        }
+                                    </select>
+                                </div> : null
+                        
+                        }
+
+                        {
+                            allowFontWeight ?
+                                <div className={'w-full cursor-pointer'}>
+                                    <select
+                                        className={selectClasses}
+                                        value={attribute.headerFontWeight}
+                                        onChange={e => updateColumns('headerFontWeight', e.target.value)}
+                                    >
+                                        {
+                                            headerFontWeightOptions.map(({label, value}) => <option key={label} value={value}>{label}</option>)
+                                        }
+                                    </select>
+                                </div> : null
+
+                        }
+
+                        {
+                            allowFontWeight ?
+                                <div className={'w-full cursor-pointer'}>
+                                    <select
+                                        className={selectClasses}
+                                        value={attribute.valueFontWeight}
+                                        onChange={e => updateColumns('valueFontWeight', e.target.value)}
+                                    >
+                                        {
+                                            valueFontWeightOptions.map(({label, value}) => <option key={label} value={value}>{label}</option>)
+                                        }
+                                    </select>
+                                </div> : null
+
                         }
 
                         {
@@ -226,7 +325,7 @@ export default function RenderInHeaderColumnControls({attribute}) {
 
                         {
                             allowHideHeader ? (
-                                <div className={'p-1 w-full rounded-md bg-white hover:bg-gray-100 cursor-pointer'}>
+                                <div className={'px-2 py-1 w-full rounded-md bg-white hover:bg-gray-100 cursor-pointer'}>
                                     <RenderToggleControls
                                         className={`inline-flex w-full justify-center items-center rounded-md cursor-pointer`}
                                         title={'Hide Header'}
@@ -252,6 +351,15 @@ export default function RenderInHeaderColumnControls({attribute}) {
                                     </select>
                                 </div>
                             ) : null
+                        }
+
+                        {
+                            allowBGColorSelector && !display.compactView ?
+                                <ColorControls value={attribute.bgColor}
+                                               setValue={e => updateColumns('bgColor', e)}
+                                               title={'Background Color'}
+                                />
+                                : null
                         }
                     </div>
                 </div>

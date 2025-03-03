@@ -1,10 +1,10 @@
 import React, {useRef, useState, useEffect, useContext, useCallback} from "react";
 import {ArrowDown} from "../../../../../../forms/ui/icons"
 import {RenderToggleControls} from "./RenderToggleControls";
-import RenderSwitch from "./Switch";
 import {RenderInputControls} from "./RenderInputControls";
 import {SpreadSheetContext} from "../spreadsheet";
 import {getControlConfig, useHandleClickOutside} from "./utils";
+import {ColorControls} from "./ColorControls";
 
 export default function RenderMoreControls({context}) {
     const {state: {display}, setState, compType} = useContext(context || SpreadSheetContext);
@@ -19,8 +19,13 @@ export default function RenderMoreControls({context}) {
         allowCompactViewToggle,
         allowGridSizeSelect,
         allowGridGapSelect,
+        allowBGColorSelector,
+        allowHeaderValuePaddingSelect,
         allowHeaderValueLayoutSelect,
-        allowDataSizeInput=false
+        allowReverseToggle,
+        allowDataSizeInput=false,
+        allowHideIfNullToggle,
+        allowRemoveBorderToggle
     } = getControlConfig(compType);
 
     const menuRef = useRef(null);
@@ -53,7 +58,7 @@ export default function RenderMoreControls({context}) {
                  className={`${isOpen ? 'visible transition ease-in duration-200' : 'hidden transition ease-in duration-200'} absolute left-0 z-10 w-72 origin-top-left divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 transition focus:outline-none`}
             >
 
-                <div key={'more'} className="py-1 max-h-[500px] overflow-auto scrollbar-sm">
+                <div key={'more'} className="py-1 text-sm max-h-[500px] overflow-auto scrollbar-sm">
                     {allowEditInViewToggle ?
                             <RenderToggleControls title={'Allow Edit'} value={display.allowEditInView}
                                                   setValue={value => updateDisplayValue('allowEditInView', value)}/> : null}
@@ -72,12 +77,15 @@ export default function RenderMoreControls({context}) {
                     {allowCompactViewToggle ?
                     <RenderToggleControls title={'Compact View'} value={display.compactView}
                                           setValue={value => updateDisplayValue('compactView', value)}/> : null}
-                    {allowGridSizeSelect && display.compactView ?
+                    {allowGridSizeSelect ?
                         <RenderInputControls title={'Grid Size'} type={'number'} value={display.gridSize}
                                              setValue={value => updateDisplayValue('gridSize', +value)}/> : null}
-                    {allowGridGapSelect && display.compactView ?
+                    {allowGridGapSelect ?
                         <RenderInputControls title={'Grid Gap'} type={'number'} value={display.gridGap}
                                              setValue={value => updateDisplayValue('gridGap', +value)}/> : null}
+                    {allowHeaderValuePaddingSelect ?
+                        <RenderInputControls title={'Padding'} type={'number'} value={display.padding}
+                                             setValue={value => updateDisplayValue('padding', +value)}/> : null}
                     {allowUsePaginationToggle ?
                         <RenderToggleControls title={'Use Pagination'} value={display.usePagination}
                                               setValue={value => updateDisplayValue('usePagination', value)}/> : null}
@@ -105,6 +113,27 @@ export default function RenderMoreControls({context}) {
                                 </select>
                             </div>
                         ) : null
+                    }
+
+                    {allowReverseToggle ?
+                        <RenderToggleControls title={'Reverse'} value={display.reverse}
+                                              setValue={value => updateDisplayValue('reverse', value)}/> : null}
+
+                    {allowHideIfNullToggle ?
+                        <RenderToggleControls title={'Hide if No Data'} value={display.hideIfNull}
+                                              setValue={value => updateDisplayValue('hideIfNull', value)}/> : null}
+
+                    {allowRemoveBorderToggle ?
+                        <RenderToggleControls title={'Remove Border'} value={display.removeBorder}
+                                              setValue={value => updateDisplayValue('removeBorder', value)}/> : null}
+
+                    {
+                        allowBGColorSelector && display.compactView ?
+                            <ColorControls value={display.bgColor}
+                                           setValue={e => updateDisplayValue('bgColor', e)}
+                                           title={'Background Color'}
+                            />
+                            : null
                     }
                 </div>
             </div>

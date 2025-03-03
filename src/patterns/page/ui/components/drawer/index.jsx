@@ -51,10 +51,7 @@ import { CMSContext } from '../../../siteConfig';
 export default function Drawer ({ open, setOpen, CloseIcon=XMark, width='max-w-64', children, closeOnClick=true }) {
   
   return (
-    <Transition.Root show={open} as={Fragment}>
-        
-     
-           
+    <Transition.Root  as={Fragment} show={open}>
       <Transition.Child
         as={Fragment}
         enter="transform transition ease-in-out duration-500 sm:duration-700"
@@ -81,8 +78,6 @@ export default function Drawer ({ open, setOpen, CloseIcon=XMark, width='max-w-6
           {children}
         </div>
       </Transition.Child>
-   
-      
     </Transition.Root>
   )
 }

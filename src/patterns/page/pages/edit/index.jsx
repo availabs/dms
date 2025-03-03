@@ -13,6 +13,7 @@ import { PageContext } from '../view'
 
 import { CMSContext } from '../../siteConfig'
 import EditPane, { EditDrawer } from './editPane'
+import {Footer} from "../../ui/dataComponents/selector/ComponentRegistry/footer";
 
 
 
@@ -148,13 +149,13 @@ function PageEdit ({
             </div>
 
           </div>
-          <div className={`fixed bottom-4 right-4 p-6 border rounded bg-white shadow ${busy.loading > 0 || busy.updating > 0 ? 'block' : 'hidden'} `}>
-            <div>{busy.updating > 0 && `Updating... ${busy.updating}`}</div>
-            <div>{busy.loading > 0 && `Loading... ${busy.loading}`}</div>
+          <div className={`fixed bottom-4 right-4 p-6 border rounded bg-white shadow ${busy?.loading > 0 || busy?.updating > 0 ? 'block' : 'hidden'} `}>
+            <div>{busy?.updating > 0 && `Updating... ${busy?.updating}`}</div>
+            <div>{busy?.loading > 0 && `Loading... ${busy?.loading}`}</div>
           </div>
           
         </Layout>
-        {item?.footer && <div className='h-[300px]' />} 
+        <Footer show={item.footer} dataItems={dataItems} />
       </div>
     </PageContext.Provider>
   ) 

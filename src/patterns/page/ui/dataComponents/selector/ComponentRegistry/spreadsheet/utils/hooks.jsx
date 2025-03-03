@@ -1,7 +1,9 @@
 import {useEffect} from "react";
 
-export function usePaste(callback) {
+export function usePaste(callback, element) {
     useEffect(() => {
+        if(!element) return;
+
         function handlePaste(event) {
             const pastedText = event.clipboardData.getData('Text');
             if (pastedText) {
@@ -9,26 +11,28 @@ export function usePaste(callback) {
             }
         }
 
-        window.addEventListener('paste', handlePaste);
+        element.addEventListener('paste', handlePaste);
 
         return () => {
-            window.removeEventListener('paste', handlePaste);
+            element.removeEventListener('paste', handlePaste);
         };
-    }, [callback]);
+    }, [callback, element]);
 }
 
-export function useCopy(callback) {
+export function useCopy(callback, element) {
     useEffect(() => {
+        if(!element) return;
+
         function handleCopy(event) {
             const dataToCopy = callback();
             // event.clipboardData.setData('text/plain', dataToCopy)
             return navigator.clipboard.writeText(dataToCopy)
         }
 
-        window.addEventListener('copy', handleCopy);
+        element.addEventListener('copy', handleCopy);
 
         return () => {
-            window.removeEventListener('copy', handleCopy);
+            element.removeEventListener('copy', handleCopy);
         };
-    }, [callback]);
+    }, [callback, element]);
 }

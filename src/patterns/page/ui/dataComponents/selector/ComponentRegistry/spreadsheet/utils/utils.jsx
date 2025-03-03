@@ -30,17 +30,21 @@ const isCalculatedCol = ({display, type, origin}) => {
 };
 
 // returns column name to be used as key for options. these are names without 'as' and data->> applied.
-export const attributeAccessorStr = (col, isDms, isCalculatedCol) => isCalculatedCol ? splitColNameOnAS(col)[0] : isDms ? `data->>'${col}'` : col;
+export const attributeAccessorStr = (col, isDms, isCalculatedCol) =>
+    isCalculatedCol || splitColNameOnAS(col)[0]?.includes('data->>') ?
+        splitColNameOnAS(col)[0] :
+            isDms ? `data->>'${col}'` : col;
 
 const parseIfJson = value => { try { return JSON.parse(value) } catch (e) { return value } }
 
 
 
 const cleanValue = value => typeof value === 'boolean' ? JSON.stringify(value) :
-                                typeof value === "object" && value?.value ? cleanValue(value.value) :
-                                    typeof value === "object" && !value?.value ? undefined :
-                                        typeof value === 'string' ? parseIfJson(value) :
-                                            parseIfJson(value);
+                                Array.isArray(value) ? value : // this will be calculated column only.
+                                    typeof value === "object" && value?.value ? cleanValue(value.value) :
+                                        typeof value === "object" && !value?.value ? undefined :
+                                            typeof value === 'string' ? parseIfJson(value) :
+                                                parseIfJson(value);
 
 
 
@@ -56,7 +60,7 @@ export const applyFn = (col={}, isDms=false) => {
         [undefined]: `${colNameWithAccessor} as ${colNameAfterAS}`,
         '': `${colNameWithAccessor} as ${colNameAfterAS}`,
         list: `array_to_string(array_agg(distinct ${colNameWithAccessor}), ', ') as ${colNameAfterAS}`,
-        sum: `sum(${colNameWithAccessor}) as ${colNameAfterAS}`,
+        sum: isDms ? `sum((${colNameWithAccessor})::integer) as ${colNameAfterAS}` : `sum(${colNameWithAccessor}) as ${colNameAfterAS}`,
         count: `count(${colNameWithAccessor}) as ${colNameAfterAS}`,
     }
 
@@ -118,7 +122,7 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
         const fullColumn = { name, display, meta, refName, type };
         const reqName = getColAccessor({ ...fullColumn, fn: undefined }, state.sourceInfo.isDms);
 
-        if (type === 'multiselect') {
+        if (type === 'multiselect'/* || type === 'calculated'*/) {
             const options = await getFilterData({
                 reqName,
                 refName,
@@ -133,8 +137,10 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
             try {
                 const matchedOptions = options
                     .map(row => {
-                        const option = row[reqName];
-                        const parsedOption = isJson(option) && Array.isArray(JSON.parse(option)) ? JSON.parse(option) : [];
+                        const option = row[reqName]?.value || row[reqName];
+                        const parsedOption =
+                            isJson(option) && Array.isArray(JSON.parse(option)) ? JSON.parse(option) :
+                                Array.isArray(option) ? option : [];
                         return parsedOption.find(o => selectedValues.includes(o)) ? option : null;
                     })
                     .filter(option => option);
@@ -170,17 +176,18 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
             return {...acc, [getFullColumn(columnName, columnsWithSettings)?.refName]: finalValues}
         }, {}),
         meta,
-        ...Object.keys(restOfDataRequestOptions).reduce((acc, filterOperation) => {
-            const columnsForOperation = Object.keys(restOfDataRequestOptions[filterOperation]);
-            acc[filterOperation] =
-                columnsForOperation.reduce((acc, columnName) => {
-                    const currOperationValues = restOfDataRequestOptions[filterOperation][columnName];
-
-                    acc[getFullColumn(columnName, columnsWithSettings)?.refName] = Array.isArray(currOperationValues) ? currOperationValues[0] : currOperationValues;
-                    return acc;
-                }, {});
-            return acc;
-        }, {})
+        // // if not grouping, apply numeric filters in the request
+        // ... !groupBy?.length && Object.keys(restOfDataRequestOptions).reduce((acc, filterOperation) => {
+        //     const columnsForOperation = Object.keys(restOfDataRequestOptions[filterOperation]);
+        //     acc[filterOperation] =
+        //         columnsForOperation.reduce((acc, columnName) => {
+        //             const currOperationValues = restOfDataRequestOptions[filterOperation][columnName];
+        //
+        //             acc[getFullColumn(columnName, columnsWithSettings)?.refName] = Array.isArray(currOperationValues) ? currOperationValues[0] : currOperationValues;
+        //             return acc;
+        //         }, {});
+        //     return acc;
+        // }, {})
     }
     debug && console.log('debug getdata: options for spreadsheet getData', options, state)
     // =================================================================================================================
@@ -257,10 +264,15 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
             stopFullDataLoad: true
         },
     }]
-    const data = await apiLoad({
-        format: state.sourceInfo,
-        children
-    });
+    let data;
+    try{
+        data = await apiLoad({
+            format: state.sourceInfo,
+            children
+        });
+    }catch (e) {
+        return {length, data: [], invalidState: 'An Error occurred while fetching data.'};
+    }
 
     // =================================================================================================================
     // =========================================== fetch total row begin  ==============================================
@@ -282,15 +294,28 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
                 stopFullDataLoad: true
             },
         }]
-        const totalRowData = await apiLoad({
-            format: state.sourceInfo,
-            children: totalRowChildren
-        });
+
+        let totalRowData;
+        try{
+            totalRowData = await apiLoad({
+                format: state.sourceInfo,
+                children: totalRowChildren
+            });
+        }catch (e) {
+            return {length, data: [], invalidState: 'An Error occurred while fetching data.'};
+        }
 
         data.push({...totalRowData[0], totalRow: true})
     }
     // ============================================== fetch total row end ==============================================
 
+    const operations = {
+        gt: (a, b) => +a > +b,
+        gte: (a, b) => +a >= +b,
+        lt: (a, b) => +a < +b,
+        lte: (a, b) => +a <= +b,
+        like: (a,b) => b.toString().toLowerCase().includes(a.toString().toLowerCase())
+    }
     return {
         length,
         data: data.map(row => columnsToFetch.reduce((acc, column) => ({
@@ -299,6 +324,18 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
             // return data with columns' original names
             [column.name]: cleanValue(row[row.totalRow ? column.totalName : column.reqName])
         }) , {}))
+            .filter(row => !Object.keys(restOfDataRequestOptions).length || (
+                Object.keys(restOfDataRequestOptions).reduce((acc, filterOperation) => {
+                    const columnsForOperation = Object.keys(restOfDataRequestOptions[filterOperation]);
+                    return acc && columnsForOperation.reduce((acc, columnName) => {
+                        const currOperationValues = restOfDataRequestOptions[filterOperation][columnName];
+                        const valueToFilterBy = Array.isArray(currOperationValues) ? currOperationValues[0] : currOperationValues;
+                        if(!valueToFilterBy) return acc && true;
+                        if(!row[columnName]) return acc && false;
+                        return acc && operations[filterOperation](row[columnName], valueToFilterBy);
+                    }, true)
+                }, true)
+            ))
     }
 }
 
