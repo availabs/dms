@@ -146,7 +146,7 @@ export const RenderFilterValueSelector = ({
                             <option key="lte" value="lte"> {"<="} </option>
                         </select>
                         {
-                            isEdit ? (
+                            isEdit && ['include', 'filter'].includes(filter.operation) ? (
                                 <div className={'flex flex-wrap items-center gap-1'}>
                                     <label className={'text-gray-900 font-regular min-w-fit'}>Multiselect: </label>
                                     <RenderSwitch label={'Use Search Params'}
@@ -223,9 +223,10 @@ export const RenderFilterValueSelector = ({
                             /> :
                             <Comp
                                 key={`filter-${filterColumn.name}-${filter.type}`}
-                                className={`max-h-[150px] flex text-xs overflow-auto scrollbar-sm border rounded-md bg-white ${filter.values?.length ? `p-1` : `p-2`}`}
-                                placeholder={'Search...'}
+                                className={`max-h-[150px] w-full flex text-xs overflow-auto scrollbar-sm border rounded-md bg-white ${filter.values?.length ? `p-1` : `p-2`}`}
+                                placeholder={'Please enter a number...'}
                                 value={ value }
+                                type={'number'}
                                 onChange={e => {
                                     let newValues = [e];
                                     if(filter.allowSearchParams) {
@@ -236,6 +237,7 @@ export const RenderFilterValueSelector = ({
                                         updateFilter({key: 'values', value: newValues, filterColumn, filter, setState})
                                     }
                                 }}
+                                onWheel={e => e.target.blur()}
                                 displayInvalidMsg={false}
                             />
                     }
