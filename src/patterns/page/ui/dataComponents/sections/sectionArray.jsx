@@ -44,7 +44,13 @@ export const sectionArrayTheme = {
         "1/2": { className: 'col-span-6 md:col-span-3', iconSize: 50 },
         "2/3": { className: 'col-span-6 md:col-span-4', iconSize: 66 },
         "1":   { className: 'col-span-6 md:col-span-6', iconSize: 100 },
-    }
+    },
+    heights: {
+        "1/3": { iconSize: 33 },
+        "1/2": { iconSize: 50 },
+        "2/3": { iconSize: 66 },
+        "1": { iconSize: 100 },
+    },
 }
 
 const Edit = ({Component, value, onChange, attr, full_width = false, siteType, apiLoad, apiUpdate, format, ...rest }) => {
@@ -131,6 +137,7 @@ const Edit = ({Component, value, onChange, attr, full_width = false, siteType, a
             {values.map((v,i) => {
                 //console.log()
                 const size = (edit.index === i ? edit?.value?.size : v?.size) || "1";
+                const height = (edit.index === i ? edit?.value?.height : v?.height) || "1";
                 const sizeClass = (theme?.sectionArray?.sizes?.[size] || theme?.sectionArray?.sizes?.["1"])?.className;
 
                 // console.log('section', v, v.error)
@@ -155,6 +162,7 @@ const Edit = ({Component, value, onChange, attr, full_width = false, siteType, a
                                 onRemove={remove}
                                 attributes={attr.attributes}
                                 size={size}
+                                height={height}
                                 i={i}
                                 siteType={siteType}
                                 apiLoad={apiLoad}
@@ -172,6 +180,7 @@ const Edit = ({Component, value, onChange, attr, full_width = false, siteType, a
                                 moveItem={moveItem}
                                 attributes={attr.attributes}
                                 edit={true}
+                                height={height}
                                 onEdit={ edit.index === -1 ? (e) => update(i)  : null }
                                 addAbove={() => setEditIndex(i)}
                                 siteType={siteType}
@@ -195,7 +204,7 @@ const Edit = ({Component, value, onChange, attr, full_width = false, siteType, a
     )
 }
 
-const View = ({Component, value, attr, full_width, siteType, apiLoad, apiUpdate, format}) => {
+const View = ({Component, height, value, attr, full_width, siteType, apiLoad, apiUpdate, format}) => {
     if (!value || !value.map) { return '' }
     const { baseUrl, user, theme } = React.useContext(CMSContext) || {}
 
@@ -220,6 +229,7 @@ const View = ({Component, value, attr, full_width, siteType, apiLoad, apiUpdate,
                                 <SectionView
                                     attributes={attr.attributes}
                                     key={i}
+                                    height={height}
                                     i={i}
                                     value={v}
                                     siteType={siteType}
