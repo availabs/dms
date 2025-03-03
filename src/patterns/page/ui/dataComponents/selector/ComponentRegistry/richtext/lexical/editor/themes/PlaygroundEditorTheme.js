@@ -8,22 +8,20 @@
 
 const theme = {
   contentEditable: 'border-none relative pl-6 [tab-size:1] outline-none ',
-  editorScroller:
-    "min-h-[150px] border-0 flex relative outline-0 z-0bh resize-y", //'editor-scroller'
+  editorScroller: "min-h-[150px] border-0 flex relative outline-0 z-0bh resize-y", //'editor-scroller'
   editorContainer: "relative block rounded-[10px] min-h-[50px]", //'.editor-shell .editor-container'
   editorShell: "font-['Proxima_Nova'] font-[400] text-[16px] text-[#37576B] leading-[22.4px]",
-    heading: {
+  card: 'p-[12px] shadow-[0px_0px_6px_0px_rgba(0,0,0,0.02),0px_2px_4px_0px_rgba(0,0,0,0.08)]', 
+  heading: {
       h1: "font-[500]  text-[#2D3E4C] text-[36px] leading-[36px] tracking-[-.02em] font-[500] underline-offset-8 underline decoration-4 decoration-[#EAAD43] uppercase font-['Oswald'] pb-[12px]", //'PlaygroundEditorTheme__h1',
       h2: "font-[500]  text-[#2D3E4C] text-[24px] leading-[24px] scroll-mt-36 font-['Oswald'] pb-[12x]", //'PlaygroundEditorTheme__h2',
       h3: "font-[500]  text-[#2D3E4C] text-[16px] leading-[16px] scroll-mt-36 font-['Oswald'] pb-[12x]", //'PlaygroundEditorTheme__h3',
       h4: "font-medium text-[#2D3E4C] scroll-mt-36 font-display", //'PlaygroundEditorTheme__h4',
       h5: "scroll-mt-36 font-display", //'PlaygroundEditorTheme__h5',
       h6: "scroll-mt-36 font-display", //'PlaygroundEditorTheme__h6',
-    },
-    paragraph: "m-0 relative", //'PlaygroundEditorTheme__paragraph',
-    quote:
-    "m-0 mb-2 font-['Oswald'] text-[30px] leading-[36px] text-[#2D3E4C] border-l-4 border-[#37576B] pl-4 pb-[12px]", //'PlaygroundEditorTheme__quote',
-    card: 'p-[12px] shadow-[0px_0px_6px_0px_rgba(0,0,0,0.02),0px_2px_4px_0px_rgba(0,0,0,0.08)]',
+  },
+  paragraph: "m-0 relative", //'PlaygroundEditorTheme__paragraph',
+  quote: "m-0 mb-2 font-['Oswald'] text-[30px] leading-[36px] text-[#2D3E4C] border-l-4 border-[#37576B] pl-4 pb-[12px]", //'PlaygroundEditorTheme__quote',
   // editorShell: "rounded-[2px] relative", //'.editor-shell',
   // heading: {
   //   h1: "font-semibold text-3xl scroll-mt-36 font-display", //'PlaygroundEditorTheme__h1',
@@ -47,6 +45,8 @@ const theme = {
   },
   blockCursor: `block pointer-events-none absolute content-['']  after:absolute after:-top-[2px] after:w-[20px] after:border-t-[1px_solid_black]`,
   characterLimit: "inline !bg-[#ffbbbb]",
+  layoutContainer: 'grid gap-[10px]',
+  layoutItem: 'border border-dashed border-slate-300 rounded-lg px-2 py-4 min-w-0 max-w-full',
   code: `bg-[rgb(240,_242,_245)] font-[Menlo,_Consolas,_Monaco,_monospace] block pl-[52px] pr-[8px] py-[8px] leading-[1.53] text-[13px] m-0 mt-[8px] mb-[8px] [tab-size:2] relative after:content-[attr(data-gutter)] after:absolute after:bg-[#eee] after:left-[0] after:top-[0] after:border-r-[1px_solid_#ccc] after:p-[8px] after:text-[#777] after:whitespace-pre-wrap after:text-right after:min-w-[25px]`,
   codeHighlight: {
     atrule: "text-[#07a]",
@@ -181,44 +181,10 @@ const theme = {
   mentionsMenu: "w-[250px]", // mentions-menu
   autoEmbedMenu: "w-[150px]", //auto-embed-menu
   emojiMenu: "w-[200px]", //emoji-menu
-
-  i: {
-    palette: "bg-[url(/images/icons/palette.svg)]",
-    bucket: "bg-[url(/images/icons/paint-bucket.svg)]",
-    bold: "bg-[url(/images/icons/type-bold.svg)]",
-    italic: "bg-[url(/images/icons/type-italic.svg)]",
-    clear: "bg-[url(/images/icons/trash.svg)]",
-    code: "bg-[url(/images/icons/code.svg)]",
-    underline: "bg-[url(/images/icons/type-underline.svg)]",
-    strikethrough: "bg-[url(/images/icons/type-strikethrough.svg)]",
-    subscript: "bg-[url(/images/icons/type-subscript.svg)]",
-    superscript: "bg-[url(/images/icons/type-superscript.svg)]",
-    link: "bg-[url(/images/icons/link.svg)]",
-    horizontalRule: "bg-[url(/images/icons/horizontal-rule.svg)]",
-    centerAlign: "bg-[url(/images/icons/text-center.svg)]",
-    rightAlign: "bg-[url(/images/icons/text-right.svg)]",
-    justifyAlign: "bg-[url(/images/icons/justify.svg)]",
-    indent: "bg-[url(/images/icons/indent.svg)]",
-    markdown: "bg-[url(/images/icons/markdown.svg)]",
-    outdent: "bg-[url(/images/icons/outdent.svg)]",
-    undo: "bg-[url(/images/icons/arrow-counterclockwise.svg)]",
-    redo: "bg-[url(/images/icons/arrow-clockwise.svg)]",
-    sticky: "bg-[url(/images/icons/sticky.svg)]",
-    mic: "bg-[url(/images/icons/mic.svg)]",
-    import: "bg-[url(/images/icons/upload.svg)]",
-    export: "bg-[url(/images/icons/download.svg)]",
-    diagram2: "bg-[url(/images/icons/diagram-2.svg)]",
-    user: "bg-[url(/images/icons/user.svg)]",
-    equation: "bg-[url(/images/icons/plus-slash-minus.svg)]",
-    gif: "bg-[url(/images/icons/filetype-gif.svg)]",
-    copy: "bg-[url(/images/icons/copy.svg)]",
-    success: "bg-[url(/images/icons/success.svg)]",
-    prettier: "bg-[url(/images/icons/prettier.svg)]",
-    prettierError: "bg-[url(/images/icons/prettier-error.svg)]",
-  },
   icon: {
     plus: "bg-[url(/images/icons/plus.svg)]",
     caretRight: "bg-[url(/images/icons/caret-right-fill.svg)]",
+    columns: "bg-[url(/images/icons/3-columns.svg)]",
     dropdownMore: "bg-[url(/images/icons/dropdown-more.svg)]",
     fontColor: "bg-[url(/images/icons/font-color.svg)]",
     fontFamily: "bg-[url(/images/icons/font-family.svg)]",

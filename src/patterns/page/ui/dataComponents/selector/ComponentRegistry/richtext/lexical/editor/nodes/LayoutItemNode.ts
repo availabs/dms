@@ -16,6 +16,7 @@ import type {
 
 import {addClassNamesToElement} from '@lexical/utils';
 import {ElementNode} from 'lexical';
+import { useLexicalEditable } from '@lexical/react/useLexicalEditable';
 
 export type SerializedLayoutItemNode = SerializedElementNode;
 
@@ -31,6 +32,7 @@ export class LayoutItemNode extends ElementNode {
   static clone(node: LayoutItemNode): LayoutItemNode {
     return new LayoutItemNode(node.__key);
   }
+
 
   createDOM(config: EditorConfig): HTMLElement {
     const dom = document.createElement('div');

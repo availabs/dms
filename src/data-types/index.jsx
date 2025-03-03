@@ -6,7 +6,7 @@ import config from './form-config'
 import template from './template'
 import dmsFormat from './dms-format'
 import Array from './array'
-import Lexical from './lexical'
+import Lexical from '../patterns/page/ui/dataComponents/selector/ComponentRegistry/richtext/lexical'
 
 import { get } from "lodash-es"
 import Select from "./select";

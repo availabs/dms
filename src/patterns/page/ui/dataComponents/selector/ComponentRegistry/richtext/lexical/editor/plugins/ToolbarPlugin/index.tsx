@@ -811,7 +811,7 @@ export default function ToolbarPlugin({
         type="button"
         className={`${theme.toolbar.toolbarItem.base} ${theme.toolbar.toolbarItem.spaced}` }
         aria-label="Undo">
-        <i className={`${theme.toolbar.toolbarItem.iconFormat} ${theme.i.undo}` }  />
+        <i className={`${theme.toolbar.toolbarItem.iconFormat} ${theme.icon.undo}` }  />
       </button>
       <button
         disabled={!canRedo || !isEditable}
@@ -822,7 +822,7 @@ export default function ToolbarPlugin({
         type="button"
         className={`${theme.toolbar.toolbarItem.base  }` }
         aria-label="Redo">
-        <i className={`${theme.toolbar.toolbarItem.iconFormat} ${theme.i.redo}` } />
+        <i className={`${theme.toolbar.toolbarItem.iconFormat} ${theme.icon.redo}` } />
       </button>
       {/* <Divider /> */}
       <div className={theme.toolbar.divider} />

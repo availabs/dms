@@ -255,7 +255,7 @@ function getBaseOptions(editor: LexicalEditor, showModal: ShowModal) {
                 editor.dispatchCommand(INSERT_COLLAPSIBLE_COMMAND, undefined),
         }),
         new ComponentPickerOption('Columns Layout', {
-            icon: <i className={`${theme.typeaheadPopover.ul.li.icon} ${theme.icon.caretRight}`}/>,
+            icon: <i className={`${theme.typeaheadPopover.ul.li.icon} ${theme.icon.columns}`}/>,
             keywords: ['columns', 'layout', 'grid'],
             onSelect: () =>
             showModal('Insert Columns Layout', (onClose) => (
