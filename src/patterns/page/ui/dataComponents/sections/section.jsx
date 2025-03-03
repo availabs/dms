@@ -40,7 +40,7 @@ export const sectionTheme = {
 
 }
 
-export function SectionEdit ({value, i, onChange, attributes, size, height, onCancel, onSave, onRemove, siteType, apiLoad, apiUpdate, format}) {
+export function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, onRemove, siteType, apiLoad, apiUpdate, format}) {
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     let sectionTitleCondition = value?.['title'] 
     let { theme } = React.useContext(CMSContext) || {}
@@ -132,10 +132,6 @@ export function SectionEdit ({value, i, onChange, attributes, size, height, onCa
                                             size={value?.['size']}
                                             onChange={v => updateAttribute('size', v)}
                                         />
-                                        <HeightSelect
-                                            height={value?.['height']}
-                                            onChange={v => updateAttribute('height', v)}
-                                        />
                                     </div>
                                 </div>
                             </Popover>
@@ -168,7 +164,6 @@ export function SectionEdit ({value, i, onChange, attributes, size, height, onCa
                         onChange={(v) => updateAttribute('element', v)}
                         handlePaste={(e, setKey) => handlePaste(e, setKey, value, onChange)}
                         size={size}
-                        height={height}
                         siteType={siteType}
                         apiLoad={apiLoad}
                         apiUpdate={apiUpdate}
@@ -189,7 +184,7 @@ let handleCopy = (value) => {
     }
     navigator.clipboard.writeText(JSON.stringify(value))
 }
-export function SectionView ({value, i, attributes, edit, onEdit, moveItem, addAbove, siteType, apiLoad, apiUpdate, format}) {
+export function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove, siteType, apiLoad, apiUpdate, format}) {
     let [referenceElement, setReferenceElement] = useState()
     let [popperElement, setPopperElement] = useState()
     let { styles, attributes:popperAttributes } = usePopper(referenceElement, popperElement)
@@ -211,8 +206,7 @@ export function SectionView ({value, i, attributes, edit, onEdit, moveItem, addA
 
     const element = React.useMemo(() => {
         return (
-            <ElementComp
-                height={value?.['height'] || "1"}
+            <ElementComp 
                 value={value?.['element']} 
                 siteType={siteType} 
                 apiLoad={apiLoad} 
@@ -358,16 +352,10 @@ export function SectionView ({value, i, attributes, edit, onEdit, moveItem, addA
 // ---------------------------------------------
 // Supporting Functions & components
 //----------------------------------------------
-const pageSplitIcons = (size1=50, height=20, width=30, lines=false, rotate=0, fill=false) => {
-    let size2 = 100 - size1;
-    let rotateStyle = {};
-
-    if(rotate !== 0) {
-        rotateStyle = { transform: `rotate(${rotate}deg)`, transformOrigin: 'center'}
-    }
-
+const pageSplitIcons = (size1=50, height=20, width=30, lines=false) => {
+    let size2 = 100 - size1
     return (
-        <svg width={width} height={height} style={rotateStyle}>
+        <svg width={width} height={height} >
             <line
                 x1="0"
                 y1="0"
@@ -377,7 +365,7 @@ const pageSplitIcons = (size1=50, height=20, width=30, lines=false, rotate=0, fi
                 strokeDasharray="4 1.5 4 1.5" />
             <rect x={size1 === 100 ? 0 : 5} y="0"
                   width={Math.max(Math.floor(width * size1 / 100) - (size1 === 100 ? 0 : 6),0)} height={height} rx="1" ry="1"
-                  style={{fill: fill ? 'black' : 'white', stroke:'black', strokeWidth:1, opacity:0.6}} />
+                  style={{fill:'white', stroke:'black', strokeWidth:1, opacity:0.5}} />
             <rect x={(width * size1 / 100) - 1} y="0"
                   width={Math.max(Math.floor(width * size2 / 100) -  (size1 === 100 ? 0 : 6),0)} height={height} rx="1" ry="1"
                   style={{fill:'white', stroke:'black', strokeWidth:1, opacity:0.5}} />
@@ -414,36 +402,7 @@ function SizeSelect ({size='1', setSize, onChange}) {
                 tabIndex={-1}
                 onClick={() => onChange(name)}
               >
-                {pageSplitIcons(theme?.sectionArray?.sizes?.[name].iconSize || 100, 20, 30, false, 0, false)}
-              </button>
-        ))}
-        </div>
-    )
-} 
-
-function HeightSelect ({size="1", height='1', setSize, onChange}) {
-    const { baseUrl, user, theme } = React.useContext(CMSContext) || {}
-    return (
-        <div
-          className="flex space-x-1 z-50 rounded-lg bg-blue-50 p-0.5"
-          role="tablist"
-          aria-orientation="horizontal"
-        >        
-        {Object.keys(theme?.sectionArray?.heights || {}).map((name,i) => (
-            <button
-                key={i}
-                className={
-                    name === height ?
-                    "flex items-center rounded-md py-[0.4375rem] pl-2 pr-2 text-sm font-semibold lg:pr-3 bg-white shadow" :
-                    "flex items-center rounded-md py-[0.4375rem] pl-2 pr-2 text-sm font-semibold lg:pr-3 hover:text-blue-500"
-                }
-                id="headlessui-tabs-tab-3"
-                role="tab"
-                type="button"
-                tabIndex={-1}
-                onClick={() => onChange(name)}
-              >
-                {pageSplitIcons(theme?.sectionArray?.heights?.[name].iconSize || 100, 20, 30, false, 90, true)}
+                {pageSplitIcons(theme?.sectionArray?.sizes?.[name].iconSize || 100)}
               </button>
         ))}
         </div>
