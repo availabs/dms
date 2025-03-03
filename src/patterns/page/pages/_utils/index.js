@@ -141,7 +141,7 @@ export function getInPageNav(item, theme) {
 
     //console.log('test 123', theme)
    
-    const menuItems = (Array.isArray(currentDI?.sections) ? currentDI?.sections : []).reduce((acc, {title, element, level, ...props}) => {
+    const menuItems = (Array.isArray(currentDI?.sections) ? currentDI.sections : []).reduce((acc, {title, element, level, ...props}) => {
         if (!element || !title || level !== '1' ) return acc; // filtering for level 1 section header
 
         const lexicalNavElements =
