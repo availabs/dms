@@ -19,6 +19,7 @@ import { sectionArrayTheme } from '../dataComponents/sections/sectionArray'
 import { tableTheme } from '../dataComponents/selector/ComponentRegistry/spreadsheet/components/SimpleSpreadsheet'
 import lexicalTheme from '../dataComponents/selector/ComponentRegistry/richtext/theme';
 import {dataCardTheme} from "../dataComponents/selector/ComponentRegistry/Card";
+import {attributionTheme} from "../dataComponents/selector/ComponentRegistry/spreadsheet/components/RenderAttribution";
 
 
 import { menuTheme } from '../components/menu'
@@ -102,7 +103,8 @@ const theme = {
 
   // --- component themes
   lexical : lexicalTheme,
-  dataCard: dataCardTheme
+  dataCard: dataCardTheme,
+  attribution: attributionTheme
   
 }
 

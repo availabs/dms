@@ -305,7 +305,7 @@ export default function TableHeaderCell({attribute}) {
 
                         {
                             allowBGColorSelector && !display.compactView ?
-                                <div className={`w-full ${selectLabelClass}`}>
+                                <div className={`w-full px-0.5 ${selectLabelClass}`}>
                                     <ColorControls value={attribute.bgColor}
                                                    setValue={e => updateColumns('bgColor', e)}
                                                    title={'Background Color'}
