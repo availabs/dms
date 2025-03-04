@@ -2,6 +2,7 @@ import React, {useMemo, useState, useEffect, useRef, useContext} from 'react'
 import {Link} from "react-router-dom";
 import {FormsContext} from "../siteConfig";
 import {InfoCircle} from "../../admin/ui/icons";
+import {get} from "lodash-es";
 
 export const isJson = (str)  => {
     try {
@@ -19,7 +20,31 @@ const preventDefaults = e => {
 function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
-const uploadGisDataset = async ({file, user, etlContextId, damaServerPath, setGisUploadId, setLoading, setLayers, setLayerName}) => {
+const uploadGisDataset = async ({file, user, etlContextId, pgEnv, falcor, damaServerPath, setGisUploadId, setLoading, setLayers, setLayerName}) => {
+    const awaitFinalEvent = async () => {
+        const lenPath = ["dama", pgEnv, "etlContexts", etlContextId, 'allEvents', 'length'];
+        const dataPath = ["dama", pgEnv, "etlContexts", etlContextId, 'allEvents'];
+        const eventAttrs = ['event_id', 'etl_context_id', 'type', 'payload', 'user'];
+
+        falcor.invalidate(lenPath);
+        falcor.invalidate(dataPath);
+
+        const lenRes = await falcor.get(lenPath);
+        const len = get(lenRes, ['json', ...lenPath]);
+
+        if(!len) return;
+
+        const dataRes = await falcor.get([...dataPath, {from: 0, to: len - 1}, eventAttrs])
+        const data = get(dataRes, ['json', ...dataPath], {})
+        const events = Object.values(data);
+
+        const isDone = events.some(e => e.type && e.type.toLowerCase().includes(':final'));
+        if(!isDone) {
+            delay(2000);
+            return awaitFinalEvent();
+        }
+    }
+
     try {
         setLoading(true)
         // Prepare upload request
@@ -32,44 +57,33 @@ const uploadGisDataset = async ({file, user, etlContextId, damaServerPath, setGi
         formData.append("fileSizeBytes", file.size);
         formData.append("file", file);
 
-        console.log('sending upload')
-
         const res = await fetch(
             `${damaServerPath}/gis-dataset/upload`,
             { method: "POST", body: formData }
         );
-        console.log('sending upload finished ')
 
         // update state from request
         const resValue = await res.json();
         if (Array.isArray(resValue)) {
-            console.log('res', resValue);
             const [{ id }] = resValue;
-            console.log('gisUploadId', id)
-            setGisUploadId(id)
+
             if(id){
-                // const url = `${damaServerPath}/gis-dataset/${id}/layers`;
-                // const layerNamesRes = await fetch(url);
-                // const layers = await layerNamesRes.json();
-                // console.log('debug upload: layers', layers)
-                // setLayers(layers)
-                // setLayerName(layers?.[0]?.layerName)
+                await awaitFinalEvent();
 
                 try {
                     const fetchData = async (gisUploadId) => {
                         setLoading(true)
                         const url = `${damaServerPath}/gis-dataset/${gisUploadId}/layers`;
-                        console.log('waiting for url:', url);
-                        await delay(5000);
-                        console.log('calling for url:', url);
+
                         const layerNamesRes = await fetch(url);
                         const layers = await layerNamesRes.json();
-                        console.log('layers', layers);
                         setLayers(layers)
                         setLayerName(layers?.[0]?.layerName)
+                        setGisUploadId(id)
                         setLoading(false)
                     }
                     fetchData(id)
+
                 } catch (err) {
                     console.error(err)
                 }
@@ -118,7 +132,6 @@ const publish = async ({userId, email, gisUploadId, layerName, app, type, dmsSer
     const publishFinalEvent = await res.json();
     setPublishing(false);
     setPublishStatus(true);
-    console.log('publishFinalEvent', publishFinalEvent)
 }
 const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate, parent, ...rest}) => {
     // this component should let a user:
@@ -128,7 +141,7 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate, paren
     // 4. map multiple columns to a single column. this converts column headers to values of a new column
     // todo 5. choose an id column to update data if there's id match. -- in progress
 
-    const {API_HOST, user, baseUrl} = useContext(FormsContext);
+    const {API_HOST, user, baseUrl, falcor} = useContext(FormsContext);
     const pgEnv = 'hazmit_dama'
     const damaServerPath = `${API_HOST}/dama-admin/${pgEnv}`; // need to use this format to utilize existing api fns
     const dmsServerPath = `${API_HOST}/dama-admin`; // to use for publish. no need for pgEnv.
@@ -165,13 +178,6 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate, paren
     // ================================================= get etl context end ===========================================
 
     // ================================================= get layers begin ==============================================
-    // useEffect(() => {
-    //     // todo remove
-    //
-    //     if (gisUploadId) {
-    //
-    //     }
-    // }, [ gisUploadId, damaServerPath ]);
 
     useEffect(() => {
         if(layers.find(layer => layer.layerName === layerName)?.fieldsMetadata){
@@ -190,7 +196,6 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate, paren
         }
     }, [layers, layerName]);
     // ================================================= get layers end ================================================
-    console.log('columns', columns)
     const pivotColumns = existingAttributes.filter(existingCol => columns.filter(c => c.existingColumnMatch === existingCol.name).length > 1);
 
     if(!view_id) return 'No version selected.'
@@ -219,7 +224,8 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate, paren
                          setGisUploadId,
                          setLoading,
                          setLayers,
-                         setLayerName
+                         setLayerName,
+                         pgEnv, falcor
                      })
                  }}
             >
@@ -243,7 +249,7 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate, paren
                     </div>
                     <input disabled={loading} id="dropzone-file" type="file" className="hidden"
                            onChange={(e) =>
-                        uploadGisDataset({file: e.target.files[0], user, etlContextId, damaServerPath, setGisUploadId, setLoading, setLayers, setLayerName})}/>
+                        uploadGisDataset({file: e.target.files[0], user, pgEnv, falcor, etlContextId, damaServerPath, setGisUploadId, setLoading, setLayers, setLayerName})}/>
                 </label>
             </div>
 
