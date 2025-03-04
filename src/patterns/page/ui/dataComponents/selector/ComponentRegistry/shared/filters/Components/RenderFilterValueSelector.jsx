@@ -102,11 +102,11 @@ export const RenderFilterValueSelector = ({
         filterColumn.filters || [])
         .filter(filter => isEdit || (!isEdit && filter.type === 'external'))
         .map((filter) => {
-            const selector = ['include', 'filter'].includes(filter.operation) ? 'multiselect' : 'text'
+            const selector = ['filter', 'exclude'].includes(filter.operation) ? 'multiselect' : 'text'
 
             const Comp = dataTypes[selector].EditComp;
 
-            const value = ['include', 'filter'].includes(filter.operation) ? (filter.values || []) :
+            const value = ['filter', 'exclude'].includes(filter.operation) ? (filter.values || []) :
                 (Array.isArray(filter.values) ? filter.values[0] : typeof filter.values === 'object' ? '' : filter.values);
             return (
                 <div key={`${filterColumn.name}-${filter.operation}`} className={'w-full p-1 relative text-xs'}>
@@ -146,7 +146,7 @@ export const RenderFilterValueSelector = ({
                             <option key="lte" value="lte"> {"<="} </option>
                         </select>
                         {
-                            isEdit ? (
+                            isEdit && ['filter', 'exclude'].includes(filter.operation) ? (
                                 <div className={'flex flex-wrap items-center gap-1'}>
                                     <label className={'text-gray-900 font-regular min-w-fit'}>Multiselect: </label>
                                     <RenderSwitch label={'Use Search Params'}
@@ -200,7 +200,7 @@ export const RenderFilterValueSelector = ({
                         }
                     </div>
                     {
-                        ['include', 'filter'].includes(filter.operation) ?
+                        ['filter', 'exclude'].includes(filter.operation) ?
                             <Comp
                                 key={`filter-${filterColumn.name}-${filter.type}`}
                                 className={`max-h-[150px] flex text-xs overflow-auto scrollbar-sm border rounded-md bg-white ${filter.values?.length ? `p-1` : `p-2`}`}
@@ -223,9 +223,10 @@ export const RenderFilterValueSelector = ({
                             /> :
                             <Comp
                                 key={`filter-${filterColumn.name}-${filter.type}`}
-                                className={`max-h-[150px] flex text-xs overflow-auto scrollbar-sm border rounded-md bg-white ${filter.values?.length ? `p-1` : `p-2`}`}
-                                placeholder={'Search...'}
+                                className={`max-h-[150px] w-full flex text-xs overflow-auto scrollbar-sm border rounded-md bg-white ${filter.values?.length ? `p-1` : `p-2`}`}
+                                placeholder={'Please enter a number...'}
                                 value={ value }
+                                type={'number'}
                                 onChange={e => {
                                     let newValues = [e];
                                     if(filter.allowSearchParams) {
@@ -236,6 +237,7 @@ export const RenderFilterValueSelector = ({
                                         updateFilter({key: 'values', value: newValues, filterColumn, filter, setState})
                                     }
                                 }}
+                                onWheel={e => e.target.blur()}
                                 displayInvalidMsg={false}
                             />
                     }

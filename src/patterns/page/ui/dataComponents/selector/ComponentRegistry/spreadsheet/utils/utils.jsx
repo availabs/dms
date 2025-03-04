@@ -71,13 +71,13 @@ export const applyFn = (col={}, isDms=false) => {
 const getColAccessor = (col, isDms) => !col ? null : applyFn(col, isDms);
 
 export const getLength = async ({options, state, apiLoad}) => {
-    const {filter, groupBy, exclude} = options;
+    const {orderBy, meta, ...optionsForLen} = options;
     const children = [{
         type: () => {
         },
         action: 'udaLength',
         path: '/',
-        filter: {options: JSON.stringify({filter, groupBy, exclude})},
+        filter: {options: JSON.stringify(optionsForLen)},
     }]
 
     const length = await apiLoad({
@@ -88,6 +88,21 @@ export const getLength = async ({options, state, apiLoad}) => {
 }
 
 const getFullColumn = (columnName, columns) => columns.find(col => col.name === columnName);
+
+const operations = {
+    gt: (a, b) => +a > +b,
+    gte: (a, b) => +a >= +b,
+    lt: (a, b) => +a < +b,
+    lte: (a, b) => +a <= +b,
+    like: (a,b) => b.toString().toLowerCase().includes(a.toString().toLowerCase())
+}
+
+const operationsStr = {
+    gt: '>',
+    gte: '>=',
+    lt: '<',
+    lte: '<='
+}
 
 export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => {
     const debug = false;
@@ -176,18 +191,47 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
             return {...acc, [getFullColumn(columnName, columnsWithSettings)?.refName]: finalValues}
         }, {}),
         meta,
-        // // if not grouping, apply numeric filters in the request
-        // ... !groupBy?.length && Object.keys(restOfDataRequestOptions).reduce((acc, filterOperation) => {
-        //     const columnsForOperation = Object.keys(restOfDataRequestOptions[filterOperation]);
-        //     acc[filterOperation] =
-        //         columnsForOperation.reduce((acc, columnName) => {
-        //             const currOperationValues = restOfDataRequestOptions[filterOperation][columnName];
-        //
-        //             acc[getFullColumn(columnName, columnsWithSettings)?.refName] = Array.isArray(currOperationValues) ? currOperationValues[0] : currOperationValues;
-        //             return acc;
-        //         }, {});
-        //     return acc;
-        // }, {})
+        // when not grouping, numeric filters can directly go in the request
+        ...!groupBy.length && Object.keys(restOfDataRequestOptions).reduce((acc, filterOperation) => {
+            const columnsForOperation = Object.keys(restOfDataRequestOptions[filterOperation]);
+            acc[filterOperation] =
+                columnsForOperation.reduce((acc, columnName) => {
+                    const {refName, reqName, fn} = getFullColumn(columnName, columnsWithSettings);
+                    const reqNameWithoutAS = splitColNameOnAS(reqName)[0];
+                    // if grouping by and fn is applied, use fn name.
+                    const columnNameToFilterBy = refName;
+                    const currOperationValues = restOfDataRequestOptions[filterOperation][columnName];
+
+                    acc[columnNameToFilterBy] = Array.isArray(currOperationValues) ? currOperationValues[0] : currOperationValues;
+                    return acc;
+                }, {});
+            return acc;
+        }, {}),
+        // if grouping, apply numeric filters as HAVING clause
+        ...groupBy.length && {
+            having: Object.keys(restOfDataRequestOptions).reduce((acc, filterOperation) => {
+                const columnsForOperation = Object.keys(restOfDataRequestOptions[filterOperation]);
+
+                const conditions = columnsForOperation.map((columnName) => {
+                        const {reqName, fn, defaultFn='count', ...restCol} = getFullColumn(columnName, columnsWithSettings);
+                        const reqNameWithoutAS = splitColNameOnAS(reqName)[0];
+
+                        const reqNameWithFn = fn ? reqNameWithoutAS :
+                            applyFn(
+                                {...restCol, fn: ['sum', 'count'].includes(defaultFn?.toLowerCase()) ? defaultFn.toLowerCase() : 'count'},
+                                state.sourceInfo.isDms);
+                        const reqNameWithFnWithoutAS = splitColNameOnAS(reqNameWithFn)[0];
+                        // if grouping by and fn is applied, use fn name.
+                        const currOperationValues = restOfDataRequestOptions[filterOperation][columnName];
+                        const valueToFilterBy = Array.isArray(currOperationValues) ? currOperationValues[0] : currOperationValues;
+                        if(!valueToFilterBy) return null
+                    return `${reqNameWithFnWithoutAS} ${operationsStr[filterOperation]} ${valueToFilterBy}`;
+                    }).filter(c => c);
+
+                acc.push(...conditions)
+                return acc;
+            }, [])
+        }
     }
     debug && console.log('debug getdata: options for spreadsheet getData', options, state)
     // =================================================================================================================
@@ -271,6 +315,7 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
             children
         });
     }catch (e) {
+        if (process.env.NODE_ENV === "development") console.error(e)
         return {length, data: [], invalidState: 'An Error occurred while fetching data.'};
     }
 
@@ -302,6 +347,7 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
                 children: totalRowChildren
             });
         }catch (e) {
+            if (process.env.NODE_ENV === "development") console.error(e)
             return {length, data: [], invalidState: 'An Error occurred while fetching data.'};
         }
 
@@ -309,13 +355,6 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
     }
     // ============================================== fetch total row end ==============================================
 
-    const operations = {
-        gt: (a, b) => +a > +b,
-        gte: (a, b) => +a >= +b,
-        lt: (a, b) => +a < +b,
-        lte: (a, b) => +a <= +b,
-        like: (a,b) => b.toString().toLowerCase().includes(a.toString().toLowerCase())
-    }
     return {
         length,
         data: data.map(row => columnsToFetch.reduce((acc, column) => ({
@@ -324,18 +363,18 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
             // return data with columns' original names
             [column.name]: cleanValue(row[row.totalRow ? column.totalName : column.reqName])
         }) , {}))
-            .filter(row => !Object.keys(restOfDataRequestOptions).length || (
-                Object.keys(restOfDataRequestOptions).reduce((acc, filterOperation) => {
-                    const columnsForOperation = Object.keys(restOfDataRequestOptions[filterOperation]);
-                    return acc && columnsForOperation.reduce((acc, columnName) => {
-                        const currOperationValues = restOfDataRequestOptions[filterOperation][columnName];
-                        const valueToFilterBy = Array.isArray(currOperationValues) ? currOperationValues[0] : currOperationValues;
-                        if(!valueToFilterBy) return acc && true;
-                        if(!row[columnName]) return acc && false;
-                        return acc && operations[filterOperation](row[columnName], valueToFilterBy);
-                    }, true)
-                }, true)
-            ))
+            // .filter(row => !Object.keys(restOfDataRequestOptions).length || (
+            //     Object.keys(restOfDataRequestOptions).reduce((acc, filterOperation) => {
+            //         const columnsForOperation = Object.keys(restOfDataRequestOptions[filterOperation]);
+            //         return acc && columnsForOperation.reduce((acc, columnName) => {
+            //             const currOperationValues = restOfDataRequestOptions[filterOperation][columnName];
+            //             const valueToFilterBy = Array.isArray(currOperationValues) ? currOperationValues[0] : currOperationValues;
+            //             if(!valueToFilterBy) return acc && true;
+            //             if(!row[columnName]) return acc && false;
+            //             return acc && operations[filterOperation](row[columnName], valueToFilterBy);
+            //         }, true)
+            //     }, true)
+            // ))
     }
 }
 

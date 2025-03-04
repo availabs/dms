@@ -4,6 +4,7 @@ import { merge } from "lodash-es"
 import { cloneDeep } from "lodash-es"
 // import TableComp from "./components/TableComp";
 // import {template, pattern} from "../admin/admin.format"
+import { useFalcor } from "@availabs/avl-falcor"
 import formsFormat, {source} from "./forms.format";
 
 import defaultTheme from './theme/theme'
@@ -161,7 +162,6 @@ const formsSourceConfig = ({
     themes={ default: {} },
     checkAuth = () => {}
 }) => {
-    
     let theme = merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern?.theme_name] || themes.default), parent?.theme || {})
     baseUrl = baseUrl === '/' ? '' : baseUrl
     const defaultLogo = (
@@ -192,8 +192,9 @@ const formsSourceConfig = ({
         children: [
             {
                 type: (props) => {
+                    const { falcor, falcorCache } = useFalcor();
                   return (
-                      <FormsContext.Provider value={{baseUrl: `${baseUrl}`, pageBaseUrl: `${baseUrl}/source`, user: props.user || defaultUser, theme, app, type, parent, Menu, API_HOST}}>
+                      <FormsContext.Provider value={{baseUrl: `${baseUrl}`, pageBaseUrl: `${baseUrl}/source`, user: props.user || defaultUser, theme, app, type, parent, Menu, API_HOST, falcor, falcorCache}}>
                         <AvailLayout>
                             {props.children}
                         </AvailLayout>

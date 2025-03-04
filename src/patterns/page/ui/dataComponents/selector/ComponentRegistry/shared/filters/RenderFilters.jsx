@@ -67,10 +67,10 @@ export const RenderFilters = ({
                     Object.keys(filters)
                         // don't pull filter data for internal filters in view mode
                         .filter(f => {
-                            if (isEdit) return true;
-
                             const filter = state.columns.find(({name}) => name === f)?.filters?.[0];
 
+                            if(['gt', 'gte', 'lt', 'lte', 'like'].includes(filter.operation)) return false; // never load numerical data
+                            if(isEdit) return true;
                             if(filter?.type === 'external') return true;
                         })
                         .map(async columnName => {
@@ -143,10 +143,11 @@ export const RenderFilters = ({
                         onClick={() => setOpen(false)}/>
                 {filterColumnsToRender.map((filterColumn, i) => (
                     <div key={i} className={'w-full flex flex-row flex-wrap items-center'}>
-                        <div className={'w-1/4 min-w-fit p-1 text-sm'}>
+                        <div className={'w-full min-w-fit p-1 text-sm'}>
                             <span className={'py-0.5 text-gray-500 font-medium'}>{filterColumn.customName || filterColumn.display_name || filterColumn.name}</span>
+                            <span className={'pl-0.5 font-thin text-gray-500'}>{loading ? 'loading...' : ''}</span>
                         </div>
-                        <div className={'flex flex-col w-3/4'}>
+                        <div className={'flex flex-col w-full'}>
                             <RenderFilterValueSelector key={`${filterColumn.name}-filter`}
                                                        isEdit={isEdit}
                                                        filterColumn={filterColumn}
