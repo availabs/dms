@@ -40,6 +40,8 @@ import {
   LayoutItemNode,
 } from '../../nodes/LayoutItemNode';
 
+import { LAYOUTS } from './InsertLayoutDialog'
+
 export const INSERT_LAYOUT_COMMAND: LexicalCommand<string> =
   createCommand<string>();
 
@@ -234,5 +236,5 @@ export function LayoutPlugin(): null {
 }
 
 function getItemsCountFromTemplate(template: string): number {
-  return template.trim().split(/\s+/).length;
+  return LAYOUTS.filter(d => d.value === template)?.[0]?.count || 2 
 }

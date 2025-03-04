@@ -15,13 +15,14 @@ import {useState} from 'react';
 import Button from '../../ui/Button';
 import DropDown, {DropDownItem} from '../../ui/DropDown';
 import {INSERT_LAYOUT_COMMAND} from './LayoutPlugin';
+import theme from "../../themes/PlaygroundEditorTheme";
 
-const LAYOUTS = [
-  {label: '2 columns (equal width)', value: '1fr 1fr'},
-  {label: '2 columns (25% - 75%)', value: '1fr 3fr'},
-  {label: '3 columns (equal width)', value: '1fr 1fr 1fr'},
-  {label: '3 columns (25% - 50% - 25%)', value: '1fr 2fr 1fr'},
-  {label: '4 columns (equal width)', value: '1fr 1fr 1fr 1fr'},
+export const LAYOUTS = [
+  {label: '2 columns (equal width)', value: 'grid-cols-1 md:grid-cols-2', count: 2},
+  {label: '2 columns (25% - 75%)', value: 'grid-cols-1 md:grid-cols-[1fr_3fr]', count:2},
+  {label: '3 columns (equal width)', value: 'grid-cols-1 md:grid-cols-3', count: 3},
+  {label: '3 columns (25% - 50% - 25%)', value: 'grid-cols-1 md:grid-cols-[1fr_2fr_1fr]', count: 3},
+  {label: '4 columns (equal width)', value: 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4', count: 4},
 ];
 
 export default function InsertLayoutDialog({
@@ -42,14 +43,14 @@ export default function InsertLayoutDialog({
   return (
     <>
       <DropDown
-        buttonClassName="toolbar-item dialog-dropdown"
+        buttonClassName={`${theme.toolbar.toolbarItem.base} block-controls`}
         buttonLabel={buttonLabel}>
         {LAYOUTS.map(({label, value}) => (
           <DropDownItem
             key={value}
-            className="item"
+            className={`${theme.dropdown.item.base} item`}
             onClick={() => setLayout(value)}>
-            <span className="text">{label}</span>
+            <span className={`${theme.dropdown.item.text}`}>{label}</span>
           </DropDownItem>
         ))}
       </DropDown>

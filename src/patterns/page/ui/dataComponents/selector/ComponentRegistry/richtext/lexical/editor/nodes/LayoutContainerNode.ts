@@ -60,7 +60,8 @@ export class LayoutContainerNode extends ElementNode {
 
   createDOM(config: EditorConfig): HTMLElement {
     const dom = document.createElement('div');
-    dom.style.gridTemplateColumns = this.__templateColumns;
+    //dom.style.gridTemplateColumns = this.__templateColumns;
+    addClassNamesToElement(dom,  this.__templateColumns);
     if (typeof config.theme.layoutContainer === 'string') {
       addClassNamesToElement(dom, config.theme.layoutContainer);
     }
@@ -76,7 +77,9 @@ export class LayoutContainerNode extends ElementNode {
 
   updateDOM(prevNode: this, dom: HTMLElement): boolean {
     if (prevNode.__templateColumns !== this.__templateColumns) {
-      dom.style.gridTemplateColumns = this.__templateColumns;
+      //dom.style.gridTemplateColumns = this.__templateColumns;
+      removeClassNamesFromElement(dom, prevNode.__templateColumns)
+      addClassNamesToElement(dom, this.__templateColumns);
     }
     return false;
   }
