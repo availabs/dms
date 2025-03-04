@@ -1,5 +1,5 @@
 import React, {useEffect, useMemo, useState} from "react";
-import Lexical from "../../lexical";
+import Lexical from "../../../patterns/page/ui/dataComponents/selector/ComponentRegistry/richtext/lexical"
 import {dmsDataTypes} from "../../index";
 
 const fieldTypes = {

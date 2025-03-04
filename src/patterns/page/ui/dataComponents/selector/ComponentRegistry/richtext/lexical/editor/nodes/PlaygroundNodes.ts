@@ -30,6 +30,8 @@ import {EmojiNode} from './EmojiNode';
 // import {ImageNode} from './ImageNode';
 import {InlineImageNode} from './InlineImageNode';
 import {KeywordNode} from './KeywordNode';
+import {LayoutContainerNode} from './LayoutContainerNode';
+import {LayoutItemNode} from './LayoutItemNode';
 // import {MentionNode} from './MentionNode';
 // import {PollNode} from './PollNode';
 // import {StickyNode} from './StickyNode';
@@ -70,7 +72,9 @@ const PlaygroundNodes: Array<Klass<LexicalNode>> = [
   CollapsibleContainerNode,
   CollapsibleContentNode,
   CollapsibleTitleNode,
-  CollapsibleButtonNode
+  CollapsibleButtonNode,
+  LayoutContainerNode,
+  LayoutItemNode,
 ];
 
 export default PlaygroundNodes;

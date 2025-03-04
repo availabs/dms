@@ -37,6 +37,7 @@ import * as ReactDOM from 'react-dom';
 import useModal from '../../hooks/useModal';
 import {INSERT_COLLAPSIBLE_COMMAND} from '../CollapsiblePlugin';
 import {INSERT_INLINE_IMAGE_COMMAND, InsertInlineImageDialog} from '../InlineImagePlugin';
+import InsertLayoutDialog from '../LayoutPlugin/InsertLayoutDialog';
 import {InsertNewTableDialog, InsertTableDialog} from '../TablePlugin';
 import {INSERT_EMBED_COMMAND} from '@lexical/react/LexicalAutoEmbedPlugin';
 import {EmbedConfigs} from '../AutoEmbedPlugin';
@@ -252,6 +253,14 @@ function getBaseOptions(editor: LexicalEditor, showModal: ShowModal) {
             keywords: ['collapse', 'collapsible', 'toggle'],
             onSelect: () =>
                 editor.dispatchCommand(INSERT_COLLAPSIBLE_COMMAND, undefined),
+        }),
+        new ComponentPickerOption('Columns Layout', {
+            icon: <i className={`${theme.typeaheadPopover.ul.li.icon} ${theme.icon.columns}`}/>,
+            keywords: ['columns', 'layout', 'grid'],
+            onSelect: () =>
+            showModal('Insert Columns Layout', (onClose) => (
+              <InsertLayoutDialog activeEditor={editor} onClose={onClose} />
+            )),
         }),
         ...(['left', 'center', 'right', 'justify'] as const).map(
             (alignment) =>
