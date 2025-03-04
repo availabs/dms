@@ -6,6 +6,11 @@ import {SpreadSheetContext} from "../index";
 import {Group, InfoCircle, LeftToRightListBullet, TallyMark, Sum, ArrowDown, SortAsc, SortDesc} from "../../../../../icons";
 import {ColorControls} from "../../shared/ColorControls";
 
+
+const selectClasses = 'w-full rounded-md bg-white group-hover:bg-gray-100 cursor-pointer'
+const selectWrapperClass = 'group px-2 py-1 w-full flex items-center cursor-pointer hover:bg-gray-100'
+const selectLabelClass = 'font-regular text-gray-500 cursor-default'
+
 const RenderLinkControls = ({attribute, updateColumns}) => {
     const [tmpValue, setTmpValue] = useState(attribute || {});
 
@@ -22,13 +27,13 @@ const RenderLinkControls = ({attribute, updateColumns}) => {
     const inputClassName = `p-0.5 rounded-sm`
     return (
         <div className={'px-2 py-1 w-full rounded-md bg-white hover:bg-gray-100 cursor-pointer'}>
-            <RenderToggleControls className={`inline-flex w-full justify-center items-center rounded-md cursor-pointer`}
+            <RenderToggleControls className={`inline-flex w-full justify-center items-center rounded-md cursor-pointer ${selectLabelClass}`}
                                   title={'Is Link'}
                                   value={tmpValue?.isLink}
                                   setValue={e => setTmpValue({...tmpValue, isLink: e})}
             />
             <div className={tmpValue.isLink ? `mt-0.5 flex flex-col gap-0.5 border rounded-md divide-y` : `hidden`}>
-                <RenderToggleControls className={`inline-flex w-full justify-center items-center rounded-md cursor-pointer`}
+                <RenderToggleControls className={`inline-flex w-full justify-center items-center rounded-md cursor-pointer ${selectLabelClass}`}
                                       title={'Use ID'}
                                       value={tmpValue?.useId}
                                       setValue={e => setTmpValue({...tmpValue, useId: e})}
@@ -58,57 +63,29 @@ const formatOptions = [
     {label: 'Abbreviated', value: 'abbreviate'},
 ]
 
-const headerFontSizeOptions = [
-    {label: 'X-Small Header Fonts', value: 'textXS'},
-    {label: 'Small Header Fonts', value: 'textSM'},
-    {label: 'Medium Header Fonts', value: 'textMD'},
-    {label: 'Large Header Fonts', value: 'textLG'},
-    {label: 'XL Header Fonts', value: 'textXL'},
-    {label: '2XL Header Fonts', value: 'text2XL'},
-    {label: '3XL Header Fonts', value: 'text3XL'},
-    {label: '4XL Header Fonts', value: 'text4XL'},
-    {label: '5XL Header Fonts', value: 'text5XL'},
-    {label: '6XL Header Fonts', value: 'text6XL'},
-    {label: '7XL Header Fonts', value: 'text7XL'},
-    {label: '8XL Header Fonts', value: 'text8XL'},
-    {label: '9XL Header Fonts', value: 'text9XL'},
+const fontStyleOptions = [
+    { label: 'X-Small', value: 'textXS' },
+    { label: 'X-Small Regular', value: 'textXSReg' },
+    { label: 'Small', value: 'textSM' },
+    { label: 'Small Regular', value: 'textSMReg' },
+    { label: 'Small Bold', value: 'textSMBold' },
+    { label: 'Small SemiBold', value: 'textSMSemiBold' },
+    { label: 'Base', value: 'textMD' },
+    { label: 'Base Regular', value: 'textMDReg' },
+    { label: 'Base Bold', value: 'textMDBold' },
+    { label: 'Base SemiBold', value: 'textMDSemiBold' },
+    { label: 'XL', value: 'textXL' },
+    { label: 'XL SemiBold', value: 'textXLSemiBold' },
+    { label: '2XL', value: 'text2XL' },
+    { label: '2XL Regular', value: 'text2XLReg' },
+    { label: '3XL', value: 'text3XL' },
+    { label: '3XL Regular', value: 'text3XLReg' },
+    { label: '4XL', value: 'text4XL' },
+    { label: '5XL', value: 'text5XL' },
+    { label: '6XL', value: 'text6XL' },
+    { label: '7XL', value: 'text7XL' },
+    { label: '8XL', value: 'text8XL' },
 ];
-
-const valueFontSizeOptions = [
-    {label: 'X-Small Value Fonts', value: 'textXS'},
-    {label: 'Small Value Fonts', value: 'textSM'},
-    {label: 'Medium Value Fonts', value: 'textMD'},
-    {label: 'Large Value Fonts', value: 'textLG'},
-    {label: 'XL Value Fonts', value: 'textXL'},
-    {label: '2XL Value Fonts', value: 'text2XL'},
-    {label: '3XL Value Fonts', value: 'text3XL'},
-    {label: '4XL Value Fonts', value: 'text4XL'},
-    {label: '5XL Value Fonts', value: 'text5XL'},
-    {label: '6XL Value Fonts', value: 'text6XL'},
-    {label: '7XL Value Fonts', value: 'text7XL'},
-    {label: '8XL Value Fonts', value: 'text8XL'},
-    {label: '9XL Value Fonts', value: 'text9XL'},
-];
-
-const headerFontWeightOptions = [
-    { label: 'Light Header Fonts', value: 'fontLight' },
-    { label: 'Normal Header Fonts', value: 'fontNormal' },
-    { label: 'Medium Header Fonts', value: 'fontMedium' },
-    { label: 'Semi Bold Header Fonts', value: 'fontSemiBold' },
-    { label: 'Bold Header Fonts', value: 'fontBold' },
-    { label: 'Extra Bold Header Fonts', value: 'fontExtraBold' }
-];
-
-const valueFontWeightOptions = [
-    { label: 'Light Value Fonts', value: 'fontLight' },
-    { label: 'Normal Value Fonts', value: 'fontNormal' },
-    { label: 'Medium Value Fonts', value: 'fontMedium' },
-    { label: 'Semi Bold Value Fonts', value: 'fontSemiBold' },
-    { label: 'Bold Value Fonts', value: 'fontBold' },
-    { label: 'Extra Bold Value Fonts', value: 'fontExtraBold' }
-];
-
-const selectClasses = 'p-1 w-full rounded-md bg-white hover:bg-gray-100 cursor-pointer'
 
 // in header menu for each column
 export default function TableHeaderCell({attribute}) {
@@ -117,8 +94,7 @@ export default function TableHeaderCell({attribute}) {
         allowSortBy,
         allowJustify,
         allowFormat,
-        allowFontSize,
-        allowFontWeight,
+        allowFontStyleSelect,
         allowHideHeader,
         allowCardSpan,
         allowLinkControl,
@@ -129,7 +105,7 @@ export default function TableHeaderCell({attribute}) {
     const menuBtnId = `menu-btn-${attribute.name}-in-header-column-controls`; // used to control isOpen on menu-btm click;
     useHandleClickOutside(menuRef, menuBtnId, () => setIsOpen(false));
 
-    const maxCardSpan = columns.filter(({show, cardSpan}) => show && !cardSpan).length;
+    const maxCardSpan = display.gridSize || columns.filter(({show, cardSpan}) => show).length;
 
     // updates column if present, else adds it with the change the user made.
     const updateColumns = useCallback((key, value) => setState(draft => {
@@ -202,15 +178,16 @@ export default function TableHeaderCell({attribute}) {
             </div>
 
             <div ref={menuRef}
-                 className={` min-w-[150px]
+                 className={`min-w-[180px]
                  ${isOpen ? 'visible transition ease-in duration-200' : 'hidden transition ease-in duration-200'} 
                  absolute right-0 z-[10] divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 transition`}
             >
-                <div className="py-0.5 w-1/2 min-w-fit max-h-[500px] overflow-auto scrollbar-sm">
+                <div className="py-0.5 min-w-fit max-h-[500px] overflow-auto scrollbar-sm">
                     <div className="flex flex-col gap-0.5 items-center px-1 py-1 text-xs text-gray-600 font-regular">
                         {
                             allowSortBy ?
-                                <div className={'w-full cursor-pointer'}>
+                                <div className={selectWrapperClass}>
+                                    <label className={selectLabelClass}>Sort</label>
                                     <select
                                         className={selectClasses}
                                         value={attribute.sort || 'default'}
@@ -228,7 +205,8 @@ export default function TableHeaderCell({attribute}) {
 
                         {
                             allowJustify ?
-                                <div className={'w-full cursor-pointer'}>
+                                <div className={selectWrapperClass}>
+                                    <label className={selectLabelClass}>Justify</label>
                                     <select
                                         className={selectClasses}
                                         value={attribute.justify}
@@ -243,7 +221,8 @@ export default function TableHeaderCell({attribute}) {
 
                         {
                             allowFormat ?
-                                <div className={'w-full cursor-pointer'}>
+                                <div className={selectWrapperClass}>
+                                    <label className={selectLabelClass}>Format</label>
                                     <select
                                         className={selectClasses}
                                         value={attribute.formatFn}
@@ -257,66 +236,36 @@ export default function TableHeaderCell({attribute}) {
                         }
 
                         {
-                            allowFontSize ?
-                                <div className={'w-full cursor-pointer'}>
+                            allowFontStyleSelect ?
+                                <div className={selectWrapperClass}>
+                                    <label className={selectLabelClass}>Header</label>
                                     <select
                                         className={selectClasses}
-                                        value={attribute.headerFontSize}
-                                        onChange={e => updateColumns('headerFontSize', e.target.value)}
+                                        value={attribute.headerFontStyle}
+                                        onChange={e => updateColumns('headerFontStyle', e.target.value)}
                                     >
                                         {
-                                            headerFontSizeOptions.map(({label, value}) => <option key={label} value={value}>{label}</option>)
+                                            fontStyleOptions.map(({label, value}) => <option key={label} value={value}>{label}</option>)
                                         }
                                     </select>
                                 </div> : null
                         }
 
                         {
-                            allowFontSize ?
-                                <div className={'w-full cursor-pointer'}>
+                            allowFontStyleSelect ?
+                                <div className={selectWrapperClass}>
+                                    <label className={selectLabelClass}>Value</label>
                                     <select
                                         className={selectClasses}
-                                        value={attribute.valueFontSize}
-                                        onChange={e => updateColumns('valueFontSize', e.target.value)}
+                                        value={attribute.valueFontStyle}
+                                        onChange={e => updateColumns('valueFontStyle', e.target.value)}
                                     >
                                         {
-                                            valueFontSizeOptions.map(({label, value}) => <option key={label} value={value}>{label}</option>)
+                                            fontStyleOptions.map(({label, value}) => <option key={label} value={value}>{label}</option>)
                                         }
                                     </select>
                                 </div> : null
                         
-                        }
-
-                        {
-                            allowFontWeight ?
-                                <div className={'w-full cursor-pointer'}>
-                                    <select
-                                        className={selectClasses}
-                                        value={attribute.headerFontWeight}
-                                        onChange={e => updateColumns('headerFontWeight', e.target.value)}
-                                    >
-                                        {
-                                            headerFontWeightOptions.map(({label, value}) => <option key={label} value={value}>{label}</option>)
-                                        }
-                                    </select>
-                                </div> : null
-
-                        }
-
-                        {
-                            allowFontWeight ?
-                                <div className={'w-full cursor-pointer'}>
-                                    <select
-                                        className={selectClasses}
-                                        value={attribute.valueFontWeight}
-                                        onChange={e => updateColumns('valueFontWeight', e.target.value)}
-                                    >
-                                        {
-                                            valueFontWeightOptions.map(({label, value}) => <option key={label} value={value}>{label}</option>)
-                                        }
-                                    </select>
-                                </div> : null
-
                         }
 
                         {
@@ -327,7 +276,7 @@ export default function TableHeaderCell({attribute}) {
                             allowHideHeader ? (
                                 <div className={'px-2 py-1 w-full rounded-md bg-white hover:bg-gray-100 cursor-pointer'}>
                                     <RenderToggleControls
-                                        className={`inline-flex w-full justify-center items-center rounded-md cursor-pointer`}
+                                        className={`inline-flex w-full justify-center items-center rounded-md cursor-pointer ${selectLabelClass}`}
                                         title={'Hide Header'}
                                         value={attribute.hideHeader}
                                         setValue={e => updateColumns('hideHeader', e)}
@@ -338,7 +287,8 @@ export default function TableHeaderCell({attribute}) {
 
                         {
                             allowCardSpan && !display.compactView ? (
-                                <div className={'w-full cursor-pointer'}>
+                                <div className={selectWrapperClass}>
+                                    <label className={selectLabelClass}>Span</label>
                                     <select
                                         className={selectClasses}
                                         value={attribute.cardSpan}
@@ -355,10 +305,12 @@ export default function TableHeaderCell({attribute}) {
 
                         {
                             allowBGColorSelector && !display.compactView ?
-                                <ColorControls value={attribute.bgColor}
-                                               setValue={e => updateColumns('bgColor', e)}
-                                               title={'Background Color'}
-                                />
+                                <div className={`w-full ${selectLabelClass}`}>
+                                    <ColorControls value={attribute.bgColor}
+                                                   setValue={e => updateColumns('bgColor', e)}
+                                                   title={'Background Color'}
+                                    />
+                                </div>
                                 : null
                         }
                     </div>

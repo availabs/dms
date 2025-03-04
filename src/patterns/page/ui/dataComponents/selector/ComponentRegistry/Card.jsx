@@ -31,32 +31,30 @@ export const dataCardTheme = {
     justifyTextRight: 'text-end',
     justifyTextCenter: 'text-center',
 
-    textXS: 'text-xs',
-    textSM: 'text-sm',
-    textMD: 'text-md',
-    textLG: 'text-lg',
-    textXL: 'text-xl',
-    text2XL: 'text-2xl',
-    text3XL: 'text-3xl',
-    text4XL: 'text-4xl',
-    text5XL: 'text-5xl',
-    text6XL: 'text-6xl',
-    text7XL: 'text-7xl',
-    text8XL: 'text-8xl',
-    text9XL: 'text-9xl',
+    textXS: 'text-xs font-medium',
+    textXSReg: 'text-xs font-normal',
+    textSM: 'text-sm font-medium',
+    textSMReg: 'text-sm font-normal',
+    textSMBold: 'text-sm font-normal',
+    textSMSemiBold: 'text-sm font-semibold',
+    textMD: 'ftext-md ont-medium',
+    textMDReg: 'text-md font-normal',
+    textMDBold: 'text-md font-bold',
+    textMDSemiBold: 'text-md font-semibold',
+    textXL: 'text-xl font-medium',
+    textXLSemiBold: 'text-xl font-semibold',
+    text2XL: 'text-2xl font-medium',
+    text2XLReg: 'text-2xl font-regular',
+    text3XL: 'text-3xl font-medium',
+    text3XLReg: 'text-3xl font-normal',
+    text4XL: 'text-4xl font-medium',
+    text5XL: 'text-5xl font-medium',
+    text6XL: 'text-6xl font-medium',
+    text7XL: 'text-7xl font-medium',
+    text8XL: 'text-8xl font-medium',
 
-    fontThin: 'font-thin',
-    fontExtraLight: 'font-extralight',
-    fontLight: 'font-light',
-    fontNormal: 'font-normal',
-    fontMedium: 'font-medium',
-    fontSemiBold: 'font-semibold',
-    fontBold: 'font-bold',
-    fontExtraBold: 'font-extrabold',
-    fontBlack: 'font-black',
-
-    header: 'w-full capitalize', // #37576B
-    value: 'w-full' // #2D3E4C
+    header: 'w-full capitalize',
+    value: 'w-full'
 }
 // cards can be:
 // one cell per row, that carries one column's data,
@@ -79,8 +77,8 @@ export const Card = ({isEdit}) => {
     const cardsWithoutSpanLength = useMemo(() => columns.filter(({show, cardSpan}) => show && !cardSpan).length, [columns]);
 
 
-    const mainWrapperStyle = gridSize && compactView ? {gridTemplateColumns: `repeat(${Math.min(gridSize, data.length)}, minmax(0, 1fr))`, gap: gridGap, backgroundColor: bgColor} : {gap: gridGap};
-    const subWrapperStyle = compactView ? {} : {gridTemplateColumns: `repeat(${gridSize || cardsWithoutSpanLength}, minmax(0, 1fr))`, gap: gridGap || 2}
+    const mainWrapperStyle = gridSize && compactView ? {gridTemplateColumns: `repeat(${Math.min(gridSize, data.length)}, minmax(0, 1fr))`, gap: gridGap} : {gap: gridGap};
+    const subWrapperStyle = compactView ? {backgroundColor: bgColor, padding} : {gridTemplateColumns: `repeat(${gridSize || cardsWithoutSpanLength}, minmax(0, 1fr))`, gap: gridGap || 2}
 
     useEffect(() => {
         // set hideSection flag
@@ -127,11 +125,11 @@ export const Card = ({isEdit}) => {
                                 visibleColumns
                                     .map(attr => {
                                         const value = attr.formatFn ?
-                                            formatFunctions[attr.formatFn](item?.[attr.name], attr.isDollar) :
+                                            formatFunctions[attr.formatFn](item?.[attr.name], attr.isDollar).replaceAll(' ', '') :
                                             item?.[attr.name]
                                         const id = item?.id;
                                         const {isLink, location, linkText, useId} = attr || {};
-                                        const span = compactView ? 'span 1' : `span ${Math.min(attr.cardSpan || 1, cardsWithoutSpanLength)}`;
+                                        const span = compactView ? 'span 1' : `span ${attr.cardSpan || 1}`;
 
                                         const headerTextJustifyClass = justifyClass[attr.justify || 'center']?.header || justifyClass[attr.justify || 'center'];
                                         const valueTextJustifyClass = justifyClass[attr.justify || 'center']?.value || justifyClass[attr.justify || 'center'];
@@ -141,15 +139,14 @@ export const Card = ({isEdit}) => {
                                                  ${dataCard.headerValueWrapper}
                                                  flex-${headerValueLayout} ${reverse && headerValueLayout === 'col' ? `flex-col-reverse` : reverse ? `flex-row-reverse` : ``}
                                                  ${compactView ? dataCard.headerValueWrapperCompactView : `${dataCard.headerValueWrapperSimpleView} ${removeBorder ? `` : 'border shadow'}`}`}
-                                                 style={{gridColumn: span, padding, backgroundColor: compactView ? undefined : attr.bgColor}}
+                                                 style={{gridColumn: span, padding: compactView ? undefined : padding, backgroundColor: compactView ? undefined : attr.bgColor}}
                                             >
                                                 {
                                                     attr.hideHeader ? null : (
                                                         <div className={`
-                                                        ${dataCard.header}
+                                                        ${dataCard.header} ${compactView ? dataCard.headerCompactView : dataCard.headerSimpleView}
                                                          ${dataCard[headerTextJustifyClass]}
-                                                          ${dataCard[attr.headerFontSize || 'textXS']}
-                                                          ${dataCard[attr.headerFontWeight || 'fontLight']}
+                                                          ${dataCard[attr.headerFontStyle || 'textXS']}
                                                           
                                                           `}>
                                                             {attr.customName || attr.display_name || attr.name}
@@ -157,10 +154,9 @@ export const Card = ({isEdit}) => {
                                                     )
                                                 }
                                                 <div className={`
-                                                ${dataCard.value} 
+                                                ${dataCard.value} ${compactView ? dataCard.valueCompactView : dataCard.valueSimpleView}
                                                 ${dataCard[valueTextJustifyClass]}
-                                                 ${dataCard[attr.valueFontSize || 'textXS']}
-                                                 ${dataCard[attr.valueFontWeight || 'fontLight']}
+                                                 ${dataCard[attr.valueFontStyle || 'textXS']}
                                                  `}>
                                                     {
                                                         isLink ?

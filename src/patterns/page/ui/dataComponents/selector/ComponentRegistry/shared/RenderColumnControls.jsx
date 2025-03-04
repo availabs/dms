@@ -151,7 +151,7 @@ export default function RenderColumnControls({context}) {
                 draft.columns
                     .filter(c => c.name !== originalAttribute.name && c.show && !c.group && !c.fn)
                     .forEach(col => {
-                        col.fn = col.defaultFn || 'list';
+                        col.fn = col.defaultFn?.toLowerCase() || 'list';
                     });
             }
 
@@ -207,7 +207,7 @@ export default function RenderColumnControls({context}) {
                 }
 
                 if (show && isGrouping && !draft.columns[idx].group && !draft.columns[idx].fn) {
-                    draft.columns[idx]['fn'] = draft.columns[idx].defaultFn || 'list';
+                    draft.columns[idx]['fn'] = draft.columns[idx].defaultFn?.toLowerCase() || 'list';
                 } else if (!show){
                     draft.columns[idx].sort = undefined;
                     draft.columns[idx].fn = undefined;

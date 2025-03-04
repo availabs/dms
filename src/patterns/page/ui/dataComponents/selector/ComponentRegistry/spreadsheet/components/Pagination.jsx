@@ -31,6 +31,7 @@ export const Pagination = ({currentPage, setCurrentPage, compType}) => {
         paginationRange.push(i);
     }
 
+    if(paginationRange.length === 1 ) return null;
     return (
         <div className={theme?.table?.paginationContainer}>
             {

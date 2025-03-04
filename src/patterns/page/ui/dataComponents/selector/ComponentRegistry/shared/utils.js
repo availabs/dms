@@ -54,7 +54,7 @@ export const getControlConfig = compType => ({
     allowFormat: ['card', 'spreadsheet', 'graph'].includes(compType),
     allowHideHeader: ['card'].includes(compType),
     allowCardSpan: ['card'].includes(compType),
-    allowFontSize: ['card'].includes(compType),
+    allowFontStyleSelect: ['card'].includes(compType),
     allowFontWeight: ['card'].includes(compType),
     allowReverseToggle: ['card'].includes(compType),
     allowEditInViewToggle: ['item', 'spreadsheet'].includes(compType),
