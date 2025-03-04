@@ -129,7 +129,7 @@ function DropDownItems({
 
   return (
     <DropDownContext.Provider value={contextValue}>
-      <div className={theme.dropdown.base} ref={dropDownRef} onKeyDown={handleKeyDown}>
+      <div className={`${theme.dropdown.base} z-30`} ref={dropDownRef} onKeyDown={handleKeyDown}>
         {children}
       </div>
     </DropDownContext.Provider>
