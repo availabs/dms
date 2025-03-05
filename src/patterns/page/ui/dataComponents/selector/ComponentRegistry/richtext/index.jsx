@@ -25,6 +25,8 @@ const cardTheme = {
         h5: "pl-[16px] scroll-mt-36 font-display", //'PlaygroundEditorTheme__h5',
         h6: "pl-[16px] scroll-mt-36 font-display", //'PlaygroundEditorTheme__h6',
     },
+    layoutContainer: 'grid',
+    layoutItem: 'border-b border-slate-300 min-w-0 max-w-full'
 }
 
 const Edit = ({value, onChange}) => {
