@@ -11,12 +11,12 @@ export const attributionTheme = {
 
 export const RenderAttribution = () => {
     const { theme = { attribution: attributionTheme } } = React.useContext(CMSContext) || {}
-    const {state:{sourceInfo: {isDms, source_id, name, view_id, view_name, updated_at}, setState}} = useContext(SpreadSheetContext);
+    const {state:{sourceInfo: {isDms, source_id, name, view_id, view_name, updated_at}}, compType} = useContext(SpreadSheetContext);
     const dateOptions = {year: "numeric", month: "long", day: "numeric", hour: "numeric", minute: "numeric"};
     const updatedTimeString = updated_at ? new Date(updated_at).toLocaleString(undefined, dateOptions) : null;
 
     return (
-        <div className={theme.attribution.wrapper}>
+        <div className={`${theme.attribution.wrapper} ${compType === 'graph' ? `pt-[0px]` : `pt-[16px]`}`}>
             <span className={theme.attribution.label}>Attribution:</span>
             <Link
                 className={theme.attribution.link}
