@@ -69,6 +69,7 @@ export const tableTheme = {
     pageRangeItem: 'cursor-pointer px-3  text-[#2D3E4C] py-1  text-[12px] hover:bg-slate-50 font-[500] rounded  uppercase leading-[18px]' ,
     pageRangeItemInactive: '',
     pageRangeItemActive: 'bg-slate-100 ',
+    openOutContainerWrapper: 'fixed inset-0 right-0 h-full w-full z-[100]',
     openOutHeader: 'font-semibold text-gray-600'
 }
 

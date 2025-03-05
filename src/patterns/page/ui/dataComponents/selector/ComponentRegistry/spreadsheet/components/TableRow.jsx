@@ -157,8 +157,8 @@ export const TableRow = ({
             {/************************************************ open out row ******************************************/}
             {/********************************************************************************************************/}
             { showOpenOut ?
-                <div className={'fixed inset-0 right-0 h-full w-full z-[100]'} style={{backgroundColor: '#00000066'}}>
-                    <div className={'w-[330px] flex flex-col gap-[12px] p-[16px] bg-white h-full float-right'}>
+                <div className={theme?.table?.openOutContainerWrapper} style={{backgroundColor: '#00000066'}}>
+                    <div className={'w-[330px] overflow-auto scrollbar-sm flex flex-col gap-[12px] p-[16px] bg-white h-full float-right'}>
                         <div className={'w-full flex justify-end'}>
                             <div className={'w-fit h-fit p-[8px] text-[#37576B] border border-[#E0EBF0] rounded-full cursor-pointer'}
                                  onClick={() => setShowOpenOut(false)}
