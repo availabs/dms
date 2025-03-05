@@ -2,12 +2,12 @@ import React, {useContext, useEffect, useState} from "react";
 import {Link} from "react-router-dom";
 import DataTypes from "../../../../../../../../data-types";
 import {formatFunctions} from "../utils/utils";
-import { ArrowDown, ArrowRight } from "../../../../../../../forms/ui/icons";
 import { SpreadSheetContext } from "../index";
 import {isEqual} from "lodash-es";
 import { RenderAction } from "./RenderActions";
 import { tableTheme } from './SimpleSpreadsheet'
 import { CMSContext } from '../../../../../../siteConfig'
+import {InfoCircle} from "../../../../../icons";
 
 const DisplayCalculatedCell = ({value, className}) => <div className={className}>{value}</div>
 const stringifyIfObj = obj => typeof obj === "object" ? JSON.stringify(obj) : obj;
@@ -41,11 +41,9 @@ const validate = ({value, required, options, name}) => {
     return requiredValidation && optionsValidation;
 }
 
-const frozenColClass = '' //'sticky left-0 z-10'
-
 export const TableCell = ({
                                showOpenOutCaret, showOpenOut, setShowOpenOut,
-                               attribute, colSpan,
+                               attribute, colSpan, openOutTitle,
                                i, item, updateItem, removeItem, onPaste,
                                isFrozen, isSelected, isSelecting, editing, edge, loading, allowEdit,
                                onClick, onDoubleClick, onMouseDown, onMouseMove, onMouseUp}) => {
@@ -104,18 +102,18 @@ export const TableCell = ({
     const bgColor = !isValid ? `bg-red-50 hover:bg-red-100` : isTotalRow ? `bg-gray-100` :
                                 display.striped && i % 2 !== 0 ? 'bg-gray-50 hover:bg-gray-100' :
                                     isSelected ? 'bg-blue-50 hover:bg-blue-100' : 'bg-white bg-blue-50';
+
     return (
         <div
-            className={`
+            className={attribute.openOut || openOutTitle ? `` : `
                 ${theme?.table.cell} 
                 ${isFrozen ? theme?.table?.cellFrozenCol : ''} 
                 ${isSelecting ? 'select-none' : ``}
                 ${isSelected ? theme?.table.cellBgSelected : theme?.table.cellBg}
             `}
             style={{
-                ...!attribute.openOut && {width: attribute.size},
+                ...!(attribute.openOut || openOutTitle) && {width: attribute.size},
                 ...isSelected && {borderWidth: '1px', ...selectionEdgeClassNames[edge]},
-                ...attribute.openOut && {gridColumn: `span ${colSpan} / ${colSpan}`}
             }}
             onClick={attribute.isLink || attribute.actionType ? undefined : onClick}
             onMouseDown={attribute.isLink || attribute.actionType ? undefined : onMouseDown}
@@ -125,36 +123,40 @@ export const TableCell = ({
             onPaste={onPaste}
         >
             {showOpenOutCaret ?
-                <div className={'cursor-pointer'}>
-                    {
-                        showOpenOut ?
-                            <ArrowDown className={'bg-transparent text-gray-500 group-hover:text-gray-600'}
-                                       title={'Hide Open Out'}
-                                       width={18} height={18}
-                                       onClick={() => setShowOpenOut(false)}/> :
-                            <ArrowRight className={'bg-transparent group-hover:text-gray-600'}
-                                        title={'Show Open Out'}
-                                        width={18} height={18}
-                                        onClick={() => setShowOpenOut(true)}/>
-                    }
+                <div className={'px-2 cursor-pointer'}
+                     onClick={() => {
+                         setShowOpenOut(!showOpenOut)
+                     }}
+                >
+                    <InfoCircle className={'bg-transparent text-gray-500 group-hover:text-gray-600'}
+                               title={'Hide Open Out'}
+                               width={18} height={18}
+                    />
                 </div> : null}
-            {attribute.openOut ? <span className={'font-semibold text-gray-600 px-2'}>{attribute.customName || attribute.display_name || attribute.name}</span> : null}
+            {attribute.openOut ?
+                <span className={theme?.table?.openOutHeader}>
+                    {attribute.customName || attribute.display_name || attribute.name}
+                </span> : null}
             <CompWithLink key={`${attribute.name}-${i}`}
                   onClick={onClick}
                   autoFocus={editing}
                   className={`
-                    ${theme?.table?.cellInner} 
+                    ${
+                      openOutTitle ? theme?.table?.openOutTitle : 
+                          attribute.openOut ? theme?.table?.openOutValue :
+                              theme?.table?.cellInner
+                  } 
                     ${justifyClass[attribute.justify]} 
                     ${bgColor}
-                    ${attribute.type === 'multiselect' && newItem[attribute.name]?.length ? 'p-0.5' :
+                    ${
+                      openOutTitle ? `` : 
+                      attribute.type === 'multiselect' && newItem[attribute.name]?.length ? 'p-0.5' :
                           attribute.type === 'multiselect' && !newItem[attribute.name]?.length ? 'p-0.5' : 'p-0.5'
                   } 
                   `}
-                // displayInvalidMsg={false}
                   {...attribute}
                   value={value}
                   onChange={e => isTotalRow ? null : setNewItem({...newItem, [attribute.name]: e})}
-                // onPaste={onPaste}
             />
         </div>
     )

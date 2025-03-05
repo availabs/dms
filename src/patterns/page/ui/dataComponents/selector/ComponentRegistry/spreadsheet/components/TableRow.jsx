@@ -1,10 +1,10 @@
 import React, {useContext, useMemo, useState} from "react";
-import {actionsColSize, numColSize as numColSizeDf, gutterColSize as gutterColSizeDf, } from "../constants"
+import {numColSize as numColSizeDf, gutterColSize as gutterColSizeDf, } from "../constants"
 import {TableCell} from "./TableCell";
 import {SpreadSheetContext} from "../index";
-import {handleMouseDown, handleMouseMove, handleMouseUp} from "../utils/mouse";
 import { CMSContext } from '../../../../../../siteConfig'
 import { tableTheme } from './SimpleSpreadsheet'
+import {XMark} from "../../../../../icons";
 
 const getEdge = ({startI, endI, startCol, endCol}, i, attrI) => {
     const e =
@@ -143,12 +143,7 @@ export const TableRow = ({
                             }}
                             onDoubleClick={() => {}}
                             allowEdit={allowEdit}
-                            // striped={striped}
                         />)}
-
-                {/*<RenderActions allowEdit={allowEdit} isEdit={isEdit} isLastCell={true} newItem={d}*/}
-                {/*               groupBy={groupBy} filters={filters}*/}
-                {/*               removeItem={removeItem} actions={actions}/>*/}
 
                 <div className={'flex items-center border'}>
                     <div key={'##'}
@@ -162,109 +157,51 @@ export const TableRow = ({
             {/************************************************ open out row ******************************************/}
             {/********************************************************************************************************/}
             { showOpenOut ?
-                openOutAttributes.map((attribute, openOutAttrI) => {
-                    const attrI = visibleAttrsWithoutOpenOutsLen + 1 + openOutAttrI;
-                    return (
-                        <div key={`data-open-out-${i}`}
-                             className={openOutAttributes?.length ? `${d.totalRow ? `sticky bottom-0 z-[1]` : ``} ${gridClass}
-                            divide-x divide-y ${isDragging ? `select-none` : ``} ${display.striped ? `odd:bg-gray-50` : ``} 
-                            ${d.totalRow ? `bg-gray-100` : ``}` : 'hidden'}
-                             style={{gridTemplateColumns}}
-                        >
-                            <div key={'#'}
-                                 className={`p-1 flex text-xs items-center justify-center border cursor-pointer sticky left-0 z-[1]
-                             ${selection.find(s => (s.index !== undefined ? s.index : s) === i) ? 'bg-blue-100 text-gray-900' : 'bg-gray-50 text-gray-500'}`}
-                                 style={{width: numColSize}}
-                                 onClick={e => {
-                                     // single click = replace selection
-                                     // click and mouse move = add to selection
-                                     // ctrl + click add
-                                     if (e.ctrlKey) {
-                                         setSelection(selection.includes(i) ? selection.filter(v => v !== i) : [...selection, i])
-                                     } else {
-                                         setSelection([i])
-                                     }
-                                 }}
-                                 onMouseDown={e => handleMouseDown({
-                                     e,
-                                     index: i,
-                                     setSelection,
-                                     setIsDragging,
-                                     startCellCol,
-                                     startCellRow,
-                                     selection
-                                 })}
-                                 onMouseMove={e => handleMouseMove({
-                                     e,
-                                     index: i,
-                                     isDragging,
-                                     startCellCol,
-                                     startCellRow,
-                                     setSelection
-                                 })}
-                                 onMouseUp={e => handleMouseUp({setIsDragging})}
+                <div className={'fixed inset-0 right-0 h-full w-full z-[100]'} style={{backgroundColor: '#00000066'}}>
+                    <div className={'w-[330px] flex flex-col gap-[12px] p-[16px] bg-white h-full float-right'}>
+                        <div className={'w-full flex justify-end'}>
+                            <div className={'w-fit h-fit p-[8px] text-[#37576B] border border-[#E0EBF0] rounded-full cursor-pointer'}
+                                 onClick={() => setShowOpenOut(false)}
                             >
-                                {">"}
-                            </div>
-
-                            <TableCell
-                                isSelecting={isSelecting}
-                                isSelected={selection.find(s => s.index === i && s.attrI === attrI) || selection.includes(i)}
-                                isFrozen={frozenCols.includes(attrI)}
-                                edge={
-                                    selection.find(s => s.index === i && s.attrI === attrI) || selection.includes(i) ?
-                                        getEdge(selectionRange, i, attrI) : null}
-                                editing={editing.index === i && editing.attrI === attrI}
-                                triggerDelete={triggerSelectionDelete}
-                                key={`cell-${i}-${attrI}`}
-
-                                attribute={attribute}
-                                openOut={true}
-                                colSpan={visibleAttrsWithoutOpenOutsLen}
-                                loading={loading}
-                                updateItem={updateItem}
-                                removeItem={removeItem}
-
-                                i={i}
-                                item={d}
-                                onMouseDown={e => handleMouseDown({
-                                    e,
-                                    index: i,
-                                    attrI,
-                                    setSelection,
-                                    setIsDragging,
-                                    startCellCol,
-                                    startCellRow,
-                                    selection
-                                })}
-                                onMouseMove={e => handleMouseMove({
-                                    e,
-                                    index: i,
-                                    attrI,
-                                    isDragging,
-                                    startCellCol,
-                                    startCellRow,
-                                    setSelection
-                                })}
-                                onMouseUp={e => handleMouseUp({setIsDragging})}
-                                onClick={() => {
-                                    setSelection([{index: i, attrI}]);
-                                    setEditing({index: i, attrI});
-                                }}
-                                onDoubleClick={() => {}}
-                                allowEdit={allowEdit}
-                                // striped={striped}
-                            />
-
-                            <div className={'flex items-center border'}>
-                                <div key={'##'}
-                                     className={`bg-gray-50 h-full flex shrink-0 justify-between`}
-                                     style={{width: numColSize}}
-                                > {` `}</div>
+                                <XMark height={16} width={16}/>
                             </div>
                         </div>
-                    )
-                }) : null
+
+                        {/* First column as title of the open out drawer*/}
+                        <TableCell
+                            key={`open-out-title`}
+                            attribute={visibleAttrsWithoutOpenOut[0]}
+                            openOut={true}
+                            loading={loading}
+                            i={i}
+                            item={d}
+                            openOutTitle={true}
+                        />
+
+                        {/* Open out columns */}
+                        {openOutAttributes.map((attribute, openOutAttrI) => {
+                            const attrI = visibleAttrsWithoutOpenOutsLen + 1 + openOutAttrI;
+                            return (
+                                <div key={`data-open-out-${i}`}
+                                     className={''}>
+                                    <TableCell
+                                        editing={editing.index === i && editing.attrI === attrI}
+                                        key={`cell-${i}-${attrI}`}
+                                        attribute={attribute}
+                                        openOut={true}
+                                        loading={loading}
+                                        updateItem={updateItem}
+                                        removeItem={removeItem}
+
+                                        i={i}
+                                        item={d}
+                                        allowEdit={allowEdit}
+                                    />
+                                </div>
+                            )
+                        })}
+                    </div>
+                </div> : null
             }
         </>
     )

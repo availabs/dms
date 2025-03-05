@@ -68,7 +68,8 @@ export const tableTheme = {
     paginationControlsContainer: 'flex flex-row items-center overflow-hidden gap-0.5',
     pageRangeItem: 'cursor-pointer px-3  text-[#2D3E4C] py-1  text-[12px] hover:bg-slate-50 font-[500] rounded  uppercase leading-[18px]' ,
     pageRangeItemInactive: '',
-    pageRangeItemActive: 'bg-slate-100 '
+    pageRangeItemActive: 'bg-slate-100 ',
+    openOutHeader: 'font-semibold text-gray-600'
 }
 
 
