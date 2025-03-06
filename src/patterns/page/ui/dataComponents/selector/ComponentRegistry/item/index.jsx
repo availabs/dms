@@ -209,8 +209,12 @@ const View = ({value, format:formatFromProps, apiLoad, apiUpdate, ...rest}) => {
 
     const updateItem = async () => {
         const res = await apiUpdate({data: tmpItem,  config: {format: {...state.sourceInfo, type: `${state.sourceInfo.type}-${state.sourceInfo.view_id}`}}});
-        if(res?.id && (itemId === 'add-new-item' || !itemId)){
+        if(res?.id && itemId === 'add-new-item'){
             window.location = window.location.href.replace(itemId, res.id);
+        }
+
+        if(res?.id && !itemId){
+            window.location = `${window.location.href}?id=${res.id}`;
         }
     }
 
