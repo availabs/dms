@@ -23,6 +23,7 @@ import {attributionTheme} from "../dataComponents/selector/ComponentRegistry/spr
 
 
 import { menuTheme } from '../components/menu'
+import {labelTheme} from "../components/label";
 
 const theme = {
   navOptions: {
@@ -95,6 +96,7 @@ const theme = {
   nestable: nestableTheme,
   dialog: dialogTheme,
   popover: popoverTheme,
+  label: labelTheme,
   select: selectTheme,
   // -- 
   sectionArray: sectionArrayTheme,

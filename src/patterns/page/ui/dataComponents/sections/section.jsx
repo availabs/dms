@@ -25,6 +25,7 @@ import {
     Copy
 } from '../../icons'
 import { Modal, Popover, Button } from "../../";
+import Label from "../../components/label";
 
 const isJson = (str)  => {
     try {
@@ -239,7 +240,7 @@ export function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAb
                     <div className={`z-10 relative`}>
                         <div className={`absolute mr-16 top-[-14px] right-[-60px] flex items-center h-[32px]`}> 
                             {value?.['tags']?.length ? 
-                            (<Popover button={<Tags  className='text-slate-400 hover:text-blue-500 w-[24px] h-[24px]' title="Move Up"/>}>
+                            (<Popover button={<Tags className='text-slate-400 hover:text-blue-500 w-[24px] h-[24px]' title="Tags"/>}>
                                 <TagComponent
                                     
                                     className='p-2 flex-0'
@@ -429,7 +430,8 @@ function TagComponent ({value, placeholder, onChange, edit=false}) {
     ]
 
     return (
-        <div className='w-full border border-blue-200'>
+        <div className='w-full'>
+
             {edit && <Combobox>
                 <div className="relative z-20">
                     <Combobox.Input
@@ -437,7 +439,7 @@ function TagComponent ({value, placeholder, onChange, edit=false}) {
                         placeholder={placeholder}
                         value={newTag}
                         onChange={(e) => {setNewTag( e.target.value) }}
-                        
+
                         onKeyUp={(e => {
                             if(e.key === 'Enter' && newTag.length > 0) {
                               onChange([...arrayValue,newTag].join(','))
@@ -449,11 +451,11 @@ function TagComponent ({value, placeholder, onChange, edit=false}) {
                 {tags
                     .filter(tag => (!newTag?.length || tag.toLowerCase().includes(newTag.toLowerCase())))
                     .length ? (
-                        <Combobox.Options 
+                        <Combobox.Options
                             static
                             className="max-h-96 transform-gpu scroll-py-3 overflow-y-auto p-3"
                         >
-                            
+
                             {tags
                                 .filter(tag => (newTag.length > 0 && tag.toLowerCase().includes(newTag.toLowerCase())))
                                 .filter((tag, i) => i <= 5)
@@ -463,38 +465,30 @@ function TagComponent ({value, placeholder, onChange, edit=false}) {
                                         value={tag}
                                         onClick={() => {
                                             setNewTag(tag)
-                                            
-                                            
+
+
                                         }}
-                                        className={({active}) => `flex cursor-pointer select-none rounded-xl p-1 ${active && 'bg-gray-100'}`}
-                                    >
-                                        {({active}) => (
-                                            <div>
-                                                <i className="text-sm text-blue-400 fa fa-tag" />
-                                                <span
-                                                    className={`ml-2 text-sm font-medium ${active ? 'text-gray-900' : 'text-gray-700'}`}
-                                                >
-                                                    {tag}
-                                                </span>
-                                            </div>
-                                        )}
+                                        className={({active}) => `flex cursor-pointer select-none rounded-xl p-1 ${active && 'bg-gray-100'}`}>
+                                        <Label text={tag} />
                                     </Combobox.Option>
                                 ))}
                         </Combobox.Options>
                     ) : null
                 }
             </Combobox>}
-            <div className='w-full min-h-8 border-blue-200'>
+            <div className='w-full min-h-8 flex flex-col gap-1 px-1 py-2'>
             {
                 arrayValue
                     .sort((a,b) => a.localeCompare(b))
                     .map((d,i) => (
-                    <div key={i} className='px-2 py-1 text-sm border border-blue-200 m-1 rounded bg-blue-100 flex justify-between items-center'>
-                        <div className='text-slate-600'>{d}</div>
-                        {edit ? <div className='cursor-pointer' onClick={() => onChange(arrayValue.filter(v => v !== d ).join(','))}>
-                            <RemoveCircle className='text-red-400 hover:text-red-600  w-[16px] h-[16px]'/>
-                        </div> : null}
-                    </div>
+                        <Label text={
+                            <div key={i} className='flex justify-between items-center'>
+                                {d}
+                                {edit ? <div className='cursor-pointer' onClick={() => onChange(arrayValue.filter(v => v !== d ).join(','))}>
+                                    <RemoveCircle className='text-red-400 hover:text-red-600  w-[16px] h-[16px]'/>
+                                </div> : null}
+                            </div>
+                        } />
                 ))
             }
             </div>
