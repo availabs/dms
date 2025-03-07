@@ -212,9 +212,22 @@ export const RenderFilterValueSelector = ({
                                 onChange={e => {
                                     let newValues = (e || []).map(filterItem => filterItem?.value || filterItem);
                                     if(filter.allowSearchParams) {
-                                        const newFilters = {...filterWithSearchParamKeys, [filter.searchParamKey || filterColumn.name]: newValues}
+                                        const newFilters =  Object.keys(filterWithSearchParamKeys).filter(col => {
+                                            if((filter.searchParamKey || filterColumn.name) === col) return false;
+
+                                            const currValue = filterWithSearchParamKeys[col];
+                                            return currValue?.length;
+                                        }).reduce((acc, col) => {
+                                            acc[col] = filterWithSearchParamKeys[col];
+                                            return acc;
+                                        }, {})
+
+                                        if(newValues.length){
+                                            newFilters[filter.searchParamKey || filterColumn.name] = newValues;
+                                        }
                                         const url = convertToUrlParams(newFilters, delimiter);
                                         navigate(`?${url}`)
+                                        updateFilter({key: 'values', value: newValues, filterColumn, filter, setState})
                                     }else {
                                         updateFilter({key: 'values', value: newValues, filterColumn, filter, setState})
                                     }
@@ -230,10 +243,23 @@ export const RenderFilterValueSelector = ({
                                 onChange={e => {
                                     let newValues = [e];
                                     if(filter.allowSearchParams) {
-                                        const newFilters = {...filterWithSearchParamKeys, [filter.searchParamKey || filterColumn.name]: newValues}
+                                        const newFilters =  Object.keys(filterWithSearchParamKeys).filter(col => {
+                                            if((filter.searchParamKey || filterColumn.name) === col) return false;
+
+                                            const currValue = filterWithSearchParamKeys[col];
+                                            return currValue?.length;
+                                        }).reduce((acc, col) => {
+                                            acc[col] = filterWithSearchParamKeys[col];
+                                            return acc;
+                                        }, {})
+
+                                        if(newValues.length){
+                                            newFilters[filter.searchParamKey || filterColumn.name] = newValues;
+                                        }
                                         const url = convertToUrlParams(newFilters, delimiter);
                                         navigate(`?${url}`)
-                                    }else {
+                                        updateFilter({key: 'values', value: newValues, filterColumn, filter, setState})
+                                    } else {
                                         updateFilter({key: 'values', value: newValues, filterColumn, filter, setState})
                                     }
                                 }}
