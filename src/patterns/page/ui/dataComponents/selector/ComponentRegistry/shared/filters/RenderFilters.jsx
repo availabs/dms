@@ -27,9 +27,11 @@ export const RenderFilters = ({
         const filterWithSearchParamKeys = useMemo(() => showNavigate ?
             Object.keys(filters).reduce((acc, filterColumn) => {
                 const currFilters = state.columns.find(c => c.name === filterColumn)?.filters; // for now, it's always just 1 filter.
-                acc[currFilters?.[0]?.searchParamKey || filterColumn] = filters[filterColumn];
+                if(filters[filterColumn] && filters[filterColumn].length > 0){
+                    acc[currFilters?.[0]?.searchParamKey || filterColumn] = filters[filterColumn];
+                }
                 return acc;
-            }, {}) : [],
+            }, {}) : {},
         [filters, showNavigate]);
 
         useEffect(() => {
