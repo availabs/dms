@@ -33,11 +33,14 @@ export function getChildNav(item, dataItems, baseUrl='', edit) {
     if (children.length === 0 && inPageChildren?.length === 0) return false
     if (children.length === 0 && inPageChildren?.length !== 0) return inPageChildren;
 
-    const childrenToReturn = children.map((d, i) => {
+    const childrenToReturn = children
+        .filter(d => !d?.hide_in_nav)
+        .map((d, i) => {
         let item = {
             id: d.id,
             path: `${edit ? `${baseUrl}/edit` : baseUrl}/${d.url_slug || d.id}`,
-            name: d.title
+            name: d.title,
+            hideInNav: d.hide_in_nav
         }
         const inPageChildrenForD =  getInPageNav(d)?.menuItems || [];
         const childrenForD = getChildNav(d, dataItems, baseUrl, edit) || [];

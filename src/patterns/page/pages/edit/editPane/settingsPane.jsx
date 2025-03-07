@@ -54,7 +54,7 @@ function SettingsPane () {
             value: item.full_width || '',
             options: [
               {label: 'Show', value: 'show'}, 
-              {label: 'Hide', value: 'hide'}
+              {label: 'Hide', value: ''}
             ],
             onChange:(e) => {
               togglePageSetting(item, 'full_width', e.target.value,  apiUpdate)
