@@ -167,21 +167,31 @@ const Breadcrumbs = ({ chain }) => {
 export function Header ({position = 'above',bgImg = '/themes/mny/takeaction_landuse_2tp.png' , logo = '', title = 'Title', overlay='overlay', note='note', height=673, chain, showBreadcrumbs}) {
 
   return (
-    <div className={`lg:-mb-[145px] bg-fit bg-center w-full flex flex-col lg:flex-row w-full h-[773px]`}>
+    <div className={`w-full h-[773px] lg:-mb-[145px] flex flex-col lg:flex-row 
+                    ${overlay === 'full' ? '' : 'bg-fit'} bg-center`}
+         style={ overlay === 'full' ? { background: `url('${bgImg}')`, backgroundSize: 'cover'} : {}}
+    >
+      {/* image div */}
       <div 
-        className='lg:order-last h-[699px] rounded-bl-[395px] flex-1' 
-        style={overlay === 'inset' ? 
-          { background: `url('${bgImg}')`} :
-          { background: 'linear-gradient(0deg, #1A2732, #1A2732),linear-gradient(81.58deg, #213440 67.87%, #37576B 189.24%)'}}
+        className={`lg:order-last h-[699px] ${overlay === 'full' ? '' : 'rounded-bl-[395px]'} flex-1`}
+        style={overlay === 'inset' ?
+          { background: `url('${bgImg}')`} : overlay === 'overlay' || overlay === 'none' ?
+          { background: 'linear-gradient(0deg, #1A2732, #1A2732),linear-gradient(81.58deg, #213440 67.87%, #37576B 189.24%)'} : {}}
         >
+
         {overlay === 'overlay' ? 
-          <img className='relative top-[90px] w-[708px] w-[708px]' src={bgImg} /> : 
+          <img className='relative top-[90px] w-[708px] w-[708px]' src={bgImg} alt={'overlay image'}/> :
           <div className='relative top-[90px] w-[708px] w-[708px]' />
         }
       </div>
+
+      {/* breadcrumbs, title, note */}
       <div className='lg:flex-1'>
         <div className='pt-12 lg:pt-0 lg:max-w-[656px]  w-full flex lg:ml-auto  h-full items-center'>
-          <div className='pr-[64px] xl:pl-0 px-[15px]'>
+          <div className={overlay === 'full' ?
+              'px-[32px] py-[37px] gap-[16px] left-[64px] bg-white shadow-md rounded-[12px]' :
+              'pr-[64px] xl:pl-0 px-[15px]'
+          }>
             <div className={'flex flex-col gap-1'}>
                 <div className={'z-10'}>
                     {
@@ -433,7 +443,7 @@ const Edit = ({value, onChange, size}) => {
             <div className={'flex flex-row flex-wrap justify-between'}>
               <label className={'shrink-0 pr-2 py-1 my-1 w-1/4'}>bgImg:</label>
               <div className={`flex flex row w-3/4 shrink my-1`}>
-                <Select options={compData.overlay === 'inset' ? insetImageOptions : overlayImageOptions } value={compData.bgImg} onChange={(e) => setCompData({...compData, bgImg: e.target.value})} />
+                <Select options={compData.overlay === 'inset' || compData.overlay === 'full' ? insetImageOptions : overlayImageOptions } value={compData.bgImg} onChange={(e) => setCompData({...compData, bgImg: e.target.value})} />
               </div>
             </div>
 
@@ -441,18 +451,16 @@ const Edit = ({value, onChange, size}) => {
               <label className={'shrink-0 pr-2 py-1 my-1 w-1/4'}>Img Position</label>
               <div className={`flex flex row w-3/4 shrink my-1`}>
                 <Select 
-                  options={[{
-                    label: 'Overlay',
-                    value: 'overlay'
-                  },
-                  {
-                    label: 'Inset',
-                    value: 'inset'
-                  }]} 
+                  options={[
+                      { label: 'Overlay', value: 'overlay' },
+                      { label: 'Inset', value: 'inset' },
+                      { label: 'Full Width', value: 'full' },
+                      { label: 'No Image', value: 'none' },
+                  ]}
                   value={compData.overlay} 
                   onChange={(e) => {
                     setCompData({...compData,
-                      bgImg: e.target.value === 'inset' ? insetImageOptions[0].value : overlayImageOptions[0].value,
+                      bgImg: e.target.value === 'inset' || e.target.value === 'full' ? insetImageOptions[0].value : overlayImageOptions[0].value,
                       overlay: e.target.value
                     })
                   }} />
