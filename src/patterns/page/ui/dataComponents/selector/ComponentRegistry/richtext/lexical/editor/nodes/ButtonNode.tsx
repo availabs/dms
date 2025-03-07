@@ -26,28 +26,47 @@ import {
 } from '@lexical/react/LexicalDecoratorBlockNode';
 import * as React from 'react';
 
+const BUTTON_STYLES = {
+  primary: 'w-fit h-fit cursor-pointer uppercase bg-[#EAAD43] hover:bg-[#F1CA87] text-[#37576B] font-[700] leading-[14.62px] rounded-full text-[12px] text-center py-[16px] px-[24px]',
+  secondary: 'w-fit h-fit cursor-pointer uppercase border boder-[#E0EBF0] bg-white hover:bg-[#E0EBF0] text-[#37576B] font-[700] leading-[14.62px] rounded-full text-[12px] text-center py-[16px] px-[24px]',
+  primarySmall: 'w-fit h-fit cursor-pointer uppercase bg-[#EAAD43] hover:bg-[#F1CA87] text-[#37576B] font-[700] leading-[14.62px] rounded-full text-[12px] text-center pt-[9px] pb-[7px] px-[12px]',
+  secondarySmall: 'w-fit h-fit cursor-pointer uppercase border bg-[C5D7E0] hover:bg-[#E0EBF0] text-[#37576B] font-[700] leading-[14.62px] rounded-full text-[12px] text-center pt-[9px] pb-[7px] px-[12px]',  
+} 
 
 function ButtonComponent({
   className,
   format,
   nodeKey,
   linkText,
-  path
+  path,
+  style
 }) {
+  console.log('ButtonComponent classname', className)
+  console.log('ButtonComponent format',format, )
+  console.log('ButtonComponent nodekey', nodeKey)
+  console.log('ButtonComponent linkText',linkText)
+
   return (
     <BlockWithAlignableContents
       className={className}
       format={format}
       nodeKey={nodeKey}>
-      <Link className='p-4 rounded bg-slate-300' to={path}>{linkText}</Link>
+      <Link className={BUTTON_STYLES[style] || BUTTON_STYLES['primary']} to={path}>{typeof linkText === 'string' ? linkText : 'submit'}</Link>
     </BlockWithAlignableContents>
   );
+}
+
+export interface ButtonPayload {
+    linkText: string;
+    path: string;
+    style?: string;
 }
 
 export type SerializedButtonNode = Spread<
   {
     linkText: string;
     path: string;
+    style: string;
   },
   SerializedDecoratorBlockNode
 >;
@@ -56,6 +75,7 @@ function convertButtonElement(
   domNode: HTMLElement,
 ): null | DOMConversionOutput {
   const linkText = domNode.innerText
+  console.log('convert', linkText)
   const path = domNode.getAttribute('href') //getAttribute('data-lexical-button');
   if (linkText) {
     const node = $createButtonNode(linkText, path);
@@ -67,17 +87,18 @@ function convertButtonElement(
 export class ButtonNode extends DecoratorBlockNode {
   __linkText: string;
   __path: string;
+  __style: string;
 
   static getType(): string {
     return 'button';
   }
 
   static clone(node: ButtonNode): ButtonNode {
-    return new ButtonNode(node.__linkText, node.__linkText, node.__format, node.__key);
+    return new ButtonNode(node.__linkText, node.__path, node.__style, node.__format, node.__key);
   }
 
   static importJSON(serializedNode: SerializedYouTubeNode): ButtonNode {
-    const node = $createButtonNode(serializedNode.linkText, serializedNode.path);
+    const node = $createButtonNode(serializedNode.linkText, serializedNode.path,serializedNode.style);
     node.setFormat(serializedNode.format);
     return node;
   }
@@ -89,17 +110,19 @@ export class ButtonNode extends DecoratorBlockNode {
       version: 1,
       linkText: this.__linkText,
       path: this.__path,
+      style: this.__style
     };
   }
 
-  constructor(linkText: string, path?: string, format?: ElementFormatType, key?: NodeKey) {
+  constructor(linkText: string, path?: string, style?: string, format?: ElementFormatType, key?: NodeKey) {
     super(format, key);
     this.__linkText = linkText;
     this.__path = path;
+    this.__style = style;
   }
 
   exportDOM(): DOMExportOutput {
-    const element = document.createElement('div');
+    const element = document.createElement('a');
     element.setAttribute('href', this.__path);
     element.setAttribute('data-lexical-button', 'true');
     element.innerText = this.__linkText
@@ -129,13 +152,6 @@ export class ButtonNode extends DecoratorBlockNode {
     return this.__id;
   }
 
-  getTextContent(
-    _includeInert?: boolean | undefined,
-    _includeDirectionless?: false | undefined,
-  ): string {
-    return `https://www.youtube.com/watch?v=${this.__id}`;
-  }
-
   decorate(_editor: LexicalEditor, config: EditorConfig): JSX.Element {
     const embedBlockTheme = config.theme.embedBlock || {};
     const className = {
@@ -147,7 +163,9 @@ export class ButtonNode extends DecoratorBlockNode {
         className={className}
         format={this.__format}
         nodeKey={this.getKey()}
-        videoID={this.__id}
+        linkText={this.__linkText}
+        path={this.__path}
+        style={this.__style}
       />
     );
   }
@@ -157,12 +175,13 @@ export class ButtonNode extends DecoratorBlockNode {
   }
 }
 
-export function $createButtonNode(videoID: string): YouTubeNode {
-  return new YouTubeNode(videoID);
+export function $createButtonNode(payload): ButtonNode {
+  const {linkText,path,style} = payload
+  return new ButtonNode(linkText,path,style);
 }
 
-export function $isYouTubeNode(
-  node: YouTubeNode | LexicalNode | null | undefined,
-): node is YouTubeNode {
-  return node instanceof YouTubeNode;
+export function $isButtonNode(
+  node: ButtonNode | LexicalNode | null | undefined,
+): node is ButtonNode {
+  return node instanceof ButtonNode;
 }

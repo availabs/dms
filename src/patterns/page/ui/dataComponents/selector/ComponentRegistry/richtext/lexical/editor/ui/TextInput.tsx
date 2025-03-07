@@ -36,7 +36,7 @@ export default function TextInput({
         type={type}
         className={`${InputStyles["Input__input"]}`}
         placeholder={placeholder}
-        onChange={(e) => onChange(e.target.files)}
+        onChange={(e) => onChange(e.target.value)}
         data-test-id={dataTestId}
       />
     </div>

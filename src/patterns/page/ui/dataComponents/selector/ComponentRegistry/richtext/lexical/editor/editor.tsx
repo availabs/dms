@@ -59,6 +59,7 @@ import YouTubePlugin from './plugins/YouTubePlugin';
 import ContentEditable from './ui/ContentEditable';
 import Placeholder from './ui/Placeholder';
 import InlineImagePlugin from "./plugins/InlineImagePlugin";
+import ButtonPlugin from './plugins/ButtonPlugin'
 
 // const skipCollaborationInit =
 //     // @ts-expect-error
@@ -191,6 +192,7 @@ export default function Editor(props): JSX.Element {
                             <FloatingTextFormatToolbarPlugin/>
                         </NewTablePlugin>
                         <InlineImagePlugin/>
+                        <ButtonPlugin />
                         <LinkPlugin/>
                        
                         <YouTubePlugin/>

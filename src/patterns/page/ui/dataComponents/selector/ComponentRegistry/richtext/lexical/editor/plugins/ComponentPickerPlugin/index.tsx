@@ -36,6 +36,7 @@ import * as ReactDOM from 'react-dom';
 
 import useModal from '../../hooks/useModal';
 import {INSERT_COLLAPSIBLE_COMMAND} from '../CollapsiblePlugin';
+import {InsertButtonDialog} from '../ButtonPlugin';
 import {INSERT_INLINE_IMAGE_COMMAND, InsertInlineImageDialog} from '../InlineImagePlugin';
 import InsertLayoutDialog from '../LayoutPlugin/InsertLayoutDialog';
 import {InsertNewTableDialog, InsertTableDialog} from '../TablePlugin';
@@ -260,6 +261,14 @@ function getBaseOptions(editor: LexicalEditor, showModal: ShowModal) {
             onSelect: () =>
             showModal('Insert Columns Layout', (onClose) => (
               <InsertLayoutDialog activeEditor={editor} onClose={onClose} />
+            )),
+        }),
+        new ComponentPickerOption('Button', {
+            icon: <i className={`${theme.typeaheadPopover.ul.li.icon} ${theme.icon.columns}`}/>,
+            keywords: ['button'],
+            onSelect: () =>
+            showModal('Insert Button', (onClose) => (
+              <InsertButtonDialog activeEditor={editor} onClose={onClose} />
             )),
         }),
         ...(['left', 'center', 'right', 'justify'] as const).map(
