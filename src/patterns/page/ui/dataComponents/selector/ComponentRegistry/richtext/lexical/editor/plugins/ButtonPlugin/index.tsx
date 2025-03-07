@@ -79,7 +79,7 @@ export function InsertButtonDialog({
 
   const handleOnClick = () => {
     const payload = {linkText, path, style};
-    console.log('dispatch command', INSERT_BUTTON_COMMAND, payload, linkText, path, style)
+    //console.log('dispatch command', INSERT_BUTTON_COMMAND, payload, linkText, path, style)
     activeEditor.dispatchCommand(INSERT_BUTTON_COMMAND, payload);
     onClose();
   };
@@ -93,7 +93,7 @@ export function InsertButtonDialog({
           label="Button Text"
           placeholder=""
           onChange={e => {
-            console.log('button text',e)
+            //console.log('button text',e)
             setLinkText(e)
             }
           }

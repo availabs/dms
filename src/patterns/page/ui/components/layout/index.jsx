@@ -48,7 +48,7 @@ const Layout = ({ children, navItems, secondNav, title, pageTheme, EditPane, yPa
 	const { pathname } = useLocation();
 	const theme = merge(cloneDeep(defaultTheme), cloneDeep(pageTheme))
 	// console.log('theme navOptions', pageTheme)
-	const { sideNav={ }, topNav={}, logo=Logos } = theme?.navOptions || {}
+	const { sideNav={ }, topNav={}, logo=Logos } = cloneDeep(theme?.navOptions) || {}
 	
 	const sideNavOptions = {
 		size: sideNav.size || 'none',
