@@ -114,7 +114,7 @@ function pattern2routes (siteData, props) {
                 //console.log('add patterns', pattern, SUBDOMAIN)
                 const c = configs[pattern.pattern_type];
                 if(!c) return acc;
-                //console.log('register pattern', pattern, theme)
+                //console.log('register pattern', pattern.id, pattern)
                 acc.push(
                     ...c.map(config => {
                         const configObj = config({
@@ -127,7 +127,6 @@ function pattern2routes (siteData, props) {
                             format: pattern?.config,
                             pattern: pattern,
                             pattern_type:pattern?.pattern_type,
-                            parent: pattern,
                             authLevel: +pattern.authLevel || -1,
                             pgEnv:pgEnvs?.[0] || '',
                             themes,
@@ -155,10 +154,10 @@ export default async function dmsSiteFactory(props) {
     dmsConfigUpdated.attributes = updateAttributes(dmsConfigUpdated.attributes, dmsConfig.app)
 
     falcor = falcor || falcorGraph(API_HOST)
-    // console.time('load routes')
+    console.time('load routes')
     let data = await dmsDataLoader(falcor, dmsConfigUpdated, `/`);
-    // console.timeEnd('load routes')
-    // console.log('data -- get site data here', data)
+    console.timeEnd('load routes')
+    //console.log('data -- get site data here', data)
 
     return pattern2routes(data, props)
 }
@@ -193,7 +192,7 @@ export function DmsSite ({
     
     useEffect(() => {
         (async function() {
-            // console.time('dmsSiteFactory')
+            console.time('dmsSiteFactory')
             const dynamicRoutes = await dmsSiteFactory({
                 dmsConfig,
                 adminPath,
@@ -203,7 +202,7 @@ export function DmsSite ({
                 authWrapper
                 //theme   
             });
-            // console.timeEnd('dmsSiteFactory')
+            console.timeEnd('dmsSiteFactory')
             //console.log('dynamicRoutes ', dynamicRoutes)
             setDynamicRoutes(dynamicRoutes);
         })()
@@ -215,7 +214,7 @@ export function DmsSite ({
         Component: () => (<div className={'w-screen h-screen flex items-center bg-blue-50'}>404</div>)
     }
 
-    //console.log('routes', routes, dynamicRoutes)
+    //console.log('routes',  dynamicRoutes)
 
     return (
         <RouterProvider router={createBrowserRouter([

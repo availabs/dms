@@ -50,6 +50,18 @@ function SettingsPane () {
           },
           {
             type:'Select',
+            label: 'Full Width',
+            value: item.full_width || '',
+            options: [
+              {label: 'Show', value: 'show'}, 
+              {label: 'Hide', value: ''}
+            ],
+            onChange:(e) => {
+              togglePageSetting(item, 'full_width', e.target.value,  apiUpdate)
+            }
+          },
+          {
+            type:'Select',
             label: 'Show Header',
             value: item.header || '',
             options: [

@@ -41,10 +41,10 @@ function ButtonComponent({
   path,
   style
 }) {
-  console.log('ButtonComponent classname', className)
-  console.log('ButtonComponent format',format, )
-  console.log('ButtonComponent nodekey', nodeKey)
-  console.log('ButtonComponent linkText',linkText)
+  // console.log('ButtonComponent classname', className)
+  // console.log('ButtonComponent format',format, )
+  // console.log('ButtonComponent nodekey', nodeKey)
+  // console.log('ButtonComponent linkText',linkText)
 
   return (
     <BlockWithAlignableContents
@@ -75,7 +75,7 @@ function convertButtonElement(
   domNode: HTMLElement,
 ): null | DOMConversionOutput {
   const linkText = domNode.innerText
-  console.log('convert', linkText)
+  //console.log('convert', linkText)
   const path = domNode.getAttribute('href') //getAttribute('data-lexical-button');
   if (linkText) {
     const node = $createButtonNode(linkText, path);

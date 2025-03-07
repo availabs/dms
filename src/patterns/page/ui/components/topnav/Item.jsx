@@ -153,7 +153,7 @@ const SubMenu = ({ i, showSubMenu, subMenus, type, hovering, subMenuActivate, ac
 	const theme = (fullTheme?.[type === 'side' ? 'sidenav' : 'topnav'] || {}) //(themeOptions);
 
 
-	const inactiveHoveing = !active && subMenuActivate !== 'onHover' && hovering;
+	const inactiveHoveing = subMenuActivate !== 'onHover' && hovering;
 	if ((!showSubMenu || !subMenus.length) && !(inactiveHoveing)) {
 		return null;
 	}
