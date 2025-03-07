@@ -165,16 +165,55 @@ const Breadcrumbs = ({ chain }) => {
 
 
 export function Header ({position = 'above',bgImg = '/themes/mny/takeaction_landuse_2tp.png' , logo = '', title = 'Title', overlay='overlay', note='note', height=673, chain, showBreadcrumbs}) {
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
 
-  return (
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 1024);
+
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+  return overlay === 'full' ? (
+      <div
+          className="relative w-full h-auto lg:h-[773px] lg:-mb-[145px] flex flex-col lg:flex-row justify-center"
+          style={{ background: isMobile ? `none` : `url('${bgImg}') center/cover`}}
+      >
+          {/* image div */}
+          <div
+              className="lg:order-last w-full lg:flex-1 h-[699px]"
+              style={{ background: isMobile ? `url('${bgImg}') center/cover` : 'none' }}
+          >
+              <div className="relative top-[90px] w-[708px] mx-auto" />
+          </div>
+
+          {/* breadcrumbs, title, note div */}
+          <div className="w-full lg:flex-1 flex justify-center lg:justify-end">
+              <div className="w-full lg:max-w-[656px] h-full flex items-center pt-12 lg:pt-0">
+                  <div className="h-full lg:h-[514px] w-full lg:w-[481px] px-[32px] py-[37px] gap-[16px] bg-white shadow-md rounded-[12px]">
+                      <div className="flex flex-col gap-1">
+                          <div className="px-1 z-10">
+                              {showBreadcrumbs ? <Breadcrumbs chain={chain} /> : null}
+                          </div>
+                          {title && <div className="text-3xl sm:text-[72px] font-[500] font-['Oswald'] text-[#2D3E4C] sm:leading-[72px] uppercase">{title}</div>}
+                      </div>
+                      <div className="text-[16px] leading-[24px] text-[#37576B] w-full p-1 pt-2">
+                          {note && <div>{note}</div>}
+                      </div>
+                  </div>
+              </div>
+          </div>
+
+      </div>
+
+
+
+  ) : (
     <div className={`relative w-full ${overlay === 'none' ? 'h-[484px] sm:h-[773px]' : 'h-[773px]'} lg:-mb-[145px] flex flex-col lg:flex-row 
-                    ${overlay === 'full' ? '' : 'bg-fit'} bg-center justify-center`}
-         style={ overlay === 'full' ? { background: `url('${bgImg}')`, backgroundSize: 'cover'} : {}}
-    >
+                    bg-fit bg-center justify-center`}>
       {/* image div */}
-      <div 
-        className={`lg:order-last h-[699px] 
-        ${overlay === 'full' ? 'flex-1' : 'flex-1 rounded-bl-[395px]'} 
+      <div
+        className={`lg:order-last h-[699px] flex-1 rounded-bl-[395px]
         ${overlay === 'none' ? `flex-1 sm:bg-[#1A2732] sm:bg-gradient-to-r from-[#213440] to-[#213440] via-[#213440]/70` : 
         overlay === 'overlay' ? `flex-1 bg-[#1A2732] bg-gradient-to-r from-[#213440] to-[#213440] via-[#213440]/70` : ''}
         `}
@@ -183,7 +222,7 @@ export function Header ({position = 'above',bgImg = '/themes/mny/takeaction_land
           { background: `url('${bgImg}')`} : {}}
         >
 
-        {overlay === 'overlay' ? 
+        {overlay === 'overlay' ?
           <img className='relative top-[90px] w-[708px] w-[708px]' src={bgImg} alt={'overlay image'}/> :
           <div className='relative top-[90px] w-[708px] w-[708px]' />
         }
@@ -192,12 +231,7 @@ export function Header ({position = 'above',bgImg = '/themes/mny/takeaction_land
       {/* breadcrumbs, title, note: overlay, inset, full*/}
       <div className='lg:flex-1 top-[150px] sm:top-0'>
         <div className={'w-full lg:max-w-[656px] h-full lg:ml-auto flex items-center pt-12 lg:pt-0'}>
-          <div className={
-              overlay === 'none' ? 'hidden' :
-              overlay === 'full' ?
-              'h-[514px] w-[481px] px-[32px] py-[37px] gap-[16px]  bg-white shadow-md rounded-[12px]' :
-              'pr-[64px] xl:pl-0 px-[15px]'
-          }>
+          <div className={overlay === 'none' ? 'hidden' : 'pr-[64px] xl:pl-0 px-[15px]'}>
 
             <div className={'flex flex-col gap-1'}>
                 <div className={'px-1 z-10'}>
