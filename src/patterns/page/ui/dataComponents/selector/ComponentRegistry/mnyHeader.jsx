@@ -167,7 +167,7 @@ const Breadcrumbs = ({ chain }) => {
 export function Header ({position = 'above',bgImg = '/themes/mny/takeaction_landuse_2tp.png' , logo = '', title = 'Title', overlay='overlay', note='note', height=673, chain, showBreadcrumbs}) {
 
   return (
-    <div className={`relative w-full h-[773px] lg:-mb-[145px] flex flex-col lg:flex-row 
+    <div className={`relative w-full ${overlay === 'none' ? 'h-[484px] sm:h-[773px]' : 'h-[773px]'} lg:-mb-[145px] flex flex-col lg:flex-row 
                     ${overlay === 'full' ? '' : 'bg-fit'} bg-center justify-center`}
          style={ overlay === 'full' ? { background: `url('${bgImg}')`, backgroundSize: 'cover'} : {}}
     >
