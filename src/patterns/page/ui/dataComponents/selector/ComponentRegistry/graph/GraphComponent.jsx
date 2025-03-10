@@ -170,7 +170,8 @@ export const GraphComponent = props => {
               label: get(graphFormat, ["xAxis", "label"]),
               rotateLabels: get(graphFormat, ["xAxis", "rotateLabels"], false),
               tickSpacing: get(graphFormat, ["xAxis", "tickSpacing"], true),
-              showGridLines: get(graphFormat, ["xAxis", "showGridLines"], true)
+              showGridLines: get(graphFormat, ["xAxis", "showGridLines"], true),
+              showXAxisBar: get(graphFormat, ["xAxis", "showXAxisBar"], false)
             } }
             yAxis={ {
               label: get(graphFormat, ["yAxis", "label"]),

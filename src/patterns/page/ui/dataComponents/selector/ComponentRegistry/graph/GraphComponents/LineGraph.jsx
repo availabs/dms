@@ -9,7 +9,8 @@ const LineGraph = props => {
   const {
     data,
     bgColor,
-    tooltip
+    tooltip,
+      xAxis
   } = props
 
   const [ref, setRef] = React.useState(null);
@@ -20,17 +21,16 @@ const LineGraph = props => {
     if (!ref) return;
     if (!data.length) return;
 
-    const marks = [
-      Plot.ruleY([0]),
-      Plot.line(
+    const marks = xAxis.showXAxisBar ? [Plot.ruleY([0])] : []
+
+    marks.push( Plot.line(
         data,
         { x: "index",
           y: "value",
           stroke: "type",
           sort: { x: "x", order: null }
         }
-      )
-    ]
+    ))
 
     if (tooltip.show) {
       marks.push(
@@ -55,7 +55,7 @@ const LineGraph = props => {
 
     return () => plot.remove();
 
-  }, [ref, data, plotOptions, tooltip, bgColor]);
+  }, [ref, data, plotOptions, tooltip, bgColor, xAxis.showXAxisBar]);
 
   return (
     <div ref={ setRef }/>

@@ -73,6 +73,8 @@ export default function RenderAppearanceControls({context}) {
                                           setValue={value => updateDisplayValue('xAxis', 'showGridLines', value)}/>
                     <RenderToggleControls title={'Rotate Labels'} value={display.xAxis?.rotateLabels}
                                           setValue={value => updateDisplayValue('xAxis', 'rotateLabels', value)}/>
+                    <RenderToggleControls title={'Show Axis Bar'} value={display.xAxis?.showXAxisBar}
+                                          setValue={value => updateDisplayValue('xAxis', 'showXAxisBar', value)}/>
 
                     {/* Y Axis */}
                     <div className={'border-t mt-2 mx-4'}>
@@ -89,24 +91,19 @@ export default function RenderAppearanceControls({context}) {
 
                     {/* Title */}
                     <div className={'border-t mt-2 mx-4'}>
-                        <div className={'-mt-2 -ml-4 px-2 text-xs font-medium font-gray-800 w-fit bg-white'}>Title</div>
+                        <div className={'-mt-2 -ml-4 px-2 text-xs font-medium font-gray-800 w-fit bg-white'}>Graph</div>
                     </div>
-                    <RenderInputControls title={'Title'} type={'text'} value={display.title?.title}
+                    <RenderInputControls title={'Show Title'} type={'text'} value={display.title?.title}
                                          setValue={value => updateDisplayValue('title', 'title', value)}/>
 
-                    {/* Legend */}
-                    <div className={'border-t mt-2 mx-4'}>
-                        <div className={'-mt-2 -ml-4 px-2 text-xs font-medium font-gray-800 w-fit bg-white'}>Legend</div>
-                    </div>
-                    <RenderToggleControls title={'Show'} value={display.legend?.show}
+                    <RenderToggleControls title={'Show Legend'} value={display.legend?.show}
                                           setValue={value => updateDisplayValue('legend', 'show', value)}/>
 
-                    {/* Tooltip */}
-                    <div className={'border-t mt-2 mx-4'}>
-                        <div className={'-mt-2 -ml-4 px-2 text-xs font-medium font-gray-800 w-fit bg-white'}>Tooltip</div>
-                    </div>
-                    <RenderToggleControls title={'Show'} value={display.tooltip?.show}
+                    <RenderToggleControls title={'Show Tooltip'} value={display.tooltip?.show}
                                           setValue={value => updateDisplayValue('tooltip', 'show', value)}/>
+
+                    <RenderInputControls title={'Height'} type={'number'} value={display.height}
+                                         setValue={value => updateDisplayValue(null, 'height', +value)}/>
 
                     {/* Layout */}
                     {

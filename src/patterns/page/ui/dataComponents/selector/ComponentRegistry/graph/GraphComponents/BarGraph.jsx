@@ -106,37 +106,36 @@ const BarGraph = props => {
     if (!ref) return;
     if (!data.length) return;
 
-    const marks = [
-      rule([0]),
-      bar(
+    const marks = xAxis.showXAxisBar ? [rule([0])] : [];
+
+    marks.push(bar(
         data,
         isStacked ? (
-          { x: isVertical ? "index" : isLog ? undefined : "value",
-            x1: !isLog ? undefined : isVertical ? undefined : 1,
-            x2: !isLog ? undefined : isVertical ? "index" : "value",
+            { x: isVertical ? "index" : isLog ? undefined : "value",
+              x1: !isLog ? undefined : isVertical ? undefined : 1,
+              x2: !isLog ? undefined : isVertical ? "index" : "value",
 
-            y: !isVertical ? "index" : isLog ? undefined : "value",
-            y1: !isLog ? undefined : isVertical ? 1 : undefined,
-            y2: !isLog ? undefined : isVertical ? "value" : "index",
+              y: !isVertical ? "index" : isLog ? undefined : "value",
+              y1: !isLog ? undefined : isVertical ? 1 : undefined,
+              y2: !isLog ? undefined : isVertical ? "value" : "index",
 
-            fill: isPalette ? "type" : "value",
-            sort: isVertical ?
-                    ({ x: "x", order: null }) :
-                    ({ y: "y", order: null }),
-          }
+              fill: isPalette ? "type" : "value",
+              sort: isVertical ?
+                  ({ x: "x", order: null }) :
+                  ({ y: "y", order: null }),
+            }
         ) : (
-          { x: isVertical ? "type" : "value",
-            fx: isVertical ? "index" : undefined,
-            y: isVertical ? "value" : "type",
-            fy: isVertical ? undefined : "index",
-            fill: isPalette ? "type" : "value",
-            sort: isVertical ?
-                    ({ fx: "x", order: null }) :
-                    ({ fy: "y", order: null }),
-          }
+            { x: isVertical ? "type" : "value",
+              fx: isVertical ? "index" : undefined,
+              y: isVertical ? "value" : "type",
+              fy: isVertical ? undefined : "index",
+              fill: isPalette ? "type" : "value",
+              sort: isVertical ?
+                  ({ fx: "x", order: null }) :
+                  ({ fy: "y", order: null }),
+            }
         )
-      )
-    ]
+    ))
 
     if (tooltip.show && isVertical) {
       marks.push(
@@ -225,7 +224,7 @@ const BarGraph = props => {
     return () => plot.remove();
 
   }, [ref, data, margins, graphHeight, width, yAxis, tooltip, isLog,
-      colors, legend, isPalette, isStacked, isVertical, xAxisColumn,
+      colors, legend, isPalette, isStacked, isVertical, xAxisColumn, xAxis.showXAxisBar,
       xOptions, yOptions, fxOptions, fyOptions, showCategories]
   );
 

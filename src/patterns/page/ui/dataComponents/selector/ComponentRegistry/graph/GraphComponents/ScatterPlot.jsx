@@ -9,7 +9,8 @@ const ScatterPlot = props => {
   const {
     data,
     bgColor,
-    tooltip
+    tooltip,
+      xAxis
   } = props
 
   const [ref, setRef] = React.useState(null);
@@ -20,25 +21,24 @@ const ScatterPlot = props => {
     if (!ref) return;
     if (!data.length) return;
 
-    const marks = [
-      Plot.ruleY([0]),
-      Plot.dot(
-        data,
-        { x: "index",
-          y: "value",
-          stroke: "type",
-          sort: { x: "x", order: null }
-        }
-      ),
-      Plot.crosshair(
-        data,
-        Plot.pointer({
-          x: "index",
-          y: "value",
-          textFill: bgColor
-        })
-      )
-    ]
+    const marks = xAxis.showXAxisBar ? [Plot.ruleY([0])] : []
+
+      marks.push(Plot.dot(
+              data,
+              { x: "index",
+                  y: "value",
+                  stroke: "type",
+                  sort: { x: "x", order: null }
+              }
+          ),
+          Plot.crosshair(
+              data,
+              Plot.pointer({
+                  x: "index",
+                  y: "value",
+                  textFill: bgColor
+              })
+          ))
 
     if (tooltip.show) {
       marks.push(
@@ -63,7 +63,7 @@ const ScatterPlot = props => {
 
     return () => plot.remove();
 
-  }, [ref, data, plotOptions, bgColor, tooltip]);
+  }, [ref, data, plotOptions, bgColor, tooltip, xAxis.showXAxisBar]);
 
   return (
     <div ref={ setRef }/>
