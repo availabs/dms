@@ -101,7 +101,7 @@ function EditComp(props) {
                     onChange={v => updateAttribute('element-data', v)}
                     size={size}
                     theme={theme}
-                    component={component.useDataSource ? component : undefined}
+                    component={component?.useDataSource ? component : undefined}
                     {...rest}
                 />
             </div>
@@ -118,7 +118,7 @@ function ViewComp({value, ...rest}) {
 
     let DataComp = !component ? defaultComp : component.useDataSource ? DataWrapper.ViewComp : component.ViewComp;
     return (
-        <DataComp value={value?.['element-data'] || ''} theme={theme} {...rest} component={component.useDataSource ? component : undefined} />
+        <DataComp value={value?.['element-data'] || ''} theme={theme} {...rest} component={component?.useDataSource ? component : undefined} />
     )
 }
 
