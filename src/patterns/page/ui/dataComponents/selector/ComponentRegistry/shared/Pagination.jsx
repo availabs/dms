@@ -1,15 +1,15 @@
 import React, {useContext} from "react";
-import { SpreadSheetContext } from "../index";
-import { tableTheme } from './SimpleSpreadsheet'
-import { CMSContext } from '../../../../../../siteConfig'
+import { ComponentContext } from "./dataWrapper";
+import { tableTheme } from '../spreadsheet'
+import { CMSContext } from '../../../../../siteConfig'
 
 export const paginationTheme = {
     
 }
-export const Pagination = ({currentPage, setCurrentPage, compType}) => {
-    const {state} = useContext(SpreadSheetContext)
+export const Pagination = ({currentPage, setCurrentPage, showPagination}) => {
+    const {state} = useContext(ComponentContext)
     const { theme = { table: tableTheme } } = React.useContext(CMSContext) || {}
-    if(!state.columns.filter(column => column.show).length || compType === 'graph') return;
+    if(!state.columns.filter(column => column.show).length || !showPagination) return;
 
     const rangeSize = 5;
     const totalPages=Math.ceil(state.display.totalLength / state.display.pageSize);

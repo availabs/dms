@@ -1,6 +1,6 @@
 import React, {useContext, useEffect, useMemo} from "react";
-import {getData} from "../spreadsheet/utils/utils";
-import SpreadSheet, {SpreadSheetContext} from "../spreadsheet";
+import {getData} from "../shared/dataWrapper/utils";
+import SpreadSheet, {ComponentContext} from "../shared/dataWrapper";
 import TableHeaderCell from "../spreadsheet/components/TableHeaderCell";
 import {get} from "lodash-es";
 import {getColorRange, GraphComponent} from "./GraphComponent";
@@ -17,8 +17,8 @@ const defaultTheme = ({
     columnControlWrapper: `px-1 font-semibold border bg-gray-50 text-gray-500`
 })
 
-export const Graph = ({isEdit}) => {
-    const {state:{columns, data, display}, setState} = useContext(SpreadSheetContext);
+const Graph = ({isEdit}) => {
+    const {state:{columns, data, display}, setState} = useContext(ComponentContext);
     // data is restructured into: index, type, value.
     // index is X axis column's values.
     // type is either category column's values or Y axis column's display name or name.
@@ -81,6 +81,10 @@ export default {
     "type": 'Graph',
     "variables": [],
     getData,
-    "EditComp": props => <SpreadSheet.EditComp {...props} compType={'graph'}/>,
-    "ViewComp": props => <SpreadSheet.ViewComp {...props} compType={'graph'}/>,
+    useDataSource: true,
+    fullDataLoad: true,
+    useGetDataOnPageChange: false,
+    showPagination: false,
+    "EditComp": Graph,
+    "ViewComp": Graph,
 }

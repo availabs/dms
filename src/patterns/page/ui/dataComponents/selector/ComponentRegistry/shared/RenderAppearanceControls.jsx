@@ -3,11 +3,11 @@ import {ArrowDown} from "../../../../../../forms/ui/icons"
 import {RenderToggleControls} from "./RenderToggleControls";
 import RenderSwitch from "./Switch";
 import {RenderInputControls} from "./RenderInputControls";
-import {SpreadSheetContext} from "../spreadsheet";
+import {ComponentContext} from "./dataWrapper";
 import {getControlConfig, useHandleClickOutside} from "./utils";
 
 export default function RenderAppearanceControls({context}) {
-    const {state: {display}, setState, compType} = useContext(context || SpreadSheetContext);
+    const {state: {display}, setState, compType} = useContext(context || ComponentContext);
 
     const menuRef = useRef(null);
     const [isOpen, setIsOpen] = useState(false);

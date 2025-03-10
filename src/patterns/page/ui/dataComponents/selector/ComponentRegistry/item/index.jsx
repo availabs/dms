@@ -1,7 +1,7 @@
 import React, {useState, useEffect, useRef, createContext} from 'react'
 import DataTypes from "../../../../../../../data-types";
 import {InfoCircle} from "../../../../../../admin/ui/icons";
-import {FormsSelector} from "../FormsSelector";
+import {DataSourceSelector} from "../DataSourceSelector";
 import {useSearchParams} from "react-router-dom";
 import {ColumnControls} from "../shared/ColumnControls";
 import {useImmer} from "use-immer";
@@ -128,8 +128,8 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     return (
        <ItemContext.Provider value={{state, setState, compType: 'item'}}>
            <div>
-              <FormsSelector apiLoad={apiLoad} app={pageFormat?.app}
-                             state={state} setState={setState}
+              <DataSourceSelector apiLoad={apiLoad} app={pageFormat?.app}
+                                  state={state} setState={setState}
                        />
                <ColumnControls context={ItemContext} />
 

@@ -61,7 +61,7 @@ const getViews = async ({envs, source, falcor, apiLoad}) => {
 }
 
 
-export const FormsSelector = ({
+export const DataSourceSelector = ({
     // this comp isn't using context as it's intended to be reused by multiple components with their own states.
   state, setState,
   formatFromProps,

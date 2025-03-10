@@ -2,9 +2,10 @@ import React, {useEffect, useMemo, useState} from "react";
 import { FormsContext } from '../siteConfig'
 import SourcesLayout from "../components/patternListComponent/layout";
 import Spreadsheet from "../../page/ui/dataComponents/selector/ComponentRegistry/spreadsheet";
+import DataWrapper from "../../page/ui/dataComponents/selector/ComponentRegistry/shared/dataWrapper";
 import {useNavigate, useSearchParams} from "react-router-dom";
 import {getData as getFilterData} from "../../page/ui/dataComponents/selector/ComponentRegistry/shared/filters/utils";
-import {applyFn, attributeAccessorStr, isJson} from "../../page/ui/dataComponents/selector/ComponentRegistry/spreadsheet/utils/utils";
+import {applyFn, attributeAccessorStr, isJson} from "../../page/ui/dataComponents/selector/ComponentRegistry/shared/dataWrapper/utils";
 import {uniq} from "lodash-es";
 
 const getErrorValueSql = (fullName, shortName, options, required) =>
@@ -289,7 +290,8 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
                                     }
                                     {
                                         !columns.find(col => data[`${col.shortName}_error`]) || loading ? null :
-                                            <Spreadsheet.EditComp
+                                            <DataWrapper.EditComp
+                                                component={Spreadsheet}
                                                 key={'validate-page-spreadsheet'}
                                                 value={value}
                                                 onChange={(stringValue) => {setValue(stringValue)}}

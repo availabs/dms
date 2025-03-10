@@ -1,6 +1,6 @@
 import React from "react";
 import {Link} from "react-router-dom";
-import {convertToUrlParams} from "../utils/utils";
+import {convertToUrlParams} from "../../shared/dataWrapper/utils";
 import {actionsColSize} from "../constants"
 import Icons from "../../../../../../../forms/ui/icons";
 import {uniq} from "lodash-es";

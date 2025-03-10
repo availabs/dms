@@ -2,12 +2,12 @@ import React, {useRef, useState, useEffect, useContext, useCallback} from "react
 import {ArrowDown} from "../../../../../../forms/ui/icons"
 import {RenderToggleControls} from "./RenderToggleControls";
 import {RenderInputControls} from "./RenderInputControls";
-import {SpreadSheetContext} from "../spreadsheet";
+import {ComponentContext} from "./dataWrapper";
 import {getControlConfig, useHandleClickOutside} from "./utils";
 import {ColorControls} from "./ColorControls";
 
 export default function RenderMoreControls({context}) {
-    const {state: {display}, setState, compType} = useContext(context || SpreadSheetContext);
+    const {state: {display}, setState, compType} = useContext(context || ComponentContext);
     const {
         allowShowTotalToggle,
         allowStripedToggle,

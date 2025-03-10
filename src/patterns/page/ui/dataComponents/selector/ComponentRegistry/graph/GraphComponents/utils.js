@@ -1,7 +1,7 @@
 import React from "react"
 
 import uniq from "lodash/uniq"
-import {formatFunctions} from "../../spreadsheet/utils/utils";
+import {formatFunctions} from "../../shared/dataWrapper/utils";
 
 export const useAxisTicks = (data, tickSpacing, key = "index") => {
     return React.useMemo(() => {

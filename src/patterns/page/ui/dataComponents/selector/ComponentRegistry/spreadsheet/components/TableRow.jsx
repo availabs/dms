@@ -1,9 +1,9 @@
 import React, {useContext, useMemo, useState} from "react";
 import {numColSize as numColSizeDf, gutterColSize as gutterColSizeDf, } from "../constants"
 import {TableCell} from "./TableCell";
-import {SpreadSheetContext} from "../index";
+import {ComponentContext} from "../../shared/dataWrapper";
 import { CMSContext } from '../../../../../../siteConfig'
-import { tableTheme } from './SimpleSpreadsheet'
+import { tableTheme } from '../'
 import {XMark} from "../../../../../icons";
 
 const getEdge = ({startI, endI, startCol, endCol}, i, attrI) => {
@@ -36,7 +36,7 @@ export const TableRow = ({
   setIsDragging, startCellCol, startCellRow,
   updateItem, removeItem
 }) => {
-    const {state: {columns, display}, setState} = useContext(SpreadSheetContext);
+    const {state: {columns, display}, setState} = useContext(ComponentContext);
     const { theme = { table: tableTheme } } = React.useContext(CMSContext) || {}
     const [showOpenOut, setShowOpenOut] = useState(false);
 

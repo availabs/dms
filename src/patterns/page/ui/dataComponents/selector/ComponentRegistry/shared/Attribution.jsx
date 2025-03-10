@@ -1,7 +1,7 @@
 import {Link} from "react-router-dom";
 import React, {useContext} from "react";
-import {SpreadSheetContext} from "../index";
-import {CMSContext} from "../../../../../../siteConfig";
+import {ComponentContext} from "./dataWrapper";
+import {CMSContext} from "../../../../../siteConfig";
 
 export const attributionTheme = {
     wrapper: 'w-full p-1 flex gap-1 text-xs text-gray-900',
@@ -9,9 +9,9 @@ export const attributionTheme = {
     link: ''
 }
 
-export const RenderAttribution = () => {
+export const Attribution = () => {
     const { theme = { attribution: attributionTheme } } = React.useContext(CMSContext) || {}
-    const {state:{sourceInfo: {isDms, source_id, name, view_id, view_name, updated_at}}, compType} = useContext(SpreadSheetContext);
+    const {state:{sourceInfo: {isDms, source_id, name, view_id, view_name, updated_at}}, compType} = useContext(ComponentContext);
     const dateOptions = {year: "numeric", month: "long", day: "numeric", hour: "numeric", minute: "numeric"};
     const updatedTimeString = updated_at ? new Date(updated_at).toLocaleString(undefined, dateOptions) : null;
 

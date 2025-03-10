@@ -1,10 +1,10 @@
 import React, {useState, useEffect, createContext, useMemo, useRef} from 'react'
 
 import {RenderFilters} from "./shared/filters/RenderFilters";
-import {FormsSelector} from "./FormsSelector";
+import {DataSourceSelector} from "./DataSourceSelector";
 import {ColumnControls} from "./shared/ColumnControls";
 import {useImmer} from "use-immer";
-import {isJson} from "./spreadsheet/utils/utils";
+import {isJson} from "./shared/dataWrapper/utils";
 const FilterComponentContext = React.createContext({});
 
 const initialState = {
@@ -36,8 +36,8 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, renderCard}) => 
     return (
         <FilterComponentContext.Provider value={{state, setState, compType: 'filter'}}>
             <div className={'w-full h-full min-h-[50px]'}>
-                <FormsSelector apiLoad={apiLoad} app={pageFormat?.app}
-                               state={state} setState={setState} // passing as props as other components will use it as well.
+                <DataSourceSelector apiLoad={apiLoad} app={pageFormat?.app}
+                                    state={state} setState={setState} // passing as props as other components will use it as well.
                 />
                 { isEdit ? <ColumnControls context={FilterComponentContext} /> : null }
 

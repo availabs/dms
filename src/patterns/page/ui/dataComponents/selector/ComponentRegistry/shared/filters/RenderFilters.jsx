@@ -1,5 +1,5 @@
 import React, {useCallback, useEffect, useMemo, useState} from "react";
-import {attributeAccessorStr} from "../../spreadsheet/utils/utils";
+import {attributeAccessorStr} from "../dataWrapper/utils";
 import {Filter} from "../../../../../icons";
 import {getData, parseIfJson, getFilters, isCalculatedCol, convertToUrlParams, formattedAttributeStr} from "./utils"
 import {isEqual, uniqBy} from "lodash-es"

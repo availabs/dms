@@ -2,7 +2,7 @@ import React, {useCallback, useContext, useEffect, useMemo, useRef, useState} fr
 import RenderSwitch from "./Switch";
 import {ArrowDown, RestoreBin} from "../../../../../../forms/ui/icons";
 import {cloneDeep} from "lodash-es";
-import {SpreadSheetContext} from "../spreadsheet";
+import {ComponentContext} from "./dataWrapper";
 import {getControlConfig, useHandleClickOutside} from "./utils";
 
 const gridClasses = {
@@ -60,7 +60,7 @@ const gridClasses = {
 
 
 export default function RenderColumnControls({context}) {
-    const {state: {columns=[], sourceInfo}, setState, compType} = useContext(context || SpreadSheetContext);
+    const {state: {columns=[], sourceInfo}, setState, compType} = useContext(context || ComponentContext);
     const {
         allowCustomColNames,
         allowFnSelector,

@@ -2,7 +2,7 @@ import React, {useCallback, useContext, useEffect, useRef, useState} from "react
 import {RenderToggleControls} from "../../shared/RenderToggleControls";
 import {RenderInputControls} from "../../shared/RenderInputControls";
 import {getControlConfig, useHandleClickOutside} from "../../shared/utils";
-import {SpreadSheetContext} from "../index";
+import {ComponentContext} from "../../shared/dataWrapper";
 import {Group, InfoCircle, LeftToRightListBullet, TallyMark, Sum, ArrowDown, SortAsc, SortDesc} from "../../../../../icons";
 import {ColorControls} from "../../shared/ColorControls";
 
@@ -89,7 +89,7 @@ const fontStyleOptions = [
 
 // in header menu for each column
 export default function TableHeaderCell({attribute}) {
-    const {state: {columns = [], display}, setState, compType} = useContext(SpreadSheetContext);
+    const {state: {columns = [], display}, setState, compType} = useContext(ComponentContext);
     const {
         allowSortBy,
         allowJustify,

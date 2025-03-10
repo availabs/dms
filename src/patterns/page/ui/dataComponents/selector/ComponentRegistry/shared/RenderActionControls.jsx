@@ -1,6 +1,6 @@
 import React, {useRef, useState, useEffect, useContext, useCallback} from "react";
 import Icons, {ArrowDown, TouchInteraction} from "../../../../../../forms/ui/icons"
-import {SpreadSheetContext} from "../spreadsheet";
+import {ComponentContext} from "./dataWrapper";
 import {getControlConfig, useHandleClickOutside} from "./utils";
 
 const RenderIconSelector = ({onClick, icon}) => {
@@ -232,7 +232,7 @@ export default function RenderActionControls({context}) {
     // url: if type is url, provide text box
     // display: edit only, view only, both
     // attach search params
-    const {state:{columns, sourceInfo}, setState, compType} = useContext(context || SpreadSheetContext);
+    const {state:{columns, sourceInfo}, setState, compType} = useContext(context || ComponentContext);
     const menuRef = useRef(null);
     const [search, setSearch] = useState();
     const [isOpen, setIsOpen] = useState(false);

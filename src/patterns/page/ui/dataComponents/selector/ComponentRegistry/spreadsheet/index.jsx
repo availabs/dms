@@ -1,624 +1,427 @@
-import React, {useState, useEffect, createContext, useMemo, useRef} from 'react'
-import writeXlsxFile from 'write-excel-file';
-import { RenderTable } from "./components/SimpleSpreadsheet";
-import {Pagination} from "./components/Pagination";
-import {getData} from "./utils/utils";
-import {RenderFilters} from "../shared/filters/RenderFilters";
-import {RenderAttribution} from "./components/RenderAttribution";
-import {FormsSelector} from "../FormsSelector";
-import {ColumnControls} from "../shared/ColumnControls";
-import {Card} from "../Card";
-import {Graph} from "../graph"
-import { isEqual } from "lodash-es";
-import { v4 as uuidv4 } from 'uuid';
-import {useImmer} from "use-immer";
-import {convertOldState} from "./utils/convertOldState";
-import {Download, LoadingHourGlass} from "../../../../icons";
-import {useHandleClickOutside} from "../shared/utils";
-import {getColorRange} from "../graph/GraphComponent";
-export const SpreadSheetContext = React.createContext({});
-const DefaultPalette = getColorRange(20, "div7");
-const graphOptions = {
-    graphType: 'BarGraph',
-    groupMode: 'stacked',
-    orientation: 'vertical',
-    title: {
-        title: "",
-        position: "start",
-        fontSize: 32,
-        fontWeight: "bold"
-    },
-    description: "",
-    bgColor: "#ffffff",
-    textColor: "#000000",
-    colors: {
-        type: "palette",
-        value: [...DefaultPalette]
-    },
-    height: 300,
-    width: undefined,
-    margins: {
-        marginTop: 20,
-        marginRight: 20,
-        marginBottom: 50,
-        marginLeft: 100
-    },
-    xAxis: {
-        label: "",
-        rotateLabels: false,
-        showGridLines: false,
-        tickSpacing: 1
-    },
-    yAxis: {
-        label: "",
-        showGridLines: true,
-        tickFormat: "Integer"
-    },
-    legend: {
-        show: true,
-        label: "",
-    },
-    tooltip: {
-        show: true,
-        fontSize: 12
-    }
-}
-const initialState = compType => {
-    const otherOptions = {
-        allowSearchParams: false,
-        usePagination: true,
-        pageSize: 5,
-        totalLength: 0,
-        showGutters: false,
-        transform: '', // transform fn to be applied
-        loadMoreId:`id${uuidv4()}`,
-    }
-    return {
-        dataRequest: {},
-        columns: [
-            //     visible columns or Actions
-            //     {name, display_name, custom_name,
-            //      justify, width, fn,
-            //      groupBy: t/f, orderBy: t/f, excludeNull: t/f, openOut: t/f,
-            //      formatFn, fontSize, hideHeader, cardSpan,
-            //      isLink: t/f, linkText: ‘’, linkLocation: ‘’, actionName, actionType, icon,
-            //      }
-        ],
-        data: [],
-        display: compType === 'graph' ? graphOptions : otherOptions,
-        sourceInfo: {
-            columns: [],
-            // pgEnv,
-            // source_id
-            // view_id
-            // version,
-            // doc_type, type -- should be the same
-        }
-    }
+import React, {useContext, useEffect, useMemo, useRef, useState} from "react";
+import DataTypes from "../../../../../../../data-types";
+import TableHeaderCell from "./components/TableHeaderCell";
+import {Add} from "../../../../../../forms/ui/icons";
+import {useCopy, usePaste} from "./utils/hooks";
+import {handleKeyDown} from "./utils/keyboard";
+import {handleMouseUp, handleMouseMove, handleMouseDown} from "./utils/mouse";
+import { TableRow } from "./components/TableRow";
+import { RenderGutter } from "./components/RenderGutter";
+import {actionsColSize, numColSize as numColSizeDf, gutterColSize as gutterColSizeDf, minColSize, minInitColSize} from "./constants"
+import SpreadSheet, {ComponentContext} from "../shared/dataWrapper";
+import { CMSContext } from '../../../../../siteConfig'
+import {getData} from "../shared/dataWrapper/utils";
+
+const DisplayCalculatedCell = ({value, className}) => <div className={className}>{value}</div>
+
+const getLocation = selectionPoint => {
+    let {index, attrI} = typeof selectionPoint === 'number' ? {
+        index: selectionPoint,
+        attrI: undefined
+    } : selectionPoint;
+    return {index, attrI}
 }
 
-const triggerDownload = async ({state, apiLoad, loadAllColumns, setLoading}) => {
-    setLoading(true);
-    const tmpState = loadAllColumns ?
+const updateItemsOnPaste = ({pastedContent, e, index, attrI, data, visibleAttributes, updateItem}) => {
+    const paste = pastedContent?.split('\n').filter(row => row.length).map(row => row.split('\t'));
+    if(!paste) return;
+
+    const rowsToPaste = [...new Array(paste.length).keys()].map(i => index + i).filter(i => i < data.length)
+    const columnsToPaste = [...new Array(paste[0].length).keys()]
+        .map(i => visibleAttributes[attrI + i])
+        .filter(i => i);
+
+    const itemsToUpdate = rowsToPaste.map((row, rowI) => (
         {
-            ...state,
-            columns: [
-                ...state.columns,
-                ...state.sourceInfo.columns.filter(originalColumn => !state.columns.find(c => c.name === originalColumn.name))
-            ].map(c => ({...c, show: true}))
-        } : state;
-    const {data} = await getData({
-        state: tmpState,
-        apiLoad, fullDataLoad: true});
+            ...data[row],
+            ...columnsToPaste.reduce((acc, col, colI) => ({...acc, [col]: paste[rowI][colI]}), {})
+        }
+    ));
 
-    const schema = tmpState.columns.map(({name, display_name, customName}) => ({
-        column: customName || display_name || name,
-        // type: String,
-        value: data => data?.[name],
-        // ...name === 'url' && {'hyperlink': data => data?.[name]}
-    }));
-    const fileName = `${state.sourceInfo.view_name || Date.now()}`;
-
-    await writeXlsxFile(data, {
-        schema,
-        fileName: `${fileName}.xlsx`,
-    });
-    setLoading(false);
+    updateItem(undefined, undefined, itemsToUpdate);
 }
-const RenderDownload = ({state, apiLoad}) => {
-    // two options:
-    // 1. download visible columns: add primary column if set
-    // 2. download all columns: unavailable for grouped mode
-    const [open, setOpen] = React.useState(false);
-    const [loading, setLoading] = React.useState(false);
-    const menuRef = useRef(null);
-    const menuBtnId = `download-btn`;
-    const Icon = loading ? LoadingHourGlass : Download;
-    const isGrouping = state.dataRequest?.groupBy?.length;
-    useHandleClickOutside(menuRef, menuBtnId, () => setOpen(false));
 
-    if(!state.display.allowDownload) return;
-    return (
-        <div className={'pt-2'}>
-            <div className={'relative flex flex-col'}>
-                <Icon id={menuBtnId}
-                      className={`p-0.5 inline-flex text-blue-300 hover:text-blue-500 hover:bg-zinc-950/5 rounded-md ${loading ? 'hover:cursor-wait' : 'hover:cursor-pointer'} transition ease-in-out duration-200`}
-                      onClick={() => {!loading && setOpen(!open)}}
-                      title={loading ? 'Processing...' : 'Excel Download'}
-                      width={20} height={20}/>
-                <div ref={menuRef} className={open ? 'absolute right-0 mt-4 p-0.5 text-xs text-nowrap select-none bg-white shadow-lg rounded-md z-[10]' : 'hidden'}>
-                    <div className={`px-1 py-0.5 hover:bg-blue-50 ${loading ? 'hover:cursor-wait' : 'hover:cursor-pointer'} rounded-md`} onClick={() => {
-                        setOpen(false);
-                        return triggerDownload({state, apiLoad, loading, setLoading});
-                    }}>Visible Columns</div>
-                    {
-                        isGrouping ? null : (
-                            <div className={`px-1 py-0.5 hover:bg-blue-50 ${loading ? 'hover:cursor-wait' : 'hover:cursor-pointer'} rounded-md`} onClick={() => {
-                                setOpen(false);
-                                return triggerDownload({state, apiLoad, loading, setLoading, loadAllColumns: true})
-                            }}>All Columns</div>
-                        )
+const frozenCols = [0,1] // testing
+const frozenColClass = '' // testing
+
+export const tableTheme = {
+    tableContainer: 'flex flex-col overflow-x-auto',
+    tableContainerNoPagination: '',
+    tableContainer1: 'flex flex-col no-wrap min-h-[40px] max-h-[calc(78vh_-_10px)] overflow-y-auto',
+    headerContainer: 'sticky top-0 grid',
+    thead: 'flex justify-between',
+    theadfrozen: '',
+    thContainer: 'w-full font-semibold px-3 py-1 text-sm font-semibold text-gray-600 border',
+    thContainerBgSelected: 'bg-blue-100 text-gray-900',
+    thContainerBg: 'bg-gray-50 text-gray-500',
+    cell: 'relative flex items-center min-h-[35px]  border border-slate-50',
+    cellInner: `
+        w-full min-h-full flex flex-wrap items-center truncate py-0.5 px-1
+        font-[400] text-[14px]  leading-[18px] text-slate-600
+    `,
+    cellBg: 'bg-white',
+    cellBgSelected: 'bg-blue-50',
+    cellFrozenCol: '',
+    paginationInfoContainer: '',
+    paginationPagesInfo: 'font-[500] text-[12px] uppercase text-[#2d3e4c] leading-[18px]',
+    paginationRowsInfo: 'text-xs',
+    paginationContainer: 'w-full p-2 flex items-center justify-between',
+    paginationControlsContainer: 'flex flex-row items-center overflow-hidden gap-0.5',
+    pageRangeItem: 'cursor-pointer px-3  text-[#2D3E4C] py-1  text-[12px] hover:bg-slate-50 font-[500] rounded  uppercase leading-[18px]' ,
+    pageRangeItemInactive: '',
+    pageRangeItemActive: 'bg-slate-100 ',
+    openOutContainerWrapper: 'fixed inset-0 right-0 h-full w-full z-[100]',
+    openOutHeader: 'font-semibold text-gray-600'
+}
+
+
+
+export const RenderTable = ({isEdit, updateItem, removeItem, addItem, newItem, setNewItem, loading}) => {
+    const { theme = { table: tableTheme } } = React.useContext(CMSContext) || {}
+    const {state:{columns, sourceInfo, display, data}, setState} = useContext(ComponentContext);
+    const gridRef = useRef(null);
+    const [isSelecting, setIsSelecting] = useState(false);
+    const [editing, setEditing] = useState({}); // {index, attrI}
+    const [selection, setSelection] = useState([]);
+    const [triggerSelectionDelete, setTriggerSelectionDelete] = useState(false);
+    const [isDragging, setIsDragging] = useState(false);
+    const startCellRow = useRef(null);
+    const startCellCol = useRef(null);
+    const selectionRange = useMemo(() => {
+        const rows = [...new Set(selection.map(s => s?.index !== undefined ? s.index : s))].sort((a, b) => a - b);
+        const cols = [...new Set(selection.map(s => s.attrI).sort((a, b) => a - b) || columns.filter(({show}) => show).map((v, i) => i))];
+        return {
+            startI: rows[0],
+            endI: rows[rows.length - 1],
+            startCol: cols[0],
+            endCol: cols[cols.length - 1]
+        }
+    }, [selection]);
+    const allowEdit = useMemo(() => !columns.some(({group}) => group), [columns]);
+    const visibleAttributes = useMemo(() => columns.filter(({show}) => show), [columns]);
+    const visibleAttributesLen = useMemo(() => columns.filter(({show}) => show).length, [columns]);
+    const openOutAttributes = useMemo(() => columns.filter(({openOut}) => openOut), [columns]);
+    const openOutAttributesLen = useMemo(() => columns.filter(({openOut}) => openOut).length, [columns]);
+    const visibleAttrsWithoutOpenOut = useMemo(() => columns.filter(({show, openOut}) => show && !openOut), [columns]);
+    const visibleAttrsWithoutOpenOutLen = useMemo(() => columns.filter(({show, openOut}) => show && !openOut).length, [columns]);
+    const actionColumns = useMemo(() => columns.filter(({actionType}) => actionType), [columns]);
+
+    const paginationActive = display.usePagination && Math.ceil(display.totalLength / display.pageSize) > 1;
+    const numColSize = display.showGutters ? numColSizeDf : 0
+    const gutterColSize = display.showGutters ? gutterColSizeDf : 0
+
+    usePaste((pastedContent, e) => {
+        let {index, attrI} = typeof selection[selection.length - 1] === 'number' ?
+            {index: selection[selection.length - 1], attrI: undefined} :
+            selection[selection.length - 1];
+        updateItemsOnPaste({pastedContent, e, index, attrI, data, visibleAttributes, updateItem})
+    }, gridRef.current);
+
+    useCopy(() => {
+        return Object.values(
+            selection.sort((a, b) => {
+                const {index: rowA, attrI: colA} = getLocation(a);
+                const {index: rowB, attrI: colB} = getLocation(b);
+
+                return (rowA - rowB) || (colA - colB);
+            })
+                .reduce((acc, s) => {
+                    const {index, attrI} = getLocation(s);
+                    acc[index] = acc[index] ? `${acc[index]}\t${data[index][visibleAttributes[attrI]]}` : data[index][visibleAttributes[attrI]]; // join cells of a row
+                    return acc;
+                }, {})).join('\n') // join rows
+    }, gridRef.current)
+
+    // =================================================================================================================
+    // =========================================== auto resize begin ===================================================
+    // =================================================================================================================
+    useEffect(() => {
+        if(!gridRef.current) return;
+
+        const columnsWithSizeLength = visibleAttributes.filter(({size}) => size).length;
+        const gridWidth = gridRef.current.offsetWidth - numColSize - gutterColSize - (allowEdit ? actionColumns.length * actionsColSize : 0);
+        const currUsedWidth = visibleAttributes.reduce((acc, {size}) => acc + +(size || 0), 0);
+        if (
+            !columnsWithSizeLength ||
+            columnsWithSizeLength !== visibleAttrsWithoutOpenOutLen ||
+            currUsedWidth < gridWidth // resize to use full width
+        ) {
+            const availableVisibleAttributes = visibleAttrsWithoutOpenOut.filter(v => v.actionType || sourceInfo.columns.find(attr => attr.name === v.name));
+            const initialColumnWidth = Math.max(minInitColSize, gridWidth / availableVisibleAttributes.length);
+            setState(draft => {
+                availableVisibleAttributes.forEach(attr => {
+                    const idx = draft.columns.findIndex(column => column.name === attr.name);
+                    if(idx !== -1) {
+                        draft.columns[idx].size = initialColumnWidth;
                     }
+                })
+            });
+        }
+    }, [visibleAttributesLen, visibleAttrsWithoutOpenOutLen, sourceInfo.columns.length]);
+    // ============================================ auto resize end ====================================================
+
+    // =================================================================================================================
+    // =========================================== Mouse Controls begin ================================================
+    // =================================================================================================================
+    const colResizer = (columnName) => (e) => {
+        const element = gridRef.current;
+        if(!element) return;
+
+        const column = visibleAttributes.find(({name}) => name === columnName);
+        const startX = e.clientX;
+        const startWidth = column.size || 0;
+        const handleMouseMove = (moveEvent) => {
+            const newWidth = Math.max(minColSize, startWidth + moveEvent.clientX - startX);
+            setState(draft => {
+                const idx = draft.columns.findIndex(column => column.name === columnName);
+                draft.columns[idx].size = newWidth;
+            })
+        };
+
+        const handleMouseUp = () => {
+            element.removeEventListener('mousemove', handleMouseMove);
+            element.removeEventListener('mouseup', handleMouseUp);
+        };
+
+        element.addEventListener('mousemove', handleMouseMove);
+        element.addEventListener('mouseup', handleMouseUp);
+    };
+    // =========================================== Mouse Controls end ==================================================
+
+    // =================================================================================================================
+    // =========================================== Keyboard Controls begin =============================================
+    // =================================================================================================================
+    useEffect(() => {
+        const element = gridRef.current;
+        if(!element) return;
+        const handleKeyUp = () => {
+            setIsSelecting(false)
+            setIsDragging(false)
+            setTriggerSelectionDelete(false);
+        }
+
+        const keyDownListener = e => handleKeyDown({
+            e, dataLen: data.length, selection, setSelection, setIsSelecting,
+            editing, setEditing, setTriggerSelectionDelete,
+            visibleAttributes, pageSize: display.pageSize, setIsDragging
+        })
+
+        element.addEventListener('keydown', keyDownListener);
+        element.addEventListener('keyup', handleKeyUp);
+
+        return () => {
+            element.removeEventListener('keydown', keyDownListener);
+            element.removeEventListener('keyup', handleKeyUp);
+        };
+    }, [selection, editing, data?.length]);
+    // =========================================== Keyboard Controls end ===============================================
+
+    // =================================================================================================================
+    // =========================================== Trigger delete begin ================================================
+    // =================================================================================================================
+    useEffect(() => {
+        async function deleteFn() {
+            if (triggerSelectionDelete) {
+                const selectionRows = data.filter((d, i) => selection.find(s => (s.index || s) === i))
+                const selectionCols = visibleAttributes.filter((_, i) => selection.map(s => s.attrI).includes(i))
+
+                if (selectionCols.length) {
+                    // partial selection
+                    updateItem(undefined, undefined, selectionRows.map(row => ({...row, ...selectionCols.reduce((acc, curr) => ({...acc, [curr]: ''}), {})})))
+                }else{
+                    // full row selection
+                    updateItem(undefined, undefined, selectionRows.map(row => ({...row, ...visibleAttributes.reduce((acc, curr) => ({...acc, [curr]: ''}), {})})))
+                }
+            }
+        }
+
+        deleteFn()
+    }, [triggerSelectionDelete])
+    // ============================================ Trigger delete end =================================================
+
+    
+
+    if(!visibleAttributes.length) return <div className={'p-2'}>No columns selected.</div>;
+
+    return (
+        <div className={`${theme?.table?.tableContainer} ${!paginationActive && theme?.table?.tableContainerNoPagination}`} ref={gridRef}>
+            <div className={theme?.table?.tableContainer1}
+                 onMouseLeave={e => handleMouseUp({setIsDragging})}>
+
+                {/****************************************** Header begin ********************************************/}
+                <div 
+                    className={theme?.table?.headerContainer}
+                    style={{
+                        zIndex: 5, 
+                        gridTemplateColumns: `${numColSize}px ${visibleAttrsWithoutOpenOut.map(v => `${v.size}px` || 'auto').join(' ')} ${gutterColSize}px`, 
+                        gridColumn: `span ${visibleAttrsWithoutOpenOut.length + 2} / ${visibleAttrsWithoutOpenOut.length + 2}`
+                    }}
+                >
+                    {/*********************** header left gutter *******************/}
+                    <div className={'flex justify-between sticky left-0 z-[1]'} style={{width: numColSize}}>
+                        <div key={'#'} className={`w-full ${theme?.table?.thContainerBg} ${frozenColClass}`} />
+                    </div>
+                    {/******************************************&*******************/}
+
+                    {visibleAttrsWithoutOpenOut
+                        .map((attribute, i) => (
+                            <div 
+                                key={i}
+                                className={`${theme?.table?.thead} ${frozenCols.includes(i) ? theme?.table?.theadfrozen : ''}`}
+                                style={{width: attribute.size}}
+                            >
+
+                                <div key={`controls-${i}`}
+                                    className={`
+                                        ${theme?.table?.thContainer}  
+                                        ${selection.find(s => s.attrI === i) ? 
+                                            theme?.table?.thContainerBgSelected : theme?.table?.thContainerBg  
+                                        }`
+                                    }
+                                >
+                                    <TableHeaderCell attribute={attribute} />
+                                </div>
+
+                                <div 
+                                    key={`resizer-${i}`} 
+                                    className="z-5 -ml-2 w-[1px] hover:w-[2px] bg-gray-200 hover:bg-gray-400"
+                                    style={{
+                                        height: '100%',
+                                        cursor: 'col-resize',
+                                        position: 'relative',
+                                        right: 0,
+                                        top: 0
+                                    }}
+                                    onMouseDown={colResizer(attribute?.name)}
+                                />
+
+                            </div>
+                        )
+                    )}
+
+                    {/***********gutter column cell*/}
+                    <div key={'##'}
+                         className={`${theme?.table?.thContainerBg} z-[1] flex shrink-0 justify-between`}
+                    > {` `}</div>
                 </div>
+                {/****************************************** Header end **********************************************/}
+
+
+                {/****************************************** Rows begin **********************************************/}
+                {data.filter(d => !d.totalRow)
+                    .map((d, i) => (
+                        <TableRow key={i} {...{
+                            i, d,  isEdit, frozenCols,
+                            allowEdit, isDragging, isSelecting, editing, setEditing, loading:false,
+                            selection, setSelection, selectionRange, triggerSelectionDelete,
+                            handleMouseDown, handleMouseMove, handleMouseUp,
+                            setIsDragging, startCellCol, startCellRow,
+                            updateItem, removeItem
+                        }} />
+                    ))}
+                <div id={display.loadMoreId} className={`${paginationActive ? 'hidden' : ''} min-h-2 w-full text-center`}>
+                    {loading ? 'loading...' : ''}
+                </div>
+
+
+                {/*/!****************************************** Gutter Row **********************************************!/*/}
+                {/*<RenderGutter {...{allowEdit, c, visibleAttributes, isDragging, colSizes, attributes}} />*/}
+
+
+                {/*/!****************************************** Total Row ***********************************************!/*/}
+                {/*{data*/}
+                {/*    .filter(d => showTotal && d.totalRow)*/}
+                {/*    .map((d, i) => (*/}
+                {/*        <TableRow key={'total row'} {...{*/}
+                {/*            i, c, d,*/}
+                {/*            allowEdit, isDragging, isSelecting, editing, setEditing, loading,*/}
+                {/*            striped, visibleAttributes, attributes, customColNames, frozenCols,*/}
+                {/*            colSizes, selection, setSelection, selectionRange, triggerSelectionDelete,*/}
+                {/*            isEdit, groupBy, filters, actions, linkCols, openOutCols,*/}
+                {/*            colJustify, formatFn, fontSize,*/}
+                {/*            handleMouseDown, handleMouseMove, handleMouseUp,*/}
+                {/*            setIsDragging, startCellCol, startCellRow,*/}
+                {/*            updateItem, removeItem*/}
+                {/*        }} />*/}
+                {/*    ))}*/}
+                {/*/!****************************************** Rows end ************************************************!/*/}
             </div>
+            {/********************************************* out of scroll ********************************************/}
+            {/***********************(((***************** Add New Row Begin ******************************************/}
+            {/*{*/}
+            {/*    allowEdit ?*/}
+            {/*        <div*/}
+            {/*            className={`bg-white grid ${allowEdit ? c[visibleAttributes.length + 3] : c[visibleAttributes.length + 2]} divide-x divide-y ${isDragging ? `select-none` : ``} sticky bottom-0 z-[1]`}*/}
+            {/*            style={{gridTemplateColumns: `${numColSize}px ${visibleAttributes.map(v => `${colSizes[v]}px` || 'auto').join(' ')} ${allowEdit ? `${actionsColSize}px` : ``} ${gutterColSize}px`}}*/}
+            {/*        >*/}
+            {/*            <div className={'flex justify-between sticky left-0 z-[1]'} style={{width: numColSize}}>*/}
+            {/*                <div key={'#'} className={`w-full font-semibold border bg-gray-50 text-gray-500`}>*/}
+            {/*                    **/}
+            {/*                </div>*/}
+            {/*            </div>*/}
+            {/*            {*/}
+            {/*                visibleAttributes.map(va => attributes.find(attr => attr.name === va))*/}
+            {/*                    .filter(a => a)*/}
+            {/*                    .map((attribute, attrI) => {*/}
+            {/*                        const Comp = DataTypes[attribute?.type || 'text']?.EditComp || DisplayCalculatedCell;*/}
+            {/*                        return (*/}
+            {/*                            <div*/}
+            {/*                                key={`add-new-${attrI}`}*/}
+            {/*                                className={`flex border`}*/}
+            {/*                                style={{width: colSizes[attribute.name]}}*/}
+            {/*                            >*/}
+            {/*                                <Comp*/}
+            {/*                                    key={`${attribute.name}`}*/}
+            {/*                                    menuPosition={'top'}*/}
+            {/*                                    className={'p-1 bg-white hover:bg-blue-50 w-full h-full'}*/}
+            {/*                                    {...attribute}*/}
+            {/*                                    value={newItem[attribute.name]}*/}
+            {/*                                    placeholder={'+ add new'}*/}
+            {/*                                    onChange={e => setNewItem({...newItem, [attribute.name]: e})}*/}
+            {/*                                    onPaste={e => {*/}
+            {/*                                        e.preventDefault();*/}
+            {/*                                        e.stopPropagation();*/}
+
+            {/*                                        const paste =*/}
+            {/*                                            (e.clipboardData || window.clipboardData).getData("text")?.split('\n').map(row => row.split('\t'));*/}
+            {/*                                        const pastedColumns = [...new Array(paste[0].length).keys()].map(i => visibleAttributes[attrI + i]).filter(i => i);*/}
+            {/*                                        const tmpNewItem = pastedColumns.reduce((acc, c, i) => ({*/}
+            {/*                                            ...acc,*/}
+            {/*                                            [c]: paste[0][i]*/}
+            {/*                                        }), {})*/}
+            {/*                                        setNewItem({...newItem, ...tmpNewItem})*/}
+
+            {/*                                    }}*/}
+            {/*                                />*/}
+            {/*                            </div>*/}
+            {/*                        )*/}
+            {/*                    })*/}
+            {/*            }*/}
+            {/*            <div className={'bg-white flex flex-row h-fit justify-evenly'}*/}
+            {/*                 style={{width: actionsColSize}}>*/}
+            {/*                <button*/}
+            {/*                    className={'w-fit p-0.5 bg-blue-300 hover:bg-blue-500 text-white rounded-lg'}*/}
+            {/*                    onClick={e => {*/}
+            {/*                        addItem()*/}
+            {/*                    }}>*/}
+            {/*                    <Add className={'text-white'} height={20} width={20}/>*/}
+            {/*                </button>*/}
+            {/*            </div>*/}
+            {/*        </div> : null*/}
+            {/*}*/}
+            {/***********************(((***************** Add New Row End ********************************************/}
         </div>
     )
-}
-
-
-const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, compType='spreadsheet', hideSourceSelector}) => {
-    const isEdit = Boolean(onChange);
-    const [state, setState] = useImmer(convertOldState(value, initialState(compType)));
-    const [loading, setLoading] = useState(false);
-    const [newItem, setNewItem] = useState({})
-    const [currentPage, setCurrentPage] = useState(0);
-    const isValidState = Boolean(state?.dataRequest);
-    const Comp = useMemo(() => compType === 'card' ? Card : compType === 'graph' ? Graph : undefined, [compType]);
-    // ========================================= init comp begin =======================================================
-    // useSetDataRequest
-    useEffect(() => {
-        if(!isValidState) return;
-        let isStale = false;
-
-        // builds an object with filter, exclude, gt, gte, lt, lte, like as keys. columnName: [values] as values
-        const filterOptions = state.columns.reduce((acc, column) => {
-            (column.filters || []).forEach(({type, operation, values}) => {
-                acc[operation] = {...acc[operation] || {}, [column.name]: values};
-            })
-
-            if(column.excludeNA){
-                acc.exclude = acc.exclude && acc.exclude[column.name] ?
-                                {...acc.exclude, [column.name]: [...acc.exclude[column.name], 'null']} :
-                                {...acc.exclude || [], [column.name]: ['null']}
-
-            }
-            return acc;
-        }, {})
-        const newDataReq = {
-            // visibleColumns: state.columns.filter(column => column.show),
-            ...filterOptions,
-            groupBy: state.columns.filter(column => column.group).map(column => column.name),
-            orderBy: state.columns.filter(column => column.sort).reduce((acc, column) => ({...acc, [column.name]: column.sort}), {}),
-            fn: state.columns.filter(column => column.fn).reduce((acc, column) => ({...acc, [column.name]: column.fn}), {}),
-            meta: state.columns.filter(column => column.show && 
-                                                 ['meta-variable', 'geoid-variable', 'meta'].includes(column.display) && 
-                                                 column.meta_lookup)
-                               .reduce((acc, column) => ({...acc, [column.name]: column.meta_lookup}), {})
-        }
-
-        if(isStale || isEqual(newDataReq, state.dataRequest)) return;
-
-        setState(draft => {
-            draft.dataRequest = newDataReq;
-        })
-        // todo: save settings such that they can be directly used by getData and getLength
-
-        return () => {
-            isStale = true;
-        }
-    }, [state.columns, isValidState])
-
-    // // ========================================== get data begin =======================================================
-    // uweGetDataOnSettingsChange
-    useEffect(() => {
-        if(!isValidState) return;
-        // only run when controls or source/view change
-        let isStale = false;
-        async function load() {
-            setLoading(true)
-            const newCurrentPage = 0; // for all the deps here, it's okay to fetch from page 1.
-            const {length, data, invalidState} = await getData({state, apiLoad, fullDataLoad: compType === 'graph'});
-            if(isStale) {
-                setLoading(false);
-                return;
-            }
-            setState(draft => {
-                draft.data = data;
-                draft.display.totalLength = length;
-                draft.display.invalidState = invalidState;
-            })
-            setCurrentPage(newCurrentPage);
-            setLoading(false)
-        }
-
-        load()
-        return () => {
-            isStale = true;
-        };
-    }, [state.columns.length,
-        state.dataRequest,
-        state.sourceInfo.source_id,
-        state.sourceInfo.view_id,
-        state.display.pageSize,
-        isValidState]);
-
-    // useGetDataOnPageChange
-    useEffect(() => {
-        if(!isValidState || compType === 'graph') return;
-        // only run when page changes
-        let isStale = false;
-        async function load() {
-            setLoading(true)
-            const {length, data} = await getData({state, currentPage, apiLoad});
-            if(isStale) {
-                setLoading(false);
-                return;
-            }
-            setState(draft => {
-                // on page change append data unless using pagination
-                draft.data =  state.display?.usePagination ? data : [...draft.data.filter(r => !r.totalRow), ...data];
-                draft.display.totalLength = length;
-            })
-            setLoading(false)
-        }
-
-        load()
-
-        return () => {
-            isStale = true;
-        }
-    }, [currentPage]);
-
-    // useInfiniteScroll
-    useEffect(() => {
-        if(!isValidState || compType === 'graph') return;
-        // observer that sets current page on scroll. no data fetching should happen here
-        const observer = new IntersectionObserver(
-            async (entries) => {
-                const hasMore = (currentPage * state.display.pageSize + state.display.pageSize) < state.display.totalLength;
-                if (state.data.length && entries[0].isIntersecting && hasMore) {
-                    setCurrentPage(prevPage => prevPage+1)
-                }
-            },
-            { threshold: 0 }
-        );
-
-        const target = document.querySelector(`#${state.display.loadMoreId}`);
-        if (target && !state.display.usePagination) observer.observe(target);
-        // unobserve if using pagination
-        if (target && state.display.usePagination) observer.unobserve(target);
-        // return () => {
-        //     if (target) observer.unobserve(target);
-        // };
-    }, [state.display?.loadMoreId, state.display?.totalLength, state.data?.length, state.display?.usePagination]);
-    // // =========================================== get data end ========================================================
-
-    // =========================================== saving settings begin ===============================================
-    useEffect(() => {
-        if (!isEdit || !isValidState) return;
-        onChange(JSON.stringify(state));
-    }, [state])
-    // =========================================== saving settings end =================================================
-
-    // =========================================== util fns begin ======================================================
-    const updateItem = (value, attribute, d) => {
-        if(!state.sourceInfo?.isDms) return;
-        let dataToUpdate = Array.isArray(d) ? d : [d];
-
-        let tmpData = [...state.data];
-        dataToUpdate.map(dtu => {
-            const i = state.data.findIndex(dI => dI.id === dtu.id);
-            tmpData[i] = dtu;
-        });
-        setState(draft => {
-            draft.data = tmpData
-        });
-        return Promise.all(dataToUpdate.map(dtu => apiUpdate({data: dtu, config: {format: state.sourceInfo}})));
-    }
-
-    const addItem = () => {
-        if(!state.sourceInfo?.isDms) return;
-        setState(draft => {
-            draft.data.push(newItem)
-        })
-        return apiUpdate({data: newItem, config: {format: state.sourceInfo}}) && setNewItem({})
-    }
-
-    const removeItem = item => {
-        if(!state.sourceInfo?.isDms) return;
-        setState(draft => {
-            draft.data = draft.data.filter(d => d.id !== item.id);
-        })
-        return apiUpdate({data: item, config: {format: state.sourceInfo}, requestType: 'delete'})
-    }
-    // =========================================== util fns end ========================================================
-    return (
-        <SpreadSheetContext.Provider value={{state, setState, apiLoad, compType}}>
-            <div className={'w-full h-full'}>
-                {
-                    !hideSourceSelector ?
-                        <FormsSelector apiLoad={apiLoad} app={pageFormat?.app}
-                                       state={state} setState={setState} // passing as props as other components will use it as well.
-                        /> : null
-                }
-                {
-                    isEdit ?
-                        <ColumnControls /> : null
-                }
-
-                <div className={'w-full pt-2 flex justify-end gap-2'}>
-                    <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={isEdit} defaultOpen={true} />
-                    <RenderDownload state={state} apiLoad={apiLoad}/>
-                </div>
-                <span className={'text-xs'}>{loading ? 'loading...' : state.display.invalidState ? state.display.invalidState : null}</span>
-                {
-                    Comp ?
-                        <Comp isEdit={isEdit}/> : (
-                            <>
-                                
-
-                                < RenderTable  {...{
-                                    newItem, setNewItem,
-                                    updateItem, removeItem, addItem,
-                                    currentPage, loading, isEdit
-                                }} />
-                                
-                            </>
-                        )
-                }
-                <div>
-                    {/*Pagination*/}
-                    <Pagination currentPage={currentPage} setCurrentPage={setCurrentPage} />
-                    {/*/!*Attribution*!/*/}
-                    <RenderAttribution />
-                </div>
-            </div>
-        </SpreadSheetContext.Provider>
-    )
-}
-
-const View = ({value, onChange, size, apiLoad, apiUpdate, compType='spreadsheet', ...rest}) => {
-    const isEdit = false;
-    const [state, setState] = useImmer(convertOldState(value, initialState(compType)));
-
-    const [newItem, setNewItem] = useState({})
-    const [loading, setLoading] = useState(false);
-    const [currentPage, setCurrentPage] = useState(0);
-    const groupByColumnsLength = useMemo(() => state?.columns?.filter(({group}) => group).length, [state?.columns]);
-    const showChangeFormatModal = !state?.sourceInfo?.columns;
-    const isValidState = state?.dataRequest; // new state structure
-    const Comp = useMemo(() => compType === 'card' ? Card : compType === 'graph' ? Graph : undefined, [compType]);
-
-    useEffect(() => {
-        const newState = convertOldState(value)
-        setState(newState)
-    }, [value]);
-
-    // ========================================== get data begin =======================================================
-    useEffect(() => {
-        if(!isValidState) return;
-        let isStale = false;
-
-        // builds an object with filter, exclude, gt, gte, lt, lte, like as keys. columnName: [values] as values
-        const filterOptions = state.columns.reduce((acc, column) => {
-            (column.filters || []).forEach(({type, operation, values}) => {
-                acc[operation] = {...acc[operation] || {}, [column.name]: values};
-            })
-
-            if(column.excludeNA){
-                acc.exclude = acc.exclude && acc.exclude[column.name] ?
-                    {...acc.exclude, [column.name]: [...acc.exclude[column.name], 'null']} :
-                    {...acc.exclude || [], [column.name]: ['null']}
-
-            }
-            return acc;
-        }, {})
-        const newDataReq = {
-           ...state.dataRequest || {},
-            ...filterOptions,
-            orderBy: state.columns.filter(column => column.sort).reduce((acc, column) => ({...acc, [column.name]: column.sort}), {}),
-            meta: state.columns.filter(column => column.show &&
-                ['meta-variable', 'geoid-variable', 'meta'].includes(column.display) &&
-                column.meta_lookup)
-                .reduce((acc, column) => ({...acc, [column.name]: column.meta_lookup}), {})
-        }
-
-        if(isStale || isEqual(newDataReq, state.dataRequest)) return;
-
-        setState(draft => {
-            draft.dataRequest = newDataReq;
-        })
-        // todo: save settings such that they can be directly used by getData and getLength
-
-        return () => {
-            isStale = true;
-        }
-    }, [state.columns, isValidState])
-
-    // uweGetDataOnSettingsChange
-    useEffect(() => {
-        if(!isValidState) return;
-        // only run when controls or source/view change
-        let isStale = false;
-        async function load() {
-            setLoading(true)
-            const newCurrentPage = 0; // for all the deps here, it's okay to fetch from page 1.
-            const {length, data} = await getData({state, apiLoad, fullDataLoad: compType === 'graph'});
-            if(isStale) {
-                setLoading(false);
-                return;
-            }
-            setState(draft => {
-                draft.data = data;
-                draft.display.totalLength = length;
-            })
-            setCurrentPage(newCurrentPage);
-            setLoading(false)
-        }
-
-        load()
-        return () => {
-            isStale = true;
-        };
-    }, [state?.dataRequest, state?.sourceInfo, isValidState]);
-
-    // useGetDataOnPageChange
-    useEffect(() => {
-        if(!isValidState || compType === 'graph') return;
-        // only run when page changes
-        let isStale = false;
-        async function load() {
-            setLoading(true)
-            const {length, data} = await getData({state, currentPage, apiLoad});
-            if(isStale) {
-                setLoading(false);
-                return;
-            }
-            setState(draft => {
-                // on page change append data unless using pagination
-                draft.data =  state.display.usePagination ? data : [...draft.data.filter(r => !r.totalRow), ...data];
-                draft.display.totalLength = length;
-            })
-            setLoading(false)
-        }
-
-        load()
-
-        return () => {
-            isStale = true;
-        }
-    }, [currentPage]);
-
-    // useInfiniteScroll
-    useEffect(() => {
-        if(!isValidState || compType === 'graph') return;
-        // observer that sets current page on scroll. no data fetching should happen here
-        const observer = new IntersectionObserver(
-            async (entries) => {
-                const hasMore = (currentPage * state.display.pageSize + state.display.pageSize) < state.display.totalLength;
-                if (state.data.length && entries[0].isIntersecting && hasMore) {
-                    setCurrentPage(prevPage => prevPage+1)
-                }
-            },
-            { threshold: 0 }
-        );
-
-        const target = document.querySelector(`#${state.display.loadMoreId}`);
-        if (target && !state.display.usePagination) observer.observe(target);
-        // unobserve if using pagination
-        if (target && state.display.usePagination) observer.unobserve(target);
-
-        // return () => {
-        //     if (target) observer.unobserve(target);
-        // };
-    }, [state?.display?.loadMoreId, state?.display?.totalLength, state?.data?.length, state?.display?.usePagination, isValidState]);
-    // =========================================== get data end ========================================================
-
-    // =========================================== util fns begin ======================================================
-    const updateItem = (value, attribute, d) => {
-        if(!state.sourceInfo?.isDms || !apiUpdate) return;
-        let dataToUpdate = Array.isArray(d) ? d : [d];
-
-        let tmpData = [...state.data];
-        dataToUpdate.map(dtu => {
-            const i = state.data.findIndex(dI => dI.id === dtu.id);
-            tmpData[i] = dtu;
-        });
-        setState(draft => {
-            draft.data = tmpData
-        });
-        return Promise.all(dataToUpdate.map(dtu => apiUpdate({data: dtu, config: {format: state.sourceInfo}})));
-    }
-
-    const addItem = () => {
-        if(!state.sourceInfo?.isDms || !apiUpdate) return;
-        setState(draft => {
-            draft.data.push(newItem)
-        })
-        return apiUpdate({data: newItem, config: {format: state.sourceInfo}}) && setNewItem({})
-    }
-
-    const removeItem = item => {
-        if(!state.sourceInfo?.isDms || !apiUpdate) return;
-        setState(draft => {
-            draft.data = draft.data.filter(d => d.id !== item.id);
-        })
-        return apiUpdate({data: item, config: {format: state.sourceInfo}, requestType: 'delete'})
-    }
-    // =========================================== util fns end ========================================================
-    if(showChangeFormatModal || !isValidState) return <div className={'p-1 text-center'}>Form data not available.</div>;
-    return (
-        <SpreadSheetContext.Provider value={{state, setState, apiLoad, compType}}>
-            <div className={'w-full h-full'}>
-                <div className={'w-full'}>
-                    <div className={'w-full pt-2 flex justify-end gap-2'}>
-                        <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={isEdit} defaultOpen={false}/>
-                        <RenderDownload state={state} apiLoad={apiLoad}/>
-                    </div>
-                    <span className={'text-xs'}>{loading ? 'loading...' : state.display.invalidState ? state.display.invalidState : null}</span>
-
-                    {
-                        Comp ?
-                            <Comp isEdit={isEdit}/> :
-                            <RenderTable  {...{
-                                newItem, setNewItem,
-                                updateItem, removeItem, addItem,
-                                currentPage, loading, isEdit,
-                                allowEdit: groupByColumnsLength ? false : state.display.allowEditInView && apiUpdate
-                            }} />
-
-                    }
-
-                    <div>
-                        {/*Pagination*/}
-                        <Pagination currentPage={currentPage} setCurrentPage={setCurrentPage} compType={compType}/>
-                        {/*Attribution*/}
-                        <RenderAttribution/>
-                        
-                    </div>
-                </div>
-            </div>
-        </SpreadSheetContext.Provider>)
-}
-
-Edit.settings = {
-    hasControls: true,
-    name: 'ElementEdit'
 }
 
 export default {
     "name": 'Spreadsheet',
     "type": 'table',
-    "variables": [
-        {name: 'visibleAttributes', hidden: true}, 
-        {name: 'pageSize', hidden: true}, 
-        {name: 'attributes', hidden: true},
-        {name: 'customColNames', hidden: true}, 
-        {name: 'orderBy', hidden: true}, 
-        {name: 'colSizes', hidden: true}, 
-        {name: 'filters'},
-        {name: 'groupBy', hidden: true}, 
-        {name: 'fn', hidden: true}, 
-        {name: 'notNull', hidden: true}, 
-        {name: 'allowEditInView', hidden: true}, 
-        {name: 'format', hidden: true},
-        {name: 'view', hidden: true}, 
-        {name: 'actions', hidden: true}, 
-        {name: 'allowSearchParams', hidden: true}, 
-        {name: 'loadMoreId', hidden: true},
-        {name: 'attributionData', hidden: true}
-    ],
     getData,
-    "EditComp": Edit,
-    "ViewComp": View
+    useDataSource: true,
+    useGetDataOnPageChange: true,
+    useInfiniteScroll: true,
+    showPagination: true,
+    "EditComp": RenderTable,
+    "ViewComp": RenderTable,
 }

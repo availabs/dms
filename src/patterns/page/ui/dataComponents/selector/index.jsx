@@ -1,12 +1,9 @@
 import React, {useEffect, useState} from "react";
 import { get,isEqual } from "lodash-es";
-
-import {dmsDataTypes} from "../../../../../"
 import { CMSContext } from '../../../siteConfig'
-
 import FilterableSearch from "./FilterableSearch";
-
 import ComponentRegistry from './ComponentRegistry'
+import DataWrapper from "./ComponentRegistry/shared/dataWrapper";
 
 export let RegisteredComponents = ComponentRegistry;
 
@@ -48,9 +45,8 @@ function EditComp(props) {
         }
     }, []);
 
-    // console.log('RegisteredComponents', RegisteredComponents, value?.['element-type'])
-
-    let DataComp = (RegisteredComponents[get(value, "element-type", "lexical")] || RegisteredComponents['lexical']).EditComp
+    const component = (RegisteredComponents[get(value, "element-type", "lexical")] || RegisteredComponents['lexical']);
+    let DataComp = component.useDataSource ? DataWrapper.EditComp : component.EditComp;
 
     return (
         <div className="w-full">
@@ -105,6 +101,7 @@ function EditComp(props) {
                     onChange={v => updateAttribute('element-data', v)}
                     size={size}
                     theme={theme}
+                    component={component.useDataSource ? component : undefined}
                     {...rest}
                 />
             </div>
@@ -113,15 +110,15 @@ function EditComp(props) {
 }
 
 function ViewComp({value, ...rest}) {
-    // if (!value) return false
-    // console.log('selector view', rest)
     const { theme } = React.useContext(CMSContext);
-    let Comp = RegisteredComponents[get(value, "element-type", 'lexical')] ?
-        RegisteredComponents[get(value, "element-type", "lexical")].ViewComp :
-        () => <div> Component {value["element-type"]} Not Registered </div>
+    const defaultComp = () => <div> Component {value["element-type"]} Not Registered </div>;
 
+    let component = RegisteredComponents[get(value, "element-type", 'lexical')] ?
+        RegisteredComponents[get(value, "element-type", "lexical")] : undefined;
+
+    let DataComp = !component ? defaultComp : component.useDataSource ? DataWrapper.ViewComp : component.ViewComp;
     return (
-        <Comp value={value?.['element-data'] || ''} theme={theme} {...rest}/>
+        <DataComp value={value?.['element-data'] || ''} theme={theme} {...rest} component={component.useDataSource ? component : undefined} />
     )
 }
 

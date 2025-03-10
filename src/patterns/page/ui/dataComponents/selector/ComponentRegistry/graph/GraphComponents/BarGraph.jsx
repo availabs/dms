@@ -1,7 +1,7 @@
 import React from "react"
 
 import * as Plot from "@observablehq/plot";
-import {formatFunctions} from "../../spreadsheet/utils/utils";
+import {formatFunctions} from "../../shared/dataWrapper/utils";
 
 import { useAxisTicks } from "./utils"
 const BarGraph = props => {

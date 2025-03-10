@@ -1,6 +1,6 @@
 
-import {formatFunctions, getData} from "./spreadsheet/utils/utils";
-import SpreadSheet, {SpreadSheetContext} from "./spreadsheet";
+import {formatFunctions, getData} from "./shared/dataWrapper/utils";
+import SpreadSheet, {ComponentContext} from "./shared/dataWrapper";
 import TableHeaderCell from "./spreadsheet/components/TableHeaderCell";
 import React, {useContext, useEffect, useMemo} from "react";
 import {Link} from "react-router-dom";
@@ -68,11 +68,11 @@ export const dataCardTheme = {
 // inline vs stacked; reverse
 // bg color per column
 
-export const Card = ({isEdit}) => {
+const Card = ({isEdit}) => {
     const { theme = {} } = React.useContext(CMSContext) || {};
     const dataCard = theme.dataCard || dataCardTheme;
 
-    const {state:{columns, data, display: {compactView, gridSize, gridGap, padding, headerValueLayout, reverse, hideIfNull, removeBorder, bgColor='#FFFFFF'}}, setState} = useContext(SpreadSheetContext);
+    const {state:{columns, data, display: {compactView, gridSize, gridGap, padding, headerValueLayout, reverse, hideIfNull, removeBorder, bgColor='#FFFFFF'}}, setState} = useContext(ComponentContext);
     const visibleColumns = useMemo(() => columns.filter(({show}) => show), [columns]);
     const cardsWithoutSpanLength = useMemo(() => columns.filter(({show, cardSpan}) => show && !cardSpan).length, [columns]);
 
@@ -181,17 +181,12 @@ export const Card = ({isEdit}) => {
 export default {
     "name": 'Card',
     "type": 'card',
-    "variables": [
-        {name: 'visibleAttributes', hidden: true}, {name: 'attributes', hidden: true},
-        {name: 'customColNames', hidden: true}, {name: 'orderBy', hidden: true},
-        {name: 'colSizes', hidden: true}, {name: 'filters'},
-        {name: 'groupBy', hidden: true}, {name: 'fn', hidden: true},
-        {name: 'notNull', hidden: true}, {name: 'allowEditInView', hidden: true},
-        {name: 'format', hidden: true}, {name: 'view', hidden: true},
-        {name: 'actions', hidden: true}, {name: 'allowSearchParams', hidden: true},
-        {name: 'loadMoreId', hidden: true}, {name: 'attributionData', hidden: true}
-    ],
     getData,
-    "EditComp": props => <SpreadSheet.EditComp {...props} compType={'card'}/>,
-    "ViewComp": props => <SpreadSheet.ViewComp {...props} compType={'card'}/>,
+    useDataSource: true,
+    useGetDataOnPageChange: true,
+    useInfiniteScroll: false,
+    showPagination: true,
+    controls: [],
+    "EditComp": Card,
+    "ViewComp": Card,
 }

@@ -1,11 +1,11 @@
 import React, {useContext, useEffect, useState} from "react";
 import {Link} from "react-router-dom";
 import DataTypes from "../../../../../../../../data-types";
-import {formatFunctions} from "../utils/utils";
-import { SpreadSheetContext } from "../index";
+import {formatFunctions} from "../../shared/dataWrapper/utils";
+import { ComponentContext } from "../../shared/dataWrapper";
 import {isEqual} from "lodash-es";
 import { RenderAction } from "./RenderActions";
-import { tableTheme } from './SimpleSpreadsheet'
+import { tableTheme } from '../'
 import { CMSContext } from '../../../../../../siteConfig'
 import {InfoCircle} from "../../../../../icons";
 
@@ -47,7 +47,7 @@ export const TableCell = ({
                                i, item, updateItem, removeItem, onPaste,
                                isFrozen, isSelected, isSelecting, editing, edge, loading, allowEdit,
                                onClick, onDoubleClick, onMouseDown, onMouseMove, onMouseUp}) => {
-    const {state: {columns, display}, setState} = useContext(SpreadSheetContext);
+    const {state: {columns, display}, setState} = useContext(ComponentContext);
     const { theme = { table: tableTheme } } = React.useContext(CMSContext) || {}
     const [newItem, setNewItem] = useState(item);
     // const Comp = DataTypes[attribute.type]?.[isSelecting ? 'ViewComp' : 'EditComp'];

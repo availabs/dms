@@ -3,6 +3,7 @@ import { FormsContext } from '../siteConfig'
 import SourcesLayout from "../components/patternListComponent/layout";
 import Spreadsheet from "../../page/ui/dataComponents/selector/ComponentRegistry/spreadsheet";
 import {useNavigate} from "react-router-dom";
+import DataWrapper from "../../page/ui/dataComponents/selector/ComponentRegistry/shared/dataWrapper";
 
 const TableView = ({apiUpdate, apiLoad, format, item, params}) => {
     const { baseUrl, pageBaseUrl, theme, user } = useContext(FormsContext) || {};
@@ -67,7 +68,8 @@ const TableView = ({apiUpdate, apiLoad, format, item, params}) => {
                                 </button> :
                                 null
                         }
-                        <Spreadsheet.EditComp
+                        <DataWrapper.EditComp
+                            component={Spreadsheet}
                             key={'table-page-spreadsheet'}
                             value={value}
                             onChange={(stringValue) => {setValue(stringValue)}}
