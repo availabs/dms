@@ -157,7 +157,7 @@ export const RenderTable = ({isEdit, updateItem, removeItem, addItem, newItem, s
                 })
             });
         }
-    }, [visibleAttributesLen, visibleAttrsWithoutOpenOutLen, sourceInfo.columns.length]);
+    }, [visibleAttributesLen, visibleAttrsWithoutOpenOutLen, sourceInfo.columns]);
     // ============================================ auto resize end ====================================================
 
     // =================================================================================================================
