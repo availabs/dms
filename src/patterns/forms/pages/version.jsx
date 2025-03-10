@@ -116,7 +116,6 @@ const ClearDataBtn = ({app, type, view_id, apiLoad, apiUpdate}) => {
     )
 }
 const Version = ({
-                   adminPath,
                    status,
                    apiUpdate,
                    apiLoad,
@@ -128,11 +127,10 @@ const Version = ({
                    updateAttribute,
                    params,
                    submit,
-                   parent,
                    manageTemplates = false,
                    ...r
                }) => {
-    const {API_HOST, baseUrl, pageBaseUrl, theme, user, ...rest} = React.useContext(FormsContext) || {};
+    const {API_HOST, baseUrl, pageBaseUrl, theme, user, parent} = React.useContext(FormsContext) || {};
     const {app, type, config} = parent;
 
     const currentView = (item?.views || []).find(v => v.id === params.view_id);

@@ -5,7 +5,6 @@ import SourcesLayout from "../../components/patternListComponent/layout";
 
 
 const ManageForm = ({
-    adminPath,
     status,
     apiUpdate,
     attributes,
@@ -16,7 +15,6 @@ const ManageForm = ({
     updateAttribute,
     params,
     submit,
-    parent,
     manageTemplates = false,
     apiLoad,
     ...rest

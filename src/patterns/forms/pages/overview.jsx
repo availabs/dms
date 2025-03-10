@@ -94,7 +94,6 @@ const RenderPencil = ({user, editing, setEditing, attr}) => {
 }
 
 const OverViewEdit = ({
-      adminPath,
       status,
       apiUpdate,
       attributes,
@@ -105,7 +104,6 @@ const OverViewEdit = ({
       updateAttribute,
       params,
       submit,
-      parent,
       apiLoad
 }) => {
     const {app, falcor, falcorCache, baseUrl, pageBaseUrl, user} = useContext(FormsContext);

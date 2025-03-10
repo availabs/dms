@@ -45,7 +45,6 @@ const formsAdminConfig = ({
     app, 
     type,
     siteType,
-    parent,
     adminPath,
     title, 
     baseUrl,
@@ -57,8 +56,8 @@ const formsAdminConfig = ({
     themes={ default: {} },
     checkAuth = () => {}
 }) => {
-    //console.log('parent theme', parent.theme)
-    let theme = merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern?.theme_name] || themes.default), parent?.theme || {})
+
+    let theme = merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern?.theme_name] || themes.default))
     baseUrl = baseUrl === '/' ? '' : baseUrl
     const defaultLogo = (
         <Link to={baseUrl || '/'} className='h-12 flex px-4 items-center'>
@@ -75,7 +74,6 @@ const formsAdminConfig = ({
     patternFormat.type = type
     patternFormat.registerFormats = updateRegisteredFormats(patternFormat.registerFormats, app, type) // update app for all the children formats. this works, but dms stops providing attributes to patternList
     patternFormat.attributes = updateAttributes(patternFormat.attributes, app, type) // update app for all the children formats. this works, but dms stops providing attributes to patternList
-
     // console.log('formsAdminConfig', patternFormat)
     return {
         siteType,
@@ -86,7 +84,7 @@ const formsAdminConfig = ({
             {
                 type: (props) => {
                   return (
-                      <FormsContext.Provider value={{baseUrl: `${baseUrl}`, user: props.user || defaultUser, theme, app, type, parent, Menu, API_HOST}}>
+                      <FormsContext.Provider value={{baseUrl: `${baseUrl}`, user: props.user || defaultUser, theme, app, type, parent: pattern, Menu, API_HOST}}>
                             {props.children}
                       </FormsContext.Provider>
                   )
@@ -106,7 +104,7 @@ const formsAdminConfig = ({
                         type: props => (
                             <AvailLayout secondNav={theme?.navOptions?.secondaryNav?.navItems || []}>
                                 <div className='max-w-7xl mx-auto'>
-                                    <PatternListComponent.EditComp parent={parent} {...props} adminPath={adminPath}/>
+                                    <PatternListComponent.EditComp {...props} />
                                 </div>
                              </AvailLayout>
                         ),
@@ -150,7 +148,6 @@ const formsSourceConfig = ({
     app,
     type,
     siteType,
-    parent,
     adminPath,
     title,
     baseUrl,
@@ -162,7 +159,7 @@ const formsSourceConfig = ({
     themes={ default: {} },
     checkAuth = () => {}
 }) => {
-    let theme = merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern?.theme_name] || themes.default), parent?.theme || {})
+    let theme = merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern?.theme_name] || themes.default))
     baseUrl = baseUrl === '/' ? '' : baseUrl
     const defaultLogo = (
         <Link to={baseUrl || '/'} className='h-12 flex px-4 items-center'>
@@ -194,7 +191,7 @@ const formsSourceConfig = ({
                 type: (props) => {
                     const { falcor, falcorCache } = useFalcor();
                   return (
-                      <FormsContext.Provider value={{baseUrl: `${baseUrl}`, pageBaseUrl: `${baseUrl}/source`, user: props.user || defaultUser, theme, app, type, parent, Menu, API_HOST, falcor, falcorCache}}>
+                      <FormsContext.Provider value={{baseUrl: `${baseUrl}`, pageBaseUrl: `${baseUrl}/source`, user: props.user || defaultUser, theme, app, type, parent: pattern, Menu, API_HOST, falcor, falcorCache}}>
                         <AvailLayout>
                             {props.children}
                         </AvailLayout>
@@ -210,7 +207,7 @@ const formsSourceConfig = ({
                 path: "/*",
                 children: [
                     {
-                        type: props => <Overview.EditComp parent={parent} {...props} adminPath={adminPath}/>,
+                        type: props => <Overview.EditComp {...props} />,
                         filter: {
                             stopFullDataLoad: true,
                             fromIndex: () => 0,
@@ -220,7 +217,7 @@ const formsSourceConfig = ({
                         path: `:id`
                     },
                     {
-                        type: props => <ManageMeta.EditComp parent={parent} {...props} adminPath={adminPath}/>,
+                        type: props => <ManageMeta.EditComp {...props} />,
                         filter: {
                             stopFullDataLoad: true,
                             fromIndex: () => 0,
@@ -230,7 +227,7 @@ const formsSourceConfig = ({
                         path: `:id/metadata`
                     },
                     {
-                        type: props => <Admin parent={parent} {...props} adminPath={adminPath}/>,
+                        type: props => <Admin {...props} />,
                         filter: {
                             stopFullDataLoad: true,
                             fromIndex: () => 0,
@@ -241,7 +238,7 @@ const formsSourceConfig = ({
                     },
                     // ============================= version dependent pages begin =====================================
                     {
-                        type: props => <TableView parent={parent} {...props} adminPath={adminPath}/>,
+                        type: props => <TableView {...props} />,
                         filter: {
                             stopFullDataLoad: true,
                             fromIndex: () => 0,
@@ -251,7 +248,7 @@ const formsSourceConfig = ({
                         path: `:id/table/:view_id?`
                     },
                     {
-                        type: props => <UploadPage parent={parent} {...props} adminPath={adminPath}/>,
+                        type: props => <UploadPage {...props} />,
                         filter: {
                             stopFullDataLoad: true,
                             fromIndex: () => 0,
@@ -261,7 +258,7 @@ const formsSourceConfig = ({
                         path: `:id/upload/:view_id?`
                     },
                     {
-                        type: props => <Validate parent={parent} {...props} adminPath={adminPath}/>,
+                        type: props => <Validate {...props} />,
                         filter: {
                             stopFullDataLoad: true,
                             fromIndex: () => 0,
@@ -271,7 +268,7 @@ const formsSourceConfig = ({
                         path: `:id/validate/:view_id?`
                     },
                     {
-                        type: props => <Version parent={parent} {...props} adminPath={adminPath}/>,
+                        type: props => <Version {...props} />,
                         filter: {
                             stopFullDataLoad: true,
                             fromIndex: () => 0,

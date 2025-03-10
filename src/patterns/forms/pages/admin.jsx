@@ -141,7 +141,6 @@ const ClearDataBtn = ({app, type, apiLoad, apiUpdate}) => {
     )
 }
 const Admin = ({
-                   adminPath,
                    status,
                    apiUpdate,
                    apiLoad,
@@ -153,12 +152,10 @@ const Admin = ({
                    updateAttribute,
                    params,
                    submit,
-                   parent,
                    manageTemplates = false,
                    ...r
                }) => {
-    const {API_HOST, baseUrl, pageBaseUrl, theme, user, ...rest} = React.useContext(FormsContext) || {};
-    const {app, type, config} = parent;
+    const {app, API_HOST, baseUrl, pageBaseUrl, theme, user, parent, ...rest} = React.useContext(FormsContext) || {};
 
     return (
         <SourcesLayout fullWidth={false} baseUrl={baseUrl} pageBaseUrl={pageBaseUrl} isListAll={false}

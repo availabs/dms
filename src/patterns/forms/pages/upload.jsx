@@ -4,7 +4,6 @@ import SourcesLayout from "../components/patternListComponent/layout";
 import Upload from "../components/upload";
 
 const UploadPage = ({
-    adminPath,
     status,
     apiUpdate,
     apiLoad,
@@ -16,7 +15,6 @@ const UploadPage = ({
     updateAttribute,
     params,
     submit,
-    parent,
     manageTemplates = false,
     // ...rest
 }) => {
