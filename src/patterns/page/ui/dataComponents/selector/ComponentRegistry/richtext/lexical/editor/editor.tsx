@@ -38,6 +38,7 @@ import CollapsiblePlugin from './plugins/CollapsiblePlugin';
 import ComponentPickerPlugin from './plugins/ComponentPickerPlugin';
 import DragDropPaste from './plugins/DragDropPastePlugin';
 import DraggableBlockPlugin from './plugins/DraggableBlockPlugin';
+import EmojiPickerPlugin from './plugins/EmojiPickerPlugin'
 import FloatingLinkEditorPlugin from './plugins/FloatingLinkEditorPlugin';
 import FloatingTextFormatToolbarPlugin from './plugins/FloatingTextFormatToolbarPlugin';
 // import ImagesPlugin from './plugins/ImagesPlugin';
@@ -135,6 +136,7 @@ export default function Editor(props): JSX.Element {
                 {/*<AutoFocusPlugin />*/}
                 <ClearEditorPlugin/>
                 <ComponentPickerPlugin/>
+                <EmojiPickerPlugin />
                 <AutoEmbedPlugin/>
                 <KeywordsPlugin/>
                 <SpeechToTextPlugin/>
@@ -181,8 +183,6 @@ export default function Editor(props): JSX.Element {
                         <LinkPlugin/>
                        
                         <YouTubePlugin/>
-
-                        <ClickableLinkPlugin/>
                         <HorizontalRulePlugin/>
 
                         <TabFocusPlugin/>

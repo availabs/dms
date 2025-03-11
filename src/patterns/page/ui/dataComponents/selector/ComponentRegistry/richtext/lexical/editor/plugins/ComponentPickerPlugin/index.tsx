@@ -42,7 +42,7 @@ import InsertLayoutDialog from '../LayoutPlugin/InsertLayoutDialog';
 import {InsertTableDialog} from '../TablePlugin';
 import {INSERT_EMBED_COMMAND} from '@lexical/react/LexicalAutoEmbedPlugin';
 import {EmbedConfigs} from '../AutoEmbedPlugin';
-import theme from "./../../themes/PlaygroundEditorTheme";
+
 
 
 class ComponentPickerOption extends MenuOption {
@@ -81,6 +81,7 @@ function ComponentPickerMenuItem({
                                      onClick,
                                      onMouseEnter,
                                      option,
+                                     theme
                                  }: {
     index: number;
     isSelected: boolean;
@@ -143,6 +144,7 @@ function getDynamicOptions(editor: LexicalEditor, queryString: string) {
 type ShowModal = ReturnType<typeof useModal>[1];
 
 function getBaseOptions(editor: LexicalEditor, showModal: ShowModal) {
+    const theme = editor?._config?.theme || {}
     return [
         new ComponentPickerOption('Paragraph', {
             icon: <i className={`${theme.typeaheadPopover.ul.li.icon} ${theme.icon.paragraph}`}/>,
@@ -287,6 +289,7 @@ export default function ComponentPickerMenuPlugin(): JSX.Element {
     const [editor] = useLexicalComposerContext();
     const [modal, showModal] = useModal();
     const [queryString, setQueryString] = useState<string | null>(null);
+    const theme = editor?._config?.theme || {}
 
     const checkForTriggerMatch = useBasicTypeaheadTriggerMatch('/', {
         minLength: 0,
@@ -347,6 +350,7 @@ export default function ComponentPickerMenuPlugin(): JSX.Element {
                                         <ComponentPickerMenuItem
                                             index={i}
                                             isSelected={selectedIndex === i}
+                                            theme={theme}
                                             onClick={() => {
                                                 setHighlightedIndex(i);
                                                 selectOptionAndCleanUp(option);

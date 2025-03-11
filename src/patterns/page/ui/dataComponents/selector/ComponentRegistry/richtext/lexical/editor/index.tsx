@@ -9,7 +9,7 @@ import React from 'react';
 import {LexicalComposer} from '@lexical/react/LexicalComposer';
 import {OnChangePlugin} from '@lexical/react/LexicalOnChangePlugin';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
-import { merge } from 'lodash-es'
+import { merge,cloneDeep } from 'lodash-es'
 
 
 import Editor from './editor';
@@ -21,7 +21,7 @@ import PlaygroundEditorTheme from './themes/PlaygroundEditorTheme';
 
 export default function Lexicals ({value, onChange, bgColor, editable=false, id, theme}) {
   
-  const lexicalTheme = merge(PlaygroundEditorTheme, theme?.lexical || {})
+  const lexicalTheme = merge(cloneDeep(PlaygroundEditorTheme), cloneDeep(theme?.lexical || {}))
   // console.log('theme?', lexicalTheme)
   // console.log(PlaygroundEditorTheme, theme?.lexical, lexicalTheme)
   const initialConfig = {
