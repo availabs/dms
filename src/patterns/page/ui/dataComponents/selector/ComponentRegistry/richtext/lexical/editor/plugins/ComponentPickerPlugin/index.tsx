@@ -39,7 +39,7 @@ import {INSERT_COLLAPSIBLE_COMMAND} from '../CollapsiblePlugin';
 import {InsertButtonDialog} from '../ButtonPlugin';
 import {INSERT_INLINE_IMAGE_COMMAND, InsertInlineImageDialog} from '../InlineImagePlugin';
 import InsertLayoutDialog from '../LayoutPlugin/InsertLayoutDialog';
-import {InsertNewTableDialog, InsertTableDialog} from '../TablePlugin';
+import {InsertTableDialog} from '../TablePlugin';
 import {INSERT_EMBED_COMMAND} from '@lexical/react/LexicalAutoEmbedPlugin';
 import {EmbedConfigs} from '../AutoEmbedPlugin';
 import theme from "./../../themes/PlaygroundEditorTheme";

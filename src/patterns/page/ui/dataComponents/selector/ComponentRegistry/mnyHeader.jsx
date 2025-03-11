@@ -184,13 +184,13 @@ export function Header ({position = 'above',bgImg = '/themes/mny/takeaction_land
               className="lg:order-last w-full lg:flex-1 h-[699px]"
               style={{ background: isMobile ? `url('${bgImg}') center/cover` : 'none' }}
           >
-              <div className="relative top-[90px] w-[708px] mx-auto" />
+              <div className="relative top-[90px] mx-auto" />
           </div>
 
-          {/* breadcrumbs, title, note div */}
-          <div className="w-full lg:flex-1 flex justify-center lg:justify-end">
-              <div className="w-full lg:max-w-[656px] h-full flex items-center pt-12 lg:pt-0">
-                  <div className="h-full lg:h-[514px] w-full lg:w-[481px] px-[32px] py-[37px] gap-[16px] bg-white shadow-md rounded-[12px]">
+          {/* breadcrumbs, title,note div */}
+          <div className="absolute lg:static sm:flex-1">
+              <div className="ml-auto px-[15px] lg:pl-0 lg:w-[656px] h-full flex items-center pt-12 lg:pt-[80px]">
+                  <div className=" w-full lg:w-[481px] px-[32px] py-[37px] gap-[16px] bg-white shadow-md rounded-[12px]">
                       <div className="flex flex-col gap-1">
                           <div className="px-1 z-10">
                               {showBreadcrumbs ? <Breadcrumbs chain={chain} /> : null}

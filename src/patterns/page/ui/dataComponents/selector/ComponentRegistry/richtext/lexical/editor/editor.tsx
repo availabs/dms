@@ -49,8 +49,9 @@ import ListMaxIndentLevelPlugin from './plugins/ListMaxIndentLevelPlugin';
 import {MaxLengthPlugin} from './plugins/MaxLengthPlugin';
 import SpeechToTextPlugin from './plugins/SpeechToTextPlugin';
 import TabFocusPlugin from './plugins/TabFocusPlugin';
-//import TableCellActionMenuPlugin from './plugins/TableActionMenuPlugin';
+import TableCellActionMenuPlugin from './plugins/TableActionMenuPlugin';
 import TableCellResizer from './plugins/TableCellResizer';
+import TableHoverActionsPlugin from './plugins/TableHoverActionsPlugin';
 import TableOfContentsPlugin from './plugins/TableOfContentsPlugin';
 import {TablePlugin as NewTablePlugin} from './plugins/TablePlugin';
 import ToolbarPlugin from './plugins/ToolbarPlugin';
@@ -82,6 +83,9 @@ export default function Editor(props): JSX.Element {
         editable = true,
         bgColor,
         isCard,
+        tableCellBackgroundColor= true,
+        tableCellMerge= true,
+        tableHorizontalScroll= true,
         theme
     } = props;
     const placeholder = <Placeholder>{placeholderText}</Placeholder>;
@@ -97,14 +101,6 @@ export default function Editor(props): JSX.Element {
         }
     };
 
-    const cellEditorConfig = {
-        namespace: 'Playground',
-        nodes: [...TableCellNodes],
-        onError: (error: Error) => {
-            throw error;
-        },
-        theme,
-    };
 
     useEffect(() => {
         const updateViewPortWidth = () => {
@@ -174,23 +170,12 @@ export default function Editor(props): JSX.Element {
                         <ListPlugin/>
                         <CheckListPlugin/>
                         <ListMaxIndentLevelPlugin maxDepth={7}/>
-                        <TablePlugin/>
-                        <TableCellResizer/>
-                        <NewTablePlugin cellEditorConfig={cellEditorConfig}>
-                            <AutoFocusPlugin/>
-                            <RichTextPlugin
-                                contentEditable={
-                                    <ContentEditable className={`min-h-[20px] border-[0px] resize-none cursor-text block relative [tab-size:1] outline-[0px] p-[10px] select-text text-[14px] leading-[1.4em] w-[calc(100%_-_20px)] whitespace-pre-wrap`}/>
-                                }
-                                placeholder={null}
-                                ErrorBoundary={LexicalErrorBoundary}
-                            />
-
-                            <HistoryPlugin/>
-                            <LinkPlugin/>
-                            <ClickableLinkPlugin/>
-                            <FloatingTextFormatToolbarPlugin/>
-                        </NewTablePlugin>
+                        <TablePlugin
+                          hasCellMerge={tableCellMerge}
+                          hasCellBackgroundColor={tableCellBackgroundColor}
+                          hasHorizontalScroll={tableHorizontalScroll}
+                        />
+                        <TableCellResizer />
                         <InlineImagePlugin/>
                         <ButtonPlugin />
                         <LinkPlugin/>
@@ -209,10 +194,7 @@ export default function Editor(props): JSX.Element {
                                 <DraggableBlockPlugin anchorElem={floatingAnchorElem}/>
                                 {/*<CodeActionMenuPlugin anchorElem={floatingAnchorElem}/>*/}
                                 <FloatingLinkEditorPlugin anchorElem={floatingAnchorElem} isLinkEditMode={isLinkEditMode} setIsLinkEditMode={setIsLinkEditMode}/>
-                               {/* <TableCellActionMenuPlugin
-                                    anchorElem={floatingAnchorElem}
-                                    cellMerge={true}
-                                />*/}
+                                <TableHoverActionsPlugin anchorElem={floatingAnchorElem} />
                                 <FloatingTextFormatToolbarPlugin
                                     anchorElem={floatingAnchorElem}
                                     showComments

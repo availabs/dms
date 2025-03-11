@@ -82,7 +82,7 @@ import {getSelectedNode} from '../../utils/getSelectedNode';
 import {sanitizeUrl} from '../../utils/url';
 import {INSERT_COLLAPSIBLE_COMMAND} from '../CollapsiblePlugin';
 import {InsertInlineImageDialog} from '../InlineImagePlugin';
-import {InsertNewTableDialog, InsertTableDialog} from '../TablePlugin';
+import {InsertTableDialog} from '../TablePlugin';
 import theme from "./../../themes/PlaygroundEditorTheme";
 
 const blockTypeToBlockName = {
@@ -1088,19 +1088,6 @@ export default function ToolbarPlugin({
               className={`${theme.dropdown.item.base}` || "item"}>
               <i className={`${theme.dropdown.item.icon} ${theme.icon.table}` } />
               <span className={`${theme.dropdown.item.text}` ||"text"}>Table</span>
-            </DropDownItem>
-            <DropDownItem
-              onClick={() => {
-                showModal('Insert Table', (onClose) => (
-                  <InsertNewTableDialog
-                    activeEditor={activeEditor}
-                    onClose={onClose}
-                  />
-                ));
-              }}
-              className={`${theme.dropdown.item.base}` || "item"}>
-              <i className={`${theme.dropdown.item.icon} ${theme.icon.table}` } />
-              <span className={`${theme.dropdown.item.text}` ||"text"}>Table (Experimental)</span>
             </DropDownItem>
             {/*<DropDownItem
               onClick={() => {

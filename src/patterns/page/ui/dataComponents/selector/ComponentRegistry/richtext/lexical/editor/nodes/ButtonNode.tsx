@@ -17,42 +17,38 @@ import type {
   NodeKey,
   Spread,
 } from 'lexical';
-import {Link} from 'react-router-dom'
 
-import {BlockWithAlignableContents} from '@lexical/react/LexicalBlockWithAlignableContents';
 import {
   DecoratorBlockNode,
   SerializedDecoratorBlockNode,
 } from '@lexical/react/LexicalDecoratorBlockNode';
+
 import * as React from 'react';
+import {Link} from 'react-router-dom'
 
 const BUTTON_STYLES = {
   primary: 'w-fit h-fit cursor-pointer uppercase bg-[#EAAD43] hover:bg-[#F1CA87] text-[#37576B] font-[700] leading-[14.62px] rounded-full text-[12px] text-center py-[16px] px-[24px]',
   secondary: 'w-fit h-fit cursor-pointer uppercase border boder-[#E0EBF0] bg-white hover:bg-[#E0EBF0] text-[#37576B] font-[700] leading-[14.62px] rounded-full text-[12px] text-center py-[16px] px-[24px]',
   primarySmall: 'w-fit h-fit cursor-pointer uppercase bg-[#EAAD43] hover:bg-[#F1CA87] text-[#37576B] font-[700] leading-[14.62px] rounded-full text-[12px] text-center pt-[9px] pb-[7px] px-[12px]',
-  secondarySmall: 'w-fit h-fit cursor-pointer uppercase border bg-[C5D7E0] hover:bg-[#E0EBF0] text-[#37576B] font-[700] leading-[14.62px] rounded-full text-[12px] text-center pt-[9px] pb-[7px] px-[12px]',  
+  secondarySmall: 'w-fit h-fit cursor-pointer uppercase border bg-[#E0EBF0] hover:bg-[#C5D7E0] text-[#37576B] font-[700] leading-[14.62px] rounded-full text-[12px] text-center pt-[9px] pb-[7px] px-[12px]',  
 } 
 
 function ButtonComponent({
-  className,
   format,
   nodeKey,
   linkText,
   path,
   style
 }) {
-  // console.log('ButtonComponent classname', className)
-  // console.log('ButtonComponent format',format, )
-  // console.log('ButtonComponent nodekey', nodeKey)
-  // console.log('ButtonComponent linkText',linkText)
+  /*console.log('ButtonComponent classname', className)
+  console.log('ButtonComponent format',format, )
+  console.log('ButtonComponent nodekey', nodeKey)
+  console.log('ButtonComponent linkText',linkText)*/
 
   return (
-    <BlockWithAlignableContents
-      className={className}
-      format={format}
-      nodeKey={nodeKey}>
-      <Link className={BUTTON_STYLES[style] || BUTTON_STYLES['primary']} to={path}>{typeof linkText === 'string' ? linkText : 'submit'}</Link>
-    </BlockWithAlignableContents>
+    <Link className={BUTTON_STYLES[style] || BUTTON_STYLES['primary']} to={path}>
+      {typeof linkText === 'string' ? linkText : 'submit'}
+    </Link>
   );
 }
 
@@ -75,10 +71,11 @@ function convertButtonElement(
   domNode: HTMLElement,
 ): null | DOMConversionOutput {
   const linkText = domNode.innerText
-  //console.log('convert', linkText)
   const path = domNode.getAttribute('href') //getAttribute('data-lexical-button');
+  const style = domNode.style
+  //console.log("converyButton element", linkText, path, style, domNode)
   if (linkText) {
-    const node = $createButtonNode(linkText, path);
+    const node = $createButtonNode({linkText, path, style});
     return {node};
   }
   return null;
@@ -97,8 +94,8 @@ export class ButtonNode extends DecoratorBlockNode {
     return new ButtonNode(node.__linkText, node.__path, node.__style, node.__format, node.__key);
   }
 
-  static importJSON(serializedNode: SerializedYouTubeNode): ButtonNode {
-    const node = $createButtonNode(serializedNode.linkText, serializedNode.path,serializedNode.style);
+  static importJSON(serializedNode): ButtonNode {
+    const node = $createButtonNode({linkText: serializedNode.linkText, path:serializedNode.path, style:serializedNode.style});
     node.setFormat(serializedNode.format);
     return node;
   }
@@ -125,8 +122,8 @@ export class ButtonNode extends DecoratorBlockNode {
     const element = document.createElement('a');
     element.setAttribute('href', this.__path);
     element.setAttribute('data-lexical-button', 'true');
-    element.innerText = this.__linkText
-    
+    element.className = this.__style;
+    element.innerText = this.__linkText;
     return {element};
   }
 
@@ -153,14 +150,8 @@ export class ButtonNode extends DecoratorBlockNode {
   }
 
   decorate(_editor: LexicalEditor, config: EditorConfig): JSX.Element {
-    const embedBlockTheme = config.theme.embedBlock || {};
-    const className = {
-      base: embedBlockTheme.base || '',
-      focus: embedBlockTheme.focus || '',
-    };
     return (
-      <ButtonComponent
-        className={className}
+      <ButtonComponent    
         format={this.__format}
         nodeKey={this.getKey()}
         linkText={this.__linkText}
