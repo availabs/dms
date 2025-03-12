@@ -1,105 +1,18 @@
-import React, {useCallback, useContext, useEffect, useRef, useState} from "react";
-import {RenderToggleControls} from "../../shared/RenderToggleControls";
-import {RenderInputControls} from "../../shared/RenderInputControls";
-import {getControlConfig, useHandleClickOutside} from "../../shared/utils";
-import {ComponentContext} from "../../shared/dataWrapper";
-import {Group, InfoCircle, LeftToRightListBullet, TallyMark, Sum, ArrowDown, SortAsc, SortDesc} from "../../../../../icons";
-import {ColorControls} from "../../shared/ColorControls";
+import React, {useCallback, useContext, useRef, useState} from "react";
+import {ToggleControl} from "../../../dataWrapper/components/ToggleControl";
+import {useHandleClickOutside} from "../../shared/utils";
+import {ComponentContext} from "../../../dataWrapper";
+import {Group, LeftToRightListBullet, TallyMark, Sum, ArrowDown, SortAsc, SortDesc} from "../../../../../icons";
 
-
-const selectClasses = 'w-full rounded-md bg-white group-hover:bg-gray-100 cursor-pointer'
 const selectWrapperClass = 'group px-2 py-1 w-full flex items-center cursor-pointer hover:bg-gray-100'
-const selectLabelClass = 'font-regular text-gray-500 cursor-default'
-
-const RenderLinkControls = ({attribute, updateColumns}) => {
-    const [tmpValue, setTmpValue] = useState(attribute || {});
-
-    useEffect(() => {
-        let isCanceled = false;
-        setTimeout(() => !isCanceled && updateColumns('link', tmpValue), 500)
-
-        return () => {
-            isCanceled = true;
-        }
-    }, [tmpValue]);
-
-    const inputWrapperClassName = `w-full rounded-sm cursor-pointer`
-    const inputClassName = `p-0.5 rounded-sm`
-    return (
-        <div className={'px-2 py-1 w-full rounded-md bg-white hover:bg-gray-100 cursor-pointer'}>
-            <RenderToggleControls className={`inline-flex w-full justify-center items-center rounded-md cursor-pointer ${selectLabelClass}`}
-                                  title={'Is Link'}
-                                  value={tmpValue?.isLink}
-                                  setValue={e => setTmpValue({...tmpValue, isLink: e})}
-            />
-            <div className={tmpValue.isLink ? `mt-0.5 flex flex-col gap-0.5 border rounded-md divide-y` : `hidden`}>
-                <RenderToggleControls className={`inline-flex w-full justify-center items-center rounded-md cursor-pointer ${selectLabelClass}`}
-                                      title={'Use ID'}
-                                      value={tmpValue?.useId}
-                                      setValue={e => setTmpValue({...tmpValue, useId: e})}
-                />
-                <RenderInputControls className={inputWrapperClassName}
-                                     inputClassName={inputClassName}
-                                     type={'text'}
-                                     value={tmpValue.linkText}
-                                     placeHolder={'Link Text'}
-                                     setValue={e => setTmpValue({...tmpValue, linkText: e})}
-                />
-                <RenderInputControls className={inputWrapperClassName}
-                                     inputClassName={inputClassName}
-                                     type={'text'}
-                                     value={tmpValue.location}
-                                     placeHolder={'Location'}
-                                     setValue={e => setTmpValue({...tmpValue, location: e})}
-                />
-            </div>
-        </div>
-    )
-}
-
-const formatOptions = [
-    {label: 'No Format Applied', value: ' '},
-    {label: 'Comma Seperated', value: 'comma'},
-    {label: 'Abbreviated', value: 'abbreviate'},
-]
-
-const fontStyleOptions = [
-    { label: 'X-Small', value: 'textXS' },
-    { label: 'X-Small Regular', value: 'textXSReg' },
-    { label: 'Small', value: 'textSM' },
-    { label: 'Small Regular', value: 'textSMReg' },
-    { label: 'Small Bold', value: 'textSMBold' },
-    { label: 'Small SemiBold', value: 'textSMSemiBold' },
-    { label: 'Base', value: 'textMD' },
-    { label: 'Base Regular', value: 'textMDReg' },
-    { label: 'Base Bold', value: 'textMDBold' },
-    { label: 'Base SemiBold', value: 'textMDSemiBold' },
-    { label: 'XL', value: 'textXL' },
-    { label: 'XL SemiBold', value: 'textXLSemiBold' },
-    { label: '2XL', value: 'text2XL' },
-    { label: '2XL Regular', value: 'text2XLReg' },
-    { label: '3XL', value: 'text3XL' },
-    { label: '3XL Regular', value: 'text3XLReg' },
-    { label: '4XL', value: 'text4XL' },
-    { label: '5XL', value: 'text5XL' },
-    { label: '6XL', value: 'text6XL' },
-    { label: '7XL', value: 'text7XL' },
-    { label: '8XL', value: 'text8XL' },
-];
+const selectLabelClass = 'w-fit font-regular text-gray-500 cursor-default'
+const selectClasses = 'w-full rounded-md bg-white group-hover:bg-gray-100 cursor-pointer'
 
 // in header menu for each column
-export default function TableHeaderCell({attribute}) {
-    const {state: {columns = [], display}, setState, compType} = useContext(ComponentContext);
-    const {
-        allowSortBy,
-        allowJustify,
-        allowFormat,
-        allowFontStyleSelect,
-        allowHideHeader,
-        allowCardSpan,
-        allowLinkControl,
-        allowBGColorSelector
-    } = getControlConfig(compType);
+export default function TableHeaderCell({isEdit, attribute, context}) {
+    const {state: {columns = [], display}, setState, controls = {}} = useContext(context || ComponentContext);
+    if(!controls.inHeader?.length) return;
+
     const menuRef = useRef(null);
     const [isOpen, setIsOpen] = useState(false);
     const menuBtnId = `menu-btn-${attribute.name}-in-header-column-controls`; // used to control isOpen on menu-btm click;
@@ -108,43 +21,19 @@ export default function TableHeaderCell({attribute}) {
     const maxCardSpan = display.gridSize || columns.filter(({show, cardSpan}) => show).length;
 
     // updates column if present, else adds it with the change the user made.
-    const updateColumns = useCallback((key, value) => setState(draft => {
+    const updateColumns = useCallback((key, value, onChange) => setState(draft => {
         // update requested key
         const idx = columns.findIndex(column => column.name === attribute.name);
-        if (idx !== -1 && key !== 'link') {
+        if (idx !== -1) {
             draft.columns[idx][key] = value;
         }
 
-        if (idx !== -1 && key === 'link') {
-            draft.columns[idx] = {...draft.columns[idx], ...value};
+        if(onChange){
+            onChange({attribute, key, value, columnIdx: idx})
         }
+
     }), [columns, attribute]);
 
-    const sortOptions = [
-        {
-            label: 'Sorted A->Z',
-            value: 'asc nulls last',
-            action: () => updateColumns('sort', 'asc nulls last'),
-        },
-        {
-            label: 'Sorted Z->A',
-            value: 'desc nulls last',
-            action: () => updateColumns('sort', 'desc nulls last'),
-        },
-        {
-            label: attribute.sort ? 'Clear Sort' : 'Not Sorted By',
-            value: 'default',
-            action: () => updateColumns('sort', ''),
-        },
-    ];
-
-    const justifyOptions = [
-        {label: 'Not Justified', value: ''},
-        {label: 'Left Justified', value: 'left'},
-        {label: 'Centered', value: 'center'},
-        {label: 'Right Justified', value: 'right'},
-    ]
-    if(compType === 'card') justifyOptions.push({label: 'Full Justified', value: 'full'})
     const iconClass = 'text-gray-400';
     const iconSizes = {width: 14 , height: 14}
     const fnIcons = {
@@ -185,133 +74,46 @@ export default function TableHeaderCell({attribute}) {
                 <div className="py-0.5 min-w-fit max-h-[500px] overflow-auto scrollbar-sm">
                     <div className="flex flex-col gap-0.5 items-center px-1 py-1 text-xs text-gray-600 font-regular">
                         {
-                            allowSortBy ?
-                                <div className={selectWrapperClass}>
-                                    <label className={selectLabelClass}>Sort</label>
-                                    <select
-                                        className={selectClasses}
-                                        value={attribute.sort || 'default'}
-                                        onChange={e => {
-                                            const action = sortOptions.find(o => o.value === e.target.value || o.value === 'default')?.action;
-                                            action();
-                                        }}
-                                    >
-                                        {
-                                            sortOptions.map(sortOption => <option key={sortOption.value} value={sortOption.value}>{sortOption.label}</option>)
-                                        }
-                                    </select>
-                                </div> : null
-                        }
-
-                        {
-                            allowJustify ?
-                                <div className={selectWrapperClass}>
-                                    <label className={selectLabelClass}>Justify</label>
-                                    <select
-                                        className={selectClasses}
-                                        value={attribute.justify}
-                                        onChange={e => updateColumns('justify', e.target.value)}
-                                    >
-                                        {
-                                            justifyOptions.map(({label, value}) => <option key={label} value={value}>{label}</option>)
-                                        }
-                                    </select>
-                                </div> : null
-                        }
-
-                        {
-                            allowFormat ?
-                                <div className={selectWrapperClass}>
-                                    <label className={selectLabelClass}>Format</label>
-                                    <select
-                                        className={selectClasses}
-                                        value={attribute.formatFn}
-                                        onChange={e => updateColumns('formatFn', e.target.value)}
-                                    >
-                                        {
-                                            formatOptions.map(({label, value}) => <option key={label} value={value}>{label}</option>)
-                                        }
-                                    </select>
-                                </div> : null
-                        }
-
-                        {
-                            allowFontStyleSelect ?
-                                <div className={selectWrapperClass}>
-                                    <label className={selectLabelClass}>Header</label>
-                                    <select
-                                        className={selectClasses}
-                                        value={attribute.headerFontStyle}
-                                        onChange={e => updateColumns('headerFontStyle', e.target.value)}
-                                    >
-                                        {
-                                            fontStyleOptions.map(({label, value}) => <option key={label} value={value}>{label}</option>)
-                                        }
-                                    </select>
-                                </div> : null
-                        }
-
-                        {
-                            allowFontStyleSelect ?
-                                <div className={selectWrapperClass}>
-                                    <label className={selectLabelClass}>Value</label>
-                                    <select
-                                        className={selectClasses}
-                                        value={attribute.valueFontStyle}
-                                        onChange={e => updateColumns('valueFontStyle', e.target.value)}
-                                    >
-                                        {
-                                            fontStyleOptions.map(({label, value}) => <option key={label} value={value}>{label}</option>)
-                                        }
-                                    </select>
-                                </div> : null
-                        
-                        }
-
-                        {
-                            allowLinkControl ? <RenderLinkControls attribute={attribute} updateColumns={updateColumns}/> : null
-                        }
-
-                        {
-                            allowHideHeader ? (
-                                <div className={'px-2 py-1 w-full rounded-md bg-white hover:bg-gray-100 cursor-pointer'}>
-                                    <RenderToggleControls
-                                        className={`inline-flex w-full justify-center items-center rounded-md cursor-pointer ${selectLabelClass}`}
-                                        title={'Hide Header'}
-                                        value={attribute.hideHeader}
-                                        setValue={e => updateColumns('hideHeader', e)}
-                                    />
-                                </div>
-                            ) : null
-                        }
-
-                        {
-                            allowCardSpan && !display.compactView ? (
-                                <div className={selectWrapperClass}>
-                                    <label className={selectLabelClass}>Span</label>
-                                    <select
-                                        className={selectClasses}
-                                        value={attribute.cardSpan}
-                                        onChange={e => updateColumns('cardSpan', e.target.value)}
-                                    >
-                                        {
-                                            Array.from({length: maxCardSpan}, (v, k) => ({label: `Card Span: ${k+1}`, value: k+1}))
-                                                .map(({label, value}) => <option key={value} value={value}>{label}</option>)
-                                        }
-                                    </select>
-                                </div>
-                            ) : null
-                        }
-
-                        {
-                            allowBGColorSelector && !display.compactView ?
-                                <div className={`w-full px-0.5 ${selectLabelClass}`}>
-                                    <ColorControls value={attribute.bgColor}
-                                                   setValue={e => updateColumns('bgColor', e)}
-                                                   title={'Background Color'}
-                                    />
-                                </div>
-                                : null
+                            controls.inHeader
+                                .filter(({displayCdn}) =>
+                                    typeof displayCdn === 'function' ? displayCdn({attribute, display, isEdit}) :
+                                        typeof displayCdn === 'boolean' ? displayCdn : true)
+                                .map(({type, inputType, label, key, options, onChange}) =>
+                                    type === 'select' ?
+                                        <div className={selectWrapperClass}>
+                                            <label className={selectLabelClass}>{label}</label>
+                                            <select
+                                                className={selectClasses}
+                                                value={attribute[key]}
+                                                onChange={e => updateColumns(key, e.target.value, onChange)}
+                                            >
+                                                {
+                                                    options.map(({label, value}) => <option key={value} value={value}>{label}</option>)
+                                                }
+                                            </select>
+                                        </div> :
+                                        type === 'toggle' ?
+                                            <div className={'px-2 py-1 w-full rounded-md bg-white hover:bg-gray-100 cursor-pointer'}>
+                                                <ToggleControl
+                                                    className={`inline-flex w-full justify-center items-center rounded-md cursor-pointer ${selectLabelClass}`}
+                                                    title={label}
+                                                    value={attribute[key]}
+                                                    setValue={e => updateColumns(key, e, onChange)}
+                                                />
+                                            </div> :
+                                            type === 'input' ?
+                                                <div className={selectWrapperClass}>
+                                                    <label className={selectLabelClass}>{label}</label>
+                                                    <input
+                                                        className={selectClasses}
+                                                        type={inputType}
+                                                        value={attribute[key]}
+                                                        onChange={e => updateColumns(key, e.target.value, onChange)}
+                                                    />
+                                                </div> :
+                                            typeof type === 'function' ? type({value: attribute[key], setValue: newValue => updateColumns(key, newValue, onChange)}) :
+                                                `${type} not available`
+                                )
                         }
                     </div>
                 </div>

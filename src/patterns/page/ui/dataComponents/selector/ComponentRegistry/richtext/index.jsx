@@ -2,7 +2,7 @@ import React, {useEffect, useState} from "react"
 import LexicalComp from "./lexical"
 import {ColorPickerComp} from "./components/colorPickerComp";
 import theme from './theme'
-import RenderSwitch from "../shared/Switch";
+import RenderSwitch from "../../dataWrapper/components/Switch";
 import {merge, cloneDeep} from 'lodash-es'
 const isJson = (str)  => {
     try {

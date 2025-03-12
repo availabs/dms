@@ -1,6 +1,6 @@
 import React, {useCallback, useMemo, useRef} from "react";
 import dataTypes from "../../../../../../../../../data-types";
-import RenderSwitch from "../../Switch";
+import RenderSwitch from "../../../../dataWrapper/components/Switch";
 import {useHandleClickOutside} from "../../utils";
 import {convertToUrlParams} from "../utils";
 import {useNavigate} from "react-router-dom";

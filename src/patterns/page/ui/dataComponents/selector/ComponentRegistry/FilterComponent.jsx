@@ -2,9 +2,9 @@ import React, {useState, useEffect, createContext, useMemo, useRef} from 'react'
 
 import {RenderFilters} from "./shared/filters/RenderFilters";
 import {DataSourceSelector} from "./DataSourceSelector";
-import {ColumnControls} from "./shared/ColumnControls";
+import {Controls} from "../dataWrapper/components/Controls";
 import {useImmer} from "use-immer";
-import {isJson} from "./shared/dataWrapper/utils";
+import {isJson} from "../dataWrapper/utils/utils";
 const FilterComponentContext = React.createContext({});
 
 const initialState = {
@@ -39,7 +39,7 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, renderCard}) => 
                 <DataSourceSelector apiLoad={apiLoad} app={pageFormat?.app}
                                     state={state} setState={setState} // passing as props as other components will use it as well.
                 />
-                { isEdit ? <ColumnControls context={FilterComponentContext} /> : null }
+                { isEdit ? <Controls context={FilterComponentContext} /> : null }
 
                 <div className={'w-full pt-2 flex justify-end gap-2'}>
                     <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={isEdit} defaultOpen={true} />

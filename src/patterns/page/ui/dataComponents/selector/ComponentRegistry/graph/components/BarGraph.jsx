@@ -1,9 +1,9 @@
 import React from "react"
 
 import * as Plot from "@observablehq/plot";
-import {formatFunctions} from "../../shared/dataWrapper/utils";
+import {formatFunctions} from "../../../dataWrapper/utils/utils";
 
-import { useAxisTicks } from "./utils"
+import { useAxisTicks } from "../utils"
 const BarGraph = props => {
 
   const {

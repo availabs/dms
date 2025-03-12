@@ -1,8 +1,8 @@
 import React, {useContext, useEffect, useState} from "react";
 import {Link} from "react-router-dom";
 import DataTypes from "../../../../../../../../data-types";
-import {formatFunctions} from "../../shared/dataWrapper/utils";
-import { ComponentContext } from "../../shared/dataWrapper";
+import {formatFunctions} from "../../../dataWrapper/utils/utils";
+import { ComponentContext } from "../../../dataWrapper";
 import {isEqual} from "lodash-es";
 import { RenderAction } from "./RenderActions";
 import { tableTheme } from '../'
@@ -10,14 +10,13 @@ import { CMSContext } from '../../../../../../siteConfig'
 import {InfoCircle} from "../../../../../icons";
 
 const DisplayCalculatedCell = ({value, className}) => <div className={className}>{value}</div>
-const stringifyIfObj = obj => typeof obj === "object" ? JSON.stringify(obj) : obj;
 const LoadingComp = ({className}) => <div className={className}>loading...</div>
 
 const LinkComp = ({attribute, columns, newItem, removeItem, value, Comp}) => {
-    const {actionType, location, linkText, isLink} = attribute;
+    const {actionType, location, linkText, isLink, useId} = attribute;
 
     if(isLink){
-        return (props) => <Link {...props} to={`${location}${encodeURIComponent(value)}`} >{linkText || value}</Link>
+        return (props) => <Link {...props} to={`${location}${encodeURIComponent(useId ? newItem.id : value)}`} >{linkText}</Link>
     }
 
     if(actionType){
@@ -56,7 +55,7 @@ export const TableCell = ({
                             editing && allowEdit ? 'EditComp' : 'ViewComp';
     const Comp = loading ? LoadingComp : (DataTypes[compType]?.[compMode] || DisplayCalculatedCell);
     const CompWithLink = LinkComp({attribute, columns, newItem, removeItem, value: newItem[attribute.name], Comp});
-    const value = attribute.formatFn ? formatFunctions[attribute.formatFn](newItem[attribute.name], attribute.isDollar) : newItem[attribute.name]
+    const value = attribute.formatFn && formatFunctions[attribute.formatFn.toLowerCase()] ? formatFunctions[attribute.formatFn.toLowerCase()](newItem[attribute.name], attribute.isDollar) : newItem[attribute.name]
     const justifyClass = {
         left: 'justify-start',
         right: 'justify-end',

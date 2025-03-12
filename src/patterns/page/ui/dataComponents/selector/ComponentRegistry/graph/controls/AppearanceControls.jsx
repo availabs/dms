@@ -1,17 +1,17 @@
 import React, {useRef, useState, useEffect, useContext, useCallback} from "react";
-import {ArrowDown} from "../../../../../../forms/ui/icons"
-import {RenderToggleControls} from "./RenderToggleControls";
-import RenderSwitch from "./Switch";
-import {RenderInputControls} from "./RenderInputControls";
-import {ComponentContext} from "./dataWrapper";
-import {getControlConfig, useHandleClickOutside} from "./utils";
+import {ArrowDown} from "../../../../../../../forms/ui/icons"
+import {ToggleControl} from "../../../dataWrapper/components/ToggleControl";
+import RenderSwitch from "../../../dataWrapper/components/Switch";
+import {InputControl} from "../../../dataWrapper/components/InputControl";
+import {ComponentContext} from "../../../dataWrapper";
+import {getControlConfig, useHandleClickOutside} from "../../shared/utils";
 
-export default function RenderAppearanceControls({context}) {
-    const {state: {display}, setState, compType} = useContext(context || ComponentContext);
+export default function AppearanceControls({context}) {
+    const {state: {display}, setState} = useContext(context || ComponentContext);
 
     const menuRef = useRef(null);
     const [isOpen, setIsOpen] = useState(false);
-    // const [openSubMenu, setOpenSubMenu]
+
     const menuBtnId = 'menu-btn-appearance-controls'
     useHandleClickOutside(menuRef, menuBtnId, () => setIsOpen(false));
 
@@ -27,8 +27,6 @@ export default function RenderAppearanceControls({context}) {
         })
     }, []);
 
-
-    if(compType !== 'graph') return;
     return (
         <div className="relative inline-block text-left">
             <div>
@@ -65,45 +63,45 @@ export default function RenderAppearanceControls({context}) {
                     <div className={'border-t mt-2 mx-4'}>
                         <div className={'-mt-2 -ml-4 px-2 text-xs font-medium font-gray-800 w-fit bg-white'}>X Axis</div>
                     </div>
-                    <RenderInputControls title={'Label'} type={'text'} value={display.xAxis?.label}
-                                         setValue={value => updateDisplayValue('xAxis', 'label', value)}/>
-                    <RenderInputControls title={'Tick Spacing'} type={'number'} value={display.xAxis?.tickSpacing}
-                                         setValue={value => updateDisplayValue('xAxis', 'tickSpacing', +value)}/>
-                    <RenderToggleControls title={'Show Gridlines'} value={display.xAxis?.showGridLines}
-                                          setValue={value => updateDisplayValue('xAxis', 'showGridLines', value)}/>
-                    <RenderToggleControls title={'Rotate Labels'} value={display.xAxis?.rotateLabels}
-                                          setValue={value => updateDisplayValue('xAxis', 'rotateLabels', value)}/>
-                    <RenderToggleControls title={'Show Axis Bar'} value={display.xAxis?.showXAxisBar}
-                                          setValue={value => updateDisplayValue('xAxis', 'showXAxisBar', value)}/>
+                    <InputControl title={'Label'} type={'text'} value={display.xAxis?.label}
+                                  setValue={value => updateDisplayValue('xAxis', 'label', value)}/>
+                    <InputControl title={'Tick Spacing'} type={'number'} value={display.xAxis?.tickSpacing}
+                                  setValue={value => updateDisplayValue('xAxis', 'tickSpacing', +value)}/>
+                    <ToggleControl title={'Show Gridlines'} value={display.xAxis?.showGridLines}
+                                   setValue={value => updateDisplayValue('xAxis', 'showGridLines', value)}/>
+                    <ToggleControl title={'Rotate Labels'} value={display.xAxis?.rotateLabels}
+                                   setValue={value => updateDisplayValue('xAxis', 'rotateLabels', value)}/>
+                    <ToggleControl title={'Show Axis Bar'} value={display.xAxis?.showXAxisBar}
+                                   setValue={value => updateDisplayValue('xAxis', 'showXAxisBar', value)}/>
 
                     {/* Y Axis */}
                     <div className={'border-t mt-2 mx-4'}>
                         <div className={'-mt-2 -ml-4 px-2 text-xs font-medium font-gray-800 w-fit bg-white'}>Y Axis</div>
                     </div>
-                    <RenderInputControls title={'Label'} type={'text'} value={display.yAxis?.label}
-                                         setValue={value => updateDisplayValue('yAxis', 'label', value)}/>
-                    <RenderInputControls title={'Tick Spacing'} type={'number'} value={display.yAxis?.tickSpacing}
-                                         setValue={value => updateDisplayValue('yAxis', 'tickSpacing', +value)}/>
-                    <RenderToggleControls title={'Show Gridlines'} value={display.yAxis?.showGridLines}
-                                          setValue={value => updateDisplayValue('yAxis', 'showGridLines', value)}/>
-                    <RenderToggleControls title={'Rotate Labels'} value={display.yAxis?.rotateLabels}
-                                          setValue={value => updateDisplayValue('yAxis', 'rotateLabels', value)}/>
+                    <InputControl title={'Label'} type={'text'} value={display.yAxis?.label}
+                                  setValue={value => updateDisplayValue('yAxis', 'label', value)}/>
+                    <InputControl title={'Tick Spacing'} type={'number'} value={display.yAxis?.tickSpacing}
+                                  setValue={value => updateDisplayValue('yAxis', 'tickSpacing', +value)}/>
+                    <ToggleControl title={'Show Gridlines'} value={display.yAxis?.showGridLines}
+                                   setValue={value => updateDisplayValue('yAxis', 'showGridLines', value)}/>
+                    <ToggleControl title={'Rotate Labels'} value={display.yAxis?.rotateLabels}
+                                   setValue={value => updateDisplayValue('yAxis', 'rotateLabels', value)}/>
 
                     {/* Title */}
                     <div className={'border-t mt-2 mx-4'}>
                         <div className={'-mt-2 -ml-4 px-2 text-xs font-medium font-gray-800 w-fit bg-white'}>Graph</div>
                     </div>
-                    <RenderInputControls title={'Show Title'} type={'text'} value={display.title?.title}
-                                         setValue={value => updateDisplayValue('title', 'title', value)}/>
+                    <InputControl title={'Show Title'} type={'text'} value={display.title?.title}
+                                  setValue={value => updateDisplayValue('title', 'title', value)}/>
 
-                    <RenderToggleControls title={'Show Legend'} value={display.legend?.show}
-                                          setValue={value => updateDisplayValue('legend', 'show', value)}/>
+                    <ToggleControl title={'Show Legend'} value={display.legend?.show}
+                                   setValue={value => updateDisplayValue('legend', 'show', value)}/>
 
-                    <RenderToggleControls title={'Show Tooltip'} value={display.tooltip?.show}
-                                          setValue={value => updateDisplayValue('tooltip', 'show', value)}/>
+                    <ToggleControl title={'Show Tooltip'} value={display.tooltip?.show}
+                                   setValue={value => updateDisplayValue('tooltip', 'show', value)}/>
 
-                    <RenderInputControls title={'Height'} type={'number'} value={display.height}
-                                         setValue={value => updateDisplayValue(null, 'height', +value)}/>
+                    <InputControl title={'Height'} type={'number'} value={display.height}
+                                  setValue={value => updateDisplayValue(null, 'height', +value)}/>
 
                     {/* Layout */}
                     {
@@ -112,11 +110,11 @@ export default function RenderAppearanceControls({context}) {
                                 <div className={'border-t mt-2 mx-4'}>
                                     <div className={'-mt-2 -ml-4 px-2 text-xs font-medium font-gray-800 w-fit bg-white'}>Layout</div>
                                 </div>
-                                <RenderToggleControls title={'Vertical'} value={display.orientation === 'vertical'}
-                                                      setValue={value => updateDisplayValue(null, 'orientation', value ? 'vertical' : 'horizontal')}/>
+                                <ToggleControl title={'Vertical'} value={display.orientation === 'vertical'}
+                                               setValue={value => updateDisplayValue(null, 'orientation', value ? 'vertical' : 'horizontal')}/>
 
-                                <RenderToggleControls title={'Stacked'} value={display.groupMode === 'stacked'}
-                                                      setValue={value => updateDisplayValue(null, 'groupMode', value ? 'stacked' : 'grouped')}/>
+                                <ToggleControl title={'Stacked'} value={display.groupMode === 'stacked'}
+                                               setValue={value => updateDisplayValue(null, 'groupMode', value ? 'stacked' : 'grouped')}/>
                             </> : null
                     }
                 </div>

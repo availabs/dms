@@ -3,8 +3,9 @@ import DataTypes from "../../../../../../../data-types";
 import {InfoCircle} from "../../../../../../admin/ui/icons";
 import {DataSourceSelector} from "../DataSourceSelector";
 import {useSearchParams} from "react-router-dom";
-import {ColumnControls} from "../shared/ColumnControls";
 import {useImmer} from "use-immer";
+import ColumnControls from "./controls/ColumnControls";
+import MoreControls from "./controls/MoreControls";
 
 export const convertOldState = (state, initialState) => {
     const oldState = isJson(state) ? JSON.parse(state) : {};
@@ -131,7 +132,10 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
               <DataSourceSelector apiLoad={apiLoad} app={pageFormat?.app}
                                   state={state} setState={setState}
                        />
-               <ColumnControls context={ItemContext} />
+               <div className={'flex items-center'}>
+                   <ColumnControls context={ItemContext} />
+                   <MoreControls context={ItemContext} />
+               </div>
 
                <div className={'divide-y'}>
                    {

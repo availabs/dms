@@ -3,7 +3,7 @@ import { get,isEqual } from "lodash-es";
 import { CMSContext } from '../../../siteConfig'
 import FilterableSearch from "./FilterableSearch";
 import ComponentRegistry from './ComponentRegistry'
-import DataWrapper from "./ComponentRegistry/shared/dataWrapper";
+import DataWrapper from "./dataWrapper";
 
 export let RegisteredComponents = ComponentRegistry;
 
