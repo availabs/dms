@@ -99,7 +99,7 @@ export const TableCell = ({
     }) : true;
 
     const isTotalRow = newItem.totalRow;
-    const bgColor = !isValid ? `bg-red-50 hover:bg-red-100` : isTotalRow ? `bg-gray-100` :
+    const bgColor = openOutTitle || attribute.openOut ? `` : !isValid ? `bg-red-50 hover:bg-red-100` : isTotalRow ? `bg-gray-100` :
                                 display.striped && i % 2 !== 0 ? 'bg-gray-50 hover:bg-gray-100' :
                                     isSelected ? 'bg-blue-50 hover:bg-blue-100' : 'bg-white bg-blue-50';
 

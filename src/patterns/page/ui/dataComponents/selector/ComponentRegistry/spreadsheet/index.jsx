@@ -138,9 +138,9 @@ export const RenderTable = ({isEdit, updateItem, removeItem, addItem, newItem, s
     useEffect(() => {
         if(!gridRef.current) return;
 
-        const columnsWithSizeLength = visibleAttributes.filter(({size}) => size).length;
+        const columnsWithSizeLength = visibleAttrsWithoutOpenOut.filter(({size}) => size).length;
         const gridWidth = gridRef.current.offsetWidth - numColSize - gutterColSize - (allowEdit ? actionColumns.length * actionsColSize : 0);
-        const currUsedWidth = visibleAttributes.reduce((acc, {size}) => acc + +(size || 0), 0);
+        const currUsedWidth = visibleAttrsWithoutOpenOut.reduce((acc, {size}) => acc + +(size || 0), 0);
         if (
             !columnsWithSizeLength ||
             columnsWithSizeLength !== visibleAttrsWithoutOpenOutLen ||
@@ -157,7 +157,7 @@ export const RenderTable = ({isEdit, updateItem, removeItem, addItem, newItem, s
                 })
             });
         }
-    }, [visibleAttributesLen, visibleAttrsWithoutOpenOutLen, sourceInfo.columns]);
+    }, [visibleAttributesLen, visibleAttrsWithoutOpenOutLen, openOutAttributesLen, sourceInfo.columns]);
     // ============================================ auto resize end ====================================================
 
     // =================================================================================================================
