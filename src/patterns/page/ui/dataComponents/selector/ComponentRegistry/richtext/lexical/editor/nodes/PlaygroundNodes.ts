@@ -18,6 +18,7 @@ import {HorizontalRuleNode} from '@lexical/react/LexicalHorizontalRuleNode';
 import {HeadingNode, QuoteNode} from '@lexical/rich-text';
 import {TableCellNode, TableNode, TableRowNode} from '@lexical/table';
 
+
 import {CollapsibleContainerNode} from '../plugins/CollapsiblePlugin/CollapsibleContainerNode';
 import {CollapsibleButtonNode} from '../plugins/CollapsiblePlugin/CollapsibleToggleButtonNode';
 import {CollapsibleContentNode} from '../plugins/CollapsiblePlugin/CollapsibleContentNode';
@@ -35,7 +36,7 @@ import {LayoutItemNode} from './LayoutItemNode';
 // import {MentionNode} from './MentionNode';
 // import {PollNode} from './PollNode';
 // import {StickyNode} from './StickyNode';
-import {TableNode as NewTableNode} from './TableNode';
+// import {TableNode as NewTableNode} from './TableNode';
 // import {TweetNode} from './TweetNode';
 import {YouTubeNode} from './YouTubeNode';
 
@@ -47,7 +48,6 @@ const PlaygroundNodes: Array<Klass<LexicalNode>> = [
   ListItemNode,
   QuoteNode,
   CodeNode,
-  NewTableNode,
   TableNode,
   TableCellNode,
   TableRowNode,

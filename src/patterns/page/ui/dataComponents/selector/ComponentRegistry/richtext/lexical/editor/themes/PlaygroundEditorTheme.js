@@ -136,6 +136,16 @@ const theme = {
     "relative top-0 w-[20px] bg-gray-200 h-full right-0 animate-[table-controls_0.2s_ease] border-0 cursor-pointer hover:bg-[#c9dbf0] after:content-[''] after:absolute after:top-0 after:left-0 after:w-full after:h-full after:bg-[url(/images/icons/plus.svg)] after:bg-center after:bg-no-repeat after:bg-contain after:opacity-40", //'PlaygroundEditorTheme__tableAddColumns',
   tableAddRows:
     "absolute bottom-[-25px] w-[calc(100%-25px)] bg-gray-200 h-[20px] left-0 animate-[table-controls_0.2s_ease] border-0 cursor-pointer hover:bg-[#c9dbf0] after:content-[''] after:absolute after:top-0 after:left-0 after:w-full after:h-full after:bg-[url(/images/icons/plus.svg)] after:bg-center after:bg-no-repeat after:bg-contain after:opacity-40", //'PlaygroundEditorTheme__tableAddRows',
+  /*
+    tableCell: 'PlaygroundEditorTheme__tableCell',
+  tableCellActionButton: 'PlaygroundEditorTheme__tableCellActionButton',
+  tableCellActionButtonContainer:
+    'PlaygroundEditorTheme__tableCellActionButtonContainer',
+  tableCellHeader: 'PlaygroundEditorTheme__tableCellHeader',
+  tableCellResizer: 'PlaygroundEditorTheme__tableCellResizer',
+  tableCellSelected: 'PlaygroundEditorTheme__tableCellSelected',
+  */
+
   tableCell:
     "border border-gray-400 min-w-[75px] align-top text-left px-2 py-[6px] relative cursor-default outline-none", //'PlaygroundEditorTheme__tableCell',
   tableCellActionButton:

@@ -62,9 +62,9 @@ export function InsertButtonDialog({
 }): JSX.Element {
   const hasModifier = useRef(false);
 
-  const [linkText, setLinkText] = useState('');
-  const [path, setPath] = useState('');
-  const [style, setStyle] = useState('left');
+  const [linkText, setLinkText] = useState('submit');
+  const [path, setPath] = useState('#');
+  const [style, setStyle] = useState('primary');
 
   useEffect(() => {
     hasModifier.current = false;
@@ -79,7 +79,6 @@ export function InsertButtonDialog({
 
   const handleOnClick = () => {
     const payload = {linkText, path, style};
-    //console.log('dispatch command', INSERT_BUTTON_COMMAND, payload, linkText, path, style)
     activeEditor.dispatchCommand(INSERT_BUTTON_COMMAND, payload);
     onClose();
   };
@@ -102,10 +101,10 @@ export function InsertButtonDialog({
         />
       </div>
 
-       <div style={{marginBottom: '1em'}}>
+      <div style={{marginBottom: '1em'}}>
         <TextInput
-          label="Alt Text"
-          placeholder="Descriptive alternative text"
+          label="URL"
+          placeholder="LinkPath"
           onChange={setPath}
           value={path}
           data-test-id="image-modal-alt-text-input"
@@ -118,17 +117,15 @@ export function InsertButtonDialog({
         name="position"
         id="position-select"
         onChange={e => setStyle(e.target.value)}>
-        <option value="orimary">Priamry</option>
+        <option value="primary">Primary</option>
         <option value="secondary">Secondary</option>
         <option value="primarySmall">Primary Small</option>
         <option value="secondarySmall">Secondary Small</option>
       </Select>
 
-      
-
       <DialogActions>
         <Button
-          data-test-id="image-modal-file-upload-btn"
+          data-test-id="create-button-node"
           disabled={isDisabled}
           onClick={() => handleOnClick()}>
           Confirm
@@ -151,12 +148,8 @@ export default function ButtonPlugin(): JSX.Element | null {
         INSERT_BUTTON_COMMAND,
         (payload) => {
           const buttonNode = $createButtonNode(payload);
-          //console.log('insert Button ', payload, buttonNode)
           $insertNodes([buttonNode]);
-          
           $wrapNodeInElement(buttonNode, $createParagraphNode).selectEnd();
-          
-
           return true;
         },
         COMMAND_PRIORITY_EDITOR,
