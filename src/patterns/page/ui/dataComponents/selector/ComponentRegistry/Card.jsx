@@ -1,10 +1,10 @@
-
-import {formatFunctions, getData} from "./shared/dataWrapper/utils";
-import SpreadSheet, {ComponentContext} from "./shared/dataWrapper";
+import {formatFunctions} from "../dataWrapper/utils/utils";
+import {ComponentContext} from "../dataWrapper";
 import TableHeaderCell from "./spreadsheet/components/TableHeaderCell";
 import React, {useContext, useEffect, useMemo} from "react";
 import {Link} from "react-router-dom";
 import {CMSContext} from "../../../../siteConfig";
+import {ColorControls} from "./shared/ColorControls";
 
 const justifyClass = {
     left: 'justifyTextLeft',
@@ -12,7 +12,29 @@ const justifyClass = {
     center: 'justifyTextCenter',
     full: {header: 'justifyTextLeft', value: 'justifyTextRight'}
 }
-
+const fontStyleOptions = [
+    { label: 'X-Small', value: 'textXS' },
+    { label: 'X-Small Regular', value: 'textXSReg' },
+    { label: 'Small', value: 'textSM' },
+    { label: 'Small Regular', value: 'textSMReg' },
+    { label: 'Small Bold', value: 'textSMBold' },
+    { label: 'Small SemiBold', value: 'textSMSemiBold' },
+    { label: 'Base', value: 'textMD' },
+    { label: 'Base Regular', value: 'textMDReg' },
+    { label: 'Base Bold', value: 'textMDBold' },
+    { label: 'Base SemiBold', value: 'textMDSemiBold' },
+    { label: 'XL', value: 'textXL' },
+    { label: 'XL SemiBold', value: 'textXLSemiBold' },
+    { label: '2XL', value: 'text2XL' },
+    { label: '2XL Regular', value: 'text2XLReg' },
+    { label: '3XL', value: 'text3XL' },
+    { label: '3XL Regular', value: 'text3XLReg' },
+    { label: '4XL', value: 'text4XL' },
+    { label: '5XL', value: 'text5XL' },
+    { label: '6XL', value: 'text6XL' },
+    { label: '7XL', value: 'text7XL' },
+    { label: '8XL', value: 'text8XL' },
+];
 export const dataCardTheme = {
     columnControlWrapper: 'grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-x-1 gap-y-0.5',
     columnControlHeaderWrapper: `px-1 font-semibold border bg-gray-50 text-gray-500`,
@@ -181,12 +203,78 @@ const Card = ({isEdit}) => {
 export default {
     "name": 'Card',
     "type": 'card',
-    getData,
     useDataSource: true,
     useGetDataOnPageChange: true,
     useInfiniteScroll: false,
     showPagination: true,
-    controls: [],
+    controls: {
+        columns: [
+            // settings from columns dropdown are stored in state.columns array, per column
+            {type: 'select', label: 'Fn', key: 'fn',
+                options: [
+                    {label: 'fn', value: ' '}, {label: 'list', value: 'list'}, {label: 'sum', value: 'sum'}, {label: 'count', value: 'count'}
+                ]},
+            {type: 'select', label: 'Exclude N/A', key: 'excludeNA',
+                options: [
+                    {label: 'include n/a', value: false}, {label: 'exclude n/a', value: true}
+                ]},
+            {type: 'toggle', label: 'show', key: 'show'},
+            {type: 'toggle', label: 'Filter', key: 'filters', trueValue: [{type: 'internal', operation: 'filter', values: []}]},
+            {type: 'toggle', label: 'Group', key: 'group'},
+        ],
+        more: [
+            // settings from more dropdown are stored in state.display
+            {type: 'toggle', label: 'Use Search Params', key: 'allowSearchParams'},
+            {type: 'toggle', label: 'Compact View', key: 'compactView'},
+            {type: 'input', inputType: 'number', label: 'Grid Size', key: 'gridSize'},
+            {type: 'input', inputType: 'number', label: 'Grid Gap', key: 'gridGap'},
+            {type: 'input', inputType: 'number', label: 'Padding', key: 'padding'},
+            {type: 'toggle', label: 'Use Pagination', key: 'usePagination'},
+
+            {type: 'input', inputType: 'number', label: 'Page Size', key: 'pageSize', displayCdn: ({display}) => display.usePagination === true},
+            {type: 'select', label: 'Value Placement', key: 'headerValueLayout', options: [{label: `Inline`, value: 'row'}, {label: `Stacked`, value: 'col'}]},
+            {type: 'toggle', label: 'Reverse', key: 'reverse'},
+            {type: 'toggle', label: 'Hide if No Data', key: 'hideIfNull'},
+            {type: 'toggle', label: 'Remove Border', key: 'removeBorder'},
+            {type: ({value, setValue}) => <ColorControls value={value} setValue={setValue} title={'Background Color'}/>, key: 'bgColor', displayCdn: ({display}) => display.compactView},
+        ],
+        inHeader: [
+            // settings from in header dropdown are stores in the columns array per column.
+            {type: 'select', label: 'Sort', key: 'sort',
+                options: [
+                    {label: 'Not Sorted', value: ''}, {label: 'A->Z', value: 'asc nulls last'}, {label: 'Z->A', value: 'desc nulls last'}
+                ]},
+            {type: 'select', label: 'Justify', key: 'justify',
+                options: [
+                    {label: 'Not Justified', value: ''},
+                    {label: 'Left', value: 'left'},
+                    {label: 'Center', value: 'center'},
+                    {label: 'Right', value: 'right'},
+                    {label: 'Full Justified', value: 'full'}
+                ]},
+            {type: 'select', label: 'Format', key: 'formatFn',
+                options: [
+                    {label: 'No Format Applied', value: ' '},
+                    {label: 'Comma Seperated', value: 'comma'},
+                    {label: 'Abbreviated', value: 'abbreviate'},
+                ]},
+
+            {type: 'toggle', label: 'Hide Header', key: 'hideHeader'},
+            {type: 'select', label: 'Header', key: 'headerFontStyle', options: fontStyleOptions, displayCdn: ({attribute}) => !attribute.hideHeader},
+            {type: 'select', label: 'Value', key: 'valueFontStyle', options: fontStyleOptions},
+
+            {type: 'input', inputType: 'number', label: 'Span', key: 'cardSpan', displayCdn: ({display}) => !display.compactView},
+
+            // link controls
+            {type: 'toggle', label: 'Is Link', key: 'isLink', displayCdn: ({isEdit}) => isEdit},
+            {type: 'toggle', label: 'Use Id', key: 'useId', displayCdn: ({attribute, isEdit}) => isEdit && attribute.isLink},
+            {type: 'input', inputType: 'text', label: 'Link Text', key: 'linkText', displayCdn: ({attribute, isEdit}) => isEdit && attribute.isLink},
+            {type: 'input', inputType: 'text', label: 'Location', key: 'location', displayCdn: ({attribute, isEdit}) => isEdit && attribute.isLink},
+
+            {type: ({value, setValue}) => <ColorControls value={value} setValue={setValue} title={'Background Color'}/>, key: 'bgColor', displayCdn: ({display}) => !display.compactView},
+        ]
+
+    },
     "EditComp": Card,
     "ViewComp": Card,
 }

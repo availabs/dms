@@ -1,4 +1,4 @@
-import {getData as getFilterData} from "../filters/utils";
+import {getData as getFilterData} from "../../ComponentRegistry/shared/filters/utils";
 import {uniq} from "lodash-es";
 
 const fnum = (number, currency = false) => `${currency ? '$ ' : ''} ${isNaN(number) ? 0 : parseInt(number).toLocaleString()}`;

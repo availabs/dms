@@ -5,8 +5,8 @@ import {
   sum as d3sum
 } from "d3-array"
 import {get} from "lodash-es"
-import { GraphTypes, getGraphComponent } from "./GraphComponents"
-import {mapColors} from "./GraphComponents/utils";
+import { GraphTypes, getGraphComponent } from "./components"
+import {mapColors} from "./utils";
 export const getColorRange = (size, name, reverse=false) => {
   let range = get(mapColors, [name, size], []).slice();
 

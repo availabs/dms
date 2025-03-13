@@ -1,79 +1,25 @@
 import React, {useState, useEffect, createContext, useMemo, useRef} from 'react'
 import writeXlsxFile from 'write-excel-file';
-import {Pagination} from "../Pagination";
-import {getData} from "./utils";
-import {RenderFilters} from "../filters/RenderFilters";
-import {Attribution} from "../Attribution";
-import {DataSourceSelector} from "../../DataSourceSelector";
-import {ColumnControls} from "../ColumnControls";
+import {Pagination} from "../ComponentRegistry/shared/Pagination";
+import {getData} from "./utils/utils";
+import {RenderFilters} from "../ComponentRegistry/shared/filters/RenderFilters";
+import {Attribution} from "../ComponentRegistry/shared/Attribution";
+import {DataSourceSelector} from "../ComponentRegistry/DataSourceSelector";
+import {Controls} from "./components/Controls";
 import { isEqual } from "lodash-es";
 import { v4 as uuidv4 } from 'uuid';
 import {useImmer} from "use-immer";
-import {convertOldState} from "./convertOldState";
-import {Download, LoadingHourGlass} from "../../../../../icons";
-import {useHandleClickOutside} from "../utils";
-import {getColorRange} from "../../graph/GraphComponent";
+import {convertOldState} from "./utils/convertOldState";
+import {Download, LoadingHourGlass} from "../../../icons";
+import {useHandleClickOutside} from "../ComponentRegistry/shared/utils";
 
 export const ComponentContext = createContext({});
 
-const DefaultPalette = getColorRange(20, "div7");
-const graphOptions = {
-    graphType: 'BarGraph',
-    groupMode: 'stacked',
-    orientation: 'vertical',
-    title: {
-        title: "",
-        position: "start",
-        fontSize: 32,
-        fontWeight: "bold"
-    },
-    description: "",
-    bgColor: "#ffffff",
-    textColor: "#000000",
-    colors: {
-        type: "palette",
-        value: [...DefaultPalette]
-    },
-    height: 300,
-    width: undefined,
-    margins: {
-        marginTop: 20,
-        marginRight: 20,
-        marginBottom: 50,
-        marginLeft: 100
-    },
-    xAxis: {
-        label: "",
-        rotateLabels: false,
-        showGridLines: false,
-        tickSpacing: 1
-    },
-    yAxis: {
-        label: "",
-        showGridLines: true,
-        tickFormat: "Integer"
-    },
-    legend: {
-        show: true,
-        label: "",
-    },
-    tooltip: {
-        show: true,
-        fontSize: 12
-    }
-}
-const initialState = compType => {
-    const otherOptions = {
-        allowSearchParams: false,
-        usePagination: true,
-        pageSize: 5,
-        totalLength: 0,
-        showGutters: false,
-        transform: '', // transform fn to be applied
-        loadMoreId:`id${uuidv4()}`,
-    }
+const initialState = defaultState => {
+    if(defaultState) return defaultState;
+
     return {
-        dataRequest: {},
+        // user controlled part
         columns: [
             //     visible columns or Actions
             //     {name, display_name, custom_name,
@@ -83,8 +29,18 @@ const initialState = compType => {
             //      isLink: t/f, linkText: ‘’, linkLocation: ‘’, actionName, actionType, icon,
             //      }
         ],
+        display: {
+            allowSearchParams: false,
+            usePagination: true,
+            pageSize: 5,
+            totalLength: 0,
+            showGutters: false,
+            transform: '', // transform fn to be applied
+            loadMoreId:`id${uuidv4()}`,
+        },
+        // wrapper controlled part
+        dataRequest: {},
         data: [],
-        display: compType === 'Graph' ? graphOptions : otherOptions,
         sourceInfo: {
             columns: [],
             // pgEnv,
@@ -167,7 +123,7 @@ const RenderDownload = ({state, apiLoad}) => {
 
 const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, component, hideSourceSelector}) => {
     const isEdit = Boolean(onChange);
-    const [state, setState] = useImmer(convertOldState(value, initialState(component.name)));
+    const [state, setState] = useImmer(convertOldState(value, initialState(component.defaultState)));
     const [loading, setLoading] = useState(false);
     const [newItem, setNewItem] = useState({})
     const [currentPage, setCurrentPage] = useState(0);
@@ -182,7 +138,9 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, component, hideS
 
         // builds an object with filter, exclude, gt, gte, lt, lte, like as keys. columnName: [values] as values
         const filterOptions = state.columns.reduce((acc, column) => {
-            (column.filters || []).forEach(({type, operation, values}) => {
+            (column.filters || [])
+                .filter(({values}) => Array.isArray(values) && values.every(v => v.length))
+                .forEach(({type, operation, values}) => {
                 acc[operation] = {...acc[operation] || {}, [column.name]: values};
             })
 
@@ -348,7 +306,10 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, component, hideS
     }
     // =========================================== util fns end ========================================================
     return (
-        <ComponentContext.Provider value={{state, setState, apiLoad, compType: component.name.toLowerCase()}}>
+        <ComponentContext.Provider value={{state, setState, apiLoad,
+            compType: component.name.toLowerCase(), // should be deprecated
+            controls: component.controls
+        }}>
             <div className={'w-full h-full'}>
                 {
                     !hideSourceSelector ?
@@ -356,10 +317,7 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, component, hideS
                                             state={state} setState={setState} // passing as props as other components will use it as well.
                         /> : null
                 }
-                {
-                    isEdit ?
-                        <ColumnControls /> : null
-                }
+                { isEdit ? <Controls /> : null }
 
                 <div className={'w-full pt-2 flex justify-end gap-2'}>
                     <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={isEdit} defaultOpen={true} />
@@ -386,7 +344,7 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, component, hideS
 
 const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) => {
     const isEdit = false;
-    const [state, setState] = useImmer(convertOldState(value, initialState(component.name)));
+    const [state, setState] = useImmer(convertOldState(value, initialState(component.defaultState)));
 
     const [newItem, setNewItem] = useState({})
     const [loading, setLoading] = useState(false);
@@ -408,7 +366,9 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
 
         // builds an object with filter, exclude, gt, gte, lt, lte, like as keys. columnName: [values] as values
         const filterOptions = state.columns.reduce((acc, column) => {
-            (column.filters || []).forEach(({type, operation, values}) => {
+            (column.filters || [])
+                .filter(({values}) => Array.isArray(values) && values.every(v => v.length))
+                .forEach(({type, operation, values}) => {
                 acc[operation] = {...acc[operation] || {}, [column.name]: values};
             })
 
@@ -555,7 +515,7 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
     // =========================================== util fns end ========================================================
     if(showChangeFormatModal || !isValidState) return <div className={'p-1 text-center'}>Form data not available.</div>;
     return (
-        <ComponentContext.Provider value={{state, setState, apiLoad, compType: component.name.toLowerCase()}}>
+        <ComponentContext.Provider value={{state, setState, apiLoad, controls: component.controls}}>
             <div className={'w-full h-full'}>
                 <div className={'w-full'}>
                     <div className={'w-full pt-2 flex justify-end gap-2'}>

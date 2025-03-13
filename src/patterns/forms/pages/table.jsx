@@ -3,7 +3,7 @@ import { FormsContext } from '../siteConfig'
 import SourcesLayout from "../components/patternListComponent/layout";
 import Spreadsheet from "../../page/ui/dataComponents/selector/ComponentRegistry/spreadsheet";
 import {useNavigate} from "react-router-dom";
-import DataWrapper from "../../page/ui/dataComponents/selector/ComponentRegistry/shared/dataWrapper";
+import DataWrapper from "../../page/ui/dataComponents/selector/dataWrapper";
 
 const TableView = ({apiUpdate, apiLoad, format, item, params}) => {
     const { baseUrl, pageBaseUrl, theme, user } = useContext(FormsContext) || {};

@@ -1,5 +1,5 @@
 import React, {useContext} from "react";
-import { ComponentContext } from "./dataWrapper";
+import { ComponentContext } from "../../dataWrapper";
 import { tableTheme } from '../spreadsheet'
 import { CMSContext } from '../../../../../siteConfig'
 

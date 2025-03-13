@@ -1,4 +1,4 @@
-import {getFilters} from "../filters/utils";
+import {getFilters} from "../../ComponentRegistry/shared/filters/utils";
 import {isJson} from "./utils";
 
 export const convertOldState = (state, initialState) => {

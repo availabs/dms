@@ -1,6 +1,6 @@
 import {Link} from "react-router-dom";
 import React, {useContext} from "react";
-import {ComponentContext} from "./dataWrapper";
+import {ComponentContext} from "../../dataWrapper";
 import {CMSContext} from "../../../../../siteConfig";
 
 export const attributionTheme = {

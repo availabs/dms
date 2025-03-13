@@ -1,4 +1,5 @@
 import MNYHeader from './mnyHeader';
+import MnyHeaderDataDriven from "./mnyHeaderDataDriven";
 import Header from './header'
 import lexical from './richtext';
 import Spreadsheet from "./spreadsheet";
@@ -12,6 +13,7 @@ const ComponentRegistry = {
     lexical,
     "Header: Default Header": Header,
     "Header: MNY": MNYHeader,
+    "Header: MNY Data": MnyHeaderDataDriven,
     Card,
     Spreadsheet,
     Graph,

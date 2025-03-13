@@ -2,9 +2,9 @@ import React from "react"
 
 import * as Plot from "@observablehq/plot";
 
-import { useGenericPlotOptions } from "./utils"
+import { useGenericPlotOptions } from "../utils"
 
-const LineGraph = props => {
+const ScatterPlot = props => {
 
   const {
     data,
@@ -23,20 +23,28 @@ const LineGraph = props => {
 
     const marks = xAxis.showXAxisBar ? [Plot.ruleY([0])] : []
 
-    marks.push( Plot.line(
-        data,
-        { x: "index",
-          y: "value",
-          stroke: "type",
-          sort: { x: "x", order: null }
-        }
-    ))
+      marks.push(Plot.dot(
+              data,
+              { x: "index",
+                  y: "value",
+                  stroke: "type",
+                  sort: { x: "x", order: null }
+              }
+          ),
+          Plot.crosshair(
+              data,
+              Plot.pointer({
+                  x: "index",
+                  y: "value",
+                  textFill: bgColor
+              })
+          ))
 
     if (tooltip.show) {
       marks.push(
         Plot.tip(
           data,
-          Plot.pointerX({
+          Plot.pointer({
             fill: bgColor,
             fontSize: tooltip.fontSize,
             x: "index",
@@ -55,14 +63,14 @@ const LineGraph = props => {
 
     return () => plot.remove();
 
-  }, [ref, data, plotOptions, tooltip, bgColor, xAxis.showXAxisBar]);
+  }, [ref, data, plotOptions, bgColor, tooltip, xAxis.showXAxisBar]);
 
   return (
     <div ref={ setRef }/>
   )
 }
-export const LineGraphOption = {
-  type: "Line Graph",
-  GraphComp: "LineGraph",
-  Component: LineGraph
+export const ScatterPlotOption = {
+  type: "Scatter Plot",
+  GraphComp: "ScatterPlot",
+  Component: ScatterPlot
 }

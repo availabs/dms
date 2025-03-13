@@ -1,18 +1,13 @@
 import React, {useContext, useEffect, useMemo, useRef, useState} from "react";
-import DataTypes from "../../../../../../../data-types";
 import TableHeaderCell from "./components/TableHeaderCell";
-import {Add} from "../../../../../../forms/ui/icons";
 import {useCopy, usePaste} from "./utils/hooks";
 import {handleKeyDown} from "./utils/keyboard";
 import {handleMouseUp, handleMouseMove, handleMouseDown} from "./utils/mouse";
 import { TableRow } from "./components/TableRow";
-import { RenderGutter } from "./components/RenderGutter";
 import {actionsColSize, numColSize as numColSizeDf, gutterColSize as gutterColSizeDf, minColSize, minInitColSize} from "./constants"
-import SpreadSheet, {ComponentContext} from "../shared/dataWrapper";
+import {ComponentContext} from "../../dataWrapper";
+import ActionControls from "./controls/ActionControls";
 import { CMSContext } from '../../../../../siteConfig'
-import {getData} from "../shared/dataWrapper/utils";
-
-const DisplayCalculatedCell = ({value, className}) => <div className={className}>{value}</div>
 
 const getLocation = selectionPoint => {
     let {index, attrI} = typeof selectionPoint === 'number' ? {
@@ -138,9 +133,9 @@ export const RenderTable = ({isEdit, updateItem, removeItem, addItem, newItem, s
     useEffect(() => {
         if(!gridRef.current) return;
 
-        const columnsWithSizeLength = visibleAttributes.filter(({size}) => size).length;
+        const columnsWithSizeLength = visibleAttrsWithoutOpenOut.filter(({size}) => size).length;
         const gridWidth = gridRef.current.offsetWidth - numColSize - gutterColSize - (allowEdit ? actionColumns.length * actionsColSize : 0);
-        const currUsedWidth = visibleAttributes.reduce((acc, {size}) => acc + +(size || 0), 0);
+        const currUsedWidth = visibleAttrsWithoutOpenOut.reduce((acc, {size}) => acc + +(size || 0), 0);
         if (
             !columnsWithSizeLength ||
             columnsWithSizeLength !== visibleAttrsWithoutOpenOutLen ||
@@ -157,7 +152,7 @@ export const RenderTable = ({isEdit, updateItem, removeItem, addItem, newItem, s
                 })
             });
         }
-    }, [visibleAttributesLen, visibleAttrsWithoutOpenOutLen, sourceInfo.columns]);
+    }, [visibleAttributesLen, visibleAttrsWithoutOpenOutLen, openOutAttributesLen, sourceInfo.columns]);
     // ============================================ auto resize end ====================================================
 
     // =================================================================================================================
@@ -279,7 +274,7 @@ export const RenderTable = ({isEdit, updateItem, removeItem, addItem, newItem, s
                                         }`
                                     }
                                 >
-                                    <TableHeaderCell attribute={attribute} />
+                                    <TableHeaderCell attribute={attribute} isEdit={isEdit} />
                                 </div>
 
                                 <div 
@@ -417,11 +412,66 @@ export const RenderTable = ({isEdit, updateItem, removeItem, addItem, newItem, s
 export default {
     "name": 'Spreadsheet',
     "type": 'table',
-    getData,
     useDataSource: true,
     useGetDataOnPageChange: true,
     useInfiniteScroll: true,
     showPagination: true,
+    controls: {
+        columns: [
+            // settings from columns dropdown are stored in state.columns array, per column
+            {type: 'select', label: 'Fn', key: 'fn',
+                options: [
+                    {label: 'fn', value: ' '}, {label: 'list', value: 'list'}, {label: 'sum', value: 'sum'}, {label: 'count', value: 'count'}
+                ]},
+            {type: 'select', label: 'Exclude N/A', key: 'excludeNA',
+                options: [
+                    {label: 'include n/a', value: false}, {label: 'exclude n/a', value: true}
+                ]},
+            {type: 'toggle', label: 'show', key: 'show'},
+            {type: 'toggle', label: 'Open Out', key: 'openOut'},
+            {type: 'toggle', label: 'Filter', key: 'filters',
+                trueValue: [{type: 'internal', operation: 'filter', values: []}]},
+            {type: 'toggle', label: 'Group', key: 'group'},
+        ],
+        actions: {Comp: ActionControls},
+        more: [
+            // settings from more dropdown are stored in state.display
+            {type: 'toggle', label: 'Allow Edit', key: 'allowEditInView'},
+            {type: 'toggle', label: 'Use Search Params', key: 'allowSearchParams'},
+            {type: 'toggle', label: 'Show Total', key: 'showTotal'},
+            {type: 'toggle', label: 'Striped', key: 'striped'},
+            {type: 'toggle', label: 'Allow Download', key: 'allowDownload'},
+            {type: 'toggle', label: 'Use Pagination', key: 'usePagination'},
+            {type: 'input', inputType: 'number', label: 'Page Size', key: 'pageSize', displayCdn: ({display}) => display.usePagination === true},
+        ],
+        inHeader: [
+            // settings from in header dropdown are stores in the columns array per column.
+            {type: 'select', label: 'Sort', key: 'sort',
+                options: [
+                    {label: 'Not Sorted', value: ''}, {label: 'A->Z', value: 'asc nulls last'}, {label: 'Z->A', value: 'desc nulls last'}
+                ]},
+            {type: 'select', label: 'Justify', key: 'justify',
+                options: [
+                    {label: 'Not Justified', value: ''},
+                    {label: 'Left', value: 'left'},
+                    {label: 'Center', value: 'center'},
+                    {label: 'Right', value: 'right'},
+                ]},
+            {type: 'select', label: 'Format', key: 'formatFn',
+                options: [
+                    {label: 'No Format Applied', value: ' '},
+                    {label: 'Comma Seperated', value: 'comma'},
+                    {label: 'Abbreviated', value: 'abbreviate'},
+                ]},
+
+            // link controls
+            {type: 'toggle', label: 'Is Link', key: 'isLink', displayCdn: ({isEdit}) => isEdit},
+            {type: 'toggle', label: 'Use Id', key: 'useId', displayCdn: ({attribute, isEdit}) => isEdit && attribute.isLink},
+            {type: 'input', inputType: 'text', label: 'Link Text', key: 'linkText', displayCdn: ({attribute, isEdit}) => isEdit && attribute.isLink},
+            {type: 'input', inputType: 'text', label: 'Location', key: 'location', displayCdn: ({attribute, isEdit}) => isEdit && attribute.isLink},
+        ]
+
+    },
     "EditComp": RenderTable,
     "ViewComp": RenderTable,
 }

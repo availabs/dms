@@ -1,7 +1,7 @@
 import React, {useContext, useMemo, useState} from "react";
 import {numColSize as numColSizeDf, gutterColSize as gutterColSizeDf, } from "../constants"
 import {TableCell} from "./TableCell";
-import {ComponentContext} from "../../shared/dataWrapper";
+import {ComponentContext} from "../../../dataWrapper";
 import { CMSContext } from '../../../../../../siteConfig'
 import { tableTheme } from '../'
 import {XMark} from "../../../../../icons";
@@ -157,8 +157,8 @@ export const TableRow = ({
             {/************************************************ open out row ******************************************/}
             {/********************************************************************************************************/}
             { showOpenOut ?
-                <div className={theme?.table?.openOutContainerWrapper} style={{backgroundColor: '#00000066'}}>
-                    <div className={'w-[330px] overflow-auto scrollbar-sm flex flex-col gap-[12px] p-[16px] bg-white h-full float-right'}>
+                <div className={theme?.table?.openOutContainerWrapper} style={{backgroundColor: '#00000066'}} onClick={() => setShowOpenOut(false)}>
+                    <div className={'w-[330px] overflow-auto scrollbar-sm flex flex-col gap-[12px] p-[16px] bg-white h-full float-right'} onClick={e => e.stopPropagation()}>
                         <div className={'w-full flex justify-end'}>
                             <div className={'w-fit h-fit p-[8px] text-[#37576B] border border-[#E0EBF0] rounded-full cursor-pointer'}
                                  onClick={() => setShowOpenOut(false)}
@@ -183,7 +183,7 @@ export const TableRow = ({
                             const attrI = visibleAttrsWithoutOpenOutsLen + 1 + openOutAttrI;
                             return (
                                 <div key={`data-open-out-${i}`}
-                                     className={''}>
+                                     className={''} >
                                     <TableCell
                                         editing={editing.index === i && editing.attrI === attrI}
                                         key={`cell-${i}-${attrI}`}

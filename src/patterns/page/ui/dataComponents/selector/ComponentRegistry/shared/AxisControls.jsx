@@ -1,7 +1,7 @@
 import React, {useRef, useState} from "react";
 import {ArrowDown} from "../../../../../../forms/ui/icons";
 import {cloneDeep} from "lodash-es";
-import RenderSwitch from "./Switch";
+import RenderSwitch from "../../dataWrapper/components/Switch";
 import { format as d3format } from "d3-format"
 import dataTypes from "../../../../../../../data-types";
 const illionsFormat = d3format(".2r")

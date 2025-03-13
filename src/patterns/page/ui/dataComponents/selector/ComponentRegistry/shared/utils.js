@@ -24,7 +24,6 @@ export const useHandleClickOutside = (menuRef, menuBtnId, onClose) => {
 
 export const getControlConfig = compType => ({
     // ========main controls==============
-    allowCustomColNames: ['item', 'card', 'spreadsheet'].includes(compType),
     allowFnSelector: ['card', 'spreadsheet', 'graph'].includes(compType),
     allowExcludeNASelector: ['card', 'spreadsheet', 'graph'].includes(compType),
     allowShowToggle: ['item', 'card', 'spreadsheet'].includes(compType),
@@ -47,7 +46,6 @@ export const getControlConfig = compType => ({
     allowHideIfNullToggle: ['card'].includes(compType),
     allowRemoveBorderToggle: ['card'].includes(compType),
     allowHeaderValueLayoutSelect: ['card'].includes(compType),
-    allowActionsControl: ['spreadsheet'].includes(compType),
     // ==========in header===============
     allowSortBy: ['spreadsheet', 'graph'].includes(compType),
     allowJustify: ['card', 'spreadsheet'].includes(compType),
