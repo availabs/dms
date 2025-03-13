@@ -155,7 +155,8 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
                         const option = row[reqName]?.value || row[reqName];
                         const parsedOption =
                             isJson(option) && Array.isArray(JSON.parse(option)) ? JSON.parse(option) :
-                                Array.isArray(option) ? option : [];
+                                Array.isArray(option) ? option :
+                                    typeof option === 'string' ? [option] : [];
                         return parsedOption.find(o => selectedValues.includes(o)) ? option : null;
                     })
                     .filter(option => option);
