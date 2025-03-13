@@ -1,8 +1,9 @@
 import React, {useContext, useMemo} from 'react'
-import {PageContext} from "../../../../pages/view";
-import {ArrowRight} from "../../../icons";
+import {PageContext} from "../../../../../pages/view";
+import {ArrowRight} from "../../../../icons";
 import {Link} from "react-router-dom";
-import {ComponentContext} from "../dataWrapper";
+import {ComponentContext} from "../../dataWrapper";
+import {overlayImageOptions, insetImageOptions} from "./consts";
 
 const Breadcrumbs = ({ chain }) => {
     return Array.isArray(chain) ? (
@@ -140,7 +141,7 @@ const HeaderWrapper = ({isEdit}) => {
     const bgImg = useMemo(() => data?.[0]?.[imgColumn?.name], [data, imgColumn]);
     const chain = getChain(dataItems, item);
 
-    return <Header title={title} note={note} bgImg={bgImg} {...display} chain={chain}/>
+    return <Header title={title || display.defaultTitle} note={note || display.defaultNote} bgImg={bgImg || display.defaultBgImg} {...display} chain={chain}/>
 }
 
 export default {
@@ -217,7 +218,10 @@ export default {
                     { label: 'Inset', value: 'inset' },
                     { label: 'Full Width', value: 'full' },
                     { label: 'No Image', value: 'none' }
-                ]}
+                ]},
+            {type: 'input', inputType: 'text', label: 'Default Title', key: 'defaultTitle'},
+            {type: 'input', inputType: 'text', label: 'Default Note', key: 'defaultNote'},
+            {type: 'select', label: 'Default Image', key: 'defaultBgImg',   options: [{label: '', value: undefined}, ...overlayImageOptions, ...insetImageOptions]}
         ]
     },
     "EditComp": HeaderWrapper,

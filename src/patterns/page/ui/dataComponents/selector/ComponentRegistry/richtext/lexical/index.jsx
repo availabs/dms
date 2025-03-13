@@ -16,25 +16,29 @@ function parseValue (value) {
         JSON.stringify(value) : (isJsonString(value) ? value : null)
 } 
 
-const Edit = ({value, onChange, theme,  ...rest}) => (
-    <Editor 
-        value={parseValue(value)}
-        onChange={(d) => onChange(d)}
-        editable={true}
-        theme={theme}
-        {...rest}
-    />
-)
+const Edit = ({value, onChange, theme,  ...rest}) => {
+    // console.log('lexical type edit')
+    return (
+        <Editor
+            value={parseValue(value)}
+            onChange={(d) => onChange(d)}
+            editable={true}
+            theme={theme}
+            {...rest}
+        />
+    )
+}
 
 
 const View = ({value, theme,  ...rest}) => {
-    //console.log('lexical type view', parseValue(value))
+    // console.log('lexical type view', parseValue(value))
     return (
       <Editor 
         value={parseValue(value)}
         editable={false}
         theme={theme}
         {...rest}
+          onChange={() => {}}
       />
     )
 }

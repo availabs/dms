@@ -1,5 +1,5 @@
 import MNYHeader from './mnyHeader';
-import MnyHeaderDataDriven from "./mnyHeaderDataDriven";
+import MnyHeaderDataDriven from "./mnyHeader/mnyHeaderDataDriven";
 import Header from './header'
 import lexical from './richtext';
 import Spreadsheet from "./spreadsheet";
