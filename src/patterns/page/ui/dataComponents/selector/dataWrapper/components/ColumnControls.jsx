@@ -133,7 +133,10 @@ export default function ColumnControls({context}) {
                 // stop sorting and applying fn when column is hidden
                 draft.columns[idx].sort = undefined;
                 draft.columns[idx].fn = undefined;
-            } else if (key === 'show' && value === true && draft.columns.some(c => c.name !== originalAttribute.name && c.group)) {
+            } else if (key === 'show' && value === true &&
+                !draft.columns[idx].group && // grouped column shouldn't have fn
+                draft.columns.some(c => c.name !== originalAttribute.name && c.group)
+            ) {
                 // apply fn if at least one column is grouped
                 draft.columns[idx].fn = draft.columns[idx].defaultFn?.toLowerCase() || 'list';
             }

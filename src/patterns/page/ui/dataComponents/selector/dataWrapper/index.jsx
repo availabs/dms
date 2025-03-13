@@ -140,7 +140,7 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, component, hideS
         // builds an object with filter, exclude, gt, gte, lt, lte, like as keys. columnName: [values] as values
         const filterOptions = state.columns.reduce((acc, column) => {
             (column.filters || [])
-                .filter(({values}) => Array.isArray(values) && values.every(v => v.length))
+                .filter(({values}) => Array.isArray(values) && values.every(v => typeof v === 'string' ? v.length : typeof v !== 'object'))
                 .forEach(({type, operation, values}) => {
                 acc[operation] = {...acc[operation] || {}, [column.name]: values};
             })
@@ -368,7 +368,7 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
         // builds an object with filter, exclude, gt, gte, lt, lte, like as keys. columnName: [values] as values
         const filterOptions = state.columns.reduce((acc, column) => {
             (column.filters || [])
-                .filter(({values}) => Array.isArray(values) && values.every(v => v.length))
+                .filter(({values}) => Array.isArray(values) && values.every(v => typeof v === 'string' ? v.length : typeof v !== 'object'))
                 .forEach(({type, operation, values}) => {
                 acc[operation] = {...acc[operation] || {}, [column.name]: values};
             })
