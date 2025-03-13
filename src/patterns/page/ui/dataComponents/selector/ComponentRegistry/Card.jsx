@@ -49,9 +49,9 @@ export const dataCardTheme = {
     headerValueWrapper: 'w-full rounded-[12px] flex items-center justify-center p-2',
     headerValueWrapperCompactView: 'py-0',
     headerValueWrapperSimpleView: '',
-    justifyTextLeft: 'text-start',
-    justifyTextRight: 'text-end',
-    justifyTextCenter: 'text-center',
+    justifyTextLeft: 'text-start justify-items-start',
+    justifyTextRight: 'text-end justify-items-end',
+    justifyTextCenter: 'text-center justify-items-center',
 
     textXS: 'text-xs font-medium',
     textXSReg: 'text-xs font-normal',
@@ -74,6 +74,18 @@ export const dataCardTheme = {
     text6XL: 'text-6xl font-medium',
     text7XL: 'text-7xl font-medium',
     text8XL: 'text-8xl font-medium',
+
+    imgXS: "max-w-16 max-h-16",
+    imgSM: "max-w-24 max-h-24",
+    imgMD: "max-w-32 max-h-32",
+    imgXL: "max-w-40 max-h-40",
+    img2XL: "max-w-48 max-h-48",
+    img3XL: "max-w-56 max-h-56",
+    img4XL: "max-w-64 max-h-64",
+    img5XL: "max-w-72 max-h-72",
+    img6XL: "max-w-80 max-h-80",
+    img7XL: "max-w-96 max-h-96",
+    img8XL: "max-w-128 max-h-128",
 
     header: 'w-full capitalize',
     value: 'w-full'
@@ -98,10 +110,12 @@ const Card = ({isEdit}) => {
     const visibleColumns = useMemo(() => columns.filter(({show}) => show), [columns]);
     const cardsWithoutSpanLength = useMemo(() => columns.filter(({show, cardSpan}) => show && !cardSpan).length, [columns]);
 
+    const imageTopMargin = Math.max(...visibleColumns.map(attr => attr.isImg && !isNaN(attr.imageMargin) ? Math.abs(attr.imageMargin) : undefined).filter(m=>m));
 
-    const mainWrapperStyle = gridSize && compactView ? {gridTemplateColumns: `repeat(${Math.min(gridSize, data.length)}, minmax(0, 1fr))`, gap: gridGap} : {gap: gridGap};
+    const mainWrapperStyle = gridSize && compactView ?
+        {gridTemplateColumns: `repeat(${Math.min(gridSize, data.length)}, minmax(0, 1fr))`, gap: gridGap, paddingTop: `${imageTopMargin}px`} :
+        {gap: gridGap, paddingTop: `${imageTopMargin}px`};
     const subWrapperStyle = compactView ? {backgroundColor: bgColor, padding} : {gridTemplateColumns: `repeat(${gridSize || cardsWithoutSpanLength}, minmax(0, 1fr))`, gap: gridGap || 2}
-
     useEffect(() => {
         // set hideSection flag
         if(!isEdit) return;
@@ -122,6 +136,7 @@ const Card = ({isEdit}) => {
             })
         }
     }, [data, hideIfNull])
+
     return (
         <>
             {
@@ -146,12 +161,21 @@ const Card = ({isEdit}) => {
                             {
                                 visibleColumns
                                     .map(attr => {
-                                        const value = attr.formatFn ?
+                                        const {isLink, location, linkText, useId, isImg, imageSrc, imageLocation, imageExtension, imageSize, imageMargin} = attr || {};
+                                        const span = compactView ? 'span 1' : `span ${attr.cardSpan || 1}`;
+
+                                        const id = item?.id;
+                                        const value =
+                                            isImg ?
+                                                <img className={dataCard[imageSize] || 'max-w-[50px] max-h-[50px]'}
+                                                     alt={' '}
+                                                     src={imageLocation ?
+                                                         `${imageLocation}/${item?.[attr.name]}${imageExtension ? `.${imageExtension}` : ``}` :
+                                                         (imageSrc || item?.[attr.name])}
+                                                /> :
+                                            attr.formatFn ?
                                             formatFunctions[attr.formatFn](item?.[attr.name], attr.isDollar).replaceAll(' ', '') :
                                             item?.[attr.name]
-                                        const id = item?.id;
-                                        const {isLink, location, linkText, useId} = attr || {};
-                                        const span = compactView ? 'span 1' : `span ${attr.cardSpan || 1}`;
 
                                         const headerTextJustifyClass = justifyClass[attr.justify || 'center']?.header || justifyClass[attr.justify || 'center'];
                                         const valueTextJustifyClass = justifyClass[attr.justify || 'center']?.value || justifyClass[attr.justify || 'center'];
@@ -161,7 +185,11 @@ const Card = ({isEdit}) => {
                                                  ${dataCard.headerValueWrapper}
                                                  flex-${headerValueLayout} ${reverse && headerValueLayout === 'col' ? `flex-col-reverse` : reverse ? `flex-row-reverse` : ``}
                                                  ${compactView ? dataCard.headerValueWrapperCompactView : `${dataCard.headerValueWrapperSimpleView} ${removeBorder ? `` : 'border shadow'}`}`}
-                                                 style={{gridColumn: span, padding: compactView ? undefined : padding, backgroundColor: compactView ? undefined : attr.bgColor}}
+                                                 style={{
+                                                     gridColumn: span,
+                                                     padding: compactView ? undefined : padding,
+                                                     marginTop: `${imageMargin}px`,
+                                                     backgroundColor: compactView ? undefined : attr.bgColor}}
                                             >
                                                 {
                                                     attr.hideHeader ? null : (
@@ -270,6 +298,29 @@ export default {
             {type: 'toggle', label: 'Use Id', key: 'useId', displayCdn: ({attribute, isEdit}) => isEdit && attribute.isLink},
             {type: 'input', inputType: 'text', label: 'Link Text', key: 'linkText', displayCdn: ({attribute, isEdit}) => isEdit && attribute.isLink},
             {type: 'input', inputType: 'text', label: 'Location', key: 'location', displayCdn: ({attribute, isEdit}) => isEdit && attribute.isLink},
+
+            // image controls
+            {type: 'toggle', label: 'Is Image', key: 'isImg', displayCdn: ({isEdit}) => isEdit},
+            {type: 'input', inputType: 'text', label: 'Image Url', key: 'imageSrc', displayCdn: ({attribute, isEdit}) => isEdit && attribute.isImg},
+            {type: 'input', inputType: 'text', label: 'Image Location', key: 'imageLocation', displayCdn: ({attribute, isEdit}) => isEdit && attribute.isImg},
+            {type: 'input', inputType: 'text', label: 'Image Extension', key: 'imageExtension', displayCdn: ({attribute, isEdit}) => isEdit && attribute.isImg && attribute.imageLocation},
+            {type: 'select', label: 'Image Size', key: 'imageSize',
+                options: [
+                    { label: 'X-Small', value: 'imgXS' },
+                    { label: 'Small', value: 'imgSM' },
+                    { label: 'Base', value: 'imgMD' },
+                    { label: 'XL', value: 'imgXL' },
+                    { label: '2XL', value: 'img2XL' },
+                    { label: '3XL', value: 'img3XL' },
+                    { label: '4XL', value: 'img4XL' },
+                    { label: '5XL', value: 'img5XL' },
+                    { label: '6XL', value: 'img6XL' },
+                    { label: '7XL', value: 'img7XL' },
+                    { label: '8XL', value: 'img8XL' },
+                ],
+                displayCdn: ({attribute, isEdit}) => isEdit && attribute.isImg},
+            {type: 'input', inputType: 'number', label: 'Image Top Margin', key: 'imageMargin', displayCdn: ({attribute, isEdit}) => isEdit && attribute.isImg},
+
 
             {type: ({value, setValue}) => <ColorControls value={value} setValue={setValue} title={'Background Color'}/>, key: 'bgColor', displayCdn: ({display}) => !display.compactView},
         ]
