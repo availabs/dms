@@ -198,7 +198,7 @@ export default function ColumnControls({context}) {
     const {gridClass, gridTemplateColumns, width} = gridClasses[totalControlColsLen];
 
     const isEveryColVisible = (sourceInfo.columns || []).map(({name}) => columns.find(column => column.name === name)).every(column => column?.show);
-    console.log('state???', columns)
+
     return (
         <div className="relative inline-block text-left">
             <button id={menuBtnId}

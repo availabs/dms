@@ -1,155 +1,8 @@
-import React, {useMemo, useState, useEffect, useContext} from 'react'
-
-import Select from '../../../../ui/components/select/'
-import {isJson} from "../index";
+import React, {useContext, useMemo} from 'react'
 import {PageContext} from "../../../../pages/view";
 import {ArrowRight} from "../../../icons";
 import {Link} from "react-router-dom";
-import RenderSwitch from "../dataWrapper/components/Switch";
 import {ComponentContext} from "../dataWrapper";
-
-const overlayImageOptions = [
-    {
-        label: 'Planetary Home',
-        value: '/themes/mny/header_home.png'
-    },
-    {
-        label: 'Planetary Buildings',
-        value: '/themes/mny/header_image1.png'
-    },
-    {
-        label: 'Hazards - Coastal',
-        value: '/themes/mny/hazards_coastal_2tp.png'
-    },
-    {
-        label: 'Hazards - Flood',
-        value: '/themes/mny/hazards_flood_2tp.png'
-    },
-    {
-        label: 'Hazards - Landslide',
-        value: '/themes/mny/hazards_landslide_1tp.png'
-    },
-    {
-        label: 'Hazards - Wildfire',
-        value: '/themes/mny/hazards_wildfire_1tp.png'
-    },
-    {
-        label: 'Take Action - Capabilities',
-        value: '/themes/mny/takeaction_capab_2tp.png'
-    },
-    {
-        label: 'Take Action - Landuse',
-        value: '/themes/mny/takeaction_landuse_2tp.png'
-    },
-    {
-        label: 'Transportation',
-        value: '/themes/mny/transportation.png'
-    },
-    {
-        "label": "Set1 - Avalanche",
-        "value": "/themes/mny/Avalanche - transparent.png"
-    },
-    {
-        "label": "Set1 - Built Environment",
-        "value": "/themes/mny/Built Environment - transparent.png"
-    },
-    {
-        "label": "Set1 - Capabilities and Resources",
-        "value": "/themes/mny/Capabilities and Resources - transparent.png"
-    },
-    {
-        "label": "Set1 - Coastal Hazards",
-        "value": "/themes/mny/Coastal Hazards - transparent.png"
-    },
-    {
-        "label": "Set1 - Drought",
-        "value": "/themes/mny/Drought - transparent.png"
-    },
-    {
-        "label": "Set1 - Earthquake",
-        "value": "/themes/mny/Earthquake - transparent.png"
-    },
-    {
-        "label": "Set1 - Extreme Cold",
-        "value": "/themes/mny/Extreme Cold - transparent.png"
-    },
-    {
-        "label": "Set1 - Extreme Heat",
-        "value": "/themes/mny/Extreme Heat - transparent.png"
-    },
-    {
-        "label": "Set1 - Flooding",
-        "value": "/themes/mny/Flooding - transparent.png"
-    },
-    {
-        "label": "Set1 - Funding",
-        "value": "/themes/mny/Funding - transparent.png"
-    },
-    {
-        "label": "Set1 - Hail",
-        "value": "/themes/mny/Hail - transparent.png"
-    },
-    {
-        "label": "Set1 - Hazards & Disasters",
-        "value": "/themes/mny/Hazards & Disasters - transparent.png"
-    },
-    {
-        "label": "Set1 - Hurricane",
-        "value": "/themes/mny/Hurricane - transparent.png"
-    },
-    {
-        "label": "Set1 - Ice Storm",
-        "value": "/themes/mny/Ice Storm - transparent.png"
-    },
-    {
-        "label": "Set1 - Landslide",
-        "value": "/themes/mny/Landslide - transparent.png"
-    },
-    {
-        "label": "Set1 - Lightning",
-        "value": "/themes/mny/Lightning - transparent.png"
-    },
-    {
-        "label": "Set1 - Natural Environment",
-        "value": "/themes/mny/Natural Environment - transparent.png"
-    },
-    {
-        "label": "Set1 - People and Communities",
-        "value": "/themes/mny/People and Communities - transparent.png"
-    },
-    {
-        "label": "Set1 - Planning",
-        "value": "/themes/mny/Planning - transparent.png"
-    },
-    {
-        "label": "Set1 - Snowstorm",
-        "value": "/themes/mny/Snowstorm - transparent.png"
-    },
-    {
-        "label": "Set1 - Strategies",
-        "value": "/themes/mny/Strategies - transparent.png"
-    },
-    {
-        "label": "Set1 - Take Action",
-        "value": "/themes/mny/Take Action - transparent.png"
-    },
-    {
-        "label": "Set1 - Tornado",
-        "value": "/themes/mny/Tornado - transparent.png"
-    },
-    {
-        "label": "Set1 - Whats At Risk",
-        "value": "/themes/mny/Whats At Risk - transparent.png"
-    },
-    {
-        "label": "Set1 - Wildfire",
-        "value": "/themes/mny/Wildfire - transparent.png"
-    },
-    {
-        "label": "Set1 - Wind",
-        "value": "/themes/mny/Wind - transparent.png"
-    }
-]
 
 const Breadcrumbs = ({ chain }) => {
     return Array.isArray(chain) ? (
@@ -165,112 +18,101 @@ const Breadcrumbs = ({ chain }) => {
 };
 
 
-export function Header ({logo = '', title = 'Title', overlay='overlay', note='note', chain, showBreadcrumbs}) {
-    const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+export function Header ({title = 'Title', note='note', overlay='overlay', bgImg, chain, showBreadcrumbs}) {
 
-    useEffect(() => {
-        const handleResize = () => setIsMobile(window.innerWidth < 1024);
-
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, []);
-
-  return overlay === 'full' ? (
-      <div
-          className="relative w-full h-auto lg:h-[773px] lg:-mb-[145px] flex flex-col lg:flex-row justify-center"
-          style={{ background: isMobile ? `none` : `url('${bgImg}') center/cover`}}
-      >
-          {/* image div */}
-          <div
-              className="lg:order-last w-full lg:flex-1 h-[699px]"
-              style={{ background: isMobile ? `url('${bgImg}') center/cover` : 'none' }}
-          >
-              <div className="relative top-[90px] w-[708px] mx-auto" />
-          </div>
-
-          {/* breadcrumbs, title, note div */}
-          <div className="w-full lg:flex-1 flex justify-center lg:justify-end">
-              <div className="w-full lg:max-w-[656px] h-full flex items-center pt-12 lg:pt-0">
-                  <div className="h-full lg:h-[514px] w-full lg:w-[481px] px-[32px] py-[37px] gap-[16px] bg-white shadow-md rounded-[12px]">
-                      <div className="flex flex-col gap-1">
-                          <div className="px-1 z-10">
-                              {showBreadcrumbs ? <Breadcrumbs chain={chain} /> : null}
-                          </div>
-                          {title && <div className="flex text-3xl sm:text-[72px] font-[500] font-['Oswald'] text-[#2D3E4C] sm:leading-[72px] uppercase">
-                              <img className={'h-[150px] w-[150px]'} alt={' '} src={logo} />
-                              {title}
-                          </div>}
-                      </div>
-                      <div className="text-[16px] leading-[24px] text-[#37576B] w-full p-1 pt-2">
-                          {note && <div>{note}</div>}
-                      </div>
-                  </div>
-              </div>
-          </div>
-
-      </div>
-
-
-
-  ) : (
-    <div className={`relative w-full ${overlay === 'none' ? 'h-[484px] sm:h-[773px]' : 'h-[773px]'} lg:-mb-[145px] flex flex-col lg:flex-row 
-                    bg-fit bg-center justify-center`}>
-      {/* image div */}
-      <div
-        className={`lg:order-last h-[699px] flex-1 rounded-bl-[395px]
-        ${overlay === 'none' ? `flex-1 sm:bg-[#1A2732] sm:bg-gradient-to-r from-[#213440] to-[#213440] via-[#213440]/70` : 
-        overlay === 'overlay' ? `flex-1 bg-[#1A2732] bg-gradient-to-r from-[#213440] to-[#213440] via-[#213440]/70` : ''}
-        `}
-        style={
-          overlay === 'inset' ?
-          { background: `url('${bgImg}')`} : {}}
+    return overlay === 'full' ? (
+        <div
+            className="relative w-full h-auto lg:h-[773px] lg:-mb-[145px] flex flex-col lg:flex-row justify-center"
+            style={{ background: `url('${bgImg}') center/cover`}}
         >
+            {/* image div */}
+            <div
+                className="lg:order-last w-full lg:flex-1 h-[699px]"
 
-        {overlay === 'overlay' ?
-          <img className='relative top-[90px] w-[708px] w-[708px]' src={bgImg} alt={'overlay image'}/> :
-          <div className='relative top-[90px] w-[708px] w-[708px]' />
-        }
-      </div>
-
-      {/* breadcrumbs, title, note: overlay, inset, full*/}
-      <div className='lg:flex-1 top-[150px] sm:top-0'>
-        <div className={'w-full lg:max-w-[656px] h-full lg:ml-auto flex items-center pt-12 lg:pt-0'}>
-          <div className={overlay === 'none' ? 'hidden' : 'pr-[64px] xl:pl-0 px-[15px]'}>
-
-            <div className={'flex flex-col gap-1'}>
-                <div className={'px-1 z-10'}>
-                    {
-                        showBreadcrumbs ? <Breadcrumbs chain={chain} /> : null
-                    }
-                </div>
-            {title && <div className='text-3xl sm:text-[72px] font-[500] font-["Oswald"] text-[#2D3E4C] sm:leading-[72px] uppercase'>{title}</div>}
-            </div>
-            <div className='text-[16px] leading-[24px] text-[#37576B] w-full p-1 pt-2'>
-              {note && <div>{note}</div>}
+            >
+                <div className="relative top-[90px] mx-auto" />
             </div>
 
-          </div>
-        </div>
-      </div>
-
-        {/* breadcrumbs, title, note image: none */}
-        <div className={overlay === 'none' ? 'max-w-[1420px] mx-auto px-4 xl:px-[54px] h-fit min-h-[250px] absolute top-[120px] items-center' : 'hidden'}>
-            <div className={'p-[56px] h-fit bg-white z-[100] rounded-md shadow-md'}>
-                <div className={'flex flex-col gap-1 w-3/4'}>
-                    <div className={'px-1 z-10'}>
-                        {
-                            showBreadcrumbs ? <Breadcrumbs chain={chain} /> : null
-                        }
+            {/* breadcrumbs, title,note div */}
+            <div className="absolute lg:static sm:flex-1">
+                <div className="ml-auto px-[15px] lg:pl-0 lg:w-[656px] h-full flex items-center pt-12 lg:pt-[80px]">
+                    <div className=" w-full lg:w-[481px] px-[32px] py-[37px] gap-[16px] bg-white shadow-md rounded-[12px]">
+                        <div className="flex flex-col gap-1">
+                            <div className="px-1 z-10">
+                                {showBreadcrumbs ? <Breadcrumbs chain={chain} /> : null}
+                            </div>
+                            {title && <div className="text-3xl sm:text-[72px] font-[500] font-['Oswald'] text-[#2D3E4C] sm:leading-[72px] uppercase">{title}</div>}
+                        </div>
+                        <div className="text-[16px] leading-[24px] text-[#37576B] w-full p-1 pt-2">
+                            {note && <div>{note}</div>}
+                        </div>
                     </div>
-                    {title && <div className='text-3xl sm:text-[72px] font-[500] font-["Oswald"] text-[#2D3E4C] sm:leading-[72px] uppercase'>{title}</div>}
                 </div>
-                <div className='text-[16px] leading-[24px] text-[#37576B] w-3/4 p-1 pt-2'>
-                    {note && <div>{note}</div>}
+            </div>
+
+        </div>
+
+
+
+    ) : (
+        <div className={`relative w-full ${overlay === 'none' ? 'h-[484px] sm:h-[773px] -mb-[529px]' : 'h-[773px] lg:-mb-[145px]'}  flex flex-col lg:flex-row 
+                    bg-fit bg-center justify-center`}>
+            {/* image div */}
+            <div
+                className={`lg:order-last h-[699px] flex-1 rounded-bl-[395px]
+        ${overlay === 'none' ? `flex-1 sm:bg-[#1A2732] sm:bg-gradient-to-r from-[#213440] to-[#213440] via-[#213440]/70` :
+                    overlay === 'overlay' ? `flex-1 bg-[#1A2732] bg-gradient-to-r from-[#213440] to-[#213440] via-[#213440]/70` : ''}
+        `}
+                style={
+                    overlay === 'inset' ?
+                        { background: `url('${bgImg}')`} : {}}
+            >
+
+                {overlay === 'overlay' ?
+                    <img className='relative top-[90px] w-[708px] w-[708px]' src={bgImg} alt={'overlay image'}/> :
+                    <div className='relative top-[90px] w-[708px] w-[708px]' />
+                }
+            </div>
+
+            {/* breadcrumbs, title, note: overlay, inset, full*/}
+            <div className='lg:flex-1 top-[150px] sm:top-0'>
+                <div className={'w-full lg:max-w-[656px] h-full lg:ml-auto flex items-center pt-12 lg:pt-0'}>
+                    <div className={overlay === 'none' ? 'hidden' : 'pr-[64px] xl:pl-0 px-[15px]'}>
+
+                        <div className={'flex flex-col gap-1'}>
+                            <div className={'px-1 z-10'}>
+                                {
+                                    showBreadcrumbs ? <Breadcrumbs chain={chain} /> : null
+                                }
+                            </div>
+                            {title && <div className='text-3xl sm:text-[72px] font-[500] font-["Oswald"] text-[#2D3E4C] sm:leading-[72px] uppercase'>{title}</div>}
+                        </div>
+                        <div className='text-[16px] leading-[24px] text-[#37576B] w-full p-1 pt-2'>
+                            {note && <div>{note}</div>}
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            {/* breadcrumbs, title, note image: none */}
+            <div className={overlay === 'none' ? 'max-w-[1420px] w-full mx-auto px-4 xl:px-[54px] h-[276px] absolute top-[118px] items-center' : 'hidden'}>
+                <div className={'p-[56px] h-fit bg-white z-[100] rounded-lg shadow-md'}>
+                    <div className={'flex flex-col gap-1 w-3/4'}>
+                        <div className={'px-1 z-10'}>
+                            {
+                                showBreadcrumbs ? <Breadcrumbs chain={chain} /> : null
+                            }
+                        </div>
+                        {title && <div className='text-3xl sm:text-[72px] font-[500] font-["Oswald"] text-[#2D3E4C] sm:leading-[72px] uppercase'>{title}</div>}
+                    </div>
+                    <div className='text-[16px] leading-[24px] text-[#37576B] w-3/4 p-1 pt-2'>
+                        {note && <div>{note}</div>}
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
-  )
+    )
 }
 
 
@@ -285,48 +127,98 @@ const getChain = (dataItems, currentItem) => {
     return [{id, parent, title, url_slug}];
 }
 
-const Edit = () => {
-    const {dataItems, menuItems, item} = useContext(PageContext);
-    const {state, setState} = useContext(ComponentContext);
-    console.log('state?', state)
-    const chain = getChain(dataItems, item);
-
-    // return <Header {...compData} chain={chain}/>
-    return <></>
-}
-
-const View = ({value}) => {
+const HeaderWrapper = ({isEdit}) => {
     const {dataItems, item} = useContext(PageContext);
-    const {state, setState} = useContext(ComponentContext);
-    console.log('state', state)
-    const chain = getChain(dataItems, item);
-    // return <Header {...data} chain={chain}/>
-    return <></>
-}
+    const {state: {display, data, columns}} = useContext(ComponentContext);
 
-const defaultState = {
-    dataRequest: {},
-    columns: [{
-        "name": "county_seal_url",
-        "display_name": "County Seal URL",
-        "type": "text",
-        show: true
-    }],
-    data: [],
-    display: {},
-    sourceInfo: { columns: [{
-            "name": "county_seal_url",
-            "display_name": "County Seal URL",
-            "type": "text",
-            show: true
-        }] }
+    const titleColumn = useMemo(() => columns.find(({title}) => title), [columns]);
+    const noteColumn = useMemo(() => columns.find(({note}) => note), [columns]);
+    const imgColumn = useMemo(() => columns.find(({bgImg}) => bgImg), [columns]);
+
+    const title = useMemo(() => data?.[0]?.[titleColumn?.name], [data, titleColumn]);
+    const note = useMemo(() => data?.[0]?.[noteColumn?.name], [data, noteColumn]);
+    const bgImg = useMemo(() => data?.[0]?.[imgColumn?.name], [data, imgColumn]);
+    const chain = getChain(dataItems, item);
+
+    return <Header title={title} note={note} bgImg={bgImg} {...display} chain={chain}/>
 }
 
 export default {
     "name": 'Header: MNY1 Data',
     "type": 'Header',
     useDataSource: true,
-    defaultState,
-    "EditComp": Edit,
-    "ViewComp": View
+    defaultState: {
+        // user controlled part
+        columns: [],
+        display: {
+            allowSearchParams: false,
+            usePagination: true,
+            pageSize: 5,
+            totalLength: 0,
+            overlay: 'overlay',
+            showBreadcrumbs: true
+        },
+        // wrapper controlled part
+        dataRequest: {},
+        data: [],
+        sourceInfo: {
+            columns: []
+        }
+    },
+    controls: {
+        columns: [
+            {
+                type: 'toggle',
+                label: 'Title',
+                key: 'title',
+                onChange: ({key, value, attribute, state, columnIdx}) => {
+                    // turn off other title columns
+                    state.columns.forEach(column => {
+                        // if Title true, for original column set to true. for others false.
+                        column.title = value ? column.name === attribute.name : value;
+                        // show should only be set for title and note columns
+                        column.show = column.name === attribute.name ? value : (column.note || column.bgImg);
+                    })}
+            },
+            {
+                type: 'toggle',
+                label: 'Note',
+                key: 'note',
+                onChange: ({key, value, attribute, state, columnIdx}) => {
+                    // turn off other note columns
+                    state.columns.forEach(column => {
+                        // if note true, for original column set to true. for others false.
+                        column.note = value ? column.name === attribute.name : value;
+                        // show should only be set for title and note columns
+                        column.show = column.name === attribute.name ? value : (column.title || column.bgImg);
+                    })}
+            },
+            {
+                type: 'toggle',
+                label: 'Image',
+                key: 'bgImg',
+                onChange: ({key, value, attribute, state, columnIdx}) => {
+                    // turn off other note columns
+                    state.columns.forEach(column => {
+                        // if note true, for original column set to true. for others false.
+                        column.bgImg = value ? column.name === attribute.name : value;
+                        // show should only be set for title and note columns
+                        column.show = column.name === attribute.name ? value : (column.title || column.note);
+                    })}
+            },
+            {type: 'toggle', label: 'Filter', key: 'filters', trueValue: [{type: 'internal', operation: 'filter', values: []}]},
+        ],
+        more: [
+            {type: 'toggle', label: 'Breadcrumbs', key: 'showBreadcrumbs'},
+            {type: 'select', label: 'Overlay', key: 'overlay',
+                options: [
+                    { label: 'Overlay', value: 'overlay' },
+                    { label: 'Inset', value: 'inset' },
+                    { label: 'Full Width', value: 'full' },
+                    { label: 'No Image', value: 'none' }
+                ]}
+        ]
+    },
+    "EditComp": HeaderWrapper,
+    "ViewComp": HeaderWrapper
 }

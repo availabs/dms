@@ -80,7 +80,7 @@ const NavItem = ({
 	       setShowSubMenu(routeMatch && subMenuActivate === 'onActive');
 	}, [routeMatch]);
 
-	console.log('item', theme, theme?.menuItemWrapper1?.[depth])
+	// console.log('item', theme, theme?.menuItemWrapper1?.[depth])
 
 	return (
 			<div className={
