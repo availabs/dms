@@ -7,7 +7,7 @@
  */
 
 const theme = {
-  contentEditable: 'border-none relative pl-6 [tab-size:1] outline-none ',
+  contentEditable: 'border-none relative [tab-size:1] outline-none ',
   editorScroller: "min-h-[150px] border-0 flex relative outline-0 z-0bh resize-y", //'editor-scroller'
   editorContainer: "relative block rounded-[10px] min-h-[50px]", //'.editor-shell .editor-container'
   editorShell: "font-['Proxima_Nova'] font-[400] text-[16px] text-[#37576B] leading-[22.4px]",

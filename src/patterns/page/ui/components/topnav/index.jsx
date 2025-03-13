@@ -65,9 +65,9 @@ export const MobileMenu = ({ open, toggle, menuItems = [], rightMenu = null,them
             icon={page.icon}
             themeOptions={themeOptions}
             subMenus={get(page, "subMenus", [])}
-          >
-            {page.name}
-          </NavItem>
+            navItem={page}
+          />
+           
         ))}
       </div>
       <div className="">{rightMenu}</div>
@@ -100,9 +100,8 @@ export const DesktopMenu = ({
               subMenuActivate={subMenuActivate}
               themeOptions={themeOptions}
               subMenus={get(page, "subMenus", [])}
-            >
-              {page.name}
-            </NavItem>
+              navItem={page}
+            />
           ))}
         </div>
 

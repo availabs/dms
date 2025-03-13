@@ -112,6 +112,14 @@ function SettingsPane () {
             onChange:(e) => {
               togglePageSetting(item, 'navOptions.sideNav.size', e.target.value,  apiUpdate)
             }
+          },
+          {
+            type:'Input',
+            label: 'Page Description',
+            value: item?.description || '',
+            onChange:(e) => {
+              togglePageSetting(item, 'description', e.target.value,  apiUpdate)
+            }
           }
         ]} />
       </div>

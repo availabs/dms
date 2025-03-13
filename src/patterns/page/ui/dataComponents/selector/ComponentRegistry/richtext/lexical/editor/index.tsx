@@ -76,10 +76,10 @@ function UpdateEditor ({value, onChange, bgColor, theme, editable}) {
 
   return (
 
-    <div className={`editor-shell`}>
+    <>
       <Editor theme={theme} editable={editable} bgColor={bgColor}/>
       <OnChangePlugin onChange={onChange} />
-    </div>
+    </>
   )
 }
 

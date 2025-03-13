@@ -165,24 +165,16 @@ const Breadcrumbs = ({ chain }) => {
 
 
 export function Header ({position = 'above',bgImg = '/themes/mny/takeaction_landuse_2tp.png' , logo = '', title = 'Title', overlay='overlay', note='note', height=673, chain, showBreadcrumbs}) {
-    const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
-
-    useEffect(() => {
-        const handleResize = () => setIsMobile(window.innerWidth < 1024);
-
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, []);
-
-  return overlay === 'full' ? (
+    
+    return overlay === 'full' ? (
       <div
           className="relative w-full h-auto lg:h-[773px] lg:-mb-[145px] flex flex-col lg:flex-row justify-center"
-          style={{ background: isMobile ? `none` : `url('${bgImg}') center/cover`}}
+          style={{ background: `url('${bgImg}') center/cover`}}
       >
           {/* image div */}
           <div
               className="lg:order-last w-full lg:flex-1 h-[699px]"
-              style={{ background: isMobile ? `url('${bgImg}') center/cover` : 'none' }}
+              
           >
               <div className="relative top-[90px] mx-auto" />
           </div>
@@ -209,7 +201,7 @@ export function Header ({position = 'above',bgImg = '/themes/mny/takeaction_land
 
 
   ) : (
-    <div className={`relative w-full ${overlay === 'none' ? 'h-[484px] sm:h-[773px]' : 'h-[773px]'} lg:-mb-[145px] flex flex-col lg:flex-row 
+    <div className={`relative w-full ${overlay === 'none' ? 'h-[484px] sm:h-[773px] -mb-[529px]' : 'h-[773px] lg:-mb-[145px]'}  flex flex-col lg:flex-row 
                     bg-fit bg-center justify-center`}>
       {/* image div */}
       <div
@@ -250,8 +242,8 @@ export function Header ({position = 'above',bgImg = '/themes/mny/takeaction_land
       </div>
 
         {/* breadcrumbs, title, note image: none */}
-        <div className={overlay === 'none' ? 'max-w-[1420px] mx-auto px-4 xl:px-[54px] h-fit min-h-[250px] absolute top-[120px] items-center' : 'hidden'}>
-            <div className={'p-[56px] h-fit bg-white z-[100] rounded-md shadow-md'}>
+        <div className={overlay === 'none' ? 'max-w-[1420px] w-full mx-auto px-4 xl:px-[54px] h-[276px] absolute top-[118px] items-center' : 'hidden'}>
+            <div className={'p-[56px] h-fit bg-white z-[100] rounded-lg shadow-md'}>
                 <div className={'flex flex-col gap-1 w-3/4'}>
                     <div className={'px-1 z-10'}>
                         {

@@ -72,11 +72,6 @@ const NavItem = ({
 	// when subMenuActivate !== onHover, and submenu needs to flyout for non-active menuItem
 	const [hovering, setHovering] = React.useState(false);
 
-	// useEffect(() => {
-
-	//       setShowSubMenu(routeMatch);
-	// }, [showSubMenu,to]);
-	//console.log('test 123', className)
 	return (
 			<div className={type === "side" ? theme?.subMenuParentWrapper : null}
 				 onMouseOutCapture={() =>
@@ -106,7 +101,7 @@ const NavItem = ({
 									}
 								/>
 							)}
-							<div className={`${theme?.navItemContent} ${className ? '' : theme?.navItemContents?.[depth]}`}
+							<div className={`${theme?.navItemContent} ${className ? '' : theme?.navItemContents?.[depth] || theme?.navItemContents } ${!to && 'uppercase'}`}
 								onClick={(e) => {
 									e.stopPropagation();
 									if (onClick) return onClick(To[0]);
