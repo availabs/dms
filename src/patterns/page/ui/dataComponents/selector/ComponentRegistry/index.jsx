@@ -12,7 +12,6 @@ import FilterComponent from "./FilterComponent";
 const ComponentRegistry = {
     lexical,
     "Header: Default Header": Header,
-    "Header: MNY": MNYHeader,
     "Header: MNY Data": MnyHeaderDataDriven,
     Card,
     Spreadsheet,

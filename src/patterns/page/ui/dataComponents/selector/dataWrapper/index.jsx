@@ -519,7 +519,7 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
         <ComponentContext.Provider value={{state, setState, apiLoad, controls: component.controls}}>
             <div className={'w-full h-full'}>
                 <div className={'w-full'}>
-                    <div className={'w-full pt-2 flex justify-end gap-2'}>
+                    <div className={'w-full flex justify-end gap-2'}>
                         <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={isEdit} defaultOpen={false}/>
                         <RenderDownload state={state} apiLoad={apiLoad}/>
                     </div>

@@ -19,7 +19,7 @@ const Breadcrumbs = ({ chain }) => {
 };
 
 
-export function Header ({title = 'Title', note='note', overlay='overlay', bgImg, chain, showBreadcrumbs}) {
+export function Header ({title , note, overlay='overlay', bgImg, chain, showBreadcrumbs}) {
 
     return overlay === 'full' ? (
         <div
@@ -145,7 +145,7 @@ const HeaderWrapper = ({isEdit}) => {
 }
 
 export default {
-    "name": 'Header: MNY1 Data',
+    "name": 'Header: MNY',
     "type": 'Header',
     useDataSource: true,
     defaultState: {
