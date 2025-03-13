@@ -37,6 +37,7 @@ const initialState = defaultState => {
             showGutters: false,
             transform: '', // transform fn to be applied
             loadMoreId:`id${uuidv4()}`,
+            showAttribution: true,
         },
         // wrapper controlled part
         dataRequest: {},
@@ -335,7 +336,7 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, component, hideS
                     {/*Pagination*/}
                     <Pagination currentPage={currentPage} setCurrentPage={setCurrentPage} showPagination={component.showPagination}/>
                     {/*/!*Attribution*!/*/}
-                    <Attribution />
+                    {state.display.showAttribution ? <Attribution/> : null}
                 </div>
             </div>
         </ComponentContext.Provider>
@@ -535,8 +536,7 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
                         {/*Pagination*/}
                         <Pagination currentPage={currentPage} setCurrentPage={setCurrentPage} showPagination={component.showPagination}/>
                         {/*Attribution*/}
-                        <Attribution/>
-                        
+                        {state.display.showAttribution ? <Attribution/> : null}
                     </div>
                 </div>
             </div>

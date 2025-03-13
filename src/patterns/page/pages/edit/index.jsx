@@ -86,6 +86,9 @@ function PageEdit ({
             onChange={(v,action) => saveHeader(v, item, user, apiUpdate)}         
             attributes={sectionAttr}
             siteType={siteType}
+            apiLoad={isDynamicPage ? apiLoad : undefined}
+            apiUpdate={isDynamicPage ? apiUpdate : undefined}
+            format={isDynamicPage ? format : undefined}
           />
         )} 
         
@@ -105,6 +108,9 @@ function PageEdit ({
                 onChange={(v,action) => saveHeader(v, item, user, apiUpdate)} 
                 attributes={sectionAttr} 
                 siteType={siteType}
+                apiLoad={isDynamicPage ? apiLoad : undefined}
+                apiUpdate={isDynamicPage ? apiUpdate : undefined}
+                format={isDynamicPage ? format : undefined}
               />
             )}
             <div className={`${theme?.page?.wrapper2}`}>
@@ -122,6 +128,9 @@ function PageEdit ({
                     onChange={(val,action) => saveHeader(v, item, user, apiUpdate)}
                     attributes={sectionAttr}
                     siteType={siteType}
+                    apiLoad={isDynamicPage ? apiLoad : undefined}
+                    apiUpdate={isDynamicPage ? apiUpdate : undefined}
+                    format={isDynamicPage ? format : undefined}
                   />
                 )} 
                 {user?.authLevel >= 5 && (

@@ -47,11 +47,27 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
     <PageContext.Provider value={{ item, dataItems, apiLoad, apiUpdate }} >
       <div id='page_view' className={`${theme?.page?.container}`}>
         {/* Header */}
-        {(item?.header === 'above') && <ContentView item={item} value={[headerSection]} attributes={sectionAttr} full_width={'show'}/>}
+        {(item?.header === 'above') &&
+            <ContentView item={item}
+                         value={[headerSection]}
+                         attributes={sectionAttr}
+                         full_width={'show'}
+                         apiLoad={apiLoad}
+                         apiUpdate={apiUpdate}
+                         format={format}
+            />}
         {/* Layout */}
         <Layout navItems={menuItems} secondNav={theme?.navOptions?.secondaryNav?.navItems || []} pageTheme={{navOptions: item.navOptions || {}}}>
           <div className={`${theme?.page?.wrapper1} ${theme?.navPadding[level]}`}>
-            {(item?.header === 'below') && <ContentView item={item} value={[headerSection]} attributes={sectionAttr} full_width={'show'}/>}
+            {(item?.header === 'below') &&
+                <ContentView item={item}
+                             value={[headerSection]}
+                             attributes={sectionAttr}
+                             full_width={'show'}
+                             apiLoad={apiLoad}
+                             apiUpdate={apiUpdate}
+                             format={format}
+                />}
             <div className={`${theme?.page?.wrapper2}`}>
               {item?.sidebar === 'left' && (
                 <SideNavContainer>
@@ -61,7 +77,14 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
               <div className={theme?.page?.wrapper3} ref={pdfRef}>
                 {/* Content */}
                 {(item?.header === 'inpage') &&
-                    <ContentView item={item} value={[headerSection]} attributes={sectionAttr} full_width={'show'}/>}
+                    <ContentView item={item}
+                                 value={[headerSection]}
+                                 attributes={sectionAttr}
+                                 full_width={'show'}
+                                 apiLoad={apiLoad}
+                                 apiUpdate={apiUpdate}
+                                 format={format}
+                    />}
                 {user?.authLevel >= 5 && (
                     <Link className={theme?.page?.iconWrapper} to={`${baseUrl}/edit/${item?.url_slug || ''}${window.location.search}`}>
                       <PencilEditSquare className={theme?.page?.icon}/>

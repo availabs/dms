@@ -16,7 +16,7 @@ const LinkComp = ({attribute, columns, newItem, removeItem, value, Comp}) => {
     const {actionType, location, linkText, isLink, useId} = attribute;
 
     if(isLink){
-        return (props) => <Link {...props} to={`${location}${encodeURIComponent(useId ? newItem.id : value)}`} >{linkText}</Link>
+        return (props) => <Link {...props} to={`${location}${encodeURIComponent(useId ? newItem.id : value)}`} >{linkText || value}</Link>
     }
 
     if(actionType){

@@ -209,6 +209,7 @@ export default {
             {type: 'toggle', label: 'Filter', key: 'filters', trueValue: [{type: 'internal', operation: 'filter', values: []}]},
         ],
         more: [
+            {type: 'toggle', label: 'Attribution', key: 'showAttribution'},
             {type: 'toggle', label: 'Breadcrumbs', key: 'showBreadcrumbs'},
             {type: 'select', label: 'Overlay', key: 'overlay',
                 options: [
