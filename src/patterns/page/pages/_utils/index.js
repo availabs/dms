@@ -40,6 +40,7 @@ export function getChildNav(item, dataItems, baseUrl='', edit) {
             id: d.id,
             path: `${edit ? `${baseUrl}/edit` : baseUrl}/${d.url_slug || d.id}`,
             name: d.title,
+            description: d.description,
             hideInNav: d.hide_in_nav
         }
         const inPageChildrenForD =  getInPageNav(d)?.menuItems || [];
@@ -83,6 +84,7 @@ export function dataItemsNav(dataItems, baseUrl = '', edit = false, level=1) {
                 id: d.id,
                 path: `${edit ? `${baseUrl}/edit` : baseUrl}/${/*i === 0 && !edit ? '' : */d.url_slug || d.id}`,
                 name: `${d.title} ${d.published === 'draft' ? '*' : ''}`,
+                description: d.description,
                 hideInNav: d.hide_in_nav
             }
 

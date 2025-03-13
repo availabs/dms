@@ -8,12 +8,13 @@
 
 import {ContentEditable} from '@lexical/react/LexicalContentEditable';
 import * as React from 'react';
-import theme from '../themes/PlaygroundEditorTheme'
 
 export default function LexicalContentEditable({
   className,
+  editor
 }: {
   className?: string;
 }): JSX.Element {
-  return <ContentEditable className={className || theme.contentEditable} />;
+  const theme = editor?._config?.theme || {}
+  return <ContentEditable className={className || theme?.contentEditable} />;
 }

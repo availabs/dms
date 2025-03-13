@@ -102,7 +102,7 @@ export const pagesConfig = ({
               "data->>'template_id'": ['null']
             }
           }),
-          attributes:['title', 'index', 'url_slug', 'parent','published', 'hide_in_nav']
+          attributes:['title', 'index', 'url_slug', 'parent','published', 'description','hide_in_nav']
         },
         children: [
           {

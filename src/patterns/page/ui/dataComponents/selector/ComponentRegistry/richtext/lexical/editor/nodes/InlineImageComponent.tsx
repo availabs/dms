@@ -51,7 +51,7 @@ import Select from '../ui/Select';
 import TextInput from '../ui/TextInput';
 import {$isInlineImageNode, InlineImageNode} from './InlineImageNode';
 import ImageResizer from "../ui/ImageResizer";
-import theme from '../themes/PlaygroundEditorTheme';
+
 
 const imageCache = new Set();
 
@@ -215,6 +215,7 @@ export default function InlineImageComponent({
   const [isResizing, setIsResizing] = useState<boolean>(false);
   const [isLinkEditMode, setIsLinkEditMode] = useState<boolean>(false);
   const isEditable = useLexicalEditable();
+  const theme = editor?._config?.theme || {}
 
   const onDelete = useCallback(
     (payload: KeyboardEvent) => {
