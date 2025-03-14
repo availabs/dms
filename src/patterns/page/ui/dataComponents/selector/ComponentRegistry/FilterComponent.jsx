@@ -34,7 +34,10 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, renderCard}) => 
     // =========================================== saving settings end =================================================
 
     return (
-        <FilterComponentContext.Provider value={{state, setState, compType: 'filter'}}>
+        <FilterComponentContext.Provider value={{state, setState, controls: {
+            columns: [{type: 'toggle', label: 'Filter', key: 'filters', trueValue: [{type: 'internal', operation: 'filter', values: []}]}]
+        }
+        }}>
             <div className={'w-full h-full min-h-[50px]'}>
                 <DataSourceSelector apiLoad={apiLoad} app={pageFormat?.app}
                                     state={state} setState={setState} // passing as props as other components will use it as well.
