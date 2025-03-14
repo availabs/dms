@@ -19,8 +19,7 @@ const Breadcrumbs = ({ chain }) => {
 };
 
 
-export function Header ({title , note, overlay='overlay', bgImg, chain, showBreadcrumbs}) {
-
+export function Header ({title, note, logo, overlay='overlay', bgImg, chain, showBreadcrumbs}) {
     return overlay === 'full' ? (
         <div
             className="relative w-full h-auto lg:h-[773px] lg:-mb-[145px] flex flex-col lg:flex-row justify-center"
@@ -42,7 +41,10 @@ export function Header ({title , note, overlay='overlay', bgImg, chain, showBrea
                             <div className="px-1 z-10">
                                 {showBreadcrumbs ? <Breadcrumbs chain={chain} /> : null}
                             </div>
-                            {title && <div className="text-3xl sm:text-[72px] font-[500] font-['Oswald'] text-[#2D3E4C] sm:leading-[72px] uppercase">{title}</div>}
+                            {title && <div className="flex gap-1 text-3xl sm:text-[72px] font-[500] font-['Oswald'] text-[#2D3E4C] sm:leading-[72px] uppercase">
+                                {logo && <img className={'max-w-[150px] max-h-[150px]'} alt={' '} src={logo}/>}
+                                {title}</div>
+                            }
                         </div>
                         <div className="text-[16px] leading-[24px] text-[#37576B] w-full p-1 pt-2">
                             {note && <div>{note}</div>}
@@ -86,7 +88,10 @@ export function Header ({title , note, overlay='overlay', bgImg, chain, showBrea
                                     showBreadcrumbs ? <Breadcrumbs chain={chain} /> : null
                                 }
                             </div>
-                            {title && <div className='text-3xl sm:text-[72px] font-[500] font-["Oswald"] text-[#2D3E4C] sm:leading-[72px] uppercase'>{title}</div>}
+                            {title && <div className='flex gap-1 text-3xl sm:text-[72px] font-[500] font-["Oswald"] text-[#2D3E4C] sm:leading-[72px] uppercase'>
+                                {logo && <img className={'max-w-[150px] max-h-[150px]'} alt={' '} src={logo}/>}
+                                {title}
+                            </div>}
                         </div>
                         <div className='text-[16px] leading-[24px] text-[#37576B] w-full p-1 pt-2'>
                             {note && <div>{note}</div>}
@@ -105,7 +110,10 @@ export function Header ({title , note, overlay='overlay', bgImg, chain, showBrea
                                 showBreadcrumbs ? <Breadcrumbs chain={chain} /> : null
                             }
                         </div>
-                        {title && <div className='text-3xl sm:text-[72px] font-[500] font-["Oswald"] text-[#2D3E4C] sm:leading-[72px] uppercase'>{title}</div>}
+                        {title && <div className='flex gap-1 text-3xl sm:text-[72px] font-[500] font-["Oswald"] text-[#2D3E4C] sm:leading-[72px] uppercase'>
+                            {logo && <img className={'max-w-[150px] max-h-[150px]'} alt={' '} src={logo}/>}
+                            {title}
+                        </div>}
                     </div>
                     <div className='text-[16px] leading-[24px] text-[#37576B] w-3/4 p-1 pt-2'>
                         {note && <div>{note}</div>}
@@ -135,13 +143,15 @@ const HeaderWrapper = ({isEdit}) => {
     const titleColumn = useMemo(() => columns.find(({title}) => title), [columns]);
     const noteColumn = useMemo(() => columns.find(({note}) => note), [columns]);
     const imgColumn = useMemo(() => columns.find(({bgImg}) => bgImg), [columns]);
+    const logoColumn = useMemo(() => columns.find(({logo}) => logo), [columns]);
 
     const title = useMemo(() => data?.[0]?.[titleColumn?.name], [data, titleColumn]);
     const note = useMemo(() => data?.[0]?.[noteColumn?.name], [data, noteColumn]);
     const bgImg = useMemo(() => data?.[0]?.[imgColumn?.name], [data, imgColumn]);
+    const logo = useMemo(() => data?.[0]?.[logoColumn?.name], [data, imgColumn]);
     const chain = getChain(dataItems, item);
 
-    return <Header title={title || display.defaultTitle} note={note || display.defaultNote} bgImg={bgImg || display.defaultBgImg} {...display} chain={chain}/>
+    return <Header title={title || display.defaultTitle} note={note || display.defaultNote} logo={logo} bgImg={bgImg || display.defaultBgImg} {...display} chain={chain}/>
 }
 
 export default {
@@ -178,7 +188,7 @@ export default {
                         // if Title true, for original column set to true. for others false.
                         column.title = value ? column.name === attribute.name : value;
                         // show should only be set for title and note columns
-                        column.show = column.name === attribute.name ? value : (column.note || column.bgImg);
+                        column.show = column.name === attribute.name ? value : (column.note || column.bgImg || column.logo);
                     })}
             },
             {
@@ -191,7 +201,7 @@ export default {
                         // if note true, for original column set to true. for others false.
                         column.note = value ? column.name === attribute.name : value;
                         // show should only be set for title and note columns
-                        column.show = column.name === attribute.name ? value : (column.title || column.bgImg);
+                        column.show = column.name === attribute.name ? value : (column.title || column.bgImg || column.logo);
                     })}
             },
             {
@@ -204,7 +214,20 @@ export default {
                         // if note true, for original column set to true. for others false.
                         column.bgImg = value ? column.name === attribute.name : value;
                         // show should only be set for title and note columns
-                        column.show = column.name === attribute.name ? value : (column.title || column.note);
+                        column.show = column.name === attribute.name ? value : (column.title || column.note || column.logo);
+                    })}
+            },
+            {
+                type: 'toggle',
+                label: 'Logo',
+                key: 'logo',
+                onChange: ({key, value, attribute, state, columnIdx}) => {
+                    // turn off other note columns
+                    state.columns.forEach(column => {
+                        // if logo true, for original column set to true. for others false.
+                        column.logo = value ? column.name === attribute.name : value;
+                        // show should only be set for title and note columns
+                        column.show = column.name === attribute.name ? value : (column.title || column.note || column.bgImg);
                     })}
             },
             {type: 'toggle', label: 'Filter', key: 'filters', trueValue: [{type: 'internal', operation: 'filter', values: []}]},
