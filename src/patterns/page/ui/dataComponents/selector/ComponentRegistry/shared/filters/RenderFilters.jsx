@@ -160,6 +160,7 @@ export const RenderFilters = ({
                                                        loading={loading}
                                                        filterWithSearchParamKeys={filterWithSearchParamKeys}
                                                        delimiter={filterValueDelimiter}
+                                                       columns={state.columns}
                             />
                         </div>
                     </div>

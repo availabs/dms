@@ -214,12 +214,16 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
                 const columnsForOperation = Object.keys(restOfDataRequestOptions[filterOperation]);
 
                 const conditions = columnsForOperation.map((columnName) => {
-                        const {reqName, fn, defaultFn='count', ...restCol} = getFullColumn(columnName, columnsWithSettings);
+                        const {reqName, fn, filters, ...restCol} = getFullColumn(columnName, columnsWithSettings);
+                        // assuming one filter per column:
+                        const fullFilter = filters[0];
+                        const filterFn = fullFilter?.fn;
+
                         const reqNameWithoutAS = splitColNameOnAS(reqName)[0];
 
                         const reqNameWithFn = fn ? reqNameWithoutAS :
                             applyFn(
-                                {...restCol, fn: ['sum', 'count'].includes(defaultFn?.toLowerCase()) ? defaultFn.toLowerCase() : 'count'},
+                                {...restCol, fn: filterFn},
                                 state.sourceInfo.isDms);
                         const reqNameWithFnWithoutAS = splitColNameOnAS(reqNameWithFn)[0];
                         // if grouping by and fn is applied, use fn name.
