@@ -7,8 +7,11 @@
  */
 
 const theme = {
-  contentEditable: 'border-none  pl-6 relative [tab-size:1] outline-none ',
-  editorScroller: "min-h-[150px] border-0 flex relative outline-0 z-0bh resize-y", //'editor-scroller'
+
+  contentEditable: 'border-none relative [tab-size:1] outline-0',
+  editorScroller: "min-h-[150px] border-0 flex relative outline-0 z-0 resize-y", //'editor-scroller'
+  viewScroller:
+    "border-0 flex relative outline-0 z-0 resize-none", //.view-scroller
   editorContainer: "relative block rounded-[10px] min-h-[50px]", //'.editor-shell .editor-container'
   editorShell: "font-['Proxima_Nova'] font-[400] text-[16px] text-[#37576B] leading-[22.4px]",
   card: 'p-[12px] shadow-[0px_0px_6px_0px_rgba(0,0,0,0.02),0px_2px_4px_0px_rgba(0,0,0,0.08)]', 
@@ -21,16 +24,10 @@ const theme = {
       h6: "scroll-mt-36 font-display", //'PlaygroundEditorTheme__h6',
   },
   paragraph: "m-0 relative", //'PlaygroundEditorTheme__paragraph',
+  
   quote: "m-0 mb-2 font-['Oswald'] text-[30px] leading-[36px] text-[#2D3E4C] border-l-4 border-[#37576B] pl-4 pb-[12px]", //'PlaygroundEditorTheme__quote',
   // editorShell: "rounded-[2px] relative", //'.editor-shell',
-  // heading: {
-  //   h1: "font-semibold text-3xl scroll-mt-36 font-display", //'PlaygroundEditorTheme__h1',
-  //   h2: "font-medium text-xl scroll-mt-36 font-display", //'PlaygroundEditorTheme__h2',
-  //   h3: "font-medium text-lg scroll-mt-36 font-display", //'PlaygroundEditorTheme__h3',
-  //   h4: "font-medium scroll-mt-36 font-display", //'PlaygroundEditorTheme__h4',
-  //   h5: "scroll-mt-36 font-display", //'PlaygroundEditorTheme__h5',
-  //   h6: "scroll-mt-36 font-display", //'PlaygroundEditorTheme__h6',
-  // },
+  
   // quote:
   //   "m-0 ml-5 mb-2 text-[15px] text-[rgb(101,103,107)] border-l-4 border-l-[rgb(206,208,212)] pl-4", //'PlaygroundEditorTheme__quote',
   text: {
@@ -171,8 +168,7 @@ const theme = {
   editorViewContainer: "relative block rounded-[10px]", // .editor-shell .view-container
   editorViewTreeView: "rounded-none", // .editor-shell .view-container.tree-view
   editorPlanText: "rounded-t-[10px]", // .editor-shell .view-container.plain-text
-  viewScroller:
-    "border-0 flex relative outline-0 z-0 overflow-auto resize-none", //.view-scroller
+  
   // editor: "flex-auto relative resize-y z-negative", //editor
   testRecorderOutput: "my-5 mx-auto w-full", //test-recorder-output
   treeViewOutput:

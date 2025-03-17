@@ -7,30 +7,25 @@
  */
 
 const theme = {
-  contentEditable: 'border-none relative [tab-size:1] outline-none ',
   editorScroller: "min-h-[150px] border-0 flex relative outline-0 z-0bh resize-y", //'editor-scroller'
+  viewScroller:
+    "border-0 flex relative outline-0 z-0 resize-none", //.view-scroller
   editorContainer: "relative block rounded-[10px] min-h-[50px]", //'.editor-shell .editor-container'
-  editorShell: "font-['Proxima_Nova'] font-[400] text-[16px] text-[#37576B] leading-[22.4px]",
+  editorShell: "font-['Proxima_Nova'] font-[400] text-[2.25rem] text-[#37576B] leading-[22.4px]",
   card: 'p-[12px] shadow-[0px_0px_6px_0px_rgba(0,0,0,0.02),0px_2px_4px_0px_rgba(0,0,0,0.08)]', 
-  heading: {
-      h1: "font-[500]  text-[#2D3E4C] text-[36px] leading-[36px] tracking-[-.02em] font-[500] underline-offset-8 underline decoration-4 decoration-[#EAAD43] uppercase font-['Oswald'] pb-[12px]", //'PlaygroundEditorTheme__h1',
-      h2: "font-[500]  text-[#2D3E4C] text-[24px] leading-[24px] scroll-mt-36 font-['Oswald'] pb-[12x]", //'PlaygroundEditorTheme__h2',
-      h3: "font-[500]  text-[#2D3E4C] text-[16px] leading-[16px] scroll-mt-36 font-['Oswald'] pb-[12x]", //'PlaygroundEditorTheme__h3',
-      h4: "font-medium text-[#2D3E4C] scroll-mt-36 font-display", //'PlaygroundEditorTheme__h4',
-      h5: "scroll-mt-36 font-display", //'PlaygroundEditorTheme__h5',
-      h6: "scroll-mt-36 font-display", //'PlaygroundEditorTheme__h6',
-  },
-  paragraph: "m-0 relative", //'PlaygroundEditorTheme__paragraph',
+  paragraph: "-ml-8 pl-8 relative", //'PlaygroundEditorTheme__paragraph',
+  contentEditable: 'border-none relative [tab-size:1] outline-none outline-0',
+  
   quote: "m-0 mb-2 font-['Oswald'] text-[30px] leading-[36px] text-[#2D3E4C] border-l-4 border-[#37576B] pl-4 pb-[12px]", //'PlaygroundEditorTheme__quote',
   // editorShell: "rounded-[2px] relative", //'.editor-shell',
-  // heading: {
-  //   h1: "font-semibold text-3xl scroll-mt-36 font-display", //'PlaygroundEditorTheme__h1',
-  //   h2: "font-medium text-xl scroll-mt-36 font-display", //'PlaygroundEditorTheme__h2',
-  //   h3: "font-medium text-lg scroll-mt-36 font-display", //'PlaygroundEditorTheme__h3',
-  //   h4: "font-medium scroll-mt-36 font-display", //'PlaygroundEditorTheme__h4',
-  //   h5: "scroll-mt-36 font-display", //'PlaygroundEditorTheme__h5',
-  //   h6: "scroll-mt-36 font-display", //'PlaygroundEditorTheme__h6',
-  // },
+  heading: {
+    h1: "font-semibold text-3xl scroll-mt-36 font-display", //'PlaygroundEditorTheme__h1',
+    h2: "font-medium text-xl scroll-mt-36 font-display", //'PlaygroundEditorTheme__h2',
+    h3: "font-medium text-lg scroll-mt-36 font-display", //'PlaygroundEditorTheme__h3',
+    h4: "font-medium scroll-mt-36 font-display", //'PlaygroundEditorTheme__h4',
+    h5: "scroll-mt-36 font-display", //'PlaygroundEditorTheme__h5',
+    h6: "scroll-mt-36 font-display", //'PlaygroundEditorTheme__h6',
+  },
   // quote:
   //   "m-0 ml-5 mb-2 text-[15px] text-[rgb(101,103,107)] border-l-4 border-l-[rgb(206,208,212)] pl-4", //'PlaygroundEditorTheme__quote',
   text: {
@@ -172,8 +167,6 @@ const theme = {
   editorViewContainer: "relative block rounded-[10px]", // .editor-shell .view-container
   editorViewTreeView: "rounded-none", // .editor-shell .view-container.tree-view
   editorPlanText: "rounded-t-[10px]", // .editor-shell .view-container.plain-text
-  viewScroller:
-    "border-0 flex relative outline-0 z-0 overflow-auto resize-none", //.view-scroller
   // editor: "flex-auto relative resize-y z-negative", //editor
   testRecorderOutput: "my-5 mx-auto w-full", //test-recorder-output
   treeViewOutput:
@@ -549,7 +542,7 @@ const theme = {
     iconMinusGray: 'w-5 h-5 bg-[url("./icon-minus-gray.svg")]', // .icon-minus-gray
   },
   draggableBlockMenu: {
-    base: "rounded-md p-0.5 cursor-grab opacity-0 absolute -left-0 top-0 will-change-transform hover:bg-gray-200", // .draggable-block-menu
+    base: "rounded-md p-0.5 cursor-grab opacity-0 absolute -left-8 top-0 will-change-transform hover:bg-gray-200", // .draggable-block-menu
     icon: "w-4 h-4 opacity-30 bg-[url(/images/icons/draggable-block-menu.svg)]", // .draggable-block-menu .icon
     active: "cursor-grabbing", // .draggable-block-menu:active
   },
