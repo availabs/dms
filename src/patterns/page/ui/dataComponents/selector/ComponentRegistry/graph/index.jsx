@@ -80,6 +80,7 @@ const graphOptions = {
     graphType: 'BarGraph',
     groupMode: 'stacked',
     orientation: 'vertical',
+    showAttribution: true,
     title: {
         title: "",
         position: "start",

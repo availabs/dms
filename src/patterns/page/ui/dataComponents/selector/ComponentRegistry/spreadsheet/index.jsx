@@ -436,6 +436,7 @@ export default {
         actions: {Comp: ActionControls},
         more: [
             // settings from more dropdown are stored in state.display
+            {type: 'toggle', label: 'Attribution', key: 'showAttribution'},
             {type: 'toggle', label: 'Allow Edit', key: 'allowEditInView'},
             {type: 'toggle', label: 'Use Search Params', key: 'allowSearchParams'},
             {type: 'toggle', label: 'Show Total', key: 'showTotal'},

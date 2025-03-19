@@ -173,7 +173,7 @@ const Card = ({isEdit}) => {
                                                          `${imageLocation}/${item?.[attr.name]}${imageExtension ? `.${imageExtension}` : ``}` :
                                                          (imageSrc || item?.[attr.name])}
                                                 /> :
-                                            attr.formatFn ?
+                                            attr.formatFn && formatFunctions[attr.formatFn] ?
                                             formatFunctions[attr.formatFn](item?.[attr.name], attr.isDollar).replaceAll(' ', '') :
                                             item?.[attr.name]
 
@@ -252,6 +252,7 @@ export default {
         ],
         more: [
             // settings from more dropdown are stored in state.display
+            {type: 'toggle', label: 'Attribution', key: 'showAttribution'},
             {type: 'toggle', label: 'Use Search Params', key: 'allowSearchParams'},
             {type: 'toggle', label: 'Compact View', key: 'compactView'},
             {type: 'input', inputType: 'number', label: 'Grid Size', key: 'gridSize'},

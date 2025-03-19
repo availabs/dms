@@ -3,7 +3,7 @@ import {uniq} from "lodash-es";
 
 const fnum = (number, currency = false) => `${currency ? '$ ' : ''} ${isNaN(number) ? 0 : parseInt(number).toLocaleString()}`;
 const fnumIndex = (d, fractions = 2, currency = false) => {
-        if(isNaN(d)) return 'No Data'
+        if(isNaN(d)) return '0'
         if(typeof d === 'number' && d < 1) return `${currency ? '$' : ``} ${d?.toFixed(fractions)}`
         if (d >= 1_000_000_000_000_000) {
             return `${currency ? '$' : ``} ${(d / 1_000_000_000_000_000).toFixed(fractions)} Q`;
