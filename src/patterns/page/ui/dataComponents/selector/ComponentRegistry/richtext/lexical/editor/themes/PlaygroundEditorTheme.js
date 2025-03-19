@@ -11,7 +11,7 @@ const theme = {
   viewScroller:
     "border-0 flex relative outline-0 z-0 resize-none", //.view-scroller
   editorContainer: "relative block rounded-[10px] min-h-[50px]", //'.editor-shell .editor-container'
-  editorShell: "font-['Proxima_Nova'] font-[400] text-[2.25rem] text-[#37576B] leading-[22.4px]",
+  editorShell: "font-['Proxima_Nova'] font-[400] text-[1rem] text-slate-700 leading-[22.4px]",
   card: 'p-[12px] shadow-[0px_0px_6px_0px_rgba(0,0,0,0.02),0px_2px_4px_0px_rgba(0,0,0,0.08)]', 
   paragraph: "-ml-8 pl-8 relative", //'PlaygroundEditorTheme__paragraph',
   contentEditable: 'border-none relative [tab-size:1] outline-none outline-0',

@@ -1,5 +1,5 @@
 import React, {useMemo, useState} from "react";
-import ColorPicker from "../../../../components/colorpicker/colorPicker";
+import {ColorPicker} from "../../../../";
 
 const defaultColorOptions = [
     "#FFFFFF",

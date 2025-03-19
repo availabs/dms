@@ -102,8 +102,8 @@ export function Header ({title, note, logo, overlay='overlay', bgImg, chain, sho
             </div>
 
             {/* breadcrumbs, title, note image: none */}
-            <div className={overlay === 'none' ? 'max-w-[1420px] w-full mx-auto px-4 xl:px-[54px] h-[276px] absolute top-[118px] items-center' : 'hidden'}>
-                <div className={'p-[56px] h-fit bg-white z-[100] rounded-lg shadow-md'}>
+            <div className={overlay === 'none' ? 'max-w-[1420px] w-full mx-auto px-4 xl:px-[54px] h-[238px] absolute top-[118px] items-center' : 'hidden'}>
+                <div className={'p-[56px] h-full bg-white z-[100] rounded-lg shadow-md'}>
                     <div className={'flex flex-col gap-1 w-3/4'}>
                         <div className={'px-1 z-10'}>
                             {

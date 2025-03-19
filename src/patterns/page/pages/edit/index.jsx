@@ -77,6 +77,7 @@ function PageEdit ({
   return (
     <PageContext.Provider value={{ item, dataItems, apiLoad, apiUpdate, editPane, setEditPane }} >
       <div className={`${theme?.page?.container}`}>
+        <EditPane />
         <EditDrawer /> 
         {item?.header === 'above' && (
           <ContentEdit
@@ -96,7 +97,7 @@ function PageEdit ({
           navItems={menuItems} 
           secondNav={theme?.navOptions?.secondaryNav?.navItems || []}
           pageTheme={{navOptions: item.navOptions || {}}}
-          EditPane={() => <EditPane /> }
+          
            
         >
           <div className={`${theme?.page?.wrapper1} ${theme?.navPadding[level]}`}>
