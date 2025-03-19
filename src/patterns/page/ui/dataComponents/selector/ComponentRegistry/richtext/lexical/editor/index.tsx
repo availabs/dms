@@ -72,7 +72,7 @@ function UpdateEditor ({value, onChange, bgColor, theme, editable}) {
           editor.setEditorState(newEditorState)
         }
       }
-  }, [isFirstRender.current,value, theme])
+  }, [isFirstRender.current, value, theme])
 
   return (
 

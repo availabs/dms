@@ -270,28 +270,37 @@ export function PublishButton () {
   
   return (
     <div className='w-full flex justify-center h-[40px]'>
+      { hasChanges && (
+        <Button 
+          padding={'flex items-center h-[40px] mr-1 cursor-pointer'} 
+          type={'inactive'}
+          onClick={() => discardChanges(user,item, apiUpdate)} 
+        >
+          <span className='text-nowrap'> Discard </span>
+        </Button>
+      )}
       <Button 
-          padding={'pl-2 flex items-center h-[40px]'} 
-          disabled={!hasChanges} 
-          rounded={hasChanges ? 'rounded-l-lg' : 'rounded-lg'} 
+          padding={' flex items-center h-[40px]'} 
+          disabled={!hasChanges}
           type={hasChanges ? 'active' : 'inactive'}
           onClick={() => publish(user,item, apiUpdate)} 
       >
         <span className='text-nowrap'> {hasChanges ? `Publish` : `No Changes`} </span>
          
       </Button>
-      {hasChanges && (
+      
+      {/*hasChanges && (
         <Menu 
           items={[{
             name: (<span className='text-red-400'>Discard Changes</span>), 
-            onClick: () =>  discardChanges(user,item, apiUpdate)}
+            onClick: () =>  }
           ]}
         > 
           <Button padding={'py-1 w-[35px] h-[40px]'} rounded={'rounded-r-lg'} type={hasChanges ? 'active' : 'inactive'}>
             <CaretDown className='size-[28px]' />
           </Button>
         </Menu>
-      )}
+      )*/}
     </div>
   )
 }

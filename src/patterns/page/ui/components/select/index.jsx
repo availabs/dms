@@ -1,6 +1,24 @@
 import * as Headless from '@headlessui/react'
 import React, { forwardRef } from 'react'
 import { CMSContext } from '../../../siteConfig';
+/*  ---------------------------------------------------------
+ Use Example: 
+  <Select 
+    options={[
+      {
+        label: 'Annotation Card',
+        value: 'Annotation'
+      },
+      {
+        label: 'HandWritten Card',
+        value: 'Handwritten'
+      },
+    ]}
+    value={myState}
+    onChange={e => setMyState(e.target.value)}
+  />
+
+ --------------------------------------------------------- */
 
 export const selectTheme = {
   selectContainer: [
@@ -53,7 +71,7 @@ const Select = forwardRef(function Select({ className, multiple, options=[], val
         value={value}
         onChange={onChange}
       >
-        {options.map(opt => <option key={opt.label} value={opt.value}>{opt.label}</option>)}
+        {options.map(opt => <option key={opt.label} className={opt?.className || ''} value={opt.value}>{opt.label}</option>)}
       </Headless.Select>
       {!multiple && (
         <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">

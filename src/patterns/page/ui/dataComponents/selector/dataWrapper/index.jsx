@@ -324,14 +324,16 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, component, hideS
                     <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={isEdit} defaultOpen={true} />
                     <RenderDownload state={state} apiLoad={apiLoad}/>
                 </div>
-                <span className={'text-xs'}>{loading ? 'loading...' : state.display.invalidState ? state.display.invalidState : null}</span>
-                    <Comp isEdit={isEdit}
-                          {...component.name === 'Spreadsheet' && {
-                              newItem, setNewItem,
-                              updateItem, removeItem, addItem,
-                              currentPage, loading, isEdit
-                          }}
-                    />
+                {/*
+                    <span className={'text-xs'}>{loading ? 'loading...' : state.display.invalidState ? state.display.invalidState : null}</span>
+                */}    
+                <Comp isEdit={isEdit}
+                  {...component.name === 'Spreadsheet' && {
+                      newItem, setNewItem,
+                      updateItem, removeItem, addItem,
+                      currentPage, loading, isEdit
+                  }}
+                />
                 <div>
                     {/*Pagination*/}
                     <Pagination currentPage={currentPage} setCurrentPage={setCurrentPage} showPagination={component.showPagination}/>
@@ -523,7 +525,12 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
                         <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={isEdit} defaultOpen={false}/>
                         <RenderDownload state={state} apiLoad={apiLoad}/>
                     </div>
-                    <span className={'text-xs'}>{loading ? 'loading...' : state.display.invalidState ? state.display.invalidState : null}</span>
+                    {/*
+                        --this causes page jitter (contents moving up and down), 
+                        -- if we want a loading indicator, its probably by component
+                        -- and it needs to be absolutely positioned
+                        <span className={'text-xs'}>{loading ? 'loading...' : state.display.invalidState ? state.display.invalidState : null}</span>
+                    */}
                     <Comp isEdit={isEdit}
                           {...component.name === 'Spreadsheet' && {
                               newItem, setNewItem,
