@@ -6,11 +6,27 @@ import DataWrapper from "../../page/ui/dataComponents/selector/dataWrapper";
 import {useNavigate, useSearchParams} from "react-router-dom";
 import {getData as getFilterData} from "../../page/ui/dataComponents/selector/ComponentRegistry/shared/filters/utils";
 import {applyFn, attributeAccessorStr, isJson} from "../../page/ui/dataComponents/selector/dataWrapper/utils/utils";
-import {uniq} from "lodash-es";
+import {isEqual, uniq} from "lodash-es";
+import {XMark} from "../../page/ui/icons";
+import dataTypes from "../../../data-types";
 
-const getErrorValueSql = (fullName, shortName, options, required) =>
+const getErrorValueSql = (fullName, shortName, options, required, type) =>
     `SUM(CASE ${required ? `WHEN (data->>'${fullName}' IS NULL OR data->>'${fullName}'::text = '') THEN 1` : ``}
-              ${options?.length ? `WHEN data->>'${fullName}' NOT IN (${options.map(o => `'${(o.value || o).replace(/'/, "''")}'`)}) THEN 1` : ``} ELSE 0 END) AS ${shortName}_error`;
+              ${
+        options?.length ?
+        (type === 'multiselect' ?
+            `WHEN NOT data->'${fullName}' <@  '[${options.map(o => `"${(o.value || o).replace(/'/, "''")}"`)}]'::jsonb THEN 1` :
+            `WHEN data->>'${fullName}' NOT IN (${options.map(o => `'${(o.value || o).replace(/'/, "''")}'`)}) THEN 1`) : ``
+            } ELSE 0 END) AS ${shortName}_error`.replaceAll('\n', ' ');
+
+const getInvalidValuesSql = (fullName, shortName, options, required, type) =>
+    `array_agg(CASE ${required ? `WHEN (data->>'${fullName}' IS NULL OR data->>'${fullName}'::text = '') THEN data->'${fullName}'` : ``}
+           ${
+                options?.length ? 
+                    (type === 'multiselect' ?
+                        `WHEN NOT data->'${fullName}' <@  '[${options.map(o => `"${(o.value || o).replace(/'/, "''")}"`)}]'::jsonb THEN data->'${fullName}' ELSE '"__VALID__"'::jsonb` :
+                        `WHEN data->>'${fullName}' NOT IN (${options.map(o => `'${(o.value || o).replace(/'/, "''")}'`)}) THEN data->>'${fullName}' ELSE '"__VALID__"'`) : ``
+            } END) AS ${shortName}_invalid_values`.replaceAll('\n', ' ');
 const getFullColumn = (columnName, columns) => columns.find(col => col.name === columnName);
 const getColAccessor = (col, isDms) => !col ? null : applyFn(col, isDms);
 const isCalculatedCol = ({display, type, origin}) => {
@@ -74,6 +90,106 @@ const getInitState = ({columns, defaultColumns=[], app, doc_type, params, data, 
         allowDownload: true,
     },
 })
+
+const updateCall = async ({column, app, type, maps, falcor, user, updating, setUpdating, setOpen}) => {
+    setUpdating(true);
+    await falcor.call(["dms", "data", "massedit"], [app, type, column.name, maps, user.id]);
+    setUpdating(false);
+    setOpen(false);
+}
+
+const RenderMassUpdater = ({sourceInfo, open, setOpen, falcor, columns, data, user}) => {
+    if(!open) return;
+    const [maps, setMaps] = useState([]);
+    const [updating, setUpdating] = useState(false);
+    const currColumn = columns.find(col => col.name === open);
+    const {app, type} = sourceInfo;
+    const Comp = dataTypes[currColumn.type]?.EditComp || dataTypes.text.EditComp;
+
+    const invalidValues = data[`${currColumn.shortName}_invalid_values`];
+    const uniqueInvalidValues = uniq(
+        invalidValues.map(val => (Array.isArray(val) ? JSON.stringify(val) : val))
+    ).map(val => (val.startsWith("[") ? JSON.parse(val) : val));
+
+    return (
+        <div className={'fixed inset-0 h-full w-full z-[100] content-center'} style={{backgroundColor: '#00000066'}} onClick={() => setOpen(false)}>
+            <div className={'w-3/4 h-1/2 overflow-auto scrollbar-sm flex flex-col gap-[12px] p-[16px] bg-white place-self-center rounded-md'} onClick={e => e.stopPropagation()}>
+                <div className={'w-full flex justify-end'}>
+                    <div className={'w-fit h-fit p-[8px] text-[#37576B] border border-[#E0EBF0] rounded-full cursor-pointer'}
+                         onClick={() => setOpen(false)}
+                    >
+                        <XMark height={16} width={16}/>
+                    </div>
+                </div>
+
+                <div className={'text-lg'}>{currColumn.display_name || currColumn.name}</div>
+
+                <div className={'max-h-3/4 overflow-auto scrollbar-sm border rounded-md p-4'}>
+                    <div className={'grid grid-cols-3'}>
+                        <div>Invalid Values</div>
+                        <div>Valid Values</div>
+                        <div></div>
+                    </div>
+                    {
+                        uniqueInvalidValues
+                            .filter(values => {
+                                // filter out valid values. sql isn't doing that for multiselect
+                                return values !== '"__VALID__"' && values !== "__VALID__"
+                            })
+                            .map((invalidValue, i) => {
+                                const value = maps.find(map => isEqual(map.invalidValue, invalidValue))?.validValue;
+                                return (
+                                    <div
+                                        className={`group grid grid-cols-3 items-center gap-y-1 ${i % 2 ? 'bg-gray-50' : ''} rounded-md `}>
+                                        <div>
+                                            {
+                                                Array.isArray(invalidValue) ? invalidValue.join(', ') :
+                                                typeof invalidValue === 'object' ? JSON.stringify(invalidValue) : invalidValue}
+                                            <span className={'mx-1 px-1 py-0.5 text-sm bg-red-50 text-red-500'}>
+                                                {data[`${currColumn.shortName}_invalid_values`].filter(val => isEqual(val, invalidValue)).length}
+                                            </span>
+                                        </div>
+                                        <div>
+                                            <Comp
+                                                className={'px-2 py-1'}
+                                                value={value}
+                                                options={currColumn.options}
+                                                onChange={value => {
+                                                    const validValue = Array.isArray(value) ? value.map(v => v.value || v) : (value.value || value);
+                                                    const existingMap = maps.find(map => isEqual(map.invalidValue, invalidValue));
+
+                                                    if (existingMap) {
+                                                        const tmpMap =
+                                                            maps.map(map =>
+                                                                isEqual(map.invalidValue, invalidValue) ?
+                                                                    {
+                                                                        invalidValue, validValue: validValue
+                                                                    } : map
+                                                            )
+                                                        setMaps(tmpMap)
+                                                    } else {
+                                                        setMaps([...maps, {
+                                                            invalidValue,
+                                                            validValue: validValue?.value || validValue
+                                                        }])
+                                                    }
+                                                }}/>
+                                        </div>
+                                        <button
+                                            onClick={() => setMaps(maps.filter(map => map.invalidValue !== invalidValue))}>reset
+                                        </button>
+                                    </div>
+                                )
+                            })
+                    }
+                </div>
+                <button className={'px-2 py-1 bg-blue-100 hover:bg-blue-200 text-blue-500'}
+                        onClick={() => updateCall({column: currColumn, app, type, maps, falcor, user, updating, setUpdating, setOpen})}>
+                    {updating ? 'updating...' : 'update'}</button>
+            </div>
+        </div>
+    )
+}
 const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
     // assumes meta is already setup. if a user changes meta after upload, validation is incomplete.
     const navigate = useNavigate();
@@ -82,7 +198,8 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
     const [loading, setLoading] = useState(false);
     const [validating, setValidating] = useState(false);
     const [error, setError] = useState();
-    const { API_HOST, baseUrl, pageBaseUrl, theme, user, ...rest } = React.useContext(FormsContext) || {};
+    const [massUpdateColumn, setMassUpdateColumn] = useState(); // column name that's getting mass updated
+    const { API_HOST, baseUrl, pageBaseUrl, theme, user, falcor } = React.useContext(FormsContext) || {};
     const [searchParams] = useSearchParams();
     const dmsServerPath = `${API_HOST}/dama-admin`;
 
@@ -191,8 +308,12 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
             // ==================================== get # invalid rows end =============================================
             const attrToFetch = columns
                 .reduce((acc, col) => [
-                ...acc,
-                ((['select', 'multiselect', 'radio'].includes(col.type) && col.options?.length) || col.required === 'yes') && getErrorValueSql(col.name, col.shortName, col.options, col.required === 'yes')
+                    ...acc,
+                    ((['select', 'multiselect', 'radio'].includes(col.type) && col.options?.length) || col.required === 'yes') &&
+                    getErrorValueSql(col.name, col.shortName, col.options, col.required === 'yes'),
+
+                    ((['select', 'multiselect', 'radio'].includes(col.type) && col.options?.length) || col.required === 'yes') &&
+                    getInvalidValuesSql(col.name, col.shortName, col.options, col.required === 'yes', col.type),
             ], []).filter(f => f)
 
             if(isStale) return;
@@ -217,10 +338,29 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
 
             console.time('setData')
             if(isStale) return;
-            const mappedData = columns.reduce((acc, col) => ({
-                ...acc,
-                ...((['select', 'multiselect', 'radio'].includes(col.type) && col.options?.length) || col.required === 'yes') && {[`${col.shortName}_error`]: +data?.[0]?.[getErrorValueSql(col.name, col.shortName, col.options, col.required === 'yes')]},
-            }), {});
+            const mappedData = columns
+                .filter(col => ((['select', 'multiselect', 'radio'].includes(col.type) && col.options?.length) || col.required === 'yes'))
+                .reduce((acc, col) => {
+                    const invalidValues = data?.[0]?.[getInvalidValuesSql(col.name, col.shortName, col.options, col.required === 'yes', col.type)]?.value;
+                    const sanitisedValues = Array.isArray(invalidValues) ? // for multiselects
+                        invalidValues.filter(inv => {
+                            const value = inv?.value || inv;
+                            return col.options && (
+                                Array.isArray(value) ?
+                                    value.reduce((acc, v) => {
+                                        return acc && !col.options.some(o => (o.value || o) === (v.value || v)) && v !== '"__VALID__"' && v !== "__VALID__"
+                                    }, true) : // make sure all selections are valid
+                                    !col.options.find(o => (o.value || o) === value) && value !== '"__VALID__"' && value !== "__VALID__"
+                            )
+                        })
+                            .map(value => Array.isArray(value) ? value.map(v => v.value || v) : (value?.value || value)) : invalidValues
+
+                return {
+                    ...acc,
+                    [`${col.shortName}_error`]: +data?.[0]?.[getErrorValueSql(col.name, col.shortName, col.options, col.required === 'yes')],
+                    [`${col.shortName}_invalid_values`]: sanitisedValues,
+                }
+            }, {});
 
             setData(mappedData);
             setValue(getInitState({columns, defaultColumns, app, doc_type, params, data: mappedData, searchParams}))
@@ -254,10 +394,10 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
                             <div
                                 className={'flex flex-1 w-full flex-col shadow bg-white relative text-md font-light leading-7 p-4'}>
                                 {status ? <div>{JSON.stringify(status)}</div> : ''}
-                                {/* stat boxes */}
                                 <div className='w-full max-w-6xl mx-auto'>
                                     <div
                                         className={'flex justify-between w-full'}>
+                                        {/* stat boxes */}
                                         <div className={'flex gap-2 text-gray-500'}>
                                             <div className={'bg-gray-100 rounded-md px-2 py-1'}>Total Rows: <span className={'text-gray-900'}>{(lengths.validLength || 0) + (lengths.invalidLength || 0)}</span></div>
                                             <div className={'bg-gray-100 rounded-md px-2 py-1'}>Invalid Rows: <span className={'text-gray-900'}>{(lengths.invalidLength || 0)}</span></div>
@@ -267,19 +407,50 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
                                             className={`px-2 py-1 text-sm ${error ? `bg-red-300 hover:bg-red-600 text-white` : `bg-blue-500/15 text-blue-700 hover:bg-blue-500/25`} rounded-md`}
                                             onClick={() =>
                                                 reValidate({
-                                                    app,
-                                                    type: JSON.parse(value).sourceInfo.type,
-                                                    // parentId: parent.id,
-                                                    parentDocType: doc_type,
-                                                    dmsServerPath,
-                                                    setValidating,
-                                                    setError
+                                                    app, type: JSON.parse(value).sourceInfo.type,
+                                                    parentDocType: doc_type, dmsServerPath, setValidating, setError
                                                 })}
                                         >
                                             {error ? JSON.stringify(error) : validating ? 'Validating' : 'Re - Validate'}
                                         </button>
                                     </div>
 
+                                    {
+                                        columns.find(col => data[`${col.shortName}_invalid_values`]) || loading ?
+                                            <div
+                                                className={'w-full flex items-center justify-between px-2 py-1 text-gray-500 bg-gray-100 rounded-md my-2'}>
+                                                {loading ? 'loading' : 'Mass Update'}
+                                            </div> : null
+                                    }
+
+                                    {/* Mass Update UI */}
+                                    <div className={'flex flex-wrap my-2 gap-2'}>
+                                        {
+                                            columns.filter(column => data[`${column.shortName}_invalid_values`] &&
+                                                data[`${column.shortName}_invalid_values`].filter(values => values !== '"__VALID__"' && values !== "__VALID__").length
+                                            )
+                                                .map(column => (
+                                                    <div className={'px-2 py-1 w-fit text-gray-500 bg-gray-100 hover:bg-gray-200 hover:cursor-pointer rounded-md'}
+                                                         onClick={() => setMassUpdateColumn(column.name)}
+                                                    >
+                                                        {column.display_name || column.name}
+                                                        <span className={'mx-1 px-1 py-0.5 text-sm bg-red-50 text-red-500'}>
+                                                            {data[`${column.shortName}_invalid_values`].filter(values => values !== '"__VALID__"' && values !== "__VALID__").length}
+                                                        </span>
+                                                    </div>
+                                                ))
+                                        }
+                                    </div>
+
+                                    <RenderMassUpdater open={massUpdateColumn}
+                                                       setOpen={setMassUpdateColumn}
+                                                       columns={columns}
+                                                       apiUpdate={apiUpdate}
+                                                       data={data}
+                                                       sourceInfo={JSON.parse(value).sourceInfo}
+                                                       falcor={falcor}
+                                                       user={user}
+                                    />
                                     {/* invalid rows */}
                                     {
                                         columns.find(col => data[`${col.shortName}_error`]) || loading ?

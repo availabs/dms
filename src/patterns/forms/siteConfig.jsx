@@ -205,6 +205,7 @@ const formsSourceConfig = ({
                     toIndex: () => 0,
                 },
                 path: "/*",
+                authLevel: 5,
                 children: [
                     {
                         type: props => <Overview.EditComp {...props} />,
