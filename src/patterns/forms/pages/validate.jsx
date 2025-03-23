@@ -34,7 +34,7 @@ const isCalculatedCol = ({display, type, origin}) => {
 };
 const filterValueDelimiter = '|||';
 
-const reValidate = async ({app, type, parentId, parentDocType, dmsServerPath, setValidating, setError}) => {
+const reValidate = async ({app, type, parentId, parentDocType, dmsServerPath, setValidating, setError, falcor}) => {
     try {
         setValidating(true)
         const body = {
@@ -49,10 +49,11 @@ const reValidate = async ({app, type, parentId, parentDocType, dmsServerPath, se
                     "Content-Type": "application/json",
                 },
             });
-
+        await falcor.invalidate(['uda', `${app}+${type}`]);
+        await falcor.invalidate(['uda']);
         const publishFinalEvent = await res.json();
         setValidating(false)
-        window.location = window.location;
+        // window.location = window.location;
     }catch (e){
         setValidating(false);
         setError(e)
@@ -94,14 +95,14 @@ const getInitState = ({columns, defaultColumns=[], app, doc_type, params, data, 
 const updateCall = async ({column, app, type, maps, falcor, user, updating, setUpdating, setOpen}) => {
     setUpdating(true);
     await falcor.call(["dms", "data", "massedit"], [app, type, column.name, maps, user.id]);
+    await falcor.invalidate(['uda', `${app}+${type}`])
     setUpdating(false);
     setOpen(false);
 }
 
-const RenderMassUpdater = ({sourceInfo, open, setOpen, falcor, columns, data, user}) => {
+const RenderMassUpdater = ({sourceInfo, open, setOpen, falcor, columns, data, user, updating, setUpdating}) => {
     if(!open) return;
     const [maps, setMaps] = useState([]);
-    const [updating, setUpdating] = useState(false);
     const currColumn = columns.find(col => col.name === open);
     const {app, type} = sourceInfo;
     const Comp = dataTypes[currColumn.type]?.EditComp || dataTypes.text.EditComp;
@@ -139,7 +140,7 @@ const RenderMassUpdater = ({sourceInfo, open, setOpen, falcor, columns, data, us
                             .map((invalidValue, i) => {
                                 const value = maps.find(map => isEqual(map.invalidValue, invalidValue))?.validValue;
                                 return (
-                                    <div
+                                    <div key={invalidValue}
                                         className={`group grid grid-cols-3 items-center gap-y-1 ${i % 2 ? 'bg-gray-50' : ''} rounded-md `}>
                                         <div>
                                             {
@@ -199,6 +200,7 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
     const [validating, setValidating] = useState(false);
     const [error, setError] = useState();
     const [massUpdateColumn, setMassUpdateColumn] = useState(); // column name that's getting mass updated
+    const [updating, setUpdating] = useState(false);
     const { API_HOST, baseUrl, pageBaseUrl, theme, user, falcor } = React.useContext(FormsContext) || {};
     const [searchParams] = useSearchParams();
     const dmsServerPath = `${API_HOST}/dama-admin`;
@@ -226,7 +228,7 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
     }, [item.views]);
 
     useEffect(() => {
-        if(!params.view_id) return;
+        if(!params.view_id || updating || validating) return;
         let isStale = false;
         async function load(){
             setLoading(true)
@@ -373,7 +375,7 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
         return () => {
             isStale = true;
         }
-    }, [item, searchParams])
+    }, [item, searchParams, updating, validating])
 
     const page = useMemo(() => ({name: 'Validate', href: `${pageBaseUrl}/${params.id}/validate`, /*warn: is_dirty*/}), [is_dirty, pageBaseUrl, params.id])
 
@@ -408,7 +410,7 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
                                             onClick={() =>
                                                 reValidate({
                                                     app, type: JSON.parse(value).sourceInfo.type,
-                                                    parentDocType: doc_type, dmsServerPath, setValidating, setError
+                                                    parentDocType: doc_type, dmsServerPath, setValidating, setError, falcor
                                                 })}
                                         >
                                             {error ? JSON.stringify(error) : validating ? 'Validating' : 'Re - Validate'}
@@ -450,6 +452,8 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
                                                        sourceInfo={JSON.parse(value).sourceInfo}
                                                        falcor={falcor}
                                                        user={user}
+                                                       updating={updating}
+                                                       setUpdating={setUpdating}
                                     />
                                     {/* invalid rows */}
                                     {
