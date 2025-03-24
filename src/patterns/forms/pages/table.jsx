@@ -36,7 +36,11 @@ const TableView = ({apiUpdate, apiLoad, format, item, params}) => {
     }))
 
     const saveSettings = useCallback(() => {
-        const columns = (JSON.parse(value)?.columns || []).filter(({show}) => show).map(({name, display_name, show}) => ({name, display_name, show}));
+        const columns =
+            (JSON.parse(value)?.columns || [])
+                .filter(({show}) => show)
+                .map(col => ({...col, filters: undefined, group: undefined})); // not including some settings
+
         apiUpdate({data: {...item, defaultColumns: columns}, config: {format}});
     }, [value]);
 
