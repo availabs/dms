@@ -96,25 +96,34 @@ const getInitState = ({columns, defaultColumns=[], app, doc_type, params, data, 
     },
 })
 
-const updateCall = async ({column, app, type, maps, falcor, user, updating, setUpdating, setOpen}) => {
+const updateCall = async ({column, app, type, maps, falcor, user, setUpdating, setLoadingAfterUpdate}) => {
     setUpdating(true);
     await falcor.call(["dms", "data", "massedit"], [app, type, column.name, maps, user.id]);
     await falcor.invalidate(['uda', `${app}+${type}`])
     setUpdating(false);
-    setOpen(false);
+    setLoadingAfterUpdate(true);
 }
 
 const RenderMassUpdater = ({sourceInfo, open, setOpen, falcor, columns, data, user, updating, setUpdating}) => {
     if(!open) return;
     const [maps, setMaps] = useState([]);
+    const [loadingAfterUpdate, setLoadingAfterUpdate] = useState(false);
     const currColumn = columns.find(col => col.name === open);
     const {app, type} = sourceInfo;
-    const Comp = dataTypes[currColumn.type]?.EditComp || dataTypes.text.EditComp;
+    const Comp = useMemo(() => dataTypes[currColumn.type]?.EditComp || dataTypes.text.EditComp, [currColumn.type]);
 
-    const invalidValues = data[`${currColumn.shortName}_invalid_values`];
-    const uniqueInvalidValues = uniq(
-        invalidValues.map(val => (Array.isArray(val) ? JSON.stringify(val) : val))
-    ).map(val => (val && val.startsWith("[") ? JSON.parse(val) : val));
+    const invalidValues = useMemo(() => data[`${currColumn.shortName}_invalid_values`], [data, currColumn.shortName]);
+    const uniqueInvalidValues = useMemo(() => uniq(
+                                            invalidValues.map(val => (Array.isArray(val) ? JSON.stringify(val) : val))
+                                        ).filter(values => {
+                                            // filter out valid values. sql isn't doing that for multiselect
+                                            return values !== '"__VALID__"' && values !== "__VALID__"
+                                        }).map(val => {
+                                            const invalidValue = val && val.startsWith("[") ? JSON.parse(val) : val;
+                                            const count = data[`${currColumn.shortName}_invalid_values`].filter(val => isEqual(val, invalidValue)).length
+                                            return {invalidValue, count}
+                                        }).sort((a,b) => b.count - a.count),
+        [invalidValues]);
 
     return (
         <div className={'fixed inset-0 h-full w-full z-[100] content-center'} style={{backgroundColor: '#00000066'}} onClick={() => setOpen(false)}>
@@ -137,12 +146,7 @@ const RenderMassUpdater = ({sourceInfo, open, setOpen, falcor, columns, data, us
                     </div>
                     {
                         uniqueInvalidValues
-                            .filter(values => {
-                                // filter out valid values. sql isn't doing that for multiselect
-                                return values !== '"__VALID__"' && values !== "__VALID__"
-                            })
-                            .sort((a,b) => data[`${currColumn.shortName}_invalid_values`].filter(val => isEqual(val, b)).length - data[`${currColumn.shortName}_invalid_values`].filter(val => isEqual(val, a)).length)
-                            .map((invalidValue, i) => {
+                            .map(({invalidValue}, i) => {
                                 const value = maps.find(map => isEqual(map.invalidValue, invalidValue))?.validValue;
                                 return (
                                     <div key={invalidValue}
@@ -189,9 +193,9 @@ const RenderMassUpdater = ({sourceInfo, open, setOpen, falcor, columns, data, us
                             })
                     }
                 </div>
-                <button className={'px-2 py-1 bg-blue-100 hover:bg-blue-200 text-blue-500'}
-                        onClick={() => updateCall({column: currColumn, app, type, maps, falcor, user, updating, setUpdating, setOpen})}>
-                    {updating ? 'updating...' : 'update'}</button>
+                <button className={'px-2 py-1 bg-blue-500/15 text-blue-700 hover:bg-blue-500/25'}
+                        onClick={() => updateCall({column: currColumn, app, type, maps, falcor, user, updating, setUpdating, setOpen, setLoadingAfterUpdate})}>
+                    {updating ? 'updating...' : loadingAfterUpdate ? 'loading updates...' : 'update'}</button>
             </div>
         </div>
     )
@@ -372,6 +376,7 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
             setData(mappedData);
             setValue(getInitState({columns, defaultColumns, app, doc_type, params, data: mappedData, searchParams}))
             setLoading(false);
+            setMassUpdateColumn(undefined);
             console.timeEnd('setData')
         }
 
@@ -383,6 +388,14 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
     }, [item, searchParams, updating, validating])
 
     const page = useMemo(() => ({name: 'Validate', href: `${pageBaseUrl}/${params.id}/validate`, /*warn: is_dirty*/}), [is_dirty, pageBaseUrl, params.id])
+
+    const columnsWithInvalidValues = useMemo(() =>
+        columns
+            .filter(column => data[`${column.shortName}_invalid_values`] &&
+                data[`${column.shortName}_invalid_values`].filter(values => values !== '"__VALID__"' && values !== "__VALID__").length)
+            .sort((a,b) => data[`${b.shortName}_invalid_values`].filter(values => values !== '"__VALID__"' && values !== "__VALID__").length -
+                data[`${a.shortName}_invalid_values`].filter(values => values !== '"__VALID__"' && values !== "__VALID__").length)
+            .map(column => ({column, invalidValues: data[`${column.shortName}_invalid_values`].filter(values => values !== '"__VALID__"' && values !== "__VALID__")})), [data])
 
     return (
         <SourcesLayout fullWidth={false} baseUrl={baseUrl} pageBaseUrl={pageBaseUrl} isListAll={false} hideBreadcrumbs={false}
@@ -433,21 +446,43 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
                                     {/* Mass Update UI */}
                                     <div className={'flex flex-wrap my-2 gap-2'}>
                                         {
-                                            columns
-                                                .filter(column => data[`${column.shortName}_invalid_values`] &&
-                                                data[`${column.shortName}_invalid_values`].filter(values => values !== '"__VALID__"' && values !== "__VALID__").length)
-                                                .sort((a,b) => data[`${b.shortName}_invalid_values`].filter(values => values !== '"__VALID__"' && values !== "__VALID__").length -
-                                                    data[`${a.shortName}_invalid_values`].filter(values => values !== '"__VALID__"' && values !== "__VALID__").length)
-                                                .map(column => (
-                                                    <div className={'px-2 py-1 w-fit text-gray-500 bg-gray-100 hover:bg-gray-200 hover:cursor-pointer rounded-md'}
-                                                         onClick={() => setMassUpdateColumn(column.name)}
+                                            columnsWithInvalidValues.map(({column, invalidValues}) => {
+                                                const isFilterOn = (JSON.parse(value)?.columns || []).find(col => col.name === column.name)?.filters?.length;
+
+                                                return (
+                                                    <div
+                                                        className={'px-2 py-1 w-fit text-gray-500 bg-gray-100 hover:bg-gray-200 hover:cursor-pointer rounded-md'}
+                                                        onClick={() => setMassUpdateColumn(column.name)}
                                                     >
                                                         {column.display_name || column.name}
-                                                        <span className={'mx-1 px-1 py-0.5 text-sm bg-red-50 text-red-500'}>
-                                                            {data[`${column.shortName}_invalid_values`].filter(values => values !== '"__VALID__"' && values !== "__VALID__").length}
+                                                        <span
+                                                            className={'mx-1 px-1 py-0.5 text-sm bg-red-50 text-red-500'}>
+                                                            {invalidValues?.length}
+                                                        </span>
+
+                                                        <span
+                                                            className={'mx-1 px-1 py-0.5 text-sm bg-blue-50 text-blue-500'}
+                                                            onClick={e => {
+                                                                e.stopPropagation();
+
+                                                                console.log('updating value on click', column.name)
+                                                                const tmpValue = JSON.parse(value);
+                                                                const idx = tmpValue.columns.findIndex(col => col.name === column.name);
+                                                                if (idx === -1) return;
+
+                                                                tmpValue.columns[idx].filters = isFilterOn ? undefined : [{
+                                                                    type: 'external',
+                                                                    operation: 'filter',
+                                                                    values: uniq(invalidValues)
+                                                                }]
+                                                                setValue(JSON.stringify(tmpValue))
+                                                            }}
+                                                        >
+                                                            {isFilterOn ? 'Remove Filter' : 'Add Filter'}
                                                         </span>
                                                     </div>
-                                                ))
+                                                )
+                                            })
                                         }
                                     </div>
 
@@ -474,7 +509,7 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
                                         !columns.find(col => data[`${col.shortName}_error`]) || loading ? null :
                                             <DataWrapper.EditComp
                                                 component={Spreadsheet}
-                                                key={'validate-page-spreadsheet'}
+                                                key={JSON.stringify(JSON.parse(value)?.columns)}
                                                 value={value}
                                                 onChange={(stringValue) => {setValue(stringValue)}}
                                                 hideSourceSelector={true}
