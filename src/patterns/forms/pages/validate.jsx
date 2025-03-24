@@ -110,7 +110,7 @@ const RenderMassUpdater = ({sourceInfo, open, setOpen, falcor, columns, data, us
     const invalidValues = data[`${currColumn.shortName}_invalid_values`];
     const uniqueInvalidValues = uniq(
         invalidValues.map(val => (Array.isArray(val) ? JSON.stringify(val) : val))
-    ).map(val => (val.startsWith("[") ? JSON.parse(val) : val));
+    ).map(val => (val && val.startsWith("[") ? JSON.parse(val) : val));
 
     return (
         <div className={'fixed inset-0 h-full w-full z-[100] content-center'} style={{backgroundColor: '#00000066'}} onClick={() => setOpen(false)}>
@@ -137,6 +137,7 @@ const RenderMassUpdater = ({sourceInfo, open, setOpen, falcor, columns, data, us
                                 // filter out valid values. sql isn't doing that for multiselect
                                 return values !== '"__VALID__"' && values !== "__VALID__"
                             })
+                            .sort((a,b) => data[`${currColumn.shortName}_invalid_values`].filter(val => isEqual(val, b)).length - data[`${currColumn.shortName}_invalid_values`].filter(val => isEqual(val, a)).length)
                             .map((invalidValue, i) => {
                                 const value = maps.find(map => isEqual(map.invalidValue, invalidValue))?.validValue;
                                 return (
@@ -428,9 +429,11 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
                                     {/* Mass Update UI */}
                                     <div className={'flex flex-wrap my-2 gap-2'}>
                                         {
-                                            columns.filter(column => data[`${column.shortName}_invalid_values`] &&
-                                                data[`${column.shortName}_invalid_values`].filter(values => values !== '"__VALID__"' && values !== "__VALID__").length
-                                            )
+                                            columns
+                                                .filter(column => data[`${column.shortName}_invalid_values`] &&
+                                                data[`${column.shortName}_invalid_values`].filter(values => values !== '"__VALID__"' && values !== "__VALID__").length)
+                                                .sort((a,b) => data[`${b.shortName}_invalid_values`].filter(values => values !== '"__VALID__"' && values !== "__VALID__").length -
+                                                    data[`${a.shortName}_invalid_values`].filter(values => values !== '"__VALID__"' && values !== "__VALID__").length)
                                                 .map(column => (
                                                     <div className={'px-2 py-1 w-fit text-gray-500 bg-gray-100 hover:bg-gray-200 hover:cursor-pointer rounded-md'}
                                                          onClick={() => setMassUpdateColumn(column.name)}
