@@ -6,8 +6,9 @@ import DataWrapper from "../../page/ui/dataComponents/selector/dataWrapper";
 import {useNavigate, useSearchParams} from "react-router-dom";
 import {getData as getFilterData} from "../../page/ui/dataComponents/selector/ComponentRegistry/shared/filters/utils";
 import {applyFn, attributeAccessorStr, isJson} from "../../page/ui/dataComponents/selector/dataWrapper/utils/utils";
-import {isEqual, uniq} from "lodash-es";
+import {cloneDeep, isEqual, uniq} from "lodash-es";
 import {XMark} from "../../page/ui/icons";
+import {Filter, FilterRemove} from "../ui/icons";
 import dataTypes from "../../../data-types";
 
 const getErrorValueSql = (fullName, shortName, options, required, type) =>
@@ -74,6 +75,8 @@ const getInitState = ({columns, defaultColumns=[], app, doc_type, params, data, 
     columns: [
         ...defaultColumns.filter(dc => columns.find(c => c.name === dc.name)), // default columns
         ...columns.filter(({name, shortName}) => !defaultColumns.find(dc => dc.name === name) && data[`${shortName}_error`]) // error columns minus default columns
+            .sort((a,b) => data[`${b.shortName}_invalid_values`].filter(values => values !== '"__VALID__"' && values !== "__VALID__").length -
+                data[`${a.shortName}_invalid_values`].filter(values => values !== '"__VALID__"' && values !== "__VALID__").length)
     ]
         .map(c => ({...c, show: true, externalFilter: searchParams.get(c.name)?.split(filterValueDelimiter)?.filter(d => d.length)})),
     sourceInfo: {
@@ -397,6 +400,60 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
                 data[`${a.shortName}_invalid_values`].filter(values => values !== '"__VALID__"' && values !== "__VALID__").length)
             .map(column => ({column, invalidValues: data[`${column.shortName}_invalid_values`].filter(values => values !== '"__VALID__"' && values !== "__VALID__")})), [data])
 
+    const SpreadSheetCompWithControls = cloneDeep(Spreadsheet);
+    SpreadSheetCompWithControls.controls.header = {
+        displayFn: column => {
+            const invalidValues = data[`${column.shortName}_invalid_values`]?.filter(values => values !== '"__VALID__"' && values !== "__VALID__") || [];
+            const isFilterOn = (JSON.parse(value)?.columns || []).find(col => col.name === column.name)?.filters?.length;
+
+            if(!invalidValues?.length){
+                return (
+                    <span className={'truncate select-none'}
+                          title={column.customName || column.display_name || column.name}>
+                                    {column.customName || column.display_name || column.name}
+                    </span>
+                )
+            }
+
+            return (
+                <>
+                    <span className={'truncate select-none min-w-[15px]'}
+                          title={column.customName || column.display_name || column.name}>
+                                    {column.customName || column.display_name || column.name}
+                    </span>
+
+                    <span className={'flex ml-1 gap-0.5 font-light'}>
+                        <span className={'flex px-1 py-0.5 text-xs bg-red-50 text-red-500 rounded-sm'}
+                              onClick={e => {
+                                  e.stopPropagation();
+                                  setMassUpdateColumn(column.name)
+                              }}>
+                            {invalidValues.length}
+                        </span>
+
+                        <span
+                            className={'flex place-items-center px-1 py-0.5 text-sm bg-blue-50 rounded-sm'}
+                            onClick={e => {
+                                e.stopPropagation();
+
+                                const tmpValue = JSON.parse(value);
+                                const idx = tmpValue.columns.findIndex(col => col.name === column.name);
+                                if (idx === -1) return;
+
+                                tmpValue.columns[idx].filters = isFilterOn ? undefined : [{
+                                    type: 'external',
+                                    operation: 'filter',
+                                    values: uniq(invalidValues)
+                                }]
+                                setValue(JSON.stringify(tmpValue))
+                            }}>
+                            {isFilterOn ? <FilterRemove className={'text-blue-500'} height={14} width={14} /> : <Filter className={'text-blue-500'} height={14} width={14} />}
+                        </span>
+                    </span>
+                </>
+            )
+        }
+    }
     return (
         <SourcesLayout fullWidth={false} baseUrl={baseUrl} pageBaseUrl={pageBaseUrl} isListAll={false} hideBreadcrumbs={false}
                        form={{name: item.name || item.doc_type, href: item.url_slug}}
@@ -435,57 +492,7 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
                                         </button>
                                     </div>
 
-                                    {
-                                        columns.find(col => data[`${col.shortName}_invalid_values`]) || loading ?
-                                            <div
-                                                className={'w-full flex items-center justify-between px-2 py-1 text-gray-500 bg-gray-100 rounded-md my-2'}>
-                                                {loading ? 'loading' : 'Mass Update'}
-                                            </div> : null
-                                    }
-
-                                    {/* Mass Update UI */}
-                                    <div className={'flex flex-wrap my-2 gap-2'}>
-                                        {
-                                            columnsWithInvalidValues.map(({column, invalidValues}) => {
-                                                const isFilterOn = (JSON.parse(value)?.columns || []).find(col => col.name === column.name)?.filters?.length;
-
-                                                return (
-                                                    <div
-                                                        className={'px-2 py-1 w-fit text-gray-500 bg-gray-100 hover:bg-gray-200 hover:cursor-pointer rounded-md'}
-                                                        onClick={() => setMassUpdateColumn(column.name)}
-                                                    >
-                                                        {column.display_name || column.name}
-                                                        <span
-                                                            className={'mx-1 px-1 py-0.5 text-sm bg-red-50 text-red-500'}>
-                                                            {invalidValues?.length}
-                                                        </span>
-
-                                                        <span
-                                                            className={'mx-1 px-1 py-0.5 text-sm bg-blue-50 text-blue-500'}
-                                                            onClick={e => {
-                                                                e.stopPropagation();
-
-                                                                console.log('updating value on click', column.name)
-                                                                const tmpValue = JSON.parse(value);
-                                                                const idx = tmpValue.columns.findIndex(col => col.name === column.name);
-                                                                if (idx === -1) return;
-
-                                                                tmpValue.columns[idx].filters = isFilterOn ? undefined : [{
-                                                                    type: 'external',
-                                                                    operation: 'filter',
-                                                                    values: uniq(invalidValues)
-                                                                }]
-                                                                setValue(JSON.stringify(tmpValue))
-                                                            }}
-                                                        >
-                                                            {isFilterOn ? 'Remove Filter' : 'Add Filter'}
-                                                        </span>
-                                                    </div>
-                                                )
-                                            })
-                                        }
-                                    </div>
-
+                                    {/* Mass Update Modal */}
                                     <RenderMassUpdater open={massUpdateColumn}
                                                        setOpen={setMassUpdateColumn}
                                                        columns={columns}
@@ -497,6 +504,7 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
                                                        updating={updating}
                                                        setUpdating={setUpdating}
                                     />
+
                                     {/* invalid rows */}
                                     {
                                         columns.find(col => data[`${col.shortName}_error`]) || loading ?
@@ -508,8 +516,8 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
                                     {
                                         !columns.find(col => data[`${col.shortName}_error`]) || loading ? null :
                                             <DataWrapper.EditComp
-                                                component={Spreadsheet}
-                                                key={JSON.stringify(JSON.parse(value)?.columns)}
+                                                component={SpreadSheetCompWithControls}
+                                                key={JSON.stringify((JSON.parse(value)?.columns || []).map(c => ({...c, size: undefined})))}
                                                 value={value}
                                                 onChange={(stringValue) => {setValue(stringValue)}}
                                                 hideSourceSelector={true}
