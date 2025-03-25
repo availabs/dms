@@ -194,9 +194,7 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
     const { baseUrl, user, theme } = React.useContext(CMSContext) || {}
 
     const updateAttribute = (k, v) => {
-        
         onChange(i, k, v)
-        
     }
     
     const hideDebug = true
@@ -234,7 +232,7 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
       { icon: 'ChevronDownSquare', name: 'Move Down', onClick: () =>  moveItem(i,1) },
       { type: 'seperator'},
       { 
-        icon:'Column', name: 'Colspan',
+        icon:'Column', name: 'Width',
         type: 'menu', 
         value: value?.['size'] || 1,
         items: Object.keys(theme?.sectionArray?.sizes || {}).sort((a,b) => {
@@ -282,11 +280,11 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
                 }
             }
         }),
-        inputProps: { 
-            type: 'number', 
-            value: value?.offset || theme?.sectionArray?.defaultOffset, 
-            onChange: (v) => updateAttribute('offset', v.target.value)
-        }
+        // inputProps: { 
+        //     type: 'number', 
+        //     value: value?.offset || theme?.sectionArray?.defaultOffset, 
+        //     onChange: (v) => updateAttribute('offset', v.target.value)
+        // }
       },
       // { icon: 'Blank', name: 'Padding', onClick: () => {} },
       { icon: 'Border', name: 'Border', onClick: () => {} },

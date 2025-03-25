@@ -195,7 +195,7 @@ const Edit = ({Component, value, onChange, attr, full_width = false, siteType, a
                                 ${theme?.sectionArray?.sectionEditWrapper} 
                                 ${colspanClass} ${rowspanClass} 
                             `}
-                            style={{paddingTop: `${value?.offset || v?.is_header ? 0 : theme?.sectionArray?.defaultOffset}px` }}
+                            style={{paddingTop: `${v?.offset || (v?.is_header ? 0 : theme?.sectionArray?.defaultOffset)}px` }}
                         >
                             <div className={theme?.sectionArray?.sectionEditHover} />
                             {/* add to top */}

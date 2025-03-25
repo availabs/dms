@@ -513,8 +513,7 @@ const Icons = {
   Group,
   SortAsc,
   SortDesc,
-  Search,
-  Blank
+  Search
 }
 
 
