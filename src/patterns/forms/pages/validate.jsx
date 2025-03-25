@@ -213,6 +213,7 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
     const [error, setError] = useState();
     const [massUpdateColumn, setMassUpdateColumn] = useState(); // column name that's getting mass updated
     const [updating, setUpdating] = useState(false);
+    const [ssKey, setSSKey] = useState(''); // key for the spreadsheet component. need to change it on page changes.
     const { API_HOST, baseUrl, pageBaseUrl, theme, user, falcor } = React.useContext(FormsContext) || {};
     const [searchParams] = useSearchParams();
     const dmsServerPath = `${API_HOST}/dama-admin`;
@@ -378,6 +379,7 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
 
             setData(mappedData);
             setValue(getInitState({columns, defaultColumns, app, doc_type, params, data: mappedData, searchParams}))
+            setSSKey(`${Date.now()}`);
             setLoading(false);
             setMassUpdateColumn(undefined);
             console.timeEnd('setData')
@@ -440,12 +442,20 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
                                 const idx = tmpValue.columns.findIndex(col => col.name === column.name);
                                 if (idx === -1) return;
 
+                                // reshape the multiselect data to an array.
+                                const filterValues =
+                                    invalidValues.reduce((acc, curr) => Array.isArray(curr) ? [...acc, ...curr] : [...acc, curr], []).filter(o => o);
+
                                 tmpValue.columns[idx].filters = isFilterOn ? undefined : [{
                                     type: 'external',
                                     operation: 'filter',
-                                    values: uniq(invalidValues)
+                                    isMulti: true,
+                                    values: uniq(filterValues)
                                 }]
+
+                                tmpValue.dataRequest = {filter: {[column.name]: uniq(filterValues)}};
                                 setValue(JSON.stringify(tmpValue))
+                                setSSKey(`${Date.now()}`);
                             }}>
                             {isFilterOn ? <FilterRemove className={'text-blue-500'} height={14} width={14} /> : <Filter className={'text-blue-500'} height={14} width={14} />}
                         </span>
@@ -517,7 +527,7 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
                                         !columns.find(col => data[`${col.shortName}_error`]) || loading ? null :
                                             <DataWrapper.EditComp
                                                 component={SpreadSheetCompWithControls}
-                                                key={JSON.stringify((JSON.parse(value)?.columns || []).map(c => ({...c, size: undefined})))}
+                                                key={ssKey}
                                                 value={value}
                                                 onChange={(stringValue) => {setValue(stringValue)}}
                                                 hideSourceSelector={true}

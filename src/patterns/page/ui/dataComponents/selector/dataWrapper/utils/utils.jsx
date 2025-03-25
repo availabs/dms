@@ -146,7 +146,7 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
                 format: state.sourceInfo
             });
 
-            const selectedValues = (filter[columnName] || exclude[columnName] || []).map(o => o.value || o);
+            const selectedValues = (filter[columnName] || exclude[columnName] || []).map(o => o?.value || o).filter(o => o);
             if (!selectedValues.length) continue;
 
             try {
