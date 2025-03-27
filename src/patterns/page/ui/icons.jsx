@@ -445,6 +445,11 @@ const Pages = (props) => (
   </svg>
 );
 
+ const Blank = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={24} height={24} stroke="currentColor" fill={"none"} {...props}>
+  </svg>
+);
+
 
 
 
@@ -455,6 +460,9 @@ const Icons = {
   Settings,
   Pages,
   History,
+  InsertSection: SquarePlus,
+  Menu: MenuIcon,
+  Blank,
   //---- Optional Icons ----
   CaretDown,
   CaretUp,
@@ -469,6 +477,7 @@ const Icons = {
   ClockIcon,
   InfoCircle,
   TrashCan,
+  CircleCheck,
   RemoveCircle,
   CancelCircle,
   FloppyDisk,
@@ -490,7 +499,7 @@ const Icons = {
   Copy,
   PDF,
   Printer,
-  Add,
+  // Add,
   XMark,
   AdjustmentsHorizontal,
   LinkSquare,
