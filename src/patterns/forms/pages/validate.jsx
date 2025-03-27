@@ -16,8 +16,8 @@ const getErrorValueSql = (fullName, shortName, options, required, type) =>
               ${
         options?.length ?
         (type === 'multiselect' ?
-            `WHEN NOT data->'${fullName}' <@  '[${options.map(o => `"${(o.value || o).replace(/'/, "''")}"`)}]'::jsonb THEN 1` :
-            `WHEN data->>'${fullName}' NOT IN (${options.map(o => `'${(o.value || o).replace(/'/, "''")}'`)}) THEN 1`) : ``
+            `WHEN NOT data->'${fullName}' <@  '[${options.map(o => `"${(o?.value || o).replace(/'/, "''")}"`)}]'::jsonb THEN 1` :
+            `WHEN data->>'${fullName}' NOT IN (${options.map(o => `'${(o?.value || o).replace(/'/, "''")}'`)}) THEN 1`) : ``
             } ELSE 0 END) AS ${shortName}_error`.replaceAll('\n', ' ');
 
 const getInvalidValuesSql = (fullName, shortName, options, required, type) =>
@@ -26,10 +26,10 @@ const getInvalidValuesSql = (fullName, shortName, options, required, type) =>
                 options?.length ? 
                     (type === 'multiselect' ?
                         `${required ? `WHEN (data->>'${fullName}' IS NULL OR data->>'${fullName}'::text = '') THEN data->'${fullName}'` : ``}
-                        WHEN NOT data->'${fullName}' <@  '[${options.map(o => `"${(o.value || o).replace(/'/, "''")}"`)}]'::jsonb THEN data->'${fullName}' ELSE '"__VALID__"'::jsonb` :
+                        WHEN NOT data->'${fullName}' <@  '[${options.map(o => `"${(o?.value || o).replace(/'/, "''")}"`)}]'::jsonb THEN data->'${fullName}' ELSE '"__VALID__"'::jsonb` :
                         
                         `${required ? `WHEN (data->>'${fullName}' IS NULL OR data->>'${fullName}'::text = '') THEN data->>'${fullName}'` : ``}
-                        WHEN data->>'${fullName}' NOT IN (${options.map(o => `'${(o.value || o).replace(/'/, "''")}'`)}) THEN data->>'${fullName}' ELSE '"__VALID__"'`) : ``
+                        WHEN data->>'${fullName}' NOT IN (${options.map(o => `'${(o?.value || o).replace(/'/, "''")}'`)}) THEN data->>'${fullName}' ELSE '"__VALID__"'`) : ``
         
             } END) AS ${shortName}_invalid_values`.replaceAll('\n', ' ');
 const getFullColumn = (columnName, columns) => columns.find(col => col.name === columnName);
@@ -168,7 +168,7 @@ const RenderMassUpdater = ({sourceInfo, open, setOpen, falcor, columns, data, us
                                                 value={value}
                                                 options={currColumn.options}
                                                 onChange={value => {
-                                                    const validValue = Array.isArray(value) ? value.map(v => v.value || v) : (value.value || value);
+                                                    const validValue = Array.isArray(value) ? value.map(v => v?.value || v) : (value?.value || value);
                                                     const existingMap = maps.find(map => isEqual(map.invalidValue, invalidValue));
 
                                                     if (existingMap) {
@@ -272,7 +272,7 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
                         format: validEntriesFormat
                     });
 
-                    const selectedValues = (filterFromUrl[columnName] || []).map(o => o.value || o);
+                    const selectedValues = (filterFromUrl[columnName] || []).map(o => o?.value || o);
                     if (!selectedValues.length) continue;
 
                     try {
@@ -363,12 +363,12 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
                             return col.options && (
                                 Array.isArray(value) ?
                                     value.reduce((acc, v) => {
-                                        return acc && !col.options.some(o => (o.value || o) === (v.value || v)) && v !== '"__VALID__"' && v !== "__VALID__"
+                                        return acc && !col.options.some(o => (o?.value || o) === (v?.value || v)) && v !== '"__VALID__"' && v !== "__VALID__"
                                     }, true) : // make sure all selections are valid
-                                    !col.options.find(o => (o.value || o) === value) && value !== '"__VALID__"' && value !== "__VALID__"
+                                    !col.options.find(o => (o?.value || o) === value) && value !== '"__VALID__"' && value !== "__VALID__"
                             )
                         })
-                            .map(value => Array.isArray(value) ? value.map(v => v.value || v) : (value?.value || value)) : invalidValues
+                            .map(value => Array.isArray(value) ? value.map(v => v?.value || v) : (value?.value || value)) : invalidValues
 
                 return {
                     ...acc,
