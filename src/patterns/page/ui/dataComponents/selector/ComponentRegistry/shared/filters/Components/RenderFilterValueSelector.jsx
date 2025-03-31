@@ -4,6 +4,7 @@ import RenderSwitch from "../../../../dataWrapper/components/Switch";
 import {useHandleClickOutside} from "../../utils";
 import {convertToUrlParams} from "../utils";
 import {useNavigate} from "react-router-dom";
+import {isEqualColumns} from "../../../../dataWrapper/utils/utils";
 
 const RenderSearchKeySelector = ({filter, searchParams, onChange}) => {
     const [open, setOpen] = React.useState(false);
@@ -66,7 +67,7 @@ export const RenderFilterValueSelector = ({
 
             timeoutRef.current = setTimeout(() => {
                 setState((draft) => {
-                    const idx = draft.columns.findIndex(column => column.name === filterColumn.name);
+                    const idx = draft.columns.findIndex(column => isEqualColumns(column, filterColumn));
                     if (idx === -1) return;
 
                     const filterIdx = (draft.columns[idx]?.filters || []).findIndex(f => f.type === filter.type && f.operation === filter.operation);

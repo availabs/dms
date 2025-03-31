@@ -49,13 +49,14 @@ export const TableCell = ({
     const {state: {columns, display}, setState} = useContext(ComponentContext);
     const { theme = { table: tableTheme } } = React.useContext(CMSContext) || {}
     const [newItem, setNewItem] = useState(item);
+    const rawValue = newItem[attribute.normalName] || newItem[attribute.name]
     // const Comp = DataTypes[attribute.type]?.[isSelecting ? 'ViewComp' : 'EditComp'];
-    const compType = attribute.type === 'calculated' && Array.isArray(newItem[attribute.name]) ? 'multiselect' : attribute.type;
-    const compMode = attribute.type === 'calculated' && Array.isArray(newItem[attribute.name]) ? 'ViewComp' :
+    const compType = attribute.type === 'calculated' && Array.isArray(rawValue) ? 'multiselect' : attribute.type;
+    const compMode = attribute.type === 'calculated' && Array.isArray(rawValue) ? 'ViewComp' :
                             editing && allowEdit ? 'EditComp' : 'ViewComp';
     const Comp = loading ? LoadingComp : (DataTypes[compType]?.[compMode] || DisplayCalculatedCell);
-    const CompWithLink = LinkComp({attribute, columns, newItem, removeItem, value: newItem[attribute.name], Comp});
-    const value = attribute.formatFn && formatFunctions[attribute.formatFn.toLowerCase()] ? formatFunctions[attribute.formatFn.toLowerCase()](newItem[attribute.name], attribute.isDollar) : newItem[attribute.name]
+    const CompWithLink = LinkComp({attribute, columns, newItem, removeItem, value: rawValue, Comp});
+    const value = attribute.formatFn && formatFunctions[attribute.formatFn.toLowerCase()] ? formatFunctions[attribute.formatFn.toLowerCase()](rawValue, attribute.isDollar) : rawValue
     const justifyClass = {
         left: 'justify-start',
         right: 'justify-end',
@@ -86,13 +87,13 @@ export const TableCell = ({
         // send update to api
         if (!(editing && allowEdit)) return;
 
-        if (!isEqual(newItem[attribute.name], item[attribute.name])){
+        if (!isEqual(rawValue, item[attribute.name])){
             updateItem(undefined, undefined, newItem)
         }
 
-    }, [newItem[attribute.name]]);
-    const isValid = ['multiselect', 'select'].includes(attribute.type) || attribute.required === 'yes' ? validate({
-        value: newItem[attribute.name],
+    }, [rawValue]);
+    const isValid = ['multiselect', 'select', 'radio'].includes(attribute.type) || attribute.required === 'yes' ? validate({
+        value: rawValue,
         options: attribute.options,
         required: attribute.required === "yes"
     }) : true;
@@ -149,8 +150,8 @@ export const TableCell = ({
                     ${bgColor}
                     ${
                       openOutTitle ? `` : 
-                      attribute.type === 'multiselect' && newItem[attribute.name]?.length ? 'p-0.5' :
-                          attribute.type === 'multiselect' && !newItem[attribute.name]?.length ? 'p-0.5' : 'p-0.5'
+                      attribute.type === 'multiselect' && rawValue?.length ? 'p-0.5' :
+                          attribute.type === 'multiselect' && !rawValue?.length ? 'p-0.5' : 'p-0.5'
                   } 
                   `}
                   {...attribute}

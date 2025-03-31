@@ -1,7 +1,15 @@
 import React, {useCallback, useEffect, useMemo, useState} from "react";
 import {attributeAccessorStr} from "../../../dataWrapper/utils/utils";
 import {Filter} from "../../../../../icons";
-import {getData, parseIfJson, getFilters, isCalculatedCol, convertToUrlParams, formattedAttributeStr} from "./utils"
+import {
+    getData,
+    parseIfJson,
+    getFilters,
+    isCalculatedCol,
+    convertToUrlParams,
+    formattedAttributeStr,
+    getNormalFilters
+} from "./utils"
 import {isEqual, uniqBy} from "lodash-es"
 import {RenderFilterValueSelector} from "./Components/RenderFilterValueSelector";
 import {useSearchParams} from "react-router-dom";
@@ -18,8 +26,10 @@ export const RenderFilters = ({
         const [loading, setLoading] = useState(false);
         const [searchParams] = useSearchParams();
         const isDms = state.sourceInfo?.isDms;
-        const filterColumnsToTrack = useMemo(() => state.columns.filter(({filters}) => filters?.length), [state.columns]);
-        const filters = useMemo(() => getFilters(state.columns), [filterColumnsToTrack]);
+        const filterColumnsToTrack = useMemo(() => state.columns.filter(({filters, isDuplicate}) => filters?.length && !isDuplicate), [state.columns]);
+        const normalFilterColumnsToTrack = useMemo(() => state.columns.filter(({filters, isDuplicate}) => filters?.length && isDuplicate), [state.columns]);
+        const filters = useMemo(() => getFilters(filterColumnsToTrack), [filterColumnsToTrack]);
+        const normalFilters = useMemo(() => getNormalFilters(normalFilterColumnsToTrack), [normalFilterColumnsToTrack]);
 
         const debug = false;
         const getFormattedAttributeStr = useCallback((column) => formattedAttributeStr(column, isDms, isCalculatedCol(column, state.columns)), [state.columns, isDms]);
@@ -66,7 +76,7 @@ export const RenderFilters = ({
             async function load() {
                 setLoading(true);
                 const fetchedFilterData = await Promise.all(
-                    Object.keys(filters)
+                    [...Object.keys(filters), ...normalFilters?.map(f => f.column)]
                         // don't pull filter data for internal filters in view mode
                         .filter(f => {
                             const filter = state.columns.find(({name}) => name === f)?.filters?.[0];
@@ -136,7 +146,7 @@ export const RenderFilters = ({
     // initially you'll have internal filter
     // add UI dropdown to change filter type
     // add UI to change filter operation
-
+    console.log('filters', filterColumnsToRender)
     return (
         open ?
             <div className={'w-full px-4 py-6 flex flex-col border border-blue-300 rounded-md'}>

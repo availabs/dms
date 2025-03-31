@@ -139,16 +139,25 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, component, hideS
 
         // builds an object with filter, exclude, gt, gte, lt, lte, like as keys. columnName: [values] as values
         const filterOptions = state.columns.reduce((acc, column) => {
+            const isNormalisedColumn = state.columns.filter(col => col.name === column.name && col.filters?.length).length > 1;
+
             (column.filters || [])
                 .filter(({values}) => Array.isArray(values) && values.every(v => typeof v === 'string' ? v.length : typeof v !== 'object'))
                 .forEach(({type, operation, values}) => {
-                acc[operation] = {...acc[operation] || {}, [column.name]: values};
-            })
+                    // here, operation is filter, exclude, >, >=, <, <=.
+                    // normal columns only support filter.
+                    if(isNormalisedColumn){
+                        (acc.normalFilter ??= []).push({ column: column.name, values });
+                    }else{
+                        acc[operation] = {...acc[operation] || {}, [column.name]: values};
+                    }
+
+                })
 
             if(column.excludeNA){
                 acc.exclude = acc.exclude && acc.exclude[column.name] ?
-                                {...acc.exclude, [column.name]: [...acc.exclude[column.name], 'null']} :
-                                {...acc.exclude || [], [column.name]: ['null']}
+                    {...acc.exclude, [column.name]: [...acc.exclude[column.name], 'null']} :
+                    {...acc.exclude || [], [column.name]: ['null']}
 
             }
             return acc;
@@ -368,10 +377,19 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
 
         // builds an object with filter, exclude, gt, gte, lt, lte, like as keys. columnName: [values] as values
         const filterOptions = state.columns.reduce((acc, column) => {
+            const isNormalisedColumn = state.columns.filter(col => col.name === column.name && col.filters?.length).length > 1;
+
             (column.filters || [])
                 .filter(({values}) => Array.isArray(values) && values.every(v => typeof v === 'string' ? v.length : typeof v !== 'object'))
                 .forEach(({type, operation, values}) => {
-                acc[operation] = {...acc[operation] || {}, [column.name]: values};
+                    // here, operation is filter, exclude, >, >=, <, <=.
+                    // normal columns only support filter.
+                    if(isNormalisedColumn){
+                        (acc.normalFilter ??= []).push({ column: column.name, values });
+                    }else{
+                        acc[operation] = {...acc[operation] || {}, [column.name]: values};
+                    }
+
             })
 
             if(column.excludeNA){

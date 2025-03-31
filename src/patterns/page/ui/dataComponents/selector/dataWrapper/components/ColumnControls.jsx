@@ -4,6 +4,7 @@ import {ArrowDown, RestoreBin} from "../../../../../../forms/ui/icons";
 import {cloneDeep} from "lodash-es";
 import {ComponentContext} from "../index";
 import {getControlConfig, useHandleClickOutside} from "../../ComponentRegistry/shared/utils";
+import {isEqualColumns} from "../utils/utils";
 
 const gridClasses = {
     2: {
@@ -73,7 +74,10 @@ export default function ColumnControls({context}) {
 
     const columnsToRender =
         (sourceInfo?.columns || [])
-            .map(attribute => columns.find(c => c.name === attribute.name) || attribute) // map to current settings
+            .reduce((acc, attribute) => {
+                const match = columns.filter(c => c.name === attribute.name || c.originalName === attribute.name);
+                return [...acc, ...(match.length ? match : [attribute])];
+            }, []) // map to current settings
             .sort((a,b) => {
                 const orderA = columns.findIndex(column => column.name === a.Name);
                 const orderB = columns.findIndex(column => column.name === b.Name);
@@ -116,9 +120,11 @@ export default function ColumnControls({context}) {
     // updates column if present, else adds it with the change the user made.
     const updateColumns = useCallback((originalAttribute, key, value, onChange) => {
         setState(draft => {
-
             // ======================= default behaviour begin =================================
-            let idx = draft.columns.findIndex(column => column.name === originalAttribute.name);
+
+            let idx = draft.columns.findIndex(column => {
+                return isEqualColumns(column, originalAttribute)
+            });
 
             if (idx === -1) {
                 draft.columns.push({ ...originalAttribute, [key]: value });
@@ -135,7 +141,7 @@ export default function ColumnControls({context}) {
                 draft.columns[idx].fn = undefined;
             } else if (key === 'show' && value === true &&
                 !draft.columns[idx].group && // grouped column shouldn't have fn
-                draft.columns.some(c => c.name !== originalAttribute.name && c.group)
+                draft.columns.some(c => !isEqualColumns(c, originalAttribute) && c.group)
             ) {
                 // apply fn if at least one column is grouped
                 draft.columns[idx].fn = draft.columns[idx].defaultFn?.toLowerCase() || 'list';
@@ -145,13 +151,13 @@ export default function ColumnControls({context}) {
                 // all other visible columns must have a function
                 draft.columns[idx].fn = undefined;
                 draft.columns
-                    .filter(c => c.name !== originalAttribute.name && c.show && !c.group && !c.fn)
+                    .filter(c => !isEqualColumns(c, originalAttribute) && c.show && !c.group && !c.fn)
                     .forEach(col => {
                         col.fn = col.defaultFn?.toLowerCase() || 'list';
                     });
             }
 
-            if (key === 'group' && value === false && draft.columns.some(c => c.name !== originalAttribute.name && c.group)) {
+            if (key === 'group' && value === false && draft.columns.some(c => !isEqualColumns(c, originalAttribute) && c.group)) {
                 // if grouping by other columns, apply fn when removing group for current column
                 draft.columns[idx].fn = draft.columns[idx].defaultFn?.toLowerCase() || 'list';
             }
@@ -160,13 +166,13 @@ export default function ColumnControls({context}) {
                 onChange({key, value, attribute: originalAttribute, state: draft, columnIdx: idx})
             }
         });
-    }, [setState]);
+    }, [setState, columns]);
 
     const toggleGlobalVisibility = useCallback((show = true) => {
         setState(draft => {
             const isGrouping = draft.columns.some(({group}) => group);
             (draft.sourceInfo.columns || []).forEach(column => {
-                let idx = draft.columns.findIndex(({name}) => name === column.name);
+                let idx = draft.columns.findIndex(draftColumn => isEqualColumns(draftColumn, column));
 
                 if (idx === -1) {
                     draft.columns.push({ ...column, show });
@@ -241,9 +247,9 @@ export default function ColumnControls({context}) {
                         >
                             <div className={'place-self-stretch'}>Column</div>
                             {
-                                controls.columns.map(control => <div className={control.type === 'toggle' ? 'justify-self-end' : 'px-1 w-fit rounded-md text-center'}>{control.label}</div>)
+                                controls.columns.map(control => <div key={control.label} className={control.type === 'toggle' ? 'justify-self-stretch' : 'px-1 w-fit rounded-md text-center'}>{control.label}</div>)
                             }
-                            <div className={'justify-self-end'}>Reset</div>
+                            <div className={'justify-self-stretch'}>Reset</div>
                         </div>
                     </div>
                 </div>
@@ -264,19 +270,19 @@ export default function ColumnControls({context}) {
                         <div className={`${gridClass} gap-0.5 m-1 w-full`}
                              style={{gridTemplateColumns}}
                         >
-                            <div className={'place-self-stretch'}>Apply to All</div>
+                            <div key={'apply-to-all-label'} className={'place-self-stretch'}>Apply to All</div>
                             {
-                                controls.columns.map(control => control.key === 'show' ?
-                                    <div className={'justify-self-end'}>
+                                controls.columns.map((control, i) => control.key === 'show' ?
+                                    <div key={control.key} className={'justify-self-stretch'}>
                                         <RenderSwitch
                                             size={'small'}
                                             id={'all'}
                                             enabled={isEveryColVisible}
                                             setEnabled={() => toggleGlobalVisibility(!isEveryColVisible)}
                                         />
-                                    </div> : <div className={'px-1 w-[1px]'}></div>)
+                                    </div> : <div key={`${control.key}-${i}`} className={'px-1 w-[1px]'}></div>)
                             }
-                            <button className={'w-fit place-self-end'} onClick={() => resetAllColumns()}>
+                            <button key={'restore-btn'} className={'w-fit place-self-end'} onClick={() => resetAllColumns()}>
                                 <RestoreBin className={'text-orange-500 hover:text-orange-700'} />
                             </button>
                         </div>
@@ -310,15 +316,15 @@ export default function ColumnControls({context}) {
                                     <div className={`${gridClass} gap-0.5 m-1 w-full`}
                                          style={{gridTemplateColumns}}
                                     >
-                                        <input className={'place-self-stretch'}
+                                        <input key={`${attribute.name}-${attribute.copyNum}`} className={'place-self-stretch'}
                                                value={attribute.customName || attribute.display_name || attribute.name}
                                                onChange={e => updateColumns(attribute, 'customName', e.target.value)}
                                         />
                                         {
-                                            controls.columns.map(control => {
+                                            controls.columns.map((control, i) => {
                                                 const isDisabled = typeof control.disabled === 'function' ? control.disabled({attribute}) : control.disabled;
                                                 return (
-                                                    <div key={control.key}>
+                                                    <div key={`${control.key}-${i}`}>
                                                         {
                                                             control.type === 'select' ?
                                                                 <select
@@ -335,7 +341,7 @@ export default function ColumnControls({context}) {
                                                                 </select> :
                                                                 control.type === 'toggle' ?
                                                                     <div key={attribute[control.key]}
-                                                                         className={'justify-self-end'}>
+                                                                         className={'justify-self-stretch'}>
                                                                         <RenderSwitch
                                                                             size={'small'}
                                                                             key={attribute[control.key]}
@@ -347,8 +353,10 @@ export default function ColumnControls({context}) {
                                                                     </div> :
                                                                     typeof control.type === 'function' ?
                                                                         control.type({
+                                                                            attribute,
                                                                             value: attribute[control.key],
-                                                                            setValue: newValue => updateColumns(attribute, control.key, newValue, control.onChange)
+                                                                            setValue: newValue => updateColumns(attribute, control.key, newValue, control.onChange),
+                                                                            setState
                                                                         }) :
                                                                         `${control.type} not available`
                                                         }
@@ -357,7 +365,7 @@ export default function ColumnControls({context}) {
                                             })
                                         }
 
-                                        <button className={'w-fit place-self-end'} onClick={() => resetColumn(attribute)}>
+                                        <button key={'restore-btn'} className={'w-fit place-self-end'} onClick={() => resetColumn(attribute)}>
                                             <RestoreBin className={'text-orange-500 hover:text-orange-700'} />
                                         </button>
                                     </div>
