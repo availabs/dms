@@ -20,6 +20,11 @@ const getErrorValueSql = (fullName, shortName, options, required, type) =>
             `WHEN data->>'${fullName}' NOT IN (${options.map(o => `'${(o?.value || o).replace(/'/, "''")}'`)}) THEN 1`) : ``
             } ELSE 0 END) AS ${shortName}_error`.replaceAll('\n', ' ');
 
+// multiselect && required
+// multiselect && !required
+// select && required
+// select && !required
+// text && required
 const getInvalidValuesSql = (fullName, shortName, options, required, type) =>
     (type === 'multiselect' && (required || options?.length) ?
         `array_agg(CASE 
@@ -32,7 +37,7 @@ const getInvalidValuesSql = (fullName, shortName, options, required, type) =>
                             ${options?.length ? `WHEN data->>'${fullName}' NOT IN (${options.map(o => `'${(o?.value || o).replace(/'/, "''")}'`)}) THEN data->>'${fullName}' ELSE '"__VALID__"'` : ``}
                        END) AS ${shortName}_invalid_values` :
             !['select', 'multiselect'].includes(type) && required ?
-                `array_agg(CASE WHEN (data->>'${fullName}' IS NULL OR data->>'${fullName}'::text = '') THEN data->>'${fullName}' END) AS ${shortName}_invalid_values` :
+                `array_agg(CASE WHEN (data->>'${fullName}' IS NULL OR data->>'${fullName}'::text = '') THEN data->>'${fullName}' ELSE '"__VALID__"' END) AS ${shortName}_invalid_values` :
                 ``).replaceAll('\n', ' ');
 
 const getFullColumn = (columnName, columns) => columns.find(col => col.name === columnName);
@@ -373,6 +378,7 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
                         })
                             .map(value => Array.isArray(value) ? value.map(v => v?.value || v) : (value?.value || value)) : invalidValues
 
+                    console.log('===', col.name, +data?.[0]?.[getErrorValueSql(col.name, col.shortName, col.options, col.required === 'yes')], sanitisedValues)
                 return {
                     ...acc,
                     [`${col.shortName}_error`]: +data?.[0]?.[getErrorValueSql(col.name, col.shortName, col.options, col.required === 'yes')],
