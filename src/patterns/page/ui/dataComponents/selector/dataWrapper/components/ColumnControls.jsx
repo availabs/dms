@@ -78,7 +78,6 @@ export default function ColumnControls({context}) {
         (sourceInfo?.columns || [])
             .reduce((acc, attribute) => {
                 const match = columns.filter(c => c.name === attribute.name);
-                if(!match.length) return acc;
                 return [...acc, ...(match.length ? match : [attribute])];
             }, []) // map to current settings
             .sort((a,b) => {
