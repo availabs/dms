@@ -1,5 +1,17 @@
 export const overlayImageOptions = [
     {
+        label: 'Fusion Header 1',
+        value: '/themes/mny/fusion_header_1.png'
+    },
+    {
+        label: 'Fusion Header 2',
+        value: '/themes/mny/fusion_header_2.png'
+    },
+    {
+        label: 'Fusion Header 3',
+        value: '/themes/mny/fusion_header_3.png'
+    },
+    {
         label: 'Planetary Home',
         value: '/themes/mny/header_home.png'
     },

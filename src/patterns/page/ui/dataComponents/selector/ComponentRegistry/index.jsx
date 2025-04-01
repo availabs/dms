@@ -1,4 +1,4 @@
-import MNYHeader from './mnyHeader';
+//import MNYHeader from './mnyHeader';
 import MnyHeaderDataDriven from "./mnyHeader/mnyHeaderDataDriven";
 import Header from './header'
 import lexical from './richtext';

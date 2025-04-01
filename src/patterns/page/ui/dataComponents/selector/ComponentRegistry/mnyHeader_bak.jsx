@@ -9,6 +9,18 @@ import RenderSwitch from "../dataWrapper/components/Switch";
 
 const overlayImageOptions = [
     {
+        label: 'Fusion Header 1',
+        value: '/themes/mny/fusion_header_1.png'
+    },
+    {
+        label: 'Fusion Header 2',
+        value: '/themes/mny/fusion_header_2.png'
+    },
+    {
+        label: 'Fusion Header 3',
+        value: '/themes/mny/fusion_header_3.png'
+    },
+    {
         label: 'Planetary Home',
         value: '/themes/mny/header_home.png'
     },
@@ -296,6 +308,18 @@ const Edit = ({value, onChange, size}) => {
     //console.log('Edit: value,', size)
 
     const overlayImageOptions = [
+        {
+        label: 'Fusion Header 1',
+        value: '/themes/mny/fusion_header_1.png'
+    },
+    {
+        label: 'Fusion Header 2',
+        value: '/themes/mny/fusion_header_2.png'
+    },
+    {
+        label: 'Fusion Header 3',
+        value: '/themes/mny/fusion_header_3.png'
+    },
       {
         label: 'Planetary Home',
         value: '/themes/mny/header_home.png'
@@ -439,6 +463,18 @@ const Edit = ({value, onChange, size}) => {
     ]
 
     const insetImageOptions = [
+      {
+        label: 'Fusion Header 1',
+        value: '/themes/mny/fusion_header_1.png'
+    },
+    {
+        label: 'Fusion Header 2',
+        value: '/themes/mny/fusion_header_2.png'
+    },
+    {
+        label: 'Fusion Header 3',
+        value: '/themes/mny/fusion_header_3.png'
+    },
       {
         label: 'Planetary Hazard',
         value: '/themes/mny/inset_hazard.png'
