@@ -81,7 +81,7 @@ const getInitState = ({columns, defaultColumns=[], app, doc_type, params, data, 
     dataRequest: {filter: getFilterFromSearchParams(searchParams)},
     data: [],
     columns: [
-        ...defaultColumns.filter(dc => columns.find(c => c.name === dc.name)), // default columns
+        ...defaultColumns.map(dc => columns.find(c => c.name === dc.name)).filter(dc => dc), // default columns
         ...columns.filter(({name, shortName}) => !defaultColumns.find(dc => dc.name === name) && data[`${shortName}_error`]) // error columns minus default columns
             .sort((a,b) => data[`${b.shortName}_invalid_values`].filter(values => values !== '"__VALID__"' && values !== "__VALID__").length -
                 data[`${a.shortName}_invalid_values`].filter(values => values !== '"__VALID__"' && values !== "__VALID__").length)

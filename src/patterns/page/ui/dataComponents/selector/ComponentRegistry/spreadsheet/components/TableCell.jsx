@@ -109,7 +109,7 @@ export const TableCell = ({
                 ${theme?.table.cell} 
                 ${isFrozen ? theme?.table?.cellFrozenCol : ''} 
                 ${isSelecting ? 'select-none' : ``}
-                ${isSelected ? theme?.table.cellBgSelected : theme?.table.cellBg}
+                ${!isValid ? bgColor : isSelected ? theme?.table.cellBgSelected : theme?.table.cellBg}
             `}
             style={{
                 ...!(attribute.openOut || openOutTitle) && {width: attribute.size},
