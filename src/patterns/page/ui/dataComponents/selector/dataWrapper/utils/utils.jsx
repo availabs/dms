@@ -93,6 +93,8 @@ export const getLength = async ({options, state, apiLoad}) => {
 
 const getFullColumn = (columnName, columns) => columns.find(col => col.name === columnName);
 
+export const getColumnLabel = column => column.customName || column.display_name || column.name;
+
 const operations = {
     gt: (a, b) => +a > +b,
     gte: (a, b) => +a >= +b,

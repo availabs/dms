@@ -19,7 +19,7 @@ const filterValueDelimiter = '|||';
 export const RenderFilters = ({
   isEdit,
   state = {columns: [], sourceInfo: {}}, setState,
-  apiLoad, defaultOpen = false, showNavigate = false,
+  apiLoad, defaultOpen = true, showNavigate = false,
 }) => {
         const [open, setOpen] = useState(defaultOpen);
         const [filterOptions, setFilterOptions] = useState([]); // [{column, uniqValues}]

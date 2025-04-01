@@ -3,8 +3,10 @@ import RenderSwitch from "./Switch";
 import {ArrowDown, RestoreBin} from "../../../../../../forms/ui/icons";
 import {cloneDeep} from "lodash-es";
 import {ComponentContext} from "../index";
-import {getControlConfig, useHandleClickOutside} from "../../ComponentRegistry/shared/utils";
-import {isEqualColumns} from "../utils/utils";
+import {useHandleClickOutside} from "../../ComponentRegistry/shared/utils";
+import {getColumnLabel, isEqualColumns} from "../utils/utils";
+import {Pill} from "./Pill";
+import {AddFormulaColumn} from "./AddFormulaColumn";
 
 const gridClasses = {
     2: {
@@ -75,17 +77,18 @@ export default function ColumnControls({context}) {
     const columnsToRender =
         (sourceInfo?.columns || [])
             .reduce((acc, attribute) => {
-                const match = columns.filter(c => c.name === attribute.name || c.originalName === attribute.name);
+                const match = columns.filter(c => c.name === attribute.name);
+                if(!match.length) return acc;
                 return [...acc, ...(match.length ? match : [attribute])];
             }, []) // map to current settings
             .sort((a,b) => {
-                const orderA = columns.findIndex(column => column.name === a.Name);
-                const orderB = columns.findIndex(column => column.name === b.Name);
+                const orderA = columns.findIndex(column => column.name === a.name);
+                const orderB = columns.findIndex(column => column.name === b.name);
                 return orderA - orderB;
             })
             .filter(attribute => (
                 !search ||
-                (attribute.customName || attribute.display_name || attribute.name).toLowerCase().includes(search.toLowerCase()))
+                getColumnLabel(attribute).toLowerCase().includes(search.toLowerCase()))
             )
 
     // ================================================== drag utils start =============================================
@@ -111,6 +114,7 @@ export default function ColumnControls({context}) {
         dragOverItem.current = null;
         setState(draft => {
             // map original columns to columns with settings, and then filter out extra columns.
+            // todo: handle duplicate columns
             draft.columns = copyListItems.map(originalColumn => columns.find(colWithSettings => colWithSettings.name === originalColumn.name)).filter(c => c);
             draft.sourceInfo.columns = copyListItems;
         })
@@ -192,7 +196,7 @@ export default function ColumnControls({context}) {
     }, [setState]);
 
     const resetColumn = useCallback((originalAttribute) => setState(draft => {
-        const idx = columns.findIndex(column => column.name === originalAttribute.name);
+        const idx = columns.findIndex(column => isEqualColumns(column, originalAttribute));
         if (idx !== -1) {
             draft.columns.splice(idx, 1);
         }
@@ -255,9 +259,7 @@ export default function ColumnControls({context}) {
                 </div>
 
                 <div className="py-1 select-none">
-                    <div key={'global-controls'}
-                         className="flex items-center px-2 py-1 text-xs text-gray-700 hover:bg-gray-100 hover:text-gray-900"
-                    >
+                    <div key={'global-controls'} className="flex items-center px-2 py-1">
                         <div className={'h-4 w-4 m-1 text-gray-800'}>
                             <svg data-v-4e778f45=""
                                  className="nc-icon cursor-move !h-3.75 text-gray-600 mr-1"
@@ -267,24 +269,13 @@ export default function ColumnControls({context}) {
                             </svg>
                         </div>
 
-                        <div className={`${gridClass} gap-0.5 m-1 w-full`}
-                             style={{gridTemplateColumns}}
-                        >
-                            <div key={'apply-to-all-label'} className={'place-self-stretch'}>Apply to All</div>
+                        <div className={`flex gap-1 m-1 w-full`}>
                             {
-                                controls.columns.map((control, i) => control.key === 'show' ?
-                                    <div key={control.key} className={'justify-self-stretch'}>
-                                        <RenderSwitch
-                                            size={'small'}
-                                            id={'all'}
-                                            enabled={isEveryColVisible}
-                                            setEnabled={() => toggleGlobalVisibility(!isEveryColVisible)}
-                                        />
-                                    </div> : <div key={`${control.key}-${i}`} className={'px-1 w-[1px]'}></div>)
+                                controls.columns.find(({key}) => key === 'show') ?
+                                    <Pill text={isEveryColVisible ? 'Hide all' : 'Show all'} color={'blue'} onClick={() => toggleGlobalVisibility(!isEveryColVisible)}/> : null
                             }
-                            <button key={'restore-btn'} className={'w-fit place-self-end'} onClick={() => resetAllColumns()}>
-                                <RestoreBin className={'text-orange-500 hover:text-orange-700'} />
-                            </button>
+                            <AddFormulaColumn columns={columnsToRender} />
+                            <Pill text={'Reset all'} color={'orange'} onClick={() => resetAllColumns()}/>
                         </div>
                     </div>
                 </div>
@@ -317,7 +308,7 @@ export default function ColumnControls({context}) {
                                          style={{gridTemplateColumns}}
                                     >
                                         <input key={`${attribute.name}-${attribute.copyNum}`} className={'place-self-stretch'}
-                                               value={attribute.customName || attribute.display_name || attribute.name}
+                                               value={getColumnLabel(attribute)}
                                                onChange={e => updateColumns(attribute, 'customName', e.target.value)}
                                         />
                                         {

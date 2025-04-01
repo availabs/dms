@@ -539,7 +539,7 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
             <div className={'w-full h-full'}>
                 <div className={'w-full'}>
                     <div className={'w-full flex justify-end gap-2'}>
-                        <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={isEdit} defaultOpen={false}/>
+                        <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={isEdit} defaultOpen={true}/>
                         <RenderDownload state={state} apiLoad={apiLoad}/>
                     </div>
                     {/*
