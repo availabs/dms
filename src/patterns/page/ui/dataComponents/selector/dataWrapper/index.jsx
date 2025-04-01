@@ -248,7 +248,6 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, component, hideS
         const observer = new IntersectionObserver(
             async (entries) => {
                 const hasMore = (currentPage * state.display.pageSize + state.display.pageSize) < state.display.totalLength;
-                console.log('??????', hasMore)
                 if (state.data.length && entries[0].isIntersecting && hasMore) {
                     setCurrentPage(prevPage => prevPage+1)
                 }
@@ -257,7 +256,7 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, component, hideS
         );
 
         const target = document.querySelector(`#${state.display.loadMoreId}`);
-        console.log('target', target, state.display.usePagination)
+
         if (target && !state.display.usePagination) observer.observe(target);
         // unobserve if using pagination
         if (target && state.display.usePagination) observer.unobserve(target);

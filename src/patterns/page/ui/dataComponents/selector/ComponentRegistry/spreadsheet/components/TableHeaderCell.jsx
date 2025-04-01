@@ -47,10 +47,15 @@ export default function TableHeaderCell({isEdit, attribute, context}) {
             <div id={menuBtnId}
                  className={`group inline-flex items-center w-full justify-between gap-x-1.5 rounded-md cursor-pointer`}
                  onClick={e => setIsOpen(!isOpen)}>
-                <span className={'truncate select-none'}
-                      title={attribute.customName || attribute.display_name || attribute.name}>
-                    {attribute.customName || attribute.display_name || attribute.name}
-                </span>
+                {
+                    controls.header?.displayFn ? controls.header.displayFn(attribute) :
+                        (
+                            <span className={'truncate select-none'}
+                                  title={attribute.customName || attribute.display_name || attribute.name}>
+                                {attribute.customName || attribute.display_name || attribute.name}
+                            </span>
+                        )
+                }
                 <div id={menuBtnId} className={'flex items-center'}>
                     {/*/!*<InfoCircle width={16} height={16} className={'text-gray-500'} />*!/ needs a lexical modal*/}
                     {

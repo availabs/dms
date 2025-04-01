@@ -24,7 +24,7 @@ export default function EditPane () {
       <div className='flex items-cemter p-1 justify-between bg-neutral-900 w-[400px] mx-auto rounded-[12px] shadow'>
         <div 
           className='flex items-cemter  px-2 py-2 cursor-pointer rounded-[12px] hover:bg-slate-700 group' 
-          onClick={() => setEditPane({index:0, open: !editPane.openX})}
+          onClick={() => setEditPane({...editPane,index:0, open: !editPane.openX})}
         >
           <Icon 
             icon='Settings' 
@@ -33,7 +33,7 @@ export default function EditPane () {
         </div>
         <div
           className='flex items-cemter  px-2 py-2 cursor-pointer rounded-[12px] hover:bg-slate-700 group' 
-          onClick={() => setEditPane({index:1, open: !editPane.openX})}
+          onClick={() => setEditPane({...editPane,index:1, open: !editPane.openX})}
         >
           <Icon 
             icon='Pages' 
@@ -42,10 +42,20 @@ export default function EditPane () {
         </div>
         <div 
           className='flex items-cemter  px-2 py-2 cursor-pointer rounded-[12px] hover:bg-slate-700 group' 
-          onClick={() => setEditPane({index:2, open: !editPane.openX})}
+          onClick={() => setEditPane({...editPane, index:2, open: !editPane.openX})}
         >
           <Icon 
             icon='History' 
+            className='size-6 group-hover:text-blue-500 text-slate-400'
+          />
+        </div>
+        <div className='h-9 mt-0.5 w-[1px] mx-1  bg-slate-600' />
+        <div 
+          className='flex items-cemter  px-2 py-2 cursor-pointer rounded-[12px] hover:bg-slate-700 group' 
+          onClick={() => setEditPane({...editPane,  showGrid: !editPane.showGrid})}
+        >
+          <Icon 
+            icon='Grid' 
             className='size-6 group-hover:text-blue-500 text-slate-400'
           />
         </div>

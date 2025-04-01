@@ -26,7 +26,7 @@ function PageEdit ({
   const { pathname = '/edit' } = useLocation()
   const { baseUrl, user, theme } = React.useContext(CMSContext) || {}
   const [ creating, setCreating ] = React.useState(false)
-  const [ editPane, setEditPane ] = React.useState({ open: false, index: 1 })
+  const [ editPane, setEditPane ] = React.useState({ open: false, index: 1, showGrid: false })
   const isDynamicPage = true; // map this flag to the UI. when true, the page gets data loading capabilities.
   // console.log('item', item, dataItems, status)
   

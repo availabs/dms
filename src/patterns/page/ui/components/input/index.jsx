@@ -13,11 +13,11 @@ export const inputTheme = {
 
 }
 
-export default function Input ({ type='text', label, description, value, onChange=() => {}, placeholder, disabled, onClick=()=>{}, rounded}) {
+export default function Input ({ type='text', label, description, value, onChange=() => {}, placeholder, disabled, onClick=()=>{}, rounded,...props}) {
   const { theme = { input: inputTheme, field: fieldTheme } } = React.useContext(CMSContext) || {}
   return (
     <span className={`${theme?.input?.inputContainer}`}>
-      <Headless.Input type={type} className={`${theme?.input?.input}`} value={value} onChange={onChange}/>
+      <Headless.Input type={type} className={`${theme?.input?.input}`} value={value} onChange={onChange} {...props}/>
     </span>
   )
 }

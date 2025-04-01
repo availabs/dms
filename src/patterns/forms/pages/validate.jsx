@@ -6,8 +6,9 @@ import DataWrapper from "../../page/ui/dataComponents/selector/dataWrapper";
 import {useNavigate, useSearchParams} from "react-router-dom";
 import {getData as getFilterData} from "../../page/ui/dataComponents/selector/ComponentRegistry/shared/filters/utils";
 import {applyFn, attributeAccessorStr, isJson} from "../../page/ui/dataComponents/selector/dataWrapper/utils/utils";
-import {isEqual, uniq} from "lodash-es";
+import {cloneDeep, isEqual, uniq} from "lodash-es";
 import {XMark} from "../../page/ui/icons";
+import {Filter, FilterRemove} from "../ui/icons";
 import dataTypes from "../../../data-types";
 
 const getErrorValueSql = (fullName, shortName, options, required, type) =>
@@ -15,17 +16,21 @@ const getErrorValueSql = (fullName, shortName, options, required, type) =>
               ${
         options?.length ?
         (type === 'multiselect' ?
-            `WHEN NOT data->'${fullName}' <@  '[${options.map(o => `"${(o.value || o).replace(/'/, "''")}"`)}]'::jsonb THEN 1` :
-            `WHEN data->>'${fullName}' NOT IN (${options.map(o => `'${(o.value || o).replace(/'/, "''")}'`)}) THEN 1`) : ``
+            `WHEN NOT data->'${fullName}' <@  '[${options.map(o => `"${(o?.value || o).replace(/'/, "''")}"`)}]'::jsonb THEN 1` :
+            `WHEN data->>'${fullName}' NOT IN (${options.map(o => `'${(o?.value || o).replace(/'/, "''")}'`)}) THEN 1`) : ``
             } ELSE 0 END) AS ${shortName}_error`.replaceAll('\n', ' ');
 
 const getInvalidValuesSql = (fullName, shortName, options, required, type) =>
-    `array_agg(CASE ${required ? `WHEN (data->>'${fullName}' IS NULL OR data->>'${fullName}'::text = '') THEN data->'${fullName}'` : ``}
+    `array_agg(CASE
            ${
                 options?.length ? 
                     (type === 'multiselect' ?
-                        `WHEN NOT data->'${fullName}' <@  '[${options.map(o => `"${(o.value || o).replace(/'/, "''")}"`)}]'::jsonb THEN data->'${fullName}' ELSE '"__VALID__"'::jsonb` :
-                        `WHEN data->>'${fullName}' NOT IN (${options.map(o => `'${(o.value || o).replace(/'/, "''")}'`)}) THEN data->>'${fullName}' ELSE '"__VALID__"'`) : ``
+                        `${required ? `WHEN (data->>'${fullName}' IS NULL OR data->>'${fullName}'::text = '') THEN data->'${fullName}'` : ``}
+                        WHEN NOT data->'${fullName}' <@  '[${options.map(o => `"${(o?.value || o).replace(/'/, "''")}"`)}]'::jsonb THEN data->'${fullName}' ELSE '"__VALID__"'::jsonb` :
+                        
+                        `${required ? `WHEN (data->>'${fullName}' IS NULL OR data->>'${fullName}'::text = '') THEN data->>'${fullName}'` : ``}
+                        WHEN data->>'${fullName}' NOT IN (${options.map(o => `'${(o?.value || o).replace(/'/, "''")}'`)}) THEN data->>'${fullName}' ELSE '"__VALID__"'`) : ``
+        
             } END) AS ${shortName}_invalid_values`.replaceAll('\n', ' ');
 const getFullColumn = (columnName, columns) => columns.find(col => col.name === columnName);
 const getColAccessor = (col, isDms) => !col ? null : applyFn(col, isDms);
@@ -34,7 +39,7 @@ const isCalculatedCol = ({display, type, origin}) => {
 };
 const filterValueDelimiter = '|||';
 
-const reValidate = async ({app, type, parentId, parentDocType, dmsServerPath, setValidating, setError}) => {
+const reValidate = async ({app, type, parentId, parentDocType, dmsServerPath, setValidating, setError, falcor}) => {
     try {
         setValidating(true)
         const body = {
@@ -49,10 +54,11 @@ const reValidate = async ({app, type, parentId, parentDocType, dmsServerPath, se
                     "Content-Type": "application/json",
                 },
             });
-
+        await falcor.invalidate(['uda', `${app}+${type}`]);
+        await falcor.invalidate(['uda']);
         const publishFinalEvent = await res.json();
         setValidating(false)
-        window.location = window.location;
+        // window.location = window.location;
     }catch (e){
         setValidating(false);
         setError(e)
@@ -69,6 +75,8 @@ const getInitState = ({columns, defaultColumns=[], app, doc_type, params, data, 
     columns: [
         ...defaultColumns.filter(dc => columns.find(c => c.name === dc.name)), // default columns
         ...columns.filter(({name, shortName}) => !defaultColumns.find(dc => dc.name === name) && data[`${shortName}_error`]) // error columns minus default columns
+            .sort((a,b) => data[`${b.shortName}_invalid_values`].filter(values => values !== '"__VALID__"' && values !== "__VALID__").length -
+                data[`${a.shortName}_invalid_values`].filter(values => values !== '"__VALID__"' && values !== "__VALID__").length)
     ]
         .map(c => ({...c, show: true, externalFilter: searchParams.get(c.name)?.split(filterValueDelimiter)?.filter(d => d.length)})),
     sourceInfo: {
@@ -91,25 +99,34 @@ const getInitState = ({columns, defaultColumns=[], app, doc_type, params, data, 
     },
 })
 
-const updateCall = async ({column, app, type, maps, falcor, user, updating, setUpdating, setOpen}) => {
+const updateCall = async ({column, app, type, maps, falcor, user, setUpdating, setLoadingAfterUpdate}) => {
     setUpdating(true);
     await falcor.call(["dms", "data", "massedit"], [app, type, column.name, maps, user.id]);
+    await falcor.invalidate(['uda', `${app}+${type}`])
     setUpdating(false);
-    setOpen(false);
+    setLoadingAfterUpdate(true);
 }
 
-const RenderMassUpdater = ({sourceInfo, open, setOpen, falcor, columns, data, user}) => {
+const RenderMassUpdater = ({sourceInfo, open, setOpen, falcor, columns, data, user, updating, setUpdating}) => {
     if(!open) return;
     const [maps, setMaps] = useState([]);
-    const [updating, setUpdating] = useState(false);
+    const [loadingAfterUpdate, setLoadingAfterUpdate] = useState(false);
     const currColumn = columns.find(col => col.name === open);
     const {app, type} = sourceInfo;
-    const Comp = dataTypes[currColumn.type]?.EditComp || dataTypes.text.EditComp;
+    const Comp = useMemo(() => dataTypes[currColumn.type]?.EditComp || dataTypes.text.EditComp, [currColumn.type]);
 
-    const invalidValues = data[`${currColumn.shortName}_invalid_values`];
-    const uniqueInvalidValues = uniq(
-        invalidValues.map(val => (Array.isArray(val) ? JSON.stringify(val) : val))
-    ).map(val => (val.startsWith("[") ? JSON.parse(val) : val));
+    const invalidValues = useMemo(() => data[`${currColumn.shortName}_invalid_values`], [data, currColumn.shortName]);
+    const uniqueInvalidValues = useMemo(() => uniq(
+                                            invalidValues.map(val => (Array.isArray(val) ? JSON.stringify(val) : val))
+                                        ).filter(values => {
+                                            // filter out valid values. sql isn't doing that for multiselect
+                                            return values !== '"__VALID__"' && values !== "__VALID__"
+                                        }).map(val => {
+                                            const invalidValue = val && val.startsWith("[") ? JSON.parse(val) : val;
+                                            const count = data[`${currColumn.shortName}_invalid_values`].filter(val => isEqual(val, invalidValue)).length
+                                            return {invalidValue, count}
+                                        }).sort((a,b) => b.count - a.count),
+        [invalidValues]);
 
     return (
         <div className={'fixed inset-0 h-full w-full z-[100] content-center'} style={{backgroundColor: '#00000066'}} onClick={() => setOpen(false)}>
@@ -132,14 +149,10 @@ const RenderMassUpdater = ({sourceInfo, open, setOpen, falcor, columns, data, us
                     </div>
                     {
                         uniqueInvalidValues
-                            .filter(values => {
-                                // filter out valid values. sql isn't doing that for multiselect
-                                return values !== '"__VALID__"' && values !== "__VALID__"
-                            })
-                            .map((invalidValue, i) => {
+                            .map(({invalidValue}, i) => {
                                 const value = maps.find(map => isEqual(map.invalidValue, invalidValue))?.validValue;
                                 return (
-                                    <div
+                                    <div key={invalidValue}
                                         className={`group grid grid-cols-3 items-center gap-y-1 ${i % 2 ? 'bg-gray-50' : ''} rounded-md `}>
                                         <div>
                                             {
@@ -155,7 +168,7 @@ const RenderMassUpdater = ({sourceInfo, open, setOpen, falcor, columns, data, us
                                                 value={value}
                                                 options={currColumn.options}
                                                 onChange={value => {
-                                                    const validValue = Array.isArray(value) ? value.map(v => v.value || v) : (value.value || value);
+                                                    const validValue = Array.isArray(value) ? value.map(v => v?.value || v) : (value?.value || value);
                                                     const existingMap = maps.find(map => isEqual(map.invalidValue, invalidValue));
 
                                                     if (existingMap) {
@@ -183,9 +196,9 @@ const RenderMassUpdater = ({sourceInfo, open, setOpen, falcor, columns, data, us
                             })
                     }
                 </div>
-                <button className={'px-2 py-1 bg-blue-100 hover:bg-blue-200 text-blue-500'}
-                        onClick={() => updateCall({column: currColumn, app, type, maps, falcor, user, updating, setUpdating, setOpen})}>
-                    {updating ? 'updating...' : 'update'}</button>
+                <button className={'px-2 py-1 bg-blue-500/15 text-blue-700 hover:bg-blue-500/25'}
+                        onClick={() => updateCall({column: currColumn, app, type, maps, falcor, user, updating, setUpdating, setOpen, setLoadingAfterUpdate})}>
+                    {updating ? 'updating...' : loadingAfterUpdate ? 'loading updates...' : 'update'}</button>
             </div>
         </div>
     )
@@ -199,6 +212,8 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
     const [validating, setValidating] = useState(false);
     const [error, setError] = useState();
     const [massUpdateColumn, setMassUpdateColumn] = useState(); // column name that's getting mass updated
+    const [updating, setUpdating] = useState(false);
+    const [ssKey, setSSKey] = useState(''); // key for the spreadsheet component. need to change it on page changes.
     const { API_HOST, baseUrl, pageBaseUrl, theme, user, falcor } = React.useContext(FormsContext) || {};
     const [searchParams] = useSearchParams();
     const dmsServerPath = `${API_HOST}/dama-admin`;
@@ -226,7 +241,7 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
     }, [item.views]);
 
     useEffect(() => {
-        if(!params.view_id) return;
+        if(!params.view_id || updating || validating) return;
         let isStale = false;
         async function load(){
             setLoading(true)
@@ -257,7 +272,7 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
                         format: validEntriesFormat
                     });
 
-                    const selectedValues = (filterFromUrl[columnName] || []).map(o => o.value || o);
+                    const selectedValues = (filterFromUrl[columnName] || []).map(o => o?.value || o);
                     if (!selectedValues.length) continue;
 
                     try {
@@ -348,12 +363,12 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
                             return col.options && (
                                 Array.isArray(value) ?
                                     value.reduce((acc, v) => {
-                                        return acc && !col.options.some(o => (o.value || o) === (v.value || v)) && v !== '"__VALID__"' && v !== "__VALID__"
+                                        return acc && !col.options.some(o => (o?.value || o) === (v?.value || v)) && v !== '"__VALID__"' && v !== "__VALID__"
                                     }, true) : // make sure all selections are valid
-                                    !col.options.find(o => (o.value || o) === value) && value !== '"__VALID__"' && value !== "__VALID__"
+                                    !col.options.find(o => (o?.value || o) === value) && value !== '"__VALID__"' && value !== "__VALID__"
                             )
                         })
-                            .map(value => Array.isArray(value) ? value.map(v => v.value || v) : (value?.value || value)) : invalidValues
+                            .map(value => Array.isArray(value) ? value.map(v => v?.value || v) : (value?.value || value)) : invalidValues
 
                 return {
                     ...acc,
@@ -364,7 +379,9 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
 
             setData(mappedData);
             setValue(getInitState({columns, defaultColumns, app, doc_type, params, data: mappedData, searchParams}))
+            setSSKey(`${Date.now()}`);
             setLoading(false);
+            setMassUpdateColumn(undefined);
             console.timeEnd('setData')
         }
 
@@ -373,10 +390,80 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
         return () => {
             isStale = true;
         }
-    }, [item, searchParams])
+    }, [item, searchParams, updating, validating])
 
     const page = useMemo(() => ({name: 'Validate', href: `${pageBaseUrl}/${params.id}/validate`, /*warn: is_dirty*/}), [is_dirty, pageBaseUrl, params.id])
 
+    const columnsWithInvalidValues = useMemo(() =>
+        columns
+            .filter(column => data[`${column.shortName}_invalid_values`] &&
+                data[`${column.shortName}_invalid_values`].filter(values => values !== '"__VALID__"' && values !== "__VALID__").length)
+            .sort((a,b) => data[`${b.shortName}_invalid_values`].filter(values => values !== '"__VALID__"' && values !== "__VALID__").length -
+                data[`${a.shortName}_invalid_values`].filter(values => values !== '"__VALID__"' && values !== "__VALID__").length)
+            .map(column => ({column, invalidValues: data[`${column.shortName}_invalid_values`].filter(values => values !== '"__VALID__"' && values !== "__VALID__")})), [data])
+
+    const SpreadSheetCompWithControls = cloneDeep(Spreadsheet);
+    SpreadSheetCompWithControls.controls.header = {
+        displayFn: column => {
+            const invalidValues = data[`${column.shortName}_invalid_values`]?.filter(values => values !== '"__VALID__"' && values !== "__VALID__") || [];
+            const isFilterOn = (JSON.parse(value)?.columns || []).find(col => col.name === column.name)?.filters?.length;
+
+            if(!invalidValues?.length){
+                return (
+                    <span className={'truncate select-none'}
+                          title={column.customName || column.display_name || column.name}>
+                                    {column.customName || column.display_name || column.name}
+                    </span>
+                )
+            }
+
+            return (
+                <>
+                    <span className={'truncate select-none min-w-[15px]'}
+                          title={column.customName || column.display_name || column.name}>
+                                    {column.customName || column.display_name || column.name}
+                    </span>
+
+                    <span className={'flex ml-1 gap-0.5 font-light'}>
+                        <span className={'flex px-1 py-0.5 text-xs bg-red-50 text-red-500 rounded-sm'}
+                              onClick={e => {
+                                  e.stopPropagation();
+                                  setMassUpdateColumn(column.name)
+                              }}>
+                            {invalidValues.length}
+                        </span>
+
+                        <span
+                            className={'flex place-items-center px-1 py-0.5 text-sm bg-blue-50 rounded-sm'}
+                            onClick={e => {
+                                e.stopPropagation();
+
+                                const tmpValue = JSON.parse(value);
+                                const idx = tmpValue.columns.findIndex(col => col.name === column.name);
+                                if (idx === -1) return;
+
+                                // reshape the multiselect data to an array.
+                                const filterValues =
+                                    invalidValues.reduce((acc, curr) => Array.isArray(curr) ? [...acc, ...curr] : [...acc, curr], []).filter(o => o);
+
+                                tmpValue.columns[idx].filters = isFilterOn ? undefined : [{
+                                    type: 'external',
+                                    operation: 'filter',
+                                    isMulti: true,
+                                    values: uniq(filterValues)
+                                }]
+
+                                tmpValue.dataRequest = {filter: {[column.name]: uniq(filterValues)}};
+                                setValue(JSON.stringify(tmpValue))
+                                setSSKey(`${Date.now()}`);
+                            }}>
+                            {isFilterOn ? <FilterRemove className={'text-blue-500'} height={14} width={14} /> : <Filter className={'text-blue-500'} height={14} width={14} />}
+                        </span>
+                    </span>
+                </>
+            )
+        }
+    }
     return (
         <SourcesLayout fullWidth={false} baseUrl={baseUrl} pageBaseUrl={pageBaseUrl} isListAll={false} hideBreadcrumbs={false}
                        form={{name: item.name || item.doc_type, href: item.url_slug}}
@@ -408,40 +495,14 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
                                             onClick={() =>
                                                 reValidate({
                                                     app, type: JSON.parse(value).sourceInfo.type,
-                                                    parentDocType: doc_type, dmsServerPath, setValidating, setError
+                                                    parentDocType: doc_type, dmsServerPath, setValidating, setError, falcor
                                                 })}
                                         >
                                             {error ? JSON.stringify(error) : validating ? 'Validating' : 'Re - Validate'}
                                         </button>
                                     </div>
 
-                                    {
-                                        columns.find(col => data[`${col.shortName}_invalid_values`]) || loading ?
-                                            <div
-                                                className={'w-full flex items-center justify-between px-2 py-1 text-gray-500 bg-gray-100 rounded-md my-2'}>
-                                                {loading ? 'loading' : 'Mass Update'}
-                                            </div> : null
-                                    }
-
-                                    {/* Mass Update UI */}
-                                    <div className={'flex flex-wrap my-2 gap-2'}>
-                                        {
-                                            columns.filter(column => data[`${column.shortName}_invalid_values`] &&
-                                                data[`${column.shortName}_invalid_values`].filter(values => values !== '"__VALID__"' && values !== "__VALID__").length
-                                            )
-                                                .map(column => (
-                                                    <div className={'px-2 py-1 w-fit text-gray-500 bg-gray-100 hover:bg-gray-200 hover:cursor-pointer rounded-md'}
-                                                         onClick={() => setMassUpdateColumn(column.name)}
-                                                    >
-                                                        {column.display_name || column.name}
-                                                        <span className={'mx-1 px-1 py-0.5 text-sm bg-red-50 text-red-500'}>
-                                                            {data[`${column.shortName}_invalid_values`].filter(values => values !== '"__VALID__"' && values !== "__VALID__").length}
-                                                        </span>
-                                                    </div>
-                                                ))
-                                        }
-                                    </div>
-
+                                    {/* Mass Update Modal */}
                                     <RenderMassUpdater open={massUpdateColumn}
                                                        setOpen={setMassUpdateColumn}
                                                        columns={columns}
@@ -450,7 +511,10 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
                                                        sourceInfo={JSON.parse(value).sourceInfo}
                                                        falcor={falcor}
                                                        user={user}
+                                                       updating={updating}
+                                                       setUpdating={setUpdating}
                                     />
+
                                     {/* invalid rows */}
                                     {
                                         columns.find(col => data[`${col.shortName}_error`]) || loading ?
@@ -462,8 +526,8 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
                                     {
                                         !columns.find(col => data[`${col.shortName}_error`]) || loading ? null :
                                             <DataWrapper.EditComp
-                                                component={Spreadsheet}
-                                                key={'validate-page-spreadsheet'}
+                                                component={SpreadSheetCompWithControls}
+                                                key={ssKey}
                                                 value={value}
                                                 onChange={(stringValue) => {setValue(stringValue)}}
                                                 hideSourceSelector={true}

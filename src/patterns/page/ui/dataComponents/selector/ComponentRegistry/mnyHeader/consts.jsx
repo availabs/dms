@@ -48,6 +48,14 @@ export const overlayImageOptions = [
         value: '/themes/mny/transportation.png'
     },
     {
+        "label": "Set2 - Coastal 1",
+        "value": "/themes/mny/set2-coastal-1.webp"
+    },
+    {
+        "label": "Set2 - Coastal 2",
+        "value": "/themes/mny/set2-coastal-2.webp"
+    },
+    {
         "label": "Set1 - Avalanche",
         "value": "/themes/mny/Avalanche - transparent.webp"
     },
