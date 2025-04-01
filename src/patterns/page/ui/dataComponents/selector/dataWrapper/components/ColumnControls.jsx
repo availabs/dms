@@ -80,11 +80,11 @@ export default function ColumnControls({context}) {
                 const match = columns.filter(c => c.name === attribute.name);
                 return [...acc, ...(match.length ? match : [attribute])];
             }, []) // map to current settings
-            .sort((a,b) => {
-                const orderA = columns.findIndex(column => column.name === a.name);
-                const orderB = columns.findIndex(column => column.name === b.name);
-                return orderA - orderB;
-            })
+            // .sort((a,b) => {
+            //     const orderA = columns.findIndex(column => column.name === a.name);
+            //     const orderB = columns.findIndex(column => column.name === b.name);
+            //     return orderA - orderB;
+            // })
             .filter(attribute => (
                 !search ||
                 getColumnLabel(attribute).toLowerCase().includes(search.toLowerCase()))
