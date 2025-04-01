@@ -11,22 +11,25 @@ import {XMark} from "../../page/ui/icons";
 import {Filter, FilterRemove} from "../ui/icons";
 import dataTypes from "../../../data-types";
 
-const getErrorValueSql = (fullName, shortName, options, required, type) =>
-    `SUM(CASE ${required ? `WHEN (data->>'${fullName}' IS NULL OR data->>'${fullName}'::text = '') THEN 1` : ``}
+const getErrorValueSql = (fullName, shortName, options, required, type) => {
+    const sql = `SUM(CASE ${required ? `WHEN (data->>'${fullName}' IS NULL OR data->>'${fullName}'::text = '') THEN 1` : ``}
               ${
         options?.length ?
-        (type === 'multiselect' ?
-            `WHEN NOT data->'${fullName}' <@  '[${options.map(o => `"${(o?.value || o).replace(/'/, "''")}"`)}]'::jsonb THEN 1` :
-            `WHEN data->>'${fullName}' NOT IN (${options.map(o => `'${(o?.value || o).replace(/'/, "''")}'`)}) THEN 1`) : ``
-            } ELSE 0 END) AS ${shortName}_error`.replaceAll('\n', ' ');
+            (type === 'multiselect' ?
+                `WHEN NOT data->'${fullName}' <@  '[${options.map(o => `"${(o?.value || o).replace(/'/, "''")}"`)}]'::jsonb THEN 1` :
+                `WHEN data->>'${fullName}' NOT IN (${options.map(o => `'${(o?.value || o).replace(/'/, "''")}'`)}) THEN 1`) : ``
+    } ELSE 0 END) AS ${shortName}_error`.replaceAll('\n', ' ');
+    // if(fullName.includes('existing_') || fullName.includes('date')) console.log('# sql', sql)
+    return sql;
+}
 
 // multiselect && required
 // multiselect && !required
 // select && required
 // select && !required
 // text && required
-const getInvalidValuesSql = (fullName, shortName, options, required, type) =>
-    (type === 'multiselect' && (required || options?.length) ?
+const getInvalidValuesSql = (fullName, shortName, options, required, type) => {
+    const sql = (type === 'multiselect' && (required || options?.length) ?
         `array_agg(CASE 
                         ${required ? `WHEN (data->>'${fullName}' IS NULL OR data->>'${fullName}'::text = '') THEN data->'${fullName}'` : ``}
                         ${options?.length ? `WHEN NOT data->'${fullName}' <@  '[${options.map(o => `"${(o?.value || o).replace(/'/, "''")}"`)}]'::jsonb THEN data->'${fullName}' ELSE '"__VALID__"'::jsonb` : ``}
@@ -39,6 +42,9 @@ const getInvalidValuesSql = (fullName, shortName, options, required, type) =>
             !['select', 'multiselect'].includes(type) && required ?
                 `array_agg(CASE WHEN (data->>'${fullName}' IS NULL OR data->>'${fullName}'::text = '') THEN data->>'${fullName}' ELSE '"__VALID__"' END) AS ${shortName}_invalid_values` :
                 ``).replaceAll('\n', ' ');
+    // if(fullName.includes('existing_') || fullName.includes('date')) console.log('sql', sql)
+    return sql;
+}
 
 const getFullColumn = (columnName, columns) => columns.find(col => col.name === columnName);
 const getColAccessor = (col, isDms) => !col ? null : applyFn(col, isDms);
@@ -365,20 +371,20 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
                 .filter(col => ((['select', 'multiselect', 'radio'].includes(col.type) && col.options?.length) || col.required === 'yes'))
                 .reduce((acc, col) => {
                     const invalidValues = data?.[0]?.[getInvalidValuesSql(col.name, col.shortName, col.options, col.required === 'yes', col.type)]?.value;
-                    const sanitisedValues = Array.isArray(invalidValues) ? // for multiselects
+                    const sanitisedValues =
+                        Array.isArray(invalidValues) ? // for multiselects
                         invalidValues.filter(inv => {
                             const value = inv?.value || inv;
-                            return col.options && (
+                            return ['select', 'multiselect', 'radio'] && col.options ? (
                                 Array.isArray(value) ?
                                     value.reduce((acc, v) => {
                                         return acc && !col.options.some(o => (o?.value || o) === (v?.value || v)) && v !== '"__VALID__"' && v !== "__VALID__"
                                     }, true) : // make sure all selections are valid
                                     !col.options.find(o => (o?.value || o) === value) && value !== '"__VALID__"' && value !== "__VALID__"
-                            )
-                        })
-                            .map(value => Array.isArray(value) ? value.map(v => v?.value || v) : (value?.value || value)) : invalidValues
+                            ) : inv !== '"__VALID__"' && inv !== "__VALID__"
+                        }).map(value => Array.isArray(value) ? value.map(v => v?.value || v) : (value?.value || value)) : invalidValues
 
-                    console.log('===', col.name, +data?.[0]?.[getErrorValueSql(col.name, col.shortName, col.options, col.required === 'yes')], sanitisedValues)
+                    // console.log('===', col.name, +data?.[0]?.[getErrorValueSql(col.name, col.shortName, col.options, col.required === 'yes')], sanitisedValues)
                 return {
                     ...acc,
                     [`${col.shortName}_error`]: +data?.[0]?.[getErrorValueSql(col.name, col.shortName, col.options, col.required === 'yes')],
