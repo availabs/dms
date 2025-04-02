@@ -418,6 +418,12 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
             .map(column => ({column, invalidValues: data[`${column.shortName}_invalid_values`].filter(values => values !== '"__VALID__"' && values !== "__VALID__")})), [data])
 
     const SpreadSheetCompWithControls = cloneDeep(Spreadsheet);
+    // SpreadSheetCompWithControls.controls.columns.push({
+    //     type: 'toggle',
+    //     label: 'Show N/A',
+    //     key: 'filters',
+    //     trueValue: [{type: 'internal', operation: 'filter', values: ['null']}]
+    // })
     SpreadSheetCompWithControls.controls.header = {
         displayFn: column => {
             const invalidValues = data[`${column.shortName}_invalid_values`]?.filter(values => values !== '"__VALID__"' && values !== "__VALID__") || [];
@@ -459,7 +465,7 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
 
                                 // reshape the multiselect data to an array.
                                 const filterValues =
-                                    invalidValues.reduce((acc, curr) => Array.isArray(curr) ? [...acc, ...curr] : [...acc, curr], []).filter(o => o);
+                                    invalidValues.reduce((acc, curr) => Array.isArray(curr) ? [...acc, ...curr] : [...acc, curr], []).map(o => o === null ? 'null' : o);
 
                                 tmpValue.columns[idx].filters = isFilterOn ? undefined : [{
                                     type: 'external',

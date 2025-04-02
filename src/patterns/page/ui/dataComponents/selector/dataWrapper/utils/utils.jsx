@@ -153,7 +153,7 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
                 format: state.sourceInfo
             });
 
-            const selectedValues = (filter[columnName] || exclude[columnName] || []).map(o => o?.value || o).filter(o => o);
+            const selectedValues = (filter[columnName] || exclude[columnName] || []).map(o => o?.value || o).map(o => o === null ? 'null' : o).filter(o => o);
             if (!selectedValues.length) continue;
 
             try {
@@ -168,6 +168,7 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
                     })
                     .filter(option => option);
 
+                if(selectedValues.includes('null')) matchedOptions.push('null')
                 multiselectValueSets[columnName] = matchedOptions;
             } catch (e) {
                 console.error('Could not load options for', columnName, e);
@@ -188,7 +189,7 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
             }, {}),
         filter: Object.keys(filter).reduce((acc, columnName) => {
             const {refName, type} = getFullColumn(columnName, columnsWithSettings);
-            const valueSets = multiselectValueSets[columnName] ? (multiselectValueSets[columnName]).filter(d => d.length) : (filter[columnName] || []);
+            const valueSets = multiselectValueSets[columnName] ? (multiselectValueSets[columnName]).filter(d => d === 'null' || d.length) : (filter[columnName] || []);
             if(!valueSets?.length) return acc;
             return {...acc, [refName]: valueSets}
         } , {}),
