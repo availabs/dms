@@ -105,7 +105,7 @@ export default function EmojiPickerPlugin() {
   const [emojis, setEmojis] = useState<Array<Emoji>>([]);
 
   const theme = editor?._config?.theme || {}
-  console.log('editor state emoji', editor)
+  //console.log('editor state emoji', editor)
 
   useEffect(() => {
     import('../../utils/emoji-list').then((file) => setEmojis(file.default));

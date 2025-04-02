@@ -139,16 +139,25 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, component, hideS
 
         // builds an object with filter, exclude, gt, gte, lt, lte, like as keys. columnName: [values] as values
         const filterOptions = state.columns.reduce((acc, column) => {
+            const isNormalisedColumn = state.columns.filter(col => col.name === column.name && col.filters?.length).length > 1;
+
             (column.filters || [])
                 .filter(({values}) => Array.isArray(values) && values.every(v => typeof v === 'string' ? v.length : typeof v !== 'object'))
                 .forEach(({type, operation, values}) => {
-                acc[operation] = {...acc[operation] || {}, [column.name]: values};
-            })
+                    // here, operation is filter, exclude, >, >=, <, <=.
+                    // normal columns only support filter.
+                    if(isNormalisedColumn){
+                        (acc.normalFilter ??= []).push({ column: column.name, values });
+                    }else{
+                        acc[operation] = {...acc[operation] || {}, [column.name]: values};
+                    }
+
+                })
 
             if(column.excludeNA){
                 acc.exclude = acc.exclude && acc.exclude[column.name] ?
-                                {...acc.exclude, [column.name]: [...acc.exclude[column.name], 'null']} :
-                                {...acc.exclude || [], [column.name]: ['null']}
+                    {...acc.exclude, [column.name]: [...acc.exclude[column.name], 'null']} :
+                    {...acc.exclude || [], [column.name]: ['null']}
 
             }
             return acc;
@@ -248,7 +257,6 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, component, hideS
         const observer = new IntersectionObserver(
             async (entries) => {
                 const hasMore = (currentPage * state.display.pageSize + state.display.pageSize) < state.display.totalLength;
-                console.log('??????', hasMore)
                 if (state.data.length && entries[0].isIntersecting && hasMore) {
                     setCurrentPage(prevPage => prevPage+1)
                 }
@@ -257,7 +265,7 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, component, hideS
         );
 
         const target = document.querySelector(`#${state.display.loadMoreId}`);
-        console.log('target', target, state.display.usePagination)
+
         if (target && !state.display.usePagination) observer.observe(target);
         // unobserve if using pagination
         if (target && state.display.usePagination) observer.unobserve(target);
@@ -324,14 +332,16 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, component, hideS
                     <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={isEdit} defaultOpen={true} />
                     <RenderDownload state={state} apiLoad={apiLoad}/>
                 </div>
-                <span className={'text-xs'}>{loading ? 'loading...' : state.display.invalidState ? state.display.invalidState : null}</span>
-                    <Comp isEdit={isEdit}
-                          {...component.name === 'Spreadsheet' && {
-                              newItem, setNewItem,
-                              updateItem, removeItem, addItem,
-                              currentPage, loading, isEdit
-                          }}
-                    />
+                {/*
+                    <span className={'text-xs'}>{loading ? 'loading...' : state.display.invalidState ? state.display.invalidState : null}</span>
+                */}    
+                <Comp isEdit={isEdit}
+                  {...component.name === 'Spreadsheet' && {
+                      newItem, setNewItem,
+                      updateItem, removeItem, addItem,
+                      currentPage, loading, isEdit
+                  }}
+                />
                 <div>
                     {/*Pagination*/}
                     <Pagination currentPage={currentPage} setCurrentPage={setCurrentPage} showPagination={component.showPagination}/>
@@ -367,10 +377,19 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
 
         // builds an object with filter, exclude, gt, gte, lt, lte, like as keys. columnName: [values] as values
         const filterOptions = state.columns.reduce((acc, column) => {
+            const isNormalisedColumn = state.columns.filter(col => col.name === column.name && col.filters?.length).length > 1;
+
             (column.filters || [])
                 .filter(({values}) => Array.isArray(values) && values.every(v => typeof v === 'string' ? v.length : typeof v !== 'object'))
                 .forEach(({type, operation, values}) => {
-                acc[operation] = {...acc[operation] || {}, [column.name]: values};
+                    // here, operation is filter, exclude, >, >=, <, <=.
+                    // normal columns only support filter.
+                    if(isNormalisedColumn){
+                        (acc.normalFilter ??= []).push({ column: column.name, values });
+                    }else{
+                        acc[operation] = {...acc[operation] || {}, [column.name]: values};
+                    }
+
             })
 
             if(column.excludeNA){
@@ -520,10 +539,15 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
             <div className={'w-full h-full'}>
                 <div className={'w-full'}>
                     <div className={'w-full flex justify-end gap-2'}>
-                        <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={isEdit} defaultOpen={false}/>
+                        <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={isEdit} defaultOpen={true}/>
                         <RenderDownload state={state} apiLoad={apiLoad}/>
                     </div>
-                    <span className={'text-xs'}>{loading ? 'loading...' : state.display.invalidState ? state.display.invalidState : null}</span>
+                    {/*
+                        --this causes page jitter (contents moving up and down), 
+                        -- if we want a loading indicator, its probably by component
+                        -- and it needs to be absolutely positioned
+                        <span className={'text-xs'}>{loading ? 'loading...' : state.display.invalidState ? state.display.invalidState : null}</span>
+                    */}
                     <Comp isEdit={isEdit}
                           {...component.name === 'Spreadsheet' && {
                               newItem, setNewItem,

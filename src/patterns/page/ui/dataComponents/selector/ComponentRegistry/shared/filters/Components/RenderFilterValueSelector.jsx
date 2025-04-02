@@ -4,6 +4,7 @@ import RenderSwitch from "../../../../dataWrapper/components/Switch";
 import {useHandleClickOutside} from "../../utils";
 import {convertToUrlParams} from "../utils";
 import {useNavigate} from "react-router-dom";
+import {isEqualColumns} from "../../../../dataWrapper/utils/utils";
 
 const RenderSearchKeySelector = ({filter, searchParams, onChange}) => {
     const [open, setOpen] = React.useState(false);
@@ -51,24 +52,10 @@ const RenderSearchKeySelector = ({filter, searchParams, onChange}) => {
 }
 
 export const RenderFilterValueSelector = ({
-    loading, isEdit, filterColumn, filterOptions=[], setState, searchParams, delimiter, filterWithSearchParamKeys
+    loading, isEdit, filterColumn, filterOptions=[], setState, searchParams, delimiter, filterWithSearchParamKeys, columns
 }) => {
     const navigate = useNavigate();
     const options = useMemo(() => filterOptions.find(fo => fo.column === filterColumn.name)?.uniqValues, [filterOptions, filterColumn.name]);
-
-    // const updateFilter = ({key, value, filterColumn, filter, setState}) => setState(draft => {
-    //     const idx = draft.columns.findIndex(column => column.name === filterColumn.name);
-    //     const filterIdx = (draft.columns[idx]?.filters || []).findIndex(f => f.type === filter.type && f.operation === filter.operation);
-    //
-    //     if(filterIdx !== -1 && draft.columns[idx].filters[filterIdx]
-    //     ) {
-    //         console.log(draft.columns[idx].filters[filterIdx][key], value)
-    //         draft.columns[idx].filters[filterIdx][key] = value;
-    //         if(key === 'allowSearchParams' && value === true && !draft.columns[idx].filters[filterIdx]['searchParamKey']) {
-    //             draft.columns[idx].filters[filterIdx]['searchParamKey'] = filterColumn.name;
-    //         }
-    //     }
-    // })
 
     const useDebouncedUpdateFilter = (delay = 300) => {
         const timeoutRef = useRef(null);
@@ -80,7 +67,7 @@ export const RenderFilterValueSelector = ({
 
             timeoutRef.current = setTimeout(() => {
                 setState((draft) => {
-                    const idx = draft.columns.findIndex(column => column.name === filterColumn.name);
+                    const idx = draft.columns.findIndex(column => isEqualColumns(column, filterColumn));
                     if (idx === -1) return;
 
                     const filterIdx = (draft.columns[idx]?.filters || []).findIndex(f => f.type === filter.type && f.operation === filter.operation);
@@ -97,7 +84,9 @@ export const RenderFilterValueSelector = ({
         }, [setState]);
     };
 
-    const updateFilter = useDebouncedUpdateFilter(300)
+    const updateFilter = useDebouncedUpdateFilter(300);
+    const isGrouping = useMemo(() => columns.some(({group}) => group), [columns]);
+
     return (
         filterColumn.filters || [])
         .filter(filter => isEdit || (!isEdit && filter.type === 'external'))
@@ -145,6 +134,26 @@ export const RenderFilterValueSelector = ({
                             <option key="lt" value="lt"> {"<"} </option>
                             <option key="lte" value="lte"> {"<="} </option>
                         </select>
+
+                        {
+                            ['gt', 'gte', 'lt', 'lte'].includes(filter.operation) && isGrouping ?
+                                <select
+                                    className={`${isEdit ? 'cursor-pointer' : 'hidden'} px-1 py-0.5 bg-orange-500/15 text-orange-700 hover:bg-orange-500/25 rounded-md`}
+                                    value={filter.fn}
+                                    disabled={!isEdit}
+                                    onChange={e => updateFilter({
+                                        key: 'fn',
+                                        value: e.target.value,
+                                        filterColumn,
+                                        filter,
+                                        setState
+                                    })}
+                                >
+                                    <option key="none" value="">no fn</option>
+                                    <option key="sum" value="sum">sum</option>
+                                    <option key="count" value="conut">count</option>
+                                </select> : null
+                        }
                         {
                             isEdit && ['filter', 'exclude'].includes(filter.operation) ? (
                                 <div className={'flex flex-wrap items-center gap-1'}>

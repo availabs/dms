@@ -160,7 +160,7 @@ export default function Editor(props): JSX.Element {
                             contentEditable={
                                 <div className={editable ? `${theme.editorScroller}` || "editor-scroller" : `${theme.viewScroller}` || "view-scroller"}>
                                     <div className={theme.editor.base || "editor"} ref={onRef}>
-                                        <ContentEditable/>
+                                        <ContentEditable className={theme.contentEditable}/>
                                     </div>
                                 </div>
                             }

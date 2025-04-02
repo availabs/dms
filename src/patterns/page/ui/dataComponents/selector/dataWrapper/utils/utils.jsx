@@ -1,9 +1,9 @@
 import {getData as getFilterData} from "../../ComponentRegistry/shared/filters/utils";
-import {uniq} from "lodash-es";
+import {isEqual, uniq} from "lodash-es";
 
 const fnum = (number, currency = false) => `${currency ? '$ ' : ''} ${isNaN(number) ? 0 : parseInt(number).toLocaleString()}`;
 const fnumIndex = (d, fractions = 2, currency = false) => {
-        if(isNaN(d)) return 'No Data'
+        if(isNaN(d)) return '0'
         if(typeof d === 'number' && d < 1) return `${currency ? '$' : ``} ${d?.toFixed(fractions)}`
         if (d >= 1_000_000_000_000_000) {
             return `${currency ? '$' : ``} ${(d / 1_000_000_000_000_000).toFixed(fractions)} Q`;
@@ -20,6 +20,10 @@ const fnumIndex = (d, fractions = 2, currency = false) => {
         }
     }
 ;
+export const isEqualColumns = (column1, column2) =>
+    column1?.name === column2?.name &&
+    column1?.isDuplicate === column2.isDuplicate &&
+    column1?.copyNum === column2?.copyNum;
 
 const columnRenameRegex = /\s+as\s+/i;
 const splitColNameOnAS = name => name.split(columnRenameRegex); // split on as/AS/aS/As and spaces surrounding it
@@ -89,6 +93,8 @@ export const getLength = async ({options, state, apiLoad}) => {
 
 const getFullColumn = (columnName, columns) => columns.find(col => col.name === columnName);
 
+export const getColumnLabel = column => column.customName || column.display_name || column.name;
+
 const operations = {
     gt: (a, b) => +a > +b,
     gte: (a, b) => +a >= +b,
@@ -114,6 +120,7 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
             ...column,
         }
         const isCalculatedColumn = isCalculatedCol(column);
+        const isCopiedColumn = !column.isDuplicate && state.columns.some(({name, isDuplicate}) => name === column.name && isDuplicate);
         const reqName = getColAccessor(fullColumn, state.sourceInfo.isDms);
         const refName = attributeAccessorStr(column.name, state.sourceInfo.isDms, isCalculatedColumn);
         const [colNameBeforeAS, colNameAfterAS] = splitColNameOnAS(column.name);
@@ -121,15 +128,15 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
         return {
             ...fullColumn,
             isCalculatedColumn, // currently this cached value is used to determine key of order by column. for calculated columns idx is used to avoid sql errors.
+            isCopiedColumn, // this column has copies
             reqName, // used to fetch data. name with fn, data->> (is needed), and 'as'
             refName, // used to reference column name with appropriate data->>, and without 'as'
             totalName, // used to make total row calls.
         }
     })
-    const columnsToFetch = columnsWithSettings.filter(column => column.show);
+    const columnsToFetch = columnsWithSettings.filter(column => column.show && !column.isCopiedColumn && !column.isDuplicate);
     debug && console.log('debug getdata: columns with settings:', columnsWithSettings, columnsToFetch);
-    const {groupBy=[], orderBy={}, filter={}, fn={}, exclude={}, meta={}, ...restOfDataRequestOptions} = state.dataRequest;
-
+    const {groupBy=[], orderBy={}, filter={}, normalFilter=[], fn={}, exclude={}, meta={}, ...restOfDataRequestOptions} = state.dataRequest;
     const multiselectValueSets = {};
     const filterAndExcludeColumns = [...Object.keys(filter), ...Object.keys(exclude).filter(col => !(exclude[col]?.length === 1 && exclude[col][0] === 'null'))]
     for (const columnName of uniq(filterAndExcludeColumns)) {
@@ -146,7 +153,7 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
                 format: state.sourceInfo
             });
 
-            const selectedValues = (filter[columnName] || exclude[columnName] || []).map(o => o.value || o);
+            const selectedValues = (filter[columnName] || exclude[columnName] || []).map(o => o?.value || o).map(o => o === null ? 'null' : o).filter(o => o);
             if (!selectedValues.length) continue;
 
             try {
@@ -161,6 +168,7 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
                     })
                     .filter(option => option);
 
+                if(selectedValues.includes('null')) matchedOptions.push('null')
                 multiselectValueSets[columnName] = matchedOptions;
             } catch (e) {
                 console.error('Could not load options for', columnName, e);
@@ -181,7 +189,7 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
             }, {}),
         filter: Object.keys(filter).reduce((acc, columnName) => {
             const {refName, type} = getFullColumn(columnName, columnsWithSettings);
-            const valueSets = multiselectValueSets[columnName] ? (multiselectValueSets[columnName]).filter(d => d.length) : (filter[columnName] || []);
+            const valueSets = multiselectValueSets[columnName] ? (multiselectValueSets[columnName]).filter(d => d === 'null' || d.length) : (filter[columnName] || []);
             if(!valueSets?.length) return acc;
             return {...acc, [refName]: valueSets}
         } , {}),
@@ -191,6 +199,7 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
                 multiselectValueSets[columnName] ? (multiselectValueSets[columnName]).filter(d => d.length) : currValues;
             return {...acc, [getFullColumn(columnName, columnsWithSettings)?.refName]: finalValues}
         }, {}),
+        normalFilter,
         meta,
         // when not grouping, numeric filters can directly go in the request
         ...!groupBy.length && Object.keys(restOfDataRequestOptions).reduce((acc, filterOperation) => {
@@ -214,12 +223,16 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
                 const columnsForOperation = Object.keys(restOfDataRequestOptions[filterOperation]);
 
                 const conditions = columnsForOperation.map((columnName) => {
-                        const {reqName, fn, defaultFn='count', ...restCol} = getFullColumn(columnName, columnsWithSettings);
+                        const {reqName, fn, filters, ...restCol} = getFullColumn(columnName, columnsWithSettings);
+                        // assuming one filter per column:
+                        const fullFilter = filters[0];
+                        const filterFn = fullFilter?.fn;
+
                         const reqNameWithoutAS = splitColNameOnAS(reqName)[0];
 
                         const reqNameWithFn = fn ? reqNameWithoutAS :
                             applyFn(
-                                {...restCol, fn: ['sum', 'count'].includes(defaultFn?.toLowerCase()) ? defaultFn.toLowerCase() : 'count'},
+                                {...restCol, fn: filterFn},
                                 state.sourceInfo.isDms);
                         const reqNameWithFnWithoutAS = splitColNameOnAS(reqNameWithFn)[0];
                         // if grouping by and fn is applied, use fn name.
@@ -267,6 +280,22 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
         const idx = columnsToFetch.findIndex(column => column.name === 'id');
         if(idx !== -1) columnsToFetch.splice(idx, 1);
         delete options.orderBy.id
+    }
+
+    // add normal columns to the list of columns to fetch
+    if(normalFilter.length){
+        const normalColumns = [];
+        const valueColumn = 'value'
+        normalFilter.forEach(({column, values}, i) => {
+            const fullColumn = state.columns.find(col => col.name === column && isEqual(values, col.filters[0]?.values));
+            if(column && fullColumn?.normalName && values?.length){
+                const name = fullColumn.normalName;
+                const reqName = `MAX(CASE WHEN ${column} IN (${values.map(v => `'${v}'`)}) THEN ${valueColumn} END) AS ${name}`;
+                normalColumns.push({name, reqName});
+            }
+        })
+
+        if(normalColumns.length) columnsToFetch.push(...normalColumns);
     }
     // ======================================= check for attributes to fetch end =======================================
 
@@ -355,7 +384,15 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
         data.push({...totalRowData[0], totalRow: true})
     }
     // ============================================== fetch total row end ==============================================
+    console.log('debug getdata', data,
+        data.map(row => columnsToFetch.reduce((acc, column) => ({
+            ...acc,
+            totalRow: row.totalRow,
+            // return data with columns' original names
+            [column.name]: cleanValue(row[row.totalRow ? column.totalName : column.reqName])
+        }) , {}))
 
+        )
     return {
         length,
         data: data.map(row => columnsToFetch.reduce((acc, column) => ({

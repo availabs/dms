@@ -91,15 +91,16 @@ export default function AppearanceControls({context}) {
                     <div className={'border-t mt-2 mx-4'}>
                         <div className={'-mt-2 -ml-4 px-2 text-xs font-medium font-gray-800 w-fit bg-white'}>Graph</div>
                     </div>
-                    <InputControl title={'Show Title'} type={'text'} value={display.title?.title}
+                    <InputControl title={'Title'} type={'text'} value={display.title?.title}
                                   setValue={value => updateDisplayValue('title', 'title', value)}/>
 
-                    <ToggleControl title={'Show Legend'} value={display.legend?.show}
+                    <ToggleControl title={'Legend'} value={display.legend?.show}
                                    setValue={value => updateDisplayValue('legend', 'show', value)}/>
 
-                    <ToggleControl title={'Show Tooltip'} value={display.tooltip?.show}
+                    <ToggleControl title={'Tooltip'} value={display.tooltip?.show}
                                    setValue={value => updateDisplayValue('tooltip', 'show', value)}/>
-
+                    <ToggleControl title={'Attribution'} value={display.showAttribution}
+                                   setValue={value => updateDisplayValue(null, 'showAttribution', value)}/>
                     <InputControl title={'Height'} type={'number'} value={display.height}
                                   setValue={value => updateDisplayValue(null, 'height', +value)}/>
 

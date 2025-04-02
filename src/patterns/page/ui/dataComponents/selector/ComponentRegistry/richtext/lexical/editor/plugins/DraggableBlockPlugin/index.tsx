@@ -27,7 +27,7 @@ import {createPortal} from 'react-dom';
 import {isHTMLElement} from '../../utils/guard';
 import {Point} from '../../utils/point';
 import {Rect} from '../../utils/rect';
-import theme from '../../themes/PlaygroundEditorTheme';
+//import theme from '../../themes/PlaygroundEditorTheme';
 
 const SPACE = 4;
 const TARGET_LINE_HALF_HEIGHT = 2;
@@ -264,6 +264,7 @@ function useDraggableBlockMenu(
   const menuRef = useRef<HTMLDivElement>(null);
   const targetLineRef = useRef<HTMLDivElement>(null);
   const isDraggingBlockRef = useRef<boolean>(false);
+  const theme = editor?._config?.theme || {}
   const [draggableBlockElem, setDraggableBlockElem] =
     useState<HTMLElement | null>(null);
 
