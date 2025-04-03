@@ -110,11 +110,30 @@ const operationsStr = {
     lte: '<='
 }
 
+const evaluateAST = (node, values) => {
+    if (node.type === 'variable') {
+        return values[node.key] ?? 0; // Default value handling
+    }
+
+    const left = evaluateAST(node.left, values);
+    const right = evaluateAST(node.right, values);
+
+    switch (node.operation) {
+        case '+': return left + right;
+        case '-': return left - right;
+        case '*': return left * right;
+        case '/': return right !== 0 ? left / right : NaN;
+        default: return undefined //throw new Error(`Unknown operation: ${node.operation}`);
+    }
+};
+
 export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => {
+    const {groupBy=[], orderBy={}, filter={}, normalFilter=[], fn={}, exclude={}, meta={}, ...restOfDataRequestOptions} = state.dataRequest;
+
     const debug = false;
     debug && console.log('=======getDAta called===========')
     // get columns with all settings and info about them.
-    const columnsWithSettings = state.columns.filter(({actionType}) => !actionType).map(column => {
+    const columnsWithSettings = state.columns.filter(({actionType, type}) => !actionType && type !== 'formula').map(column => {
         const fullColumn = {
             ...(state.sourceInfo.columns.find(originalColumn => originalColumn.name === column.name) || {}),
             ...column,
@@ -134,9 +153,35 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
             totalName, // used to make total row calls.
         }
     })
-    const columnsToFetch = columnsWithSettings.filter(column => column.show && !column.isCopiedColumn && !column.isDuplicate);
-    debug && console.log('debug getdata: columns with settings:', columnsWithSettings, columnsToFetch);
-    const {groupBy=[], orderBy={}, filter={}, normalFilter=[], fn={}, exclude={}, meta={}, ...restOfDataRequestOptions} = state.dataRequest;
+    const columnsToFetch = columnsWithSettings.filter(column => column.show && !column.isCopiedColumn && !column.isDuplicate && column.type !== 'formula');
+    // collect variables used in formula columns, and add them to fetch list
+    const formulaVariableColumns = columnsWithSettings.filter(column => column.type === 'formula')
+        .reduce((acc, curr) => {
+            const variablesYetToBeFetched = curr.variables.filter(variable => !columnsToFetch.find(ctf => isEqualColumns(ctf, variable)));
+            acc.push(...variablesYetToBeFetched)
+            return acc;
+        }, [])
+    if(formulaVariableColumns.length){
+        columnsToFetch.push(formulaVariableColumns)
+    }
+
+    // add normal columns to the list of columns to fetch
+    if(normalFilter.length){
+        const normalColumns = [];
+        const valueColumn = 'value'
+        normalFilter.forEach(({column, values}, i) => {
+            const fullColumn = state.columns.find(col => col.name === column && isEqual(values, col.filters[0]?.values));
+            if(column && fullColumn?.normalName && values?.length){
+                const name = fullColumn.normalName;
+                const reqName = `MAX(CASE WHEN ${column} IN (${values.map(v => `'${v}'`)}) THEN ${valueColumn} END) AS ${name}`;
+                normalColumns.push({name, reqName});
+            }
+        })
+
+        if(normalColumns.length) columnsToFetch.push(...normalColumns);
+        debug && console.log('debug getdata: columns with settings, columns to fetch:', columnsWithSettings, columnsToFetch);
+    }
+
     const multiselectValueSets = {};
     const filterAndExcludeColumns = [...Object.keys(filter), ...Object.keys(exclude).filter(col => !(exclude[col]?.length === 1 && exclude[col][0] === 'null'))]
     for (const columnName of uniq(filterAndExcludeColumns)) {
@@ -281,22 +326,6 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
         if(idx !== -1) columnsToFetch.splice(idx, 1);
         delete options.orderBy.id
     }
-
-    // add normal columns to the list of columns to fetch
-    if(normalFilter.length){
-        const normalColumns = [];
-        const valueColumn = 'value'
-        normalFilter.forEach(({column, values}, i) => {
-            const fullColumn = state.columns.find(col => col.name === column && isEqual(values, col.filters[0]?.values));
-            if(column && fullColumn?.normalName && values?.length){
-                const name = fullColumn.normalName;
-                const reqName = `MAX(CASE WHEN ${column} IN (${values.map(v => `'${v}'`)}) THEN ${valueColumn} END) AS ${name}`;
-                normalColumns.push({name, reqName});
-            }
-        })
-
-        if(normalColumns.length) columnsToFetch.push(...normalColumns);
-    }
     // ======================================= check for attributes to fetch end =======================================
 
 
@@ -395,24 +424,24 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
         )
     return {
         length,
-        data: data.map(row => columnsToFetch.reduce((acc, column) => ({
-            ...acc,
-            totalRow: row.totalRow,
-            // return data with columns' original names
-            [column.name]: cleanValue(row[row.totalRow ? column.totalName : column.reqName])
-        }) , {}))
-            // .filter(row => !Object.keys(restOfDataRequestOptions).length || (
-            //     Object.keys(restOfDataRequestOptions).reduce((acc, filterOperation) => {
-            //         const columnsForOperation = Object.keys(restOfDataRequestOptions[filterOperation]);
-            //         return acc && columnsForOperation.reduce((acc, columnName) => {
-            //             const currOperationValues = restOfDataRequestOptions[filterOperation][columnName];
-            //             const valueToFilterBy = Array.isArray(currOperationValues) ? currOperationValues[0] : currOperationValues;
-            //             if(!valueToFilterBy) return acc && true;
-            //             if(!row[columnName]) return acc && false;
-            //             return acc && operations[filterOperation](row[columnName], valueToFilterBy);
-            //         }, true)
-            //     }, true)
-            // ))
+        data: data.map(row => {
+            const rowWithData = columnsToFetch.reduce((acc, column) => ({
+                ...acc,
+                totalRow: row.totalRow,
+                // return data with columns' original names
+                [column.name]: cleanValue(row[row.totalRow ? column.totalName : column.reqName])
+            }), {});
+
+            const formulaColumns = state.columns.filter(({type}) => type === 'formula');
+
+            if (formulaColumns.length) {
+                formulaColumns.forEach(({name, formula}) => {
+                    rowWithData[name] = evaluateAST(formula, rowWithData);
+                })
+            }
+
+            return rowWithData;
+        })
     }
 }
 

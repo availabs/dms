@@ -144,7 +144,7 @@ export const RenderTable = ({isEdit, updateItem, removeItem, addItem, newItem, s
             columnsWithSizeLength !== visibleAttrsWithoutOpenOutLen ||
             currUsedWidth < gridWidth // resize to use full width
         ) {
-            const availableVisibleAttributes = visibleAttrsWithoutOpenOut.filter(v => v.actionType || sourceInfo.columns.find(attr => attr.name === v.name));
+            const availableVisibleAttributes = visibleAttrsWithoutOpenOut.filter(v => v.actionType || v.type === 'formula' || sourceInfo.columns.find(attr => attr.name === v.name));
             const initialColumnWidth = Math.max(minInitColSize, gridWidth / availableVisibleAttributes.length);
             setState(draft => {
                 availableVisibleAttributes.forEach(attr => {

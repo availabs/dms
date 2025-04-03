@@ -89,7 +89,9 @@ export default function ColumnControls({context}) {
                 !search ||
                 getColumnLabel(attribute).toLowerCase().includes(search.toLowerCase()))
             )
-
+    if(columns.some(column => column.type === 'formula')){
+        columnsToRender.push(...columns.filter(column => column.type === 'formula'))
+    }
     // ================================================== drag utils start =============================================
     const dragStart = (e, position) => {
         dragItem.current = position;
@@ -201,6 +203,27 @@ export default function ColumnControls({context}) {
         }
     }), [columns]);
 
+    const addFormulaColumn = useCallback((column) => setState(draft => {
+        if(column.name && column.formula){
+            draft.columns.push(column)
+        }
+
+        if(column.variables?.length){
+            column.variables.forEach(col => {
+                const idx = draft.columns.findIndex(draftCol => isEqualColumns(draftCol, col));
+
+                if ( idx !== -1 &&
+                    !draft.columns[idx].group && // grouped column shouldn't have fn
+                    draft.columns.some(c => !isEqualColumns(c, col) && c.group) && // if there are some grouped columns
+                    !draft.columns[idx].fn
+                ) {
+                    // apply fn if at least one column is grouped
+                    draft.columns[idx].fn = draft.columns[idx].defaultFn?.toLowerCase() || 'list';
+                }
+            })
+        }
+    }), [columns]);
+
     const resetAllColumns = useCallback(() => setState(draft => {
         draft.columns = []
         draft.dataRequest = {}
@@ -273,7 +296,7 @@ export default function ColumnControls({context}) {
                                 controls.columns.find(({key}) => key === 'show') ?
                                     <Pill text={isEveryColVisible ? 'Hide all' : 'Show all'} color={'blue'} onClick={() => toggleGlobalVisibility(!isEveryColVisible)}/> : null
                             }
-                            <AddFormulaColumn columns={columnsToRender} />
+                            <AddFormulaColumn columns={columnsToRender} addFormulaColumn={addFormulaColumn}/>
                             <Pill text={'Reset all'} color={'orange'} onClick={() => resetAllColumns()}/>
                         </div>
                     </div>
