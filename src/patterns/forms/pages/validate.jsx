@@ -6,7 +6,7 @@ import DataWrapper from "../../page/ui/dataComponents/selector/dataWrapper";
 import {useNavigate, useSearchParams} from "react-router-dom";
 import {getData as getFilterData} from "../../page/ui/dataComponents/selector/ComponentRegistry/shared/filters/utils";
 import {applyFn, attributeAccessorStr, isJson} from "../../page/ui/dataComponents/selector/dataWrapper/utils/utils";
-import {cloneDeep, isEqual, uniq} from "lodash-es";
+import {cloneDeep, isEqual, uniq, uniqBy} from "lodash-es";
 import {XMark} from "../../page/ui/icons";
 import {Filter, FilterRemove} from "../ui/icons";
 import dataTypes from "../../../data-types";
@@ -86,12 +86,12 @@ const getFilterFromSearchParams = searchParams => Array.from(searchParams.keys()
 const getInitState = ({columns, defaultColumns=[], app, doc_type, params, data, searchParams}) => JSON.stringify({
     dataRequest: {filter: getFilterFromSearchParams(searchParams)},
     data: [],
-    columns: [
+    columns: uniqBy([
         ...defaultColumns.map(dc => columns.find(c => c.name === dc.name)).filter(dc => dc), // default columns
         ...columns.filter(({name, shortName}) => !defaultColumns.find(dc => dc.name === name) && data[`${shortName}_error`]) // error columns minus default columns
             .sort((a,b) => data[`${b.shortName}_invalid_values`].filter(values => values !== '"__VALID__"' && values !== "__VALID__").length -
                 data[`${a.shortName}_invalid_values`].filter(values => values !== '"__VALID__"' && values !== "__VALID__").length)
-    ]
+    ], c => c.name)
         .map(c => ({...c, show: true, externalFilter: searchParams.get(c.name)?.split(filterValueDelimiter)?.filter(d => d.length)})),
     sourceInfo: {
         app,
@@ -424,6 +424,7 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
     //     key: 'filters',
     //     trueValue: [{type: 'internal', operation: 'filter', values: ['null']}]
     // })
+    SpreadSheetCompWithControls.controls.columns = SpreadSheetCompWithControls.controls.columns.filter(({label}) => label !== 'duplicate')
     SpreadSheetCompWithControls.controls.header = {
         displayFn: column => {
             const invalidValues = data[`${column.shortName}_invalid_values`]?.filter(values => values !== '"__VALID__"' && values !== "__VALID__") || [];
