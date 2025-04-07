@@ -3,60 +3,6 @@ import { json2DmsForm, getUrlSlug, toSnakeCase, parseJSON } from '../_utils'
 import { PencilIcon, CirclePlus, WrenchIcon, SlidersIcon, MenuIcon , ClockIcon} from '../../ui/icons'
 // import { ButtonSelector,SidebarSwitch } from '../../ui'
 
-export const saveHeader = (v, item, user, apiUpdate ) => {
-    const draftSections = item['draft_sections']?.filter(d => !d.is_header && !d.is_footer)
-    
-    let history = item.history ? cloneDeep(item.history) : []
-  
-    history.push({
-      type: 'Header updated.',
-      user: user?.email || 'user', 
-      time: new Date().toString()
-    })
-    
-    const newItem = {
-      id: item.id, 
-      draft_sections: [...v, ...draftSections].filter(d => d),
-      has_changes: true,
-      history, 
-    }
-    //console.log('save header', newItem)
-    apiUpdate({data: newItem})
-  }
-
-export const saveSection = async (v, action, item, user, apiUpdate) => {
-    const headerSection = item['draft_sections']?.filter(d => d.is_header)?.[0]
-    
-    //console.log('save section', v,action)
-    
-    let edit = {
-      type: action,
-      user: user?.email || 'user', 
-      time: new Date().toString()
-    }
-
-    let history = item.history ? cloneDeep(item.history) : []
-    if(action){ history.push(edit) }
-    // updateAttribute('','',{
-    //   'has_changes': true,
-    //   'history': history,
-    //   'draft_sections': [headerSection, ...v].filter(d => d)
-    // })
-
-    // ----------------
-    // only need to send id, and data to update, not whole 
-    // --------------------
-    //console.log('test 123', )
-    const newItem = {
-      id: item?.id, 
-      draft_sections: [headerSection, ...v].filter(d => d),
-      has_changes: true,
-      history, 
-    }
-    // console.log('editFunction saveSection newItem',newItem, v)
-    await apiUpdate({data: newItem})
-  }
-
 
 export const insertSubPage = async (item, dataItems, user, apiUpdate) => {
     const highestIndex = dataItems
@@ -231,6 +177,8 @@ export const publish = async (user,item, apiUpdate) => {
       sections.push(draft)
       return sections
     },[])
+
+  newItem.section_groups = cloneDeep(item.draft_section_groups)
 
   apiUpdate({data:newItem})
 

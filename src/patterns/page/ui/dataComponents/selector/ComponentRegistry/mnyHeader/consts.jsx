@@ -36,12 +36,28 @@ export const overlayImageOptions = [
         value: '/themes/mny/transportation.png'
     },
     {
-        "label": "Set2 - Coastal 1",
-        "value": "/themes/mny/set2-coastal-1.webp"
+        "label": "Set2 - Test 1",
+        "value": "/themes/mny/set2_test_01.webp"
     },
     {
-        "label": "Set2 - Coastal 2",
-        "value": "/themes/mny/set2-coastal-2.webp"
+        "label": "Set2 - Test 2",
+        "value": "/themes/mny/set2_test_02.webp"
+    },
+    {
+        "label": "Set2 - Test 3",
+        "value": "/themes/mny/set2_test_03.webp"
+    },
+    {
+        "label": "Set2 - Test 4",
+        "value": "/themes/mny/set2_test_04.webp"
+    },
+    {
+        "label": "Set2 - Test 5",
+        "value": "/themes/mny/set2_test_05.webp"
+    },
+    {
+        "label": "Set2 - Test 5",
+        "value": "/themes/mny/set2_test_06.webp"
     },
     {
         "label": "Set1 - Avalanche",

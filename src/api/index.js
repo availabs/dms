@@ -182,88 +182,104 @@ export async function dmsDataEditor (falcor, config, data={}, requestType, /*pat
 	const { app , type } = config.format
 	//const activeConfig = getActiveConfig(config.children, path)
 	
+	const updateRow = async (row) => { 
+		const { id } = row
+		const attributeKeys = Object.keys(row)
+			.filter(k => !['id', 'updated_at', 'created_at'].includes(k))
 
-	const { id } = data
-	const attributeKeys = Object.keys(data)
-		.filter(k => !['id', 'updated_at', 'created_at'].includes(k))
+		// console.log('dms editor', data, app, type)
+		// console.log('dmsDataEditor',config)
 
-	console.log('dms editor', data, app, type)
+		// --------------------------------------------------------------
+		// ----- Code for Saving Dms Format in separate rows
+		// ---------------------------------------------------------------
+		const dmsAttrsConfigs = Object.values(config?.format?.attributes || {})
+			.filter(d => d.type === 'dms-format')
+			.reduce((out,curr) => {
+				out[curr.key] = curr
+				return out
+			},{})
 
-	// console.log('dmsDataEditor',config)
+		const dmsAttrsToUpdate = attributeKeys.filter(d => {
+			return Object.keys(dmsAttrsConfigs).includes(d)
+		})
 
-	// --------------------------------------------------------------
-	// ----- Code for Saving Dms Format in separate rows
-	// ---------------------------------------------------------------
-
-
-	const dmsAttrsConfigs = Object.values(config?.format?.attributes || {})
-		.filter(d => d.type === 'dms-format')
-		.reduce((out,curr) => {
-			out[curr.key] = curr
+		const dmsAttrsData = dmsAttrsToUpdate.reduce((out,curr) => {
+			out[curr] = row[curr]
+			delete row[curr]
 			return out
 		},{})
 
-	const dmsAttrsToUpdate = attributeKeys.filter(d => {
-		return Object.keys(dmsAttrsConfigs).includes(d)
-	})
+		// console.log('gonna updateDMSAttrs', dmsAttrsData, dmsAttrsConfigs, falcor)
+		let updates = await updateDMSAttrs(dmsAttrsData, dmsAttrsConfigs, falcor)
+		row = {...row, ...updates}
+		
 
-	const dmsAttrsData = dmsAttrsToUpdate.reduce((out,curr) => {
-		out[curr] = data[curr]
-		delete data[curr]
-		return out
-	},{})
+		//--------------------------------------------------
+		// Delete
+		//--------------------------------------------------
+		if(requestType === 'delete' && id) {
+			await falcor.call(
+				["dms", "data", "delete"], 
+				[app, type, id]
+			)
+			await falcor.invalidate(['dms', 'data', `${ app }+${ type }`, 'length' ])
+			return {response: `Deleted item ${id}`}
+		} 
+		//--------------------------------------------------
+		// Update Type ???
+		//--------------------------------------------------
+		else if(requestType === 'updateType' && id) {
+			// update type column
+			// console.log('falcor update type', requestType, id, data)
+			if(!row.type) 	return {message: "No type found."}
 
-	// console.log('gonna updateDMSAttrs', dmsAttrsData, dmsAttrsConfigs, falcor)
-	let updates = await updateDMSAttrs(dmsAttrsData, dmsAttrsConfigs, falcor)
-	data = {...data, ...updates}
-	
-	//console.log('dmsDataEditor', data  )
+			await falcor.call(["dms", "type", "edit"], [id, row.type]);
+			await falcor.invalidate(['dms', 'data', 'byId', id])
+			return {message: "Update successful."}
+		}
+		//--------------------------------------------------
+		// Update Data
+		//--------------------------------------------------
+		else if(id && attributeKeys.length > 0) {
+			/*  if there is an id and data
+			    do update
+			*/
+			// console.log('falcor update data', requestType, data, JSON.stringify(data).length)
+			// todo - data verification
+			// console.time(`falcor update data ${id}`)
+			// console.log('update', id, data)
+			await falcor.call(["dms", "data", "edit"], [id, row]);
+			await falcor.invalidate(['dms', 'data', 'byId', id])
+			// console.timeEnd(`falcor update data ${id}`)
+			return {message: `Update successful: id ${id}.`,  }
+		} 
+		//--------------------------------------------------
+		// Create New
+		//--------------------------------------------------
+		else if ( attributeKeys.length > 0 ) {
+			/*  if there is only data 
+			    create new                
+			*/
+	      	// to do - data verification
+	      	const res = await falcor.call(
+	      		["dms", "data", "create"],
+	      		[app, type, row]
+	      	);
+	      	await falcor.invalidate(['dms', 'data', `${ app }+${ type }`, 'length' ])
+	      	return {response: 'Item created.', id: Object.keys(res?.json?.dms?.data?.byId || {})[0]} // activeConfig.redirect ? redirect(activeConfig.redirect) :
+		}
 
-	//--------------------------------------------------
-
-
-	if(requestType === 'delete' && id) {
-		await falcor.call(
-			["dms", "data", "delete"], 
-			[app, type, id]
-		)
-		await falcor.invalidate(['dms', 'data', `${ app }+${ type }`, 'length' ])
-		return {response: `Deleted item ${id}`}
-	} else if(requestType === 'updateType' && id) {
-		// update type column
-		// console.log('falcor update type', requestType, id, data)
-		if(!data.type) 	return {message: "No type found."}
-
-		await falcor.call(["dms", "type", "edit"], [id, data.type]);
-		await falcor.invalidate(['dms', 'data', 'byId', id])
-		return {message: "Update successful."}
+		return { message: "Not sure how I got here."}
 	}
-	else if(id && attributeKeys.length > 0) {
-		/*  if there is an id and data
-		    do update
-		*/
-		// console.log('falcor update data', requestType, data, JSON.stringify(data).length)
-		// todo - data verification
-		// console.time(`falcor update data ${id}`)
-		// console.log('update', id, data)
-		await falcor.call(["dms", "data", "edit"], [id, data]);
-		await falcor.invalidate(['dms', 'data', 'byId', id])
-		// console.timeEnd(`falcor update data ${id}`)
-		return {message: "Update successful.",  }
-	} else if ( attributeKeys.length > 0 ) {
-		/*  if there is only data 
-		    create new                
-		*/
-      	// to do - data verification
-      	const res = await falcor.call(
-      		["dms", "data", "create"],
-      		[app, type, data]
-      	);
-      	await falcor.invalidate(['dms', 'data', `${ app }+${ type }`, 'length' ])
 
-      	return {response: 'Item created.', id: Object.keys(res?.json?.dms?.data?.byId || {})[0]} // activeConfig.redirect ? redirect(activeConfig.redirect) :
+	let output = { messages: []}
+
+	if( Array.isArray(data) ) {
+		output.messages = await Promise.all(data.map(d => updateRow(d)))
+	} else {
+		output = await updateRow(data)
 	}
 
-	return { message: "Not sure how I got here."}
-
+	return output
 } 

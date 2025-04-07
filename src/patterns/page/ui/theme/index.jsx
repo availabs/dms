@@ -20,8 +20,8 @@ import { sectionArrayTheme } from '../dataComponents/sections/sectionArray'
 import { tableTheme } from '../dataComponents/selector/ComponentRegistry/spreadsheet/index'
 import lexicalTheme from '../dataComponents/selector/ComponentRegistry/richtext/theme';
 import {dataCardTheme} from "../dataComponents/selector/ComponentRegistry/Card";
-import {attributionTheme} from "../dataComponents/selector/ComponentRegistry/shared/Attribution";
-
+import { attributionTheme } from "../dataComponents/selector/ComponentRegistry/shared/Attribution";
+import { sectionGroupTheme } from '../dataComponents/sections/sectionGroup'
 
 import { menuTheme } from '../components/menu'
 import { labelTheme } from "../components/label";
@@ -80,6 +80,8 @@ const theme = {
     iconWrapper : 'z-5 absolute right-[10px] top-[5px]',
     icon: 'text-slate-400 hover:text-blue-500'
   },
+  sectionGroup: sectionGroupTheme,
+  sectionArray: sectionArrayTheme,
   layout: layoutTheme,
   sidenav: sideNavTheme,
   topnav: topNavTheme,
@@ -95,7 +97,7 @@ const theme = {
   label: labelTheme,
   select: selectTheme,
   // -- 
-  sectionArray: sectionArrayTheme,
+  
   // --
   table: tableTheme,
 

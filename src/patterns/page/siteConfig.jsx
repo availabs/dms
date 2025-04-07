@@ -22,12 +22,10 @@ import defaultTheme from './ui/theme'
 
 import { useFalcor } from "@availabs/avl-falcor"
 
-
 import { Link } from 'react-router-dom'
 import { SearchPage } from "./components/search/SearchPage";
 import DefaultMenu from './components/menu'
 
-// sideNav = {size: 'miniPad'}
 
 export const CMSContext = React.createContext(undefined);
 
@@ -122,7 +120,7 @@ export const pagesConfig = ({
               />
             ),
             filter: {
-              attributes:['title', 'index', 'url_slug', 'parent', 'published', 'hide_in_nav' ,'sections','sidebar','header','footer', 'full_width','navOptions']
+              attributes:['title', 'index', 'url_slug', 'parent', 'published', 'hide_in_nav' ,'sections','section_groups','sidebar','header','footer', 'full_width','navOptions']
             },
             path: "/*",
             action: "view"
