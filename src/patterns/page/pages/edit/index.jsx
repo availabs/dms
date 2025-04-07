@@ -58,7 +58,7 @@ function PageEdit ({
 	    			{name: 'header', position: 'top', index: 0, theme: 'header', full_width: 'show'}
 	    		)
 	    	}
-	    	newItem.draft_sections = cloneDeep(item.draft_sections)
+	    	newItem.draft_sections = cloneDeep(item.draft_sections || [])
 
 	    	if(item?.footer && item?.footer !== 'none' ) {
           newItem.draft_section_groups.push( 
