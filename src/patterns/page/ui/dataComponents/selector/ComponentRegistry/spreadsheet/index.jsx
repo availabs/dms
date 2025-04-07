@@ -74,7 +74,7 @@ export const tableTheme = {
 
 
 
-export const RenderTable = ({isEdit, updateItem, removeItem, addItem, newItem, setNewItem, loading}) => {
+export const RenderTable = ({isEdit, updateItem, removeItem, addItem, newItem, setNewItem, loading, allowEdit}) => {
     const { theme = { table: tableTheme } } = React.useContext(CMSContext) || {}
     const {state:{columns, sourceInfo, display, data}, setState} = useContext(ComponentContext);
     const gridRef = useRef(null);
@@ -95,7 +95,7 @@ export const RenderTable = ({isEdit, updateItem, removeItem, addItem, newItem, s
             endCol: cols[cols.length - 1]
         }
     }, [selection]);
-    const allowEdit = useMemo(() => !columns.some(({group}) => group), [columns]);
+
     const visibleAttributes = useMemo(() => columns.filter(({show}) => show), [columns]);
     const visibleAttributesLen = useMemo(() => columns.filter(({show}) => show).length, [columns]);
     const openOutAttributes = useMemo(() => columns.filter(({openOut}) => openOut), [columns]);

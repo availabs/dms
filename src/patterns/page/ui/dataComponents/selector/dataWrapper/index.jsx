@@ -554,7 +554,7 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
                               newItem, setNewItem,
                               updateItem, removeItem, addItem,
                               currentPage, loading, isEdit,
-                              allowEdit: groupByColumnsLength ? false : state.display.allowEditInView && apiUpdate
+                              allowEdit: groupByColumnsLength ? false : state.display.allowEditInView && Boolean(apiUpdate)
                           }}
                     />
                     <div>
