@@ -24,8 +24,7 @@ import {
     Tags,
     Copy
 } from '../../icons'
-import { Modal, Popover, Button, Icon, Menu } from "../../";
-import Label from "../../components/label";
+import { Modal, Popover, Button, Icon, Menu, Label } from "../../";
 
 const isJson = (str)  => {
     try {
@@ -76,7 +75,7 @@ export function SectionEdit ({value, i, onChange, attributes, size, onCancel, on
                                 setOpen={(v) => setShowDeleteModal(v)}
                                 onDelete={() => {
                                     async function deleteItem() {
-                                        await onRemove()
+                                        await onRemove(i)
                                         setShowDeleteModal(false)
                                     }
 
@@ -176,6 +175,9 @@ export function SectionEdit ({value, i, onChange, attributes, size, onCancel, on
 }
 let handleCopy = (value) => {
     const elementType = value?.element?.['element-type'];
+    //--------------------------------------
+    // Temp Code to migrate off cenrep II
+    //--------------------------------------
     if(elementType === 'Table: Cenrep II'){
         const spreadsheetData = convert(JSON.parse(value.element['element-data']));
         const ssElement = {...value, element: {'element-type': 'Spreadsheet', 'element-data': JSON.stringify(spreadsheetData)}};
@@ -183,6 +185,7 @@ let handleCopy = (value) => {
         navigator.clipboard.writeText(JSON.stringify(ssElement))
         return;
     }
+    //--------------------------------------
     navigator.clipboard.writeText(JSON.stringify(value))
 }
 
@@ -194,7 +197,7 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
     const { baseUrl, user, theme } = React.useContext(CMSContext) || {}
 
     const updateAttribute = (k, v) => {
-        onChange(i, k, v)
+        onChange(value, k, v)
     }
     
     const hideDebug = true
@@ -270,7 +273,7 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
       { icon: 'Padding', name: 'Offset', 
         type: 'menu',
         value: value?.['offset'] || 16,
-        items: [20,30,40,50,60,70,80,90,100,150,200].map((v,i) => {
+        items: [25,50,100,150,200,250,300,350,400,500].map((v,i) => {
             return {
                 'icon': v == (value?.['offset'] || '1') ? 'CircleCheck' : 'Blank',
                 'name': `${v}px`,
@@ -287,13 +290,27 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
         // }
       },
       // { icon: 'Blank', name: 'Padding', onClick: () => {} },
-      { icon: 'Border', name: 'Border', onClick: () => {} },
+      { icon: 'Border', name: 'Border',
+        type: 'menu',
+        value: value?.['border'] || 1,
+        items: Object.keys(theme?.sectionArray?.border || {})
+            .map((name,i) => {
+                return {
+                    'icon': name == (value?.['border'] || 'None') ? 'CircleCheck' : 'Blank',
+                    'name': name,
+                    'onClick': () => {
+                        //console.log('colspan Item name click', name)
+                        updateAttribute('border', name);
+                    }
+                }
+            })
+      },
       { type: 'seperator'},
       { icon: 'TrashCan', name: 'Delete', onClick: () => setShowDeleteModal(!showDeleteModal) }
     ]
         
     return (
-        <div className={`h-full`} style={{pageBreakInside: "avoid"}}>
+        <div className={``} style={{pageBreakInside: "avoid"}}>
             <DeleteModal
                 title={`Delete Section ${value?.title || ''} ${value?.id}`} open={showDeleteModal}
                 prompt={`Are you sure you want to delete this section? All of the section data will be permanently removed
@@ -357,8 +374,7 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
                 </div>
                 {/* -------------------END top line buttons ----------------------*/}
                 {/* -------------------Section Header ----------------------*/}
-                {
-                    (sectionTitleCondition || interactCondition) &&
+                {(sectionTitleCondition || interactCondition) && (
                     <div className={`flex w-full min-h-[50px] items-center  pb-2 ${false && 'border border-dashed border-pink-500'}`}>
 
                         <div id={`#${value?.title?.replace(/ /g, '_')}`}
@@ -403,44 +419,9 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
                             </Link>
                         }
 
-                        { sectionTitleCondition && typeof onEdit === 'function' && !isTemplateSectionCondition ?
-                            <>
-                                {/*<div className='py-2'>
-                                    <button
-                                        className={'pl-3 flex items-center text-md cursor-pointer hover:text-blue-500 text-slate-400'}
-                                        onClick={ () => moveItem(i,-1) }
-                                    >
-                                        <i className="fa-light fa-angle-up text-xl fa-fw" title="Move Up"></i>
-                                        {
-                                    </button>
-
-                                </div>
-                                <div className='py-2'>
-                                    <button
-                                        className={'pl-3  flex items-center text-md cursor-pointer hover:text-blue-500 text-slate-400'}
-                                        onClick={ () =>  moveItem(i,1) }
-                                    >
-                                        <i className="fa-light fa-angle-down text-xl fa-fw" title="Move Down"></i>
-                                       
-
-                                </div>
-                                <div className='py-2'>
-                                    <button
-                                        className={'pl-6 py-0.5 flex items-center text-md cursor-pointer hover:text-blue-500 text-slate-400'}
-                                        onClick={ onEdit }
-                                    >
-                                        <i className="fa-light fa-pencil text-xl fa-fw" title="Edit"></i>
-                                        
-                                    </button>
-
-                                </div>*/}
-                            </> :
-                            isTemplateSectionCondition && typeof onEdit === 'function'?
-                                <i className={'pl-5 py-0.5 fa-light fa-lock p-2 text-slate-400'} title={'Template generated section'}/> : <></>
-                        }
+                        
                     </div>
-
-                }
+                )}
             {/* -------------------END Section Header ----------------------*/}
             <div className={`h-full ${hideDebug ? '' : 'border border-dashed border-orange-500'}`}>
                 {element}
@@ -665,6 +646,5 @@ export function DeleteModal ({title, prompt, item={}, open, setOpen, onDelete}) 
       </div>
     </Modal>
   )
-
 }
 

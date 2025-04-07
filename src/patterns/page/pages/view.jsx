@@ -1,27 +1,81 @@
 import React, {useEffect, useRef} from 'react'
-import { Link } from "react-router-dom";
+import { Link, useSubmit } from "react-router-dom";
 import { cloneDeep } from "lodash-es"
+import { v4 as uuidv4 } from 'uuid';
 // -- 
 import { CMSContext } from '../siteConfig'
-import {dataItemsNav, detectNavLevel, getInPageNav} from './_utils'
-import { Layout, SideNav, SideNavContainer } from '../ui'
+import { json2DmsForm, dataItemsNav } from './_utils'
+import { Layout, SectionGroup } from '../ui'
 
 import {PDF, PencilEditSquare, Printer} from '../ui/icons'
 import {selectablePDF} from "../components/saveAsPDF/PrintWell/selectablePDF";
-import {Footer} from "../ui/dataComponents/selector/ComponentRegistry/footer";
+//import {Footer} from "../ui/dataComponents/selector/ComponentRegistry/footer";
 export const PageContext = React.createContext(undefined);
 
 
-function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiLoad, apiUpdate, format}) {
+function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiLoad, apiUpdate, format,busy}) {
+  const submit = useSubmit()
   // console.log('page_view')
   // if(!item) return <div> No Pages </div>
+  
   if(!item) {
     item = {} // create a default item to set up first time experience.
   }
 
+  React.useEffect(() => {
+      // -------------------------------------------------------------------
+      // -- This on load effect backfills pages created before sectionGroups
+      // -------------------------------------------------------------------
+      if(!item.section_groups && item.id) {
+        console.log('edit item', item)
+        let newItem = {id: item.id}
+        newItem.section_groups = [
+          {name: 'default', position: 'content', index: 0, theme: 'content'}
+        ]
+        newItem.sections = cloneDeep(item.sections)
+
+        if(item?.header && item?.header !== 'none' ) {
+          newItem.section_groups.push( 
+            {name: 'header', position: 'top', index: 0, theme: 'header', full_width: 'show'}
+          )
+        }
+        if(item?.footer && item?.footer !== 'none' ) {
+          newItem.section_groups.push( 
+            {name: 'footer', position: 'bottom', index: 99, theme: 'clearCentered', full_width: 'show'}
+          )
+          if(!item.sections.filter(d => d.is_footers)?.[0]){
+            newItem.sections.push({
+                "size": "2",
+                "group": "footer",
+                is_footer: 'true',
+                "order": 0,
+                "element": {
+                    "element-type": "Footer: MNY Footer"
+                },
+                "trackingId": uuidv4(),
+            })
+          }
+        }
+        
+        newItem.sections.forEach((section,i) => {
+          if(section.is_header) {
+            //console.log('section is header', section.id)
+            section.group = 'header'
+            
+          }
+        })
+        //console.log('new item', newItem)
+        submit(json2DmsForm(newItem), { method: "post", action: `${baseUrl}/${item.url_slug}` })
+      }
+     
+  },[])
+
+  //console.log('test 123', item)
+
   //console.log('item', item, dataItems, status)
   const pdfRef = useRef(); // To capture the section of the page to be converted to PDF
   const { baseUrl, theme, user, API_HOST } = React.useContext(CMSContext) || {}
+  
   const ContentView = React.useMemo(() => {
     return attributes['sections'].ViewComp
   }, [])
@@ -33,92 +87,43 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
 
   //console.log('menuItems', menuItems)
 
-  const level = item?.index == '999' || theme?.navOptions?.topNav?.nav !== 'main' ? 1 : detectNavLevel(dataItems, baseUrl);
+  // const level = item?.index == '999' || theme?.navOptions?.topNav?.nav !== 'main' ? 1 : detectNavLevel(dataItems, baseUrl);
 
-  const inPageNav = getInPageNav(item,theme);
+  const draftSections = item?.['sections'] || [] 
 
-  const headerSection = item['sections']?.filter(d => d.is_header)?.[0]
-  const sections = item['sections']?.filter(d => !d.is_header && !d.is_footer)
-  const sectionAttr = attributes?.['sections']?.attributes || {}
-  //console.log('test 123', attributes['sections'])
+  //console.log('draft_sections', draftSections)
 
-  //console.log('inPageNav', inPageNav)
+  
+  const getSectionGroups =  ( sectionName ) => {
+    return (item?.section_groups || [])
+        .filter((g,i) => g.position === sectionName)
+        .sort((a,b) => a?.index - b?.index)
+        .map((group,i) => (
+          <SectionGroup
+            key={group?.name || i}
+            group={group}
+            sections={draftSections.filter(d => d.group === group.name || (!d.group && group?.name === 'default'))}
+            attributes={attributes}
+          />
+        ))
+  }
+
   return (
-    <PageContext.Provider value={{ item, dataItems, apiLoad, apiUpdate }} >
-      <div id='page_view' className={`${theme?.page?.container}`}>
-        {/* Header */}
-        {(item?.header === 'above') &&
-            <ContentView item={item}
-                         value={[headerSection]}
-                         attributes={sectionAttr}
-                         full_width={'show'}
-                         apiLoad={apiLoad}
-                         apiUpdate={apiUpdate}
-                         format={format}
-            />}
-        {/* Layout */}
-        <Layout navItems={menuItems} secondNav={theme?.navOptions?.secondaryNav?.navItems || []} pageTheme={{navOptions: item.navOptions || {}}}>
-          <div className={`${theme?.page?.wrapper1} ${theme?.navPadding[level]}`}>
-            {(item?.header === 'below') &&
-                <ContentView item={item}
-                             value={[headerSection]}
-                             attributes={sectionAttr}
-                             full_width={'show'}
-                             apiLoad={apiLoad}
-                             apiUpdate={apiUpdate}
-                             format={format}
-                />}
-            <div className={`${theme?.page?.wrapper2}`}>
-              {item?.sidebar === 'left' && (
-                <SideNavContainer>
-                  <SideNav {...inPageNav} /> 
-                </SideNavContainer>
-              )}
-              <div className={theme?.page?.wrapper3} ref={pdfRef}>
-                {/* Content */}
-                {(item?.header === 'inpage') &&
-                    <ContentView item={item}
-                                 value={[headerSection]}
-                                 attributes={sectionAttr}
-                                 full_width={'show'}
-                                 apiLoad={apiLoad}
-                                 apiUpdate={apiUpdate}
-                                 format={format}
-                    />}
-                {user?.authLevel >= 5 && (
-                    <Link className={theme?.page?.iconWrapper} to={`${baseUrl}/edit/${item?.url_slug || ''}${window.location.search}`}>
-                      <PencilEditSquare className={theme?.page?.icon}/>
-                    </Link>
-                )}
-                <div className={'flex absolute right-10 top-2'}>
-                  <button className={'mx-1'} onClick={() => selectablePDF(pdfRef, API_HOST)}>
-                    <PDF className={'hover:text-blue-500 text-blue-300'}/>
-                  </button>
-                </div>
-                <ContentView
-                    full_width={item.full_width}
-                    item={item}
-                    value={sections}
-                    attributes={sectionAttr}
-                    siteType={siteType}
-                    apiLoad={apiLoad}
-                    apiUpdate={apiUpdate}
-                    format={format}
-                />
-              </div>
-              {item?.sidebar === 'right' && (
-                <SideNavContainer>
-                  <SideNav {...inPageNav} /> 
-                </SideNavContainer>
-              )}
-            </div>
-          </div>
-        </Layout>
-
-        <Footer show={item.footer} dataItems={dataItems} />
-      </div>
-    </PageContext.Provider>
-  )
+      <PageContext.Provider value={{ item, dataItems, apiLoad, apiUpdate, format, busy }} >
+        <div className={`${theme?.page?.container}`}>
+          {getSectionGroups('top')}
+          <Layout 
+            navItems={menuItems} 
+            secondNav={theme?.navOptions?.secondaryNav?.navItems || []}
+            pageTheme={{navOptions: item.navOptions || {}}}
+          >
+            {getSectionGroups('content')}
+          </Layout>
+          {getSectionGroups('bottom')}
+          
+        </div>
+      </PageContext.Provider>
+  ) 
 }
 
 

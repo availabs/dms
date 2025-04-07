@@ -63,15 +63,24 @@ export const sectionArrayTheme = {
         "3" : { className: 'md:row-span-3'},
         "4" : { className: 'md:row-span-4'},
         "5" : { className: 'md:row-span-5'},
+    },
+    border: {
+        none: 'border border-transparent',
+        full: 'border border-sky-950 rounded-lg',
+        openLeft: 'border border-sky-950 border-l-transparent rounded-r-lg',
+        openRight: 'border border-sky-950 border-r-transparent rounded-l-lg',
     }
 }
 
-const Edit = ({Component, value, onChange, attr, full_width = false, siteType, apiLoad, apiUpdate, format, ...rest }) => {
+const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
     const [values, setValues] = useImmer([]);
     const { baseUrl, user, theme = { sectionArray: sectionArrayTheme} } = React.useContext(CMSContext) || {}
-    const { editPane  } =  React.useContext(PageContext) || {}
+    const { editPane, apiLoad, apiUpdate, format  } =  React.useContext(PageContext) || {}
 
     React.useEffect(() => {
+        //------------------------------------------
+        // update value edit clone on receiving data
+        // -----------------------------------------
         if (!value || !value.map) {
             setValues([''])
         }else if(!isEqual(value, values)) {
@@ -79,12 +88,6 @@ const Edit = ({Component, value, onChange, attr, full_width = false, siteType, a
         }
     }, [value]);
 
-    React.useEffect(() => {
-        //console.log('values has been updated')
-        if(values.length &&!isEqual(value, values)){
-            onChange(values)    
-        }
-    },[values])
 
     const [edit, setEdit] = React.useState({
         index: -1,
@@ -92,9 +95,9 @@ const Edit = ({Component, value, onChange, attr, full_width = false, siteType, a
         type: 'new'
     })
 
-    const updateValue = (index, attribute, value) => setValues(draft => {
-        set(draft, `[${index}][${attribute}]`, value)
-    })
+    const updateValue = (section, attribute, v) => {
+       onChange([{id: section.id, [attribute]: v}], null, 'update')
+    }
     const setEditValue = (v) => setEdit({...edit, value: v})
     const setEditIndex = (i) => setEdit({...edit, index: i})
     
@@ -102,29 +105,29 @@ const Edit = ({Component, value, onChange, attr, full_width = false, siteType, a
        setEdit({index: -1, value:'',type:'new'}) 
     }
 
-    const save = /* async */ () => {
+    const update = (i) => {
+        setEdit({index: i, value:value[i],type:'update'})
+    }
+
+    const save =  async  () => {
 
         let cloneValue = cloneDeep(value || [])
         const trackingId = uuidv4();
         let action = ''
-        // edit.value.has_changes = true
         if(edit.type === 'update') {
             cloneValue[edit.index] = edit.value
-
             action = `edited section ${edit?.value?.title ? `${edit?.value?.title} ${edit.index+1}` : edit.index+1}`
+            await onChange([edit.value], action, edit.type)
         } else {
-            cloneValue.splice(edit.index, 0, {...(edit.value || {}), trackingId})
+            cloneValue.splice(edit.index, 0, {...(edit.value || {}), trackingId, order: edit.index, group: group?.name})
             action = `added section ${edit?.value?.title ? `${edit?.value?.title} ${edit.index+1}` : edit.index+1}`
+            await onChange([{...(edit.value || {}), trackingId, order: edit.index, group: group?.name}], action, edit.type)
         }
-        //console.log('edit on save', edit)
         
         cancel()
-        setValues([...cloneValue, ''])
-        /* await */ onChange(cloneValue,action)
-    
     }
 
-    const remove = (i) => {
+    const remove = async (i) => {
         let cloneValue = cloneDeep(value)
         
         if(edit.type === 'update') {
@@ -132,18 +135,19 @@ const Edit = ({Component, value, onChange, attr, full_width = false, siteType, a
         } else {
            cloneValue.splice(i, 1) 
         }
-        // console.log('value', value, cloneValue)
-        // console.log('edit on remove', edit)
+
+        await onChange(
+            [value[i]],
+            `removed section ${edit?.value?.title ? `${edit?.value?.title} ${edit.index+1}` : edit.index+1}`,
+            'remove'
+        )
         cancel()
-        onChange(cloneValue, `removed section ${edit?.value?.title ? `${edit?.value?.title} ${edit.index+1}` : edit.index+1}`)
     }
 
-    const update = (i) => {
-        setEdit({index: i, value:value[i],type:'update'})
-    }
+    
 
-    function moveItem(from, dir) {
-        let cloneValue = cloneDeep(value)
+    async function moveItem(from, dir) {
+        let cloneValue = cloneDeep(values).sort((a,b) => a.order - b.order)
         // remove `from` item and store it
         let to = from + dir
         
@@ -153,20 +157,40 @@ const Edit = ({Component, value, onChange, attr, full_width = false, siteType, a
         var f = cloneValue.splice(from, 1)[0];
         // insert stored item into position `to`
         cloneValue.splice(to, 0, f);
-        setValues(cloneValue)
-        //onChange(cloneValue)
+        
+
+        let update = cloneValue
+            // if section has a new order after move
+            // update its order
+            .map((d,i) => d.order !== i ? { id: d.id, order:i} : null)
+            .filter(d => d)
+
+        //-----------
+        // this does local update ahead of server update
+        //-----------
+        // cloneValue = cloneValue.map((d,i) => {
+        //     d.order = i
+        //     return d
+        // })
+        // setValues(cloneValue)
+        //-------------
+
+        console.time('moveItems')
+        await onChange(update, null, 'update')
+        console.timeEnd('moveItems')
     }
     
     const hideDebug = true
+    
 
     return (
         <div className='relative isolate'>
-        { editPane.showGrid && (
+        { editPane?.showGrid && (
             <div className='absolute inset-0 pointer-events-none  '>
                 <div className={`
                         ${theme?.sectionArray?.container} 
                         ${theme?.sectionArray?.gridviewGrid} 
-                        ${theme?.sectionArray?.layouts[full_width === 'show' ? 'fullwidth' : 'centered']}
+                        ${theme?.sectionArray?.layouts[group?.full_width === 'show' ? 'fullwidth' : 'centered']}
                     `}
                 >
                     {[...Array(theme?.sectionArray?.gridSize).keys()].map(d => <div className={theme?.sectionArray?.gridviewItem}  />)}
@@ -175,10 +199,11 @@ const Edit = ({Component, value, onChange, attr, full_width = false, siteType, a
         )}
             <div className={`
                 ${theme.sectionArray.container} 
-                ${theme.sectionArray.layouts[full_width === 'show' ? 'fullwidth' : 'centered']}
+                ${theme.sectionArray.layouts[group?.full_width === 'show' ? 'fullwidth' : 'centered']}
             `}>
                 
-                {[...values,{is_header:true}].map((v,i) => {
+                {[...values,{}]
+                    .map((v,i) => {
                     //console.log()
                     const size = (edit.index === i ? edit?.value?.size : v?.size) || "1";
                     const rowspan = (edit.index === i ? edit?.value?.rowspan : v?.rowspan) || "1";
@@ -193,7 +218,9 @@ const Edit = ({Component, value, onChange, attr, full_width = false, siteType, a
                             className={`
                                 ${v?.is_header ? '' : theme.sectionArray.sectionPadding} 
                                 ${theme?.sectionArray?.sectionEditWrapper} 
-                                ${colspanClass} ${rowspanClass} 
+                                ${colspanClass} ${rowspanClass}
+                                ${theme?.sectionArray?.border?.[v?.border || 'none']}
+                                
                             `}
                             style={{paddingTop: `${v?.offset || (v?.is_header ? 0 : theme?.sectionArray?.defaultOffset)}px` }}
                         >
@@ -210,6 +237,7 @@ const Edit = ({Component, value, onChange, attr, full_width = false, siteType, a
                                     <div className='flex items-center'>
                                         
                                         <div><Icon icon='InsertSection' className='size-6'/></div>
+                                        {v.order}-{i}
                                     </div>
                                     <div className='flex-1' />
                                 </div>
@@ -269,9 +297,10 @@ const Edit = ({Component, value, onChange, attr, full_width = false, siteType, a
     )
 }
 
-const View = ({Component, value, attr, full_width, siteType, apiLoad, apiUpdate, format}) => {
+const View = ({value, attr, group, siteType}) => {
     if (!value || !value.map) { return '' }
     const { baseUrl, user, theme } = React.useContext(CMSContext) || {}
+    const { apiLoad, apiUpdate, format  } =  React.useContext(PageContext) || {}
 
     const hideSectionCondition = section => {
         //console.log('hideSectionCondition', section?.element?.['element-data'] || '{}')
@@ -282,14 +311,15 @@ const View = ({Component, value, attr, full_width, siteType, apiLoad, apiUpdate,
     }
 
     return (
-        <div className={`${theme.sectionArray.container} ${theme.sectionArray.layouts[full_width === 'show' ? 'fullwidth' : 'centered']}`}>
+        <div className={`${theme.sectionArray.container} ${theme.sectionArray.layouts[group?.full_width === 'show' ? 'fullwidth' : 'centered']}`}>
             {
                 value.filter(v => hideSectionCondition(v))
+                    .sort((a,b) => a.order - b.order)
                     .map((v, i) => {
                         const size = v?.size || "1";
                         const rowspan = v?.rowspan || "1";
                         const colspanClass = (theme?.sectionArray?.sizes?.[size] || theme?.sectionArray?.sizes?.["1"])?.className;
-                        const rowspanClass = (theme?.sectionArray?.rowspans?.[rowspan]?.className || theme?.sectionArray?.rowspans?.["1"])?.className;
+                        const rowspanClass = (theme?.sectionArray?.rowspans?.[rowspan] || theme?.sectionArray?.rowspans?.["1"])?.className;
 
                         return (
                             <div id={v?.id} key={i} 
@@ -297,6 +327,7 @@ const View = ({Component, value, attr, full_width, siteType, apiLoad, apiUpdate,
                                     ${v?.is_header ? '' : theme.sectionArray.sectionPadding} 
                                     ${theme?.sectionArray?.sectionViewWrapper} 
                                     ${colspanClass} ${rowspanClass}
+                                    ${' ' || 'border border-transparent'}
                                 `}
                             >
                                 <SectionView

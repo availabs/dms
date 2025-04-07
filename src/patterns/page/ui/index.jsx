@@ -20,11 +20,14 @@ export { default as Menu } from './components/menu';
 export { default as Input, ConfirmInput } from './components/input';
 export { default as Icon } from './components/icon';
 export { default as Dialog } from './components/dialog';
+export { default as Label } from './components/label';
 export { default as Popover } from './components/popover';
 export { default as Select } from './components/select';
 export { default as ColorPicker } from './components/colorpicker'
 export * from './components/select';
 export { default as FieldSet } from './components/fieldset';
+
+export { default as SectionGroup} from './dataComponents/sections/sectionGroup'
 
 
 export const useClickOutside = handleClick => {

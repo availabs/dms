@@ -50,44 +50,6 @@ function SettingsPane () {
           },
           {
             type:'Select',
-            label: 'Full Width',
-            value: item.full_width || '',
-            options: [
-              {label: 'Show', value: 'show'}, 
-              {label: 'Hide', value: ''}
-            ],
-            onChange:(e) => {
-              togglePageSetting(item, 'full_width', e.target.value,  apiUpdate)
-            }
-          },
-          {
-            type:'Select',
-            label: 'Show Header',
-            value: item.header || '',
-            options: [
-              {label: 'None', value: 'none'}, 
-                  {label: 'Above', value: 'above'},
-                  {label: 'Below', value: 'below'},
-                  {label: 'In page', value: 'inpage'}
-            ],
-            onChange:(e) => {
-              togglePageSetting(item, 'header', e.target.value,  apiUpdate)
-            }
-          },
-          {
-            type:'Select',
-            label: 'Show Footer',
-            value: item.footer || '',
-            options: [
-              {label: 'None', value: ''}, 
-              {label: 'Show', value: 'show'}
-            ],
-            onChange:(e) => {
-              togglePageSetting(item, 'footer', e.target.value,  apiUpdate)
-            }
-          },
-          {
-            type:'Select',
             label: 'Show Content Sidebar',
             value: item.sidebar || '',
             options: [
