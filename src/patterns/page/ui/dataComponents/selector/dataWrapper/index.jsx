@@ -372,7 +372,7 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
 
     // ========================================== get data begin =======================================================
     useEffect(() => {
-        if(!isValidState) return;
+        if(!isValidState || !state.readyToLoad) return;
         let isStale = false;
 
         // builds an object with filter, exclude, gt, gte, lt, lte, like as keys. columnName: [values] as values
@@ -420,11 +420,11 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
         return () => {
             isStale = true;
         }
-    }, [state.columns, isValidState])
+    }, [state.columns, isValidState, state.readyToLoad])
 
     // uweGetDataOnSettingsChange
     useEffect(() => {
-        if(!isValidState) return;
+        if(!isValidState || !state.readyToLoad) return;
         // only run when controls or source/view change
         let isStale = false;
         async function load() {
@@ -447,11 +447,11 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
         return () => {
             isStale = true;
         };
-    }, [state?.dataRequest, state?.sourceInfo, isValidState]);
+    }, [state?.dataRequest, state?.sourceInfo, isValidState, state.readyToLoad]);
 
     // useGetDataOnPageChange
     useEffect(() => {
-        if(!isValidState || !component.useGetDataOnPageChange) return;
+        if(!isValidState || !component.useGetDataOnPageChange || !state.readyToLoad) return;
         // only run when page changes
         let isStale = false;
         async function load() {
@@ -474,7 +474,7 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
         return () => {
             isStale = true;
         }
-    }, [currentPage]);
+    }, [currentPage, state.readyToLoad]);
 
     // useInfiniteScroll
     useEffect(() => {
@@ -558,7 +558,7 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
                     />
                     <div>
                         {/*Pagination*/}
-                        <Pagination currentPage={currentPage} setCurrentPage={setCurrentPage} showPagination={component.showPagination}/>
+                        <Pagination currentPage={currentPage} setCurrentPage={setCurrentPage} setReadyToLoad={() => setState(draft => {draft.readyToLoad = true})} showPagination={component.showPagination}/>
                         {/*Attribution*/}
                         {state.display.showAttribution ? <Attribution/> : null}
                     </div>

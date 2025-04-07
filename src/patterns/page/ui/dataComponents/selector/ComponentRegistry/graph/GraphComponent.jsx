@@ -151,7 +151,7 @@ export const GraphComponent = props => {
       <GraphTitle { ...graphFormat.title }/>
 
       <div className="h-fit">
-        { !activeGraphType ? null :
+        { !activeGraphType || !GraphComponent ? null :
           <GraphComponent
             data={ groupedData }
             title={ get(graphFormat, "title", "") }

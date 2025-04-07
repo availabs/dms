@@ -473,7 +473,7 @@ export default {
         ],
         inHeader: [
             // settings from in header dropdown are stores in the columns array per column.
-            {type: 'select', label: 'Sort', key: 'sort',
+            {type: 'select', label: 'Sort', key: 'sort', dataFetch: true,
                 options: [
                     {label: 'Not Sorted', value: ''}, {label: 'A->Z', value: 'asc nulls last'}, {label: 'Z->A', value: 'desc nulls last'}
                 ]},

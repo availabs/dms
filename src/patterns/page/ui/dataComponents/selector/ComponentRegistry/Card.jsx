@@ -165,19 +165,19 @@ const Card = ({isEdit}) => {
                                     .map(attr => {
                                         const {isLink, location, linkText, useId, isImg, imageSrc, imageLocation, imageExtension, imageSize, imageMargin} = attr || {};
                                         const span = compactView ? 'span 1' : `span ${attr.cardSpan || 1}`;
-
+                                        const rawValue = item?.[attr.normalName || attr.name];
                                         const id = item?.id;
                                         const value =
                                             isImg ?
                                                 <img className={dataCard[imageSize] || 'max-w-[50px] max-h-[50px]'}
                                                      alt={' '}
                                                      src={imageLocation ?
-                                                         `${imageLocation}/${item?.[attr.name]}${imageExtension ? `.${imageExtension}` : ``}` :
-                                                         (imageSrc || item?.[attr.name])}
+                                                         `${imageLocation}/${rawValue}${imageExtension ? `.${imageExtension}` : ``}` :
+                                                         (imageSrc || rawValue)}
                                                 /> :
                                             attr.formatFn && formatFunctions[attr.formatFn] ?
-                                            formatFunctions[attr.formatFn](item?.[attr.name], attr.isDollar).replaceAll(' ', '') :
-                                            item?.[attr.name]
+                                            formatFunctions[attr.formatFn](rawValue, attr.isDollar).replaceAll(' ', '') :
+                                            rawValue
 
                                         const headerTextJustifyClass = justifyClass[attr.justify || 'center']?.header || justifyClass[attr.justify || 'center'];
                                         const valueTextJustifyClass = justifyClass[attr.justify || 'center']?.value || justifyClass[attr.justify || 'center'];

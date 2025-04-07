@@ -21,7 +21,7 @@ export default function TableHeaderCell({isEdit, attribute, context}) {
     const maxCardSpan = display.gridSize || columns.filter(({show, cardSpan}) => show).length;
 
     // updates column if present, else adds it with the change the user made.
-    const updateColumns = useCallback((key, value, onChange) => setState(draft => {
+    const updateColumns = useCallback((key, value, onChange, dataFetch) => setState(draft => {
         // update requested key
         const idx = columns.findIndex(column => column.name === attribute.name);
         if (idx !== -1) {
@@ -30,6 +30,10 @@ export default function TableHeaderCell({isEdit, attribute, context}) {
 
         if(onChange){
             onChange({attribute, key, value, columnIdx: idx})
+        }
+
+        if(dataFetch && !draft.readyToLoad){
+            draft.readyToLoad = true;
         }
 
     }), [columns, attribute]);
@@ -83,14 +87,14 @@ export default function TableHeaderCell({isEdit, attribute, context}) {
                                 .filter(({displayCdn}) =>
                                     typeof displayCdn === 'function' ? displayCdn({attribute, display, isEdit}) :
                                         typeof displayCdn === 'boolean' ? displayCdn : true)
-                                .map(({type, inputType, label, key, options, onChange}) =>
+                                .map(({type, inputType, label, key, dataFetch, options, onChange}) =>
                                     type === 'select' ?
                                         <div className={selectWrapperClass}>
                                             <label className={selectLabelClass}>{label}</label>
                                             <select
                                                 className={selectClasses}
                                                 value={attribute[key]}
-                                                onChange={e => updateColumns(key, e.target.value, onChange)}
+                                                onChange={e => updateColumns(key, e.target.value, onChange, dataFetch)}
                                             >
                                                 {
                                                     options.map(({label, value}) => <option key={value} value={value}>{label}</option>)
@@ -103,7 +107,7 @@ export default function TableHeaderCell({isEdit, attribute, context}) {
                                                     className={`inline-flex w-full justify-center items-center rounded-md cursor-pointer ${selectLabelClass}`}
                                                     title={label}
                                                     value={attribute[key]}
-                                                    setValue={e => updateColumns(key, e, onChange)}
+                                                    setValue={e => updateColumns(key, e, onChange, dataFetch)}
                                                 />
                                             </div> :
                                             type === 'input' ?
@@ -113,10 +117,10 @@ export default function TableHeaderCell({isEdit, attribute, context}) {
                                                         className={selectClasses}
                                                         type={inputType}
                                                         value={attribute[key]}
-                                                        onChange={e => updateColumns(key, e.target.value, onChange)}
+                                                        onChange={e => updateColumns(key, e.target.value, onChange, dataFetch)}
                                                     />
                                                 </div> :
-                                            typeof type === 'function' ? type({value: attribute[key], setValue: newValue => updateColumns(key, newValue, onChange)}) :
+                                            typeof type === 'function' ? type({value: attribute[key], setValue: newValue => updateColumns(key, newValue, onChange, dataFetch)}) :
                                                 `${type} not available`
                                 )
                         }

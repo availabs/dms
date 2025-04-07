@@ -63,7 +63,7 @@ function DraggableNavItem ({activeItem, item, dataItems, handleCollapseIconClick
             </div>*/}
             <div className={`${isActive ? theme?.nestable?.navItemContainerActive : theme?.nestable?.navItemContainer} `}>
 
-                <NavLink className={theme?.nestable?.navLink} to={`${edit ? `${baseUrl}/edit` : baseUrl}/${item.url_slug || item.id}`}>{item.title}</NavLink>
+                <NavLink className={theme?.nestable?.navLink} to={`${edit ? `${baseUrl}/edit` : baseUrl}/${item.url_slug || item.id}`}>{item.title || item.id}</NavLink>
 
                 <div className={'flex gap-0.5 items-center'}>
                     <Menu 
@@ -172,7 +172,7 @@ function DeleteModal ({title, prompt, item={}, open, setOpen, onDelete})  {
           type="plain"
           className='mr-1'
           onClick={() => setOpen()}
-          ref={cancelButtonRef}
+          forwardref={cancelButtonRef}
         >
           Cancel
         </Button>
