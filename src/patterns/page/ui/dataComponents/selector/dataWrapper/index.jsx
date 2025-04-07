@@ -534,6 +534,7 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
     }
     // =========================================== util fns end ========================================================
     if(showChangeFormatModal || !isValidState) return <div className={'p-1 text-center'}>Form data not available.</div>;
+    component.name === 'Spreadsheet' && console.log('dw?', state)
     return (
         <ComponentContext.Provider value={{state, setState, apiLoad, controls: component.controls}}>
             <div className={'w-full h-full'}>

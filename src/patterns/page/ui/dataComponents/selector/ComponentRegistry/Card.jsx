@@ -156,9 +156,10 @@ const Card = ({isEdit}) => {
             {/* outer wrapper: in compact view, grid applies here */}
             <div className={gridSize && compactView ? dataCard.mainWrapperCompactView : dataCard.mainWrapperSimpleView} style={mainWrapperStyle}>
                 {
-                    data.map(item => (
+                    data.map((item, i) => (
                         //  in normal view, grid applied here
-                        <div className={`${dataCard.subWrapper} ${compactView ? `${dataCard.subWrapperCompactView} ${removeBorder ? `` : 'border shadow'}` : dataCard.subWrapperSimpleView} `}
+                        <div key={i}
+                             className={`${dataCard.subWrapper} ${compactView ? `${dataCard.subWrapperCompactView} ${removeBorder ? `` : 'border shadow'}` : dataCard.subWrapperSimpleView} `}
                              style={subWrapperStyle}>
                             {
                                 visibleColumns

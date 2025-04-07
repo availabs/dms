@@ -4,6 +4,7 @@ import SourcesLayout from "../components/patternListComponent/layout";
 import Spreadsheet from "../../page/ui/dataComponents/selector/ComponentRegistry/spreadsheet";
 import {useNavigate} from "react-router-dom";
 import DataWrapper from "../../page/ui/dataComponents/selector/dataWrapper";
+import {cloneDeep, uniqBy} from "lodash-es";
 
 const TableView = ({apiUpdate, apiLoad, format, item, params}) => {
     const { baseUrl, pageBaseUrl, theme, user } = useContext(FormsContext) || {};
@@ -31,7 +32,7 @@ const TableView = ({apiUpdate, apiLoad, format, item, params}) => {
             allowDownload: true,
         },
         columns: defaultColumns?.length ?
-                    defaultColumns.map(dc => columns.find(col => col.name === dc.name)).filter(c => c).map(c => ({...c, show: true})) :
+                    uniqBy(defaultColumns.map(dc => columns.find(col => col.name === dc.name)).filter(c => c).map(c => ({...c, show: true})), d => d?.name) :
                         columns.slice(0, 3).map(c => ({...c, show:true})),
     }))
 
@@ -50,6 +51,15 @@ const TableView = ({apiUpdate, apiLoad, format, item, params}) => {
             navigate(`${pageBaseUrl}/${params.id}/table/${recentView}`)
         }
     }, [item.views]);
+
+    const SpreadSheetCompWithControls = cloneDeep(Spreadsheet);
+    // SpreadSheetCompWithControls.controls.columns.push({
+    //     type: 'toggle',
+    //     label: 'Show N/A',
+    //     key: 'filters',
+    //     trueValue: [{type: 'internal', operation: 'filter', values: ['null']}]
+    // })
+    SpreadSheetCompWithControls.controls.columns = SpreadSheetCompWithControls.controls.columns.filter(({label}) => label !== 'duplicate')
 
     return (
         <SourcesLayout fullWidth={false} baseUrl={baseUrl} pageBaseUrl={pageBaseUrl} isListAll={false} hideBreadcrumbs={false}
@@ -73,7 +83,7 @@ const TableView = ({apiUpdate, apiLoad, format, item, params}) => {
                                 null
                         }
                         <DataWrapper.EditComp
-                            component={Spreadsheet}
+                            component={SpreadSheetCompWithControls}
                             key={'table-page-spreadsheet'}
                             value={value}
                             onChange={(stringValue) => {setValue(stringValue)}}
