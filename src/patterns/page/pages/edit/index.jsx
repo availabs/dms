@@ -48,7 +48,7 @@ function PageEdit ({
 	  	// -------------------------------------------------------------------
 	    // -- This on load effect backfills pages created before sectionGroups
 	  	// -------------------------------------------------------------------
-	  	// if(!item.draft_section_groups) {
+	  	if(!item.draft_section_groups) {
 	    	let newItem = {id: item.id}
 	    	newItem.draft_section_groups = [
 	    		{name: 'default', position: 'content', index: 0, theme: 'content'}
@@ -87,7 +87,7 @@ function PageEdit ({
     			}
     		})
 	    	submit(json2DmsForm(newItem), { method: "post", action: `${baseUrl}/edit/${item.url_slug}` })
-	    //}
+	    }
 	   
 	},[])
 
