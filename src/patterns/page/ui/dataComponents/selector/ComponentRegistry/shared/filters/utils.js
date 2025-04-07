@@ -98,6 +98,14 @@ export const getFilters = (columns= []) => columns.reduce((acc, column) => {
     return acc;
 }, {});
 
+export const getNormalFilters = (columns= []) => columns.reduce((acc, column) => {
+    if (!Array.isArray(column.filters)) return acc;
+
+    const values = (column.filters).reduce((acc, f) => [...acc, ...(f.values || [])], []);
+    acc.push({column: column.name, values: uniq(values)}); // a normal column can have any number of filters
+    return acc;
+}, []);
+
 export const getDataToTrack = columns => columns.map(({name, display_name, customName, internalFilter, externalFilter}) => ({name, display_name, customName, internalFilter, externalFilter}))
 
 export const convertToUrlParams = (obj, delimiter) => {

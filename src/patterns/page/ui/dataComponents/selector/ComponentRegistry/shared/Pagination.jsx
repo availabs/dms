@@ -6,7 +6,7 @@ import { CMSContext } from '../../../../../siteConfig'
 export const paginationTheme = {
     
 }
-export const Pagination = ({currentPage, setCurrentPage, showPagination}) => {
+export const Pagination = ({currentPage, setCurrentPage, showPagination, setReadyToLoad}) => {
     const {state} = useContext(ComponentContext)
     const { theme = { table: tableTheme } } = React.useContext(CMSContext) || {}
     if(!state.columns.filter(column => column.show).length || !showPagination) return;
@@ -32,6 +32,9 @@ export const Pagination = ({currentPage, setCurrentPage, showPagination}) => {
     }
 
     if(paginationRange.length === 1 ) return null;
+    if(!state.display.usePagination){
+        setReadyToLoad(true);
+    }
     return (
         <div className={theme?.table?.paginationContainer}>
             {
@@ -49,7 +52,10 @@ export const Pagination = ({currentPage, setCurrentPage, showPagination}) => {
                                     paginationRange.map(i => (
                                         <div key={i}
                                              className={`${theme?.table?.pageRangeItem}  ${currentPage === i ? theme?.table?.pageRangeItemActive : theme?.table?.pageRangeItemInactive} `}
-                                             onClick={() => setCurrentPage(i)}
+                                             onClick={() => {
+                                                 setCurrentPage(i)
+                                                 setReadyToLoad(true)
+                                             }}
                                         >{i + 1}</div>
                                     ))
                                 }

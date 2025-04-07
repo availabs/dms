@@ -139,16 +139,25 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, component, hideS
 
         // builds an object with filter, exclude, gt, gte, lt, lte, like as keys. columnName: [values] as values
         const filterOptions = state.columns.reduce((acc, column) => {
+            const isNormalisedColumn = state.columns.filter(col => col.name === column.name && col.filters?.length).length > 1;
+
             (column.filters || [])
                 .filter(({values}) => Array.isArray(values) && values.every(v => typeof v === 'string' ? v.length : typeof v !== 'object'))
                 .forEach(({type, operation, values}) => {
-                acc[operation] = {...acc[operation] || {}, [column.name]: values};
-            })
+                    // here, operation is filter, exclude, >, >=, <, <=.
+                    // normal columns only support filter.
+                    if(isNormalisedColumn){
+                        (acc.normalFilter ??= []).push({ column: column.name, values });
+                    }else{
+                        acc[operation] = {...acc[operation] || {}, [column.name]: values};
+                    }
+
+                })
 
             if(column.excludeNA){
                 acc.exclude = acc.exclude && acc.exclude[column.name] ?
-                                {...acc.exclude, [column.name]: [...acc.exclude[column.name], 'null']} :
-                                {...acc.exclude || [], [column.name]: ['null']}
+                    {...acc.exclude, [column.name]: [...acc.exclude[column.name], 'null']} :
+                    {...acc.exclude || [], [column.name]: ['null']}
 
             }
             return acc;
@@ -363,15 +372,24 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
 
     // ========================================== get data begin =======================================================
     useEffect(() => {
-        if(!isValidState) return;
+        if(!isValidState || !state.readyToLoad) return;
         let isStale = false;
 
         // builds an object with filter, exclude, gt, gte, lt, lte, like as keys. columnName: [values] as values
         const filterOptions = state.columns.reduce((acc, column) => {
+            const isNormalisedColumn = state.columns.filter(col => col.name === column.name && col.filters?.length).length > 1;
+
             (column.filters || [])
                 .filter(({values}) => Array.isArray(values) && values.every(v => typeof v === 'string' ? v.length : typeof v !== 'object'))
                 .forEach(({type, operation, values}) => {
-                acc[operation] = {...acc[operation] || {}, [column.name]: values};
+                    // here, operation is filter, exclude, >, >=, <, <=.
+                    // normal columns only support filter.
+                    if(isNormalisedColumn){
+                        (acc.normalFilter ??= []).push({ column: column.name, values });
+                    }else{
+                        acc[operation] = {...acc[operation] || {}, [column.name]: values};
+                    }
+
             })
 
             if(column.excludeNA){
@@ -402,11 +420,11 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
         return () => {
             isStale = true;
         }
-    }, [state.columns, isValidState])
+    }, [state.columns, isValidState, state.readyToLoad])
 
     // uweGetDataOnSettingsChange
     useEffect(() => {
-        if(!isValidState) return;
+        if(!isValidState || !state.readyToLoad) return;
         // only run when controls or source/view change
         let isStale = false;
         async function load() {
@@ -429,11 +447,11 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
         return () => {
             isStale = true;
         };
-    }, [state?.dataRequest, state?.sourceInfo, isValidState]);
+    }, [state?.dataRequest, state?.sourceInfo, isValidState, state.readyToLoad]);
 
     // useGetDataOnPageChange
     useEffect(() => {
-        if(!isValidState || !component.useGetDataOnPageChange) return;
+        if(!isValidState || !component.useGetDataOnPageChange || !state.readyToLoad) return;
         // only run when page changes
         let isStale = false;
         async function load() {
@@ -456,7 +474,7 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
         return () => {
             isStale = true;
         }
-    }, [currentPage]);
+    }, [currentPage, state.readyToLoad]);
 
     // useInfiniteScroll
     useEffect(() => {
@@ -521,7 +539,7 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
             <div className={'w-full h-full'}>
                 <div className={'w-full'}>
                     <div className={'w-full flex justify-end gap-2'}>
-                        <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={isEdit} defaultOpen={false}/>
+                        <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={isEdit} defaultOpen={true}/>
                         <RenderDownload state={state} apiLoad={apiLoad}/>
                     </div>
                     {/*
@@ -540,7 +558,7 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
                     />
                     <div>
                         {/*Pagination*/}
-                        <Pagination currentPage={currentPage} setCurrentPage={setCurrentPage} showPagination={component.showPagination}/>
+                        <Pagination currentPage={currentPage} setCurrentPage={setCurrentPage} setReadyToLoad={() => setState(draft => {draft.readyToLoad = true})} showPagination={component.showPagination}/>
                         {/*Attribution*/}
                         {state.display.showAttribution ? <Attribution/> : null}
                     </div>

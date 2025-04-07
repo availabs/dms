@@ -1,10 +1,12 @@
-import {formatFunctions} from "../dataWrapper/utils/utils";
+import {formatFunctions, isEqualColumns} from "../dataWrapper/utils/utils";
 import {ComponentContext} from "../dataWrapper";
 import TableHeaderCell from "./spreadsheet/components/TableHeaderCell";
 import React, {useContext, useEffect, useMemo} from "react";
 import {Link} from "react-router-dom";
 import {CMSContext} from "../../../../siteConfig";
 import {ColorControls} from "./shared/ColorControls";
+import {cloneDeep} from "lodash-es";
+import {Copy} from "../../../icons";
 
 const justifyClass = {
     left: 'justifyTextLeft',
@@ -163,19 +165,19 @@ const Card = ({isEdit}) => {
                                     .map(attr => {
                                         const {isLink, location, linkText, useId, isImg, imageSrc, imageLocation, imageExtension, imageSize, imageMargin} = attr || {};
                                         const span = compactView ? 'span 1' : `span ${attr.cardSpan || 1}`;
-
+                                        const rawValue = item?.[attr.normalName || attr.name];
                                         const id = item?.id;
                                         const value =
                                             isImg ?
                                                 <img className={dataCard[imageSize] || 'max-w-[50px] max-h-[50px]'}
                                                      alt={' '}
                                                      src={imageLocation ?
-                                                         `${imageLocation}/${item?.[attr.name]}${imageExtension ? `.${imageExtension}` : ``}` :
-                                                         (imageSrc || item?.[attr.name])}
+                                                         `${imageLocation}/${rawValue}${imageExtension ? `.${imageExtension}` : ``}` :
+                                                         (imageSrc || rawValue)}
                                                 /> :
                                             attr.formatFn && formatFunctions[attr.formatFn] ?
-                                            formatFunctions[attr.formatFn](item?.[attr.name], attr.isDollar).replaceAll(' ', '') :
-                                            item?.[attr.name]
+                                            formatFunctions[attr.formatFn](rawValue, attr.isDollar).replaceAll(' ', '') :
+                                            rawValue
 
                                         const headerTextJustifyClass = justifyClass[attr.justify || 'center']?.header || justifyClass[attr.justify || 'center'];
                                         const valueTextJustifyClass = justifyClass[attr.justify || 'center']?.value || justifyClass[attr.justify || 'center'];
@@ -249,6 +251,32 @@ export default {
             {type: 'toggle', label: 'show', key: 'show'},
             {type: 'toggle', label: 'Filter', key: 'filters', trueValue: [{type: 'internal', operation: 'filter', values: []}]},
             {type: 'toggle', label: 'Group', key: 'group'},
+            {type: ({attribute, setState}) => {
+                    const duplicate = () => {
+                        setState(draft => {
+                            let idx = draft.columns.findIndex(col => isEqualColumns(col, attribute));
+                            if (idx === -1) {
+                                draft.columns.push({...attribute, normalName: `${attribute.name}_original`});
+                                idx = draft.columns.length - 1; // new index
+                            }
+                            const columnToAdd = cloneDeep(draft.columns[idx]);
+                            const numDuplicates = draft.columns.filter(col => col.isDuplicate && col.name === columnToAdd.name).length;
+
+                            columnToAdd.isDuplicate = true;
+                            columnToAdd.copyNum = numDuplicates + 1;
+                            columnToAdd.normalName = `${columnToAdd.name}_copy_${numDuplicates + 1}`
+                            // columnToAdd.originalName = columnToAdd.name;
+                            // columnToAdd.name += ` - copy - ${numDuplicates}`
+                            console.log('column to add', columnToAdd)
+                            draft.columns.push(columnToAdd)
+                            // draft.columns.splice(idx, 0, columnToAdd)
+                        })
+                    }
+                    return (
+                        <div className={'flex place-content-center'} onClick={() => duplicate()}>
+                            <Copy className={'text-gray-500 hover:text-gray-700'} />
+                        </div>)
+                }, label: 'duplicate'},
         ],
         more: [
             // settings from more dropdown are stored in state.display

@@ -3,6 +3,9 @@ import {ComponentContext} from "../../dataWrapper";
 import TableHeaderCell from "../spreadsheet/components/TableHeaderCell";
 import {getColorRange, GraphComponent} from "./GraphComponent";
 import AppearanceControls from "./controls/AppearanceControls";
+import {isEqualColumns} from "../../dataWrapper/utils/utils";
+import {cloneDeep} from "lodash-es";
+import {Copy} from "../../../../icons";
 
 const NaNValues = ["", null]
 
@@ -32,7 +35,7 @@ const Graph = ({isEdit}) => {
             const index = row[indexColumn.name] && typeof row[indexColumn.name] !== 'object' && typeof row[indexColumn.name] !== 'string' ?
                             row[indexColumn.name].toString() : row[indexColumn.name];
             dataColumns.forEach(dataColumn => {
-                const value = row[dataColumn.name];
+                const value = row[dataColumn.normalName || dataColumn.name];
                 const type = categoryColumn.name ? row[categoryColumn.name] : (dataColumn.customName || dataColumn.display_name || dataColumn.name)
 
                 if(!strictNaN(value) && type){
@@ -185,6 +188,32 @@ export default {
                 }},
 
             {type: 'toggle', label: 'Filter', key: 'filters', trueValue: [{type: 'internal', operation: 'filter', values: []}]},
+            {type: ({attribute, setState}) => {
+                    const duplicate = () => {
+                        setState(draft => {
+                            let idx = draft.columns.findIndex(col => isEqualColumns(col, attribute));
+                            if (idx === -1) {
+                                draft.columns.push({...attribute, normalName: `${attribute.name}_original`});
+                                idx = draft.columns.length - 1; // new index
+                            }
+                            const columnToAdd = cloneDeep(draft.columns[idx]);
+                            const numDuplicates = draft.columns.filter(col => col.isDuplicate && col.name === columnToAdd.name).length;
+
+                            columnToAdd.isDuplicate = true;
+                            columnToAdd.copyNum = numDuplicates + 1;
+                            columnToAdd.normalName = `${columnToAdd.name}_copy_${numDuplicates + 1}`
+                            // columnToAdd.originalName = columnToAdd.name;
+                            // columnToAdd.name += ` - copy - ${numDuplicates}`
+                            console.log('column to add', columnToAdd)
+                            draft.columns.push(columnToAdd)
+                            // draft.columns.splice(idx, 0, columnToAdd)
+                        })
+                    }
+                    return (
+                        <div className={'flex place-content-center'} onClick={() => duplicate()}>
+                            <Copy className={'text-gray-500 hover:text-gray-700'} />
+                        </div>)
+                }, label: 'duplicate'},
         ],
         appearance: {Comp: AppearanceControls},
         inHeader: [

@@ -8,6 +8,9 @@ import {actionsColSize, numColSize as numColSizeDf, gutterColSize as gutterColSi
 import {ComponentContext} from "../../dataWrapper";
 import ActionControls from "./controls/ActionControls";
 import { CMSContext } from '../../../../../siteConfig'
+import {Add, Copy} from "../../../../icons";
+import {cloneDeep} from "lodash-es";
+import {isEqualColumns} from "../../dataWrapper/utils/utils";
 
 const getLocation = selectionPoint => {
     let {index, attrI} = typeof selectionPoint === 'number' ? {
@@ -141,11 +144,11 @@ export const RenderTable = ({isEdit, updateItem, removeItem, addItem, newItem, s
             columnsWithSizeLength !== visibleAttrsWithoutOpenOutLen ||
             currUsedWidth < gridWidth // resize to use full width
         ) {
-            const availableVisibleAttributes = visibleAttrsWithoutOpenOut.filter(v => v.actionType || sourceInfo.columns.find(attr => attr.name === v.name));
+            const availableVisibleAttributes = visibleAttrsWithoutOpenOut.filter(v => v.actionType || v.type === 'formula' || sourceInfo.columns.find(attr => attr.name === v.name));
             const initialColumnWidth = Math.max(minInitColSize, gridWidth / availableVisibleAttributes.length);
             setState(draft => {
                 availableVisibleAttributes.forEach(attr => {
-                    const idx = draft.columns.findIndex(column => column.name === attr.name);
+                    const idx = draft.columns.findIndex(column => isEqualColumns(column, attr));
                     if(idx !== -1) {
                         draft.columns[idx].size = initialColumnWidth;
                     }
@@ -158,17 +161,17 @@ export const RenderTable = ({isEdit, updateItem, removeItem, addItem, newItem, s
     // =================================================================================================================
     // =========================================== Mouse Controls begin ================================================
     // =================================================================================================================
-    const colResizer = (columnName) => (e) => {
+    const colResizer = (attribute) => (e) => {
         const element = gridRef.current;
         if(!element) return;
 
-        const column = visibleAttributes.find(({name}) => name === columnName);
+        const column = visibleAttributes.find(va => isEqualColumns(va, attribute));
         const startX = e.clientX;
         const startWidth = column.size || 0;
         const handleMouseMove = (moveEvent) => {
             const newWidth = Math.max(minColSize, startWidth + moveEvent.clientX - startX);
             setState(draft => {
-                const idx = draft.columns.findIndex(column => column.name === columnName);
+                const idx = draft.columns.findIndex(column => isEqualColumns(column, attribute));
                 draft.columns[idx].size = newWidth;
             })
         };
@@ -287,7 +290,7 @@ export const RenderTable = ({isEdit, updateItem, removeItem, addItem, newItem, s
                                         right: 0,
                                         top: 0
                                     }}
-                                    onMouseDown={colResizer(attribute?.name)}
+                                    onMouseDown={colResizer(attribute)}
                                 />
 
                             </div>
@@ -423,15 +426,38 @@ export default {
                 options: [
                     {label: 'fn', value: ' '}, {label: 'list', value: 'list'}, {label: 'sum', value: 'sum'}, {label: 'count', value: 'count'}
                 ]},
-            {type: 'select', label: 'Exclude N/A', key: 'excludeNA',
-                options: [
-                    {label: 'include n/a', value: false}, {label: 'exclude n/a', value: true}
-                ]},
             {type: 'toggle', label: 'show', key: 'show'},
+            {type: 'toggle', label: 'Exclude N/A', key: 'excludeNA'},
             {type: 'toggle', label: 'Open Out', key: 'openOut'},
             {type: 'toggle', label: 'Filter', key: 'filters',
                 trueValue: [{type: 'internal', operation: 'filter', values: []}]},
             {type: 'toggle', label: 'Group', key: 'group'},
+            {type: ({attribute, setState}) => {
+                const duplicate = () => {
+                    setState(draft => {
+                        let idx = draft.columns.findIndex(col => isEqualColumns(col, attribute));
+                        if (idx === -1) {
+                            draft.columns.push({...attribute, normalName: `${attribute.name}_original`});
+                            idx = draft.columns.length - 1; // new index
+                        }
+                        const columnToAdd = cloneDeep(draft.columns[idx]);
+                        const numDuplicates = draft.columns.filter(col => col.isDuplicate && col.name === columnToAdd.name).length;
+
+                        columnToAdd.isDuplicate = true;
+                        columnToAdd.copyNum = numDuplicates + 1;
+                        columnToAdd.normalName = `${columnToAdd.name}_copy_${numDuplicates + 1}`
+                        // columnToAdd.originalName = columnToAdd.name;
+                        // columnToAdd.name += ` - copy - ${numDuplicates}`
+                        console.log('column to add', columnToAdd)
+                        draft.columns.push(columnToAdd)
+                        // draft.columns.splice(idx, 0, columnToAdd)
+                    })
+                }
+                    return (
+                        <div className={'flex place-content-center'} onClick={() => duplicate()}>
+                            <Copy className={'text-gray-500 hover:text-gray-700'} />
+                        </div>)
+                }, label: 'duplicate'},
         ],
         actions: {Comp: ActionControls},
         more: [
@@ -447,7 +473,7 @@ export default {
         ],
         inHeader: [
             // settings from in header dropdown are stores in the columns array per column.
-            {type: 'select', label: 'Sort', key: 'sort',
+            {type: 'select', label: 'Sort', key: 'sort', dataFetch: true,
                 options: [
                     {label: 'Not Sorted', value: ''}, {label: 'A->Z', value: 'asc nulls last'}, {label: 'Z->A', value: 'desc nulls last'}
                 ]},
