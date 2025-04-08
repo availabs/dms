@@ -104,9 +104,13 @@ const updateSections = async ({update, action, changeType, item, sectionFormat, 
     //   await apiUpdate({data: update[index], config: {format: sectionFormat}})
     // }
   } else if (changeType === 'new') {
+      const sections = cloneDeep(item.draft_sections)
+      sections.forEach((s,i) => {
+        if(!s.order) { s.order = i; }
+      })
       const newItem = {
         id: item?.id, 
-        draft_sections: [...item.draft_sections,...update],
+        draft_sections: [,...update],
         has_changes: true,
         history, 
       }

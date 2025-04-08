@@ -80,6 +80,7 @@ function PageEdit ({
 
 
     		newItem.draft_sections.forEach((section,i) => {
+    			section.order = i;
     			if(section.is_header) {
     				//console.log('section is header', section.id)
     				section.group = 'header'
