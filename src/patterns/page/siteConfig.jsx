@@ -98,9 +98,6 @@ export const pagesConfig = ({
           options: JSON.stringify({
             filter: {
               "data->>'template_id'": ['null'],
-            },
-            exclude: {
-              "data->>'title'": ['null'],
             }
           }),
           attributes:['title', 'index', 'url_slug', 'parent','published', 'description','hide_in_nav']
