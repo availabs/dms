@@ -69,7 +69,9 @@ function UpdateEditor ({value, onChange, bgColor, theme, editable}) {
           ? value : null
         if(update) {
           const newEditorState = editor.parseEditorState(update)
-          editor.setEditorState(newEditorState)
+          queueMicrotask(() => {
+            editor.setEditorState(newEditorState)
+          })
         }
       }
   }, [isFirstRender.current, value, theme])

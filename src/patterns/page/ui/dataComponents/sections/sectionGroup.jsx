@@ -105,12 +105,22 @@ const updateSections = async ({update, action, changeType, item, sectionFormat, 
     // }
   } else if (changeType === 'new') {
       const sections = cloneDeep(item.draft_sections)
-      sections.forEach((s,i) => {
-        if(!s.order) { s.order = i; }
+      const sectionUpdates = item.draft_sections
+        .map((s,i) => {
+          const out = {
+            id: s.id
+          }
+          if(!s.order) { 
+            out.order = i; 
+          }
+          if(s.group === update.group && s.order >= update.order) {
+            out.order = s.order + 1; 
+          }
+          return out
       })
       const newItem = {
         id: item?.id, 
-        draft_sections: [,...update],
+        draft_sections: [...sectionUpdates,...update],
         has_changes: true,
         history, 
       }
