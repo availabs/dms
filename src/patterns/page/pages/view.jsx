@@ -57,7 +57,7 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
           }
         }
         
-        newItem.sections.forEach((section,i) => {
+        newItem.sections?.forEach((section,i) => {
           if(section.is_header) {
             //console.log('section is header', section.id)
             section.group = 'header'
