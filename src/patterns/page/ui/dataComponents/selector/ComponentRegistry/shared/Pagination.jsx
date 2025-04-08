@@ -33,7 +33,7 @@ export const Pagination = ({currentPage, setCurrentPage, showPagination, setRead
 
     if(paginationRange.length === 1 ) return null;
     if(!state.display.usePagination){
-        setReadyToLoad(true);
+        setReadyToLoad && setReadyToLoad(true);
     }
     return (
         <div className={theme?.table?.paginationContainer}>

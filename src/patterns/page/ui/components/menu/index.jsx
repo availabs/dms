@@ -73,24 +73,34 @@ export default function MenuComp ({ children, items=defaultItems }) {
   return (
     <div className="z-50">
       <Menu as="div" className="relative block ">
-        <MenuButton as="div" className="">
-          <span className="sr-only">Open options</span>
-          {children}
-        </MenuButton>
-        <MenuItems
-          transition
-          className={theme.menu.menuItems}
-          modal={false}
-        >
-          <div className="py-1">
-            {
-              items.map((item, i) => {
-                const ItemComp = ItemTypes?.[item?.type] || ItemTypes['simple']
-                return  <MenuItem key={i}><ItemComp  item={item} /></MenuItem>
-              }
-            )}
-          </div>
-        </MenuItems>
+        {
+          ({open}) => (
+              <>
+                <MenuButton as="div" className="">
+                  <span className="sr-only">Open options</span>
+                  {children}
+                </MenuButton>
+                <MenuItems
+                    static
+                    transition
+                    className={!open ? `hidden pointer-events-none` : theme.menu.menuItems}
+                    modal={false}
+                >
+                  <div className="py-1">
+                    {
+                      items.map((item, i) => {
+                            if(!item) {
+                              console.log('<MenuComp> item not found')
+                            }
+                            const ItemComp = ItemTypes?.[item?.type] || ItemTypes['simple']
+                            return  <MenuItem key={i}><ItemComp item={item} /></MenuItem>
+                          }
+                      )}
+                  </div>
+                </MenuItems>
+              </>
+          )
+        }
       </Menu>
     </div>
   )

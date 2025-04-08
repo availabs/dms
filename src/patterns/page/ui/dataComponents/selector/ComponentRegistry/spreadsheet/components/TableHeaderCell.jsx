@@ -47,14 +47,15 @@ export default function TableHeaderCell({isEdit, attribute, context}) {
     }
 
     return (
-        <div className="relative w-full">
+        <div key={attribute.normalName || attribute.name} className="relative w-full">
             <div id={menuBtnId}
+                 key={'menu-btn'}
                  className={`group inline-flex items-center w-full justify-between gap-x-1.5 rounded-md cursor-pointer`}
                  onClick={e => setIsOpen(!isOpen)}>
                 {
                     controls.header?.displayFn ? controls.header.displayFn(attribute) :
                         (
-                            <span className={'truncate select-none'}
+                            <span key={`${attribute.normalName || attribute.name}-name`} className={'truncate select-none'}
                                   title={attribute.customName || attribute.display_name || attribute.name}>
                                 {attribute.customName || attribute.display_name || attribute.name}
                             </span>
@@ -63,19 +64,22 @@ export default function TableHeaderCell({isEdit, attribute, context}) {
                 <div id={menuBtnId} className={'flex items-center'}>
                     {/*/!*<InfoCircle width={16} height={16} className={'text-gray-500'} />*!/ needs a lexical modal*/}
                     {
-                        attribute.group ? <Group key={'group-icon'} className={iconClass} {...iconSizes} /> :
+                        attribute.group ? <Group key={`group-${attribute.name}`} className={iconClass} {...iconSizes} /> :
                             attribute.fn ? fnIcons[attribute.fn] || attribute.fn : null
                     }
                     {
-                        attribute.sort === 'asc nulls last' ? <SortAsc key={'sort-icon'} className={iconClass} {...iconSizes} /> :
-                            attribute.sort === 'desc nulls last' ? <SortDesc key={'sort-icon'} className={iconClass} {...iconSizes} /> : null
+                        attribute.sort === 'asc nulls last' ? <SortAsc key={'sort-asc-icon'} className={iconClass} {...iconSizes} /> :
+                            attribute.sort === 'desc nulls last' ? <SortDesc key={'sort-desc-icon'} className={iconClass} {...iconSizes} /> : null
                     }
 
-                    <ArrowDown id={menuBtnId} className={'text-gray-400 group-hover:text-gray-600 transition ease-in-out duration-200'}/>
+                    <ArrowDown key={`arrow-down-${attribute.name}`}
+                               id={menuBtnId}
+                               className={'text-gray-400 group-hover:text-gray-600 transition ease-in-out duration-200'}/>
                 </div>
             </div>
 
             <div ref={menuRef}
+                 key={'menu'}
                  className={`min-w-[180px]
                  ${isOpen ? 'visible transition ease-in duration-200' : 'hidden transition ease-in duration-200'} 
                  absolute right-0 z-[10] divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 transition`}
@@ -89,7 +93,7 @@ export default function TableHeaderCell({isEdit, attribute, context}) {
                                         typeof displayCdn === 'boolean' ? displayCdn : true)
                                 .map(({type, inputType, label, key, dataFetch, options, onChange}) =>
                                     type === 'select' ?
-                                        <div className={selectWrapperClass}>
+                                        <div key={`${attribute.normalName || attribute.name}-${key}`} className={selectWrapperClass}>
                                             <label className={selectLabelClass}>{label}</label>
                                             <select
                                                 className={selectClasses}

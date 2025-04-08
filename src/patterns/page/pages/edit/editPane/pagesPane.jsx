@@ -51,11 +51,10 @@ function DraggableNavItem ({activeItem, item, dataItems, handleCollapseIconClick
     const [showDelete, setShowDelete] = React.useState(false)
     const [showRename, setShowRename] = React.useState(false)
 
-
+    if(!dataItems.find(i => item?.id === i.id)) return;
     //-- this is not ideal, better to check id and parent
     const isActive = pathname.includes(item.url_slug)
    //console.log('apiUpdate', apiUpdate)
-
     return (
         <div key={item.id} className='group max-w-full'>
            {/* <div className='border-t border-transparent hover:border-blue-500 w-full relative'>
@@ -66,22 +65,30 @@ function DraggableNavItem ({activeItem, item, dataItems, handleCollapseIconClick
                 <NavLink className={theme?.nestable?.navLink} to={`${edit ? `${baseUrl}/edit` : baseUrl}/${item.url_slug || item.id}`}>{item.title || item.id}</NavLink>
 
                 <div className={'flex gap-0.5 items-center'}>
-                    <Menu 
+                    {/*{
+                        [
+                            {
+                                name: (<span className=''>Rename</span>),
+                                onClick: () => setShowRename(true)
+                            },
+                            {
+                                name: (<span className='text-red-400'>Delete</span>),
+                                onClick: () =>  {
+
+                                    setShowDelete(true)
+                                }
+                            }
+                        ].map(modal => <div onClick={modal.onClick}>{modal.name}</div>)
+                    }*/}
+                    <Menu
                       items={[
                         {
                           name: (<span className=''>Rename</span>), 
                           onClick: () => setShowRename(true)
                         },
-                        // {
-                        //   name: (<span className=''>Insert Subpage</span>), 
-                        //   onClick: () => insertSubPage(item, dataItems, apiUpdate)
-                        // },
                         {
                           name: (<span className='text-red-400'>Delete</span>), 
-                          onClick: () =>  {
-                            
-                            setShowDelete(true)
-                          }
+                          onClick: () => setShowDelete(true)
                         }
                       ]}
                     > 
@@ -211,11 +218,10 @@ function RenameModal ({title, prompt, item={}, dataItems, open, setOpen})  {
           parent: editItem?.parent   
         }
         newItem.url_slug = getUrlSlug(newItem, dataItems)
-
-        console.log('newItem', newItem, dataItems, item)
+        const newPathName = pathname.endsWith(item.url_slug) ? pathname.replace(new RegExp(item.url_slug + '$'), newItem.url_slug) : pathname;
 
         setLoading(true)
-        await submit(json2DmsForm(newItem), { method: "post", action: `/edit/${newItem.url_slug}` })
+        await submit(json2DmsForm(newItem), { method: "post", action: newPathName })
         setLoading(false)
         setOpen()
       }
