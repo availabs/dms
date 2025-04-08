@@ -22,7 +22,7 @@
     "url": "git+https://github.com/availabs/dms.git"
   },
   "author": "AVAIL",
-  "license": "GPLv3",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/availabs/dms/issues"
   },
