@@ -24,27 +24,39 @@ const Breadcrumbs = ({ chain, show }) => {
 };
 
 const SearchButton = ({app, type, show}) => {
-    const [open, setOpen] = useState(false)
+    const [open, setOpen] = useState(false);
+    const [searchStr, setSearchStr] = useState('');
     if(!show) return null;
     return (
         <>
-            <button
+            <div
                 className={`
-                bg-white flex justify-between items-center
-                h-[56px] w-full py-[16px] px-[24px]
-                rounded-[1000px]
-                shadow-sm transition ease-in
-                `}
-                onClick={() => setOpen(true)}
-                style={{
-                    boxShadow: '0px 2px 4px 0px #00000014'
-                }}
+                            bg-white flex justify-between items-center
+                            h-[56px] w-full py-[16px] px-[24px]
+                            rounded-[1000px]
+                            shadow-[0px_2px_4px_0px_rgba(0,0,0,0.08)]
+                            focus-within:ring-2 focus-within:ring-[#6D96AE]
+                            shadow-sm transition ease-in
+                          `}
             >
-                <span className={'text-[#37576B] font-normal text-[16px] leading-[140%] tracking-none'}>Search for anything...</span>
+                <input
+                    className="w-full focus:outline-none focus:ring-0 text-[#37576B] font-normal text-[16px] leading-[140%]"
+                    placeholder="Search for anything..."
+                    onChange={e => setSearchStr(e.target.value)}
+                    onKeyDown={e => {
+                        if (e.key === 'Enter') setOpen(true);
+                    }}
+                />
 
-                <Search height={24} width={24} className={'text-[#2D3E4C] p-0.5'}/>
-            </button>
-            <SearchPallet open={open} setOpen={setOpen} app={app} type={type}/>
+                <Search
+                    height={24}
+                    width={24}
+                    className="text-[#2D3E4C] p-0.5"
+                    onClick={() => setOpen(true)}
+                />
+            </div>
+
+            <SearchPallet open={open} setOpen={setOpen} app={app} type={type} searchStr={searchStr}/>
         </>
     )
 }

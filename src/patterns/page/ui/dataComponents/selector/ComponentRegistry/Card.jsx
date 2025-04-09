@@ -177,7 +177,9 @@ const Card = ({isEdit}) => {
                                                          `${imageLocation}/${rawValue}${imageExtension ? `.${imageExtension}` : ``}` :
                                                          (imageSrc || rawValue)}
                                                 /> :
-                                            attr.formatFn && formatFunctions[attr.formatFn] ?
+                                            ['icon', 'color'].includes(attr.formatFn) && formatFunctions[attr.formatFn] ?
+                                                <div className={'flex items-center gap-1.5 uppercase'}>{formatFunctions[attr.formatFn](rawValue, attr.isDollar)}</div> :
+                                                attr.formatFn && formatFunctions[attr.formatFn] ?
                                             formatFunctions[attr.formatFn](rawValue, attr.isDollar).replaceAll(' ', '') :
                                             rawValue
 
@@ -291,6 +293,8 @@ export default {
                     {label: 'No Format Applied', value: ' '},
                     {label: 'Comma Seperated', value: 'comma'},
                     {label: 'Abbreviated', value: 'abbreviate'},
+                    {label: 'Icon', value: 'icon'},
+                    {label: 'Color', value: 'color'},
                 ]},
 
             {type: 'toggle', label: 'Hide Header', key: 'hideHeader'},

@@ -1,5 +1,6 @@
 import {getData as getFilterData} from "../../ComponentRegistry/shared/filters/utils";
 import {isEqual, uniq} from "lodash-es";
+import {Icon} from "../../../../index";
 
 const fnum = (number, currency = false) => `${currency ? '$ ' : ''} ${isNaN(number) ? 0 : parseInt(number).toLocaleString()}`;
 const fnumIndex = (d, fractions = 2, currency = false) => {
@@ -467,7 +468,20 @@ export const isJson = (str)  => {
     return true;
 }
 
+const strColorMap = {
+    'very high risk': '#AA2E26',
+    'high risk': '#DD524C',
+    'moderate risk': '#EA8954',
+    'low risk': '#F1CA87',
+    'very low risk': '#54B99B',
+    default: '#ccc'
+}
 export const formatFunctions = {
     'abbreviate': (d, isDollar) => fnumIndex(d, 1, isDollar),
-    'comma': (d, isDollar) => fnum(d, isDollar)
+    'comma': (d, isDollar) => fnum(d, isDollar),
+    'icon': (strValue, props) => <><Icon icon={strValue} {...props}/> <span>vale</span></>,
+    'color': (strValue, map) => <>
+        <div style={{borderRadius: '1000px', height: '10px', width: '10px', backgroundColor: map?.[strValue] || strColorMap[strValue] || strColorMap.default}} />
+        <div>{strValue}</div>
+    </>
 }

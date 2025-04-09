@@ -145,10 +145,10 @@ const RenderStatus = ({loading, query, itemsLen}) =>
             </div>
         );
 
-export const SearchPallet = ({open, setOpen, app, type}) => {
+export const SearchPallet = ({open, setOpen, app, type, searchStr}) => {
     const {baseUrl, falcor, falcorCache} = useContext(CMSContext) || {}
     const [query, setQuery] = useState();
-    const [tmpQuery, setTmpQuery] = useState();
+    const [tmpQuery, setTmpQuery] = useState(searchStr);
     const [loading, setLoading] = useState(false);
     const [tags, setTags] = useState([]);
     const [individualTags, setIndividualTags] = useState([]);
@@ -165,6 +165,9 @@ export const SearchPallet = ({open, setOpen, app, type}) => {
         sectionTitle: `pl-1 font-[Proxima Nova] font-normal text-[16px] leading-[140%] tracking-normal`,
         sectionsWrapper: `ml-3 pl-4 flex flex-col gap-[12px]`
     }
+    useEffect(() => {
+        setTmpQuery(searchStr)
+    }, [searchStr])
     useEffect(() => {
         // Debounce logic: only update `query` after a delay when `tmpQuery` changes
         const handler = setTimeout(() => {
