@@ -38,9 +38,9 @@ export const sectionGroupTheme = {
 }
 
 
-export default function SectionGroup ({group, sections, saveSection, attributes, edit}) {
+export default function SectionGroup ({group, attributes, edit}) {
   const { baseUrl, user, theme } = React.useContext(CMSContext) || {}
-  const { apiUpdate, format, item } = React.useContext(PageContext) || {}
+  const { apiUpdate, format, item, updateAttribute } = React.useContext(PageContext) || {}
 
   const inPageNav = getInPageNav(item,theme)
   const sectionTheme = theme.sectionGroup[group.theme || 'content'] || {}
@@ -69,9 +69,9 @@ export default function SectionGroup ({group, sections, saveSection, attributes,
           )}
           <SectionArray
             group={group}
-            value={sections.sort((a,b) => a.order - b.order)}
+            value={item?.[edit ? 'draft_sections' : 'sections'] || [] }
             attr={sectionAttributes}
-            onChange={(update, action, changeType) => updateSections({update, action, changeType, item, sectionFormat, user, apiUpdate})}         
+            onChange={(update, action ) => updateSections({update, action, item, user, apiUpdate, updateAttribute})}         
           />
         </div>
        
@@ -81,63 +81,101 @@ export default function SectionGroup ({group, sections, saveSection, attributes,
   )
 }
 
-const updateSections = async ({update, action, changeType, item, sectionFormat, user, apiUpdate}) => {
-  let edit = {
-    type: action,
-    user: user?.email || 'user', 
-    time: new Date().toString()
-  }
 
-  let history = item.history ? cloneDeep(item.history) : []
-  if(action){ history.push(edit) }
-
-  console.log('updatind section', update, changeType)
-  
-  if (changeType === 'update') {
+export const updateSections = async ({update, action, item, user, apiUpdate, updateAttribute}) => {
+    // const headerSection = item['draft_sections']?.filter(d => d.is_header)?.[0]
     
-      
-    await apiUpdate({data: update[0], config: {format: sectionFormat}})
-    await apiUpdate({data: {id: item?.id, history, has_changes: true}})
-
-    // for (let index in update) {
-    //   console.log('updating', index, update[index])
-    //   await apiUpdate({data: update[index], config: {format: sectionFormat}})
-    // }
-  } else if (changeType === 'new') {
-      const sections = cloneDeep(item.draft_sections)
-      const sectionUpdates = item.draft_sections
-        .map((s,i) => {
-          const out = {
-            id: s.id
-          }
-          if(!s.order) { 
-            out.order = i; 
-          }
-          if(s.group === update.group && s.order >= update.order) {
-            out.order = s.order + 1; 
-          }
-          return out
-      })
-      const newItem = {
-        id: item?.id, 
-        draft_sections: [...sectionUpdates,...update],
-        has_changes: true,
-        history, 
-      }
-      await apiUpdate({data: newItem})
-  }
-  else if (changeType === 'remove') {
-    //console.log('remove', )
-    const removeIds = update.map(d => d.id)
-    const newItem = {
-        id: item?.id, 
-        draft_sections: item.draft_sections.filter(d => !removeIds.includes(d.id) ),
-        has_changes: true,
-        history, 
+    
+    let edit = {
+      type: action,
+      user: user?.email || 'user', 
+      time: new Date().toString()
     }
+
+    let history = item.history ? cloneDeep(item.history) : []
+    if(action){ history.push(edit) }
+    //Testing here
+    if(updateAttribute) {
+      updateAttribute('','',{
+        'has_changes': true,
+        'history': history,
+        'draft_sections': update.filter(d => d)
+      })
+    }
+
+    // ----------------
+    // only need to send id, and data to update, not whole 
+    // --------------------
+    const newItem = {
+      id: item?.id, 
+      draft_sections: update.filter(d => d),
+      has_changes: true,
+      history, 
+    }
+
+
+    //console.log('editFunction saveSection newItem',newItem, update)
     await apiUpdate({data: newItem})
   }
-}
+
+
+// const updateSections = async ({update, action, changeType, item, sectionFormat, user, apiUpdate}) => {
+//   let edit = {
+//     type: action,
+//     user: user?.email || 'user', 
+//     time: new Date().toString()
+//   }
+
+//   let history = item.history ? cloneDeep(item.history) : []
+//   if(action){ history.push(edit) }
+
+//   console.log('updatind section', update, changeType)
+  
+//   if (changeType === 'update') {
+    
+      
+//     await apiUpdate({data: update[0], config: {format: sectionFormat}})
+//     await apiUpdate({data: {id: item?.id, history, has_changes: true}})
+
+//     // for (let index in update) {
+//     //   console.log('updating', index, update[index])
+//     //   await apiUpdate({data: update[index], config: {format: sectionFormat}})
+//     // }
+//   } else if (changeType === 'new') {
+//       const sections = cloneDeep(item.draft_sections)
+//       const sectionUpdates = item.draft_sections
+//         .map((s,i) => {
+//           const out = {
+//             id: s.id
+//           }
+//           if(!s.order) { 
+//             out.order = i; 
+//           }
+//           if(s.group === update.group && s.order >= update.order) {
+//             out.order = s.order + 1; 
+//           }
+//           return out
+//       })
+//       const newItem = {
+//         id: item?.id, 
+//         draft_sections: [...sectionUpdates,...update],
+//         has_changes: true,
+//         history, 
+//       }
+//       await apiUpdate({data: newItem})
+//   }
+//   else if (changeType === 'remove') {
+//     //console.log('remove', )
+//     const removeIds = update.map(d => d.id)
+//     const newItem = {
+//         id: item?.id, 
+//         draft_sections: item.draft_sections.filter(d => !removeIds.includes(d.id) ),
+//         has_changes: true,
+//         history, 
+//     }
+//     await apiUpdate({data: newItem})
+//   }
+// }
 
 
     // ----------------

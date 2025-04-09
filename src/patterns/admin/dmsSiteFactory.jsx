@@ -169,6 +169,7 @@ export function DmsSite ({
     authWrapper = Component => Component,
     themes = { default: {} },
     falcor,
+    pgEnvs=['hazmit_dama'],
     API_HOST = 'https://graph.availabs.org',
     routes = []
 }) {
@@ -184,7 +185,8 @@ export function DmsSite ({
                 themes,
                 falcor,
                 API_HOST,
-                authWrapper
+                authWrapper,
+                pgEnvs
                 //theme   
             }) 
             : []
@@ -199,7 +201,8 @@ export function DmsSite ({
                 themes,
                 falcor,
                 API_HOST,
-                authWrapper
+                authWrapper,
+                pgEnvs
                 //theme   
             });
             console.timeEnd('dmsSiteFactory')

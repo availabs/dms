@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useRef, forwardRef } from 'react';
 import { Menu, MenuButton, MenuItem, MenuItems, MenuSeparator } from '@headlessui/react'
 import { CMSContext } from '../../../siteConfig';
 import { Icon, Input } from '../../'
@@ -15,8 +15,7 @@ const defaultItems = [
   { name: 'Export PDF', onClick: '#' },
 ]
 
-const SimpleItem = ({item}) => (
-  
+const SimpleItem = forwardRef(({item}, ref) => (
     <div
       onClick={item?.onClick}
       className="cursor-pointer flex items-center rounded-lg py-2 text-sm text-gray-700 data-[focus]:bg-gray-100 data-[focus]:text-gray-900 data-[focus]:outline-none"
@@ -25,9 +24,9 @@ const SimpleItem = ({item}) => (
       <div className=''>{item?.name}</div>
     </div>
  
-)
+))
 
-const SubMenuItem = ({item}) => (
+const SubMenuItem = forwardRef(({item}, ref) => (
   
     <div
       onClick={item.onClick}
@@ -43,9 +42,9 @@ const SubMenuItem = ({item}) => (
       </MenuComp>
     </div>
   
-)
+))
 
-const InputItem = ({item}) => (
+const InputItem = forwardRef(({item}, ref) => (
  
     <div
       onClick={item.onClick}
@@ -56,10 +55,10 @@ const InputItem = ({item}) => (
       <div className='w-20'><Input {...item.inputProps} /></div>
     </div>
  
-)
+))
 
 
-const Seperator = ({item}) => <MenuSeparator className="my-1 h-px bg-slate-200" />
+const Seperator = forwardRef(({item}, ref) => <MenuSeparator className="my-1 h-px bg-slate-200" />)
 
 const ItemTypes = {
   'simple': SimpleItem,

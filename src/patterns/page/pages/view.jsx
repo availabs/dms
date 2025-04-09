@@ -102,7 +102,6 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
           <SectionGroup
             key={group?.name || i}
             group={group}
-            sections={draftSections.filter(d => d.group === group.name || (!d.group && group?.name === 'default'))}
             attributes={attributes}
           />
         ))
