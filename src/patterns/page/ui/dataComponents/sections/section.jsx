@@ -196,10 +196,16 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
     let { styles, attributes:popperAttributes } = usePopper(referenceElement, popperElement)
     const { baseUrl, user, theme } = React.useContext(CMSContext) || {}
 
-    const updateAttribute = (k, v) => {
-        onChange(value, k, v)
-    }
+    // const updateAttribute = (k, v) => {
+    //     onChange(value, k, v)
+    // }
     
+    const updateAttribute = (k, v) => {
+        if(!isEqual(value, {...value, [k]: v})) {
+            onChange({...value, [k]: v})
+        }
+    }
+
     const hideDebug = true
     let TitleComp = attributes?.title?.ViewComp
     let TagsComp = attributes?.tags?.ViewComp 

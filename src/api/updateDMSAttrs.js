@@ -21,9 +21,7 @@ export 	async function updateDMSAttrs(data, configs, falcor) {
 
 
             for(const key of ['id', 'ref', 'created_at', 'updated_at', 'created_by', 'updated_by']) {
-                if(d?.[key]){
-                    delete d[key];
-                }
+                delete d[key];
             }
 
             if(id) {
@@ -45,7 +43,7 @@ export 	async function updateDMSAttrs(data, configs, falcor) {
                 //console.log(currentData,d)
 
                 if(!isEqual(currentData,d)){
-                    // console.log('update', id )
+                    //console.log('update', id )
                     await falcor.call(
                         ["dms", "data", "edit"],
                         [id, d]

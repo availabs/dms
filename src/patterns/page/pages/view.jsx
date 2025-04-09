@@ -27,7 +27,7 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
       // -- This on load effect backfills pages created before sectionGroups
       // -------------------------------------------------------------------
       if(!item.section_groups && item.id) {
-        console.log('edit item', item)
+        //console.log('edit item', item)
         let newItem = {id: item.id}
         newItem.section_groups = [
           {name: 'default', position: 'content', index: 0, theme: 'content'}
@@ -102,7 +102,6 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
           <SectionGroup
             key={group?.name || i}
             group={group}
-            sections={draftSections.filter(d => d.group === group.name || (!d.group && group?.name === 'default'))}
             attributes={attributes}
           />
         ))

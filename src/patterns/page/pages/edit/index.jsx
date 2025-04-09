@@ -50,11 +50,10 @@ function PageEdit ({
 	},[])
 
 	React.useEffect(() => {
-		if(!item?.id) return;
 	  	// -------------------------------------------------------------------
 	    // -- This on load effect backfills pages created before sectionGroups
 	  	// -------------------------------------------------------------------
-	  	if(!item.draft_section_groups) {
+	  	if(!item.draft_section_groups && item?.id) {
 	    	let newItem = {id: item.id}
 	    	newItem.draft_section_groups = [
 	    		{name: 'default', position: 'content', index: 0, theme: 'content'}
@@ -95,30 +94,29 @@ function PageEdit ({
 	   
 	},[])
 
-	const draftSections = item?.['draft_sections'] || [] 
+
 
 	//console.log('draft_sections', draftSections)
 
 	
-  	const getSectionGroups =  ( sectionName ) => {
-	    return (item?.draft_section_groups || [])
-	      	.filter((g,i) => g.position === sectionName)
-	      	.sort((a,b) => a?.index - b?.index)
-	      	.map((group,i) => (
-		        <SectionGroup
-		          key={group?.name || i}
-		          group={group}
-		          sections={draftSections.filter(d => d.group === group.name || (!d.group && group?.name === 'default'))}
-		          attributes={attributes}
-		          item={item}
-		          edit={true}
-		        />
-	      	))
-    }
+	const getSectionGroups =  ( sectionName ) => {
+    return (item?.draft_section_groups || [])
+    	.filter((g,i) => g.position === sectionName)
+    	.sort((a,b) => a?.index - b?.index)
+    	.map((group,i) => (
+        <SectionGroup
+          key={group?.name || i}
+          group={group}
+           //.filter(d => d.group === group.name || (!d.group && group?.name === 'default'))}
+          attributes={ attributes }
+          edit={true}
+        />
+    	))
+  }
 
 	if(!item) return ;
 	return (
-	    <PageContext.Provider value={{ item, dataItems, apiLoad, apiUpdate, editPane, setEditPane, format, busy }} >
+	    <PageContext.Provider value={{ item, dataItems, apiLoad, apiUpdate, updateAttribute, editPane, setEditPane, format, busy }} >
 	      <div className={`${theme?.page?.container}`}>
 	        <PageControls />
 	        {getSectionGroups('top')}
