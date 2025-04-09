@@ -154,7 +154,7 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
             totalName, // used to make total row calls.
         }
     })
-    const columnsToFetch = columnsWithSettings.filter(column => column.show && !column.isCopiedColumn && !column.isDuplicate && column.type !== 'formula');
+    const columnsToFetch = columnsWithSettings.filter(column => column.show && !column.isDuplicate && column.type !== 'formula');
     // collect variables used in formula columns, and add them to fetch list
     const formulaVariableColumns = columnsWithSettings.filter(column => column.type === 'formula')
         .reduce((acc, curr) => {
