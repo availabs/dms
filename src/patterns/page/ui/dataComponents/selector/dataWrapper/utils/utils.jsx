@@ -469,17 +469,17 @@ export const isJson = (str)  => {
 }
 
 const strColorMap = {
-    'very high risk': '#AA2E26',
-    'high risk': '#DD524C',
-    'moderate risk': '#EA8954',
-    'low risk': '#F1CA87',
-    'very low risk': '#54B99B',
+    'Very High Risk': '#AA2E26',
+    'High Risk': '#DD524C',
+    'Moderate Risk': '#EA8954',
+    'Low Risk': '#F1CA87',
+    'Very Low Risk': '#54B99B',
     default: '#ccc'
 }
 export const formatFunctions = {
     'abbreviate': (d, isDollar) => fnumIndex(d, 1, isDollar),
     'comma': (d, isDollar) => fnum(d, isDollar),
-    'icon': (strValue, props) => <><Icon icon={strValue} {...props}/> <span>vale</span></>,
+    'icon': (strValue, props) => <><Icon icon={strValue} {...props}/> <span>{strValue}</span></>,
     'color': (strValue, map) => <>
         <div style={{borderRadius: '1000px', height: '10px', width: '10px', backgroundColor: map?.[strValue] || strColorMap[strValue] || strColorMap.default}} />
         <div>{strValue}</div>

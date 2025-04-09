@@ -131,7 +131,7 @@ const Card = ({isEdit}) => {
             const hide = data.length === 0 ||
                          data.every(row => columns.filter(({ show }) => show)
                                                     .every(col => {
-                                                        const value = row[col.name];
+                                                        const value = row[col.normalName || col.name];
                                                         return value === null || value === undefined || value === "";
                                                     }));
             setState(draft => {
@@ -180,13 +180,13 @@ const Card = ({isEdit}) => {
                                             ['icon', 'color'].includes(attr.formatFn) && formatFunctions[attr.formatFn] ?
                                                 <div className={'flex items-center gap-1.5 uppercase'}>{formatFunctions[attr.formatFn](rawValue, attr.isDollar)}</div> :
                                                 attr.formatFn && formatFunctions[attr.formatFn] ?
-                                            formatFunctions[attr.formatFn](rawValue, attr.isDollar).replaceAll(' ', '') :
-                                            rawValue
+                                                    formatFunctions[attr.formatFn](rawValue, attr.isDollar).replaceAll(' ', '') :
+                                                    rawValue
 
                                         const headerTextJustifyClass = justifyClass[attr.justify || 'center']?.header || justifyClass[attr.justify || 'center'];
                                         const valueTextJustifyClass = justifyClass[attr.justify || 'center']?.value || justifyClass[attr.justify || 'center'];
                                         return (
-                                            <div key={attr.name}
+                                            <div key={attr.normalName || attr.name}
                                                  className={`
                                                  ${dataCard.headerValueWrapper}
                                                  flex-${headerValueLayout} ${reverse && headerValueLayout === 'col' ? `flex-col-reverse` : reverse ? `flex-row-reverse` : ``}
@@ -205,7 +205,7 @@ const Card = ({isEdit}) => {
                                                           ${dataCard[attr.headerFontStyle || 'textXS']}
                                                           
                                                           `}>
-                                                            {attr.customName || attr.display_name || attr.name}
+                                                            {attr.customName || attr.display_name || attr.normalName || attr.name}
                                                         </div>
                                                     )
                                                 }
