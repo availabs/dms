@@ -20,11 +20,16 @@ const BarGraph = props => {
     groupMode = "stacked",
     orientation = "vertical",
     showCategories,
-    xAxisColumn
+    xAxisColumn,
+      isLog
   } = props;
 
   const isPalette = ((colors.type === "palette") || (colors.type === "custom"));
-  const isLog = (!isPalette && colors.value.type === "log");
+  const uniqDataValues = [...new Set(data.map(d => d.value))].sort((a,b) => a-b);
+  const maxValue = uniqDataValues[uniqDataValues.length-1];
+  const meanValue = uniqDataValues[Math.floor(uniqDataValues.length/2)];
+  const customLogTicks = [meanValue, maxValue];
+
   const isStacked = groupMode === "stacked";
   const isVertical = orientation === "vertical";
 
@@ -57,7 +62,7 @@ const BarGraph = props => {
       ticks: isStacked ? xAxisTicks : undefined
     }) : ({
       axis: "bottom",
-      type: isLog ? "log" : undefined,
+      type: isLog ? "symlog" : undefined,
       grid: yAxis.showGridLines,
       tickFormat: formatFunctions[yAxis.tickFormat],
       textAnchor: yAxis.rotateLabels ? "start" : "middle",
@@ -69,7 +74,9 @@ const BarGraph = props => {
   const yOptions = React.useMemo(() => {
     return isVertical ? ({
       axis: "left",
-      type: isLog ? "log" : undefined,
+      constant: 1,
+      type: isLog ? "symlog" : undefined,
+      ticks: isLog ? customLogTicks : undefined,
       grid: yAxis.showGridLines,
       textAnchor: yAxis.rotateLabels ? "start" : "middle",
       tickRotate: yAxis.rotateLabels ? 45 : 0,

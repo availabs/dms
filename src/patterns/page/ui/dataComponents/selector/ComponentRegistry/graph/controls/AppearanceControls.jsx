@@ -115,6 +115,9 @@ export default function AppearanceControls({context}) {
 
                                 <ToggleControl title={'Stacked'} value={display.groupMode === 'stacked'}
                                                setValue={value => updateDisplayValue(null, 'groupMode', value ? 'stacked' : 'grouped')}/>
+
+                                <ToggleControl title={'Log Scale'} value={display.isLog}
+                                               setValue={value => updateDisplayValue(null, 'isLog', value)}/>
                             </> : null
                     }
                 </div>
