@@ -2,9 +2,9 @@ import React, {Fragment, useEffect, useContext, useState} from "react";
 import {Dialog, DialogPanel, Input, Transition} from '@headlessui/react'
 import {dmsDataLoader} from "../../../../api";
 import {CMSContext} from "../../siteConfig";
-import {Link} from "react-router-dom";
 import {boldMatchingText, getScore, searchTypeMapping} from "./SearchPage";
-import {ArrowRight, Page, Section} from "../../../admin/ui/icons";
+import {ArrowRight} from "../../../admin/ui/icons";
+import {Page, Section} from "../../ui/icons"
 import {Search} from "../../ui/icons";
 
 export const SearchButton = ({app, type}) => {
@@ -64,19 +64,19 @@ const RenderSuggestions = ({individualTags, query, setQuery}) => individualTags
     </div>
 ) : null;
 
-const RenderItems = ({items, query}) => Object.keys(items).length ? (
+const RenderItems = ({items, query, theme}) => Object.keys(items).length ? (
     <div
-        className="p-3 max-h-[500px] transform-gpu scroll-py-3 overflow-x-hidden overflow-y-auto scrollbar-sm">
+        className={theme.resultsWrapper}>
         {Object.keys(items)
             .sort((a, b) => items[b].score - items[a].score)
             .map((page_id) => (
                 <div
                     key={page_id}
-                    className={'select-none rounded-xl m-1'}
+                    className={'select-none pt-[12px]'}
                 >
                     <div
                         key={page_id}
-                        className={`w-full select-none rounded-xl p-2 bg-slate-100 hover:bg-slate-200 transition ease-in`}
+                        className={theme.resultItemWrapper}
                     >
                         {/*page title*/}
                         <div
@@ -84,44 +84,42 @@ const RenderItems = ({items, query}) => Object.keys(items).length ? (
                             onClick={e => {
                                 window.location = `${items[page_id].url}`
                             }}>
-                            <Page className="flex items-center h-6 w-6 mr-2 border rounded-md"/>
-                            <div>{boldMatchingText(items[page_id].page_title || page_id, query)}</div>
+                            <Page width={15} height={21}/>
+                            <div className={theme.pageTitle}>{boldMatchingText(items[page_id].page_title || page_id, query)}</div>
                             <ArrowRight className={'h-6 w-6 ml-2 text-transparent group-hover:text-gray-900'}/>
                         </div>
 
-                        <div className="ml-3 pl-4 flex-auto border-l border-gray-900">
+                        <div className={theme.sectionsWrapper}>
                             {/*sections*/}
-                            <div>
-                                {(items[page_id].sections || []).map(({
-                                                                          section_id,
-                                                                          section_title,
-                                                                          tags = '',
-                                                                          score
-                                                                      }) => (
-                                    <div className={'w-full cursor-pointer group'}
-                                         onClick={() => window.location = `${items[page_id].url}#${section_id}`}>
-                                        {/*section title*/}
-                                        <div
-                                            className={'w-full flex items-center text-md font-medium text-gray-700 hover:text-gray-700'}>
-                                            <Section className="h-6 w-6 mr-2 border rounded-md"/>
-                                            <div>{boldMatchingText(section_title || section_id, query)}</div>
-                                            <ArrowRight
-                                                className={'h-6 w-6 ml-2 text-transparent group-hover:text-gray-900'}/>
+                            {(items[page_id].sections || []).map(({
+                                                                      section_id,
+                                                                      section_title,
+                                                                      tags = '',
+                                                                      score
+                                                                  }) => (
+                                <div className={'w-full cursor-pointer group'}
+                                     onClick={() => window.location = `${items[page_id].url}#${section_id}`}>
+                                    {/*section title*/}
+                                    <div
+                                        className={'w-full flex items-center text-md font-medium text-gray-700 hover:text-gray-700'}>
+                                        <Section width={18} height={18} />
+                                        <div className={theme.sectionTitle}>{boldMatchingText(section_title || section_id, query)}</div>
+                                        <ArrowRight
+                                            className={'h-6 w-6 ml-2 text-transparent group-hover:text-gray-900'}/>
 
-                                        </div>
-                                        {/*tags*/}
-                                        <div className={'w-full ml-8'}>
-                                            {
-                                                tags?.split(',').filter(t => t && t.length).map(tag => (
-                                                    <span className={`tracking-wide p-1 text-xs text-white font-semibold rounded-md border 
+                                    </div>
+                                    {/*tags*/}
+                                    <div className={'w-full ml-8'}>
+                                        {
+                                            tags?.split(',').filter(t => t && t.length).map(tag => (
+                                                <span className={`tracking-wide p-1 text-xs text-white font-semibold rounded-md border 
                                                 ${tag.toLowerCase() === query.toLowerCase() ? 'border-1 border-red-600 bg-red-400' : 'bg-red-300'}`}>
                                                     {boldMatchingText(tag, query)}
                                                 </span>))
-                                            }
-                                        </div>
+                                        }
                                     </div>
-                                ))}
-                            </div>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 </div>
@@ -157,7 +155,16 @@ export const SearchPallet = ({open, setOpen, app, type}) => {
     const [data, setData] = useState({});
     const [items, setItems] = useState({});
     const searchType = 'tags'; // the query has been updated to search by page title, section title, and tags.
-
+    const theme = {
+        dialoguePanel: `relative max-w-3xl sm:w-[637px] max-h-3/4 sm:h-[700px] p-[16px] flex flex-col gap-[8px] overflow-hidden rounded-[12px] bg-[#F3F8F9] transition-all`,
+        input: `px-0.5 flex-1 font-[Proxima Nova] font-normal text-[16px] text-[#2D3E4C] leading-[140%] bg-transparent focus:ring-0 sm:text-sm rounded-full ring-0 outline-none`,
+        searchIcon: `text-[#2D3E4C]`,
+        resultsWrapper: `bg-white rounded-[12px] px-[12px] py-[24px] flex flex-col gap-[8px] divide-y divide-[#E0EBF0] max-h-[500px] transform-gpu scroll-py-3 overflow-x-hidden overflow-y-auto scrollbar-sm`,
+        resultItemWrapper: `flex flex-col gap-[12px] pb-[12px] w-full select-none rounded-[12px] transition ease-in`,
+        pageTitle: `pl-2 font-[Oswald] font-medium text-[16px] leading-[100%] uppercase text-[#2D3E4C]`,
+        sectionTitle: `pl-1 font-[Proxima Nova] font-normal text-[16px] leading-[140%] tracking-normal`,
+        sectionsWrapper: `ml-3 pl-4 flex flex-col gap-[12px]`
+    }
     useEffect(() => {
         // Debounce logic: only update `query` after a delay when `tmpQuery` changes
         const handler = setTimeout(() => {
@@ -207,6 +214,7 @@ export const SearchPallet = ({open, setOpen, app, type}) => {
         }
 
         getData().then(data => {
+            console.log('data', data)
             setData(data);
             setLoading(false);
         });
@@ -256,10 +264,10 @@ export const SearchPallet = ({open, setOpen, app, type}) => {
                     leaveFrom="opacity-100"
                     leaveTo="opacity-0"
                 >
-                    <div className="fixed inset-0 bg-gray-500 bg-opacity-25 transition-opacity"/>
+                    <div className="fixed inset-0 bg-black bg-opacity-[60%] transition-opacity"/>
                 </Transition.Child>
 
-                <div className="fixed inset-0 z-20 w-screen overflow-y-auto p-4 sm:p-6 md:p-20">
+                <div className="fixed inset-0 z-20 w-screen overflow-y-auto p-4 sm:p-6 md:p-20 flex items-center place-content-center">
                     <Transition.Child
                         as={Fragment}
                         enter="ease-out duration-300"
@@ -270,20 +278,11 @@ export const SearchPallet = ({open, setOpen, app, type}) => {
                         leaveTo="opacity-0 scale-95"
                     >
                         <DialogPanel
-                            className="mx-auto max-w-3xl max-h-3/4 transform divide-y divide-gray-100 overflow-hidden rounded-xl bg-white shadow-2xl ring-1 ring-black ring-opacity-5 transition-all">
-                            {/*<Combobox onChange={(item) => {
-                                if (items?.[item]?.url){
-                                    window.location = items[item].id ? `${items[item].url}#${items[item].id}` : `${items[item].url}`
-                                }
-                            }}
-                            >*/}
-                                <div className="flex items-center relative px-2">
-                                    <i
-                                        className="fa-light fa-search pointer-events-none h-5 w-5 text-gray-400"
-                                    />
+                            className={theme.dialoguePanel}>
+                                <div className="w-full flex items-center relative px-[24px] py-[16px] bg-white w-full rounded-full border border-[#E0EBF0]">
                                     <Input
                                         autoFocus
-                                        className="h-10 w-full border-0 bg-transparent p-2 mx-1 text-gray-900 placeholder:text-gray-400 focus:ring-0 sm:text-sm rounded-md ring-0 outline-none"
+                                        className={theme.input}
                                         placeholder="Search..."
                                         value={tmpQuery}
                                         onChange={(event) =>{
@@ -291,18 +290,20 @@ export const SearchPallet = ({open, setOpen, app, type}) => {
                                             setTmpQuery(event.target.value)
                                         }}
                                     />
-
-                                    <Link
-                                        className={'fa-light fa-arrow-up-right-from-square h-5 w-5 text-gray-400'}
-                                        title={'Open Search Page'}
-                                     to={'search'}/>
+                                    <div className={'p-0.5'}>
+                                        <Search height={24} width={24} className={theme.searchIcon}/>
+                                    </div>
+                                    {/*<Link*/}
+                                    {/*    className={'fa-light fa-arrow-up-right-from-square h-5 w-5 text-gray-400'}*/}
+                                    {/*    title={'Open Search Page'}*/}
+                                    {/* to={'search'}/>*/}
                                 </div>
 
-                                <RenderSuggestions tags={tags} individualTags={individualTags} query={tmpQuery} setQuery={setTmpQuery} />
+                                {/*<RenderSuggestions tags={tags} individualTags={individualTags} query={tmpQuery} setQuery={setTmpQuery} />*/}
 
-                                <RenderItems key={'search-items'} items={items} query={query}/>
+                                <RenderItems key={'search-items'} items={items} query={query} theme={theme}/>
 
-                                <RenderStatus key={'search-suggestions'} query={query} loading={loading} itemsLen={Object.keys(items).length} />
+                                <RenderStatus key={'search-suggestions'} query={query} loading={loading} itemsLen={Object.keys(items).length} theme={theme}/>
                             {/*</Combobox>*/}
                         </DialogPanel>
                     </Transition.Child>
