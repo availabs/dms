@@ -60,7 +60,18 @@ const SearchButton = ({app, type, show}) => {
         </>
     )
 }
-export function Header ({app, type, title, note, logo, overlay='overlay', bgImg, chain, showBreadcrumbs, showSearchBar, titleSize='sm:text-[48px]'}) {
+
+const Title = ({title, titleSize, logo}) => {
+    if(!title) return;
+
+    return (
+        <div className={`flex gap-1 text-[36px] ${titleSize} font-medium font-['Oswald'] text-[#2D3E4C] sm:leading-[100%] uppercase`}>
+            {logo && <img className={'max-w-[150px] max-h-[150px]'} alt={' '} src={logo}/>}
+            {title}
+        </div>
+    )
+}
+export function Header ({app, type, title, note, logo, overlay='overlay', bgImg, chain, showBreadcrumbs, showSearchBar, titleSize='sm:text-[48px] tracking-[-2px]'}) {
     return overlay === 'full' ? (
         <div
             className="relative w-full h-auto lg:h-[773px] lg:-mb-[145px] flex flex-col lg:flex-row justify-center"
@@ -80,10 +91,7 @@ export function Header ({app, type, title, note, logo, overlay='overlay', bgImg,
                     <div className=" w-full lg:w-[481px] px-[32px] py-[37px] gap-[16px] bg-white shadow-md rounded-[12px]">
                         <div className="flex flex-col gap-1">
                             <Breadcrumbs chain={chain} show={showBreadcrumbs}/>
-                            {title && <div className={`flex gap-1 text-3xl text-[36px] ${titleSize} font-[500] font-['Oswald'] text-[#2D3E4C] sm:leading-[72px] uppercase`}>
-                                {logo && <img className={'max-w-[150px] max-h-[150px]'} alt={' '} src={logo}/>}
-                                {title}</div>
-                            }
+                            <Title title={title} titleSize={titleSize} logo={logo} />
                         </div>
                         <div className="text-[16px] leading-[24px] text-[#37576B] w-full p-1 pt-2">
                             {note && <div>{note}</div>}
@@ -124,10 +132,7 @@ export function Header ({app, type, title, note, logo, overlay='overlay', bgImg,
 
                         <div className={'flex flex-col gap-1'}>
                             <Breadcrumbs chain={chain} show={showBreadcrumbs}/>
-                            {title && <div className={`flex gap-1 text-3xl text-[36px] ${titleSize} font-[500] font-["Oswald"] text-[#2D3E4C] sm:leading-[72px] uppercase`}>
-                                {logo && <img className={'max-w-[150px] max-h-[150px]'} alt={' '} src={logo}/>}
-                                {title}
-                            </div>}
+                            <Title title={title} titleSize={titleSize} logo={logo} />
                         </div>
                         <div className='text-[16px] leading-[24px] text-[#37576B] w-full p-1 pt-2'>
                             {note && <div>{note}</div>}
@@ -142,10 +147,7 @@ export function Header ({app, type, title, note, logo, overlay='overlay', bgImg,
                 <div className={'p-[56px] h-full bg-white z-[100] rounded-lg shadow-md'}>
                     <div className={'flex flex-col gap-1 w-3/4'}>
                         <Breadcrumbs chain={chain} show={showBreadcrumbs}/>
-                        {title && <div className={`flex gap-1 text-3xl text-[36px] ${titleSize} font-[500] font-["Oswald"] text-[#2D3E4C] sm:leading-[72px] uppercase`}>
-                            {logo && <img className={'max-w-[150px] max-h-[150px]'} alt={' '} src={logo}/>}
-                            {title}
-                        </div>}
+                        <Title title={title} titleSize={titleSize} logo={logo} />
                     </div>
                     <div className='text-[16px] leading-[24px] text-[#37576B] w-3/4 p-1 pt-2'>
                         {note && <div>{note}</div>}
@@ -288,8 +290,8 @@ export default {
                 ]},
             {type: 'select', label: 'Title Size', key: 'titleSize',
                 options: [
-                    { label: 'Regular', value: 'sm:text-[48px]' },
-                    { label: 'Large', value: 'sm:text-[72px]' },
+                    { label: 'Regular', value: 'sm:text-[48px] tracking-[-2px]' },
+                    { label: 'Large', value: 'sm:text-[72px] tracking-[0px]' },
                 ]},
             {type: 'input', inputType: 'text', label: 'Default Title', key: 'defaultTitle'},
             {type: 'input', inputType: 'text', label: 'Default Note', key: 'defaultNote'},
