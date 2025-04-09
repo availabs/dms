@@ -36,11 +36,16 @@ function PageEdit ({
 	const sectionAttr = attributes?.['sections']?.attributes || {}
 
 	React.useEffect(() => {
-	    if(!item?.url_slug) { 
-	      let defaultUrl = dataItems
+	    if(!item?.url_slug) {
+	      let defaultItem = dataItems
 	        .sort((a,b) => a.index-b.index)
-	        .filter(d=> !d.parent && d.url_slug)[0]
-	      defaultUrl && defaultUrl.url_slug && navigate(`edit/${defaultUrl.url_slug}`)
+	        .find(d=> !d.parent && d.url_slug);
+
+			const defaultUrl = `${baseUrl}/edit/${defaultItem.url_slug}`;
+
+			if(defaultUrl && pathname !== defaultUrl){
+			  navigate(defaultUrl)
+		  }
 	    }
 	},[])
 
@@ -80,11 +85,8 @@ function PageEdit ({
 
 
     		newItem.draft_sections.forEach((section,i) => {
-    			//section.order = i;
     			if(section.is_header) {
-    				//console.log('section is header', section.id)
     				section.group = 'header'
-    				
     			}
     		})
 	    	submit(json2DmsForm(newItem), { method: "post", action: `${baseUrl}/edit/${item.url_slug}` })
@@ -112,6 +114,7 @@ function PageEdit ({
     	))
   }
 
+	if(!item) return ;
 	return (
 	    <PageContext.Provider value={{ item, dataItems, apiLoad, apiUpdate, updateAttribute, editPane, setEditPane, format, busy }} >
 	      <div className={`${theme?.page?.container}`}>

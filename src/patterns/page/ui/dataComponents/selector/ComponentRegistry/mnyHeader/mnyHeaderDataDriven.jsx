@@ -1,25 +1,54 @@
-import React, {useContext, useMemo} from 'react'
+import React, {useContext, useMemo, useState} from 'react'
 import {PageContext} from "../../../../../pages/view";
-import {ArrowRight} from "../../../../icons";
+import {ArrowRight, Search} from "../../../../icons";
 import {Link} from "react-router-dom";
 import {ComponentContext} from "../../dataWrapper";
 import {overlayImageOptions, insetImageOptions} from "./consts";
+import {SearchPallet} from "../../../../../components/search";
+import {CMSContext} from "../../../../../siteConfig";
 
-const Breadcrumbs = ({ chain }) => {
+const Breadcrumbs = ({ chain, show }) => {
+    if(!show) return null;
     return Array.isArray(chain) ? (
-        <div className="flex items-center gap-[4px] text-[#37576B] text-[12px] leading-[14.62px] font-semibold tracking-normal">
-            {chain.map((c, index) => (
-                <div key={index} className="flex items-center shrink-0">
-                    <Link to={c.url_slug} className={'w-fit shrink-0 wrap-none'}>{c.title}</Link>
-                    {index < chain.length - 1 && <ArrowRight height={8} width={8} className="ml-1 -mt-1" />}
-                </div>
-            ))}
+        <div className={'px-1 z-[5]'}>
+            <div className="flex items-center gap-[4px] text-[#37576B] text-[12px] sm:text-[14px] leading-[100%] tracking-normal">
+                {chain.map((c, index) => (
+                    <div key={index} className={`flex items-center shrink-0`}>
+                        <Link to={c.url_slug} className={`w-fit shrink-0 wrap-none ${index === chain.length - 1 ? `font-regular` : `font-semibold`}`}>{c.title}</Link>
+                        {index < chain.length - 1 && <ArrowRight height={12} width={12} className="ml-1 -mt-1" />}
+                    </div>
+                ))}
+            </div>
         </div>
     ) : null;
 };
 
+const SearchButton = ({app, type, show}) => {
+    const [open, setOpen] = useState(false)
+    if(!show) return null;
+    return (
+        <>
+            <button
+                className={`
+                bg-white flex justify-between items-center
+                h-[56px] w-full py-[16px] px-[24px]
+                rounded-[1000px]
+                shadow-sm transition ease-in
+                `}
+                onClick={() => setOpen(true)}
+                style={{
+                    boxShadow: '0px 2px 4px 0px #00000014'
+                }}
+            >
+                <span className={'text-[#37576B] font-normal text-[16px] leading-[140%] tracking-none'}>Search for anything...</span>
 
-export function Header ({title, note, logo, overlay='overlay', bgImg, chain, showBreadcrumbs}) {
+                <Search height={24} width={24} className={'text-[#2D3E4C] p-0.5'}/>
+            </button>
+            <SearchPallet open={open} setOpen={setOpen} app={app} type={type}/>
+        </>
+    )
+}
+export function Header ({app, type, title, note, logo, overlay='overlay', bgImg, chain, showBreadcrumbs, showSearchBar, titleSize='sm:text-[48px]'}) {
     return overlay === 'full' ? (
         <div
             className="relative w-full h-auto lg:h-[773px] lg:-mb-[145px] flex flex-col lg:flex-row justify-center"
@@ -38,10 +67,8 @@ export function Header ({title, note, logo, overlay='overlay', bgImg, chain, sho
                 <div className="ml-auto px-[15px] lg:pl-0 lg:w-[656px] h-full flex items-center pt-12 lg:pt-[80px]">
                     <div className=" w-full lg:w-[481px] px-[32px] py-[37px] gap-[16px] bg-white shadow-md rounded-[12px]">
                         <div className="flex flex-col gap-1">
-                            <div className="px-1 z-10">
-                                {showBreadcrumbs ? <Breadcrumbs chain={chain} /> : null}
-                            </div>
-                            {title && <div className="flex gap-1 text-3xl sm:text-[72px] font-[500] font-['Oswald'] text-[#2D3E4C] sm:leading-[72px] uppercase">
+                            <Breadcrumbs chain={chain} show={showBreadcrumbs}/>
+                            {title && <div className={`flex gap-1 text-3xl text-[36px] ${titleSize} font-[500] font-['Oswald'] text-[#2D3E4C] sm:leading-[72px] uppercase`}>
                                 {logo && <img className={'max-w-[150px] max-h-[150px]'} alt={' '} src={logo}/>}
                                 {title}</div>
                             }
@@ -49,6 +76,7 @@ export function Header ({title, note, logo, overlay='overlay', bgImg, chain, sho
                         <div className="text-[16px] leading-[24px] text-[#37576B] w-full p-1 pt-2">
                             {note && <div>{note}</div>}
                         </div>
+                        <SearchButton app={app} type={type} show={showSearchBar}/>
                     </div>
                 </div>
             </div>
@@ -83,12 +111,8 @@ export function Header ({title, note, logo, overlay='overlay', bgImg, chain, sho
                     <div className={overlay === 'none' ? 'hidden' : 'pr-[64px] xl:pl-0 px-[15px]'}>
 
                         <div className={'flex flex-col gap-1'}>
-                            <div className={'px-1 z-10'}>
-                                {
-                                    showBreadcrumbs ? <Breadcrumbs chain={chain} /> : null
-                                }
-                            </div>
-                            {title && <div className='flex gap-1 text-3xl sm:text-[72px] font-[500] font-["Oswald"] text-[#2D3E4C] sm:leading-[72px] uppercase'>
+                            <Breadcrumbs chain={chain} show={showBreadcrumbs}/>
+                            {title && <div className={`flex gap-1 text-3xl text-[36px] ${titleSize} font-[500] font-["Oswald"] text-[#2D3E4C] sm:leading-[72px] uppercase`}>
                                 {logo && <img className={'max-w-[150px] max-h-[150px]'} alt={' '} src={logo}/>}
                                 {title}
                             </div>}
@@ -96,7 +120,7 @@ export function Header ({title, note, logo, overlay='overlay', bgImg, chain, sho
                         <div className='text-[16px] leading-[24px] text-[#37576B] w-full p-1 pt-2'>
                             {note && <div>{note}</div>}
                         </div>
-
+                        <SearchButton app={app} type={type} show={showSearchBar}/>
                     </div>
                 </div>
             </div>
@@ -105,12 +129,8 @@ export function Header ({title, note, logo, overlay='overlay', bgImg, chain, sho
             <div className={overlay === 'none' ? 'max-w-[1420px] w-full mx-auto px-4 xl:px-[54px] h-[238px] absolute top-[118px] items-center' : 'hidden'}>
                 <div className={'p-[56px] h-full bg-white z-[100] rounded-lg shadow-md'}>
                     <div className={'flex flex-col gap-1 w-3/4'}>
-                        <div className={'px-1 z-10'}>
-                            {
-                                showBreadcrumbs ? <Breadcrumbs chain={chain} /> : null
-                            }
-                        </div>
-                        {title && <div className='flex gap-1 text-3xl sm:text-[72px] font-[500] font-["Oswald"] text-[#2D3E4C] sm:leading-[72px] uppercase'>
+                        <Breadcrumbs chain={chain} show={showBreadcrumbs}/>
+                        {title && <div className={`flex gap-1 text-3xl text-[36px] ${titleSize} font-[500] font-["Oswald"] text-[#2D3E4C] sm:leading-[72px] uppercase`}>
                             {logo && <img className={'max-w-[150px] max-h-[150px]'} alt={' '} src={logo}/>}
                             {title}
                         </div>}
@@ -118,6 +138,7 @@ export function Header ({title, note, logo, overlay='overlay', bgImg, chain, sho
                     <div className='text-[16px] leading-[24px] text-[#37576B] w-3/4 p-1 pt-2'>
                         {note && <div>{note}</div>}
                     </div>
+                    <SearchButton app={app} type={type} show={showSearchBar}/>
                 </div>
             </div>
         </div>
@@ -138,6 +159,7 @@ const getChain = (dataItems, currentItem) => {
 
 const HeaderWrapper = ({isEdit}) => {
     const {dataItems, item} = useContext(PageContext);
+    const {app, type} = useContext(CMSContext);
     const {state: {display, data, columns}} = useContext(ComponentContext);
 
     const titleColumn = useMemo(() => columns.find(({title}) => title), [columns]);
@@ -151,7 +173,15 @@ const HeaderWrapper = ({isEdit}) => {
     const logo = useMemo(() => data?.[0]?.[logoColumn?.name], [data, imgColumn]);
     const chain = getChain(dataItems, item);
 
-    return <Header title={title || display.defaultTitle} note={note || display.defaultNote} logo={logo} bgImg={bgImg || display.defaultBgImg} {...display} chain={chain}/>
+    return <Header title={title || display.defaultTitle}
+                   note={note || display.defaultNote}
+                   logo={logo}
+                   bgImg={bgImg || display.defaultBgImg}
+                   {...display}
+                   chain={chain}
+                   app={app}
+                   type={type}
+    />
 }
 
 export default {
@@ -167,7 +197,8 @@ export default {
             pageSize: 5,
             totalLength: 0,
             overlay: 'overlay',
-            showBreadcrumbs: true
+            showBreadcrumbs: true,
+            titleSize: 'sm:text-[48px]'
         },
         // wrapper controlled part
         dataRequest: {},
@@ -235,12 +266,18 @@ export default {
         more: [
             {type: 'toggle', label: 'Attribution', key: 'showAttribution'},
             {type: 'toggle', label: 'Breadcrumbs', key: 'showBreadcrumbs'},
+            {type: 'toggle', label: 'Search', key: 'showSearchBar'},
             {type: 'select', label: 'Overlay', key: 'overlay',
                 options: [
                     { label: 'Overlay', value: 'overlay' },
                     { label: 'Inset', value: 'inset' },
                     { label: 'Full Width', value: 'full' },
                     { label: 'No Image', value: 'none' }
+                ]},
+            {type: 'select', label: 'Title Size', key: 'titleSize',
+                options: [
+                    { label: 'Regular', value: 'sm:text-[48px]' },
+                    { label: 'Large', value: 'sm:text-[72px]' },
                 ]},
             {type: 'input', inputType: 'text', label: 'Default Title', key: 'defaultTitle'},
             {type: 'input', inputType: 'text', label: 'Default Note', key: 'defaultNote'},

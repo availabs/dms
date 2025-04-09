@@ -147,7 +147,7 @@ const RenderStatus = ({loading, query, itemsLen}) =>
             </div>
         );
 
-const SearchPallet = ({open, setOpen, app, type}) => {
+export const SearchPallet = ({open, setOpen, app, type}) => {
     const {baseUrl, falcor, falcorCache} = useContext(CMSContext) || {}
     const [query, setQuery] = useState();
     const [tmpQuery, setTmpQuery] = useState();

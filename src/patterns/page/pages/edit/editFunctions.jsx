@@ -5,6 +5,8 @@ import { PencilIcon, CirclePlus, WrenchIcon, SlidersIcon, MenuIcon , ClockIcon} 
 
 
 export const insertSubPage = async (item, dataItems, user, apiUpdate) => {
+    if(!item?.id) return;
+
     const highestIndex = dataItems
     .filter(d => d.parent === item.id)
     .reduce((out,d) => {
@@ -79,6 +81,7 @@ export const newPage = async (item, dataItems, user, apiUpdate) => {
   }
 
 export const updateTitle = async ( item, dataItems, value='', user, apiUpdate) => {
+    if(!item.id) return;
     if(value !== item.title) {
       let history = item.history ? cloneDeep(item.history) : []
       let edit = {
@@ -102,6 +105,7 @@ export const updateTitle = async ( item, dataItems, value='', user, apiUpdate) =
   }
 
   export const updateHistory = async ( item, value='', user, apiUpdate) => {
+    if(!item.id) return;
       let history = item.history ? cloneDeep(item.history) : []
       let edit = {
         type: value,
@@ -142,6 +146,7 @@ export const toggleSidebar = async (item,type, value='', pageType, apiUpdate) =>
 }
 
 export const publish = async (user,item, apiUpdate) => {
+    if(!item.id) return;
   let edit = {
     type: 'published changes.',
     user: user.email, 
@@ -185,6 +190,7 @@ export const publish = async (user,item, apiUpdate) => {
 }
 
 export const discardChanges = async (user,item, apiUpdate) => {
+    if(!item.id) return;
   let edit = {
     type: 'discarded changes.',
     user: user.email,
