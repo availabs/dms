@@ -191,7 +191,7 @@ const Card = ({isEdit}) => {
                                                  ${dataCard.headerValueWrapper}
                                                  flex-${headerValueLayout} ${reverse && headerValueLayout === 'col' ? `flex-col-reverse` : reverse ? `flex-row-reverse` : ``}
                                                  ${compactView ? dataCard.headerValueWrapperCompactView : `${dataCard.headerValueWrapperSimpleView} ${removeBorder ? `` : 'border shadow'}`}
-                                                 ${compactView && attr.borderBelow ? `border-b rounded-none` : ``}
+                                                 ${compactView && attr.borderBelow ? `border-b rounded-none ${dataCard.headerValueWrapperBorderBColor}` : ``}
                                                  ${compactView && attr.pb ? `pb-[${attr.pb}px]` : ``}
                                                  `}
                                                  style={{
@@ -219,7 +219,7 @@ const Card = ({isEdit}) => {
                                                  `}>
                                                     {
                                                         isLink ?
-                                                            <Link to={`${location}${encodeURIComponent(useId ? id : value)}`}>
+                                                            <Link className={dataCard.linkColValue} to={`${location}${encodeURIComponent(useId ? id : value)}`}>
                                                                 {linkText || value}
                                                             </Link> :
                                                             value
