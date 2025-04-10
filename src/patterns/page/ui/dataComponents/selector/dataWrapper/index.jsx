@@ -1,4 +1,4 @@
-import React, {useState, useEffect, createContext, useMemo, useRef} from 'react'
+import React, {useState, useEffect, createContext, useMemo, useRef, useCallback} from 'react'
 import writeXlsxFile from 'write-excel-file';
 import {Pagination} from "../ComponentRegistry/shared/Pagination";
 import {getData} from "./utils/utils";
@@ -222,9 +222,8 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, component, hideS
         isValidState]);
 
     // useGetDataOnPageChange
-    useEffect(() => {
-        // on page change get data request
-        if(!isValidState || !component.useGetDataOnPageChange) return;
+    const onPageChange = (currentPage) => {
+        if(!isValidState || !component.useGetDataOnPageChange || !state.display.readyToLoad) return;
         // only run when page changes
         let isStale = false;
         async function load() {
@@ -236,18 +235,14 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, component, hideS
             }
             setState(draft => {
                 // on page change append data unless using pagination
-                draft.data =  state.display?.usePagination ? data : [...draft.data.filter(r => !r.totalRow), ...data];
+                draft.data =  state.display.usePagination ? data : [...draft.data.filter(r => !r.totalRow), ...data];
                 draft.display.totalLength = length;
             })
             setLoading(false)
         }
 
-        load()
-
-        return () => {
-            isStale = true;
-        }
-    }, [currentPage]);
+        return load()
+    }
 
     // useInfiniteScroll
     useEffect(() => {
@@ -259,6 +254,7 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, component, hideS
                 const hasMore = (currentPage * state.display.pageSize + state.display.pageSize) < state.display.totalLength;
                 if (state.data.length && entries[0].isIntersecting && hasMore) {
                     setCurrentPage(prevPage => prevPage+1)
+                    await onPageChange(currentPage + 1)
                 }
             },
             { threshold: 0 }
@@ -344,7 +340,10 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, component, hideS
                 />
                 <div>
                     {/*Pagination*/}
-                    <Pagination currentPage={currentPage} setCurrentPage={setCurrentPage} showPagination={component.showPagination}/>
+                    <Pagination currentPage={currentPage} setCurrentPage={i => {
+                        setCurrentPage(i)
+                        return onPageChange(i);
+                    }} showPagination={component.showPagination}/>
                     {/*/!*Attribution*!/*/}
                     {state.display.showAttribution ? <Attribution/> : null}
                 </div>
@@ -365,7 +364,7 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
     const isValidState = state?.dataRequest; // new state structure
     const Comp = useMemo(() => component.ViewComp, [component]);
     // const useCache = state.display.useCache //=== false ? false : true; // false: loads data on load. can be expensive. useCache can be undefined for older components.
-
+    const setReadyToLoad = useCallback(() => setState(draft => {draft.display.readyToLoad = true}), [setState]);
     useEffect(() => {
         const newState = convertOldState(value)
         setState(newState)
@@ -414,7 +413,7 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
         const newDataReq = {
             ...state.dataRequest || {},
             ...filterOptions,
-            ...orderBy,
+            orderBy,
             meta: state.columns.filter(column => column.show &&
                 ['meta-variable', 'geoid-variable', 'meta'].includes(column.display) &&
                 column.meta_lookup)
@@ -440,13 +439,13 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
         async function load() {
             setLoading(true)
             const newCurrentPage = 0; // for all the deps here, it's okay to fetch from page 1.
-            // console.log('debug getdata 1', component.name, state.dataRequest.filter, state.display.readyToLoad)
+
             const {length, data} = await getData({state, apiLoad, fullDataLoad: component.fullDataLoad});
             if(isStale) {
                 setLoading(false);
                 return;
             }
-            // console.log('debug setdata 1', component.name, data)
+
             setState(draft => {
                 draft.data = data;
                 draft.display.totalLength = length;
@@ -462,19 +461,19 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
     }, [state?.dataRequest, isValidState, state.display.readyToLoad]);
 
     // useGetDataOnPageChange
-    useEffect(() => {
+    const onPageChange = (currentPage) => {
         if(!isValidState || !component.useGetDataOnPageChange || !state.display.readyToLoad) return;
         // only run when page changes
         let isStale = false;
         async function load() {
             setLoading(true)
-            // console.log('debug getdata 2', component.name, state.dataRequest.filter, state.display.readyToLoad)
+
             const {length, data} = await getData({state, currentPage, apiLoad});
+
             if(isStale) {
                 setLoading(false);
                 return;
             }
-            // console.log('debug setdata 2', component.name, data)
             setState(draft => {
                 // on page change append data unless using pagination
                 draft.data =  state.display.usePagination ? data : [...draft.data.filter(r => !r.totalRow), ...data];
@@ -483,12 +482,8 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
             setLoading(false)
         }
 
-        load()
-
-        return () => {
-            isStale = true;
-        }
-    }, [currentPage]);
+        return load()
+    }
 
     // useInfiniteScroll
     useEffect(() => {
@@ -499,6 +494,7 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
                 const hasMore = (currentPage * state.display.pageSize + state.display.pageSize) < state.display.totalLength;
                 if (state.data.length && entries[0].isIntersecting && hasMore) {
                     setCurrentPage(prevPage => prevPage+1)
+                    await onPageChange(currentPage+1);
                 }
             },
             { threshold: 0 }
@@ -574,7 +570,10 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
                     />
                     <div>
                         {/*Pagination*/}
-                        <Pagination currentPage={currentPage} setCurrentPage={setCurrentPage} setReadyToLoad={() => setState(draft => {draft.readyToLoad = true})} showPagination={component.showPagination}/>
+                        <Pagination currentPage={currentPage} setCurrentPage={i => {
+                            setCurrentPage(i)
+                            return onPageChange(i);
+                        }} setReadyToLoad={setReadyToLoad} showPagination={component.showPagination}/>
                         {/*Attribution*/}
                         {state.display.showAttribution ? <Attribution/> : null}
                     </div>
