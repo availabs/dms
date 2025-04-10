@@ -31,6 +31,7 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, renderCard}) => 
         <div className={'w-full h-full min-h-[50px]'}>
             <DataSourceSelector apiLoad={apiLoad} app={pageFormat?.app}
                                 state={state} setState={setState} // passing as props as other components will use it as well.
+                                sourceTypes={['internal']}
             />
         </div>
     )
