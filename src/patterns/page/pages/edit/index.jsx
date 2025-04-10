@@ -40,8 +40,9 @@ function PageEdit ({
 	      let defaultItem = dataItems
 	        .sort((a,b) => a.index-b.index)
 	        .find(d=> !d.parent && d.url_slug);
+		  if(!defaultItem) return;
 
-			const defaultUrl = `${baseUrl}/edit/${defaultItem.url_slug}`;
+			const defaultUrl = `${baseUrl}/edit/${defaultItem?.url_slug}`;
 
 			if(defaultUrl && pathname !== defaultUrl){
 			  navigate(defaultUrl)

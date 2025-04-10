@@ -1,17 +1,8 @@
-import React, {useMemo, useState, useEffect, useRef, useContext} from 'react'
+import React, { useState, useEffect, useContext} from 'react'
 import {Link} from "react-router-dom";
 import {FormsContext} from "../siteConfig";
 import {InfoCircle} from "../../admin/ui/icons";
 import {get} from "lodash-es";
-
-export const isJson = (str)  => {
-    try {
-        JSON.parse(str);
-    } catch (e) {
-        return false;
-    }
-    return true;
-}
 
 const preventDefaults = e => {
     e.preventDefault();
@@ -40,7 +31,7 @@ const uploadGisDataset = async ({file, user, etlContextId, pgEnv, falcor, damaSe
 
         const isDone = events.some(e => e.type && e.type.toLowerCase().includes(':final'));
         if(!isDone) {
-            delay(2000);
+            await delay(2000);
             return awaitFinalEvent();
         }
     }
@@ -139,7 +130,7 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate, paren
     // 2. post upload change column name and display names -- avoiding this. this should be done in meta manager.
     // 3. set columns to geo columns
     // 4. map multiple columns to a single column. this converts column headers to values of a new column
-    // todo 5. choose an id column to update data if there's id match. -- in progress
+    // 5. choose an id column to update data if there's id match.
 
     const {API_HOST, user, baseUrl, falcor} = useContext(FormsContext);
     const pgEnv = 'hazmit_dama'
