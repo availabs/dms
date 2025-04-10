@@ -1,7 +1,7 @@
 import {formatFunctions, isEqualColumns} from "../dataWrapper/utils/utils";
 import {ComponentContext} from "../dataWrapper";
 import TableHeaderCell from "./spreadsheet/components/TableHeaderCell";
-import React, {useContext, useEffect, useMemo} from "react";
+import React, {useContext, useEffect, useMemo, useState} from "react";
 import {Link} from "react-router-dom";
 import {CMSContext} from "../../../../siteConfig";
 import {ColorControls} from "./shared/ColorControls";
@@ -109,7 +109,8 @@ const Card = ({isEdit}) => {
     const { theme = {} } = React.useContext(CMSContext) || {};
     const dataCard = theme.dataCard || dataCardTheme;
 
-    const {state:{columns, data, display: {compactView, gridSize, gridGap, padding, headerValueLayout, reverse, hideIfNull, removeBorder, bgColor='#FFFFFF'}}, setState} = useContext(ComponentContext);
+    const {state:{columns, data, display: {compactView, gridSize, gridGap, padding, colGap, headerValueLayout, reverse, hideIfNull, removeBorder, bgColor='#FFFFFF'}}, setState} = useContext(ComponentContext);
+    const [draggedCol, setDraggedCol] = useState(null);
     const visibleColumns = useMemo(() => columns.filter(({show}) => show), [columns]);
     const cardsWithoutSpanLength = useMemo(() => columns.filter(({show, cardSpan}) => show && !cardSpan).length, [columns]);
 
@@ -118,7 +119,7 @@ const Card = ({isEdit}) => {
     const mainWrapperStyle = gridSize && compactView ?
         {gridTemplateColumns: `repeat(${Math.min(gridSize, data.length)}, minmax(0, 1fr))`, gap: gridGap, paddingTop: `${imageTopMargin}px`} :
         {gap: gridGap, paddingTop: `${imageTopMargin}px`};
-    const subWrapperStyle = compactView ? {backgroundColor: bgColor, padding} : {gridTemplateColumns: `repeat(${gridSize || cardsWithoutSpanLength}, minmax(0, 1fr))`, gap: gridGap || 2}
+    const subWrapperStyle = compactView ? {backgroundColor: bgColor, padding, gap: colGap} : {gridTemplateColumns: `repeat(${gridSize || cardsWithoutSpanLength}, minmax(0, 1fr))`, gap: gridGap || 2}
     useEffect(() => {
         // set hideSection flag
         if(!isEdit) return;
@@ -131,7 +132,7 @@ const Card = ({isEdit}) => {
             const hide = data.length === 0 ||
                          data.every(row => columns.filter(({ show }) => show)
                                                     .every(col => {
-                                                        const value = row[col.name];
+                                                        const value = row[col.normalName || col.name];
                                                         return value === null || value === undefined || value === "";
                                                     }));
             setState(draft => {
@@ -140,17 +141,39 @@ const Card = ({isEdit}) => {
         }
     }, [data, hideIfNull])
 
+
+// Reordering function
+    function handleDrop(targetCol) {
+        if (!draggedCol || isEqualColumns(draggedCol, targetCol)) return;
+
+        setState(draft => {
+            const newCols = [...draft.columns];
+            const draggedIndex = newCols.findIndex(col => isEqualColumns(col, draggedCol));
+            const targetIndex = newCols.findIndex(col => isEqualColumns(col, targetCol));
+            const [removed] = newCols.splice(draggedIndex, 1);
+            newCols.splice(targetIndex, 0, removed);
+            draft.columns = newCols;
+        });
+    }
     return (
         <>
             {
                 isEdit ? <div className={dataCard.columnControlWrapper}>
-                    {visibleColumns.map((attribute, i) =>
-                            <div key={`controls-${i}`} className={dataCard.columnControlHeaderWrapper}>
-                                <TableHeaderCell
-                                    isEdit={isEdit}
-                                    attribute={attribute}
-                                />
-                            </div>)}
+                    {visibleColumns.map((attribute, i) => (
+                        <div
+                            key={`controls-${i}`}
+                            className={dataCard.columnControlHeaderWrapper}
+                            draggable
+                            onDragStart={() => setDraggedCol(attribute)}
+                            onDragOver={e => e.preventDefault()} // Allow drop
+                            onDrop={() => handleDrop(attribute)}
+                        >
+                            <TableHeaderCell
+                                isEdit={isEdit}
+                                attribute={attribute}
+                            />
+                        </div>
+                    ))}
                 </div> : null
             }
 
@@ -167,7 +190,7 @@ const Card = ({isEdit}) => {
                                     .map(attr => {
                                         const {isLink, location, linkText, useId, isImg, imageSrc, imageLocation, imageExtension, imageSize, imageMargin} = attr || {};
                                         const span = compactView ? 'span 1' : `span ${attr.cardSpan || 1}`;
-                                        const rawValue = item?.[attr.normalName || attr.name];
+                                        const rawValue = item[attr.normalName] || item[attr.name];
                                         const id = item?.id;
                                         const value =
                                             isImg ?
@@ -180,17 +203,20 @@ const Card = ({isEdit}) => {
                                             ['icon', 'color'].includes(attr.formatFn) && formatFunctions[attr.formatFn] ?
                                                 <div className={'flex items-center gap-1.5 uppercase'}>{formatFunctions[attr.formatFn](rawValue, attr.isDollar)}</div> :
                                                 attr.formatFn && formatFunctions[attr.formatFn] ?
-                                            formatFunctions[attr.formatFn](rawValue, attr.isDollar).replaceAll(' ', '') :
-                                            rawValue
+                                                    formatFunctions[attr.formatFn](rawValue, attr.isDollar).replaceAll(' ', '') :
+                                                    rawValue
 
                                         const headerTextJustifyClass = justifyClass[attr.justify || 'center']?.header || justifyClass[attr.justify || 'center'];
                                         const valueTextJustifyClass = justifyClass[attr.justify || 'center']?.value || justifyClass[attr.justify || 'center'];
                                         return (
-                                            <div key={attr.name}
+                                            <div key={attr.normalName || attr.name}
                                                  className={`
                                                  ${dataCard.headerValueWrapper}
                                                  flex-${headerValueLayout} ${reverse && headerValueLayout === 'col' ? `flex-col-reverse` : reverse ? `flex-row-reverse` : ``}
-                                                 ${compactView ? dataCard.headerValueWrapperCompactView : `${dataCard.headerValueWrapperSimpleView} ${removeBorder ? `` : 'border shadow'}`}`}
+                                                 ${compactView ? dataCard.headerValueWrapperCompactView : `${dataCard.headerValueWrapperSimpleView} ${removeBorder ? `` : 'border shadow'}`}
+                                                 ${compactView && attr.borderBelow ? `border-b rounded-none ${dataCard.headerValueWrapperBorderBColor}` : ``}
+                                                 ${compactView && attr.pb ? `pb-[${attr.pb}px]` : ``}
+                                                 `}
                                                  style={{
                                                      gridColumn: span,
                                                      padding: compactView ? undefined : padding,
@@ -205,7 +231,7 @@ const Card = ({isEdit}) => {
                                                           ${dataCard[attr.headerFontStyle || 'textXS']}
                                                           
                                                           `}>
-                                                            {attr.customName || attr.display_name || attr.name}
+                                                            {attr.customName || attr.display_name || attr.normalName || attr.name}
                                                         </div>
                                                     )
                                                 }
@@ -216,7 +242,7 @@ const Card = ({isEdit}) => {
                                                  `}>
                                                     {
                                                         isLink ?
-                                                            <Link to={`${location}${encodeURIComponent(useId ? id : value)}`}>
+                                                            <Link className={dataCard.linkColValue} to={`${location}${encodeURIComponent(useId ? id : value)}`}>
                                                                 {linkText || value}
                                                             </Link> :
                                                             value
@@ -265,6 +291,8 @@ export default {
             {type: 'input', inputType: 'number', label: 'Grid Size', key: 'gridSize'},
             {type: 'input', inputType: 'number', label: 'Grid Gap', key: 'gridGap'},
             {type: 'input', inputType: 'number', label: 'Padding', key: 'padding'},
+            {type: 'input', inputType: 'number', label: 'Column Gap', key: 'colGap', displayCdn: ({display}) => display.compactView},
+
             {type: 'toggle', label: 'Use Pagination', key: 'usePagination'},
 
             {type: 'input', inputType: 'number', label: 'Page Size', key: 'pageSize', displayCdn: ({display}) => display.usePagination === true},
@@ -297,6 +325,8 @@ export default {
                     {label: 'Color', value: 'color'},
                 ]},
 
+            {type: 'toggle', label: 'Border Below', key: 'borderBelow', displayCdn: ({display}) => display.compactView},
+            {type: 'input', inputType: 'number', label: 'Padding Below', key: 'pb', displayCdn: ({display}) => display.compactView},
             {type: 'toggle', label: 'Hide Header', key: 'hideHeader'},
             {type: 'select', label: 'Header', key: 'headerFontStyle', options: fontStyleOptions, displayCdn: ({attribute}) => !attribute.hideHeader},
             {type: 'select', label: 'Value', key: 'valueFontStyle', options: fontStyleOptions},

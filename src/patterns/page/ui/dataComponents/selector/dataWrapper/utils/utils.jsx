@@ -154,7 +154,7 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
             totalName, // used to make total row calls.
         }
     })
-    const columnsToFetch = columnsWithSettings.filter(column => column.show && !column.isCopiedColumn && !column.isDuplicate && column.type !== 'formula');
+    const columnsToFetch = columnsWithSettings.filter(column => column.show && !column.isDuplicate && column.type !== 'formula');
     // collect variables used in formula columns, and add them to fetch list
     const formulaVariableColumns = columnsWithSettings.filter(column => column.type === 'formula')
         .reduce((acc, curr) => {
@@ -469,17 +469,17 @@ export const isJson = (str)  => {
 }
 
 const strColorMap = {
-    'very high risk': '#AA2E26',
-    'high risk': '#DD524C',
-    'moderate risk': '#EA8954',
-    'low risk': '#F1CA87',
-    'very low risk': '#54B99B',
+    'Very High Risk': '#AA2E26',
+    'High Risk': '#DD524C',
+    'Moderate Risk': '#EA8954',
+    'Low Risk': '#F1CA87',
+    'Very Low Risk': '#54B99B',
     default: '#ccc'
 }
 export const formatFunctions = {
     'abbreviate': (d, isDollar) => fnumIndex(d, 1, isDollar),
     'comma': (d, isDollar) => fnum(d, isDollar),
-    'icon': (strValue, props) => <><Icon icon={strValue} {...props}/> <span>vale</span></>,
+    'icon': (strValue, props) => <><Icon icon={strValue} {...props}/> <span>{strValue}</span></>,
     'color': (strValue, map) => <>
         <div style={{borderRadius: '1000px', height: '10px', width: '10px', backgroundColor: map?.[strValue] || strColorMap[strValue] || strColorMap.default}} />
         <div>{strValue}</div>

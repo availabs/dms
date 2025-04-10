@@ -45,8 +45,8 @@ export const duplicateControl = {
                 // columnToAdd.originalName = columnToAdd.name;
                 // columnToAdd.name += ` - copy - ${numDuplicates}`
                 console.log('column to add', columnToAdd)
-                draft.columns.push(columnToAdd)
-                // draft.columns.splice(idx, 0, columnToAdd)
+                // draft.columns.push(columnToAdd)
+                draft.columns.splice(idx, 0, columnToAdd)
             })
         }
         return (

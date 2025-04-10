@@ -8,6 +8,8 @@ const selectWrapperClass = 'group px-2 py-1 w-full flex items-center cursor-poin
 const selectLabelClass = 'w-fit font-regular text-gray-500 cursor-default'
 const selectClasses = 'w-full rounded-md bg-white group-hover:bg-gray-100 cursor-pointer'
 
+const getColIdName = col => col.normalName || col.name;
+
 // in header menu for each column
 export default function TableHeaderCell({isEdit, attribute, context}) {
     const {state: {columns = [], display}, setState, controls = {}} = useContext(context || ComponentContext);
@@ -15,7 +17,7 @@ export default function TableHeaderCell({isEdit, attribute, context}) {
 
     const menuRef = useRef(null);
     const [isOpen, setIsOpen] = useState(false);
-    const menuBtnId = `menu-btn-${attribute.name}-in-header-column-controls`; // used to control isOpen on menu-btm click;
+    const menuBtnId = `menu-btn-${getColIdName(attribute)}-in-header-column-controls`; // used to control isOpen on menu-btm click;
     useHandleClickOutside(menuRef, menuBtnId, () => setIsOpen(false));
 
     const maxCardSpan = display.gridSize || columns.filter(({show, cardSpan}) => show).length;
@@ -23,7 +25,7 @@ export default function TableHeaderCell({isEdit, attribute, context}) {
     // updates column if present, else adds it with the change the user made.
     const updateColumns = useCallback((key, value, onChange, dataFetch) => setState(draft => {
         // update requested key
-        const idx = columns.findIndex(column => column.name === attribute.name);
+        const idx = columns.findIndex(column => getColIdName(column) === getColIdName(attribute));
         if (idx !== -1) {
             draft.columns[idx][key] = value;
         }
@@ -47,7 +49,7 @@ export default function TableHeaderCell({isEdit, attribute, context}) {
     }
 
     return (
-        <div key={attribute.normalName || attribute.name} className="relative w-full">
+        <div key={getColIdName(attribute)} className="relative w-full">
             <div id={menuBtnId}
                  key={'menu-btn'}
                  className={`group inline-flex items-center w-full justify-between gap-x-1.5 rounded-md cursor-pointer`}
@@ -55,16 +57,16 @@ export default function TableHeaderCell({isEdit, attribute, context}) {
                 {
                     controls.header?.displayFn ? controls.header.displayFn(attribute) :
                         (
-                            <span key={`${attribute.normalName || attribute.name}-name`} className={'truncate select-none'}
-                                  title={attribute.customName || attribute.display_name || attribute.name}>
-                                {attribute.customName || attribute.display_name || attribute.name}
+                            <span key={`${getColIdName(attribute)}-name`} className={'truncate select-none'}
+                                  title={attribute.customName || attribute.display_name || getColIdName(attribute)}>
+                                {attribute.customName || attribute.display_name || getColIdName(attribute)}
                             </span>
                         )
                 }
                 <div id={menuBtnId} className={'flex items-center'}>
                     {/*/!*<InfoCircle width={16} height={16} className={'text-gray-500'} />*!/ needs a lexical modal*/}
                     {
-                        attribute.group ? <Group key={`group-${attribute.name}`} className={iconClass} {...iconSizes} /> :
+                        attribute.group ? <Group key={`group-${getColIdName(attribute)}`} className={iconClass} {...iconSizes} /> :
                             attribute.fn ? fnIcons[attribute.fn] || attribute.fn : null
                     }
                     {
@@ -72,7 +74,7 @@ export default function TableHeaderCell({isEdit, attribute, context}) {
                             attribute.sort === 'desc nulls last' ? <SortDesc key={'sort-desc-icon'} className={iconClass} {...iconSizes} /> : null
                     }
 
-                    <ArrowDown key={`arrow-down-${attribute.name}`}
+                    <ArrowDown key={`arrow-down-${getColIdName(attribute)}`}
                                id={menuBtnId}
                                className={'text-gray-400 group-hover:text-gray-600 transition ease-in-out duration-200'}/>
                 </div>
@@ -93,7 +95,7 @@ export default function TableHeaderCell({isEdit, attribute, context}) {
                                         typeof displayCdn === 'boolean' ? displayCdn : true)
                                 .map(({type, inputType, label, key, dataFetch, options, onChange}) =>
                                     type === 'select' ?
-                                        <div key={`${attribute.normalName || attribute.name}-${key}`} className={selectWrapperClass}>
+                                        <div key={`${getColIdName(attribute)}-${key}`} className={selectWrapperClass}>
                                             <label className={selectLabelClass}>{label}</label>
                                             <select
                                                 className={selectClasses}
