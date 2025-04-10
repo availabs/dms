@@ -35,7 +35,7 @@ export default function TableHeaderCell({isEdit, attribute, context}) {
         }
 
         if(dataFetch && !draft.readyToLoad){
-            draft.readyToLoad = true;
+            draft.display.readyToLoad = true;
         }
 
     }), [columns, attribute]);

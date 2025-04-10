@@ -444,6 +444,7 @@ export default {
             {type: 'toggle', label: 'Show Total', key: 'showTotal'},
             {type: 'toggle', label: 'Striped', key: 'striped'},
             {type: 'toggle', label: 'Allow Download', key: 'allowDownload'},
+            {type: 'toggle', label: 'Always Fetch Data', key: 'readyToLoad'},
             {type: 'toggle', label: 'Use Pagination', key: 'usePagination'},
             {type: 'input', inputType: 'number', label: 'Page Size', key: 'pageSize', displayCdn: ({display}) => display.usePagination === true},
         ],

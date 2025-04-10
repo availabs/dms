@@ -364,46 +364,57 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
     const showChangeFormatModal = !state?.sourceInfo?.columns;
     const isValidState = state?.dataRequest; // new state structure
     const Comp = useMemo(() => component.ViewComp, [component]);
+    // const useCache = state.display.useCache //=== false ? false : true; // false: loads data on load. can be expensive. useCache can be undefined for older components.
 
     useEffect(() => {
         const newState = convertOldState(value)
         setState(newState)
     }, [value]);
 
-    // ========================================== get data begin =======================================================
-    useEffect(() => {
-        if(!isValidState || !state.readyToLoad) return;
-        let isStale = false;
+    // ====================================== data fetch triggers begin ================================================
+    // filters, sort, page change, draft.readyToFetch
+    // builds an object with filter, exclude, gt, gte, lt, lte, like as keys. columnName: [values] as values
+    const filterOptions = useMemo(() => state.columns.reduce((acc, column) => {
+        const isNormalisedColumn = state.columns.filter(col => col.name === column.name && col.filters?.length).length > 1;
 
-        // builds an object with filter, exclude, gt, gte, lt, lte, like as keys. columnName: [values] as values
-        const filterOptions = state.columns.reduce((acc, column) => {
-            const isNormalisedColumn = state.columns.filter(col => col.name === column.name && col.filters?.length).length > 1;
-
-            (column.filters || [])
-                .filter(({values}) => Array.isArray(values) && values.every(v => typeof v === 'string' ? v.length : typeof v !== 'object'))
-                .forEach(({type, operation, values}) => {
-                    // here, operation is filter, exclude, >, >=, <, <=.
-                    // normal columns only support filter.
-                    if(isNormalisedColumn){
-                        (acc.normalFilter ??= []).push({ column: column.name, values });
-                    }else{
-                        acc[operation] = {...acc[operation] || {}, [column.name]: values};
-                    }
+        (column.filters || [])
+            .filter(({values}) => Array.isArray(values) && values.every(v => typeof v === 'string' ? v.length : typeof v !== 'object'))
+            .forEach(({type, operation, values}) => {
+                // here, operation is filter, exclude, >, >=, <, <=.
+                // normal columns only support filter.
+                if(isNormalisedColumn){
+                    (acc.normalFilter ??= []).push({ column: column.name, values });
+                }else{
+                    acc[operation] = {...acc[operation] || {}, [column.name]: values};
+                }
 
             })
 
-            if(column.excludeNA){
-                acc.exclude = acc.exclude && acc.exclude[column.name] ?
-                    {...acc.exclude, [column.name]: [...acc.exclude[column.name], 'null']} :
-                    {...acc.exclude || [], [column.name]: ['null']}
+        if(column.excludeNA){
+            acc.exclude = acc.exclude && acc.exclude[column.name] ?
+                {...acc.exclude, [column.name]: [...acc.exclude[column.name], 'null']} :
+                {...acc.exclude || [], [column.name]: ['null']}
+        }
 
-            }
-            return acc;
-        }, {})
+
+        return acc;
+    }, {}), [state.columns]);
+    // if search params are being used, readyToLoad = true;
+    // if search params are being used, ideally for template pages you should only fetch on filter change
+    // for other pages, all data should be fetched
+
+    const orderBy = useMemo(() => state.columns.filter(column => column.sort).reduce((acc, column) => ({...acc, [column.name]: column.sort}), {}), [state.column]);
+    // ======================================= data fetch triggers end =================================================
+
+    // ========================================== get data begin =======================================================
+    useEffect(() => {
+        if(!isValidState || !state.display.readyToLoad) return;
+        let isStale = false;
+
         const newDataReq = {
-           ...state.dataRequest || {},
+            ...state.dataRequest || {},
             ...filterOptions,
-            orderBy: state.columns.filter(column => column.sort).reduce((acc, column) => ({...acc, [column.name]: column.sort}), {}),
+            ...orderBy,
             meta: state.columns.filter(column => column.show &&
                 ['meta-variable', 'geoid-variable', 'meta'].includes(column.display) &&
                 column.meta_lookup)
@@ -415,26 +426,27 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
         setState(draft => {
             draft.dataRequest = newDataReq;
         })
-        // todo: save settings such that they can be directly used by getData and getLength
 
         return () => {
             isStale = true;
         }
-    }, [state.columns, isValidState, state.readyToLoad])
+    }, [filterOptions, orderBy, isValidState, state.display.readyToLoad])
 
     // uweGetDataOnSettingsChange
     useEffect(() => {
-        if(!isValidState || !state.readyToLoad) return;
+        if(!isValidState || !state.display.readyToLoad) return;
         // only run when controls or source/view change
         let isStale = false;
         async function load() {
             setLoading(true)
             const newCurrentPage = 0; // for all the deps here, it's okay to fetch from page 1.
+            // console.log('debug getdata 1', component.name, state.dataRequest.filter, state.display.readyToLoad)
             const {length, data} = await getData({state, apiLoad, fullDataLoad: component.fullDataLoad});
             if(isStale) {
                 setLoading(false);
                 return;
             }
+            // console.log('debug setdata 1', component.name, data)
             setState(draft => {
                 draft.data = data;
                 draft.display.totalLength = length;
@@ -447,20 +459,22 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
         return () => {
             isStale = true;
         };
-    }, [state?.dataRequest, state?.sourceInfo, isValidState, state.readyToLoad]);
+    }, [state?.dataRequest, isValidState, state.display.readyToLoad]);
 
     // useGetDataOnPageChange
     useEffect(() => {
-        if(!isValidState || !component.useGetDataOnPageChange || !state.readyToLoad) return;
+        if(!isValidState || !component.useGetDataOnPageChange || !state.display.readyToLoad) return;
         // only run when page changes
         let isStale = false;
         async function load() {
             setLoading(true)
+            // console.log('debug getdata 2', component.name, state.dataRequest.filter, state.display.readyToLoad)
             const {length, data} = await getData({state, currentPage, apiLoad});
             if(isStale) {
                 setLoading(false);
                 return;
             }
+            // console.log('debug setdata 2', component.name, data)
             setState(draft => {
                 // on page change append data unless using pagination
                 draft.data =  state.display.usePagination ? data : [...draft.data.filter(r => !r.totalRow), ...data];
@@ -474,7 +488,7 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
         return () => {
             isStale = true;
         }
-    }, [currentPage, state.readyToLoad]);
+    }, [currentPage]);
 
     // useInfiniteScroll
     useEffect(() => {
@@ -549,6 +563,7 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
                         -- and it needs to be absolutely positioned
                         <span className={'text-xs'}>{loading ? 'loading...' : state.display.invalidState ? state.display.invalidState : null}</span>
                     */}
+                    {loading ? <div>loading...</div> : null}
                     <Comp isEdit={isEdit}
                           {...component.name === 'Spreadsheet' && {
                               newItem, setNewItem,

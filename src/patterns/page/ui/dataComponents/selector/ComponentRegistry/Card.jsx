@@ -292,7 +292,7 @@ export default {
             {type: 'input', inputType: 'number', label: 'Grid Gap', key: 'gridGap'},
             {type: 'input', inputType: 'number', label: 'Padding', key: 'padding'},
             {type: 'input', inputType: 'number', label: 'Column Gap', key: 'colGap', displayCdn: ({display}) => display.compactView},
-
+            {type: 'toggle', label: 'Always Fetch Data', key: 'readyToLoad'},
             {type: 'toggle', label: 'Use Pagination', key: 'usePagination'},
 
             {type: 'input', inputType: 'number', label: 'Page Size', key: 'pageSize', displayCdn: ({display}) => display.usePagination === true},

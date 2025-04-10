@@ -86,7 +86,7 @@ export default function AppearanceControls({context}) {
                     <ToggleControl title={'Rotate Labels'} value={display.yAxis?.rotateLabels}
                                    setValue={value => updateDisplayValue('yAxis', 'rotateLabels', value)}/>
 
-                    {/* Title */}
+                    {/* Graph */}
                     <div className={'border-t mt-2 mx-4'}>
                         <div className={'-mt-2 -ml-4 px-2 text-xs font-medium font-gray-800 w-fit bg-white'}>Graph</div>
                     </div>
@@ -102,6 +102,8 @@ export default function AppearanceControls({context}) {
                                    setValue={value => updateDisplayValue(null, 'showAttribution', value)}/>
                     <InputControl title={'Height'} type={'number'} value={display.height}
                                   setValue={value => updateDisplayValue(null, 'height', +value)}/>
+                    <ToggleControl title={'Always Fetch Data'} value={display.readyToLoad}
+                                   setValue={value => updateDisplayValue(null, 'readyToLoad', value)}/>
 
                     {/* Layout */}
                     {
