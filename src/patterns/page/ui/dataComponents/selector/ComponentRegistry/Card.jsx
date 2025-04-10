@@ -1,7 +1,7 @@
 import {formatFunctions, isEqualColumns} from "../dataWrapper/utils/utils";
 import {ComponentContext} from "../dataWrapper";
 import TableHeaderCell from "./spreadsheet/components/TableHeaderCell";
-import React, {useContext, useEffect, useMemo} from "react";
+import React, {useContext, useEffect, useMemo, useState} from "react";
 import {Link} from "react-router-dom";
 import {CMSContext} from "../../../../siteConfig";
 import {ColorControls} from "./shared/ColorControls";
@@ -110,6 +110,7 @@ const Card = ({isEdit}) => {
     const dataCard = theme.dataCard || dataCardTheme;
 
     const {state:{columns, data, display: {compactView, gridSize, gridGap, padding, colGap, headerValueLayout, reverse, hideIfNull, removeBorder, bgColor='#FFFFFF'}}, setState} = useContext(ComponentContext);
+    const [draggedCol, setDraggedCol] = useState(null);
     const visibleColumns = useMemo(() => columns.filter(({show}) => show), [columns]);
     const cardsWithoutSpanLength = useMemo(() => columns.filter(({show, cardSpan}) => show && !cardSpan).length, [columns]);
 
@@ -140,17 +141,39 @@ const Card = ({isEdit}) => {
         }
     }, [data, hideIfNull])
 
+
+// Reordering function
+    function handleDrop(targetCol) {
+        if (!draggedCol || isEqualColumns(draggedCol, targetCol)) return;
+
+        setState(draft => {
+            const newCols = [...draft.columns];
+            const draggedIndex = newCols.findIndex(col => isEqualColumns(col, draggedCol));
+            const targetIndex = newCols.findIndex(col => isEqualColumns(col, targetCol));
+            const [removed] = newCols.splice(draggedIndex, 1);
+            newCols.splice(targetIndex, 0, removed);
+            draft.columns = newCols;
+        });
+    }
     return (
         <>
             {
                 isEdit ? <div className={dataCard.columnControlWrapper}>
-                    {visibleColumns.map((attribute, i) =>
-                            <div key={`controls-${i}`} className={dataCard.columnControlHeaderWrapper}>
-                                <TableHeaderCell
-                                    isEdit={isEdit}
-                                    attribute={attribute}
-                                />
-                            </div>)}
+                    {visibleColumns.map((attribute, i) => (
+                        <div
+                            key={`controls-${i}`}
+                            className={dataCard.columnControlHeaderWrapper}
+                            draggable
+                            onDragStart={() => setDraggedCol(attribute)}
+                            onDragOver={e => e.preventDefault()} // Allow drop
+                            onDrop={() => handleDrop(attribute)}
+                        >
+                            <TableHeaderCell
+                                isEdit={isEdit}
+                                attribute={attribute}
+                            />
+                        </div>
+                    ))}
                 </div> : null
             }
 
