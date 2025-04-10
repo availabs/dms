@@ -563,7 +563,7 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
                         -- and it needs to be absolutely positioned
                         <span className={'text-xs'}>{loading ? 'loading...' : state.display.invalidState ? state.display.invalidState : null}</span>
                     */}
-                    {loading ? <div>loading...</div> : null}
+                    {loading ? <LoadingHourGlass className={'text-[#2D3E4C]'} /> : null}
                     <Comp isEdit={isEdit}
                           {...component.name === 'Spreadsheet' && {
                               newItem, setNewItem,
