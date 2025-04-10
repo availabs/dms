@@ -8,6 +8,7 @@ import Graph from "./graph"
 import Item from "./item";
 import ComponentsIndexTable from "../componentsIndexTable";
 import FilterComponent from "./FilterComponent";
+import UploadComponent from "./UploadComponent";
 
 const ComponentRegistry = {
     lexical,
@@ -19,6 +20,7 @@ const ComponentRegistry = {
     Graph,
     Item,
     Filter: FilterComponent,
+    Upload: UploadComponent,
     "Table: Components Index": ComponentsIndexTable,
  }
 

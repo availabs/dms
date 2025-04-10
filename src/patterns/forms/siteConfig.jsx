@@ -156,6 +156,7 @@ const formsSourceConfig = ({
     columns,
     logo,
     pattern,
+    pgEnv,
     themes={ default: {} },
     checkAuth = () => {}
 }) => {
@@ -191,7 +192,7 @@ const formsSourceConfig = ({
                 type: (props) => {
                     const { falcor, falcorCache } = useFalcor();
                   return (
-                      <FormsContext.Provider value={{baseUrl: `${baseUrl}`, pageBaseUrl: `${baseUrl}/source`, user: props.user || defaultUser, theme, app, type, parent: pattern, Menu, API_HOST, falcor, falcorCache}}>
+                      <FormsContext.Provider value={{baseUrl: `${baseUrl}`, pageBaseUrl: `${baseUrl}/source`, user: props.user || defaultUser, pgEnv, theme, app, type, parent: pattern, Menu, API_HOST, falcor, falcorCache}}>
                         <AvailLayout>
                             {props.children}
                         </AvailLayout>
