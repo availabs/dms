@@ -2,12 +2,13 @@ import React, {useState, useEffect} from 'react'
 import {createBrowserRouter, Outlet, RouterProvider} from "react-router-dom";
 
 //import {  adminConfig } from "./modules/dms/src/"
-import { dmsDataLoader, dmsPageFactory, registerDataType, Selector } from '../../'
+import { dmsDataLoader, dmsPageFactory, registerDataType } from '../../'
+import Selector from '../../patterns/page/ui/dataComponents/selector'
 import { falcorGraph, useFalcor } from "@availabs/avl-falcor"
 import { cloneDeep } from "lodash-es"
 
 
-import metaFormsConfig from '../forms/siteConfig'; // meta level forms config. this "pattern" serves as parent for all forms.
+import dataManagerConfig from '../forms/siteConfig'; // meta level forms config. this "pattern" serves as parent for all forms.
 
 import pageConfig from '../page/siteConfig'
 //import {template} from "./admin.format"
@@ -39,7 +40,7 @@ import {useLocation} from "react-router";
 // --
 const configs = {
     page: pageConfig,
-    forms: metaFormsConfig,
+    forms: dataManagerConfig,
 }
 
 registerDataType("selector", Selector)
@@ -51,12 +52,14 @@ function pattern2routes (siteData, props) {
         adminPath = '/list',
         authWrapper = Component => Component,
         themes = { default: {} },
+        pgEnvs = ['hazmit_dama'],
         falcor,
         API_HOST = 'https://graph.availabs.org'
     } = props
 
     const patterns = siteData.reduce((acc, curr) => [...acc, ...(curr?.patterns || [])], []) || [];
     let SUBDOMAIN = getSubdomain(window.location.host)
+    // for weird double subdomain tld
     SUBDOMAIN = SUBDOMAIN === 'hazardmitigation' ? '' : SUBDOMAIN
     
     themes = themes?.default ? themes : { ...themes, default: {} }
@@ -71,18 +74,47 @@ function pattern2routes (siteData, props) {
         dmsPageFactory({
             ...dmsConfigUpdated,
             siteType: dmsConfigUpdated.type,
-            baseUrl: adminPath, 
+            baseUrl: SUBDOMAIN === 'admin' ?  '/' : adminPath,
+            authLevel: 1,
             API_HOST, 
             theme: themes['default']
-        }),
+        },authWrapper),
+        // default Data manager
+        // ...dataManagerConfig.map(config => {
+        //     const configObj = config({
+        //         app: dmsConfigUpdated.app,
+        //         type:`${dmsConfigUpdated.app}-datasets`,
+        //         siteType: dmsConfigUpdated?.format?.type || dmsConfigUpdated.type,
+        //         baseUrl: `/datasets`, // only leading slash allowed
+        //         adminPath,
+        //         authLevel: 1,
+        //         pgEnv:pgEnvs?.[0] || '',
+        //         themes,
+        //         useFalcor,
+        //         API_HOST,
+        //         //rightMenu: <div>RIGHT</div>,
+        //     });
+        //     return ({...dmsPageFactory(configObj, authWrapper)})
+        // }),
+
+        // default data manager
+        // dmsPageFactory({
+        //     app: dmsConfigUpdated.app,
+        //     type:`${dmsConfigUpdated.app}-${datasets}`,
+        //     siteType: dmsConfigUpdated.type,
+        //     baseUrl: '/datasets',
+        //     authLevel: 1,
+        //     API_HOST, 
+        //     theme: themes['default']
+        // },authWrapper),
         // patterns
         ...patterns.reduce((acc, pattern) => {
             //console.log('Patterns', pattern, SUBDOMAIN)
-            if(pattern?.pattern_type && (!SUBDOMAIN || pattern.subdomain === SUBDOMAIN)){
+            if(pattern?.pattern_type && (!SUBDOMAIN || pattern.subdomain === SUBDOMAIN || pattern.subdomain === '*')){
                 //console.log('add patterns', pattern, SUBDOMAIN)
                 const c = configs[pattern.pattern_type];
                 if(!c) return acc;
-                //console.log('register pattern', pattern, theme)
+                //console.log('register pattern', pattern.id, pattern)
                 acc.push(
                     ...c.map(config => {
                         const configObj = config({
@@ -95,9 +127,8 @@ function pattern2routes (siteData, props) {
                             format: pattern?.config,
                             pattern: pattern,
                             pattern_type:pattern?.pattern_type,
-                            parent: pattern,
                             authLevel: +pattern.authLevel || -1,
-                            pgEnv:'hazmit_dama',
+                            pgEnv:pgEnvs?.[0] || '',
                             themes,
                             useFalcor,
                             API_HOST,
@@ -126,7 +157,7 @@ export default async function dmsSiteFactory(props) {
     console.time('load routes')
     let data = await dmsDataLoader(falcor, dmsConfigUpdated, `/`);
     console.timeEnd('load routes')
-    console.log('data -- get site data here', data)
+    //console.log('data -- get site data here', data)
 
     return pattern2routes(data, props)
 }
@@ -138,6 +169,7 @@ export function DmsSite ({
     authWrapper = Component => Component,
     themes = { default: {} },
     falcor,
+    pgEnvs=['hazmit_dama'],
     API_HOST = 'https://graph.availabs.org',
     routes = []
 }) {
@@ -153,7 +185,8 @@ export function DmsSite ({
                 themes,
                 falcor,
                 API_HOST,
-                authWrapper
+                authWrapper,
+                pgEnvs
                 //theme   
             }) 
             : []
@@ -168,7 +201,8 @@ export function DmsSite ({
                 themes,
                 falcor,
                 API_HOST,
-                authWrapper
+                authWrapper,
+                pgEnvs
                 //theme   
             });
             console.timeEnd('dmsSiteFactory')
@@ -183,7 +217,7 @@ export function DmsSite ({
         Component: () => (<div className={'w-screen h-screen flex items-center bg-blue-50'}>404</div>)
     }
 
-    //console.log('routes', routes, dynamicRoutes)
+    //console.log('routes',  dynamicRoutes)
 
     return (
         <RouterProvider router={createBrowserRouter([

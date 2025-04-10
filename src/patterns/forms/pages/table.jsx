@@ -3,6 +3,8 @@ import { FormsContext } from '../siteConfig'
 import SourcesLayout from "../components/patternListComponent/layout";
 import Spreadsheet from "../../page/ui/dataComponents/selector/ComponentRegistry/spreadsheet";
 import {useNavigate} from "react-router-dom";
+import DataWrapper from "../../page/ui/dataComponents/selector/dataWrapper";
+import {cloneDeep, uniqBy} from "lodash-es";
 
 const TableView = ({apiUpdate, apiLoad, format, item, params}) => {
     const { baseUrl, pageBaseUrl, theme, user } = useContext(FormsContext) || {};
@@ -27,14 +29,19 @@ const TableView = ({apiUpdate, apiLoad, format, item, params}) => {
             pageSize: 1000,
             loadMoreId: `id-table-page`,
             allowSearchParams: false,
+            allowDownload: true,
         },
         columns: defaultColumns?.length ?
-                    defaultColumns.map(dc => columns.find(col => col.name === dc.name)).filter(c => c).map(c => ({...c, show: true})) :
+                    uniqBy(defaultColumns.map(dc => columns.find(col => col.name === dc.name)).filter(c => c).map(c => ({...c, show: true})), d => d?.name) :
                         columns.slice(0, 3).map(c => ({...c, show:true})),
     }))
 
     const saveSettings = useCallback(() => {
-        const columns = (JSON.parse(value)?.columns || []).filter(({show}) => show).map(({name, display_name, show}) => ({name, display_name, show}));
+        const columns =
+            (JSON.parse(value)?.columns || [])
+                .filter(({show}) => show)
+                .map(col => ({...col, filters: undefined, group: undefined})); // not including some settings
+
         apiUpdate({data: {...item, defaultColumns: columns}, config: {format}});
     }, [value]);
 
@@ -44,6 +51,15 @@ const TableView = ({apiUpdate, apiLoad, format, item, params}) => {
             navigate(`${pageBaseUrl}/${params.id}/table/${recentView}`)
         }
     }, [item.views]);
+
+    const SpreadSheetCompWithControls = cloneDeep(Spreadsheet);
+    // SpreadSheetCompWithControls.controls.columns.push({
+    //     type: 'toggle',
+    //     label: 'Show N/A',
+    //     key: 'filters',
+    //     trueValue: [{type: 'internal', operation: 'filter', values: ['null']}]
+    // })
+    SpreadSheetCompWithControls.controls.columns = SpreadSheetCompWithControls.controls.columns.filter(({label}) => label !== 'duplicate')
 
     return (
         <SourcesLayout fullWidth={false} baseUrl={baseUrl} pageBaseUrl={pageBaseUrl} isListAll={false} hideBreadcrumbs={false}
@@ -66,7 +82,8 @@ const TableView = ({apiUpdate, apiLoad, format, item, params}) => {
                                 </button> :
                                 null
                         }
-                        <Spreadsheet.EditComp
+                        <DataWrapper.EditComp
+                            component={SpreadSheetCompWithControls}
                             key={'table-page-spreadsheet'}
                             value={value}
                             onChange={(stringValue) => {setValue(stringValue)}}

@@ -24,7 +24,7 @@ import {
     Tags,
     Copy
 } from '../../icons'
-import { Modal, Popover, Button } from "../../";
+import { Modal, Popover, Button, Icon, Menu, Label } from "../../";
 
 const isJson = (str)  => {
     try {
@@ -46,7 +46,9 @@ export function SectionEdit ({value, i, onChange, attributes, size, onCancel, on
     let { theme } = React.useContext(CMSContext) || {}
 
     const updateAttribute = (k, v) => {
+        console.log('change',k,v, {...value, [k]: v})
         if(!isEqual(value, {...value, [k]: v})) {
+            console.log('change',k,v, {...value, [k]: v})
             onChange({...value, [k]: v})
         }
     }
@@ -63,7 +65,7 @@ export function SectionEdit ({value, i, onChange, attributes, size, onCancel, on
             <div className={`flex w-full`}>
                 <div className='flex-1'/>
                     <div className={`z-10 relative`}>
-                        <div className={`absolute mr-16 top-[-14px] right-[-60px] flex`}>
+                        <div className={`absolute mr-16 top-[-24px] right-[-60px] flex`}>
                             {/*delete*/}
                             <Button type='plain' padding='p-1' onClick={() => setShowDeleteModal(!showDeleteModal)}>
                                 <TrashCan className='text-red-400 hover:text-red-600 w-[24px] h-[24px]' title="Delete Section"/>
@@ -75,7 +77,7 @@ export function SectionEdit ({value, i, onChange, attributes, size, onCancel, on
                                 setOpen={(v) => setShowDeleteModal(v)}
                                 onDelete={() => {
                                     async function deleteItem() {
-                                        await onRemove()
+                                        await onRemove(i)
                                         setShowDeleteModal(false)
                                     }
 
@@ -175,6 +177,9 @@ export function SectionEdit ({value, i, onChange, attributes, size, onCancel, on
 }
 let handleCopy = (value) => {
     const elementType = value?.element?.['element-type'];
+    //--------------------------------------
+    // Temp Code to migrate off cenrep II
+    //--------------------------------------
     if(elementType === 'Table: Cenrep II'){
         const spreadsheetData = convert(JSON.parse(value.element['element-data']));
         const ssElement = {...value, element: {'element-type': 'Spreadsheet', 'element-data': JSON.stringify(spreadsheetData)}};
@@ -182,24 +187,45 @@ let handleCopy = (value) => {
         navigator.clipboard.writeText(JSON.stringify(ssElement))
         return;
     }
+    //--------------------------------------
     navigator.clipboard.writeText(JSON.stringify(value))
 }
-export function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAbove, siteType, apiLoad, apiUpdate, format}) {
+
+export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemove, moveItem, addAbove, siteType, apiLoad, apiUpdate, format}) {
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
     let [referenceElement, setReferenceElement] = useState()
     let [popperElement, setPopperElement] = useState()
     let { styles, attributes:popperAttributes } = usePopper(referenceElement, popperElement)
     const { baseUrl, user, theme } = React.useContext(CMSContext) || {}
+
+    // const updateAttribute = (k, v) => {
+    //     onChange(value, k, v)
+    // }
     
+
+    // const updateAttribute = (k, v) => {
+    //     console.log('change',k,v, {...value, [k]: v})
+    //     if(!isEqual(value, {...value, [k]: v})) {
+    //         console.log('change',k,v, {...value, [k]: v})
+    //         onChange({...value, [k]: v})
+    //     }
+    // }
+    const updateAttribute = (k, v) => {
+        if(!isEqual(value, {...value, [k]: v})) {
+            onChange(i, {...value, [k]: v})
+        }
+    }
+
     const hideDebug = true
     let TitleComp = attributes?.title?.ViewComp
     let TagsComp = attributes?.tags?.ViewComp 
     let ElementComp = attributes?.element?.ViewComp
     let HelpComp = attributes?.helpText?.ViewComp
-    let sectionTitleCondition = value?.['title']  //|| value?.['tags'] ;// edit
     let helpTextCondition = value?.['helpText'] && !(
         (value?.['helpText']?.root?.children?.length === 1 && value?.['helpText']?.root?.children?.[0]?.children?.length === 0) || // empty child
         (value?.['helpText']?.root?.children?.length === 0) // no children
     )
+    let sectionTitleCondition = value?.['title'] || value?.['tags'] || helpTextCondition //|| value?.['tags'] ;// edit
     let interactCondition = false //typeof onEdit !== 'function' && value?.element?.['element-type']?.includes('Map:');
     let isTemplateSectionCondition = false//value?.element?.['template-section-id'];
     let showEditIcons = edit && typeof onEdit === 'function' && !isTemplateSectionCondition
@@ -217,29 +243,178 @@ export function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAb
     }, 
     [value])
     if(!value?.element?.['element-type'] && !value?.element?.['element-data']) return null;
+    const sectionMenuItems = [
+      { icon: 'PencilSquare', name: 'Edit', onClick: onEdit },
+      { icon: 'Copy', name: 'Copy Section', onClick: () => handleCopy(value) },
+      { type: 'seperator'},
+      { icon: 'ChevronUpSquare', name: 'Move Up', onClick: () => moveItem(i,-1) },
+      { icon: 'ChevronDownSquare', name: 'Move Down', onClick: () =>  moveItem(i,1) },
+      { type: 'seperator'},
+      { 
+        icon:'Column', name: 'Width',
+        type: 'menu', 
+        value: value?.['size'] || 1,
+        items: Object.keys(theme?.sectionArray?.sizes || {}).sort((a,b) => {
+            let first = +theme?.sectionArray?.sizes?.[a].iconSize || 100
+            let second = +theme?.sectionArray?.sizes?.[b].iconSize || 100
+            return first - second
+        }).map((name,i) => {
+            return {
+                'icon': name == (value?.['size'] || '1') ? 'CircleCheck' : 'Blank',
+                'name': name,
+                'onClick': () => {
+                    console.log('colspan Item name click', name)
+                    updateAttribute('size', name);
+                }
+            }
+        })
+      },
+      { 
+        icon: 'Row', name: 'Rowspan', 
+        type: 'menu', 
+        value: value?.['rowspan'] || 1,
+        items: Object.keys(theme?.sectionArray?.rowspans || {}).sort((a,b) => {
+            return +a - +b
+        }).map((name,i) => {
+            return {
+                'icon': name == (value?.['rowspan'] || '1') ? 'CircleCheck' : 'Blank',
+                'name': name,
+                'onClick': () => {
+                    //console.log('colspan Item name click', name)
+                    updateAttribute('rowspan', name);
+                }
+            }
+        })
+      },
+      { icon: 'Padding', name: 'Offset', 
+        type: 'menu',
+        value: value?.['offset'] || 16,
+        items: [25,50,100,150,200,250,300,350,400,500].map((v,i) => {
+            return {
+                'icon': v == (value?.['offset'] || '1') ? 'CircleCheck' : 'Blank',
+                'name': `${v}px`,
+                'onClick': () => {
+                    //console.log('colspan Item name click', name)
+                    updateAttribute('offset', v);
+                }
+            }
+        }),
+        // inputProps: { 
+        //     type: 'number', 
+        //     value: value?.offset || theme?.sectionArray?.defaultOffset, 
+        //     onChange: (v) => updateAttribute('offset', v.target.value)
+        // }
+      },
+      { icon: 'Padding', name: 'padding', 
+        type: 'menu',
+        value: value?.['padding'] || theme?.sectionArray?.sectionPadding,
+        items: ['p-0', 'p-1','p-2', theme?.sectionArray?.sectionPadding].map((v,i) => {
+            return {
+                'icon': v == (value?.['padding'] || '1') ? 'CircleCheck' : 'Blank',
+                'name': `${v}`,
+                'onClick': () => {
+                    console.log('padding Item name click', v)
+                    updateAttribute('padding', v);
+                }
+            }
+        }),
+        // inputProps: { 
+        //     type: 'number', 
+        //     value: value?.offset || theme?.sectionArray?.defaultOffset, 
+        //     onChange: (v) => updateAttribute('offset', v.target.value)
+        // }
+      },
+      // { icon: 'Blank', name: 'Padding', onClick: () => {} },
+      { icon: 'Border', name: 'Border',
+        type: 'menu',
+        value: value?.['border'] || 1,
+        items: Object.keys(theme?.sectionArray?.border || {})
+            .map((name,i) => {
+                return {
+                    'icon': name == (value?.['border'] || 'None') ? 'CircleCheck' : 'Blank',
+                    'name': name,
+                    'onClick': () => {
+                        //console.log('colspan Item name click', name)
+                        updateAttribute('border', name);
+                    }
+                }
+            })
+      },
+      { type: 'seperator'},
+      { icon: 'TrashCan', name: 'Delete', onClick: () => setShowDeleteModal(!showDeleteModal) }
+    ]
         
     return (
-        <div className={`h-full`} style={{pageBreakInside: "avoid"}}>
+        <div className={``} style={{pageBreakInside: "avoid"}}>
+            <DeleteModal
+                title={`Delete Section ${value?.title || ''} ${value?.id}`} open={showDeleteModal}
+                prompt={`Are you sure you want to delete this section? All of the section data will be permanently removed
+                            from our servers forever. This action cannot be undone.`}
+                setOpen={(v) => setShowDeleteModal(v)}
+                onDelete={() => {
+                    async function deleteItem() {
+                        await onRemove(i)
+                        setShowDeleteModal(false)
+                    }
+
+                    deleteItem()
+                }}
+            />
             {/* -------------------top line buttons ----------------------*/}
             <div className={`flex w-full`}>
                 <div className='flex-1'/>
                     
-                    {value?.is_header && edit ?  <div className={`z-10 relative`}>
-                        <div className={`absolute mr-16 right-[-60px] flex`}>
-                            <Button type='plain' padding='p-1' 
-                                onClick={ onEdit }
-                            >
-                                {/*<i className="fa-light fa-pencil text-xl fa-fw" title="Edit"></i>*/}
-                                <PencilSquare className='text-slate-400 hover:text-blue-500'/>
-                               
-                            </Button>
+                   
+                    <div className={`z-10`}>
+                        <div className={`absolute top-[6px] right-[6px] hidden group-hover:flex items-center`}> 
+                            
+                            {showEditIcons && (
+                                <>
+                                    {/*<Button type='plain' padding='p-0.5' onClick={ () => moveItem(i,-1) }>
+                                        <ChevronUpSquare className='text-slate-400 hover:text-blue-500 w-[24px] h-[24px]' title="Move Up"/>
+                                    </Button>
+                                    <Button type='plain' padding='p-0.5' onClick={ () =>  moveItem(i,1) }>
+                                        <ChevronDownSquare className='text-slate-400 hover:text-blue-500 w-[24px] h-[24px]' title="Move Down"/>
+                                    </Button>
+                                    <Button type='plain' padding='p-0.5' onClick={() => handleCopy(value)} >
+                                        <Copy title={'Copy Section'} className='text-slate-400 hover:text-blue-500 w-[24px] h-[24px]'/>
+                                    </Button>*/}
+                                    {
+                                    <Menu items={sectionMenuItems}> 
+                                        <div  className='p-1 hover:bg-slate-100/75 rounded-lg'>
+                                            <Icon icon="Menu" className='text-slate-500 hover:text-slate-900 size-6'/>
+                                        </div>
+                                    </Menu>
+                                    }
+                                    {/*<Button type='plain' padding='p-0.5' onClick={addAbove}> 
+                                        <SquarePlus className='text-slate-400 hover:text-blue-500 w-[24px] h-[24px]'/>
+                                    </Button>*/}
+                                </>
+                            )}
                         </div>
                     </div>
-                    :
-                    <div className={`z-10 relative`}>
-                        <div className={`absolute mr-16 top-[-14px] right-[-60px] flex items-center h-[32px]`}> 
+                    
+                   
+                </div>
+                {/* -------------------END top line buttons ----------------------*/}
+                {/* -------------------Section Header ----------------------*/}
+                {(sectionTitleCondition || interactCondition) && (
+                    <div className={`flex w-full min-h-[50px] items-center  pb-2 ${false && 'border border-dashed border-pink-500'}`}>
+
+                        <div id={`#${value?.title?.replace(/ /g, '_')}`}
+                             className={`flex-1 flex flex-row pb-2 font-display font-medium uppercase scroll-mt-36 items-center ${sectionTitleCondition ? '' : 'invisible'}`}>
+                            <div className='flex-1'>
+                                <TitleComp
+                                    className={`w-full ${theme.heading[value?.['level']] || theme.heading['default']}`}
+                                    value={value?.['title']}
+                                />
+                            </div>
                             {value?.['tags']?.length ? 
-                            (<Popover button={<Tags  className='text-slate-400 hover:text-blue-500 w-[24px] h-[24px]' title="Move Up"/>}>
+                            (<Popover button={
+                                <div className='p-2 border border-[#E0EBF0] rounded-full'>
+                                    <Tags className='text-slate-400 hover:text-blue-500 size-4' title="Tags"/>
+                                </div>
+                                }>
                                 <TagComponent
                                     
                                     className='p-2 flex-0'
@@ -254,42 +429,7 @@ export function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAb
                                     <HelpComp value={value?.['helpText']} />
                                 </Popover>)
                             }
-                            {showEditIcons && (
-                                <>
-                                    <Button type='plain' padding='p-0.5' onClick={ () => moveItem(i,-1) }>
-                                        <ChevronUpSquare className='text-slate-400 hover:text-blue-500 w-[24px] h-[24px]' title="Move Up"/>
-                                    </Button>
-                                    <Button type='plain' padding='p-0.5' onClick={ () =>  moveItem(i,1) }>
-                                        <ChevronDownSquare className='text-slate-400 hover:text-blue-500 w-[24px] h-[24px]' title="Move Down"/>
-                                    </Button>
-                                    <Button type='plain' padding='p-0.5' onClick={() => handleCopy(value)} >
-                                        <Copy title={'Copy Section'} className='text-slate-400 hover:text-blue-500 w-[24px] h-[24px]'/>
-                                    </Button>
-                                    <Button type='plain' padding='p-0.5' onClick={ onEdit }>
-                                        <PencilSquare className='text-slate-400 hover:text-blue-500 w-[24px] h-[24px]'/>
-                                    </Button>
-                                    <Button type='plain' padding='p-0.5' onClick={addAbove}> 
-                                        <SquarePlus className='text-slate-400 hover:text-blue-500 w-[24px] h-[24px]'/>
-                                    </Button>
-                                </>
-                            )}
-                        </div>
-                    </div>
-                    }
-                   
-                </div>
-                {/* -------------------END top line buttons ----------------------*/}
-                {/* -------------------Section Header ----------------------*/}
-                {
-                    (sectionTitleCondition || interactCondition) &&
-                    <div className={`flex w-full h-[50px] items-center ${(value?.['level']) === '1' ? `border-b` : ``} ${hideDebug ? '' : 'border border-dashed border-pink-500'}`}>
-
-                        <div id={`#${value?.title?.replace(/ /g, '_')}`}
-                             className={`flex-1 flex-row py-2  font-display font-medium uppercase scroll-mt-36 ${sectionTitleCondition ? '' : 'invisible'}`}>
-                            <TitleComp
-                                className={`w-full ${theme.heading[value?.['level']] || theme.heading['default']}`}
-                                value={value?.['title']}
-                            />
+                            
                         </div>
 
 
@@ -303,44 +443,9 @@ export function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAb
                             </Link>
                         }
 
-                        { sectionTitleCondition && typeof onEdit === 'function' && !isTemplateSectionCondition ?
-                            <>
-                                {/*<div className='py-2'>
-                                    <button
-                                        className={'pl-3 flex items-center text-md cursor-pointer hover:text-blue-500 text-slate-400'}
-                                        onClick={ () => moveItem(i,-1) }
-                                    >
-                                        <i className="fa-light fa-angle-up text-xl fa-fw" title="Move Up"></i>
-                                        {
-                                    </button>
-
-                                </div>
-                                <div className='py-2'>
-                                    <button
-                                        className={'pl-3  flex items-center text-md cursor-pointer hover:text-blue-500 text-slate-400'}
-                                        onClick={ () =>  moveItem(i,1) }
-                                    >
-                                        <i className="fa-light fa-angle-down text-xl fa-fw" title="Move Down"></i>
-                                       
-
-                                </div>
-                                <div className='py-2'>
-                                    <button
-                                        className={'pl-6 py-0.5 flex items-center text-md cursor-pointer hover:text-blue-500 text-slate-400'}
-                                        onClick={ onEdit }
-                                    >
-                                        <i className="fa-light fa-pencil text-xl fa-fw" title="Edit"></i>
-                                        
-                                    </button>
-
-                                </div>*/}
-                            </> :
-                            isTemplateSectionCondition && typeof onEdit === 'function'?
-                                <i className={'pl-5 py-0.5 fa-light fa-lock p-2 text-slate-400'} title={'Template generated section'}/> : <></>
-                        }
+                        
                     </div>
-
-                }
+                )}
             {/* -------------------END Section Header ----------------------*/}
             <div className={`h-full ${hideDebug ? '' : 'border border-dashed border-orange-500'}`}>
                 {element}
@@ -348,6 +453,7 @@ export function SectionView ({value,i, attributes, edit, onEdit, moveItem, addAb
         </div>
     )
 }
+
 
 // ---------------------------------------------
 // Supporting Functions & components
@@ -429,7 +535,8 @@ function TagComponent ({value, placeholder, onChange, edit=false}) {
     ]
 
     return (
-        <div className='w-full border border-blue-200'>
+        <div className='w-full'>
+
             {edit && <Combobox>
                 <div className="relative z-20">
                     <Combobox.Input
@@ -437,7 +544,7 @@ function TagComponent ({value, placeholder, onChange, edit=false}) {
                         placeholder={placeholder}
                         value={newTag}
                         onChange={(e) => {setNewTag( e.target.value) }}
-                        
+
                         onKeyUp={(e => {
                             if(e.key === 'Enter' && newTag.length > 0) {
                               onChange([...arrayValue,newTag].join(','))
@@ -449,11 +556,11 @@ function TagComponent ({value, placeholder, onChange, edit=false}) {
                 {tags
                     .filter(tag => (!newTag?.length || tag.toLowerCase().includes(newTag.toLowerCase())))
                     .length ? (
-                        <Combobox.Options 
+                        <Combobox.Options
                             static
                             className="max-h-96 transform-gpu scroll-py-3 overflow-y-auto p-3"
                         >
-                            
+
                             {tags
                                 .filter(tag => (newTag.length > 0 && tag.toLowerCase().includes(newTag.toLowerCase())))
                                 .filter((tag, i) => i <= 5)
@@ -463,38 +570,30 @@ function TagComponent ({value, placeholder, onChange, edit=false}) {
                                         value={tag}
                                         onClick={() => {
                                             setNewTag(tag)
-                                            
-                                            
+
+
                                         }}
-                                        className={({active}) => `flex cursor-pointer select-none rounded-xl p-1 ${active && 'bg-gray-100'}`}
-                                    >
-                                        {({active}) => (
-                                            <div>
-                                                <i className="text-sm text-blue-400 fa fa-tag" />
-                                                <span
-                                                    className={`ml-2 text-sm font-medium ${active ? 'text-gray-900' : 'text-gray-700'}`}
-                                                >
-                                                    {tag}
-                                                </span>
-                                            </div>
-                                        )}
+                                        className={({active}) => `flex cursor-pointer select-none rounded-xl p-1 ${active && 'bg-gray-100'}`}>
+                                        <Label text={tag} />
                                     </Combobox.Option>
                                 ))}
                         </Combobox.Options>
                     ) : null
                 }
             </Combobox>}
-            <div className='w-full min-h-8 border-blue-200'>
+            <div className='w-full min-h-8 flex flex-col gap-1 px-1 py-2'>
             {
                 arrayValue
                     .sort((a,b) => a.localeCompare(b))
                     .map((d,i) => (
-                    <div key={i} className='px-2 py-1 text-sm border border-blue-200 m-1 rounded bg-blue-100 flex justify-between items-center'>
-                        <div className='text-slate-600'>{d}</div>
-                        {edit ? <div className='cursor-pointer' onClick={() => onChange(arrayValue.filter(v => v !== d ).join(','))}>
-                            <RemoveCircle className='text-red-400 hover:text-red-600  w-[16px] h-[16px]'/>
-                        </div> : null}
-                    </div>
+                        <Label text={
+                            <div key={i} className='flex justify-between items-center'>
+                                {d}
+                                {edit ? <div className='cursor-pointer' onClick={() => onChange(arrayValue.filter(v => v !== d ).join(','))}>
+                                    <RemoveCircle className='text-red-400 hover:text-red-600  w-[16px] h-[16px]'/>
+                                </div> : null}
+                            </div>
+                        } />
                 ))
             }
             </div>
@@ -571,6 +670,5 @@ export function DeleteModal ({title, prompt, item={}, open, setOpen, onDelete}) 
       </div>
     </Modal>
   )
-
 }
 

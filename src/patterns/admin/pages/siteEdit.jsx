@@ -1,5 +1,5 @@
 import React from 'react'
-import { Input, ButtonPrimary} from '../ui'
+import { InputComp , ButtonPrimary} from '../ui'
 import Layout from '../ui/avail-layout'
 import {AdminContext} from "../siteConfig";
 import { Link } from 'react-router-dom'
@@ -20,7 +20,7 @@ function NewSite ({apiUpdate}) {
 	return (
 		<div className={'h-screen w-screen bg-slate-100 flex items-center justify-center'}>
 			<div className='w-[316px] h-[250px] -mt-[200px] bg-white shadow rounded p-4 flex flex-col justify-between'>
-				<Input 
+				<InputComp 
 					label='Create Your Site'
 					placeholder='Site Name'
 					value={newSite.site_name}
@@ -85,8 +85,7 @@ function SiteEdit ({
 
 
 	return (
-		<Layout navItems={menuItems} >
-		
+		<>
 			{Object.keys(attributes)
 				.map((attrKey, i) => {
 					let EditComp = attributes[attrKey].EditComp
@@ -108,8 +107,7 @@ function SiteEdit ({
 					)
 				})
 			}
-			
-		</Layout>
+		</>
 	)
 }
 

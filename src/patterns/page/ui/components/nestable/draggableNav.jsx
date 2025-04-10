@@ -13,7 +13,7 @@ import { Button } from '../../';
 
 export const nestableTheme = {
     container: `max-w-full max-h-full  pb-6 `,
-    navListContainer: 'h-full border-l  pt-3 pl-2 overflow-auto max-h-[calc(100vh_-_155px)] h-[calc(100vh_-_155px)]',
+    navListContainer: 'h-full border-l  pt-3 pl-2 overflow-auto max-h-[calc(100vh_-_155px)] min-h-[calc(100vh_-_155px)]',
     navItemContainer:'text-slate-600 border-l border-y rounded border-transparent flex items-center gap-1 cursor-pointer group group-hover:bg-blue-100',
     navItemContainerActive: 'bg-white text-blue-500  border-l rounded border-y border-slate-300 flex items-center gap-1 cursor-pointer group group-hover:bg-blue-100', 
     navLink: `flex-1 px-4 py-2 font-light text-elipses`,
@@ -77,8 +77,7 @@ function DraggableNav ({item, dataItems, NavComp=DefaultNavItem, edit=true}) {
     const { pathname = '/edit' } = useLocation()
     
   
-    const items = useMemo(() => {
-        return dataItems
+    const items = dataItems
             .sort((a,b) => a.index-b.index)
             .filter(d => !d.parent)
             .map((d,i) => {
@@ -87,11 +86,9 @@ function DraggableNav ({item, dataItems, NavComp=DefaultNavItem, edit=true}) {
                     index: d.index,
                     title: d.title,
                     url_slug: d.url_slug,
-                    children: getChildNav(d, dataItems) || []
+                    children: getChildNav(d, dataItems, baseUrl, edit) || []
                 }
             })
-        },
-    [dataItems])
     
     
 
@@ -138,9 +135,8 @@ function DraggableNav ({item, dataItems, NavComp=DefaultNavItem, edit=true}) {
 
   let matchId = matchRoutes(matchItems, {pathname:  pathname.replace('edit/','')})?.[0]?.route?.id || -1
   let matches = findParents(dataItems, matchId)
-  console.log('item matches', matchId, matches)
-  return ( 
 
+  return (
     <div className={theme?.nestable?.container}>
       <div className={theme?.nestable?.navListContainer}>
           <Nestable
@@ -156,7 +152,7 @@ function DraggableNav ({item, dataItems, NavComp=DefaultNavItem, edit=true}) {
                     <NavComp
                         activeItem={item}
                         edit={edit}
-                        item={props.item} 
+                        item={props.item}
                         dataItems={dataItems}
                         handleCollapseIconClick={props.handleCollapseIconClick}
                         isCollapsed={props.isCollapsed}
@@ -179,6 +175,7 @@ function AddItemButton ({dataItems}) {
   const submit = useSubmit();
   const { pathname = '/edit' } = useLocation();
   const { baseUrl, user, theme = { nestable: nestableTheme } } = React.useContext(CMSContext);
+  const [loading, setLoading] = useState(false);
   
   const highestIndex = dataItems
     .filter(d => !d.parent)
@@ -199,8 +196,10 @@ function AddItemButton ({dataItems}) {
   }
   item.url_slug = getUrlSlug(item,dataItems)
 
-  const addItem = () => {
-    submit(json2DmsForm(item), { method: "post", action: pathname })
+  const addItem = async () => {
+      setLoading(true);
+      await submit(json2DmsForm(item), { method: "post", action: pathname })
+      setLoading(false);
   }
   return (
     <div className='border px-4 py-2 rounded '>
@@ -208,7 +207,7 @@ function AddItemButton ({dataItems}) {
         onClick={addItem}
         className={'w-full'}
       >
-        + Add Page
+          {loading ? 'Adding Page' : '+ Add Page'}
       </Button>
     </div>
   )

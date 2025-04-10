@@ -6,6 +6,7 @@ import { sideNavTheme } from '../components/sidenav'
 import { topNavTheme } from '../components/topnav'
 import { tabsTheme } from '../components/tabs'
 import { buttonTheme } from '../components/button'
+import { iconTheme } from '../components/icon'
 import { inputTheme  } from '../components/input'
 import { nestableTheme } from '../components/nestable/draggableNav'
 import { dialogTheme } from '../components/dialog'
@@ -15,9 +16,17 @@ import { fieldTheme } from '../components/fieldset'
 // --- Data Components
 import { sectionArrayTheme } from '../dataComponents/sections/sectionArray'
 
-
+// -- Component Registery Components
+import { tableTheme } from '../dataComponents/selector/ComponentRegistry/spreadsheet/index'
+import lexicalTheme from '../dataComponents/selector/ComponentRegistry/richtext/theme';
+import {dataCardTheme} from "../dataComponents/selector/ComponentRegistry/Card";
+import { attributionTheme } from "../dataComponents/selector/ComponentRegistry/shared/Attribution";
+import { sectionGroupTheme } from '../dataComponents/sections/sectionGroup'
 
 import { menuTheme } from '../components/menu'
+import { labelTheme } from "../components/label";
+
+import Icons from '../icons'
 
 const theme = {
   navOptions: {
@@ -25,7 +34,7 @@ const theme = {
     sideNav: {
       size: 'none',
       search: 'none',
-      logo: 'top',
+      logo: 'none',
       dropdown: 'none',
       fixedMargin: 'lg:ml-44',
       position: 'fixed',
@@ -59,12 +68,10 @@ const theme = {
   navPadding: {
     1: 'pt-0 ',
     2: 'md:pt-12 pt-0',
-    3: 'md:pt-24 pt-0'
+    3: 'md:pt-32 pt-0'
   },
   navLabel: 'px-6 pb-1 pt-6 uppercase text-xs text-blue-400',
-  bg: 'bg-slate-100',
-  //----------------------------------------------------------
-  
+  //----------------------------------------------------------  
   page: {
     container: 'bg-slate-100',
     wrapper1: 'w-full h-full flex-1 flex flex-col', // first div inside Layout
@@ -73,12 +80,8 @@ const theme = {
     iconWrapper : 'z-10 absolute right-[10px] top-[5px]',
     icon: 'text-slate-400 hover:text-blue-500'
   },
-  /*pageControls: {
-    controlItem: 'pl-6 py-0.5 text-md cursor-pointer hover:text-blue-500 text-slate-400 flex items-center',
-    select: 'bg-transparent border-none rounded-sm focus:ring-0 focus:border-0 pl-1',
-    selectOption: 'p-4 text-md cursor-pointer hover:text-blue-500 text-slate-400 hover:bg-blue-600',
-  },*/
-  
+  sectionGroup: sectionGroupTheme,
+  sectionArray: sectionArrayTheme,
   layout: layoutTheme,
   sidenav: sideNavTheme,
   topnav: topNavTheme,
@@ -86,20 +89,26 @@ const theme = {
   button: buttonTheme,
   menu: menuTheme,
   input: inputTheme,
+  icon: iconTheme,
   field: fieldTheme,
   nestable: nestableTheme,
   dialog: dialogTheme,
   popover: popoverTheme,
+  label: labelTheme,
   select: selectTheme,
-
-  sectionArray: sectionArrayTheme,
-
+  // -- 
+  
+  // --
+  table: tableTheme,
 
   // --- component themes
-  lexical : {
-    editorShell: 'font'
-  }
+  lexical : lexicalTheme,
+  dataCard: dataCardTheme,
+  attribution: attributionTheme,
   
+  // -- Icon Set
+  Icons
+
 }
 
 //theme.navOptions.logo = <Link to='/' className='h-12 flex px-4 items-center'><div className='rounded-full h-10 bg-blue-500 border border-slate-50' /></Link>
@@ -118,7 +127,8 @@ export const themeOptions = {
           "options": [
             "default",
             "catalyst",
-            "mny"
+            "mny",
+            "mny_admin"
           ]
         }
       }
@@ -194,7 +204,6 @@ export const themeOptions = {
           "label": "Depth",
           "type": "select",
           "options": [
-            "transparent",
             1,
             2,
             3

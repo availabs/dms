@@ -5,7 +5,7 @@ import { cloneDeep, get, isEqual } from "lodash-es"
 import { 
   Button,
   Menu, 
-  Input,
+  /*Input,*/
   DraggableNav,
   Dialog
 } 
@@ -51,11 +51,10 @@ function DraggableNavItem ({activeItem, item, dataItems, handleCollapseIconClick
     const [showDelete, setShowDelete] = React.useState(false)
     const [showRename, setShowRename] = React.useState(false)
 
-
+    if(!dataItems.find(i => item?.id === i.id)) return;
     //-- this is not ideal, better to check id and parent
     const isActive = pathname.includes(item.url_slug)
-    console.log('apiUpdate', apiUpdate)
-
+   //console.log('apiUpdate', apiUpdate)
     return (
         <div key={item.id} className='group max-w-full'>
            {/* <div className='border-t border-transparent hover:border-blue-500 w-full relative'>
@@ -63,25 +62,33 @@ function DraggableNavItem ({activeItem, item, dataItems, handleCollapseIconClick
             </div>*/}
             <div className={`${isActive ? theme?.nestable?.navItemContainerActive : theme?.nestable?.navItemContainer} `}>
 
-                <NavLink className={theme?.nestable?.navLink} to={`${edit ? `${baseUrl}/edit` : baseUrl}/${item.url_slug || item.id}`}>{item.title}</NavLink>
+                <NavLink className={theme?.nestable?.navLink} to={`${edit ? `${baseUrl}/edit` : baseUrl}/${item.url_slug || item.id}`}>{item.title || item.id}</NavLink>
 
                 <div className={'flex gap-0.5 items-center'}>
-                    <Menu 
+                    {/*{
+                        [
+                            {
+                                name: (<span className=''>Rename</span>),
+                                onClick: () => setShowRename(true)
+                            },
+                            {
+                                name: (<span className='text-red-400'>Delete</span>),
+                                onClick: () =>  {
+
+                                    setShowDelete(true)
+                                }
+                            }
+                        ].map(modal => <div onClick={modal.onClick}>{modal.name}</div>)
+                    }*/}
+                    <Menu
                       items={[
                         {
                           name: (<span className=''>Rename</span>), 
                           onClick: () => setShowRename(true)
                         },
-                        // {
-                        //   name: (<span className=''>Insert Subpage</span>), 
-                        //   onClick: () => insertSubPage(item, dataItems, apiUpdate)
-                        // },
                         {
                           name: (<span className='text-red-400'>Delete</span>), 
-                          onClick: () =>  {
-                            
-                            setShowDelete(true)
-                          }
+                          onClick: () => setShowDelete(true)
                         }
                       ]}
                     > 
@@ -172,7 +179,7 @@ function DeleteModal ({title, prompt, item={}, open, setOpen, onDelete})  {
           type="plain"
           className='mr-1'
           onClick={() => setOpen()}
-          ref={cancelButtonRef}
+          forwardref={cancelButtonRef}
         >
           Cancel
         </Button>
@@ -206,13 +213,15 @@ function RenameModal ({title, prompt, item={}, dataItems, open, setOpen})  {
         // history.push(edit)
         
         const newItem = {
-          id: item.id,
-          title:newName   
+          id: editItem.id,
+          title: newName,
+          parent: editItem?.parent   
         }
-
         newItem.url_slug = getUrlSlug(newItem, dataItems)
+        const newPathName = pathname.endsWith(item.url_slug) ? pathname.replace(new RegExp(item.url_slug + '$'), newItem.url_slug) : pathname;
+
         setLoading(true)
-        await submit(json2DmsForm(newItem), { method: "post", action: pathname })
+        await submit(json2DmsForm(newItem), { method: "post", action: newPathName })
         setLoading(false)
         setOpen()
       }
@@ -235,7 +244,7 @@ function RenameModal ({title, prompt, item={}, dataItems, open, setOpen})  {
               Rename {item.title}
           </h3>
           <div className="mt-2 w-full">
-            <Input value={newName} onChange={e => setNewName(e.target.value)} />
+            <input value={newName} onChange={e => setNewName(e.target.value)} />
           </div>
         </div>
       </div>
@@ -267,28 +276,37 @@ export function PublishButton () {
   
   return (
     <div className='w-full flex justify-center h-[40px]'>
+      { hasChanges && (
+        <Button 
+          padding={'flex items-center h-[40px] mr-1 cursor-pointer'} 
+          type={'inactive'}
+          onClick={() => discardChanges(user,item, apiUpdate)} 
+        >
+          <span className='text-nowrap'> Discard </span>
+        </Button>
+      )}
       <Button 
-          padding={'pl-2 flex items-center h-[40px]'} 
-          disabled={!hasChanges} 
-          rounded={hasChanges ? 'rounded-l-lg' : 'rounded-lg'} 
+          padding={' flex items-center h-[40px]'} 
+          disabled={!hasChanges}
           type={hasChanges ? 'active' : 'inactive'}
           onClick={() => publish(user,item, apiUpdate)} 
       >
         <span className='text-nowrap'> {hasChanges ? `Publish` : `No Changes`} </span>
          
       </Button>
-      {hasChanges && (
+      
+      {/*hasChanges && (
         <Menu 
           items={[{
             name: (<span className='text-red-400'>Discard Changes</span>), 
-            onClick: () =>  discardChanges(user,item, apiUpdate)}
+            onClick: () =>  }
           ]}
         > 
           <Button padding={'py-1 w-[35px] h-[40px]'} rounded={'rounded-r-lg'} type={hasChanges ? 'active' : 'inactive'}>
             <CaretDown className='size-[28px]' />
           </Button>
         </Menu>
-      )}
+      )*/}
     </div>
   )
 }

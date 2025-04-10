@@ -40,6 +40,11 @@ export const cmsSection = {
       required: false
     },
     {
+     key: "description",
+      type: "text",
+      required: false
+    },
+    {
       key: "size",
       type: "text"
     },
@@ -153,6 +158,16 @@ const cmsPageFormat = {
     },
     {
       key: 'navOptions',
+      type: "json",
+      hidden: true
+    },
+    {
+      key: 'section_groups',
+      type: "json",
+      hidden: true
+    },
+    {
+      key: 'draft_section_groups',
       type: "json",
       hidden: true
     },

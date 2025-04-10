@@ -4,7 +4,7 @@ import { Button, Menu, FieldSet } from '../../../ui'
 import { CMSContext } from '../../../siteConfig'
 import { timeAgo } from '../../_utils'
 import { Add, CaretDown } from "../../../ui/icons";
-
+import { updateTitle } from '../editFunctions'
 
 import { PageContext } from '../../view'
 
@@ -30,12 +30,16 @@ function SettingsPane () {
           {
             type:'ConfirmInput',
             label: 'Page Name',
-            value: item.title
+            value: item.title,
+            onChange: (val) => {
+              console.log('Change page Name', val)
+              updateTitle  ( item, dataItems, val, user, apiUpdate)
+            }
           },
           {
             type:'Select',
             label: 'Hide in Nav',
-            value: item.hide_in_nav,
+            value: item.hide_in_nav || '',
             options: [
               {label: 'Show', value: ''}, 
               {label: 'Hide', value: 'hide'}
@@ -46,34 +50,8 @@ function SettingsPane () {
           },
           {
             type:'Select',
-            label: 'Show Header',
-            value: item.header,
-            options: [
-              {label: 'None', value: 'none'}, 
-                  {label: 'Above', value: 'above'},
-                  {label: 'Below', value: 'below'},
-                  {label: 'In page', value: 'inpage'}
-            ],
-            onChange:(e) => {
-              togglePageSetting(item, 'header', e.target.value,  apiUpdate)
-            }
-          },
-          {
-            type:'Select',
-            label: 'Show Footer',
-            value: item.footer,
-            options: [
-              {label: 'None', value: ''}, 
-              {label: 'Show', value: 'show'}
-            ],
-            onChange:(e) => {
-              togglePageSetting(item, 'footer', e.target.value,  apiUpdate)
-            }
-          },
-          {
-            type:'Select',
             label: 'Show Content Sidebar',
-            value: item.sidebar,
+            value: item.sidebar || '',
             options: [
                   {label: 'None', value: ''}, 
                   {label: 'Left', value: 'left'},
@@ -87,7 +65,7 @@ function SettingsPane () {
           {
             type:'Select',
             label: 'Show SideNav',
-            value: item?.navOptions?.sideNav?.size,
+            value: item?.navOptions?.sideNav?.size || '',
             options: [
                   {label: 'Show', value: 'compact'}, 
                   {label: 'Hide', value: 'none'}
@@ -95,6 +73,14 @@ function SettingsPane () {
             ],
             onChange:(e) => {
               togglePageSetting(item, 'navOptions.sideNav.size', e.target.value,  apiUpdate)
+            }
+          },
+          {
+            type:'Input',
+            label: 'Page Description',
+            value: item?.description || '',
+            onChange:(e) => {
+              togglePageSetting(item, 'description', e.target.value,  apiUpdate)
             }
           }
         ]} />

@@ -19,13 +19,15 @@ const splitColNameOnAS = name => name.split(columnRenameRegex); // split on as/A
 const findColIdx = (columns, name) => columns.findIndex(column =>
     column.name === name || column.accessor === name || splitColNameOnAS(column.name)[0] === name);
 const getFilters = (columns= []) => columns.reduce((acc, column) => {
-    const values = uniq([...(column.internalFilter || []), ...(column.externalFilter || [])]);
-    if(values.length || Array.isArray(column.internalFilter) || Array.isArray(column.externalFilter)) acc[column.name] = values;
+    const values = uniq(column.filters.find(f => f.operation === 'filter')?.values || []);
+    if(values.length) acc[column.name] = values;
     return acc;
 }, {});
-const changeDisasterNumberMeta = (meta, columnname) => meta && columnname.toLowerCase().includes('disaster_number') ?
-    JSON.stringify({...JSON.parse(meta), view_id: 1723}) :
-    meta;
+const changeDisasterNumberMeta = (meta, columnname) => {
+    return meta && columnname.toLowerCase().includes('disaster_number') ?
+        JSON.stringify({...JSON.parse(meta), view_id: 1723}) :
+        meta;
+}
 
 export const convert = (elementData) => {
     let convertedState = {columns: [], data: [], display: {usePagination: true, pageSize: 5}, sourceInfo: {columns: [], env: 'hazmit_dama', srcEnv: 'hazmit_dama'}};
@@ -44,17 +46,21 @@ export const convert = (elementData) => {
                     const cenrepFilters =
                         (elementData.additionalVariables || [])
                             .filter(filter => v.name === filter.name || v.accessor === filter.name);
-                    const internalFilter = cenrepFilters.filter(({action}) => action === 'include')
+                    const internalFilter = cenrepFilters.filter(({action}) => action === 'include') // old terminology. new: filter.
                         .reduce((acc, {defaultValue}) => Array.isArray(defaultValue) ? [...acc, ...defaultValue] : [...acc, defaultValue], []);
 
                     const internalExclude = cenrepFilters.filter(({action}) => action === 'exclude')
                         .reduce((acc, {defaultValue}) => Array.isArray(defaultValue) ? [...acc, ...defaultValue] : [...acc, defaultValue], []);
 
+                    const filters = [
+                        Array.isArray(internalFilter) && internalFilter.length ? {type: 'internal', operation: 'filter', values: internalFilter} : null,
+                        Array.isArray(internalExclude) && internalExclude.length ? {type: 'internal', operation: 'exclude', values: internalExclude} : null,
+                    ].filter(f => f);
+
                     return {
                         ...v,
                         justify: v.align,
-                        internalFilter: internalFilter.length ? internalFilter : null,
-                        internalExclude: internalExclude.length ? internalExclude : null,
+                        filters: filters.length ? filters : undefined,
                         meta_lookup: v.meta_lookup ? changeDisasterNumberMeta(v.meta_lookup, v.name) : undefined,
                         ...(v.link || {}),
                         // extFilter,
@@ -123,7 +129,10 @@ export const convert = (elementData) => {
                         ...convertedState.sourceInfo,
                         source_id: dataSource.source_id,
                         name: dataSource.name,
-                        columns: dataSource.metadata?.columns || []
+                        columns: (dataSource.metadata?.columns || []).map(column => ({
+                            ...column,
+                            meta_lookup: column.meta_lookup ? changeDisasterNumberMeta(column.meta_lookup, column.name) : undefined
+                        }))
                     };
                 }else{
                     convertedState.sourceInfo.source_id = value;
@@ -139,7 +148,7 @@ export const convert = (elementData) => {
 
     extraFilters
         .reduce((acc, {name, action, defaultValue}) => {
-            const filterKey = action === 'include' ? 'internalFilter' : 'internalExclude';
+            const filterKey = action === 'include' ? 'internalFilter' : 'internalExclude';  // old action terminology. new: filter.
             // collect all related filters togather
             const idx = acc.findIndex(a => a.name === name);
             if(idx !== -1) {
@@ -156,22 +165,38 @@ export const convert = (elementData) => {
             const idx = findColIdx(convertedState.sourceInfo.columns, name);
             const column = convertedState.sourceInfo.columns[idx];
             const bkpColumn = {name}
+            const filters = [
+                Array.isArray(internalFilter) && internalFilter.length ? {type: 'internal', operation: 'filter', values: internalFilter} : null,
+                Array.isArray(internalExclude) && internalExclude.length ? {type: 'internal', operation: 'exclude', values: internalExclude} : null,
+            ].filter(f => f);
             convertedState.columns.push({
                 ...(column || bkpColumn),
-                internalFilter: Array.isArray(internalFilter) ? internalFilter : null,
-                internalExclude: Array.isArray(internalExclude) ? internalExclude : null
+                filters: filters.length ? filters : undefined
             });
         })
 
+
+    // builds an object with filter, exclude, gt, gte, lt, lte, like as keys. columnName: [values] as values
+    const filterOptions = convertedState.columns.reduce((acc, column) => {
+        (column.filters || []).forEach(({type, operation, values}) => {
+            acc[operation] = {...acc[operation] || {}, [column.name]: values};
+        })
+
+        if(column.excludeNA){
+            acc.exclude = acc.exclude && acc.exclude[column.name] ?
+                {...acc.exclude, [column.name]: [...acc.exclude[column.name], 'null']} :
+                {...acc.exclude || [], [column.name]: ['null']}
+
+        }
+        return acc;
+    }, {})
     convertedState.dataRequest = {
         // visibleColumns: convertedState.columns.filter(column => column.show),
+        ...filterOptions,
         groupBy: convertedState.columns.filter(column => column.group).map(column => column.name),
         orderBy: convertedState.columns.filter(column => column.sort).reduce((acc, column) => (
             {...acc, [column.name]: (typeof column.sort === 'object' ? Object.values(column.sort)[0] : column.sort).includes('asc') ? 'asc nulls last' : 'desc nulls last'}), {}),
-        filter: getFilters(convertedState.columns), // {colName: []}
         fn: convertedState.columns.filter(column => column.fn).reduce((acc, column) => ({...acc, [column.name]: column.fn}), {}),
-        exclude: convertedState.columns.filter(column => column.excludeNA || Array.isArray(column.internalExclude))
-            .reduce((acc, {name, excludeNA, internalExclude}) => ({...acc, [name]: [...excludeNA ? ['null'] : [], ...Array.isArray(internalExclude) ? internalExclude : []]}), {}),
         meta: convertedState.columns.filter(column => column.show &&
             ['meta-variable', 'geoid-variable', 'meta'].includes(column.display) && column.meta_lookup)
             .reduce((acc, column) => ({...acc, [column.name]: changeDisasterNumberMeta(column.meta_lookup, column.name)}), {})

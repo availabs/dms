@@ -1,5 +1,5 @@
 import React from 'react'
-import { Field, Fieldset, Input, Label, Description } from '@headlessui/react'
+import * as Headless from '@headlessui/react'
 import { PencilIcon, CircleCheck, CircleX } from '../../icons'
 import { CMSContext } from '../../../siteConfig';
 
@@ -13,22 +13,14 @@ export const inputTheme = {
 
 }
 
-export const fieldTheme = {
-  field: '',
-  label: 'select-none text-base/6 text-zinc-950 data-[disabled]:opacity-50 sm:text-sm/6 dark:text-white',
-  description: 'text-base/6 text-zinc-500 data-[disabled]:opacity-50 sm:text-sm/6 dark:text-zinc-400'
-}
-
-
-export default function InputComp ({ type='text', label, description, value, onChange=() => {}, placeholder, disabled, onClick=()=>{}, rounded}) {
+export default function Input ({ type='text', label, description, value, onChange=() => {}, placeholder, disabled, onClick=()=>{}, rounded,...props}) {
   const { theme = { input: inputTheme, field: fieldTheme } } = React.useContext(CMSContext) || {}
   return (
     <span className={`${theme?.input?.inputContainer}`}>
-      <Input type={type} className={`${theme?.input?.input}`} value={value} onChange={onChange}/>
+      <Headless.Input type={type} className={`${theme?.input?.input}`} value={value} onChange={onChange} {...props}/>
     </span>
   )
 }
-
 
 export function ConfirmInput ({ type='text', label, description, value, onChange=() => {}, placeholder, disabled, onClick=()=>{}, rounded, EditIcon=PencilIcon, ConfirmIcon=CircleCheck, CancelIcon=CircleX}) {
   const { theme = { input: inputTheme, field: fieldTheme } } = React.useContext(CMSContext) || {}
@@ -39,7 +31,7 @@ export function ConfirmInput ({ type='text', label, description, value, onChange
   return (
     <span className={`${theme?.input?.inputContainer}`}>
       { editing ? 
-        <Input type={type} value={tempValue} onChange={e => setTempValue(e.target.value)} className={`${theme?.input?.input}`} /> : 
+        <Headless.Input type={type} value={tempValue} onChange={e => setTempValue(e.target.value)} className={`${theme?.input?.input}`} /> : 
         <div className={`${theme?.input?.input}`}>{tempValue}</div>
       }
       

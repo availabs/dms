@@ -1,5 +1,5 @@
 import React, {useEffect, useMemo, useState} from "react";
-import Lexical from "../../lexical";
+import Lexical from "../../../patterns/page/ui/dataComponents/selector/ComponentRegistry/richtext/lexical"
 import {dmsDataTypes} from "../../index";
 
 const fieldTypes = {
@@ -321,10 +321,10 @@ const RenderMappings = ({col, drivingAttribute, attr, value=[], updateAttribute,
                 value.map((v, i) => (
                     <div className={'w-full grid grid-cols-6 border-2 border-gray-300 rounded-md items-center font-semibold justify-between hover:bg-blue-200'}>
                         <div className={`${valueClasses} text-xs`}>Mapping {i + 1}</div>
-                        <div className={valueClasses}>{v.srcValues?.length || 0} source values</div>
-                        <div className={valueClasses}>{v.selectedFormat.name}</div>
-                        <div className={valueClasses}>{v.selectedAttribute}</div>
-                        <div className={valueClasses}>{v.mappedValues.length} mapped values</div>
+                        <div className={valueClasses}>{v?.srcValues?.length || 0} source values</div>
+                        <div className={valueClasses}>{v?.selectedFormat?.name}</div>
+                        <div className={valueClasses}>{v?.selectedAttribute}</div>
+                        <div className={valueClasses}>{v?.mappedValues?.length} mapped values</div>
                         <div className={'p-1'}>
                             <button className={'bg-blue-300 hover:bg-blue-500 text-white text-sm p-1 rounded-md'}
                                     onClick={() => {

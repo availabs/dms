@@ -1,10 +1,11 @@
 import React, {useState, useEffect, useRef, createContext} from 'react'
 import DataTypes from "../../../../../../../data-types";
 import {InfoCircle} from "../../../../../../admin/ui/icons";
-import {FormsSelector} from "../FormsSelector";
+import {DataSourceSelector} from "../DataSourceSelector";
 import {useSearchParams} from "react-router-dom";
-import {ColumnControls} from "../shared/ColumnControls";
 import {useImmer} from "use-immer";
+import ColumnControls from "./controls/ColumnControls";
+import MoreControls from "./controls/MoreControls";
 
 export const convertOldState = (state, initialState) => {
     const oldState = isJson(state) ? JSON.parse(state) : {};
@@ -80,12 +81,12 @@ const getData = async ({state, apiLoad, itemId}) =>{
         params: {id: itemId},
         format: {
             ...state.sourceInfo,
+            attributes: state?.columns?.filter(({show}) => show).map(attr => ({...attr, type: attr.type === 'multiselect' ? 'json' : attr.type, key: attr.name})),
             type: state.sourceInfo?.type?.includes(`-${state.sourceInfo.view_id}`) ? state.sourceInfo.type : `${state.sourceInfo.type}-${state.sourceInfo.view_id}`,
         },
         children,
     }
     const data = await apiLoad(config, `/view/${itemId}`);
-    console.log('got data?????????/', state)
   return {data: data.find(d => d.id === itemId)}
 }
 
@@ -128,10 +129,13 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     return (
        <ItemContext.Provider value={{state, setState, compType: 'item'}}>
            <div>
-              <FormsSelector apiLoad={apiLoad} app={pageFormat?.app}
-                             state={state} setState={setState}
+              <DataSourceSelector apiLoad={apiLoad} app={pageFormat?.app}
+                                  state={state} setState={setState}
                        />
-               <ColumnControls context={ItemContext} />
+               <div className={'flex items-center'}>
+                   <ColumnControls context={ItemContext} />
+                   <MoreControls context={ItemContext} />
+               </div>
 
                <div className={'divide-y'}>
                    {
@@ -209,8 +213,12 @@ const View = ({value, format:formatFromProps, apiLoad, apiUpdate, ...rest}) => {
 
     const updateItem = async () => {
         const res = await apiUpdate({data: tmpItem,  config: {format: {...state.sourceInfo, type: `${state.sourceInfo.type}-${state.sourceInfo.view_id}`}}});
-        if(res?.id && (itemId === 'add-new-item' || !itemId)){
+        if(res?.id && itemId === 'add-new-item'){
             window.location = window.location.href.replace(itemId, res.id);
+        }
+
+        if(res?.id && !itemId){
+            window.location = `${window.location.href}?id=${res.id}`;
         }
     }
 

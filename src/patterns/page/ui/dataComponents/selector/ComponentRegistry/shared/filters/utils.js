@@ -8,7 +8,7 @@ export const isJson = (str)  => {
     return true;
 }
 // applies data->> and AS on a column name
-export const formattedAttributeStr = (col, isDms, isCalculatedCol) => isCalculatedCol ? col : isDms ? `data->>'${col}' as ${col}` : col;
+export const formattedAttributeStr = (col, isDms, isCalculatedCol) => isCalculatedCol ? col : isDms ? `data->>'${col}' as ${col.toLowerCase()}` : col;
 
 export const getData = async ({format, apiLoad,
                                   // length,
@@ -16,7 +16,7 @@ export const getData = async ({format, apiLoad,
     const prependWithDistinct = !reqName.toLowerCase().startsWith('distinct');
     const appendWithAS = !reqName.toLowerCase().includes(' as ');
     const mappedAttributeName = `${prependWithDistinct ? `distinct ` : ``}${reqName}${appendWithAS ? ` as ${reqName}` : ``}` // to get uniq values
-    // const attributeNameForExclude = attribute.toLowerCase().be
+
     const {name, display, meta_lookup} = allAttributes.find(attr => attr.name === reqName) || {};
     const meta = ['meta-variable', 'geoid-variable', 'meta'].includes(display) && meta_lookup ? {[name]: meta_lookup} : {};
 
@@ -90,10 +90,21 @@ export const parseIfJson = value => {
 }
 
 export const getFilters = (columns= []) => columns.reduce((acc, column) => {
-    const values = uniq([...(column.internalFilter || []), ...(column.externalFilter || [])]);
-    if(values.length || Array.isArray(column.internalFilter) || Array.isArray(column.externalFilter)) acc[column.name] = values;
+    // returns internal and external values, regardless of operation type. it is assumed to be the same for a column.
+    if (!Array.isArray(column.filters)) return acc;
+
+    const values = (column.filters).reduce((acc, f) => [...acc, ...(f.values || [])], []);
+    acc[column.name] = uniq(values);
     return acc;
 }, {});
+
+export const getNormalFilters = (columns= []) => columns.reduce((acc, column) => {
+    if (!Array.isArray(column.filters)) return acc;
+
+    const values = (column.filters).reduce((acc, f) => [...acc, ...(f.values || [])], []);
+    acc.push({column: column.name, values: uniq(values)}); // a normal column can have any number of filters
+    return acc;
+}, []);
 
 export const getDataToTrack = columns => columns.map(({name, display_name, customName, internalFilter, externalFilter}) => ({name, display_name, customName, internalFilter, externalFilter}))
 

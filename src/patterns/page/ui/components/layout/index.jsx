@@ -3,7 +3,7 @@ import { merge, cloneDeep } from "lodash-es"
 
 import TopNav from '../topnav';
 import SideNav from '../sidenav';
-import { Search } from '../../../components/search';
+import { SearchButton } from '../../../components/search';
 import { CMSContext } from '../../../siteConfig';
 import { matchRoutes, useLocation } from 'react-router-dom'
 
@@ -48,7 +48,7 @@ const Layout = ({ children, navItems, secondNav, title, pageTheme, EditPane, yPa
 	const { pathname } = useLocation();
 	const theme = merge(cloneDeep(defaultTheme), cloneDeep(pageTheme))
 	// console.log('theme navOptions', pageTheme)
-	const { sideNav={ }, topNav={}, logo=Logos } = theme?.navOptions || {}
+	const { sideNav={ }, topNav={}, logo=Logos } = cloneDeep(theme?.navOptions) || {}
 	
 	const sideNavOptions = {
 		size: sideNav.size || 'none',
@@ -56,15 +56,18 @@ const Layout = ({ children, navItems, secondNav, title, pageTheme, EditPane, yPa
 		menuItems: (sideNav?.nav === 'main' ? nav2Level(navItems, sideNav.depth, pathname, theme.layout.navTitle)  : sideNav?.nav === 'secondary' ? secondNav || [] : []).filter(page => !page.hideInNav),
 		topMenu: (
 			<div className={'flex flex-row md:flex-col'}>
-	      		{sideNav?.logo === 'top' && logo}
+				{sideNav?.logo === 'top' && logo}
 	        	{sideNav?.dropdown === 'top' && <Menu />}
-	        	{sideNav?.search === 'top' && <Search app={app} type={type}/>}
+	        	
+	        	{sideNav?.search === 'top' && <SearchButton app={app} type={type}/>}
+
 	      	</div>),
 		bottomMenu:  (
 	      	<div className={'flex flex-row md:flex-col'}>
 	      		{sideNav?.logo === 'bottom' && logo}
-	      		{sideNav?.search === 'bottom' && <Search app={app} type={type}/>}
+	      		{sideNav?.search === 'bottom' && <SearchButton app={app} type={type}/>}
 	        	{sideNav?.dropdown === 'bottom' && <Menu />}
+	        	{(EditPane && sideNav?.dropdown ==='bottom') && <EditPane />}
 	      	</div>
 	  	)
 	}
@@ -78,13 +81,13 @@ const Layout = ({ children, navItems, secondNav, title, pageTheme, EditPane, yPa
 		leftMenu: (
 			<div className={'flex flex-col md:flex-row'}>
 	      		{topNav?.logo === 'left' && logo}
-	        	{topNav?.search === 'left' && <Search app={app} type={type}/>}
+	        	{topNav?.search === 'left' && <SearchButton app={app} type={type}/>}
 	        	{topNav?.dropdown === 'left' && <Menu />}
 	      	</div>),
 		rightMenu:  (
 	      	<>
 	      		{topNav?.rightMenu}
-	        	{topNav?.search === 'right' && <Search app={app} type={type}/>}
+	        	{topNav?.search === 'right' && <SearchButton app={app} type={type}/>}
 	        	{topNav?.dropdown === 'right' && <Menu />}
 	        	{topNav?.logo === 'right' && logo}
 	        	{EditPane && <EditPane />}
@@ -124,7 +127,7 @@ const Layout = ({ children, navItems, secondNav, title, pageTheme, EditPane, yPa
 						</div>
 					</>)
 				}
-				<div className={`${theme.layout.wrapper3}`}>
+				<div className={`${theme?.layout?.wrapper3}`}>
 					{
 						sideNavOptions.size === 'none' ? '' : (
 							<div className={`${theme?.layout?.sidenavContainer1} `}>

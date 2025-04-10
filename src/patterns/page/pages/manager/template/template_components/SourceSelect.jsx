@@ -1,6 +1,6 @@
 import React, {useEffect, useMemo, useState} from "react";
 import { get } from "lodash-es";
-import Selector from "./Selector";
+import TemplateSelector from "./TemplateSelector";
 import { CMSContext } from '../../../../siteConfig'
 
 export const SourcesSelect = ({value, onChange}) => {
@@ -27,7 +27,7 @@ export const SourcesSelect = ({value, onChange}) => {
     }, [falcor, pgEnv]);
 
     return (
-        <Selector
+        <TemplateSelector
             options={['',...sources]}
             value={value}
             onChange={(v)=> onChange(v) }

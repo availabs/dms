@@ -1,7 +1,7 @@
 import {parseJSON} from "../../../_utils";
 import React from "react";
 import { get } from "lodash-es"
-import Selector from "./Selector";
+import TemplateSelector from "./TemplateSelector";
 import { RegisteredComponents } from '../../../../ui/dataComponents/selector'
 
 export const SectionThumb =({section,source,sectionControl={},updateSectionControl}) => {
@@ -44,7 +44,7 @@ export const SectionThumb =({section,source,sectionControl={},updateSectionContr
                                     <div className='text-xs'>{typeof data[k.name] === 'object' ? JSON.stringify(data[k.name]) : data[k.name]}</div>
                                 </div>
                                 <div className='flex-1 flex items-center'>
-                                    <Selector
+                                    <TemplateSelector
                                         options={['',...attributes]}
                                         value={sectionControl[k.name] || ''}
                                         onChange={v => {

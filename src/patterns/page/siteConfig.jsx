@@ -22,12 +22,10 @@ import defaultTheme from './ui/theme'
 
 import { useFalcor } from "@availabs/avl-falcor"
 
-
 import { Link } from 'react-router-dom'
 import { SearchPage } from "./components/search/SearchPage";
 import DefaultMenu from './components/menu'
 
-// sideNav = {size: 'miniPad'}
 
 export const CMSContext = React.createContext(undefined);
 
@@ -46,8 +44,8 @@ export const pagesConfig = ({
   API_HOST
 }) => {
   //console.log('hola', pattern?.theme)
-  let theme = merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern?.theme?.settings?.theme?.theme] || themes.default), pattern?.theme || {})
-  // console.log('pageConfig', theme, themes[pattern?.theme?.settings?.theme?.theme], pattern?.theme )
+  let theme = merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern?.theme?.settings?.theme?.theme] || themes.default), cloneDeep(pattern?.theme) || {})
+  //console.log('pageConfig', pattern.doc_type, pattern.id, themes[pattern?.theme?.settings?.theme?.theme], pattern?.theme, pattern)
   // baseUrl = baseUrl[0] === '/' ? baseUrl.slice(1) : baseUrl
   baseUrl = baseUrl === '/' ? '' : baseUrl
   const defaultLogo = (
@@ -99,10 +97,10 @@ export const pagesConfig = ({
         filter: {
           options: JSON.stringify({
             filter: {
-              "data->>'template_id'": ['null']
+              "data->>'template_id'": ['null'],
             }
           }),
-          attributes:['title', 'index', 'url_slug', 'parent','published', 'hide_in_nav']
+          attributes:['title', 'index', 'url_slug', 'parent','published', 'description','hide_in_nav']
         },
         children: [
           {
@@ -112,7 +110,8 @@ export const pagesConfig = ({
               />
             ),
             path: "edit/*",
-            action: "edit"
+            action: "edit",
+            authLevel: 5
           },
           {
             type: (props) => (
@@ -121,7 +120,7 @@ export const pagesConfig = ({
               />
             ),
             filter: {
-              attributes:['title', 'index', 'url_slug', 'parent', 'published', 'hide_in_nav' ,'sections','sidebar','header','footer', 'full_width','navOptions']
+              attributes:['title', 'index', 'url_slug', 'parent', 'published', 'hide_in_nav' ,'sections','section_groups','sidebar','header','footer', 'full_width','navOptions']
             },
             path: "/*",
             action: "view"
@@ -171,11 +170,16 @@ export const pagesManagerConfig = ({
     </Link>
   )
 
+
+
   if(!theme?.navOptions?.logo) {
     theme.navOptions = {...(theme?.navOptions || {}), logo: (logo ? logo : defaultLogo)}
   }
-  
+  theme.navOptions.sideNav.size = 'compact'  
+  theme.navOptions.sideNav.nav = 'main'
+  theme.navOptions.topNav.nav = 'none'
 
+    
   // console.log('testing', theme.navOptions)
 
   const format = cloneDeep(cmsFormat)

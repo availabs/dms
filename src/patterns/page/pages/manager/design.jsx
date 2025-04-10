@@ -236,7 +236,7 @@ function DesignEditor ({item, dataItems, attributes, apiLoad, apiUpdate, format,
   },[])
 
   function saveTheme () {
-    //console.log('saving theme')
+    //console.log('saving theme', pattern.id, newTheme)
     let update =  apiUpdate({data:{id: pattern.id, theme: newTheme}, config:{format:PatternFormat}})
     setPattern({...pattern, theme: newTheme})
     //console.log('updated')

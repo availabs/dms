@@ -55,7 +55,8 @@ class Nestable extends Component {
   };
 
   componentDidMount() {
-    let { items, collapsedIds, childrenProp } = this.props;
+    let { items } = this.props
+    const { collapsedIds, childrenProp } = this.props;
 
     // make sure every item has property 'children'
     items = listWithChildren(items, childrenProp);
@@ -64,9 +65,9 @@ class Nestable extends Component {
     this.setState({ items, collapsedItems: collapsedIds });
   }
 
-  componentDidUpdate(prevProps){
+  componentDidUpdate(prevProps, prevState){
     const { props: { items: itemsNew, childrenProp }, state } = this;
-    const isPropsChanged = isEqual({ ...this, props: prevProps, state }, this.props, state);
+    const isPropsChanged = !isEqual(prevProps, this.props);
 
     if (isPropsChanged) {
       this.stopTrackMouse();
@@ -230,7 +231,7 @@ class Nestable extends Component {
 
       // is last (by order) item in array
       if (itemIndex + 1 === parent[childrenProp].length) {
-        let pathTo = pathFrom.slice(0, -1);
+        const pathTo = pathFrom.slice(0, -1);
         pathTo[pathTo.length - 1] += 1;
 
         // if collapsed by default

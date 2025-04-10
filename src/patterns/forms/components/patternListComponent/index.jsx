@@ -173,8 +173,8 @@ const RenderAddPattern = ({isAdding, setIsAdding, updateData, sources=[], setSou
         </Modal>
     )
 }
-const Edit = ({attributes, item, dataItems, apiLoad, apiUpdate, updateAttribute, parent, format, submit, ...r}) => {
-    const {baseUrl, user} = useContext(FormsContext);
+const Edit = ({attributes, item, dataItems, apiLoad, apiUpdate, updateAttribute, format, submit, ...r}) => {
+    const {baseUrl, user, parent} = useContext(FormsContext);
     const [sources, setSources] = useState([]);
     const [layerSearch, setLayerSearch] = useState("");
     const {...rest } = useParams();
@@ -194,7 +194,7 @@ const Edit = ({attributes, item, dataItems, apiLoad, apiUpdate, updateAttribute,
 
     useEffect(() => {
         getData({format, apiLoad, parent}).then(sources => setSources(sources));
-    }, [format, parent.sources]);
+    }, [format, parent?.sources]);
 
     const categories = [...new Set(
         (sources || [])

@@ -1,6 +1,24 @@
 import * as Headless from '@headlessui/react'
 import React, { forwardRef } from 'react'
 import { CMSContext } from '../../../siteConfig';
+/*  ---------------------------------------------------------
+ Use Example: 
+  <Select 
+    options={[
+      {
+        label: 'Annotation Card',
+        value: 'Annotation'
+      },
+      {
+        label: 'HandWritten Card',
+        value: 'Handwritten'
+      },
+    ]}
+    value={myState}
+    onChange={e => setMyState(e.target.value)}
+  />
+
+ --------------------------------------------------------- */
 
 export const selectTheme = {
   selectContainer: [
@@ -18,7 +36,7 @@ export const selectTheme = {
   select: [
     // Basic layout
     'relative block w-full appearance-none rounded-lg py-[calc(theme(spacing[2.5])-1px)] sm:py-[calc(theme(spacing[1.5])-1px)]',
-    // Horizontal padding 
+    // Horizontal padding
     'px-[calc(theme(spacing[3.5])-1px)] sm:px-[calc(theme(spacing.3)-1px)]',
     //  : 'pl-[calc(theme(spacing[3.5])-1px)] pr-[calc(theme(spacing.10)-1px)] sm:pl-[calc(theme(spacing.3)-1px)] sm:pr-[calc(theme(spacing.9)-1px)]',
     // Options (multi-select)
@@ -37,7 +55,6 @@ export const selectTheme = {
     'data-[disabled]:border-zinc-950/20 data-[disabled]:opacity-100 dark:data-[hover]:data-[disabled]:border-white/15 data-[disabled]:dark:border-white/15 data-[disabled]:dark:bg-white/[2.5%]',
   ].join(' ')
 }
- 
 
 const Select = forwardRef(function Select({ className, multiple, options=[], value, onChange=()=>{}, ...props }, ref) {
   const { theme = { select: selectTheme } } = React.useContext(CMSContext) || {}
@@ -54,7 +71,7 @@ const Select = forwardRef(function Select({ className, multiple, options=[], val
         value={value}
         onChange={onChange}
       >
-        {options.map(opt => <option value={opt.value}>{opt.label}</option>)}
+        {options.map(opt => <option key={opt.label} className={opt?.className || ''} value={opt.value}>{opt.label}</option>)}
       </Headless.Select>
       {!multiple && (
         <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">

@@ -19,6 +19,7 @@ export 	async function updateDMSAttrs(data, configs, falcor) {
             let d = cloneDeep(dU)
             let id = d?.id || false
 
+
             for(const key of ['id', 'ref', 'created_at', 'updated_at', 'created_by', 'updated_by']) {
                 delete d[key];
             }
@@ -42,7 +43,7 @@ export 	async function updateDMSAttrs(data, configs, falcor) {
                 //console.log(currentData,d)
 
                 if(!isEqual(currentData,d)){
-                    // console.log('update', id )
+                    //console.log('update', id )
                     await falcor.call(
                         ["dms", "data", "edit"],
                         [id, d]

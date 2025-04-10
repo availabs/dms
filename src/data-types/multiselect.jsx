@@ -34,6 +34,7 @@ const RenderMenu = ({
     searchKeyword,
     value,
     onChange,
+    singleSelectOnly,
     theme
 }) => {
     const mappedValue = value.filter(v => v).map(v => v.value || v);
@@ -53,6 +54,7 @@ const RenderMenu = ({
                 {
                     [selectAllOption, removeAllOption]
                         .filter(o =>
+                            singleSelectOnly ? false :
                             o.value === 'select-all' ? value.length !== options?.length :
                                 o.value === 'remove-all' ? value.length : true)
                         .map((o, i) =>
@@ -82,7 +84,7 @@ const RenderMenu = ({
                                 onChange(
                                     o.value === 'select-all' ? options :
                                         o.value === 'remove-all' ? [] :
-                                            [...value, o]
+                                            singleSelectOnly ? [o] : [...value, o]
                                 );
                                 setIsSearching(false);
                             }}>
@@ -122,7 +124,7 @@ function useComponentVisible(initial) {
 }
 
 
-const Edit = ({value = [], loading, onChange, className,placeholder, options = [], displayInvalidMsg=true, menuPosition='bottom'}) => {
+const Edit = ({value = [], loading, onChange, className,placeholder, options = [], displayInvalidMsg=true, menuPosition='bottom', singleSelectOnly=false}) => {
     // options: ['1', 's', 't'] || [{label: '1', value: '1'}, {label: 's', value: '2'}, {label: 't', value: '3'}]
     const [searchKeyword, setSearchKeyword] = useState('');
     const typeSafeValue = Array.isArray(value) ? value : [value];
@@ -172,6 +174,7 @@ const Edit = ({value = [], loading, onChange, className,placeholder, options = [
                 value={typeSafeValue}
                 onChange={onChange}
                 options={options}
+                singleSelectOnly={singleSelectOnly}
                 theme={theme}
             />
         </div>
