@@ -25,7 +25,7 @@ const theme = {
   },
   paragraph: "m-0 relative", //'PlaygroundEditorTheme__paragraph',
   
-  quote: "m-0 mb-2 font-['Oswald'] text-[30px] leading-[36px] text-[#2D3E4C] border-l-4 border-[#37576B] pl-4 pb-[12px]", //'PlaygroundEditorTheme__quote',
+  quote: "m-0 mb-2 py-6 font-['Oswald'] text-[30px] leading-[36px] text-[#2D3E4C] border-l-4 border-[#37576B] pl-4", //'PlaygroundEditorTheme__quote',
   // editorShell: "rounded-[2px] relative", //'.editor-shell',
   
   // quote:
@@ -43,7 +43,8 @@ const theme = {
   blockCursor: `block pointer-events-none absolute content-['']  after:absolute after:-top-[2px] after:w-[20px] after:border-t-[1px_solid_black]`,
   characterLimit: "inline !bg-[#ffbbbb]",
   layoutContainer: 'grid gap-[10px]',
-  layoutItem: 'border border-dashed border-slate-300 rounded-lg px-2 py-4 min-w-0 max-w-full',
+  layoutItem: 'px-2 py-4 min-w-0 max-w-full',
+  layoutItemEditable: 'border border-dashed border-slate-300 rounded-lg',
   code: `bg-[rgb(240,_242,_245)] font-[Menlo,_Consolas,_Monaco,_monospace] block pl-[52px] pr-[8px] py-[8px] leading-[1.53] text-[13px] m-0 mt-[8px] mb-[8px] [tab-size:2] relative after:content-[attr(data-gutter)] after:absolute after:bg-[#eee] after:left-[0] after:top-[0] after:border-r-[1px_solid_#ccc] after:p-[8px] after:text-[#777] after:whitespace-pre-wrap after:text-right after:min-w-[25px]`,
   codeHighlight: {
     atrule: "text-[#07a]",

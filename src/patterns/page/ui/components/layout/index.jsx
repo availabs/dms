@@ -127,7 +127,7 @@ const Layout = ({ children, navItems, secondNav, title, pageTheme, EditPane, yPa
 						</div>
 					</>)
 				}
-				<div className={`${theme.layout.wrapper3}`}>
+				<div className={`${theme?.layout?.wrapper3}`}>
 					{
 						sideNavOptions.size === 'none' ? '' : (
 							<div className={`${theme?.layout?.sidenavContainer1} `}>

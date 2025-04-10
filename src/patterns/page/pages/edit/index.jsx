@@ -87,6 +87,7 @@ function PageEdit ({
     		newItem.draft_sections.forEach((section,i) => {
     			if(section.is_header) {
     				section.group = 'header'
+    				section.padding = 'p-0'
     			}
     		})
 	    	submit(json2DmsForm(newItem), { method: "post", action: `${baseUrl}/edit/${item.url_slug}` })

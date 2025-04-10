@@ -46,7 +46,9 @@ export function SectionEdit ({value, i, onChange, attributes, size, onCancel, on
     let { theme } = React.useContext(CMSContext) || {}
 
     const updateAttribute = (k, v) => {
+        console.log('change',k,v, {...value, [k]: v})
         if(!isEqual(value, {...value, [k]: v})) {
+            console.log('change',k,v, {...value, [k]: v})
             onChange({...value, [k]: v})
         }
     }
@@ -200,9 +202,17 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
     //     onChange(value, k, v)
     // }
     
+
+    // const updateAttribute = (k, v) => {
+    //     console.log('change',k,v, {...value, [k]: v})
+    //     if(!isEqual(value, {...value, [k]: v})) {
+    //         console.log('change',k,v, {...value, [k]: v})
+    //         onChange({...value, [k]: v})
+    //     }
+    // }
     const updateAttribute = (k, v) => {
         if(!isEqual(value, {...value, [k]: v})) {
-            onChange({...value, [k]: v})
+            onChange(i, {...value, [k]: v})
         }
     }
 
@@ -295,6 +305,25 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
         //     onChange: (v) => updateAttribute('offset', v.target.value)
         // }
       },
+      { icon: 'Padding', name: 'padding', 
+        type: 'menu',
+        value: value?.['padding'] || theme?.sectionArray?.sectionPadding,
+        items: ['p-0', 'p-1','p-2', theme?.sectionArray?.sectionPadding].map((v,i) => {
+            return {
+                'icon': v == (value?.['padding'] || '1') ? 'CircleCheck' : 'Blank',
+                'name': `${v}`,
+                'onClick': () => {
+                    console.log('padding Item name click', v)
+                    updateAttribute('padding', v);
+                }
+            }
+        }),
+        // inputProps: { 
+        //     type: 'number', 
+        //     value: value?.offset || theme?.sectionArray?.defaultOffset, 
+        //     onChange: (v) => updateAttribute('offset', v.target.value)
+        // }
+      },
       // { icon: 'Blank', name: 'Padding', onClick: () => {} },
       { icon: 'Border', name: 'Border',
         type: 'menu',
@@ -335,18 +364,7 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
             <div className={`flex w-full`}>
                 <div className='flex-1'/>
                     
-                    {value?.is_header && edit ?  <div className={`z-10 relative`}>
-                        <div className={`absolute mr-16 right-[-60px] flex`}>
-                            <Button type='plain' padding='p-1' 
-                                onClick={ onEdit }
-                            >
-                                {/*<i className="fa-light fa-pencil text-xl fa-fw" title="Edit"></i>*/}
-                                <PencilSquare className='text-slate-400 hover:text-blue-500'/>
-                               
-                            </Button>
-                        </div>
-                    </div>
-                    :
+                   
                     <div className={`z-10`}>
                         <div className={`absolute top-[6px] right-[6px] hidden group-hover:flex items-center`}> 
                             
@@ -375,7 +393,7 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
                             )}
                         </div>
                     </div>
-                    }
+                    
                    
                 </div>
                 {/* -------------------END top line buttons ----------------------*/}

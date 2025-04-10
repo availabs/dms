@@ -65,7 +65,7 @@ export const sectionArrayTheme = {
         "5" : { className: 'md:row-span-5'},
     },
     border: {
-        none: 'border border-transparent',
+        none: '',
         full: 'border border-sky-950 rounded-lg',
         openLeft: 'border border-sky-950 border-l-transparent rounded-r-lg',
         openRight: 'border border-sky-950 border-r-transparent rounded-l-lg',
@@ -101,6 +101,13 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
        setEdit({index: -1, value:'',type:'new'}) 
     }
 
+    const saveIndex = (i, v) => {
+        const cloneValue = cloneDeep(value || [])
+        cloneValue[i] = v
+        setValues([...cloneValue, ''])
+        /* await */ onChange(cloneValue)
+    }
+
     const save = /* async */ () => {
 
         let cloneValue = cloneDeep(value || [])
@@ -132,7 +139,7 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
            cloneValue.splice(i, 1) 
         }
         const action = `removed section ${edit?.value?.title ? `${edit?.value?.title} ${edit.index+1}` : edit.index+1}`
-        console.log('remove', value, cloneValue)
+        //console.log('remove', value, cloneValue)
         // console.log('edit on remove', edit)
         cancel()
         onChange(cloneValue, action)
@@ -156,102 +163,11 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
         onChange(cloneValue)
     }
 
-   /* const [edit, setEdit] = React.useState({
-        index: -1,
-        value: '',
-        type: 'new'
-    })
-
-    const updateValue = (section, attribute, v) => {
-       onChange([{id: section.id, [attribute]: v}], null, 'update')
-    }
-    const setEditValue = (v) => setEdit({...edit, value: v})
-    const setEditIndex = (i) => setEdit({...edit, index: i})
-    
-    const cancel = () => {
-       setEdit({index: -1, value:'',type:'new'}) 
-    }
-
-    const update = (i) => {
-        setEdit({index: i, value:value[i],type:'update'})
-    }
-
-    const save =  async  () => {
-
-        let cloneValue = cloneDeep(value || [])
-        const trackingId = uuidv4();
-        let action = ''
-        if(edit.type === 'update') {
-            cloneValue[edit.index] = edit.value
-            action = `edited section ${edit?.value?.title ? `${edit?.value?.title} ${edit.index+1}` : edit.index+1}`
-            await onChange([edit.value], action, edit.type)
-        } else {
-            cloneValue.splice(edit.index, 0, {...(edit.value || {}), trackingId, order: edit.index, group: group?.name})
-            action = `added section ${edit?.value?.title ? `${edit?.value?.title} ${edit.index+1}` : edit.index+1}`
-            await onChange([{...(edit.value || {}), trackingId, order: edit.index, group: group?.name}], action, edit.type)
-        }
-        
-        cancel()
-    }
-
-    const remove = async (i) => {
-        let cloneValue = cloneDeep(value)
-        
-        if(edit.type === 'update') {
-            cloneValue.splice(edit.index, 1)
-        } else {
-           cloneValue.splice(i, 1) 
-        }
-
-        await onChange(
-            [value[i]],
-            `removed section ${edit?.value?.title ? `${edit?.value?.title} ${edit.index+1}` : edit.index+1}`,
-            'remove'
-        )
-        cancel()
-    }
-
-    
-
-    async function moveItem(from, dir) {
-        let cloneValue = cloneDeep(values).sort((a,b) => a.order - b.order)
-        // remove `from` item and store it
-        let to = from + dir
-        
-        if(to < 0 || to >= cloneValue.length){
-            return
-        }
-        var f = cloneValue.splice(from, 1)[0];
-        // insert stored item into position `to`
-        cloneValue.splice(to, 0, f);
-        
-
-        let update = cloneValue
-            // if section has a new order after move
-            // update its order
-            .map((d,i) => d.order !== i ? { id: d.id, order:i} : null)
-            .filter(d => d)
-
-        //-----------
-        // this does local update ahead of server update
-        //-----------
-        // cloneValue = cloneValue.map((d,i) => {
-        //     d.order = i
-        //     return d
-        // })
-        // setValues(cloneValue)
-        //-------------
-
-        console.time('moveItems')
-        await onChange(update, null, 'update')
-        console.timeEnd('moveItems')
-    }
-    */
     const hideDebug = true
     //console.log('test 123', values, group)
 
     return (
-        <div className='relative isolate pb-[80px]'>
+        <div className='relative isolate'>
         { editPane?.showGrid && (
             <div className='absolute inset-0 pointer-events-none  '>
                 <div className={`
@@ -287,13 +203,13 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
                             key={i}
                             id={v?.id}
                             className={`
-                                ${v?.is_header ? '' : theme.sectionArray.sectionPadding} 
+                                ${v?.padding ?  v.padding : theme.sectionArray.sectionPadding} 
                                 ${theme?.sectionArray?.sectionEditWrapper} 
                                 ${colspanClass} ${rowspanClass}
                                 ${theme?.sectionArray?.border?.[v?.border || 'none']}
                                 
                             `}
-                            style={{paddingTop: `${v?.offset || (v?.is_header ? 0 : theme?.sectionArray?.defaultOffset)}px` }}
+                            style={{paddingTop: `${v?.offset}` }}
                         >
                             <div className={theme?.sectionArray?.sectionEditHover} />
                             {/* add to top */}
@@ -343,7 +259,7 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
                                     edit={true}
                                     onEdit={ edit.index === -1 ? (e) => update(i)  : null }
                                     onRemove={remove}
-                                    onChange={ setEditValue }
+                                    onChange={ saveIndex }
                                     addAbove={() => setEditIndex(i)}
                                     siteType={siteType}
                                     apiLoad={apiLoad}
@@ -393,10 +309,10 @@ const View = ({value, attr, group, siteType}) => {
                         return (
                             <div id={v?.id} key={i} 
                                 className={`
-                                    ${v?.is_header ? '' : theme.sectionArray.sectionPadding} 
+                                    ${v?.is_header ? '' : v?.padding ?  v.padding : theme.sectionArray.sectionPadding}
                                     ${theme?.sectionArray?.sectionViewWrapper} 
                                     ${colspanClass} ${rowspanClass}
-                                    ${' ' || 'border border-transparent'}
+                                    
                                 `}
                             >
                                 <SectionView
