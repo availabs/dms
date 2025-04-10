@@ -32,7 +32,8 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
         newItem.section_groups = [
           {name: 'default', position: 'content', index: 0, theme: 'content'}
         ]
-        newItem.sections = cloneDeep(item.sections)
+
+        newItem.sections = cloneDeep(item?.sections || [])
 
         if(item?.header && item?.header !== 'none' ) {
           newItem.section_groups.push( 
