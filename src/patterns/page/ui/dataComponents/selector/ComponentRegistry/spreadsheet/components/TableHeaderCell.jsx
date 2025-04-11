@@ -34,7 +34,7 @@ export default function TableHeaderCell({isEdit, attribute, context}) {
             onChange({attribute, key, value, columnIdx: idx})
         }
 
-        if(dataFetch && !draft.readyToLoad){
+        if(dataFetch && !draft.display.readyToLoad){
             draft.display.readyToLoad = true;
         }
 

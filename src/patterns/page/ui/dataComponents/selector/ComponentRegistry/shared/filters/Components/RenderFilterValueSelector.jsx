@@ -79,7 +79,7 @@ export const RenderFilterValueSelector = ({
                     if (key === 'allowSearchParams' && value === true && !targetFilter['searchParamKey']) {
                         targetFilter['searchParamKey'] = filterColumn.name;
                     }
-                    draft.readyToLoad = true;
+                    draft.display.readyToLoad = true;
                 });
             }, delay);
         }, [setState]);

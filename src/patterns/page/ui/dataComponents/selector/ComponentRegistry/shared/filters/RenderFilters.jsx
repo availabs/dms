@@ -66,7 +66,7 @@ export const RenderFilters = ({
                             })
                         }
                     });
-                    draft.readyToLoad = true;
+                    draft.display.readyToLoad = true;
                 });
             }
         }, [searchParams, filters]);
