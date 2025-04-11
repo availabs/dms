@@ -375,16 +375,16 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
                         Array.isArray(invalidValues) ? // for multiselects
                         invalidValues.filter(inv => {
                             const value = inv?.value || inv;
-                            return ['select', 'multiselect', 'radio'] && col.options ? (
+                            return ['select', 'multiselect', 'radio'].includes(col.type) && col.options ? (
                                 Array.isArray(value) ?
                                     value.reduce((acc, v) => {
-                                        return acc && !col.options.some(o => (o?.value || o) === (v?.value || v)) && v !== '"__VALID__"' && v !== "__VALID__"
-                                    }, true) : // make sure all selections are valid
+                                        return acc || !col.options.some(o => (o?.value || o) === (v?.value || v)) && v !== '"__VALID__"' && v !== "__VALID__"
+                                    }, false) : // make sure all selections are valid
                                     !col.options.find(o => (o?.value || o) === value) && value !== '"__VALID__"' && value !== "__VALID__"
                             ) : inv !== '"__VALID__"' && inv !== "__VALID__"
                         }).map(value => Array.isArray(value) ? value.map(v => v?.value || v) : (value?.value || value)) : invalidValues
 
-                    // console.log('===', col.name, +data?.[0]?.[getErrorValueSql(col.name, col.shortName, col.options, col.required === 'yes')], sanitisedValues)
+                    // console.log('===', col.name, invalidValues, sanitisedValues)
                 return {
                     ...acc,
                     [`${col.shortName}_error`]: +data?.[0]?.[getErrorValueSql(col.name, col.shortName, col.options, col.required === 'yes')],

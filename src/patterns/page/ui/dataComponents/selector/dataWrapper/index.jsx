@@ -335,7 +335,8 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, component, hideS
                   {...component.name === 'Spreadsheet' && {
                       newItem, setNewItem,
                       updateItem, removeItem, addItem,
-                      currentPage, loading, isEdit
+                      currentPage, loading, isEdit,
+                      allowEdit: isEdit
                   }}
                 />
                 <div>
