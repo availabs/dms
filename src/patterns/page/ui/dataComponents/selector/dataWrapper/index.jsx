@@ -12,7 +12,18 @@ import {useImmer} from "use-immer";
 import {convertOldState} from "./utils/convertOldState";
 import {Download, LoadingHourGlass} from "../../../icons";
 import {useHandleClickOutside} from "../ComponentRegistry/shared/utils";
-
+const getCurrDate = () => {
+    const options = {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false
+    };
+    return new Date().toLocaleDateString(undefined, options);
+};
 export const ComponentContext = createContext({});
 
 const initialState = defaultState => {
@@ -73,7 +84,9 @@ const triggerDownload = async ({state, apiLoad, loadAllColumns, setLoading}) => 
         value: data => data?.[name],
         // ...name === 'url' && {'hyperlink': data => data?.[name]}
     }));
-    const fileName = `${state.sourceInfo.view_name || Date.now()}`;
+
+    const filterStr = Object.keys(state.dataRequest?.filter || {}).length ? JSON.stringify(state.dataRequest.filter) : '';
+    const fileName = `${state.sourceInfo.view_name} - ${filterStr} - ${getCurrDate()}`;
 
     await writeXlsxFile(data, {
         schema,
@@ -403,7 +416,8 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
     // if search params are being used, ideally for template pages you should only fetch on filter change
     // for other pages, all data should be fetched
 
-    const orderBy = useMemo(() => state.columns.filter(column => column.sort).reduce((acc, column) => ({...acc, [column.name]: column.sort}), {}), [state.column]);
+    const orderBy = useMemo(() => state.columns.filter(column => column.sort).reduce((acc, column) => ({...acc, [column.name]: column.sort}), {}), [state.columns]);
+    console.log('order y ', orderBy, state.columns)
     // ======================================= data fetch triggers end =================================================
 
     // ========================================== get data begin =======================================================

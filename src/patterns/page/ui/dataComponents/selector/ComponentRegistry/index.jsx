@@ -6,6 +6,7 @@ import Spreadsheet from "./spreadsheet";
 import Card from "./Card";
 import Graph from "./graph"
 import Item from "./item";
+import Map from "./map/MapComponent"
 import ComponentsIndexTable from "../componentsIndexTable";
 import FilterComponent from "./FilterComponent";
 import UploadComponent from "./UploadComponent";
@@ -19,6 +20,7 @@ const ComponentRegistry = {
     Spreadsheet,
     Graph,
     Item,
+    Map,
     Filter: FilterComponent,
     Upload: UploadComponent,
     "Table: Components Index": ComponentsIndexTable,
