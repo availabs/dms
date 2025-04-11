@@ -18,7 +18,7 @@ export const sectionGroupTheme = {
     sideNavContainer2: 'w-64 sticky top-20 hidden xl:block'
   },
   content: {
-    wrapper1: 'w-full h-full flex-1 flex flex-row lg:pt-[118px] ', // inside page header, wraps sidebar
+    wrapper1: 'w-full h-full flex-1 flex flex-row p-2', // inside page header, wraps sidebar
     wrapper2: 'flex flex-1 w-full border-2 flex-col border shadow-md bg-white rounded-lg relative text-md font-light leading-7 p-4 h-full min-h-[calc(100vh_-_102px)]' , // content wrapepr
     iconWrapper : 'z-5 absolute right-[10px] top-[5px]',
     icon: 'text-slate-400 hover:text-blue-500',
