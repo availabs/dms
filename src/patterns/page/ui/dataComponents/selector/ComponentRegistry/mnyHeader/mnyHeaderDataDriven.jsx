@@ -71,7 +71,7 @@ const Title = ({title, titleSize, logo}) => {
         </div>
     )
 }
-export function Header ({app, type, title, note, logo, overlay='overlay', bgImg, chain, showBreadcrumbs, showSearchBar, titleSize='sm:text-[48px] tracking-[-2px]'}) {
+export function Header ({app, type, title, note, logo, overlay='overlay', bgImg, chain, showBreadcrumbs, showSearchBar, titleSize='sm:text-[72px] tracking-[0px]'}) {
     return overlay === 'full' ? (
         <div
             className="relative w-full h-auto lg:h-[773px] lg:-mb-[145px] flex flex-col lg:flex-row justify-center"
@@ -212,7 +212,7 @@ export default {
             totalLength: 0,
             overlay: 'overlay',
             showBreadcrumbs: true,
-            titleSize: 'sm:text-[48px]'
+            titleSize: 'sm:text-[72px] tracking-[0px]'
         },
         // wrapper controlled part
         dataRequest: {},
