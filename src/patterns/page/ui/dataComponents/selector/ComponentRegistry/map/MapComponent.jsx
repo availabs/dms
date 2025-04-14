@@ -9,6 +9,10 @@ import SymbologyViewLayer from './SymbologyViewLayer'
 import { usePrevious } from './utils'
 import {CMSContext} from "../../../../../siteConfig";
 import { HEIGHT_OPTIONS } from "./MapManager/MapManager";
+import {SymbologySelector} from "./SymbologySelector";
+import {useSearchParams} from "react-router-dom";
+import FilterControls from "./controls/FilterControls";
+import {defaultStyles, blankStyles} from "./styles";
 
 const isJson = (str)  => {
     try {
@@ -27,7 +31,8 @@ const getData = async () => {
 
 const Edit = ({value, onChange, size}) => {
     // const {falcor, falcorCache} = useFalcor();
-    const { falcor, falcorCache, pgEnv } = React.useContext(CMSContext)
+    // controls: symbology, more, filters: lists all interactive and dynamic filters and allows for searchParams match.
+    const { falcor, falcorCache, pgEnv } = React.useContext(CMSContext);
     const mounted = useRef(false);
     const cachedData = typeof value === 'object' ? value : value && isJson(value) ? JSON.parse(value) : {};
     const [state,setState] = useImmer({
@@ -42,17 +47,26 @@ const Edit = ({value, onChange, size}) => {
         zoomPan: typeof cachedData.zoomPan === 'boolean' ? cachedData.zoomPan : true,
     })
     const [mapLayers, setMapLayers] = useImmer([])
+    const [searchParams] = useSearchParams();
 
     useEffect(() => {
-        async function updateData() {
-            //console.log('update data',state)
-            onChange(state)
-        }
+        const activeSym = Object.keys(state.symbologies || {}).find(sym => state.symbologies[sym].isVisible);
+        const activeSymSymbology = state.symbologies[activeSym]?.symbology;
+        const activeLayer = activeSymSymbology?.layers?.[activeSymSymbology?.activeLayer];
+        const useSearchParams = activeLayer?.useSearchParams;
+        const searchParamKey = activeLayer?.searchParamKey;
+        if(!useSearchParams) return;
 
-        if(!isEqual(state, value)) {
-          updateData()
+        const interactiveFilterOptions = (activeLayer?.['interactive-filters'] || []);
+        const searchParamFilterKey = searchParams.get(searchParamKey);
+        const fI = interactiveFilterOptions.findIndex(f => f.searchParamValue === searchParamFilterKey || f.label === searchParamFilterKey)
+
+        if(fI !== -1){
+            setState(draft => {
+                draft.symbologies[activeSym].symbology.layers[activeSymSymbology?.activeLayer].selectedInteractiveFilterIndex = fI;
+            })
         }
-    },[state])
+    }, [searchParams])
 
     useEffect(() => {
         // -----------------------
@@ -142,8 +156,7 @@ const Edit = ({value, onChange, size}) => {
           ),
         [state.symbologies]
       );
-      const prevInteractiveIndicies = usePrevious(interactiveFilterIndicies);
-    
+
       useEffect(() => {
         setState((draft) => {
           Object.keys(draft.symbologies)
@@ -177,16 +190,36 @@ const Edit = ({value, onChange, size}) => {
                   });
             })
         });
-      }, [isEqual(interactiveFilterIndicies, prevInteractiveIndicies)])
+      }, [interactiveFilterIndicies])
 
-
+    const heightStyle = HEIGHT_OPTIONS[state.height];
+    const activeSym = Object.keys(state.symbologies || {}).find(sym => state.symbologies[sym].isVisible);
+    const activeSymSymbology = state.symbologies[activeSym]?.symbology;
+    const activeLayer = activeSymSymbology?.layers?.[activeSymSymbology?.activeLayer];
+    const interactiveFilterOptions = (activeLayer?.['interactive-filters'] || []);
+    const activeFilter = activeLayer?.selectedInteractiveFilterIndex;
     const { center, zoom } = state.initialBounds ? state.initialBounds : {
         center: [-75.17, 42.85],
         zoom: 6.6
     }
-    const heightStyle = HEIGHT_OPTIONS[state.height];
+      console.log('debug MapComponent',state.symbologies[activeSym], activeLayer)
+      console.log('debug MapComponent filters', activeLayer?.selectedInteractiveFilterIndex, interactiveFilterOptions, activeFilter)
+
+
+    useEffect(() => {
+        async function updateData() {
+            onChange && onChange(state)
+        }
+
+        if(!isEqual(state, value)) {
+            updateData()
+        }
+    },[state])
+
     return (
         <MapContext.Provider value={{state, setState, falcor, falcorCache, pgEnv}}>
+            <SymbologySelector context={MapContext}/>
+            <FilterControls />
             <div id='dama_map_edit' className="w-full relative" style={{height: heightStyle}} ref={mounted}>
                 <AvlMap
                   layers={ mapLayers }
@@ -203,7 +236,7 @@ const Edit = ({value, onChange, size}) => {
                   rightSidebar={ false }
                 />
                 <div className={'absolute inset-0 flex pointer-events-none'}>
-                    <div className=''><MapManager /></div>
+                    {/*<div className=''><MapManager /></div>*/}
                     <div className='flex-1'/>
                     <div className={isHorizontalLegendActive ? 'max-w-[350px]' : 'max-w-[300px]'}><LegendPanel /></div>
                 </div>
@@ -223,6 +256,7 @@ const View = ({value, size}) => {
     const { falcor, falcorCache, pgEnv } = React.useContext(CMSContext)
     const mounted = useRef(false);
     const cachedData = typeof value === 'object' ? value : value && isJson(value) ? JSON.parse(value) : {};
+    const [searchParams] = useSearchParams()
     //console.log('cachedData', cachedData, value)
     const [state,setState] = useImmer({
         tabs: cachedData.tabs || [{"name": "Layers", rows: []}],
@@ -234,7 +268,24 @@ const View = ({value, size}) => {
         zoomPan: typeof cachedData.zoomPan === 'boolean' ? cachedData.zoomPan : true,
     })
     const [mapLayers, setMapLayers] = useImmer([])
+    useEffect(() => {
+        const activeSym = Object.keys(state.symbologies || {}).find(sym => state.symbologies[sym].isVisible);
+        const activeSymSymbology = state.symbologies[activeSym]?.symbology;
+        const activeLayer = activeSymSymbology?.layers?.[activeSymSymbology?.activeLayer];
+        const useSearchParams = activeLayer?.useSearchParams;
+        const searchParamKey = activeLayer?.searchParamKey;
+        if(!useSearchParams) return;
 
+        const interactiveFilterOptions = (activeLayer?.['interactive-filters'] || []);
+        const searchParamFilterKey = searchParams.get(searchParamKey);
+        const fI = interactiveFilterOptions.findIndex(f => f.searchParamValue === searchParamFilterKey || f.label === searchParamFilterKey)
+
+        if(fI !== -1){
+            setState(draft => {
+                draft.symbologies[activeSym].symbology.layers[activeSymSymbology?.activeLayer].selectedInteractiveFilterIndex = fI;
+            })
+        }
+    }, [searchParams])
     //console.log('render map component view', state)
     useEffect(() => {
         // -----------------------
@@ -390,7 +441,7 @@ const View = ({value, size}) => {
                   rightSidebar={ false }
                 />
                 <div className={'absolute inset-0 flex pointer-events-none'}>
-                    {!state.hideControls && <div className=''><MapManager /></div>}
+                    {/*{!state.hideControls && <div className=''><MapManager /></div>}*/}
                     <div className='flex-1'/>
                     <div className={isHorizontalLegendActive ? 'max-w-[350px]' : 'max-w-[300px]'}><LegendPanel /></div>
                 </div>
@@ -414,51 +465,3 @@ export default {
     "EditComp": Edit,
     "ViewComp": View
 }
-
-const defaultStyles =  [
-  {
-    name: "Default",
-    style: "https://api.maptiler.com/maps/dataviz/style.json?key=mU28JQ6HchrQdneiq6k9"
-  },
-  { name: "Satellite",
-    style: "https://api.maptiler.com/maps/hybrid/style.json?key=mU28JQ6HchrQdneiq6k9",
-  },
-  { name: "Streets",
-    style: "https://api.maptiler.com/maps/streets-v2/style.json?key=mU28JQ6HchrQdneiq6k9",
-  },
-  { name: "Light",
-    style: "https://api.maptiler.com/maps/dataviz-light/style.json?key=mU28JQ6HchrQdneiq6k9"
-  },
-  { name: "Dark",
-    style: "https://api.maptiler.com/maps/dataviz-dark/style.json?key=mU28JQ6HchrQdneiq6k9"
-  },
-  {
-    name: "Blank",
-    style: {
-      sources:{},
-      version: 8,
-      layers: [{
-          "id": "background",
-          "type": "background",
-          "layout": {"visibility": "visible"},
-          "paint": {"background-color": 'rgba(208, 208, 206, 0)'}
-      }]
-    }
-  }
-]
-
-const blankStyles = [
-  {
-    name: "Blank",
-    style: {
-      sources:{},
-      version: 8,
-      layers: [{
-          "id": "background",
-          "type": "background",
-          "layout": {"visibility": "visible"},
-          "paint": {"background-color": 'rgba(208, 208, 206, 0)'}
-      }]
-    }
-  }
-]

@@ -35,6 +35,7 @@ export const SelectSymbology = ({ modalState, setModalState, tabIndex }) => {
       .map(v => getAttributes(get(falcorCache, v.value, { "attributes": {} })["attributes"]));
   }, [falcorCache, pgEnv]);
 
+  // add a symbology
   const addLayer = () => {
     const { symbologyId } = modalState; 
     setState(draft => {
