@@ -4,6 +4,21 @@ import * as Plot from "@observablehq/plot";
 import {formatFunctions} from "../../../dataWrapper/utils/utils";
 
 import { useAxisTicks } from "../utils"
+
+function generatePowersOfTen(min, max) {
+  const result = [];
+  let power = 0;
+
+  while (true) {
+    let value = Math.pow(10, power);
+    if (value > max) break;
+    if (value >= min) result.push(value);
+    power++;
+  }
+
+  return result;
+}
+
 const BarGraph = props => {
 
   const {
@@ -27,8 +42,7 @@ const BarGraph = props => {
   const isPalette = ((colors.type === "palette") || (colors.type === "custom"));
   const uniqDataValues = [...new Set(data.map(d => d.value))].sort((a,b) => a-b);
   const maxValue = uniqDataValues[uniqDataValues.length-1];
-  const meanValue = uniqDataValues[Math.floor(uniqDataValues.length/2)];
-  const customLogTicks = [meanValue, maxValue];
+  const customLogTicks = generatePowersOfTen(1, maxValue);
 
   const isStacked = groupMode === "stacked";
   const isVertical = orientation === "vertical";
