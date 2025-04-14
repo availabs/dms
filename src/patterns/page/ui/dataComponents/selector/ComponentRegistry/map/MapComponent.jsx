@@ -36,13 +36,14 @@ const getData = async () => {
 const Edit = ({value, onChange, size}) => {
     // const {falcor, falcorCache} = useFalcor();
     // controls: symbology, more, filters: lists all interactive and dynamic filters and allows for searchParams match.
+    const isEdit = true// Boolean(onChange);
     const { falcor, falcorCache, pgEnv } = React.useContext(CMSContext);
     const mounted = useRef(false);
     const cachedData = typeof value === 'object' ? value : value && isJson(value) ? JSON.parse(value) : {};
     const [state,setState] = useImmer({
         tabs: cachedData.tabs || [{"name": "Layers", rows: []}],
         symbologies: cachedData.symbologies || {},
-        isEdit: true,
+        isEdit,
         setInitialBounds: cachedData.setInitialBounds || false,
         initialBounds: cachedData.initialBounds || null,
         hideControls: cachedData.hideControls || false,
@@ -59,17 +60,33 @@ const Edit = ({value, onChange, size}) => {
         const activeLayer = activeSymSymbology?.layers?.[activeSymSymbology?.activeLayer];
         const useSearchParams = activeLayer?.useSearchParams;
         const searchParamKey = activeLayer?.searchParamKey;
-        if(!useSearchParams) return;
 
         const interactiveFilterOptions = (activeLayer?.['interactive-filters'] || []);
+        if(!useSearchParams) return;
+
         const searchParamFilterKey = searchParams.get(searchParamKey);
         const fI = interactiveFilterOptions.findIndex(f => f.searchParamValue === searchParamFilterKey || f.label === searchParamFilterKey)
 
-        if(fI !== -1){
-            setState(draft => {
+        const dynamicFilterOptions = (activeLayer?.['dynamic-filters'] || []);
+
+        const getSearchParamKey = f => f.searchParamKey || f.column_name;
+        const searchParamValues = dynamicFilterOptions.reduce((acc, curr) => ({...acc, [getSearchParamKey(curr)]: searchParams.get(getSearchParamKey(curr))}), {});
+
+        setState(draft => {
+            if(fI !== -1){
                 draft.symbologies[activeSym].symbology.layers[activeSymSymbology?.activeLayer].selectedInteractiveFilterIndex = fI;
-            })
-        }
+            }
+
+            draft.symbologies[activeSym].symbology.layers[activeSymSymbology.activeLayer]['dynamic-filters'][0].values = ['001']
+            if(dynamicFilterOptions?.length){
+                draft.symbologies[activeSym].symbology.layers[activeSymSymbology.activeLayer]['dynamic-filters']
+                    .filter(f => searchParamValues[getSearchParamKey(f)])
+                    .forEach(filter => {
+                        const newValues = searchParamValues[getSearchParamKey(filter)].split('|||')
+                        filter.values = newValues
+                    })
+            }
+        })
     }, [searchParams])
 
     useEffect(() => {
@@ -123,7 +140,7 @@ const Edit = ({value, onChange, size}) => {
                         
                         const out = [
                             // keep existing layers & filter
-                            ...oldLayers, 
+                            ...oldLayers,
                             // add new layers
                             ...newLayers
                         ].sort((a,b) => b.order - a.order)
@@ -154,7 +171,7 @@ const Edit = ({value, onChange, size}) => {
     const interactiveFilterIndicies = useMemo(() => {
         const activeSym = Object.keys(state.symbologies || {}).find(sym => state.symbologies[sym].isVisible);
         const activeSymSymbology = state.symbologies[activeSym]?.symbology;
-        return state.symbologies[activeSym].symbology.layers[activeSymSymbology?.activeLayer].selectedInteractiveFilterIndex
+        return state.symbologies[activeSym]?.symbology.layers[activeSymSymbology?.activeLayer]?.selectedInteractiveFilterIndex
     }, [state.symbologies]);
 
       useEffect(() => {
@@ -163,12 +180,13 @@ const Edit = ({value, onChange, size}) => {
             .forEach(topSymbKey => {
                 const curTopSymb = draft.symbologies[topSymbKey];
                 Object.keys(curTopSymb.symbology.layers)
-                  .filter((lKey) => {
-                    return curTopSymb.symbology.layers[lKey]["layer-type"] === "interactive"
-                  })
+                  // .filter((lKey) => {
+                  //   return curTopSymb.symbology.layers[lKey]["layer-type"] === "interactive"
+                  // })
                   .forEach((lKey) => {
                     const layer = draft.symbologies[topSymbKey].symbology.layers[lKey];
                     const draftFilters = layer['interactive-filters'];
+                    const draftDynamicFilters = layer['dynamic-filters'];
                     const draftFilterIndex = layer.selectedInteractiveFilterIndex;
                     const draftInteractiveFilter = draftFilters[draftFilterIndex] 
 
@@ -179,6 +197,7 @@ const Edit = ({value, onChange, size}) => {
                         order: layer.order,
                         "layer-type": "interactive",
                         "interactive-filters": draftFilters,
+                        "dynamic-filters": draftDynamicFilters,
                         selectedInteractiveFilterIndex: draftFilterIndex
                       };
   
@@ -196,15 +215,11 @@ const Edit = ({value, onChange, size}) => {
     const activeSym = Object.keys(state.symbologies || {}).find(sym => state.symbologies[sym].isVisible);
     const activeSymSymbology = state.symbologies[activeSym]?.symbology;
     const activeLayer = activeSymSymbology?.layers?.[activeSymSymbology?.activeLayer];
-    const interactiveFilterOptions = (activeLayer?.['interactive-filters'] || []);
     const activeFilter = activeLayer?.selectedInteractiveFilterIndex;
     const { center, zoom } = state.initialBounds ? state.initialBounds : {
         center: [-75.17, 42.85],
         zoom: 6.6
     }
-      console.log('debug MapComponent',state.symbologies[activeSym], activeLayer)
-      console.log('debug MapComponent filters', activeLayer?.selectedInteractiveFilterIndex, interactiveFilterOptions, activeFilter)
-
 
     useEffect(() => {
         async function updateData() {
@@ -218,8 +233,14 @@ const Edit = ({value, onChange, size}) => {
 
     return (
         <MapContext.Provider value={{state, setState, falcor, falcorCache, pgEnv}}>
-            <SymbologySelector context={MapContext}/>
-            <FilterControls />
+            {
+                isEdit ? (
+                    <>
+                        <SymbologySelector context={MapContext}/>
+                        <FilterControls />
+                    </>
+                ) : null
+            }
             <div id='dama_map_edit' className="w-full relative" style={{height: heightStyle}} ref={mounted}>
                 <AvlMap
                   layers={ mapLayers }
@@ -249,217 +270,13 @@ Edit.settings = {
     name: 'ElementEdit'
 }
 
-const View = ({value, size}) => {
-    // console.log('Dama Map: View')
-    // const {falcor, falcorCache} = useFalcor();
-    const { falcor, falcorCache, pgEnv } = React.useContext(CMSContext)
-    const mounted = useRef(false);
-    const cachedData = typeof value === 'object' ? value : value && isJson(value) ? JSON.parse(value) : {};
-    const [searchParams] = useSearchParams()
-    //console.log('cachedData', cachedData, value)
-    const [state,setState] = useImmer({
-        tabs: cachedData.tabs || [{"name": "Layers", rows: []}],
-        symbologies: cachedData.symbologies || {},
-        initialBounds: cachedData.initialBounds || null,
-        hideControls: cachedData.hideControls || false,
-        blankBaseMap: cachedData.blankBaseMap || false,
-        height: cachedData.height || "full",
-        zoomPan: typeof cachedData.zoomPan === 'boolean' ? cachedData.zoomPan : true,
-    })
-    const [mapLayers, setMapLayers] = useImmer([])
-    useEffect(() => {
-        const activeSym = Object.keys(state.symbologies || {}).find(sym => state.symbologies[sym].isVisible);
-        const activeSymSymbology = state.symbologies[activeSym]?.symbology;
-        const activeLayer = activeSymSymbology?.layers?.[activeSymSymbology?.activeLayer];
-        const useSearchParams = activeLayer?.useSearchParams;
-        const searchParamKey = activeLayer?.searchParamKey;
-        if(!useSearchParams) return;
-
-        const interactiveFilterOptions = (activeLayer?.['interactive-filters'] || []);
-        const searchParamFilterKey = searchParams.get(searchParamKey);
-        const fI = interactiveFilterOptions.findIndex(f => f.searchParamValue === searchParamFilterKey || f.label === searchParamFilterKey)
-
-        if(fI !== -1){
-            setState(draft => {
-                draft.symbologies[activeSym].symbology.layers[activeSymSymbology?.activeLayer].selectedInteractiveFilterIndex = fI;
-            })
-        }
-    }, [searchParams])
-    //console.log('render map component view', state)
-    useEffect(() => {
-        // -----------------------
-        // Update map layers on map
-        // when state.symbology.layers update
-        // -----------------------
-        const updateLayers = async () => {
-            if(mounted.current) {
-                
-                let allLayers = (Object.values(state.symbologies).reduce((out,curr) => {
-                    let ids = out.map(d => d.id)
-                    let newValues = Object.keys(curr?.symbology?.layers)
-                        .reduce((layerOut, layerKey) => {
-                            if( !ids.includes(layerKey) ) {
-                                layerOut[layerKey] = curr?.symbology?.layers[layerKey]
-                            }
-                            return layerOut
-                        },{})
-                        
-                    return [...out,  ...Object.values(newValues)]
-                    
-                },[]))
-                //if(mapLayers.length === 0) {
-                    setMapLayers(draftMapLayers => {
-
-                        let currentLayerIds = draftMapLayers.map(d => d.id).filter(d => d)
-                  
-                        // let allLayers = (Object.values(state.symbologies).reduce((out,curr) => {
-                        //     return [...out, ...Object.values(curr?.symbology?.layers || {})]
-                        // },[]))
-
-                        //console.log('allLayers', allLayers)
-                        let newLayers = allLayers
-                          .filter(d => d)
-                          .filter(d => !currentLayerIds.includes(d.id))
-                          .sort((a,b) => b.order - a.order)
-                          .map(l => {
-                            return new SymbologyViewLayer(l)
-                          })
-
-                        const oldIds = allLayers.map(d => d.id)
-                        //console.log('old ids', oldIds)
-                        let oldLayers = draftMapLayers.filter(d => {
-                            //console.log(d.id)
-                            return oldIds.includes(d.id)
-                        })
-                        
-                        const out = [
-                            // keep existing layers & filter
-                            ...oldLayers, 
-                            // add new layers
-                            ...newLayers
-                        ].sort((a,b) => b.order - a.order)
-                        // console.log('update layers old:', oldLayers, 'new:', newLayers, 'out', out)
-                        return out
-                    })
-                //}
-            }
-        }
-        updateLayers()
-    }, [state?.symbologies])
-
-    const layerProps = useMemo(() =>  {
-        return Object.values(state.symbologies).reduce((out,curr) => {
-            return {...out, ...(curr?.symbology?.layers || {})}
-        },{}) 
-    }, [state?.symbologies]);
-
-    const isHorizontalLegendActive = Object.values(state?.symbologies)
-      ?.filter((symb) => symb.isVisible)
-      .some((symb) => {
-        return Object.values(symb?.symbology?.layers).some(
-          (symbLayer) => symbLayer["legend-orientation"] === "horizontal"
-        );
-      });
-
-    const interactiveFilterIndicies = useMemo(
-        () =>
-          Object.values(state.symbologies).map(
-            (topSymb) => {
-                return Object.values(topSymb.symbology.layers).map(l => l.selectedInteractiveFilterIndex)
-            }
-          ),
-        [state.symbologies]
-      );
-      const prevInteractiveIndicies = usePrevious(interactiveFilterIndicies);
-    
-      useEffect(() => {
-        setState((draft) => {
-          Object.keys(draft.symbologies)
-            .forEach(topSymbKey => {
-                const curTopSymb = draft.symbologies[topSymbKey];
-  
-                Object.keys(curTopSymb.symbology.layers)
-                  .filter((lKey) => {
-                    return curTopSymb.symbology.layers[lKey]["layer-type"] === "interactive"
-                  })
-                  .forEach((lKey) => {
-                    const layer = draft.symbologies[topSymbKey].symbology.layers[lKey];
-                
-                    const draftFilters = layer['interactive-filters'];
-                    const draftFilterIndex = layer.selectedInteractiveFilterIndex;
-                    const draftInteractiveFilter = draftFilters[draftFilterIndex] 
-                    if(draftInteractiveFilter) {
-                      const newSymbology = {
-                        ...layer,
-                        ...draftInteractiveFilter,
-                        order: layer.order,
-                        "layer-type": "interactive",
-                        "interactive-filters": draftFilters,
-                        selectedInteractiveFilterIndex: draftFilterIndex
-                      };
-  
-                      newSymbology.layers.forEach((d, i) => {
-                        newSymbology.layers[i].layout.visibility = curTopSymb.isVisible ? 'visible' :  "none";
-                      });
-                      draft.symbologies[topSymbKey].symbology.layers[lKey] = newSymbology;
-                    }
-                  });
-            })
-        });
-      }, [isEqual(interactiveFilterIndicies, prevInteractiveIndicies)])
-
-    /*
-
-    -73.77114629819935,
-          42.653137397916566
-    */
-        
-    const { center, zoom } = state.initialBounds ? state.initialBounds : {
-        center: [-75.17, 42.85],
-        zoom: 6.6
-    }
-    const heightStyle = HEIGHT_OPTIONS[state.height];
-    return (
-        <MapContext.Provider value={{state, setState, falcor, falcorCache, pgEnv}}>
-            <div id='dama_map_view' className="w-full relative" style={{height: heightStyle}} ref={mounted}>
-                <AvlMap
-                  layers={ mapLayers }
-                  layerProps = { layerProps }
-                  hideLoading={true}
-                  showLayerSelect={true}
-                  mapOptions={{
-                    center: center,
-                    zoom: zoom,
-                    protocols: [PMTilesProtocol],
-                    styles: state.blankBaseMap ? blankStyles : defaultStyles,
-                    dragPan: state.zoomPan,
-                    scrollZoom: state.zoomPan,
-                    dragRotate: state.zoomPan
-                  }}
-                  leftSidebar={ false }
-                  rightSidebar={ false }
-                />
-                <div className={'absolute inset-0 flex pointer-events-none'}>
-                    <div className='flex-1'/>
-                    <div className={isHorizontalLegendActive ? 'max-w-[350px]' : 'max-w-[300px]'}><LegendPanel /></div>
-                </div>
-            </div>
-        </MapContext.Provider>
-    )
-}
-
 export default {
     "name": 'Map',
     "type": 'Map',
     "variables": 
-    [       
-        {
-            name: 'geoid',
-            default: '36'
-        }
-    ],
+    [],
     getData,
 
     "EditComp": Edit,
-    "ViewComp": View
+    "ViewComp": Edit
 }

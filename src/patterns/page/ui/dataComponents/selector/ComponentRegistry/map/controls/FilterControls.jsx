@@ -17,6 +17,7 @@ export default function FilterControls() {
     const activeSymSymbology = state.symbologies[activeSym]?.symbology;
     const activeLayer = activeSymSymbology?.layers?.[activeSymSymbology?.activeLayer];
     const interactiveFilterOptions = (activeLayer?.['interactive-filters'] || []);
+    const dynamicFilterOptions = (activeLayer?.['dynamic-filters'] || []);
     const activeFilter = activeLayer?.selectedInteractiveFilterIndex;
 
     return (
@@ -45,7 +46,7 @@ export default function FilterControls() {
                                   })}/>
 
                     <div className={'grid grid-cols-3 gap-1 px-2 py-1 text-gray-700'}>
-                        <div className={'text-sm font-semibold'}>Filter</div>
+                        <div className={'text-sm font-semibold'}>Interactive Filter</div>
                         <div className={'text-sm font-semibold'}>Search Param Value</div>
                         <div className={'text-sm font-semibold justify-self-end'}>Active</div>
 
@@ -65,6 +66,27 @@ export default function FilterControls() {
                                                    setValue={value => value ? setState((draft) => {
                                                        draft.symbologies[activeSym].symbology.layers[activeSymSymbology?.activeLayer].selectedInteractiveFilterIndex = fI;
                                                    }) : null}/>
+                                </>
+                            ))
+                        }
+                    </div>
+
+                    <div className={'grid grid-cols-2 gap-1 px-2 py-1 text-gray-700'}>
+                        <div className={'text-sm font-semibold'}>Dynamic Filter</div>
+                        <div className={'text-sm font-semibold'}>Search Param Value</div>
+
+                        {
+                            dynamicFilterOptions.map((filter, fI) => (
+                                <>
+                                    <div className={'text-sm'}>{filter.display_name || filter.column_name}</div>
+                                    <input className={'text-sm'}
+                                           placeholder={'search param key'}
+                                           value={filter.searchParamKey || filter.column_name}
+                                           onChange={e => {
+                                               setState((draft) => {
+                                                   draft.symbologies[activeSym].symbology.layers[activeSymSymbology?.activeLayer]['dynamic-filters'][fI].searchParamKey = e.target.value;
+                                               })
+                                           }}/>
                                 </>
                             ))
                         }
