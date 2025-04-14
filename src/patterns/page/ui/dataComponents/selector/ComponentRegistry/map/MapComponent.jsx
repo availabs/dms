@@ -11,6 +11,7 @@ import {SymbologySelector} from "./SymbologySelector";
 import {useSearchParams} from "react-router-dom";
 import FilterControls from "./controls/FilterControls";
 import {defaultStyles, blankStyles} from "./styles";
+import MoreControls from "./controls/MoreControls";
 export const HEIGHT_OPTIONS = {
     "full": 'calc(95vh)',
     1: "900px",
@@ -36,7 +37,7 @@ const getData = async () => {
 const Edit = ({value, onChange, size}) => {
     // const {falcor, falcorCache} = useFalcor();
     // controls: symbology, more, filters: lists all interactive and dynamic filters and allows for searchParams match.
-    const isEdit = true// Boolean(onChange);
+    const isEdit = Boolean(onChange);
     const { falcor, falcorCache, pgEnv } = React.useContext(CMSContext);
     const mounted = useRef(false);
     const cachedData = typeof value === 'object' ? value : value && isJson(value) ? JSON.parse(value) : {};
@@ -185,10 +186,10 @@ const Edit = ({value, onChange, size}) => {
                   // })
                   .forEach((lKey) => {
                     const layer = draft.symbologies[topSymbKey].symbology.layers[lKey];
-                    const draftFilters = layer['interactive-filters'];
+                    const draftFilters = layer['interactive-filters'] || {};
                     const draftDynamicFilters = layer['dynamic-filters'];
                     const draftFilterIndex = layer.selectedInteractiveFilterIndex;
-                    const draftInteractiveFilter = draftFilters[draftFilterIndex] 
+                    const draftInteractiveFilter = draftFilters?.[draftFilterIndex]
 
                     if(draftInteractiveFilter) {
                       const newSymbology = {
@@ -238,6 +239,7 @@ const Edit = ({value, onChange, size}) => {
                     <>
                         <SymbologySelector context={MapContext}/>
                         <FilterControls />
+                        <MoreControls />
                     </>
                 ) : null
             }
@@ -251,7 +253,10 @@ const Edit = ({value, onChange, size}) => {
                     center: center,
                     zoom: zoom,
                     protocols: [PMTilesProtocol],
-                    styles: state.blankBaseMap ? blankStyles : defaultStyles
+                    styles: state.blankBaseMap ? blankStyles : defaultStyles,
+                      dragPan: state.zoomPan,
+                      scrollZoom: state.zoomPan,
+                      dragRotate: state.zoomPan
                   }}
                   leftSidebar={ false }
                   rightSidebar={ false }
