@@ -27,6 +27,7 @@ import { menuTheme } from '../components/menu'
 import { labelTheme } from "../components/label";
 
 import Icons from '../icons'
+import {filterTheme} from "../dataComponents/selector/ComponentRegistry/shared/filters/RenderFilters";
 
 const theme = {
   navOptions: {
@@ -105,6 +106,7 @@ const theme = {
   lexical : lexicalTheme,
   dataCard: dataCardTheme,
   attribution: attributionTheme,
+  filters: filterTheme,
   
   // -- Icon Set
   Icons

@@ -6,6 +6,7 @@ import {formatFunctions} from "../../../dataWrapper/utils/utils";
 import { useAxisTicks } from "../utils"
 
 function generatePowersOfTen(min, max) {
+  if(!min || !max) return [];
   const result = [];
   let power = 0;
 

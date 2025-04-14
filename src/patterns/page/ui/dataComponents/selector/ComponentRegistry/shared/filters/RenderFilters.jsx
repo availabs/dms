@@ -13,14 +13,27 @@ import {
 import {isEqual, uniqBy} from "lodash-es"
 import {RenderFilterValueSelector} from "./Components/RenderFilterValueSelector";
 import {useSearchParams} from "react-router-dom";
+import {CMSContext} from "../../../../../../siteConfig";
 
 const filterValueDelimiter = '|||';
+
+export const filterTheme = {
+    filterLabel: 'py-0.5 text-gray-500 font-medium',
+    loadingText: 'pl-0.5 font-thin text-gray-500',
+    filterSettingsWrapper: 'flex flex-col w-full',
+    input: 'w-full max-h-[150px] flex text-xs overflow-auto scrollbar-sm border rounded-md bg-white p-2',
+    settingPillsWrapper: 'flex flex-row flex-wrap gap-1',
+    settingPill: 'px-1 py-0.5 bg-orange-500/15 text-orange-700 hover:bg-orange-500/25 rounded-md',
+    settingLabel: 'text-gray-900 font-regular min-w-fit',
+    filtersWrapper: 'w-full px-4 py-6 flex flex-col rounded-md',
+}
 
 export const RenderFilters = ({
   isEdit,
   state = {columns: [], sourceInfo: {}}, setState,
   apiLoad, defaultOpen = true, showNavigate = false,
 }) => {
+    const { theme = { filters: filterTheme } } = React.useContext(CMSContext) || {};
         const [open, setOpen] = useState(defaultOpen);
         const [filterOptions, setFilterOptions] = useState([]); // [{column, uniqValues}]
         const [loading, setLoading] = useState(false);
@@ -150,17 +163,17 @@ export const RenderFilters = ({
     console.log('filters', filterColumnsToRender)
     return (
         open ?
-            <div className={'w-full px-4 py-6 flex flex-col border border-blue-300 rounded-md'}>
+            <div className={theme.filters.filtersWrapper}>
                 <Filter className={'-mt-4 -mr-6 p-0.5 text-blue-300 hover:text-blue-500 hover:bg-zinc-950/5 rounded-md bg-white self-end rounded-md hover:cursor-pointer'}
                         title={'Filter'}
                         onClick={() => setOpen(false)}/>
                 {filterColumnsToRender.map((filterColumn, i) => (
                     <div key={i} className={'w-full flex flex-row flex-wrap items-center'}>
                         <div className={'w-full min-w-fit p-1 text-sm'}>
-                            <span className={'py-0.5 text-gray-500 font-medium'}>{filterColumn.customName || filterColumn.display_name || filterColumn.name}</span>
-                            <span className={'pl-0.5 font-thin text-gray-500'}>{loading ? 'loading...' : ''}</span>
+                            <span className={theme.filters.filterLabel}>{filterColumn.customName || filterColumn.display_name || filterColumn.name}</span>
+                            <span className={theme.filters.loadingText}>{loading ? 'loading...' : ''}</span>
                         </div>
-                        <div className={'flex flex-col w-full'}>
+                        <div className={theme.filters.filterSettingsWrapper}>
                             <RenderFilterValueSelector key={`${filterColumn.name}-filter`}
                                                        isEdit={isEdit}
                                                        filterColumn={filterColumn}
@@ -178,7 +191,7 @@ export const RenderFilters = ({
                 ))}
             </div> :
             <div className={'px-4 pt-2 flex flex-col'}>
-                <Filter className={'-mr-6 p-0.5 text-blue-300 hover:text-blue-500 hover:bg-zinc-950/5 rounded-md bg-white self-end rounded-md hover:cursor-pointer'} onClick={() => setOpen(true)}/>
+                <Filter className={'-mr-6 text-blue-300 hover:text-blue-500 hover:bg-zinc-950/5 rounded-md bg-white self-end rounded-md hover:cursor-pointer'} onClick={() => setOpen(true)}/>
             </div>
     )
 }
