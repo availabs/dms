@@ -1,19 +1,23 @@
 import React, {useEffect, useMemo, useRef, createContext} from "react";
 import isEqual from "lodash/isEqual"
 import { AvlMap } from "~/modules/avl-map-2/src"
-import { PMTilesProtocol } from '~/pages/DataManager/utils/pmtiles/index.ts'
+import { PMTilesProtocol } from './pmtiles'
 import { useImmer } from 'use-immer';
-import MapManager from './MapManager/MapManager'
 import LegendPanel from './LegendPanel/LegendPanel'
 import SymbologyViewLayer from './SymbologyViewLayer'
 import { usePrevious } from './utils'
 import {CMSContext} from "../../../../../siteConfig";
-import { HEIGHT_OPTIONS } from "./MapManager/MapManager";
 import {SymbologySelector} from "./SymbologySelector";
 import {useSearchParams} from "react-router-dom";
 import FilterControls from "./controls/FilterControls";
 import {defaultStyles, blankStyles} from "./styles";
-
+export const HEIGHT_OPTIONS = {
+    "full": 'calc(95vh)',
+    1: "900px",
+    "2/3": "600px",
+    "1/3": "300px",
+    "1/4": "150px",
+};
 const isJson = (str)  => {
     try {
         JSON.parse(str);
@@ -147,15 +151,11 @@ const Edit = ({value, onChange, size}) => {
       });
 
 
-    const interactiveFilterIndicies = useMemo(
-        () =>
-          Object.values(state.symbologies).map(
-            (topSymb) => {
-                return Object.values(topSymb.symbology.layers).map(l => l.selectedInteractiveFilterIndex)
-            }
-          ),
-        [state.symbologies]
-      );
+    const interactiveFilterIndicies = useMemo(() => {
+        const activeSym = Object.keys(state.symbologies || {}).find(sym => state.symbologies[sym].isVisible);
+        const activeSymSymbology = state.symbologies[activeSym]?.symbology;
+        return state.symbologies[activeSym].symbology.layers[activeSymSymbology?.activeLayer].selectedInteractiveFilterIndex
+    }, [state.symbologies]);
 
       useEffect(() => {
         setState((draft) => {
@@ -236,7 +236,6 @@ const Edit = ({value, onChange, size}) => {
                   rightSidebar={ false }
                 />
                 <div className={'absolute inset-0 flex pointer-events-none'}>
-                    {/*<div className=''><MapManager /></div>*/}
                     <div className='flex-1'/>
                     <div className={isHorizontalLegendActive ? 'max-w-[350px]' : 'max-w-[300px]'}><LegendPanel /></div>
                 </div>
@@ -441,7 +440,6 @@ const View = ({value, size}) => {
                   rightSidebar={ false }
                 />
                 <div className={'absolute inset-0 flex pointer-events-none'}>
-                    {/*{!state.hideControls && <div className=''><MapManager /></div>}*/}
                     <div className='flex-1'/>
                     <div className={isHorizontalLegendActive ? 'max-w-[350px]' : 'max-w-[300px]'}><LegendPanel /></div>
                 </div>

@@ -51,7 +51,7 @@ export default function FilterControls() {
 
                         {
                             interactiveFilterOptions.map((filter, fI) => (
-                                <React.Fragment className={'hover:bg-gray-100'}>
+                                <>
                                     <div className={'text-sm'}>{filter.label}</div>
                                     <input className={'text-sm'}
                                            placeholder={'search param key'}
@@ -65,7 +65,7 @@ export default function FilterControls() {
                                                    setValue={value => value ? setState((draft) => {
                                                        draft.symbologies[activeSym].symbology.layers[activeSymSymbology?.activeLayer].selectedInteractiveFilterIndex = fI;
                                                    }) : null}/>
-                                </React.Fragment>
+                                </>
                             ))
                         }
                     </div>

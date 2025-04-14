@@ -1,8 +1,5 @@
 import React, {useContext, useEffect, useMemo, useRef} from "react";
-import {ComponentContext} from "../../dataWrapper";
 import {SymbologySelector} from "./SymbologySelector";
-import {useImmer} from "use-immer";
-import MapManager from "./MapManager/MapManager";
 import LegendPanel from "./LegendPanel/LegendPanel";
 import { AvlMap } from "~/modules/avl-map-2/src"
 import SymbologyViewLayer from './SymbologyViewLayer'
@@ -65,7 +62,6 @@ const Map = ({isEdit, value, onChange}) => {
                     rightSidebar={ false }
                 />
                 <div className={'absolute inset-0 flex pointer-events-none'}>
-                    {/*{!state.hideControls && <div className=''><MapManager /></div>}*/}
                     <div className='flex-1'/>
                     <div className={isHorizontalLegendActive ? 'max-w-[350px]' : 'max-w-[300px]'}><LegendPanel /></div>
                 </div>
