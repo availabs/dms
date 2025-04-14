@@ -45,7 +45,7 @@ export function getChildNav(item, dataItems, baseUrl='', edit) {
         }
         const inPageChildrenForD =  getInPageNav(d)?.menuItems || [];
         const childrenForD = getChildNav(d, dataItems, baseUrl, edit) || [];
-        item.subMenus = childrenForD
+        item.subMenus = childrenForD.filter(d => d.name)
 
         return item
     })
@@ -89,7 +89,7 @@ export function dataItemsNav(dataItems, baseUrl = '', edit = false, level=1) {
             }
 
             if (getChildNav(item, dataItems, baseUrl, edit)) {
-                item.subMenus = getChildNav(d, dataItems, baseUrl, edit)
+                item.subMenus = getChildNav(d, dataItems, baseUrl, edit).filter(d => d.name)
             }
 
             return item

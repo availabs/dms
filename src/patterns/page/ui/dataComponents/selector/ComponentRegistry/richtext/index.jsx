@@ -55,6 +55,30 @@ const cardTypes = {
             h6: "pl-[16px] scroll-mt-36 font-display", //'PlaygroundEditorTheme__h6',
         },
     },
+    'Annotation Image Card' : {
+        editorShell: "font-['Proxima_Nova'] font-[400] text-[16px] text-[#37576B] leading-[22.4px] pt-[120px]",
+        contentEditable: 'border-none relative [tab-size:1] outline-none ',
+        editorContainer: "relative block rounded-[12px] min-h-[50px] shadow-[0px_0px_6px_0px_rgba(0,0,0,0.02),0px_2px_4px_0px_rgba(0,0,0,0.08)]", //'.editor-shell .editor-container'
+        editorViewContainer: "relative block rounded-[12px] shadow-[0px_0px_6px_0px_rgba(0,0,0,0.02),0px_2px_4px_0px_rgba(0,0,0,0.08)]", // .editor-shell .view-container
+       
+        paragraph: "m-0 relative px-[12px]",
+        layoutContainer: 'grid',
+        layoutItem: 'border-b border-slate-300 min-w-0 max-w-full',
+        editor: {
+            inlineImage: {
+              base: "inline-block relative z-10 cursor-default select-none -mx-[12px]"
+            }
+        },
+          heading: {
+            h1: "pl-[16px] pt-[8px] font-[500] text-[34px] text-[#2D3E4C] leading-[40px]  font-[500]  uppercase font-['Oswald'] pb-[12px]", //'PlaygroundEditorTheme__h1',
+            h2: "pl-[16px] pt-[8px] font-[500] text-[24px] text-[#2D3E4C] leading-[24px] scroll-mt-36 font-['Oswald']", //'PlaygroundEditorTheme__h2',
+            h3: "pl-[16px] pt-[8px] font-[500] text-[16px]  text-[#2D3E4C] font-['Oswald']", //'PlaygroundEditorTheme__h3',
+            h4: "pl-[16px] pt-[8px] font-medium scroll-mt-36 text-[#2D3E4C] font-display", //'PlaygroundEditorTheme__h4',
+            h5: "pl-[16px] scroll-mt-36 font-display", //'PlaygroundEditorTheme__h5',
+            h6: "pl-[16px] scroll-mt-36 font-display", //'PlaygroundEditorTheme__h6',
+        },
+        inlineImage: "inline-block relative z-10 cursor-default select-none mt-[-120px]" 
+    },
     'Handwritten': {
         contentEditable: 'border-none relative [tab-size:1] outline-none ',
         editorScroller: "min-h-[150px] border-0 flex relative outline-0 z-0bh resize-y", //'editor-scroller'
@@ -125,6 +149,10 @@ const Edit = ({value, onChange}) => {
                               {
                                 label: 'Annotation Card',
                                 value: 'Annotation'
+                              },
+                               {
+                                label: 'Annotation Image Card',
+                                value: 'Annotation Image Card'
                               },
                               {
                                 label: 'Handwritten (Rock Salt)',
