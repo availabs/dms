@@ -153,6 +153,7 @@ export const RenderFilterValueSelector = ({
                                     <option key="none" value="">no fn</option>
                                     <option key="sum" value="sum">sum</option>
                                     <option key="count" value="conut">count</option>
+                                    <option key="max" value="max">max</option>
                                 </select> : null
                         }
                         {

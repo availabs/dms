@@ -67,6 +67,7 @@ export const applyFn = (col={}, isDms=false) => {
         list: `array_to_string(array_agg(distinct ${colNameWithAccessor}), ', ') as ${colNameAfterAS}`,
         sum: isDms ? `sum((${colNameWithAccessor})::integer) as ${colNameAfterAS}` : `sum(${colNameWithAccessor}) as ${colNameAfterAS}`,
         count: `count(${colNameWithAccessor}) as ${colNameAfterAS}`,
+        max: `max(${colNameWithAccessor}) as ${colNameAfterAS}`,
     }
 
     return functions[col.fn]
