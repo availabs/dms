@@ -2,23 +2,25 @@ import React, {useEffect} from "react";
 import { useMatch, useNavigate, Link } from "react-router-dom";
 import Icons from '../../icons'
 
+import { Icon } from '../../'
+
 import { CMSContext } from '../../../siteConfig'
 
-function Icon ({ icon, className }) {
-	let Icon = ''
-	if(!icon || icon?.includes('fa')) {
-		Icon = <span className={icon} /> 
-	} else {
-		let Comp = Icons[icon]
-		Icon = <Comp />
-	}
+// function Icon ({ icon, className }) {
+// 	let Icon = ''
+// 	if(!icon || icon?.includes('fa')) {
+// 		Icon = <span className={icon} /> 
+// 	} else {
+// 		let Comp = Icons[icon]
+// 		Icon = <Comp />
+// 	}
 
-	return (
-  	<div className={`${className} flex justify-center items-center`}>
-   		{Icon}
-  	</div>
-	)
-};
+// 	return (
+//   	<div className={`${className} flex justify-center items-center`}>
+//    		{Icon}
+//   	</div>
+// 	)
+// };
 const NOOP = () => { return {} }
 
 const NavItem = ({
@@ -123,7 +125,7 @@ const NavItem = ({
 								{
 									subMenus.length ?
 										<Icon
-
+											className={theme?.indicatorIconWrapper}
 											icon={showSubMenu ? theme?.indicatorIconOpen || 'ArrowRight' : theme?.indicatorIcon || 'ArrowDown'}/>
 										: null
 								}
