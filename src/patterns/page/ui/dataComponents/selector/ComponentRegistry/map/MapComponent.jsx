@@ -1,4 +1,4 @@
-import React, {useEffect, useMemo, useRef, createContext} from "react";
+import React, {useEffect, useMemo, createContext} from "react";
 import isEqual from "lodash/isEqual"
 import { AvlMap } from "~/modules/avl-map-2/src"
 import { PMTilesProtocol } from './pmtiles'
@@ -39,7 +39,6 @@ const Edit = ({value, onChange, size}) => {
     // controls: symbology, more, filters: lists all interactive and dynamic filters and allows for searchParams match.
     const isEdit = Boolean(onChange);
     const { falcor, falcorCache, pgEnv } = React.useContext(CMSContext);
-    const mounted = useRef(false);
     const cachedData = typeof value === 'object' ? value : value && isJson(value) ? JSON.parse(value) : {};
     const [state,setState] = useImmer({
         tabs: cachedData.tabs || [{"name": "Layers", rows: []}],
@@ -54,6 +53,9 @@ const Edit = ({value, onChange, size}) => {
     })
     const [mapLayers, setMapLayers] = useImmer([])
     const [searchParams] = useSearchParams();
+    const isReady = useMemo(() => {
+        return Object.values(state.symbologies || {}).some(symb => Object.keys(symb?.symbology?.layers || {}).length > 0);
+    }, [state.symbologies]);
 
     useEffect(() => {
         const activeSym = Object.keys(state.symbologies || {}).find(sym => state.symbologies[sym].isVisible);
@@ -97,7 +99,7 @@ const Edit = ({value, onChange, size}) => {
 
         // console.log('symbology layers effect')
         const updateLayers = async () => {
-            if(mounted.current) {
+            if(isReady) {
                 
                 let allLayers = (Object.values(state.symbologies).reduce((out,curr) => {
                     let ids = out.map(d => d.id)
@@ -112,46 +114,33 @@ const Edit = ({value, onChange, size}) => {
                     return [...out,  ...Object.values(newValues)]
                     
                 },[]))
-                // console.log('allLayers', allLayers.length, mapLayers.length)
-                //if(mapLayers.length === 0) {
-                    setMapLayers(draftMapLayers => {
 
-                        let currentLayerIds = draftMapLayers.map(d => d.id).filter(d => d)
-                  
-                        // let allLayers = (Object.values(state.symbologies).reduce((out,curr) => {
-                        //     return [...out, ...Object.values(curr?.symbology?.layers || {})]
-                        // },[]))
+                setMapLayers(draftMapLayers => {
+                    let newLayers = allLayers
+                      .filter(d => d)
+                      // .filter(d => !currentLayerIds.includes(d.id))
+                      .sort((a,b) => b.order - a.order)
+                      .map(l => {
+                        return new SymbologyViewLayer(l)
+                      })
 
-                        //console.log('allLayers', allLayers)
-                        let newLayers = allLayers
-                          .filter(d => d)
-                          .filter(d => !currentLayerIds.includes(d.id))
-                          .sort((a,b) => b.order - a.order)
-                          .map(l => {
-                            return new SymbologyViewLayer(l)
-                          })
-
-                        const oldIds = allLayers.map(d => d.id)
-                        //console.log('old ids', oldIds)
-                        let oldLayers = draftMapLayers.filter(d => {
-                            //console.log(d.id)
-                            return oldIds.includes(d.id)
-                        })
-                        
-                        const out = [
-                            // keep existing layers & filter
-                            ...oldLayers,
-                            // add new layers
-                            ...newLayers
-                        ].sort((a,b) => b.order - a.order)
-                        // console.log('update layers old:', oldLayers, 'new:', newLayers, 'out', out)
-                        return out
+                    const oldIds = allLayers.map(d => d.id)
+                    let oldLayers = draftMapLayers.filter(d => {
+                        return oldIds.includes(d.id)
                     })
-                //}
+
+                    const out = [
+                        // keep existing layers & filter
+                        // ...oldLayers,
+                        // add new layers
+                        ...newLayers
+                    ].sort((a,b) => b.order - a.order)
+                    return out
+                })
             }
         }
         updateLayers()
-    }, [state.symbologies])
+    }, [state.symbologies, isReady])
 
     const layerProps = useMemo(() =>  {
         return Object.values(state.symbologies).reduce((out,curr) => {
@@ -180,14 +169,11 @@ const Edit = ({value, onChange, size}) => {
             .forEach(topSymbKey => {
                 const curTopSymb = draft.symbologies[topSymbKey];
                 Object.keys(curTopSymb.symbology.layers)
-                  // .filter((lKey) => {
-                  //   return curTopSymb.symbology.layers[lKey]["layer-type"] === "interactive"
-                  // })
                   .forEach((lKey) => {
                     const layer = draft.symbologies[topSymbKey].symbology.layers[lKey];
                     const draftFilters = layer['interactive-filters'] || {};
                     const draftDynamicFilters = layer['dynamic-filters'];
-                    const draftFilterIndex = layer.selectedInteractiveFilterIndex;
+                    const draftFilterIndex = +layer.selectedInteractiveFilterIndex;
                     const draftInteractiveFilter = draftFilters?.[draftFilterIndex]
 
                     if(draftInteractiveFilter) {
@@ -222,15 +208,9 @@ const Edit = ({value, onChange, size}) => {
     }
 
     useEffect(() => {
-        async function updateData() {
-            onChange && onChange(state)
-        }
-
-        if(!isEqual(state, value)) {
-            updateData()
-        }
+        onChange && onChange(state)
     },[state])
-    console.log('active filters', activeLayer)
+
     return (
         <MapContext.Provider value={{state, setState, falcor, falcorCache, pgEnv}}>
             {
@@ -242,7 +222,7 @@ const Edit = ({value, onChange, size}) => {
                     </>
                 ) : null
             }
-            <div id='dama_map_edit' className="w-full relative" style={{height: heightStyle}} ref={mounted}>
+            <div id='dama_map_edit' className="w-full relative" style={{height: heightStyle}}>
                 <AvlMap
                   layers={ mapLayers }
                   layerProps = { layerProps }

@@ -57,6 +57,7 @@ const ViewLayerRender = ({
   // to detect changes in layerprops
   const prevLayerProps = usePrevious(layerProps);
   // - On layerProps change
+  const doesSourceExistOnMap = maplibreMap.getSource(layerProps?.sources?.[0]?.id);
   useEffect(() => {
     // ------------------------------------------------------
     // Change Source to Update feature properties dynamically
@@ -71,9 +72,10 @@ const ViewLayerRender = ({
 
     const didFilterChange = layerProps?.filter !== prevLayerProps?.["filter"];
     const didDynamicFilterChange = layerProps?.['dynamic-filters'] !== prevLayerProps?.['dynamic-filters'];
-
+    // console.log('debug map ue init', didFilterGroupColumnsChange, didDataColumnChange, didFilterChange, didDynamicFilterChange)
     if(didFilterGroupColumnsChange || didDataColumnChange || didFilterChange || didDynamicFilterChange) {
       if(maplibreMap.getSource(layerProps?.sources?.[0]?.id)){
+        // console.log('debug map if', maplibreMap.getSource(layerProps?.sources?.[0]?.id))
         let newSource = cloneDeep(layerProps.sources?.[0])
         let tileBase = newSource.source.tiles?.[0];
 
@@ -263,7 +265,7 @@ const ViewLayerRender = ({
         maplibreMap.setFilter(l.id, ["all", ...mapLayerFilter, ...dynamicMapLayerFilters]);
       }
     });
-  }, [layerProps]);
+  }, [doesSourceExistOnMap, layerProps]);
 
   useEffect(() => {
     if (maplibreMap && allLayerProps && allLayerProps?.zoomToFit?.length > 0){
@@ -275,7 +277,7 @@ const ViewLayerRender = ({
 }
 
 const getLayerTileUrl = (tileBase, layerProps) => {
-  let newTileUrl = tileBase;
+  let newTileUrl = `${tileBase}`;
 
 
   const layerHasFilter = (layerProps?.filter && Object.keys(layerProps?.filter)?.length > 0) 
