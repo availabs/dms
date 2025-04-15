@@ -423,7 +423,6 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
     // for other pages, all data should be fetched
 
     const orderBy = useMemo(() => state.columns.filter(column => column.sort).reduce((acc, column) => ({...acc, [column.name]: column.sort}), {}), [state.columns]);
-    console.log('order y ', orderBy, state.columns)
     // ======================================= data fetch triggers end =================================================
 
     // ========================================== get data begin =======================================================
