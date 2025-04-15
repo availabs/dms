@@ -83,7 +83,7 @@ const Edit = ({value, onChange, size}) => {
                     .filter(f => searchParamValues[getSearchParamKey(f)])
                     .forEach(filter => {
                         const newValues = searchParamValues[getSearchParamKey(filter)].split('|||')
-                        filter.values = newValues
+                        filter.values = newValues?.length ? newValues : filter.defaultValue ? [filter.defaultValue] : []
                     })
             }
         })
@@ -230,7 +230,7 @@ const Edit = ({value, onChange, size}) => {
             updateData()
         }
     },[state])
-
+    console.log('active filters', activeLayer)
     return (
         <MapContext.Provider value={{state, setState, falcor, falcorCache, pgEnv}}>
             {

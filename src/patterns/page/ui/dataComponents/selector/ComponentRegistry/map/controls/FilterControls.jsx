@@ -71,9 +71,10 @@ export default function FilterControls() {
                         }
                     </div>
 
-                    <div className={'grid grid-cols-2 gap-1 px-2 py-1 text-gray-700'}>
+                    <div className={'grid grid-cols-3 gap-1 px-2 py-1 text-gray-700'}>
                         <div className={'text-sm font-semibold'}>Dynamic Filter</div>
                         <div className={'text-sm font-semibold'}>Search Param Value</div>
+                        <div className={'text-sm font-semibold'}>Default Value</div>
 
                         {
                             dynamicFilterOptions.map((filter, fI) => (
@@ -85,6 +86,16 @@ export default function FilterControls() {
                                            onChange={e => {
                                                setState((draft) => {
                                                    draft.symbologies[activeSym].symbology.layers[activeSymSymbology?.activeLayer]['dynamic-filters'][fI].searchParamKey = e.target.value;
+                                               })
+                                           }}/>
+
+                                    <input className={'text-sm'}
+                                           placeholder={'default value'}
+                                           value={filter.defaultValue}
+                                           onChange={e => {
+                                               setState((draft) => {
+                                                   draft.symbologies[activeSym].symbology.layers[activeSymSymbology?.activeLayer]['dynamic-filters'][fI].defaultValue = e.target.value;
+                                                   draft.symbologies[activeSym].symbology.layers[activeSymSymbology?.activeLayer]['dynamic-filters'][fI].values = [e.target.value];
                                                })
                                            }}/>
                                 </>
