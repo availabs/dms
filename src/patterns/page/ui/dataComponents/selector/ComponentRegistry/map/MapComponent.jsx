@@ -78,7 +78,6 @@ const Edit = ({value, onChange, size}) => {
                 draft.symbologies[activeSym].symbology.layers[activeSymSymbology?.activeLayer].selectedInteractiveFilterIndex = fI;
             }
 
-            draft.symbologies[activeSym].symbology.layers[activeSymSymbology.activeLayer]['dynamic-filters'][0].values = ['001']
             if(dynamicFilterOptions?.length){
                 draft.symbologies[activeSym].symbology.layers[activeSymSymbology.activeLayer]['dynamic-filters']
                     .filter(f => searchParamValues[getSearchParamKey(f)])
@@ -105,7 +104,7 @@ const Edit = ({value, onChange, size}) => {
                     let newValues = Object.keys(curr?.symbology?.layers)
                         .reduce((layerOut, layerKey) => {
                             if( !ids.includes(layerKey) ) {
-                                layerOut[layerKey] = curr?.symbology?.layers[layerKey]
+                                layerOut[layerKey] = curr?.symbology?.layers?.[layerKey]
                             }
                             return layerOut
                         },{})
