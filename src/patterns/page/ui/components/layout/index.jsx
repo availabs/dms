@@ -19,7 +19,7 @@ export const layoutTheme = {
 	topnavContainer2:``,
 	sidenavContainer1: 'w-44',
 	sidenavContainer2: 'sticky top-12 h-[calc(100vh_-_50px)]',
-	navTitle: `flex-1 text-[24px] font-['Oswald'] font-[500] leading-[24px] text-[#2D3E4C] py-3 px-4`
+	navTitle: `flex-1 text-[24px] font-['Oswald'] font-[500] leading-[24px] text-[#2D3E4C] py-3 px-4 uppercase`
 }
 
 function nav2Level(items, level=1, path, navTitle='') {

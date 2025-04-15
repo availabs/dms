@@ -90,7 +90,7 @@ const NavItem = ({
 					
 					
 				>
-					<div className={theme.menuItemWrapper}>
+					<div className={theme?.menuItemWrapper?.[depth] || theme?.menuItemWrapper?.[0] || theme?.menuItemWrapper}>
 						<div className='flex-1 flex items-center' >
 							{!icon ? null : (
 								<Icon
@@ -103,7 +103,7 @@ const NavItem = ({
 									}
 								/>
 							)}
-							<div className={`${theme?.navItemContent} ${className ? '' : theme?.navItemContents?.[depth] || theme?.navItemContents } ${!to && 'uppercase'}`}
+							<div className={`${theme?.navItemContent} ${className ? '' : theme?.navItemContents?.[depth] || theme?.navItemContents }`}
 								onClick={(e) => {
 									e.stopPropagation();
 									if (onClick) return onClick(To[0]);
