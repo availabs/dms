@@ -38,7 +38,7 @@ const cardTypes = {
         editorContainer: "relative block rounded-[12px] min-h-[50px] shadow-[0px_0px_6px_0px_rgba(0,0,0,0.02),0px_2px_4px_0px_rgba(0,0,0,0.08)]", //'.editor-shell .editor-container'
         editorViewContainer: "relative block rounded-[12px] shadow-[0px_0px_6px_0px_rgba(0,0,0,0.02),0px_2px_4px_0px_rgba(0,0,0,0.08)]", // .editor-shell .view-container
        
-        paragraph: "m-0 relative px-[12px]",
+        paragraph: "m-0 relative px-[16px]",
         layoutContainer: 'grid',
         layoutItem: 'border-b border-slate-300 min-w-0 max-w-full',
         editor: {
