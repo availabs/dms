@@ -4,7 +4,7 @@ import { cloneDeep } from "lodash-es"
 import { v4 as uuidv4 } from 'uuid';
 
 
-import { json2DmsForm, getInPageNav, dataItemsNav, detectNavLevel  } from '../_utils'
+import { sectionsEditBackill, getInPageNav, dataItemsNav, detectNavLevel  } from '../_utils'
 
 import { Layout, SectionGroup } from '../../ui'
 import { PageContext } from '../view'
@@ -54,45 +54,7 @@ function PageEdit ({
 	  	// -------------------------------------------------------------------
 	    // -- This on load effect backfills pages created before sectionGroups
 	  	// -------------------------------------------------------------------
-	  	if(!item.draft_section_groups && item?.id) {
-	    	let newItem = {id: item.id}
-	    	newItem.draft_section_groups = [
-	    		{name: 'default', position: 'content', index: 0, theme: 'content'}
-	    	]
-	    	if(item?.header && item?.header !== 'none' ) {
-	    		newItem.draft_section_groups.push( 
-	    			{name: 'header', position: 'top', index: 0, theme: 'header', full_width: 'show'}
-	    		)
-	    	}
-	    	newItem.draft_sections = cloneDeep(item.draft_sections || [])
-
-	    	if(item?.footer && item?.footer !== 'none' ) {
-          newItem.draft_section_groups.push( 
-            {name: 'footer', position: 'bottom', index: 99, theme: 'clearCentered', full_width: 'show'}
-          )
-          if(!item.draft_sections.filter(d => d.is_footer)?.[0]){
-            newItem.draft_sections.push({
-                "size": "2",
-                "group": "footer",
-                is_footer: true,
-                "order": 0,
-                "element": {
-                    "element-type": "Footer: MNY Footer"
-                },
-                "trackingId": uuidv4(),
-            })
-          }
-        }
-
-
-    		newItem.draft_sections.forEach((section,i) => {
-    			if(section.is_header) {
-    				section.group = 'header'
-    				section.padding = 'p-0'
-    			}
-    		})
-	    	submit(json2DmsForm(newItem), { method: "post", action: `${baseUrl}/edit/${item.url_slug}` })
-	    }
+	  	sectionsEditBackill(item,baseUrl,submit)
 	   
 	},[])
 

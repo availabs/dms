@@ -1,5 +1,6 @@
 import { matchRoutes } from 'react-router-dom'
-
+import { v4 as uuidv4 } from 'uuid';
+import { cloneDeep } from 'lodash-es'
 //import {getCurrentDataItem} from "./navItems.js";
 // const baseUrl = ''
 
@@ -135,7 +136,89 @@ function toTitleCase(str) {
     text => text.charAt(0).toUpperCase() + text.substring(1).toLowerCase()
   );
 }
+export const sectionsEditBackill = (item, baseUrl, submit) => {
+    if(!item.draft_section_groups && item?.id) {
+            let newItem = {id: item.id}
+            newItem.draft_section_groups = [
+                {name: 'default', position: 'content', index: 0, theme: 'content'}
+            ]
+            if(item?.header && item?.header !== 'none' ) {
+                newItem.draft_section_groups.push( 
+                    {name: 'header', position: 'top', index: 0, theme: 'header', full_width: 'show'}
+                )
+            }
+            newItem.draft_sections = cloneDeep(item.draft_sections || [])
 
+            if(item?.footer && item?.footer !== 'none' ) {
+          newItem.draft_section_groups.push( 
+            {name: 'footer', position: 'bottom', index: 99, theme: 'clearCentered', full_width: 'show'}
+          )
+          if(!item.draft_sections.filter(d => d.is_footer)?.[0]){
+            newItem.draft_sections.push({
+                "size": "2",
+                "group": "footer",
+                is_footer: true,
+                "order": 0,
+                "element": {
+                    "element-type": "Footer: MNY Footer"
+                },
+                "trackingId": uuidv4(),
+            })
+          }
+        }
+
+
+            newItem.draft_sections.forEach((section,i) => {
+                if(section.is_header) {
+                    section.group = 'header'
+                    section.padding = 'p-0'
+                }
+            })
+            submit(json2DmsForm(newItem), { method: "post", action: `${baseUrl}/edit/${item.url_slug}` })
+        }
+}
+
+export const sectionsBackill = (item, baseUrl, submit) => {
+     if(!item.section_groups && item.id) {
+        //console.log('edit item', item)
+        let newItem = {id: item.id}
+        newItem.section_groups = [
+          {name: 'default', position: 'content', index: 0, theme: 'content'}
+        ]
+
+        newItem.sections = cloneDeep(item?.sections || [])
+
+        if(item?.header && item?.header !== 'none' ) {
+          newItem.section_groups.push( 
+            {name: 'header', position: 'top', index: 0, theme: 'header', full_width: 'show'}
+          )
+        }
+        if(item?.footer && item?.footer !== 'none' ) {
+          newItem.section_groups.push( 
+            {name: 'footer', position: 'bottom', index: 99, theme: 'clearCentered', full_width: 'show'}
+          )
+          if(!item.sections.filter(d => d.is_footers)?.[0]){
+            newItem.sections.push({
+                "size": "2",
+                "group": "footer",
+                is_footer: 'true',
+                "order": 0,
+                "element": {
+                    "element-type": "Footer: MNY Footer"
+                },
+                "trackingId": uuidv4(),
+            })
+          }
+        }
+        
+        newItem.sections?.forEach((section,i) => {
+          if(section.is_header) {
+            section.group = 'header'
+          }
+        })
+        submit(json2DmsForm(newItem), { method: "post", action: `${baseUrl}/${item.url_slug}` })
+      }
+}
 
 // const levelClasses = {
 //     '1': ' pt-2 pb-1 uppercase text-sm text-blue-400 hover:underline cursor-pointer border-r-2 mr-4',
