@@ -81,6 +81,24 @@ export default function AppearanceControls({context}) {
                                   setValue={value => updateDisplayValue('yAxis', 'label', value)}/>
                     <InputControl title={'Tick Spacing'} type={'number'} value={display.yAxis?.tickSpacing}
                                   setValue={value => updateDisplayValue('yAxis', 'tickSpacing', +value)}/>
+                    <div
+                        className={`group inline-flex w-full justify-between items-center rounded-md px-1.5 py-1 text-sm font-regular text-gray-900 bg-white hover:bg-gray-50 cursor-pointer`}
+                    >
+                        <span className={'flex-0 select-none mr-1'}>Tick Format</span>
+                        <select
+                            className={'flex-1 p-1 text-end w-full rounded-md bg-white group-hover:bg-gray-50 cursor-pointer'}
+                            value={display.yAxis?.tickFormat}
+                            onChange={e => updateDisplayValue('yAxis', 'tickFormat', e.target.value)}
+                        >
+                            {
+                                [
+                                    {label: 'Default', value: ''},
+                                    {label: 'Abbreviate', value: 'abbreviate'},
+                                    {label: 'Comma Separated', value: 'comma'},
+                                ].map(({label, value}) => <option key={value} value={value}>{label}</option>)
+                            }
+                        </select>
+                    </div>
                     <ToggleControl title={'Show Gridlines'} value={display.yAxis?.showGridLines}
                                    setValue={value => updateDisplayValue('yAxis', 'showGridLines', value)}/>
                     <ToggleControl title={'Rotate Labels'} value={display.yAxis?.rotateLabels}

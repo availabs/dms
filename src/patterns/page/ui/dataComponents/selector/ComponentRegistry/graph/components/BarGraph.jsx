@@ -167,6 +167,7 @@ const BarGraph = props => {
             Plot.stackY({
               x: "index",
               y: "value",
+              // className: 'text-xs font-thin', // tooltip appearance
               channels: {
                 index: {
                   value: "index",
