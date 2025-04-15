@@ -37,14 +37,14 @@ const BarGraph = props => {
     orientation = "vertical",
     showCategories,
     xAxisColumn,
-      isLog
+    isLog,
+    upperLimit
   } = props;
 
   const isPalette = ((colors.type === "palette") || (colors.type === "custom"));
   const uniqDataValues = [...new Set(data.map(d => d.value))].sort((a,b) => a-b);
   const maxValue = uniqDataValues[uniqDataValues.length-1];
-  const customLogTicks = generatePowersOfTen(1, maxValue);
-
+  const customLogTicks = generatePowersOfTen(Math.min(...uniqDataValues.filter(d => d!==0)), maxValue);
   const isStacked = groupMode === "stacked";
   const isVertical = orientation === "vertical";
 
@@ -77,7 +77,9 @@ const BarGraph = props => {
       ticks: isStacked ? xAxisTicks : undefined
     }) : ({
       axis: "bottom",
-      type: isLog ? "symlog" : undefined,
+      type: isLog ? "log" : undefined,
+      domain: isLog ? [Math.min(...uniqDataValues), upperLimit || maxValue] : upperLimit ? [0, upperLimit] : undefined,
+      clamp: isLog ? true : undefined,
       grid: yAxis.showGridLines,
       tickFormat: formatFunctions[yAxis.tickFormat],
       textAnchor: yAxis.rotateLabels ? "start" : "middle",
@@ -90,8 +92,10 @@ const BarGraph = props => {
     return isVertical ? ({
       axis: "left",
       constant: 1,
-      type: isLog ? "symlog" : undefined,
-      ticks: isLog ? customLogTicks : undefined,
+      type: isLog ? "log" : undefined,
+      domain: isLog ? [Math.min(...uniqDataValues), upperLimit || maxValue] : upperLimit ? [0, upperLimit] : undefined,
+      clamp: isLog ? true : undefined,
+      // ticks: isLog ? customLogTicks : undefined,
       grid: yAxis.showGridLines,
       textAnchor: yAxis.rotateLabels ? "start" : "middle",
       tickRotate: yAxis.rotateLabels ? 45 : 0,
@@ -167,7 +171,7 @@ const BarGraph = props => {
             Plot.stackY({
               x: "index",
               y: "value",
-              // className: 'text-xs font-thin', // tooltip appearance
+              className: 'leading-[140%] tracking-[0px] text-[#37576B]', // tooltip appearance
               channels: {
                 index: {
                   value: "index",
@@ -242,6 +246,11 @@ const BarGraph = props => {
       marks
     });
 
+    try{
+      plot.className = `${plot.className} flex flex-col-reverse`
+    }catch (e){
+      console.error('e', e)
+    }
     ref.append(plot);
 
     return () => plot.remove();

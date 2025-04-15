@@ -14,6 +14,7 @@ import {isEqual, uniqBy} from "lodash-es"
 import {RenderFilterValueSelector} from "./Components/RenderFilterValueSelector";
 import {useSearchParams} from "react-router-dom";
 import {CMSContext} from "../../../../../../siteConfig";
+import {Icon} from "../../../../../index";
 
 const filterValueDelimiter = '|||';
 
@@ -164,12 +165,15 @@ export const RenderFilters = ({
     return (
         open ?
             <div className={theme.filters.filtersWrapper}>
-                <Filter className={'-mt-4 p-0.5 text-gray-300 hover:text-gray-500 hover:bg-zinc-950/5 rounded-md bg-white self-end rounded-md hover:cursor-pointer'}
-                        title={'Filter'}
-                        onClick={() => setOpen(false)}/>
+                <div className={'w-fit -mt-4 p-2 border rounded-full self-end'}>
+                    <Icon icon={'Filter'}
+                          className={'text-slate-400 hover:text-blue-500 size-4 hover:cursor-pointer'}
+                          title={'Filter'}
+                          onClick={() => setOpen(false)} />
+                </div>
                 {filterColumnsToRender.map((filterColumn, i) => (
                     <div key={i} className={'w-full flex flex-row flex-wrap items-center'}>
-                        <div className={'w-full min-w-fit p-1 text-sm'}>
+                        <div className={'w-full min-w-fit text-sm'}>
                             <span className={theme.filters.filterLabel}>{filterColumn.customName || filterColumn.display_name || filterColumn.name}</span>
                             <span className={theme.filters.loadingText}>{loading ? 'loading...' : ''}</span>
                         </div>
@@ -190,8 +194,13 @@ export const RenderFilters = ({
                     </div>
                 ))}
             </div> :
-            <div className={'pt-2 flex flex-col'}>
-                <Filter className={'text-gray-300 p-0.5 hover:text-gray-500 hover:bg-zinc-950/5 rounded-md bg-white self-end rounded-md hover:cursor-pointer'} onClick={() => setOpen(true)}/>
+            <div className={theme.filters.filtersWrapper}>
+                <div className={'w-fit -mt-4 p-2 border rounded-full self-end'}>
+                    <Icon icon={'Filter'}
+                          className={'text-slate-400 hover:text-blue-500 size-4 hover:cursor-pointer'}
+                          title={'Filter'}
+                          onClick={() => setOpen(true)} />
+                </div>
             </div>
     )
 }

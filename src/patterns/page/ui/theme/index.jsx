@@ -28,7 +28,7 @@ import { labelTheme } from "../components/label";
 
 import Icons from '../icons'
 import {filterTheme} from "../dataComponents/selector/ComponentRegistry/shared/filters/RenderFilters";
-import {graphTheme} from "../dataComponents/selector/ComponentRegistry/graph/GraphComponent";
+import {graphTheme} from "../dataComponents/selector/ComponentRegistry/graph";
 
 const theme = {
   navOptions: {

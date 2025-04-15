@@ -10,8 +10,9 @@ import { isEqual } from "lodash-es";
 import { v4 as uuidv4 } from 'uuid';
 import {useImmer} from "use-immer";
 import {convertOldState} from "./utils/convertOldState";
-import {Download, LoadingHourGlass} from "../../../icons";
 import {useHandleClickOutside} from "../ComponentRegistry/shared/utils";
+import {Icon} from "../../../index";
+
 const getCurrDate = () => {
     const options = {
         year: "numeric",
@@ -101,8 +102,8 @@ const RenderDownload = ({state, apiLoad}) => {
     const [open, setOpen] = React.useState(false);
     const [loading, setLoading] = React.useState(false);
     const menuRef = useRef(null);
-    const menuBtnId = `download-btn`;
-    const Icon = loading ? LoadingHourGlass : Download;
+    const menuBtnId = loading ? `loading` : `download-btn`;
+    const icon = loading ? 'LoadingHourGlass' : 'Download';
     const isGrouping = state.dataRequest?.groupBy?.length;
     useHandleClickOutside(menuRef, menuBtnId, () => setOpen(false));
 
@@ -110,11 +111,13 @@ const RenderDownload = ({state, apiLoad}) => {
     return (
         <div className={''}>
             <div className={'relative flex flex-col'}>
-                <Icon id={menuBtnId}
-                      className={`p-0.5 inline-flex text-gray-300 hover:text-gray-500 hover:bg-zinc-950/5 rounded-md ${loading ? 'hover:cursor-wait' : 'hover:cursor-pointer'} transition ease-in-out duration-200`}
-                      onClick={() => {!loading && setOpen(!open)}}
-                      title={loading ? 'Processing...' : 'Excel Download'}
-                      width={24} height={24}/>
+                <div className={'w-fit p-2 border rounded-full '}>
+                    <Icon id={menuBtnId}
+                          icon={icon}
+                          className={`text-slate-400 hover:text-blue-500 size-4 ${loading ? 'hover:cursor-wait' : 'hover:cursor-pointer'} transition ease-in-out duration-200`}
+                          onClick={() => {!loading && setOpen(!open)}}
+                          title={loading ? 'Processing...' : 'Excel Download'} />
+                </div>
                 <div ref={menuRef} className={open ? 'absolute right-0 mt-4 p-0.5 text-xs text-nowrap select-none bg-white shadow-lg rounded-md z-[10]' : 'hidden'}>
                     <div className={`px-1 py-0.5 hover:bg-blue-50 ${loading ? 'hover:cursor-wait' : 'hover:cursor-pointer'} rounded-md`} onClick={() => {
                         setOpen(false);
@@ -340,7 +343,9 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, component, hideS
                 <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={isEdit} defaultOpen={true} />
 
                 <div className={'w-full flex items-center place-content-end'}>
-                    {loading ? <LoadingHourGlass className={'p-0.5 inline-flex text-gray-300 hover:text-gray-500 hover:bg-zinc-950/5 rounded-md hover:cursor-pointer transition ease-in-out duration-200'} height={20} width={20}/> :
+                    {loading ? <Icon id={'loading'}
+                                     icon={'LoadingHourGlass'}
+                                     className={`text-slate-400 hover:text-blue-500 size-4 transition ease-in-out duration-200`} /> :
                         state.display.invalidState ? <span className={'text-red-500'}>{state.display.invalidState}</span> : null
                     }
                     <RenderDownload state={state} apiLoad={apiLoad}/>
@@ -573,7 +578,9 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
                         <span className={'text-xs'}>{loading ? 'loading...' : state.display.invalidState ? state.display.invalidState : null}</span>
                     */}
                     <div className={'w-full flex items-center place-content-end'}>
-                        {loading ? <LoadingHourGlass className={'p-0.5 inline-flex text-gray-300 hover:text-gray-500 hover:bg-zinc-950/5 rounded-md hover:cursor-pointer transition ease-in-out duration-200'} height={20} width={20}/> : null}
+                        {loading ?  <Icon id={'loading'}
+                                          icon={'LoadingHourGlass'}
+                                          className={`text-slate-400 hover:text-blue-500 size-4 transition ease-in-out duration-200`} /> : null}
                         <RenderDownload state={state} apiLoad={apiLoad}/>
                     </div>
                     <Comp isEdit={isEdit}

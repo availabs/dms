@@ -919,7 +919,8 @@ const Icons = {
   Group,
   SortAsc,
   SortDesc,
-  Search
+  Search,
+  Download
 }
 
 
