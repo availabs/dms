@@ -20,7 +20,8 @@ export const Attribution = () => {
             <span className={theme.attribution.label}>Attribution:</span>
             <Link
                 className={theme.attribution.link}
-                to={`/${isDms ? `forms` : `cenrep`}/source/${source_id}/${isDms ? `view` : `versions`}/${view_id}`}>
+                to={`/${isDms ? `forms` : `cenrep`}/source/${source_id}`}>
+                {/*to={`/${isDms ? `forms` : `cenrep`}/source/${source_id}/${isDms ? `view` : `versions`}/${view_id}`}>*/}
                 {name} ({view_name}) {updatedTimeString ? `(${updatedTimeString})` : null}
             </Link>
         </div>
