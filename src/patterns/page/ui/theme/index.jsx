@@ -28,6 +28,7 @@ import { labelTheme } from "../components/label";
 
 import Icons from '../icons'
 import {filterTheme} from "../dataComponents/selector/ComponentRegistry/shared/filters/RenderFilters";
+import {graphTheme} from "../dataComponents/selector/ComponentRegistry/graph/GraphComponent";
 
 const theme = {
   navOptions: {
@@ -107,6 +108,7 @@ const theme = {
   dataCard: dataCardTheme,
   attribution: attributionTheme,
   filters: filterTheme,
+  graph: graphTheme,
   
   // -- Icon Set
   Icons

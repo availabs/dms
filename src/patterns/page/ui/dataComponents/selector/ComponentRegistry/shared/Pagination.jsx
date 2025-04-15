@@ -54,7 +54,7 @@ export const Pagination = ({currentPage, setCurrentPage, showPagination, setRead
                                              className={`${theme?.table?.pageRangeItem}  ${currentPage === i ? theme?.table?.pageRangeItemActive : theme?.table?.pageRangeItemInactive} `}
                                              onClick={() => {
                                                  setCurrentPage(i)
-                                                 setReadyToLoad(true)
+                                                 setReadyToLoad && setReadyToLoad(true)
                                              }}
                                         >{i + 1}</div>
                                     ))

@@ -25,7 +25,7 @@ export const filterTheme = {
     settingPillsWrapper: 'flex flex-row flex-wrap gap-1',
     settingPill: 'px-1 py-0.5 bg-orange-500/15 text-orange-700 hover:bg-orange-500/25 rounded-md',
     settingLabel: 'text-gray-900 font-regular min-w-fit',
-    filtersWrapper: 'w-full px-4 py-6 flex flex-col rounded-md',
+    filtersWrapper: 'w-full py-6 flex flex-col rounded-md',
 }
 
 export const RenderFilters = ({
@@ -164,7 +164,7 @@ export const RenderFilters = ({
     return (
         open ?
             <div className={theme.filters.filtersWrapper}>
-                <Filter className={'-mt-4 -mr-6 p-0.5 text-blue-300 hover:text-blue-500 hover:bg-zinc-950/5 rounded-md bg-white self-end rounded-md hover:cursor-pointer'}
+                <Filter className={'-mt-4 p-0.5 text-gray-300 hover:text-gray-500 hover:bg-zinc-950/5 rounded-md bg-white self-end rounded-md hover:cursor-pointer'}
                         title={'Filter'}
                         onClick={() => setOpen(false)}/>
                 {filterColumnsToRender.map((filterColumn, i) => (
@@ -190,8 +190,8 @@ export const RenderFilters = ({
                     </div>
                 ))}
             </div> :
-            <div className={'px-4 pt-2 flex flex-col'}>
-                <Filter className={'-mr-6 text-blue-300 hover:text-blue-500 hover:bg-zinc-950/5 rounded-md bg-white self-end rounded-md hover:cursor-pointer'} onClick={() => setOpen(true)}/>
+            <div className={'pt-2 flex flex-col'}>
+                <Filter className={'text-gray-300 p-0.5 hover:text-gray-500 hover:bg-zinc-950/5 rounded-md bg-white self-end rounded-md hover:cursor-pointer'} onClick={() => setOpen(true)}/>
             </div>
     )
 }

@@ -108,13 +108,13 @@ const RenderDownload = ({state, apiLoad}) => {
 
     if(!state.display.allowDownload) return;
     return (
-        <div className={'pt-2'}>
+        <div className={''}>
             <div className={'relative flex flex-col'}>
                 <Icon id={menuBtnId}
-                      className={`p-0.5 inline-flex text-blue-300 hover:text-blue-500 hover:bg-zinc-950/5 rounded-md ${loading ? 'hover:cursor-wait' : 'hover:cursor-pointer'} transition ease-in-out duration-200`}
+                      className={`p-0.5 inline-flex text-gray-300 hover:text-gray-500 hover:bg-zinc-950/5 rounded-md ${loading ? 'hover:cursor-wait' : 'hover:cursor-pointer'} transition ease-in-out duration-200`}
                       onClick={() => {!loading && setOpen(!open)}}
                       title={loading ? 'Processing...' : 'Excel Download'}
-                      width={20} height={20}/>
+                      width={24} height={24}/>
                 <div ref={menuRef} className={open ? 'absolute right-0 mt-4 p-0.5 text-xs text-nowrap select-none bg-white shadow-lg rounded-md z-[10]' : 'hidden'}>
                     <div className={`px-1 py-0.5 hover:bg-blue-50 ${loading ? 'hover:cursor-wait' : 'hover:cursor-pointer'} rounded-md`} onClick={() => {
                         setOpen(false);
@@ -236,7 +236,7 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, component, hideS
 
     // useGetDataOnPageChange
     const onPageChange = (currentPage) => {
-        if(!isValidState || !component.useGetDataOnPageChange || !state.display.readyToLoad) return;
+        if(!isValidState || !component.useGetDataOnPageChange) return;
         // only run when page changes
         let isStale = false;
         async function load() {
@@ -337,13 +337,14 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, component, hideS
                 }
                 { isEdit ? <Controls /> : null }
 
-                <div className={'w-full pt-2 flex justify-end gap-2'}>
-                    <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={isEdit} defaultOpen={true} />
+                <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={isEdit} defaultOpen={true} />
+
+                <div className={'w-full flex items-center place-content-end'}>
+                    {loading ? <LoadingHourGlass className={'p-0.5 inline-flex text-gray-300 hover:text-gray-500 hover:bg-zinc-950/5 rounded-md hover:cursor-pointer transition ease-in-out duration-200'} height={20} width={20}/> :
+                        state.display.invalidState ? <span className={'text-red-500'}>{state.display.invalidState}</span> : null
+                    }
                     <RenderDownload state={state} apiLoad={apiLoad}/>
                 </div>
-                {/*
-                    <span className={'text-xs'}>{loading ? 'loading...' : state.display.invalidState ? state.display.invalidState : null}</span>
-                */}    
                 <Comp isEdit={isEdit}
                   {...component.name === 'Spreadsheet' && {
                       newItem, setNewItem,
@@ -564,17 +565,17 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
         <ComponentContext.Provider value={{state, setState, apiLoad, controls: component.controls}}>
             <div className={'w-full h-full'}>
                 <div className={'w-full'}>
-                    <div className={'w-full flex justify-end gap-2'}>
-                        <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={isEdit} defaultOpen={true}/>
-                        <RenderDownload state={state} apiLoad={apiLoad}/>
-                    </div>
+                    <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={isEdit} defaultOpen={true}/>
                     {/*
                         --this causes page jitter (contents moving up and down), 
                         -- if we want a loading indicator, its probably by component
                         -- and it needs to be absolutely positioned
                         <span className={'text-xs'}>{loading ? 'loading...' : state.display.invalidState ? state.display.invalidState : null}</span>
                     */}
-                    {loading ? <LoadingHourGlass className={'text-[#2D3E4C]'} /> : null}
+                    <div className={'w-full flex items-center place-content-end'}>
+                        {loading ? <LoadingHourGlass className={'p-0.5 inline-flex text-gray-300 hover:text-gray-500 hover:bg-zinc-950/5 rounded-md hover:cursor-pointer transition ease-in-out duration-200'} height={20} width={20}/> : null}
+                        <RenderDownload state={state} apiLoad={apiLoad}/>
+                    </div>
                     <Comp isEdit={isEdit}
                           {...component.name === 'Spreadsheet' && {
                               newItem, setNewItem,

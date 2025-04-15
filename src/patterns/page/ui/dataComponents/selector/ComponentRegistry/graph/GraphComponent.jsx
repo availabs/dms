@@ -7,6 +7,7 @@ import {
 import {get} from "lodash-es"
 import { GraphTypes, getGraphComponent } from "./components"
 import {mapColors} from "./utils";
+import {CMSContext} from "../../../../../siteConfig";
 export const getColorRange = (size, name, reverse=false) => {
   let range = get(mapColors, [name, size], []).slice();
 
@@ -92,6 +93,9 @@ const getAggFunc = aggMethod => {
   return AggFuncs[aggMethod] //|| d3sum;
 }
 
+export const graphTheme = {
+  text: 'font-regular text-[12px]'
+}
 export const GraphComponent = props => {
 
   const {
@@ -102,6 +106,7 @@ export const GraphComponent = props => {
     xAxisColumn,
     yAxisColumns
   } = props;
+  const { theme = { graph: graphTheme } } = React.useContext(CMSContext) || {};
 
   const GraphComponent = React.useMemo(() => {
     return getGraphComponent(activeGraphType.GraphComp);
@@ -150,7 +155,7 @@ export const GraphComponent = props => {
     >
       <GraphTitle { ...graphFormat.title }/>
 
-      <div className="h-fit">
+      <div className={`h-fit ${theme.graph.text}`}>
         { !activeGraphType || !GraphComponent ? null :
           <GraphComponent
             data={ groupedData }
