@@ -111,7 +111,7 @@ const RenderDownload = ({state, apiLoad}) => {
     return (
         <div className={''}>
             <div className={'relative flex flex-col'}>
-                <div className={'w-fit p-1 border rounded-full '}>
+                <div className={'w-fit p-2 border rounded-full '}>
                     <Icon id={menuBtnId}
                           icon={icon}
                           className={`text-slate-400 hover:text-blue-500 size-4 ${loading ? 'hover:cursor-wait' : 'hover:cursor-pointer'} transition ease-in-out duration-200`}
