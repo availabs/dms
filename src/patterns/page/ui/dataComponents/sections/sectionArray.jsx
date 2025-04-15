@@ -209,7 +209,7 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
                                 ${theme?.sectionArray?.border?.[v?.border || 'none']}
                                 
                             `}
-                            style={{paddingTop: `${v?.offset}` }}
+                            style={{paddingTop: v?.offset }}
                         >
                             <div className={theme?.sectionArray?.sectionEditHover} />
                             {/* add to top */}
@@ -314,7 +314,9 @@ const View = ({value, attr, group, siteType}) => {
                                     ${colspanClass} ${rowspanClass}
                                     
                                 `}
-                            >
+                                style={{ paddingTop: v?.offset }}
+                            >   
+
                                 <SectionView
                                     attributes={attr.attributes}
                                     key={i}

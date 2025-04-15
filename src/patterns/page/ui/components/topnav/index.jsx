@@ -51,8 +51,9 @@ import { CMSContext } from '../../../siteConfig'
       topnavContent: `flex items-center w-full h-full  `,
       topnavMenu: `hidden py-2  md:flex items-center flex-1  h-full overflow-x-auto overflow-y-hidden scrollbar-sm`,
       mobileButton:`md:hidden bg-slate-100 inline-flex items-center justify-center pt-[12px] px-2 hover:text-blue-400  text-gray-400 hover:bg-gray-100 `,
-      indicatorIcon: 'fal fa-angle-down pl-2 pt-1',
-      indicatorIconOpen: 'fal fa-angle-down pl-2 pt-1',
+      indicatorIcon: 'ArrowDown',
+      indicatorIconOpen: 'ArrowDown',
+      indicatorIconWrapper: 'size-3',
       menuItemWrapper1: [
         ' ',
         ''
