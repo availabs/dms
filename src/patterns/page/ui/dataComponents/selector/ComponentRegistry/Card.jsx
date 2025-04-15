@@ -115,11 +115,12 @@ const Card = ({isEdit}) => {
     const cardsWithoutSpanLength = useMemo(() => columns.filter(({show, cardSpan}) => show && !cardSpan).length, [columns]);
 
     const imageTopMargin = Math.max(...visibleColumns.map(attr => attr.isImg && !isNaN(attr.imageMargin) ? Math.abs(attr.imageMargin) : undefined).filter(m=>m));
+    const getGridSize = gridSize => window.innerWidth < 500 ? 1 : gridSize;
 
     const mainWrapperStyle = gridSize && compactView ?
-        {gridTemplateColumns: `repeat(${Math.min(gridSize, data.length)}, minmax(0, 1fr))`, gap: gridGap, paddingTop: `${imageTopMargin}px`} :
+        {gridTemplateColumns: `repeat(${Math.min(getGridSize(gridSize), data.length)}, minmax(0, 1fr))`, gap: gridGap, paddingTop: `${imageTopMargin}px`} :
         {gap: gridGap, paddingTop: `${imageTopMargin}px`};
-    const subWrapperStyle = compactView ? {backgroundColor: bgColor, padding, gap: colGap} : {gridTemplateColumns: `repeat(${gridSize || cardsWithoutSpanLength}, minmax(0, 1fr))`, gap: gridGap || 2}
+    const subWrapperStyle = compactView ? {backgroundColor: bgColor, padding, gap: colGap} : {gridTemplateColumns: `repeat(${getGridSize(gridSize) || cardsWithoutSpanLength}, minmax(0, 1fr))`, gap: gridGap || 2}
     useEffect(() => {
         // set hideSection flag
         if(!isEdit) return;
