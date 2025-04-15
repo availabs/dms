@@ -79,23 +79,6 @@ const cardTypes = {
         },
         inlineImage: "inline-block relative z-10 cursor-default select-none mt-[-120px]" 
     },
-    'Handwritten': {
-        contentEditable: 'border-none relative [tab-size:1] outline-none ',
-        editorScroller: "min-h-[150px] border-0 flex relative outline-0 z-0bh resize-y", //'editor-scroller'
-        viewScroller:
-            "border-0 flex relative outline-0 z-0 resize-none", //.view-scroller
-        editorContainer: "relative block rounded-[10px] min-h-[50px]", //'.editor-shell .editor-container'
-        editorShell: "font-['Rock_Salt'] font-[400] text-[13px] text-[#37576B] leading-[22.4px]",
-        
-    },
-    'Handwritten_1': {
-        contentEditable: 'border-none relative [tab-size:1] outline-none ',
-        editorScroller: "min-h-[150px] border-0 flex relative outline-0 z-0bh resize-y", //'editor-scroller'
-        viewScroller:
-            "border-0 flex relative outline-0 z-0 resize-none", //.view-scroller
-        editorContainer: "relative block rounded-[10px] min-h-[50px]", //'.editor-shell .editor-container'
-        editorShell: "font-['Grape_Nuts'] font-[600] text-[18px] text-[#37576B] leading-[22.4px]",
-    },
     'Handwritten_2': {
         contentEditable: 'border-none relative [tab-size:1] outline-none ',
         editorScroller: "min-h-[150px] border-0 flex relative outline-0 z-0bh resize-y", //'editor-scroller'
@@ -104,14 +87,7 @@ const cardTypes = {
         editorContainer: "relative block rounded-[10px] min-h-[50px]", //'.editor-shell .editor-container'
         editorShell: "font-['Caveat'] font-[600] text-[20px] text-[#37576B] leading-[22.4px]",
     },
-    'Handwritten_3': {
-        contentEditable: 'border-none relative [tab-size:1] outline-none ',
-        editorScroller: "min-h-[150px] border-0 flex relative outline-0 z-0bh resize-y", //'editor-scroller'
-        viewScroller:
-            "border-0 flex relative outline-0 z-0 resize-none", //.view-scroller
-        editorContainer: "relative block rounded-[10px] min-h-[50px]", //'.editor-shell .editor-container'
-        editorShell: "font-['Shadows_Into_Light_Two'] font-[600] text-[15px] text-[#37576B] leading-[22.4px]",
-    }
+    
     
 }
 
@@ -155,21 +131,9 @@ const Edit = ({value, onChange}) => {
                                 value: 'Annotation Image Card'
                               },
                               {
-                                label: 'Handwritten (Rock Salt)',
-                                value: 'Handwritten'
-                              },
-                              {
-                                label: 'Handwritten (Grape Nuts)',
-                                value: 'Handwritten_1'
-                              },
-                              {
                                 label: 'Handwritten (Caveat)',
                                 value: 'Handwritten_2'
-                              },
-                              {
-                                label: 'Handwritten (Shadows Two)',
-                                value: 'Handwritten_3'
-                              },
+                              }
                             ]}
                             value={isCard}
                             onChange={e => {

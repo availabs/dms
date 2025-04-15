@@ -129,6 +129,12 @@ export const toSnakeCase = str =>
     .map(x => x.toLowerCase())
     .join('_');
 
+function toTitleCase(str) {
+  return str.replace(
+    /\w\S*/g,
+    text => text.charAt(0).toUpperCase() + text.substring(1).toLowerCase()
+  );
+}
 
 
 // const levelClasses = {
@@ -158,7 +164,7 @@ export function getInPageNav(item, theme) {
                 const heading = type === 'heading' && tag === 'h1' && children[0]?.text?.length ?
                     [
                         {
-                            name: children[0]?.text,
+                            name: toTitleCase(children[0]?.text),
                             onClick: (e) => {
                                 const elmntToView =
                                     [...window.document.querySelectorAll(tag)]
@@ -179,10 +185,11 @@ export function getInPageNav(item, theme) {
                 return [...acc, ...heading]
             }, []) : []
 
+        console.log('page nav test', title, toTitleCase(title))
         return [
             ...acc,
             {
-                name: title,
+                name: toTitleCase(title),
                 onClick: (e) => {
                     const elmntToView = window.document.getElementById(`#${title?.replace(/ /g, '_')}`);
                     elmntToView?.scrollIntoView({ behavior: "smooth" });

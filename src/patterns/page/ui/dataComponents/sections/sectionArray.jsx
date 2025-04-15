@@ -167,7 +167,7 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
     //console.log('test 123', values, group)
 
     return (
-        <div className='relative isolate'>
+        <div className='relative'>
         { editPane?.showGrid && (
             <div className='absolute inset-0 pointer-events-none  '>
                 <div className={`
@@ -273,7 +273,10 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
                     )
                 })
             }
-            {edit?.index === -1 && <AddSectionButton onClick={() => setEditIndex(Math.max(values.length, 0))}/>}
+            {
+                edit?.index === -1 && <AddSectionButton onClick={() => setEditIndex(Math.max(values.length, 0))}/>
+            }
+            
             <ScrollToHashElement />
             </div>
         </div>
