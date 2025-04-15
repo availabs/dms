@@ -8,6 +8,8 @@ import {get} from "lodash-es"
 import { GraphTypes, getGraphComponent } from "./components"
 import {mapColors} from "./utils";
 import {CMSContext} from "../../../../../siteConfig";
+import {graphTheme} from "./index";
+
 export const getColorRange = (size, name, reverse=false) => {
   let range = get(mapColors, [name, size], []).slice();
 
@@ -93,9 +95,6 @@ const getAggFunc = aggMethod => {
   return AggFuncs[aggMethod] //|| d3sum;
 }
 
-export const graphTheme = {
-  text: 'font-regular text-[12px]'
-}
 export const GraphComponent = props => {
 
   const {
@@ -150,7 +149,7 @@ export const GraphComponent = props => {
       style={ {
         backgroundColor: get(graphFormat, "bgColor", "#ffffff"),
         color: get(graphFormat, "textColor", "#000000"),
-        padding: `${ get(graphFormat, "padding", 1) }rem`
+        paddingTop: `${ get(graphFormat, "padding", 0.5) }rem`
       } }
     >
       <GraphTitle { ...graphFormat.title }/>
@@ -164,6 +163,7 @@ export const GraphComponent = props => {
             width={ get(graphFormat, "width", width) }
             bgColor={ get(graphFormat, "bgColor", "#ffffff") }
             colors={ get(graphFormat, "colors") }
+            upperLimit={ get(graphFormat, "upperLimit") }
 
             showCategories={ showCategories }
             xAxisColumn={ xAxisColumn }

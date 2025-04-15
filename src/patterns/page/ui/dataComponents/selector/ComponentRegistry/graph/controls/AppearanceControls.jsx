@@ -118,6 +118,8 @@ export default function AppearanceControls({context}) {
                                    setValue={value => updateDisplayValue('tooltip', 'show', value)}/>
                     <ToggleControl title={'Attribution'} value={display.showAttribution}
                                    setValue={value => updateDisplayValue(null, 'showAttribution', value)}/>
+                    <ToggleControl title={'Scale Filter'} value={display.showScaleFilter}
+                                   setValue={value => updateDisplayValue(null, 'showScaleFilter', value)}/>
                     <InputControl title={'Height'} type={'number'} value={display.height}
                                   setValue={value => updateDisplayValue(null, 'height', +value)}/>
                     <ToggleControl title={'Always Fetch Data'} value={display.readyToLoad}
