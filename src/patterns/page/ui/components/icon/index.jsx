@@ -13,9 +13,9 @@ export const Default = ({...props}) => (
 );
 
 
-export default function ({icon = 'Default', className}) {
+export default function ({icon = 'Default', className, ...props}) {
     const { theme = { icon: iconTheme } } = React.useContext(CMSContext) || {};
     let Icon = theme?.Icons?.[icon] || Default
-    return  <Icon className={className || theme.icon.icon} />
+    return  <Icon className={className || theme.icon.icon} {...props}/>
 
 }

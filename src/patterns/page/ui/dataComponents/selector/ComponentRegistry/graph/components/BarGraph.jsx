@@ -43,8 +43,7 @@ const BarGraph = props => {
   const isPalette = ((colors.type === "palette") || (colors.type === "custom"));
   const uniqDataValues = [...new Set(data.map(d => d.value))].sort((a,b) => a-b);
   const maxValue = uniqDataValues[uniqDataValues.length-1];
-  const customLogTicks = generatePowersOfTen(1, maxValue);
-
+  const customLogTicks = generatePowersOfTen(Math.min(...uniqDataValues.filter(d => d!==0)), maxValue);
   const isStacked = groupMode === "stacked";
   const isVertical = orientation === "vertical";
 

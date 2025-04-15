@@ -110,11 +110,12 @@ const RenderDownload = ({state, apiLoad}) => {
     return (
         <div className={''}>
             <div className={'relative flex flex-col'}>
-                <Icon id={menuBtnId}
-                      className={`p-0.5 inline-flex text-gray-300 hover:text-gray-500 hover:bg-zinc-950/5 rounded-md ${loading ? 'hover:cursor-wait' : 'hover:cursor-pointer'} transition ease-in-out duration-200`}
-                      onClick={() => {!loading && setOpen(!open)}}
-                      title={loading ? 'Processing...' : 'Excel Download'}
-                      width={24} height={24}/>
+                <div className={'w-fit p-1 border rounded-full '}>
+                    <Icon id={menuBtnId}
+                          className={`text-slate-400 hover:text-blue-500 size-4 ${loading ? 'hover:cursor-wait' : 'hover:cursor-pointer'} transition ease-in-out duration-200`}
+                          onClick={() => {!loading && setOpen(!open)}}
+                          title={loading ? 'Processing...' : 'Excel Download'} />
+                </div>
                 <div ref={menuRef} className={open ? 'absolute right-0 mt-4 p-0.5 text-xs text-nowrap select-none bg-white shadow-lg rounded-md z-[10]' : 'hidden'}>
                     <div className={`px-1 py-0.5 hover:bg-blue-50 ${loading ? 'hover:cursor-wait' : 'hover:cursor-pointer'} rounded-md`} onClick={() => {
                         setOpen(false);
