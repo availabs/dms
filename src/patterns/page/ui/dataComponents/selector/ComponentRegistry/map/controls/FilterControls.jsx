@@ -94,8 +94,9 @@ export default function FilterControls() {
                                            value={filter.defaultValue}
                                            onChange={e => {
                                                setState((draft) => {
-                                                   draft.symbologies[activeSym].symbology.layers[activeSymSymbology?.activeLayer]['dynamic-filters'][fI].defaultValue = e.target.value;
-                                                   draft.symbologies[activeSym].symbology.layers[activeSymSymbology?.activeLayer]['dynamic-filters'][fI].values = [e.target.value];
+                                                   const value = e.target.value?.length ? e.target.value : undefined;
+                                                   draft.symbologies[activeSym].symbology.layers[activeSymSymbology?.activeLayer]['dynamic-filters'][fI].defaultValue = value;
+                                                   draft.symbologies[activeSym].symbology.layers[activeSymSymbology?.activeLayer]['dynamic-filters'][fI].values = value ? [value] : [];
                                                })
                                            }}/>
                                 </>

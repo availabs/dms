@@ -83,7 +83,7 @@ const Edit = ({value, onChange, size}) => {
                     .filter(f => searchParamValues[getSearchParamKey(f)])
                     .forEach(filter => {
                         const newValues = searchParamValues[getSearchParamKey(filter)].split('|||')
-                        filter.values = newValues?.length ? newValues : filter.defaultValue ? [filter.defaultValue] : []
+                        filter.values = newValues?.length ? newValues : filter.defaultValue?.length ? [filter.defaultValue] : []
                     })
             }
         })
