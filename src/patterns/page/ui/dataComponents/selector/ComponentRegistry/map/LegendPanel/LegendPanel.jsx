@@ -1,40 +1,9 @@
 import React, { useMemo, Fragment } from 'react'
 import { MapContext } from '../MapComponent'
 import { useNavigate } from 'react-router-dom'
-import { Eye, EyeClosed } from '../../../../../icons'
 import get from 'lodash/get'
 import { fnumIndex } from '../../../dataWrapper/utils/utils';
-
-
-
-function VisibilityButton ({layer}) {
-  const { state, setState  } = React.useContext(MapContext);
-  const { activeLayer } = state.symbology;
-  const visible = layer?.layers?.[0]?.layout.visibility === 'visible'
-  return (
-    <div onClick={() => {
-        setState(draft => {
-          draft.symbology.layers[layer.id].isVisible = !draft.symbology.layers[layer.id].isVisible
-          draft.symbology.layers[layer.id].layers.forEach((d,i) => {
-              let val = get(state, `symbology.layers[${layer.id}].layers[${i}].layout.visibility`,'') 
-              let update = val === 'visible' ? 'none' : 'visible'
-              // console.log('update?', update, val)
-              // set(draft,`symbology.layers[${layer.id}].layers[${i}].layout` , { "visible": update}) 
-              draft.symbology.layers[layer.id].layers[i].layout =  { "visibility": update }
-          })
-        })}}
-      >
-      {visible ? 
-        <Eye 
-          className={` ${activeLayer == layer.id ? 'fill-pink-100' : 'fill-white'} cursor-pointer group-hover:fill-gray-400 group-hover:hover:fill-pink-700`}
-        /> : 
-        <EyeClosed 
-          className={` ${activeLayer == layer.id ? 'fill-pink-100' : 'fill-white'} cursor-pointer group-hover:fill-gray-400 group-hover:hover:fill-pink-700`}
-        />
-      }
-    </div>
-  )
-}
+import {CMSContext} from "../../../../../../siteConfig";
 
 const typeSymbols = {
   'fill': ({layer,color}) => {
@@ -218,7 +187,7 @@ function CircleLegend({ layer }) {
   );
 }
 
-function LegendRow ({ index, layer, i, symbology_id }) {
+function LegendRow ({ index, layer, i, symbology_id, baseUrl }) {
   const navigate = useNavigate();
   const  activeLayer  = null
   const Symbol = typeSymbols[layer.type] || typeSymbols['fill']
@@ -234,8 +203,7 @@ function LegendRow ({ index, layer, i, symbology_id }) {
   },[layer]);
 
 
-  //TODO -- how to get `baseUrl` when you don't have damaContext??
-  const sourceUrl = `/datasources/source/${layer.source_id}`
+  const sourceUrl = `${baseUrl}/source/${layer.source_id}`
 
   const layerName = type === 'interactive' ? layer.label : layer.name;
 
@@ -280,6 +248,7 @@ function LegendRow ({ index, layer, i, symbology_id }) {
 
 function LegendPanel (props) {
   const { state, setState  } = React.useContext(MapContext);
+  const { dataSourcesBaseUrl = '/cenrep' } = React.useContext(CMSContext);
   const layersBySymbology = useMemo(() => {
     return Object.values(state?.symbologies || {})
       .filter(symb => symb.isVisible)
@@ -287,31 +256,6 @@ function LegendPanel (props) {
         return { name: symb.name, symbology_id: symb.symbology_id, layers: { ...symb.symbology.layers } };
       });
   }, [state]);
-  
-  // console.log('legend layersBySymbology', layersBySymbology)
-  
-  // const droppedSection = React.useCallback((start, end) => {
-  //   setState(draft => {
-  //   const sections = Object.values(draft.symbology.layers)
-        
-  //   let listLen = Object.values(draft.symbology.layers).length - 1
-  //   let orderStart =  listLen - start
-  //   let orderEnd = listLen - end 
-
-  //   const [item] = sections.splice(orderStart, 1);
-  //   sections.splice(orderEnd, 0, item);
-
-  //   sections.forEach((item, i) => {
-  //       item.order = i
-  //   })
-    
-  //   draft.symbology.layers = sections
-  //       .reduce((out,sec) => {
-  //         out[sec.id] = sec;
-  //         return out 
-  //       },{})
-  //   })
-  // }, [])
 
   return (
     <>
@@ -327,7 +271,7 @@ function LegendPanel (props) {
               {Object.values(symb.layers)
                 .sort((a,b) => b.order - a.order)
                 .filter(layer => layer?.['legend-orientation'] !== 'none')
-                .map((layer,i) => <LegendRow key={layer.id} layer={layer} i={i} symbology_id={symb.symbology_id}/>)}
+                .map((layer,i) => <LegendRow key={layer.id} baseUrl={dataSourcesBaseUrl} layer={layer} i={i} symbology_id={symb.symbology_id}/>)}
             </div>
           ))}
         </div>
