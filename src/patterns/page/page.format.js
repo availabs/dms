@@ -162,6 +162,11 @@ const cmsPageFormat = {
       hidden: true
     },
     {
+      key: 'theme',
+      type: "json",
+      hidden: true
+    },
+    {
       key: 'section_groups',
       type: "json",
       hidden: true

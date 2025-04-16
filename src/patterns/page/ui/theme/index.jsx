@@ -12,6 +12,7 @@ import { nestableTheme } from '../components/nestable/draggableNav'
 import { dialogTheme } from '../components/dialog'
 import { popoverTheme } from '../components/popover'
 import { selectTheme } from '../components/select'
+import { listboxTheme } from '../components/listbox'
 import { fieldTheme } from '../components/fieldset'
 // --- Data Components
 import { sectionArrayTheme } from '../dataComponents/sections/sectionArray'
@@ -98,6 +99,7 @@ const theme = {
   popover: popoverTheme,
   label: labelTheme,
   select: selectTheme,
+  listbox: listboxTheme,
   // -- 
   
   // --

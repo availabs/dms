@@ -1,6 +1,6 @@
 import React, {useEffect, useRef} from 'react'
 import { Link, useSubmit } from "react-router-dom";
-import { cloneDeep } from "lodash-es"
+import { cloneDeep, merge } from "lodash-es"
 
 // -- 
 import { CMSContext } from '../siteConfig'
@@ -33,8 +33,9 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
 
   //console.log('item', item, dataItems, status)
   const pdfRef = useRef(); // To capture the section of the page to be converted to PDF
-  const { baseUrl, theme, user, API_HOST } = React.useContext(CMSContext) || {}
-  
+  let { baseUrl, theme, user, API_HOST } = React.useContext(CMSContext) || {}
+  //let pageTheme = {page: {container: `bg-[linear-gradient(0deg,rgba(33,52,64,.96),rgba(55,87,107,.96)),url('/themes/mny/topolines.png')] bg-[size:500px] pb-[4px]`}}
+  theme = merge(cloneDeep(theme), item?.theme || {})
   const ContentView = React.useMemo(() => {
     return attributes['sections'].ViewComp
   }, [])
@@ -44,7 +45,7 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
     return items
   }, [dataItems])
 
-  console.log('menuItems', menuItems)
+  //console.log('view item', item)
 
   // const level = item?.index == '999' || theme?.navOptions?.topNav?.nav !== 'main' ? 1 : detectNavLevel(dataItems, baseUrl);
 

@@ -130,7 +130,7 @@ export const toSnakeCase = str =>
     .map(x => x.toLowerCase())
     .join('_');
 
-function toTitleCase(str) {
+function toTitleCase(str='') {
   return str.replace(
     /\w\S*/g,
     text => text.charAt(0).toUpperCase() + text.substring(1).toLowerCase()
@@ -268,7 +268,6 @@ export function getInPageNav(item, theme) {
                 return [...acc, ...heading]
             }, []) : []
 
-        console.log('page nav test', title, toTitleCase(title))
         return [
             ...acc,
             {
