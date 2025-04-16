@@ -254,7 +254,7 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
         normalFilter,
         meta,
         // when not grouping, numeric filters can directly go in the request
-        ...!groupBy.length && Object.keys(restOfDataRequestOptions).reduce((acc, filterOperation) => {
+        ...(!groupBy.length || true) && Object.keys(restOfDataRequestOptions).reduce((acc, filterOperation) => {
             const columnsForOperation = Object.keys(restOfDataRequestOptions[filterOperation]);
             acc[filterOperation] =
                 columnsForOperation.reduce((acc, columnName) => {
@@ -269,35 +269,35 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
                 }, {});
             return acc;
         }, {}),
-        // if grouping, apply numeric filters as HAVING clause
-        ...groupBy.length && {
-            having: Object.keys(restOfDataRequestOptions).reduce((acc, filterOperation) => {
-                const columnsForOperation = Object.keys(restOfDataRequestOptions[filterOperation]);
-
-                const conditions = columnsForOperation.map((columnName) => {
-                        const {reqName, fn, filters, ...restCol} = getFullColumn(columnName, columnsWithSettings);
-                        // assuming one filter per column:
-                        const fullFilter = filters[0];
-                        const filterFn = fullFilter?.fn;
-
-                        const reqNameWithoutAS = splitColNameOnAS(reqName)[0];
-
-                        const reqNameWithFn = fn ? reqNameWithoutAS :
-                            applyFn(
-                                {...restCol, fn: filterFn},
-                                state.sourceInfo.isDms);
-                        const reqNameWithFnWithoutAS = splitColNameOnAS(reqNameWithFn)[0];
-                        // if grouping by and fn is applied, use fn name.
-                        const currOperationValues = restOfDataRequestOptions[filterOperation][columnName];
-                        const valueToFilterBy = Array.isArray(currOperationValues) ? currOperationValues[0] : currOperationValues;
-                        if(!valueToFilterBy) return null
-                    return `${reqNameWithFnWithoutAS} ${operationsStr[filterOperation]} ${valueToFilterBy}`;
-                    }).filter(c => c);
-
-                acc.push(...conditions)
-                return acc;
-            }, [])
-        }
+        // // if grouping, apply numeric filters as HAVING clause
+        // ...groupBy.length && {
+        //     having: Object.keys(restOfDataRequestOptions).reduce((acc, filterOperation) => {
+        //         const columnsForOperation = Object.keys(restOfDataRequestOptions[filterOperation]);
+        //
+        //         const conditions = columnsForOperation.map((columnName) => {
+        //                 const {reqName, fn, filters, ...restCol} = getFullColumn(columnName, columnsWithSettings);
+        //                 // assuming one filter per column:
+        //                 const fullFilter = filters[0];
+        //                 const filterFn = fullFilter?.fn;
+        //
+        //                 const reqNameWithoutAS = splitColNameOnAS(reqName)[0];
+        //
+        //                 const reqNameWithFn = fn ? reqNameWithoutAS :
+        //                     applyFn(
+        //                         {...restCol, fn: filterFn},
+        //                         state.sourceInfo.isDms);
+        //                 const reqNameWithFnWithoutAS = splitColNameOnAS(reqNameWithFn)[0];
+        //                 // if grouping by and fn is applied, use fn name.
+        //                 const currOperationValues = restOfDataRequestOptions[filterOperation][columnName];
+        //                 const valueToFilterBy = Array.isArray(currOperationValues) ? currOperationValues[0] : currOperationValues;
+        //                 if(!valueToFilterBy) return null
+        //             return `${reqNameWithFnWithoutAS} ${operationsStr[filterOperation]} ${valueToFilterBy}`;
+        //             }).filter(c => c);
+        //
+        //         acc.push(...conditions)
+        //         return acc;
+        //     }, [])
+        // }
     }
     debug && console.log('debug getdata: options for spreadsheet getData', options, state)
     // =================================================================================================================
