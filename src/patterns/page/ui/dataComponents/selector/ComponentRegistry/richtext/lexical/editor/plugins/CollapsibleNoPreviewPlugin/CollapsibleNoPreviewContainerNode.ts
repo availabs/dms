@@ -53,7 +53,7 @@ export class CollapsibleNoPreviewContainerNode extends ElementNode {
   }
 
   createDOM(config: EditorConfig, editor: LexicalEditor): HTMLElement {
-    const minimisedHeight = '0px';
+    const minimisedHeight = '50px';
     const dom = document.createElement('div');
     dom.classList.add('Collapsible__container');
     dom.classList.add('flex', 'flex-col', 'gap-4', 'bg-[#F3F8F9]', 'p-[12px]', 'pt-[16px]', 'rounded-lg', 'mb-2');
