@@ -323,7 +323,7 @@ function LegendPanel (props) {
               key={symb.symbology_id}
               className="m-1 p-1 rounded"
             >
-              <div className="font-normal">{symb.name}</div>
+              {/*<div className="font-normal">{symb.name}</div>*/}
               {Object.values(symb.layers)
                 .sort((a,b) => b.order - a.order)
                 .filter(layer => layer?.['legend-orientation'] !== 'none')
