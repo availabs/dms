@@ -255,7 +255,8 @@ export const RenderFilterValueSelector = ({
                                 value={ value }
                                 type={'number'}
                                 onChange={e => {
-                                    let newValues = [e];
+                                    const newValue = filterColumn.type === 'number' && e ? +e : e;
+                                    let newValues = [newValue];
                                     if(filter.allowSearchParams) {
                                         const newFilters =  Object.keys(filterWithSearchParamKeys).filter(col => {
                                             if((filter.searchParamKey || filterColumn.name) === col) return false;

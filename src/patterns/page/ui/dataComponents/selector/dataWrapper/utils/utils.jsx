@@ -420,15 +420,15 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
         data.push({...totalRowData[0], totalRow: true})
     }
     // ============================================== fetch total row end ==============================================
-    console.log('debug getdata', data,
-        data.map(row => columnsToFetch.reduce((acc, column) => ({
-            ...acc,
-            totalRow: row.totalRow,
-            // return data with columns' original names
-            [column.name]: cleanValue(row[row.totalRow ? column.totalName : column.reqName])
-        }) , {}))
-
-        )
+    // console.log('debug getdata', data,
+    //     data.map(row => columnsToFetch.reduce((acc, column) => ({
+    //         ...acc,
+    //         totalRow: row.totalRow,
+    //         // return data with columns' original names
+    //         [column.name]: cleanValue(row[row.totalRow ? column.totalName : column.reqName])
+    //     }) , {}))
+    //
+    //     )
     return {
         length,
         data: data.map(row => {

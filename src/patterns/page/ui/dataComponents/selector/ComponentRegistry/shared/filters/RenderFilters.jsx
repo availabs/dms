@@ -103,29 +103,30 @@ export const RenderFilters = ({
                         })
                         .map(async columnName => {
                             // other filter values to filter by
-                            const [filterBy] = await Promise.all([Object.keys(filters)
-                                .filter(f => f !== columnName)
-                                .reduce(async function (acc, columnName) {
-                                    const filterColumn = state.columns.find(({name}) => name === columnName);
-                                    const filter = state.columns.find(({name}) => name === columnName)?.filters?.[0];
-                                    if (!filter.values?.length) return acc;
 
-                                    // console.log('filter column', filterColumn)
+                            const filterBy = await Object.keys(filters)
+                                .filter(f => f !== columnName)
+                                .reduce(async (accPromise, columnName) => {
+                                    const acc = await accPromise;
+
+                                    const filterColumn = state.columns.find(({name}) => name === columnName);
+                                    const filter = filterColumn?.filters?.[0];
+                                    if (!filter?.values?.length) return acc;
+
                                     if (filterColumn.type === 'multiselect') {
                                         const reqName = getFormattedAttributeStr(columnName);
                                         const options = await getFilterData({
-                                            reqName, // column name with as
-                                            refName: getAttributeAccessorStr(columnName), // column name without as
+                                            reqName,
+                                            refName: getAttributeAccessorStr(columnName),
                                             allAttributes: [filterColumn],
                                             apiLoad,
                                             format: state.sourceInfo,
                                         });
 
-                                        const selectedValues =
-                                            filter.values
-                                                .map(o => o?.value || o)
-                                                .map(o => o === null ? 'null' : o)
-                                                .filter(o => o);
+                                        const selectedValues = filter.values
+                                            .map(o => o?.value || o)
+                                            .map(o => o === null ? 'null' : o)
+                                            .filter(o => o);
 
                                         const matchedOptions = options
                                             .map(row => {
@@ -138,24 +139,22 @@ export const RenderFilters = ({
                                             })
                                             .filter(option => option);
 
-                                        // console.log('matched values ', matchedOptions)
-
-                                        if(!matchedOptions?.length) return acc;
-
                                         acc[filter.operation] = {
-                                            ...acc[filter.operation] || {},
+                                            ...(acc[filter.operation] || {}),
                                             [getAttributeAccessorStr(columnName)]: matchedOptions
                                         };
-                                        // select column where its own filter values are applied. get the valuesets, and use them in place for filter.values
-                                    }else{
+                                    } else {
+                                        const values = ['gt', 'gte', 'lt', 'lte', 'like'].includes(filter.operation) ? filter.values[0] : filter.values;
                                         acc[filter.operation] = {
-                                            ...acc[filter.operation] || {},
-                                            [getAttributeAccessorStr(columnName)]: filter.values
+                                            ...(acc[filter.operation] || {}),
+                                            [getAttributeAccessorStr(columnName)]: values
                                         };
                                     }
+
                                     return acc;
-                                }, {})])
-                            // console.log('fo?,', columnName, filterBy)
+                                }, Promise.resolve({}));
+
+                            console.log('fo?,', columnName, filterBy)
                             // get all the filters with value
                             // build a filterOptions object including each filter type (filter, exclude, gt, gte...),
                             // for filter and exclude types, and multiselect column combination, pull value sets for
@@ -219,7 +218,7 @@ export const RenderFilters = ({
     // initially you'll have internal filter
     // add UI dropdown to change filter type
     // add UI to change filter operation
-    // console.log('filters', filterOptions)
+    console.log('filters', filterOptions)
     return (
         open ?
             <div className={theme.filters.filtersWrapper}>
