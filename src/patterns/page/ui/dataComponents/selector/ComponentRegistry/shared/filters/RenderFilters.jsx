@@ -40,6 +40,8 @@ export const RenderFilters = ({
         const [searchParams] = useSearchParams();
         const isDms = state.sourceInfo?.isDms;
         const filterColumnsToTrack = useMemo(() => state.columns.filter(({filters, isDuplicate}) => filters?.length && !isDuplicate), [state.columns]);
+        const filterValuesToTrack = useMemo(() =>
+            state.columns.filter(({filters, isDuplicate}) => filters?.length && filters?.[0]?.values?.length && !isDuplicate).reduce((acc, f) => [...acc, ...f.filters[0].values], []), [state.columns]);
         const normalFilterColumnsToTrack = useMemo(() => state.columns.filter(({filters, isDuplicate}) => filters?.length && isDuplicate), [state.columns]);
         const filters = useMemo(() => getFilters(filterColumnsToTrack), [filterColumnsToTrack]);
         const normalFilters = useMemo(() => getNormalFilters(normalFilterColumnsToTrack), [normalFilterColumnsToTrack]);
@@ -100,6 +102,7 @@ export const RenderFilters = ({
                             if(filter?.type === 'external') return true;
                         })
                         .map(async columnName => {
+                            // other filter values to filter by
                             const [filterBy] = await Promise.all([Object.keys(filters)
                                 .filter(f => f !== columnName)
                                 .reduce(async function (acc, columnName) {
@@ -152,7 +155,7 @@ export const RenderFilters = ({
                                     }
                                     return acc;
                                 }, {})])
-                            // console.log('fo?,', filterBy)
+                            // console.log('fo?,', columnName, filterBy)
                             // get all the filters with value
                             // build a filterOptions object including each filter type (filter, exclude, gt, gte...),
                             // for filter and exclude types, and multiselect column combination, pull value sets for
@@ -165,11 +168,13 @@ export const RenderFilters = ({
                                 allAttributes: state.columns,
                                 filterBy
                             })
+                            // console.log('fo data?', columnName, data)
                             if(isStale) {
                                 setLoading(false)
                                 return;
                             }
-                            const metaOptions = state.columns.find(({name}) => name === columnName)?.options;
+                            // not adding options from meta to allow options to filter down wrt other filter values
+                            const metaOptions = [] //state.columns.find(({name}) => name === columnName)?.options;
                             const dataOptions = data.reduce((acc, d) => {
                                 // array values flattened here for multiselects.
                                 const formattedAttrStr = getFormattedAttributeStr(columnName);
@@ -206,7 +211,7 @@ export const RenderFilters = ({
                 isStale = true;
                 setLoading(false);
             }
-    }, [filterColumnsToTrack]);
+    }, [filterColumnsToTrack, filterValuesToTrack]);
 
     const filterColumnsToRender = state.columns.filter(column => isEdit ? column.filters?.length : (column.filters || []).find(c => c.type === 'external'));
     if(!filterColumnsToRender.length) return null;
@@ -214,7 +219,7 @@ export const RenderFilters = ({
     // initially you'll have internal filter
     // add UI dropdown to change filter type
     // add UI to change filter operation
-    console.log('filters', filterColumnsToRender)
+    // console.log('filters', filterOptions)
     return (
         open ?
             <div className={theme.filters.filtersWrapper}>
