@@ -191,6 +191,14 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
         const fullColumn = { name, display, meta, refName, type };
         const reqName = getColAccessor({ ...fullColumn, fn: undefined }, state.sourceInfo.isDms);
 
+        const selectedValues =
+            (filter[columnName] || exclude[columnName] || [])
+                .map(o => o?.value || o)
+                .map(o => o === null ? 'null' : o)
+                .filter(o => o);
+
+        if (!selectedValues.length) continue;
+
         if (type === 'multiselect'/* || type === 'calculated'*/) {
             const options = await getFilterData({
                 reqName,
@@ -199,9 +207,6 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
                 apiLoad,
                 format: state.sourceInfo
             });
-
-            const selectedValues = (filter[columnName] || exclude[columnName] || []).map(o => o?.value || o).map(o => o === null ? 'null' : o).filter(o => o);
-            if (!selectedValues.length) continue;
 
             try {
                 const matchedOptions = options

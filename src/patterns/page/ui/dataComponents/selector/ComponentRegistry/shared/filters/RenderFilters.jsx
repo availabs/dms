@@ -1,6 +1,5 @@
 import React, {useCallback, useEffect, useMemo, useState} from "react";
-import {attributeAccessorStr} from "../../../dataWrapper/utils/utils";
-import {Filter} from "../../../../../icons";
+import {attributeAccessorStr, isJson} from "../../../dataWrapper/utils/utils";
 import {
     getData,
     parseIfJson,
@@ -8,7 +7,7 @@ import {
     isCalculatedCol,
     convertToUrlParams,
     formattedAttributeStr,
-    getNormalFilters
+    getNormalFilters, getData as getFilterData
 } from "./utils"
 import {isEqual, uniqBy} from "lodash-es"
 import {RenderFilterValueSelector} from "./Components/RenderFilterValueSelector";
@@ -101,8 +100,62 @@ export const RenderFilters = ({
                             if(filter?.type === 'external') return true;
                         })
                         .map(async columnName => {
-                            const filterBy = {};
+                            const [filterBy] = await Promise.all([Object.keys(filters)
+                                .filter(f => f !== columnName)
+                                .reduce(async function (acc, columnName) {
+                                    const filterColumn = state.columns.find(({name}) => name === columnName);
+                                    const filter = state.columns.find(({name}) => name === columnName)?.filters?.[0];
+                                    if (!filter.values?.length) return acc;
 
+                                    // console.log('filter column', filterColumn)
+                                    if (filterColumn.type === 'multiselect') {
+                                        const reqName = getFormattedAttributeStr(columnName);
+                                        const options = await getFilterData({
+                                            reqName, // column name with as
+                                            refName: getAttributeAccessorStr(columnName), // column name without as
+                                            allAttributes: [filterColumn],
+                                            apiLoad,
+                                            format: state.sourceInfo,
+                                        });
+
+                                        const selectedValues =
+                                            filter.values
+                                                .map(o => o?.value || o)
+                                                .map(o => o === null ? 'null' : o)
+                                                .filter(o => o);
+
+                                        const matchedOptions = options
+                                            .map(row => {
+                                                const option = row[reqName]?.value || row[reqName];
+                                                const parsedOption =
+                                                    isJson(option) && Array.isArray(JSON.parse(option)) ? JSON.parse(option) :
+                                                        Array.isArray(option) ? option :
+                                                            typeof option === 'string' ? [option] : [];
+                                                return parsedOption.find(o => selectedValues.includes(o)) ? option : null;
+                                            })
+                                            .filter(option => option);
+
+                                        // console.log('matched values ', matchedOptions)
+
+                                        if(!matchedOptions?.length) return acc;
+
+                                        acc[filter.operation] = {
+                                            ...acc[filter.operation] || {},
+                                            [getAttributeAccessorStr(columnName)]: matchedOptions
+                                        };
+                                        // select column where its own filter values are applied. get the valuesets, and use them in place for filter.values
+                                    }else{
+                                        acc[filter.operation] = {
+                                            ...acc[filter.operation] || {},
+                                            [getAttributeAccessorStr(columnName)]: filter.values
+                                        };
+                                    }
+                                    return acc;
+                                }, {})])
+                            // console.log('fo?,', filterBy)
+                            // get all the filters with value
+                            // build a filterOptions object including each filter type (filter, exclude, gt, gte...),
+                            // for filter and exclude types, and multiselect column combination, pull value sets for
                             const data = await getData({
                                 format: state.sourceInfo,
                                 apiLoad,
@@ -138,7 +191,7 @@ export const RenderFilters = ({
                                 uniqValues: uniqBy(Array.isArray(metaOptions) ? [...metaOptions, ...dataOptions] : dataOptions, d => d.value),
                             }
                 }));
-                // const data = fetchedFilterData.reduce((acc, filterData) => ({...acc, [filterData.column]: filterData.uniqValues}) , {})
+
                 if(isStale) {
                     setLoading(false);
                     return
