@@ -69,6 +69,9 @@ export const sectionArrayTheme = {
         full: 'border border-sky-950 rounded-lg',
         openLeft: 'border border-sky-950 border-l-transparent rounded-r-lg',
         openRight: 'border border-sky-950 border-r-transparent rounded-l-lg',
+        openTop: 'border border-sky-950 border-t-transparent rounded-b-lg',
+        openBottom: 'border border-sky-950 border-b-transparent rounded-t-lg',
+        borderX: 'border border-sky-950 border-y-transparent'
     }
 }
 
