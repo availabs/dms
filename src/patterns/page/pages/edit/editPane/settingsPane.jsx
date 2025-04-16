@@ -1,6 +1,6 @@
 import React, {Fragment, useState} from 'react'
-import { cloneDeep,set } from 'lodash-es'
-import { Button, Menu, FieldSet } from '../../../ui'
+import { cloneDeep, set, get } from 'lodash-es'
+import { Button, Menu, FieldSet, Icon } from '../../../ui'
 import { CMSContext } from '../../../siteConfig'
 import { timeAgo } from '../../_utils'
 import { Add, CaretDown } from "../../../ui/icons";
@@ -10,9 +10,21 @@ import { PageContext } from '../../view'
 
 
 function SettingsPane () {
-  const { baseUrl, user  } = React.useContext(CMSContext) || {}
+  const { baseUrl, user, theme  } = React.useContext(CMSContext) || {}
   const { item, dataItems, apiUpdate } =  React.useContext(PageContext) || {}
 
+  const themeSettings = React.useMemo(() => {
+    return (theme?.pageOptions?.settingsPane || [])
+      .map(setting => {
+        setting.value = get(item, setting.location, setting.default || '')
+        setting.onChange = (e) => {
+          togglePageSetting(item, setting.location, e.target.value,  apiUpdate)
+        }
+        return setting
+      }).filter(d => d)
+  },[theme?.pageOptions?.settingsPane, item])
+
+  //console.log(themeSettings)
   return (
     <div className="flex h-full flex-col">
       <div className="px-4 sm:px-6 py-2">
@@ -33,7 +45,7 @@ function SettingsPane () {
             value: item.title,
             onChange: (val) => {
               console.log('Change page Name', val)
-              updateTitle  ( item, dataItems, val, user, apiUpdate)
+              updateTitle ( item, dataItems, val, user, apiUpdate)
             }
           },
           {
@@ -76,13 +88,36 @@ function SettingsPane () {
             }
           },
           {
+            type:'Listbox',
+            label: 'Icon Test',
+            value:  'holaholahola',
+            options: [
+                  {label: <div className='flex'>
+                    <div className='px-2'>
+                      <Icon icon='test' className='size-6' />
+                    </div>
+                    <div>
+                      Test
+                    </div>
+                    </div>, value: 'compact'}, 
+                  {label: 'Hide', value: 'none'}
+                  
+            ],
+            onChange:(e) => {
+              console.log('update icon thing', e.target.value)
+              //togglePageSetting(item, 'navOptions.sideNav.size', e.target.value,  apiUpdate)
+            
+            }
+          },
+          {
             type:'Input',
             label: 'Page Description',
             value: item?.description || '',
             onChange:(e) => {
               togglePageSetting(item, 'description', e.target.value,  apiUpdate)
             }
-          }
+          },
+          ...themeSettings
         ]} />
       </div>
     </div>          

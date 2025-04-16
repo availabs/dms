@@ -116,8 +116,8 @@ export default function SectionGroupsPane () {
         <PublishButton />
       </div>*/}
       <div className="relative mt-6 flex-1 px-4 sm:px-6 w-full h-screen overflow-y-auto">
-        {sectionTargets.map(target => (
-          <div className='h-full'>
+        {sectionTargets.map((target,i) => (
+          <div className='h-full' key={i}>
             <div className="flex items-start">
               <h1 className="text-base font-semibold uppercase leading-6 text-gray-900">
                 {target}
@@ -128,7 +128,7 @@ export default function SectionGroupsPane () {
               item?.draft_section_groups
                 .filter((g,i) => g.position === target)
                 .sort((a,b) => a?.index - b?.index)
-                .map((group,i) => <SectionGroupControl group={group} />)
+                .map((group,i) => <SectionGroupControl group={group} key={i} />)
             }
           </div>
         ))}

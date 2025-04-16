@@ -1,6 +1,6 @@
 import React, {useEffect} from 'react'
 import { NavLink, Link, useSubmit, useNavigate, useLocation, useParams} from "react-router-dom";
-import { cloneDeep } from "lodash-es"
+import { cloneDeep, merge } from "lodash-es"
 import { v4 as uuidv4 } from 'uuid';
 
 
@@ -22,7 +22,7 @@ function PageEdit ({
 	const navigate = useNavigate()
 	const submit = useSubmit()
 	const { pathname = '/edit' } = useLocation()
-	const { baseUrl, user, theme } = React.useContext(CMSContext) || {}
+	let { baseUrl, user, theme } = React.useContext(CMSContext) || {}
 	const [ editPane, setEditPane ] = React.useState({ open: false, index: 1, showGrid: false })
 	  
 	const menuItems = React.useMemo(() => {
@@ -31,12 +31,13 @@ function PageEdit ({
 	}, [dataItems])
 
 	  // console.log('-----------render edit----------------')
+	theme = merge(cloneDeep(theme), item?.theme || {})
 	const level = item?.index == '999' || theme?.navOptions?.topNav?.nav !== 'main' ? 1 : detectNavLevel(dataItems, baseUrl);
 	const inPageNav = getInPageNav(item, theme);
 	const sectionAttr = attributes?.['sections']?.attributes || {}
 
 	React.useEffect(() => {
-	    if(!item?.url_slug) {
+	  if(!item?.url_slug) {
 	      let defaultItem = dataItems
 	        .sort((a,b) => a.index-b.index)
 	        .find(d=> !d.parent && d.url_slug);
@@ -47,7 +48,7 @@ function PageEdit ({
 			if(defaultUrl && pathname !== defaultUrl){
 			  navigate(defaultUrl)
 		  }
-	    }
+	  }
 	},[])
 
 	React.useEffect(() => {

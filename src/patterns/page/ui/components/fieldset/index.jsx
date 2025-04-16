@@ -1,6 +1,7 @@
 import React from 'react'
 import { Field, Fieldset, Label, Description } from '@headlessui/react'
-import Select from '../select/'
+import Select from '../select'
+import Listbox from '../listbox'
 import Input, {ConfirmInput} from '../input'
 
 import { CMSContext } from '../../../siteConfig';
@@ -9,7 +10,8 @@ import { CMSContext } from '../../../siteConfig';
 const componentRegistry= {
   Input,
   ConfirmInput,
-  Select
+  Select,
+  Listbox
 }
 
 export const fieldTheme = {

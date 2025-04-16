@@ -268,7 +268,6 @@ export function getInPageNav(item, theme) {
                 return [...acc, ...heading]
             }, []) : []
 
-        console.log('page nav test', title, toTitleCase(title))
         return [
             ...acc,
             {

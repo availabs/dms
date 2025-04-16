@@ -5,8 +5,8 @@ import { matchRoutes } from 'react-router-dom'
 import { cloneDeep } from "lodash-es"
 import { get } from "lodash-es"
 
-const DefaultComponent = Components.devinfo
-const DefaultWrapper = Wrappers.error
+const DefaultComponent = Components?.devinfo
+const DefaultWrapper = Wrappers?.error
 let childKey = 0
 
 
