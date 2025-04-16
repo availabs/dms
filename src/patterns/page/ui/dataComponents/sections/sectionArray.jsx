@@ -318,7 +318,7 @@ const View = ({value, attr, group, siteType}) => {
                                     ${v?.is_header ? '' : v?.padding ?  v.padding : theme.sectionArray.sectionPadding}
                                     ${theme?.sectionArray?.sectionViewWrapper} 
                                     ${colspanClass} ${rowspanClass}
-                                    
+                                    ${theme?.sectionArray?.border?.[v?.border || 'none']}
                                 `}
                                 style={{ paddingTop: v?.offset }}
                             >   
