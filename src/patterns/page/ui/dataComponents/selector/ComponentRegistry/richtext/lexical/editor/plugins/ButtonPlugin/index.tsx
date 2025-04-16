@@ -121,6 +121,8 @@ export function InsertButtonDialog({
         <option value="secondary">Secondary</option>
         <option value="primarySmall">Primary Small</option>
         <option value="secondarySmall">Secondary Small</option>
+        <option value="whiteSmall">White Small</option>
+
       </Select>
 
       <DialogActions>

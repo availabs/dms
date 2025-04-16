@@ -31,6 +31,7 @@ const BUTTON_STYLES = {
   secondary: 'w-fit h-fit cursor-pointer uppercase border boder-[#E0EBF0] bg-white hover:bg-[#E0EBF0] text-[#37576B] font-[700] leading-[14.62px] rounded-full text-[12px] text-center py-[16px] px-[24px]',
   primarySmall: 'w-fit h-fit cursor-pointer uppercase bg-[#EAAD43] hover:bg-[#F1CA87] text-[#37576B] font-[700] leading-[14.62px] rounded-full text-[12px] text-center pt-[9px] pb-[7px] px-[12px]',
   secondarySmall: 'w-fit h-fit cursor-pointer uppercase border bg-[#E0EBF0] hover:bg-[#C5D7E0] text-[#37576B] font-[700] leading-[14.62px] rounded-full text-[12px] text-center pt-[9px] pb-[7px] px-[12px]',  
+  whiteSmall: 'w-fit h-fit cursor-pointer uppercase border boder-[#E0EBF0] bg-white hover:bg-[#E0EBF0] text-[#37576B] font-[700] leading-[14.62px] rounded-full text-[12px] text-center pt-[9px] pb-[7px] px-[12px]',  
 } 
 
 function ButtonComponent({
