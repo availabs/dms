@@ -44,6 +44,9 @@ export function getChildNav(item, dataItems, baseUrl='', edit) {
             description: d.description,
             hideInNav: d.hide_in_nav
         }
+        if(d?.icon && d?.icon !== 'none') {
+                item.icon = d.icon
+        }
         const inPageChildrenForD =  getInPageNav(d)?.menuItems || [];
         const childrenForD = getChildNav(d, dataItems, baseUrl, edit) || [];
         item.subMenus = childrenForD.filter(d => d.name)
@@ -87,6 +90,9 @@ export function dataItemsNav(dataItems, baseUrl = '', edit = false, level=1) {
                 name: `${d.title} ${d.published === 'draft' ? '*' : ''}`,
                 description: d.description,
                 hideInNav: d.hide_in_nav
+            }
+            if(d?.icon && d?.icon !== 'none') {
+                item.icon = d.icon
             }
 
             if (getChildNav(item, dataItems, baseUrl, edit)) {

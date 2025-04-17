@@ -107,11 +107,19 @@ const NavItem = ({
 									}
 								/>
 							)}
-							<div className={theme?.navItemContent}>
-								<div>{navItem?.name}</div>
-								{navItem?.description && (
-									<div className={theme?.navItemDescription?.[depth] || theme?.navItemDescription}>
-										{navItem?.description}
+							<div>
+								{navItem?.description ? (
+									<>
+										<div  className={''}>
+											{navItem?.name}
+										</div>
+										<div className={theme?.navItemDescription?.[depth] || theme?.navItemDescription}>
+											{navItem?.description}
+										</div>
+									</>
+								) : (
+									<div  className={theme?.navItemContent?.[depth] || theme?.navItemContent?.[0]}>
+										{navItem?.name}
 									</div>
 								)}
 							</div>
