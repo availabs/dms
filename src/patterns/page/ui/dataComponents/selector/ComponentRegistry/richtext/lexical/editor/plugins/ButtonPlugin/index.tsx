@@ -151,7 +151,7 @@ export default function ButtonPlugin(): JSX.Element | null {
         (payload) => {
           const buttonNode = $createButtonNode(payload);
           $insertNodes([buttonNode]);
-          $wrapNodeInElement(buttonNode, $createParagraphNode).selectEnd();
+          // $wrapNodeInElement(buttonNode, $createParagraphNode).selectEnd();
           return true;
         },
         COMMAND_PRIORITY_EDITOR,

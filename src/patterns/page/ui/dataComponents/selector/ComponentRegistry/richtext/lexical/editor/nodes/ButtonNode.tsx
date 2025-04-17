@@ -19,9 +19,9 @@ import type {
 } from 'lexical';
 import {useLexicalEditable} from '@lexical/react/useLexicalEditable';
 import {
-  DecoratorBlockNode,
-  SerializedDecoratorBlockNode,
-} from '@lexical/react/LexicalDecoratorBlockNode';
+  DecoratorNode,
+  SerializedDecoratorNode,
+} from 'lexical';
 
 import * as React from 'react';
 import {Link} from 'react-router-dom'
@@ -60,7 +60,7 @@ export type SerializedButtonNode = Spread<
     path: string;
     style: string;
   },
-  SerializedDecoratorBlockNode
+  SerializedDecoratorNode
 >;
 
 function convertButtonElement(
@@ -77,7 +77,7 @@ function convertButtonElement(
   return null;
 }
 
-export class ButtonNode extends DecoratorBlockNode {
+export class ButtonNode extends DecoratorNode {
   __linkText: string;
   __path: string;
   __style: string;
@@ -87,12 +87,12 @@ export class ButtonNode extends DecoratorBlockNode {
   }
 
   static clone(node: ButtonNode): ButtonNode {
-    return new ButtonNode(node.__linkText, node.__path, node.__style, node.__format, node.__key);
+    return new ButtonNode(node.__linkText, node.__path, node.__style, node.__key);
   }
 
   static importJSON(serializedNode): ButtonNode {
     const node = $createButtonNode({linkText: serializedNode.linkText, path:serializedNode.path, style:serializedNode.style});
-    node.setFormat(serializedNode.format);
+
     return node;
   }
 
@@ -107,11 +107,17 @@ export class ButtonNode extends DecoratorBlockNode {
     };
   }
 
-  constructor(linkText: string, path?: string, style?: string, format?: ElementFormatType, key?: NodeKey) {
-    super(format, key);
+  constructor(linkText: string, path?: string, style?: string, key?: NodeKey) {
+    super(key);
     this.__linkText = linkText;
     this.__path = path;
     this.__style = style;
+  }
+
+  createDOM(config: EditorConfig): HTMLElement {
+    const element = document.createElement('span'); // or 'a', but span is safest for inline
+    element.setAttribute('data-lexical-button', 'true');
+    return element;
   }
 
   exportDOM(): DOMExportOutput {
@@ -125,7 +131,7 @@ export class ButtonNode extends DecoratorBlockNode {
 
   static importDOM(): DOMConversionMap | null {
     return {
-      div: (domNode: HTMLElement) => {
+      a: (domNode: HTMLElement) => {
         if (!domNode.hasAttribute('data-lexical-button')) {
           return null;
         }
@@ -157,8 +163,8 @@ export class ButtonNode extends DecoratorBlockNode {
     );
   }
 
-  isInline(): false {
-    return false;
+  isInline(): true {
+    return true;
   }
 }
 
