@@ -1,92 +1,63 @@
-/**
- * Copyright (c) Meta Platforms, Inc. and affiliates.
- *
- * This source code is licensed under the MIT license found in the
- * LICENSE file in the root directory of this source tree.
- *
- */
-
-import type {
-  EditorConfig,
-  LexicalNode,
-  NodeKey,
-  SerializedTextNode,
-  Spread,
+import React from 'react';
+import {
+    DecoratorNode,
+    SerializedDecoratorNode,
 } from 'lexical';
+// import { Icons } from '../plugins/EmojiPickerPlugin';  // Make sure this is where your SVGs are stored
 
-import {$applyNodeReplacement, TextNode} from 'lexical';
+export class IconNode extends DecoratorNode<JSX.Element> {
+    __iconName: string;
 
-export type SerializedIconNode = Spread<
-  {
-    className: string;
-  },
-  SerializedTextNode
->;
-
-export class IconNode extends TextNode {
-  __className: string;
-
-  static getType(): string {
-    return 'emoji';
-  }
-
-  static clone(node: IconNode): IconNode {
-    return new IconNode(node.__className, node.__text, node.__key);
-  }
-
-  constructor(className: string, text: string, key?: NodeKey) {
-    super(text, key);
-    this.__className = className;
-  }
-
-  createDOM(config: EditorConfig): HTMLElement {
-    const dom = document.createElement('span');
-    const inner = super.createDOM(config);
-    dom.className = this.__className;
-    inner.className = 'emoji-inner';
-    dom.appendChild(inner);
-    return dom;
-  }
-
-  updateDOM(prevNode: this, dom: HTMLElement, config: EditorConfig): boolean {
-    const inner = dom.firstChild;
-    if (inner === null) {
-      return true;
+    static getType(): string {
+        return 'icon';
     }
-    super.updateDOM(prevNode, inner as HTMLElement, config);
-    return false;
-  }
 
-  static importJSON(serializedNode: SerializedIconNode): IconNode {
-    return $createIconNode(
-      serializedNode.className,
-      serializedNode.text,
-    ).updateFromJSON(serializedNode);
-  }
+    static clone(node: IconNode): IconNode {
+        return new IconNode(node.__iconName, node.__key);
+    }
 
-  exportJSON(): SerializedIconNode {
-    return {
-      ...super.exportJSON(),
-      className: this.getClassName(),
-    };
-  }
+    constructor(iconName: string, key?: NodeKey) {
+        super(key);
+        this.__iconName = iconName;
+    }
 
-  getClassName(): string {
-    const self = this.getLatest();
-    return self.__className;
-  }
+    static importJSON(serializedNode: any): IconNode {
+        return new IconNode(serializedNode.iconName);
+    }
+
+    exportJSON(): any {
+        return {
+            type: 'icon',
+            version: 1,
+            iconName: this.__iconName,
+        };
+    }
+
+    createDOM(config): HTMLElement {
+        console.log('config icon', config)
+        const span = document.createElement('span');
+        span.className = 'inline-block align-middle mr-1';
+        return span;
+    }
+
+    updateDOM(): false {
+        return false;
+    }
+
+    decorate(editor: LexicalEditor, config: EditorConfig): JSX.Element {
+        console.log('config in decorate', config.theme)
+        const Icon = config?.theme?.Icons[this.__iconName];
+        if (!Icon) {
+            return <span>Icon not found</span>;
+        }
+        return React.createElement(Icon, { className: 'w-[1em] h-[1em]' });
+    }
+
+    isInline(): true {
+        return true;
+    }
 }
 
-export function $isIconNode(
-  node: LexicalNode | null | undefined,
-): node is IconNode {
-  return node instanceof IconNode;
-}
-
-export function $createIconNode(
-  className: string,
-  emojiText: string,
-): IconNode {
-  const node = new IconNode(className, emojiText).setMode('token');
-  return $applyNodeReplacement(node);
+export function $createIconNode(iconName: string): IconNode {
+    return new IconNode(iconName);
 }

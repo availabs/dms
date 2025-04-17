@@ -46,6 +46,7 @@ import {LayoutItemNode} from './LayoutItemNode';
 import {YouTubeNode} from './YouTubeNode';
 
 import { ButtonNode } from './ButtonNode'
+import { IconNode } from "./IconNode";
 
 const PlaygroundNodes: Array<Klass<LexicalNode>> = [
   HeadingNode,
@@ -89,7 +90,8 @@ const PlaygroundNodes: Array<Klass<LexicalNode>> = [
 
   LayoutContainerNode,
   LayoutItemNode,
-  ButtonNode
+  ButtonNode,
+  IconNode
 ];
 
 export default PlaygroundNodes;

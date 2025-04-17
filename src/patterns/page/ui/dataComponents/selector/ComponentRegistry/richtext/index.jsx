@@ -1,10 +1,10 @@
-import React, {useEffect, useState} from "react"
+import React, {useContext, useEffect, useState} from "react"
 import LexicalComp from "./lexical"
 import {ColorPickerComp} from "./components/colorPickerComp";
 import theme from './theme'
-import RenderSwitch from "../../dataWrapper/components/Switch";
 import { Select } from  '../../../../' 
 import {merge, cloneDeep} from 'lodash-es'
+import {CMSContext} from "../../../../../siteConfig";
 
 const isJson = (str)  => {
     try {
@@ -92,6 +92,7 @@ const cardTypes = {
 }
 
 const Edit = ({value, onChange}) => {
+    const context = useContext(CMSContext);
     const cachedData = value && isJson(value) ? JSON.parse(value) : {}
     const emptyTextBlock = {text: '', size: '4xl', color: '000000'};
     const [bgColor, setBgColor] = useState(cachedData?.bgColor || 'rgba(0,0,0,0)');
@@ -158,8 +159,8 @@ const Edit = ({value, onChange}) => {
                             bgColor={bgColor} 
                             theme={{
                                 lexical: isCard ? 
-                                    merge(cloneDeep(theme), cloneDeep(cardTypes?.[isCard] || cardTypes?.['Annotation'])) : 
-                                    theme
+                                    merge(cloneDeep(theme), cloneDeep(cardTypes?.[isCard] || cardTypes?.['Annotation']), {Icons: context?.theme?.Icons || {}}) :
+                                    merge(theme, {Icons: context?.theme?.Icons || {}})
                             }}
                         />
                     </div>
@@ -175,6 +176,7 @@ Edit.settings = {
 }
 
 const View = ({value}) => {
+    const context = useContext(CMSContext);
     if (!value) return <div className='h-6' />
     let data = typeof value === 'object' ?
         value['element-data'] :
@@ -200,8 +202,8 @@ const View = ({value}) => {
                 bgColor={data?.bgColor} 
                 theme={{
                     lexical: isCard ? 
-                         merge(cloneDeep(theme), cloneDeep(cardTypes?.[isCard] || cardTypes?.['Annotation'])) :
-                        theme
+                         merge(cloneDeep(theme), cloneDeep(cardTypes?.[isCard] || cardTypes?.['Annotation']), {Icons: context?.theme?.Icons || {}}) :
+                        merge(theme, {Icons: context?.theme?.Icons || {}})
                 }}/>
             </div>
         </div>
