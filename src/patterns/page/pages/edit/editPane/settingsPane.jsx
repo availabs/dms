@@ -90,7 +90,7 @@ function SettingsPane () {
           {
             type:'Listbox',
             label: 'Icon Test',
-            value:  'holaholahola',
+            value:  'none',
             options: [
                   {label: <div className='flex'>
                     <div className='px-2'>

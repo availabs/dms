@@ -485,7 +485,7 @@ const strColorMap = {
 export const formatFunctions = {
     'abbreviate': (d, isDollar) => fnumIndex(d, 1, isDollar),
     'comma': (d, isDollar) => fnum(d, isDollar),
-    'icon': (strValue, props) => <><Icon icon={strValue} {...props}/> <span>{strValue}</span></>,
+    'icon': (strValue, props) => <><Icon icon={strValue} className={'size-8'} {...props}/> <span>{strValue}</span></>,
     'color': (strValue, map) => <>
         <div style={{borderRadius: '1000px', height: '10px', width: '10px', backgroundColor: map?.[strValue] || strColorMap[strValue] || strColorMap.default}} />
         <div>{strValue}</div>
