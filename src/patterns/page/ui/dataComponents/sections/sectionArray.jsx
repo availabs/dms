@@ -71,10 +71,10 @@ export const sectionArrayTheme = {
         none: '',
         full: 'border border-[#E0EBF0] rounded-lg',
         openLeft: 'border border-[#E0EBF0] border-l-transparent rounded-r-lg',
-        openRight: 'border border-sky-950 border-r-transparent rounded-l-lg',
-        openTop: 'border border-sky-950 border-t-transparent rounded-b-lg',
-        openBottom: 'border border-sky-950 border-b-transparent rounded-t-lg',
-        borderX: 'border border-sky-950 border-y-transparent'
+        openRight: 'border border-[#E0EBF0] border-r-transparent rounded-l-lg',
+        openTop: 'border border-[#E0EBF0] border-t-transparent rounded-b-lg',
+        openBottom: 'border border-[#E0EBF0] border-b-transparent rounded-t-lg',
+        borderX: 'border border-[#E0EBF0] border-y-transparent'
     }
 }
 

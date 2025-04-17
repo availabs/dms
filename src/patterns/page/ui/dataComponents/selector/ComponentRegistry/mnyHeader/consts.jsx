@@ -183,7 +183,8 @@ export const overlayImageOptions = [
         "label": "Set1 - Wind",
         "value": "/themes/mny/Wind - transparent.webp"
     }
-    ]
+
+]
 
 
 export const insetImageOptions = [
