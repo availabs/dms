@@ -399,7 +399,7 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
                 {/* -------------------END top line buttons ----------------------*/}
                 {/* -------------------Section Header ----------------------*/}
                 {(sectionTitleCondition || interactCondition) && (
-                    <div className={`flex w-full min-h-[50px] items-center  pb-2 ${value?.['title'] ? '' : '-mt-[20px]'} ${false && 'border border-dashed border-pink-500'}`}>
+                    <div className={`flex w-full min-h-[50px] items-center  pb-2 ${value?.['title'] ? '' : 'absolute top-2 -right-2 -left-2'} ${false && 'border border-dashed border-pink-500'}`}>
 
                         <div id={`#${value?.title?.replace(/ /g, '_')}`}
                              className={`flex-1 flex flex-row pb-2 font-display font-medium uppercase scroll-mt-36 items-center ${sectionTitleCondition ? '' : 'invisible'}`}>
