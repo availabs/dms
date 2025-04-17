@@ -12,7 +12,7 @@ const theme = {
     "border-0 flex relative outline-0 z-0 resize-none", //.view-scroller
   editorContainer: "relative block rounded-[10px] min-h-[50px]", //'.editor-shell .editor-container'
   editorShell: "font-['Proxima_Nova'] font-[400] text-[1rem] text-slate-700 leading-[22.4px]",
-  card: 'p-[12px] shadow-[0px_0px_6px_0px_rgba(0,0,0,0.02),0px_2px_4px_0px_rgba(0,0,0,0.08)]', 
+  card: 'overflow-hidden p-[12px] shadow-[0px_0px_6px_0px_rgba(0,0,0,0.02),0px_2px_4px_0px_rgba(0,0,0,0.08)]',
   paragraph: "-ml-8 pl-8 relative", //'PlaygroundEditorTheme__paragraph',
   contentEditable: 'border-none relative [tab-size:1] outline-none outline-0',
   
@@ -364,14 +364,14 @@ const theme = {
         "block absolute bottom-5 left-0 right-0 w-[30%] mx-auto p-2 border border-white/30 rounded bg-black bg-opacity-50 min-w-[100px] text-white cursor-pointer select-none hover:bg-blue-500", // .editor-shell .editor-image .image-caption-button,
       resizer: {
         base: "block w-[7px] h-[7px] absolute bg-blue-600 border border-white", // .editor-shell .editor-image .image-resizer
-        n: "top-[-6px] left-[48%] cursor-n-resize", //.editor-shell .editor-image .image-resizer.image-resizer-n
-        ne: "top-[-6px] right-[-6px] cursor-ne-resize", //.editor-shell .editor-image .image-resizer.image-resizer-ne
-        e: "bottom-[48%] right-[-6px] cursor-e-resize", //.editor-shell .editor-image .image-resizer.image-resizer-e
-        se: "bottom-[-2px] right-[-6px] cursor-nwse-resize", //.editor-shell .editor-image .image-resizer.image-resizer-se
-        s: "bottom-[-2px] left-[48%] cursor-s-resize", //.editor-shell .editor-image .image-resizer.image-resizer-s
-        sw: "bottom-[-2px] left-[-6px] cursor-sw-resize", //.editor-shell .editor-image .image-resizer.image-resizer-sw
-        w: "bottom-[48%] left-[-6px] cursor-w-resize", //.editor-shell .editor-image .image-resizer.image-resizer-w
-        nw: "top-[-6px] left-[-6px] cursor-nw-resize", //.editor-shell .editor-image .image-resizer.image-resizer-nw
+        n: "z-[10] top-[-6px] left-[48%] cursor-n-resize", //.editor-shell .editor-image .image-resizer.image-resizer-n
+        ne: "z-[10] top-[-6px] right-[-6px] cursor-ne-resize", //.editor-shell .editor-image .image-resizer.image-resizer-ne
+        e: "z-[10] bottom-[48%] right-[-6px] cursor-e-resize", //.editor-shell .editor-image .image-resizer.image-resizer-e
+        se: "z-[10] bottom-[-2px] right-[-6px] cursor-se-resize", //.editor-shell .editor-image .image-resizer.image-resizer-se
+        s: "z-[10] bottom-[-2px] left-[48%] cursor-s-resize", //.editor-shell .editor-image .image-resizer.image-resizer-s
+        sw: "z-[10] bottom-[-2px] left-[-6px] cursor-sw-resize", //.editor-shell .editor-image .image-resizer.image-resizer-sw
+        w: "z-[10] bottom-[48%] left-[-6px] cursor-w-resize", //.editor-shell .editor-image .image-resizer.image-resizer-w
+        nw: "z-[10] top-[-6px] left-[-6px] cursor-nw-resize", //.editor-shell .editor-image .image-resizer.image-resizer-nw
       },
     },
     inlineImage: {
@@ -400,7 +400,7 @@ const theme = {
         n: "top-[-6px] left-[48%] cursor-n-resize", //  .editor-shell .inline-editor-image .image-resizer.image-resizer-n
         ne: "top-[-6px] right-[-6px] cursor-ne-resize", //.editor-shell .inline-editor-image .image-resizer.image-resizer-ne
         e: "bottom-[48%] right-[-6px] cursor-e-resize", // .editor-shell .inline-editor-image .image-resizer.image-resizer-e
-        se: "bottom-[-2px] right-[-6px] cursor-nwse-resize", // .editor-shell .inline-editor-image .image-resizer.image-resizer-se
+        se: "bottom-[-2px] right-[-6px] cursor-se-resize", // .editor-shell .inline-editor-image .image-resizer.image-resizer-se
         s: "bottom-[-2px] left-[48%] cursor-s-resize", // .editor-shell .inline-editor-image .image-resizer.image-resizer-s
         sw: "bottom-[-2px] left-[-6px] cursor-sw-resize", // .editor-shell .inline-editor-image .image-resizer.image-resizer-sw
         w: "bottom-[48%] left-[-6px] cursor-w-resize", // .editor-shell .inline-editor-image .image-resizer.image-resizer-w

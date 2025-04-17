@@ -35,10 +35,10 @@ const cardTypes = {
     },
    'Annotation' : {
         contentEditable: 'border-none relative [tab-size:1] outline-none ',
-        editorContainer: "relative block rounded-[12px] min-h-[50px] shadow-[0px_0px_6px_0px_rgba(0,0,0,0.02),0px_2px_4px_0px_rgba(0,0,0,0.08)]", //'.editor-shell .editor-container'
-        editorViewContainer: "relative block rounded-[12px] shadow-[0px_0px_6px_0px_rgba(0,0,0,0.02),0px_2px_4px_0px_rgba(0,0,0,0.08)]", // .editor-shell .view-container
+        editorContainer: "relative block rounded-[12px] min-h-[50px] shadow-[0px_0px_6px_0px_rgba(0,0,0,0.02),0px_2px_4px_0px_rgba(0,0,0,0.08)] overflow-hidden", //'.editor-shell .editor-container'
+        editorViewContainer: "relative block rounded-[12px] shadow-[0px_0px_6px_0px_rgba(0,0,0,0.02),0px_2px_4px_0px_rgba(0,0,0,0.08)] overflow-hidden", // .editor-shell .view-container
        
-        paragraph: "m-0 relative px-[16px]",
+        paragraph: "m-0 relative px-[12px]",
         layoutContainer: 'grid',
         layoutItem: 'border-b border-slate-300 min-w-0 max-w-full',
         editor: {
