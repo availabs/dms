@@ -50,7 +50,7 @@ export class IconNode extends DecoratorNode<JSX.Element> {
         if (!Icon) {
             return <span>Icon not found</span>;
         }
-        return React.createElement(Icon, { className: 'w-[1em] h-[1em]' });
+        return React.createElement(Icon, { className: 'w-[1.5em] h-[1.5em] -mt-[5px]' });
     }
 
     isInline(): true {
