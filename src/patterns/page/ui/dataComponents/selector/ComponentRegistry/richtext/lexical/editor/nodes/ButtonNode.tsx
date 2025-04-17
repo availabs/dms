@@ -17,7 +17,7 @@ import type {
   NodeKey,
   Spread,
 } from 'lexical';
-
+import {useLexicalEditable} from '@lexical/react/useLexicalEditable';
 import {
   DecoratorBlockNode,
   SerializedDecoratorBlockNode,
@@ -35,24 +35,19 @@ const BUTTON_STYLES = {
 } 
 
 function ButtonComponent({
-  format,
-  nodeKey,
-  linkText,
-  path,
-  style
-}) {
-  /*console.log('ButtonComponent classname', className)
-  console.log('ButtonComponent format',format, )
-  console.log('ButtonComponent nodekey', nodeKey)
-  console.log('ButtonComponent linkText',linkText)*/
-
+                           format,
+                           nodeKey,
+                           linkText,
+                           path,
+                           style
+                         }) {
+  const isEditable = useLexicalEditable();
   return (
-    <Link className={BUTTON_STYLES[style] || BUTTON_STYLES['primary']} to={path}>
-      {typeof linkText === 'string' ? linkText : 'submit'}
-    </Link>
+      <Link className={`${BUTTON_STYLES[style] || BUTTON_STYLES['primary']} ${isEditable ? `pointer-events-none` : ``}`} to={path}>
+        {typeof linkText === 'string' ? linkText : 'submit'}
+      </Link>
   );
 }
-
 export interface ButtonPayload {
     linkText: string;
     path: string;
