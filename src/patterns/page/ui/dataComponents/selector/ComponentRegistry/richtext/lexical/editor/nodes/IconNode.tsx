@@ -34,7 +34,7 @@ export class IconNode extends DecoratorNode<JSX.Element> {
     }
 
     createDOM(config): HTMLElement {
-        console.log('config icon', config)
+        //console.log('config icon', config)
         const span = document.createElement('span');
         span.className = 'inline-block align-middle mr-1';
         return span;
@@ -45,7 +45,7 @@ export class IconNode extends DecoratorNode<JSX.Element> {
     }
 
     decorate(editor: LexicalEditor, config: EditorConfig): JSX.Element {
-        console.log('config in decorate', config.theme)
+        //console.log('config in decorate', config.theme)
         const Icon = config?.theme?.Icons[this.__iconName];
         if (!Icon) {
             return <span>Icon not found</span>;

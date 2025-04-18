@@ -89,23 +89,30 @@ function SettingsPane () {
           },
           {
             type:'Listbox',
-            label: 'Icon Test',
-            value:  'none',
+            label: 'Icon',
+            value:  item?.icon,
             options: [
-                  {label: <div className='flex'>
-                    <div className='px-2'>
-                      <Icon icon='test' className='size-6' />
-                    </div>
-                    <div>
-                      Test
-                    </div>
-                    </div>, value: 'compact'}, 
-                  {label: 'Hide', value: 'none'}
-                  
+              ...Object.keys(theme.Icons)
+                .map((iconName) => {
+                  return {
+                    label: (
+                      <div className='flex'>
+                        <div className='px-2'>
+                          <Icon icon={iconName} className='size-6' />
+                        </div>
+                        <div>
+                          {iconName}
+                        </div>
+                      </div>
+                    ),
+                    value: iconName
+                  }
+                }),
+                {label: 'No Icon', value: 'none'}
             ],
             onChange:(e) => {
-              console.log('update icon thing', e.target.value)
-              //togglePageSetting(item, 'navOptions.sideNav.size', e.target.value,  apiUpdate)
+              //console.log('update icon thing', e)
+              togglePageSetting(item, 'icon', e,  apiUpdate)
             
             }
           },
