@@ -551,7 +551,7 @@ const theme = {
     active: "cursor-grabbing", // .draggable-block-menu:active
   },
   draggableBlockTargetLine: {
-    base: "pointer-events-none bg-deepskyblue h-1 absolute left-0 top-0 opacity-0 will-change-transform", // .draggable-block-target-line
+    base: "pointer-events-none bg-blue-500 h-1 absolute left-0 top-0 opacity-0 will-change-transform", // .draggable-block-target-line
   },
   floatingTextFormatPopup: {
     base: "flex bg-white p-1 align-middle absolute top-0 left-0 z-10 opacity-0 shadow-md rounded-lg transition-opacity duration-500 h-11 will-change-transform", // .floating-text-format-popup
