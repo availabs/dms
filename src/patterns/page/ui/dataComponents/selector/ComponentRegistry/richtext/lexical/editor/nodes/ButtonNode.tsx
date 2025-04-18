@@ -18,6 +18,7 @@ import type {
   Spread,
 } from 'lexical';
 import {useLexicalEditable} from '@lexical/react/useLexicalEditable';
+import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import {
   DecoratorNode,
   SerializedDecoratorNode,
@@ -25,6 +26,8 @@ import {
 
 import * as React from 'react';
 import {Link} from 'react-router-dom'
+import {InsertButtonDialog} from "../plugins/ButtonPlugin";
+import useModal from "../hooks/useModal";
 
 const BUTTON_STYLES = {
   primary: 'w-fit h-fit cursor-pointer uppercase bg-[#EAAD43] hover:bg-[#F1CA87] text-[#37576B] font-[700] leading-[14.62px] rounded-full text-[12px] text-center py-[16px] px-[24px]',
@@ -32,20 +35,39 @@ const BUTTON_STYLES = {
   primarySmall: 'w-fit h-fit cursor-pointer uppercase bg-[#EAAD43] hover:bg-[#F1CA87] text-[#37576B] font-[700] leading-[14.62px] rounded-full text-[12px] text-center pt-[9px] pb-[7px] px-[12px]',
   secondarySmall: 'w-fit h-fit cursor-pointer uppercase border bg-[#E0EBF0] hover:bg-[#C5D7E0] text-[#37576B] font-[700] leading-[14.62px] rounded-full text-[12px] text-center pt-[9px] pb-[7px] px-[12px]',  
   whiteSmall: 'w-fit h-fit cursor-pointer uppercase border boder-[#E0EBF0] bg-white hover:bg-[#E0EBF0] text-[#37576B] font-[700] leading-[14.62px] rounded-full text-[12px] text-center pt-[9px] pb-[7px] px-[12px]',  
-} 
+}
 
-function ButtonComponent({
-                           format,
-                           nodeKey,
-                           linkText,
-                           path,
-                           style
-                         }) {
+function ButtonComponent({nodeKey, linkText, path, style}) {
   const isEditable = useLexicalEditable();
+  const [editor] = useLexicalComposerContext();
+  const [modal, showModal] = useModal();
+  // type ShowModal = ReturnType<typeof useModal>[1];
+
   return (
-      <Link className={`${BUTTON_STYLES[style] || BUTTON_STYLES['primary']} ${isEditable ? `pointer-events-none` : ``}`} to={path}>
-        {typeof linkText === 'string' ? linkText : 'submit'}
-      </Link>
+      <>
+        {isEditable ? (
+            <div
+                className={`${BUTTON_STYLES[style] || BUTTON_STYLES['primary']}`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  showModal('Insert Button', (onClose) => (
+                      <InsertButtonDialog activeEditor={editor} onClose={onClose} initialValues={{linkText, path, style, nodeKey}}/>
+                  ))
+                }}
+            >
+              {linkText || 'submit'}
+            </div>
+        ) : (
+            <Link
+                className={`${BUTTON_STYLES[style] || BUTTON_STYLES['primary']}`}
+                to={path}
+            >
+              {linkText || 'submit'}
+            </Link>
+        )}
+
+        {modal}
+      </>
   );
 }
 export interface ButtonPayload {
