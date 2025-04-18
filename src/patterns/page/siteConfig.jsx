@@ -100,7 +100,7 @@ export const pagesConfig = ({
               "data->>'template_id'": ['null'],
             }
           }),
-          attributes:['title', 'index', 'url_slug', 'parent','published', 'description','icon','hide_in_nav']
+          attributes:['title', 'index', 'url_slug', 'parent','published', 'description','icon','navOptions','hide_in_nav']
         },
         children: [
           {
@@ -120,7 +120,7 @@ export const pagesConfig = ({
               />
             ),
             filter: {
-              attributes:['title', 'index', 'url_slug', 'parent', 'published', 'hide_in_nav' ,'sections','section_groups','sidebar','header','footer', 'full_width','navOptions']
+              attributes:['title', 'index', 'url_slug', 'parent', 'published', 'hide_in_nav' ,'sections','section_groups','sidebar','navOptions']
             },
             path: "/*",
             action: "view"

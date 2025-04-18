@@ -6,7 +6,7 @@ import {PageContext} from "../../../../pages/view";
 export const Footer = () => {
     const {dataItems, item} = React.useContext(PageContext);
 
-    const parents = dataItems.filter(({parent, hide_in_nav, title}) => !parent & !hide_in_nav)
+    const parents = dataItems.filter(({parent, hide_in_nav, navOptions,title}) => !parent & navOptions?.show_in_footer === 'show')
         // (
         //     title.toLowerCase().includes('at risk') ||
         //     title.toLowerCase().includes('hazards') ||
