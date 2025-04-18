@@ -46,7 +46,7 @@ function ButtonComponent({nodeKey, linkText, path, style}) {
   return (
       <>
         {isEditable ? (
-            <div
+            <span
                 className={`${BUTTON_STYLES[style] || BUTTON_STYLES['primary']}`}
                 onClick={(e) => {
                   e.preventDefault();
@@ -56,7 +56,7 @@ function ButtonComponent({nodeKey, linkText, path, style}) {
                 }}
             >
               {linkText || 'submit'}
-            </div>
+            </span>
         ) : (
             <Link
                 className={`${BUTTON_STYLES[style] || BUTTON_STYLES['primary']}`}
