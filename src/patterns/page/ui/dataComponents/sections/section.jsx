@@ -399,7 +399,7 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
                 {/* -------------------END top line buttons ----------------------*/}
                 {/* -------------------Section Header ----------------------*/}
                 {(sectionTitleCondition || interactCondition) && (
-                    <div className={`flex w-full min-h-[50px] items-center  pb-2 ${value?.['title'] ? '' : 'absolute top-2 -right-2 -left-2'} ${false && 'border border-dashed border-pink-500'}`}>
+                    <div className={`flex w-full min-h-[50px] items-center  pb-2 ${value?.['title'] ? '' : 'absolute top-2 -right-2 -left-2 pointer-events-none'} ${false && 'border border-dashed border-pink-500'}`}>
 
                         <div id={`#${value?.title?.replace(/ /g, '_')}`}
                              className={`flex-1 flex flex-row pb-2 font-display font-medium uppercase scroll-mt-36 items-center ${sectionTitleCondition ? '' : 'invisible'}`}>
@@ -409,26 +409,29 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
                                     value={value?.['title']}
                                 />
                             </div>
+                            <div className='flex item-center h-full pointer-events-auto'>
                             {value?.['tags']?.length ? 
-                            (<Popover button={
-                                <div className='p-2 border border-[#E0EBF0] rounded-full'>
-                                    <Tags className='text-slate-400 hover:text-blue-500 size-4' title="Tags"/>
-                                </div>
-                                }>
-                                <TagComponent
-                                    
-                                    className='p-2 flex-0'
-                                    value={value?.['tags']}
-                                    placeholder={'Add Tag...'} 
-                                    onChange={(v) => updateAttribute('tags', v)}
-                                />
-                            </Popover>) : null}
-                                    
-                            {helpTextCondition && (
-                                <Popover button={<InfoSquare className='text-blue-400 hover:text-blue-500 w-[24px] h-[24px]' title="Move Up"/>}>
-                                    <HelpComp value={value?.['helpText']} />
-                                </Popover>)
+                            
+                                (<Popover button={
+                                    <div className='p-2 border border-[#E0EBF0] rounded-full'>
+                                        <Tags className='text-slate-400 hover:text-blue-500 size-4' title="Tags"/>
+                                    </div>
+                                    }>
+                                    <TagComponent
+                                        
+                                        className='p-2 flex-0'
+                                        value={value?.['tags']}
+                                        placeholder={'Add Tag...'} 
+                                        onChange={(v) => updateAttribute('tags', v)}
+                                    />
+                                </Popover>) : null}
+                                        
+                                {helpTextCondition && (
+                                    <Popover button={<InfoSquare className='text-blue-400 hover:text-blue-500 w-[24px] h-[24px]' title="Move Up"/>}>
+                                        <HelpComp value={value?.['helpText']} />
+                                    </Popover>)
                             }
+                            </div>
                             
                         </div>
 
