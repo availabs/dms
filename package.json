@@ -61,6 +61,8 @@
     "@lexical/utils": "0.25.0",
     "@observablehq/plot": "^0.6.17",
     "@popperjs/core": "^2.11.8",
+    "@turf/bbox": "^7.2.0",
+    "@turf/helpers": "^7.2.0",
     "colorbrewer": "^1.5.9",
     "d3-array": "^3.2.4",
     "immutability-helper": "^3.1.1",

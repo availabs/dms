@@ -6,7 +6,7 @@ import { AvlLayer } from "~/modules/avl-map-2/src"
 import { usePrevious } from './utils'
 import { MapContext } from "./MapComponent"
 import {CMSContext} from "../../../../../siteConfig";
-import bbox from '@turf/bbox'; // ensure Turf.js is installed and available
+import bbox from '@turf/bbox';
 import { featureCollection } from '@turf/helpers';
 function onlyUnique(value, index, array) {
   return array.indexOf(value) === index;
