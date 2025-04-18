@@ -65,6 +65,11 @@ export default function MoreControls() {
                                    setValue={value => setState((draft) => {
                                        draft.blankBaseMap = value;
                                    })}/>
+
+                    <ToggleControl title={'Zoom to Fit'} value={state?.zoomToFitBounds}
+                                   setValue={value => setState((draft) => {
+                                       draft.zoomToFitBounds = value;
+                                   })}/>
                 </div>
             </div>
         </div>

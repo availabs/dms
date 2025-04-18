@@ -269,22 +269,24 @@ const ViewLayerRender = ({
     });
 
     maplibreMap.once('idle', () => {
-      const layers = (layerProps?.layers || []).map(l => l.id);
-      const renderedFeatures = maplibreMap.queryRenderedFeatures(undefined, { layers });
+      if(layerProps?.zoomToFitBounds){
+        const layers = (layerProps?.layers || []).map(l => l.id);
+        const renderedFeatures = maplibreMap.queryRenderedFeatures(undefined, { layers });
 
-      if (renderedFeatures.length > 0) {
-        const fc = featureCollection(renderedFeatures);
-        const bounds = bbox(fc); // [minX, minY, maxX, maxY]
+        if (renderedFeatures.length > 0) {
+          const fc = featureCollection(renderedFeatures);
+          const bounds = bbox(fc); // [minX, minY, maxX, maxY]
 
-        maplibreMap.fitBounds(
-            [[bounds[0], bounds[1]], [bounds[2], bounds[3]]],
-            {
-              padding: 40,
-              duration: 2000,
-              easing: t => 1 - (1 - t) * (1 - t),
-              // easing: t => t * t,
-            }
-        );
+          maplibreMap.fitBounds(
+              [[bounds[0], bounds[1]], [bounds[2], bounds[3]]],
+              {
+                padding: 40,
+                duration: 2000,
+                easing: t => 1 - (1 - t) * (1 - t),
+                // easing: t => t * t,
+              }
+          );
+        }
       }
     });
   }, [doesSourceExistOnMap, layerProps]);

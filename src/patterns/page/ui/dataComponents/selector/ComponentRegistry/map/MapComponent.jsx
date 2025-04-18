@@ -50,6 +50,7 @@ const Edit = ({value, onChange, size}) => {
         blankBaseMap: cachedData.blankBaseMap || false,
         height: cachedData.height || "full",
         zoomPan: typeof cachedData.zoomPan === 'boolean' ? cachedData.zoomPan : true,
+        zoomToFitBounds: cachedData.zoomToFitBounds
     })
     const [mapLayers, setMapLayers] = useImmer([])
     const [searchParams] = useSearchParams();
@@ -144,9 +145,16 @@ const Edit = ({value, onChange, size}) => {
 
     const layerProps = useMemo(() =>  {
         return Object.values(state.symbologies).reduce((out,curr) => {
-            return {...out, ...(curr?.symbology?.layers || {})}
-        },{}) 
-    }, [state?.symbologies]);
+            return {
+                ...out,
+                ...Object.keys((curr?.symbology?.layers || {}))
+                    .reduce((acc, layerId) => ({
+                            ...acc,
+                            [layerId]: {...(curr?.symbology?.layers?.[layerId] || {}), zoomToFitBounds: state.zoomToFitBounds}}
+                        ), {})
+            }
+        }, {})
+    }, [state?.symbologies, state.zoomToFitBounds]);
 
     const isHorizontalLegendActive = Object.values(state?.symbologies)
       ?.filter((symb) => symb.isVisible)
