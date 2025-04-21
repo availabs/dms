@@ -62,17 +62,19 @@ export default function SectionGroup ({group, attributes, edit}) {
           </div>
         )}  
         <div className={sectionTheme?.wrapper2 + ''}>
-          {(group.name === 'default' && user?.authLevel >= 5) && (
-            <Link className={sectionTheme?.iconWrapper} to={`${baseUrl}/${edit ? '' : 'edit/'}${item?.url_slug || ''}${window.location.search}`}>
-              <Icon icon={edit ? sectionTheme?.viewIcon : sectionTheme?.editIcon} className={sectionTheme?.icon} />
-            </Link>
-          )}
-          <SectionArray
-            group={group}
-            value={item?.[edit ? 'draft_sections' : 'sections'] || [] }
-            attr={sectionAttributes}
-            onChange={(update, action ) => updateSections({update, action, item, user, apiUpdate, updateAttribute})}         
-          />
+          <div className={sectionTheme?.wrapper3 + ''}>
+            {(group.name === 'default' && user?.authLevel >= 5) && (
+              <Link className={sectionTheme?.iconWrapper} to={`${baseUrl}/${edit ? '' : 'edit/'}${item?.url_slug || ''}${window.location.search}`}>
+                <Icon icon={edit ? sectionTheme?.viewIcon : sectionTheme?.editIcon} className={sectionTheme?.icon} />
+              </Link>
+            )}
+            <SectionArray
+              group={group}
+              value={item?.[edit ? 'draft_sections' : 'sections'] || [] }
+              attr={sectionAttributes}
+              onChange={(update, action ) => updateSections({update, action, item, user, apiUpdate, updateAttribute})}         
+            />
+          </div>
         </div>
        
         {/*<div className='w-64 h-screen border-2 border-blue-400' />*/}
