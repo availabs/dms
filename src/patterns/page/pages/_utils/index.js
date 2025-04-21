@@ -253,7 +253,7 @@ export function getInPageNav(item, theme) {
                 const heading = type === 'heading' && tag === 'h1' && children[0]?.text?.length ?
                     [
                         {
-                            name: toTitleCase(children[0]?.text),
+                            name: children[0]?.text,
                             onClick: (e) => {
                                 const elmntToView =
                                     [...window.document.querySelectorAll(tag)]
@@ -277,7 +277,7 @@ export function getInPageNav(item, theme) {
         return [
             ...acc,
             {
-                name: toTitleCase(title),
+                name: title,
                 onClick: (e) => {
                     const elmntToView = window.document.getElementById(`#${title?.replace(/ /g, '_')}`);
                     elmntToView?.scrollIntoView({ behavior: "smooth" });

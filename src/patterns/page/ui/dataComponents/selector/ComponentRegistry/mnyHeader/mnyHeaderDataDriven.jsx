@@ -94,7 +94,7 @@ const Title = ({title, titleSize, logo}) => {
 export function Header ({app, type, title, note, logo, overlay='overlay', bgImg, chain, showBreadcrumbs, showSearchBar, titleSize='sm:text-[72px] tracking-[0px]'}) {
     return overlay === 'full' ? (
         <div
-            className="relative w-full h-auto lg:h-[808px] -mb-[185px] flex flex-col lg:flex-row justify-center"
+            className="relative w-full h-auto lg:h-[808px] lg:-mb-[185px] flex flex-col lg:flex-row justify-center"
             style={{ background: `url('${bgImg}') center/cover`}}
         >
             {/* image div */}
@@ -107,7 +107,7 @@ export function Header ({app, type, title, note, logo, overlay='overlay', bgImg,
 
             {/* breadcrumbs, title,note div */}
             <div className="w-full">
-                <div className="mx-auto px-[15px] xl:px-[64px] pt-[80px] pb-[40px] lg:w-[1440px] h-full flex items-center ">
+                <div className="mx-auto px-[15px] xl:px-[64px] lg:pt-[80px] pt-[120px] pb-[40px] lg:w-[1440px] h-full flex items-center ">
                     <div className=" w-full lg:w-[481px] px-[32px] py-[37px] gap-[16px] bg-white shadow-md rounded-[12px]">
                         <div className="flex flex-col gap-1">
                             <Breadcrumbs chain={chain} show={showBreadcrumbs}/>
@@ -122,32 +122,52 @@ export function Header ({app, type, title, note, logo, overlay='overlay', bgImg,
             </div>
 
         </div>
+    ) : overlay === 'none' ? (
+
+        <div className={`relative w-full lg:-mb-[128px] `}>
+
+                <div  className="absolute top-0 right-0 w-[758px] h-[499px] flex-1 rounded-bl-[395px] bg-[#1A2732] sm:bg-gradient-to-r from-[#213440] to-[#213440] via-[#213440]/70" />
+                        
+                 {/* breadcrumbs, title, note image: none */}
+                <div className={'relative max-w-[1440px] w-full mx-auto px-4 xl:px-[64px] pb-4 pt-[100px] sm:pt-[118px] items-center '}>
+                    <div className={'p-[56px] h-full bg-white z-[100] rounded-lg shadow-md z-20'}>
+                        <div className={'flex flex-col gap-1 w-3/4'}>
+                            <Breadcrumbs chain={chain} show={showBreadcrumbs}/>
+                            <Title title={title} titleSize={titleSize} logo={logo} />
+                        </div>
+                        <div className='text-[16px] leading-[24px] text-[#37576B] w-3/4 p-1 pt-2'>
+                            {note && <div>{note}</div>}
+                        </div>
+                        <SearchButton app={app} type={type} show={showSearchBar}/>
+                    </div>
+                </div>
+                       
+                
+                
+        </div>
     ) : (
-        <div className={`relative w-full ${overlay === 'none' 
-            ? 'h-[484px] sm:h-[773px] -mb-[529px]' 
-            : 'lg:h-[773px] -mb-[195px]'}  
+        <div className={`relative w-full lg:h-[773px] lg:-mb-[125px]  
             flex flex-col lg:flex-row bg-fit bg-center justify-center`}>
             {/* image div */}
             <div
-                className={`lg:order-last h-[699px] flex-1 rounded-bl-[395px]
-        ${overlay === 'none' ? `flex-1 sm:bg-[#1A2732] sm:bg-gradient-to-r from-[#213440] to-[#213440] via-[#213440]/70` :
-                    overlay === 'overlay' ? `flex-1 bg-[#1A2732] bg-gradient-to-r from-[#213440] to-[#213440] via-[#213440]/70` : ''}
-        `}
+                className={`
+                   lg:order-last flex-1 rounded-bl-[395px]
+                   flex-1 bg-[#1A2732] bg-gradient-to-r from-[#213440] to-[#213440] via-[#213440]/70
+                `}
                 style={
                     overlay === 'inset' ?
                         { background: `url('${bgImg}')`} : {}}
             >
 
-                {overlay === 'overlay' ?
-                    <img className='relative top-[0px] w-[758px] w-[758px]' src={bgImg} alt={'overlay image'}/> :
-                    <div className='relative top-[0px] w-[758px] w-[758px]' />
+                {overlay === 'overlay' &&
+                    <img className='relative top-[0px] w-[758px] ' src={bgImg} alt={'overlay image'}/> 
                 }
             </div>
 
             {/* breadcrumbs, title, note: overlay, inset, full*/}
             <div className='lg:flex-1 top-[150px] sm:top-0 '>
                 <div className={'w-full lg:max-w-[656px] h-full lg:ml-auto flex items-center pt-12 lg:pt-0'}>
-                    <div className={overlay === 'none' ? 'hidden' : 'pr-[64px] xl:pl-0 px-[15px]'}>
+                    <div className={'pr-[64px] xl:pl-0 px-[15px]'}>
 
                         <div className={'flex flex-col gap-1'}>
                             <Breadcrumbs chain={chain} show={showBreadcrumbs}/>
@@ -158,20 +178,6 @@ export function Header ({app, type, title, note, logo, overlay='overlay', bgImg,
                         </div>
                         <SearchButton app={app} type={type} show={showSearchBar}/>
                     </div>
-                </div>
-            </div>
-
-            {/* breadcrumbs, title, note image: none */}
-            <div className={overlay === 'none' ? 'max-w-[1420px] w-full mx-auto px-4 xl:px-[54px] h-[238px] absolute top-[118px] items-center' : 'hidden'}>
-                <div className={'p-[56px] h-full bg-white z-[100] rounded-lg shadow-md'}>
-                    <div className={'flex flex-col gap-1 w-3/4'}>
-                        <Breadcrumbs chain={chain} show={showBreadcrumbs}/>
-                        <Title title={title} titleSize={titleSize} logo={logo} />
-                    </div>
-                    <div className='text-[16px] leading-[24px] text-[#37576B] w-3/4 p-1 pt-2'>
-                        {note && <div>{note}</div>}
-                    </div>
-                    <SearchButton app={app} type={type} show={showSearchBar}/>
                 </div>
             </div>
         </div>
