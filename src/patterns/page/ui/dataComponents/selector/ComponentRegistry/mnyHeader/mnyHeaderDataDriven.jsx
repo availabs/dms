@@ -1,6 +1,7 @@
 import React, {useContext, useMemo, useState} from 'react'
 import {PageContext} from "../../../../../pages/view";
 import {ArrowRight, Search} from "../../../../icons";
+import { Label } from '../../../../'
 import {Link} from "react-router-dom";
 import {ComponentContext} from "../../dataWrapper";
 import {overlayImageOptions, insetImageOptions} from "./consts";
@@ -11,7 +12,7 @@ const Breadcrumbs = ({ chain, show }) => {
     if(!show) return null;
     return Array.isArray(chain) ? (
         <div className={'px-1 z-[5]'}>
-            <div className="flex items-center gap-[4px] text-[#37576B] text-[12px] sm:text-[14px] leading-[100%] tracking-normal">
+            <div className="flex items-center gap-[4px] text-[#37576B] text-[14px] sm:text-[16px] leading-[100%] tracking-normal">
                 {chain.map((c, index) => (
                     <div key={index} className={`flex items-center shrink-0`}>
                         <Link to={c.url_slug} className={`w-fit shrink-0 wrap-none ${index === chain.length - 1 ? `font-regular` : `font-semibold`}`}>{c.title}</Link>
@@ -26,34 +27,50 @@ const Breadcrumbs = ({ chain, show }) => {
 const SearchButton = ({app, type, show}) => {
     const [open, setOpen] = useState(false);
     const [searchStr, setSearchStr] = useState('');
+    const featured_searches = ['Biggest Natural Disasters', 'Climate Change', 'Flood Risk']
     if(!show) return null;
     return (
         <>
-            <div
-                className={`
-                            bg-white flex justify-between items-center
-                            h-[56px] w-full py-[16px] px-[24px]
-                            rounded-[1000px]
-                            shadow-[0px_2px_4px_0px_rgba(0,0,0,0.08)]
-                            focus-within:ring-2 focus-within:ring-[#6D96AE]
-                            shadow-sm transition ease-in
-                          `}
-            >
-                <input
-                    className="w-full focus:outline-none focus:ring-0 text-[#37576B] font-normal text-[16px] leading-[140%]"
-                    placeholder="Search for anything..."
-                    onChange={e => setSearchStr(e.target.value)}
-                    onKeyDown={e => {
-                        if (e.key === 'Enter') setOpen(true);
-                    }}
-                />
+            <div className='py-2'>
+                <div
+                    className={`
+                                bg-white flex justify-between items-center
+                                h-[56px] w-full py-[16px] px-[24px]
+                                rounded-[1000px]
+                                shadow-[0px_2px_4px_0px_rgba(0,0,0,0.08)]
+                                focus-within:ring-2 focus-within:ring-[#6D96AE]
+                                shadow-sm transition ease-in
+                              `}
+                >
+                    <input
+                        className="w-full focus:outline-none focus:ring-0 text-[#37576B] font-normal text-[16px] leading-[140%]"
+                        placeholder="Search for anything..."
+                        onChange={e => setSearchStr(e.target.value)}
+                        onKeyDown={e => {
+                            if (e.key === 'Enter') setOpen(true);
+                        }}
+                    />
 
-                <Search
-                    height={24}
-                    width={24}
-                    className="text-[#2D3E4C] p-0.5"
-                    onClick={() => setOpen(true)}
-                />
+                    <Search
+                        height={24}
+                        width={24}
+                        className="text-[#2D3E4C] p-0.5"
+                        onClick={() => setOpen(true)}
+                    />
+                </div>
+            </div>
+
+            <div>
+                <div className="pt-[8px] font-[500] text-[16px] text-[#2D3E4C] font-['Oswald'] text-left">
+                FEATURED SEARCHES
+                </div>
+                <div className='flex w-full flex-wrap'>
+                    {featured_searches.map(search => (
+                        <div className='pr-1 py-0.5 cursor-pointer' onClick={() => {setSearchStr(search);setOpen(true);}}>
+                            <Label> <div className='uppercase'>{search}</div></Label>
+                        </div>)
+                    )}
+                </div>
             </div>
 
             <SearchPallet open={open} setOpen={setOpen} app={app} type={type} searchStr={searchStr}/>
@@ -71,23 +88,26 @@ const Title = ({title, titleSize, logo}) => {
         </div>
     )
 }
+
+
+
 export function Header ({app, type, title, note, logo, overlay='overlay', bgImg, chain, showBreadcrumbs, showSearchBar, titleSize='sm:text-[72px] tracking-[0px]'}) {
     return overlay === 'full' ? (
         <div
-            className="relative w-full h-auto lg:h-[773px] lg:-mb-[145px] flex flex-col lg:flex-row justify-center"
+            className="relative w-full h-auto lg:h-[808px] -mb-[185px] flex flex-col lg:flex-row justify-center"
             style={{ background: `url('${bgImg}') center/cover`}}
         >
             {/* image div */}
             <div
-                className="lg:order-last w-full lg:flex-1 h-[699px]"
+                className="lg:order-last w-full lg:flex-1 lg:h-[699px]"
 
             >
                 <div className="relative top-[90px] mx-auto" />
             </div>
 
             {/* breadcrumbs, title,note div */}
-            <div className="absolute lg:static sm:flex-1">
-                <div className="ml-auto px-[15px] lg:pl-0 lg:w-[656px] h-full flex items-center pt-12 lg:pt-[80px]">
+            <div className="w-full">
+                <div className="mx-auto px-[15px] xl:px-[64px] pt-[80px] pb-[40px] lg:w-[1440px] h-full flex items-center ">
                     <div className=" w-full lg:w-[481px] px-[32px] py-[37px] gap-[16px] bg-white shadow-md rounded-[12px]">
                         <div className="flex flex-col gap-1">
                             <Breadcrumbs chain={chain} show={showBreadcrumbs}/>
@@ -102,12 +122,11 @@ export function Header ({app, type, title, note, logo, overlay='overlay', bgImg,
             </div>
 
         </div>
-
-
-
     ) : (
-        <div className={`relative w-full ${overlay === 'none' ? 'h-[484px] sm:h-[773px] -mb-[529px]' : 'h-[773px] lg:-mb-[145px]'}  flex flex-col lg:flex-row 
-                    bg-fit bg-center justify-center`}>
+        <div className={`relative w-full ${overlay === 'none' 
+            ? 'h-[484px] sm:h-[773px] -mb-[529px]' 
+            : 'lg:h-[773px] -mb-[195px]'}  
+            flex flex-col lg:flex-row bg-fit bg-center justify-center`}>
             {/* image div */}
             <div
                 className={`lg:order-last h-[699px] flex-1 rounded-bl-[395px]
@@ -120,13 +139,13 @@ export function Header ({app, type, title, note, logo, overlay='overlay', bgImg,
             >
 
                 {overlay === 'overlay' ?
-                    <img className='relative top-[90px] w-[708px] w-[708px]' src={bgImg} alt={'overlay image'}/> :
-                    <div className='relative top-[90px] w-[708px] w-[708px]' />
+                    <img className='relative top-[0px] w-[758px] w-[758px]' src={bgImg} alt={'overlay image'}/> :
+                    <div className='relative top-[0px] w-[758px] w-[758px]' />
                 }
             </div>
 
             {/* breadcrumbs, title, note: overlay, inset, full*/}
-            <div className='lg:flex-1 top-[150px] sm:top-0'>
+            <div className='lg:flex-1 top-[150px] sm:top-0 '>
                 <div className={'w-full lg:max-w-[656px] h-full lg:ml-auto flex items-center pt-12 lg:pt-0'}>
                     <div className={overlay === 'none' ? 'hidden' : 'pr-[64px] xl:pl-0 px-[15px]'}>
 
