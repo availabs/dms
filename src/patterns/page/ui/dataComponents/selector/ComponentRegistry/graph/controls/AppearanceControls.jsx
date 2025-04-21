@@ -124,6 +124,8 @@ export default function AppearanceControls({context}) {
                                   setValue={value => updateDisplayValue(null, 'height', +value)}/>
                     <ToggleControl title={'Always Fetch Data'} value={display.readyToLoad}
                                    setValue={value => updateDisplayValue(null, 'readyToLoad', value)}/>
+                    <ToggleControl title={'Dark Mode'} value={display.darkMode}
+                                   setValue={value => updateDisplayValue(null, 'darkMode', value)}/>
 
                     {/* Layout */}
                     {

@@ -147,14 +147,14 @@ export const GraphComponent = props => {
   return (
     <div ref={ setRef } className="w-full h-fit"
       style={ {
-        backgroundColor: get(graphFormat, "bgColor", "#ffffff"),
-        color: get(graphFormat, "textColor", "#000000"),
+        backgroundColor: graphFormat.darkMode ? undefined : get(graphFormat, "bgColor", "#ffffff"),
+        color: graphFormat.darkMode ? undefined : get(graphFormat, "textColor", "#000000"),
         paddingTop: `${ get(graphFormat, "padding", 0.5) }rem`
       } }
     >
       <GraphTitle { ...graphFormat.title }/>
 
-      <div className={`h-fit ${theme.graph.text}`}>
+      <div className={`h-fit ${graphFormat.darkMode ? theme.graph.darkModeText : theme.graph.text}`}>
         { !activeGraphType || !GraphComponent ? null :
           <GraphComponent
             data={ groupedData }
