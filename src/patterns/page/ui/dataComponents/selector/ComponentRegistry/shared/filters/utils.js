@@ -38,6 +38,7 @@ export const getData = async ({format, apiLoad,
             options: JSON.stringify({
                 ...filterBy,
                 // exclude: {[attribute]: ['null']},
+                orderBy: {1: 'asc nulls last'},
                 meta,
                 keepOriginalValues: true
             }),
