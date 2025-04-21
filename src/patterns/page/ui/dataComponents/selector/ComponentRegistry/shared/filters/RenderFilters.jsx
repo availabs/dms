@@ -154,7 +154,6 @@ export const RenderFilters = ({
                                     return acc;
                                 }, Promise.resolve({}));
 
-                            console.log('fo?,', columnName, filterBy)
                             // get all the filters with value
                             // build a filterOptions object including each filter type (filter, exclude, gt, gte...),
                             // for filter and exclude types, and multiselect column combination, pull value sets for

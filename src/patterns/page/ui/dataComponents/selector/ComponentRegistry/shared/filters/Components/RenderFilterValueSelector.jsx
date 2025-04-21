@@ -8,6 +8,12 @@ import {isEqualColumns} from "../../../../dataWrapper/utils/utils";
 import {filterTheme} from "../RenderFilters";
 import {CMSContext} from "../../../../../../../siteConfig";
 
+const resetColumn = (originalAttribute, setState, columns) => setState(draft => {
+    const idx = columns.findIndex(column => isEqualColumns(column, originalAttribute));
+    if (idx === -1) {
+        draft.columns.splice(idx, 1);
+    }
+});
 const RenderSearchKeySelector = ({filter, searchParams, onChange}) => {
     const [open, setOpen] = React.useState(false);
     const [text, setText] = React.useState(filter.searchParamKey || '');
@@ -54,7 +60,7 @@ const RenderSearchKeySelector = ({filter, searchParams, onChange}) => {
 }
 
 export const RenderFilterValueSelector = ({
-    loading, isEdit, filterColumn, filterOptions=[], setState, searchParams, delimiter, filterWithSearchParamKeys, columns
+    loading, isEdit, filterColumn, filterOptions=[], state, setState, searchParams, delimiter, filterWithSearchParamKeys, columns
 }) => {
     const navigate = useNavigate();
     const { theme = { filters: filterTheme } } = React.useContext(CMSContext) || {};
@@ -101,6 +107,8 @@ export const RenderFilterValueSelector = ({
 
             const value = ['filter', 'exclude'].includes(filter.operation) ? (filter.values || []) :
                 (Array.isArray(filter.values) ? filter.values[0] : typeof filter.values === 'object' ? '' : filter.values);
+
+            const isStaleFilter = state.sourceInfo.columns.findIndex(({name}) => name === filterColumn.name) === -1;
             return (
                 <div key={`${filterColumn.name}-${filter.operation}`} className={'w-full p-1 relative text-xs'}>
                     <div className={theme.filters.settingPillsWrapper}>
@@ -211,6 +219,10 @@ export const RenderFilterValueSelector = ({
                                                              })}
                                     />
                                 </div> : null
+                        }
+
+                        {
+                            isEdit && isStaleFilter ? <button className={theme.filters.settingPill} onClick={() => resetColumn(filterColumn, setState, state.sourceInfo.columns)}>Reset Stale Column</button> : null
                         }
                     </div>
                     {
