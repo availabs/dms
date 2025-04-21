@@ -170,7 +170,7 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
     // add normal columns to the list of columns to fetch
     if(normalFilter.length){
         const normalColumns = [];
-        const valueColumn = 'value'
+        const valueColumn = state.columns.find(col => col.valueColumn)?.name || 'value';
         normalFilter.forEach(({column, values}, i) => {
             const fullColumn = state.columns.find(col => col.name === column && isEqual(values, col.filters[0]?.values));
             if(column && fullColumn?.normalName && values?.length){
@@ -482,9 +482,20 @@ const strColorMap = {
     'Very Low Risk': '#54B99B',
     default: '#ccc'
 }
+
+const formatDate = (dateString) => {
+    const options = {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit"
+
+    };
+    return dateString ? new Date(dateString).toLocaleDateString(undefined, options) : ``;
+};
 export const formatFunctions = {
     'abbreviate': (d, isDollar) => fnumIndex(d, 1, isDollar),
     'comma': (d, isDollar) => fnum(d, isDollar),
+    'date': (d) => formatDate(d),
     'icon': (strValue, props) => <><Icon icon={strValue} className={'size-8'} {...props}/> <span>{strValue}</span></>,
     'color': (strValue, map) => <>
         <div style={{borderRadius: '1000px', height: '10px', width: '10px', backgroundColor: map?.[strValue] || strColorMap[strValue] || strColorMap.default}} />

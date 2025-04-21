@@ -433,6 +433,12 @@ export default {
             {type: 'toggle', label: 'Filter', key: 'filters',
                 trueValue: [{type: 'internal', operation: 'filter', values: []}]},
             {type: 'toggle', label: 'Group', key: 'group'},
+            {type: 'toggle', label: 'Value column', key: 'valueColumn', onChange: ({key, value, attribute, state, columnIdx}) => {
+                    if(attribute.yAxis || attribute.categorize) return;
+                    state.columns.forEach(column => {
+                        column.valueColumn = value ? column.name === attribute.name : value;
+                    })
+                }},
             duplicateControl,
         ],
         actions: {Comp: ActionControls},
@@ -466,6 +472,7 @@ export default {
                     {label: 'No Format Applied', value: ' '},
                     {label: 'Comma Seperated', value: 'comma'},
                     {label: 'Abbreviated', value: 'abbreviate'},
+                    {label: 'Date', value: 'date'},
                 ]},
 
             // link controls
