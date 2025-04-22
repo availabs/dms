@@ -217,7 +217,7 @@ export const RenderFilters = ({
     // initially you'll have internal filter
     // add UI dropdown to change filter type
     // add UI to change filter operation
-    console.log('filters', filterOptions)
+    //console.log('filters', filterOptions)
     return (
         open ?
             <div className={theme.filters.filtersWrapper}>
