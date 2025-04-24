@@ -153,7 +153,7 @@ export const DataSourceSelector = ({
                         setState(draft => {
                             // reset values, set source
                             draft.columns = []; // clears our visible columns, and all of their settings (group, filter, etc).
-                            draft.sourceInfo = source;
+                            draft.sourceInfo = {...source};
                             // for internally sourced data-sources, doc_type becomes type when we fetch their data items.
                             draft.sourceInfo.type = doc_type;
                         })

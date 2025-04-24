@@ -1,13 +1,12 @@
 import {formatFunctions, isEqualColumns} from "../dataWrapper/utils/utils";
 import {ComponentContext} from "../dataWrapper";
 import TableHeaderCell from "./spreadsheet/components/TableHeaderCell";
-import React, {useContext, useEffect, useMemo, useState} from "react";
+import React, {useContext, useEffect, useMemo, useRef, useState} from "react";
 import {Link} from "react-router-dom";
 import {CMSContext} from "../../../../siteConfig";
 import {ColorControls} from "./shared/ColorControls";
-import {cloneDeep} from "lodash-es";
-import {Copy} from "../../../icons";
-import {duplicateControl} from "./shared/utils";
+import {duplicateControl, useHandleClickOutside} from "./shared/utils";
+import DataTypes from "../../../../../../data-types";
 
 const justifyClass = {
     left: 'justifyTextLeft',
@@ -105,7 +104,35 @@ export const dataCardTheme = {
 // inline vs stacked; reverse
 // bg color per column
 
-const Card = ({isEdit}) => {
+const DefaultComp = ({value, className}) => <div className={className}>{value}</div>;
+
+const EditComp = ({attribute, value, rawValue, isValueFormatted, id, updateItem, allowEdit}) => {
+    const [isEditing, setIsEditing] = useState(false);
+    const compRef = useRef(null);
+    const compId = `${attribute.name}-${id}`;
+    const Comp = DataTypes[attribute.type]?.[allowEdit ? 'EditComp' : 'ViewComp'] || DefaultComp;
+    // const Comp = DataTypes[attribute.type]?.[allowEdit && isEditing ? 'EditComp' : 'ViewComp'];
+    useHandleClickOutside(compRef, compId, () => isEditing && setIsEditing(false));
+
+    if(!allowEdit && (attribute.isImg || attribute.isLink || ['icon', 'color'].includes(attribute.formatFn) && formatFunctions[attribute.formatFn])) return value;
+
+    return <div ref={compRef}
+                onClick={() => !isEditing && setIsEditing(true)}
+                className={(allowEdit && isEditing) || (allowEdit && !value) ? `w-full` : ``}>
+        <Comp value={allowEdit && isValueFormatted ? rawValue : value}
+              placeholder={'please enter value...'}
+              id={compId}
+              onChange={newValue => updateItem(newValue, attribute, {id, [attribute.name]: newValue})} className={allowEdit && !value ? 'border' : ' '}
+              {...attribute}
+        />
+    </div>
+}
+
+const Card = ({
+                  isEdit, //edit mode
+                  updateItem,
+                  allowEdit // is data edit allowed
+}) => {
     const { theme = {} } = React.useContext(CMSContext) || {};
     const dataCard = theme.dataCard || dataCardTheme;
 
@@ -214,7 +241,7 @@ const Card = ({isEdit}) => {
                                                 attr.formatFn && formatFunctions[attr.formatFn] ?
                                                     formatFunctions[attr.formatFn](rawValue, attr.isDollar).replaceAll(' ', '') :
                                                     rawValue
-
+                                        const isValueFormatted = isImg || isLink || Boolean(formatFunctions[attr.formatFn]);
                                         const headerTextJustifyClass = justifyClass[attr.justify || 'center']?.header || justifyClass[attr.justify || 'center'];
                                         const valueTextJustifyClass = justifyClass[attr.justify || 'center']?.value || justifyClass[attr.justify || 'center'];
                                         return (
@@ -250,11 +277,25 @@ const Card = ({isEdit}) => {
                                                  ${dataCard[attr.valueFontStyle || 'textXS']}
                                                  `}>
                                                     {
-                                                        isLink ?
-                                                            <Link className={dataCard.linkColValue} to={`${location}${encodeURIComponent(useId ? id : value)}`}>
-                                                                {linkText || value}
-                                                            </Link> :
-                                                            value
+                                                        isLink && !allowEdit ?
+                                                        <Link className={dataCard.linkColValue} to={`${location}${encodeURIComponent(useId ? id : value)}`}>
+                                                            <EditComp attribute={attr}
+                                                                      value={linkText || value}
+                                                                      rawValue={rawValue}
+                                                                      isValueFormatted={isValueFormatted}
+                                                                      updateItem={updateItem}
+                                                                      id={id}
+                                                                      allowEdit={allowEdit}
+                                                            />
+                                                        </Link> :
+                                                            <EditComp attribute={attr}
+                                                                      value={value}
+                                                                      rawValue={rawValue}
+                                                                      isValueFormatted={isValueFormatted}
+                                                                      updateItem={updateItem}
+                                                                      id={id}
+                                                                      allowEdit={allowEdit}
+                                                            />
                                                     }
                                                 </div>
                                             </div>
@@ -295,6 +336,7 @@ export default {
         more: [
             // settings from more dropdown are stored in state.display
             {type: 'toggle', label: 'Attribution', key: 'showAttribution'},
+            {type: 'toggle', label: 'Allow Edit', key: 'allowEditInView'},
             {type: 'toggle', label: 'Use Search Params', key: 'allowSearchParams'},
             {type: 'toggle', label: 'Compact View', key: 'compactView'},
             {type: 'input', inputType: 'number', label: 'Grid Size', key: 'gridSize'},

@@ -297,17 +297,28 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, component, hideS
     // =========================================== util fns begin ======================================================
     const updateItem = (value, attribute, d) => {
         if(!state.sourceInfo?.isDms) return;
-        let dataToUpdate = Array.isArray(d) ? d : [d];
 
-        let tmpData = [...state.data];
-        dataToUpdate.map(dtu => {
-            const i = state.data.findIndex(dI => dI.id === dtu.id);
-            tmpData[i] = dtu;
-        });
-        setState(draft => {
-            draft.data = tmpData
-        });
-        return Promise.all(dataToUpdate.map(dtu => apiUpdate({data: dtu, config: {format: state.sourceInfo}})));
+        if(attribute?.name){
+            setState(draft => {
+                const idx = draft.data.findIndex(draftD => draftD.id === d.id);
+                if(idx !== -1){
+                    draft.data[idx] = {...(draft.data[idx] || {}), ...d, [attribute.name]: value}
+                }
+            })
+            return apiUpdate({data: {...d, [attribute.name]: value},  config: {format: state.sourceInfo}})
+        }else{
+            let dataToUpdate = Array.isArray(d) ? d : [d];
+
+            let tmpData = [...state.data];
+            dataToUpdate.map(dtu => {
+                const i = state.data.findIndex(dI => dI.id === dtu.id);
+                tmpData[i] = dtu;
+            });
+            setState(draft => {
+                draft.data = tmpData
+            });
+            return Promise.all(dataToUpdate.map(dtu => apiUpdate({data: dtu, config: {format: state.sourceInfo}})));
+        }
     }
 
     const addItem = () => {
@@ -326,6 +337,9 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, component, hideS
         return apiUpdate({data: item, config: {format: state.sourceInfo}, requestType: 'delete'})
     }
     // =========================================== util fns end ========================================================
+
+    const groupByColumnsLength = useMemo(() => state?.columns?.filter(({group}) => group).length, [state?.columns]);
+
     return (
         <ComponentContext.Provider value={{state, setState, apiLoad,
             compType: component.name.toLowerCase(), // should be deprecated
@@ -351,11 +365,11 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, component, hideS
                     <RenderDownload state={state} apiLoad={apiLoad}/>
                 </div>
                 <Comp isEdit={isEdit}
-                  {...component.name === 'Spreadsheet' && {
+                  {...['Spreadsheet', 'Card'].includes(component.name) && {
                       newItem, setNewItem,
                       updateItem, removeItem, addItem,
                       currentPage, loading, isEdit,
-                      allowEdit: isEdit
+                      allowEdit: state.sourceInfo?.isDms && !groupByColumnsLength
                   }}
                 />
                 <div>
@@ -583,11 +597,11 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
                         <RenderDownload state={state} apiLoad={apiLoad}/>
                     </div>
                     <Comp isEdit={isEdit}
-                          {...component.name === 'Spreadsheet' && {
+                          {...['Spreadsheet', 'Card'].includes(component.name) && {
                               newItem, setNewItem,
                               updateItem, removeItem, addItem,
                               currentPage, loading, isEdit,
-                              allowEdit: groupByColumnsLength ? false : state.display.allowEditInView && Boolean(apiUpdate)
+                              allowEdit: groupByColumnsLength ? false : state.sourceInfo?.isDms && state.display.allowEditInView && Boolean(apiUpdate)
                           }}
                     />
                     <div>
