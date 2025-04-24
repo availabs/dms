@@ -378,13 +378,13 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
                                     <Button type='plain' padding='p-0.5' onClick={() => handleCopy(value)} >
                                         <Copy title={'Copy Section'} className='text-slate-400 hover:text-blue-500 w-[24px] h-[24px]'/>
                                     </Button>*/}
-                                    {/*{
+                                    {
                                     <Menu items={sectionMenuItems}> 
                                         <div  className='p-1 hover:bg-slate-100/75 rounded-lg'>
                                             <Icon icon="Menu" className='text-slate-500 hover:text-slate-900 size-6'/>
                                         </div>
                                     </Menu>
-                                    }*/}
+                                    }
                                     {/*<Button type='plain' padding='p-0.5' onClick={addAbove}> 
                                         <SquarePlus className='text-slate-400 hover:text-blue-500 w-[24px] h-[24px]'/>
                                     </Button>*/}

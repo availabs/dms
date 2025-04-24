@@ -338,13 +338,11 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, component, hideS
         return apiUpdate({data: item, config: {format: state.sourceInfo}, requestType: 'delete'})
     }
     // =========================================== util fns end ========================================================
-<<<<<<< HEAD
-    console.timeEnd(`datawrapper edit render time`)
-=======
+
 
     const groupByColumnsLength = useMemo(() => state?.columns?.filter(({group}) => group).length, [state?.columns]);
 
->>>>>>> 862d68a5f1af4e3f2f57b03ee860924edbc3f2ea
+
     return (
         <ComponentContext.Provider value={{state, setState, apiLoad,
             compType: component.name.toLowerCase(), // should be deprecated
