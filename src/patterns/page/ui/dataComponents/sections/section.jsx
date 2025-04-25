@@ -240,8 +240,7 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
                 pageFormat={format}
             />
         )
-    }, 
-    [value])
+    }, [value])
     if(!value?.element?.['element-type'] && !value?.element?.['element-data']) return null;
     const sectionMenuItems = [
       { icon: 'PencilSquare', name: 'Edit', onClick: onEdit },

@@ -148,6 +148,7 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, component, hideS
     const Comp = useMemo(() => component.EditComp, [component]);
     // ========================================= init comp begin =======================================================
     // useSetDataRequest
+    console.time(`datawrapper edit render time`)
     useEffect(() => {
         // creates data request object
         if(!isValidState) return;
@@ -338,7 +339,9 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, component, hideS
     }
     // =========================================== util fns end ========================================================
 
+
     const groupByColumnsLength = useMemo(() => state?.columns?.filter(({group}) => group).length, [state?.columns]);
+
 
     return (
         <ComponentContext.Provider value={{state, setState, apiLoad,
@@ -399,6 +402,7 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
     const Comp = useMemo(() => component.ViewComp, [component]);
     // const useCache = state.display.useCache //=== false ? false : true; // false: loads data on load. can be expensive. useCache can be undefined for older components.
     const setReadyToLoad = useCallback(() => setState(draft => {draft.display.readyToLoad = true}), [setState]);
+    //console.time(`datawrapper view render time`)
     useEffect(() => {
         const newState = convertOldState(value)
         setState(newState)
@@ -576,6 +580,7 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
         })
         return apiUpdate({data: item, config: {format: state.sourceInfo}, requestType: 'delete'})
     }
+    //console.timeEnd(`datawrapper view render time`)
     // =========================================== util fns end ========================================================
     if(showChangeFormatModal || !isValidState) return <div className={'p-1 text-center'}>Form data not available.</div>;
     // component.name === 'Spreadsheet' && console.log('dw?', state)

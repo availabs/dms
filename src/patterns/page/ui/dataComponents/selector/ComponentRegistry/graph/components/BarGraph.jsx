@@ -247,9 +247,10 @@ const BarGraph = props => {
     });
 
     try{
-      plot.className = `${plot.className} flex flex-col-reverse`
+      plot.className = `${plot?.className} flex flex-col-reverse`
     }catch (e){
-      // if(process.env.NODE_ENV === "development") console.error('e', e)
+
+    // if(process.env.NODE_ENV === "development") console.error('e', e)
 
     }
     ref.append(plot);

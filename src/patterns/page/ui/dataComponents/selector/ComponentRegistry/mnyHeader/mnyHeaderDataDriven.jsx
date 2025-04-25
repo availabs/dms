@@ -27,7 +27,7 @@ const Breadcrumbs = ({ chain, show }) => {
 const SearchButton = ({app, type, show}) => {
     const [open, setOpen] = useState(false);
     const [searchStr, setSearchStr] = useState('');
-    const featured_searches = ['Biggest Natural Disasters', 'Climate Change', 'Flood Risk']
+    const featured_searches = ['Hurricane Sandy', 'Climate Change', 'Flood Risk']
     if(!show) return null;
     return (
         <>
@@ -66,8 +66,8 @@ const SearchButton = ({app, type, show}) => {
                 </div>
                 <div className='flex w-full flex-wrap'>
                     {featured_searches.map(search => (
-                        <div className='pr-1 py-0.5 cursor-pointer' onClick={() => {setSearchStr(search);setOpen(true);}}>
-                            <Label> <div className='uppercase'>{search}</div></Label>
+                        <div key={search} className='pr-1 py-0.5 cursor-pointer' onClick={() => {setSearchStr(search);setOpen(true);}}>
+                            <Label> <div  className='uppercase'>{search}</div></Label>
                         </div>)
                     )}
                 </div>
@@ -146,7 +146,7 @@ export function Header ({app, type, title, note, logo, overlay='overlay', bgImg,
                 
         </div>
     ) : (
-        <div className={`relative w-full lg:h-[773px] lg:-mb-[125px]  
+        <div className={`relative w-full lg:h-[743px] lg:-mb-[85px]  
             flex flex-col lg:flex-row bg-fit bg-center justify-center`}>
             {/* image div */}
             <div
@@ -160,7 +160,7 @@ export function Header ({app, type, title, note, logo, overlay='overlay', bgImg,
             >
 
                 {overlay === 'overlay' &&
-                    <img className='relative top-[0px] w-[758px] ' src={bgImg} alt={'overlay image'}/> 
+                    <img className='relative top-[70px] w-[758px] ' src={bgImg} alt={'overlay image'}/> 
                 }
             </div>
 

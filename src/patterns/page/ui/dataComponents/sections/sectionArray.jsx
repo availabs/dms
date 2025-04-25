@@ -79,6 +79,7 @@ export const sectionArrayTheme = {
 }
 
 const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
+    
     const [ values, setValues ] = useImmer([]);
     const { baseUrl, user, theme = { sectionArray: sectionArrayTheme} } = React.useContext(CMSContext) || {}
     const { editPane, apiLoad, apiUpdate, format  } =  React.useContext(PageContext) || {}
@@ -171,7 +172,7 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
 
     const hideDebug = true
     //console.log('test 123', values, group)
-
+    
     return (
         <div className='relative'>
         { editPane?.showGrid && (
@@ -194,6 +195,7 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
                 {[...values,{}]
                     .map((v,i) => {
                     //only render sections in this group
+                    // return <div className='p-4 w-full'>{v.id}</div>
                     if(!(v.group === group.name || (!v.group && group?.name === 'default')) && i !== edit.index) {
                         return <React.Fragment key={i}></React.Fragment>
                     }

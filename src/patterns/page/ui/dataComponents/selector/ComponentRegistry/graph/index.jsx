@@ -100,6 +100,7 @@ const Graph = ({isEdit}) => {
                 {
                     stopValues.map(stopValue => (
                         <div
+                            key={stopValue}
                             className={`${theme.graph.scaleItem} ${display?.upperLimit === stopValue ? theme.graph.scaleItemActive : theme.graph.scaleItemInActive}`}
                             onClick={() => setState(draft => {
                                 draft.display.upperLimit = stopValue

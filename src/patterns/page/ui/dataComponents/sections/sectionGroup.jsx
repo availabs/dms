@@ -43,13 +43,14 @@ export default function SectionGroup ({group, attributes, edit}) {
   const { apiUpdate, format, item, updateAttribute } = React.useContext(PageContext) || {}
 
   const inPageNav = getInPageNav(item,theme)
-  const sectionTheme = theme.sectionGroup[group.theme || 'content'] || {}
-  const sectionFormat = format?.registerFormats.find(d => d.type.includes('|cms-section'))
+  const sectionTheme = theme?.sectionGroup?.[group.theme || 'content'] || {}
+  const sectionFormat = format?.registerFormats.find(d => d?.type?.includes('|cms-section'))
   const sectionAttributes =  attributes?.['sections']?.attributes
   const SectionArray = React.useMemo(() => {
     return edit ? attributes['sections'].EditComp : attributes['sections'].ViewComp 
   }, [])
 
+  //console.log('render group', group)
 
   return (
          

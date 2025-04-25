@@ -30,7 +30,7 @@ function PageEdit ({
 	    return items
 	}, [dataItems])
 
-	  // console.log('-----------render edit----------------')
+	console.log('-----------render edit----------------', item.draft_sections.length, item.draft_section_groups.length)
 	theme = merge(cloneDeep(theme), item?.theme || {})
 	const level = item?.index == '999' || theme?.navOptions?.topNav?.nav !== 'main' ? 1 : detectNavLevel(dataItems, baseUrl);
 	const inPageNav = getInPageNav(item, theme);
@@ -54,8 +54,11 @@ function PageEdit ({
 	React.useEffect(() => {
 	  	// -------------------------------------------------------------------
 	    // -- This on load effect backfills pages created before sectionGroups
-	  	// -------------------------------------------------------------------
-	  	sectionsEditBackill(item,baseUrl,submit)
+	  	// -------------------------------------------------------------------]
+			if(!item.draft_section_groups && item?.id) {
+	  		console.log('backfill------------------')
+	  		sectionsEditBackill(item,baseUrl,submit)
+	  	}
 	   
 	},[])
 
@@ -79,21 +82,22 @@ function PageEdit ({
     	))
   }
 
-	if(!item) return ;
+
+	if(!item) return;
 	return (
 	    <PageContext.Provider value={{ item, dataItems, apiLoad, apiUpdate, updateAttribute, editPane, setEditPane, format, busy }} >
 	      <div className={`${theme?.page?.container}`}>
 	        <PageControls />
-	        {getSectionGroups('top')}
+	        {/*{React.useMemo(() => getSectionGroups('top'),[item?.draft_section_groups])}*/}
 	        <Layout 
 	          navItems={menuItems} 
 	          secondNav={theme?.navOptions?.secondaryNav?.navItems || []}
 	          pageTheme={{navOptions: item.navOptions || {}}}
 	        >
-	          {getSectionGroups('content')}
+	          {React.useMemo(() => getSectionGroups('content'),[item?.draft_section_groups])}
 	        </Layout>
-	        {getSectionGroups('bottom')}
-	        {/*<Footer show={item.footer} dataItems={dataItems} />*/}
+	        {/*{React.useMemo(() => getSectionGroups('bottom'),[item?.draft_section_groups])}*/}
+	        
 	      </div>
 	    </PageContext.Provider>
 	) 
