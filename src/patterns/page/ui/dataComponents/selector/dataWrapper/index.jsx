@@ -445,7 +445,7 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
 
     // ========================================== get data begin =======================================================
     useEffect(() => {
-        if(!isValidState || !state.display.readyToLoad) return;
+        if(!isValidState || (!state.display.readyToLoad && !state.display.allowEditInView)) return;
         let isStale = false;
 
         const newDataReq = {
@@ -467,11 +467,11 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
         return () => {
             isStale = true;
         }
-    }, [filterOptions, orderBy, isValidState, state.display.readyToLoad])
+    }, [filterOptions, orderBy, isValidState, state.display.readyToLoad, state.display.allowEditInView])
 
     // uweGetDataOnSettingsChange
     useEffect(() => {
-        if(!isValidState || !state.display.readyToLoad) return;
+        if(!isValidState || (!state.display.readyToLoad && !state.display.allowEditInView)) return;
         // only run when controls or source/view change
         let isStale = false;
         async function load() {
@@ -496,11 +496,11 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
         return () => {
             isStale = true;
         };
-    }, [state?.dataRequest, isValidState, state.display.readyToLoad]);
+    }, [state?.dataRequest, isValidState, state.display.readyToLoad, state.display.allowEditInView]);
 
     // useGetDataOnPageChange
     const onPageChange = (currentPage) => {
-        if(!isValidState || !component.useGetDataOnPageChange || !state.display.readyToLoad) return;
+        if(!isValidState || !component.useGetDataOnPageChange || (!state.display.readyToLoad && !state.display.allowEditInView)) return;
         // only run when page changes
         let isStale = false;
         async function load() {
@@ -552,17 +552,28 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
     // =========================================== util fns begin ======================================================
     const updateItem = (value, attribute, d) => {
         if(!state.sourceInfo?.isDms || !apiUpdate) return;
-        let dataToUpdate = Array.isArray(d) ? d : [d];
 
-        let tmpData = [...state.data];
-        dataToUpdate.map(dtu => {
-            const i = state.data.findIndex(dI => dI.id === dtu.id);
-            tmpData[i] = dtu;
-        });
-        setState(draft => {
-            draft.data = tmpData
-        });
-        return Promise.all(dataToUpdate.map(dtu => apiUpdate({data: dtu, config: {format: state.sourceInfo}})));
+        if(attribute?.name){
+            setState(draft => {
+                const idx = draft.data.findIndex(draftD => draftD.id === d.id);
+                if(idx !== -1){
+                    draft.data[idx] = {...(draft.data[idx] || {}), ...d, [attribute.name]: value}
+                }
+            })
+            return apiUpdate({data: {...d, [attribute.name]: value},  config: {format: state.sourceInfo}})
+        }else{
+            let dataToUpdate = Array.isArray(d) ? d : [d];
+
+            let tmpData = [...state.data];
+            dataToUpdate.map(dtu => {
+                const i = state.data.findIndex(dI => dI.id === dtu.id);
+                tmpData[i] = dtu;
+            });
+            setState(draft => {
+                draft.data = tmpData
+            });
+            return Promise.all(dataToUpdate.map(dtu => apiUpdate({data: dtu, config: {format: state.sourceInfo}})));
+        }
     }
 
     const addItem = () => {

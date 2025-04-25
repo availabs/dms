@@ -109,7 +109,8 @@ const DefaultComp = ({value, className}) => <div className={className}>{value}</
 const EditComp = ({attribute, value, rawValue, isValueFormatted, id, updateItem, allowEdit}) => {
     const [isEditing, setIsEditing] = useState(false);
     const compRef = useRef(null);
-    const compId = `${attribute.name}-${id}`;
+    const compId = `${attribute.name}-${id}-${JSON.stringify(rawValue)}`;
+    const compIdEdit = `${attribute.name}-${id}`;
     const Comp = DataTypes[attribute.type]?.[allowEdit ? 'EditComp' : 'ViewComp'] || DefaultComp;
     // const Comp = DataTypes[attribute.type]?.[allowEdit && isEditing ? 'EditComp' : 'ViewComp'];
     useHandleClickOutside(compRef, compId, () => isEditing && setIsEditing(false));
@@ -121,7 +122,7 @@ const EditComp = ({attribute, value, rawValue, isValueFormatted, id, updateItem,
                 className={(allowEdit && isEditing) || (allowEdit && !value) ? `w-full` : ``}>
         <Comp value={allowEdit && isValueFormatted ? rawValue : value}
               placeholder={'please enter value...'}
-              id={compId}
+              id={allowEdit && isEditing ? compIdEdit : compId}
               onChange={newValue => updateItem(newValue, attribute, {id, [attribute.name]: newValue})} className={allowEdit && !value ? 'border' : ' '}
               {...attribute}
         />
