@@ -138,7 +138,7 @@ export const DataSourceSelector = ({
         }
     }, [state.sourceInfo?.source_id])
     const sourceOptions = sources.map(({source_id, name, srcEnv}) => ({key: source_id, label: `${name} (${envs[srcEnv].label})`}));
-    const viewOptions = views.map(({view_id, name, version}) => ({key: view_id, label: name || version}));
+    const viewOptions = views.map(({view_id, name, version}) => ({key: view_id, label: name || version || view_id}));
     return (
         <div className={'flex w-full bg-white items-center'}>
             <label className={'p-1'}>Source: </label>
