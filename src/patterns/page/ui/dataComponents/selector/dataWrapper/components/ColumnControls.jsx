@@ -7,6 +7,7 @@ import {useHandleClickOutside} from "../../ComponentRegistry/shared/utils";
 import {getColumnLabel, isEqualColumns} from "../utils/utils";
 import {Pill} from "./Pill";
 import {AddFormulaColumn} from "./AddFormulaColumn";
+import {isCalculatedCol} from "../../ComponentRegistry/shared/filters/utils";
 
 const gridClasses = {
     2: {
@@ -308,7 +309,7 @@ export default function ColumnControls({context}) {
                             .map((attribute, i) => (
                                 <div
                                     key={`${attribute.name}-${i}`}
-                                    className="flex items-center px-2 py-1 text-xs text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                                    className={`flex items-center px-2 py-1 text-xs text-gray-700 ${isCalculatedCol(attribute.name, columnsToRender) ? `bg-gray-50` : ``} hover:bg-gray-100 hover:text-gray-900`}
                                     onDragStart={(e) => dragStart(e, i)}
                                     onDragEnter={(e) => dragEnter(e, i)}
 

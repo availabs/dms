@@ -170,7 +170,9 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
     // add normal columns to the list of columns to fetch
     if(normalFilter.length){
         const normalColumns = [];
-        const valueColumn = state.columns.find(col => col.valueColumn)?.name || 'value';
+        const valueColumnName = state.columns.find(col => col.valueColumn)?.name || 'value';
+        const fullColumn = getFullColumn(valueColumnName, columnsWithSettings);
+        const valueColumn = fullColumn?.refName || 'value';
         normalFilter.forEach(({column, values}, i) => {
             const fullColumn = state.columns.find(col => col.name === column && isEqual(values, col.filters[0]?.values));
             if(column && fullColumn?.normalName && values?.length){
