@@ -160,11 +160,11 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, component, hideS
 
             (column.filters || [])
                 .filter(({values}) => Array.isArray(values) && values.every(v => typeof v === 'string' ? v.length : typeof v !== 'object'))
-                .forEach(({type, operation, values}) => {
+                .forEach(({type, operation, values, fn}) => {
                     // here, operation is filter, exclude, >, >=, <, <=.
                     // normal columns only support filter.
                     if(isNormalisedColumn){
-                        (acc.normalFilter ??= []).push({ column: column.name, values });
+                        (acc.normalFilter ??= []).push({ column: column.name, values, operation, fn });
                     }else{
                         acc[operation] = {...acc[operation] || {}, [column.name]: values};
                     }
@@ -416,11 +416,11 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
 
         (column.filters || [])
             .filter(({values}) => Array.isArray(values) && values.every(v => typeof v === 'string' ? v.length : typeof v !== 'object'))
-            .forEach(({type, operation, values}) => {
+            .forEach(({type, operation, values, fn}) => {
                 // here, operation is filter, exclude, >, >=, <, <=.
                 // normal columns only support filter.
                 if(isNormalisedColumn){
-                    (acc.normalFilter ??= []).push({ column: column.name, values });
+                    (acc.normalFilter ??= []).push({ column: column.name, values, operation, fn });
                 }else{
                     acc[operation] = {...acc[operation] || {}, [column.name]: values};
                 }

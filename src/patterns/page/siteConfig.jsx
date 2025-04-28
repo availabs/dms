@@ -35,6 +35,7 @@ export const pagesConfig = ({
   siteType,
   rightMenu = <DefaultMenu />,
   baseUrl = '/',
+  damaBaseUrl,
   logo, // deprecated
   authLevel = -1,
   themes = { default: {} },
@@ -86,7 +87,7 @@ export const pagesConfig = ({
           const { falcor, falcorCache } = useFalcor();
           // console.log('hola', user, defaultUser, user || defaultUser)
           return (
-            <CMSContext.Provider value={{API_HOST, baseUrl, user, theme, falcor, falcorCache, pgEnv, app, type, siteType, Menu: () => <>{rightMenu}</> }} >
+            <CMSContext.Provider value={{API_HOST, baseUrl, damaBaseUrl, user, theme, falcor, falcorCache, pgEnv, app, type, siteType, Menu: () => <>{rightMenu}</> }} >
               {children}
             </CMSContext.Provider>
           )
@@ -151,6 +152,7 @@ export const pagesManagerConfig = ({
   siteType,
   rightMenu = <DefaultMenu />,
   baseUrl = '/',
+  damaBaseUrl,
   logo, // deprecated
   authLevel = -1,
   themes = { default: {} },
@@ -206,7 +208,7 @@ export const pagesManagerConfig = ({
         type: ({children, user=defaultUser, ...props}) => {
           const { falcor, falcorCache } = useFalcor();
           return (
-            <CMSContext.Provider value={{API_HOST, baseUrl, user, theme, falcor, falcorCache, pgEnv, app, type, siteType, Menu: () => <>{rightMenu}</> }} >
+            <CMSContext.Provider value={{API_HOST, baseUrl, damaBaseUrl, user, theme, falcor, falcorCache, pgEnv, app, type, siteType, Menu: () => <>{rightMenu}</> }} >
               <ManageLayout {...props}>
                 {children}
               </ManageLayout>

@@ -148,7 +148,7 @@ export const RenderFilterValueSelector = ({
                         </select>
 
                         {
-                            ['gt', 'gte', 'lt', 'lte'].includes(filter.operation) && isGrouping ?
+                            /*['gt', 'gte', 'lt', 'lte'].includes(filter.operation) &&*/ isGrouping ?
                                 <select
                                     className={`${isEdit ? 'cursor-pointer' : 'hidden'} ${theme.filters.settingPill}`}
                                     value={filter.fn}
@@ -163,8 +163,9 @@ export const RenderFilterValueSelector = ({
                                 >
                                     <option key="none" value="">no fn</option>
                                     <option key="sum" value="sum">sum</option>
-                                    <option key="count" value="conut">count</option>
+                                    <option key="count" value="count">count</option>
                                     <option key="max" value="max">max</option>
+                                    <option key="list" value="list">list</option>
                                 </select> : null
                         }
                         {
