@@ -30,7 +30,7 @@ function PageEdit ({
 	    return items
 	}, [dataItems])
 
-	console.log('-----------render edit----------------', item.draft_sections.length, item.draft_section_groups.length)
+	// console.log('-----------render edit----------------', item.draft_sections.length, item.draft_section_groups.length)
 	theme = merge(cloneDeep(theme), item?.theme || {})
 	const level = item?.index == '999' || theme?.navOptions?.topNav?.nav !== 'main' ? 1 : detectNavLevel(dataItems, baseUrl);
 	const inPageNav = getInPageNav(item, theme);
