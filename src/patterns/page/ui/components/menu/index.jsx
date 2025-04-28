@@ -85,16 +85,13 @@ export default function MenuComp ({ children, items=defaultItems, zIndex=40, ori
         >
           <div className="py-1">
             {
-              items.map((item, i) => {
-                    if(!item) {
-                      console.log('<MenuComp> item not found')
-                    }
+              items
+                .filter(d => d)
+                .map((item, i) => {   
                     const ItemComp = ItemTypes?.[item?.type] || ItemTypes['simple']
-                    return  <div  key={i} classname={'hover:bg-slate-100'}>
-                              <ItemComp item={item} />
-                            </div>
-                  }
-              )}
+                    return  <ItemComp  key={i} item={item} />
+                })
+            }
           </div>
         
         </div>
