@@ -31,7 +31,9 @@ import {
 import * as React from 'react';
 import {useEffect, useRef, useState} from 'react';
 import {CAN_USE_DOM} from '../../shared/canUseDOM';
-
+import {
+  $getNodeByKey
+} from 'lexical';
 import {
   $createButtonNode,
   $isButtonNode,
@@ -54,17 +56,23 @@ export const INSERT_BUTTON_COMMAND: LexicalCommand<ButtonPayload> =
   createCommand('INSERT_BUTTON_COMMAND');
 
 export function InsertButtonDialog({
-  activeEditor,
-  onClose,
-}: {
+                                     activeEditor,
+                                     onClose,
+                                     initialValues,
+                                   }: {
   activeEditor: LexicalEditor;
   onClose: () => void;
+  initialValues?: {
+    linkText: string;
+    path: string;
+    style: string;
+    nodeKey?: string;
+  };
 }): JSX.Element {
   const hasModifier = useRef(false);
-
-  const [linkText, setLinkText] = useState('submit');
-  const [path, setPath] = useState('#');
-  const [style, setStyle] = useState('primary');
+  const [linkText, setLinkText] = useState(initialValues?.linkText || 'submit');
+  const [path, setPath] = useState(initialValues?.path || '#');
+  const [style, setStyle] = useState(initialValues?.style || 'primary');
 
   useEffect(() => {
     hasModifier.current = false;
@@ -79,7 +87,17 @@ export function InsertButtonDialog({
 
   const handleOnClick = () => {
     const payload = {linkText, path, style};
-    activeEditor.dispatchCommand(INSERT_BUTTON_COMMAND, payload);
+    activeEditor.update(() => {
+      if (initialValues?.nodeKey) {
+        const newNode = $createButtonNode({linkText, path, style});
+        const oldNode = $getNodeByKey(initialValues.nodeKey);
+        if ($isButtonNode(oldNode)) {
+          oldNode.replace(newNode);
+        }
+      } else {
+        activeEditor.dispatchCommand(INSERT_BUTTON_COMMAND, payload);
+      }
+    });
     onClose();
   };
 
@@ -121,6 +139,8 @@ export function InsertButtonDialog({
         <option value="secondary">Secondary</option>
         <option value="primarySmall">Primary Small</option>
         <option value="secondarySmall">Secondary Small</option>
+        <option value="whiteSmall">White Small</option>
+
       </Select>
 
       <DialogActions>
@@ -149,7 +169,7 @@ export default function ButtonPlugin(): JSX.Element | null {
         (payload) => {
           const buttonNode = $createButtonNode(payload);
           $insertNodes([buttonNode]);
-          $wrapNodeInElement(buttonNode, $createParagraphNode).selectEnd();
+          // $wrapNodeInElement(buttonNode, $createParagraphNode).selectEnd();
           return true;
         },
         COMMAND_PRIORITY_EDITOR,

@@ -6,7 +6,7 @@ import DataWrapper from "../../page/ui/dataComponents/selector/dataWrapper";
 import {useNavigate, useSearchParams} from "react-router-dom";
 import {getData as getFilterData} from "../../page/ui/dataComponents/selector/ComponentRegistry/shared/filters/utils";
 import {applyFn, attributeAccessorStr, isJson} from "../../page/ui/dataComponents/selector/dataWrapper/utils/utils";
-import {cloneDeep, isEqual, uniq} from "lodash-es";
+import {cloneDeep, isEqual, uniq, uniqBy} from "lodash-es";
 import {XMark} from "../../page/ui/icons";
 import {Filter, FilterRemove} from "../ui/icons";
 import dataTypes from "../../../data-types";
@@ -86,12 +86,12 @@ const getFilterFromSearchParams = searchParams => Array.from(searchParams.keys()
 const getInitState = ({columns, defaultColumns=[], app, doc_type, params, data, searchParams}) => JSON.stringify({
     dataRequest: {filter: getFilterFromSearchParams(searchParams)},
     data: [],
-    columns: [
+    columns: uniqBy([
         ...defaultColumns.map(dc => columns.find(c => c.name === dc.name)).filter(dc => dc), // default columns
         ...columns.filter(({name, shortName}) => !defaultColumns.find(dc => dc.name === name) && data[`${shortName}_error`]) // error columns minus default columns
             .sort((a,b) => data[`${b.shortName}_invalid_values`].filter(values => values !== '"__VALID__"' && values !== "__VALID__").length -
                 data[`${a.shortName}_invalid_values`].filter(values => values !== '"__VALID__"' && values !== "__VALID__").length)
-    ]
+    ], c => c.name)
         .map(c => ({...c, show: true, externalFilter: searchParams.get(c.name)?.split(filterValueDelimiter)?.filter(d => d.length)})),
     sourceInfo: {
         app,
@@ -375,16 +375,16 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
                         Array.isArray(invalidValues) ? // for multiselects
                         invalidValues.filter(inv => {
                             const value = inv?.value || inv;
-                            return ['select', 'multiselect', 'radio'] && col.options ? (
+                            return ['select', 'multiselect', 'radio'].includes(col.type) && col.options ? (
                                 Array.isArray(value) ?
                                     value.reduce((acc, v) => {
-                                        return acc && !col.options.some(o => (o?.value || o) === (v?.value || v)) && v !== '"__VALID__"' && v !== "__VALID__"
-                                    }, true) : // make sure all selections are valid
+                                        return acc || !col.options.some(o => (o?.value || o) === (v?.value || v)) && v !== '"__VALID__"' && v !== "__VALID__"
+                                    }, false) : // make sure all selections are valid
                                     !col.options.find(o => (o?.value || o) === value) && value !== '"__VALID__"' && value !== "__VALID__"
                             ) : inv !== '"__VALID__"' && inv !== "__VALID__"
                         }).map(value => Array.isArray(value) ? value.map(v => v?.value || v) : (value?.value || value)) : invalidValues
 
-                    // console.log('===', col.name, +data?.[0]?.[getErrorValueSql(col.name, col.shortName, col.options, col.required === 'yes')], sanitisedValues)
+                    // console.log('===', col.name, invalidValues, sanitisedValues)
                 return {
                     ...acc,
                     [`${col.shortName}_error`]: +data?.[0]?.[getErrorValueSql(col.name, col.shortName, col.options, col.required === 'yes')],
@@ -424,6 +424,7 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
     //     key: 'filters',
     //     trueValue: [{type: 'internal', operation: 'filter', values: ['null']}]
     // })
+    SpreadSheetCompWithControls.controls.columns = SpreadSheetCompWithControls.controls.columns.filter(({label}) => label !== 'duplicate')
     SpreadSheetCompWithControls.controls.header = {
         displayFn: column => {
             const invalidValues = data[`${column.shortName}_invalid_values`]?.filter(values => values !== '"__VALID__"' && values !== "__VALID__") || [];

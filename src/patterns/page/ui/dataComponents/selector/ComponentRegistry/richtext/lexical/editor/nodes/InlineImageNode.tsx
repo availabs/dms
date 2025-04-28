@@ -235,6 +235,9 @@ export class InlineImageNode extends DecoratorNode<JSX.Element> {
         if (className !== undefined) {
             span.className = className;
         }
+        span.style.lineHeight = '0';
+        span.style.display = 'inline-block';
+        span.style.verticalAlign = 'bottom';
         return span;
     }
 

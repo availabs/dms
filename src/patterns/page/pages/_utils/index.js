@@ -1,5 +1,6 @@
 import { matchRoutes } from 'react-router-dom'
-
+import { v4 as uuidv4 } from 'uuid';
+import { cloneDeep } from 'lodash-es'
 //import {getCurrentDataItem} from "./navItems.js";
 // const baseUrl = ''
 
@@ -43,9 +44,12 @@ export function getChildNav(item, dataItems, baseUrl='', edit) {
             description: d.description,
             hideInNav: d.hide_in_nav
         }
+        if(d?.icon && d?.icon !== 'none') {
+                item.icon = d.icon
+        }
         const inPageChildrenForD =  getInPageNav(d)?.menuItems || [];
         const childrenForD = getChildNav(d, dataItems, baseUrl, edit) || [];
-        item.subMenus = childrenForD
+        item.subMenus = childrenForD.filter(d => d.name)
 
         return item
     })
@@ -87,9 +91,12 @@ export function dataItemsNav(dataItems, baseUrl = '', edit = false, level=1) {
                 description: d.description,
                 hideInNav: d.hide_in_nav
             }
+            if(d?.icon && d?.icon !== 'none') {
+                item.icon = d.icon
+            }
 
             if (getChildNav(item, dataItems, baseUrl, edit)) {
-                item.subMenus = getChildNav(d, dataItems, baseUrl, edit)
+                item.subMenus = getChildNav(d, dataItems, baseUrl, edit).filter(d => d.name)
             }
 
             return item
@@ -129,7 +136,95 @@ export const toSnakeCase = str =>
     .map(x => x.toLowerCase())
     .join('_');
 
+function toTitleCase(str='') {
+  return str.replace(
+    /\w\S*/g,
+    text => text.charAt(0).toUpperCase() + text.substring(1).toLowerCase()
+  );
+}
+export const sectionsEditBackill = (item, baseUrl, submit) => {
+    if(!item.draft_section_groups && item?.id) {
+            let newItem = {id: item.id}
+            newItem.draft_section_groups = [
+                {name: 'default', position: 'content', index: 0, theme: 'content'}
+            ]
+            if(item?.header && item?.header !== 'none' ) {
+                newItem.draft_section_groups.push( 
+                    {name: 'header', position: 'top', index: 0, theme: 'header', full_width: 'show'}
+                )
+            }
+            newItem.draft_sections = cloneDeep(item.draft_sections || [])
 
+            if(item?.footer && item?.footer !== 'none' ) {
+          newItem.draft_section_groups.push( 
+            {name: 'footer', position: 'bottom', index: 99, theme: 'clearCentered', full_width: 'show'}
+          )
+          if(!item.draft_sections.filter(d => d.is_footer)?.[0]){
+            newItem.draft_sections.push({
+                "size": "2",
+                "group": "footer",
+                is_footer: true,
+                "order": 0,
+                "element": {
+                    "element-type": "Footer: MNY Footer"
+                },
+                "trackingId": uuidv4(),
+            })
+          }
+        }
+
+
+            newItem.draft_sections.forEach((section,i) => {
+                if(section.is_header) {
+                    section.group = 'header'
+                    section.padding = 'p-0'
+                }
+            })
+            submit(json2DmsForm(newItem), { method: "post", action: `${baseUrl}/edit/${item.url_slug}` })
+        }
+}
+
+export const sectionsBackill = (item, baseUrl, submit) => {
+     if(!item.section_groups && item.id) {
+        //console.log('edit item', item)
+        let newItem = {id: item.id}
+        newItem.section_groups = [
+          {name: 'default', position: 'content', index: 0, theme: 'content'}
+        ]
+
+        newItem.sections = cloneDeep(item?.sections || [])
+
+        if(item?.header && item?.header !== 'none' ) {
+          newItem.section_groups.push( 
+            {name: 'header', position: 'top', index: 0, theme: 'header', full_width: 'show'}
+          )
+        }
+        if(item?.footer && item?.footer !== 'none' ) {
+          newItem.section_groups.push( 
+            {name: 'footer', position: 'bottom', index: 99, theme: 'clearCentered', full_width: 'show'}
+          )
+          if(!item.sections.filter(d => d.is_footers)?.[0]){
+            newItem.sections.push({
+                "size": "2",
+                "group": "footer",
+                is_footer: 'true',
+                "order": 0,
+                "element": {
+                    "element-type": "Footer: MNY Footer"
+                },
+                "trackingId": uuidv4(),
+            })
+          }
+        }
+        
+        newItem.sections?.forEach((section,i) => {
+          if(section.is_header) {
+            section.group = 'header'
+          }
+        })
+        submit(json2DmsForm(newItem), { method: "post", action: `${baseUrl}/${item.url_slug}` })
+      }
+}
 
 // const levelClasses = {
 //     '1': ' pt-2 pb-1 uppercase text-sm text-blue-400 hover:underline cursor-pointer border-r-2 mr-4',
@@ -147,11 +242,13 @@ export function getInPageNav(item, theme) {
     //console.log('test 123', theme)
    
     const menuItems = (Array.isArray(currentDI?.sections) ? currentDI.sections : []).reduce((acc, {title, element, level, ...props}) => {
-        if (!element || !title || level !== '1' ) return acc; // filtering for level 1 section header
+        if(!element) return acc;
+
+        const isLexical = element['element-type'] === 'lexical' || !element['element-type'];
+        if (((!title || level !== '1') && !isLexical) || level !== '1') return acc; // filtering for level 1 section header
 
         const lexicalNavElements =
-            element['element-type'] === 'lexical' || !element['element-type'] ?
-            parseData(element['element-data'])?.root?.children?.reduce((acc, {type, tag, children, ...rest}) => {
+            isLexical ? parseData(element['element-data'])?.root?.children?.reduce((acc, {type, tag, children, ...rest}) => {
                 // filtering for H1 in lexical
                 const heading = type === 'heading' && tag === 'h1' && children[0]?.text?.length ?
                     [

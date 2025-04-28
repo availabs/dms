@@ -13,6 +13,7 @@ const NOOP = () => { return {} }
 export const sideNavTheme = {
    "fixed": "",
    "logoWrapper": "w-44 bg-neutral-100 text-slate-800",
+   "topNavWrapper": "flex flex-row md:flex-col", //used in layout
    "sidenavWrapper": "hidden md:block bg-white border-r w-44 h-full z-20",
    "menuItemWrapper": "flex flex-col",
    "menuIconSide": "group w-6 mr-2 text-blue-500  group-hover:text-blue-800",
@@ -87,14 +88,6 @@ const MobileSidebar = ({
 						<div
 							className={`flex-1 h-0 pt-2 pb-4 overflow-y-auto overflow-x-hidden flex`}
 						>
-							{/*<div className="px-6 pt-4 pb-8 logo-text gray-900">
-								<Link
-									to={"/"}
-									className={`flex-shrink-0 flex items-center ${theme?.text}`}
-								>
-									{logo}
-								</Link>
-							</div>*/}
 							<div>{topMenu}</div>
 							<nav className="flex-1">
 								{menuItems.map((page, i) => (

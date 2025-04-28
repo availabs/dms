@@ -34,6 +34,7 @@ export default function TextInput({
       <label className={`${InputStyles["Input__label"]}`}>{label}</label>
       <input
         type={type}
+        value={value}
         className={`${InputStyles["Input__input"]}`}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}

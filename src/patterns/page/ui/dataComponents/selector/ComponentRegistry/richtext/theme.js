@@ -16,7 +16,7 @@ const theme = {
   editorShell: "font-['Proxima_Nova'] font-[400] text-[16px] text-[#37576B] leading-[22.4px]",
   card: 'p-[12px] shadow-[0px_0px_6px_0px_rgba(0,0,0,0.02),0px_2px_4px_0px_rgba(0,0,0,0.08)]', 
   heading: {
-      h1: "font-[500]  text-[#2D3E4C] text-[36px] leading-[36px] tracking-[-.02em] font-[500] underline-offset-8 underline decoration-4 decoration-[#EAAD43] uppercase font-['Oswald'] pb-[12px]", //'PlaygroundEditorTheme__h1',
+      h1: "font-[500]  text-[#2D3E4C] text-[36px] leading-[140%] tracking-[-.02em] font-[500] underline-offset-8 underline decoration-4 decoration-[#EAAD43] uppercase font-['Oswald'] pb-[12px]", //'PlaygroundEditorTheme__h1',
       h2: "font-[500]  text-[#2D3E4C] text-[24px] leading-[24px] scroll-mt-36 font-['Oswald'] pb-[12x]", //'PlaygroundEditorTheme__h2',
       h3: "font-[500]  text-[#2D3E4C] text-[16px] leading-[16px] scroll-mt-36 font-['Oswald'] pb-[12x]", //'PlaygroundEditorTheme__h3',
       h4: "font-medium text-[#2D3E4C] scroll-mt-36 font-display", //'PlaygroundEditorTheme__h4',
@@ -25,7 +25,9 @@ const theme = {
   },
   paragraph: "m-0 relative", //'PlaygroundEditorTheme__paragraph',
   
-  quote: "m-0 mb-2 font-['Oswald'] text-[30px] leading-[36px] text-[#2D3E4C] border-l-4 border-[#37576B] pl-4 pb-[12px]", //'PlaygroundEditorTheme__quote',
+  quote: "m-0 mb-2 py-6 font-['Oswald'] text-[30px] leading-[36px] text-[#2D3E4C] border-l-4 border-[#37576B] pl-4", //'PlaygroundEditorTheme__quote',
+  link: "text-[#37576B] font-[500] no-underline inline-block hover:underline hover:cursor-pointer", //"PlaygroundEditorTheme__link",
+  
   // editorShell: "rounded-[2px] relative", //'.editor-shell',
   
   // quote:
@@ -43,7 +45,8 @@ const theme = {
   blockCursor: `block pointer-events-none absolute content-['']  after:absolute after:-top-[2px] after:w-[20px] after:border-t-[1px_solid_black]`,
   characterLimit: "inline !bg-[#ffbbbb]",
   layoutContainer: 'grid gap-[10px]',
-  layoutItem: 'border border-dashed border-slate-300 rounded-lg px-2 py-4 min-w-0 max-w-full',
+  layoutItem: 'px-2 py-4 min-w-0 max-w-full',
+  layoutItemEditable: 'border border-dashed border-slate-300 rounded-lg',
   code: `bg-[rgb(240,_242,_245)] font-[Menlo,_Consolas,_Monaco,_monospace] block pl-[52px] pr-[8px] py-[8px] leading-[1.53] text-[13px] m-0 mt-[8px] mb-[8px] [tab-size:2] relative after:content-[attr(data-gutter)] after:absolute after:bg-[#eee] after:left-[0] after:top-[0] after:border-r-[1px_solid_#ccc] after:p-[8px] after:text-[#777] after:whitespace-pre-wrap after:text-right after:min-w-[25px]`,
   codeHighlight: {
     atrule: "text-[#07a]",
@@ -86,7 +89,6 @@ const theme = {
   
   image: "editor-image",
   indent: "PlaygroundEditorTheme__indent",
-  link: "text-[rgb(33,111,219)] no-underline inline-block hover:underline hover:cursor-pointer", //"PlaygroundEditorTheme__link",
   list: {
     listitem: "mx-[32px]", //PlaygroundEditorTheme__listItem
     listitemChecked: "PlaygroundEditorTheme__listItemChecked",
@@ -549,7 +551,7 @@ const theme = {
     active: "cursor-grabbing", // .draggable-block-menu:active
   },
   draggableBlockTargetLine: {
-    base: "pointer-events-none bg-deepskyblue h-1 absolute left-0 top-0 opacity-0 will-change-transform", // .draggable-block-target-line
+    base: "pointer-events-none bg-blue-500 h-1 absolute left-0 top-0 opacity-0 will-change-transform", // .draggable-block-target-line
   },
   floatingTextFormatPopup: {
     base: "flex bg-white p-1 align-middle absolute top-0 left-0 z-10 opacity-0 shadow-md rounded-lg transition-opacity duration-500 h-11 will-change-transform", // .floating-text-format-popup

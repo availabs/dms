@@ -7,6 +7,7 @@ const range = (start, end) => Array.from({length: (end + 1 - start)}, (v, k) => 
 
 // get forms, and their sources
 const getSources = async ({envs, falcor, apiLoad}) => {
+    if(!envs || !Object.keys(envs)) return [];
     const lenRes = await falcor.get(['uda', Object.keys(envs), 'sources', 'length']);
 
     const sources = await Promise.all(
@@ -66,6 +67,7 @@ export const DataSourceSelector = ({
   state, setState,
   formatFromProps,
   apiLoad,
+  sourceTypes=['external', 'internal'] // lists Externally Sourced and Internally Sourced Datasets.
 }) => {
     const {app, siteType, falcor, pgEnv} = useContext(CMSContext);
     const [sources, setSources] = useState([]);
@@ -74,18 +76,22 @@ export const DataSourceSelector = ({
     if(formatFromProps?.config) return null;
 
     const envs = {
-        [pgEnv]: {
-            label: 'external',
-            srcAttributes: ['name', 'metadata'],
-            viewAttributes: ['version', '_modified_timestamp']
+        ...sourceTypes.includes('external') && {
+            [pgEnv]: {
+                label: 'external',
+                srcAttributes: ['name', 'metadata'],
+                viewAttributes: ['version', '_modified_timestamp']
+            }
         },
-        [`${app}+${siteType}`]: {
-            label: 'managed',
-            isDms: true,
-            // {doc_type}-{view_id} is used as type to fetch data items for dms views.
-            // for invalid entries, it should be {doc_type}-{view_id}-invalid-entry.
-            srcAttributes: ['app', 'name', 'doc_type', 'config'],
-            viewAttributes: ['name', 'updated_at']
+        ...sourceTypes.includes('internal') && {
+            [`${app}+${siteType}`]: {
+                label: 'managed',
+                isDms: true,
+                // {doc_type}-{view_id} is used as type to fetch data items for dms views.
+                // for invalid entries, it should be {doc_type}-{view_id}-invalid-entry.
+                srcAttributes: ['app', 'name', 'doc_type', 'config'],
+                viewAttributes: ['name', 'updated_at']
+            }
         }
     };
 
@@ -130,9 +136,9 @@ export const DataSourceSelector = ({
         return () => {
             isStale = true;
         }
-    }, [state.sourceInfo.source_id])
+    }, [state.sourceInfo?.source_id])
     const sourceOptions = sources.map(({source_id, name, srcEnv}) => ({key: source_id, label: `${name} (${envs[srcEnv].label})`}));
-    const viewOptions = views.map(({view_id, name, version}) => ({key: view_id, label: name || version}));
+    const viewOptions = views.map(({view_id, name, version}) => ({key: view_id, label: name || version || view_id}));
     return (
         <div className={'flex w-full bg-white items-center'}>
             <label className={'p-1'}>Source: </label>
@@ -147,7 +153,7 @@ export const DataSourceSelector = ({
                         setState(draft => {
                             // reset values, set source
                             draft.columns = []; // clears our visible columns, and all of their settings (group, filter, etc).
-                            draft.sourceInfo = source;
+                            draft.sourceInfo = {...source};
                             // for internally sourced data-sources, doc_type becomes type when we fetch their data items.
                             draft.sourceInfo.type = doc_type;
                         })

@@ -5,7 +5,15 @@ import {useHandleClickOutside} from "../../utils";
 import {convertToUrlParams} from "../utils";
 import {useNavigate} from "react-router-dom";
 import {isEqualColumns} from "../../../../dataWrapper/utils/utils";
+import {filterTheme} from "../RenderFilters";
+import {CMSContext} from "../../../../../../../siteConfig";
 
+const resetColumn = (originalAttribute, setState, columns) => setState(draft => {
+    const idx = columns.findIndex(column => isEqualColumns(column, originalAttribute));
+    if (idx === -1) {
+        draft.columns.splice(idx, 1);
+    }
+});
 const RenderSearchKeySelector = ({filter, searchParams, onChange}) => {
     const [open, setOpen] = React.useState(false);
     const [text, setText] = React.useState(filter.searchParamKey || '');
@@ -52,9 +60,10 @@ const RenderSearchKeySelector = ({filter, searchParams, onChange}) => {
 }
 
 export const RenderFilterValueSelector = ({
-    loading, isEdit, filterColumn, filterOptions=[], setState, searchParams, delimiter, filterWithSearchParamKeys, columns
+    loading, isEdit, filterColumn, filterOptions=[], state, setState, searchParams, delimiter, filterWithSearchParamKeys, columns
 }) => {
     const navigate = useNavigate();
+    const { theme = { filters: filterTheme } } = React.useContext(CMSContext) || {};
     const options = useMemo(() => filterOptions.find(fo => fo.column === filterColumn.name)?.uniqValues, [filterOptions, filterColumn.name]);
 
     const useDebouncedUpdateFilter = (delay = 300) => {
@@ -79,6 +88,7 @@ export const RenderFilterValueSelector = ({
                     if (key === 'allowSearchParams' && value === true && !targetFilter['searchParamKey']) {
                         targetFilter['searchParamKey'] = filterColumn.name;
                     }
+                    draft.display.readyToLoad = true;
                 });
             }, delay);
         }, [setState]);
@@ -97,11 +107,13 @@ export const RenderFilterValueSelector = ({
 
             const value = ['filter', 'exclude'].includes(filter.operation) ? (filter.values || []) :
                 (Array.isArray(filter.values) ? filter.values[0] : typeof filter.values === 'object' ? '' : filter.values);
+
+            const isStaleFilter = state.sourceInfo.columns.findIndex(({name}) => name === filterColumn.name) === -1;
             return (
                 <div key={`${filterColumn.name}-${filter.operation}`} className={'w-full p-1 relative text-xs'}>
-                    <div className={'flex flex-row flex-wrap gap-1'}>
+                    <div className={theme.filters.settingPillsWrapper}>
                         <select
-                            className={`${isEdit ? 'cursor-pointer' : 'hidden'} px-1 py-0.5 bg-orange-500/15 text-orange-700 hover:bg-orange-500/25 rounded-md`}
+                            className={`${isEdit ? 'cursor-pointer' : 'hidden'} ${theme.filters.settingPill}`}
                             value={filter.type}
                             disabled={!isEdit}
                             onChange={e => updateFilter({
@@ -116,7 +128,7 @@ export const RenderFilterValueSelector = ({
                             <option key="external" value="external">external</option>
                         </select>
                         <select
-                            className={`${isEdit ? 'cursor-pointer' : 'hidden'} px-1 py-0.5 bg-orange-500/15 text-orange-700 hover:bg-orange-500/25 rounded-md`}
+                            className={`${isEdit ? 'cursor-pointer' : 'hidden'} ${theme.filters.settingPill}`}
                             value={filter.operation}
                             disabled={!isEdit}
                             onChange={e => updateFilter({
@@ -136,9 +148,9 @@ export const RenderFilterValueSelector = ({
                         </select>
 
                         {
-                            ['gt', 'gte', 'lt', 'lte'].includes(filter.operation) && isGrouping ?
+                            /*['gt', 'gte', 'lt', 'lte'].includes(filter.operation) &&*/ isGrouping ?
                                 <select
-                                    className={`${isEdit ? 'cursor-pointer' : 'hidden'} px-1 py-0.5 bg-orange-500/15 text-orange-700 hover:bg-orange-500/25 rounded-md`}
+                                    className={`${isEdit ? 'cursor-pointer' : 'hidden'} ${theme.filters.settingPill}`}
                                     value={filter.fn}
                                     disabled={!isEdit}
                                     onChange={e => updateFilter({
@@ -151,13 +163,15 @@ export const RenderFilterValueSelector = ({
                                 >
                                     <option key="none" value="">no fn</option>
                                     <option key="sum" value="sum">sum</option>
-                                    <option key="count" value="conut">count</option>
+                                    <option key="count" value="count">count</option>
+                                    <option key="max" value="max">max</option>
+                                    <option key="list" value="list">list</option>
                                 </select> : null
                         }
                         {
                             isEdit && ['filter', 'exclude'].includes(filter.operation) ? (
                                 <div className={'flex flex-wrap items-center gap-1'}>
-                                    <label className={'text-gray-900 font-regular min-w-fit'}>Multiselect: </label>
+                                    <label className={theme.filters.settingLabel}>Multiselect: </label>
                                     <RenderSwitch label={'Use Search Params'}
                                                   enabled={filter.isMulti}
                                                   setEnabled={value => updateFilter({
@@ -176,7 +190,7 @@ export const RenderFilterValueSelector = ({
                         {
                             isEdit ? (
                                 <div className={'flex flex-wrap items-center gap-1'}>
-                                    <label className={'text-gray-900 font-regular min-w-fit'}>Use Search Params: </label>
+                                    <label className={theme.filters.settingLabel}>Use Search Params: </label>
                                     <RenderSwitch label={'Use Search Params'}
                                                   enabled={filter.allowSearchParams}
                                                   setEnabled={value => updateFilter({
@@ -194,7 +208,7 @@ export const RenderFilterValueSelector = ({
                         {
                             filter.allowSearchParams && isEdit ?
                                 <div className={'flex items-center gap-0.5'}>
-                                    <label className={'shrink-0 text-gray-900 font-regular min-w-fit'}>Search key: </label>
+                                    <label className={`shrink-0 ${theme.filters.settingLabel}`}>Search key: </label>
                                     <RenderSearchKeySelector searchParams={searchParams}
                                                              filter={filter}
                                                              onChange={e => updateFilter({
@@ -207,12 +221,16 @@ export const RenderFilterValueSelector = ({
                                     />
                                 </div> : null
                         }
+
+                        {
+                            isEdit && isStaleFilter ? <button className={theme.filters.settingPill} onClick={() => resetColumn(filterColumn, setState, state.sourceInfo.columns)}>Reset Stale Column</button> : null
+                        }
                     </div>
                     {
                         ['filter', 'exclude'].includes(filter.operation) ?
                             <Comp
                                 key={`filter-${filterColumn.name}-${filter.type}`}
-                                className={`max-h-[150px] flex text-xs overflow-auto scrollbar-sm border rounded-md bg-white ${filter.values?.length ? `p-1` : `p-2`}`}
+                                className={`${theme.filters.input}`}
                                 placeholder={'Search...'}
                                 loading={loading}
                                 value={value}
@@ -245,12 +263,13 @@ export const RenderFilterValueSelector = ({
                             /> :
                             <Comp
                                 key={`filter-${filterColumn.name}-${filter.type}`}
-                                className={`max-h-[150px] w-full flex text-xs overflow-auto scrollbar-sm border rounded-md bg-white ${filter.values?.length ? `p-1` : `p-2`}`}
+                                className={`${theme.filters.input}`}
                                 placeholder={'Please enter a number...'}
                                 value={ value }
                                 type={'number'}
                                 onChange={e => {
-                                    let newValues = [e];
+                                    const newValue = filterColumn.type === 'number' && e ? +e : e;
+                                    let newValues = [newValue];
                                     if(filter.allowSearchParams) {
                                         const newFilters =  Object.keys(filterWithSearchParamKeys).filter(col => {
                                             if((filter.searchParamKey || filterColumn.name) === col) return false;

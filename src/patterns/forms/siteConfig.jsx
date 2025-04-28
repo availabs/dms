@@ -48,6 +48,7 @@ const formsAdminConfig = ({
     adminPath,
     title, 
     baseUrl,
+    damaBaseUrl,
     Menu=DefaultMenu,
     API_HOST='https://graph.availabs.org', 
     columns,
@@ -84,7 +85,7 @@ const formsAdminConfig = ({
             {
                 type: (props) => {
                   return (
-                      <FormsContext.Provider value={{baseUrl: `${baseUrl}`, user: props.user || defaultUser, theme, app, type, parent: pattern, Menu, API_HOST}}>
+                      <FormsContext.Provider value={{baseUrl: `${baseUrl}`, damaBaseUrl, user: props.user || defaultUser, theme, app, type, parent: pattern, Menu, API_HOST}}>
                             {props.children}
                       </FormsContext.Provider>
                   )
@@ -151,11 +152,13 @@ const formsSourceConfig = ({
     adminPath,
     title,
     baseUrl,
+    damaBaseUrl,
     Menu=DefaultMenu,
     API_HOST='https://graph.availabs.org',
     columns,
     logo,
     pattern,
+    pgEnv,
     themes={ default: {} },
     checkAuth = () => {}
 }) => {
@@ -191,7 +194,7 @@ const formsSourceConfig = ({
                 type: (props) => {
                     const { falcor, falcorCache } = useFalcor();
                   return (
-                      <FormsContext.Provider value={{baseUrl: `${baseUrl}`, pageBaseUrl: `${baseUrl}/source`, user: props.user || defaultUser, theme, app, type, parent: pattern, Menu, API_HOST, falcor, falcorCache}}>
+                      <FormsContext.Provider value={{baseUrl: `${baseUrl}`, pageBaseUrl: `${baseUrl}/source`, damaBaseUrl, user: props.user || defaultUser, pgEnv, theme, app, type, parent: pattern, Menu, API_HOST, falcor, falcorCache}}>
                         <AvailLayout>
                             {props.children}
                         </AvailLayout>

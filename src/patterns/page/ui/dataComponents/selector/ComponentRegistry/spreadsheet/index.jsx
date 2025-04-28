@@ -11,6 +11,7 @@ import { CMSContext } from '../../../../../siteConfig'
 import {Add, Copy} from "../../../../icons";
 import {cloneDeep} from "lodash-es";
 import {isEqualColumns} from "../../dataWrapper/utils/utils";
+import {duplicateControl} from "../shared/utils";
 
 const getLocation = selectionPoint => {
     let {index, attrI} = typeof selectionPoint === 'number' ? {
@@ -74,7 +75,7 @@ export const tableTheme = {
 
 
 
-export const RenderTable = ({isEdit, updateItem, removeItem, addItem, newItem, setNewItem, loading}) => {
+export const RenderTable = ({isEdit, updateItem, removeItem, addItem, newItem, setNewItem, loading, allowEdit}) => {
     const { theme = { table: tableTheme } } = React.useContext(CMSContext) || {}
     const {state:{columns, sourceInfo, display, data}, setState} = useContext(ComponentContext);
     const gridRef = useRef(null);
@@ -95,7 +96,7 @@ export const RenderTable = ({isEdit, updateItem, removeItem, addItem, newItem, s
             endCol: cols[cols.length - 1]
         }
     }, [selection]);
-    const allowEdit = useMemo(() => !columns.some(({group}) => group), [columns]);
+
     const visibleAttributes = useMemo(() => columns.filter(({show}) => show), [columns]);
     const visibleAttributesLen = useMemo(() => columns.filter(({show}) => show).length, [columns]);
     const openOutAttributes = useMemo(() => columns.filter(({openOut}) => openOut), [columns]);
@@ -144,7 +145,7 @@ export const RenderTable = ({isEdit, updateItem, removeItem, addItem, newItem, s
             columnsWithSizeLength !== visibleAttrsWithoutOpenOutLen ||
             currUsedWidth < gridWidth // resize to use full width
         ) {
-            const availableVisibleAttributes = visibleAttrsWithoutOpenOut.filter(v => v.actionType || sourceInfo.columns.find(attr => attr.name === v.name));
+            const availableVisibleAttributes = visibleAttrsWithoutOpenOut.filter(v => v.actionType || v.type === 'formula' || sourceInfo.columns.find(attr => attr.name === v.name));
             const initialColumnWidth = Math.max(minInitColSize, gridWidth / availableVisibleAttributes.length);
             setState(draft => {
                 availableVisibleAttributes.forEach(attr => {
@@ -432,32 +433,13 @@ export default {
             {type: 'toggle', label: 'Filter', key: 'filters',
                 trueValue: [{type: 'internal', operation: 'filter', values: []}]},
             {type: 'toggle', label: 'Group', key: 'group'},
-            {type: ({attribute, setState}) => {
-                const duplicate = () => {
-                    setState(draft => {
-                        let idx = draft.columns.findIndex(col => isEqualColumns(col, attribute));
-                        if (idx === -1) {
-                            draft.columns.push({...attribute, normalName: `${attribute.name}_original`});
-                            idx = draft.columns.length - 1; // new index
-                        }
-                        const columnToAdd = cloneDeep(draft.columns[idx]);
-                        const numDuplicates = draft.columns.filter(col => col.isDuplicate && col.name === columnToAdd.name).length;
-
-                        columnToAdd.isDuplicate = true;
-                        columnToAdd.copyNum = numDuplicates + 1;
-                        columnToAdd.normalName = `${columnToAdd.name}_copy_${numDuplicates + 1}`
-                        // columnToAdd.originalName = columnToAdd.name;
-                        // columnToAdd.name += ` - copy - ${numDuplicates}`
-                        console.log('column to add', columnToAdd)
-                        draft.columns.push(columnToAdd)
-                        // draft.columns.splice(idx, 0, columnToAdd)
+            {type: 'toggle', label: 'Value column', key: 'valueColumn', onChange: ({key, value, attribute, state, columnIdx}) => {
+                    if(attribute.yAxis || attribute.categorize) return;
+                    state.columns.forEach(column => {
+                        column.valueColumn = value ? column.name === attribute.name : value;
                     })
-                }
-                    return (
-                        <div className={'flex place-content-center'} onClick={() => duplicate()}>
-                            <Copy className={'text-gray-500 hover:text-gray-700'} />
-                        </div>)
-                }, label: 'duplicate'},
+                }},
+            duplicateControl,
         ],
         actions: {Comp: ActionControls},
         more: [
@@ -468,12 +450,13 @@ export default {
             {type: 'toggle', label: 'Show Total', key: 'showTotal'},
             {type: 'toggle', label: 'Striped', key: 'striped'},
             {type: 'toggle', label: 'Allow Download', key: 'allowDownload'},
+            {type: 'toggle', label: 'Always Fetch Data', key: 'readyToLoad'},
             {type: 'toggle', label: 'Use Pagination', key: 'usePagination'},
             {type: 'input', inputType: 'number', label: 'Page Size', key: 'pageSize', displayCdn: ({display}) => display.usePagination === true},
         ],
         inHeader: [
             // settings from in header dropdown are stores in the columns array per column.
-            {type: 'select', label: 'Sort', key: 'sort',
+            {type: 'select', label: 'Sort', key: 'sort', dataFetch: true,
                 options: [
                     {label: 'Not Sorted', value: ''}, {label: 'A->Z', value: 'asc nulls last'}, {label: 'Z->A', value: 'desc nulls last'}
                 ]},
@@ -489,6 +472,7 @@ export default {
                     {label: 'No Format Applied', value: ' '},
                     {label: 'Comma Seperated', value: 'comma'},
                     {label: 'Abbreviated', value: 'abbreviate'},
+                    {label: 'Date', value: 'date'},
                 ]},
 
             // link controls

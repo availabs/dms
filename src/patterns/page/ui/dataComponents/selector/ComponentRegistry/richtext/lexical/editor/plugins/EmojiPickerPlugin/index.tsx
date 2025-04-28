@@ -21,6 +21,7 @@ import {
 import * as React from 'react';
 import {useCallback, useEffect, useMemo, useState} from 'react';
 import * as ReactDOM from 'react-dom';
+import {$createIconNode} from "../../nodes/IconNode";
 
 const Icons = {
   'search': (props) => (
@@ -34,15 +35,15 @@ const Icons = {
 
 class EmojiOption extends MenuOption {
   title: string;
-  emoji: string;
+  emoji: string | React.ReactNode;
   keywords: Array<string>;
 
   constructor(
-    title: string,
-    emoji: string,
-    options: {
-      keywords?: Array<string>;
-    },
+      title: string,
+      emoji: string | React.ReactNode,
+      options: {
+        keywords?: Array<string>;
+      },
   ) {
     super(title);
     this.title = title;
@@ -80,7 +81,12 @@ function EmojiMenuItem({
       onMouseEnter={onMouseEnter}
       onClick={onClick}>
       <span className={theme.typeaheadPopover.ul.li.text}>
-        {option.emoji} {option.title}
+        {typeof option.emoji === 'string' ? (
+            <>{option.emoji}</>
+        ) : (
+            <span className="inline-block align-middle mr-1">{option.emoji}</span>
+        )}
+              {option.title}
       </span>
     </li>
   );
@@ -111,18 +117,18 @@ export default function EmojiPickerPlugin() {
     import('../../utils/emoji-list').then((file) => setEmojis(file.default));
   }, []);
 
-  const emojiOptions = useMemo(
-    () =>
-      emojis != null
-        ? emojis.map(
-            ({emoji, aliases, tags}) =>
-              new EmojiOption(aliases[0], emoji, {
-                keywords: [...aliases, ...tags],
-              }),
-          )
-        : [],
-    [emojis],
+  const iconOptions = Object.entries(theme?.Icons || Icons).map(([name, Icon]) =>
+      new EmojiOption(name, <Icon className={'w-[1em] h-[1em]'}/>, { keywords: [name] })
   );
+
+  const emojiOptions = useMemo(() => {
+    const baseOptions = (emojis || []).map(({ emoji, aliases, tags }) =>
+        new EmojiOption(aliases[0], emoji, {
+          keywords: [...aliases, ...tags],
+        }),
+    );
+    return [...iconOptions, ...baseOptions];
+  }, [emojis]);
 
   const checkForTriggerMatch = useBasicTypeaheadTriggerMatch(':', {
     minLength: 0,
@@ -160,7 +166,11 @@ export default function EmojiPickerPlugin() {
           nodeToRemove.remove();
         }
 
-        selection.insertNodes([$createTextNode(selectedOption.emoji)]);
+        if (typeof selectedOption.emoji === 'string') {
+          selection.insertNodes([$createTextNode(selectedOption.emoji)]);
+        } else {
+          selection.insertNodes([$createIconNode(selectedOption.title)]);
+        }
 
         closeMenu();
       });

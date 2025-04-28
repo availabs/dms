@@ -26,6 +26,7 @@ export const convertOldState = (state, initialState) => {
     }
     if(oldState?.dataRequest) {
         if(oldState.columns.find(c => Array.isArray(c.filters) && c.filters?.find(f => f.allowSearchParams))) oldState.data = [];
+        // if(oldState.display.useCache === undefined) oldState.display.useCache = true;
         return oldState; // return already valid state.}
     }
 

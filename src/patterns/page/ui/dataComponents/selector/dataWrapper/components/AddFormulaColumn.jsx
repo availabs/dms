@@ -3,6 +3,7 @@ import {Pill} from "./Pill";
 import {XMark, Add, Minus, Multiplication, Divide, Brackets} from "../../../../icons";
 import {getColumnLabel} from "../utils/utils";
 import {useImmer} from "use-immer";
+import { v4 as uuidv4 } from 'uuid';
 
 const validateAST = (node) => {
     if (node.type === 'operation') {
@@ -23,34 +24,6 @@ const validateAST = (node) => {
     return true;
 };
 
-const evaluateAST = (node, values) => {
-    if (node.type === 'variable') {
-        return values[node.key] ?? 0; // Default value handling
-    }
-
-    const left = evaluateAST(node.left, values);
-    const right = evaluateAST(node.right, values);
-
-    switch (node.operation) {
-        case '+': return left + right;
-        case '-': return left - right;
-        case '*': return left * right;
-        case '/': return right !== 0 ? left / right : NaN;
-        default: throw new Error(`Unknown operation: ${node.operation}`);
-    }
-};
-// {
-//     type: 'operation',
-//         operation: '+',
-//     left: { type: 'variable', key: 'key1' },
-//     right: {
-//         type: 'operation',
-//             operation: '/',
-//             left: { type: 'variable', key: 'key2' },
-//         right: { type: 'variable', key: 'key3' }
-//     }
-// }
-
 const operations = [
     {operation: '+', Icon: Add},
     {operation: '-', Icon: Minus},
@@ -62,19 +35,20 @@ const grouping = [
     {operation: ')', Icon: () => <>)</>}
 ];
 
-const Modal = ({ open, setOpen, columns, onSave }) => {
+const Modal = ({ open, setOpen, columns, addFormulaColumn }) => {
     if (!open) return null;
     const [state, setState] = useImmer({
         formulaAST: {}, // formula tree
         formulaDisplay: [], // display str
         astStack: [], // running stack for ()
+        variables: [], // a list of variables used. this is used to apply fn and pull data.
         isValidFormula: false
     });
 
     const addToFormula = (item) => {
         setState((draft) => {
             // update the display str
-            draft.formulaDisplay.push(item.operation || item.key || item.group);
+            draft.formulaDisplay.push(item.type === 'variable' ? getColumnLabel(item) : item.operation || item.group);
 
             let { formulaAST, astStack } = draft; // Destructure draft state
 
@@ -108,10 +82,12 @@ const Modal = ({ open, setOpen, columns, onSave }) => {
             if (item.type === "variable") {
                 if (!formulaAST.left) {
                     draft.formulaAST = item; // Start a new expression with this variable
+                    draft.variables.push(item);
                     return;
                 }
                 if (formulaAST.type === "operation" && !formulaAST.right) {
                     formulaAST.right = item;
+                    draft.variables.push(item);
                     return;
                 }
             }
@@ -129,7 +105,7 @@ const Modal = ({ open, setOpen, columns, onSave }) => {
 
     // Save and close modal
     const handleSave = () => {
-        onSave(state.formulaAST);
+        addFormulaColumn({name: `${uuidv4()}`, display_name: state.display_name, type: 'formula', formula: state.formulaAST, variables: state.variables});
         setOpen(false);
     };
     const isValidFormula = validateAST(state.formulaAST);
@@ -168,7 +144,7 @@ const Modal = ({ open, setOpen, columns, onSave }) => {
                         <div className="h-1/2 overflow-auto border-r pr-2">
                             {columns.map((c) => (
                                 <div key={`${c.name}-${c.copyNum}`} className="cursor-pointer p-1 hover:bg-blue-100 rounded-md"
-                                     onClick={() => addToFormula({ type: "variable", key: c.name, display_name: getColumnLabel(c) })}>
+                                     onClick={() => addToFormula({ ...c, type: "variable", key: c.normalName || c.name, display_name: getColumnLabel(c)})}>
                                     {getColumnLabel(c)}
                                 </div>
                             ))}
@@ -207,12 +183,12 @@ const Modal = ({ open, setOpen, columns, onSave }) => {
     );
 };
 
-export const AddFormulaColumn = ({columns=[]}) => {
+export const AddFormulaColumn = ({columns=[], addFormulaColumn}) => {
     const [open, setOpen] = useState(false);
     return (
         <>
             <Pill text={'+ Formula column'} color={'blue'} onClick={() => setOpen(true)}/>
-            <Modal open={open} setOpen={setOpen} columns={columns}/>
+            <Modal open={open} setOpen={setOpen} columns={columns} addFormulaColumn={addFormulaColumn}/>
         </>
     )
 }

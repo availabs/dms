@@ -1,17 +1,8 @@
-import React, {useMemo, useState, useEffect, useRef, useContext} from 'react'
+import React, { useState, useEffect, useContext} from 'react'
 import {Link} from "react-router-dom";
 import {FormsContext} from "../siteConfig";
 import {InfoCircle} from "../../admin/ui/icons";
 import {get} from "lodash-es";
-
-export const isJson = (str)  => {
-    try {
-        JSON.parse(str);
-    } catch (e) {
-        return false;
-    }
-    return true;
-}
 
 const preventDefaults = e => {
     e.preventDefault();
@@ -40,7 +31,7 @@ const uploadGisDataset = async ({file, user, etlContextId, pgEnv, falcor, damaSe
 
         const isDone = events.some(e => e.type && e.type.toLowerCase().includes(':final'));
         if(!isDone) {
-            delay(2000);
+            await delay(2000);
             return awaitFinalEvent();
         }
     }
@@ -133,16 +124,19 @@ const publish = async ({userId, email, gisUploadId, layerName, app, type, dmsSer
     setPublishing(false);
     setPublishStatus(true);
 }
-const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate, parent, ...rest}) => {
+const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate,
+                  parent, // form/source item. used to update meta about the source
+                  updateMeta=true, // if called from CMS, meta update should not happen
+                  context,
+                  ...rest}) => {
     // this component should let a user:
     // 1. upload
     // 2. post upload change column name and display names -- avoiding this. this should be done in meta manager.
     // 3. set columns to geo columns
     // 4. map multiple columns to a single column. this converts column headers to values of a new column
-    // todo 5. choose an id column to update data if there's id match. -- in progress
+    // 5. choose an id column to update data if there's id match.
 
-    const {API_HOST, user, baseUrl, falcor} = useContext(FormsContext);
-    const pgEnv = 'hazmit_dama'
+    const {API_HOST, user, falcor, pgEnv} = useContext(context);
     const damaServerPath = `${API_HOST}/dama-admin/${pgEnv}`; // need to use this format to utilize existing api fns
     const dmsServerPath = `${API_HOST}/dama-admin`; // to use for publish. no need for pgEnv.
 
@@ -160,8 +154,8 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate, paren
     // pivot columns convert column headers into their values if source column has any data in them.
     // {Flooding: {pivotColumn: 'associated_hazards'}
     // pivotColumns: {finalCOlName: [srcCol1, srcCol2, srcCol3, ...]}
-
     const updateMetaData = (data, attrKey) => {
+        if(!updateMeta) return;
         apiUpdate({data: {...parent, ...{[attrKey]: data}}, config: {format, type: format?.type?.replace(`-${view_id}`, '')}})
     }
     // ================================================= get etl context begin =========================================
@@ -201,7 +195,7 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate, paren
     if(!view_id) return 'No version selected.'
     if(publishStatus){
         return <div className={'flex items-center justify-center w-full h-[150px] border rounded-md'}>
-            The Sheet has been Processed. To Validate your records, <Link className={'text-blue-500 hover:text-blue-700 px-1'} to={`${baseUrl}/manage/validate`}>click here</Link>
+            The Sheet has been Processed. Please validate your records.
         </div>
     }
     return !gisUploadId ?
@@ -242,7 +236,7 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate, paren
                                 <>
                                     <p className="mb-2 text-sm text-gray-500 ">
                                         <span className="font-semibold">Click to upload</span> or drag and drop</p>
-                                    <p className="text-xs text-gray-500">CSV or Excel</p>
+                                    <p className="text-xs text-gray-500">a zipped Excel</p>
                                 </>
                             )
                         }

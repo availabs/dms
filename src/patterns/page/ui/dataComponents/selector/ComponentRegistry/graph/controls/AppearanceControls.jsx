@@ -1,10 +1,9 @@
 import React, {useRef, useState, useEffect, useContext, useCallback} from "react";
 import {ArrowDown} from "../../../../../../../forms/ui/icons"
 import {ToggleControl} from "../../../dataWrapper/components/ToggleControl";
-import RenderSwitch from "../../../dataWrapper/components/Switch";
 import {InputControl} from "../../../dataWrapper/components/InputControl";
 import {ComponentContext} from "../../../dataWrapper";
-import {getControlConfig, useHandleClickOutside} from "../../shared/utils";
+import {useHandleClickOutside} from "../../shared/utils";
 
 export default function AppearanceControls({context}) {
     const {state: {display}, setState} = useContext(context || ComponentContext);
@@ -82,12 +81,30 @@ export default function AppearanceControls({context}) {
                                   setValue={value => updateDisplayValue('yAxis', 'label', value)}/>
                     <InputControl title={'Tick Spacing'} type={'number'} value={display.yAxis?.tickSpacing}
                                   setValue={value => updateDisplayValue('yAxis', 'tickSpacing', +value)}/>
+                    <div
+                        className={`group inline-flex w-full justify-between items-center rounded-md px-1.5 py-1 text-sm font-regular text-gray-900 bg-white hover:bg-gray-50 cursor-pointer`}
+                    >
+                        <span className={'flex-0 select-none mr-1'}>Tick Format</span>
+                        <select
+                            className={'flex-1 p-1 text-end w-full rounded-md bg-white group-hover:bg-gray-50 cursor-pointer'}
+                            value={display.yAxis?.tickFormat}
+                            onChange={e => updateDisplayValue('yAxis', 'tickFormat', e.target.value)}
+                        >
+                            {
+                                [
+                                    {label: 'Default', value: ''},
+                                    {label: 'Abbreviate', value: 'abbreviate'},
+                                    {label: 'Comma Separated', value: 'comma'},
+                                ].map(({label, value}) => <option key={value} value={value}>{label}</option>)
+                            }
+                        </select>
+                    </div>
                     <ToggleControl title={'Show Gridlines'} value={display.yAxis?.showGridLines}
                                    setValue={value => updateDisplayValue('yAxis', 'showGridLines', value)}/>
                     <ToggleControl title={'Rotate Labels'} value={display.yAxis?.rotateLabels}
                                    setValue={value => updateDisplayValue('yAxis', 'rotateLabels', value)}/>
 
-                    {/* Title */}
+                    {/* Graph */}
                     <div className={'border-t mt-2 mx-4'}>
                         <div className={'-mt-2 -ml-4 px-2 text-xs font-medium font-gray-800 w-fit bg-white'}>Graph</div>
                     </div>
@@ -101,8 +118,14 @@ export default function AppearanceControls({context}) {
                                    setValue={value => updateDisplayValue('tooltip', 'show', value)}/>
                     <ToggleControl title={'Attribution'} value={display.showAttribution}
                                    setValue={value => updateDisplayValue(null, 'showAttribution', value)}/>
+                    <ToggleControl title={'Scale Filter'} value={display.showScaleFilter}
+                                   setValue={value => updateDisplayValue(null, 'showScaleFilter', value)}/>
                     <InputControl title={'Height'} type={'number'} value={display.height}
                                   setValue={value => updateDisplayValue(null, 'height', +value)}/>
+                    <ToggleControl title={'Always Fetch Data'} value={display.readyToLoad}
+                                   setValue={value => updateDisplayValue(null, 'readyToLoad', value)}/>
+                    <ToggleControl title={'Dark Mode'} value={display.darkMode}
+                                   setValue={value => updateDisplayValue(null, 'darkMode', value)}/>
 
                     {/* Layout */}
                     {
@@ -116,6 +139,9 @@ export default function AppearanceControls({context}) {
 
                                 <ToggleControl title={'Stacked'} value={display.groupMode === 'stacked'}
                                                setValue={value => updateDisplayValue(null, 'groupMode', value ? 'stacked' : 'grouped')}/>
+
+                                <ToggleControl title={'Log Scale'} value={display.isLog}
+                                               setValue={value => updateDisplayValue(null, 'isLog', value)}/>
                             </> : null
                     }
                 </div>
