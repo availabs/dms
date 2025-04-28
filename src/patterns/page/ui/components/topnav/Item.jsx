@@ -2,23 +2,11 @@ import React, {useEffect} from "react";
 import { useMatch, useNavigate, Link } from "react-router-dom";
 import Icons, {ArrowDown} from '../../icons'
 
+import { Icon } from '../../'
+
 import { CMSContext } from '../../../siteConfig'
 
-function Icon ({ icon, className }) {
-	let Icon = ''
-	if(!icon || icon?.includes('fa')) {
-		Icon = <span className={icon} /> 
-	} else {
-		let Comp = Icons[icon]
-		Icon = <Comp />
-	}
 
-	return (
-  	<div className={`${className} flex justify-center items-center`}>
-   		{Icon}
-  	</div>
-	)
-};
 const NOOP = () => { return {} }
 
 const NavItem = ({
@@ -119,11 +107,19 @@ const NavItem = ({
 									}
 								/>
 							)}
-							<div className={theme?.navItemContent}>
-								<div>{navItem?.name}</div>
-								{navItem?.description && (
-									<div className={theme?.navItemDescription?.[depth] || theme?.navItemDescription}>
-										{navItem?.description}
+							<div>
+								{navItem?.description ? (
+									<>
+										<div  className={''}>
+											{navItem?.name}
+										</div>
+										<div className={theme?.navItemDescription?.[depth] || theme?.navItemDescription}>
+											{navItem?.description}
+										</div>
+									</>
+								) : (
+									<div  className={theme?.navItemContent?.[depth] || theme?.navItemContent?.[0]}>
+										{navItem?.name}
 									</div>
 								)}
 							</div>
@@ -136,7 +132,7 @@ const NavItem = ({
 								}}
 							>
 								{
-									depth < maxDepth && subMenus.length ? <ArrowDown height={12} width={12} /> : null
+									depth < maxDepth && subMenus.length ? <Icon icon={theme?.indicatorIcon || 'ArrowDown'} className={theme?.indicatorIconWrapper} /> : null
 								}
 								
 							</div>

@@ -1,6 +1,5 @@
 import React, {Fragment} from 'react'
-import { Button } from '@headlessui/react'
-import { Popover, Transition } from '@headlessui/react'
+import { Popover, Transition, Button} from '@headlessui/react'
 import { CMSContext } from '../../../siteConfig';
 import {ArrowUp, InfoSquare} from '../../icons'
 

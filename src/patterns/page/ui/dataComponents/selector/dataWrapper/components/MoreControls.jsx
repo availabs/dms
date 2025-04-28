@@ -49,9 +49,10 @@ export default function MoreControls({context}) {
                                 <ToggleControl key={key} title={label} value={display[key]}
                                                setValue={value => updateDisplayValue(key, value, onChange)}/> :
                                 type === 'input' ?
-                                    <InputControl type={inputType} title={label} value={display[key]} setValue={value => updateDisplayValue(key, value)}/> :
+                                    <InputControl key={key} type={inputType} title={label} value={display[key]} setValue={value => updateDisplayValue(key, value)}/> :
                                     type === 'select' ?
                                         <div
+                                            key={key}
                                             className={`group inline-flex w-full justify-between items-center rounded-md px-1.5 py-1 text-sm font-regular text-gray-900 bg-white hover:bg-gray-50 cursor-pointer`}
                                         >
                                             <span className={'flex-0 select-none mr-1'}>{label}</span>

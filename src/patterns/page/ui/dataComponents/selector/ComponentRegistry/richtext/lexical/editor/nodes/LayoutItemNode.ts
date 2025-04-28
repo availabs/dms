@@ -11,7 +11,7 @@ import type {
   DOMConversionOutput,
   EditorConfig,
   LexicalNode,
-  SerializedElementNode,
+  SerializedElementNode
 } from 'lexical';
 
 import {addClassNamesToElement} from '@lexical/utils';
@@ -25,6 +25,8 @@ function $convertLayoutItemElement(): DOMConversionOutput | null {
 }
 
 export class LayoutItemNode extends ElementNode {
+
+
   static getType(): string {
     return 'layout-item';
   }
@@ -34,11 +36,16 @@ export class LayoutItemNode extends ElementNode {
   }
 
 
-  createDOM(config: EditorConfig): HTMLElement {
+
+  createDOM(config: EditorConfig, editor): HTMLElement {
+    
+    //console.log('editor config', editor)
+    //const editable = useLexicalEditable()
     const dom = document.createElement('div');
     dom.setAttribute('data-lexical-layout-item', 'true');
     if (typeof config.theme.layoutItem === 'string') {
-      addClassNamesToElement(dom, config.theme.layoutItem);
+      addClassNamesToElement(dom, `${config.theme.layoutItem} ${editor?._editable && config.theme.layoutItemEditable}`);
+
     }
     return dom;
   }
@@ -70,8 +77,8 @@ export class LayoutItemNode extends ElementNode {
   }
 }
 
-export function $createLayoutItemNode(): LayoutItemNode {
-  return new LayoutItemNode();
+export function $createLayoutItemNode(editor): LayoutItemNode {
+  return  new LayoutItemNode(editor);
 }
 
 export function $isLayoutItemNode(

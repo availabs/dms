@@ -7,6 +7,9 @@ import {
 import {get} from "lodash-es"
 import { GraphTypes, getGraphComponent } from "./components"
 import {mapColors} from "./utils";
+import {CMSContext} from "../../../../../siteConfig";
+import {graphTheme} from "./index";
+
 export const getColorRange = (size, name, reverse=false) => {
   let range = get(mapColors, [name, size], []).slice();
 
@@ -102,6 +105,7 @@ export const GraphComponent = props => {
     xAxisColumn,
     yAxisColumns
   } = props;
+  const { theme = { graph: graphTheme } } = React.useContext(CMSContext) || {};
 
   const GraphComponent = React.useMemo(() => {
     return getGraphComponent(activeGraphType.GraphComp);
@@ -143,15 +147,15 @@ export const GraphComponent = props => {
   return (
     <div ref={ setRef } className="w-full h-fit"
       style={ {
-        backgroundColor: get(graphFormat, "bgColor", "#ffffff"),
-        color: get(graphFormat, "textColor", "#000000"),
-        padding: `${ get(graphFormat, "padding", 1) }rem`
+        backgroundColor: graphFormat.darkMode ? undefined : get(graphFormat, "bgColor", "#ffffff"),
+        color: graphFormat.darkMode ? undefined : get(graphFormat, "textColor", "#000000"),
+        paddingTop: `${ get(graphFormat, "padding", 0.5) }rem`
       } }
     >
       <GraphTitle { ...graphFormat.title }/>
 
-      <div className="h-fit">
-        { !activeGraphType ? null :
+      <div className={`h-fit ${graphFormat.darkMode ? theme.graph.darkModeText : theme.graph.text}`}>
+        { !activeGraphType || !GraphComponent ? null :
           <GraphComponent
             data={ groupedData }
             title={ get(graphFormat, "title", "") }
@@ -159,12 +163,14 @@ export const GraphComponent = props => {
             width={ get(graphFormat, "width", width) }
             bgColor={ get(graphFormat, "bgColor", "#ffffff") }
             colors={ get(graphFormat, "colors") }
+            upperLimit={ get(graphFormat, "upperLimit") }
 
             showCategories={ showCategories }
             xAxisColumn={ xAxisColumn }
 
             orientation={ get(graphFormat, "orientation", "vertical") }
             groupMode={ get(graphFormat, "groupMode", "stacked") }
+            isLog={ get(graphFormat, "isLog", false) }
 
             xAxis={ {
               label: get(graphFormat, ["xAxis", "label"]),

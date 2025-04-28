@@ -41,6 +41,7 @@ const UploadPage = ({
                             parent={item}
                             apiLoad={apiLoad}
                             apiUpdate={apiUpdate}
+                            context={FormsContext}
                         />
                 }
             </div>

@@ -26,7 +26,7 @@ export default function ListWrapper({ Component, format, options, user, ...props
 	}
 
 	const ListComponent = React.useMemo(() => Component, [])
-	return (
+	return React.useMemo(() => (
 		<ListComponent
 			key={options?.path}
 			{...props} 
@@ -38,5 +38,5 @@ export default function ListWrapper({ Component, format, options, user, ...props
 			options={options}
 			user={user}
 		/>
-	)
+	),[data])
 }

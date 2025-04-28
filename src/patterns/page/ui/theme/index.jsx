@@ -12,6 +12,7 @@ import { nestableTheme } from '../components/nestable/draggableNav'
 import { dialogTheme } from '../components/dialog'
 import { popoverTheme } from '../components/popover'
 import { selectTheme } from '../components/select'
+import { listboxTheme } from '../components/listbox'
 import { fieldTheme } from '../components/fieldset'
 // --- Data Components
 import { sectionArrayTheme } from '../dataComponents/sections/sectionArray'
@@ -20,13 +21,15 @@ import { sectionArrayTheme } from '../dataComponents/sections/sectionArray'
 import { tableTheme } from '../dataComponents/selector/ComponentRegistry/spreadsheet/index'
 import lexicalTheme from '../dataComponents/selector/ComponentRegistry/richtext/theme';
 import {dataCardTheme} from "../dataComponents/selector/ComponentRegistry/Card";
-import {attributionTheme} from "../dataComponents/selector/ComponentRegistry/shared/Attribution";
-
+import { attributionTheme } from "../dataComponents/selector/ComponentRegistry/shared/Attribution";
+import { sectionGroupTheme } from '../dataComponents/sections/sectionGroup'
 
 import { menuTheme } from '../components/menu'
 import { labelTheme } from "../components/label";
 
 import Icons from '../icons'
+import {filterTheme} from "../dataComponents/selector/ComponentRegistry/shared/filters/RenderFilters";
+import {graphTheme} from "../dataComponents/selector/ComponentRegistry/graph";
 
 const theme = {
   navOptions: {
@@ -80,6 +83,8 @@ const theme = {
     iconWrapper : 'z-5 absolute right-[10px] top-[5px]',
     icon: 'text-slate-400 hover:text-blue-500'
   },
+  sectionGroup: sectionGroupTheme,
+  sectionArray: sectionArrayTheme,
   layout: layoutTheme,
   sidenav: sideNavTheme,
   topnav: topNavTheme,
@@ -94,8 +99,9 @@ const theme = {
   popover: popoverTheme,
   label: labelTheme,
   select: selectTheme,
+  listbox: listboxTheme,
   // -- 
-  sectionArray: sectionArrayTheme,
+  
   // --
   table: tableTheme,
 
@@ -103,6 +109,8 @@ const theme = {
   lexical : lexicalTheme,
   dataCard: dataCardTheme,
   attribution: attributionTheme,
+  filters: filterTheme,
+  graph: graphTheme,
   
   // -- Icon Set
   Icons

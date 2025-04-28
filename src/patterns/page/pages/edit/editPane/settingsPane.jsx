@@ -1,6 +1,6 @@
 import React, {Fragment, useState} from 'react'
-import { cloneDeep,set } from 'lodash-es'
-import { Button, Menu, FieldSet } from '../../../ui'
+import { cloneDeep, set, get } from 'lodash-es'
+import { Button, Menu, FieldSet, Icon } from '../../../ui'
 import { CMSContext } from '../../../siteConfig'
 import { timeAgo } from '../../_utils'
 import { Add, CaretDown } from "../../../ui/icons";
@@ -10,9 +10,21 @@ import { PageContext } from '../../view'
 
 
 function SettingsPane () {
-  const { baseUrl, user  } = React.useContext(CMSContext) || {}
+  const { baseUrl, user, theme  } = React.useContext(CMSContext) || {}
   const { item, dataItems, apiUpdate } =  React.useContext(PageContext) || {}
 
+  const themeSettings = React.useMemo(() => {
+    return (theme?.pageOptions?.settingsPane || [])
+      .map(setting => {
+        setting.value = get(item, setting.location, setting.default || '')
+        setting.onChange = (e) => {
+          togglePageSetting(item, setting.location, e.target.value,  apiUpdate)
+        }
+        return setting
+      }).filter(d => d)
+  },[theme?.pageOptions?.settingsPane, item])
+
+  //console.log(themeSettings)
   return (
     <div className="flex h-full flex-col">
       <div className="px-4 sm:px-6 py-2">
@@ -33,7 +45,7 @@ function SettingsPane () {
             value: item.title,
             onChange: (val) => {
               console.log('Change page Name', val)
-              updateTitle  ( item, dataItems, val, user, apiUpdate)
+              updateTitle ( item, dataItems, val, user, apiUpdate)
             }
           },
           {
@@ -46,44 +58,6 @@ function SettingsPane () {
             ],
             onChange:(e) => {
               togglePageSetting(item, 'hide_in_nav', e.target.value,  apiUpdate)
-            }
-          },
-          {
-            type:'Select',
-            label: 'Full Width',
-            value: item.full_width || '',
-            options: [
-              {label: 'Show', value: 'show'}, 
-              {label: 'Hide', value: ''}
-            ],
-            onChange:(e) => {
-              togglePageSetting(item, 'full_width', e.target.value,  apiUpdate)
-            }
-          },
-          {
-            type:'Select',
-            label: 'Show Header',
-            value: item.header || '',
-            options: [
-              {label: 'None', value: 'none'}, 
-                  {label: 'Above', value: 'above'},
-                  {label: 'Below', value: 'below'},
-                  {label: 'In page', value: 'inpage'}
-            ],
-            onChange:(e) => {
-              togglePageSetting(item, 'header', e.target.value,  apiUpdate)
-            }
-          },
-          {
-            type:'Select',
-            label: 'Show Footer',
-            value: item.footer || '',
-            options: [
-              {label: 'None', value: ''}, 
-              {label: 'Show', value: 'show'}
-            ],
-            onChange:(e) => {
-              togglePageSetting(item, 'footer', e.target.value,  apiUpdate)
             }
           },
           {
@@ -114,13 +88,43 @@ function SettingsPane () {
             }
           },
           {
+            type:'Listbox',
+            label: 'Icon',
+            value:  item?.icon,
+            options: [
+              ...Object.keys(theme.Icons)
+                .map((iconName) => {
+                  return {
+                    label: (
+                      <div className='flex'>
+                        <div className='px-2'>
+                          <Icon icon={iconName} className='size-6' />
+                        </div>
+                        <div>
+                          {iconName}
+                        </div>
+                      </div>
+                    ),
+                    value: iconName
+                  }
+                }),
+                {label: 'No Icon', value: 'none'}
+            ],
+            onChange:(e) => {
+              //console.log('update icon thing', e)
+              togglePageSetting(item, 'icon', e,  apiUpdate)
+            
+            }
+          },
+          {
             type:'Input',
             label: 'Page Description',
             value: item?.description || '',
             onChange:(e) => {
               togglePageSetting(item, 'description', e.target.value,  apiUpdate)
             }
-          }
+          },
+          ...themeSettings
         ]} />
       </div>
     </div>          

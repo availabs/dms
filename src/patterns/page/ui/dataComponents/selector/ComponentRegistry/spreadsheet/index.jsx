@@ -8,6 +8,10 @@ import {actionsColSize, numColSize as numColSizeDf, gutterColSize as gutterColSi
 import {ComponentContext} from "../../dataWrapper";
 import ActionControls from "./controls/ActionControls";
 import { CMSContext } from '../../../../../siteConfig'
+import {Add, Copy} from "../../../../icons";
+import {cloneDeep} from "lodash-es";
+import {isEqualColumns} from "../../dataWrapper/utils/utils";
+import {duplicateControl} from "../shared/utils";
 
 const getLocation = selectionPoint => {
     let {index, attrI} = typeof selectionPoint === 'number' ? {
@@ -71,7 +75,7 @@ export const tableTheme = {
 
 
 
-export const RenderTable = ({isEdit, updateItem, removeItem, addItem, newItem, setNewItem, loading}) => {
+export const RenderTable = ({isEdit, updateItem, removeItem, addItem, newItem, setNewItem, loading, allowEdit}) => {
     const { theme = { table: tableTheme } } = React.useContext(CMSContext) || {}
     const {state:{columns, sourceInfo, display, data}, setState} = useContext(ComponentContext);
     const gridRef = useRef(null);
@@ -92,7 +96,7 @@ export const RenderTable = ({isEdit, updateItem, removeItem, addItem, newItem, s
             endCol: cols[cols.length - 1]
         }
     }, [selection]);
-    const allowEdit = useMemo(() => !columns.some(({group}) => group), [columns]);
+
     const visibleAttributes = useMemo(() => columns.filter(({show}) => show), [columns]);
     const visibleAttributesLen = useMemo(() => columns.filter(({show}) => show).length, [columns]);
     const openOutAttributes = useMemo(() => columns.filter(({openOut}) => openOut), [columns]);
@@ -141,11 +145,11 @@ export const RenderTable = ({isEdit, updateItem, removeItem, addItem, newItem, s
             columnsWithSizeLength !== visibleAttrsWithoutOpenOutLen ||
             currUsedWidth < gridWidth // resize to use full width
         ) {
-            const availableVisibleAttributes = visibleAttrsWithoutOpenOut.filter(v => v.actionType || sourceInfo.columns.find(attr => attr.name === v.name));
+            const availableVisibleAttributes = visibleAttrsWithoutOpenOut.filter(v => v.actionType || v.type === 'formula' || sourceInfo.columns.find(attr => attr.name === v.name));
             const initialColumnWidth = Math.max(minInitColSize, gridWidth / availableVisibleAttributes.length);
             setState(draft => {
                 availableVisibleAttributes.forEach(attr => {
-                    const idx = draft.columns.findIndex(column => column.name === attr.name);
+                    const idx = draft.columns.findIndex(column => isEqualColumns(column, attr));
                     if(idx !== -1) {
                         draft.columns[idx].size = initialColumnWidth;
                     }
@@ -158,17 +162,17 @@ export const RenderTable = ({isEdit, updateItem, removeItem, addItem, newItem, s
     // =================================================================================================================
     // =========================================== Mouse Controls begin ================================================
     // =================================================================================================================
-    const colResizer = (columnName) => (e) => {
+    const colResizer = (attribute) => (e) => {
         const element = gridRef.current;
         if(!element) return;
 
-        const column = visibleAttributes.find(({name}) => name === columnName);
+        const column = visibleAttributes.find(va => isEqualColumns(va, attribute));
         const startX = e.clientX;
         const startWidth = column.size || 0;
         const handleMouseMove = (moveEvent) => {
             const newWidth = Math.max(minColSize, startWidth + moveEvent.clientX - startX);
             setState(draft => {
-                const idx = draft.columns.findIndex(column => column.name === columnName);
+                const idx = draft.columns.findIndex(column => isEqualColumns(column, attribute));
                 draft.columns[idx].size = newWidth;
             })
         };
@@ -287,7 +291,7 @@ export const RenderTable = ({isEdit, updateItem, removeItem, addItem, newItem, s
                                         right: 0,
                                         top: 0
                                     }}
-                                    onMouseDown={colResizer(attribute?.name)}
+                                    onMouseDown={colResizer(attribute)}
                                 />
 
                             </div>
@@ -423,15 +427,19 @@ export default {
                 options: [
                     {label: 'fn', value: ' '}, {label: 'list', value: 'list'}, {label: 'sum', value: 'sum'}, {label: 'count', value: 'count'}
                 ]},
-            {type: 'select', label: 'Exclude N/A', key: 'excludeNA',
-                options: [
-                    {label: 'include n/a', value: false}, {label: 'exclude n/a', value: true}
-                ]},
             {type: 'toggle', label: 'show', key: 'show'},
+            {type: 'toggle', label: 'Exclude N/A', key: 'excludeNA'},
             {type: 'toggle', label: 'Open Out', key: 'openOut'},
             {type: 'toggle', label: 'Filter', key: 'filters',
                 trueValue: [{type: 'internal', operation: 'filter', values: []}]},
             {type: 'toggle', label: 'Group', key: 'group'},
+            {type: 'toggle', label: 'Value column', key: 'valueColumn', onChange: ({key, value, attribute, state, columnIdx}) => {
+                    if(attribute.yAxis || attribute.categorize) return;
+                    state.columns.forEach(column => {
+                        column.valueColumn = value ? column.name === attribute.name : value;
+                    })
+                }},
+            duplicateControl,
         ],
         actions: {Comp: ActionControls},
         more: [
@@ -442,12 +450,13 @@ export default {
             {type: 'toggle', label: 'Show Total', key: 'showTotal'},
             {type: 'toggle', label: 'Striped', key: 'striped'},
             {type: 'toggle', label: 'Allow Download', key: 'allowDownload'},
+            {type: 'toggle', label: 'Always Fetch Data', key: 'readyToLoad'},
             {type: 'toggle', label: 'Use Pagination', key: 'usePagination'},
             {type: 'input', inputType: 'number', label: 'Page Size', key: 'pageSize', displayCdn: ({display}) => display.usePagination === true},
         ],
         inHeader: [
             // settings from in header dropdown are stores in the columns array per column.
-            {type: 'select', label: 'Sort', key: 'sort',
+            {type: 'select', label: 'Sort', key: 'sort', dataFetch: true,
                 options: [
                     {label: 'Not Sorted', value: ''}, {label: 'A->Z', value: 'asc nulls last'}, {label: 'Z->A', value: 'desc nulls last'}
                 ]},
@@ -463,6 +472,7 @@ export default {
                     {label: 'No Format Applied', value: ' '},
                     {label: 'Comma Seperated', value: 'comma'},
                     {label: 'Abbreviated', value: 'abbreviate'},
+                    {label: 'Date', value: 'date'},
                 ]},
 
             // link controls

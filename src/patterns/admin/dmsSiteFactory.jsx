@@ -54,7 +54,8 @@ function pattern2routes (siteData, props) {
         themes = { default: {} },
         pgEnvs = ['hazmit_dama'],
         falcor,
-        API_HOST = 'https://graph.availabs.org'
+        API_HOST = 'https://graph.availabs.org',
+        damaBaseUrl
     } = props
 
     const patterns = siteData.reduce((acc, curr) => [...acc, ...(curr?.patterns || [])], []) || [];
@@ -132,6 +133,7 @@ function pattern2routes (siteData, props) {
                             themes,
                             useFalcor,
                             API_HOST,
+                            damaBaseUrl
                             //rightMenu: <div>RIGHT</div>,
                         });
                         return ({...dmsPageFactory(configObj, authWrapper)})
@@ -169,7 +171,9 @@ export function DmsSite ({
     authWrapper = Component => Component,
     themes = { default: {} },
     falcor,
+    pgEnvs=['hazmit_dama'],
     API_HOST = 'https://graph.availabs.org',
+    damaBaseUrl,
     routes = []
 }) {
     //-----------
@@ -184,7 +188,9 @@ export function DmsSite ({
                 themes,
                 falcor,
                 API_HOST,
-                authWrapper
+                authWrapper,
+                pgEnvs,
+                damaBaseUrl
                 //theme   
             }) 
             : []
@@ -199,7 +205,9 @@ export function DmsSite ({
                 themes,
                 falcor,
                 API_HOST,
-                authWrapper
+                authWrapper,
+                pgEnvs,
+                damaBaseUrl
                 //theme   
             });
             console.timeEnd('dmsSiteFactory')

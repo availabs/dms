@@ -65,9 +65,9 @@ class Nestable extends Component {
     this.setState({ items, collapsedItems: collapsedIds });
   }
 
-  componentDidUpdate(prevProps){
+  componentDidUpdate(prevProps, prevState){
     const { props: { items: itemsNew, childrenProp }, state } = this;
-    const isPropsChanged = isEqual({ ...this, props: prevProps, state }, this.props, state);
+    const isPropsChanged = !isEqual(prevProps, this.props);
 
     if (isPropsChanged) {
       this.stopTrackMouse();

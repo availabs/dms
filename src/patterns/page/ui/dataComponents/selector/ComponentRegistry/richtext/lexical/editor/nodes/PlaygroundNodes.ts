@@ -23,6 +23,11 @@ import {CollapsibleContainerNode} from '../plugins/CollapsiblePlugin/Collapsible
 import {CollapsibleButtonNode} from '../plugins/CollapsiblePlugin/CollapsibleToggleButtonNode';
 import {CollapsibleContentNode} from '../plugins/CollapsiblePlugin/CollapsibleContentNode';
 import {CollapsibleTitleNode} from '../plugins/CollapsiblePlugin/CollapsibleTitleNode';
+
+import {CollapsibleNoPreviewContainerNode} from '../plugins/CollapsibleNoPreviewPlugin/CollapsibleNoPreviewContainerNode';
+// import {CollapsibleNoPreviewButtonNode} from '../plugins/CollapsibleNoPreviewPlugin/CollapsibleNoPreviewToggleButtonNode';
+import {CollapsibleNoPreviewContentNode} from '../plugins/CollapsibleNoPreviewPlugin/CollapsibleNoPreviewContentNode';
+import {CollapsibleNoPreviewTitleNode} from '../plugins/CollapsibleNoPreviewPlugin/CollapsibleNoPreviewTitleNode';
 import {AutocompleteNode} from './AutocompleteNode';
 import {EmojiNode} from './EmojiNode';
 // import {EquationNode} from './EquationNode';
@@ -41,6 +46,7 @@ import {LayoutItemNode} from './LayoutItemNode';
 import {YouTubeNode} from './YouTubeNode';
 
 import { ButtonNode } from './ButtonNode'
+import { IconNode } from "./IconNode";
 
 const PlaygroundNodes: Array<Klass<LexicalNode>> = [
   HeadingNode,
@@ -71,13 +77,21 @@ const PlaygroundNodes: Array<Klass<LexicalNode>> = [
   YouTubeNode,
   // FigmaNode,
   MarkNode,
+
   CollapsibleContainerNode,
   CollapsibleContentNode,
   CollapsibleTitleNode,
   CollapsibleButtonNode,
+
+  CollapsibleNoPreviewContainerNode,
+  CollapsibleNoPreviewContentNode,
+  CollapsibleNoPreviewTitleNode,
+  // CollapsibleNoPreviewButtonNode,
+
   LayoutContainerNode,
   LayoutItemNode,
-  ButtonNode
+  ButtonNode,
+  IconNode
 ];
 
 export default PlaygroundNodes;

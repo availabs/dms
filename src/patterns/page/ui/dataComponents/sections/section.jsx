@@ -24,8 +24,7 @@ import {
     Tags,
     Copy
 } from '../../icons'
-import { Modal, Popover, Button, Icon, Menu } from "../../";
-import Label from "../../components/label";
+import { Modal, Popover, Button, Icon, Menu, Label } from "../../";
 
 const isJson = (str)  => {
     try {
@@ -47,7 +46,9 @@ export function SectionEdit ({value, i, onChange, attributes, size, onCancel, on
     let { theme } = React.useContext(CMSContext) || {}
 
     const updateAttribute = (k, v) => {
+        console.log('change',k,v, {...value, [k]: v})
         if(!isEqual(value, {...value, [k]: v})) {
+            console.log('change',k,v, {...value, [k]: v})
             onChange({...value, [k]: v})
         }
     }
@@ -76,7 +77,7 @@ export function SectionEdit ({value, i, onChange, attributes, size, onCancel, on
                                 setOpen={(v) => setShowDeleteModal(v)}
                                 onDelete={() => {
                                     async function deleteItem() {
-                                        await onRemove()
+                                        await onRemove(i)
                                         setShowDeleteModal(false)
                                     }
 
@@ -176,6 +177,9 @@ export function SectionEdit ({value, i, onChange, attributes, size, onCancel, on
 }
 let handleCopy = (value) => {
     const elementType = value?.element?.['element-type'];
+    //--------------------------------------
+    // Temp Code to migrate off cenrep II
+    //--------------------------------------
     if(elementType === 'Table: Cenrep II'){
         const spreadsheetData = convert(JSON.parse(value.element['element-data']));
         const ssElement = {...value, element: {'element-type': 'Spreadsheet', 'element-data': JSON.stringify(spreadsheetData)}};
@@ -183,6 +187,7 @@ let handleCopy = (value) => {
         navigator.clipboard.writeText(JSON.stringify(ssElement))
         return;
     }
+    //--------------------------------------
     navigator.clipboard.writeText(JSON.stringify(value))
 }
 
@@ -193,10 +198,24 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
     let { styles, attributes:popperAttributes } = usePopper(referenceElement, popperElement)
     const { baseUrl, user, theme } = React.useContext(CMSContext) || {}
 
-    const updateAttribute = (k, v) => {
-        onChange(i, k, v)
-    }
+    // const updateAttribute = (k, v) => {
+    //     onChange(value, k, v)
+    // }
     
+
+    // const updateAttribute = (k, v) => {
+    //     console.log('change',k,v, {...value, [k]: v})
+    //     if(!isEqual(value, {...value, [k]: v})) {
+    //         console.log('change',k,v, {...value, [k]: v})
+    //         onChange({...value, [k]: v})
+    //     }
+    // }
+    const updateAttribute = (k, v) => {
+        if(!isEqual(value, {...value, [k]: v})) {
+            onChange(i, {...value, [k]: v})
+        }
+    }
+
     const hideDebug = true
     let TitleComp = attributes?.title?.ViewComp
     let TagsComp = attributes?.tags?.ViewComp 
@@ -221,8 +240,7 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
                 pageFormat={format}
             />
         )
-    }, 
-    [value])
+    }, [value])
     if(!value?.element?.['element-type'] && !value?.element?.['element-data']) return null;
     const sectionMenuItems = [
       { icon: 'PencilSquare', name: 'Edit', onClick: onEdit },
@@ -270,7 +288,7 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
       { icon: 'Padding', name: 'Offset', 
         type: 'menu',
         value: value?.['offset'] || 16,
-        items: [20,30,40,50,60,70,80,90,100,150,200].map((v,i) => {
+        items: [25,50,100,150,200,250,300,350,400,500].map((v,i) => {
             return {
                 'icon': v == (value?.['offset'] || '1') ? 'CircleCheck' : 'Blank',
                 'name': `${v}px`,
@@ -286,14 +304,47 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
         //     onChange: (v) => updateAttribute('offset', v.target.value)
         // }
       },
+      { icon: 'Padding', name: 'padding', 
+        type: 'menu',
+        value: value?.['padding'] || theme?.sectionArray?.sectionPadding,
+        items: ['p-0', 'p-1','p-2', theme?.sectionArray?.sectionPadding].map((v,i) => {
+            return {
+                'icon': v == (value?.['padding'] || '1') ? 'CircleCheck' : 'Blank',
+                'name': `${v}`,
+                'onClick': () => {
+                    console.log('padding Item name click', v)
+                    updateAttribute('padding', v);
+                }
+            }
+        }),
+        // inputProps: { 
+        //     type: 'number', 
+        //     value: value?.offset || theme?.sectionArray?.defaultOffset, 
+        //     onChange: (v) => updateAttribute('offset', v.target.value)
+        // }
+      },
       // { icon: 'Blank', name: 'Padding', onClick: () => {} },
-      { icon: 'Border', name: 'Border', onClick: () => {} },
+      { icon: 'Border', name: 'Border',
+        type: 'menu',
+        value: value?.['border'] || 1,
+        items: Object.keys(theme?.sectionArray?.border || {})
+            .map((name,i) => {
+                return {
+                    'icon': name == (value?.['border'] || 'None') ? 'CircleCheck' : 'Blank',
+                    'name': name,
+                    'onClick': () => {
+                        //console.log('colspan Item name click', name)
+                        updateAttribute('border', name);
+                    }
+                }
+            })
+      },
       { type: 'seperator'},
       { icon: 'TrashCan', name: 'Delete', onClick: () => setShowDeleteModal(!showDeleteModal) }
     ]
         
     return (
-        <div className={`h-full`} style={{pageBreakInside: "avoid"}}>
+        <div className={``} style={{pageBreakInside: "avoid"}}>
             <DeleteModal
                 title={`Delete Section ${value?.title || ''} ${value?.id}`} open={showDeleteModal}
                 prompt={`Are you sure you want to delete this section? All of the section data will be permanently removed
@@ -312,18 +363,7 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
             <div className={`flex w-full`}>
                 <div className='flex-1'/>
                     
-                    {value?.is_header && edit ?  <div className={`z-10 relative`}>
-                        <div className={`absolute mr-16 right-[-60px] flex`}>
-                            <Button type='plain' padding='p-1' 
-                                onClick={ onEdit }
-                            >
-                                {/*<i className="fa-light fa-pencil text-xl fa-fw" title="Edit"></i>*/}
-                                <PencilSquare className='text-slate-400 hover:text-blue-500'/>
-                               
-                            </Button>
-                        </div>
-                    </div>
-                    :
+                   
                     <div className={`z-10`}>
                         <div className={`absolute top-[6px] right-[6px] hidden group-hover:flex items-center`}> 
                             
@@ -352,14 +392,13 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
                             )}
                         </div>
                     </div>
-                    }
+                    
                    
                 </div>
                 {/* -------------------END top line buttons ----------------------*/}
                 {/* -------------------Section Header ----------------------*/}
-                {
-                    (sectionTitleCondition || interactCondition) &&
-                    <div className={`flex w-full min-h-[50px] items-center  pb-2 ${false && 'border border-dashed border-pink-500'}`}>
+                {(sectionTitleCondition || interactCondition) && (
+                    <div className={`flex w-full min-h-[50px] items-center  pb-2 ${value?.['title'] ? '' : 'absolute top-2 -right-2 -left-2 pointer-events-none'} ${false && 'border border-dashed border-pink-500'}`}>
 
                         <div id={`#${value?.title?.replace(/ /g, '_')}`}
                              className={`flex-1 flex flex-row pb-2 font-display font-medium uppercase scroll-mt-36 items-center ${sectionTitleCondition ? '' : 'invisible'}`}>
@@ -369,26 +408,29 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
                                     value={value?.['title']}
                                 />
                             </div>
+                            <div className='flex item-center h-full pointer-events-auto'>
                             {value?.['tags']?.length ? 
-                            (<Popover button={
-                                <div className='p-2 border border-[#E0EBF0] rounded-full'>
-                                    <Tags className='text-slate-400 hover:text-blue-500 size-4' title="Tags"/>
-                                </div>
-                                }>
-                                <TagComponent
-                                    
-                                    className='p-2 flex-0'
-                                    value={value?.['tags']}
-                                    placeholder={'Add Tag...'} 
-                                    onChange={(v) => updateAttribute('tags', v)}
-                                />
-                            </Popover>) : null}
-                                    
-                            {helpTextCondition && (
-                                <Popover button={<InfoSquare className='text-blue-400 hover:text-blue-500 w-[24px] h-[24px]' title="Move Up"/>}>
-                                    <HelpComp value={value?.['helpText']} />
-                                </Popover>)
+                            
+                                (<Popover button={
+                                    <div className='p-2 border border-[#E0EBF0] rounded-full'>
+                                        <Tags className='text-slate-400 hover:text-blue-500 size-4' title="Tags"/>
+                                    </div>
+                                    }>
+                                    <TagComponent
+                                        
+                                        className='p-2 flex-0'
+                                        value={value?.['tags']}
+                                        placeholder={'Add Tag...'} 
+                                        onChange={(v) => updateAttribute('tags', v)}
+                                    />
+                                </Popover>) : null}
+                                        
+                                {helpTextCondition && (
+                                    <Popover button={<InfoSquare className='text-blue-400 hover:text-blue-500 w-[24px] h-[24px]' title="Move Up"/>}>
+                                        <HelpComp value={value?.['helpText']} />
+                                    </Popover>)
                             }
+                            </div>
                             
                         </div>
 
@@ -403,44 +445,9 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
                             </Link>
                         }
 
-                        { sectionTitleCondition && typeof onEdit === 'function' && !isTemplateSectionCondition ?
-                            <>
-                                {/*<div className='py-2'>
-                                    <button
-                                        className={'pl-3 flex items-center text-md cursor-pointer hover:text-blue-500 text-slate-400'}
-                                        onClick={ () => moveItem(i,-1) }
-                                    >
-                                        <i className="fa-light fa-angle-up text-xl fa-fw" title="Move Up"></i>
-                                        {
-                                    </button>
-
-                                </div>
-                                <div className='py-2'>
-                                    <button
-                                        className={'pl-3  flex items-center text-md cursor-pointer hover:text-blue-500 text-slate-400'}
-                                        onClick={ () =>  moveItem(i,1) }
-                                    >
-                                        <i className="fa-light fa-angle-down text-xl fa-fw" title="Move Down"></i>
-                                       
-
-                                </div>
-                                <div className='py-2'>
-                                    <button
-                                        className={'pl-6 py-0.5 flex items-center text-md cursor-pointer hover:text-blue-500 text-slate-400'}
-                                        onClick={ onEdit }
-                                    >
-                                        <i className="fa-light fa-pencil text-xl fa-fw" title="Edit"></i>
-                                        
-                                    </button>
-
-                                </div>*/}
-                            </> :
-                            isTemplateSectionCondition && typeof onEdit === 'function'?
-                                <i className={'pl-5 py-0.5 fa-light fa-lock p-2 text-slate-400'} title={'Template generated section'}/> : <></>
-                        }
+                        
                     </div>
-
-                }
+                )}
             {/* -------------------END Section Header ----------------------*/}
             <div className={`h-full ${hideDebug ? '' : 'border border-dashed border-orange-500'}`}>
                 {element}
@@ -665,6 +672,5 @@ export function DeleteModal ({title, prompt, item={}, open, setOpen, onDelete}) 
       </div>
     </Modal>
   )
-
 }
 

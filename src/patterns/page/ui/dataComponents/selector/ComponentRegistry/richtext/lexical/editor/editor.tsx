@@ -62,6 +62,7 @@ import ContentEditable from './ui/ContentEditable';
 import Placeholder from './ui/Placeholder';
 import InlineImagePlugin from "./plugins/InlineImagePlugin";
 import ButtonPlugin from './plugins/ButtonPlugin'
+import CollapsibleNoPreviewPlugin from "./plugins/CollapsibleNoPreviewPlugin";
 
 // const skipCollaborationInit =
 //     // @ts-expect-error
@@ -188,6 +189,7 @@ export default function Editor(props): JSX.Element {
                         <TabFocusPlugin/>
                         <TabIndentationPlugin/>
                         <CollapsiblePlugin editable={editable}/>
+                        <CollapsibleNoPreviewPlugin editable={editable} />
                         <LayoutPlugin />
                         {floatingAnchorElem && !isSmallWidthViewport && (
                             <>
