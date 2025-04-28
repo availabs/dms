@@ -78,10 +78,9 @@ export default function MenuComp ({ children, items=defaultItems, zIndex=40, ori
           {children}
         </div>
         <div
-            static
-            transition
+           
             className={!open ? `hidden pointer-events-none` : `${theme.menu.menuItems} ${origin} ${zIndex}`}
-            modal={false}
+            
         >
           <div className="py-1">
             {
