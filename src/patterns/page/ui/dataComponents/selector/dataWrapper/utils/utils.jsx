@@ -2,6 +2,27 @@ import {getData as getFilterData} from "../../ComponentRegistry/shared/filters/u
 import {isEqual, uniq} from "lodash-es";
 import {Icon} from "../../../../index";
 
+const operationToExpressionMap = {
+    filter: 'IN',
+    exclude: 'NOT IN',
+    gt: '>',
+    gte: '>=',
+    lt: '<',
+    lte: '<='
+}
+
+const fnToTextMap = {
+    list: (colNameBeforeAs, colNameAfterAS) => `array_to_string(array_agg(distinct ${colNameBeforeAs}), ', ') as ${colNameAfterAS}`,
+    default: (colNameBeforeAs, colNameAfterAS, fn='max') => `${fn}(${colNameBeforeAs}) as ${colNameAfterAS}`
+}
+const operations = {
+    gt: (a, b) => +a > +b,
+    gte: (a, b) => +a >= +b,
+    lt: (a, b) => +a < +b,
+    lte: (a, b) => +a <= +b,
+    like: (a,b) => b.toString().toLowerCase().includes(a.toString().toLowerCase())
+}
+
 const fnum = (number, currency = false) => `${currency ? '$ ' : ''} ${isNaN(number) ? 0 : parseInt(number).toLocaleString()}`;
 export const fnumIndex = (d, fractions = 2, currency = false) => {
         if(isNaN(d)) return '0'
@@ -97,21 +118,6 @@ const getFullColumn = (columnName, columns) => columns.find(col => col.name === 
 
 export const getColumnLabel = column => column.customName || column.display_name || column.name;
 
-const operations = {
-    gt: (a, b) => +a > +b,
-    gte: (a, b) => +a >= +b,
-    lt: (a, b) => +a < +b,
-    lte: (a, b) => +a <= +b,
-    like: (a,b) => b.toString().toLowerCase().includes(a.toString().toLowerCase())
-}
-
-const operationsStr = {
-    gt: '>',
-    gte: '>=',
-    lt: '<',
-    lte: '<='
-}
-
 const evaluateAST = (node, values) => {
     if (node.type === 'variable') {
         return values[node.key] ?? 0; // Default value handling
@@ -173,11 +179,14 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
         const valueColumnName = state.columns.find(col => col.valueColumn)?.name || 'value';
         const fullColumn = getFullColumn(valueColumnName, columnsWithSettings);
         const valueColumn = fullColumn?.refName || 'value';
-        normalFilter.forEach(({column, values}, i) => {
+        normalFilter.forEach(({column, values, operation, fn}, i) => {
             const fullColumn = state.columns.find(col => col.name === column && isEqual(values, col.filters[0]?.values));
             if(column && fullColumn?.normalName && values?.length){
                 const name = fullColumn.normalName;
-                const reqName = `MAX(CASE WHEN ${column} IN (${values.map(v => `'${v}'`)}) THEN ${valueColumn} END) AS ${name}`;
+                const filterValues = ['gt', 'gte', 'lt', 'lte'].includes(operation) && Array.isArray(values) ? values[0] :
+                    Array.isArray(values) ? values.map(v => `'${v}'`) : values;
+                const nameBeforeAS = `CASE WHEN ${column} ${operationToExpressionMap[operation] || 'IN'} (${filterValues}) THEN ${valueColumn} END`;
+                const reqName = fnToTextMap[fn] ? fnToTextMap[fn](nameBeforeAS, name) : fnToTextMap.default(nameBeforeAS, name, fn);
                 normalColumns.push({name, reqName});
             }
         })
