@@ -67,7 +67,7 @@ const ItemTypes = {
   'input': InputItem
 }
 
-export default function MenuComp ({ children, items=defaultItems, zIndex=40, origin='left-10 -top-0' }) {
+export default function MenuComp ({ children, items=defaultItems, zIndex=40, origin='left-8 -top-2' }) {
   const [open, setOpen] = React.useState(false)
   const { theme = { menu: menuTheme } } = React.useContext(CMSContext) || {}
   
