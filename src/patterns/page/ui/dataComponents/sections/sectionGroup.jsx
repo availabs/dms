@@ -9,23 +9,23 @@ import { getInPageNav } from '../../../pages/_utils'
 import { CMSContext } from '../../../siteConfig'
 
 export const sectionGroupTheme = {
+  sideNavContainer1: 'w-[302px] hidden xl:block',
+  sideNavContainer2: 'w-[302px] sticky top-[120px] hidden xl:block h-[calc(100vh_-_128px)] pr-2',
+  sideNavContainer3: 'shadow-md rounded-lg overflow-hidden h-full',
   default: {
     wrapper1: 'w-full h-full flex-1 flex flex-row pt-2', // inside page header, wraps sidebar
-    wrapper2: 'flex flex-1 w-full border-2 flex-col border shadow-md bg-white rounded-lg relative text-md font-light leading-7 p-4 h-full min-h-[200px]' , // content wrapepr
+    wrapper2: 'flex flex-1 w-full  flex-col  shadow-md bg-white rounded-lg relative text-md font-light leading-7 p-4 h-full min-h-[200px]' , // content wrapepr
     iconWrapper : 'z-5 absolute right-[10px] top-[5px]',
     icon: 'text-slate-400 hover:text-blue-500',
-    sideNavContainer1: 'w-64 hidden xl:block',
-    sideNavContainer2: 'w-64 sticky top-20 hidden xl:block'
+    
   },
   content: {
     wrapper1: 'w-full h-full flex-1 flex flex-row p-2', // inside page header, wraps sidebar
-    wrapper2: 'flex flex-1 w-full border-2 flex-col border shadow-md bg-white rounded-lg relative text-md font-light leading-7 p-4 h-full min-h-[calc(100vh_-_102px)]' , // content wrapepr
+    wrapper2: 'flex flex-1 w-full  flex-col  shadow-md bg-white rounded-lg relative text-md font-light leading-7 p-4 h-full min-h-[calc(100vh_-_102px)]' , // content wrapepr
     iconWrapper : 'z-5 absolute right-[10px] top-[5px]',
     icon: 'text-slate-400 hover:text-blue-500',
     viewIcon: 'ViewPage',
     editIcon: 'EditPage',
-    sideNavContainer1: 'w-64 hidden xl:block',
-    sideNavContainer2: 'w-64 sticky top-20 hidden xl:block'
   },
   header: {
     wrapper1: 'w-full h-full flex-1 flex flex-row', // inside page header, wraps sidebar
@@ -34,7 +34,8 @@ export const sectionGroupTheme = {
     icon: 'text-slate-400 hover:text-blue-500',
     sideNavContainer1: 'hidden',
     sideNavContainer2: 'hidden',
-  }
+  },
+
 }
 
 
@@ -43,7 +44,7 @@ export default function SectionGroup ({group, attributes, edit}) {
   const { apiUpdate, format, item, updateAttribute } = React.useContext(PageContext) || {}
 
   const inPageNav = getInPageNav(item,theme)
-  const sectionTheme = theme?.sectionGroup?.[group.theme || 'content'] || {}
+  const sectionTheme = theme?.sectionGroup?.[group.theme || 'default'] || {}
   const sectionFormat = format?.registerFormats.find(d => d?.type?.includes('|cms-section'))
   const sectionAttributes =  attributes?.['sections']?.attributes
   const SectionArray = React.useMemo(() => {
@@ -55,10 +56,12 @@ export default function SectionGroup ({group, attributes, edit}) {
   return (
          
       <div className={`${sectionTheme?.wrapper1}`}>
-        {group?.sidebar && (
-          <div className={`${sectionTheme?.sideNavContainer1} ${group?.sidebar === 'left' ? '': 'order-2'}`}>
-            <div className={sectionTheme?.sideNavContainer2}>
-              <SideNav {...inPageNav} /> 
+        {item?.sidebar && group.name === 'default' && (
+          <div className={`${theme?.sectionGroup?.sideNavContainer1} ${item?.sidebar === 'left' ? '': 'order-2'}`}>
+            <div className={theme?.sectionGroup?.sideNavContainer2}>
+              <div className={theme?.sectionGroup?.sideNavContainer3}>
+                <SideNav {...inPageNav} />
+              </div>
             </div>
           </div>
         )}  
@@ -77,8 +80,6 @@ export default function SectionGroup ({group, attributes, edit}) {
             />
           </div>
         </div>
-       
-        {/*<div className='w-64 h-screen border-2 border-blue-400' />*/}
       </div>
 
   )

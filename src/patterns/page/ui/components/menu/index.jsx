@@ -66,8 +66,8 @@ const ItemTypes = {
   'seperator': Seperator,
   'input': InputItem
 }
-
-export default function MenuComp ({ children, items=defaultItems, zIndex=40, origin='left-8 -top-2' }) {
+// left-8 -top-2
+export default function MenuComp ({ children, items=defaultItems, zIndex=40, origin='right-0' }) {
   const [open, setOpen] = React.useState(false)
   const { theme = { menu: menuTheme } } = React.useContext(CMSContext) || {}
   
@@ -78,7 +78,7 @@ export default function MenuComp ({ children, items=defaultItems, zIndex=40, ori
           {children}
         </div>
         <div
-           
+
             className={!open ? `hidden pointer-events-none` : `${theme.menu.menuItems} ${origin} ${zIndex}`}
             
         >
