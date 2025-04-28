@@ -92,6 +92,7 @@ const Title = ({title, titleSize, logo}) => {
 
 
 export function Header ({app, type, title, note, logo, overlay='overlay', bgImg, chain, showBreadcrumbs, showSearchBar, titleSize='sm:text-[72px] tracking-[0px]'}) {
+    console.log('in header')
     return overlay === 'full' ? (
         <div
             className="relative w-full h-auto lg:h-[808px] lg:-mb-[185px] flex flex-col lg:flex-row justify-center"

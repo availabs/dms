@@ -18,6 +18,18 @@ export const overlayImageOptions = [
     { "label": "Set 2 - strategies", "value":"/themes/mny_pack_1/mny-strategies_01_webp.webp" },
     { "label": "Set 2 - whats at risk", "value":"/themes/mny_pack_1/mny-whats-at-risk_01_webp.webp" },
     {
+        label: 'Fusion Header 1',
+        value: '/themes/mny/fusion_header_1.png'
+    },
+    {
+        label: 'Fusion Header 2',
+        value: '/themes/mny/fusion_header_2.png'
+    },
+    {
+        label: 'Fusion Header 3',
+        value: '/themes/mny/fusion_header_3.png'
+    },
+    {
         label: 'Planetary Home',
         value: '/themes/mny/header_home.png'
     },
