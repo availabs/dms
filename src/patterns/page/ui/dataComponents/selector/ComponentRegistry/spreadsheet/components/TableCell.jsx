@@ -62,6 +62,8 @@ export const TableCell = ({
         right: 'justify-end',
         center: 'justify-center'
     }
+    const formatClass = attribute.formatFn === 'title' ? 'capitalize' : '';
+
     const selectionColor = '#2100f8'
     const selectionEdgeClassNames = {
         top: {borderTopColor: selectionColor},
@@ -153,6 +155,7 @@ export const TableCell = ({
                       attribute.type === 'multiselect' && rawValue?.length ? 'p-0.5' :
                           attribute.type === 'multiselect' && !rawValue?.length ? 'p-0.5' : 'p-0.5'
                   } 
+                  ${formatClass}
                   `}
                   {...attribute}
                   value={value}

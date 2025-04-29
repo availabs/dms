@@ -471,8 +471,11 @@ export default {
                 options: [
                     {label: 'No Format Applied', value: ' '},
                     {label: 'Comma Seperated', value: 'comma'},
+                    {label: 'Comma Seperated ($)', value: 'comma_dollar'},
                     {label: 'Abbreviated', value: 'abbreviate'},
+                    {label: 'Abbreviated ($)', value: 'abbreviate_dollar'},
                     {label: 'Date', value: 'date'},
+                    {label: 'Title', value: 'title'},
                 ]},
 
             // link controls

@@ -505,7 +505,9 @@ const formatDate = (dateString) => {
 };
 export const formatFunctions = {
     'abbreviate': (d, isDollar) => fnumIndex(d, 1, isDollar),
+    'abbreviate_dollar': (d) => fnumIndex(d, 1, true),
     'comma': (d, isDollar) => fnum(d, isDollar),
+    'comma_dollar': (d) => fnum(d, true),
     'date': (d) => formatDate(d),
     'icon': (strValue, props) => <><Icon icon={strValue} className={'size-8'} {...props}/> <span>{strValue}</span></>,
     'color': (strValue, map) => <>

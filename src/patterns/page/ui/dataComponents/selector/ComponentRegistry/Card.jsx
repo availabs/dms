@@ -241,7 +241,8 @@ const Card = ({
                                                 <div className={'flex items-center gap-1.5 uppercase'}>{formatFunctions[attr.formatFn](rawValue, attr.isDollar)}</div> :
                                                 attr.formatFn && formatFunctions[attr.formatFn] ?
                                                     formatFunctions[attr.formatFn](rawValue, attr.isDollar).replaceAll(' ', '') :
-                                                    rawValue
+                                                    rawValue;
+                                        const formatClass = attr.formatFn === 'title' ? 'capitalize' : '';
                                         const isValueFormatted = isImg || isLink || Boolean(formatFunctions[attr.formatFn]);
                                         const headerTextJustifyClass = justifyClass[attr.justify || 'center']?.header || justifyClass[attr.justify || 'center'];
                                         const valueTextJustifyClass = justifyClass[attr.justify || 'center']?.value || justifyClass[attr.justify || 'center'];
@@ -276,6 +277,7 @@ const Card = ({
                                                 ${dataCard.value} ${compactView ? dataCard.valueCompactView : dataCard.valueSimpleView}
                                                 ${dataCard[valueTextJustifyClass]}
                                                  ${dataCard[attr.valueFontStyle || 'textXS']}
+                                                 ${formatClass}
                                                  `}>
                                                     {
                                                         isLink && !allowEdit ?
@@ -372,7 +374,11 @@ export default {
                 options: [
                     {label: 'No Format Applied', value: ' '},
                     {label: 'Comma Seperated', value: 'comma'},
+                    {label: 'Comma Seperated ($)', value: 'comma_dollar'},
                     {label: 'Abbreviated', value: 'abbreviate'},
+                    {label: 'Abbreviated ($)', value: 'abbreviate_dollar'},
+                    {label: 'Date', value: 'date'},
+                    {label: 'Title', value: 'title'},
                     {label: 'Icon', value: 'icon'},
                     {label: 'Color', value: 'color'},
                 ]},
