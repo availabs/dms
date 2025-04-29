@@ -30,7 +30,7 @@ function PageEdit ({
 	    return items
 	}, [dataItems])
 
-	console.log('-----------render edit----------------', item.draft_sections.length, item.draft_section_groups.length)
+	// console.log('-----------render edit----------------', item.draft_sections.length, item.draft_section_groups.length)
 	theme = merge(cloneDeep(theme), item?.theme || {})
 	const level = item?.index == '999' || theme?.navOptions?.topNav?.nav !== 'main' ? 1 : detectNavLevel(dataItems, baseUrl);
 	const inPageNav = getInPageNav(item, theme);
@@ -88,7 +88,7 @@ function PageEdit ({
 	    <PageContext.Provider value={{ item, dataItems, apiLoad, apiUpdate, updateAttribute, editPane, setEditPane, format, busy }} >
 	      <div className={`${theme?.page?.container}`}>
 	        <PageControls />
-	        {/*{React.useMemo(() => getSectionGroups('top'),[item?.draft_section_groups])}*/}
+	        {React.useMemo(() => getSectionGroups('top'),[item?.draft_section_groups])}
 	        <Layout 
 	          navItems={menuItems} 
 	          secondNav={theme?.navOptions?.secondaryNav?.navItems || []}
@@ -96,7 +96,7 @@ function PageEdit ({
 	        >
 	          {React.useMemo(() => getSectionGroups('content'),[item?.draft_section_groups])}
 	        </Layout>
-	        {/*{React.useMemo(() => getSectionGroups('bottom'),[item?.draft_section_groups])}*/}
+	        {React.useMemo(() => getSectionGroups('bottom'),[item?.draft_section_groups])}
 	        
 	      </div>
 	    </PageContext.Provider>

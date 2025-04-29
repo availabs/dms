@@ -82,7 +82,7 @@ const Title = ({title, titleSize, logo}) => {
     if(!title) return;
 
     return (
-        <div className={`flex gap-1 text-[36px] ${titleSize} font-medium font-['Oswald'] text-[#2D3E4C] sm:leading-[100%] uppercase`}>
+        <div className={`flex gap-1 text-[36px] ${titleSize} items-center font-medium font-['Oswald'] text-[#2D3E4C] sm:leading-[100%] uppercase`}>
             {logo && <img className={'max-w-[150px] max-h-[150px]'} alt={' '} src={logo}/>}
             {title}
         </div>
