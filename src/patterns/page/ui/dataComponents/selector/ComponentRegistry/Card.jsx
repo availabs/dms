@@ -281,7 +281,9 @@ const Card = ({
                                                  `}>
                                                     {
                                                         isLink && !allowEdit ?
-                                                        <Link className={dataCard.linkColValue} to={`${location}${encodeURIComponent(useId ? id : value)}`}>
+                                                        <Link className={dataCard.linkColValue}
+                                                              to={`${location || value}${attr.searchParams === 'id' ? encodeURIComponent(id) : attr.searchParams === 'value' ? encodeURIComponent(value) : ``}`}
+                                                        >
                                                             <EditComp attribute={attr}
                                                                       value={linkText || value}
                                                                       rawValue={rawValue}
@@ -393,9 +395,15 @@ export default {
 
             // link controls
             {type: 'toggle', label: 'Is Link', key: 'isLink', displayCdn: ({isEdit}) => isEdit},
-            {type: 'toggle', label: 'Use Id', key: 'useId', displayCdn: ({attribute, isEdit}) => isEdit && attribute.isLink},
             {type: 'input', inputType: 'text', label: 'Link Text', key: 'linkText', displayCdn: ({attribute, isEdit}) => isEdit && attribute.isLink},
             {type: 'input', inputType: 'text', label: 'Location', key: 'location', displayCdn: ({attribute, isEdit}) => isEdit && attribute.isLink},
+            {type: 'select', label: 'Search Params', key: 'searchParams', displayCdn: ({attribute, isEdit}) => isEdit && attribute.isLink,
+                options: [
+                    {label: 'None', value: undefined},
+                    {label: 'ID', value: 'id'},
+                    {label: 'Value', value: 'value'}
+                ]
+            },
 
             // image controls
             {type: 'toggle', label: 'Is Image', key: 'isImg', displayCdn: ({isEdit}) => isEdit},

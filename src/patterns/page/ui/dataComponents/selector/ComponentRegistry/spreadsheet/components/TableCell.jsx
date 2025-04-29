@@ -14,9 +14,14 @@ const LoadingComp = ({className}) => <div className={className}>loading...</div>
 
 const LinkComp = ({attribute, columns, newItem, removeItem, value, Comp}) => {
     const {actionType, location, linkText, isLink, useId} = attribute;
-
+    // isLink:
+        // linkText
+        // location (optional)
+        // searchParams: none|value|id
     if(isLink){
-        return (props) => <Link {...props} to={`${location}${encodeURIComponent(useId ? newItem.id : value)}`} >{linkText || value}</Link>
+        const searchParams = attribute.searchParams === 'id' ? encodeURIComponent(newItem.id) : attribute.searchParams === 'value' ? encodeURIComponent(value) : ``;
+        const url = `${location || value}${searchParams}`;
+        return (props) => <Link {...props} to={url} >{linkText || value}</Link>
     }
 
     if(actionType){
