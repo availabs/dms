@@ -10,6 +10,14 @@ const removeIcon = 'fa fa-x px-1 text-xs text-red-300 hover:text-red-500 self-ce
 const menuWrapper = 'p-2 shadow-lg z-10';
 const menuItem = 'px-2 py-1 hover:bg-gray-300 hover:cursor-pointer transition ease-in';
 
+const looselyEqual = (a, b) => {
+    if (a == null && b == null) return true;
+
+    if (typeof a === 'object' || typeof b === 'object') return false;
+
+    return String(a) === String(b);
+}
+
 const RenderToken = ({token, value, onChange, theme, isSearching, setIsSearching}) => {
     return (
         <div className={theme?.multiselect?.tokenWrapper || tokenWrapper}>
@@ -127,7 +135,7 @@ function useComponentVisible(initial) {
 const Edit = ({value = [], loading, onChange, className,placeholder, options = [], displayInvalidMsg=true, menuPosition='bottom', singleSelectOnly=false}) => {
     // options: ['1', 's', 't'] || [{label: '1', value: '1'}, {label: 's', value: '2'}, {label: 't', value: '3'}]
     const [searchKeyword, setSearchKeyword] = useState('');
-    const typeSafeValue = (Array.isArray(value) ? value : [value]).map(v => options.find(o => (o.value || o) === (v.value || v)) || v);
+    const typeSafeValue = (Array.isArray(value) ? value : [value]).map(v => options.find(o => looselyEqual((o.value || o), (v.value || v))) || v);
     const theme = useTheme();
     const {
         ref,
@@ -185,7 +193,7 @@ const View = ({className, value, options = []}) => {
     const theme = useTheme();
     if (!value) return <div className={theme?.multiselect?.mainWrapper} />
 
-    const mappedValue = (Array.isArray(value) ? value : [value]).map(v => options.find(o => (o.value || o) === (v.value || v)) || v);
+    const mappedValue = (Array.isArray(value) ? value : [value]).map(v => options.find(o => looselyEqual((o.value || o), (v.value || v))) || v);
     return (
         <div className={theme?.multiselect?.mainWrapper}>
             <div className={className || (theme?.text?.inputWrapper)}>
