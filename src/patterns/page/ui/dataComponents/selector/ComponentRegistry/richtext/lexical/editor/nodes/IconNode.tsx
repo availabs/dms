@@ -21,11 +21,11 @@ export class IconNode extends DecoratorNode<JSX.Element> {
         this.__iconName = iconName;
     }
 
-    static importJSON(serializedNode: any): IconNode {
+    static importJSON(serializedNode): IconNode {
         return new IconNode(serializedNode.iconName);
     }
 
-    exportJSON(): any {
+    exportJSON() {
         return {
             type: 'icon',
             version: 1,
