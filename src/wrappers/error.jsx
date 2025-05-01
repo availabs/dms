@@ -1,5 +1,5 @@
 import React, {useEffect} from 'react'
-import {/* useFetcher, useLocation,*/ useLoaderData } from "react-router-dom";
+import {/* useFetcher, useLocation,*/ useLoaderData } from "react-router";
 import { getAttributes } from './_utils'
 
 export default function ErrorWrapper({ Component, format, options,user, ...props}) {

@@ -1,5 +1,5 @@
 import React, {useEffect} from 'react'
-import { useLoaderData, useActionData, useParams, Form, useSubmit, useLocation } from "react-router-dom";
+import { useLoaderData, useActionData, useParams, Form, useSubmit, useLocation } from "react-router";
 import { filterParams } from '../dms-manager/_utils'
 import { getAttributes } from './_utils'
 import { dmsDataEditor, dmsDataLoader } from '../index'

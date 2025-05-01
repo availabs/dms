@@ -1,6 +1,6 @@
 import React from "react"
 import { Dropdown } from '../ui/index'
-import {Link, useLocation} from 'react-router-dom'
+import {Link, useLocation} from 'react-router'
 import { CMSContext } from '../siteConfig'
 import Icons, {Search, User, UserCircle} from '../ui/icons'
 

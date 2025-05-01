@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext} from 'react'
-import {Link} from "react-router-dom";
+import {Link} from "react-router";
 import {FormsContext} from "../siteConfig";
 import {InfoCircle} from "../../admin/ui/icons";
 import {get} from "lodash-es";

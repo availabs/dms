@@ -1,5 +1,5 @@
 import React, {useEffect} from 'react'
-import { useLoaderData, /*useActionData,*/ useParams, useSubmit, useLocation} from "react-router-dom";
+import { useLoaderData, /*useActionData,*/ useParams, useSubmit, useLocation} from "react-router";
 import { dmsDataEditor, dmsDataLoader } from '../index'
 import { useFalcor } from "@availabs/avl-falcor"
 import { getAttributes } from './_utils'

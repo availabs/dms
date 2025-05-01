@@ -2,7 +2,7 @@ import React, {useContext, useMemo, useState} from 'react'
 import {PageContext} from "../../../../../pages/view";
 import {ArrowRight, Search} from "../../../../icons";
 import { Label } from '../../../../'
-import {Link} from "react-router-dom";
+import {Link} from "react-router";
 import {ComponentContext} from "../../dataWrapper";
 import {overlayImageOptions, insetImageOptions} from "./consts";
 import {SearchPallet} from "../../../../../components/search";

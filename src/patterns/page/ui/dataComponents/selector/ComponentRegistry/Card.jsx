@@ -2,7 +2,7 @@ import {formatFunctions, isEqualColumns} from "../dataWrapper/utils/utils";
 import {ComponentContext} from "../dataWrapper";
 import TableHeaderCell from "./spreadsheet/components/TableHeaderCell";
 import React, {useContext, useEffect, useMemo, useRef, useState} from "react";
-import {Link} from "react-router-dom";
+import {Link} from "react-router";
 import {CMSContext} from "../../../../siteConfig";
 import {ColorControls} from "./shared/ColorControls";
 import {duplicateControl, useHandleClickOutside} from "./shared/utils";

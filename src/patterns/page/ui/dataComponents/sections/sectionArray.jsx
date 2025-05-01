@@ -1,6 +1,6 @@
 import React, {Fragment, useState, useLayoutEffect, useRef, useEffect} from "react"
 import { useImmer } from "use-immer";
-import { useLocation } from 'react-router-dom'
+import { useLocation } from 'react-router'
 import { isEqual, cloneDeep, set } from "lodash-es"
 import { v4 as uuidv4 } from 'uuid';
 import { CMSContext } from '../../../siteConfig'

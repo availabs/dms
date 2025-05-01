@@ -2,7 +2,7 @@ import React, {useState, useEffect, useRef, createContext} from 'react'
 import DataTypes from "../../../../../../../data-types";
 import {InfoCircle} from "../../../../../../admin/ui/icons";
 import {DataSourceSelector} from "../DataSourceSelector";
-import {useSearchParams} from "react-router-dom";
+import {useSearchParams} from "react-router";
 import {useImmer} from "use-immer";
 import ColumnControls from "./controls/ColumnControls";
 import MoreControls from "./controls/MoreControls";

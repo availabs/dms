@@ -1,5 +1,5 @@
 import React, {useEffect, useState} from "react"
-import {Link, useParams, useLocation, matchRoutes} from "react-router-dom";
+import {Link, useParams, useLocation, matchRoutes} from "react-router";
 import { merge } from "lodash-es"
 import { cloneDeep } from "lodash-es"
 // import TableComp from "./components/TableComp";

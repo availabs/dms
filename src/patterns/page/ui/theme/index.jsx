@@ -1,5 +1,5 @@
 import React from 'react'
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 // -- Components
 import { layoutTheme } from '../components/layout'
 import { sideNavTheme } from '../components/sidenav'

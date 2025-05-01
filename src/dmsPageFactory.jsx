@@ -1,5 +1,5 @@
 import React, {useEffect} from 'react'
-import { useParams, useLocation } from "react-router-dom";
+import { useParams, useLocation, useNavigate } from "react-router";
 
 import {
   DmsManager,
@@ -62,6 +62,7 @@ export default function dmsPageFactory (
 
   function DMS() {
     const params = useParams();
+    const navigate = useNavigate();
     const AuthedManager = authWrapper(DmsManager)
 
     return React.useMemo(() => (
@@ -70,6 +71,7 @@ export default function dmsPageFactory (
           path={ `/${params['*'] || ''}` }
           config={dmsConfig}
           theme={dmsTheme}
+          navigate={navigate}
         />
       </FalcorProvider>
     ),[params['*']])

@@ -3,7 +3,7 @@ import dataTypes from "../../../../../../../../../data-types";
 import RenderSwitch from "../../../../dataWrapper/components/Switch";
 import {useHandleClickOutside} from "../../utils";
 import {convertToUrlParams} from "../utils";
-import {useNavigate} from "react-router-dom";
+import {useNavigate} from "react-router";
 import {isEqualColumns} from "../../../../dataWrapper/utils/utils";
 import {filterTheme} from "../RenderFilters";
 import {CMSContext} from "../../../../../../../siteConfig";

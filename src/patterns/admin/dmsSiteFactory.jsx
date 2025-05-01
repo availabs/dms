@@ -1,5 +1,5 @@
 import React, {useState, useEffect} from 'react'
-import {createBrowserRouter, Outlet, RouterProvider} from "react-router-dom";
+import {createBrowserRouter, Outlet, RouterProvider} from "react-router";
 
 //import {  adminConfig } from "./modules/dms/src/"
 import { dmsDataLoader, dmsPageFactory, registerDataType } from '../../'
@@ -222,10 +222,11 @@ export function DmsSite ({
         Component: () => (<div className={'w-screen h-screen flex items-center bg-blue-50'}>404</div>)
     }
 
-    //console.log('routes',  dynamicRoutes)
+    console.log('routes',  dynamicRoutes)
 
     return (
-        <RouterProvider router={createBrowserRouter([
+        <RouterProvider 
+            router={createBrowserRouter([
             ...dynamicRoutes,
             ...routes,
             PageNotFoundRoute

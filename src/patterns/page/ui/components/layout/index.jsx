@@ -5,7 +5,7 @@ import TopNav from '../topnav';
 import SideNav from '../sidenav';
 import { SearchButton } from '../../../components/search';
 import { CMSContext } from '../../../siteConfig';
-import { matchRoutes, useLocation } from 'react-router-dom'
+import { matchRoutes, useLocation } from 'react-router'
 
 
 const Logos = () => <div className='h-12'/>

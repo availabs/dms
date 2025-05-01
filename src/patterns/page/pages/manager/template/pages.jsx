@@ -1,5 +1,5 @@
 import React, {useEffect, useState} from 'react';
-import {Link, useNavigate, useParams} from "react-router-dom";
+import {Link, useNavigate, useParams} from "react-router";
 import {dmsDataLoader} from "../../../../../api";
 import {DeleteModal} from "./list";
 import Table from "../../../../forms/components/Table"

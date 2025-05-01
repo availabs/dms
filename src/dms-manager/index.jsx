@@ -1,5 +1,4 @@
 import React from 'react'
-import { useNavigate} from 'react-router-dom'
 import comps from '../components'
 import { getActiveView, getActiveConfig, validFormat } from './_utils'
 import { defaultCheck, defaultCheckAuth } from './_auth'
@@ -14,7 +13,8 @@ const DmsManager = (props) => {
 	const { 
 		config,
 		path = '',
-		user
+		user,
+		navigate
 	} = props
 
 	//console.log('dms manager', props)
@@ -24,7 +24,7 @@ const DmsManager = (props) => {
 		checkAuth = defaultCheckAuth,
 	} = config
 	
-	const navigate = useNavigate()
+	
 
 	React.useEffect(()=>{
 		//console.log(' dmsManager:31 - user', user, props, config.format)

@@ -1,5 +1,5 @@
 import React, {useContext, useEffect, useState} from "react";
-import {Link} from "react-router-dom";
+import {Link} from "react-router";
 import DataTypes from "../../../../../../../../data-types";
 import {formatFunctions} from "../../../dataWrapper/utils/utils";
 import { ComponentContext } from "../../../dataWrapper";

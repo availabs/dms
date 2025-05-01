@@ -1,4 +1,4 @@
-import {Link} from "react-router-dom";
+import {Link} from "react-router";
 import React, {useContext} from "react";
 import {ComponentContext} from "../../dataWrapper";
 import {CMSContext} from "../../../../../siteConfig";

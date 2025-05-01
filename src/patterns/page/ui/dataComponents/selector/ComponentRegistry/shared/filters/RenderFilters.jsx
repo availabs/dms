@@ -11,7 +11,7 @@ import {
 } from "./utils"
 import {isEqual, uniqBy} from "lodash-es"
 import {RenderFilterValueSelector} from "./Components/RenderFilterValueSelector";
-import {useSearchParams} from "react-router-dom";
+import {useSearchParams} from "react-router";
 import {CMSContext} from "../../../../../../siteConfig";
 import {Icon} from "../../../../../index";
 

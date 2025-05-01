@@ -22,7 +22,7 @@ import defaultTheme from './ui/theme'
 
 import { useFalcor } from "@availabs/avl-falcor"
 
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import { SearchPage } from "./components/search/SearchPage";
 import DefaultMenu from './components/menu'
 

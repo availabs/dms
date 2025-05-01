@@ -2,7 +2,7 @@ import React, {useCallback, useContext, useEffect, useState} from "react";
 import { FormsContext } from '../siteConfig'
 import SourcesLayout from "../components/patternListComponent/layout";
 import Spreadsheet from "../../page/ui/dataComponents/selector/ComponentRegistry/spreadsheet";
-import {useNavigate} from "react-router-dom";
+import {useNavigate} from "react-router";
 import DataWrapper from "../../page/ui/dataComponents/selector/dataWrapper";
 import {cloneDeep, uniqBy} from "lodash-es";
 
