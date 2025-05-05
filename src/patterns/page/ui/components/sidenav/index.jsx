@@ -43,11 +43,10 @@ const sideBarItem = ({i, item, subMenuActivate}) => (
 	<SidebarItem
 		key={i}
 		to={item.path}
-		item={item}
+		navItem={item}
 		icon={item.icon}
 		className={item.className}
 		onClick={item.onClick}
-		
 		subMenuActivate={subMenuActivate}
 		subMenus={get(item, "subMenus", [])}
 	/>
