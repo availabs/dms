@@ -14,7 +14,7 @@ const fieldTypes = {
 }
 
 const dataTypes = {
-    number: 'Numeric',
+    numeric: 'Numeric',
     text: 'Text',
     date: 'Date',
     timestamp: 'Timestamp'
