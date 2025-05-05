@@ -1,7 +1,7 @@
 import React from 'react'
 import Wrappers from '../wrappers'
 import Components from '../components'
-import { matchRoutes } from 'react-router-dom'
+import { matchRoutes } from 'react-router'
 import { cloneDeep } from "lodash-es"
 import { get } from "lodash-es"
 

@@ -2,7 +2,7 @@ import React from 'react'
 import { InputComp , ButtonPrimary} from '../ui'
 import Layout from '../ui/avail-layout'
 import {AdminContext} from "../siteConfig";
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 
 
 function NewSite ({apiUpdate}) {
