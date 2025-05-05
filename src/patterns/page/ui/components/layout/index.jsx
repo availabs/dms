@@ -95,7 +95,7 @@ const Layout = ({ children, navItems, secondNav, title, pageTheme, EditPane, yPa
 	  	)	
 	}
 	const Logo = sideNavOptions.logo
-	// console.log('layout', topNav)
+	//z console.log('layout', topNav)
 	// console.log('topnav stuff', topNav.size !== 'none' && topNav.position === 'fixed' ? topNav.size : '', topNav)
 	// ------------------------------------------------------
 	// ------- 

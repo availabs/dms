@@ -39,19 +39,18 @@ export const sideNavTheme = {
    "bottomMenuWrapper": ""
 }
 
-const sideBarItem = ({i, item, themeOptions, subMenuActivate}) => (
+const sideBarItem = ({i, item, subMenuActivate}) => (
 	<SidebarItem
 		key={i}
 		to={item.path}
+		item={item}
 		icon={item.icon}
 		className={item.className}
 		onClick={item.onClick}
-		themeOptions={themeOptions}
+		
 		subMenuActivate={subMenuActivate}
 		subMenus={get(item, "subMenus", [])}
-	>
-		{item.name}
-	</SidebarItem>
+	/>
 )
 const MobileSidebar = ({
    open,
