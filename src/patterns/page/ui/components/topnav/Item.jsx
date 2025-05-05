@@ -148,7 +148,6 @@ const NavItem = ({
 									hovering={hovering}
 									subMenus={subMenus}
 									type={type}
-									themeOptions={themeOptions}
 									className={className}
 									maxDepth={maxDepth}
 								/> : ''
@@ -160,7 +159,7 @@ const NavItem = ({
 };
 export default NavItem;
 
-const SubMenu = ({ parent, depth, showSubMenu, subMenus, type, hovering, subMenuActivate, active, maxDepth, themeOptions }) => {
+const SubMenu = ({ parent, depth, showSubMenu, subMenus, type, hovering, subMenuActivate, active, maxDepth }) => {
 	const { theme: fullTheme  } = React.useContext(CMSContext)
 	const theme = (fullTheme?.[type === 'side' ? 'sidenav' : 'topnav'] || {}) //(themeOptions);
 	
@@ -208,7 +207,6 @@ const SubMenu = ({ parent, depth, showSubMenu, subMenus, type, hovering, subMenu
 							type={type} 
 							className={sm.className}
 							onClick={sm.onClick}
-							themeOptions={themeOptions}
 							subMenus={sm.subMenus}
 							navItem={sm}
 							maxDepth={maxDepth}

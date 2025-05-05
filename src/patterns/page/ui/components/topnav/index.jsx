@@ -5,6 +5,8 @@ import { get } from "lodash-es";;
 // import { useTheme } from "../../wrappers/with-theme";
 // import { MobileNav } from './awesomeNav/Top'
 import NavItem from "./Item";
+import SideNavItem from '../sidenav/Item'
+import { Icon } from '../../'
 const NOOP = () => { return {} }
 
 import { CMSContext } from '../../../siteConfig'
@@ -68,8 +70,8 @@ import { CMSContext } from '../../../siteConfig'
       ],
       menuIconTop: `text-blue-400 mr-3 text-lg group-hover:text-blue-500`,
       menuIconTopActive : `text-blue-500 mr-3 text-lg group-hover:text-blue-500`,
-      menuOpenIcon: `fa-light fa-bars fa-fw`,
-      menuCloseIcon: `fa-light fa-xmark fa-fw"`,
+      menuOpenIcon: `Menu`,
+      menuCloseIcon: `XMark`,
       navitemTop: `
           w-fit group  whitespace-nowrap
           flex items-center 
@@ -89,7 +91,7 @@ import { CMSContext } from '../../../siteConfig'
       navItemDescription: ['hidden',`text-[16px] font-['Proxima_Nova'] font-[400] text-[#37576B] text-wrap`],
       //`px-4 text-sm font-medium tracking-widest uppercase inline-flex items-center  border-transparent  leading-5 text-white hover:bg-white hover:text-darkblue-500 border-gray-200 focus:outline-none focus:text-gray-700 focus:border-gray-300 transition duration-150 ease-in-out h-full`,
       topmenuRightNavContainer: "hidden md:flex h-full items-center",
-      topnavMobileContainer: "bg-slate-50",
+      topnavMobileContainer: "bg-slate-50 pointer-events-auto",
      
       
       subMenuWrapper1: [
@@ -119,7 +121,7 @@ export const MobileMenu = ({ open, toggle, menuItems = [], rightMenu = null,them
     >
       <div className="">
         {menuItems.map((page, i) => (
-          <NavItem
+          <SideNavItem
             key={i}
             type="top"
             to={page.path}
@@ -177,9 +179,8 @@ export const DesktopMenu = ({
           >
             <span className="sr-only">Open main menu</span>
             <div className={`flex justify-center items-center text-2xl`}>
-              <span
-                className={!open ? theme?.menuOpenIcon : theme?.menuCloseIcon}
-              />
+              <Icon icon = {!open ? theme?.menuOpenIcon : theme?.menuCloseIcon} />
+              
             </div>
           </button>
         </div>

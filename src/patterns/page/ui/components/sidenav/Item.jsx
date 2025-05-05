@@ -25,6 +25,7 @@ const NOOP = () => { return {} }
 
 const NavItem = ({
 	depth = 0,
+	navItem,
 	children,
 	icon,
 	to,
@@ -33,13 +34,12 @@ const NavItem = ({
 	type = "side",
 	active = false,
 	subMenus = [],
-	themeOptions,
 	subMenuActivate = 'onClick',
 	subMenuOpen = false
 }) => {
 	//console.log('renderMenu', subMenuActivate)
 	const { theme: fullTheme  } = React.useContext(CMSContext) || {}
-	const theme = (fullTheme?.[type === 'side' ? 'sidenav' : 'topnav'] || {}) //(themeOptions);
+	const theme = (fullTheme?.['sidenav'] || {}) 
 
 	const navigate = useNavigate();
 	const To = React.useMemo(() => {
@@ -87,8 +87,6 @@ const NavItem = ({
 				
 				<div
 					className={`${className ? className : navClass}`}
-					
-					
 				>
 					<div className={theme?.menuItemWrapper?.[depth] || theme?.menuItemWrapper?.[0] || theme?.menuItemWrapper}>
 						<div className='flex-1 flex items-center' >
@@ -110,7 +108,7 @@ const NavItem = ({
 									if (To[0]) navigate(To[0]);
 								}}
 							>	
-								{children}
+								{navItem?.name}
 							</div>
 							<div
 								className='pr-2'
@@ -142,7 +140,6 @@ const NavItem = ({
 									hovering={hovering}
 									subMenus={subMenus}
 									type={type}
-									themeOptions={themeOptions}
 									className={className}
 								/> : ''
 						}
@@ -154,9 +151,9 @@ const NavItem = ({
 };
 export default NavItem;
 
-const SubMenu = ({ depth, showSubMenu, subMenus, type, hovering, subMenuActivate, active, themeOptions }) => {
+const SubMenu = ({ depth, showSubMenu, subMenus, type, hovering, subMenuActivate, active }) => {
 	const { theme: fullTheme  } = React.useContext(CMSContext)
-	const theme = (fullTheme?.[type === 'side' ? 'sidenav' : 'topnav'] || {}) //(themeOptions);
+	const theme = (fullTheme?.['sidenav'] || {}) 
 
 
 	const inactiveHoveing = !active && subMenuActivate !== 'onHover' && hovering;
@@ -180,7 +177,6 @@ const SubMenu = ({ depth, showSubMenu, subMenus, type, hovering, subMenuActivate
 				className={`
 							${inactiveHoveing && theme?.subMenuWrapperInactiveFlyoutDirection}
 							${!inactiveHoveing && theme?.subMenuWrapperChild}
-					flex ${(type === "side" || inactiveHoveing ? "flex-col" : "flex-row")}
 				`}
 			>
 				{subMenus.map((sm, i) => (
@@ -188,15 +184,14 @@ const SubMenu = ({ depth, showSubMenu, subMenus, type, hovering, subMenuActivate
 						depth={depth+1}
 						key={i}
 						to={sm.path}
-						icon={sm.icon} 
+						icon={sm.icon}
+						navItem={sm}
 						type={type} 
 						className={sm.className}
 						onClick={sm.onClick}
-						themeOptions={themeOptions}
 						subMenus={sm.subMenus}
-					>
-						{sm.name}
-					</NavItem>
+					/>
+						
 				))}
 			</div>
 			
