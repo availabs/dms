@@ -2,11 +2,10 @@ import React, {useContext, useEffect, useState} from "react";
 import {Link} from "react-router";
 import DataTypes from "../../../../../../../../data-types";
 import {formatFunctions} from "../../../dataWrapper/utils/utils";
-import { ComponentContext } from "../../../dataWrapper";
 import {isEqual} from "lodash-es";
 import { RenderAction } from "./RenderActions";
 import { tableTheme } from '../'
-import { CMSContext } from '../../../../../../siteConfig'
+import {CMSContext, ComponentContext} from '../../../../../../siteConfig'
 import {InfoCircle} from "../../../../../icons";
 
 const DisplayCalculatedCell = ({value, className}) => <div className={className}>{value}</div>

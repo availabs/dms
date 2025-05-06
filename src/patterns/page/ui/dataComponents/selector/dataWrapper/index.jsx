@@ -1,17 +1,15 @@
-import React, {useState, useEffect, createContext, useMemo, useRef, useCallback} from 'react'
+import React, {useState, useEffect, useMemo, useRef, useCallback, useContext} from 'react'
 import writeXlsxFile from 'write-excel-file';
 import {Pagination} from "../ComponentRegistry/shared/Pagination";
 import {getData} from "./utils/utils";
 import {RenderFilters} from "../ComponentRegistry/shared/filters/RenderFilters";
 import {Attribution} from "../ComponentRegistry/shared/Attribution";
-import {DataSourceSelector} from "../ComponentRegistry/DataSourceSelector";
-import {Controls} from "./components/Controls";
 import { isEqual } from "lodash-es";
 import { v4 as uuidv4 } from 'uuid';
-import {useImmer} from "use-immer";
 import {convertOldState} from "./utils/convertOldState";
 import {useHandleClickOutside} from "../ComponentRegistry/shared/utils";
 import {Icon} from "../../../index";
+import {ComponentContext} from "../../../../../page/siteConfig";
 
 const getCurrDate = () => {
     const options = {
@@ -25,45 +23,6 @@ const getCurrDate = () => {
     };
     return new Date().toLocaleDateString(undefined, options);
 };
-export const ComponentContext = createContext({});
-
-const initialState = defaultState => {
-    if(defaultState) return defaultState;
-
-    return {
-        // user controlled part
-        columns: [
-            //     visible columns or Actions
-            //     {name, display_name, custom_name,
-            //      justify, width, fn,
-            //      groupBy: t/f, orderBy: t/f, excludeNull: t/f, openOut: t/f,
-            //      formatFn, fontSize, hideHeader, cardSpan,
-            //      isLink: t/f, linkText: ‘’, linkLocation: ‘’, actionName, actionType, icon,
-            //      }
-        ],
-        display: {
-            allowSearchParams: false,
-            usePagination: true,
-            pageSize: 5,
-            totalLength: 0,
-            showGutters: false,
-            transform: '', // transform fn to be applied
-            loadMoreId:`id${uuidv4()}`,
-            showAttribution: true,
-        },
-        // wrapper controlled part
-        dataRequest: {},
-        data: [],
-        sourceInfo: {
-            columns: [],
-            // pgEnv,
-            // source_id
-            // view_id
-            // version,
-            // doc_type, type -- should be the same
-        }
-    }
-}
 
 const triggerDownload = async ({state, apiLoad, loadAllColumns, setLoading}) => {
     setLoading(true);
@@ -138,9 +97,10 @@ const RenderDownload = ({state, apiLoad}) => {
 }
 
 
-const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, component, hideSourceSelector}) => {
+const Edit = ({value, onChange, pageFormat, apiUpdate, component, hideSourceSelector}) => {
     const isEdit = Boolean(onChange);
-    const [state, setState] = useImmer(convertOldState(value, initialState(component.defaultState)));
+    // const [state, setState] = useImmer(convertOldState(value, initialState(component.defaultState)));
+    const {state, setState, apiLoad} = useContext(ComponentContext);
     const [loading, setLoading] = useState(false);
     const [newItem, setNewItem] = useState({})
     const [currentPage, setCurrentPage] = useState(0);
@@ -201,7 +161,7 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, component, hideS
         return () => {
             isStale = true;
         }
-    }, [state.columns, isValidState])
+    }, [state?.columns, isValidState])
 
     // // ========================================== get data begin =======================================================
     // uweGetDataOnSettingsChange
@@ -290,7 +250,7 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, component, hideS
 
     // =========================================== saving settings begin ===============================================
     useEffect(() => {
-        if (!isEdit || !isValidState) return;
+        if (!isEdit || !isValidState  || isEqual(value, JSON.stringify(state))) return;
         onChange(JSON.stringify(state));
     }, [state])
     // =========================================== saving settings end =================================================
@@ -344,19 +304,7 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, component, hideS
 
 
     return (
-        <ComponentContext.Provider value={{state, setState, apiLoad,
-            compType: component.name.toLowerCase(), // should be deprecated
-            controls: component.controls
-        }}>
             <div className={'w-full h-full'}>
-                {
-                    !hideSourceSelector ?
-                        <DataSourceSelector apiLoad={apiLoad} app={pageFormat?.app}
-                                            state={state} setState={setState} // passing as props as other components will use it as well.
-                        /> : null
-                }
-                { isEdit ? <Controls /> : null }
-
                 <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={isEdit} defaultOpen={true} />
 
                 <div className={'w-full flex items-center place-content-end'}>
@@ -385,13 +333,12 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, component, hideS
                     {state.display.showAttribution ? <Attribution/> : null}
                 </div>
             </div>
-        </ComponentContext.Provider>
     )
 }
 
-const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) => {
+const View = ({value, onChange, size, apiUpdate, component, ...rest}) => {
     const isEdit = false;
-    const [state, setState] = useImmer(convertOldState(value, initialState(component.defaultState)));
+    const {state, setState, apiLoad} = useContext(ComponentContext);
 
     const [newItem, setNewItem] = useState({})
     const [loading, setLoading] = useState(false);
@@ -596,7 +543,6 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
     if(showChangeFormatModal || !isValidState) return <div className={'p-1 text-center'}>Form data not available.</div>;
     // component.name === 'Spreadsheet' && console.log('dw?', state)
     return (
-        <ComponentContext.Provider value={{state, setState, apiLoad, controls: component.controls}}>
             <div className={'w-full h-full'}>
                 <div className={'w-full'}>
                     <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={isEdit} defaultOpen={true}/>
@@ -630,8 +576,7 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
                         {state.display.showAttribution ? <Attribution/> : null}
                     </div>
                 </div>
-            </div>
-        </ComponentContext.Provider>)
+            </div>)
 }
 
 export default {

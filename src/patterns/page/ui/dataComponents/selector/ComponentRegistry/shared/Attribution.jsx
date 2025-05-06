@@ -1,7 +1,6 @@
 import {Link} from "react-router";
 import React, {useContext} from "react";
-import {ComponentContext} from "../../dataWrapper";
-import {CMSContext} from "../../../../../siteConfig";
+import {CMSContext, ComponentContext} from "../../../../../siteConfig";
 
 export const attributionTheme = {
     wrapper: 'w-full p-1 flex gap-1 text-xs text-gray-900',

@@ -1,7 +1,6 @@
 import React, {useContext} from "react";
-import { ComponentContext } from "../../dataWrapper";
 import { tableTheme } from '../spreadsheet'
-import { CMSContext } from '../../../../../siteConfig'
+import {CMSContext, ComponentContext} from '../../../../../siteConfig'
 
 export const paginationTheme = {
     

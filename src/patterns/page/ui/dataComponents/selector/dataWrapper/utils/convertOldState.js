@@ -1,5 +1,11 @@
-import {getFilters} from "../../ComponentRegistry/shared/filters/utils";
-import {isJson} from "./utils";
+const isJson = (str)  => {
+    try {
+        JSON.parse(str);
+    } catch (e) {
+        return false;
+    }
+    return true;
+}
 
 export const convertOldState = (state, initialState) => {
     const oldState = isJson(state) ? JSON.parse(state) : {};

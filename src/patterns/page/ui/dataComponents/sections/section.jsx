@@ -1,30 +1,25 @@
-import React, {Fragment, useState, useLayoutEffect, useRef, useEffect} from "react"
+import React, {createContext, Fragment, useRef, useState} from "react"
 //import { useLocation } from 'react-router';
-import { isEqual } from "lodash-es"
-import { Combobox } from '@headlessui/react'
-import { Link } from "react-router";
-import { usePopper } from 'react-popper'
-import { CMSContext } from '../../../siteConfig'
+import {isEqual} from "lodash-es"
+import {Combobox} from '@headlessui/react'
+import {Link} from "react-router";
+import {usePopper} from 'react-popper'
+import {CMSContext} from '../../../siteConfig'
 import {convert} from './convertToSpreadSheet'
 import {
-    SquarePlus,
-    InfoCircle,
-    TrashCan,
-    RemoveCircle,
     CancelCircle,
-    FloppyDisk,
-    CirclePlusDot,
-    PencilSquare,
-    ArrowDownSquare,
-    ArrowUpSquare,
     ChevronDownSquare,
     ChevronUpSquare,
+    Copy,
+    FloppyDisk,
     InfoSquare,
     MoreSquare,
+    PencilSquare,
+    RemoveCircle,
     Tags,
-    Copy
+    TrashCan
 } from '../../icons'
-import { Modal, Popover, Button, Icon, Menu, Label } from "../../";
+import {Button, Icon, Label, Menu, Modal, Popover} from "../../";
 
 const isJson = (str)  => {
     try {
@@ -33,11 +28,6 @@ const isJson = (str)  => {
         return false;
     }
     return true;
-}
-
-
-export const sectionTheme = {
-
 }
 
 export function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, onRemove, siteType, apiLoad, apiUpdate, format}) {
@@ -58,7 +48,7 @@ export function SectionEdit ({value, i, onChange, attributes, size, onCancel, on
     let TagsComp = attributes?.tags?.EditComp
     let ElementComp = attributes?.element?.EditComp
     let HelpComp = attributes?.helpText?.EditComp
-    // console.log('props in sectionEdit', siteType)
+
     return (
         <div className={``}>
             {/* -------------------top line buttons ----------------------*/}
@@ -161,6 +151,8 @@ export function SectionEdit ({value, i, onChange, attributes, size, onCancel, on
                     </div>
                 )}
                 <div className={''}>
+                    {/* controls */}
+
                     <ElementComp
                         value={value?.['element']}
                         onChange={(v) => updateAttribute('element', v)}
@@ -219,7 +211,7 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
     const hideDebug = true
     let TitleComp = attributes?.title?.ViewComp
     let TagsComp = attributes?.tags?.ViewComp 
-    let ElementComp = attributes?.element?.ViewComp
+    let ElementComp = attributes?.element?.ViewComp // selector
     let HelpComp = attributes?.helpText?.ViewComp
     let helpTextCondition = value?.['helpText'] && !(
         (value?.['helpText']?.root?.children?.length === 1 && value?.['helpText']?.root?.children?.[0]?.children?.length === 0) || // empty child

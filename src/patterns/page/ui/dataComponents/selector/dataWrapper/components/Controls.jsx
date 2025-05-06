@@ -1,7 +1,7 @@
 import React, {useContext} from 'react'
-import {ComponentContext} from "../index";
 import ColumnControls from "./ColumnControls";
 import MoreControls from "./MoreControls";
+import {ComponentContext} from "~/modules/dms/src/patterns/page/siteConfig";
 
 const controlComponents = {
     columns: ColumnControls,
@@ -10,7 +10,7 @@ const controlComponents = {
 
 export const Controls = ({context=ComponentContext}) => {
     const {controls= {}} = useContext(context);
-
+    console.log('controls context', context)
     return (
         <div className={'flex items-center'}>
             {

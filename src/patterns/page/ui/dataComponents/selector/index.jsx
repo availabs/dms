@@ -1,12 +1,14 @@
 import React, {useEffect, useState} from "react";
-import { get,isEqual } from "lodash-es";
-import { CMSContext } from '../../../siteConfig'
+import {get, isEqual} from "lodash-es";
+import {CMSContext, ComponentContext} from '../../../siteConfig'
 import FilterableSearch from "./FilterableSearch";
 import ComponentRegistry from './ComponentRegistry'
 import DataWrapper from "./dataWrapper";
-
+import {Controls} from "./dataWrapper/components/Controls";
+import {useImmer} from "use-immer";
+import {convertOldState} from "./dataWrapper/utils/convertOldState";
+import {v4 as uuidv4} from "uuid";
 export let RegisteredComponents = ComponentRegistry;
-
 
 export const isJson = (str)  => {
     try {
@@ -26,17 +28,56 @@ const icons = {
     'lexical': 'fa-thin fa-text'
 }
 
+const initialState = defaultState => {
+    if(defaultState) return defaultState;
+
+    return {
+        // user controlled part
+        columns: [
+            //     visible columns or Actions
+            //     {name, display_name, custom_name,
+            //      justify, width, fn,
+            //      groupBy: t/f, orderBy: t/f, excludeNull: t/f, openOut: t/f,
+            //      formatFn, fontSize, hideHeader, cardSpan,
+            //      isLink: t/f, linkText: ‘’, linkLocation: ‘’, actionName, actionType, icon,
+            //      }
+        ],
+        display: {
+            allowSearchParams: false,
+            usePagination: true,
+            pageSize: 5,
+            totalLength: 0,
+            showGutters: false,
+            transform: '', // transform fn to be applied
+            loadMoreId:`id${uuidv4()}`,
+            showAttribution: true,
+        },
+        // wrapper controlled part
+        dataRequest: {},
+        data: [],
+        sourceInfo: {
+            columns: [],
+            // pgEnv,
+            // source_id
+            // view_id
+            // version,
+            // doc_type, type -- should be the same
+        }
+    }
+}
+
 function EditComp(props) {
-    const {value, onChange, size, handlePaste, ...rest} = props;
+    const {value, onChange, size, handlePaste, apiLoad, pageformat, ...rest} = props;
     const { theme } = React.useContext(CMSContext);
+    const component = (RegisteredComponents[get(value, "element-type", "lexical")] || RegisteredComponents['lexical']);
+    const [state, setState] = useImmer(convertOldState(value?.['element-data'] || '', initialState(component.defaultState)));
     const [key, setKey] = useState();
-    // console.log("selector props", props, value)
-    // console.log('selector edit', rest)
+
     const updateAttribute = (k, v) => {
         if (!isEqual(value, {...value, [k]: v})) {
+            console.log('changing', k, v)
             onChange({...value, [k]: v})
         }
-        //console.log('updateAttribute', value, k, v, {...value, [k]: v})
     }
 
     useEffect(() => {
@@ -44,10 +85,8 @@ function EditComp(props) {
             onChange({...value, 'element-type': 'lexical'})
         }
     }, []);
-
-    const component = (RegisteredComponents[get(value, "element-type", "lexical")] || RegisteredComponents['lexical']);
     let DataComp = component.useDataSource ? DataWrapper.EditComp : component.EditComp;
-
+    console.log('state', state)
     return (
         <div className="w-full">
             <div className="relative my-1">
@@ -69,8 +108,11 @@ function EditComp(props) {
                     onChange={async e => {
                         if (e === 'paste') {
 
-                        } else {
-                            updateAttribute('element-type', e)
+                        } else if(e){
+                            const component = (RegisteredComponents[e]);
+                            console.log('in selector', e, component)
+                            onChange({...value, 'element-type': e, 'element-data': initialState(component.defaultState)})
+                            setState(initialState(component.defaultState))
                         }
                     }}
                     filters={[
@@ -94,31 +136,48 @@ function EditComp(props) {
                     ]}
                 />
             </div>
-            <div>
+            <ComponentContext.Provider value={{
+                state, setState, apiLoad,
+                compType: component.name.toLowerCase(), // should be deprecated
+                controls: component.controls,
+                app: pageformat?.app
+            }}>
+                {/* controls with datasource selector */}
+                <Controls />
                 <DataComp
                     key={key || ''}
                     value={value?.['element-data'] || ''}
+                    state={state}
+                    setState={setState}
                     onChange={v => updateAttribute('element-data', v)}
                     size={size}
                     theme={theme}
                     component={component?.useDataSource ? component : undefined}
+                    apiLoad={apiLoad}
                     {...rest}
                 />
-            </div>
+            </ComponentContext.Provider>
         </div>
     )
 }
 
-function ViewComp({value, ...rest}) {
+function ViewComp({value, apiLoad, ...rest}) {
     const { theme } = React.useContext(CMSContext);
     const defaultComp = () => <div> Component {value["element-type"]} Not Registered </div>;
 
-    let component = RegisteredComponents[get(value, "element-type", 'lexical')] ?
-        RegisteredComponents[get(value, "element-type", "lexical")] : undefined;
+    const component = (RegisteredComponents[get(value, "element-type", "lexical")] || defaultComp);
+    const [state, setState] = useImmer(convertOldState(value?.['element-data'] || '', initialState(component?.defaultState)));
 
     let DataComp = !component ? defaultComp : component.useDataSource ? DataWrapper.ViewComp : component.ViewComp;
     return (
-        <DataComp value={value?.['element-data'] || ''} theme={theme} {...rest} component={component?.useDataSource ? component : undefined} />
+        <ComponentContext.Provider value={{state, setState, apiLoad, controls: component.controls}}>
+            <DataComp value={value?.['element-data'] || ''}
+                      state={state} setState={setState}
+                      theme={theme} {...rest}
+                      component={component?.useDataSource ? component : undefined}
+                      apiLoad={apiLoad}
+            />
+        </ComponentContext.Provider>
     )
 }
 

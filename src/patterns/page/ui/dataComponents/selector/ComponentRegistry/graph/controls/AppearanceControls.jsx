@@ -2,8 +2,8 @@ import React, {useRef, useState, useEffect, useContext, useCallback} from "react
 import {ArrowDown} from "../../../../../../../forms/ui/icons"
 import {ToggleControl} from "../../../dataWrapper/components/ToggleControl";
 import {InputControl} from "../../../dataWrapper/components/InputControl";
-import {ComponentContext} from "../../../dataWrapper";
 import {useHandleClickOutside} from "../../shared/utils";
+import {ComponentContext} from "../../../../../../../page/siteConfig";
 
 export default function AppearanceControls({context}) {
     const {state: {display}, setState} = useContext(context || ComponentContext);

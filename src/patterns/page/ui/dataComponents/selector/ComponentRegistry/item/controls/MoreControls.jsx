@@ -4,7 +4,7 @@ import {ArrowDown} from "../../../../../icons";
 import {ToggleControl} from "../../../dataWrapper/components/ToggleControl";
 
 export default function MoreControls({context}) {
-    const {state: {display}, setState, compType} = useContext(context);
+    const {state: {display}, setState} = useContext(context);
     const allowEditInViewToggle = true
 
     const menuRef = useRef(null);
@@ -18,7 +18,6 @@ export default function MoreControls({context}) {
         })
     }, []);
 
-    if(compType === 'graph') return;
     return (
         <div className="relative inline-block text-left">
             <div>

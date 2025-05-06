@@ -1,11 +1,10 @@
 import React, {useContext, useMemo} from "react";
-import {ComponentContext} from "../../dataWrapper";
 import TableHeaderCell from "../spreadsheet/components/TableHeaderCell";
 import {getColorRange, GraphComponent} from "./GraphComponent";
 import AppearanceControls from "./controls/AppearanceControls";
 import {fnumIndex} from "../../dataWrapper/utils/utils";
 import {duplicateControl} from "../shared/utils";
-import {CMSContext} from "../../../../../siteConfig";
+import {CMSContext, ComponentContext} from "../../../../../siteConfig";
 
 const NaNValues = ["", null]
 

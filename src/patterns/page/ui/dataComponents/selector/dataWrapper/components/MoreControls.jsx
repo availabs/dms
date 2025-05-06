@@ -2,8 +2,8 @@ import React, {useRef, useState, useEffect, useContext, useCallback} from "react
 import {ArrowDown} from "../../../../../../forms/ui/icons"
 import {ToggleControl} from "./ToggleControl";
 import {InputControl} from "./InputControl";
-import {ComponentContext} from "../index";
 import {useHandleClickOutside} from "../../ComponentRegistry/shared/utils";
+import {ComponentContext} from "~/modules/dms/src/patterns/page/siteConfig";
 
 export default function MoreControls({context}) {
     const {state: {display}, setState, controls} = useContext(context || ComponentContext);

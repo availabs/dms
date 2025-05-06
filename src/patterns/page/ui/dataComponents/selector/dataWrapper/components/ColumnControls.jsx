@@ -2,12 +2,16 @@ import React, {useCallback, useContext, useEffect, useMemo, useRef, useState} fr
 import RenderSwitch from "./Switch";
 import {ArrowDown, RestoreBin} from "../../../../../../forms/ui/icons";
 import {cloneDeep} from "lodash-es";
-import {ComponentContext} from "../index";
 import {useHandleClickOutside} from "../../ComponentRegistry/shared/utils";
 import {getColumnLabel, isEqualColumns} from "../utils/utils";
 import {Pill} from "./Pill";
 import {AddFormulaColumn} from "./AddFormulaColumn";
 import {isCalculatedCol} from "../../ComponentRegistry/shared/filters/utils";
+import {
+    DataSourceSelector
+} from "~/modules/dms/src/patterns/page/ui/dataComponents/selector/ComponentRegistry/DataSourceSelector";
+import {ComponentContext} from "~/modules/dms/src/patterns/page/siteConfig";
+import {Icon} from "~/modules/dms/src/patterns/page/ui";
 
 const gridClasses = {
     2: {
@@ -64,9 +68,9 @@ const gridClasses = {
 
 
 export default function ColumnControls({context}) {
-    const {state: {columns=[], sourceInfo}, setState, controls= {}} = useContext(context || ComponentContext);
+    const {state: {columns=[], sourceInfo, display}, setState, controls= {}} = useContext(context || ComponentContext);
     if(!controls.columns?.length) return;
-
+    console.log('?????????', sourceInfo, columns)
     const dragItem = useRef();
     const dragOverItem = useRef();
     const menuRef = useRef(null);
@@ -251,10 +255,7 @@ export default function ColumnControls({context}) {
                  role="menu"
                  className={`${isOpen ? 'visible transition ease-in duration-200' : 'hidden transition ease-in duration-200'} absolute left-0 z-10 w-[${width}] origin-top-left divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 transition focus:outline-none`}
             >
-                <input className={'px-4 py-1 w-full text-xs rounded-md'} placeholder={'search...'}
-                       onChange={e => {
-                           setSearch(e.target.value)
-                       }}/>
+                {display.hideDatasourceSelector ? null : <DataSourceSelector />}
 
                 <div className="py-1 select-none">
                     <div key={'header'}
@@ -272,25 +273,24 @@ export default function ColumnControls({context}) {
                         <div className={`${gridClass} gap-0.5 m-1 w-full`}
                              style={{gridTemplateColumns}}
                         >
-                            <div className={'place-self-stretch'}>Column</div>
+                            <div className={'flex flex-col items-center md:flex-row place-self-stretch'}>
+                                <span className={'px-2'}>Column</span>
+                                <input className={'px-4 py-1 w-full text-xs rounded-md'} placeholder={'search...'}
+                                       onChange={e => {
+                                           setSearch(e.target.value)
+                                       }}/>
+                            </div>
                             {
-                                controls.columns.map(control => <div key={control.label} className={control.type === 'toggle' ? 'justify-self-stretch' : 'px-1 w-fit rounded-md text-center'}>{control.label}</div>)
+                                controls.columns.map(control => <div key={control.label} className={`${control.type === 'toggle' ? 'justify-self-stretch' : 'px-1 w-fit rounded-md text-center'} flex items-center`}>{control.label}</div>)
                             }
-                            <div className={'justify-self-stretch'}>Reset</div>
+                            <div className={'justify-self-stretch flex items-center'}>Reset</div>
                         </div>
                     </div>
                 </div>
 
                 <div className="py-1 select-none">
                     <div key={'global-controls'} className="flex items-center px-2 py-1">
-                        <div className={'h-4 w-4 m-1 text-gray-800'}>
-                            <svg data-v-4e778f45=""
-                                 className="nc-icon cursor-move !h-3.75 text-gray-600 mr-1"
-                                 viewBox="0 0 24 24" width="1.2em" height="1.2em">
-                                <path fill="currentColor"
-                                      d="M8.5 7a1.5 1.5 0 1 0 0-3a1.5 1.5 0 0 0 0 3m0 6.5a1.5 1.5 0 1 0 0-3a1.5 1.5 0 0 0 0 3m1.5 5a1.5 1.5 0 1 1-3 0a1.5 1.5 0 0 1 3 0M15.5 7a1.5 1.5 0 1 0 0-3a1.5 1.5 0 0 0 0 3m1.5 5a1.5 1.5 0 1 1-3 0a1.5 1.5 0 0 1 3 0m-1.5 8a1.5 1.5 0 1 0 0-3a1.5 1.5 0 0 0 0 3"></path>
-                            </svg>
-                        </div>
+                        <Icon className={"text-slate-400 w-[24px] h-[24px]"} icon={'GlobalEditing'} />
 
                         <div className={`flex gap-1 m-1 w-full`}>
                             {

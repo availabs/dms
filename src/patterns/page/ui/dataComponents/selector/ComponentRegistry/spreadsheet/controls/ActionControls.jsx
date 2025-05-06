@@ -1,7 +1,7 @@
 import React, {useRef, useState, useEffect, useContext, useCallback} from "react";
 import Icons, {ArrowDown, TouchInteraction} from "../../../../../../../forms/ui/icons"
-import {ComponentContext} from "../../../dataWrapper";
 import {useHandleClickOutside} from "../../shared/utils";
+import {ComponentContext} from "~/modules/dms/src/patterns/page/siteConfig";
 
 const RenderIconSelector = ({onClick, icon}) => {
     const [open, setOpen] = useState(false);

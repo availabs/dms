@@ -10,6 +10,8 @@ import {cloneDeep, isEqual, uniq, uniqBy} from "lodash-es";
 import {XMark} from "../../page/ui/icons";
 import {Filter, FilterRemove} from "../ui/icons";
 import dataTypes from "../../../data-types";
+import {useImmer} from "use-immer";
+import {ComponentContext} from "../../page/siteConfig";
 
 const getErrorValueSql = (fullName, shortName, options, required, type) => {
     const sql = `SUM(CASE ${required ? `WHEN (data->>'${fullName}' IS NULL OR data->>'${fullName}'::text = '') THEN 1` : ``}
@@ -83,7 +85,7 @@ const getFilterFromSearchParams = searchParams => Array.from(searchParams.keys()
     [column]: searchParams.get(column)?.split(filterValueDelimiter)?.filter(d => d.length),
 }), {});
 
-const getInitState = ({columns, defaultColumns=[], app, doc_type, params, data, searchParams}) => JSON.stringify({
+const getInitState = ({columns, defaultColumns=[], app, doc_type, params, data, searchParams}) => ({
     dataRequest: {filter: getFilterFromSearchParams(searchParams)},
     data: [],
     columns: uniqBy([
@@ -236,7 +238,7 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
     const columns = (JSON.parse(config || '{}')?.attributes || []).filter(col => col.type !== 'calculated').map((col, i) => ({...col, shortName: `col_${i}`}));
     const is_dirty = (JSON.parse(config || '{}')?.is_dirty);
 
-    const [value, setValue] = useState(getInitState({columns, defaultColumns, app, doc_type, params, data, searchParams}));
+    const [value, setValue] = useImmer(getInitState({columns, defaultColumns, app, doc_type, params, data, searchParams}));
     const validEntriesFormat = {
         app,
         type: `${doc_type}-${params.view_id}`,
@@ -275,7 +277,7 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
                         refName,
                         allAttributes: [{ name, display, meta }],
                         apiLoad,
-                        format: JSON.parse(value).sourceInfo // invalid entries
+                        format: value.sourceInfo // invalid entries
                     });
 
                     const validEntriesOptions = await getFilterData({
@@ -310,7 +312,7 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
 
             // ==================================== get # invalid rows begin ===========================================
             const invalidLength = await apiLoad({
-                format: JSON.parse(value).sourceInfo,
+                format: value.sourceInfo,
                 children: [{
                     type: () => {},
                     action: 'udaLength',
@@ -348,7 +350,7 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
             if(isStale) return;
             console.time('getData')
             const data = await apiLoad({
-                format: JSON.parse(value).sourceInfo,
+                format: value.sourceInfo,
                 attributes: attrToFetch,
                 children: [{
                     type: () => {},
@@ -428,7 +430,7 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
     SpreadSheetCompWithControls.controls.header = {
         displayFn: column => {
             const invalidValues = data[`${column.shortName}_invalid_values`]?.filter(values => values !== '"__VALID__"' && values !== "__VALID__") || [];
-            const isFilterOn = (JSON.parse(value)?.columns || []).find(col => col.name === column.name)?.filters?.length;
+            const isFilterOn = (value?.columns || []).find(col => col.name === column.name)?.filters?.length;
 
             if(!invalidValues?.length){
                 return (
@@ -460,7 +462,7 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
                             onClick={e => {
                                 e.stopPropagation();
 
-                                const tmpValue = JSON.parse(value);
+                                const tmpValue = cloneDeep(value);
                                 const idx = tmpValue.columns.findIndex(col => col.name === column.name);
                                 if (idx === -1) return;
 
@@ -476,7 +478,7 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
                                 }]
 
                                 tmpValue.dataRequest = {filter: {[column.name]: uniq(filterValues)}};
-                                setValue(JSON.stringify(tmpValue))
+                                setValue((tmpValue))
                                 setSSKey(`${Date.now()}`);
                             }}>
                             {isFilterOn ? <FilterRemove className={'text-blue-500'} height={14} width={14} /> : <Filter className={'text-blue-500'} height={14} width={14} />}
@@ -516,7 +518,7 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
                                             className={`px-2 py-1 text-sm ${error ? `bg-red-300 hover:bg-red-600 text-white` : `bg-blue-500/15 text-blue-700 hover:bg-blue-500/25`} rounded-md`}
                                             onClick={() =>
                                                 reValidate({
-                                                    app, type: JSON.parse(value).sourceInfo.type,
+                                                    app, type: value.sourceInfo.type,
                                                     parentDocType: doc_type, dmsServerPath, setValidating, setError, falcor
                                                 })}
                                         >
@@ -530,7 +532,7 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
                                                        columns={columns}
                                                        apiUpdate={apiUpdate}
                                                        data={data}
-                                                       sourceInfo={JSON.parse(value).sourceInfo}
+                                                       sourceInfo={value.sourceInfo}
                                                        falcor={falcor}
                                                        user={user}
                                                        updating={updating}
@@ -547,16 +549,21 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
                                     }
                                     {
                                         !columns.find(col => data[`${col.shortName}_error`]) || loading ? null :
-                                            <DataWrapper.EditComp
-                                                component={SpreadSheetCompWithControls}
-                                                key={ssKey}
-                                                value={value}
-                                                onChange={(stringValue) => {setValue(stringValue)}}
-                                                hideSourceSelector={true}
-                                                size={1}
-                                                apiLoad={apiLoad}
-                                                apiUpdate={apiUpdate}
-                                            />
+                                            <ComponentContext.Provider value={{
+                                                state: value, setState: setValue, apiLoad,
+                                                compType: SpreadSheetCompWithControls.name.toLowerCase(), // should be deprecated
+                                                controls: SpreadSheetCompWithControls.controls,
+                                                app: item.app
+                                            }}>
+                                                <DataWrapper.EditComp
+                                                    component={SpreadSheetCompWithControls}
+                                                    key={ssKey}
+                                                    value={value}
+                                                    hideSourceSelector={true}
+                                                    size={1}
+                                                    apiUpdate={apiUpdate}
+                                                />
+                                            </ComponentContext.Provider>
                                     }
                                 </div>
                             </div>

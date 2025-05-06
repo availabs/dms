@@ -3,10 +3,10 @@ import {DataSourceSelector} from "./DataSourceSelector";
 import {useImmer} from "use-immer";
 import {isJson} from "../dataWrapper/utils/utils";
 import Upload from "../../../../../forms/components/upload";
-import {CMSContext} from "../../../../siteConfig";
+import {CMSContext, ComponentContext} from "../../../../siteConfig";
 const UploadComponentContext = React.createContext({});
 
-const initialState = {
+const defaultState = {
     columns: [],
     display: {
         allowSearchParams: false,
@@ -18,7 +18,7 @@ const initialState = {
 
 const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, renderCard}) => {
     const isEdit = Boolean(onChange);
-    const [state, setState] = useImmer(isJson(value) ? JSON.parse(value) : initialState);
+    const {state, setState} = useContext(ComponentContext);
 
     // =========================================== saving settings begin ===============================================
     useEffect(() => {
@@ -29,21 +29,17 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, renderCard}) => 
 
     return (
         <div className={'w-full h-full min-h-[50px]'}>
-            <DataSourceSelector apiLoad={apiLoad} app={pageFormat?.app}
-                                state={state} setState={setState} // passing as props as other components will use it as well.
-                                sourceTypes={['internal']}
-            />
+            <DataSourceSelector sourceTypes={['internal']} />
         </div>
     )
 }
 
 const View = ({value, onChange, size, apiLoad, apiUpdate, renderCard, ...rest}) => {
-    const isEdit = false;
-    const [state, setState] = useImmer(isJson(value) ? JSON.parse(value) : initialState);
+    const {state, setState} = useContext(ComponentContext);
     const {API_HOST, user, falcor, pgEnv} = useContext(CMSContext);
 
     useEffect(() => {
-        setState(isJson(value) ? JSON.parse(value) : initialState)
+        setState(isJson(value) ? JSON.parse(value) : defaultState)
     }, [value]);
 
     return (
@@ -59,7 +55,6 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, renderCard, ...rest}) 
                                 config: JSON.stringify({attributes: state.sourceInfo.columns})
                             }}
                             view_id={state.sourceInfo.view_id}
-                            // parent={state.sourceInfo}
                             apiLoad={apiLoad}
                             apiUpdate={apiUpdate}
                             updateMeta={false}
@@ -79,6 +74,7 @@ Edit.settings = {
 export default {
     "name": 'Upload',
     "type": 'upload',
+    defaultState,
     "variables": [],
     "EditComp": Edit,
     "ViewComp": View

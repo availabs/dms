@@ -5,11 +5,8 @@ import {handleKeyDown} from "./utils/keyboard";
 import {handleMouseUp, handleMouseMove, handleMouseDown} from "./utils/mouse";
 import { TableRow } from "./components/TableRow";
 import {actionsColSize, numColSize as numColSizeDf, gutterColSize as gutterColSizeDf, minColSize, minInitColSize} from "./constants"
-import {ComponentContext} from "../../dataWrapper";
 import ActionControls from "./controls/ActionControls";
-import { CMSContext } from '../../../../../siteConfig'
-import {Add, Copy} from "../../../../icons";
-import {cloneDeep} from "lodash-es";
+import {CMSContext, ComponentContext} from '../../../../../siteConfig'
 import {isEqualColumns} from "../../dataWrapper/utils/utils";
 import {duplicateControl} from "../shared/utils";
 

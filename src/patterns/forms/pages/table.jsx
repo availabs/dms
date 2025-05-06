@@ -5,13 +5,16 @@ import Spreadsheet from "../../page/ui/dataComponents/selector/ComponentRegistry
 import {useNavigate} from "react-router";
 import DataWrapper from "../../page/ui/dataComponents/selector/dataWrapper";
 import {cloneDeep, uniqBy} from "lodash-es";
+import {Controls} from "~/modules/dms/src/patterns/page/ui/dataComponents/selector/dataWrapper/components/Controls";
+import {ComponentContext} from "../../page/siteConfig";
+import {useImmer} from "use-immer";
 
 const TableView = ({apiUpdate, apiLoad, format, item, params}) => {
     const { baseUrl, pageBaseUrl, theme, user } = useContext(FormsContext) || {};
     const navigate = useNavigate();
     const columns = JSON.parse(item?.config || '{}')?.attributes || [];
     const defaultColumns = item.defaultColumns;
-    const [value, setValue] = useState(JSON.stringify({
+    const [value, setValue] = useImmer({
         dataRequest: {},
         data: [],
         sourceInfo: {
@@ -30,15 +33,16 @@ const TableView = ({apiUpdate, apiLoad, format, item, params}) => {
             loadMoreId: `id-table-page`,
             allowSearchParams: false,
             allowDownload: true,
+            hideDatasourceSelector: true,
         },
         columns: defaultColumns?.length ?
-                    uniqBy(defaultColumns.map(dc => columns.find(col => col.name === dc.name)).filter(c => c).map(c => ({...c, show: true})), d => d?.name) :
-                        columns.slice(0, 3).map(c => ({...c, show:true})),
-    }))
+            uniqBy(defaultColumns.map(dc => columns.find(col => col.name === dc.name)).filter(c => c).map(c => ({...c, show: true})), d => d?.name) :
+            columns.slice(0, 3).map(c => ({...c, show:true})),
+    })
 
     const saveSettings = useCallback(() => {
         const columns =
-            (JSON.parse(value)?.columns || [])
+            (value?.columns || [])
                 .filter(({show}) => show)
                 .map(col => ({...col, filters: undefined, group: undefined})); // not including some settings
 
@@ -71,7 +75,7 @@ const TableView = ({apiUpdate, apiLoad, format, item, params}) => {
                        showVersionSelector={true}
         >
             {
-                !item.config || !JSON.parse(value)?.sourceInfo?.columns?.length ? <div className={'p-1 text-center'}>Please setup metadata.</div> :
+                !item.config || !value?.sourceInfo?.columns?.length ? <div className={'p-1 text-center'}>Please setup metadata.</div> :
                     !params.view_id || params.view_id === 'undefined' ? 'Please select a version' :
                     <div className={`${theme?.page?.wrapper1}`}>
                         {
@@ -82,16 +86,23 @@ const TableView = ({apiUpdate, apiLoad, format, item, params}) => {
                                 </button> :
                                 null
                         }
-                        <DataWrapper.EditComp
-                            component={SpreadSheetCompWithControls}
-                            key={'table-page-spreadsheet'}
-                            value={value}
-                            onChange={(stringValue) => {setValue(stringValue)}}
-                            size={1}
-                            hideSourceSelector={true}
-                            apiLoad={apiLoad}
-                            apiUpdate={apiUpdate}
-                        />
+                        <ComponentContext.Provider value={{
+                            state: value, setState: setValue, apiLoad,
+                            compType: SpreadSheetCompWithControls.name.toLowerCase(), // should be deprecated
+                            controls: SpreadSheetCompWithControls.controls,
+                            app: item.app
+                        }}>
+                            <Controls />
+                            <DataWrapper.EditComp
+                                component={SpreadSheetCompWithControls}
+                                key={'table-page-spreadsheet'}
+                                // onChange={(stringValue) => {setValue(JSON.parse(stringValue))}}
+                                size={1}
+                                hideSourceSelector={true}
+                                apiUpdate={apiUpdate}
+                                theme={theme}
+                            />
+                        </ComponentContext.Provider>
                     </div>
             }
 

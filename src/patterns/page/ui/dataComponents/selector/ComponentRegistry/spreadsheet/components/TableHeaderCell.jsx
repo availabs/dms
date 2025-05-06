@@ -1,8 +1,8 @@
 import React, {useCallback, useContext, useRef, useState} from "react";
 import {ToggleControl} from "../../../dataWrapper/components/ToggleControl";
 import {useHandleClickOutside} from "../../shared/utils";
-import {ComponentContext} from "../../../dataWrapper";
 import {Group, LeftToRightListBullet, TallyMark, Sum, ArrowDown, SortAsc, SortDesc} from "../../../../../icons";
+import {ComponentContext} from "../../../../../../siteConfig";
 
 const selectWrapperClass = 'group px-2 py-1 w-full flex items-center cursor-pointer hover:bg-gray-100'
 const selectLabelClass = 'w-fit font-regular text-gray-500 cursor-default'

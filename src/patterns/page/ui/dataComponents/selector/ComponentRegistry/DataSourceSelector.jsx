@@ -1,6 +1,6 @@
 import React, {useContext, useEffect, useState} from "react";
 import isEqual from "lodash/isEqual";
-import {CMSContext} from "../../../../siteConfig";
+import {CMSContext, ComponentContext} from "~/modules/dms/src/patterns/page/siteConfig";
 import {get} from "lodash-es";
 import FilterableSearch from "../FilterableSearch";
 const range = (start, end) => Array.from({length: (end + 1 - start)}, (v, k) => k + start);
@@ -64,12 +64,11 @@ const getViews = async ({envs, source, falcor, apiLoad}) => {
 
 export const DataSourceSelector = ({
     // this comp isn't using context as it's intended to be reused by multiple components with their own states.
-  state, setState,
   formatFromProps,
-  apiLoad,
   sourceTypes=['external', 'internal'] // lists Externally Sourced and Internally Sourced Datasets.
 }) => {
     const {app, siteType, falcor, pgEnv} = useContext(CMSContext);
+    const {state, setState, apiLoad} = useContext(ComponentContext);
     const [sources, setSources] = useState([]);
     const [views, setViews] = useState([]);
 
@@ -140,11 +139,11 @@ export const DataSourceSelector = ({
     const sourceOptions = sources.map(({source_id, name, srcEnv}) => ({key: source_id, label: `${name} (${envs[srcEnv].label})`}));
     const viewOptions = views.map(({view_id, name, version}) => ({key: view_id, label: name || version || view_id}));
     return (
-        <div className={'flex w-full bg-white items-center'}>
-            <label className={'p-1'}>Source: </label>
+        <div className={'px-3 flex w-full items-center bg-blue-50'}>
+            <label className={'p-1 text-xs font-medium text-gray-500'}>Source: </label>
             <div className={'w-1/2'}>
                 <FilterableSearch
-                    className={'flex-row-reverse'}
+                    className={'flex-row-reverse text-gray-700'}
                     placeholder={'Search...'}
                     options={sourceOptions}
                     value={state.sourceInfo?.source_id}
@@ -160,10 +159,10 @@ export const DataSourceSelector = ({
                     }}
                 />
             </div>
-            <label className={'p-1'}>Version: </label>
+            <label className={'p-1 text-xs font-medium text-gray-500'}>Version: </label>
             <div className={'w-1/2'}>
                 <FilterableSearch
-                    className={'flex-row-reverse'}
+                    className={'flex-row-reverse text-gray-700'}
                     placeholder={'Search...'}
                     options={viewOptions}
                     value={state.sourceInfo?.view_id}
