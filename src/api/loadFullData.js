@@ -1,4 +1,4 @@
-import {processNewData} from "./proecessNewData";
+import processNewData from "./proecessNewData";
 
 export async function loadFullData (fullDataLoad, app, type, itemReqByIndex, runId, length, dmsAttrsConfigs, format, falcor) {
     console.time(`fullDataLoad ${runId}`)

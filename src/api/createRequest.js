@@ -120,4 +120,7 @@ export function getIdPath (wrapperConfig,format) {
 
 }
 
-export default createRequest
+export default {
+	createRequest,
+	getIdPath
+}

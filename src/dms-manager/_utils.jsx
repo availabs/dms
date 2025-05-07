@@ -2,8 +2,7 @@ import React from 'react'
 import Wrappers from '../wrappers'
 import Components from '../components'
 import { matchRoutes } from 'react-router'
-import { cloneDeep } from "lodash-es"
-import { get } from "lodash-es"
+import { get, cloneDeep } from "lodash-es"
 
 const DefaultComponent = Components?.devinfo
 const DefaultWrapper = Wrappers?.error
@@ -75,7 +74,7 @@ export function getActiveView(config, path, format, user, depth=0) {
 }
 
 
-export function getActiveConfig (config=[], path='/', depth = 0) {
+function getActiveConfig (config=[], path='/', depth = 0) {
 	
 	let configs = cloneDeep(configMatcher(config,path, depth))
 
@@ -146,14 +145,14 @@ export function filterParams (data, params,format) {
 	return filter
 }
 
-export const json2DmsForm = (data,requestType='update') => {
+const json2DmsForm = (data,requestType='update') => {
   let out = new FormData()
   out.append('data', JSON.stringify(data))
   out.append('requestType', requestType)
   return out
 }
 
-export const updateRegisteredFormats = (registerFormats, app, type) => {
+const updateRegisteredFormats = (registerFormats, app, type) => {
 	if (Array.isArray(registerFormats)) {
 	  registerFormats = registerFormats.map((rFormat) => {
 		rFormat.app = app;
@@ -181,3 +180,12 @@ export const updateRegisteredFormats = (registerFormats, app, type) => {
 	}
 	return attributes;
   };
+
+
+ const utils = {
+	getActiveConfig,
+	updateRegisteredFormats,
+	json2DmsForm
+}
+export default utils
+ 
