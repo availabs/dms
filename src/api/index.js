@@ -1,10 +1,12 @@
 // import { falcor } from '~/index'
-import { getActiveConfig /*, filterParams*/ } from '../dms-manager/_utils'
+import {getActiveConfig} from '../dms-manager/_utils'
 import { get } from "lodash-es"
-import createRequest, {getIdPath} from './createRequest'
-import {processNewData} from "./proecessNewData";
-// import {loadFullData} from "./loadFullData";
-import {updateDMSAttrs} from "./updateDMSAttrs";
+import {createRequest, getIdPath} from './createRequest'
+import processNewData from "./proecessNewData";
+import updateDMSAttrs from "./updateDMSAttrs";
+console.log('hola')
+// const { getActiveConfig } = utils
+// const {createRequest, getIdPath} = cr
 
 // function rand(min, max) { // min and max included 
 //   return Math.floor(Math.random() * (max - min + 1) + min)
@@ -15,7 +17,7 @@ import {updateDMSAttrs} from "./updateDMSAttrs";
 let fullDataLoad = {}
 // let runCount = 0
 
-export async function dmsDataLoader (falcor, config, path='/') {
+async function dmsDataLoader (falcor, config, path='/') {
 	//---- Testing stuff to delete ----------
 	// runCount += 1
 	// const runId = runCount
@@ -177,7 +179,7 @@ export async function dmsDataLoader (falcor, config, path='/') {
 	return out
 }
 
-export async function dmsDataEditor (falcor, config, data={}, requestType, /*path='/'*/ ) {
+async function dmsDataEditor (falcor, config, data={}, requestType, /*path='/'*/ ) {
 	// console.log('API - dmsDataEditor', config,data)
 	const { app , type } = config.format
 	//const activeConfig = getActiveConfig(config.children, path)
@@ -282,4 +284,9 @@ export async function dmsDataEditor (falcor, config, data={}, requestType, /*pat
 	}
 
 	return output
-} 
+}
+
+export default {
+  dmsDataLoader,
+  dmsDataEditor
+}
