@@ -37,7 +37,6 @@ export const convertOldState = (state, initialState) => {
     }
 
     if(!Array.isArray(oldState?.attributes)) {
-        console.log('oldState', oldState);
         return initialState
     };
 
