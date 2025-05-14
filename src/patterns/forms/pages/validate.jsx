@@ -110,7 +110,7 @@ const getInitState = ({columns, defaultColumns=[], app, doc_type, params, data, 
         usePagination: false,
         pageSize: 100,
         loadMoreId: `id-validate-page`,
-        allowSearchParams: true,
+        usePageFilters: true,
         allowDownload: true,
     },
 })

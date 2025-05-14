@@ -305,8 +305,6 @@ const Edit = ({value, onChange, pageFormat, apiUpdate, component, hideSourceSele
 
     return (
             <div className={'w-full h-full'}>
-                <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={isEdit} defaultOpen={true} />
-
                 <div className={'w-full flex items-center place-content-end'}>
                     {loading ? <Icon id={'loading'}
                                      icon={'LoadingHourGlass'}
@@ -545,7 +543,6 @@ const View = ({value, onChange, size, apiUpdate, component, ...rest}) => {
     return (
             <div className={'w-full h-full'}>
                 <div className={'w-full'}>
-                    <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={isEdit} defaultOpen={true}/>
                     {/*
                         --this causes page jitter (contents moving up and down), 
                         -- if we want a loading indicator, its probably by component

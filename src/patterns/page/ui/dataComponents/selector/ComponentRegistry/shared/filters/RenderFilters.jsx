@@ -11,9 +11,9 @@ import {
 } from "./utils"
 import {isEqual, uniqBy} from "lodash-es"
 import {RenderFilterValueSelector} from "./Components/RenderFilterValueSelector";
-import {useSearchParams} from "react-router";
 import {CMSContext} from "../../../../../../siteConfig";
 import {Icon} from "../../../../../index";
+import {PageContext} from "~/modules/dms/src/patterns/page/pages/view";
 
 const filterValueDelimiter = '|||';
 
@@ -34,15 +34,15 @@ export const RenderFilters = ({
   apiLoad, defaultOpen = true, showNavigate = false,
 }) => {
     const { theme = { filters: filterTheme } } = React.useContext(CMSContext) || {};
-        const [open, setOpen] = useState(defaultOpen);
+    const { pageState } =  React.useContext(PageContext) || {}; // page to extract page filters
+    const [open, setOpen] = useState(defaultOpen);
         const [filterOptions, setFilterOptions] = useState([]); // [{column, uniqValues}]
         const [loading, setLoading] = useState(false);
-        const [searchParams] = useSearchParams();
         const isDms = state.sourceInfo?.isDms;
-        const filterColumnsToTrack = useMemo(() => state.columns.filter(({filters, isDuplicate}) => filters?.length && !isDuplicate), [state.columns]);
+        const filterColumnsToTrack = useMemo(() => (state.columns || []).filter(({filters, isDuplicate}) => filters?.length && !isDuplicate), [state.columns]);
         const filterValuesToTrack = useMemo(() =>
-            state.columns.filter(({filters, isDuplicate}) => filters?.length && filters?.[0]?.values?.length && !isDuplicate).reduce((acc, f) => [...acc, ...f.filters[0].values], []), [state.columns]);
-        const normalFilterColumnsToTrack = useMemo(() => state.columns.filter(({filters, isDuplicate}) => filters?.length && isDuplicate), [state.columns]);
+            (state.columns || []).filter(({filters, isDuplicate}) => filters?.length && filters?.[0]?.values?.length && !isDuplicate).reduce((acc, f) => [...acc, ...f.filters[0].values], []), [state.columns]);
+        const normalFilterColumnsToTrack = useMemo(() => (state.columns || []).filter(({filters, isDuplicate}) => filters?.length && isDuplicate), [state.columns]);
         const filters = useMemo(() => getFilters(filterColumnsToTrack), [filterColumnsToTrack]);
         const normalFilters = useMemo(() => getNormalFilters(normalFilterColumnsToTrack), [normalFilterColumnsToTrack]);
 
@@ -51,8 +51,8 @@ export const RenderFilters = ({
         const getAttributeAccessorStr = useCallback((column) => attributeAccessorStr(column, isDms, isCalculatedCol(column, state.columns)), [state.columns, isDms]);
         const filterWithSearchParamKeys = useMemo(() => showNavigate ?
             Object.keys(filters).reduce((acc, filterColumn) => {
-                const currFilters = state.columns.find(c => c.name === filterColumn)?.filters; // for now, it's always just 1 filter.
-                if(filters[filterColumn] && currFilters?.[0]?.allowSearchParams){
+                const currFilters = (state.columns || []).find(c => c.name === filterColumn)?.filters; // for now, it's always just 1 filter.
+                if(filters[filterColumn] && currFilters?.[0]?.usePageFilters){
                     acc[currFilters?.[0]?.searchParamKey] = filters[filterColumn];
                 }
                 return acc;
@@ -60,23 +60,30 @@ export const RenderFilters = ({
         [filters, showNavigate]);
 
         useEffect(() => {
-            // Extract filters from the URL
-            const urlFilters = Array.from(searchParams.keys()).reduce((acc, searchKey) => {
-                const urlValues = searchParams.get(searchKey)?.split(filterValueDelimiter);
-                    acc[searchKey] = urlValues;
-                return acc;
-            }, {});
+            // todo move this logic to page level.
+            // this component simply accepts page filters if available (just like it USED TO do for searchparams.
+            // and updates the page filters if a filter using 'search(page)params' changes. this change to page params is temporary.
+            // the relationship to search params shifts to page params at this level. and page is the only place search params are synced
 
+            // ======================== filter preference:
+            // pattern level filter: mutable / immutable
+            // page level filter: inherits pattern filter;
+            //                    sync with search params if enabled
+            // component level filter: inherits page filter;
+            //                         sync with page level filter if enabled.
+            // if any filter is synced, changes should propagate both ways.
+            const pageFilters = (pageState?.filters || []).reduce((acc, curr) => ({...acc, [curr.searchKey]: curr.values}), {});
+            // Extract filters from the URL
             // If searchParams have changed, they should take priority and update the state
-            if (Object.keys(urlFilters).length) {
+            if (Object.keys(pageFilters).length) {
                 setState(draft => {
-                    draft.columns.forEach(column => {
+                    (draft.columns || []).forEach(column => {
                         if(column.filters?.length) {
                             // filter can be either internal or external. and one of the operations
                             column.filters.forEach((filter) => {
-                                const urlFilterValues = urlFilters[filter.searchParamKey];
-                                if(filter.allowSearchParams && urlFilterValues && !isEqual(filter.values, urlFilterValues)) {
-                                    filter.values = urlFilterValues;
+                                const pageFilterValues = Array.isArray(pageFilters[filter.searchParamKey]) ? pageFilters[filter.searchParamKey] : [pageFilters[filter.searchParamKey]];
+                                if(filter.usePageFilters && pageFilterValues && !isEqual(filter.values, pageFilterValues)) {
+                                    filter.values = pageFilterValues;
                                 }
                             })
                         }
@@ -84,7 +91,7 @@ export const RenderFilters = ({
                     draft.display.readyToLoad = true;
                 });
             }
-        }, [searchParams, filters]);
+        }, [filters, pageState?.filters]);
 
         useEffect(() => {
             // fetch filter data
@@ -95,7 +102,7 @@ export const RenderFilters = ({
                     [...Object.keys(filters), ...normalFilters?.map(f => f.column)]
                         // don't pull filter data for internal filters in view mode
                         .filter(f => {
-                            const filter = state.columns.find(({name}) => name === f)?.filters?.[0];
+                            const filter = (state.columns || []).find(({name}) => name === f)?.filters?.[0];
 
                             if(['gt', 'gte', 'lt', 'lte', 'like'].includes(filter.operation)) return false; // never load numerical data
                             if(isEdit) return true;
@@ -109,7 +116,7 @@ export const RenderFilters = ({
                                 .reduce(async (accPromise, columnName) => {
                                     const acc = await accPromise;
 
-                                    const filterColumn = state.columns.find(({name}) => name === columnName);
+                                    const filterColumn = (state.columns || []).find(({name}) => name === columnName);
                                     const filter = filterColumn?.filters?.[0];
                                     if (!filter?.values?.length) return acc;
 
@@ -123,6 +130,7 @@ export const RenderFilters = ({
                                             format: state.sourceInfo,
                                         });
 
+                                        console.log('filter.values', filter.values)
                                         const selectedValues = filter.values
                                             .map(o => o?.value || o)
                                             .map(o => o === null ? 'null' : o)
@@ -172,7 +180,7 @@ export const RenderFilters = ({
                                 return;
                             }
                             // not adding options from meta to allow options to filter down wrt other filter values
-                            const metaOptions = [] //state.columns.find(({name}) => name === columnName)?.options;
+                            const metaOptions = [] //(state.columns || []).find(({name}) => name === columnName)?.options;
                             const dataOptions = data.reduce((acc, d) => {
                                 // array values flattened here for multiselects.
                                 const formattedAttrStr = getFormattedAttributeStr(columnName);
@@ -211,7 +219,7 @@ export const RenderFilters = ({
             }
     }, [filterColumnsToTrack, filterValuesToTrack]);
 
-    const filterColumnsToRender = state.columns.filter(column => isEdit ? column.filters?.length : (column.filters || []).find(c => c.type === 'external'));
+    const filterColumnsToRender = (state.columns || []).filter(column => isEdit ? column.filters?.length : (column.filters || []).find(c => c.type === 'external'));
     if(!filterColumnsToRender.length) return null;
 
     // initially you'll have internal filter
@@ -240,7 +248,6 @@ export const RenderFilters = ({
                                                        filterOptions={filterOptions}
                                                        state={state}
                                                        setState={setState}
-                                                       searchParams={searchParams}
                                                        loading={loading}
                                                        filterWithSearchParamKeys={filterWithSearchParamKeys}
                                                        delimiter={filterValueDelimiter}

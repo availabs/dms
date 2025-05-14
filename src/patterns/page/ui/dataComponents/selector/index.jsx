@@ -8,6 +8,10 @@ import {Controls} from "./dataWrapper/components/Controls";
 import {useImmer} from "use-immer";
 import {convertOldState} from "./dataWrapper/utils/convertOldState";
 import {v4 as uuidv4} from "uuid";
+import {
+    RenderFilters
+} from "~/modules/dms/src/patterns/page/ui/dataComponents/selector/ComponentRegistry/shared/filters/RenderFilters";
+import {PageContext} from "~/modules/dms/src/patterns/page/pages/view";
 export let RegisteredComponents = ComponentRegistry;
 
 export const isJson = (str)  => {
@@ -29,7 +33,7 @@ const icons = {
 }
 
 const initialState = defaultState => {
-    if(defaultState) return defaultState;
+    if(defaultState && Object.keys(defaultState).length) return defaultState;
 
     return {
         // user controlled part
@@ -43,7 +47,7 @@ const initialState = defaultState => {
             //      }
         ],
         display: {
-            allowSearchParams: false,
+            usePageFilters: false,
             usePagination: true,
             pageSize: 5,
             totalLength: 0,
@@ -67,12 +71,12 @@ const initialState = defaultState => {
 }
 
 function EditComp(props) {
-    const {value, onChange, size, handlePaste, apiLoad, pageformat, ...rest} = props;
+    const {value, onChange, size, handlePaste, pageformat, ...rest} = props;
     const { theme } = React.useContext(CMSContext);
+    const { pageState, editPane, apiLoad, apiUpdate, format, ...r  } =  React.useContext(PageContext) || {}
     const component = (RegisteredComponents[get(value, "element-type", "lexical")] || RegisteredComponents['lexical']);
     const [state, setState] = useImmer(convertOldState(value?.['element-data'] || '', initialState(component.defaultState)));
     const [key, setKey] = useState();
-
     const updateAttribute = (k, v) => {
         if (!isEqual(value, {...value, [k]: v})) {
             console.log('changing', k, v)
@@ -86,7 +90,7 @@ function EditComp(props) {
         }
     }, []);
     let DataComp = component.useDataSource ? DataWrapper.EditComp : component.EditComp;
-    console.log('state', state)
+
     return (
         <div className="w-full">
             <div className="relative my-1">
@@ -144,6 +148,7 @@ function EditComp(props) {
             }}>
                 {/* controls with datasource selector */}
                 <Controls />
+                <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={true} defaultOpen={true} />
                 <DataComp
                     key={key || ''}
                     value={value?.['element-data'] || ''}
@@ -161,8 +166,9 @@ function EditComp(props) {
     )
 }
 
-function ViewComp({value, apiLoad, ...rest}) {
+function ViewComp({value, ...rest}) {
     const { theme } = React.useContext(CMSContext);
+    const { pageState, editPane, apiLoad, apiUpdate, format, ...r  } =  React.useContext(PageContext) || {}
     const defaultComp = () => <div> Component {value["element-type"]} Not Registered </div>;
 
     const component = (RegisteredComponents[get(value, "element-type", "lexical")] || defaultComp);
@@ -171,6 +177,7 @@ function ViewComp({value, apiLoad, ...rest}) {
     let DataComp = !component ? defaultComp : component.useDataSource ? DataWrapper.ViewComp : component.ViewComp;
     return (
         <ComponentContext.Provider value={{state, setState, apiLoad, controls: component.controls}}>
+            <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={false} defaultOpen={true}/>
             <DataComp value={value?.['element-data'] || ''}
                       state={state} setState={setState}
                       theme={theme} {...rest}

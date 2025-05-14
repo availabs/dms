@@ -31,7 +31,7 @@ const TableView = ({apiUpdate, apiLoad, format, item, params}) => {
             usePagination: false,
             pageSize: 1000,
             loadMoreId: `id-table-page`,
-            allowSearchParams: false,
+            usePageFilters: false,
             allowDownload: true,
             hideDatasourceSelector: true,
         },

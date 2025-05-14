@@ -230,7 +230,7 @@ export default {
         // user controlled part
         columns: [],
         display: {
-            allowSearchParams: false,
+            usePageFilters: false,
             usePagination: true,
             pageSize: 5,
             totalLength: 0,

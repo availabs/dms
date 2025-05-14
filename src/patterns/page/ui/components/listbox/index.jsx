@@ -50,7 +50,6 @@ export function Listbox({ className, placeholder, autoFocus, 'aria-label': ariaL
       </ListboxOption>
     )
   })
-  console.log('test options', options, value )
   return (
     <div className='relative'>
     <Headless.Listbox multiple={false} value={value} onChange={onChange}>

@@ -7,6 +7,7 @@ import {useNavigate} from "react-router";
 import {isEqualColumns} from "../../../../dataWrapper/utils/utils";
 import {filterTheme} from "../RenderFilters";
 import {CMSContext} from "../../../../../../../siteConfig";
+import {PageContext} from "~/modules/dms/src/patterns/page/pages/view";
 
 const resetColumn = (originalAttribute, setState, columns) => setState(draft => {
     const idx = columns.findIndex(column => isEqualColumns(column, originalAttribute));
@@ -14,7 +15,7 @@ const resetColumn = (originalAttribute, setState, columns) => setState(draft => 
         draft.columns.splice(idx, 1);
     }
 });
-const RenderSearchKeySelector = ({filter, searchParams, onChange}) => {
+const RenderSearchKeySelector = ({filter, pageState, onChange}) => {
     const [open, setOpen] = React.useState(false);
     const [text, setText] = React.useState(filter.searchParamKey || '');
     const menuRef = React.useRef(null);
@@ -42,15 +43,15 @@ const RenderSearchKeySelector = ({filter, searchParams, onChange}) => {
                             ) : null
                         }
                         {
-                            Array.from(searchParams.keys())
-                                .filter(key => key.toLowerCase().includes(text.toLowerCase()))
-                                .map((key) => <div key={`${key}`}
+                            (pageState?.filters || [])
+                                .filter(({searchKey}) => searchKey.toLowerCase().includes(text.toLowerCase()))
+                                .map(({searchKey}) => <div key={`${searchKey}`}
                                                    className={optionsClass}
                                                    onClick={() => {
-                                                       setText(key)
-                                                       onChange(key)
+                                                       setText(searchKey)
+                                                       onChange(searchKey)
                                                        setOpen(false)
-                                                   }}>{key}</div>)
+                                                   }}>{searchKey}</div>)
                         }
                     </div>
                 ) : null
@@ -60,9 +61,10 @@ const RenderSearchKeySelector = ({filter, searchParams, onChange}) => {
 }
 
 export const RenderFilterValueSelector = ({
-    loading, isEdit, filterColumn, filterOptions=[], state, setState, searchParams, delimiter, filterWithSearchParamKeys, columns
+    loading, isEdit, filterColumn, filterOptions=[], state, setState, filterWithSearchParamKeys, columns
 }) => {
     const navigate = useNavigate();
+    const { pageState, updatePageStateFilters } =  React.useContext(PageContext) || {}; // page to extract page filters
     const { theme = { filters: filterTheme } } = React.useContext(CMSContext) || {};
     const options = useMemo(() => filterOptions.find(fo => fo.column === filterColumn.name)?.uniqValues, [filterOptions, filterColumn.name]);
 
@@ -85,7 +87,7 @@ export const RenderFilterValueSelector = ({
                     const targetFilter = draft.columns[idx].filters[filterIdx];
                     targetFilter[key] = value;
 
-                    if (key === 'allowSearchParams' && value === true && !targetFilter['searchParamKey']) {
+                    if (key === 'usePageFilters' && value === true && !targetFilter['searchParamKey']) {
                         targetFilter['searchParamKey'] = filterColumn.name;
                     }
                     draft.display.readyToLoad = true;
@@ -191,10 +193,10 @@ export const RenderFilterValueSelector = ({
                             isEdit ? (
                                 <div className={'flex flex-wrap items-center gap-1'}>
                                     <label className={theme.filters.settingLabel}>Use Search Params: </label>
-                                    <RenderSwitch label={'Use Search Params'}
-                                                  enabled={filter.allowSearchParams}
+                                    <RenderSwitch label={'Use Page Filters'}
+                                                  enabled={filter.usePageFilters}
                                                   setEnabled={value => updateFilter({
-                                                      key: 'allowSearchParams',
+                                                      key: 'usePageFilters',
                                                       value,
                                                       filterColumn,
                                                       filter,
@@ -206,10 +208,10 @@ export const RenderFilterValueSelector = ({
                             ) : null
                         }
                         {
-                            filter.allowSearchParams && isEdit ?
+                            filter.usePageFilters && isEdit ?
                                 <div className={'flex items-center gap-0.5'}>
                                     <label className={`shrink-0 ${theme.filters.settingLabel}`}>Search key: </label>
-                                    <RenderSearchKeySelector searchParams={searchParams}
+                                    <RenderSearchKeySelector pageState={pageState}
                                                              filter={filter}
                                                              onChange={e => updateFilter({
                                                                  key: 'searchParamKey',
@@ -238,7 +240,7 @@ export const RenderFilterValueSelector = ({
                                 singleSelectOnly={!filter.isMulti}
                                 onChange={e => {
                                     let newValues = (e || []).map(filterItem => filterItem?.value || filterItem);
-                                    if(filter.allowSearchParams) {
+                                    if(filter.usePageFilters) {
                                         const newFilters =  Object.keys(filterWithSearchParamKeys).filter(col => {
                                             if((filter.searchParamKey || filterColumn.name) === col) return false;
 
@@ -252,8 +254,11 @@ export const RenderFilterValueSelector = ({
                                         if(newValues.length){
                                             newFilters[filter.searchParamKey || filterColumn.name] = newValues;
                                         }
-                                        const url = convertToUrlParams(newFilters, delimiter);
-                                        navigate(`?${url}`)
+
+                                        const newPageFilters = Object.keys(newFilters).map(searchKey => ({searchKey, values: newFilters[searchKey]}))
+                                        // const url = convertToUrlParams(newFilters, delimiter);
+                                        // navigate(`?${url}`)
+                                        updatePageStateFilters( newPageFilters)
                                         updateFilter({key: 'values', value: newValues, filterColumn, filter, setState})
                                     }else {
                                         updateFilter({key: 'values', value: newValues, filterColumn, filter, setState})
@@ -270,7 +275,7 @@ export const RenderFilterValueSelector = ({
                                 onChange={e => {
                                     const newValue = filterColumn.type === 'number' && e ? +e : e;
                                     let newValues = [newValue];
-                                    if(filter.allowSearchParams) {
+                                    if(filter.usePageFilters) {
                                         const newFilters =  Object.keys(filterWithSearchParamKeys).filter(col => {
                                             if((filter.searchParamKey || filterColumn.name) === col) return false;
 
@@ -284,8 +289,11 @@ export const RenderFilterValueSelector = ({
                                         if(newValues.length){
                                             newFilters[filter.searchParamKey || filterColumn.name] = newValues;
                                         }
-                                        const url = convertToUrlParams(newFilters, delimiter);
-                                        navigate(`?${url}`)
+                                        // const url = convertToUrlParams(newFilters, delimiter);
+                                        // navigate(`?${url}`)
+                                        const newPageFilters = Object.keys(newFilters).map(searchKey => ({searchKey, values: newFilters[searchKey]}))
+
+                                        updatePageStateFilters(newPageFilters)
                                         updateFilter({key: 'values', value: newValues, filterColumn, filter, setState})
                                     } else {
                                         updateFilter({key: 'values', value: newValues, filterColumn, filter, setState})

@@ -142,7 +142,7 @@ function toTitleCase(str='') {
     text => text.charAt(0).toUpperCase() + text.substring(1).toLowerCase()
   );
 }
-export const sectionsEditBackill = (item, baseUrl, submit) => {
+export const sectionsEditBackill = (item, baseUrl, submit, search) => {
     if(!item.draft_section_groups && item?.id) {
             let newItem = {id: item.id}
             newItem.draft_section_groups = [
@@ -180,7 +180,7 @@ export const sectionsEditBackill = (item, baseUrl, submit) => {
                     section.padding = 'p-0'
                 }
             })
-            submit(json2DmsForm(newItem), { method: "post", action: `${baseUrl}/edit/${item.url_slug}` })
+            submit(json2DmsForm(newItem), { method: "post", action: `${baseUrl}/edit/${item.url_slug}${search}` })
         }
 }
 

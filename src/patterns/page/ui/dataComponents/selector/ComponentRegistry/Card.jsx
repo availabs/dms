@@ -341,7 +341,7 @@ export default {
             // settings from more dropdown are stored in state.display
             {type: 'toggle', label: 'Attribution', key: 'showAttribution'},
             {type: 'toggle', label: 'Allow Edit', key: 'allowEditInView'},
-            {type: 'toggle', label: 'Use Search Params', key: 'allowSearchParams'},
+            {type: 'toggle', label: 'Use Page Filters', key: 'usePageFilters'},
             {type: 'toggle', label: 'Compact View', key: 'compactView'},
             {type: 'input', inputType: 'number', label: 'Grid Size', key: 'gridSize'},
             {type: 'input', inputType: 'number', label: 'Grid Gap', key: 'gridGap'},

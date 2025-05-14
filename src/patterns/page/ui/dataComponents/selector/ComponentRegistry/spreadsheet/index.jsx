@@ -443,7 +443,7 @@ export default {
             // settings from more dropdown are stored in state.display
             {type: 'toggle', label: 'Attribution', key: 'showAttribution'},
             {type: 'toggle', label: 'Allow Edit', key: 'allowEditInView'},
-            {type: 'toggle', label: 'Use Search Params', key: 'allowSearchParams'},
+            {type: 'toggle', label: 'Use Page Filters', key: 'usePageFilters'},
             {type: 'toggle', label: 'Show Total', key: 'showTotal'},
             {type: 'toggle', label: 'Striped', key: 'striped'},
             {type: 'toggle', label: 'Allow Download', key: 'allowDownload'},

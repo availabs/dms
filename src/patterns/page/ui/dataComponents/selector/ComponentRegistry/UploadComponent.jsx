@@ -9,7 +9,7 @@ const UploadComponentContext = React.createContext({});
 const defaultState = {
     columns: [],
     display: {
-        allowSearchParams: false,
+        usePageFilters: false,
     },
     sourceInfo: {
         columns: [],

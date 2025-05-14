@@ -10,7 +10,7 @@ const FilterComponentContext = React.createContext({});
 const initialState = {
     columns: [], // {name, filters: []}
     display: {
-        allowSearchParams: false,
+        usePageFilters: false,
     },
     sourceInfo: {
         columns: [],

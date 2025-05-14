@@ -27,7 +27,7 @@ export default function FieldSetComp ({ components }) {
     <Fieldset>
       {
         components.map((c,i) => {
-          let Comp = componentRegistry[c.type] || Input
+          let Comp = typeof c.type === 'string' ? (componentRegistry[c.type] || Input) : c.type;
           return (
             <FieldComp key={i} {...c}>
               <Comp {...c} />
