@@ -53,6 +53,7 @@ import { CMSContext } from '../../../siteConfig'
       topnavContent: `flex items-center w-full h-full  `,
       topnavMenu: `hidden py-2  md:flex items-center flex-1  h-full overflow-x-auto overflow-y-hidden scrollbar-sm`,
       mobileButton:`md:hidden bg-slate-100 inline-flex items-center justify-center pt-[12px] px-2 hover:text-blue-400  text-gray-400 hover:bg-gray-100 `,
+      mobileMenuButtonWrapper: '',
       indicatorIcon: 'ArrowDown',
       indicatorIconOpen: 'ArrowDown',
       indicatorIconWrapper: 'size-3',
@@ -178,10 +179,10 @@ export const DesktopMenu = ({
             onClick={() => toggle(!open)}
           >
             <span className="sr-only">Open main menu</span>
-            <div className={`flex justify-center items-center text-2xl`}>
-              <Icon icon = {!open ? theme?.menuOpenIcon : theme?.menuCloseIcon} />
+            
+              <Icon icon = {!open ? theme?.menuOpenIcon : theme?.menuCloseIcon} className='size-5 text-[#37576B]' />
               
-            </div>
+            
           </button>
         </div>
       </div>

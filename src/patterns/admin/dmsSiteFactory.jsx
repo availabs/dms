@@ -222,7 +222,7 @@ export function DmsSite ({
         Component: () => (<div className={'w-screen h-screen flex items-center bg-blue-50'}>404</div>)
     }
 
-    //console.log('routes',  dynamicRoutes)
+    console.log('routes',  dynamicRoutes, routes)
 
     return (
         <RouterProvider 

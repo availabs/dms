@@ -11,7 +11,7 @@ const Breadcrumbs = ({ chain, show }) => {
     if(!show) return null;
     return Array.isArray(chain) ? (
         <div className={'px-1 z-[5]'}>
-            <div className="flex items-center gap-[4px] text-[#37576B] text-[14px] sm:text-[16px] leading-[100%] tracking-normal">
+            <div className="flex flex-wrap items-center gap-[4px] text-[#37576B] text-[14px] sm:text-[16px] leading-[100%] tracking-normal">
                 {chain.map((c, index) => (
                     <div key={index} className={`flex items-center shrink-0`}>
                         <Link to={c.url_slug} className={`w-fit shrink-0 wrap-none ${index === chain.length - 1 ? `font-regular` : `font-semibold`}`}>{c.title}</Link>
