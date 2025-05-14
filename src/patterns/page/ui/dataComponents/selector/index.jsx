@@ -120,7 +120,7 @@ function EditComp(props) {
                             icon: 'fa-thin fa-paste',
                             label: 'Paste',
                             value: 'paste',
-                            onClick: e => handlePaste(e, setKey)
+                            onClick: e => handlePaste(e, setKey, setState)
                         },
                         ...[...new Set(
                             Object.keys(RegisteredComponents)

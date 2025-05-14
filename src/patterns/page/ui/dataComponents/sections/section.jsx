@@ -133,7 +133,7 @@ export function SectionEdit ({value, i, onChange, attributes, size, onCancel, on
                 {sectionTitleCondition && (
                     <div className='flex h-[50px]'>
                         <div className='flex'>
-                            <TitleComp //todo make it blue if H!
+                            <TitleComp
                                 className={`p-2 w-full font-sans font-medium text-md  ${
                                     (value?.['level']) === '1' ?
                                         `text-blue-500 font-bold text-xl tracking-wider py-1 pl-1` :
@@ -156,7 +156,7 @@ export function SectionEdit ({value, i, onChange, attributes, size, onCancel, on
                     <ElementComp
                         value={value?.['element']}
                         onChange={(v) => updateAttribute('element', v)}
-                        handlePaste={(e, setKey) => handlePaste(e, setKey, value, onChange)}
+                        handlePaste={(e, setKey, setState) => handlePaste(e, setKey, setState, value, onChange)}
                         size={size}
                         siteType={siteType}
                         apiLoad={apiLoad}
@@ -596,7 +596,7 @@ function TagComponent ({value, placeholder, onChange, edit=false}) {
 
 }
 
-const handlePaste = async (e, setKey, value, onChange, ) => {
+const handlePaste = async (e, setKey, setState, value, onChange) => {
     e.preventDefault();
     try{
         const text = await navigator.clipboard.readText();
@@ -604,6 +604,7 @@ const handlePaste = async (e, setKey, value, onChange, ) => {
 
         if(!copiedValue || !copiedValue['element']?.['element-type']) return;
         setKey(copiedValue['element']['element-type']) // mainly for lexical so it updates with value
+        setState(JSON.parse(copiedValue['element']['element-data'])) // state inits with element-data from prop. need to update on paste.
         const pastedValue = {}
 
         Object.keys(copiedValue)
