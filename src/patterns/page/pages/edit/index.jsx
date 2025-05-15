@@ -20,6 +20,7 @@ const convertToUrlParams = (obj, delimiter) => {
 
 	Object.keys(obj).forEach(column => {
 		const values = obj[column];
+		if(!values || !Array.isArray(values) || !values?.length) return;
 		params.append(column, values.filter(v => Array.isArray(v) ? v.length : v).join(delimiter));
 	});
 
@@ -116,8 +117,7 @@ function PageEdit ({
 		}
 	}, [])
 	const updatePageStateFilters = (filters) => {
-		const searchParamFilters = filters
-			.filter(({searchKey}) => (pageState.filters || []).find(f => f.searchKey === searchKey)?.useSearchParams);
+		const searchParamFilters = pageState.filters.filter(f => f.useSearchParams).map(f => filters.find(updatedFilter => updatedFilter.searchKey === f.searchKey) || f)
 		const nonSearchParamFilters = filters
 			.filter(({searchKey}) => {
 				const matchingFilter = (pageState.filters || []).find(f => f.searchKey === searchKey);

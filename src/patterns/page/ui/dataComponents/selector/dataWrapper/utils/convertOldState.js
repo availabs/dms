@@ -33,7 +33,7 @@ export const convertOldState = (state, initialState) => {
     if(oldState?.dataRequest) {
         oldState.columns = oldState.columns.map(column => {
             if(column.filters?.length){
-                column.filters = column.filters.map(f => ({...f, usePageFilters: f.allowSearchParams}))
+                column.filters = column.filters.map(f => ({...f, usePageFilters: f.usePageFilters || f.allowSearchParams}))
                 return column;
             }
             return column

@@ -174,7 +174,7 @@ export const RenderFilterValueSelector = ({
                             isEdit && ['filter', 'exclude'].includes(filter.operation) ? (
                                 <div className={'flex flex-wrap items-center gap-1'}>
                                     <label className={theme.filters.settingLabel}>Multiselect: </label>
-                                    <RenderSwitch label={'Use Search Params'}
+                                    <RenderSwitch label={'Multi'}
                                                   enabled={filter.isMulti}
                                                   setEnabled={value => updateFilter({
                                                       key: 'isMulti',
@@ -192,7 +192,7 @@ export const RenderFilterValueSelector = ({
                         {
                             isEdit ? (
                                 <div className={'flex flex-wrap items-center gap-1'}>
-                                    <label className={theme.filters.settingLabel}>Use Search Params: </label>
+                                    <label className={theme.filters.settingLabel}>Use Page Filters: </label>
                                     <RenderSwitch label={'Use Page Filters'}
                                                   enabled={filter.usePageFilters}
                                                   setEnabled={value => updateFilter({
