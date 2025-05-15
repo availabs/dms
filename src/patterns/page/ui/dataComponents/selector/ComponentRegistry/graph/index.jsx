@@ -57,8 +57,17 @@ const Graph = ({isEdit}) => {
                 }
             })
         })
+
+        if(display.xDomain){
+            (display.xDomain)
+                .forEach((domainIdx, i) => {
+                    if(!tmpData.some(d => d.index === domainIdx)){
+                        tmpData.splice(i, 0, {index: domainIdx, value: 0, aggMethod: dataColumns[0]?.fn})
+                    }
+                })
+        }
         return tmpData
-        }, [indexColumn, dataColumns.length, categoryColumn, data])
+        }, [indexColumn, dataColumns.length, categoryColumn, data, display.xDomain])
 
     const colorPaletteSize = categoryColumn.name ? (new Set(data.map(item => item[categoryColumn.name]))).size : dataColumns.length
 

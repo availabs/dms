@@ -4,7 +4,38 @@ import {ToggleControl} from "../../../dataWrapper/components/ToggleControl";
 import {InputControl} from "../../../dataWrapper/components/InputControl";
 import {useHandleClickOutside} from "../../shared/utils";
 import {ComponentContext} from "../../../../../../../page/siteConfig";
-
+import Icon from "../../../../../../ui/components/icon"
+const DomainEditor = ({value, setValue, display}) => {
+    const [newTick, setNewTick] = useState('');
+    return display.useCustomXDomain ? (
+        <>
+        {
+            (value || []).map((tick, i) =>
+                <div key={i} className={'flex gap-0.5 items-center'}>
+                    <InputControl value={tick} setValue={v => setValue(display.xDomain.map((d,ii) => i === ii ? v : d))}/>
+                    <Icon icon={'TrashCan'} className={'size-6 text-red-500 hover:text-red-700 cursor-pointer'}
+                          onClick={() => setValue(value.filter((_, ii) => i !== ii))}
+                    />
+                </div>)
+        }
+        <div className={'flex gap-0.5 items-center'}>
+            <InputControl value={newTick} setValue={v => setNewTick(v)} onKeyDown={(e) => {
+                if(e.key === 'Enter') {
+                    setValue([...(value || []), newTick])
+                    setNewTick('')
+                }
+            }} placeHolder={'tick'}/>
+            <Icon icon={'CirclePlus'} className={'size-6 text-blue-500 hover:text-blue-700 cursor-pointer'}
+                  tabindex={0}
+                  onClick={() => {
+                      setValue([...(value || []), newTick])
+                      setNewTick('')
+                  }}
+            />
+        </div>
+        </>
+    )  : null
+}
 export default function AppearanceControls({context}) {
     const {state: {display}, setState} = useContext(context || ComponentContext);
 
@@ -126,7 +157,13 @@ export default function AppearanceControls({context}) {
                                    setValue={value => updateDisplayValue(null, 'readyToLoad', value)}/>
                     <ToggleControl title={'Dark Mode'} value={display.darkMode}
                                    setValue={value => updateDisplayValue(null, 'darkMode', value)}/>
+                    <ToggleControl title={'Use Custom X ticks'} value={display.useCustomXDomain}
+                                   setValue={value => updateDisplayValue(null, 'useCustomXDomain', value)}/>
 
+                    <DomainEditor value={display.xDomain}
+                                  setValue={value => updateDisplayValue(null, 'xDomain', value)}
+                                  display={display}
+                    />
                     {/* Layout */}
                     {
                         display.graphType === 'BarGraph' ?
