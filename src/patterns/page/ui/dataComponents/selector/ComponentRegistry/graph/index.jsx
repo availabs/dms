@@ -58,7 +58,7 @@ const Graph = ({isEdit}) => {
             })
         })
 
-        if(display.xDomain){
+        if(display.useCustomXDomain && display.xDomain){
             (display.xDomain)
                 .forEach((domainIdx, i) => {
                     if(!tmpData.some(d => d.index === domainIdx)){
@@ -67,7 +67,7 @@ const Graph = ({isEdit}) => {
                 })
         }
         return tmpData
-        }, [indexColumn, dataColumns.length, categoryColumn, data, display.xDomain])
+        }, [indexColumn, dataColumns.length, categoryColumn, data, display.useCustomXDomain, display.xDomain])
 
     const colorPaletteSize = categoryColumn.name ? (new Set(data.map(item => item[categoryColumn.name]))).size : dataColumns.length
 

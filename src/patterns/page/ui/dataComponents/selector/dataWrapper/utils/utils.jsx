@@ -264,22 +264,64 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
         }, {}),
         normalFilter,
         meta,
-        // when not grouping, numeric filters can directly go in the request
-        ...(!groupBy.length || true) && Object.keys(restOfDataRequestOptions).reduce((acc, filterOperation) => {
-            const columnsForOperation = Object.keys(restOfDataRequestOptions[filterOperation]);
-            acc[filterOperation] =
-                columnsForOperation.reduce((acc, columnName) => {
-                    const {refName, reqName, fn} = getFullColumn(columnName, columnsWithSettings);
-                    const reqNameWithoutAS = splitColNameOnAS(reqName)[0];
-                    // if grouping by and fn is applied, use fn name.
-                    const columnNameToFilterBy = refName;
-                    const currOperationValues = restOfDataRequestOptions[filterOperation][columnName];
+        ...(() => {
+            const where = {};
+            const having = [];
 
-                    acc[columnNameToFilterBy] = Array.isArray(currOperationValues) ? currOperationValues[0] : currOperationValues;
-                    return acc;
-                }, {});
-            return acc;
-        }, {}),
+            Object.keys(restOfDataRequestOptions).forEach((filterOperation) => {
+                const columnsForOperation = Object.keys(restOfDataRequestOptions[filterOperation]);
+
+                columnsForOperation.forEach((columnName) => {
+                    const { refName, reqName, fn, filters, ...restCol } = getFullColumn(columnName, columnsWithSettings);
+                    const reqNameWithoutAS = splitColNameOnAS(reqName)[0];
+                    const currOperationValues = restOfDataRequestOptions[filterOperation][columnName];
+                    const valueToFilterBy = Array.isArray(currOperationValues) ? currOperationValues[0] : currOperationValues;
+
+                    if (valueToFilterBy == null) return;
+
+                    const fullFilter = filters?.[0];
+                    const filterFn = fullFilter?.fn;
+
+                    const isAggregated = /*!!fn ||*/ !!filterFn;
+                    const filterExpr = isAggregated
+                        ? splitColNameOnAS(
+                            fn
+                                ? reqNameWithoutAS
+                                : applyFn({ ...restCol, fn: filterFn }, state.sourceInfo.isDms)
+                        )[0]
+                        : refName;
+                    if (isAggregated) {
+                        having.push(`${filterExpr} ${operationToExpressionMap[filterOperation]} ${valueToFilterBy}`);
+                    } else {
+                        if (!where[filterOperation]) {
+                            where[filterOperation] = {};
+                        }
+                        where[filterOperation][filterExpr] = valueToFilterBy;
+                    }
+                });
+            });
+
+            return {
+                ...(Object.keys(where).length > 0 && where),
+                ...(having.length > 0 && { having })
+            };
+        })()
+        // // when not grouping, numeric filters can directly go in the request
+        // ...(!groupBy.length || true) && Object.keys(restOfDataRequestOptions).reduce((acc, filterOperation) => {
+        //     const columnsForOperation = Object.keys(restOfDataRequestOptions[filterOperation]);
+        //     acc[filterOperation] =
+        //         columnsForOperation.reduce((acc, columnName) => {
+        //             const {refName, reqName, fn} = getFullColumn(columnName, columnsWithSettings);
+        //             const reqNameWithoutAS = splitColNameOnAS(reqName)[0];
+        //             // if grouping by and fn is applied, use fn name.
+        //             const columnNameToFilterBy = refName;
+        //             const currOperationValues = restOfDataRequestOptions[filterOperation][columnName];
+        //
+        //             acc[columnNameToFilterBy] = Array.isArray(currOperationValues) ? currOperationValues[0] : currOperationValues;
+        //             return acc;
+        //         }, {});
+        //     return acc;
+        // }, {}),
         // // if grouping, apply numeric filters as HAVING clause
         // ...groupBy.length && {
         //     having: Object.keys(restOfDataRequestOptions).reduce((acc, filterOperation) => {
