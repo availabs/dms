@@ -15,7 +15,7 @@ import {Footer} from "../../ui/dataComponents/selector/ComponentRegistry/footer"
 import {useSearchParams} from "react-router";
 import {useImmer} from "use-immer";
 
-const convertToUrlParams = (obj, delimiter) => {
+export const convertToUrlParams = (obj, delimiter) => {
 	const params = new URLSearchParams();
 
 	Object.keys(obj).forEach(column => {
@@ -27,6 +27,46 @@ const convertToUrlParams = (obj, delimiter) => {
 	return params.toString();
 };
 
+export const updatePageStateFiltersOnSearchParamChange = ({searchParams, item, setPageState}) => {
+	// Extract filters from the URL
+	const urlFilters = Array.from(searchParams.keys()).reduce((acc, searchKey) => {
+		const urlValues = searchParams.get(searchKey)?.split('|||');
+		acc[searchKey] = urlValues;
+		return acc;
+	}, {});
+
+	// If searchParams have changed, they should take priority and update the state
+
+	if (Object.keys(urlFilters).length) {
+		const newFilters = (item.filters || []).map(filter => {
+			if(urlFilters[filter.searchKey]){
+				return {...filter, values: urlFilters[filter.searchKey]}
+			}else{
+				return filter;
+			}
+		})
+
+		if(newFilters?.length){
+			setPageState(page => {
+				// updates from searchParams are temporary
+				page.filters = newFilters
+			})
+		}
+	}
+}
+
+export const initNavigateUsingSearchParams = ({pageState, search, navigate, baseUrl, item}) => {
+	// one time redirection
+	const searchParamFilters = (pageState.filters || []).filter(f => f.useSearchParams);
+	if(searchParamFilters.length){
+		const filtersObject = searchParamFilters
+			.reduce((acc, curr) => ({...acc, [curr.searchKey]: typeof curr.values === 'string' ? [curr.values] : curr.values}), {});
+		const url = `?${convertToUrlParams(filtersObject)}`;
+		if(!search && url !== search){
+			navigate(`${baseUrl}/edit/${item.url_slug}${url}`)
+		}
+	}
+}
 function PageEdit ({
   format, item, dataItems, updateAttribute, attributes, setItem, apiLoad, apiUpdate, status, navOptions, busy
 }) {
@@ -77,45 +117,13 @@ function PageEdit ({
 
 
 	useEffect(() => {
-		// Extract filters from the URL
-		const urlFilters = Array.from(searchParams.keys()).reduce((acc, searchKey) => {
-			const urlValues = searchParams.get(searchKey)?.split('|||');
-			acc[searchKey] = urlValues;
-			return acc;
-		}, {});
-		console.log('debug filters in useEfect', urlFilters, item)
-		// If searchParams have changed, they should take priority and update the state
-
-		if (Object.keys(urlFilters).length) {
-			const newFilters = (item.filters || []).map(filter => {
-				if(urlFilters[filter.searchKey]){
-					return {...filter, values: urlFilters[filter.searchKey]}
-				}else{
-					return filter;
-				}
-			})
-
-			if(newFilters?.length){
-				setPageState(page => {
-					// updates from searchParams are temporary
-					page.filters = newFilters
-				})
-			}
-		}
+		updatePageStateFiltersOnSearchParamChange({searchParams, item, setPageState})
 	}, [searchParams]);
 
 	useEffect(() => {
-		// one time redirection
-		const searchParamFilters = (pageState.filters || []).filter(f => f.useSearchParams);
-		if(searchParamFilters.length){
-			const filtersObject = searchParamFilters
-				.reduce((acc, curr) => ({...acc, [curr.searchKey]: typeof curr.values === 'string' ? [curr.values] : curr.values}), {});
-			const url = `?${convertToUrlParams(filtersObject)}`;
-			if(!search && url !== search){
-				navigate(`${baseUrl}/edit/${item.url_slug}${url}`)
-			}
-		}
+		initNavigateUsingSearchParams({pageState, search, navigate, baseUrl, item})
 	}, [])
+
 	const updatePageStateFilters = (filters) => {
 		const searchParamFilters = pageState.filters.filter(f => f.useSearchParams).map(f => filters.find(updatedFilter => updatedFilter.searchKey === f.searchKey) || f)
 		const nonSearchParamFilters = filters

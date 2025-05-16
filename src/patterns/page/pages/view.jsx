@@ -1,5 +1,5 @@
 import React, {useEffect, useRef} from 'react'
-import { Link, useSubmit } from "react-router";
+import { Link, useSubmit, useSearchParams, useLocation, useNavigate } from "react-router";
 import { cloneDeep, merge } from "lodash-es"
 
 // -- 
@@ -9,15 +9,22 @@ import { Layout, SectionGroup } from '../ui'
 
 import {PDF, PencilEditSquare, Printer} from '../ui/icons'
 import {selectablePDF} from "../components/saveAsPDF/PrintWell/selectablePDF";
-//import {Footer} from "../ui/dataComponents/selector/ComponentRegistry/footer";
+import {useImmer} from "use-immer";
+import {
+    convertToUrlParams,
+    initNavigateUsingSearchParams,
+    updatePageStateFiltersOnSearchParamChange
+} from "~/modules/dms/src/patterns/page/pages/edit";
 export const PageContext = React.createContext(undefined);
 
 
 function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiLoad, apiUpdate, format,busy}) {
   const submit = useSubmit()
-  // console.log('page_view')
-  // if(!item) return <div> No Pages </div>
-  
+    const navigate = useNavigate()
+    const [searchParams] = useSearchParams();
+    const [pageState, setPageState] = useImmer(item);
+    const { search } = useLocation()
+
   if(!item) { item = {} }// create a default item to set up first time experience.
 
   React.useEffect(() => {
@@ -29,29 +36,52 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
      
   },[])
 
-  //console.log('test 123', item)
+    useEffect(() => {
+        updatePageStateFiltersOnSearchParamChange({searchParams, item, setPageState})
+    }, [searchParams]);
 
-  //console.log('item', item, dataItems, status)
+    useEffect(() => {
+        initNavigateUsingSearchParams({pageState, search, navigate, baseUrl, item})
+    }, [])
+
+    const updatePageStateFilters = (filters) => {
+        const searchParamFilters = pageState.filters.filter(f => f.useSearchParams).map(f => filters.find(updatedFilter => updatedFilter.searchKey === f.searchKey) || f)
+        const nonSearchParamFilters = filters
+            .filter(({searchKey}) => {
+                const matchingFilter = (pageState.filters || []).find(f => f.searchKey === searchKey);
+                return matchingFilter && !matchingFilter.useSearchParams
+            })
+        // set non navigable filters
+        if(nonSearchParamFilters?.length){
+            setPageState(page => {
+                nonSearchParamFilters.forEach(f => {
+                    const idx = page.filters.findIndex(({searchKey}) => searchKey === f.searchKey);
+                    if(idx >= 0) {
+                        page.filters[idx].values = f.values;
+                    }
+                })
+            })
+        }
+
+        // navigate
+        if(searchParamFilters?.length){
+            const filtersObject = searchParamFilters
+                .reduce((acc, curr) => ({...acc, [curr.searchKey]: typeof curr.values === 'string' ? [curr.values] : curr.values}), {});
+            const url = `?${convertToUrlParams(filtersObject)}`;
+            if(url !== search){
+                navigate(`${baseUrl}/edit/${item.url_slug}${url}`)
+            }
+        }
+    }
   const pdfRef = useRef(); // To capture the section of the page to be converted to PDF
   let { baseUrl, theme, user, API_HOST } = React.useContext(CMSContext) || {}
   //let pageTheme = {page: {container: `bg-[linear-gradient(0deg,rgba(33,52,64,.96),rgba(55,87,107,.96)),url('/themes/mny/topolines.png')] bg-[size:500px] pb-[4px]`}}
   theme = merge(cloneDeep(theme), item?.theme || {})
-  const ContentView = React.useMemo(() => {
-    return attributes['sections'].ViewComp
-  }, [])
 
   const menuItems = React.useMemo(() => {
     let items = dataItemsNav(dataItems,baseUrl,false)
     return items
   }, [dataItems])
-
-  //console.log('view item', item)
-
-  // const level = item?.index == '999' || theme?.navOptions?.topNav?.nav !== 'main' ? 1 : detectNavLevel(dataItems, baseUrl);
-
-  const draftSections = item?.['sections'] || [] 
-
-  //console.log('draft_sections', draftSections)
 
   
   const getSectionGroups =  ( sectionName ) => {
@@ -68,7 +98,7 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
   }
 
   return (
-      <PageContext.Provider value={{ item, dataItems, apiLoad, apiUpdate, format, busy }} >
+      <PageContext.Provider value={{ item, pageState, setPageState, updatePageStateFilters, dataItems, apiLoad, apiUpdate, format, busy }} >
         <div className={`${theme?.page?.container}`}>
           {getSectionGroups('top')}
           <Layout 
