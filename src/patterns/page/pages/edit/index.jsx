@@ -15,7 +15,7 @@ import {Footer} from "../../ui/dataComponents/selector/ComponentRegistry/footer"
 import {useSearchParams} from "react-router";
 import {useImmer} from "use-immer";
 
-export const convertToUrlParams = (obj, delimiter) => {
+export const convertToUrlParams = (obj, delimiter='|||') => {
 	const params = new URLSearchParams();
 
 	Object.keys(obj).forEach(column => {

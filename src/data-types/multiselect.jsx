@@ -89,11 +89,7 @@ const RenderMenu = ({
                             key={`option-${i}`}
                             className={theme?.multiselect?.menuItem || menuItem}
                             onClick={e => {
-                                onChange(
-                                    o.value === 'select-all' ? options :
-                                        o.value === 'remove-all' ? [] :
-                                            singleSelectOnly ? [o] : [...value, o]
-                                );
+                                onChange(singleSelectOnly ? [o] : [...value, o]);
                                 setIsSearching(false);
                             }}>
                             {o.label || o}
