@@ -5,6 +5,7 @@ import AppearanceControls from "./controls/AppearanceControls";
 import {fnumIndex} from "../../dataWrapper/utils/utils";
 import {duplicateControl} from "../shared/utils";
 import {CMSContext, ComponentContext} from "../../../../../siteConfig";
+import {isEqual} from "lodash-es";
 
 const NaNValues = ["", null]
 
@@ -58,6 +59,12 @@ const Graph = ({isEdit}) => {
             })
         })
 
+        setState(draft => {
+            const newDomain = [...new Set(tmpData.map(d => d.index))]
+            if(!display.useCustomXDomain && !isEqual(draft.display.xDomain, newDomain)){
+                draft.display.xDomain = newDomain;
+            }
+        })
         if(display.useCustomXDomain && display.xDomain){
             (display.xDomain)
                 .forEach((domainIdx, i) => {
@@ -65,6 +72,8 @@ const Graph = ({isEdit}) => {
                         tmpData.splice(i, 0, {index: domainIdx, value: 0, aggMethod: dataColumns[0]?.fn})
                     }
                 })
+
+            return tmpData.filter(t => display.xDomain.some(tick => t.index === tick))
         }
         return tmpData
         }, [indexColumn, dataColumns.length, categoryColumn, data, display.useCustomXDomain, display.xDomain])
