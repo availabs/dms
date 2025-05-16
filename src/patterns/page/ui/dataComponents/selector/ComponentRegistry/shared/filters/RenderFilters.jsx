@@ -49,14 +49,14 @@ export const RenderFilters = ({
         const debug = false;
         const getFormattedAttributeStr = useCallback((column) => formattedAttributeStr(column, isDms, isCalculatedCol(column, state.columns)), [state.columns, isDms]);
         const getAttributeAccessorStr = useCallback((column) => attributeAccessorStr(column, isDms, isCalculatedCol(column, state.columns)), [state.columns, isDms]);
-        const filterWithSearchParamKeys = useMemo(() => showNavigate ?
+        const filterWithSearchParamKeys = useMemo(() =>
             Object.keys(filters).reduce((acc, filterColumn) => {
                 const currFilters = (state.columns || []).find(c => c.name === filterColumn)?.filters; // for now, it's always just 1 filter.
                 if(filters[filterColumn] && currFilters?.[0]?.usePageFilters){
                     acc[currFilters?.[0]?.searchParamKey] = filters[filterColumn];
                 }
                 return acc;
-            }, {}) : {},
+            }, {}),
         [filters, showNavigate]);
 
         useEffect(() => {

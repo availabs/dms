@@ -33,21 +33,7 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, renderCard}) => 
     }, [state])
     // =========================================== saving settings end =================================================
 
-    return (
-        <FilterComponentContext.Provider value={{state, setState, controls: {
-            columns: [{type: 'toggle', label: 'Filter', key: 'filters', trueValue: [{type: 'internal', operation: 'filter', values: []}]}]
-        }
-        }}>
-            <div className={'w-full h-full min-h-[50px]'}>
-                <DataSourceSelector />
-                { isEdit ? <Controls context={FilterComponentContext} /> : null }
-
-                <div className={'w-full pt-2 flex justify-end gap-2'}>
-                    <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={isEdit} defaultOpen={true} />
-                </div>
-            </div>
-        </FilterComponentContext.Provider>
-    )
+    return (<></>)
 }
 
 const View = ({value, onChange, size, apiLoad, apiUpdate, renderCard, ...rest}) => {
@@ -58,13 +44,7 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, renderCard, ...rest}) 
         setState(isJson(value) ? JSON.parse(value) : initialState)
     }, [value]);
 
-    return (
-            <div className={'w-full h-full min-h-[50px]'}>
-                <div className={'w-full pt-2 flex justify-end gap-2'}>
-                    <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={isEdit} defaultOpen={true} showNavigate={true}/>
-                </div>
-            </div>
-)
+    return (<></>)
 }
 
 Edit.settings = {
@@ -76,6 +56,9 @@ export default {
     "name": 'Filter',
     "type": 'filter',
     "variables": [],
+    controls: {
+        columns: [{type: 'toggle', label: 'Filter', key: 'filters', trueValue: [{type: 'internal', operation: 'filter', values: []}]}]
+    },
     "EditComp": Edit,
     "ViewComp": View
 }
