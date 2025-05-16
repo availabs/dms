@@ -1,11 +1,6 @@
-import React, {useState, useEffect, createContext, useMemo, useRef} from 'react'
-
-import {RenderFilters} from "./shared/filters/RenderFilters";
-import {DataSourceSelector} from "./DataSourceSelector";
-import {Controls} from "../dataWrapper/components/Controls";
-import {useImmer} from "use-immer";
+import React, {useEffect, useContext} from 'react'
 import {isJson} from "../dataWrapper/utils/utils";
-const FilterComponentContext = React.createContext({});
+import {ComponentContext} from "~/modules/dms/src/patterns/page/siteConfig";
 
 const initialState = {
     columns: [], // {name, filters: []}
@@ -22,10 +17,9 @@ const initialState = {
     }
 }
 
-const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, renderCard}) => {
+const Edit = ({value, onChange}) => {
     const isEdit = Boolean(onChange);
-    const [state, setState] = useImmer(isJson(value) ? JSON.parse(value) : initialState);
-
+    const {state} = useContext(ComponentContext);
     // =========================================== saving settings begin ===============================================
     useEffect(() => {
         if (!isEdit) return;
@@ -36,9 +30,8 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, renderCard}) => 
     return (<></>)
 }
 
-const View = ({value, onChange, size, apiLoad, apiUpdate, renderCard, ...rest}) => {
-    const isEdit = false;
-    const [state, setState] = useImmer(isJson(value) ? JSON.parse(value) : initialState);
+const View = ({value}) => {
+    const {state, setState} = useContext(ComponentContext);
 
     useEffect(() => {
         setState(isJson(value) ? JSON.parse(value) : initialState)
