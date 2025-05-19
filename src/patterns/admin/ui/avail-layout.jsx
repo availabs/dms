@@ -7,7 +7,7 @@ import SideNav from './nav/Side'
 // import Menu from '../components/menu'
 // import { Search } from '../components/search'
 
-import { Link, Outlet } from "react-router-dom";
+import { Link, Outlet } from "react-router";
 
 let marginSizes = {
 	none: '',

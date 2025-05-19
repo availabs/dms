@@ -1,6 +1,6 @@
 import React, {Fragment, useState, useLayoutEffect, useRef, useEffect} from "react"
 import { useImmer } from "use-immer";
-import { useLocation } from 'react-router-dom'
+import { useLocation } from 'react-router'
 import { isEqual, cloneDeep, set } from "lodash-es"
 import { v4 as uuidv4 } from 'uuid';
 import { CMSContext } from '../../../siteConfig'
@@ -63,16 +63,23 @@ export const sectionArrayTheme = {
         "3" : { className: 'md:row-span-3'},
         "4" : { className: 'md:row-span-4'},
         "5" : { className: 'md:row-span-5'},
+        "6" : { className: 'md:row-span-6'},
+        "7" : { className: 'md:row-span-7'},
+        "8" : { className: 'md:row-span-8'},
     },
     border: {
         none: '',
-        full: 'border border-sky-950 rounded-lg',
-        openLeft: 'border border-sky-950 border-l-transparent rounded-r-lg',
-        openRight: 'border border-sky-950 border-r-transparent rounded-l-lg',
+        full: 'border border-[#E0EBF0] rounded-lg',
+        openLeft: 'border border-[#E0EBF0] border-l-transparent rounded-r-lg',
+        openRight: 'border border-[#E0EBF0] border-r-transparent rounded-l-lg',
+        openTop: 'border border-[#E0EBF0] border-t-transparent rounded-b-lg',
+        openBottom: 'border border-[#E0EBF0] border-b-transparent rounded-t-lg',
+        borderX: 'border border-[#E0EBF0] border-y-transparent'
     }
 }
 
 const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
+    
     const [ values, setValues ] = useImmer([]);
     const { baseUrl, user, theme = { sectionArray: sectionArrayTheme} } = React.useContext(CMSContext) || {}
     const { editPane, apiLoad, apiUpdate, format  } =  React.useContext(PageContext) || {}
@@ -165,9 +172,9 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
 
     const hideDebug = true
     //console.log('test 123', values, group)
-
+    
     return (
-        <div className='relative isolate'>
+        <div className='relative'>
         { editPane?.showGrid && (
             <div className='absolute inset-0 pointer-events-none  '>
                 <div className={`
@@ -188,6 +195,7 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
                 {[...values,{}]
                     .map((v,i) => {
                     //only render sections in this group
+                    // return <div className='p-4 w-full'>{v.id}</div>
                     if(!(v.group === group.name || (!v.group && group?.name === 'default')) && i !== edit.index) {
                         return <React.Fragment key={i}></React.Fragment>
                     }
@@ -209,7 +217,7 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
                                 ${theme?.sectionArray?.border?.[v?.border || 'none']}
                                 
                             `}
-                            style={{paddingTop: `${v?.offset}` }}
+                            style={{paddingTop: v?.offset }}
                         >
                             <div className={theme?.sectionArray?.sectionEditHover} />
                             {/* add to top */}
@@ -273,7 +281,10 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
                     )
                 })
             }
-            {edit?.index === -1 && <AddSectionButton onClick={() => setEditIndex(Math.max(values.length, 0))}/>}
+            {
+                edit?.index === -1 && <AddSectionButton onClick={() => setEditIndex(Math.max(values.length, 0))}/>
+            }
+            
             <ScrollToHashElement />
             </div>
         </div>
@@ -312,9 +323,11 @@ const View = ({value, attr, group, siteType}) => {
                                     ${v?.is_header ? '' : v?.padding ?  v.padding : theme.sectionArray.sectionPadding}
                                     ${theme?.sectionArray?.sectionViewWrapper} 
                                     ${colspanClass} ${rowspanClass}
-                                    
+                                    ${theme?.sectionArray?.border?.[v?.border || 'none']}
                                 `}
-                            >
+                                style={{ paddingTop: v?.offset }}
+                            >   
+
                                 <SectionView
                                     attributes={attr.attributes}
                                     key={i}

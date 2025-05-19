@@ -1,18 +1,69 @@
-import React, {Fragment, useState} from 'react'
-import { cloneDeep,set } from 'lodash-es'
-import { Button, Menu, FieldSet } from '../../../ui'
+import React, {Fragment, useEffect, useState} from 'react'
+import {useSearchParams} from "react-router";
+import {cloneDeep, set, get, isEqual} from 'lodash-es'
+import {Button, Menu, FieldSet, Icon, Input, Select} from '../../../ui'
 import { CMSContext } from '../../../siteConfig'
-import { timeAgo } from '../../_utils'
 import { Add, CaretDown } from "../../../ui/icons";
 import { updateTitle } from '../editFunctions'
 
 import { PageContext } from '../../view'
+import { v4 as uuidv4 } from 'uuid';
 
+const FilterSettings = ({label, type, value, stateValue, onChange}) => {
+  const [newFilter, setNewFilter] = useState({});
+  const [tmpValue, setTmpValue] = useState(value || []);
+
+  const updateFilters = (idx, key, valueToUpdate) => {
+    setTmpValue(value.map((v, i) => i === idx ? {...v, [key]: valueToUpdate} : v))
+    onChange(value.map((v, i) => i === idx ? {...v, [key]: valueToUpdate} : v));
+  }
+  return (
+      <div className={'flex flex-col'}>
+        {
+          tmpValue.map((filter, i) => (
+                  <div className={'grid grid-cols-5 gap-0.5'}>
+                    <Input placeholder={'search key'} value={filter.searchKey} onChange={e => updateFilters(i, 'searchKey', e.target.value)}/>
+                    <Input placeholder={'value'} value={filter.values} onChange={e => updateFilters(i, 'values', e.target.value)}/>
+                    <label className={'text-red-500 self-center'}>{stateValue?.find(sv => sv.searchKey === filter.searchKey)?.values}</label>
+                    <Select value={filter.useSearchParams} onChange={e => updateFilters(i, 'useSearchParams', e.target.value === 'true')}
+                            options={[{label: 'Use Search params', value: true}, {label: `Don't use Search params`, value: false}]} />
+                    <Button onClick={() => {
+                      onChange(value.filter((_, idx) => i !== idx));
+                      setTmpValue(value.filter((_, idx) => i !== idx))
+                    }} > remove </Button>
+                  </div>
+              ))
+        }
+        <div className={'grid grid-cols-3 gap-0.5'}>
+          <Input placeholder={'search key'} value={newFilter.searchKey} onChange={e => setNewFilter({...newFilter, searchKey: e.target.value})} />
+          <Input placeholder={'value'} value={newFilter.values} onChange={e => setNewFilter({...newFilter, values: e.target.value})} />
+          <Button onClick={() => {
+            const id = uuidv4();
+                            onChange([...value, {id, ...newFilter}]);
+                            setTmpValue([...value, {id, ...newFilter}])
+                            setNewFilter({});
+                          }} > add </Button>
+        </div>
+      </div>
+  )
+};
 
 function SettingsPane () {
-  const { baseUrl, user  } = React.useContext(CMSContext) || {}
-  const { item, dataItems, apiUpdate } =  React.useContext(PageContext) || {}
+  const { baseUrl, user, theme  } = React.useContext(CMSContext) || {}
+  const { item, pageState, dataItems, apiUpdate } =  React.useContext(PageContext) || {}
 
+  const themeSettings = React.useMemo(() => {
+    return (theme?.pageOptions?.settingsPane || [])
+      .map(setting => {
+        setting.value = get(item, setting.location, setting.default || '')
+        setting.onChange = (e) => {
+          togglePageSetting(item, setting.location, e.target.value,  apiUpdate)
+        }
+        return setting
+      }).filter(d => d)
+  },[theme?.pageOptions?.settingsPane, item])
+
+  //console.log(themeSettings)
   return (
     <div className="flex h-full flex-col">
       <div className="px-4 sm:px-6 py-2">
@@ -33,7 +84,7 @@ function SettingsPane () {
             value: item.title,
             onChange: (val) => {
               console.log('Change page Name', val)
-              updateTitle  ( item, dataItems, val, user, apiUpdate)
+              updateTitle ( item, dataItems, val, user, apiUpdate)
             }
           },
           {
@@ -76,13 +127,52 @@ function SettingsPane () {
             }
           },
           {
+            type:'Listbox',
+            label: 'Icon',
+            value:  item?.icon,
+            options: [
+              ...Object.keys(theme.Icons)
+                .map((iconName) => {
+                  return {
+                    label: (
+                      <div className='flex'>
+                        <div className='px-2'>
+                          <Icon icon={iconName} className='size-6' />
+                        </div>
+                        <div>
+                          {iconName}
+                        </div>
+                      </div>
+                    ),
+                    value: iconName
+                  }
+                }),
+                {label: 'No Icon', value: 'none'}
+            ],
+            onChange:(e) => {
+              //console.log('update icon thing', e)
+              togglePageSetting(item, 'icon', e,  apiUpdate)
+            
+            }
+          },
+          {
             type:'Input',
             label: 'Page Description',
             value: item?.description || '',
             onChange:(e) => {
               togglePageSetting(item, 'description', e.target.value,  apiUpdate)
             }
-          }
+          },
+          {
+            type: FilterSettings,
+            label: 'Filters',
+            value: item?.filters || [],
+            stateValue: pageState?.filters || [],
+            onChange:(e) => {
+              togglePageSetting(item, 'filters', e,  apiUpdate)
+            }
+          },
+          ...themeSettings
         ]} />
       </div>
     </div>          

@@ -1,4 +1,34 @@
 export const overlayImageOptions = [
+    { "label": "Set 2 - climate change", "value": "/themes/mny_pack_1/climate_change.png" },
+    { "label": "Set 2 - extreme heat", "value": "/themes/mny_pack_1/extreme_heat.png" },
+    { "label": "Set 2 - funding", "value": "/themes/mny_pack_1/funding.png" },
+    { "label": "Set 2 - hail", "value": "/themes/mny_pack_1/hail.png" },
+    { "label": "Set 2 - hurricane", "value": "/themes/mny_pack_1/hurricane.png" },
+    { "label": "Set 2 - local planning", "value": "/themes/mny_pack_1/local_planning.png" },
+    { "label": "Set 2 - planning", "value": "/themes/mny_pack_1/planning.png" },
+    { "label": "Set 2 - snowstorm", "value": "/themes/mny_pack_1/snowstorm.png" },
+    { "label": "Set 2 - state planning", "value": "/themes/mny_pack_1/state_planning.png" },
+    { "label": "Set 2 - tornado", "value": "/themes/mny_pack_1/tornado.png" },
+    { "label": "Set 2 - ny built environment", "value":"/themes/mny_pack_1/mny-built-environment_01_webp.webp" },
+    { "label": "Set 2 - extreme cold", "value":"/themes/mny_pack_1/mny-extreme-cold_01_webp.webp" },
+    { "label": "Set 2 - flood", "value":"/themes/mny_pack_1/mny-flood_01_webp.webp" },
+    { "label": "Set 2 - hazards", "value":"/themes/mny_pack_1/mny-hazards_01_webp.webp" },
+    { "label": "Set 2 - ice strom", "value":"/themes/mny_pack_1/mny-ice-strom_01_webp.webp" },
+    { "label": "Set 2 - people", "value":"/themes/mny_pack_1/mny-people_02_webp.webp" },
+    { "label": "Set 2 - strategies", "value":"/themes/mny_pack_1/mny-strategies_01_webp.webp" },
+    { "label": "Set 2 - whats at risk", "value":"/themes/mny_pack_1/mny-whats-at-risk_01_webp.webp" },
+    {
+        label: 'Fusion Header 1',
+        value: '/themes/mny/fusion_header_1.png'
+    },
+    {
+        label: 'Fusion Header 2',
+        value: '/themes/mny/fusion_header_2.png'
+    },
+    {
+        label: 'Fusion Header 3',
+        value: '/themes/mny/fusion_header_3.png'
+    },
     {
         label: 'Planetary Home',
         value: '/themes/mny/header_home.png'
@@ -163,7 +193,8 @@ export const overlayImageOptions = [
         "label": "Set1 - Wind",
         "value": "/themes/mny/Wind - transparent.webp"
     }
-    ]
+
+]
 
 
 export const insetImageOptions = [

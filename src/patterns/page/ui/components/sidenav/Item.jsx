@@ -1,28 +1,31 @@
 import React, {useEffect} from "react";
-import { useMatch, useNavigate, Link } from "react-router-dom";
+import { useMatch, useNavigate, Link } from "react-router";
 import Icons from '../../icons'
+
+import { Icon } from '../../'
 
 import { CMSContext } from '../../../siteConfig'
 
-function Icon ({ icon, className }) {
-	let Icon = ''
-	if(!icon || icon?.includes('fa')) {
-		Icon = <span className={icon} /> 
-	} else {
-		let Comp = Icons[icon]
-		Icon = <Comp />
-	}
+// function Icon ({ icon, className }) {
+// 	let Icon = ''
+// 	if(!icon || icon?.includes('fa')) {
+// 		Icon = <span className={icon} /> 
+// 	} else {
+// 		let Comp = Icons[icon]
+// 		Icon = <Comp />
+// 	}
 
-	return (
-  	<div className={`${className} flex justify-center items-center`}>
-   		{Icon}
-  	</div>
-	)
-};
+// 	return (
+//   	<div className={`${className} flex justify-center items-center`}>
+//    		{Icon}
+//   	</div>
+// 	)
+// };
 const NOOP = () => { return {} }
 
 const NavItem = ({
 	depth = 0,
+	navItem,
 	children,
 	icon,
 	to,
@@ -31,13 +34,12 @@ const NavItem = ({
 	type = "side",
 	active = false,
 	subMenus = [],
-	themeOptions,
 	subMenuActivate = 'onClick',
 	subMenuOpen = false
 }) => {
 	//console.log('renderMenu', subMenuActivate)
 	const { theme: fullTheme  } = React.useContext(CMSContext) || {}
-	const theme = (fullTheme?.[type === 'side' ? 'sidenav' : 'topnav'] || {}) //(themeOptions);
+	const theme = (fullTheme?.['sidenav'] || {}) 
 
 	const navigate = useNavigate();
 	const To = React.useMemo(() => {
@@ -85,10 +87,8 @@ const NavItem = ({
 				
 				<div
 					className={`${className ? className : navClass}`}
-					
-					
 				>
-					<div className={theme.menuItemWrapper}>
+					<div className={theme?.menuItemWrapper?.[depth] || theme?.menuItemWrapper?.[0] || theme?.menuItemWrapper}>
 						<div className='flex-1 flex items-center' >
 							{!icon ? null : (
 								<Icon
@@ -101,14 +101,14 @@ const NavItem = ({
 									}
 								/>
 							)}
-							<div className={`${theme?.navItemContent} ${className ? '' : theme?.navItemContents?.[depth] || theme?.navItemContents } ${!to && 'uppercase'}`}
+							<div className={`${theme?.navItemContent} ${className ? '' : theme?.navItemContents?.[depth] || theme?.navItemContents }`}
 								onClick={(e) => {
 									e.stopPropagation();
 									if (onClick) return onClick(To[0]);
 									if (To[0]) navigate(To[0]);
 								}}
 							>	
-								{children}
+								{navItem?.name}
 							</div>
 							<div
 								className='pr-2'
@@ -123,7 +123,7 @@ const NavItem = ({
 								{
 									subMenus.length ?
 										<Icon
-
+											className={theme?.indicatorIconWrapper}
 											icon={showSubMenu ? theme?.indicatorIconOpen || 'ArrowRight' : theme?.indicatorIcon || 'ArrowDown'}/>
 										: null
 								}
@@ -140,7 +140,6 @@ const NavItem = ({
 									hovering={hovering}
 									subMenus={subMenus}
 									type={type}
-									themeOptions={themeOptions}
 									className={className}
 								/> : ''
 						}
@@ -152,9 +151,9 @@ const NavItem = ({
 };
 export default NavItem;
 
-const SubMenu = ({ depth, showSubMenu, subMenus, type, hovering, subMenuActivate, active, themeOptions }) => {
+const SubMenu = ({ depth, showSubMenu, subMenus, type, hovering, subMenuActivate, active }) => {
 	const { theme: fullTheme  } = React.useContext(CMSContext)
-	const theme = (fullTheme?.[type === 'side' ? 'sidenav' : 'topnav'] || {}) //(themeOptions);
+	const theme = (fullTheme?.['sidenav'] || {}) 
 
 
 	const inactiveHoveing = !active && subMenuActivate !== 'onHover' && hovering;
@@ -178,7 +177,6 @@ const SubMenu = ({ depth, showSubMenu, subMenus, type, hovering, subMenuActivate
 				className={`
 							${inactiveHoveing && theme?.subMenuWrapperInactiveFlyoutDirection}
 							${!inactiveHoveing && theme?.subMenuWrapperChild}
-					flex ${(type === "side" || inactiveHoveing ? "flex-col" : "flex-row")}
 				`}
 			>
 				{subMenus.map((sm, i) => (
@@ -186,15 +184,14 @@ const SubMenu = ({ depth, showSubMenu, subMenus, type, hovering, subMenuActivate
 						depth={depth+1}
 						key={i}
 						to={sm.path}
-						icon={sm.icon} 
+						icon={sm.icon}
+						navItem={sm}
 						type={type} 
 						className={sm.className}
 						onClick={sm.onClick}
-						themeOptions={themeOptions}
 						subMenus={sm.subMenus}
-					>
-						{sm.name}
-					</NavItem>
+					/>
+						
 				))}
 			</div>
 			

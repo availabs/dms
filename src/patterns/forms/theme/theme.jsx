@@ -1,7 +1,7 @@
 import React from 'react'
 import sidenav from './sidenav'
 import topnav from './topnav'
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 
 
 const theme = {

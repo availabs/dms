@@ -1,8 +1,7 @@
 import React, {useContext, useMemo, useState} from "react";
 import {numColSize as numColSizeDf, gutterColSize as gutterColSizeDf, } from "../constants"
 import {TableCell} from "./TableCell";
-import {ComponentContext} from "../../../dataWrapper";
-import { CMSContext } from '../../../../../../siteConfig'
+import {CMSContext, ComponentContext} from '../../../../../../siteConfig'
 import { tableTheme } from '../'
 import {XMark} from "../../../../../icons";
 

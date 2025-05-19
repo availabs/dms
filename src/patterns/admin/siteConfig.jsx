@@ -9,7 +9,7 @@ import adminFormat from "./admin.format.js"
 import defaultTheme from './theme/theme'
 import Layout from './ui/avail-layout'
 
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 
 export const AdminContext = React.createContext(undefined);
 const defaultUser = { email: "user", authLevel: 5, authed: true, fake: true}

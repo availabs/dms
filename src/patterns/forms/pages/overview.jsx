@@ -5,7 +5,7 @@ import {FormsContext} from "../siteConfig";
 import Table from "../components/Table";
 import dmsDataTypes from "../../../data-types";
 import SourceCategories from "../components/patternListComponent/categories";
-import {Link} from "react-router-dom";
+import {Link} from "react-router";
 
 export const isJson = (str)  => {
     try {

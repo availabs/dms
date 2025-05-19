@@ -1,6 +1,7 @@
 import React from 'react'
 import { Field, Fieldset, Label, Description } from '@headlessui/react'
-import Select from '../select/'
+import Select from '../select'
+import Listbox from '../listbox'
 import Input, {ConfirmInput} from '../input'
 
 import { CMSContext } from '../../../siteConfig';
@@ -9,7 +10,8 @@ import { CMSContext } from '../../../siteConfig';
 const componentRegistry= {
   Input,
   ConfirmInput,
-  Select
+  Select,
+  Listbox
 }
 
 export const fieldTheme = {
@@ -25,7 +27,7 @@ export default function FieldSetComp ({ components }) {
     <Fieldset>
       {
         components.map((c,i) => {
-          let Comp = componentRegistry[c.type] || Input
+          let Comp = typeof c.type === 'string' ? (componentRegistry[c.type] || Input) : c.type;
           return (
             <FieldComp key={i} {...c}>
               <Comp {...c} />

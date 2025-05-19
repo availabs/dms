@@ -1,7 +1,7 @@
 import RenderSwitch from "./Switch";
 import React from "react";
 
-export const InputControl = ({type, placeHolder, value, setValue, title, className, inputClassName, displayCdn=true}) => setValue && displayCdn ? (
+export const InputControl = ({type, placeHolder, value, setValue, title, className, inputClassName, onKeyDown, displayCdn=true}) => setValue && displayCdn ? (
     <div>
         <div
             className={className || `inline-flex w-full justify-center items-center rounded-md px-1.5 py-1 text-sm font-regular 
@@ -13,6 +13,7 @@ export const InputControl = ({type, placeHolder, value, setValue, title, classNa
                    placeholder={placeHolder}
                    value={value}
                    onChange={e => setValue(type === 'number' ? +e.target.value : e.target.value)}
+                   onKeyDown={onKeyDown}
                    onWheel={e => e.target.blur()}
             />
         </div>

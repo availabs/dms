@@ -5,7 +5,7 @@ import TopNav from '../topnav';
 import SideNav from '../sidenav';
 import { SearchButton } from '../../../components/search';
 import { CMSContext } from '../../../siteConfig';
-import { matchRoutes, useLocation } from 'react-router-dom'
+import { matchRoutes, useLocation } from 'react-router'
 
 
 const Logos = () => <div className='h-12'/>
@@ -19,7 +19,7 @@ export const layoutTheme = {
 	topnavContainer2:``,
 	sidenavContainer1: 'w-44',
 	sidenavContainer2: 'sticky top-12 h-[calc(100vh_-_50px)]',
-	navTitle: `flex-1 text-[24px] font-['Oswald'] font-[500] leading-[24px] text-[#2D3E4C] py-3 px-4`
+	navTitle: `flex-1 text-[24px] font-['Oswald'] font-[500] leading-[24px] text-[#2D3E4C] py-3 px-4 uppercase`
 }
 
 function nav2Level(items, level=1, path, navTitle='') {
@@ -55,7 +55,7 @@ const Layout = ({ children, navItems, secondNav, title, pageTheme, EditPane, yPa
 		color: sideNav.color || 'transparent',
 		menuItems: (sideNav?.nav === 'main' ? nav2Level(navItems, sideNav.depth, pathname, theme.layout.navTitle)  : sideNav?.nav === 'secondary' ? secondNav || [] : []).filter(page => !page.hideInNav),
 		topMenu: (
-			<div className={'flex flex-row md:flex-col'}>
+			<div className={theme.sidenav.topNavWrapper}>
 				{sideNav?.logo === 'top' && logo}
 	        	{sideNav?.dropdown === 'top' && <Menu />}
 	        	
@@ -95,7 +95,7 @@ const Layout = ({ children, navItems, secondNav, title, pageTheme, EditPane, yPa
 	  	)	
 	}
 	const Logo = sideNavOptions.logo
-	// console.log('layout', topNav)
+	//z console.log('layout', topNav)
 	// console.log('topnav stuff', topNav.size !== 'none' && topNav.position === 'fixed' ? topNav.size : '', topNav)
 	// ------------------------------------------------------
 	// ------- 

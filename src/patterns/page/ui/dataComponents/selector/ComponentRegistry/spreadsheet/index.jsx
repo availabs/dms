@@ -5,11 +5,8 @@ import {handleKeyDown} from "./utils/keyboard";
 import {handleMouseUp, handleMouseMove, handleMouseDown} from "./utils/mouse";
 import { TableRow } from "./components/TableRow";
 import {actionsColSize, numColSize as numColSizeDf, gutterColSize as gutterColSizeDf, minColSize, minInitColSize} from "./constants"
-import {ComponentContext} from "../../dataWrapper";
 import ActionControls from "./controls/ActionControls";
-import { CMSContext } from '../../../../../siteConfig'
-import {Add, Copy} from "../../../../icons";
-import {cloneDeep} from "lodash-es";
+import {CMSContext, ComponentContext} from '../../../../../siteConfig'
 import {isEqualColumns} from "../../dataWrapper/utils/utils";
 import {duplicateControl} from "../shared/utils";
 
@@ -433,6 +430,12 @@ export default {
             {type: 'toggle', label: 'Filter', key: 'filters',
                 trueValue: [{type: 'internal', operation: 'filter', values: []}]},
             {type: 'toggle', label: 'Group', key: 'group'},
+            {type: 'toggle', label: 'Value column', key: 'valueColumn', onChange: ({key, value, attribute, state, columnIdx}) => {
+                    if(attribute.yAxis || attribute.categorize) return;
+                    state.columns.forEach(column => {
+                        column.valueColumn = value ? column.name === attribute.name : value;
+                    })
+                }},
             duplicateControl,
         ],
         actions: {Comp: ActionControls},
@@ -440,10 +443,11 @@ export default {
             // settings from more dropdown are stored in state.display
             {type: 'toggle', label: 'Attribution', key: 'showAttribution'},
             {type: 'toggle', label: 'Allow Edit', key: 'allowEditInView'},
-            {type: 'toggle', label: 'Use Search Params', key: 'allowSearchParams'},
+            {type: 'toggle', label: 'Use Page Filters', key: 'usePageFilters'},
             {type: 'toggle', label: 'Show Total', key: 'showTotal'},
             {type: 'toggle', label: 'Striped', key: 'striped'},
             {type: 'toggle', label: 'Allow Download', key: 'allowDownload'},
+            {type: 'toggle', label: 'Always Fetch Data', key: 'readyToLoad'},
             {type: 'toggle', label: 'Use Pagination', key: 'usePagination'},
             {type: 'input', inputType: 'number', label: 'Page Size', key: 'pageSize', displayCdn: ({display}) => display.usePagination === true},
         ],
@@ -464,14 +468,24 @@ export default {
                 options: [
                     {label: 'No Format Applied', value: ' '},
                     {label: 'Comma Seperated', value: 'comma'},
+                    {label: 'Comma Seperated ($)', value: 'comma_dollar'},
                     {label: 'Abbreviated', value: 'abbreviate'},
+                    {label: 'Abbreviated ($)', value: 'abbreviate_dollar'},
+                    {label: 'Date', value: 'date'},
+                    {label: 'Title', value: 'title'},
                 ]},
 
             // link controls
             {type: 'toggle', label: 'Is Link', key: 'isLink', displayCdn: ({isEdit}) => isEdit},
-            {type: 'toggle', label: 'Use Id', key: 'useId', displayCdn: ({attribute, isEdit}) => isEdit && attribute.isLink},
             {type: 'input', inputType: 'text', label: 'Link Text', key: 'linkText', displayCdn: ({attribute, isEdit}) => isEdit && attribute.isLink},
             {type: 'input', inputType: 'text', label: 'Location', key: 'location', displayCdn: ({attribute, isEdit}) => isEdit && attribute.isLink},
+            {type: 'select', label: 'Search Params', key: 'searchParams', displayCdn: ({attribute, isEdit}) => isEdit && attribute.isLink,
+                options: [
+                    {label: 'None', value: undefined},
+                    {label: 'ID', value: 'id'},
+                    {label: 'Value', value: 'value'}
+                ]
+            },
         ]
 
     },

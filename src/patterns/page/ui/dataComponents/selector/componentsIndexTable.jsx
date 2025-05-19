@@ -1,7 +1,7 @@
 import React, {useState, useEffect, useContext, useMemo} from 'react'
 import {CMSContext} from "../../../siteConfig";
 import {cloneDeep, get} from "lodash-es";
-import {Link} from "react-router-dom";
+import {Link} from "react-router";
 import writeXlsxFile from 'write-excel-file';
 import {Download} from '../../icons'
 import RenderSwitch from "./dataWrapper/components/Switch";

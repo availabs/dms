@@ -1,7 +1,6 @@
 import React, {useContext} from "react";
-import { ComponentContext } from "../../dataWrapper";
 import { tableTheme } from '../spreadsheet'
-import { CMSContext } from '../../../../../siteConfig'
+import {CMSContext, ComponentContext} from '../../../../../siteConfig'
 
 export const paginationTheme = {
     
@@ -54,7 +53,7 @@ export const Pagination = ({currentPage, setCurrentPage, showPagination, setRead
                                              className={`${theme?.table?.pageRangeItem}  ${currentPage === i ? theme?.table?.pageRangeItemActive : theme?.table?.pageRangeItemInactive} `}
                                              onClick={() => {
                                                  setCurrentPage(i)
-                                                 setReadyToLoad(true)
+                                                 setReadyToLoad && setReadyToLoad(true)
                                              }}
                                         >{i + 1}</div>
                                     ))

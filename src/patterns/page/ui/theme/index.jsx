@@ -1,5 +1,5 @@
 import React from 'react'
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 // -- Components
 import { layoutTheme } from '../components/layout'
 import { sideNavTheme } from '../components/sidenav'
@@ -12,6 +12,7 @@ import { nestableTheme } from '../components/nestable/draggableNav'
 import { dialogTheme } from '../components/dialog'
 import { popoverTheme } from '../components/popover'
 import { selectTheme } from '../components/select'
+import { listboxTheme } from '../components/listbox'
 import { fieldTheme } from '../components/fieldset'
 // --- Data Components
 import { sectionArrayTheme } from '../dataComponents/sections/sectionArray'
@@ -27,6 +28,8 @@ import { menuTheme } from '../components/menu'
 import { labelTheme } from "../components/label";
 
 import Icons from '../icons'
+import {filterTheme} from "../dataComponents/selector/ComponentRegistry/shared/filters/RenderFilters";
+import {graphTheme} from "../dataComponents/selector/ComponentRegistry/graph";
 
 const theme = {
   navOptions: {
@@ -96,6 +99,7 @@ const theme = {
   popover: popoverTheme,
   label: labelTheme,
   select: selectTheme,
+  listbox: listboxTheme,
   // -- 
   
   // --
@@ -105,6 +109,8 @@ const theme = {
   lexical : lexicalTheme,
   dataCard: dataCardTheme,
   attribution: attributionTheme,
+  filters: filterTheme,
+  graph: graphTheme,
   
   // -- Icon Set
   Icons

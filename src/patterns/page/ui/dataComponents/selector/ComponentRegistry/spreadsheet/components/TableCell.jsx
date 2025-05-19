@@ -1,12 +1,11 @@
 import React, {useContext, useEffect, useState} from "react";
-import {Link} from "react-router-dom";
+import {Link} from "react-router";
 import DataTypes from "../../../../../../../../data-types";
 import {formatFunctions} from "../../../dataWrapper/utils/utils";
-import { ComponentContext } from "../../../dataWrapper";
 import {isEqual} from "lodash-es";
 import { RenderAction } from "./RenderActions";
 import { tableTheme } from '../'
-import { CMSContext } from '../../../../../../siteConfig'
+import {CMSContext, ComponentContext} from '../../../../../../siteConfig'
 import {InfoCircle} from "../../../../../icons";
 
 const DisplayCalculatedCell = ({value, className}) => <div className={className}>{value}</div>
@@ -14,9 +13,14 @@ const LoadingComp = ({className}) => <div className={className}>loading...</div>
 
 const LinkComp = ({attribute, columns, newItem, removeItem, value, Comp}) => {
     const {actionType, location, linkText, isLink, useId} = attribute;
-
+    // isLink:
+        // linkText
+        // location (optional)
+        // searchParams: none|value|id
     if(isLink){
-        return (props) => <Link {...props} to={`${location}${encodeURIComponent(useId ? newItem.id : value)}`} >{linkText || value}</Link>
+        const searchParams = attribute.searchParams === 'id' ? encodeURIComponent(newItem.id) : attribute.searchParams === 'value' ? encodeURIComponent(value) : ``;
+        const url = `${location || value}${searchParams}`;
+        return (props) => <Link {...props} to={url} >{linkText || value}</Link>
     }
 
     if(actionType){
@@ -62,6 +66,8 @@ export const TableCell = ({
         right: 'justify-end',
         center: 'justify-center'
     }
+    const formatClass = attribute.formatFn === 'title' ? 'capitalize' : '';
+
     const selectionColor = '#2100f8'
     const selectionEdgeClassNames = {
         top: {borderTopColor: selectionColor},
@@ -153,6 +159,7 @@ export const TableCell = ({
                       attribute.type === 'multiselect' && rawValue?.length ? 'p-0.5' :
                           attribute.type === 'multiselect' && !rawValue?.length ? 'p-0.5' : 'p-0.5'
                   } 
+                  ${formatClass}
                   `}
                   {...attribute}
                   value={value}

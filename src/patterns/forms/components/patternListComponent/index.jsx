@@ -1,7 +1,7 @@
 import React, {useMemo, useState, useEffect, useRef, useContext} from 'react'
 import {useParams, useLocation} from "react-router"
 import { get } from "lodash-es";
-import {Link, useSearchParams} from "react-router-dom";
+import {Link, useSearchParams} from "react-router";
 import SourcesLayout from "./layout";
 import {dmsDataTypes} from "../../../../index"
 import {FormsContext} from "../../siteConfig";

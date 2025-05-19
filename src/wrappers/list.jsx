@@ -1,5 +1,5 @@
 import React, {useEffect} from 'react'
-import { useLoaderData, /*useActionData,*/ useParams, useSubmit, useLocation} from "react-router-dom";
+import { useLoaderData, /*useActionData,*/ useParams, useSubmit, useLocation} from "react-router";
 import { dmsDataEditor, dmsDataLoader } from '../index'
 import { useFalcor } from "@availabs/avl-falcor"
 import { getAttributes } from './_utils'
@@ -26,7 +26,7 @@ export default function ListWrapper({ Component, format, options, user, ...props
 	}
 
 	const ListComponent = React.useMemo(() => Component, [])
-	return (
+	return React.useMemo(() => (
 		<ListComponent
 			key={options?.path}
 			{...props} 
@@ -38,5 +38,5 @@ export default function ListWrapper({ Component, format, options, user, ...props
 			options={options}
 			user={user}
 		/>
-	)
+	),[data])
 }

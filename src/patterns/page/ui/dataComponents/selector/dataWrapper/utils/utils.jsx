@@ -2,8 +2,29 @@ import {getData as getFilterData} from "../../ComponentRegistry/shared/filters/u
 import {isEqual, uniq} from "lodash-es";
 import {Icon} from "../../../../index";
 
+const operationToExpressionMap = {
+    filter: 'IN',
+    exclude: 'NOT IN',
+    gt: '>',
+    gte: '>=',
+    lt: '<',
+    lte: '<='
+}
+
+const fnToTextMap = {
+    list: (colNameBeforeAs, colNameAfterAS) => `array_to_string(array_agg(distinct ${colNameBeforeAs}), ', ') as ${colNameAfterAS}`,
+    default: (colNameBeforeAs, colNameAfterAS, fn='max') => `${fn}(${colNameBeforeAs}) as ${colNameAfterAS}`
+}
+const operations = {
+    gt: (a, b) => +a > +b,
+    gte: (a, b) => +a >= +b,
+    lt: (a, b) => +a < +b,
+    lte: (a, b) => +a <= +b,
+    like: (a,b) => b.toString().toLowerCase().includes(a.toString().toLowerCase())
+}
+
 const fnum = (number, currency = false) => `${currency ? '$ ' : ''} ${isNaN(number) ? 0 : parseInt(number).toLocaleString()}`;
-const fnumIndex = (d, fractions = 2, currency = false) => {
+export const fnumIndex = (d, fractions = 2, currency = false) => {
         if(isNaN(d)) return '0'
         if(typeof d === 'number' && d < 1) return `${currency ? '$' : ``} ${d?.toFixed(fractions)}`
         if (d >= 1_000_000_000_000_000) {
@@ -67,6 +88,7 @@ export const applyFn = (col={}, isDms=false) => {
         list: `array_to_string(array_agg(distinct ${colNameWithAccessor}), ', ') as ${colNameAfterAS}`,
         sum: isDms ? `sum((${colNameWithAccessor})::integer) as ${colNameAfterAS}` : `sum(${colNameWithAccessor}) as ${colNameAfterAS}`,
         count: `count(${colNameWithAccessor}) as ${colNameAfterAS}`,
+        max: `max(${colNameWithAccessor}) as ${colNameAfterAS}`,
     }
 
     return functions[col.fn]
@@ -95,21 +117,6 @@ export const getLength = async ({options, state, apiLoad}) => {
 const getFullColumn = (columnName, columns) => columns.find(col => col.name === columnName);
 
 export const getColumnLabel = column => column.customName || column.display_name || column.name;
-
-const operations = {
-    gt: (a, b) => +a > +b,
-    gte: (a, b) => +a >= +b,
-    lt: (a, b) => +a < +b,
-    lte: (a, b) => +a <= +b,
-    like: (a,b) => b.toString().toLowerCase().includes(a.toString().toLowerCase())
-}
-
-const operationsStr = {
-    gt: '>',
-    gte: '>=',
-    lt: '<',
-    lte: '<='
-}
 
 const evaluateAST = (node, values) => {
     if (node.type === 'variable') {
@@ -169,12 +176,17 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
     // add normal columns to the list of columns to fetch
     if(normalFilter.length){
         const normalColumns = [];
-        const valueColumn = 'value'
-        normalFilter.forEach(({column, values}, i) => {
+        const valueColumnName = state.columns.find(col => col.valueColumn)?.name || 'value';
+        const fullColumn = getFullColumn(valueColumnName, columnsWithSettings);
+        const valueColumn = fullColumn?.refName || 'value';
+        normalFilter.forEach(({column, values, operation, fn}, i) => {
             const fullColumn = state.columns.find(col => col.name === column && isEqual(values, col.filters[0]?.values));
             if(column && fullColumn?.normalName && values?.length){
                 const name = fullColumn.normalName;
-                const reqName = `MAX(CASE WHEN ${column} IN (${values.map(v => `'${v}'`)}) THEN ${valueColumn} END) AS ${name}`;
+                const filterValues = ['gt', 'gte', 'lt', 'lte'].includes(operation) && Array.isArray(values) ? values[0] :
+                    Array.isArray(values) ? values.map(v => `'${v}'`) : values;
+                const nameBeforeAS = `CASE WHEN ${column} ${operationToExpressionMap[operation] || 'IN'} (${filterValues}) THEN ${valueColumn} END`;
+                const reqName = fnToTextMap[fn] ? fnToTextMap[fn](nameBeforeAS, name) : fnToTextMap.default(nameBeforeAS, name, fn);
                 normalColumns.push({name, reqName});
             }
         })
@@ -190,6 +202,14 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
         const fullColumn = { name, display, meta, refName, type };
         const reqName = getColAccessor({ ...fullColumn, fn: undefined }, state.sourceInfo.isDms);
 
+        const selectedValues =
+            (filter[columnName] || exclude[columnName] || [])
+                .map(o => o?.value || o)
+                .map(o => o === null ? 'null' : o)
+                .filter(o => o);
+
+        if (!selectedValues.length) continue;
+
         if (type === 'multiselect'/* || type === 'calculated'*/) {
             const options = await getFilterData({
                 reqName,
@@ -198,9 +218,6 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
                 apiLoad,
                 format: state.sourceInfo
             });
-
-            const selectedValues = (filter[columnName] || exclude[columnName] || []).map(o => o?.value || o).map(o => o === null ? 'null' : o).filter(o => o);
-            if (!selectedValues.length) continue;
 
             try {
                 const matchedOptions = options
@@ -247,51 +264,93 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
         }, {}),
         normalFilter,
         meta,
-        // when not grouping, numeric filters can directly go in the request
-        ...!groupBy.length && Object.keys(restOfDataRequestOptions).reduce((acc, filterOperation) => {
-            const columnsForOperation = Object.keys(restOfDataRequestOptions[filterOperation]);
-            acc[filterOperation] =
-                columnsForOperation.reduce((acc, columnName) => {
-                    const {refName, reqName, fn} = getFullColumn(columnName, columnsWithSettings);
-                    const reqNameWithoutAS = splitColNameOnAS(reqName)[0];
-                    // if grouping by and fn is applied, use fn name.
-                    const columnNameToFilterBy = refName;
-                    const currOperationValues = restOfDataRequestOptions[filterOperation][columnName];
+        ...(() => {
+            const where = {};
+            const having = [];
 
-                    acc[columnNameToFilterBy] = Array.isArray(currOperationValues) ? currOperationValues[0] : currOperationValues;
-                    return acc;
-                }, {});
-            return acc;
-        }, {}),
-        // if grouping, apply numeric filters as HAVING clause
-        ...groupBy.length && {
-            having: Object.keys(restOfDataRequestOptions).reduce((acc, filterOperation) => {
+            Object.keys(restOfDataRequestOptions).forEach((filterOperation) => {
                 const columnsForOperation = Object.keys(restOfDataRequestOptions[filterOperation]);
 
-                const conditions = columnsForOperation.map((columnName) => {
-                        const {reqName, fn, filters, ...restCol} = getFullColumn(columnName, columnsWithSettings);
-                        // assuming one filter per column:
-                        const fullFilter = filters[0];
-                        const filterFn = fullFilter?.fn;
+                columnsForOperation.forEach((columnName) => {
+                    const { refName, reqName, fn, filters, ...restCol } = getFullColumn(columnName, columnsWithSettings);
+                    const reqNameWithoutAS = splitColNameOnAS(reqName)[0];
+                    const currOperationValues = restOfDataRequestOptions[filterOperation][columnName];
+                    const valueToFilterBy = Array.isArray(currOperationValues) ? currOperationValues[0] : currOperationValues;
 
-                        const reqNameWithoutAS = splitColNameOnAS(reqName)[0];
+                    if (valueToFilterBy == null) return;
 
-                        const reqNameWithFn = fn ? reqNameWithoutAS :
-                            applyFn(
-                                {...restCol, fn: filterFn},
-                                state.sourceInfo.isDms);
-                        const reqNameWithFnWithoutAS = splitColNameOnAS(reqNameWithFn)[0];
-                        // if grouping by and fn is applied, use fn name.
-                        const currOperationValues = restOfDataRequestOptions[filterOperation][columnName];
-                        const valueToFilterBy = Array.isArray(currOperationValues) ? currOperationValues[0] : currOperationValues;
-                        if(!valueToFilterBy) return null
-                    return `${reqNameWithFnWithoutAS} ${operationsStr[filterOperation]} ${valueToFilterBy}`;
-                    }).filter(c => c);
+                    const fullFilter = filters?.[0];
+                    const filterFn = fullFilter?.fn;
 
-                acc.push(...conditions)
-                return acc;
-            }, [])
-        }
+                    const isAggregated = /*!!fn ||*/ !!filterFn;
+                    const filterExpr = isAggregated
+                        ? splitColNameOnAS(
+                            fn
+                                ? reqNameWithoutAS
+                                : applyFn({ ...restCol, fn: filterFn }, state.sourceInfo.isDms)
+                        )[0]
+                        : refName;
+                    if (isAggregated) {
+                        having.push(`${filterExpr} ${operationToExpressionMap[filterOperation]} ${valueToFilterBy}`);
+                    } else {
+                        if (!where[filterOperation]) {
+                            where[filterOperation] = {};
+                        }
+                        where[filterOperation][filterExpr] = valueToFilterBy;
+                    }
+                });
+            });
+
+            return {
+                ...(Object.keys(where).length > 0 && where),
+                ...(having.length > 0 && { having })
+            };
+        })()
+        // // when not grouping, numeric filters can directly go in the request
+        // ...(!groupBy.length || true) && Object.keys(restOfDataRequestOptions).reduce((acc, filterOperation) => {
+        //     const columnsForOperation = Object.keys(restOfDataRequestOptions[filterOperation]);
+        //     acc[filterOperation] =
+        //         columnsForOperation.reduce((acc, columnName) => {
+        //             const {refName, reqName, fn} = getFullColumn(columnName, columnsWithSettings);
+        //             const reqNameWithoutAS = splitColNameOnAS(reqName)[0];
+        //             // if grouping by and fn is applied, use fn name.
+        //             const columnNameToFilterBy = refName;
+        //             const currOperationValues = restOfDataRequestOptions[filterOperation][columnName];
+        //
+        //             acc[columnNameToFilterBy] = Array.isArray(currOperationValues) ? currOperationValues[0] : currOperationValues;
+        //             return acc;
+        //         }, {});
+        //     return acc;
+        // }, {}),
+        // // if grouping, apply numeric filters as HAVING clause
+        // ...groupBy.length && {
+        //     having: Object.keys(restOfDataRequestOptions).reduce((acc, filterOperation) => {
+        //         const columnsForOperation = Object.keys(restOfDataRequestOptions[filterOperation]);
+        //
+        //         const conditions = columnsForOperation.map((columnName) => {
+        //                 const {reqName, fn, filters, ...restCol} = getFullColumn(columnName, columnsWithSettings);
+        //                 // assuming one filter per column:
+        //                 const fullFilter = filters[0];
+        //                 const filterFn = fullFilter?.fn;
+        //
+        //                 const reqNameWithoutAS = splitColNameOnAS(reqName)[0];
+        //
+        //                 const reqNameWithFn = fn ? reqNameWithoutAS :
+        //                     applyFn(
+        //                         {...restCol, fn: filterFn},
+        //                         state.sourceInfo.isDms);
+        //                 const reqNameWithFnWithoutAS = splitColNameOnAS(reqNameWithFn)[0];
+        //                 // if grouping by and fn is applied, use fn name.
+        //                 const currOperationValues = restOfDataRequestOptions[filterOperation][columnName];
+        //                 const valueToFilterBy = Array.isArray(currOperationValues) ? currOperationValues[0] : currOperationValues;
+        //                 if(!valueToFilterBy) return null
+        //             return `${reqNameWithFnWithoutAS} ${operationsStr[filterOperation]} ${valueToFilterBy}`;
+        //             }).filter(c => c);
+        //
+        //         acc.push(...conditions)
+        //         return acc;
+        //     }, [])
+        // }
     }
     debug && console.log('debug getdata: options for spreadsheet getData', options, state)
     // =================================================================================================================
@@ -414,15 +473,15 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
         data.push({...totalRowData[0], totalRow: true})
     }
     // ============================================== fetch total row end ==============================================
-    console.log('debug getdata', data,
-        data.map(row => columnsToFetch.reduce((acc, column) => ({
-            ...acc,
-            totalRow: row.totalRow,
-            // return data with columns' original names
-            [column.name]: cleanValue(row[row.totalRow ? column.totalName : column.reqName])
-        }) , {}))
-
-        )
+    // console.log('debug getdata', data,
+    //     data.map(row => columnsToFetch.reduce((acc, column) => ({
+    //         ...acc,
+    //         totalRow: row.totalRow,
+    //         // return data with columns' original names
+    //         [column.name]: cleanValue(row[row.totalRow ? column.totalName : column.reqName])
+    //     }) , {}))
+    //
+    //     )
     return {
         length,
         data: data.map(row => {
@@ -476,10 +535,23 @@ const strColorMap = {
     'Very Low Risk': '#54B99B',
     default: '#ccc'
 }
+
+const formatDate = (dateString) => {
+    const options = {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit"
+
+    };
+    return dateString ? new Date(dateString).toLocaleDateString(undefined, options) : ``;
+};
 export const formatFunctions = {
     'abbreviate': (d, isDollar) => fnumIndex(d, 1, isDollar),
+    'abbreviate_dollar': (d) => fnumIndex(d, 1, true),
     'comma': (d, isDollar) => fnum(d, isDollar),
-    'icon': (strValue, props) => <><Icon icon={strValue} {...props}/> <span>{strValue}</span></>,
+    'comma_dollar': (d) => fnum(d, true),
+    'date': (d) => formatDate(d),
+    'icon': (strValue, props) => <><Icon icon={strValue} className={'size-8'} {...props}/> <span>{strValue}</span></>,
     'color': (strValue, map) => <>
         <div style={{borderRadius: '1000px', height: '10px', width: '10px', backgroundColor: map?.[strValue] || strColorMap[strValue] || strColorMap.default}} />
         <div>{strValue}</div>

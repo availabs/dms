@@ -1,5 +1,5 @@
 import React, {Fragment, useContext, useEffect, useState} from "react";
-import {useParams, useNavigate, useSearchParams} from "react-router-dom";
+import {useParams, useNavigate, useSearchParams} from "react-router";
 import {dmsDataLoader} from "../../../../api";
 import {getConfig} from "./index";
 import { Layout } from "../../ui";

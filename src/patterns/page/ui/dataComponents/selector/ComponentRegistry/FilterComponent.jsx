@@ -1,16 +1,11 @@
-import React, {useState, useEffect, createContext, useMemo, useRef} from 'react'
-
-import {RenderFilters} from "./shared/filters/RenderFilters";
-import {DataSourceSelector} from "./DataSourceSelector";
-import {Controls} from "../dataWrapper/components/Controls";
-import {useImmer} from "use-immer";
+import React, {useEffect, useContext} from 'react'
 import {isJson} from "../dataWrapper/utils/utils";
-const FilterComponentContext = React.createContext({});
+import {ComponentContext} from "~/modules/dms/src/patterns/page/siteConfig";
 
 const initialState = {
     columns: [], // {name, filters: []}
     display: {
-        allowSearchParams: false,
+        usePageFilters: false,
     },
     sourceInfo: {
         columns: [],
@@ -22,10 +17,9 @@ const initialState = {
     }
 }
 
-const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, renderCard}) => {
+const Edit = ({value, onChange}) => {
     const isEdit = Boolean(onChange);
-    const [state, setState] = useImmer(isJson(value) ? JSON.parse(value) : initialState);
-
+    const {state} = useContext(ComponentContext);
     // =========================================== saving settings begin ===============================================
     useEffect(() => {
         if (!isEdit) return;
@@ -33,40 +27,17 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, renderCard}) => 
     }, [state])
     // =========================================== saving settings end =================================================
 
-    return (
-        <FilterComponentContext.Provider value={{state, setState, controls: {
-            columns: [{type: 'toggle', label: 'Filter', key: 'filters', trueValue: [{type: 'internal', operation: 'filter', values: []}]}]
-        }
-        }}>
-            <div className={'w-full h-full min-h-[50px]'}>
-                <DataSourceSelector apiLoad={apiLoad} app={pageFormat?.app}
-                                    state={state} setState={setState} // passing as props as other components will use it as well.
-                />
-                { isEdit ? <Controls context={FilterComponentContext} /> : null }
-
-                <div className={'w-full pt-2 flex justify-end gap-2'}>
-                    <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={isEdit} defaultOpen={true} />
-                </div>
-            </div>
-        </FilterComponentContext.Provider>
-    )
+    return (<></>)
 }
 
-const View = ({value, onChange, size, apiLoad, apiUpdate, renderCard, ...rest}) => {
-    const isEdit = false;
-    const [state, setState] = useImmer(isJson(value) ? JSON.parse(value) : initialState);
+const View = ({value}) => {
+    const {state, setState} = useContext(ComponentContext);
 
     useEffect(() => {
         setState(isJson(value) ? JSON.parse(value) : initialState)
     }, [value]);
 
-    return (
-            <div className={'w-full h-full min-h-[50px]'}>
-                <div className={'w-full pt-2 flex justify-end gap-2'}>
-                    <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={isEdit} defaultOpen={true} showNavigate={true}/>
-                </div>
-            </div>
-)
+    return (<></>)
 }
 
 Edit.settings = {
@@ -78,6 +49,9 @@ export default {
     "name": 'Filter',
     "type": 'filter',
     "variables": [],
+    controls: {
+        columns: [{type: 'toggle', label: 'Filter', key: 'filters', trueValue: [{type: 'internal', operation: 'filter', values: []}]}]
+    },
     "EditComp": Edit,
     "ViewComp": View
 }

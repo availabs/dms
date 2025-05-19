@@ -1,12 +1,11 @@
 import React, {useContext, useMemo} from "react";
-import {ComponentContext} from "../../dataWrapper";
 import TableHeaderCell from "../spreadsheet/components/TableHeaderCell";
 import {getColorRange, GraphComponent} from "./GraphComponent";
 import AppearanceControls from "./controls/AppearanceControls";
-import {isEqualColumns} from "../../dataWrapper/utils/utils";
-import {cloneDeep} from "lodash-es";
-import {Copy} from "../../../../icons";
+import {fnumIndex} from "../../dataWrapper/utils/utils";
 import {duplicateControl} from "../shared/utils";
+import {CMSContext, ComponentContext} from "../../../../../siteConfig";
+import {isEqual} from "lodash-es";
 
 const NaNValues = ["", null]
 
@@ -15,20 +14,35 @@ const strictNaN = v => {
     return isNaN(v);
 }
 
-const defaultTheme = ({
+export const graphTheme = ({
+    text: 'font-regular text-[12px]',
+    darkModeText: 'bg-transparent text-white',
     headerWrapper: 'grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-x-1 gap-y-0.5',
-    columnControlWrapper: `px-1 font-semibold border bg-gray-50 text-gray-500`
+    columnControlWrapper: `px-1 font-semibold border bg-gray-50 text-gray-500`,
+    scaleWrapper: 'flex rounded-md p-1 divide-x border w-fit',
+    scaleItem: 'font-semibold text-gray-500 hover:text-gray-700 px-2 py-1'
 })
 
+// export const graphTheme = ({
+//     text: 'font-regular text-[12px] flex flex-row flex-row-reverse',
+//     headerWrapper: 'grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-x-1 gap-y-0.5',
+//     columnControlWrapper: `px-1 font-semibold border bg-gray-50 text-gray-500`,
+//
+//     scaleWrapper: 'flex rounded-[8px] divide-x border w-fit border-[#E0EBF0] overflow-hidden',
+//     scaleItem: 'px-[12px] py-[7px] font-[Oswald] font-medium text-[12px] text-[#2D3E4C] text-center leading-[100%] tracking-[0px] uppercase cursor-pointer',
+//     scaleItemActive: 'bg-white',
+//     scaleItemInActive: 'bg-[#F3F8F9]',
+// })
+
 const Graph = ({isEdit}) => {
-    const {state:{columns, data, display}} = useContext(ComponentContext);
+    const {state:{columns, data, display}, setState} = useContext(ComponentContext);
+    const { theme = { graph: graphTheme } } = React.useContext(CMSContext) || {};
     // data is restructured into: index, type, value.
     // index is X axis column's values.
     // type is either category column's values or Y axis column's display name or name.
     const indexColumn = useMemo(() => columns.find(({xAxis}) => xAxis) || {}, [columns]);
     const dataColumns = useMemo(() => columns.filter(({yAxis}) => yAxis) || [], [columns]);
     const categoryColumn = useMemo(() => columns.find(({categorize}) => categorize) || {}, [columns]);
-    const {headerWrapper, columnControlWrapper} = defaultTheme;
 
     const graphData = useMemo(() => {
         const tmpData = [];
@@ -39,13 +53,30 @@ const Graph = ({isEdit}) => {
                 const value = row[dataColumn.normalName || dataColumn.name];
                 const type = categoryColumn.name ? row[categoryColumn.name] : (dataColumn.customName || dataColumn.display_name || dataColumn.name)
 
-                if(!strictNaN(value) && type){
+                if(!strictNaN(value) && type && (!display.isLog || value > 0)){
                     tmpData.push({index, type, value, aggMethod: dataColumn.fn});
                 }
             })
         })
+
+        setState(draft => {
+            const newDomain = [...new Set(tmpData.map(d => d.index))]
+            if(!display.useCustomXDomain && !isEqual(draft.display.xDomain, newDomain)){
+                draft.display.xDomain = newDomain;
+            }
+        })
+        if(display.useCustomXDomain && display.xDomain){
+            (display.xDomain)
+                .forEach((domainIdx, i) => {
+                    if(!tmpData.some(d => d.index === domainIdx)){
+                        tmpData.splice(i, 0, {index: domainIdx, value: 0, aggMethod: dataColumns[0]?.fn})
+                    }
+                })
+
+            return tmpData.filter(t => display.xDomain.some(tick => t.index === tick))
+        }
         return tmpData
-        }, [indexColumn, dataColumns.length, categoryColumn, data])
+        }, [indexColumn, dataColumns.length, categoryColumn, data, display.useCustomXDomain, display.xDomain])
 
     const colorPaletteSize = categoryColumn.name ? (new Set(data.map(item => item[categoryColumn.name]))).size : dataColumns.length
 
@@ -54,13 +85,20 @@ const Graph = ({isEdit}) => {
         value: [...getColorRange(colorPaletteSize < 20 ? colorPaletteSize : 20, "div7")]
     }), [colorPaletteSize])
 
+    const indexTotals = graphData.reduce((acc, curr) => {
+        acc[curr.index] = (acc[curr.index] || 0) + (+curr.value || 0);
+        return acc;
+    },{})
+    const maxIndexValue = Math.max(...Object.values(indexTotals));
+    const stopPoints = [0.75, 0.5, 0.05];
+    const stopValues = stopPoints.map(p => maxIndexValue * p)
 
     return (
         <>
             {
-                isEdit ? <div className={headerWrapper}>
+                isEdit ? <div className={theme.graph.headerWrapper}>
                     {[indexColumn, ...dataColumns].filter(f => f.name).map((attribute, i) =>
-                        <div key={`controls-${i}`} className={columnControlWrapper}>
+                        <div key={`controls-${i}`} className={theme.graph.columnControlWrapper}>
                             <TableHeaderCell
                                 isEdit={isEdit}
                                 attribute={attribute}
@@ -68,6 +106,27 @@ const Graph = ({isEdit}) => {
                         </div>)}
                 </div> : null
             }
+            {display.showScaleFilter ? <div className={theme.graph.scaleWrapper}>
+                <div
+                    className={`${theme.graph.scaleItem} ${!display?.upperLimit ? theme.graph.scaleItemActive : theme.graph.scaleItemInActive}`}
+                    onClick={() => setState(draft => {
+                        draft.display.upperLimit = undefined
+                    })}>
+                    Max
+                </div>
+                {
+                    stopValues.map(stopValue => (
+                        <div
+                            key={stopValue}
+                            className={`${theme.graph.scaleItem} ${display?.upperLimit === stopValue ? theme.graph.scaleItemActive : theme.graph.scaleItemInActive}`}
+                            onClick={() => setState(draft => {
+                                draft.display.upperLimit = stopValue
+                            })}>
+                            {fnumIndex(stopValue, 0)}
+                        </div>
+                    ))
+                }
+            </div> : null}
             <GraphComponent
             graphFormat={ {...display, colors} }
             activeGraphType={{GraphComp: display.graphType} }

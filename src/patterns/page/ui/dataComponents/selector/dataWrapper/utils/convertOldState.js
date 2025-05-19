@@ -1,5 +1,11 @@
-import {getFilters} from "../../ComponentRegistry/shared/filters/utils";
-import {isJson} from "./utils";
+const isJson = (str)  => {
+    try {
+        JSON.parse(str);
+    } catch (e) {
+        return false;
+    }
+    return true;
+}
 
 export const convertOldState = (state, initialState) => {
     const oldState = isJson(state) ? JSON.parse(state) : {};
@@ -15,22 +21,29 @@ export const convertOldState = (state, initialState) => {
             externalFilter: undefined,
             ...oldFilters.includes(column.name) && {
                 filters: [
-                    Array.isArray(column.internalFilter) ? {type: 'internal', operation: 'filter', values: column.internalFilter, allowSearchParams: oldState.display?.allowSearchParams, searchParamKey: column.name} : null,
-                    Array.isArray(column.externalFilter) ? {type: 'external', operation: 'filter', values: column.externalFilter, allowSearchParams: oldState.display?.allowSearchParams, searchParamKey: column.name} : null,
-                    Array.isArray(column.internalExclude) ? {type: 'internal', operation: 'exclude', values: column.internalExclude, allowSearchParams: oldState.display?.allowSearchParams, searchParamKey: column.name} : null,
+                    Array.isArray(column.internalFilter) ? {type: 'internal', operation: 'filter', values: column.internalFilter, usePageFilters: oldState.display?.allowSearchParams, searchParamKey: column.name} : null,
+                    Array.isArray(column.externalFilter) ? {type: 'external', operation: 'filter', values: column.externalFilter, usePageFilters: oldState.display?.allowSearchParams, searchParamKey: column.name} : null,
+                    Array.isArray(column.internalExclude) ? {type: 'internal', operation: 'exclude', values: column.internalExclude, usePageFilters: oldState.display?.allowSearchParams, searchParamKey: column.name} : null,
                 ].filter(f => f)
             }
         }))
-        if(oldState.columns.find(c => Array.isArray(c.filters) && c.filters?.find(f => f.allowSearchParams))) oldState.data = [];
+        if(oldState.columns.find(c => Array.isArray(c.filters) && c.filters?.find(f => f.usePageFilters || f.allowSearchParams))) oldState.data = [];
         return oldState;
     }
     if(oldState?.dataRequest) {
-        if(oldState.columns.find(c => Array.isArray(c.filters) && c.filters?.find(f => f.allowSearchParams))) oldState.data = [];
+        oldState.columns = oldState.columns.map(column => {
+            if(column.filters?.length){
+                column.filters = column.filters.map(f => ({...f, usePageFilters: f.usePageFilters || f.allowSearchParams}))
+                return column;
+            }
+            return column
+        })
+        if(oldState.columns.find(c => Array.isArray(c.filters) && c.filters?.find(f => f.usePageFilters))) oldState.data = [];
+        // if(oldState.display.useCache === undefined) oldState.display.useCache = true;
         return oldState; // return already valid state.}
     }
 
     if(!Array.isArray(oldState?.attributes)) {
-        console.log('oldState', oldState);
         return initialState
     };
 
@@ -52,7 +65,7 @@ export const convertOldState = (state, initialState) => {
     })).filter(({show, group}) => show || group);
     const display = {
         pageSize: oldState.pageSize,
-        allowSearchParams: oldState.allowSearchParams,
+        usePageFilters: oldState.usePageFilters || oldState.allowSearchParams,
         loadMoreId: oldState.loadMoreId,
         showTotal: oldState.showTotal,
         striped: oldState.striped,

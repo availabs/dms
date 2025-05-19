@@ -91,7 +91,13 @@ const RenderItems = ({items, query, theme}) => Object.keys(items).length ? (
 
                         <div className={theme.sectionsWrapper}>
                             {/*sections*/}
-                            {(items[page_id].sections || []).map(({
+                            {(items[page_id].sections || [])
+                                .filter(({section_title, tags}) => {
+                                    // only include search results that matches
+                                    return (tags && tags.toLowerCase().includes(query.toLowerCase())) ||
+                                        (section_title && section_title.toLowerCase().includes(query.toLowerCase()))
+                                })
+                                .map(({
                                                                       section_id,
                                                                       section_title,
                                                                       tags = '',

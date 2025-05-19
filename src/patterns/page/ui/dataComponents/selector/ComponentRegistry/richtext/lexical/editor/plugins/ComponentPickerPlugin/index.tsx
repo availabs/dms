@@ -36,6 +36,7 @@ import * as ReactDOM from 'react-dom';
 
 import useModal from '../../hooks/useModal';
 import {INSERT_COLLAPSIBLE_COMMAND} from '../CollapsiblePlugin';
+import {INSERT_COLLAPSIBLE_NO_PREVIEW_COMMAND} from '../CollapsibleNoPreviewPlugin';
 import {InsertButtonDialog} from '../ButtonPlugin';
 import {INSERT_INLINE_IMAGE_COMMAND, InsertInlineImageDialog} from '../InlineImagePlugin';
 import InsertLayoutDialog from '../LayoutPlugin/InsertLayoutDialog';
@@ -256,6 +257,12 @@ function getBaseOptions(editor: LexicalEditor, showModal: ShowModal) {
             keywords: ['collapse', 'collapsible', 'toggle'],
             onSelect: () =>
                 editor.dispatchCommand(INSERT_COLLAPSIBLE_COMMAND, undefined),
+        }),
+        new ComponentPickerOption('Collapsible No Preview', {
+            icon: <i className={`${theme.typeaheadPopover.ul.li.icon} ${theme.icon.caretRight}`}/>,
+            keywords: ['collapse', 'collapsible', 'toggle'],
+            onSelect: () =>
+                editor.dispatchCommand(INSERT_COLLAPSIBLE_NO_PREVIEW_COMMAND, undefined),
         }),
         new ComponentPickerOption('Columns Layout', {
             icon: <i className={`${theme.typeaheadPopover.ul.li.icon} ${theme.icon.columns}`}/>,

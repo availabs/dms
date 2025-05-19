@@ -3,7 +3,7 @@ import { FormsContext } from '../siteConfig'
 import SourcesLayout from "../components/patternListComponent/layout";
 import {DeleteModal, Modal} from "../../page/ui";
 import { cloneDeep } from "lodash-es";
-import {useNavigate} from "react-router-dom";
+import {useNavigate} from "react-router";
 const buttonRedClass = 'p-2 mx-1 bg-red-500 hover:bg-red-700 text-white rounded-md';
 const buttonGreenClass = 'p-2 mx-1 bg-green-500 hover:bg-green-700 text-white rounded-md';
 

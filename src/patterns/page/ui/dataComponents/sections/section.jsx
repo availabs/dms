@@ -1,30 +1,25 @@
-import React, {Fragment, useState, useLayoutEffect, useRef, useEffect} from "react"
-//import { useLocation } from 'react-router-dom';
-import { isEqual } from "lodash-es"
-import { Combobox } from '@headlessui/react'
-import { Link } from "react-router-dom";
-import { usePopper } from 'react-popper'
-import { CMSContext } from '../../../siteConfig'
+import React, {createContext, Fragment, useRef, useState} from "react"
+//import { useLocation } from 'react-router';
+import {isEqual} from "lodash-es"
+import {Combobox} from '@headlessui/react'
+import {Link} from "react-router";
+import {usePopper} from 'react-popper'
+import {CMSContext} from '../../../siteConfig'
 import {convert} from './convertToSpreadSheet'
 import {
-    SquarePlus,
-    InfoCircle,
-    TrashCan,
-    RemoveCircle,
     CancelCircle,
-    FloppyDisk,
-    CirclePlusDot,
-    PencilSquare,
-    ArrowDownSquare,
-    ArrowUpSquare,
     ChevronDownSquare,
     ChevronUpSquare,
+    Copy,
+    FloppyDisk,
     InfoSquare,
     MoreSquare,
+    PencilSquare,
+    RemoveCircle,
     Tags,
-    Copy
+    TrashCan
 } from '../../icons'
-import { Modal, Popover, Button, Icon, Menu, Label } from "../../";
+import {Button, Icon, Label, Menu, Modal, Popover} from "../../";
 
 const isJson = (str)  => {
     try {
@@ -33,11 +28,6 @@ const isJson = (str)  => {
         return false;
     }
     return true;
-}
-
-
-export const sectionTheme = {
-
 }
 
 export function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, onRemove, siteType, apiLoad, apiUpdate, format}) {
@@ -58,7 +48,7 @@ export function SectionEdit ({value, i, onChange, attributes, size, onCancel, on
     let TagsComp = attributes?.tags?.EditComp
     let ElementComp = attributes?.element?.EditComp
     let HelpComp = attributes?.helpText?.EditComp
-    // console.log('props in sectionEdit', siteType)
+
     return (
         <div className={``}>
             {/* -------------------top line buttons ----------------------*/}
@@ -143,7 +133,7 @@ export function SectionEdit ({value, i, onChange, attributes, size, onCancel, on
                 {sectionTitleCondition && (
                     <div className='flex h-[50px]'>
                         <div className='flex'>
-                            <TitleComp //todo make it blue if H!
+                            <TitleComp
                                 className={`p-2 w-full font-sans font-medium text-md  ${
                                     (value?.['level']) === '1' ?
                                         `text-blue-500 font-bold text-xl tracking-wider py-1 pl-1` :
@@ -161,10 +151,12 @@ export function SectionEdit ({value, i, onChange, attributes, size, onCancel, on
                     </div>
                 )}
                 <div className={''}>
+                    {/* controls */}
+
                     <ElementComp
                         value={value?.['element']}
                         onChange={(v) => updateAttribute('element', v)}
-                        handlePaste={(e, setKey) => handlePaste(e, setKey, value, onChange)}
+                        handlePaste={(e, setKey, setState) => handlePaste(e, setKey, setState, value, onChange)}
                         size={size}
                         siteType={siteType}
                         apiLoad={apiLoad}
@@ -219,7 +211,7 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
     const hideDebug = true
     let TitleComp = attributes?.title?.ViewComp
     let TagsComp = attributes?.tags?.ViewComp 
-    let ElementComp = attributes?.element?.ViewComp
+    let ElementComp = attributes?.element?.ViewComp // selector
     let HelpComp = attributes?.helpText?.ViewComp
     let helpTextCondition = value?.['helpText'] && !(
         (value?.['helpText']?.root?.children?.length === 1 && value?.['helpText']?.root?.children?.[0]?.children?.length === 0) || // empty child
@@ -240,8 +232,7 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
                 pageFormat={format}
             />
         )
-    }, 
-    [value])
+    }, [value])
     if(!value?.element?.['element-type'] && !value?.element?.['element-data']) return null;
     const sectionMenuItems = [
       { icon: 'PencilSquare', name: 'Edit', onClick: onEdit },
@@ -399,7 +390,7 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
                 {/* -------------------END top line buttons ----------------------*/}
                 {/* -------------------Section Header ----------------------*/}
                 {(sectionTitleCondition || interactCondition) && (
-                    <div className={`flex w-full min-h-[50px] items-center  pb-2 ${false && 'border border-dashed border-pink-500'}`}>
+                    <div className={`flex w-full min-h-[50px] items-center  pb-2 ${value?.['title'] ? '' : 'absolute top-2 -right-2 -left-2 pointer-events-none'} ${false && 'border border-dashed border-pink-500'}`}>
 
                         <div id={`#${value?.title?.replace(/ /g, '_')}`}
                              className={`flex-1 flex flex-row pb-2 font-display font-medium uppercase scroll-mt-36 items-center ${sectionTitleCondition ? '' : 'invisible'}`}>
@@ -409,26 +400,29 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
                                     value={value?.['title']}
                                 />
                             </div>
+                            <div className='flex item-center h-full pointer-events-auto'>
                             {value?.['tags']?.length ? 
-                            (<Popover button={
-                                <div className='p-2 border border-[#E0EBF0] rounded-full'>
-                                    <Tags className='text-slate-400 hover:text-blue-500 size-4' title="Tags"/>
-                                </div>
-                                }>
-                                <TagComponent
-                                    
-                                    className='p-2 flex-0'
-                                    value={value?.['tags']}
-                                    placeholder={'Add Tag...'} 
-                                    onChange={(v) => updateAttribute('tags', v)}
-                                />
-                            </Popover>) : null}
-                                    
-                            {helpTextCondition && (
-                                <Popover button={<InfoSquare className='text-blue-400 hover:text-blue-500 w-[24px] h-[24px]' title="Move Up"/>}>
-                                    <HelpComp value={value?.['helpText']} />
-                                </Popover>)
+                            
+                                (<Popover button={
+                                    <div className='p-2 border border-[#E0EBF0] rounded-full'>
+                                        <Tags className='text-slate-400 hover:text-blue-500 size-4' title="Tags"/>
+                                    </div>
+                                    }>
+                                    <TagComponent
+                                        
+                                        className='p-2 flex-0'
+                                        value={value?.['tags']}
+                                        placeholder={'Add Tag...'} 
+                                        onChange={(v) => updateAttribute('tags', v)}
+                                    />
+                                </Popover>) : null}
+                                        
+                                {helpTextCondition && (
+                                    <Popover button={<InfoSquare className='text-blue-400 hover:text-blue-500 w-[24px] h-[24px]' title="Move Up"/>}>
+                                        <HelpComp value={value?.['helpText']} />
+                                    </Popover>)
                             }
+                            </div>
                             
                         </div>
 
@@ -602,7 +596,7 @@ function TagComponent ({value, placeholder, onChange, edit=false}) {
 
 }
 
-const handlePaste = async (e, setKey, value, onChange, ) => {
+const handlePaste = async (e, setKey, setState, value, onChange) => {
     e.preventDefault();
     try{
         const text = await navigator.clipboard.readText();
@@ -610,6 +604,7 @@ const handlePaste = async (e, setKey, value, onChange, ) => {
 
         if(!copiedValue || !copiedValue['element']?.['element-type']) return;
         setKey(copiedValue['element']['element-type']) // mainly for lexical so it updates with value
+        setState(JSON.parse(copiedValue['element']['element-data'])) // state inits with element-data from prop. need to update on paste.
         const pastedValue = {}
 
         Object.keys(copiedValue)

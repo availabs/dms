@@ -1,5 +1,5 @@
 import React, {useState, useEffect} from 'react'
-import {createBrowserRouter, Outlet, RouterProvider} from "react-router-dom";
+import {createBrowserRouter, Outlet, RouterProvider} from "react-router";
 
 //import {  adminConfig } from "./modules/dms/src/"
 import { dmsDataLoader, dmsPageFactory, registerDataType } from '../../'
@@ -54,7 +54,8 @@ function pattern2routes (siteData, props) {
         themes = { default: {} },
         pgEnvs = ['hazmit_dama'],
         falcor,
-        API_HOST = 'https://graph.availabs.org'
+        API_HOST = 'https://graph.availabs.org',
+        damaBaseUrl
     } = props
 
     const patterns = siteData.reduce((acc, curr) => [...acc, ...(curr?.patterns || [])], []) || [];
@@ -132,6 +133,7 @@ function pattern2routes (siteData, props) {
                             themes,
                             useFalcor,
                             API_HOST,
+                            damaBaseUrl
                             //rightMenu: <div>RIGHT</div>,
                         });
                         return ({...dmsPageFactory(configObj, authWrapper)})
@@ -171,6 +173,7 @@ export function DmsSite ({
     falcor,
     pgEnvs=['hazmit_dama'],
     API_HOST = 'https://graph.availabs.org',
+    damaBaseUrl,
     routes = []
 }) {
     //-----------
@@ -186,7 +189,8 @@ export function DmsSite ({
                 falcor,
                 API_HOST,
                 authWrapper,
-                pgEnvs
+                pgEnvs,
+                damaBaseUrl
                 //theme   
             }) 
             : []
@@ -202,7 +206,8 @@ export function DmsSite ({
                 falcor,
                 API_HOST,
                 authWrapper,
-                pgEnvs
+                pgEnvs,
+                damaBaseUrl
                 //theme   
             });
             console.timeEnd('dmsSiteFactory')
@@ -217,10 +222,11 @@ export function DmsSite ({
         Component: () => (<div className={'w-screen h-screen flex items-center bg-blue-50'}>404</div>)
     }
 
-    //console.log('routes',  dynamicRoutes)
+    console.log('routes',  dynamicRoutes, routes)
 
     return (
-        <RouterProvider router={createBrowserRouter([
+        <RouterProvider 
+            router={createBrowserRouter([
             ...dynamicRoutes,
             ...routes,
             PageNotFoundRoute

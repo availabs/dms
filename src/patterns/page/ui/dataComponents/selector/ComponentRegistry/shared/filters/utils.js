@@ -36,8 +36,9 @@ export const getData = async ({format, apiLoad,
             fromIndex: path => fromIndex,
             toIndex: path => toIndex,
             options: JSON.stringify({
-                filter: filterBy,
+                ...filterBy,
                 // exclude: {[attribute]: ['null']},
+                orderBy: {1: 'asc nulls last'},
                 meta,
                 keepOriginalValues: true
             }),
@@ -65,7 +66,7 @@ export const getLength = async ({format, apiLoad, groupBy= [], filterBy}) =>{
         },
         action: 'udaLength',
         path: '/',
-        filter: {options: JSON.stringify({filter: filterBy, groupBy})},
+        filter: {options: JSON.stringify({...filterBy, groupBy})},
     }]
     return await apiLoad({
         app: format.app,

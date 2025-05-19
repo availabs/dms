@@ -4,7 +4,7 @@ import { CMSContext } from '../../../siteConfig';
 import { Icon, Input } from '../../'
 
 export const menuTheme = {
-  menuItems: 'absolute right-0 z-40 -mr-1 mt-1 w-64 p-1 origin-top-left rounded-md bg-white shadow-lg ring-1 ring-black/5 transition focus:outline-none data-[closed]:scale-95 data-[closed]:transform data-[closed]:opacity-0 data-[enter]:duration-50 data-[leave]:duration-75 data-[enter]:ease-out data-[leave]:ease-in'
+  menuItems: 'absolute z-40 -mr-1 mt-1 w-64 p-1 origin-top-left rounded-md bg-white shadow-lg ring-1 ring-black/5 transition focus:outline-none data-[closed]:scale-95 data-[closed]:transform data-[closed]:opacity-0 data-[enter]:duration-50 data-[leave]:duration-75 data-[enter]:ease-out data-[leave]:ease-in'
 }
 
 const NOOP = () => {}
@@ -18,7 +18,7 @@ const defaultItems = [
 const SimpleItem = forwardRef(({item}, ref) => (
     <div
       onClick={item?.onClick}
-      className="cursor-pointer flex items-center rounded-lg py-2 text-sm text-gray-700 data-[focus]:bg-gray-100 data-[focus]:text-gray-900 data-[focus]:outline-none"
+      className="cursor-pointer flex items-center rounded-lg py-2 text-sm text-gray-700 data-[focus]:bg-gray-100 data-[focus]:text-gray-900 data-[focus]:outline-none hover:bg-gray-100"
     >
       <div className='px-2'><Icon icon={item?.icon || 'Blank'} className='size-5'/></div>
       <div className=''>{item?.name}</div>
@@ -30,11 +30,11 @@ const SubMenuItem = forwardRef(({item}, ref) => (
   
     <div
       onClick={item.onClick}
-      className="cursor-pointer flex items-center rounded-lg py-2 text-sm text-gray-700 data-[focus]:bg-gray-100 data-[focus]:text-gray-900 data-[focus]:outline-none"
+      className="cursor-pointer flex items-center rounded-lg py-2 text-sm text-gray-700 data-[focus]:bg-gray-100 data-[focus]:text-gray-900 data-[focus]:outline-none hover:bg-gray-100"
     >
       <div className='px-2'><Icon icon={item.icon} className='size-5'/></div>
       <div className='flex-1'>{item.name}</div>
-      <MenuComp items={item.items}>
+      <MenuComp items={item.items} zIndex={'z-50'} origin='right-0'>
         <div className='px-4 text-sm text-slate-300 flex items-center'>
           <div>{item.value}</div>
           <div><Icon icon='ArrowRight'/></div>
@@ -66,41 +66,34 @@ const ItemTypes = {
   'seperator': Seperator,
   'input': InputItem
 }
-
-export default function MenuComp ({ children, items=defaultItems }) {
+// left-8 -top-2
+export default function MenuComp ({ children, items=defaultItems, zIndex=40, origin='right-0' }) {
+  const [open, setOpen] = React.useState(false)
   const { theme = { menu: menuTheme } } = React.useContext(CMSContext) || {}
+  
   return (
-    <div className="z-50">
-      <Menu as="div" className="relative block ">
-        {
-          ({open}) => (
-              <>
-                <MenuButton as="div" className="">
-                  <span className="sr-only">Open options</span>
-                  {children}
-                </MenuButton>
-                <MenuItems
-                    static
-                    transition
-                    className={!open ? `hidden pointer-events-none` : theme.menu.menuItems}
-                    modal={false}
-                >
-                  <div className="py-1">
-                    {
-                      items.map((item, i) => {
-                            if(!item) {
-                              console.log('<MenuComp> item not found')
-                            }
-                            const ItemComp = ItemTypes?.[item?.type] || ItemTypes['simple']
-                            return  <MenuItem key={i}><ItemComp item={item} /></MenuItem>
-                          }
-                      )}
-                  </div>
-                </MenuItems>
-              </>
-          )
-        }
-      </Menu>
+      <div className={`relative block `}>
+        <div className="" onClick={() => setOpen(!open)}>
+          <span className="sr-only">Open options</span>
+          {children}
+        </div>
+        <div
+
+            className={!open ? `hidden pointer-events-none` : `${theme.menu.menuItems} ${origin} ${zIndex}`}
+            
+        >
+          <div className="py-1">
+            {
+              items
+                .filter(d => d)
+                .map((item, i) => {   
+                    const ItemComp = ItemTypes?.[item?.type] || ItemTypes['simple']
+                    return  <ItemComp  key={i} item={item} />
+                })
+            }
+          </div>
+        
+        </div>
     </div>
   )
 }

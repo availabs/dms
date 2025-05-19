@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react'
-import { Link, useSubmit, useLocation } from "react-router-dom";
+import { Link, useSubmit, useLocation } from "react-router";
 import { Dialog  } from '@headlessui/react'
 import { Modal } from "../../../ui"
 import { json2DmsForm, getUrlSlug, toSnakeCase } from '../../_utils'

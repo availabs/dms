@@ -1,7 +1,7 @@
 import React from "react";
 import { merge } from "lodash-es"
 import { cloneDeep } from "lodash-es";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 
 import TopNav from './nav/Top';
 import SideNav from './nav/Side';

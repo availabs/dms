@@ -1,57 +1,28 @@
-import React, {useState, useEffect, createContext, useMemo, useRef} from 'react'
+import React, {useState, useEffect, useMemo, useRef, useCallback, useContext} from 'react'
 import writeXlsxFile from 'write-excel-file';
 import {Pagination} from "../ComponentRegistry/shared/Pagination";
 import {getData} from "./utils/utils";
 import {RenderFilters} from "../ComponentRegistry/shared/filters/RenderFilters";
 import {Attribution} from "../ComponentRegistry/shared/Attribution";
-import {DataSourceSelector} from "../ComponentRegistry/DataSourceSelector";
-import {Controls} from "./components/Controls";
 import { isEqual } from "lodash-es";
 import { v4 as uuidv4 } from 'uuid';
-import {useImmer} from "use-immer";
 import {convertOldState} from "./utils/convertOldState";
-import {Download, LoadingHourGlass} from "../../../icons";
 import {useHandleClickOutside} from "../ComponentRegistry/shared/utils";
+import {Icon} from "../../../index";
+import {ComponentContext} from "../../../../../page/siteConfig";
 
-export const ComponentContext = createContext({});
-
-const initialState = defaultState => {
-    if(defaultState) return defaultState;
-
-    return {
-        // user controlled part
-        columns: [
-            //     visible columns or Actions
-            //     {name, display_name, custom_name,
-            //      justify, width, fn,
-            //      groupBy: t/f, orderBy: t/f, excludeNull: t/f, openOut: t/f,
-            //      formatFn, fontSize, hideHeader, cardSpan,
-            //      isLink: t/f, linkText: ‘’, linkLocation: ‘’, actionName, actionType, icon,
-            //      }
-        ],
-        display: {
-            allowSearchParams: false,
-            usePagination: true,
-            pageSize: 5,
-            totalLength: 0,
-            showGutters: false,
-            transform: '', // transform fn to be applied
-            loadMoreId:`id${uuidv4()}`,
-            showAttribution: true,
-        },
-        // wrapper controlled part
-        dataRequest: {},
-        data: [],
-        sourceInfo: {
-            columns: [],
-            // pgEnv,
-            // source_id
-            // view_id
-            // version,
-            // doc_type, type -- should be the same
-        }
-    }
-}
+const getCurrDate = () => {
+    const options = {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false
+    };
+    return new Date().toLocaleDateString(undefined, options);
+};
 
 const triggerDownload = async ({state, apiLoad, loadAllColumns, setLoading}) => {
     setLoading(true);
@@ -73,7 +44,9 @@ const triggerDownload = async ({state, apiLoad, loadAllColumns, setLoading}) => 
         value: data => data?.[name],
         // ...name === 'url' && {'hyperlink': data => data?.[name]}
     }));
-    const fileName = `${state.sourceInfo.view_name || Date.now()}`;
+
+    const filterStr = Object.keys(state.dataRequest?.filter || {}).length ? JSON.stringify(state.dataRequest.filter) : '';
+    const fileName = `${state.sourceInfo.view_name} - ${filterStr} - ${getCurrDate()}`;
 
     await writeXlsxFile(data, {
         schema,
@@ -88,20 +61,22 @@ const RenderDownload = ({state, apiLoad}) => {
     const [open, setOpen] = React.useState(false);
     const [loading, setLoading] = React.useState(false);
     const menuRef = useRef(null);
-    const menuBtnId = `download-btn`;
-    const Icon = loading ? LoadingHourGlass : Download;
+    const menuBtnId = loading ? `loading` : `download-btn`;
+    const icon = loading ? 'LoadingHourGlass' : 'Download';
     const isGrouping = state.dataRequest?.groupBy?.length;
     useHandleClickOutside(menuRef, menuBtnId, () => setOpen(false));
 
     if(!state.display.allowDownload) return;
     return (
-        <div className={'pt-2'}>
+        <div className={''}>
             <div className={'relative flex flex-col'}>
-                <Icon id={menuBtnId}
-                      className={`p-0.5 inline-flex text-blue-300 hover:text-blue-500 hover:bg-zinc-950/5 rounded-md ${loading ? 'hover:cursor-wait' : 'hover:cursor-pointer'} transition ease-in-out duration-200`}
-                      onClick={() => {!loading && setOpen(!open)}}
-                      title={loading ? 'Processing...' : 'Excel Download'}
-                      width={20} height={20}/>
+                <div className={'w-fit p-2 border rounded-full '}>
+                    <Icon id={menuBtnId}
+                          icon={icon}
+                          className={`text-slate-400 hover:text-blue-500 size-4 ${loading ? 'hover:cursor-wait' : 'hover:cursor-pointer'} transition ease-in-out duration-200`}
+                          onClick={() => {!loading && setOpen(!open)}}
+                          title={loading ? 'Processing...' : 'Excel Download'} />
+                </div>
                 <div ref={menuRef} className={open ? 'absolute right-0 mt-4 p-0.5 text-xs text-nowrap select-none bg-white shadow-lg rounded-md z-[10]' : 'hidden'}>
                     <div className={`px-1 py-0.5 hover:bg-blue-50 ${loading ? 'hover:cursor-wait' : 'hover:cursor-pointer'} rounded-md`} onClick={() => {
                         setOpen(false);
@@ -122,9 +97,10 @@ const RenderDownload = ({state, apiLoad}) => {
 }
 
 
-const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, component, hideSourceSelector}) => {
+const Edit = ({value, onChange, pageFormat, apiUpdate, component, hideSourceSelector}) => {
     const isEdit = Boolean(onChange);
-    const [state, setState] = useImmer(convertOldState(value, initialState(component.defaultState)));
+    // const [state, setState] = useImmer(convertOldState(value, initialState(component.defaultState)));
+    const {state, setState, apiLoad} = useContext(ComponentContext);
     const [loading, setLoading] = useState(false);
     const [newItem, setNewItem] = useState({})
     const [currentPage, setCurrentPage] = useState(0);
@@ -132,6 +108,7 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, component, hideS
     const Comp = useMemo(() => component.EditComp, [component]);
     // ========================================= init comp begin =======================================================
     // useSetDataRequest
+    console.time(`datawrapper edit render time`)
     useEffect(() => {
         // creates data request object
         if(!isValidState) return;
@@ -143,11 +120,11 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, component, hideS
 
             (column.filters || [])
                 .filter(({values}) => Array.isArray(values) && values.every(v => typeof v === 'string' ? v.length : typeof v !== 'object'))
-                .forEach(({type, operation, values}) => {
+                .forEach(({type, operation, values, fn}) => {
                     // here, operation is filter, exclude, >, >=, <, <=.
                     // normal columns only support filter.
                     if(isNormalisedColumn){
-                        (acc.normalFilter ??= []).push({ column: column.name, values });
+                        (acc.normalFilter ??= []).push({ column: column.name, values, operation, fn });
                     }else{
                         acc[operation] = {...acc[operation] || {}, [column.name]: values};
                     }
@@ -184,7 +161,7 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, component, hideS
         return () => {
             isStale = true;
         }
-    }, [state.columns, isValidState])
+    }, [state?.columns, isValidState])
 
     // // ========================================== get data begin =======================================================
     // uweGetDataOnSettingsChange
@@ -222,8 +199,7 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, component, hideS
         isValidState]);
 
     // useGetDataOnPageChange
-    useEffect(() => {
-        // on page change get data request
+    const onPageChange = (currentPage) => {
         if(!isValidState || !component.useGetDataOnPageChange) return;
         // only run when page changes
         let isStale = false;
@@ -236,18 +212,14 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, component, hideS
             }
             setState(draft => {
                 // on page change append data unless using pagination
-                draft.data =  state.display?.usePagination ? data : [...draft.data.filter(r => !r.totalRow), ...data];
+                draft.data =  state.display.usePagination ? data : [...draft.data.filter(r => !r.totalRow), ...data];
                 draft.display.totalLength = length;
             })
             setLoading(false)
         }
 
-        load()
-
-        return () => {
-            isStale = true;
-        }
-    }, [currentPage]);
+        return load()
+    }
 
     // useInfiniteScroll
     useEffect(() => {
@@ -259,6 +231,7 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, component, hideS
                 const hasMore = (currentPage * state.display.pageSize + state.display.pageSize) < state.display.totalLength;
                 if (state.data.length && entries[0].isIntersecting && hasMore) {
                     setCurrentPage(prevPage => prevPage+1)
+                    await onPageChange(currentPage + 1)
                 }
             },
             { threshold: 0 }
@@ -277,7 +250,7 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, component, hideS
 
     // =========================================== saving settings begin ===============================================
     useEffect(() => {
-        if (!isEdit || !isValidState) return;
+        if (!isEdit || !isValidState  || isEqual(value, JSON.stringify(state))) return;
         onChange(JSON.stringify(state));
     }, [state])
     // =========================================== saving settings end =================================================
@@ -285,17 +258,28 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, component, hideS
     // =========================================== util fns begin ======================================================
     const updateItem = (value, attribute, d) => {
         if(!state.sourceInfo?.isDms) return;
-        let dataToUpdate = Array.isArray(d) ? d : [d];
 
-        let tmpData = [...state.data];
-        dataToUpdate.map(dtu => {
-            const i = state.data.findIndex(dI => dI.id === dtu.id);
-            tmpData[i] = dtu;
-        });
-        setState(draft => {
-            draft.data = tmpData
-        });
-        return Promise.all(dataToUpdate.map(dtu => apiUpdate({data: dtu, config: {format: state.sourceInfo}})));
+        if(attribute?.name){
+            setState(draft => {
+                const idx = draft.data.findIndex(draftD => draftD.id === d.id);
+                if(idx !== -1){
+                    draft.data[idx] = {...(draft.data[idx] || {}), ...d, [attribute.name]: value}
+                }
+            })
+            return apiUpdate({data: {...d, [attribute.name]: value},  config: {format: state.sourceInfo}})
+        }else{
+            let dataToUpdate = Array.isArray(d) ? d : [d];
+
+            let tmpData = [...state.data];
+            dataToUpdate.map(dtu => {
+                const i = state.data.findIndex(dI => dI.id === dtu.id);
+                tmpData[i] = dtu;
+            });
+            setState(draft => {
+                draft.data = tmpData
+            });
+            return Promise.all(dataToUpdate.map(dtu => apiUpdate({data: dtu, config: {format: state.sourceInfo}})));
+        }
     }
 
     const addItem = () => {
@@ -314,48 +298,45 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, component, hideS
         return apiUpdate({data: item, config: {format: state.sourceInfo}, requestType: 'delete'})
     }
     // =========================================== util fns end ========================================================
-    return (
-        <ComponentContext.Provider value={{state, setState, apiLoad,
-            compType: component.name.toLowerCase(), // should be deprecated
-            controls: component.controls
-        }}>
-            <div className={'w-full h-full'}>
-                {
-                    !hideSourceSelector ?
-                        <DataSourceSelector apiLoad={apiLoad} app={pageFormat?.app}
-                                            state={state} setState={setState} // passing as props as other components will use it as well.
-                        /> : null
-                }
-                { isEdit ? <Controls /> : null }
 
-                <div className={'w-full pt-2 flex justify-end gap-2'}>
-                    <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={isEdit} defaultOpen={true} />
+
+    const groupByColumnsLength = useMemo(() => state?.columns?.filter(({group}) => group).length, [state?.columns]);
+
+
+    return (
+            <div className={'w-full h-full'}>
+                <div className={'w-full flex items-center place-content-end'}>
+                    {loading ? <Icon id={'loading'}
+                                     icon={'LoadingHourGlass'}
+                                     className={`text-slate-400 hover:text-blue-500 size-4 transition ease-in-out duration-200`} /> :
+                        state.display.invalidState ? <span className={'text-red-500'}>{state.display.invalidState}</span> : null
+                    }
                     <RenderDownload state={state} apiLoad={apiLoad}/>
                 </div>
-                {/*
-                    <span className={'text-xs'}>{loading ? 'loading...' : state.display.invalidState ? state.display.invalidState : null}</span>
-                */}    
                 <Comp isEdit={isEdit}
-                  {...component.name === 'Spreadsheet' && {
+                  {...['Spreadsheet', 'Card'].includes(component.name) && {
                       newItem, setNewItem,
                       updateItem, removeItem, addItem,
-                      currentPage, loading, isEdit
+                      currentPage, loading, isEdit,
+                      allowEdit: state.sourceInfo?.isDms && !groupByColumnsLength
                   }}
                 />
                 <div>
                     {/*Pagination*/}
-                    <Pagination currentPage={currentPage} setCurrentPage={setCurrentPage} showPagination={component.showPagination}/>
+                    <Pagination currentPage={currentPage} setCurrentPage={i => {
+                        setCurrentPage(i)
+                        return onPageChange(i);
+                    }} showPagination={component.showPagination}/>
                     {/*/!*Attribution*!/*/}
                     {state.display.showAttribution ? <Attribution/> : null}
                 </div>
             </div>
-        </ComponentContext.Provider>
     )
 }
 
-const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) => {
+const View = ({value, onChange, size, apiUpdate, component, ...rest}) => {
     const isEdit = false;
-    const [state, setState] = useImmer(convertOldState(value, initialState(component.defaultState)));
+    const {state, setState, apiLoad} = useContext(ComponentContext);
 
     const [newItem, setNewItem] = useState({})
     const [loading, setLoading] = useState(false);
@@ -364,46 +345,58 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
     const showChangeFormatModal = !state?.sourceInfo?.columns;
     const isValidState = state?.dataRequest; // new state structure
     const Comp = useMemo(() => component.ViewComp, [component]);
-
+    // const useCache = state.display.useCache //=== false ? false : true; // false: loads data on load. can be expensive. useCache can be undefined for older components.
+    const setReadyToLoad = useCallback(() => setState(draft => {draft.display.readyToLoad = true}), [setState]);
+    //console.time(`datawrapper view render time`)
     useEffect(() => {
         const newState = convertOldState(value)
         setState(newState)
     }, [value]);
 
-    // ========================================== get data begin =======================================================
-    useEffect(() => {
-        if(!isValidState || !state.readyToLoad) return;
-        let isStale = false;
+    // ====================================== data fetch triggers begin ================================================
+    // filters, sort, page change, draft.readyToFetch
+    // builds an object with filter, exclude, gt, gte, lt, lte, like as keys. columnName: [values] as values
+    const filterOptions = useMemo(() => state.columns.reduce((acc, column) => {
+        const isNormalisedColumn = state.columns.filter(col => col.name === column.name && col.filters?.length).length > 1;
 
-        // builds an object with filter, exclude, gt, gte, lt, lte, like as keys. columnName: [values] as values
-        const filterOptions = state.columns.reduce((acc, column) => {
-            const isNormalisedColumn = state.columns.filter(col => col.name === column.name && col.filters?.length).length > 1;
-
-            (column.filters || [])
-                .filter(({values}) => Array.isArray(values) && values.every(v => typeof v === 'string' ? v.length : typeof v !== 'object'))
-                .forEach(({type, operation, values}) => {
-                    // here, operation is filter, exclude, >, >=, <, <=.
-                    // normal columns only support filter.
-                    if(isNormalisedColumn){
-                        (acc.normalFilter ??= []).push({ column: column.name, values });
-                    }else{
-                        acc[operation] = {...acc[operation] || {}, [column.name]: values};
-                    }
+        (column.filters || [])
+            .filter(({values}) => Array.isArray(values) && values.every(v => typeof v === 'string' ? v.length : typeof v !== 'object'))
+            .forEach(({type, operation, values, fn}) => {
+                // here, operation is filter, exclude, >, >=, <, <=.
+                // normal columns only support filter.
+                if(isNormalisedColumn){
+                    (acc.normalFilter ??= []).push({ column: column.name, values, operation, fn });
+                }else{
+                    acc[operation] = {...acc[operation] || {}, [column.name]: values};
+                }
 
             })
 
-            if(column.excludeNA){
-                acc.exclude = acc.exclude && acc.exclude[column.name] ?
-                    {...acc.exclude, [column.name]: [...acc.exclude[column.name], 'null']} :
-                    {...acc.exclude || [], [column.name]: ['null']}
+        if(column.excludeNA){
+            acc.exclude = acc.exclude && acc.exclude[column.name] ?
+                {...acc.exclude, [column.name]: [...acc.exclude[column.name], 'null']} :
+                {...acc.exclude || [], [column.name]: ['null']}
+        }
 
-            }
-            return acc;
-        }, {})
+
+        return acc;
+    }, {}), [state.columns]);
+    // if search params are being used, readyToLoad = true;
+    // if search params are being used, ideally for template pages you should only fetch on filter change
+    // for other pages, all data should be fetched
+
+    const orderBy = useMemo(() => state.columns.filter(column => column.sort).reduce((acc, column) => ({...acc, [column.name]: column.sort}), {}), [state.columns]);
+    // ======================================= data fetch triggers end =================================================
+
+    // ========================================== get data begin =======================================================
+    useEffect(() => {
+        if(!isValidState || (!state.display.readyToLoad && !state.display.allowEditInView)) return;
+        let isStale = false;
+
         const newDataReq = {
-           ...state.dataRequest || {},
+            ...state.dataRequest || {},
             ...filterOptions,
-            orderBy: state.columns.filter(column => column.sort).reduce((acc, column) => ({...acc, [column.name]: column.sort}), {}),
+            orderBy,
             meta: state.columns.filter(column => column.show &&
                 ['meta-variable', 'geoid-variable', 'meta'].includes(column.display) &&
                 column.meta_lookup)
@@ -415,26 +408,27 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
         setState(draft => {
             draft.dataRequest = newDataReq;
         })
-        // todo: save settings such that they can be directly used by getData and getLength
 
         return () => {
             isStale = true;
         }
-    }, [state.columns, isValidState, state.readyToLoad])
+    }, [filterOptions, orderBy, isValidState, state.display.readyToLoad, state.display.allowEditInView])
 
     // uweGetDataOnSettingsChange
     useEffect(() => {
-        if(!isValidState || !state.readyToLoad) return;
+        if(!isValidState || (!state.display.readyToLoad && !state.display.allowEditInView)) return;
         // only run when controls or source/view change
         let isStale = false;
         async function load() {
             setLoading(true)
             const newCurrentPage = 0; // for all the deps here, it's okay to fetch from page 1.
+
             const {length, data} = await getData({state, apiLoad, fullDataLoad: component.fullDataLoad});
             if(isStale) {
                 setLoading(false);
                 return;
             }
+
             setState(draft => {
                 draft.data = data;
                 draft.display.totalLength = length;
@@ -447,16 +441,18 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
         return () => {
             isStale = true;
         };
-    }, [state?.dataRequest, state?.sourceInfo, isValidState, state.readyToLoad]);
+    }, [state?.dataRequest, isValidState, state.display.readyToLoad, state.display.allowEditInView]);
 
     // useGetDataOnPageChange
-    useEffect(() => {
-        if(!isValidState || !component.useGetDataOnPageChange || !state.readyToLoad) return;
+    const onPageChange = (currentPage) => {
+        if(!isValidState || !component.useGetDataOnPageChange || (!state.display.readyToLoad && !state.display.allowEditInView)) return;
         // only run when page changes
         let isStale = false;
         async function load() {
             setLoading(true)
+
             const {length, data} = await getData({state, currentPage, apiLoad});
+
             if(isStale) {
                 setLoading(false);
                 return;
@@ -469,12 +465,8 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
             setLoading(false)
         }
 
-        load()
-
-        return () => {
-            isStale = true;
-        }
-    }, [currentPage, state.readyToLoad]);
+        return load()
+    }
 
     // useInfiniteScroll
     useEffect(() => {
@@ -485,6 +477,7 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
                 const hasMore = (currentPage * state.display.pageSize + state.display.pageSize) < state.display.totalLength;
                 if (state.data.length && entries[0].isIntersecting && hasMore) {
                     setCurrentPage(prevPage => prevPage+1)
+                    await onPageChange(currentPage+1);
                 }
             },
             { threshold: 0 }
@@ -504,17 +497,28 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
     // =========================================== util fns begin ======================================================
     const updateItem = (value, attribute, d) => {
         if(!state.sourceInfo?.isDms || !apiUpdate) return;
-        let dataToUpdate = Array.isArray(d) ? d : [d];
 
-        let tmpData = [...state.data];
-        dataToUpdate.map(dtu => {
-            const i = state.data.findIndex(dI => dI.id === dtu.id);
-            tmpData[i] = dtu;
-        });
-        setState(draft => {
-            draft.data = tmpData
-        });
-        return Promise.all(dataToUpdate.map(dtu => apiUpdate({data: dtu, config: {format: state.sourceInfo}})));
+        if(attribute?.name){
+            setState(draft => {
+                const idx = draft.data.findIndex(draftD => draftD.id === d.id);
+                if(idx !== -1){
+                    draft.data[idx] = {...(draft.data[idx] || {}), ...d, [attribute.name]: value}
+                }
+            })
+            return apiUpdate({data: {...d, [attribute.name]: value},  config: {format: state.sourceInfo}})
+        }else{
+            let dataToUpdate = Array.isArray(d) ? d : [d];
+
+            let tmpData = [...state.data];
+            dataToUpdate.map(dtu => {
+                const i = state.data.findIndex(dI => dI.id === dtu.id);
+                tmpData[i] = dtu;
+            });
+            setState(draft => {
+                draft.data = tmpData
+            });
+            return Promise.all(dataToUpdate.map(dtu => apiUpdate({data: dtu, config: {format: state.sourceInfo}})));
+        }
     }
 
     const addItem = () => {
@@ -532,40 +536,44 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, component, ...rest}) =
         })
         return apiUpdate({data: item, config: {format: state.sourceInfo}, requestType: 'delete'})
     }
+    //console.timeEnd(`datawrapper view render time`)
     // =========================================== util fns end ========================================================
     if(showChangeFormatModal || !isValidState) return <div className={'p-1 text-center'}>Form data not available.</div>;
     // component.name === 'Spreadsheet' && console.log('dw?', state)
     return (
-        <ComponentContext.Provider value={{state, setState, apiLoad, controls: component.controls}}>
             <div className={'w-full h-full'}>
                 <div className={'w-full'}>
-                    <div className={'w-full flex justify-end gap-2'}>
-                        <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={isEdit} defaultOpen={true}/>
-                        <RenderDownload state={state} apiLoad={apiLoad}/>
-                    </div>
                     {/*
                         --this causes page jitter (contents moving up and down), 
                         -- if we want a loading indicator, its probably by component
                         -- and it needs to be absolutely positioned
                         <span className={'text-xs'}>{loading ? 'loading...' : state.display.invalidState ? state.display.invalidState : null}</span>
                     */}
+                    <div className={'w-full flex items-center place-content-end'}>
+                        {loading ?  <Icon id={'loading'}
+                                          icon={'LoadingHourGlass'}
+                                          className={`text-slate-400 hover:text-blue-500 size-4 transition ease-in-out duration-200`} /> : null}
+                        <RenderDownload state={state} apiLoad={apiLoad}/>
+                    </div>
                     <Comp isEdit={isEdit}
-                          {...component.name === 'Spreadsheet' && {
+                          {...['Spreadsheet', 'Card'].includes(component.name) && {
                               newItem, setNewItem,
                               updateItem, removeItem, addItem,
                               currentPage, loading, isEdit,
-                              allowEdit: groupByColumnsLength ? false : state.display.allowEditInView && Boolean(apiUpdate)
+                              allowEdit: groupByColumnsLength ? false : state.sourceInfo?.isDms && state.display.allowEditInView && Boolean(apiUpdate)
                           }}
                     />
                     <div>
                         {/*Pagination*/}
-                        <Pagination currentPage={currentPage} setCurrentPage={setCurrentPage} setReadyToLoad={() => setState(draft => {draft.readyToLoad = true})} showPagination={component.showPagination}/>
+                        <Pagination currentPage={currentPage} setCurrentPage={i => {
+                            setCurrentPage(i)
+                            return onPageChange(i);
+                        }} setReadyToLoad={setReadyToLoad} showPagination={component.showPagination}/>
                         {/*Attribution*/}
                         {state.display.showAttribution ? <Attribution/> : null}
                     </div>
                 </div>
-            </div>
-        </ComponentContext.Provider>)
+            </div>)
 }
 
 export default {

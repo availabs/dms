@@ -1,12 +1,13 @@
 import React, {useContext, useEffect, useState} from "react";
 import isEqual from "lodash/isEqual";
-import {CMSContext} from "../../../../siteConfig";
+import {CMSContext, ComponentContext} from "~/modules/dms/src/patterns/page/siteConfig";
 import {get} from "lodash-es";
 import FilterableSearch from "../FilterableSearch";
 const range = (start, end) => Array.from({length: (end + 1 - start)}, (v, k) => k + start);
 
 // get forms, and their sources
 const getSources = async ({envs, falcor, apiLoad}) => {
+    if(!envs || !Object.keys(envs)) return [];
     const lenRes = await falcor.get(['uda', Object.keys(envs), 'sources', 'length']);
 
     const sources = await Promise.all(
@@ -63,29 +64,33 @@ const getViews = async ({envs, source, falcor, apiLoad}) => {
 
 export const DataSourceSelector = ({
     // this comp isn't using context as it's intended to be reused by multiple components with their own states.
-  state, setState,
   formatFromProps,
-  apiLoad,
+  sourceTypes=['external', 'internal'] // lists Externally Sourced and Internally Sourced Datasets.
 }) => {
     const {app, siteType, falcor, pgEnv} = useContext(CMSContext);
+    const {state, setState, apiLoad} = useContext(ComponentContext);
     const [sources, setSources] = useState([]);
     const [views, setViews] = useState([]);
 
     if(formatFromProps?.config) return null;
 
     const envs = {
-        [pgEnv]: {
-            label: 'external',
-            srcAttributes: ['name', 'metadata'],
-            viewAttributes: ['version', '_modified_timestamp']
+        ...sourceTypes.includes('external') && {
+            [pgEnv]: {
+                label: 'external',
+                srcAttributes: ['name', 'metadata'],
+                viewAttributes: ['version', '_modified_timestamp']
+            }
         },
-        [`${app}+${siteType}`]: {
-            label: 'managed',
-            isDms: true,
-            // {doc_type}-{view_id} is used as type to fetch data items for dms views.
-            // for invalid entries, it should be {doc_type}-{view_id}-invalid-entry.
-            srcAttributes: ['app', 'name', 'doc_type', 'config'],
-            viewAttributes: ['name', 'updated_at']
+        ...sourceTypes.includes('internal') && {
+            [`${app}+${siteType}`]: {
+                label: 'managed',
+                isDms: true,
+                // {doc_type}-{view_id} is used as type to fetch data items for dms views.
+                // for invalid entries, it should be {doc_type}-{view_id}-invalid-entry.
+                srcAttributes: ['app', 'name', 'doc_type', 'config'],
+                viewAttributes: ['name', 'updated_at']
+            }
         }
     };
 
@@ -130,15 +135,15 @@ export const DataSourceSelector = ({
         return () => {
             isStale = true;
         }
-    }, [state.sourceInfo.source_id])
+    }, [state.sourceInfo?.source_id])
     const sourceOptions = sources.map(({source_id, name, srcEnv}) => ({key: source_id, label: `${name} (${envs[srcEnv].label})`}));
-    const viewOptions = views.map(({view_id, name, version}) => ({key: view_id, label: name || version}));
+    const viewOptions = views.map(({view_id, name, version}) => ({key: view_id, label: name || version || view_id}));
     return (
-        <div className={'flex w-full bg-white items-center'}>
-            <label className={'p-1'}>Source: </label>
+        <div className={'px-3 flex w-full items-center bg-blue-50'}>
+            <label className={'p-1 text-xs font-medium text-gray-500'}>Source: </label>
             <div className={'w-1/2'}>
                 <FilterableSearch
-                    className={'flex-row-reverse'}
+                    className={'flex-row-reverse text-gray-700'}
                     placeholder={'Search...'}
                     options={sourceOptions}
                     value={state.sourceInfo?.source_id}
@@ -147,17 +152,17 @@ export const DataSourceSelector = ({
                         setState(draft => {
                             // reset values, set source
                             draft.columns = []; // clears our visible columns, and all of their settings (group, filter, etc).
-                            draft.sourceInfo = source;
+                            draft.sourceInfo = {...source};
                             // for internally sourced data-sources, doc_type becomes type when we fetch their data items.
                             draft.sourceInfo.type = doc_type;
                         })
                     }}
                 />
             </div>
-            <label className={'p-1'}>Version: </label>
+            <label className={'p-1 text-xs font-medium text-gray-500'}>Version: </label>
             <div className={'w-1/2'}>
                 <FilterableSearch
-                    className={'flex-row-reverse'}
+                    className={'flex-row-reverse text-gray-700'}
                     placeholder={'Search...'}
                     options={viewOptions}
                     value={state.sourceInfo?.view_id}

@@ -1,6 +1,6 @@
 import React, {useEffect, useState} from "react";
 import {Typeahead, Menu, MenuItem, Input, useToken} from 'react-bootstrap-typeahead';
-import { get } from "lodash-es";
+import {Icon} from "../../../ui/index";
 
 // import placeholder from "lodash-es/fp/placeholder.js";
 
@@ -32,9 +32,9 @@ const RenderToken = ({props, selected, setSelected, onChange}) => {
 }
 const renderMenu = ({results, menuProps, labelKey, filter, filters, setFilter, onChange, ...rest}) => {
     return (
-        <Menu className={'bg-slate-100 overflow-hidden z-[100] rounded-md'} {...menuProps}>
+        <Menu className={'bg-blue-100 text-xs overflow-hidden z-[100] rounded-md'} {...menuProps}>
             {
-                <div className={'flex flex-row flex-wrap items-center justify-start gap-1 p-1 bg-slate-200 text-xs font-bold'}>
+                filters?.length ? <div className={'flex flex-row flex-wrap items-center justify-start gap-1 p-1 bg-blue-200 text-xs font-bold'}>
                     {
                         filters.map(({icon, label, value, filterText, onClick}) => {
                             const isActive = filter === filterText;
@@ -46,7 +46,7 @@ const renderMenu = ({results, menuProps, labelKey, filter, filters, setFilter, o
                                     title={`Filter by: ${filterText}`}
                                     className={
                                         `py-1 px-2 my-0.5 
-                                    ${isActive ? `bg-slate-300 hover:bg-blue-300` : `bg-slate-100 hover:bg-blue-100`} 
+                                    ${isActive ? `bg-blue-300 hover:bg-blue-300` : `bg-blue-100 hover:bg-blue-100`} 
                                      rounded-md`
                                     }
                                     onClick={e => onClickFn(e)}
@@ -57,10 +57,10 @@ const renderMenu = ({results, menuProps, labelKey, filter, filters, setFilter, o
                             )
                         })
                     }
-                </div>
+                </div> : null
             }
             {results.map((result, index) => (
-                <MenuItem key={`${result.label}_${index}`} className={"block hover:bg-slate-200 text-xl tracking-wide pl-1"} option={result}
+                <MenuItem key={`${result.label}_${index}`} className={"block hover:bg-blue-200 text-xs tracking-wide p-1"} option={result}
                           position={index}>
                     {result.label}
                 </MenuItem>
@@ -83,7 +83,9 @@ export default ({
     const [filteredOptions, setFilteredOptions] = useState(options);
 
     useEffect(() => {
-        if (!value) return;
+        if (!value) {
+            setSelected([])
+        };
         const s = options.filter(h => h.key === value);
         setSelected(s)
     }, [value, options]);
@@ -93,11 +95,12 @@ export default ({
             options.filter(o => !filter || o?.label?.toLowerCase().includes(filter.toLowerCase()))
         )
     }, [options, filter])
-
+    console.log('in search', value, selected)
     return (
-        <div className={'flex justify-between'}>
-            <div className={`flex flex row ${className} w-full shrink my-1 bg-white p-1 pl-3 rounded-l-md`}>
-                <i className={`fa fa-search font-light text-xl bg-white rounded-r-md`}/>
+        <div className={'flex justify-between text-xs'}>
+            <div className={`flex flex-row ${className} w-full shrink my-1 px-1 py-0.5 rounded-l-md`}>
+                <Icon className={"text-slate-400 w-[24px] h-[24px]"} icon={'Search'} />
+                <i className={`fa fa-search font-light text-xl rounded-r-md`}/>
                 <Typeahead
                     className={'w-full'}
                     // multiple={true}
@@ -111,7 +114,7 @@ export default ({
                     defaultSelected={selected}
                     onChange={(selected) => onChangeFilter(selected, setSelected, onChange, options)}
                     selected={selected}
-                    inputProps={{className: 'w-full flex flex-row flex-wrap p-1'}}
+                    inputProps={{className: 'w-full flex flex-row flex-wrap px-1 py-0.5'}}
                     renderMenu={(results, menuProps, labelKey) =>
                         renderMenu({results, menuProps, labelKey, filters, filter, setFilter, onChange})}
                     renderToken={(props) => <RenderToken props={props} selected={selected} setSelected={setSelected} onChange={onChange}/>}

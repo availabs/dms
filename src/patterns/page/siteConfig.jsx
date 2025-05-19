@@ -1,4 +1,4 @@
-import React from 'react'
+import React, {createContext} from 'react'
 import { merge } from "lodash-es"
 import { cloneDeep } from "lodash-es"
 import {updateRegisteredFormats, updateAttributes} from './pages/_utils'
@@ -22,12 +22,13 @@ import defaultTheme from './ui/theme'
 
 import { useFalcor } from "@availabs/avl-falcor"
 
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import { SearchPage } from "./components/search/SearchPage";
 import DefaultMenu from './components/menu'
 
 
 export const CMSContext = React.createContext(undefined);
+export const ComponentContext = createContext({});
 
 export const pagesConfig = ({
   app = "dms-site",
@@ -35,6 +36,7 @@ export const pagesConfig = ({
   siteType,
   rightMenu = <DefaultMenu />,
   baseUrl = '/',
+  damaBaseUrl,
   logo, // deprecated
   authLevel = -1,
   themes = { default: {} },
@@ -86,7 +88,7 @@ export const pagesConfig = ({
           const { falcor, falcorCache } = useFalcor();
           // console.log('hola', user, defaultUser, user || defaultUser)
           return (
-            <CMSContext.Provider value={{API_HOST, baseUrl, user, theme, falcor, falcorCache, pgEnv, app, type, siteType, Menu: () => <>{rightMenu}</> }} >
+            <CMSContext.Provider value={{API_HOST, baseUrl, damaBaseUrl, user, theme, falcor, falcorCache, pgEnv, app, type, siteType, Menu: () => <>{rightMenu}</> }} >
               {children}
             </CMSContext.Provider>
           )
@@ -100,7 +102,7 @@ export const pagesConfig = ({
               "data->>'template_id'": ['null'],
             }
           }),
-          attributes:['title', 'index', 'url_slug', 'parent','published', 'description','hide_in_nav']
+          attributes:['title', 'index', 'url_slug', 'parent','published', 'description','icon','navOptions','hide_in_nav']
         },
         children: [
           {
@@ -120,7 +122,7 @@ export const pagesConfig = ({
               />
             ),
             filter: {
-              attributes:['title', 'index', 'url_slug', 'parent', 'published', 'hide_in_nav' ,'sections','section_groups','sidebar','header','footer', 'full_width','navOptions']
+              attributes:['title', 'index', 'url_slug', 'parent', 'published', 'hide_in_nav' ,'sections','section_groups','sidebar','navOptions']
             },
             path: "/*",
             action: "view"
@@ -151,6 +153,7 @@ export const pagesManagerConfig = ({
   siteType,
   rightMenu = <DefaultMenu />,
   baseUrl = '/',
+  damaBaseUrl,
   logo, // deprecated
   authLevel = -1,
   themes = { default: {} },
@@ -206,7 +209,7 @@ export const pagesManagerConfig = ({
         type: ({children, user=defaultUser, ...props}) => {
           const { falcor, falcorCache } = useFalcor();
           return (
-            <CMSContext.Provider value={{API_HOST, baseUrl, user, theme, falcor, falcorCache, pgEnv, app, type, siteType, Menu: () => <>{rightMenu}</> }} >
+            <CMSContext.Provider value={{API_HOST, baseUrl, damaBaseUrl, user, theme, falcor, falcorCache, pgEnv, app, type, siteType, Menu: () => <>{rightMenu}</> }} >
               <ManageLayout {...props}>
                 {children}
               </ManageLayout>

@@ -1,6 +1,7 @@
 import React from 'react';
-import {Link, useNavigate, useParams} from 'react-router-dom'
+import {Link, useNavigate, useParams} from 'react-router'
 import {Alert} from "../../ui/icons";
+import {Database} from "~/modules/dms/src/patterns/page/ui/icons";
 
 const navPages = [
   {name: 'Overview', href: ``, viewDependentPage: false},
@@ -72,8 +73,8 @@ const Breadcrumbs = ({fullWidth, baseUrl, form, page}) => {
           <li className="flex">
             <div className="flex items-center">
               <Link to={`${baseUrl || '/'}${isListAll ? `/listall` : ``}`} className={"hover:text-[#bbd4cb] text-[#679d89]"}>
-              <i className="fad fa-database flex-shrink-0 h-5 w-5" aria-hidden="true" />
-              <span className="sr-only">Data Sources</span>
+                  <Database className={"text-slate-400 hover:text-slate-500 size-4"} />
+                  <span className="sr-only">Data Sources</span>
             </Link>
           </div>
         </li>

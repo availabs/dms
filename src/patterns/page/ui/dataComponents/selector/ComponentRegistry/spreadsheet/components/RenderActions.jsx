@@ -1,5 +1,5 @@
 import React from "react";
-import {Link} from "react-router-dom";
+import {Link} from "react-router";
 import {convertToUrlParams} from "../../../dataWrapper/utils/utils";
 import {actionsColSize} from "../constants"
 import Icons from "../../../../../../../forms/ui/icons";

@@ -1,5 +1,5 @@
 import React, {useEffect} from 'react'
-import { useLoaderData, useActionData, useParams, Form, useSubmit, useLocation } from "react-router-dom";
+import { useLoaderData, useActionData, useParams, Form, useSubmit, useLocation } from "react-router";
 import { filterParams } from '../dms-manager/_utils'
 import { getAttributes } from './_utils'
 import { dmsDataEditor, dmsDataLoader } from '../index'
@@ -22,7 +22,7 @@ export default function EditWrapper({ Component, format, options, params, user, 
 	const attributes = getAttributes(format, options, 'edit')
 	const submit = useSubmit();
 	const { pathname, search } = useLocation()
-	const { data=[] } = useLoaderData() || []
+	const { data=[] } = useLoaderData()
 	const [ busy, setBusy ] = React.useState({updating: 0, loading: 0})
 	let status = useActionData()
 	const {defaultSort = (d) => d } = format
@@ -42,9 +42,12 @@ export default function EditWrapper({ Component, format, options, params, user, 
 		// update item on data update
 		if(!isEqual(item,filteredItem) && filteredItem){
 			//console.log('setItem', item, filteredItem)
+			console.log('updating item')
 			setItem( filteredItem || {})
 		}
 	},[data,params])
+
+	
 
 
 	const updateAttribute = (attr, value, multi) => {
@@ -76,8 +79,9 @@ export default function EditWrapper({ Component, format, options, params, user, 
 	}
 
 	const EditComponent = React.useMemo(() => Component, [])
+	//console.log('edit wrapper render', data, item)
 
-	return (
+	return React.useMemo(() => (
 		<EditComponent 
 			{...props}
 			format={format}
@@ -97,5 +101,5 @@ export default function EditWrapper({ Component, format, options, params, user, 
 			// --status={status}		
 			
 		/>
-	)	
+	),[data,item])
 } 

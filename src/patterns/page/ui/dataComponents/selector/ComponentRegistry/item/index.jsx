@@ -1,11 +1,12 @@
-import React, {useState, useEffect, useRef, createContext} from 'react'
+import React, {useState, useEffect, useRef, createContext, useContext} from 'react'
 import DataTypes from "../../../../../../../data-types";
 import {InfoCircle} from "../../../../../../admin/ui/icons";
 import {DataSourceSelector} from "../DataSourceSelector";
-import {useSearchParams} from "react-router-dom";
+import {useSearchParams} from "react-router";
 import {useImmer} from "use-immer";
 import ColumnControls from "./controls/ColumnControls";
 import MoreControls from "./controls/MoreControls";
+import {ComponentContext} from "../../../../../../page/siteConfig";
 
 export const convertOldState = (state, initialState) => {
     const oldState = isJson(state) ? JSON.parse(state) : {};
@@ -90,8 +91,8 @@ const getData = async ({state, apiLoad, itemId}) =>{
   return {data: data.find(d => d.id === itemId)}
 }
 
-const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLoad, apiUpdate, ...rest}) => {
-    const [state, setState] = useImmer(convertOldState(value, initialState));
+const Edit = ({value, onChange, size, apiUpdate, ...rest}) => {
+    const {state, setState, apiLoad} = useContext(ComponentContext);
     const [searchParams] = useSearchParams();
 
     const [newItem, setNewItem] = useState();
@@ -129,9 +130,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     return (
        <ItemContext.Provider value={{state, setState, compType: 'item'}}>
            <div>
-              <DataSourceSelector apiLoad={apiLoad} app={pageFormat?.app}
-                                  state={state} setState={setState}
-                       />
+              <DataSourceSelector />
                <div className={'flex items-center'}>
                    <ColumnControls context={ItemContext} />
                    <MoreControls context={ItemContext} />
@@ -190,7 +189,7 @@ const Edit = ({value, onChange, size, format: formatFromProps, pageFormat, apiLo
     )
 }
 
-const View = ({value, format:formatFromProps, apiLoad, apiUpdate, ...rest}) => {
+const View = ({value, apiLoad, apiUpdate, ...rest}) => {
     const [state, setState] = useImmer(convertOldState(value));
     const [searchParams, setSearchParams] = useSearchParams();
     const [tmpItem, setTmpItem] = useState({});
