@@ -70,7 +70,7 @@ function HistoryList({history, onChange}) {
             }
           </>
         </li>
-        {history
+        {[...history]
             .sort((a, b) => new Date(b.time) - new Date(a.time))
             .map((historyItem, historyItemIdx) => {
               const isComment = historyItem.type.startsWith('commented:');
