@@ -246,9 +246,10 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
             .filter(columnName => columnsToFetch.find(ctf => ctf.name === columnName)) // take out any sort from non-visible column
             .reduce((acc, columnName) => {
                 const idx = columnsToFetch.findIndex(a => a.name === columnName) + 1; // +1 for postgres index
-                const {refName, isCalculatedColumn} = getFullColumn(columnName, columnsToFetch);
+                const {refName, reqName, isCalculatedColumn} = getFullColumn(columnName, columnsToFetch);
+                const [reqNameWithoutAS] = splitColNameOnAS(reqName);
 
-                return {...acc, [isCalculatedColumn ? idx : refName]: orderBy[columnName] }
+                return {...acc, [isCalculatedColumn ? idx : reqNameWithoutAS]: orderBy[columnName] }
             }, {}),
         filter: Object.keys(filter).reduce((acc, columnName) => {
             const {refName, type} = getFullColumn(columnName, columnsWithSettings);

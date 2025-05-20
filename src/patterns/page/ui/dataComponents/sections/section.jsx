@@ -603,8 +603,9 @@ const handlePaste = async (e, setKey, setState, value, onChange) => {
         const copiedValue = isJson(text) && JSON.parse(text || '{}');
 
         if(!copiedValue || !copiedValue['element']?.['element-type']) return;
+        const elementData = copiedValue['element']['element-data'];
         setKey(copiedValue['element']['element-type']) // mainly for lexical so it updates with value
-        setState(JSON.parse(copiedValue['element']['element-data'])) // state inits with element-data from prop. need to update on paste.
+        setState(isJson(elementData) ? JSON.parse(elementData) : elementData) // state inits with element-data from prop. need to update on paste.
         const pastedValue = {}
 
         Object.keys(copiedValue)
