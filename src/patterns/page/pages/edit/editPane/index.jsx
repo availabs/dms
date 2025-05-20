@@ -7,8 +7,7 @@ import { ArrowRight, ArrowDown, AdjustmentsHorizontal, CaretDown, EllipsisVertic
 import { json2DmsForm, getUrlSlug, toSnakeCase, parseJSON } from '../../_utils'
 import { publish, discardChanges} from '../editFunctions'
 
-import { CMSContext } from '../../../siteConfig'
-import { PageContext } from '../../view'
+import { CMSContext,PageContext } from '../../../context'
 
 import SettingsPane from './settingsPane'
 import PagesPane, { PublishButton } from './pagesPane'

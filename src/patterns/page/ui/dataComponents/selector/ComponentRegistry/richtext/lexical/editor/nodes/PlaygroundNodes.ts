@@ -29,7 +29,7 @@ import {CollapsibleNoPreviewContainerNode} from '../plugins/CollapsibleNoPreview
 import {CollapsibleNoPreviewContentNode} from '../plugins/CollapsibleNoPreviewPlugin/CollapsibleNoPreviewContentNode';
 import {CollapsibleNoPreviewTitleNode} from '../plugins/CollapsibleNoPreviewPlugin/CollapsibleNoPreviewTitleNode';
 import {AutocompleteNode} from './AutocompleteNode';
-import {EmojiNode} from './EmojiNode';
+// import {EmojiNode} from './EmojiNode';
 // import {EquationNode} from './EquationNode';
 // import {ExcalidrawNode} from './ExcalidrawNode';
 // import {FigmaNode} from './FigmaNode';
@@ -43,7 +43,7 @@ import {LayoutItemNode} from './LayoutItemNode';
 // import {StickyNode} from './StickyNode';
 // import {TableNode as NewTableNode} from './TableNode';
 // import {TweetNode} from './TweetNode';
-import {YouTubeNode} from './YouTubeNode';
+// import {YouTubeNode} from './YouTubeNode';
 
 import { ButtonNode } from './ButtonNode'
 import { IconNode } from "./IconNode";
@@ -74,7 +74,7 @@ const PlaygroundNodes: Array<Klass<LexicalNode>> = [
   KeywordNode,
   HorizontalRuleNode,
   // TweetNode,
-  YouTubeNode,
+  // YouTubeNode,
   // FigmaNode,
   MarkNode,
 

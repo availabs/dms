@@ -2,8 +2,7 @@ import React, {Fragment, useState} from 'react'
 import { cloneDeep, set } from 'lodash-es'
 import { Button, Menu, FieldSet, Icon } from '../../../ui'
 import { v4 as uuidv4 } from 'uuid';
-import { CMSContext } from '../../../siteConfig'
-import { PageContext } from '../../view'
+import { CMSContext,PageContext } from '../../../context'
 
 function SectionGroupControl ({group}) {
   const { theme  } = React.useContext(CMSContext) || {}

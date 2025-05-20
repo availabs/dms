@@ -1,11 +1,13 @@
 // import { falcor } from '~/index'
-import {getActiveConfig} from '../dms-manager/_utils'
+//import getActiveConfig  from '../dms-manager/getActiveConfig.js'
 import { get } from "lodash-es"
 import {createRequest, getIdPath} from './createRequest'
 import processNewData from "./proecessNewData";
 import updateDMSAttrs from "./updateDMSAttrs";
-console.log('hola')
-// const { getActiveConfig } = utils
+// import * as DmsManagerUtils from '../dms-manager/_utils.js'
+// const { getActiveConfig } = DmsManagerUtils
+//console.log('hola')
+
 // const {createRequest, getIdPath} = cr
 
 // function rand(min, max) { // min and max included 
@@ -17,16 +19,20 @@ console.log('hola')
 let fullDataLoad = {}
 // let runCount = 0
 
-async function dmsDataLoader (falcor, config, path='/') {
+export async function dmsDataLoader (falcor, config, path='/') {
+
+	// console.log('hola utils', utils)
 	//---- Testing stuff to delete ----------
 	// runCount += 1
 	// const runId = runCount
 	//-------------------------------------------
 	// console.log('dmsDataLoader', config, path)
 	//-------------------------------------------
-
-
-	if(config.formatFn){
+	if(!config || !falcor.get) {
+		return [{ message: "dmsDataLoader no config or falcor."}]
+	}
+	//console.log ('api', config)
+	if(config?.formatFn){
 		config.format = await config.formatFn();
 	}
 
@@ -36,10 +42,12 @@ async function dmsDataLoader (falcor, config, path='/') {
 	// Pages can have many configs active at one time
 	// Because any config can have children
 	//---------------------------------------------------------
-	const { format } = config
+	const { format = {} } = config || {}
 	//console.log('2 - ', config, config.dmsConfig.format)
 	const { app , type, view_id, env, /*defaultSearch,*/ attributes = {} } = format
 
+	
+	const { getActiveConfig } = await import('../dms-manager/_utils.js')
 	const activeConfigs = getActiveConfig(config.children, path)
 	// console.log('------------dmsDataLoader-------------')
 	const dmsAttrsConfigs = (Object.values(attributes))
@@ -179,7 +187,7 @@ async function dmsDataLoader (falcor, config, path='/') {
 	return out
 }
 
-async function dmsDataEditor (falcor, config, data={}, requestType, /*path='/'*/ ) {
+export async function dmsDataEditor (falcor, config, data={}, requestType, /*path='/'*/ ) {
 	// console.log('API - dmsDataEditor', config,data)
 	const { app , type } = config.format
 	//const activeConfig = getActiveConfig(config.children, path)
@@ -286,7 +294,9 @@ async function dmsDataEditor (falcor, config, data={}, requestType, /*path='/'*/
 	return output
 }
 
-export default {
+const api = {
   dmsDataLoader,
   dmsDataEditor
 }
+
+export default api

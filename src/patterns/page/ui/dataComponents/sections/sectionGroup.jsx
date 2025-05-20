@@ -2,11 +2,9 @@ import React from 'react'
 import { Link } from 'react-router'
 import { cloneDeep } from 'lodash-es'
 
-import { SideNav,Icon } from '../../'
-import { ViewIcon } from '../../icons'
-import { PageContext } from '../../../pages/view'
+import { PageContext, CMSContext } from '../../../context'
 import { getInPageNav } from '../../../pages/_utils'
-import { CMSContext } from '../../../siteConfig'
+
 
 export const sectionGroupTheme = {
   sideNavContainer1: 'w-[302px] hidden xl:block',
@@ -40,8 +38,9 @@ export const sectionGroupTheme = {
 
 
 export default function SectionGroup ({group, attributes, edit}) {
-  const { baseUrl, user, theme } = React.useContext(CMSContext) || {}
-  const { apiUpdate, format, item, updateAttribute } = React.useContext(PageContext) || {}
+  const { UI, baseUrl, user, theme } = React.useContext(CMSContext) || {};
+  const { apiUpdate, format, item, updateAttribute } = React.useContext(PageContext) || {};
+  const { SideNav, Icon } = UI;
 
   const inPageNav = getInPageNav(item,theme)
   const sectionTheme = theme?.sectionGroup?.[group.theme || 'default'] || {}
@@ -68,8 +67,10 @@ export default function SectionGroup ({group, attributes, edit}) {
         <div className={sectionTheme?.wrapper2}>
           <div className={sectionTheme?.wrapper3}>
             {(group.name === 'default' && user?.authLevel >= 5) && (
-              <Link className={sectionTheme?.iconWrapper} to={`${baseUrl}/${edit ? '' : 'edit/'}${item?.url_slug || ''}${window.location.search}`}>
+              <Link className={sectionTheme?.iconWrapper} to={`${baseUrl}/${edit ? '' : 'edit/'}${item?.url_slug || ''}`}>
+                {/*have to use rr to get query paramswindow.location.search*/}
                 <Icon icon={edit ? sectionTheme?.viewIcon : sectionTheme?.editIcon} className={sectionTheme?.icon} />
+                
               </Link>
             )}
             <SectionArray

@@ -1,21 +1,25 @@
 import React, {useEffect, useRef} from 'react'
 import { Link, useSubmit, useSearchParams, useLocation, useNavigate } from "react-router";
 import { cloneDeep, merge } from "lodash-es"
-
 // -- 
-import { CMSContext } from '../siteConfig'
-import { sectionsBackill, dataItemsNav } from './_utils'
-import { Layout, SectionGroup } from '../ui'
-
-import {PDF, PencilEditSquare, Printer} from '../ui/icons'
-import {selectablePDF} from "../components/saveAsPDF/PrintWell/selectablePDF";
-import {useImmer} from "use-immer";
-import {
+import { /*sectionsBackill,*/ 
+    dataItemsNav, 
     convertToUrlParams,
     initNavigateUsingSearchParams,
-    updatePageStateFiltersOnSearchParamChange
-} from "~/modules/dms/src/patterns/page/pages/edit";
-export const PageContext = React.createContext(undefined);
+    updatePageStateFiltersOnSearchParamChange 
+} from './_utils'
+
+
+//import {PDF, PencilEditSquare, Printer} from '../ui/icons'
+//import {selectablePDF} from "../components/saveAsPDF/PrintWell/selectablePDF";
+import {useImmer} from "use-immer";
+
+
+
+
+
+import { PageContext, CMSContext } from '../context'
+
 
 
 function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiLoad, apiUpdate, format,busy}) {
@@ -27,14 +31,14 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
 
   if(!item) { item = {} }// create a default item to set up first time experience.
 
-  React.useEffect(() => {
-      // -------------------------------------------------------------------
-      // -- This on load effect backfills pages created before sectionGroups
-      // -- This should be deleted by JUNE 1 2025
-      // -------------------------------------------------------------------
-      sectionsBackill(item,baseUrl,submit)
-     
-  },[])
+  // React.useEffect(() => {
+  //     // -------------------------------------------------------------------
+  //     // -- This on load effect backfills pages created before sectionGroups
+  //     // -- This should be deleted by JUNE 1 2025
+  //     // -------------------------------------------------------------------
+  //     //sectionsBackill(item,baseUrl,submit)
+  //   
+  // },[])
 
     useEffect(() => {
         updatePageStateFiltersOnSearchParamChange({searchParams, item, setPageState})
@@ -98,6 +102,7 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
   }
 
   return (
+<<<<<<< HEAD
       <PageContext.Provider value={{ item, pageState, setPageState, updatePageStateFilters, dataItems, apiLoad, apiUpdate, format, busy }} >
         <div className={`${theme?.page?.container}`}>
           {getSectionGroups('top')}
@@ -111,6 +116,21 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
           {getSectionGroups('bottom')}
         </div>
       </PageContext.Provider>
+=======
+    <PageContext.Provider value={{ item, dataItems, apiLoad, apiUpdate, format, busy }} >
+      <div className={`${theme?.page?.container}`}>
+        {/*{getSectionGroups('top')}*/}
+        <Layout 
+          navItems={menuItems} 
+          secondNav={theme?.navOptions?.secondaryNav?.navItems || []}
+          pageTheme={{navOptions: item.navOptions || {}}}
+        >
+          {/*{getSectionGroups('content')}*/}
+        </Layout>
+        {/*{getSectionGroups('bottom')}*/}
+      </div>
+    </PageContext.Provider>
+>>>>>>> a40d611 (server render progress)
   ) 
 }
 

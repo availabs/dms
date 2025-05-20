@@ -17,7 +17,8 @@ const json2DmsForm = (data,requestType='update') => {
 }
 
 export default function EditWrapper({ Component, format, options, params, user, ...props}) {
-	const { falcor } = useFalcor()
+	const uf = useFalcor() || {}
+	const {falcor = {}} = uf;
 	const {app, type} = format;
 	const attributes = getAttributes(format, options, 'edit')
 	const submit = useSubmit();

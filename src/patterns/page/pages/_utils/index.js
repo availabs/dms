@@ -1,8 +1,61 @@
 import { matchRoutes } from 'react-router'
 import { v4 as uuidv4 } from 'uuid';
-import { cloneDeep } from 'lodash-es'
+import { isEqual, reduce, map, cloneDeep} from "lodash-es"
 //import {getCurrentDataItem} from "./navItems.js";
 // const baseUrl = ''
+export const convertToUrlParams = (obj, delimiter='|||') => {
+    const params = new URLSearchParams();
+
+    Object.keys(obj).forEach(column => {
+        const values = obj[column];
+        if(!values || !Array.isArray(values) || !values?.length) return;
+        params.append(column, values.filter(v => Array.isArray(v) ? v.length : v).join(delimiter));
+    });
+
+    return params.toString();
+};
+
+export const updatePageStateFiltersOnSearchParamChange = ({searchParams, item, setPageState}) => {
+    // Extract filters from the URL
+    const urlFilters = Array.from(searchParams.keys()).reduce((acc, searchKey) => {
+        const urlValues = searchParams.get(searchKey)?.split('|||');
+        acc[searchKey] = urlValues;
+        return acc;
+    }, {});
+
+    // If searchParams have changed, they should take priority and update the state
+
+    if (Object.keys(urlFilters).length) {
+        const newFilters = (item.filters || []).map(filter => {
+            if(urlFilters[filter.searchKey]){
+                return {...filter, values: urlFilters[filter.searchKey]}
+            }else{
+                return filter;
+            }
+        })
+
+        if(newFilters?.length) {
+            setPageState(page => {
+                // updates from searchParams are temporary
+                page.filters = newFilters
+            })
+        }
+    }
+}
+
+export const initNavigateUsingSearchParams = ({pageState, search, navigate, baseUrl, item}) => {
+    // one time redirection
+    const searchParamFilters = (pageState.filters || []).filter(f => f.useSearchParams);
+    
+    if(searchParamFilters.length){
+        const filtersObject = searchParamFilters
+            .reduce((acc, curr) => ({...acc, [curr.searchKey]: typeof curr.values === 'string' ? [curr.values] : curr.values}), {});
+        const url = `?${convertToUrlParams(filtersObject)}`;
+        if(!search && url !== search){
+            navigate(`${baseUrl}/edit/${item.url_slug}${url}`)
+        }
+    }
+}
 
 export function timeAgo(input) {
   const date = (input instanceof Date) ? input : new Date(input);
@@ -297,7 +350,7 @@ export function getInPageNav(item, theme) {
     };
 }
 
-import { isEqual, reduce, map } from "lodash-es"
+
 
 export const parseJSON = (d, fallback={}) => {
      if(typeof d === 'object') {

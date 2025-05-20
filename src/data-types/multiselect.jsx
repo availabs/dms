@@ -1,15 +1,17 @@
 import React, {useEffect, useRef, useState} from "react"
-import {useTheme} from '../theme'
-import {Alert, ArrowDown} from "../patterns/admin/ui/icons";
 
-const inputWrapper = 'flex px-2 py-1 w-full text-sm font-light border focus:border-blue-300 bg-white hover:bg-gray-100 transition ease-in';
-const mainWrapper = 'w-full';
-const input = 'focus:outline-none w-full';
-const tokenWrapper = 'flex px-2 py-1 mx-1 bg-gray-100 hover:bg-gray-300 rounded-md transition ease-in';
-const removeIcon = 'fa fa-x px-1 text-xs text-red-300 hover:text-red-500 self-center transition ease-in';
-const menuWrapper = 'p-2 shadow-lg z-10';
-const menuItem = 'px-2 py-1 hover:bg-gray-300 hover:cursor-pointer transition ease-in';
 
+const theme = {
+    multiselect: {
+        inputWrapper:'flex px-2 py-1 w-full text-sm font-light border focus:border-blue-300 bg-white hover:bg-gray-100 transition ease-in',
+        mainWrapper:'w-full',
+        input:'focus:outline-none w-full',
+        tokenWrapper:'flex px-2 py-1 mx-1 bg-gray-100 hover:bg-gray-300 rounded-md transition ease-in',
+        removeIcon:'fa fa-x px-1 text-xs text-red-300 hover:text-red-500 self-center transition ease-in',
+        menuWrapper:'p-2 shadow-lg z-10',
+        menuItem:'px-2 py-1 hover:bg-gray-300 hover:cursor-pointer transition ease-in',
+    }
+}
 const looselyEqual = (a, b) => {
     if (a == null && b == null) return true;
 
@@ -131,8 +133,13 @@ function useComponentVisible(initial) {
 const Edit = ({value = [], loading, onChange, className,placeholder, options = [], displayInvalidMsg=true, menuPosition='bottom', singleSelectOnly=false}) => {
     // options: ['1', 's', 't'] || [{label: '1', value: '1'}, {label: 's', value: '2'}, {label: 't', value: '3'}]
     const [searchKeyword, setSearchKeyword] = useState('');
+<<<<<<< HEAD
     const typeSafeValue = (Array.isArray(value) ? value : [value]).map(v => options.find(o => looselyEqual((o?.value || o), (v?.value || v))) || v);
     const theme = useTheme();
+=======
+    const typeSafeValue = (Array.isArray(value) ? value : [value]).map(v => options.find(o => looselyEqual((o.value || o), (v.value || v))) || v);
+    
+>>>>>>> a40d611 (server render progress)
     const {
         ref,
         isSearching,
@@ -186,7 +193,7 @@ const Edit = ({value = [], loading, onChange, className,placeholder, options = [
 }
 
 const View = ({className, value, options = []}) => {
-    const theme = useTheme();
+    
     if (!value) return <div className={theme?.multiselect?.mainWrapper} />
 
     const mappedValue = (Array.isArray(value) ? value : [value]).map(v => options.find(o => looselyEqual((o.value || o), (v.value || v))) || v);

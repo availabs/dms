@@ -4,12 +4,13 @@ import { filterParams } from '../dms-manager/_utils'
 import { getAttributes } from './_utils'
 
 import { dmsDataEditor, dmsDataLoader } from "../api";
-import { useFalcor } from "@availabs/avl-falcor";
+import { useFalcor } from '../../../avl-falcor';//"@availabs/avl-falcor";
 
 
 
 export default function ViewWrapper({ Component, format, options, params, user, ...props}) {
-	const { falcor } = useFalcor()
+	const uf = useFalcor() || {}
+	const {falcor = {}} = uf;
 	const submit = useSubmit();
 	const { pathname, search } = useLocation()
 	let attributes = getAttributes(format,options)
@@ -17,7 +18,7 @@ export default function ViewWrapper({ Component, format, options, params, user, 
 	const {defaultSort = (d) => d } = format
 	const [ busy, setBusy ] = React.useState({updating: 0, loading: 0})
 
-
+	//console.log('ViewWrapper', data, defaultSort)
 	const item = defaultSort(data)
 		.filter(d => filterParams(d,params,format))[0] || data[0]
 	const ViewComponent = React.useMemo(() => Component, [])

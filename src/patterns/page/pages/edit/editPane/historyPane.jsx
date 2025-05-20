@@ -1,11 +1,10 @@
 import React, {Fragment, useState} from 'react'
 
 
-import { CMSContext } from '../../../siteConfig'
+import { CMSContext,PageContext } from '../../../context'
 import {timeAgo} from '../../_utils'
 import {Add} from "../../../ui/icons";
 import { updateHistory } from '../editFunctions'
-import { PageContext } from '../../view'
 
 
 function EditHistory () {

@@ -3,12 +3,13 @@ import { merge, cloneDeep } from "lodash-es"
 
 import TopNav from '../topnav';
 import SideNav from '../sidenav';
-import { SearchButton } from '../../../components/search';
+//import { SearchButton } from '../../../components/search';
 import { CMSContext } from '../../../siteConfig';
 import { matchRoutes, useLocation } from 'react-router'
 
 
 const Logos = () => <div className='h-12'/>
+const SearchButton = () => <div className='h-12'/>
 
 export const layoutTheme = {
 	wrapper: 'relative isolate flex min-h-svh w-full max-lg:flex-col',
@@ -55,7 +56,7 @@ const Layout = ({ children, navItems, secondNav, title, pageTheme, EditPane, yPa
 		color: sideNav.color || 'transparent',
 		menuItems: (sideNav?.nav === 'main' ? nav2Level(navItems, sideNav.depth, pathname, theme.layout.navTitle)  : sideNav?.nav === 'secondary' ? secondNav || [] : []).filter(page => !page.hideInNav),
 		topMenu: (
-			<div className={theme.sidenav.topNavWrapper}>
+			<div className={theme?.sidenav?.topNavWrapper}>
 				{sideNav?.logo === 'top' && logo}
 	        	{sideNav?.dropdown === 'top' && <Menu />}
 	        	

@@ -7,10 +7,10 @@ import Selector from '../../patterns/page/ui/dataComponents/selector'
 import { falcorGraph, useFalcor } from "@availabs/avl-falcor"
 import { cloneDeep } from "lodash-es"
 
-
+import pageConfig from '../page/siteConfig'
 import dataManagerConfig from '../forms/siteConfig'; // meta level forms config. this "pattern" serves as parent for all forms.
 
-import pageConfig from '../page/siteConfig'
+
 //import {template} from "./admin.format"
 
 
@@ -38,8 +38,9 @@ import {useLocation} from "react-router";
 // to do:
 // Allow users to pass Pattern Configs
 // --
+console.log('hola', pageConfig)
 const configs = {
-    page: pageConfig,
+    page: pageConfig ,
     forms: dataManagerConfig,
 }
 

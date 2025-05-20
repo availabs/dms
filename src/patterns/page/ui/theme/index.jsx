@@ -1,7 +1,7 @@
 import React from 'react'
 import { Link } from 'react-router'
 // -- Components
-import { layoutTheme } from '../components/layout'
+//import { layoutTheme } from '../components/layout'
 import { sideNavTheme } from '../components/sidenav'
 import { topNavTheme } from '../components/topnav'
 import { tabsTheme } from '../components/tabs'
@@ -19,7 +19,7 @@ import { sectionArrayTheme } from '../dataComponents/sections/sectionArray'
 
 // -- Component Registery Components
 import { tableTheme } from '../dataComponents/selector/ComponentRegistry/spreadsheet/index'
-import lexicalTheme from '../dataComponents/selector/ComponentRegistry/richtext/theme';
+//import lexicalTheme from '../dataComponents/selector/ComponentRegistry/richtext/theme';
 import {dataCardTheme} from "../dataComponents/selector/ComponentRegistry/Card";
 import { attributionTheme } from "../dataComponents/selector/ComponentRegistry/shared/Attribution";
 import { sectionGroupTheme } from '../dataComponents/sections/sectionGroup'
@@ -30,6 +30,8 @@ import { labelTheme } from "../components/label";
 import Icons from '../icons'
 import {filterTheme} from "../dataComponents/selector/ComponentRegistry/shared/filters/RenderFilters";
 import {graphTheme} from "../dataComponents/selector/ComponentRegistry/graph";
+
+const lexicalTheme = {}
 
 const theme = {
   navOptions: {
@@ -85,7 +87,17 @@ const theme = {
   },
   sectionGroup: sectionGroupTheme,
   sectionArray: sectionArrayTheme,
-  layout: layoutTheme,
+  layout: {
+    wrapper: 'relative isolate flex min-h-svh w-full max-lg:flex-col',
+    wrapper2: 'flex-1 flex items-start flex-col items-stretch max-w-full',
+    wrapper3: 'flex flex-1',
+    childWrapper: 'flex-1 h-full',
+    topnavContainer1:`sticky top-0 left-0 right-0 z-20 `,
+    topnavContainer2:``,
+    sidenavContainer1: 'w-44',
+    sidenavContainer2: 'sticky top-12 h-[calc(100vh_-_50px)]',
+    navTitle: `flex-1 text-[24px] font-['Oswald'] font-[500] leading-[24px] text-[#2D3E4C] py-3 px-4 uppercase`
+  },
   sidenav: sideNavTheme,
   topnav: topNavTheme,
   tabs: tabsTheme,

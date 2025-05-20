@@ -118,7 +118,7 @@ const DesktopSidebar = ({
 	subMenuStyle,
 	...props }) => {
 	//let theme = useTheme()['sidenav'](themeOptions);
-	const { theme: fullTheme  } = React.useContext(CMSContext)
+	const { theme: fullTheme  } = React.useContext(CMSContext) || {}
 	const theme = (fullTheme?.['sidenav'] || {})//(themeOptions);
 	// console.log('SideNav', themeOptions, theme, useTheme()['sidenav'](themeOptions))
 	// console.log('sideNav', menuItems)

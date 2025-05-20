@@ -1,3 +1,4 @@
+import React from 'react'
 import SectionArray from './ui/dataComponents/sections/sectionArray'
 
 export const cmsSection = {
@@ -85,9 +86,12 @@ const cmsPageFormat = {
   type: "docs-page",
   registerFormats: [cmsSection, pageEdit],
   defaultSearch: `data ->> 'index' = '0' and (data ->> 'parent' = '' or data ->> 'parent' is null) and (data ->> 'template_id' is null)`,
-  defaultSort: (d) => d.sort((a,b) => {
-   return (b.parent===null)-(a.parent===null) || a.index - b.index || +a.parent - +b.parent
-  }),
+  defaultSort: (d) =>  {
+    if(typeof d.sort !== 'function') { return d => d }
+    return d?.sort((a,b) => {
+     return (b.parent===null)-(a.parent===null) || a.index - b.index || +a.parent - +b.parent
+    })
+  },
   attributes: [
     { key: "title",
       type: "text",

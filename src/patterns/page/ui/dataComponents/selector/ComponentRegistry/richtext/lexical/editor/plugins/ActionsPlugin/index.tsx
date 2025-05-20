@@ -30,7 +30,7 @@ import {useCallback, useEffect, useState} from 'react';
 
 import useModal from '../../hooks/useModal';
 import Button from '../../ui/Button';
-import {PLAYGROUND_TRANSFORMERS} from '../MarkdownTransformers';
+//import {PLAYGROUND_TRANSFORMERS} from '../MarkdownTransformers';
 import {
   SPEECH_TO_TEXT_COMMAND,
   SUPPORT_SPEECH_RECOGNITION,
@@ -137,26 +137,26 @@ export default function ActionsPlugin({
     );
   }, [editor, isEditable]);
 
-  const handleMarkdownToggle = useCallback(() => {
-    editor.update(() => {
-      const root = $getRoot();
-      const firstChild = root.getFirstChild();
-      if ($isCodeNode(firstChild) && firstChild.getLanguage() === 'markdown') {
-        $convertFromMarkdownString(
-          firstChild.getTextContent(),
-          PLAYGROUND_TRANSFORMERS,
-        );
-      } else {
-        const markdown = $convertToMarkdownString(PLAYGROUND_TRANSFORMERS);
-        root
-          .clear()
-          .append(
-            $createCodeNode('markdown').append($createTextNode(markdown)),
-          );
-      }
-      root.selectEnd();
-    });
-  }, [editor]);
+  // const handleMarkdownToggle = useCallback(() => {
+  //   editor.update(() => {
+  //     const root = $getRoot();
+  //     const firstChild = root.getFirstChild();
+  //     if ($isCodeNode(firstChild) && firstChild.getLanguage() === 'markdown') {
+  //       $convertFromMarkdownString(
+  //         firstChild.getTextContent(),
+  //         PLAYGROUND_TRANSFORMERS,
+  //       );
+  //     } else {
+  //       const markdown = $convertToMarkdownString(PLAYGROUND_TRANSFORMERS);
+  //       root
+  //         .clear()
+  //         .append(
+  //           $createCodeNode('markdown').append($createTextNode(markdown)),
+  //         );
+  //     }
+  //     root.selectEnd();
+  //   });
+  // }, [editor]);
 
   return (
     <div className={`${theme.actions.base}` || "actions"}>
