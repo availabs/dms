@@ -82,6 +82,12 @@ export const isCalculatedCol = (col, attributes) => {
     return attr.display === 'calculated' || attr.type === 'calculated' || attr.origin === 'calculated-column';
 }
 
+export const isSystemCol = (col, attributes) => {
+    const attr = (attributes || []).find(attr => attr.name === col);
+    if(!attr) console.log(`${col} not found in filters.`, attributes)
+    return attr.systemCol;
+}
+
 export const parseIfJson = value => {
     try {
         return JSON.parse(value)

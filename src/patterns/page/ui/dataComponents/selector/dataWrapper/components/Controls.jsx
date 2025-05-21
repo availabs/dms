@@ -10,7 +10,6 @@ const controlComponents = {
 
 export const Controls = ({context=ComponentContext}) => {
     const {controls= {}} = useContext(context);
-    console.log('controls context', context)
     return (
         <div className={'flex items-center'}>
             {

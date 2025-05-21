@@ -70,7 +70,6 @@ const gridClasses = {
 export default function ColumnControls({context}) {
     const {state: {columns=[], sourceInfo, display}, setState, controls= {}} = useContext(context || ComponentContext);
     if(!controls.columns?.length) return;
-    console.log('?????????', sourceInfo, columns)
     const dragItem = useRef();
     const dragOverItem = useRef();
     const menuRef = useRef(null);
@@ -96,6 +95,9 @@ export default function ColumnControls({context}) {
             )
     if(columns.some(column => column.type === 'formula')){
         columnsToRender.push(...columns.filter(column => column.type === 'formula'))
+    }
+    if(columns.some(column => column.systemCol)){
+        columnsToRender.splice(0, 0, columns.find(column => column.systemCol))
     }
     // ================================================== drag utils start =============================================
     const dragStart = (e, position) => {
@@ -234,11 +236,21 @@ export default function ColumnControls({context}) {
         draft.dataRequest = {}
     }), [columns]);
 
+    const toggleIdFilter = useCallback(() =>
+        setState(draft => {
+            const idx = draft.columns.findIndex(c => c.systemCol && c.name === 'id');
+            if(idx >= 0){
+                draft.columns.splice(idx, 1);
+            }else{
+                draft.columns.splice(0, 0, {name: 'id', display_name: 'ID', systemCol: true})
+            }
+        }), [columns])
+
     const totalControlColsLen = 2 + controls.columns.length;
     const {gridClass, gridTemplateColumns, width} = gridClasses[totalControlColsLen];
 
     const isEveryColVisible = (sourceInfo.columns || []).map(({name}) => columns.find(column => column.name === name)).every(column => column?.show);
-
+    const isSystemIDColOn = columns.find(c => c.systemCol && c.name === 'id');
     return (
         <div className="relative inline-block text-left">
             <button id={menuBtnId}
@@ -298,6 +310,7 @@ export default function ColumnControls({context}) {
                                     <Pill text={isEveryColVisible ? 'Hide all' : 'Show all'} color={'blue'} onClick={() => toggleGlobalVisibility(!isEveryColVisible)}/> : null
                             }
                             <AddFormulaColumn columns={columnsToRender} addFormulaColumn={addFormulaColumn}/>
+                            <Pill text={isSystemIDColOn ? 'Hide ID column' : 'Show ID column'} color={'blue'} onClick={() => toggleIdFilter()}/>
                             <Pill text={'Reset all'} color={'orange'} onClick={() => resetAllColumns()}/>
                         </div>
                     </div>

@@ -105,7 +105,7 @@ export const dataCardTheme = {
 
 const DefaultComp = ({value, className}) => <div className={className}>{value}</div>;
 
-const EditComp = ({attribute, value, rawValue, isValueFormatted, id, updateItem, allowEdit}) => {
+const EditComp = ({attribute, value, rawValue, isValueFormatted, id, updateItem, newItem, setNewItem, allowEdit}) => {
     const [isEditing, setIsEditing] = useState(false);
     const compRef = useRef(null);
     const compId = `${attribute.name}-${id}-${JSON.stringify(rawValue)}`;
@@ -122,7 +122,8 @@ const EditComp = ({attribute, value, rawValue, isValueFormatted, id, updateItem,
         <Comp value={allowEdit && isValueFormatted ? rawValue : value}
               placeholder={'please enter value...'}
               id={allowEdit && isEditing ? compIdEdit : compId}
-              onChange={newValue => updateItem(newValue, attribute, {id, [attribute.name]: newValue})} className={allowEdit && !value ? 'border' : ' '}
+              onChange={newValue => updateItem ? updateItem(newValue, attribute, {id, [attribute.name]: newValue}) :
+                  setNewItem ? setNewItem({...newItem, [attribute.name]: newValue}) : {}} className={allowEdit && !value ? 'border' : ' '}
               {...attribute}
         />
     </div>
@@ -130,13 +131,14 @@ const EditComp = ({attribute, value, rawValue, isValueFormatted, id, updateItem,
 
 const Card = ({
                   isEdit, //edit mode
-                  updateItem,
+                  updateItem, addItem,
+                  newItem, setNewItem,
                   allowEdit // is data edit allowed
 }) => {
     const { theme = {} } = React.useContext(CMSContext) || {};
     const dataCard = theme.dataCard || dataCardTheme;
 
-    const {state:{columns, data, display: {compactView, gridSize, gridGap, padding, colGap, headerValueLayout, reverse, hideIfNull, removeBorder, bgColor='#FFFFFF'}}, setState} = useContext(ComponentContext);
+    const {state:{columns, data, sourceInfo, display: {compactView, gridSize, gridGap, padding, colGap, headerValueLayout, reverse, hideIfNull, removeBorder, allowAdddNew, bgColor='#FFFFFF'}}, setState} = useContext(ComponentContext);
     const [draggedCol, setDraggedCol] = useState(null);
     const visibleColumns = useMemo(() => columns.filter(({show}) => show), [columns]);
     const cardsWithoutSpanLength = useMemo(() => columns.filter(({show, cardSpan}) => show && !cardSpan).length, [columns]);
@@ -216,7 +218,7 @@ const Card = ({
             {/* outer wrapper: in compact view, grid applies here */}
             <div className={gridSize && compactView ? dataCard.mainWrapperCompactView : dataCard.mainWrapperSimpleView} style={mainWrapperStyle}>
                 {
-                    data.map((item, i) => (
+                    (allowAdddNew ? [...data, newItem] : data).map((item, i) => (
                         //  in normal view, grid applied here
                         <div key={i}
                              className={`${dataCard.subWrapper} ${compactView ? `${dataCard.subWrapperCompactView} ${removeBorder ? `` : 'border shadow'}` : dataCard.subWrapperSimpleView} `}
@@ -224,6 +226,7 @@ const Card = ({
                             {
                                 visibleColumns
                                     .map(attr => {
+                                        const isNewItem = allowAdddNew && !item.id && sourceInfo.isDms && addItem;
                                         const {isLink, location, linkText, useId, isImg, imageSrc, imageLocation, imageExtension, imageSize, imageMargin} = attr || {};
                                         const span = compactView ? 'span 1' : `span ${attr.cardSpan || 1}`;
                                         const rawValue = item[attr.normalName] || item[attr.name];
@@ -287,7 +290,9 @@ const Card = ({
                                                                       value={linkText || value}
                                                                       rawValue={rawValue}
                                                                       isValueFormatted={isValueFormatted}
-                                                                      updateItem={updateItem}
+                                                                      updateItem={isNewItem ? undefined : updateItem}
+                                                                      newItem={isNewItem ? newItem : undefined}
+                                                                      setNewItem={isNewItem ? setNewItem : undefined}
                                                                       id={id}
                                                                       allowEdit={allowEdit}
                                                             />
@@ -296,7 +301,9 @@ const Card = ({
                                                                       value={value}
                                                                       rawValue={rawValue}
                                                                       isValueFormatted={isValueFormatted}
-                                                                      updateItem={updateItem}
+                                                                      updateItem={isNewItem ? undefined : updateItem}
+                                                                      newItem={isNewItem ? newItem : undefined}
+                                                                      setNewItem={isNewItem ? setNewItem : undefined}
                                                                       id={id}
                                                                       allowEdit={allowEdit}
                                                             />
@@ -305,6 +312,11 @@ const Card = ({
                                             </div>
                                         )
                                     })
+                            }
+                            {
+                                allowAdddNew && !item.id && sourceInfo.isDms && addItem ? (
+                                    <button className={'bg-blue-300 hover:bg-blue-400 text-blue-700 rounded-lg w-fit px-2 py-0.5 text-sm self-end'} onClick={() => addItem()}>add</button>
+                                ) : null
                             }
                         </div>
                     ))
@@ -341,6 +353,7 @@ export default {
             // settings from more dropdown are stored in state.display
             {type: 'toggle', label: 'Attribution', key: 'showAttribution'},
             {type: 'toggle', label: 'Allow Edit', key: 'allowEditInView'},
+            {type: 'toggle', label: 'Allow Add New', key: 'allowAdddNew'},
             {type: 'toggle', label: 'Use Page Filters', key: 'usePageFilters'},
             {type: 'toggle', label: 'Compact View', key: 'compactView'},
             {type: 'input', inputType: 'number', label: 'Grid Size', key: 'gridSize'},

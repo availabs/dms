@@ -10,6 +10,8 @@ const isJson = (str)  => {
 export const convertOldState = (state, initialState) => {
     const oldState = isJson(state) ? JSON.parse(state) : {};
 
+    if (oldState?.symbologies) return oldState; // map
+
     // handle filter structure change
     const oldFilters = oldState?.dataRequest && (oldState.columns || [])
         .filter(c => Array.isArray(c.internalFilter) || Array.isArray(c.externalFilter) || Array.isArray(c.internalExclude))
