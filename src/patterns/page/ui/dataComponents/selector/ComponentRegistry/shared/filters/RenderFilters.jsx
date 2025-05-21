@@ -7,7 +7,7 @@ import {
     isCalculatedCol,
     convertToUrlParams,
     formattedAttributeStr,
-    getNormalFilters, getData as getFilterData
+    getNormalFilters, getData as getFilterData, isSystemCol
 } from "./utils"
 import {isEqual, uniqBy} from "lodash-es"
 import {RenderFilterValueSelector} from "./Components/RenderFilterValueSelector";
@@ -48,7 +48,7 @@ export const RenderFilters = ({
 
         const debug = false;
         const getFormattedAttributeStr = useCallback((column) => formattedAttributeStr(column, isDms, isCalculatedCol(column, state.columns)), [state.columns, isDms]);
-        const getAttributeAccessorStr = useCallback((column) => attributeAccessorStr(column, isDms, isCalculatedCol(column, state.columns)), [state.columns, isDms]);
+        const getAttributeAccessorStr = useCallback((column) => attributeAccessorStr(column, isDms, isCalculatedCol(column, state.columns), isSystemCol(column, state.columns)), [state.columns, isDms]);
         const filterWithSearchParamKeys = useMemo(() =>
             Object.keys(filters).reduce((acc, filterColumn) => {
                 const currFilters = (state.columns || []).find(c => c.name === filterColumn)?.filters; // for now, it's always just 1 filter.

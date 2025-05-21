@@ -56,8 +56,8 @@ const isCalculatedCol = ({display, type, origin}) => {
 };
 
 // returns column name to be used as key for options. these are names without 'as' and data->> applied.
-export const attributeAccessorStr = (col, isDms, isCalculatedCol) =>
-    isCalculatedCol || splitColNameOnAS(col)[0]?.includes('data->>') ?
+export const attributeAccessorStr = (col, isDms, isCalculatedCol, isSystemCol) =>
+    isCalculatedCol || isSystemCol || splitColNameOnAS(col)[0]?.includes('data->>') ?
         splitColNameOnAS(col)[0] :
             isDms ? `data->>'${col}'` : col;
 
@@ -79,7 +79,7 @@ export const applyFn = (col={}, isDms=false) => {
 
     // calculated columns should never get data->>
     const isCalculatedCol = col.type === 'calculated' || col.display === 'calculated' || col.origin === 'calculated-column';
-    const colNameWithAccessor = attributeAccessorStr(col.name, isDms, isCalculatedCol);
+    const colNameWithAccessor = attributeAccessorStr(col.name, isDms, isCalculatedCol, col.systemCol);
     const colNameAfterAS = (isCalculatedCol ? splitColNameOnAS(col.name)[1] : col.name).toLowerCase();
 
     const functions = {
@@ -149,7 +149,7 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
         const isCalculatedColumn = isCalculatedCol(column);
         const isCopiedColumn = !column.isDuplicate && state.columns.some(({name, isDuplicate}) => name === column.name && isDuplicate);
         const reqName = getColAccessor(fullColumn, state.sourceInfo.isDms);
-        const refName = attributeAccessorStr(column.name, state.sourceInfo.isDms, isCalculatedColumn);
+        const refName = attributeAccessorStr(column.name, state.sourceInfo.isDms, isCalculatedColumn, column.systemCol);
         const [colNameBeforeAS, colNameAfterAS] = splitColNameOnAS(column.name);
         const totalName = `SUM(CASE WHEN (${refName})::text ~ '^-?\\d+(\\.\\d+)?$' THEN (${refName})::numeric ELSE NULL END ) as ${colNameAfterAS || colNameBeforeAS}_total`;
         return {

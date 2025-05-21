@@ -282,12 +282,18 @@ const Edit = ({value, onChange, pageFormat, apiUpdate, component, hideSourceSele
         }
     }
 
-    const addItem = () => {
-        if(!state.sourceInfo?.isDms) return;
-        setState(draft => {
-            draft.data.push(newItem)
-        })
-        return apiUpdate({data: newItem, config: {format: state.sourceInfo}}) && setNewItem({})
+    const addItem = async () => {
+        if(!state.sourceInfo?.isDms || !apiUpdate) return;
+        const res = await apiUpdate({data: newItem, config: {format: {...state.sourceInfo, type: `${state.sourceInfo.type}-${state.sourceInfo.view_id}`}}});
+
+        if(res?.id){
+            setState(draft => {
+                draft.data.push({...newItem, id: res.id})
+            })
+        }
+
+        setNewItem({})
+        return res;
     }
 
     const removeItem = item => {
@@ -521,12 +527,18 @@ const View = ({value, onChange, size, apiUpdate, component, ...rest}) => {
         }
     }
 
-    const addItem = () => {
+    const addItem = async () => {
         if(!state.sourceInfo?.isDms || !apiUpdate) return;
-        setState(draft => {
-            draft.data.push(newItem)
-        })
-        return apiUpdate({data: newItem, config: {format: state.sourceInfo}}) && setNewItem({})
+        const res = await apiUpdate({data: newItem, config: {format: {...state.sourceInfo, type: `${state.sourceInfo.type}-${state.sourceInfo.view_id}`}}});
+
+        if(res?.id){
+            setState(draft => {
+                draft.data.push({...newItem, id: res.id})
+            })
+        }
+
+        setNewItem({})
+        return res;
     }
 
     const removeItem = item => {

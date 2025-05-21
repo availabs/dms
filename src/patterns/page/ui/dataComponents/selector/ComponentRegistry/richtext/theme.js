@@ -457,7 +457,7 @@ const theme = {
   connecting:
     "absolute top-2.5 left-2.5 text-[15px] text-gray-400 overflow-hidden text-ellipsis whitespace-nowrap pointer-events-none", // .connecting
   toolbar: {
-    base: "flex flex-wrap h-fit overflow-hidden mb[1px] p-1 rounded-tl-lg rounded-tr-lg sticky top-0 z-20 items-center", // .toolbar
+    base: "flex flex-wrap h-fit overflow-hidden mb[1px] p-1 rounded-tl-lg rounded-tr-lg sticky top-0 items-center", // .toolbar
     toolbarItem: {
       base: "border-0 flex bg-none rounded-lg p-2 cursor-pointer align-middle flex-shrink-0 items-center justify-between hover:bg-gray-200", // .toolbar .toolbar-item
       disabled: {
