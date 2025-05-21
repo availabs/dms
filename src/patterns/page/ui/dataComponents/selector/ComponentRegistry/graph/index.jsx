@@ -1,4 +1,4 @@
-import React, {useContext, useMemo} from "react";
+import React, {useContext, useEffect, useMemo} from "react";
 import TableHeaderCell from "../spreadsheet/components/TableHeaderCell";
 import {getColorRange, GraphComponent} from "./GraphComponent";
 import AppearanceControls from "./controls/AppearanceControls";
@@ -59,12 +59,6 @@ const Graph = ({isEdit}) => {
             })
         })
 
-        setState(draft => {
-            const newDomain = [...new Set(tmpData.map(d => d.index))]
-            if(!display.useCustomXDomain && !isEqual(draft.display.xDomain, newDomain)){
-                draft.display.xDomain = newDomain;
-            }
-        })
         if(display.useCustomXDomain && display.xDomain){
             (display.xDomain)
                 .forEach((domainIdx, i) => {
@@ -77,6 +71,15 @@ const Graph = ({isEdit}) => {
         }
         return tmpData
         }, [indexColumn, dataColumns.length, categoryColumn, data, display.useCustomXDomain, display.xDomain])
+
+    useEffect(() => {
+        const newDomain = [...new Set(graphData.map(d => d.index))]
+        if(!display.useCustomXDomain && !isEqual(display.xDomain, newDomain)){
+            setState(draft => {
+                draft.display.xDomain = newDomain;
+            })
+        }
+    }, [graphData]);
 
     const colorPaletteSize = categoryColumn.name ? (new Set(data.map(item => item[categoryColumn.name]))).size : dataColumns.length
 
