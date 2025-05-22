@@ -38,7 +38,8 @@ export const updatePageStateFiltersOnSearchParamChange = ({searchParams, item, s
 	// If searchParams have changed, they should take priority and update the state
 
 	if (Object.keys(urlFilters).length) {
-		const newFilters = (item.filters || []).map(filter => {
+		const itemFilters = typeof item.filters === 'string' ? JSON.parse(item.filters) : item.filters;
+		const newFilters = (itemFilters || []).map(filter => {
 			if(urlFilters[filter.searchKey]){
 				return {...filter, values: urlFilters[filter.searchKey]}
 			}else{
@@ -55,7 +56,7 @@ export const updatePageStateFiltersOnSearchParamChange = ({searchParams, item, s
 	}
 }
 
-export const initNavigateUsingSearchParams = ({pageState, search, navigate, baseUrl, item}) => {
+export const initNavigateUsingSearchParams = ({pageState, search, navigate, baseUrl, item, isView}) => {
 	// one time redirection
 	const searchParamFilters = (pageState.filters || []).filter(f => f.useSearchParams);
 	if(searchParamFilters.length){
@@ -63,7 +64,7 @@ export const initNavigateUsingSearchParams = ({pageState, search, navigate, base
 			.reduce((acc, curr) => ({...acc, [curr.searchKey]: typeof curr.values === 'string' ? [curr.values] : curr.values}), {});
 		const url = `?${convertToUrlParams(filtersObject)}`;
 		if(!search && url !== search){
-			navigate(`${baseUrl}/edit/${item.url_slug}${url}`)
+			navigate(`${baseUrl}${isView ? `/` : `/edit/`}${item.url_slug}${url}`)
 		}
 	}
 }
@@ -77,7 +78,7 @@ function PageEdit ({
 	const { pathname = '/edit', search } = useLocation()
 	let { baseUrl, user, theme } = React.useContext(CMSContext) || {}
 	const [ editPane, setEditPane ] = React.useState({ open: false, index: 1, showGrid: false })
-	const [pageState, setPageState] = useImmer(item);
+	const [pageState, setPageState] = useImmer({...item, filters: typeof item.filters === 'string' ? JSON.parse(item.filters || '[]') : item.filters});
 	const menuItems = React.useMemo(() => {
 	    let items = dataItemsNav(dataItems,baseUrl,true)
 	    return items

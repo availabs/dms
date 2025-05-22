@@ -22,7 +22,7 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
   const submit = useSubmit()
     const navigate = useNavigate()
     const [searchParams] = useSearchParams();
-    const [pageState, setPageState] = useImmer(item);
+    const [pageState, setPageState] = useImmer({...item, filters: typeof item.filters === 'string' ? JSON.parse(item.filters || '[]') : item.filters});
     const { search } = useLocation()
 
   if(!item) { item = {} }// create a default item to set up first time experience.
@@ -41,7 +41,7 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
     }, [searchParams]);
 
     useEffect(() => {
-        initNavigateUsingSearchParams({pageState, search, navigate, baseUrl, item})
+        initNavigateUsingSearchParams({pageState, search, navigate, baseUrl, item, isView: true})
     }, [])
 
     const updatePageStateFilters = (filters) => {

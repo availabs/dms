@@ -26,7 +26,7 @@ const FilterSettings = ({label, type, value, stateValue, onChange}) => {
                     <Input placeholder={'value'} value={filter.values} onChange={e => updateFilters(i, 'values', e.target.value)}/>
                     <label className={'text-red-500 self-center'}>{stateValue?.find(sv => sv.searchKey === filter.searchKey)?.values}</label>
                     <Select value={filter.useSearchParams} onChange={e => updateFilters(i, 'useSearchParams', e.target.value === 'true')}
-                            options={[{label: 'Use Search params', value: true}, {label: `Don't use Search params`, value: false}]} />
+                            options={[{label: 'please select', value: undefined}, {label: 'Use Search params', value: true}, {label: `Don't use Search params`, value: false}]} />
                     <Button onClick={() => {
                       onChange(value.filter((_, idx) => i !== idx));
                       setTmpValue(value.filter((_, idx) => i !== idx))
