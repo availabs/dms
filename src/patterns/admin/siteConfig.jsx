@@ -73,7 +73,7 @@ const adminConfig = ({
       { 
         type: (props) => {
           return (
-            <AdminContext.Provider value={{baseUrl, user: props.user || defaultUser, theme, app, type, falcor, falcorCache, API_HOST, pgEnv: pgEnvs[0], parent}}>
+            <AdminContext.Provider value={{baseUrl, user: props.user || defaultUser, theme, app, type, API_HOST, parent}}>
               <Layout navItems={menuItems} >
                 {props.children}
               </Layout>
