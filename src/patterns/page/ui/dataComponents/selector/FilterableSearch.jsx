@@ -95,7 +95,7 @@ export default ({
             options.filter(o => !filter || o?.label?.toLowerCase().includes(filter.toLowerCase()))
         )
     }, [options, filter])
-    console.log('in search', value, selected)
+
     return (
         <div className={'flex justify-between text-xs'}>
             <div className={`flex flex-row ${className} w-full shrink my-1 px-1 py-0.5 rounded-l-md`}>

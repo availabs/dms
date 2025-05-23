@@ -40,7 +40,7 @@ export const updatePageStateFiltersOnSearchParamChange = ({searchParams, item, s
 	if (Object.keys(urlFilters).length) {
 		const itemFilters = typeof item.filters === 'string' ? JSON.parse(item.filters) : item.filters;
 		const newFilters = (itemFilters || []).map(filter => {
-			if(urlFilters[filter.searchKey]){
+			if(filter.useSearchParams && urlFilters[filter.searchKey]){
 				return {...filter, values: urlFilters[filter.searchKey]}
 			}else{
 				return filter;
