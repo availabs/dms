@@ -23,9 +23,10 @@ const adminConfig = ({
   sideNav = null,
   logo = null,
   rightMenu = <div />,
+  API_HOST = 'https://graph.availabs.org',
   baseUrl = '/',
   checkAuth = () => {},
-  theme = defaultTheme
+  theme = defaultTheme,
 }) => {
   const format = cloneDeep(adminFormat)
   format.app = app
@@ -72,7 +73,7 @@ const adminConfig = ({
       { 
         type: (props) => {
           return (
-            <AdminContext.Provider value={{baseUrl, user: props.user || defaultUser, theme, app, type, parent}}>
+            <AdminContext.Provider value={{baseUrl, user: props.user || defaultUser, theme, app, type, falcor, falcorCache, API_HOST, pgEnv: pgEnvs[0], parent}}>
               <Layout navItems={menuItems} >
                 {props.children}
               </Layout>
@@ -84,6 +85,7 @@ const adminConfig = ({
         children: [
           {
             type: (props) => <SiteEdit {...props} />,
+            // authLevel: 5,
             action: "edit",
             path: "/*",
 

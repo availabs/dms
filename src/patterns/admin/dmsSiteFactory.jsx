@@ -78,7 +78,8 @@ function pattern2routes (siteData, props) {
             baseUrl: SUBDOMAIN === 'admin' ?  '/' : adminPath,
             authLevel: 1,
             API_HOST, 
-            theme: themes['default']
+            theme: themes['default'],
+            pgEnvs
         },authWrapper),
         // default Data manager
         // ...dataManagerConfig.map(config => {
