@@ -75,8 +75,8 @@ export const updatePageStateFiltersOnSearchParamChange = ({searchParams, item, p
 
 export const initNavigateUsingSearchParams = ({pageState, search, navigate, baseUrl, item, isView}) => {
 	// one time redirection
-	const searchParamFilters = (pageState.filters || []).filter(f => f.useSearchParams);
-	if(searchParamFilters.length){
+	const searchParamFilters = (pageState?.filters || []).filter(f => f.useSearchParams);
+	if(searchParamFilters?.length){
 		const filtersObject = searchParamFilters
 			.reduce((acc, curr) => ({...acc, [curr.searchKey]: typeof curr.values === 'string' ? [curr.values] : curr.values}), {});
 		const url = `?${convertToUrlParams(filtersObject)}`;

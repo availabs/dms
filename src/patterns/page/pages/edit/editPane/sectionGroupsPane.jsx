@@ -23,7 +23,7 @@ function SectionGroupControl ({group}) {
   const deleteGroup = () => {
     const newItem = {
       id: item.id,
-      draft_section_groups: cloneDeep(item.draft_section_groups)
+      draft_section_groups: cloneDeep(item?.draft_section_groups || [])
         .filter(d => d.name !== group.name)
     }
     //console.log('section group', group.name, item.id)
