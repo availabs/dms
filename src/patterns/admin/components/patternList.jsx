@@ -79,7 +79,6 @@ function PatternEdit({
 	const duplicate = async({oldType, newType}, item) => {
 		setIsDuplicating(true);
 		// call server to copy over pages and sections
-		await addNewValue(item);
 		const res = await fetch(`${dmsServerPath}/dms/${app}+${oldType}/duplicate`,
 			{
 				method: "POST",
@@ -91,7 +90,7 @@ function PatternEdit({
 
 		const publishFinalEvent = await res.json();
 		console.log('res', publishFinalEvent)
-
+		await addNewValue(item);
 		setIsDuplicating(false);
 	}
 
@@ -184,7 +183,7 @@ function PatternEdit({
 									<button
 										className={'bg-green-100 hover:bg-green-300 text-green-800 px-2 py-0.5 my-1 rounded-lg w-full h-fit'}
 										title={'duplicate item'}
-										onClick={() => {
+										onClick={async () => {
 											const newDocType = uuidv4();
 											const dataToCopy = JSON.stringify({
 												app: pattern.app,
@@ -198,7 +197,7 @@ function PatternEdit({
 												filters: pattern.filters,
 												theme: pattern.theme,
 											})
-											return duplicate({oldType: pattern.doc_type, newType: newDocType}, dataToCopy)
+											await duplicate({oldType: pattern.doc_type, newType: newDocType}, dataToCopy)
 										}}
 									> {isDuplicating ? 'duplicating...' : 'duplicate'}
 									</button>
