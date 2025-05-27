@@ -160,8 +160,6 @@ const Card = ({
         }
     useEffect(() => {
         // set hideSection flag
-        if(!isEdit) return;
-
         if(!hideIfNull){
             setState(draft => {
                 draft.hideSection = false;

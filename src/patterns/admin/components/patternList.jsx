@@ -1,6 +1,8 @@
-import React, {useState} from 'react'
-import {Link, useNavigate} from 'react-router'
+import React, {useContext, useState} from 'react'
+import {Link} from 'react-router'
 import {VerticalDots} from "../ui/icons";
+import {v4 as uuidv4} from "uuid";
+import {AdminContext} from "~/modules/dms/src/patterns/admin/siteConfig";
 
 function PatternList (props) {
 
@@ -31,7 +33,7 @@ function PatternList (props) {
 					(data?.patterns || []).map(pattern => (
 						<div key={pattern.id} className={'grid grid-cols-4 '}>
 							<div>{pattern.pattern_type}</div>
-							<div>{pattern.doc_type}</div>
+							<div>{pattern.name || pattern.doc_type}</div>
 							<div>{pattern.authLevel}</div>
 							<Link to={pattern.base_url}>{pattern.base_url} ok?</Link>
 							<Link to={`/manage_pattern/${pattern.id}`}>Manage</Link>
@@ -55,14 +57,16 @@ function PatternEdit({
 	 format,
 	 ...rest
 }) {
+	const {app, API_HOST} = useContext(AdminContext);
 	const [newItem, setNewItem] = useState({app: format?.app});
 	const [editingIndex, setEditingIndex] = useState(undefined);
 	const [editingItem, setEditingItem] = useState(undefined);
 	const [showActionsIndex, setShowActionsIndex] = useState();
-	const attrToShow = Object.keys(attributes).filter(attrKey => ['pattern_type', 'doc_type', 'subdomain', 'base_url', 'authLevel'].includes(attrKey));
-	const numAttributes = attrToShow.length
-	//console.log('??????????/', format)
-	//console.log('??????????/', format)
+	const [isDuplicating, setIsDuplicating] = useState(false);
+	const attrToShow = Object.keys(attributes).filter(attrKey => ['pattern_type', 'name', 'subdomain', 'base_url', 'authLevel', 'filters'].includes(attrKey));
+	const numAttributes = attrToShow.length;
+	const dmsServerPath = `${API_HOST}/dama-admin`;
+
 	const addNewValue = (item) => {
 
 		const newData = [...value, item || newItem];
@@ -71,6 +75,26 @@ function PatternEdit({
 		onSubmit(newData)
 		setNewItem({app: format?.app})
 	}
+
+	const duplicate = async({oldType, newType}, item) => {
+		setIsDuplicating(true);
+		// call server to copy over pages and sections
+		await addNewValue(item);
+		const res = await fetch(`${dmsServerPath}/dms/${app}+${oldType}/duplicate`,
+			{
+				method: "POST",
+				body: JSON.stringify({newApp: app, newType}), // doc_type becomes type for pages.
+				headers: {
+					"Content-Type": "application/json",
+				},
+			});
+
+		const publishFinalEvent = await res.json();
+		console.log('res', publishFinalEvent)
+
+		setIsDuplicating(false);
+	}
+
 	const c = {
 		1: 'grid grid-cols-1',
 		2: 'grid grid-cols-2',
@@ -105,16 +129,16 @@ function PatternEdit({
 								.filter(attrKey => attrKey !== 'config')
 								.map(attr => {
 								let EditComp = attributes[attr].EditComp;
-
+								const value = attr === 'name' ? (pattern?.[attr] || pattern?.doc_type) : pattern?.[attr];
 
 								return editingIndex === index ?
 									<EditComp
 										key={`${attr}-${index}`}
-										value={editingItem?.[attr]}
+										value={value}
 										onChange={(v) => setEditingItem({...editingItem, app: format.app, [attr]: v})}
 										{...attributes[attr]}
 									/>
-										: attr === 'base_url' ? <Link to={`${pattern[attr]}`}>{pattern[attr]}</Link> : <div>{pattern[attr]}</div>
+										: attr === 'base_url' ? <Link key={`${attr}-${index}`} to={`${pattern[attr]}`}>{pattern[attr]}</Link> : <div key={`${attr}-${index}`}>{value}</div>
 									}
 								)
 						}
@@ -161,18 +185,22 @@ function PatternEdit({
 										className={'bg-green-100 hover:bg-green-300 text-green-800 px-2 py-0.5 my-1 rounded-lg w-full h-fit'}
 										title={'duplicate item'}
 										onClick={() => {
+											const newDocType = uuidv4();
 											const dataToCopy = JSON.stringify({
 												app: pattern.app,
 												base_url: `${pattern.base_url}_copy`,
 												subdomain: pattern.subdomain,
 												config: pattern.config,
-												doc_type: `${pattern.doc_type}_copy`,
+												doc_type: newDocType,
+												name: `${pattern.name}_copy`,
 												pattern_type: pattern.pattern_type,
-												auth_level: pattern.auth_level
+												auth_level: pattern.auth_level,
+												filters: pattern.filters,
+												theme: pattern.theme,
 											})
-											addNewValue(dataToCopy)
+											return duplicate({oldType: pattern.doc_type, newType: newDocType}, dataToCopy)
 										}}
-									> duplicate
+									> {isDuplicating ? 'duplicating...' : 'duplicate'}
 									</button>
 									<div className={'w-full border-b-2 border-red-300'} />
 									<button
@@ -196,15 +224,15 @@ function PatternEdit({
 				{
 					attrToShow
 						.map((attrKey, i) => {
-							let EditComp = attributes[attrKey].EditComp
+							let {EditComp, ViewComp, ...props} = attributes[attrKey]
 							return (
 
 								<EditComp
-									key={`${attrKey}-${i}`}
 									value={newItem?.[attrKey]}
 									onChange={(v) => setNewItem({...newItem, [attrKey]: v})}
-											{...attributes[attrKey]}
-										/>
+									{...props}
+									key={`${attrKey}-${i}`}
+								/>
 
 							)
 						})
@@ -212,7 +240,7 @@ function PatternEdit({
 				<div className={'w-full flex items-center justify-start'}>
 				<button 
 					className={'bg-blue-100 hover:bg-blue-300 text-sm text-blue-800 px-2 py-0.5 m-1 rounded-lg w-fit h-fit'} 
-					onClick={() => addNewValue(newItem)}
+					onClick={() => addNewValue({...newItem, doc_type: uuidv4()})}
 				>
 					Add
 				</button>

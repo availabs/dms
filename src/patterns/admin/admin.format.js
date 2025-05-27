@@ -17,9 +17,9 @@ export const pattern = {
         {value: 'forms', label: 'Forms'}
       ],
     },
-    // uuid string to identify pattern entries in db
-    { key: "doc_type",
-      placeholder: 'Doc Type',
+    // doc_type: uuid string to identify pattern entries in db
+    { key: "name",
+      placeholder: 'Name',
       type: "text",
       required: true
     },
@@ -38,6 +38,12 @@ export const pattern = {
       placeholder: "-1",
       type: "text",
       required: true
+    },
+    {
+      key: "filters",
+      type: "json",
+      required: false,
+      default: [],
     },
     { key: 'config',
       placeholder: 'please select a type',
