@@ -30,6 +30,13 @@ import DefaultMenu from './components/menu'
 export const CMSContext = React.createContext(undefined);
 export const ComponentContext = createContext({});
 
+const parseIfJSON = (text, fallback={}) => {
+  try {
+    return JSON.parse(text)
+  }catch (e){
+    return fallback;
+  }
+}
 export const pagesConfig = ({
   app = "dms-site",
   type = "docs-page",
@@ -75,7 +82,7 @@ export const pagesConfig = ({
   // for instances without auth turned on, default user can edit
   // should move this to dmsFactory default authWrapper
   const defaultUser = { email: "user", authLevel: 10, authed: true, fake: true}
-
+  const patternFilters = parseIfJSON(pattern.filters, []);
   // const rightMenuWithSearch = rightMenu; // for live site
   return {
     siteType,
@@ -88,7 +95,7 @@ export const pagesConfig = ({
           const { falcor, falcorCache } = useFalcor();
           // console.log('hola', user, defaultUser, user || defaultUser)
           return (
-            <CMSContext.Provider value={{API_HOST, baseUrl, damaBaseUrl, user, theme, falcor, falcorCache, pgEnv, app, type, siteType, Menu: () => <>{rightMenu}</> }} >
+            <CMSContext.Provider value={{API_HOST, baseUrl, damaBaseUrl, user, theme, falcor, falcorCache, pgEnv, app, type, siteType, patternFilters, Menu: () => <>{rightMenu}</> }} >
               {children}
             </CMSContext.Provider>
           )

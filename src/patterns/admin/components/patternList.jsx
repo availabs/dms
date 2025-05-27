@@ -63,7 +63,7 @@ function PatternEdit({
 	const [editingItem, setEditingItem] = useState(undefined);
 	const [showActionsIndex, setShowActionsIndex] = useState();
 	const [isDuplicating, setIsDuplicating] = useState(false);
-	const attrToShow = Object.keys(attributes).filter(attrKey => ['pattern_type', 'name', 'subdomain', 'base_url', 'authLevel'].includes(attrKey));
+	const attrToShow = Object.keys(attributes).filter(attrKey => ['pattern_type', 'name', 'subdomain', 'base_url', 'authLevel', 'filters'].includes(attrKey));
 	const numAttributes = attrToShow.length;
 	const dmsServerPath = `${API_HOST}/dama-admin`;
 
@@ -80,7 +80,6 @@ function PatternEdit({
 		setIsDuplicating(true);
 		// call server to copy over pages and sections
 		await addNewValue(item);
-		console.log('?????????????', newType)
 		const res = await fetch(`${dmsServerPath}/dms/${app}+${oldType}/duplicate`,
 			{
 				method: "POST",
@@ -195,7 +194,8 @@ function PatternEdit({
 												doc_type: newDocType,
 												name: `${pattern.name}_copy`,
 												pattern_type: pattern.pattern_type,
-												auth_level: pattern.auth_level
+												auth_level: pattern.auth_level,
+												filters: pattern.filters,
 											})
 											return duplicate({oldType: pattern.doc_type, newType: newDocType}, dataToCopy)
 										}}

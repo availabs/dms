@@ -39,6 +39,12 @@ export const pattern = {
       type: "text",
       required: true
     },
+    {
+      key: "filters",
+      type: "json",
+      required: false,
+      default: [],
+    },
     { key: 'config',
       placeholder: 'please select a type',
       type: 'config'

@@ -12,7 +12,7 @@ import {selectablePDF} from "../components/saveAsPDF/PrintWell/selectablePDF";
 import {useImmer} from "use-immer";
 import {
     convertToUrlParams,
-    initNavigateUsingSearchParams,
+    initNavigateUsingSearchParams, mergeFilters,
     updatePageStateFiltersOnSearchParamChange
 } from "~/modules/dms/src/patterns/page/pages/edit";
 export const PageContext = React.createContext(undefined);
@@ -22,7 +22,12 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
   const submit = useSubmit()
     const navigate = useNavigate()
     const [searchParams] = useSearchParams();
-    const [pageState, setPageState] = useImmer({...item, filters: typeof item?.filters === 'string' ? JSON.parse(item?.filters || '[]') : item?.filters});
+    let { baseUrl, theme, patternFilters=[], user, API_HOST } = React.useContext(CMSContext) || {}
+    const [pageState, setPageState] =
+        useImmer({
+            ...item,
+            filters: mergeFilters(item?.filters, patternFilters)
+        });
     const { search } = useLocation()
 
   if(!item) { item = {} }// create a default item to set up first time experience.
@@ -37,7 +42,7 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
   },[])
 
     useEffect(() => {
-        updatePageStateFiltersOnSearchParamChange({searchParams, item, setPageState})
+        updatePageStateFiltersOnSearchParamChange({searchParams, item, patternFilters, setPageState})
     }, [searchParams]);
 
     useEffect(() => {
@@ -74,7 +79,6 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
         }
     }
   const pdfRef = useRef(); // To capture the section of the page to be converted to PDF
-  let { baseUrl, theme, user, API_HOST } = React.useContext(CMSContext) || {}
   //let pageTheme = {page: {container: `bg-[linear-gradient(0deg,rgba(33,52,64,.96),rgba(55,87,107,.96)),url('/themes/mny/topolines.png')] bg-[size:500px] pb-[4px]`}}
   theme = merge(cloneDeep(theme), item?.theme || {})
 
