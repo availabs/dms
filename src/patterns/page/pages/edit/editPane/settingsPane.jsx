@@ -11,7 +11,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 const FilterSettings = ({label, type, value, stateValue, onChange}) => {
   const [newFilter, setNewFilter] = useState({});
-  const [tmpValue, setTmpValue] = useState(value || []);
+  const [tmpValue, setTmpValue] = useState(typeof value === 'string' ? JSON.parse(value) : (value || []));
 
   const updateFilters = (idx, key, valueToUpdate) => {
     setTmpValue(value.map((v, i) => i === idx ? {...v, [key]: valueToUpdate} : v))

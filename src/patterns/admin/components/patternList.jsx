@@ -196,6 +196,7 @@ function PatternEdit({
 												pattern_type: pattern.pattern_type,
 												auth_level: pattern.auth_level,
 												filters: pattern.filters,
+												theme: pattern.theme,
 											})
 											return duplicate({oldType: pattern.doc_type, newType: newDocType}, dataToCopy)
 										}}
