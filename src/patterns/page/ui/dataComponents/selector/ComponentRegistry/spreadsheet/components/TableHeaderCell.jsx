@@ -1,7 +1,7 @@
 import React, {useCallback, useContext, useRef, useState} from "react";
 import {ToggleControl} from "../../../dataWrapper/components/ToggleControl";
 import {useHandleClickOutside} from "../../shared/utils";
-import {Group, LeftToRightListBullet, TallyMark, Sum, ArrowDown, SortAsc, SortDesc} from "../../../../../icons";
+import {Group, LeftToRightListBullet, TallyMark, Sum, Avg, ArrowDown, SortAsc, SortDesc} from "../../../../../icons";
 import {ComponentContext} from "../../../../../../siteConfig";
 
 const selectWrapperClass = 'group px-2 py-1 w-full flex items-center cursor-pointer hover:bg-gray-100'
@@ -46,6 +46,7 @@ export default function TableHeaderCell({isEdit, attribute, context}) {
         count: <TallyMark key={'count-icon'} className={iconClass} {...iconSizes} />,
         list: <LeftToRightListBullet key={'list-icon'} className={iconClass} {...iconSizes} />,
         sum: <Sum key={'sum-icon'} className={iconClass} {...iconSizes} />,
+        avg: <Avg key={'sum-icon'} className={iconClass} {...iconSizes} />,
     }
 
     return (
