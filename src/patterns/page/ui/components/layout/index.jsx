@@ -77,7 +77,7 @@ const Layout = ({ children, navItems, secondNav, title, pageTheme, EditPane, yPa
 		size: topNav.size || 'compact',
 		menu: topNav.menu || 'left',
 		subMenuStyle: topNav.subMenuStyle || 'row',
-		menuItems: (topNav?.nav === 'main' ? navItems : []).filter(page => !page.hideInNav),
+		menuItems: (topNav?.nav === 'main' ? navItems : topNav?.nav === 'secondary' ? secondNav : []).filter(page => !page.hideInNav),
 		leftMenu: (
 			<div className={'flex flex-col md:flex-row'}>
 	      		{topNav?.logo === 'left' && logo}

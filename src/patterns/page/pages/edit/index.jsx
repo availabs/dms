@@ -106,6 +106,12 @@ function PageEdit ({
 	    return items
 	}, [dataItems])
 
+
+	const menuItemsSecondNav = React.useMemo(() => {
+		let items = dataItemsNav(theme?.navOptions?.secondaryNav?.navItems || [],baseUrl,true)
+		return items
+	}, [theme?.navOptions?.secondaryNav?.navItems])
+
 	// console.log('-----------render edit----------------', item.draft_sections.length, item.draft_section_groups.length)
 	theme = merge(cloneDeep(theme), item?.theme || {})
 	const level = item?.index == '999' || theme?.navOptions?.topNav?.nav !== 'main' ? 1 : detectNavLevel(dataItems, baseUrl);
@@ -205,7 +211,7 @@ function PageEdit ({
 	        {React.useMemo(() => getSectionGroups('top'),[item?.draft_section_groups])}
 	        <Layout 
 	          navItems={menuItems} 
-	          secondNav={theme?.navOptions?.secondaryNav?.navItems || []}
+	          secondNav={menuItemsSecondNav}
 	          pageTheme={{navOptions: item.navOptions || {}}}
 	        >
 	          {React.useMemo(() => getSectionGroups('content'),[item?.draft_section_groups])}

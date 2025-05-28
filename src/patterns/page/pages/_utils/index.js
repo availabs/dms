@@ -86,8 +86,8 @@ export function dataItemsNav(dataItems, baseUrl = '', edit = false, level=1) {
             //console.log(d)
             let item = {
                 id: d.id,
-                path: `${edit ? `${baseUrl}/edit` : baseUrl}/${/*i === 0 && !edit ? '' : */d.url_slug || d.id}`,
-                name: `${d.title} ${d.published === 'draft' ? '*' : ''}`,
+                path: `${edit ? `${baseUrl}/edit` : baseUrl}/${/*i === 0 && !edit ? '' : */d.url_slug || d.path || d.id}`,
+                name: `${d.title || d.name} ${d.published === 'draft' ? '*' : ''}`,
                 description: d.description,
                 hideInNav: d.hide_in_nav
             }
