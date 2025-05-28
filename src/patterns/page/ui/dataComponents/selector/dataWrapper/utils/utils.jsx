@@ -552,10 +552,7 @@ export const formatFunctions = {
     'abbreviate_dollar': (d) => fnumIndex(d, 1, true),
     'comma': (d, isDollar) => fnum(d, isDollar),
     'comma_dollar': (d) => fnum(d, true),
-    'zero_to_na': d => {
-        console.log('d?', d)
-        return !d || (d && +d === 0) || d === '0' ? 'N/A' : d
-    },
+    'zero_to_na': d => !d || (d && +d === 0) || d === '0' ? 'N/A' : d,
     'date': (d) => formatDate(d),
     'icon': (strValue, props) => <><Icon icon={strValue} className={'size-8'} {...props}/> <span>{strValue}</span></>,
     'color': (strValue, map) => <>
