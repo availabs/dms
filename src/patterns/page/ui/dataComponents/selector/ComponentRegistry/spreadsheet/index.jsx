@@ -473,6 +473,7 @@ export default {
                     {label: 'Abbreviated ($)', value: 'abbreviate_dollar'},
                     {label: 'Date', value: 'date'},
                     {label: 'Title', value: 'title'},
+                    {label: '0 = N/A', value: 'zero_to_na'},
                 ]},
 
             // link controls
