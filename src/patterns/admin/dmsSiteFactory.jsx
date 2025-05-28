@@ -78,7 +78,8 @@ function pattern2routes (siteData, props) {
             baseUrl: SUBDOMAIN === 'admin' ?  '/' : adminPath,
             authLevel: 1,
             API_HOST, 
-            theme: themes['default']
+            theme: themes['default'],
+            pgEnvs
         },authWrapper),
         // default Data manager
         // ...dataManagerConfig.map(config => {
@@ -222,7 +223,7 @@ export function DmsSite ({
         Component: () => (<div className={'w-screen h-screen flex items-center bg-blue-50'}>404</div>)
     }
 
-    console.log('routes',  dynamicRoutes, routes)
+    // console.log('routes',  dynamicRoutes, routes)
 
     return (
         <RouterProvider 

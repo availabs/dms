@@ -15,6 +15,23 @@ import {Footer} from "../../ui/dataComponents/selector/ComponentRegistry/footer"
 import {useSearchParams} from "react-router";
 import {useImmer} from "use-immer";
 
+const parseIfJSON = (text, fallback={}) => {
+	try {
+		if(typeof text !== 'string' || !text) return fallback;
+		return JSON.parse(text)
+	}catch (e){
+		return fallback;
+	}
+}
+
+export const mergeFilters = (pageFilters=[], patternFilters=[]) => {
+	// patternFilters should take over if present
+
+	const pageFiltersFormatted = parseIfJSON(pageFilters, pageFilters || []);
+	const patternFiltersFormatted = (patternFilters || []);
+	const pageOnlyFilters = pageFiltersFormatted.filter(f => !patternFiltersFormatted.some(patternF => patternF.searchKey === f.searchKey));
+	return [...patternFiltersFormatted, ...pageOnlyFilters]
+}
 export const convertToUrlParams = (obj, delimiter='|||') => {
 	const params = new URLSearchParams();
 
@@ -27,7 +44,7 @@ export const convertToUrlParams = (obj, delimiter='|||') => {
 	return params.toString();
 };
 
-export const updatePageStateFiltersOnSearchParamChange = ({searchParams, item, setPageState}) => {
+export const updatePageStateFiltersOnSearchParamChange = ({searchParams, item, patternFilters, setPageState}) => {
 	// Extract filters from the URL
 	const urlFilters = Array.from(searchParams.keys()).reduce((acc, searchKey) => {
 		const urlValues = searchParams.get(searchKey)?.split('|||');
@@ -38,8 +55,9 @@ export const updatePageStateFiltersOnSearchParamChange = ({searchParams, item, s
 	// If searchParams have changed, they should take priority and update the state
 
 	if (Object.keys(urlFilters).length) {
-		const newFilters = (item.filters || []).map(filter => {
-			if(urlFilters[filter.searchKey]){
+		const existingFilters = mergeFilters(item.filters, patternFilters);
+		const newFilters = (existingFilters || []).map(filter => {
+			if(filter.useSearchParams && urlFilters[filter.searchKey]){
 				return {...filter, values: urlFilters[filter.searchKey]}
 			}else{
 				return filter;
@@ -55,15 +73,15 @@ export const updatePageStateFiltersOnSearchParamChange = ({searchParams, item, s
 	}
 }
 
-export const initNavigateUsingSearchParams = ({pageState, search, navigate, baseUrl, item}) => {
+export const initNavigateUsingSearchParams = ({pageState, search, navigate, baseUrl, item, isView}) => {
 	// one time redirection
-	const searchParamFilters = (pageState.filters || []).filter(f => f.useSearchParams);
-	if(searchParamFilters.length){
+	const searchParamFilters = (pageState?.filters || []).filter(f => f.useSearchParams);
+	if(searchParamFilters?.length){
 		const filtersObject = searchParamFilters
 			.reduce((acc, curr) => ({...acc, [curr.searchKey]: typeof curr.values === 'string' ? [curr.values] : curr.values}), {});
 		const url = `?${convertToUrlParams(filtersObject)}`;
 		if(!search && url !== search){
-			navigate(`${baseUrl}/edit/${item.url_slug}${url}`)
+			navigate(`${baseUrl}${isView ? `/` : `/edit/`}${item.url_slug}${url}`)
 		}
 	}
 }
@@ -75,9 +93,14 @@ function PageEdit ({
 	const [searchParams] = useSearchParams();
 	const submit = useSubmit()
 	const { pathname = '/edit', search } = useLocation()
-	let { baseUrl, user, theme } = React.useContext(CMSContext) || {}
+	let { baseUrl, user, theme, patternFilters=[] } = React.useContext(CMSContext) || {}
 	const [ editPane, setEditPane ] = React.useState({ open: false, index: 1, showGrid: false })
-	const [pageState, setPageState] = useImmer(item);
+	const [pageState, setPageState] =
+		useImmer({
+			...item,
+			filters: mergeFilters(item.filters, patternFilters)
+		});
+
 	const menuItems = React.useMemo(() => {
 	    let items = dataItemsNav(dataItems,baseUrl,true)
 	    return items
@@ -117,7 +140,7 @@ function PageEdit ({
 
 
 	useEffect(() => {
-		updatePageStateFiltersOnSearchParamChange({searchParams, item, setPageState})
+		updatePageStateFiltersOnSearchParamChange({searchParams, item, patternFilters, setPageState})
 	}, [searchParams]);
 
 	useEffect(() => {

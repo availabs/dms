@@ -168,11 +168,12 @@ function ViewComp({value, ...rest}) {
     const { theme } = React.useContext(CMSContext);
     const { pageState, editPane, apiLoad, apiUpdate, format, ...r  } =  React.useContext(PageContext) || {}
     const defaultComp = () => <div> Component {value["element-type"]} Not Registered </div>;
+    const blankComp = () => <div></div>;
 
     const component = (RegisteredComponents[get(value, "element-type", "lexical")] || defaultComp);
     const [state, setState] = useImmer(convertOldState(value?.['element-data'] || '', initialState(component?.defaultState)));
 
-    let DataComp = !component ? defaultComp : component.useDataSource ? DataWrapper.ViewComp : component.ViewComp;
+    let DataComp = state?.hideSection ? blankComp : !component ? defaultComp : component.useDataSource ? DataWrapper.ViewComp : component.ViewComp;
     return (
         <ComponentContext.Provider value={{state, setState, apiLoad, controls: component.controls}}>
             <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={false} defaultOpen={true}/>
