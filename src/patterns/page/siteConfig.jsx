@@ -28,7 +28,7 @@ import DefaultMenu from './components/menu'
 
 
 export const CMSContext = React.createContext(undefined);
-export const ComponentContext = createContext({});
+export const ComponentContext = React.createContext({});
 
 export const pagesConfig = ({
   app = "dms-site",
