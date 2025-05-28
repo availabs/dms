@@ -422,7 +422,7 @@ export default {
             // settings from columns dropdown are stored in state.columns array, per column
             {type: 'select', label: 'Fn', key: 'fn',
                 options: [
-                    {label: 'fn', value: ' '}, {label: 'list', value: 'list'}, {label: 'sum', value: 'sum'}, {label: 'count', value: 'count'}
+                    {label: 'fn', value: ' '}, {label: 'list', value: 'list'}, {label: 'sum', value: 'sum'}, {label: 'count', value: 'count'}, {label: 'avg', value: 'avg'}
                 ]},
             {type: 'toggle', label: 'show', key: 'show'},
             {type: 'toggle', label: 'Exclude N/A', key: 'excludeNA'},
