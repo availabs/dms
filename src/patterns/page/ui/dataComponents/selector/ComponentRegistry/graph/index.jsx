@@ -1,5 +1,5 @@
 import React, {useContext, useEffect, useMemo} from "react";
-import TableHeaderCell from "../spreadsheet/components/TableHeaderCell";
+import TableHeaderCell from "../../../../components/table/components/TableHeaderCell";
 import {getColorRange, GraphComponent} from "./GraphComponent";
 import AppearanceControls from "./controls/AppearanceControls";
 import {fnumIndex} from "../../dataWrapper/utils/utils";
@@ -35,7 +35,7 @@ export const graphTheme = ({
 // })
 
 const Graph = ({isEdit}) => {
-    const {state:{columns, data, display}, setState} = useContext(ComponentContext);
+    const {state:{columns, data, display}, setState, controls={}} = useContext(ComponentContext);
     const { theme = { graph: graphTheme } } = React.useContext(CMSContext) || {};
     // data is restructured into: index, type, value.
     // index is X axis column's values.
@@ -105,6 +105,8 @@ const Graph = ({isEdit}) => {
                             <TableHeaderCell
                                 isEdit={isEdit}
                                 attribute={attribute}
+                                columns={columns}
+                                display={display} controls={controls} setState={setState}
                             />
                         </div>)}
                 </div> : null

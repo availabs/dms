@@ -1,12 +1,10 @@
-import React, {useContext, useEffect, useState} from "react";
+import React, {useEffect, useState} from "react";
 import {Link} from "react-router";
-import DataTypes from "../../../../../../../../data-types";
-import {formatFunctions} from "../../../dataWrapper/utils/utils";
+import DataTypes from "../../../../../../data-types";
+import {formatFunctions} from "../../../dataComponents/selector/dataWrapper/utils/utils";
 import {isEqual} from "lodash-es";
 import { RenderAction } from "./RenderActions";
-import { tableTheme } from '../'
-import {CMSContext, ComponentContext} from '../../../../../../siteConfig'
-import {InfoCircle} from "../../../../../icons";
+import {InfoCircle} from "../../../icons";
 
 const DisplayCalculatedCell = ({value, className}) => <div className={className}>{value}</div>
 const LoadingComp = ({className}) => <div className={className}>loading...</div>
@@ -45,13 +43,13 @@ const validate = ({value, required, options, name}) => {
 }
 
 export const TableCell = ({
-                               showOpenOutCaret, showOpenOut, setShowOpenOut,
-                               attribute, colSpan, openOutTitle,
-                               i, item, updateItem, removeItem, onPaste,
-                               isFrozen, isSelected, isSelecting, editing, edge, loading, allowEdit,
-                               onClick, onDoubleClick, onMouseDown, onMouseMove, onMouseUp}) => {
-    const {state: {columns, display}, setState} = useContext(ComponentContext);
-    const { theme = { table: tableTheme } } = React.useContext(CMSContext) || {}
+    columns, display, theme,
+    showOpenOutCaret, showOpenOut, setShowOpenOut,
+    attribute, openOutTitle,
+    i, item, updateItem, removeItem, onPaste,
+    isFrozen, isSelected, isSelecting, editing, edge, loading, allowEdit,
+    onClick, onDoubleClick, onMouseDown, onMouseMove, onMouseUp
+}) => {
     const [newItem, setNewItem] = useState(item);
     const rawValue = newItem[attribute.normalName] || newItem[attribute.name]
     // const Comp = DataTypes[attribute.type]?.[isSelecting ? 'ViewComp' : 'EditComp'];
@@ -93,7 +91,7 @@ export const TableCell = ({
         // send update to api
         if (!(editing && allowEdit)) return;
 
-        if (!isEqual(rawValue, item[attribute.name])){
+        if (!isEqual(rawValue, item[attribute.name]) && UpdateItem){
             updateItem(undefined, undefined, newItem)
         }
 

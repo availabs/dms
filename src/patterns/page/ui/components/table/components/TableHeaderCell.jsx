@@ -1,26 +1,22 @@
 import React, {useCallback, useContext, useRef, useState} from "react";
-import {ToggleControl} from "../../../dataWrapper/components/ToggleControl";
-import {useHandleClickOutside} from "../../shared/utils";
-import {Group, LeftToRightListBullet, TallyMark, Sum, Avg, ArrowDown, SortAsc, SortDesc} from "../../../../../icons";
-import {ComponentContext} from "../../../../../../siteConfig";
+import {ToggleControl} from "../../../dataComponents/selector/dataWrapper/components/ToggleControl";
+import {useHandleClickOutside} from "../../../dataComponents/selector/ComponentRegistry/shared/utils";
+import {Group, LeftToRightListBullet, TallyMark, Sum, Avg, ArrowDown, SortAsc, SortDesc} from "../../../icons";
+import {ComponentContext} from "../../../../siteConfig";
 
 const selectWrapperClass = 'group px-2 py-1 w-full flex items-center cursor-pointer hover:bg-gray-100'
 const selectLabelClass = 'w-fit font-regular text-gray-500 cursor-default'
 const selectClasses = 'w-full rounded-md bg-white group-hover:bg-gray-100 cursor-pointer'
 
 const getColIdName = col => col.normalName || col.name;
+const Noop = () => {};
 
 // in header menu for each column
-export default function TableHeaderCell({isEdit, attribute, context}) {
-    const {state: {columns = [], display}, setState, controls = {}} = useContext(context || ComponentContext);
-    if(!controls.inHeader?.length) return;
-
+export default function TableHeaderCell({isEdit, attribute, columns, display, controls, setState=Noop}) {
     const menuRef = useRef(null);
     const [isOpen, setIsOpen] = useState(false);
     const menuBtnId = `menu-btn-${getColIdName(attribute)}-in-header-column-controls`; // used to control isOpen on menu-btm click;
     useHandleClickOutside(menuRef, menuBtnId, () => setIsOpen(false));
-
-    const maxCardSpan = display.gridSize || columns.filter(({show, cardSpan}) => show).length;
 
     // updates column if present, else adds it with the change the user made.
     const updateColumns = useCallback((key, value, onChange, dataFetch) => setState(draft => {
@@ -81,59 +77,63 @@ export default function TableHeaderCell({isEdit, attribute, context}) {
                 </div>
             </div>
 
-            <div ref={menuRef}
-                 key={'menu'}
-                 className={`min-w-[180px]
+            {
+                controls?.inHeader?.length ? (
+                    <div ref={menuRef}
+                         key={'menu'}
+                         className={`min-w-[180px]
                  ${isOpen ? 'visible transition ease-in duration-200' : 'hidden transition ease-in duration-200'} 
                  absolute right-0 z-[10] divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 transition`}
-            >
-                <div className="py-0.5 min-w-fit max-h-[500px] overflow-auto scrollbar-sm">
-                    <div className="flex flex-col gap-0.5 items-center px-1 py-1 text-xs text-gray-600 font-regular">
-                        {
-                            controls.inHeader
-                                .filter(({displayCdn}) =>
-                                    typeof displayCdn === 'function' ? displayCdn({attribute, display, isEdit}) :
-                                        typeof displayCdn === 'boolean' ? displayCdn : true)
-                                .map(({type, inputType, label, key, dataFetch, options, onChange}) =>
-                                    type === 'select' ?
-                                        <div key={`${getColIdName(attribute)}-${key}`} className={selectWrapperClass}>
-                                            <label className={selectLabelClass}>{label}</label>
-                                            <select
-                                                className={selectClasses}
-                                                value={attribute[key]}
-                                                onChange={e => updateColumns(key, e.target.value, onChange, dataFetch)}
-                                            >
-                                                {
-                                                    options.map(({label, value}) => <option key={value} value={value}>{label}</option>)
-                                                }
-                                            </select>
-                                        </div> :
-                                        type === 'toggle' ?
-                                            <div className={'px-2 py-1 w-full rounded-md bg-white hover:bg-gray-100 cursor-pointer'}>
-                                                <ToggleControl
-                                                    className={`inline-flex w-full justify-center items-center rounded-md cursor-pointer ${selectLabelClass}`}
-                                                    title={label}
-                                                    value={attribute[key]}
-                                                    setValue={e => updateColumns(key, e, onChange, dataFetch)}
-                                                />
-                                            </div> :
-                                            type === 'input' ?
-                                                <div className={selectWrapperClass}>
+                    >
+                        <div className="py-0.5 min-w-fit max-h-[500px] overflow-auto scrollbar-sm">
+                            <div className="flex flex-col gap-0.5 items-center px-1 py-1 text-xs text-gray-600 font-regular">
+                                {
+                                    controls.inHeader
+                                        .filter(({displayCdn}) =>
+                                            typeof displayCdn === 'function' ? displayCdn({attribute, display, isEdit}) :
+                                                typeof displayCdn === 'boolean' ? displayCdn : true)
+                                        .map(({type, inputType, label, key, dataFetch, options, onChange}) =>
+                                            type === 'select' ?
+                                                <div key={`${getColIdName(attribute)}-${key}`} className={selectWrapperClass}>
                                                     <label className={selectLabelClass}>{label}</label>
-                                                    <input
+                                                    <select
                                                         className={selectClasses}
-                                                        type={inputType}
                                                         value={attribute[key]}
                                                         onChange={e => updateColumns(key, e.target.value, onChange, dataFetch)}
-                                                    />
+                                                    >
+                                                        {
+                                                            options.map(({label, value}) => <option key={value} value={value}>{label}</option>)
+                                                        }
+                                                    </select>
                                                 </div> :
-                                            typeof type === 'function' ? type({value: attribute[key], setValue: newValue => updateColumns(key, newValue, onChange, dataFetch)}) :
-                                                `${type} not available`
-                                )
-                        }
+                                                type === 'toggle' ?
+                                                    <div className={'px-2 py-1 w-full rounded-md bg-white hover:bg-gray-100 cursor-pointer'}>
+                                                        <ToggleControl
+                                                            className={`inline-flex w-full justify-center items-center rounded-md cursor-pointer ${selectLabelClass}`}
+                                                            title={label}
+                                                            value={attribute[key]}
+                                                            setValue={e => updateColumns(key, e, onChange, dataFetch)}
+                                                        />
+                                                    </div> :
+                                                    type === 'input' ?
+                                                        <div className={selectWrapperClass}>
+                                                            <label className={selectLabelClass}>{label}</label>
+                                                            <input
+                                                                className={selectClasses}
+                                                                type={inputType}
+                                                                value={attribute[key]}
+                                                                onChange={e => updateColumns(key, e.target.value, onChange, dataFetch)}
+                                                            />
+                                                        </div> :
+                                                        typeof type === 'function' ? type({value: attribute[key], setValue: newValue => updateColumns(key, newValue, onChange, dataFetch)}) :
+                                                            `${type} not available`
+                                        )
+                                }
+                            </div>
+                        </div>
                     </div>
-                </div>
-            </div>
+                ) : null
+            }
         </div>
     )
 }
