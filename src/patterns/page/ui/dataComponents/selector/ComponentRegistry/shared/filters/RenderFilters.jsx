@@ -81,8 +81,9 @@ export const RenderFilters = ({
                         if(column.filters?.length) {
                             // filter can be either internal or external. and one of the operations
                             column.filters.forEach((filter) => {
-                                const pageFilterValues = Array.isArray(pageFilters[filter.searchParamKey]) ? pageFilters[filter.searchParamKey] : [pageFilters[filter.searchParamKey]];
-                                if(filter.usePageFilters && pageFilterValues && !isEqual(filter.values, pageFilterValues)) {
+                                const tmpValue = pageFilters[filter.searchParamKey]
+                                const pageFilterValues = Array.isArray(tmpValue) ? tmpValue : [tmpValue];
+                                if(tmpValue && filter.usePageFilters && pageFilterValues && !isEqual(filter.values, pageFilterValues)) {
                                     filter.values = pageFilterValues;
                                 }
                             })
@@ -130,7 +131,6 @@ export const RenderFilters = ({
                                             format: state.sourceInfo,
                                         });
 
-                                        console.log('filter.values', filter.values)
                                         const selectedValues = filter.values
                                             .map(o => o?.value || o)
                                             .map(o => o === null ? 'null' : o)
