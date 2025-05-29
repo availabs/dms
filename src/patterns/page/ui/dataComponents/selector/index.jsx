@@ -11,13 +11,13 @@ import { RenderFilters } from "./dataWrapper/components/filters/RenderFilters";
 import FilterableSearch from "./FilterableSearch";
 
 import { CMSContext, ComponentContext, PageContext } from '../../../context'
-import ComponentRegistry from './ComponentRegistry'
+//import ComponentRegistry from './ComponentRegistry'
 
 
 // const convertOldState = d => d
 // const RenderFilters = () => <div/>
 // const FilterableSearch = () => <div/>
-//const ComponentRegistry = {}
+const ComponentRegistry = {}
 
 
 export let RegisteredComponents = ComponentRegistry;
