@@ -82,8 +82,7 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
     }
 
 
-    
-    let { baseUrl, theme, user, API_HOST } = React.useContext(CMSContext) || {}
+
       //let pageTheme = {page: {container: `bg-[linear-gradient(0deg,rgba(33,52,64,.96),rgba(55,87,107,.96)),url('/themes/mny/topolines.png')] bg-[size:500px] pb-[4px]`}}
     theme = merge(cloneDeep(theme), item?.theme || {})
 

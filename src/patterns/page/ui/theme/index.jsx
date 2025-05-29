@@ -19,7 +19,7 @@ import { sectionArrayTheme } from '../dataComponents/sections/sectionArray'
 
 // -- Component Registery Components
 
-import { tableTheme } from '../dataComponents/selector/ComponentRegistry/spreadsheet/index'
+//import { tableTheme } from '../dataComponents/selector/ComponentRegistry/spreadsheet/index'
 //import lexicalTheme from '../dataComponents/selector/ComponentRegistry/richtext/theme';
 
 import {dataCardTheme} from "../dataComponents/selector/ComponentRegistry/Card";

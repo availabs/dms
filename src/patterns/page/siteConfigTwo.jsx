@@ -11,7 +11,7 @@ import UI from '../../ui'
 import { ThemeContext } from '../../ui/useTheme.js'
 import { CMSContext } from './context'
 import { registerDataType } from '../../data-types'
-import Selector from './ui/dataComponents/selector'
+//import Selector from './ui/dataComponents/selector'
 import defaultTheme from '../../ui/defaultTheme.json'
 
 

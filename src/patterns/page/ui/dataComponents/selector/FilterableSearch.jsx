@@ -83,13 +83,9 @@ export default ({
     const [selected, setSelected] = useState([]);
     const [filter, setFilter] = useState('');
     const [filteredOptions, setFilteredOptions] = useState(options);
-<<<<<<< HEAD
-    const { UI } = React.useContext(CMSContext) || {}
-    const { Icon } = UI;
-=======
 
 
->>>>>>> 1d8fc9d (more stuff and rebase)
+
     useEffect(() => {
         if (!value) {
             setSelected([])
