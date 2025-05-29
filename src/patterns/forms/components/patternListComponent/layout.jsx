@@ -1,7 +1,10 @@
 import React from 'react';
 import {Link, useNavigate, useParams} from 'react-router'
-import {Alert} from "../../ui/icons";
-import {Database} from "~/modules/dms/src/patterns/page/ui/icons";
+//import {Alert} from "../../ui/icons";
+//import {Database} from "~/modules/dms/src/patterns/page/ui/icons";
+
+const Alert = () => <div>A</div>
+const Database =  () => <div>D</div>
 
 const navPages = [
   {name: 'Overview', href: ``, viewDependentPage: false},

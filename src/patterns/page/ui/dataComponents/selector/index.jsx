@@ -18,7 +18,7 @@ import ComponentRegistry from './ComponentRegistry'
 // const convertOldState = d => d
 // const RenderFilters = () => <div/>
 // const FilterableSearch = () => <div/>
-// const ComponentRegistry = {}
+//const ComponentRegistry = {}
 
 
 export let RegisteredComponents = ComponentRegistry;
