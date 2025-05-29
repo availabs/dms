@@ -31,9 +31,25 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
             filters: mergeFilters(item?.filters, patternFilters)
         });
     const { search } = useLocation()
+    const pdfRef = useRef(); // To capture the section of the page to be converted to PDF
+
+      //let pageTheme = {page: {container: `bg-[linear-gradient(0deg,rgba(33,52,64,.96),rgba(55,87,107,.96)),url('/themes/mny/topolines.png')] bg-[size:500px] pb-[4px]`}}
+    theme = merge(cloneDeep(theme), item?.theme || {})
+
+  
 
     if(!item) { item = {} }// create a default item to set up first time experience.
 
+    const menuItems = React.useMemo(() => {
+        let items = dataItemsNav(dataItems,baseUrl,false)
+        return items
+    }, [dataItems])
+
+
+    const menuItemsSecondNav = React.useMemo(() => {
+        let items = dataItemsNav(theme?.navOptions?.secondaryNav?.navItems || [],baseUrl,false)
+        return items
+    }, [theme?.navOptions?.secondaryNav?.navItems])
     // React.useEffect(() => {
     //     // -------------------------------------------------------------------
     //     // -- This on load effect backfills pages created before sectionGroups
@@ -82,19 +98,8 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
     }
 
 
+   
 
-      //let pageTheme = {page: {container: `bg-[linear-gradient(0deg,rgba(33,52,64,.96),rgba(55,87,107,.96)),url('/themes/mny/topolines.png')] bg-[size:500px] pb-[4px]`}}
-    theme = merge(cloneDeep(theme), item?.theme || {})
-
-    const menuItems = React.useMemo(() => {
-        let items = dataItemsNav(dataItems,baseUrl,false)
-        return items
-    }, [dataItems])
-
-    const menuItemsSecondNav = React.useMemo(() => {
-    let items = dataItemsNav(theme?.navOptions?.secondaryNav?.navItems || [],baseUrl,false)
-    return items
-  }, [theme?.navOptions?.secondaryNav?.navItems])
 
   
     const getSectionGroups =  ( sectionName ) => {

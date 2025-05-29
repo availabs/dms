@@ -1,5 +1,4 @@
 import React, {useEffect, useState} from "react";
-
 import { Typeahead, Menu, MenuItem, Input, useToken } from 'react-bootstrap-typeahead';
 import { CMSContext } from '../../../context'
 
@@ -85,7 +84,10 @@ export default ({
     const [filteredOptions, setFilteredOptions] = useState(options);
 
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 2f9440d3b766bf1a292c216e8c04ff51b0e67040
     useEffect(() => {
         if (!value) {
             setSelected([])

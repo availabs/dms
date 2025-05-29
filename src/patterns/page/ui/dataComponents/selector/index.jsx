@@ -10,7 +10,6 @@ import { convertOldState } from "./dataWrapper/utils/convertOldState";
 import { RenderFilters } from "./dataWrapper/components/filters/RenderFilters";
 import FilterableSearch from "./FilterableSearch";
 
-
 import { CMSContext, ComponentContext, PageContext } from '../../../context'
 import ComponentRegistry from './ComponentRegistry'
 
@@ -188,7 +187,6 @@ function ViewComp({value, ...rest}) {
     const [state, setState] = useImmer(convertOldState(value?.['element-data'] || '', initialState(component?.defaultState)));
 
 
-
     // let DataComp = state?.hideSection ? 
     // blankComp : !component ? 
     // defaultComp : component.useDataSource ? 
@@ -197,6 +195,7 @@ function ViewComp({value, ...rest}) {
     let DataComp = !component ? 
         defaultComp : component.ViewComp;
     
+
 
     return (
         <ComponentContext.Provider value={{state, setState, apiLoad, controls: component.controls}}>

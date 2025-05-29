@@ -10,6 +10,7 @@ import {
 	dataItemsNav, 
 	detectNavLevel, 
 	json2DmsForm,
+<<<<<<< HEAD
 	parseIfJSON,
 	mergeFilters,
 	convertToUrlParams,
@@ -24,6 +25,19 @@ import PageControls from './editPane'
 
 import { CMSContext, PageContext } from '../../context'
 
+=======
+	convertToUrlParams,
+  initNavigateUsingSearchParams,
+  updatePageStateFiltersOnSearchParamChange 
+} from '../_utils'
+
+import { Layout, SectionGroup } from '../../ui'
+
+import { CMSContext, PageContext } from '../../context'
+import PageControls from './editPane'
+
+
+>>>>>>> 2f9440d3b766bf1a292c216e8c04ff51b0e67040
 function PageEdit ({
   format, item, dataItems, updateAttribute, attributes, setItem, apiLoad, apiUpdate, status, navOptions, busy
 }) {

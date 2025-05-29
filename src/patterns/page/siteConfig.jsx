@@ -1,6 +1,5 @@
 import React from 'react'
 import { merge,cloneDeep } from "lodash-es"
-
 import {parseIfJSON, updateRegisteredFormats, updateAttributes} from './pages/_utils'
 
 // pages
@@ -26,6 +25,7 @@ import { useFalcor } from "@availabs/avl-falcor"
 import { Link } from 'react-router'
 import { SearchPage } from "./components/search/SearchPage";
 import DefaultMenu from './components/menu'
+
 
 
 const pagesConfig = ({
