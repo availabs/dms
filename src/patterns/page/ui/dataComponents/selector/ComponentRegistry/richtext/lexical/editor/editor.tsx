@@ -29,9 +29,8 @@ import {useSharedHistoryContext} from './context/SharedHistoryContext';
 import TableCellNodes from './nodes/TableCellNodes';
 import ActionsPlugin from './plugins/ActionsPlugin';
 import AutocompletePlugin from './plugins/AutocompletePlugin';
-import AutoEmbedPlugin from './plugins/AutoEmbedPlugin';
+//import AutoEmbedPlugin from './plugins/AutoEmbedPlugin';
 import AutoLinkPlugin from './plugins/AutoLinkPlugin';
-import ClickableLinkPlugin from './plugins/ClickableLinkPlugin'
 import CodeHighlightPlugin from './plugins/CodeHighlightPlugin';
 import CollapsiblePlugin from './plugins/CollapsiblePlugin';
 
@@ -57,7 +56,7 @@ import TableOfContentsPlugin from './plugins/TableOfContentsPlugin';
 import {TablePlugin as NewTablePlugin} from './plugins/TablePlugin';
 import ToolbarPlugin from './plugins/ToolbarPlugin';
 import TreeViewPlugin from './plugins/TreeViewPlugin';
-import YouTubePlugin from './plugins/YouTubePlugin';
+//import YouTubePlugin from './plugins/YouTubePlugin';
 import ContentEditable from './ui/ContentEditable';
 import Placeholder from './ui/Placeholder';
 import InlineImagePlugin from "./plugins/InlineImagePlugin";
@@ -138,7 +137,7 @@ export default function Editor(props): JSX.Element {
                 <ClearEditorPlugin/>
                 <ComponentPickerPlugin/>
                 <EmojiPickerPlugin />
-                <AutoEmbedPlugin/>
+                {/*<AutoEmbedPlugin/>*/}
                 <KeywordsPlugin/>
                 <SpeechToTextPlugin/>
                 <AutoLinkPlugin/>
@@ -183,7 +182,7 @@ export default function Editor(props): JSX.Element {
                         <ButtonPlugin />
                         <LinkPlugin/>
                        
-                        <YouTubePlugin/>
+                        {/*<YouTubePlugin/>*/}
                         <HorizontalRulePlugin/>
 
                         <TabFocusPlugin/>

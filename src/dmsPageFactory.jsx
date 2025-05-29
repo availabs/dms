@@ -2,12 +2,12 @@ import React, {useEffect} from 'react'
 import { useParams, useLocation, useNavigate } from "react-router";
 
 import {
-  DmsManager,
   dmsDataLoader,
   dmsDataEditor,
-} from './index'
+} from './api'
 
-import defaultTheme from './theme/default-theme'
+import DmsManager from './dms-manager/index.jsx'
+// import defaultTheme from './theme/default-theme'
 
 import {
   falcorGraph,
@@ -29,7 +29,6 @@ function ScrollToTop() {
 export default function dmsPageFactory (
   dmsConfig,
   authWrapper = Component => Component,
-  dmsTheme = defaultTheme
 ) {
   //console.log('hola', dmsConfig, authWrapper)
   //const {falcor, falcorCache} = useFalcor()

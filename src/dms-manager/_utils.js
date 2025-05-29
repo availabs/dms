@@ -1,18 +1,13 @@
-import React from 'react'
-import Wrappers from '../wrappers'
-import Components from '../components'
 import { matchRoutes } from 'react-router'
-import { get, cloneDeep } from "lodash-es"
+import { get, cloneDeep } from 'lodash-es'
+import { getViewComp, getEditComp } from '../data-types'
 
-const DefaultComponent = Components?.devinfo
-const DefaultWrapper = Wrappers?.error
-let childKey = 0
+// import Wrappers from '../wrappers' //comment this out and it breaks, why?!?!
+// import Components from '../components'
 
 
-function configMatcher (config, path ) {
-	
+export function configMatcher (config, path ) {
 	// matchRoutes picks best from all available routes in config
-
 	const matches = matchRoutes(config.map(d => ({path:d.path, ...d})), {pathname:path}) || []
 
 	// hash matches by route path
@@ -32,49 +27,7 @@ function configMatcher (config, path ) {
 	})
 }
 
-
-export function getActiveView(config, path, format, user, depth=0) {
-	// add '' to params array to allow root (/) route  matching
-	let activeConfigs = configMatcher(config,path)
-
-	// console.log('activeConfigs', activeConfigs)
-	// get the component for the active config
-	// or the default component
-	return activeConfigs.map(activeConfig => {
-		const comp = typeof activeConfig.type === 'function' ?
-			activeConfig.type :
-			Components[activeConfig.type] || DefaultComponent
-		
-		// get the wrapper for the config, or the default wrapper
-		//console.log('activeConfig Action',activeConfig.action)
-		const Wrapper = Wrappers[activeConfig.action] || DefaultWrapper
-		
-		// if there are children 
-		let children = []
-		if(activeConfig.children) {
-			children = getActiveView(
-				activeConfig.children,
-				path,
-				format,
-				user,
-				depth+1
-			)
-		}
-
-		//console.log('wrapper', activeConfig.action, activeConfig.type, user)
-		return <Wrapper
-			Component={comp}
-			format={format}
-			key={childKey++}
-			{...activeConfig}
-			children={children}
-			user={user}
-		/>
-	})
-}
-
-
-function getActiveConfig (config=[], path='/', depth = 0) {
+export function getActiveConfig (config=[], path='/', depth = 0) {
 	
 	let configs = cloneDeep(configMatcher(config,path, depth))
 
@@ -145,14 +98,14 @@ export function filterParams (data, params,format) {
 	return filter
 }
 
-const json2DmsForm = (data,requestType='update') => {
+export const json2DmsForm = (data,requestType='update') => {
   let out = new FormData()
   out.append('data', JSON.stringify(data))
   out.append('requestType', requestType)
   return out
 }
 
-const updateRegisteredFormats = (registerFormats, app, type) => {
+export const updateRegisteredFormats = (registerFormats, app, type) => {
 	if (Array.isArray(registerFormats)) {
 	  registerFormats = registerFormats.map((rFormat) => {
 		rFormat.app = app;
@@ -169,7 +122,7 @@ const updateRegisteredFormats = (registerFormats, app, type) => {
 	return registerFormats;
   };
   
-  export const updateAttributes = (attributes, app, type) => {
+export const updateAttributes = (attributes, app, type) => {
 	if (Array.isArray(attributes)) {
 	  attributes = attributes.map((attr) => {
 		attr.format = attr.format
@@ -179,13 +132,63 @@ const updateRegisteredFormats = (registerFormats, app, type) => {
 	  });
 	}
 	return attributes;
-  };
+};
 
 
- const utils = {
-	getActiveConfig,
-	updateRegisteredFormats,
-	json2DmsForm
+
+export function getAttributes (format, options={}, mode='') {
+	//console.log('getAttributes', format, options)
+	
+	const formats = processFormat(format)
+	const accessor = options?.accessor || 'key'
+	// const attributeFilter = get(options, 'attributes', [])
+	// console.log('getAttributes', format.attributes)
+	const attributes = format.attributes
+		//.filter(attr => attributeFilter.length === 0 || attributeFilter.includes(attr.key))
+		.filter(attr => mode !== 'edit' || 
+				(typeof attr.editable === 'undefined' ||
+				!attr.editable === false)
+		)
+		.reduce((out,attr) => {
+			if(attr.format && formats[attr.format]) {
+				out[attr[accessor]] = {
+					...attr,
+					attributes: getAttributes(formats[attr.format])
+				}
+			} else {
+				out[attr[accessor]] = attr
+			}
+			return out
+		},{})
+
+	const attributeKeys = Object.keys(attributes)
+
+	//console.log('attributeKeys', attributes)
+		
+	Object.keys(attributes)
+		.filter(attributeKey => attributeKeys.includes(attributeKey))
+		.forEach(attributeKey => {		
+			attributes[attributeKey].ViewComp = getViewComp(
+				get(attributes, `${attributeKey}`, {})
+			)
+			attributes[attributeKey].EditComp = getEditComp(
+				get(attributes, `${attributeKey}`, {})
+			)
+		})
+
+	return attributes
 }
-export default utils
- 
+
+export function processFormat (format, formats = {}) {
+  if (!format) return formats;
+
+  const Format = cloneDeep(format);
+
+  if (Format.registerFormats) {
+    Format.registerFormats.forEach(f => processFormat(f, formats));
+  }
+
+  formats[`${ Format.app }+${ Format.type }`] = Format;
+
+  return formats;
+}

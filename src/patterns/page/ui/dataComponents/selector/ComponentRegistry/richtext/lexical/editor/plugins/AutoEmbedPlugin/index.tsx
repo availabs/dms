@@ -10,7 +10,7 @@ import type {LexicalEditor} from 'lexical';
 
 import {
   AutoEmbedOption,
-  EmbedConfig,
+  //EmbedConfig,
   EmbedMatchResult,
   LexicalAutoEmbedPlugin,
   URL_MATCHER,
@@ -25,7 +25,7 @@ import Button from '../../ui/Button';
 import {DialogActions} from '../../ui/Dialog';
 //import {INSERT_FIGMA_COMMAND} from '../FigmaPlugin';
 // import {INSERT_TWEET_COMMAND} from '../TwitterPlugin';
-import {INSERT_YOUTUBE_COMMAND} from '../YouTubePlugin';
+// import {INSERT_YOUTUBE_COMMAND} from '../YouTubePlugin';
 import theme from "./../../themes/PlaygroundEditorTheme";
 
 interface PlaygroundEmbedConfig extends EmbedConfig {
@@ -45,39 +45,39 @@ interface PlaygroundEmbedConfig extends EmbedConfig {
   description?: string;
 }
 
-export const YoutubeEmbedConfig: PlaygroundEmbedConfig = {
-  contentName: 'Youtube Video',
+// export const YoutubeEmbedConfig: PlaygroundEmbedConfig = {
+//   contentName: 'Youtube Video',
 
-  exampleUrl: 'https://www.youtube.com/watch?v=jNQXAC9IVRw',
+//   exampleUrl: 'https://www.youtube.com/watch?v=jNQXAC9IVRw',
 
-  // Icon for display.
-  icon: <i className={`${theme.typeaheadPopover.ul.li.icon} ${theme.icon.youtube}`} />,
+//   // Icon for display.
+//   icon: <i className={`${theme.typeaheadPopover.ul.li.icon} ${theme.icon.youtube}`} />,
 
-  insertNode: (editor: LexicalEditor, result: EmbedMatchResult) => {
-    editor.dispatchCommand(INSERT_YOUTUBE_COMMAND, result.id);
-  },
+//   insertNode: (editor: LexicalEditor, result: EmbedMatchResult) => {
+//     editor.dispatchCommand(INSERT_YOUTUBE_COMMAND, result.id);
+//   },
 
-  keywords: ['youtube', 'video'],
+//   keywords: ['youtube', 'video'],
 
-  // Determine if a given URL is a match and return url data.
-  parseUrl: async (url: string) => {
-    const match =
-      /^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/.exec(url);
+//   // Determine if a given URL is a match and return url data.
+//   parseUrl: async (url: string) => {
+//     const match =
+//       /^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/.exec(url);
 
-    const id = match ? (match?.[2].length === 11 ? match[2] : null) : null;
+//     const id = match ? (match?.[2].length === 11 ? match[2] : null) : null;
 
-    if (id != null) {
-      return {
-        id,
-        url,
-      };
-    }
+//     if (id != null) {
+//       return {
+//         id,
+//         url,
+//       };
+//     }
 
-    return null;
-  },
+//     return null;
+//   },
 
-  type: 'youtube-video',
-};
+//   type: 'youtube-video',
+// };
 
 // export const TwitterEmbedConfig: PlaygroundEmbedConfig = {
 //   // e.g. Tweet or Google Map.

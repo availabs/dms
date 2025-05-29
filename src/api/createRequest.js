@@ -1,4 +1,4 @@
-const createRequest = (wrapperConfig,format, path, length) => {
+export const createRequest = (wrapperConfig,format, path, length) => {
 
 	const { app , type, view_id, env } = format
 	//---------------------------------------------------------
@@ -102,7 +102,7 @@ export function getIdPath (wrapperConfig,format) {
 
 	return id ? 
 	[
-			'dms', 'data', 'byId', id, 
+		'dms', 'data', 'byId', id, 
 		[ "id", "updated_at", "created_at","app", "type",...dataAttrs]
 	] : wildKey ? [
 		'dms', 'data', `${ app }+${ type }`,

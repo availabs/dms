@@ -1,8 +1,6 @@
 import React, {useEffect, useState} from "react";
-import {Typeahead, Menu, MenuItem, Input, useToken} from 'react-bootstrap-typeahead';
-import {Icon} from "../../../ui/index";
-
-// import placeholder from "lodash-es/fp/placeholder.js";
+import { Typeahead, Menu, MenuItem, Input, useToken } from 'react-bootstrap-typeahead';
+import { CMSContext } from '../../../context'
 
 const handleSearch = (text, selected, setSelected) => {
     if (selected) setSelected([])
@@ -81,7 +79,8 @@ export default ({
     const [selected, setSelected] = useState([]);
     const [filter, setFilter] = useState('');
     const [filteredOptions, setFilteredOptions] = useState(options);
-
+    const { UI } = React.useContext(CMSContext) || {}
+    const { Icon } = UI;
     useEffect(() => {
         if (!value) {
             setSelected([])

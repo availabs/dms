@@ -7,28 +7,19 @@
  */
 
 import {
-  DOMConversionMap,
-  DOMConversionOutput,
-  DOMExportOutput,
-  EditorConfig,
-  ElementNode,
-  LexicalEditor,
-  LexicalNode,
-  NodeKey,
-  SerializedElementNode,
-  Spread,
+  ElementNode
 } from 'lexical';
 
-type SerializedCollapsibleContainerNode = Spread<
-  {
-    open: boolean;
-  },
-  SerializedElementNode
->;
+// type SerializedCollapsibleContainerNode = Spread<
+//   {
+//     open: boolean;
+//   },
+//   SerializedElementNode
+// >;
 
 export function convertDetailsElement(
   domNode: HTMLDetailsElement,
-): DOMConversionOutput | null {
+) {
   const isOpen = domNode.open !== undefined ? domNode.open : true;
   const node = $createCollapsibleContainerNode(isOpen);
   return {
@@ -39,7 +30,7 @@ export function convertDetailsElement(
 export class CollapsibleContainerNode extends ElementNode {
   __open: boolean;
 
-  constructor(open: boolean, key?: NodeKey) {
+  constructor(open, key) {
     super(key);
     this.__open = open;
   }
@@ -52,7 +43,7 @@ export class CollapsibleContainerNode extends ElementNode {
     return new CollapsibleContainerNode(node.__open, node.__key);
   }
 
-  createDOM(config: EditorConfig, editor: LexicalEditor): HTMLElement {
+  createDOM(config, editor): HTMLElement {
     const minimisedHeight = '300px';
     const dom = document.createElement('div');
     dom.classList.add('Collapsible__container');
@@ -88,7 +79,7 @@ export class CollapsibleContainerNode extends ElementNode {
     return false;
   }
 
-  static importDOM(): DOMConversionMap<HTMLDetailsElement> | null {
+  static importDOM() {
     return {
       details: (domNode: HTMLDetailsElement) => {
         return {
@@ -100,19 +91,19 @@ export class CollapsibleContainerNode extends ElementNode {
   }
 
   static importJSON(
-    serializedNode: SerializedCollapsibleContainerNode,
+    serializedNode,
   ): CollapsibleContainerNode {
     const node = $createCollapsibleContainerNode(serializedNode.open);
     return node;
   }
 
-  exportDOM(): DOMExportOutput {
+  exportDOM() {
     const element = document.createElement('details');
     element.setAttribute('open', this.__open.toString());
     return {element};
   }
 
-  exportJSON(): SerializedCollapsibleContainerNode {
+  exportJSON() {
     return {
       ...super.exportJSON(),
       open: this.__open,
@@ -158,7 +149,7 @@ export function $createCollapsibleContainerNode(
 }
 
 export function $isCollapsibleContainerNode(
-  node: LexicalNode | null | undefined,
+  node,
 ): node is CollapsibleContainerNode {
   return node instanceof CollapsibleContainerNode;
 }

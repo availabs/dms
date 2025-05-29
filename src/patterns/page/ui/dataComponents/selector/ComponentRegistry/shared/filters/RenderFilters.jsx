@@ -1,4 +1,5 @@
 import React, {useCallback, useEffect, useMemo, useState} from "react";
+import {useSearchParams} from "react-router";
 import {attributeAccessorStr, isJson} from "../../../dataWrapper/utils/utils";
 import {
     getData,
@@ -11,9 +12,11 @@ import {
 } from "./utils"
 import {isEqual, uniqBy} from "lodash-es"
 import {RenderFilterValueSelector} from "./Components/RenderFilterValueSelector";
-import {CMSContext} from "../../../../../../siteConfig";
-import {Icon} from "../../../../../index";
-import {PageContext} from "~/modules/dms/src/patterns/page/pages/view";
+
+
+import {CMSContext,PageContext} from "../../../../../../context";
+
+
 
 const filterValueDelimiter = '|||';
 
@@ -33,18 +36,21 @@ export const RenderFilters = ({
   state = {columns: [], sourceInfo: {}}, setState,
   apiLoad, defaultOpen = true, showNavigate = false,
 }) => {
-    const { theme = { filters: filterTheme } } = React.useContext(CMSContext) || {};
+
+    const { UI, theme = { filters: filterTheme } } = React.useContext(CMSContext) || {};
     const { pageState } =  React.useContext(PageContext) || {}; // page to extract page filters
     const [open, setOpen] = useState(defaultOpen);
-        const [filterOptions, setFilterOptions] = useState([]); // [{column, uniqValues}]
-        const [loading, setLoading] = useState(false);
-        const isDms = state.sourceInfo?.isDms;
-        const filterColumnsToTrack = useMemo(() => (state.columns || []).filter(({filters, isDuplicate}) => filters?.length && !isDuplicate), [state.columns]);
-        const filterValuesToTrack = useMemo(() =>
-            (state.columns || []).filter(({filters, isDuplicate}) => filters?.length && filters?.[0]?.values?.length && !isDuplicate).reduce((acc, f) => [...acc, ...f.filters[0].values], []), [state.columns]);
-        const normalFilterColumnsToTrack = useMemo(() => (state.columns || []).filter(({filters, isDuplicate}) => filters?.length && isDuplicate), [state.columns]);
-        const filters = useMemo(() => getFilters(filterColumnsToTrack), [filterColumnsToTrack]);
-        const normalFilters = useMemo(() => getNormalFilters(normalFilterColumnsToTrack), [normalFilterColumnsToTrack]);
+    const { Icon } = UI;
+    const [filterOptions, setFilterOptions] = useState([]); // [{column, uniqValues}]
+    const [loading, setLoading] = useState(false);
+    const isDms = state.sourceInfo?.isDms;
+    const filterColumnsToTrack = useMemo(() => (state.columns || []).filter(({filters, isDuplicate}) => filters?.length && !isDuplicate), [state.columns]);
+    const filterValuesToTrack = useMemo(() =>
+        (state.columns || []).filter(({filters, isDuplicate}) => filters?.length && filters?.[0]?.values?.length && !isDuplicate).reduce((acc, f) => [...acc, ...f.filters[0].values], []), [state.columns]);
+    const normalFilterColumnsToTrack = useMemo(() => (state.columns || []).filter(({filters, isDuplicate}) => filters?.length && isDuplicate), [state.columns]);
+    const filters = useMemo(() => getFilters(filterColumnsToTrack), [filterColumnsToTrack]);
+    const normalFilters = useMemo(() => getNormalFilters(normalFilterColumnsToTrack), [normalFilterColumnsToTrack]);
+
 
         const debug = false;
         const getFormattedAttributeStr = useCallback((column) => formattedAttributeStr(column, isDms, isCalculatedCol(column, state.columns)), [state.columns, isDms]);

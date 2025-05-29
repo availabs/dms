@@ -1,15 +1,16 @@
-import React, {createContext} from 'react'
-import { merge } from "lodash-es"
-import { cloneDeep } from "lodash-es"
-import {updateRegisteredFormats, updateAttributes} from './pages/_utils'
+import React from 'react'
+import { merge,cloneDeep } from "lodash-es"
+import {parseIfJSON, updateRegisteredFormats, updateAttributes} from './pages/_utils'
+
+
 // pages
 import PageView from "./pages/view"
 import PageEdit from "./pages/edit"
 
 // templates
-import TemplateList from './pages/manager/template/list'
-import TemplatePages from './pages/manager/template/pages'
-import TemplateEdit from './pages/manager/template/edit'
+// import TemplateList from './pages/manager/template/list'
+// import TemplatePages from './pages/manager/template/pages'
+// import TemplateEdit from './pages/manager/template/edit'
 
 // Manager
 import ManageLayout from './pages/manager/layout'
@@ -27,17 +28,8 @@ import { SearchPage } from "./components/search/SearchPage";
 import DefaultMenu from './components/menu'
 
 
-export const CMSContext = React.createContext(undefined);
-export const ComponentContext = createContext({});
 
-const parseIfJSON = (text, fallback={}) => {
-  try {
-    return JSON.parse(text)
-  }catch (e){
-    return fallback;
-  }
-}
-export const pagesConfig = ({
+const pagesConfig = ({
   app = "dms-site",
   type = "docs-page",
   siteType,
@@ -52,7 +44,7 @@ export const pagesConfig = ({
   pgEnv,
   API_HOST
 }) => {
-  //console.log('hola', pattern?.theme)
+  //console.log('pagesConfig')
   let theme = merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern?.theme?.settings?.theme?.theme] || themes.default), cloneDeep(pattern?.theme) || {})
   //console.log('pageConfig', pattern.doc_type, pattern.id, themes[pattern?.theme?.settings?.theme?.theme], pattern?.theme, pattern)
   // baseUrl = baseUrl[0] === '/' ? baseUrl.slice(1) : baseUrl
@@ -94,7 +86,8 @@ export const pagesConfig = ({
     children: [
       {
         type: ({children, user=defaultUser, ...props}) => {
-          const { falcor, falcorCache } = useFalcor();
+          const uf = useFalcor() || {}
+          const {falcor = {}, falcorCache = {}} = uf;
           // console.log('hola', user, defaultUser, user || defaultUser)
           return (
             <CMSContext.Provider value={{API_HOST, baseUrl, damaBaseUrl, user, theme, falcor, falcorCache, pgEnv, app, type, siteType, patternFilters, Menu: () => <>{rightMenu}</> }} >
@@ -136,11 +129,11 @@ export const pagesConfig = ({
             path: "/*",
             action: "view"
           },
-          {
-            type: (props) => <SearchPage {...props}/>,
-            path: "search/*",
-            action: "list"
-          },
+          // {
+          //   type: (props) => <SearchPage {...props}/>,
+          //   path: "search/*",
+          //   action: "list"
+          // },
           
           // {
           //   type: TemplatePreview,
@@ -156,7 +149,7 @@ export const pagesConfig = ({
   }
 }
 
-export const pagesManagerConfig = ({
+const pagesManagerConfig = ({
   app = "dms-site",
   type = "docs-page",
   siteType,
@@ -252,30 +245,30 @@ export const pagesManagerConfig = ({
             path: "pages",
             action: "edit"
           },
-          {
-            type: TemplateList,
-            action: "list",
-            path: "templates/*",
-            lazyLoad: true,
-            filter: {
-              options: JSON.stringify({
-                filter: {
-                  "data->>'template_id'": ['-99'],
-                }
-              }),
-              attributes:['title', 'index', 'url_slug', 'parent', 'hide_in_nav', 'template_id' ]
-            }
-          },
-          {
-            type: TemplateEdit,
-            action: "edit",
-            path: "templates/edit/:id"
-          },
-          {
-            type: TemplatePages,
-            action: "edit",
-            path: "templates/pages/:id"
-          }
+          // {
+          //   type: TemplateList,
+          //   action: "list",
+          //   path: "templates/*",
+          //   lazyLoad: true,
+          //   filter: {
+          //     options: JSON.stringify({
+          //       filter: {
+          //         "data->>'template_id'": ['-99'],
+          //       }
+          //     }),
+          //     attributes:['title', 'index', 'url_slug', 'parent', 'hide_in_nav', 'template_id' ]
+          //   }
+          // },
+          // {
+          //   type: TemplateEdit,
+          //   action: "edit",
+          //   path: "templates/edit/:id"
+          // },
+          // {
+          //   type: TemplatePages,
+          //   action: "edit",
+          //   path: "templates/pages/:id"
+          // }
         ]
       },
 
@@ -283,5 +276,5 @@ export const pagesManagerConfig = ({
   }
 }
 
-export default [pagesConfig,pagesManagerConfig]
+export default [pagesConfig,pagesManagerConfig] 
 

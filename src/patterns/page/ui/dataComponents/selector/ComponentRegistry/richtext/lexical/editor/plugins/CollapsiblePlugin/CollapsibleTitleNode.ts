@@ -9,21 +9,13 @@
 import {
   $createParagraphNode,
   $isElementNode,
-  DOMConversionMap,
-  DOMConversionOutput,
-  DOMExportOutput,
-  EditorConfig,
-  ElementNode,
-  LexicalEditor,
-  LexicalNode,
-  RangeSelection,
-  SerializedElementNode,
+  ElementNode
 } from 'lexical';
 
 import {$isCollapsibleContainerNode} from './CollapsibleContainerNode';
 import {$isCollapsibleContentNode} from './CollapsibleContentNode';
 
-type SerializedCollapsibleTitleNode = SerializedElementNode;
+//type SerializedCollapsibleTitleNode = SerializedElementNode;
 
 export function convertSummaryElement(
   domNode: HTMLElement,
@@ -39,11 +31,11 @@ export class CollapsibleTitleNode extends ElementNode {
     return 'collapsible-title';
   }
 
-  static clone(node: CollapsibleTitleNode): CollapsibleTitleNode {
+  static clone(node) {
     return new CollapsibleTitleNode(node.__key);
   }
 
-  createDOM(config: EditorConfig, editor: LexicalEditor): HTMLElement {
+  createDOM(config, editor): HTMLElement {
     const dom = document.createElement('div');
     dom.classList.add(
         'Collapsible__title',
@@ -75,11 +67,11 @@ export class CollapsibleTitleNode extends ElementNode {
   }
 
 
-  updateDOM(prevNode: CollapsibleTitleNode, dom: HTMLElement): boolean {
+  updateDOM(prevNode, dom: HTMLElement): boolean {
     return false;
   }
 
-  static importDOM(): DOMConversionMap | null {
+  static importDOM() {
     return {
       summary: (domNode: HTMLElement) => {
         return {
@@ -91,8 +83,8 @@ export class CollapsibleTitleNode extends ElementNode {
   }
 
   static importJSON(
-    serializedNode: SerializedCollapsibleTitleNode,
-  ): CollapsibleTitleNode {
+    serializedNode,
+  ) {
     return $createCollapsibleTitleNode();
   }
 
@@ -101,7 +93,7 @@ export class CollapsibleTitleNode extends ElementNode {
     return {element};
   }
 
-  exportJSON(): SerializedCollapsibleTitleNode {
+  exportJSON() {
     return {
       ...super.exportJSON(),
       type: 'collapsible-title',
@@ -109,12 +101,12 @@ export class CollapsibleTitleNode extends ElementNode {
     };
   }
 
-  collapseAtStart(_selection: RangeSelection): boolean {
+  collapseAtStart(_selection): boolean {
     this.getParentOrThrow().insertBefore(this);
     return true;
   }
 
-  insertNewAfter(_: RangeSelection, restoreSelection = true): ElementNode {
+  insertNewAfter(_, restoreSelection = true) {
     const containerNode = this.getParentOrThrow();
 
     if (!$isCollapsibleContainerNode(containerNode)) {
@@ -147,12 +139,12 @@ export class CollapsibleTitleNode extends ElementNode {
   }
 }
 
-export function $createCollapsibleTitleNode(): CollapsibleTitleNode {
+export function $createCollapsibleTitleNode() {
   return new CollapsibleTitleNode();
 }
 
 export function $isCollapsibleTitleNode(
-  node: LexicalNode | null | undefined,
-): node is CollapsibleTitleNode {
+  node
+) {
   return node instanceof CollapsibleTitleNode;
 }

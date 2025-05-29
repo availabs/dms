@@ -1,25 +1,24 @@
 import React, {createContext, Fragment, useRef, useState} from "react"
 //import { useLocation } from 'react-router';
-import {isEqual} from "lodash-es"
-import {Combobox} from '@headlessui/react'
-import {Link} from "react-router";
-import {usePopper} from 'react-popper'
-import {CMSContext} from '../../../siteConfig'
+import { isEqual } from "lodash-es"
+import { Combobox } from '@headlessui/react'
+import { Link } from "react-router";
+import { usePopper } from 'react-popper'
+import { CMSContext } from '../../../context'
+
 import {convert} from './convertToSpreadSheet'
 import {
+    TrashCan,
+    RemoveCircle,
     CancelCircle,
-    ChevronDownSquare,
-    ChevronUpSquare,
-    Copy,
     FloppyDisk,
+    PencilSquare,
     InfoSquare,
     MoreSquare,
-    PencilSquare,
-    RemoveCircle,
-    Tags,
-    TrashCan
+    Tags
 } from '../../icons'
-import {Button, Icon, Label, Menu, Modal, Popover} from "../../";
+
+
 
 const isJson = (str)  => {
     try {
@@ -33,7 +32,8 @@ const isJson = (str)  => {
 export function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, onRemove, siteType, apiLoad, apiUpdate, format}) {
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     let sectionTitleCondition = value?.['title'] 
-    let { theme } = React.useContext(CMSContext) || {}
+    const { UI, theme } = React.useContext(CMSContext) || {}
+    const { Popover, Button, Icon, Menu, Label } = UI
 
     const updateAttribute = (k, v) => {
         console.log('change',k,v, {...value, [k]: v})
@@ -184,6 +184,7 @@ let handleCopy = (value) => {
 }
 
 export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemove, moveItem, addAbove, siteType, apiLoad, apiUpdate, format}) {
+    
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     let [referenceElement, setReferenceElement] = useState()
     let [popperElement, setPopperElement] = useState()
@@ -221,7 +222,7 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
     let interactCondition = false //typeof onEdit !== 'function' && value?.element?.['element-type']?.includes('Map:');
     let isTemplateSectionCondition = false//value?.element?.['template-section-id'];
     let showEditIcons = edit && typeof onEdit === 'function' && !isTemplateSectionCondition
-
+    
     const element = React.useMemo(() => {
         return (
             <ElementComp 
@@ -622,10 +623,11 @@ const handlePaste = async (e, setKey, setState, value, onChange) => {
 
 export function DeleteModal ({title, prompt, item={}, open, setOpen, onDelete})  {
   const cancelButtonRef = useRef(null)
-  const { baseUrl } = React.useContext(CMSContext) || {}
+  const { UI, baseUrl } = React.useContext(CMSContext) || {}
+  const { Dialog } = UI
   const [loading, setLoading] = useState(false)
   return (
-    <Modal
+    <Dialog
       open={open}
       setOpen={setOpen}
       initialFocus={cancelButtonRef}
@@ -664,7 +666,7 @@ export function DeleteModal ({title, prompt, item={}, open, setOpen, onDelete}) 
           Cancel
         </button>
       </div>
-    </Modal>
+    </Dialog>
   )
 }
 

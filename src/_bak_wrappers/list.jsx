@@ -1,11 +1,12 @@
 import React, {useEffect} from 'react'
 import { useLoaderData, /*useActionData,*/ useParams, useSubmit, useLocation} from "react-router";
 import { dmsDataEditor, dmsDataLoader } from '../index'
-import { useFalcor } from "@availabs/avl-falcor"
+import { useFalcor } from '../../../avl-falcor'//"@availabs/avl-falcor"
 import { getAttributes } from './_utils'
 
 export default function ListWrapper({ Component, format, options, user, ...props}) {
-	const { falcor } = useFalcor()
+	const uf = useFalcor() || {}
+	const {falcor = {}} = uf;
 	const attributes = getAttributes(format,options)
 	const {app, type} = format;
 	const { pathname, search } = useLocation()

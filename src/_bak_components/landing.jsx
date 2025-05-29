@@ -1,9 +1,9 @@
 import React from 'react'
 import Card from './card'
-import { useTheme } from '../theme'
+
 
 export default function Landing({dataItems=[], attributes}) {
-	const theme = useTheme()
+	const theme = {} //useTheme()
 	return (
 		<div className={'border border-pink-300'}> 
 			Landing

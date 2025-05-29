@@ -1,6 +1,8 @@
 import React, {useEffect, useMemo, useState} from "react";
-import Lexical from "../../../patterns/page/ui/dataComponents/selector/ComponentRegistry/richtext/lexical"
+//import Lexical from "../../../patterns/page/ui/dataComponents/selector/ComponentRegistry/richtext/lexical"
 import {dmsDataTypes} from "../../index";
+
+const Lexical = { EditComp: () => <div/>}
 
 const fieldTypes = {
     // value: label

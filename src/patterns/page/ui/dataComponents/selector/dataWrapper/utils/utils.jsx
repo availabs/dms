@@ -1,7 +1,9 @@
-import {getData as getFilterData} from "../../ComponentRegistry/shared/filters/utils";
+import {useCallback} from 'react'
+import { getData as getFilterData } from "../../ComponentRegistry/shared/filters/utils";
 import {isEqual, uniq} from "lodash-es";
-import {Icon} from "../../../../index";
+//import {Icon} from "../../../../index";
 
+const Icon = () => <div />
 const operationToExpressionMap = {
     filter: 'IN',
     exclude: 'NOT IN',
@@ -22,6 +24,28 @@ const operations = {
     lte: (a, b) => +a <= +b,
     like: (a,b) => b.toString().toLowerCase().includes(a.toString().toLowerCase())
 }
+
+export const useHandleClickOutside = (menuRef, menuBtnId, onClose) => {
+    const handleClickOutside = useCallback(
+        (e) => {
+            if (
+                menuRef.current &&
+                !menuRef.current.contains(e.target) &&
+                e.target.id !== menuBtnId
+            ) {
+                onClose();
+            }
+        },
+        [menuRef, menuBtnId, onClose]
+    );
+
+    useEffect(() => {
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [handleClickOutside]);
+};
 
 const fnum = (number, currency = false) => `${currency ? '$ ' : ''} ${isNaN(number) ? 0 : parseInt(number).toLocaleString()}`;
 export const fnumIndex = (d, fractions = 2, currency = false) => {

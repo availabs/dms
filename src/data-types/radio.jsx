@@ -1,10 +1,17 @@
 import React from "react"
-import { useTheme } from '../theme'
 
+const theme = {
+    radio: {
+            wrapper: 'p-1 flex',
+            input: 'self-center p-1',
+            label: 'text-sm font-light p-1 self-center',
+            error: 'text-xs text-red-700 font-bold'
+    }
+}
 
 const Edit = ({value = '', onChange, options = [], inline}) => {
     // options: ['1', 's', 't'] || [{label: '1', value: '1'}, {label: 's', value: '2'}, {label: 't', value: '3'}]
-    const theme = useTheme();
+    
     const isInvalidValue = value && !options.find(o => (o.value || o) === value);
     return (
         <>
@@ -36,7 +43,6 @@ const Edit = ({value = '', onChange, options = [], inline}) => {
 const View = ({className, value}) => {
     if (!value) return false
 
-    const theme = useTheme();
 
     return (
         <div className={ className || (theme?.text?.view)}>

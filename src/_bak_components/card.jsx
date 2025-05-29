@@ -1,5 +1,5 @@
 import React from 'react'
-import { useTheme } from '../theme'
+
 import { get } from "lodash-es"
 
 export default function Card({
@@ -10,7 +10,7 @@ export default function Card({
 								 sectionId,
 								 preferredTheme
 							 }) {
-	const theme = preferredTheme || useTheme();
+	const theme = {} //preferredTheme || useTheme();
 	if(!item) return <div />
 	return (
 		<div key={item.id} className={get(theme,'card.wrapper', '')}>

@@ -1,13 +1,11 @@
-import React, {Fragment, useEffect, useState} from 'react'
-import {useSearchParams} from "react-router";
-import {cloneDeep, set, get, isEqual} from 'lodash-es'
-import {Button, Menu, FieldSet, Icon, Input, Select} from '../../../ui'
-import { CMSContext } from '../../../siteConfig'
+
+import React, {Fragment, useState} from 'react'
+import { cloneDeep, set, get } from 'lodash-es'
 import { Add, CaretDown } from "../../../ui/icons";
 import { updateTitle } from '../editFunctions'
-
-import { PageContext } from '../../view'
 import { v4 as uuidv4 } from 'uuid';
+import { PageContext, CMSContext } from '../../../context'
+
 
 const FilterSettings = ({label, type, value, stateValue, onChange}) => {
   const [newFilter, setNewFilter] = useState({});
@@ -49,8 +47,10 @@ const FilterSettings = ({label, type, value, stateValue, onChange}) => {
 };
 
 function SettingsPane () {
-  const { baseUrl, user, theme  } = React.useContext(CMSContext) || {}
+
+  const { UI, baseUrl, user, theme  } = React.useContext(CMSContext) || {}
   const { item, pageState, dataItems, apiUpdate } =  React.useContext(PageContext) || {}
+  const { Button, Menu, FieldSet, Icon } = UI;
 
   const themeSettings = React.useMemo(() => {
     return (theme?.pageOptions?.settingsPane || [])

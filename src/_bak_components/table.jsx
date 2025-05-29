@@ -1,6 +1,5 @@
-import { Link } from "react-router";
 import React from 'react'
-import { useTheme } from '../theme'
+import { Link } from "react-router";
 import { get } from "lodash-es"
 
 function replaceVars(url, data) {
@@ -34,7 +33,7 @@ function TableColumn ({data,column, className}) {
 }
 
 export default function Table({dataItems=[], attributes={}, options={}}) {
-	const theme = useTheme()
+	const theme = {} //useTheme()
 	let { columns=[] } = options
 	if(columns.length === 0 ) {
 		return <div> No columns specified. </div>

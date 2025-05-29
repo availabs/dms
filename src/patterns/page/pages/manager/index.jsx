@@ -3,10 +3,6 @@ import ManagerLayout from './layout'
 import { CMSContext } from '../../siteConfig'
 
 
-
-
-
-
 function FormsManager ({item, dataItems, attributes, logo, rightMenu}) {
  
   

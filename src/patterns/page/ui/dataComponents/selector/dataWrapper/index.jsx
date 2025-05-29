@@ -1,15 +1,49 @@
 import React, {useState, useEffect, useMemo, useRef, useCallback, useContext} from 'react'
 import writeXlsxFile from 'write-excel-file';
-import {Pagination} from "../ComponentRegistry/shared/Pagination";
-import {getData} from "./utils/utils";
-import {RenderFilters} from "../ComponentRegistry/shared/filters/RenderFilters";
-import {Attribution} from "../ComponentRegistry/shared/Attribution";
+
 import { isEqual } from "lodash-es";
 import { v4 as uuidv4 } from 'uuid';
-import {convertOldState} from "./utils/convertOldState";
-import {useHandleClickOutside} from "../ComponentRegistry/shared/utils";
-import {Icon} from "../../../index";
-import {ComponentContext} from "../../../../../page/siteConfig";
+
+
+//import { getData, useHandleClickOutside } from "./utils/utils";
+import { RenderFilters } from "./components/filters/RenderFilters";
+import { Attribution } from "./components//Attribution";
+// import { Pagination } from "../ComponentRegistry/shared/Pagination";
+// import { DataSourceSelector } from "../ComponentRegistry/DataSourceSelector";
+// import { Controls } from "./components/Controls";
+//import { convertOldState } from "./utils/convertOldState";
+// import {  } from "../ComponentRegistry/shared/utils";
+import { ComponentContext } from "../../../../context";
+import { produce, freeze } from "immer";
+
+
+const Icon = () => <div/>
+//const RenderFilters = () => <div/>
+// const Attribution = () => <div/>
+// const Pagination = () => <div/>
+// const DataSourceSelector = () => <div/>
+// const Controls = () => <div/>
+// const useImmer = (d) => d
+// const convertOldState = (d) => {d}
+// const useHandleClickOutside = () => {}
+const getData = () => {} 
+function useImmer(initialValue) {
+  const [val, updateValue] = useState(() =>
+    freeze(
+      typeof initialValue === "function" ? initialValue() : initialValue,
+      true
+    )
+  );
+  return [
+    val,
+    useCallback((updater) => {
+      if (typeof updater === "function") updateValue(produce(updater));
+      else updateValue(freeze(updater));
+    }, []),
+  ];
+}
+
+
 
 const getCurrDate = () => {
     const options = {
@@ -23,6 +57,7 @@ const getCurrDate = () => {
     };
     return new Date().toLocaleDateString(undefined, options);
 };
+
 
 const triggerDownload = async ({state, apiLoad, loadAllColumns, setLoading}) => {
     setLoading(true);

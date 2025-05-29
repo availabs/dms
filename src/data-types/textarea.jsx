@@ -1,10 +1,16 @@
 import React, {useState} from "react"
-import { useTheme } from '../theme'
+
 import { get } from "lodash-es"
 
+const theme = {
+    textarea: {
+        input: 'px-2 py-1 w-full text-sm font-light border rounded-md focus:border-blue-300 focus:outline-none transition ease-in',
+        viewWrapper: 'whitespace-normal text-sm font-light'
+    }
+}
 const Edit = ({value, onChange, className, placeholder, ...rest}) => {
     const [tmpValue, setTmpValue] = useState(value)
-    const theme = useTheme()
+
     return (
         <textarea
             className={ className || (theme?.textarea?.input || 'w-full border p-2')}
@@ -19,10 +25,9 @@ const Edit = ({value, onChange, className, placeholder, ...rest}) => {
 }
 
 const View = ({value}) => {
-    const theme = useTheme()
     if (!value) return false
     return (
-        <div className={get(theme,'textarea.viewWrapper','')}>
+        <div className={theme?.textarea?.viewWrapper}>
             {typeof value === "object" ? JSON.stringify(value) : value}
         </div>
     )

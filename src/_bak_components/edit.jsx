@@ -1,5 +1,5 @@
 import React from 'react'
-import {useTheme} from '../theme'
+
 import { get } from "lodash-es"
 
 export default function EditCard({
@@ -13,7 +13,7 @@ export default function EditCard({
                                      sectionId,
                                      ...props
                                  }) {
-    const theme = useTheme()
+    const theme = {} //useTheme()
 
     return (
         <div key={item.id} className={get(theme, 'card.wrapper', '')}>

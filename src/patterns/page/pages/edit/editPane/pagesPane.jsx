@@ -14,8 +14,7 @@ import { ArrowRight, ArrowDown, CaretDown, EllipsisVertical} from '../../../ui/i
 import { json2DmsForm, getUrlSlug } from '../../_utils'
 import { publish, discardChanges, insertSubPage} from '../editFunctions'
 
-import { CMSContext } from '../../../siteConfig'
-import { PageContext } from '../../view'
+import { CMSContext,PageContext } from '../../../context'
 
 
 

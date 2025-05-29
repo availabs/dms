@@ -1,8 +1,20 @@
 import { matchRoutes } from 'react-router'
 import { v4 as uuidv4 } from 'uuid';
-import { cloneDeep } from 'lodash-es'
+import { isEqual, reduce, map, cloneDeep} from "lodash-es"
 //import {getCurrentDataItem} from "./navItems.js";
 // const baseUrl = ''
+export const convertToUrlParams = (obj, delimiter='|||') => {
+    const params = new URLSearchParams();
+
+    Object.keys(obj).forEach(column => {
+        const values = obj[column];
+        if(!values || !Array.isArray(values) || !values?.length) return;
+        params.append(column, values.filter(v => Array.isArray(v) ? v.length : v).join(delimiter));
+    });
+
+    return params.toString();
+};
+
 
 export function timeAgo(input) {
   const date = (input instanceof Date) ? input : new Date(input);
@@ -297,7 +309,7 @@ export function getInPageNav(item, theme) {
     };
 }
 
-import { isEqual, reduce, map } from "lodash-es"
+
 
 export const parseJSON = (d, fallback={}) => {
      if(typeof d === 'object') {
@@ -391,7 +403,7 @@ export function compare (a, b) {
 
 export const getNestedValue = (obj) => typeof obj?.value === 'object' ? getNestedValue(obj.value) : obj?.value || obj;
 
-const updateRegisteredFormats = (registerFormats, app, type) => {
+export const updateRegisteredFormats = (registerFormats, app, type) => {
   if(Array.isArray(registerFormats)){
     registerFormats = registerFormats.map(rFormat => {
       rFormat.app = app;
@@ -404,7 +416,7 @@ const updateRegisteredFormats = (registerFormats, app, type) => {
   return registerFormats;
 }
 
-const updateAttributes = (attributes, app, type) => {
+export const updateAttributes = (attributes, app, type) => {
   if(Array.isArray(attributes)){
     attributes = attributes.map(attr => {
       attr.format = attr.format ? `${app}+${type}|${attr.format.split('+')[1]}`: undefined;
@@ -415,7 +427,69 @@ const updateAttributes = (attributes, app, type) => {
   return attributes;
 }
 
+export const parseIfJSON = (text, fallback={}) => {
+    try {
+        if(typeof text !== 'string' || !text) return fallback;
+        return JSON.parse(text)
+    }catch (e){
+        return fallback;
+    }
+}
+
+export const mergeFilters = (pageFilters=[], patternFilters=[]) => {
+    // patternFilters should take over if present
+
+    const pageFiltersFormatted = parseIfJSON(pageFilters, pageFilters || []);
+    const patternFiltersFormatted = (patternFilters || []);
+    const pageOnlyFilters = pageFiltersFormatted.filter(f => !patternFiltersFormatted.some(patternF => patternF.searchKey === f.searchKey));
+    return [...patternFiltersFormatted, ...pageOnlyFilters]
+}
+
+
+export const updatePageStateFiltersOnSearchParamChange = ({searchParams, item, patternFilters, setPageState}) => {
+    // Extract filters from the URL
+    const urlFilters = Array.from(searchParams.keys()).reduce((acc, searchKey) => {
+        const urlValues = searchParams.get(searchKey)?.split('|||');
+        acc[searchKey] = urlValues;
+        return acc;
+    }, {});
+
+    // If searchParams have changed, they should take priority and update the state
+
+    if (Object.keys(urlFilters).length) {
+        const existingFilters = mergeFilters(item.filters, patternFilters);
+        const newFilters = (existingFilters || []).map(filter => {
+            if(filter.useSearchParams && urlFilters[filter.searchKey]){
+                return {...filter, values: urlFilters[filter.searchKey]}
+            }else{
+                return filter;
+            }
+        })
+
+        if(newFilters?.length){
+            setPageState(page => {
+                // updates from searchParams are temporary
+                page.filters = newFilters
+            })
+        }
+    }
+}
+
+export const initNavigateUsingSearchParams = ({pageState, search, navigate, baseUrl, item, isView}) => {
+    // one time redirection
+    const searchParamFilters = (pageState?.filters || []).filter(f => f.useSearchParams);
+    if(searchParamFilters?.length){
+        const filtersObject = searchParamFilters
+            .reduce((acc, curr) => ({...acc, [curr.searchKey]: typeof curr.values === 'string' ? [curr.values] : curr.values}), {});
+        const url = `?${convertToUrlParams(filtersObject)}`;
+        if(!search && url !== search){
+            navigate(`${baseUrl}${isView ? `/` : `/edit/`}${item.url_slug}${url}`)
+        }
+    }
+}
+
 export default {
     updateRegisteredFormats,
     updateAttributes
 }
+
