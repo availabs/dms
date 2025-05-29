@@ -1,12 +1,16 @@
 import React, {useContext, useEffect, useState} from "react";
 import {Link} from "react-router";
-import DataTypes from "../../../../../../../../data-types";
-import {formatFunctions} from "../../../dataWrapper/utils/utils";
 import {isEqual} from "lodash-es";
+import DataTypes from "../../../../../../../../data-types";
+import {
+    CMSContext, 
+    ComponentContext
+} from '../../../../../../context'
+import {formatFunctions} from "../../../dataWrapper/utils/utils";
+
 import { RenderAction } from "./RenderActions";
 import { tableTheme } from '../'
-import {CMSContext, ComponentContext} from '../../../../../../siteConfig'
-import {InfoCircle} from "../../../../../icons";
+import { InfoCircle } from "../../../../../icons";
 
 const DisplayCalculatedCell = ({value, className}) => <div className={className}>{value}</div>
 const LoadingComp = ({className}) => <div className={className}>loading...</div>

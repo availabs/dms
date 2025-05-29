@@ -1,6 +1,8 @@
 import React, {useEffect, useState} from "react";
 import {Typeahead, Menu, MenuItem, Input, useToken} from 'react-bootstrap-typeahead';
-import {Icon} from "../../../ui/index";
+
+import { CMSContext } from '../../../context'
+//import {Icon} from "../../../ui/index";
 
 // import placeholder from "lodash-es/fp/placeholder.js";
 
@@ -70,17 +72,20 @@ const renderMenu = ({results, menuProps, labelKey, filter, filters, setFilter, o
 };
 
 export default ({
-                    className,
-                    value,
-                    onChange,
-                    options = [],
-                    filters = [],
-                    showAll = false,
-                    placeholder = "Search..."
-                }) => {
+    className,
+    value,
+    onChange,
+    options = [],
+    filters = [],
+    showAll = false,
+    placeholder = "Search..."
+}) => {
+    const { UI } = React.useContext(CMSContext) || {};
+    const { Icon } = UI;
     const [selected, setSelected] = useState([]);
     const [filter, setFilter] = useState('');
     const [filteredOptions, setFilteredOptions] = useState(options);
+
 
     useEffect(() => {
         if (!value) {

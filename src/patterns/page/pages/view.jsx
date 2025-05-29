@@ -13,32 +13,28 @@ import { /*sectionsBackill,*/
 //import {PDF, PencilEditSquare, Printer} from '../ui/icons'
 //import {selectablePDF} from "../components/saveAsPDF/PrintWell/selectablePDF";
 import {useImmer} from "use-immer";
-
-
-
-
-
 import { PageContext, CMSContext } from '../context'
 
 
 
 function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiLoad, apiUpdate, format,busy}) {
-  const submit = useSubmit()
+    
+    const submit = useSubmit()
     const navigate = useNavigate()
     const [searchParams] = useSearchParams();
     const [pageState, setPageState] = useImmer(item);
     const { search } = useLocation()
 
-  if(!item) { item = {} }// create a default item to set up first time experience.
+    if(!item) { item = {} }// create a default item to set up first time experience.
 
-  // React.useEffect(() => {
-  //     // -------------------------------------------------------------------
-  //     // -- This on load effect backfills pages created before sectionGroups
-  //     // -- This should be deleted by JUNE 1 2025
-  //     // -------------------------------------------------------------------
-  //     //sectionsBackill(item,baseUrl,submit)
-  //   
-  // },[])
+    // React.useEffect(() => {
+    //     // -------------------------------------------------------------------
+    //     // -- This on load effect backfills pages created before sectionGroups
+    // /     // -- This should be deleted by JUNE 1 2025
+    //     // -------------------------------------------------------------------
+    //     //sectionsBackill(item,baseUrl,submit)
+    //   
+    // },[])
 
     useEffect(() => {
         updatePageStateFiltersOnSearchParamChange({searchParams, item, setPageState})
@@ -77,15 +73,16 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
             }
         }
     }
-  const pdfRef = useRef(); // To capture the section of the page to be converted to PDF
-  let { baseUrl, theme, user, API_HOST } = React.useContext(CMSContext) || {}
-  //let pageTheme = {page: {container: `bg-[linear-gradient(0deg,rgba(33,52,64,.96),rgba(55,87,107,.96)),url('/themes/mny/topolines.png')] bg-[size:500px] pb-[4px]`}}
-  theme = merge(cloneDeep(theme), item?.theme || {})
 
-  const menuItems = React.useMemo(() => {
-    let items = dataItemsNav(dataItems,baseUrl,false)
-    return items
-  }, [dataItems])
+    const pdfRef = useRef(); // To capture the section of the page to be converted to PDF
+    let { baseUrl, theme, user, API_HOST } = React.useContext(CMSContext) || {}
+      //let pageTheme = {page: {container: `bg-[linear-gradient(0deg,rgba(33,52,64,.96),rgba(55,87,107,.96)),url('/themes/mny/topolines.png')] bg-[size:500px] pb-[4px]`}}
+    theme = merge(cloneDeep(theme), item?.theme || {})
+
+    const menuItems = React.useMemo(() => {
+        let items = dataItemsNav(dataItems,baseUrl,false)
+        return items
+    }, [dataItems])
 
   
   const getSectionGroups =  ( sectionName ) => {
@@ -102,7 +99,6 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
   }
 
   return (
-<<<<<<< HEAD
       <PageContext.Provider value={{ item, pageState, setPageState, updatePageStateFilters, dataItems, apiLoad, apiUpdate, format, busy }} >
         <div className={`${theme?.page?.container}`}>
           {getSectionGroups('top')}
@@ -116,21 +112,6 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
           {getSectionGroups('bottom')}
         </div>
       </PageContext.Provider>
-=======
-    <PageContext.Provider value={{ item, dataItems, apiLoad, apiUpdate, format, busy }} >
-      <div className={`${theme?.page?.container}`}>
-        {/*{getSectionGroups('top')}*/}
-        <Layout 
-          navItems={menuItems} 
-          secondNav={theme?.navOptions?.secondaryNav?.navItems || []}
-          pageTheme={{navOptions: item.navOptions || {}}}
-        >
-          {/*{getSectionGroups('content')}*/}
-        </Layout>
-        {/*{getSectionGroups('bottom')}*/}
-      </div>
-    </PageContext.Provider>
->>>>>>> a40d611 (server render progress)
   ) 
 }
 

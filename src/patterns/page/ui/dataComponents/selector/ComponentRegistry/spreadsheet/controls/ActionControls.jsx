@@ -1,12 +1,16 @@
 import React, {useRef, useState, useEffect, useContext, useCallback} from "react";
-import Icons, {ArrowDown, TouchInteraction} from "../../../../../../../forms/ui/icons"
+//import Icons, {ArrowDown, TouchInteraction} from "../../../../../../../forms/ui/icons"
 import {useHandleClickOutside} from "../../shared/utils";
-import {ComponentContext} from "~/modules/dms/src/patterns/page/siteConfig";
+import {CMSContext, ComponentContext} from '../../../../../../context'
+
+const Icons = []
 
 const RenderIconSelector = ({onClick, icon}) => {
+    const { UI } = React.useContext(CMSContext) || {}
+    const { Icon } = UI;
     const [open, setOpen] = useState(false);
     const [search, setSearch] = useState('');
-    const Value = icon ? Icons[icon] : () => <span>icon</span>;
+    const Value = () => <span>icon</span>; //icon ? Icons[icon] :
     return (
         <div className="p-1 bg-white border rounded-md">
             <button
@@ -15,8 +19,8 @@ const RenderIconSelector = ({onClick, icon}) => {
                 id="dropdown-button"
                 onClick={() => setOpen(!open)}
             >
-                <Value />
-                <ArrowDown width={15} height={15}/>
+                <Icon icon={icon} />
+                <Icon icon={'ArrowDown'} />
             </button>
 
             <div
@@ -29,7 +33,7 @@ const RenderIconSelector = ({onClick, icon}) => {
                     .filter(icon => icon.toLowerCase().includes(search.toLowerCase()))
                     .sort((a, b) => a.localeCompare(b))
                     .map(icon => {
-                        const Comp = Icons[icon];
+                        //const Comp = Icons[icon];
 
                         return (
                             <button
@@ -38,7 +42,7 @@ const RenderIconSelector = ({onClick, icon}) => {
                                 role="menuitem"
                                 onClick={() => onClick(icon)}
                             >
-                                <Comp height={16} width={16}/>
+                                <Icon icon={icon} />
                             </button>
                         )
                     })}
@@ -47,6 +51,8 @@ const RenderIconSelector = ({onClick, icon}) => {
     )
 }
 const RenderAction = ({actions, updateAction, deleteAction, action = {}}) => {
+    const { UI } = React.useContext(CMSContext) || {}
+    const { Icon } = UI;
     const [isEditing, setIsEditing] = useState(false);
     const [newAction, setNewAction] = useState(action);
 
@@ -118,7 +124,7 @@ const RenderAction = ({actions, updateAction, deleteAction, action = {}}) => {
                         className="flex items-center cursor-pointer px-2 mx-1 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 rounded-md"
                     >
                         <div key={'icon'} className={'h-4 w-4 m-0.5 cursor-pointer text-gray-800'}>
-                            <TouchInteraction height={14} width={14}/>
+                            <Icon icon='TouchInteraction' />
                         </div>
 
                         <div key={`${action.name}`} className={'grid grid-cols-3 m-1 w-full'}>

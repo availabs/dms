@@ -1,13 +1,7 @@
-<<<<<<< HEAD
-import React, {createContext} from 'react'
-import { merge } from "lodash-es"
-import { cloneDeep } from "lodash-es"
-import {updateRegisteredFormats, updateAttributes} from './pages/_utils'
-=======
 import React from 'react'
 import { merge,cloneDeep } from "lodash-es"
 import utils from './pages/_utils'
->>>>>>> a40d611 (server render progress)
+
 // pages
 import PageView from "./pages/view"
 import PageEdit from "./pages/edit"
@@ -34,7 +28,7 @@ import DefaultMenu from './components/menu'
 
 
 export const CMSContext = React.createContext(undefined);
-export const ComponentContext = createContext({});
+export const ComponentContext = React.createContext({});
 
 const {updateRegisteredFormats, updateAttributes} = utils
 

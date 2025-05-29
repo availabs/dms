@@ -1,18 +1,23 @@
 import React, {useEffect, useState} from "react";
 
-import { get, isEqual} from "lodash-es";
-import {CMSContext, ComponentContext, PageContext} from '../../../context'
+import { get, isEqual } from "lodash-es";
+import { v4 as uuidv4 } from "uuid";
+
+//import DataWrapper from "./dataWrapper";
+import { Controls } from "./dataWrapper/components/Controls";
+
+import { convertOldState } from "./dataWrapper/utils/convertOldState";
+import { RenderFilters } from "./dataWrapper/components/filters/RenderFilters";
 import FilterableSearch from "./FilterableSearch";
 
-import DataWrapper from "./dataWrapper";
-import {Controls} from "./dataWrapper/components/Controls";
+import { CMSContext, ComponentContext, PageContext } from '../../../context'
+import ComponentRegistry from './ComponentRegistry'
 
-import {convertOldState} from "./dataWrapper/utils/convertOldState";
-import {v4 as uuidv4} from "uuid";
-import { RenderFilters } from "./dataWrapper/components//filters/RenderFilters";
 
-// import ComponentRegistry from './ComponentRegistry'
-const ComponentRegistry = {}
+// const convertOldState = d => d
+// const RenderFilters = () => <div/>
+// const FilterableSearch = () => <div/>
+// const ComponentRegistry = {}
 
 
 export let RegisteredComponents = ComponentRegistry;
@@ -78,7 +83,6 @@ function EditComp(props) {
     const {value, onChange, size, handlePaste, pageformat, ...rest} = props;
     const { theme } = React.useContext(CMSContext);
     const { pageState, editPane, apiLoad, apiUpdate, format, ...r  } =  React.useContext(PageContext) || {}
-    const component = (RegisteredComponents[get(value, "element-type", "lexical")] || RegisteredComponents['lexical']);
     const [state, setState] = useImmer(convertOldState(value?.['element-data'] || '', initialState(component.defaultState)));
     const [key, setKey] = useState();
 
@@ -154,7 +158,7 @@ function EditComp(props) {
                 app: pageformat?.app
             }}>
                 {/* controls with datasource selector */}
-                <Controls />
+                {/*<Controls />*/}
                 <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={true} defaultOpen={true} />
                 <DataComp
                     key={key || ''}

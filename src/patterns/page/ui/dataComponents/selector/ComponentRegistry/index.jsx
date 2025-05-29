@@ -4,7 +4,7 @@
 import MnyHeaderDataDriven from "./mnyHeader/mnyHeaderDataDriven";
 import Header from './header'
 import MNYFooter from './footer'
-import lexical from './richtext';
+//import lexical from './richtext';
 import Spreadsheet from "./spreadsheet";
 import Card from "./Card";
 import Graph from "./graph"
@@ -14,7 +14,7 @@ import FilterComponent from "./FilterComponent";
 import UploadComponent from "./UploadComponent";
 
 const ComponentRegistry = {
-    lexical,
+    //lexical,
     "Header: Default Header": Header,
     "Header: MNY Data": MnyHeaderDataDriven,
     "Footer: MNY Footer": MNYFooter,

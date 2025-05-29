@@ -7,7 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 //import { getData, useHandleClickOutside } from "./utils/utils";
 import { RenderFilters } from "./components/filters/RenderFilters";
-import { Attribution } from "./components//Attribution";
+import { Attribution } from "./components/Attribution";
 // import { Pagination } from "../ComponentRegistry/shared/Pagination";
 // import { DataSourceSelector } from "../ComponentRegistry/DataSourceSelector";
 // import { Controls } from "./components/Controls";

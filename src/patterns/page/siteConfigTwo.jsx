@@ -31,7 +31,7 @@ const pagesConfig = ({
   API_HOST
 }) => {
   baseUrl = baseUrl === '/' ? '' : baseUrl
-  registerDataType("selector", Selector)
+  //registerDataType("selector", Selector)
   // console.log('pageconfig', UI)
   
   let theme = merge(cloneDeep(defaultTheme || {}), cloneDeep(themes[pattern?.theme?.settings?.theme?.theme] || themes.default), cloneDeep(pattern?.theme) || {})
