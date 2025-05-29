@@ -1,9 +1,9 @@
 import React, {useState} from "react";
-import {Pill} from "./Pill";
 import {XMark, Add, Minus, Multiplication, Divide, Brackets} from "../../../../icons";
-import {getColumnLabel} from "../utils/utils";
-import {useImmer} from "use-immer";
+import { getColumnLabel } from "../utils/utils";
+import { useImmer } from "use-immer";
 import { v4 as uuidv4 } from 'uuid';
+import { CMSContext } from "../../../../../context";
 
 const validateAST = (node) => {
     if (node.type === 'operation') {
@@ -183,7 +183,7 @@ const Modal = ({ open, setOpen, columns, addFormulaColumn }) => {
     );
 };
 
-export const AddFormulaColumn = ({columns=[], addFormulaColumn}) => {
+const AddFormulaColumn = ({columns=[], addFormulaColumn}) => {
     const [open, setOpen] = useState(false);
     return (
         <>
@@ -192,3 +192,5 @@ export const AddFormulaColumn = ({columns=[], addFormulaColumn}) => {
         </>
     )
 }
+
+export default AddFormulaColumn

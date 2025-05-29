@@ -1,6 +1,6 @@
 import React, {useEffect, useContext} from 'react'
 import {isJson} from "../dataWrapper/utils/utils";
-import {ComponentContext} from "~/modules/dms/src/patterns/page/siteConfig";
+import { CMSContext, ComponentContext } from "../../../../context";
 
 const initialState = {
     columns: [], // {name, filters: []}

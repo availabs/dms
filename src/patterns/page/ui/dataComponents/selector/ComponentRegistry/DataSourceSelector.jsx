@@ -1,8 +1,9 @@
 import React, {useContext, useEffect, useState} from "react";
-import isEqual from "lodash/isEqual";
-import {CMSContext, ComponentContext} from "~/modules/dms/src/patterns/page/siteConfig";
-import {get} from "lodash-es";
+import { get, isEqual } from "lodash-es";
+
 import FilterableSearch from "../FilterableSearch";
+import { CMSContext, ComponentContext } from "../../../../context";
+
 const range = (start, end) => Array.from({length: (end + 1 - start)}, (v, k) => k + start);
 
 // get forms, and their sources
@@ -62,11 +63,11 @@ const getViews = async ({envs, source, falcor, apiLoad}) => {
 }
 
 
-export const DataSourceSelector = ({
+export default function DataSourceSelector ({
     // this comp isn't using context as it's intended to be reused by multiple components with their own states.
   formatFromProps,
   sourceTypes=['external', 'internal'] // lists Externally Sourced and Internally Sourced Datasets.
-}) => {
+}) {
     const {app, siteType, falcor, pgEnv} = useContext(CMSContext);
     const {state, setState, apiLoad} = useContext(ComponentContext);
     const [sources, setSources] = useState([]);

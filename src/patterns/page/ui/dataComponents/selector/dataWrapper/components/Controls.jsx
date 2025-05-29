@@ -1,7 +1,7 @@
-import React, {useContext} from 'react'
+import React, { useContext } from 'react'
 import ColumnControls from "./ColumnControls";
 import MoreControls from "./MoreControls";
-import {ComponentContext} from "~/modules/dms/src/patterns/page/siteConfig";
+import { ComponentContext } from "../../../../../context";
 
 const controlComponents = {
     columns: ColumnControls,

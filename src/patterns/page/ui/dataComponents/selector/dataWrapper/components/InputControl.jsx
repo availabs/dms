@@ -1,4 +1,3 @@
-import RenderSwitch from "./Switch";
 import React from "react";
 
 export const InputControl = ({type, placeHolder, value, setValue, title, className, inputClassName, onKeyDown, displayCdn=true}) => setValue && displayCdn ? (

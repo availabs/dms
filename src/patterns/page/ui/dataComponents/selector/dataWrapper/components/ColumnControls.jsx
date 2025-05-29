@@ -1,18 +1,16 @@
 import React, {useCallback, useContext, useEffect, useMemo, useRef, useState} from "react";
-import RenderSwitch from "./Switch";
-import {ArrowDown, RestoreBin} from "../../../../../../forms/ui/icons";
 import {cloneDeep} from "lodash-es";
-import {useHandleClickOutside} from "../../ComponentRegistry/shared/utils";
-import {getColumnLabel, isEqualColumns} from "../utils/utils";
-import {Pill} from "./Pill";
-import {AddFormulaColumn} from "./AddFormulaColumn";
-import {isCalculatedCol} from "../../ComponentRegistry/shared/filters/utils";
-import {
-    DataSourceSelector
-} from "~/modules/dms/src/patterns/page/ui/dataComponents/selector/ComponentRegistry/DataSourceSelector";
-import {ComponentContext} from "~/modules/dms/src/patterns/page/siteConfig";
-import {Icon} from "~/modules/dms/src/patterns/page/ui";
 
+import {useHandleClickOutside} from "../../ComponentRegistry/shared/utils";
+import {isCalculatedCol} from "./filters/utils";
+import {getColumnLabel, isEqualColumns} from "../utils/utils";
+
+import AddFormulaColumn from "./AddFormulaColumn";
+//import DataSourceSelector from "../../ComponentRegistry/DataSourceSelector";
+import { ComponentContext, CMSContext } from "../../../../../context";
+
+
+const DataSourceSelector = () => <div />
 const gridClasses = {
     2: {
         gridClass: 'grid grid-cols-2',
@@ -69,7 +67,9 @@ const gridClasses = {
 
 export default function ColumnControls({context}) {
     const {state: {columns=[], sourceInfo, display}, setState, controls= {}} = useContext(context || ComponentContext);
+    const { UI } = React.useContext(CMSContext) || {}
     if(!controls.columns?.length) return;
+    const { Icon, Switch, Pill } = UI;
     const dragItem = useRef();
     const dragOverItem = useRef();
     const menuRef = useRef(null);
@@ -261,7 +261,7 @@ export default function ColumnControls({context}) {
                      setIsOpen(!isOpen);
                      setSearch(undefined);
                  }}>
-                Columns <ArrowDown id={menuBtnId} height={18} width={18} className={'mt-1'}/>
+                Columns <Icon icon='ArrowDown' id={menuBtnId} height={18} width={18} className={'mt-1'}/>
             </button>
             <div ref={menuRef}
                  role="menu"
@@ -393,7 +393,7 @@ export default function ColumnControls({context}) {
                                         }
 
                                         <button key={'restore-btn'} className={'w-fit place-self-end'} onClick={() => resetColumn(attribute)}>
-                                            <RestoreBin className={'text-orange-500 hover:text-orange-700'} />
+                                            <Icon icon='restore' className={'text-orange-500 hover:text-orange-700'} />
                                         </button>
                                     </div>
                                 </div>

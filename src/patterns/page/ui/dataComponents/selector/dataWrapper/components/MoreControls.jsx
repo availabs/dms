@@ -1,16 +1,17 @@
 import React, {useRef, useState, useEffect, useContext, useCallback} from "react";
-import {ArrowDown} from "../../../../../../forms/ui/icons"
 import {ToggleControl} from "./ToggleControl";
 import {InputControl} from "./InputControl";
 import {useHandleClickOutside} from "../../ComponentRegistry/shared/utils";
-import {ComponentContext} from "~/modules/dms/src/patterns/page/siteConfig";
+import {ComponentContext, CMSContext} from "../../../../../context";
 
 export default function MoreControls({context}) {
     const {state: {display}, setState, controls} = useContext(context || ComponentContext);
+    const { UI } = React.useContext(CMSContext) || {}
     if(!controls.more?.length) return;
 
     const menuRef = useRef(null);
     const [isOpen, setIsOpen] = useState(false);
+    const { Icon } = UI;
     const menuBtnId = 'menu-btn-more-controls'
     useHandleClickOutside(menuRef, menuBtnId, () => setIsOpen(false));
 
@@ -30,7 +31,7 @@ export default function MoreControls({context}) {
                 <div id={menuBtnId}
                      className={`inline-flex w-full justify-center items-center rounded-md px-1.5 py-1 text-sm font-regular text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 ${isOpen ? `bg-gray-50` : `bg-white hover:bg-gray-50`} cursor-pointer`}
                      onClick={e => setIsOpen(!isOpen)}>
-                    More <ArrowDown id={menuBtnId} height={18} width={18} className={'mt-1'}/>
+                    More <Icon icon='ArrowDown' id={menuBtnId} height={18} width={18} className={'mt-1'}/>
                 </div>
             </div>
 

@@ -1,10 +1,16 @@
 import React from "react";
 import {Link} from "react-router";
-import {convertToUrlParams} from "../../../dataComponents/selector/dataWrapper/utils/utils";
-import Icons from "../../../../../forms/ui/icons";
-import {uniq} from "lodash-es";
 
-const getIcon = ({icon, name}) => (icon) ? Icons[icon] : () => name;
+import {uniq} from "lodash-es";
+import {convertToUrlParams} from "../../../dataWrapper/utils/utils";
+import {actionsColSize} from "../constants"
+//import Icons from "../../../../../../../forms/ui/icons";
+
+
+
+const getIcon = ({icon, name}) => {
+    return () => <span>{name}</span> //(icon) { return () => ; } /*? Icons[icon] :*/ 
+}
 
 export const RenderAction = ({ newItem={}, removeItem=() => {}, columns=[], action={}}) => {
     const groupBy = columns

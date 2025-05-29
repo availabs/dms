@@ -7,6 +7,7 @@ import Dialog from './components/Dialog'
 import Label from './components/Label'
 import Menu from './components/Menu'
 import Popover from './components/Popover'
+import Pill from './components/Pill'
 import FieldSet from './components/FieldSet.jsx'
 import Switch from './components/Switch'
 //import Input from './components/Input'
@@ -25,6 +26,7 @@ export default {
 	Dialog,
 	Label,
 	Popover,
+	Pill,
 	// --- Navigation
 	Menu,
 	// --- Forms

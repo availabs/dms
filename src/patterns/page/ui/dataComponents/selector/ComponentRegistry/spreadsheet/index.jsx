@@ -9,7 +9,7 @@ import {
     numColSize as numColSizeDf
 } from "./constants"
 import ActionControls from "./controls/ActionControls";
-import {CMSContext, ComponentContext} from '../../../../../siteConfig'
+import {CMSContext, ComponentContext} from '../../../../../context'
 import {isEqualColumns} from "../../dataWrapper/utils/utils";
 import {duplicateControl} from "../shared/utils";
 import Table, {tableTheme} from "../../../../components/table";

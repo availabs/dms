@@ -1,10 +1,14 @@
 import React, {useEffect, useState} from "react";
 import {Link} from "react-router";
+import {isEqual} from "lodash-es";
 import DataTypes from "../../../../../../data-types";
 import {formatFunctions} from "../../../dataComponents/selector/dataWrapper/utils/utils";
-import {isEqual} from "lodash-es";
+
+import {formatFunctions} from "../../../dataWrapper/utils/utils";
+
 import { RenderAction } from "./RenderActions";
-import {InfoCircle} from "../../../icons";
+
+const InfoCircle = () => <div>i</div> //- get this from theme in future
 
 const DisplayCalculatedCell = ({value, className}) => <div className={className}>{value}</div>
 const LoadingComp = ({className}) => <div className={className}>loading...</div>

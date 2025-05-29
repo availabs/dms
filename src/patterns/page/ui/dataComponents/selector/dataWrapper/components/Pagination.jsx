@@ -3,9 +3,8 @@ import { ComponentContext } from "../../dataWrapper";
 import { tableTheme } from '../spreadsheet'
 import { CMSContext } from '../../../../../context'
 
-export const paginationTheme = {
-    
-}
+export const paginationTheme = {}
+
 export const Pagination = ({currentPage, setCurrentPage, showPagination, setReadyToLoad}) => {
     const { state } = useContext(ComponentContext)
     const { theme = { table: tableTheme } } = React.useContext(CMSContext) || {}

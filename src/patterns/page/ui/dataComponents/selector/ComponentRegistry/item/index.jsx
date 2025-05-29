@@ -6,7 +6,7 @@ import {useSearchParams} from "react-router";
 import {useImmer} from "use-immer";
 import ColumnControls from "./controls/ColumnControls";
 import MoreControls from "./controls/MoreControls";
-import {ComponentContext} from "../../../../../../page/siteConfig";
+import {ComponentContext} from "../../../../../context";
 
 export const convertOldState = (state, initialState) => {
     const oldState = isJson(state) ? JSON.parse(state) : {};

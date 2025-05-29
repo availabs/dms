@@ -1,5 +1,5 @@
 import {useCallback} from 'react'
-import { getData as getFilterData } from "../../ComponentRegistry/shared/filters/utils";
+import { getData as getFilterData } from "../components/filters/utils";
 import {isEqual, uniq} from "lodash-es";
 //import {Icon} from "../../../../index";
 
