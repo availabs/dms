@@ -26,9 +26,9 @@ import {
 import {$findMatchingParent, mergeRegister} from '@lexical/utils';
 import {
   $getNearestNodeFromDOMNode,
-  EditorThemeClasses,
+  type EditorThemeClasses,
   isHTMLElement,
-  NodeKey,
+  type NodeKey,
 } from 'lexical';
 import {useEffect, useMemo, useRef, useState} from 'react';
 import * as React from 'react';

@@ -13,7 +13,6 @@ import {CMSContext, ComponentContext} from '../../../../../context'
 import {isEqualColumns} from "../../dataWrapper/utils/utils";
 import {duplicateControl} from "../shared/utils";
 import Table, {tableTheme} from "../../../../components/table";
-import controls from "~/pages/DataManager/DataTypes/gis_dataset/pages/Map/symbology/controls";
 
 const getLocation = selectionPoint => {
     let {index, attrI} = typeof selectionPoint === 'number' ? {

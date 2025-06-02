@@ -3,7 +3,7 @@ import { Link, useSubmit, useLocation } from "react-router";
 import { Dialog  } from '@headlessui/react'
 import { Modal } from "../../../ui"
 import { json2DmsForm, getUrlSlug, toSnakeCase } from '../../_utils'
-import { CMSContext } from '../../../siteConfig'
+import { CMSContext } from '../../../context'
 
 
 function TemplateRow ({ item={} }) {

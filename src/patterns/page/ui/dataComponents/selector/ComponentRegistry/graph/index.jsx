@@ -1,11 +1,12 @@
 import React, {useContext, useEffect, useMemo} from "react";
-import TableHeaderCell from "../../../../components/table/components/TableHeaderCell";
-import {getColorRange, GraphComponent} from "./GraphComponent";
-import AppearanceControls from "./controls/AppearanceControls";
+import {isEqual} from "lodash-es";
+import {CMSContext, ComponentContext} from "../../../../../context";
 import {fnumIndex} from "../../dataWrapper/utils/utils";
 import {duplicateControl} from "../shared/utils";
-import {CMSContext, ComponentContext} from "../../../../../siteConfig";
-import {isEqual} from "lodash-es";
+import TableHeaderCell from "../../../../components/table/components/TableHeaderCell";
+
+import {getColorRange, GraphComponent} from "./GraphComponent";
+import AppearanceControls from "./controls/AppearanceControls";
 
 const NaNValues = ["", null]
 

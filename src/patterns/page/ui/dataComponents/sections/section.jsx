@@ -222,7 +222,7 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
     let interactCondition = false //typeof onEdit !== 'function' && value?.element?.['element-type']?.includes('Map:');
     let isTemplateSectionCondition = false//value?.element?.['template-section-id'];
     let showEditIcons = edit && typeof onEdit === 'function' && !isTemplateSectionCondition
-    
+
     const element = React.useMemo(() => {
         return (
             <ElementComp 
@@ -335,7 +335,7 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
       { type: 'seperator'},
       { icon: 'TrashCan', name: 'Delete', onClick: () => setShowDeleteModal(!showDeleteModal) }
     ]
-        
+
     return (
         <div className={``} style={{pageBreakInside: "avoid"}}>
             <DeleteModal

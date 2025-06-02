@@ -1,8 +1,7 @@
 import React, {Fragment, useState, useEffect} from 'react'
 import { Dialog, Transition } from '@headlessui/react'
 import { XMark } from '../../icons'
-import { CMSContext } from '../../../siteConfig';
-
+import { CMSContext } from '../../../context';
 // TO DO - theme this comp
 
 // export default function Drawer ({ open, setOpen, CloseIcon=XMark, width='max-w-64', children, closeOnClick=true }) {

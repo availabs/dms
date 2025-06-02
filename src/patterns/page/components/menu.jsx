@@ -1,7 +1,7 @@
 import React from "react"
 import { Dropdown } from '../ui/index'
 import {Link, useLocation} from 'react-router'
-import { CMSContext } from '../siteConfig'
+import { CMSContext } from '../context'
 import Icons, {Search, User, UserCircle} from '../ui/icons'
 
 // import {NavItem, NavMenu, NavMenuItem, NavMenuSeparator, withAuth} from 'components/avl-components/src'

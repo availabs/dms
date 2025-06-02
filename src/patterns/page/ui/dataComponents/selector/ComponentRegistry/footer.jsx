@@ -1,6 +1,6 @@
 import React from "react";
 import {Link} from "react-router";
-import {PageContext} from "../../../../pages/view";
+import {PageContext} from "../../../../context";
 
 
 export const Footer = () => {

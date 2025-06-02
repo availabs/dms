@@ -1,7 +1,6 @@
 import React, {Fragment} from 'react'
 import { Popover, Transition, Button} from '@headlessui/react'
-import { CMSContext } from '../../../siteConfig';
-import {ArrowUp, InfoSquare} from '../../icons'
+import { CMSContext } from '../../../context';import {ArrowUp, InfoSquare} from '../../icons'
 
 export const popoverTheme = {
     button: 'flex items-center cursor-pointer pt-1 pr-1',

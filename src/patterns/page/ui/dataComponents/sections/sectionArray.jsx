@@ -18,7 +18,7 @@ const isJson = (str)  => {
     return true;
 }
 
-const sectionArrayTheme = {
+export const sectionArrayTheme = {
     container: 'w-full grid grid-cols-6 ', //gap-1 md:gap-[12px]
     gridSize: 6,
     layouts: {

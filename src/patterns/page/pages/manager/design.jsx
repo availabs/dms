@@ -13,7 +13,7 @@ import {dataItemsNav, detectNavLevel, getInPageNav} from '../_utils'
 // import SideNav from '../../ui/nav/Side'
 import { ArrowUp, ArrowDown } from '../../ui/icons'
 import { Layout, SideNavContainer } from '../../ui'
-import { CMSContext } from '../../siteConfig'
+import { CMSContext } from '../../context'
 import { themeOptions } from '../../ui/theme'
 
 

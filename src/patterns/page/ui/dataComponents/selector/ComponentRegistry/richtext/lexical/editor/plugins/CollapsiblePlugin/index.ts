@@ -30,8 +30,8 @@ import {
   KEY_ARROW_LEFT_COMMAND,
   KEY_ARROW_RIGHT_COMMAND,
   KEY_ARROW_UP_COMMAND,
-  LexicalNode,
-  NodeKey,
+    type LexicalNode,
+    type NodeKey,
 } from 'lexical';
 import {useEffect} from 'react';
 

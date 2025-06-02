@@ -1,12 +1,14 @@
-import React, {useRef, useState, useEffect, useContext, useCallback} from "react";
-import {ArrowDown} from "../../../../../../../forms/ui/icons"
+import React, {useRef, useState, useContext, useCallback} from "react";
 import {ToggleControl} from "../../../dataWrapper/components/ToggleControl";
 import {InputControl} from "../../../dataWrapper/components/InputControl";
 import {useHandleClickOutside} from "../../shared/utils";
-import {ComponentContext} from "../../../../../../../page/siteConfig";
-import Icon from "../../../../../../ui/components/icon"
+import {CMSContext, ComponentContext} from "../../../../../../context";
+
 const DomainEditor = ({value, setValue, display}) => {
     const [newTick, setNewTick] = useState('');
+    const {UI} = useContext(CMSContext);
+    const {Icon} = UI;
+
     return display.useCustomXDomain ? (
         <>
         {
@@ -38,6 +40,8 @@ const DomainEditor = ({value, setValue, display}) => {
 }
 export default function AppearanceControls({context}) {
     const {state: {display}, setState} = useContext(context || ComponentContext);
+    const {UI} = useContext(CMSContext);
+    const {Icon} = UI;
 
     const menuRef = useRef(null);
     const [isOpen, setIsOpen] = useState(false);
@@ -63,7 +67,7 @@ export default function AppearanceControls({context}) {
                 <div id={menuBtnId}
                      className={`inline-flex w-full justify-center items-center rounded-md px-1.5 py-1 text-sm font-regular text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 ${isOpen ? `bg-gray-50` : `bg-white hover:bg-gray-50`} cursor-pointer`}
                      onClick={e => setIsOpen(!isOpen)}>
-                    Appearance <ArrowDown id={menuBtnId} height={18} width={18} className={'mt-1'}/>
+                    Appearance <Icon icon={'ArrowDown'} id={menuBtnId} height={18} width={18} className={'mt-1'}/>
                 </div>
             </div>
 

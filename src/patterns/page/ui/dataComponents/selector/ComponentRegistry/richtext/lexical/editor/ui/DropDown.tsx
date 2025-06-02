@@ -8,7 +8,7 @@
 
 import * as React from 'react';
 import {
-  ReactNode,
+  type ReactNode,
   useCallback,
   useEffect,
   useMemo,

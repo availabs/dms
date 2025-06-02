@@ -1,13 +1,12 @@
 import React, {useState, useEffect, useContext, useMemo} from 'react'
-import {CMSContext} from "../../../siteConfig";
-import {cloneDeep, get} from "lodash-es";
 import {Link} from "react-router";
+import {cloneDeep, get} from "lodash-es";
 import writeXlsxFile from 'write-excel-file';
-import {Download} from '../../icons'
-import RenderSwitch from "./dataWrapper/components/Switch";
+import {dmsDataEditor} from "../../../../../api";
+import {CMSContext} from "../../../context";
+import RenderSwitch from "../../../../../ui/components/Switch";
 import FilterableSearch from "./FilterableSearch";
 import { RegisteredComponents } from "./index";
-import {dmsDataEditor} from "../../../../../api";
 
 const range = (start, end) => Array.from({length: (end + 1 - start)}, (v, k) => k + start);
 
@@ -84,6 +83,8 @@ const getViews = async ({envs, source, falcor}) => {
 }
 
 const DownloadExcel = ({ sections, pattern, fileName='sections' }) => {
+    const {UI} = useContext(CMSContext);
+    const {Icon} = UI;
 
     const handleDownload = async () => {
         const data = (sections || []).map(section => sectionCols.reduce((acc, {name}) => {
@@ -117,7 +118,7 @@ const DownloadExcel = ({ sections, pattern, fileName='sections' }) => {
 
     return (
         <button className={'p-1 border rounded-md group'} onClick={handleDownload}>
-            <Download className={'text-blue-500 group-hover:text-blue-700'} height={20} width={20}/>
+            <Icon icon={'Download'} className={'text-blue-500 group-hover:text-blue-700'} height={20} width={20}/>
         </button>
     );
 };

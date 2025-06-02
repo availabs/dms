@@ -6,7 +6,7 @@ import {useNavigate} from "react-router";
 import DataWrapper from "../../page/ui/dataComponents/selector/dataWrapper";
 import {cloneDeep, uniqBy} from "lodash-es";
 import {Controls} from "~/modules/dms/src/patterns/page/ui/dataComponents/selector/dataWrapper/components/Controls";
-import {ComponentContext} from "../../page/siteConfig";
+import {ComponentContext} from "../../page/context";
 import {useImmer} from "use-immer";
 
 const TableView = ({apiUpdate, apiLoad, format, item, params}) => {

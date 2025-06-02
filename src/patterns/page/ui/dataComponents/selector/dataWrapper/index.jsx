@@ -1,48 +1,11 @@
 import React, {useState, useEffect, useMemo, useRef, useCallback, useContext} from 'react'
 import writeXlsxFile from 'write-excel-file';
-
 import { isEqual } from "lodash-es";
-import { v4 as uuidv4 } from 'uuid';
-
-
-//import { getData, useHandleClickOutside } from "./utils/utils";
-import { RenderFilters } from "./components/filters/RenderFilters";
+import {CMSContext, ComponentContext} from "../../../../context";
+import { convertOldState } from "./utils/convertOldState";
+import {useHandleClickOutside, getData} from "./utils/utils";
 import { Attribution } from "./components/Attribution";
-// import { Pagination } from "../ComponentRegistry/shared/Pagination";
-// import { DataSourceSelector } from "../ComponentRegistry/DataSourceSelector";
-// import { Controls } from "./components/Controls";
-//import { convertOldState } from "./utils/convertOldState";
-// import {  } from "../ComponentRegistry/shared/utils";
-import { ComponentContext } from "../../../../context";
-import { produce, freeze } from "immer";
-
-
-const Icon = () => <div/>
-//const RenderFilters = () => <div/>
-// const Attribution = () => <div/>
-// const Pagination = () => <div/>
-// const DataSourceSelector = () => <div/>
-// const Controls = () => <div/>
-// const useImmer = (d) => d
-// const convertOldState = (d) => {d}
-// const useHandleClickOutside = () => {}
-const getData = () => {} 
-function useImmer(initialValue) {
-  const [val, updateValue] = useState(() =>
-    freeze(
-      typeof initialValue === "function" ? initialValue() : initialValue,
-      true
-    )
-  );
-  return [
-    val,
-    useCallback((updater) => {
-      if (typeof updater === "function") updateValue(produce(updater));
-      else updateValue(freeze(updater));
-    }, []),
-  ];
-}
-
+import {Pagination} from "./components/Pagination";
 
 
 const getCurrDate = () => {
@@ -93,6 +56,8 @@ const RenderDownload = ({state, apiLoad}) => {
     // two options:
     // 1. download visible columns: add primary column if set
     // 2. download all columns: unavailable for grouped mode
+    const {UI} = useContext(CMSContext);
+    const {Icon} = UI;
     const [open, setOpen] = React.useState(false);
     const [loading, setLoading] = React.useState(false);
     const menuRef = useRef(null);
@@ -134,7 +99,8 @@ const RenderDownload = ({state, apiLoad}) => {
 
 const Edit = ({value, onChange, pageFormat, apiUpdate, component, hideSourceSelector}) => {
     const isEdit = Boolean(onChange);
-    // const [state, setState] = useImmer(convertOldState(value, initialState(component.defaultState)));
+    const {UI} = useContext(CMSContext);
+    const {Icon} = UI;
     const {state, setState, apiLoad} = useContext(ComponentContext);
     const [loading, setLoading] = useState(false);
     const [newItem, setNewItem] = useState({})
@@ -377,6 +343,8 @@ const Edit = ({value, onChange, pageFormat, apiUpdate, component, hideSourceSele
 
 const View = ({value, onChange, size, apiUpdate, component, ...rest}) => {
     const isEdit = false;
+    const {UI} = useContext(CMSContext);
+    const {Icon} = UI;
     const {state, setState, apiLoad} = useContext(ComponentContext);
 
     const [newItem, setNewItem] = useState({})

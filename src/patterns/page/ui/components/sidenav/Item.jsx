@@ -4,7 +4,7 @@ import Icons from '../../icons'
 
 import { Icon } from '../../'
 
-import { CMSContext } from '../../../siteConfig'
+import { CMSContext } from '../../../context'
 
 // function Icon ({ icon, className }) {
 // 	let Icon = ''

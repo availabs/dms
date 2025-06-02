@@ -1,6 +1,12 @@
-import React, { useMemo, useState, useEffect }from 'react'
-import {isJson} from "../index";
-
+import React, { useMemo, useState, useEffect }from 'react';
+const isJson = (str)  => {
+    try {
+        JSON.parse(str);
+    } catch (e) {
+        return false;
+    }
+    return true;
+}
 
 export function Header ({position = 'above',bgImg = '', logo = '', title = 'Title', bgClass='', subTitle='subTitle', note='note', height=300}) {
   

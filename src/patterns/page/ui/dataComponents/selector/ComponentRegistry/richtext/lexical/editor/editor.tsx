@@ -125,7 +125,7 @@ export default function Editor(props): JSX.Element {
             {isRichText && editable && <ToolbarPlugin/>}
             <div
                 className={`
-                    ${editable ? `${theme.editorContainer}` || `editor-container` : `${theme.editorViewContainer}` || `view-container`} 
+                    ${editable ? `${theme.editorContainer}` || `editor-container` : `${theme.editorViewContainer}` || `view-container`}
                     ${showTreeView ? 'tree-view' : ''} ${!isRichText ? 'plain-text' : ''}
                     ${isCard ? theme.card : ''}
                 `}
@@ -167,7 +167,7 @@ export default function Editor(props): JSX.Element {
                             placeholder={placeholder}
                             ErrorBoundary={LexicalErrorBoundary}
                         />
-                        
+
                         <CodeHighlightPlugin/>
                         <ListPlugin/>
                         <CheckListPlugin/>
@@ -181,7 +181,7 @@ export default function Editor(props): JSX.Element {
                         <InlineImagePlugin/>
                         <ButtonPlugin />
                         <LinkPlugin/>
-                       
+
                         {/*<YouTubePlugin/>*/}
                         <HorizontalRulePlugin/>
 

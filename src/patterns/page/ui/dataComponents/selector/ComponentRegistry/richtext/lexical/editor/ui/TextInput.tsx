@@ -10,7 +10,7 @@
 
 
 import * as React from 'react';
-import {HTMLInputTypeAttribute} from 'react';
+import {type HTMLInputTypeAttribute} from 'react';
 
 type Props = Readonly<{
   'data-test-id'?: string;

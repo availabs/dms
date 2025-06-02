@@ -10,8 +10,9 @@ import Popover from './components/Popover'
 import Pill from './components/Pill'
 import FieldSet from './components/FieldSet.jsx'
 import Switch from './components/Switch'
+import ColorPicker from "./components/Colorpicker";
 //import Input from './components/Input'
-//import Select from './components/Select'
+import Select from './components/Select'
 //import Listbox from './components/Listbox'
 
 
@@ -31,11 +32,11 @@ export default {
 	Menu,
 	// --- Forms
 	FieldSet,
-	Switch
+	Switch,
 	//Input,
 	//ConfirmInput,
-	//Select,
+	Select,
 	//Listbox
-	
+	ColorPicker
 	//Layout:  () => import('./components/Layout'),
 }

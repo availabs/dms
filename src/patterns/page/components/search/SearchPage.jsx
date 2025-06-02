@@ -2,8 +2,7 @@ import React, {Fragment, useContext, useEffect, useState} from "react";
 import {useParams, useNavigate, useSearchParams} from "react-router";
 import {dmsDataLoader} from "../../../../api";
 import {getConfig} from "./index";
-import { Layout } from "../../ui";
-import {CMSContext} from "../../siteConfig";
+import {CMSContext} from "../../context";
 import {dataItemsNav, detectNavLevel} from "../../pages/_utils";
 import dataTypes from "../../../../data-types";
 import {ArrowRight, Page, Section} from '../../../admin/ui/icons';
@@ -147,7 +146,8 @@ export const RenderStatus = ({loading, query, itemsLen}) =>
 export const SearchPage = ({item, dataItems, format, attributes, logo, rightMenu}) => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
-    const {baseUrl, theme, user, falcor, falcorCache, ...rest} = useContext(CMSContext) || {}
+    const {baseUrl, theme, user, falcor, falcorCache, UI, ...rest} = useContext(CMSContext) || {}
+    const {Layout} = UI;
     const [loading, setLoading] = useState(false);
     const [tags, setTags] = useState([]);
     const [individualTags, setIndividualTags] = useState([]);

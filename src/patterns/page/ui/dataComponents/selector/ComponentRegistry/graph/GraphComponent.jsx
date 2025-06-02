@@ -1,13 +1,13 @@
-import React from "react"
+import React from "react";
 import {
   groups as d3groups,
   mean as d3mean,
   sum as d3sum
-} from "d3-array"
-import {get} from "lodash-es"
-import { GraphTypes, getGraphComponent } from "./components"
-import {mapColors} from "./utils";
-import {CMSContext} from "../../../../../siteConfig";
+} from "d3-array";
+import {get} from "lodash-es";
+import { getGraphComponent } from "./components";
+import {mapColors} from "./utils";;
+import {CMSContext} from "../../../../../context";
 import {graphTheme} from "./index";
 
 export const getColorRange = (size, name, reverse=false) => {
@@ -18,54 +18,6 @@ export const getColorRange = (size, name, reverse=false) => {
   }
   return range
 }
-
-export const DefaultPalette = getColorRange(12, "Set3");
-export const DefaultScaleRange = getColorRange(7, "RdYlGn");
-
-export const getNewGraphFormat = () => ({
-  title: {
-    title: "",
-    position: "start",
-    fontSize: 32,
-    fontWeight: "bold"
-  },
-  description: "",
-  bgColor: "#ffffff",
-  textColor: "#000000",
-  colors: {
-    type: "palette",
-    value: [...DefaultPalette]
-  },
-  height: 300,
-  width: undefined,
-  margins: {
-    marginTop: 20,
-    marginRight: 20,
-    marginBottom: 50,
-    marginLeft: 100
-  },
-  xAxis: {
-    label: "",
-    rotateLabels: false,
-    showGridLines: false,
-    tickSpacing: 1
-  },
-  yAxis: {
-    label: "",
-    showGridLines: true,
-    tickFormat: "Integer"
-  },
-  legend: {
-    show: true,
-    label: "",
-    width: 300,
-    height: 50
-  },
-  tooltip: {
-    show: true,
-    fontSize: 12
-  }
-})
 
 const GraphTitle = ({ title, position, fontSize, fontWeight }) => {
 

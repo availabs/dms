@@ -1,7 +1,6 @@
 import React from 'react';
 import {
     DecoratorNode,
-    SerializedDecoratorNode,
 } from 'lexical';
 // import { Icons } from '../plugins/EmojiPickerPlugin';  // Make sure this is where your SVGs are stored
 

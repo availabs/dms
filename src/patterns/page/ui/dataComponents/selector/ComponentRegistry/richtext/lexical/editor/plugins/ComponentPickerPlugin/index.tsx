@@ -27,7 +27,7 @@ import {
     $getSelection,
     $isRangeSelection,
     FORMAT_ELEMENT_COMMAND,
-    LexicalEditor,
+    type LexicalEditor,
     TextNode,
 } from 'lexical';
 import {useCallback, useMemo, useState} from 'react';
@@ -38,12 +38,9 @@ import useModal from '../../hooks/useModal';
 import {INSERT_COLLAPSIBLE_COMMAND} from '../CollapsiblePlugin';
 import {INSERT_COLLAPSIBLE_NO_PREVIEW_COMMAND} from '../CollapsibleNoPreviewPlugin';
 import {InsertButtonDialog} from '../ButtonPlugin';
-import {INSERT_INLINE_IMAGE_COMMAND, InsertInlineImageDialog} from '../InlineImagePlugin';
+import {InsertInlineImageDialog} from '../InlineImagePlugin';
 import InsertLayoutDialog from '../LayoutPlugin/InsertLayoutDialog';
 import {InsertTableDialog} from '../TablePlugin';
-// import {INSERT_EMBED_COMMAND} from '@lexical/react/LexicalAutoEmbedPlugin';
-// import {EmbedConfigs} from '../AutoEmbedPlugin';
-
 
 
 class ComponentPickerOption extends MenuOption {

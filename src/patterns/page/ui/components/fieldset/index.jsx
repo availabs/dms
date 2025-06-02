@@ -4,8 +4,7 @@ import Select from '../select'
 import Listbox from '../listbox'
 import Input, {ConfirmInput} from '../input'
 
-import { CMSContext } from '../../../siteConfig';
-
+import { CMSContext } from '../../../context';
 
 const componentRegistry= {
   Input,

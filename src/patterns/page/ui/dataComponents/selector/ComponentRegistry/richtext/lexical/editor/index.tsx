@@ -84,6 +84,3 @@ function UpdateEditor ({value, onChange, bgColor, theme, editable}) {
     </>
   )
 }
-
-
-

@@ -1,6 +1,6 @@
 import React from 'react'
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react'
-import { CMSContext } from '../../../siteConfig';
+import { CMSContext } from '../../../context';
 
 const defaultTabs = [
   {

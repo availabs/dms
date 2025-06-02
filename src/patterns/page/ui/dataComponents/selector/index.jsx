@@ -3,7 +3,7 @@ import React, {useEffect, useState} from "react";
 import { get, isEqual } from "lodash-es";
 import { v4 as uuidv4 } from "uuid";
 
-//import DataWrapper from "./dataWrapper";
+import DataWrapper from "./dataWrapper";
 import { Controls } from "./dataWrapper/components/Controls";
 
 import { convertOldState } from "./dataWrapper/utils/convertOldState";
@@ -11,26 +11,11 @@ import { RenderFilters } from "./dataWrapper/components/filters/RenderFilters";
 import FilterableSearch from "./FilterableSearch";
 
 import { CMSContext, ComponentContext, PageContext } from '../../../context'
-//import ComponentRegistry from './ComponentRegistry'
-
-
-// const convertOldState = d => d
-// const RenderFilters = () => <div/>
-// const FilterableSearch = () => <div/>
-const ComponentRegistry = {}
+import ComponentRegistry from './ComponentRegistry'
+import {useImmer} from "use-immer";
 
 
 export let RegisteredComponents = ComponentRegistry;
-
-export const isJson = (str)  => {
-    try {
-        JSON.parse(str);
-    } catch (e) {
-        return false;
-    }
-    return true;
-}
-
 
 const icons = {
     card: 'fa-thin fa-credit-card',
@@ -79,7 +64,7 @@ const initialState = defaultState => {
 }
 
 function EditComp(props) {
-
+    console.log('selector', props)
     const {value, onChange, size, handlePaste, pageformat, ...rest} = props;
     const { theme } = React.useContext(CMSContext);
     const { pageState, editPane, apiLoad, apiUpdate, format, ...r  } =  React.useContext(PageContext) || {}
@@ -158,7 +143,7 @@ function EditComp(props) {
                 app: pageformat?.app
             }}>
                 {/* controls with datasource selector */}
-                {/*<Controls />*/}
+                <Controls />
                 <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={true} defaultOpen={true} />
                 <DataComp
                     key={key || ''}
@@ -177,7 +162,7 @@ function EditComp(props) {
 }
 
 function ViewComp({value, ...rest}) {
-
+    console.log('selector', value)
     const { theme } = React.useContext(CMSContext);
     const { pageState, editPane, apiLoad, apiUpdate, format, ...r  } =  React.useContext(PageContext) || {}
     const defaultComp = () => <div> Component {value["element-type"]} Not Registered </div>;
@@ -187,12 +172,12 @@ function ViewComp({value, ...rest}) {
     const [state, setState] = useImmer(convertOldState(value?.['element-data'] || '', initialState(component?.defaultState)));
 
 
-    // let DataComp = state?.hideSection ? 
-    // blankComp : !component ? 
-    // defaultComp : component.useDataSource ? 
+    // let DataComp = state?.hideSection ?
+    // blankComp : !component ?
+    // defaultComp : component.useDataSource ?
     // DataWrapper.ViewComp : component.ViewComp;
 
-    let DataComp = !component ? 
+    let DataComp = !component ?
         defaultComp : component.ViewComp;
     
 

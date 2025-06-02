@@ -1,56 +1,29 @@
-/**
- * Copyright (c) Meta Platforms, Inc. and affiliates.
- *
- * This source code is licensed under the MIT license found in the
- * LICENSE file in the root directory of this source tree.
- *
- */
+// /**
+//  * Copyright (c) Meta Platforms, Inc. and affiliates.
+//  *
+//  * This source code is licensed under the MIT license found in the
+//  * LICENSE file in the root directory of this source tree.
+//  *
+//  */
 
-//import '../../ui/Checkbox.css';
 
-import {useLexicalComposerContext} from '@lexical/react/LexicalComposerContext';
-import {$wrapNodeInElement, mergeRegister} from '@lexical/utils';
 import {
-  $createParagraphNode,
-  $createRangeSelection,
-  $getSelection,
   $insertNodes,
-  $isNodeSelection,
-  $isRootOrShadowRoot,
-  $setSelection,
   COMMAND_PRIORITY_EDITOR,
-  COMMAND_PRIORITY_HIGH,
-  COMMAND_PRIORITY_LOW,
   createCommand,
-  DRAGOVER_COMMAND,
-  DRAGSTART_COMMAND,
-  DROP_COMMAND,
-  LexicalCommand,
-  LexicalEditor,
+  type LexicalCommand,
+  type LexicalEditor,
 } from 'lexical';
+import {useLexicalComposerContext} from '@lexical/react/LexicalComposerContext';
+import {mergeRegister} from '@lexical/utils';
 import * as React from 'react';
 import {useEffect, useRef, useState} from 'react';
-import {CAN_USE_DOM} from '../../shared/canUseDOM';
-import {
-  $getNodeByKey
-} from 'lexical';
 import {
   $createButtonNode,
   $isButtonNode,
   ButtonNode,
-  ButtonPayload,
+  type ButtonPayload,
 } from '../../nodes/ButtonNode';
-
-import Button from '../../ui/Button';
-import { DialogActions } from '../../ui/Dialog';
-import FileInput from '../../ui/FileInput';
-import Select from '../../ui/Select';
-import TextInput from '../../ui/TextInput';
-
-export type InsertButtonPayload = Readonly<ButtonPayload>;
-
-const getDOMSelection = (targetWindow: Window | null): Selection | null =>
-  CAN_USE_DOM ? (targetWindow || window).getSelection() : null;
 
 export const INSERT_BUTTON_COMMAND: LexicalCommand<ButtonPayload> =
   createCommand('INSERT_BUTTON_COMMAND');
@@ -179,7 +152,3 @@ export default function ButtonPlugin(): JSX.Element | null {
 
   return null;
 }
-
-
-
-

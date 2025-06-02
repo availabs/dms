@@ -1,10 +1,9 @@
-import React, {useContext, useEffect, useState} from "react"
-import LexicalComp from "./lexical"
+import React, {useContext, useEffect, useState} from "react";
+import {merge, cloneDeep} from 'lodash-es';
 import {ColorPickerComp} from "./components/colorPickerComp";
 import theme from './theme'
-import { Select } from  '../../../../' 
-import {merge, cloneDeep} from 'lodash-es'
-import {CMSContext} from "../../../../../siteConfig";
+import {CMSContext} from "../../../../../context";
+import LexicalComp from "./lexical";
 
 const isJson = (str)  => {
     try {
@@ -31,13 +30,13 @@ const cardTypes = {
             h5: "scroll-mt-36 font-display", //'PlaygroundEditorTheme__h5',
             h6: "scroll-mt-36 font-display", //'PlaygroundEditorTheme__h6',
         },
-        
+
     },
    'Annotation' : {
         contentEditable: 'border-none relative [tab-size:1] outline-none ',
         editorContainer: "relative block rounded-[12px] min-h-[50px] shadow-[0px_0px_6px_0px_rgba(0,0,0,0.02),0px_2px_4px_0px_rgba(0,0,0,0.08)] overflow-hidden", //'.editor-shell .editor-container'
         editorViewContainer: "relative block rounded-[12px] shadow-[0px_0px_6px_0px_rgba(0,0,0,0.02),0px_2px_4px_0px_rgba(0,0,0,0.08)] overflow-hidden", // .editor-shell .view-container
-       
+
         paragraph: "m-0 relative px-[12px]",
         layoutContainer: 'grid',
         layoutItem: 'border-b border-slate-300 min-w-0 max-w-full',
@@ -60,7 +59,7 @@ const cardTypes = {
         contentEditable: 'border-none relative [tab-size:1] outline-none ',
         editorContainer: "relative block rounded-[12px] min-h-[50px] shadow-[0px_0px_6px_0px_rgba(0,0,0,0.02),0px_2px_4px_0px_rgba(0,0,0,0.08)]", //'.editor-shell .editor-container'
         editorViewContainer: "relative block rounded-[12px] shadow-[0px_0px_6px_0px_rgba(0,0,0,0.02),0px_2px_4px_0px_rgba(0,0,0,0.08)]", // .editor-shell .view-container
-       
+
         paragraph: "m-0 relative px-[12px]",
         layoutContainer: 'grid',
         layoutItem: 'border-b border-slate-300 min-w-0 max-w-full',
@@ -77,7 +76,7 @@ const cardTypes = {
             h5: "pl-[16px] scroll-mt-36 font-display", //'PlaygroundEditorTheme__h5',
             h6: "pl-[16px] scroll-mt-36 font-display", //'PlaygroundEditorTheme__h6',
         },
-        inlineImage: "inline-block relative z-10 cursor-default select-none mt-[-120px]" 
+        inlineImage: "inline-block relative z-10 cursor-default select-none mt-[-120px]"
     },
     'Handwritten_2': {
         contentEditable: 'border-none relative [tab-size:1] outline-none ',
@@ -87,12 +86,14 @@ const cardTypes = {
         editorContainer: "relative block rounded-[10px] min-h-[50px]", //'.editor-shell .editor-container'
         editorShell: "font-['Caveat'] font-[600] text-[20px] text-[#37576B] leading-[22.4px]",
     },
-    
-    
+
+
 }
 
 const Edit = ({value, onChange}) => {
     const context = useContext(CMSContext);
+    const {UI} = context;
+    const {Select} = UI;
     const cachedData = value && isJson(value) ? JSON.parse(value) : {}
     const emptyTextBlock = {text: '', size: '4xl', color: '000000'};
     const [bgColor, setBgColor] = useState(cachedData?.bgColor || 'rgba(0,0,0,0)');
@@ -104,7 +105,7 @@ const Edit = ({value, onChange}) => {
         onChange(JSON.stringify({bgColor, text, isCard}))
     }, [bgColor, text, isCard])
 
-    
+
 
     // add is card toggle
     return (
@@ -113,7 +114,7 @@ const Edit = ({value, onChange}) => {
                 <div className={'flex w-full px-2 py-1 flex flex-row text-sm items-center'}>
                     <label className={'shrink-0 pr-2 w-1/4'}>Style</label>
                     <div className={''}>
-                        <Select 
+                        <Select
                             options={[
                               {
                                 label: 'Default Text',
@@ -153,12 +154,12 @@ const Edit = ({value, onChange}) => {
                 <div className='flex'>
                     {isCard === 'Handwritten' && <div className='w-[50px]'> {'<---'} </div>}
                     <div className='flex-1'>
-                        <LexicalComp.EditComp 
-                            value={text} 
-                            onChange={setText} 
-                            bgColor={bgColor} 
+                        <LexicalComp.EditComp
+                            value={text}
+                            onChange={setText}
+                            bgColor={bgColor}
                             theme={{
-                                lexical: isCard ? 
+                                lexical: isCard ?
                                     merge(cloneDeep(theme), cloneDeep(cardTypes?.[isCard] || cardTypes?.['Annotation']), {Icons: context?.theme?.Icons || {}}) :
                                     merge(theme, {Icons: context?.theme?.Icons || {}})
                             }}
@@ -191,17 +192,17 @@ const View = ({value}) => {
         (dataOrValue?.root?.children?.length === 0)
     ) return <div className='h-6' />;
 
-    
+
 
     return (
         <div className='flex'>
             {['Handwritten', 'Handwritten_1', 'Handwritten_2', 'Handwritten_3'].includes(isCard)  && <div className='pt-2 pr-2'><img src='/themes/mny/handwritten_arrow.svg'/></div>}
             <div className='flex-1'>
-            <LexicalComp.ViewComp 
-                value={dataOrValue} 
-                bgColor={data?.bgColor} 
+            <LexicalComp.ViewComp
+                value={dataOrValue}
+                bgColor={data?.bgColor}
                 theme={{
-                    lexical: isCard ? 
+                    lexical: isCard ?
                          merge(cloneDeep(theme), cloneDeep(cardTypes?.[isCard] || cardTypes?.['Annotation']), {Icons: context?.theme?.Icons || {}}) :
                         merge(theme, {Icons: context?.theme?.Icons || {}})
                 }}/>

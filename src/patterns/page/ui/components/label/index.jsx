@@ -1,5 +1,5 @@
 import React from "react";
-import {CMSContext} from "../../../siteConfig";
+import {CMSContext} from "../../../context";
 
 export const labelTheme = {
     labelWrapper: 'px-[12px] pt-[9px] pb-[7px] rounded-md',

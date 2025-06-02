@@ -1,13 +1,13 @@
-import React, {useContext, useMemo, useState} from 'react'
-import {PageContext} from "../../../../../pages/view";
-import {ArrowRight, Search} from "../../../../icons";
-import {Label} from '../../../../'
+import React, {useContext, useMemo, useState} from 'react';
 import {Link} from "react-router";
+import {CMSContext, PageContext, ComponentContext} from "../../../../../context";
 import {overlayImageOptions, insetImageOptions} from "./consts";
 import {SearchPallet} from "../../../../../components/search";
-import {CMSContext, ComponentContext} from "../../../../../siteConfig";
 
 const Breadcrumbs = ({ chain, show }) => {
+    const {UI} = useContext(CMSContext);
+    const {Icon} = UI;
+
     if(!show) return null;
     return Array.isArray(chain) ? (
         <div className={'px-1 z-[5]'}>
@@ -15,7 +15,7 @@ const Breadcrumbs = ({ chain, show }) => {
                 {chain.map((c, index) => (
                     <div key={index} className={`flex items-center shrink-0`}>
                         <Link to={c.url_slug} className={`w-fit shrink-0 wrap-none ${index === chain.length - 1 ? `font-regular` : `font-semibold`}`}>{c.title}</Link>
-                        {index < chain.length - 1 && <ArrowRight height={12} width={12} className="ml-1 -mt-1" />}
+                        {index < chain.length - 1 && <Icon icon={'ArrowRight'} height={12} width={12} className="ml-1 -mt-1" />}
                     </div>
                 ))}
             </div>
@@ -24,6 +24,8 @@ const Breadcrumbs = ({ chain, show }) => {
 };
 
 const SearchButton = ({app, type, show}) => {
+    const {UI} = useContext(CMSContext);
+    const {Icon, Label} = UI;
     const [open, setOpen] = useState(false);
     const [searchStr, setSearchStr] = useState('');
     const featured_searches = ['Hurricane Sandy', 'Climate Change', 'Flood Risk']
@@ -50,7 +52,8 @@ const SearchButton = ({app, type, show}) => {
                         }}
                     />
 
-                    <Search
+                    <Icon
+                        icon={'Search'}
                         height={24}
                         width={24}
                         className="text-[#2D3E4C] p-0.5"
@@ -126,7 +129,7 @@ export function Header ({app, type, title, note, logo, overlay='overlay', bgImg,
         <div className={`relative w-full lg:-mb-[128px] `}>
 
                 <div  className="absolute top-0 right-0 w-[758px] h-[499px] flex-1 rounded-bl-[395px] bg-[#1A2732] sm:bg-gradient-to-r from-[#213440] to-[#213440] via-[#213440]/70" />
-                        
+
                  {/* breadcrumbs, title, note image: none */}
                 <div className={'relative max-w-[1440px] w-full mx-auto px-4 xl:px-[64px] pb-4 pt-[100px] sm:pt-[118px] items-center '}>
                     <div className={'p-[56px] h-full bg-white z-[100] rounded-lg shadow-md z-20'}>
@@ -140,12 +143,12 @@ export function Header ({app, type, title, note, logo, overlay='overlay', bgImg,
                         <SearchButton app={app} type={type} show={showSearchBar}/>
                     </div>
                 </div>
-                       
-                
-                
+
+
+
         </div>
     ) : (
-        <div className={`relative w-full lg:h-[743px] lg:-mb-[85px]  
+        <div className={`relative w-full lg:h-[743px] lg:-mb-[85px]
             flex flex-col lg:flex-row bg-fit bg-center justify-center`}>
             {/* image div */}
             <div
@@ -159,7 +162,7 @@ export function Header ({app, type, title, note, logo, overlay='overlay', bgImg,
             >
 
                 {overlay === 'overlay' &&
-                    <img className='relative top-[70px] w-[758px] ' src={bgImg} alt={'overlay image'}/> 
+                    <img className='relative top-[70px] w-[758px] ' src={bgImg} alt={'overlay image'}/>
                 }
             </div>
 

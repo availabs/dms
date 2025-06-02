@@ -18,10 +18,10 @@ import {
   COMMAND_PRIORITY_LOW,
   DRAGOVER_COMMAND,
   DROP_COMMAND,
-  LexicalEditor,
+  type LexicalEditor,
 } from 'lexical';
 import * as React from 'react';
-import {DragEvent as ReactDragEvent, useEffect, useRef, useState} from 'react';
+import {type DragEvent as ReactDragEvent, useEffect, useRef, useState} from 'react';
 import {createPortal} from 'react-dom';
 
 import {isHTMLElement} from '../../utils/guard';

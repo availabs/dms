@@ -26,8 +26,8 @@ import {
   DRAGOVER_COMMAND,
   DRAGSTART_COMMAND,
   DROP_COMMAND,
-  LexicalCommand,
-  LexicalEditor,
+  type LexicalCommand,
+  type LexicalEditor,
 } from 'lexical';
 import * as React from 'react';
 import {useEffect, useRef, useState} from 'react';
@@ -37,7 +37,7 @@ import {
   $createInlineImageNode,
   $isInlineImageNode,
   InlineImageNode,
-  InlineImagePayload,
+  type InlineImagePayload,
 } from '../../nodes/InlineImageNode';
 import Button from '../../ui/Button';
 import {DialogActions} from '../../ui/Dialog';
@@ -91,14 +91,16 @@ export function InsertInlineImageDialog({
   };
 
   useEffect(() => {
+    if(typeof document === 'undefined') return;
+
     hasModifier.current = false;
     const handler = (e: KeyboardEvent) => {
       hasModifier.current = e.altKey;
     };
-    document.addEventListener('keydown', handler);
-    return () => {
-      document.removeEventListener('keydown', handler);
-    };
+    // document?.addEventListener('keydown', handler);
+    // return () => {
+    //   document?.removeEventListener('keydown', handler);
+    // };
   }, [activeEditor]);
 
   const handleOnClick = () => {
@@ -211,7 +213,7 @@ export default function InlineImagePlugin(): JSX.Element | null {
 
 const TRANSPARENT_IMAGE =
   'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
-const img = document.createElement('img');
+const img = typeof document !== 'undefined' ? document.createElement('img') : {};
 img.src = TRANSPARENT_IMAGE;
 
 function onDragStart(event: DragEvent): boolean {
@@ -329,8 +331,8 @@ function getDragSelection(event: DragEvent): Range | null | undefined {
       ? (target as Document).defaultView
       : (target as Element).ownerDocument.defaultView;
   const domSelection = getDOMSelection(targetWindow);
-  if (document.caretRangeFromPoint) {
-    range = document.caretRangeFromPoint(event.clientX, event.clientY);
+  if (document?.caretRangeFromPoint) {
+    range = document?.caretRangeFromPoint(event.clientX, event.clientY);
   } else if (event.rangeParent && domSelection !== null) {
     domSelection.collapse(event.rangeParent, event.rangeOffset || 0);
     range = domSelection.getRangeAt(0);

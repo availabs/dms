@@ -1,15 +1,14 @@
-import React, { PureComponent } from 'react';
-import {ArrowDown, ArrowUp, ArrowRight, ArrowLeft, DraftPage} from '../../../icons';
-import { CMSContext } from '../../../../siteConfig';
+import React, { PureComponent, useContext } from 'react';
+import { CMSContext } from '../../../../../page/context.js';
 
 
 class Icon extends PureComponent {
   render() {
-    const { children, className, isCollapsed, ...props } = this.props;
+    const { children, className, isCollapsed, Icon } = this.props;
 
-    return (
+      return (
       <>
-        ++ {isCollapsed ? <ArrowRight /> : <ArrowDown />}
+        ++ {isCollapsed ? <Icon icon={'ArrowRight'} /> : <Icon icon={'ArrowDown'} />}
       </>
     );
   }
@@ -17,13 +16,15 @@ class Icon extends PureComponent {
 
 
 const NestableItem = (props) => {
-    const { theme } = React.useContext(CMSContext) || {}
+    const { theme, UI } = React.useContext(CMSContext) || {};
+    // const {Icon} = UI;
     const { item, isCopy, options, index, depth=0 } = props;
 
     const renderCollapseIconDef = ({ isCollapsed }) => (
       <Icon
         className="nestable-item-icon"
         isCollapsed={isCollapsed}
+        Icon={Icon}
       />
     );
 
@@ -34,7 +35,7 @@ const NestableItem = (props) => {
     const onDragStart = (e: MouseEvent) => {
       return options.onDragStart(e, item);
     };
-  
+
     const {
       dragItem,
       renderItem,
@@ -49,7 +50,7 @@ const NestableItem = (props) => {
 
 
 
-    
+
 
     const isCollapsed = checkIfCollapsed(item);
     const isDragging = !isCopy && dragItem && dragItem[idProp] === item[idProp];
@@ -105,7 +106,7 @@ const NestableItem = (props) => {
       )
       : null;
 
-    
+
 
     const content = renderItem({
       handleCollapseIconClick,

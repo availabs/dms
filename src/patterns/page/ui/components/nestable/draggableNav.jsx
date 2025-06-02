@@ -1,6 +1,6 @@
 import React, {Fragment, useState, useEffect, useRef, useMemo} from 'react'
 import { NavLink, useSubmit, useLocation, matchPath, matchRoutes, useMatch } from "react-router";
-import { CMSContext } from '../../../siteConfig'
+import { CMSContext } from '../../../context'
 
 import Nestable from './index';
 import { json2DmsForm, getUrlSlug } from '../../../pages/_utils'

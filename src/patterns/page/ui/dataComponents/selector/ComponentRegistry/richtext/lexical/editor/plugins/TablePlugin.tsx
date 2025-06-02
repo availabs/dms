@@ -15,7 +15,7 @@ import {
   TableNode,
   TableRowNode,
 } from '@lexical/table';
-import {EditorThemeClasses, Klass, LexicalEditor, LexicalNode} from 'lexical';
+import type {EditorThemeClasses, Klass, LexicalEditor, LexicalNode} from 'lexical';
 import {createContext, useContext, useEffect, useMemo, useState} from 'react';
 import invariant from '../utils/invariant';
 

@@ -9,7 +9,7 @@
 // import './Placeholder.css';
 
 import * as React from 'react';
-import {ReactNode} from 'react';
+import {type ReactNode} from 'react';
 
 export default function Placeholder({
   children,

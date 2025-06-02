@@ -16,13 +16,11 @@ import type {
   LexicalNode,
   NodeKey,
   Spread,
+  SerializedDecoratorNode,
 } from 'lexical';
 import {useLexicalEditable} from '@lexical/react/useLexicalEditable';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
-import {
-  DecoratorNode,
-  SerializedDecoratorNode,
-} from 'lexical';
+import {DecoratorNode} from 'lexical';
 
 import * as React from 'react';
 import {Link} from 'react-router'

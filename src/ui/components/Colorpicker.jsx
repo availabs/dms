@@ -6,7 +6,6 @@
  *
  */
 import {useEffect, useMemo, useRef, useState} from 'react';
-import * as React from 'react';
 
 const basicColors = [
     '#d0021b',
@@ -48,9 +47,171 @@ const colorPickerStyles = {
     "color-picker-hue_cursor": "absolute w-[20px] h-[20px] border-[2px] border-[solid] border-[#ffffff] rounded-full [box-shadow:#0003_0_0_0_0.5px] box-border -translate-x-[10px] -translate-y-[4px]",
 
     "color-picker-color": "border-[1px] border-[solid] border-[#ccc] mt-[15px] w-full h-[20px]"
+};
+
+
+function MoveWrapper({className, style, onChange, children}) {
+    const divRef = useRef(null);
+
+    const move = (e) => {
+        if (divRef.current) {
+            const {current: div} = divRef;
+            const {width, height, left, top} = div.getBoundingClientRect();
+
+            const x = clamp(e.clientX - left, width, 0);
+            const y = clamp(e.clientY - top, height, 0);
+
+            onChange({x, y});
+        }
+    };
+
+    const onMouseDown = (e) => {
+        if (e.button !== 0) return;
+
+        move(e);
+
+        const onMouseMove = (_e) => {
+            move(_e);
+        };
+
+        const onMouseUp = (_e) => {
+            document.removeEventListener('mousemove', onMouseMove, false);
+            document.removeEventListener('mouseup', onMouseUp, false);
+
+            move(_e);
+        };
+
+        document.addEventListener('mousemove', onMouseMove, false);
+        document.addEventListener('mouseup', onMouseUp, false);
+    };
+
+    return (
+        <div
+            ref={divRef}
+            className={className}
+            style={style}
+            onMouseDown={onMouseDown}>
+            {children}
+        </div>
+    );
 }
 
-export default function ColorPicker({color, onChange, colors, showColorPicker=true}) {
+function clamp(value, max, min) {
+    return value > max ? max : value < min ? min : value;
+}
+
+function toHex(value) {
+    if (!value.startsWith('#')) {
+        const ctx = document.createElement('canvas').getContext('2d');
+
+        if (!ctx) {
+            throw new Error('2d context not supported or canvas already initialized');
+        }
+
+        ctx.fillStyle = value;
+
+        return ctx.fillStyle;
+    } else if (value.length === 4 || value.length === 5) {
+        value = value
+            .split('')
+            .map((v, i) => (i ? v + v : '#'))
+            .join('');
+
+        return value;
+    } else if (value.length === 7 || value.length === 9) {
+        return value;
+    }
+
+    return '#000000';
+}
+
+function hex2rgb(hex) {
+    const rbgArr = (
+        hex
+            .replace(
+                /^#?([a-f\d])([a-f\d])([a-f\d])$/i,
+                (m, r, g, b) => '#' + r + r + g + g + b + b,
+            )
+            .substring(1)
+            .match(/.{2}/g) || []
+    ).map((x) => parseInt(x, 16));
+
+    return {
+        b: rbgArr[2],
+        g: rbgArr[1],
+        r: rbgArr[0],
+    };
+}
+
+function rgb2hsv({r, g, b}) {
+    r /= 255;
+    g /= 255;
+    b /= 255;
+
+    const max = Math.max(r, g, b);
+    const d = max - Math.min(r, g, b);
+
+    const h = d
+        ? (max === r
+        ? (g - b) / d + (g < b ? 6 : 0)
+        : max === g
+            ? 2 + (b - r) / d
+            : 4 + (r - g) / d) * 60
+        : 0;
+    const s = max ? (d / max) * 100 : 0;
+    const v = max * 100;
+
+    return {h, s, v};
+}
+
+function hsv2rgb({h, s, v}) {
+    s /= 100;
+    v /= 100;
+
+    const i = ~~(h / 60);
+    const f = h / 60 - i;
+    const p = v * (1 - s);
+    const q = v * (1 - s * f);
+    const t = v * (1 - s * (1 - f));
+    const index = i % 6;
+
+    const r = Math.round([v, q, p, p, t, v][index] * 255);
+    const g = Math.round([t, v, v, q, p, p][index] * 255);
+    const b = Math.round([p, p, t, v, v, q][index] * 255);
+
+    return {b, g, r};
+}
+
+function rgb2hex({b, g, r}) {
+    return '#' + [r, g, b].map((x) => x.toString(16).padStart(2, '0')).join('');
+}
+
+function transformColor(
+    format,
+    color,
+) {
+    let hex = toHex('#121212');
+    let rgb = hex2rgb(hex);
+    let hsv = rgb2hsv(rgb);
+
+    if (format === 'hex') {
+        hex = toHex(color);
+        rgb = hex2rgb(hex);
+        hsv = rgb2hsv(rgb);
+    } else if (format === 'rgb') {
+        rgb = color;
+        hex = rgb2hex(rgb);
+        hsv = rgb2hsv(rgb);
+    } else if (format === 'hsv') {
+        hsv = color;
+        rgb = hsv2rgb(hsv);
+        hex = rgb2hex(rgb);
+    }
+    return {hex, hsv, rgb};
+}
+
+ function ColorPicker (props) {
+     const {color, onChange, colors, showColorPicker=true} = props;
     const [selfColor, setSelfColor] = useState(transformColor('hex', color));
     const [inputColor, setInputColor] = useState(color);
     const innerDivRef = useRef(null);
@@ -169,163 +330,4 @@ export default function ColorPicker({color, onChange, colors, showColorPicker=tr
     );
 }
 
-
-function MoveWrapper({className, style, onChange, children}) {
-    const divRef = useRef(null);
-
-    const move = (e) => {
-        if (divRef.current) {
-            const {current: div} = divRef;
-            const {width, height, left, top} = div.getBoundingClientRect();
-
-            const x = clamp(e.clientX - left, width, 0);
-            const y = clamp(e.clientY - top, height, 0);
-
-            onChange({x, y});
-        }
-    };
-
-    const onMouseDown = (e) => {
-        if (e.button !== 0) return;
-
-        move(e);
-
-        const onMouseMove = (_e) => {
-            move(_e);
-        };
-
-        const onMouseUp = (_e) => {
-            document.removeEventListener('mousemove', onMouseMove, false);
-            document.removeEventListener('mouseup', onMouseUp, false);
-
-            move(_e);
-        };
-
-        document.addEventListener('mousemove', onMouseMove, false);
-        document.addEventListener('mouseup', onMouseUp, false);
-    };
-
-    return (
-        <div
-            ref={divRef}
-            className={className}
-            style={style}
-            onMouseDown={onMouseDown}>
-            {children}
-        </div>
-    );
-}
-
-function clamp(value, max, min) {
-    return value > max ? max : value < min ? min : value;
-}
-
-export function toHex(value) {
-    if (!value.startsWith('#')) {
-        const ctx = document.createElement('canvas').getContext('2d');
-
-        if (!ctx) {
-            throw new Error('2d context not supported or canvas already initialized');
-        }
-
-        ctx.fillStyle = value;
-
-        return ctx.fillStyle;
-    } else if (value.length === 4 || value.length === 5) {
-        value = value
-            .split('')
-            .map((v, i) => (i ? v + v : '#'))
-            .join('');
-
-        return value;
-    } else if (value.length === 7 || value.length === 9) {
-        return value;
-    }
-
-    return '#000000';
-}
-
-function hex2rgb(hex) {
-    const rbgArr = (
-        hex
-            .replace(
-                /^#?([a-f\d])([a-f\d])([a-f\d])$/i,
-                (m, r, g, b) => '#' + r + r + g + g + b + b,
-            )
-            .substring(1)
-            .match(/.{2}/g) || []
-    ).map((x) => parseInt(x, 16));
-
-    return {
-        b: rbgArr[2],
-        g: rbgArr[1],
-        r: rbgArr[0],
-    };
-}
-
-function rgb2hsv({r, g, b}) {
-    r /= 255;
-    g /= 255;
-    b /= 255;
-
-    const max = Math.max(r, g, b);
-    const d = max - Math.min(r, g, b);
-
-    const h = d
-        ? (max === r
-        ? (g - b) / d + (g < b ? 6 : 0)
-        : max === g
-            ? 2 + (b - r) / d
-            : 4 + (r - g) / d) * 60
-        : 0;
-    const s = max ? (d / max) * 100 : 0;
-    const v = max * 100;
-
-    return {h, s, v};
-}
-
-function hsv2rgb({h, s, v}) {
-    s /= 100;
-    v /= 100;
-
-    const i = ~~(h / 60);
-    const f = h / 60 - i;
-    const p = v * (1 - s);
-    const q = v * (1 - s * f);
-    const t = v * (1 - s * (1 - f));
-    const index = i % 6;
-
-    const r = Math.round([v, q, p, p, t, v][index] * 255);
-    const g = Math.round([t, v, v, q, p, p][index] * 255);
-    const b = Math.round([p, p, t, v, v, q][index] * 255);
-
-    return {b, g, r};
-}
-
-function rgb2hex({b, g, r}) {
-    return '#' + [r, g, b].map((x) => x.toString(16).padStart(2, '0')).join('');
-}
-
-function transformColor(
-    format,
-    color,
-) {
-    let hex = toHex('#121212');
-    let rgb = hex2rgb(hex);
-    let hsv = rgb2hsv(rgb);
-
-    if (format === 'hex') {
-        hex = toHex(color);
-        rgb = hex2rgb(hex);
-        hsv = rgb2hsv(rgb);
-    } else if (format === 'rgb') {
-        rgb = color;
-        hex = rgb2hex(rgb);
-        hsv = rgb2hsv(rgb);
-    } else if (format === 'hsv') {
-        hsv = color;
-        rgb = hsv2rgb(hsv);
-        hex = rgb2hex(rgb);
-    }
-    return {hex, hsv, rgb};
-}
+export default ColorPicker;

@@ -1,11 +1,6 @@
 import React, { useEffect } from 'react'
-
-
-
-//import { saveHeader, saveSection } from './editFunctions'
-import { Layout, SideNav } from '../../ui'
-import { ViewIcon } from '../../ui/icons'
-import { CMSContext } from '../../siteConfig'
+import { Layout } from '../../ui'
+import { CMSContext } from '../../context'
 
 
 const managerTheme={

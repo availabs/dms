@@ -30,7 +30,7 @@ import {
   TableCellHeaderStates,
   TableCellNode,
   TableObserver,
-  TableSelection,
+  type TableSelection,
 } from '@lexical/table';
 import {mergeRegister} from '@lexical/utils';
 import {
@@ -47,7 +47,7 @@ import {
   SELECTION_CHANGE_COMMAND,
 } from 'lexical';
 import * as React from 'react';
-import {ReactPortal, useCallback, useEffect, useRef, useState} from 'react';
+import {type ReactPortal, useCallback, useEffect, useRef, useState} from 'react';
 import {createPortal} from 'react-dom';
 import invariant from '../../utils/invariant';
 

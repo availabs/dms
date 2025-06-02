@@ -1,5 +1,5 @@
 import React, {useContext} from "react";
-import {CMSContext, ComponentContext} from '../../../../../siteConfig'
+import {CMSContext, ComponentContext} from '../../../../../context'
 import {tableTheme} from "~/modules/dms/src/patterns/page/ui/components/table";
 
 export const paginationTheme = {

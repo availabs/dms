@@ -8,7 +8,7 @@
 
 import type {JSX} from 'react';
 
-import {LexicalEditor} from 'lexical';
+import {type LexicalEditor} from 'lexical';
 import * as React from 'react';
 import {useState} from 'react';
 

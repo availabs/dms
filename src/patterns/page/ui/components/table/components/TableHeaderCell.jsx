@@ -1,9 +1,7 @@
-import React, {useCallback, useContext, useRef, useState} from "react";
+import React, {useCallback, useRef, useState} from "react";
 import {ToggleControl} from "../../../dataComponents/selector/dataWrapper/components/ToggleControl";
 import {useHandleClickOutside} from "../../../dataComponents/selector/ComponentRegistry/shared/utils";
 import {Group, LeftToRightListBullet, TallyMark, Sum, Avg, ArrowDown, SortAsc, SortDesc} from "../../../icons";
-import {ComponentContext} from "../../../../siteConfig";
-
 const selectWrapperClass = 'group px-2 py-1 w-full flex items-center cursor-pointer hover:bg-gray-100'
 const selectLabelClass = 'w-fit font-regular text-gray-500 cursor-default'
 const selectClasses = 'w-full rounded-md bg-white group-hover:bg-gray-100 cursor-pointer'

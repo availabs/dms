@@ -1,6 +1,6 @@
 import React, { useEffect, Fragment, useRef, useState } from 'react'
 import {PencilIcon} from './icons'
-import { CMSContext } from '../siteConfig'
+import { CMSContext } from '../context'
 import { Transition, } from '@headlessui/react'
 import { usePopper } from 'react-popper'
 import defaultTheme from './theme'

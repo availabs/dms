@@ -1,12 +1,11 @@
-import React, {useEffect} from 'react'
-import ManagerLayout from './layout'
-import { CMSContext } from '../../siteConfig'
+import React from 'react'
+import { CMSContext } from '../../context'
 
 
 function FormsManager ({item, dataItems, attributes, logo, rightMenu}) {
  
   
-  const { baseUrl, theme, user } = React.useContext(CMSContext) || {}
+  const { theme } = React.useContext(CMSContext) || {}
 
   return (
       <div className={`${theme?.page?.wrapper2}`}>

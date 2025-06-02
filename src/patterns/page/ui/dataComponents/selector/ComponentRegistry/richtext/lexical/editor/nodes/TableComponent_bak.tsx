@@ -32,7 +32,7 @@ import {
   COPY_COMMAND,
   createEditor,
   CUT_COMMAND,
-  EditorThemeClasses,
+  type EditorThemeClasses,
   FORMAT_TEXT_COMMAND,
   KEY_ARROW_DOWN_COMMAND,
   KEY_ARROW_LEFT_COMMAND,
@@ -43,8 +43,8 @@ import {
   KEY_ENTER_COMMAND,
   KEY_ESCAPE_COMMAND,
   KEY_TAB_COMMAND,
-  LexicalEditor,
-  NodeKey,
+  type LexicalEditor,
+  type NodeKey,
   PASTE_COMMAND,
 } from 'lexical';
 import {
@@ -62,14 +62,14 @@ import {IS_APPLE} from '../shared/environment';
 import {CellContext} from '../plugins/TablePlugin';
 import {
   $isTableNode,
-  Cell,
+  type Cell,
   cellHTMLCache,
   cellTextContentCache,
   createRow,
   createUID,
   exportTableCellsToHTML,
   extractRowsFromHTML,
-  Rows,
+  type Rows,
   TableNode,
 } from './TableNode';
 

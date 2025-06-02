@@ -1,12 +1,14 @@
-import React, {useMemo, useState} from "react";
-import {ColorPicker} from "../../../../";
+import React, {useContext, useMemo, useState} from "react";
+import {CMSContext} from "../../../../../context";
 
 const defaultColorOptions = [
     "#FFFFFF",
     "#F3F8F9",
     "#FCF6EC"
 ];
-export const ColorControls = ({value='#FFFFFF', setValue, title, className, colors}) => {
+export default function ({value='#FFFFFF', setValue, title, className, colors}) {
+    const {UI} = useContext(CMSContext);
+    const {ColorPicker} = UI;
     if(!setValue) return;
 
     const [open, setOpen] = useState(false);

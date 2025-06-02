@@ -11,7 +11,7 @@ import {XMark} from "../../page/ui/icons";
 import {Filter, FilterRemove} from "../ui/icons";
 import dataTypes from "../../../data-types";
 import {useImmer} from "use-immer";
-import {ComponentContext} from "../../page/siteConfig";
+import {ComponentContext} from "../../page/context";
 
 const getErrorValueSql = (fullName, shortName, options, required, type) => {
     const sql = `SUM(CASE ${required ? `WHEN (data->>'${fullName}' IS NULL OR data->>'${fullName}'::text = '') THEN 1` : ``}

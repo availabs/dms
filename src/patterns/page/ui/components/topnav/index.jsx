@@ -9,7 +9,7 @@ import SideNavItem from '../sidenav/Item'
 import { Icon } from '../../'
 const NOOP = () => { return {} }
 
-import { CMSContext } from '../../../siteConfig'
+import { CMSContext } from '../../../context'
 
 // export const topNavTheme = {
 //     "fixed": 'mt-12',

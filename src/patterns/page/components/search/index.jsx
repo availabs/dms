@@ -1,15 +1,14 @@
 import React, {Fragment, useEffect, useContext, useState} from "react";
 import {Dialog, DialogPanel, Input, Transition} from '@headlessui/react'
 import {dmsDataLoader} from "../../../../api";
-import {CMSContext} from "../../siteConfig";
+import {CMSContext} from "../../context";
 import {boldMatchingText, getScore, searchTypeMapping} from "./SearchPage";
 import {ArrowRight} from "../../../admin/ui/icons";
-import {Page, Section} from "../../ui/icons"
-import {Search} from "../../ui/icons";
 
 export const SearchButton = ({app, type}) => {
     const [open, setOpen] = useState(false)
-
+    const {UI} = useContext(CMSContext);
+    const {Icon} = UI;
     return (
         <>
             <button
@@ -24,7 +23,7 @@ export const SearchButton = ({app, type}) => {
                 <span className={'uppercase text-[#2D3E4C] font-medium text-[12px] leading-[14.62px] tracking-none'}>Search</span>
 
                 <div className={'bg-[#37576B] p-[10px] rounded-full'}>
-                    <Search height={12} width={12} className={'text-white'}/>
+                    <Icon icon={'Search'} height={12} width={12} className={'text-white'}/>
                 </div>
             </button>
             <SearchPallet open={open} setOpen={setOpen} app={app} type={type}/>
@@ -64,7 +63,7 @@ const RenderSuggestions = ({individualTags, query, setQuery}) => individualTags
     </div>
 ) : null;
 
-const RenderItems = ({items, query, theme}) => Object.keys(items).length ? (
+const RenderItems = ({items, query, theme, Icon}) => Object.keys(items).length ? (
     <div
         className={theme.resultsWrapper}>
         {Object.keys(items)
@@ -84,9 +83,9 @@ const RenderItems = ({items, query, theme}) => Object.keys(items).length ? (
                             onClick={e => {
                                 window.location = `${items[page_id].url}`
                             }}>
-                            <Page width={15} height={21}/>
+                            <Icon icon={'Page'} width={15} height={21}/>
                             <div className={theme.pageTitle}>{boldMatchingText(items[page_id].page_title || page_id, query)}</div>
-                            <ArrowRight className={'h-6 w-6 ml-2 text-transparent group-hover:text-gray-900'}/>
+                            <Icon icon={ArrowRight} className={'h-6 w-6 ml-2 text-transparent group-hover:text-gray-900'}/>
                         </div>
 
                         <div className={theme.sectionsWrapper}>
@@ -108,9 +107,9 @@ const RenderItems = ({items, query, theme}) => Object.keys(items).length ? (
                                     {/*section title*/}
                                     <div
                                         className={'w-full flex items-center text-md font-medium text-gray-700 hover:text-gray-700'}>
-                                        <Section width={18} height={18} />
+                                        <Icon icon={'Section'} width={18} height={18} />
                                         <div className={theme.sectionTitle}>{boldMatchingText(section_title || section_id, query)}</div>
-                                        <ArrowRight
+                                        <Icon icon={'ArrowRight'}
                                             className={'h-6 w-6 ml-2 text-transparent group-hover:text-gray-900'}/>
 
                                     </div>
@@ -152,7 +151,8 @@ const RenderStatus = ({loading, query, itemsLen}) =>
         );
 
 export const SearchPallet = ({open, setOpen, app, type, searchStr}) => {
-    const {baseUrl, falcor, falcorCache} = useContext(CMSContext) || {}
+    const {baseUrl, falcor, UI} = useContext(CMSContext) || {};
+    const {Icon} = UI;
     const [query, setQuery] = useState();
     const [tmpQuery, setTmpQuery] = useState(searchStr);
     const [loading, setLoading] = useState(false);
@@ -310,7 +310,7 @@ export const SearchPallet = ({open, setOpen, app, type, searchStr}) => {
 
                                 {/*<RenderSuggestions tags={tags} individualTags={individualTags} query={tmpQuery} setQuery={setTmpQuery} />*/}
 
-                                <RenderItems key={'search-items'} items={items} query={query} theme={theme}/>
+                                <RenderItems key={'search-items'} items={items} query={query} theme={theme} Icon={Icon}/>
 
                                 <RenderStatus key={'search-suggestions'} query={query} loading={loading} itemsLen={Object.keys(items).length} theme={theme}/>
                             {/*</Combobox>*/}

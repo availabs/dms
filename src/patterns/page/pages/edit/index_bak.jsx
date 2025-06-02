@@ -11,7 +11,7 @@ import { ViewIcon } from '../../ui/icons'
 import { PageContext } from '../view'
 
 
-import { CMSContext } from '../../siteConfig'
+import { CMSContext } from '../../context'
 import EditPane, { EditDrawer } from './editPane'
 import {Footer} from "../../ui/dataComponents/selector/ComponentRegistry/footer";
 

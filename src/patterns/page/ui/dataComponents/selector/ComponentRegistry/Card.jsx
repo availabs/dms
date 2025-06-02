@@ -1,18 +1,19 @@
-import {formatFunctions, isEqualColumns} from "../dataWrapper/utils/utils";
-import TableHeaderCell from "../../../components/table/components/TableHeaderCell";
 import React, {useContext, useEffect, useMemo, useRef, useState} from "react";
 import {Link} from "react-router";
-import {CMSContext, ComponentContext} from "../../../../siteConfig";
-import {ColorControls} from "./shared/ColorControls";
+import {CMSContext, ComponentContext} from "../../../../context";
 import {duplicateControl, useHandleClickOutside} from "./shared/utils";
+import {formatFunctions, isEqualColumns} from "../dataWrapper/utils/utils";
 import DataTypes from "../../../../../../data-types";
+import TableHeaderCell from "../../../components/table/components/TableHeaderCell";
+import ColorControls from "./shared/ColorControls";
 
 const justifyClass = {
     left: 'justifyTextLeft',
     right: 'justifyTextRight',
     center: 'justifyTextCenter',
     full: {header: 'justifyTextLeft', value: 'justifyTextRight'}
-}
+};
+
 const fontStyleOptions = [
     { label: 'X-Small', value: 'textXS' },
     { label: 'X-Small Regular', value: 'textXSReg' },
@@ -270,7 +271,7 @@ const Card = ({
                                                         ${dataCard.header} ${compactView ? dataCard.headerCompactView : dataCard.headerSimpleView}
                                                          ${dataCard[headerTextJustifyClass]}
                                                           ${dataCard[attr.headerFontStyle || 'textXS']}
-                                                          
+
                                                           `}>
                                                             {attr.customName || attr.display_name || attr.normalName || attr.name}
                                                         </div>
@@ -441,10 +442,12 @@ export default {
             {type: 'input', inputType: 'number', label: 'Image Top Margin', key: 'imageMargin', displayCdn: ({attribute, isEdit}) => isEdit && attribute.isImg},
 
 
-            {type: ({value, setValue}) => <ColorControls value={value} setValue={setValue} title={'Background Color'}/>, key: 'bgColor', displayCdn: ({display}) => !display.compactView},
+            {type: ({value, setValue}) => (<ColorControls value={value} setValue={setValue} title={'Background Color'}/>), key: 'bgColor', displayCdn: ({display}) => !display.compactView}
         ]
 
     },
     "EditComp": Card,
     "ViewComp": Card,
 }
+
+// export default () => <div>card</div>

@@ -6,7 +6,7 @@ import { cloneDeep } from "lodash-es"
 import { json2DmsForm, getInPageNav  } from '../../_utils'
 import { SideNavContainer, SideNav } from '../../../ui'
 import EditControls from './templateEditControls'
-import { CMSContext } from '../../../siteConfig'
+import { CMSContext } from '../../../context'
 
 
 

@@ -1,13 +1,12 @@
 import React, {useCallback, useMemo, useRef} from "react";
 import dataTypes from "../../../../../../../../../data-types";
-import RenderSwitch from "../../../../dataWrapper/components/Switch";
+import RenderSwitch from "../../../../../../../../../ui/components/Switch";
 import {useHandleClickOutside} from "../../utils";
 import {convertToUrlParams} from "../utils";
 import {useNavigate} from "react-router";
 import {isEqualColumns} from "../../../../dataWrapper/utils/utils";
 import {filterTheme} from "../RenderFilters";
-import {CMSContext} from "../../../../../../../siteConfig";
-import {PageContext} from "~/modules/dms/src/patterns/page/pages/view";
+import {CMSContext, PageContext} from "../../../../../../../context";
 
 const resetColumn = (originalAttribute, setState, columns) => setState(draft => {
     const idx = columns.findIndex(column => isEqualColumns(column, originalAttribute));

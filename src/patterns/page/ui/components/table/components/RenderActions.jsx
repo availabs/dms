@@ -1,10 +1,7 @@
 import React from "react";
 import {Link} from "react-router";
 import {uniq} from "lodash-es";
-import {convertToUrlParams} from "../../../dataWrapper/utils/utils";
-import {actionsColSize} from "../constants"
-//import Icons from "../../../../../../../forms/ui/icons";
-
+import {convertToUrlParams} from "../../../../pages/_utils";
 
 
 const getIcon = ({icon, name}) => {

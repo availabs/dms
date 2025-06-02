@@ -1,6 +1,5 @@
 import React, {useEffect, useContext} from 'react'
 import DataSourceSelector from "./DataSourceSelector";
-import {useImmer} from "use-immer";
 import {isJson} from "../dataWrapper/utils/utils";
 import Upload from "../../../../../forms/components/upload";
 import { CMSContext, ComponentContext } from "../../../../context";

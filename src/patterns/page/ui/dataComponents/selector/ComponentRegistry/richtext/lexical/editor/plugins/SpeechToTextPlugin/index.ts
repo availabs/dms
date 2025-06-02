@@ -42,15 +42,16 @@ const VOICE_COMMANDS: Readonly<
   },
 };
 
+const Window = {}; // fixme: window not defined
 export const SUPPORT_SPEECH_RECOGNITION: boolean =
-  'SpeechRecognition' in window || 'webkitSpeechRecognition' in window;
+  'SpeechRecognition' in Window || 'webkitSpeechRecognition' in Window;
 
 function SpeechToTextPlugin(): null {
   const [editor] = useLexicalComposerContext();
   const [isEnabled, setIsEnabled] = useState<boolean>(false);
   const SpeechRecognition =
     // @ts-expect-error none
-    window.SpeechRecognition || window.webkitSpeechRecognition;
+    Window.SpeechRecognition || Window.webkitSpeechRecognition;
   const recognition = useRef<typeof SpeechRecognition | null>(null);
   const report = useReport();
 

@@ -2,11 +2,11 @@ import React from "react"
 import Editor from "./editor/index"
 
 function isJsonString(str) {
-    try { JSON.parse(str) } 
+    try { JSON.parse(str) }
     catch (e) { return false }
     return true;
 }
-
+// export default () => <div>afgfdsv</div>
 function parseValue (value) {
     // --------------------------------
     // parse DMS value for lexical
@@ -14,7 +14,7 @@ function parseValue (value) {
     // --------------------------------
     return value && typeof value === 'object' ?
         JSON.stringify(value) : (isJsonString(value) ? value : null)
-} 
+}
 
 const Edit = ({value, onChange, theme,  ...rest}) => {
     // console.log('lexical type edit')
@@ -33,7 +33,7 @@ const Edit = ({value, onChange, theme,  ...rest}) => {
 const View = ({value, theme,  ...rest}) => {
     // console.log('lexical type view', parseValue(value))
     return (
-      <Editor 
+      <Editor
         value={parseValue(value)}
         editable={false}
         theme={theme}

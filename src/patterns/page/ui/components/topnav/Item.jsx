@@ -4,7 +4,7 @@ import Icons, {ArrowDown} from '../../icons'
 
 import { Icon } from '../../'
 
-import { CMSContext } from '../../../siteConfig'
+import { CMSContext } from '../../../context'
 
 
 const NOOP = () => { return {} }

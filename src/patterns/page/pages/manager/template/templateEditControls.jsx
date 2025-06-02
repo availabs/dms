@@ -17,7 +17,7 @@ import {json2DmsForm, getUrlSlug, toSnakeCase, parseJSON} from '../../_utils'
 import {Modal, DeleteModal} from '../../../ui/'
 import { RegisteredComponents } from '../../../ui/dataComponents/selector'
 
-import { CMSContext } from '../../../siteConfig'
+import { CMSContext } from '../../../context'
 
 
 const theme = {

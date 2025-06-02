@@ -4,8 +4,6 @@ import {isEqual} from "lodash-es";
 import DataTypes from "../../../../../../data-types";
 import {formatFunctions} from "../../../dataComponents/selector/dataWrapper/utils/utils";
 
-import {formatFunctions} from "../../../dataWrapper/utils/utils";
-
 import { RenderAction } from "./RenderActions";
 
 const InfoCircle = () => <div>i</div> //- get this from theme in future
