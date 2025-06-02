@@ -1,5 +1,4 @@
-import React, {createContext, Fragment, useRef, useState} from "react"
-//import { useLocation } from 'react-router';
+import React, {createContext, Fragment, useContext, useRef, useState} from "react"
 import { isEqual } from "lodash-es"
 import { Combobox } from '@headlessui/react'
 import { Link } from "react-router";
@@ -7,16 +6,6 @@ import { usePopper } from 'react-popper'
 import { CMSContext } from '../../../context'
 
 import {convert} from './convertToSpreadSheet'
-import {
-    TrashCan,
-    RemoveCircle,
-    CancelCircle,
-    FloppyDisk,
-    PencilSquare,
-    InfoSquare,
-    MoreSquare,
-    Tags
-} from '../../icons'
 
 
 
@@ -58,7 +47,7 @@ export function SectionEdit ({value, i, onChange, attributes, size, onCancel, on
                         <div className={`absolute mr-16 top-[-24px] right-[-60px] flex`}>
                             {/*delete*/}
                             <Button type='plain' padding='p-1' onClick={() => setShowDeleteModal(!showDeleteModal)}>
-                                <TrashCan className='text-red-400 hover:text-red-600 w-[24px] h-[24px]' title="Delete Section"/>
+                                <Icon icon={'TrashCan'} className='text-red-400 hover:text-red-600 w-[24px] h-[24px]' title="Delete Section"/>
                             </Button>
                             <DeleteModal
                                 title={`Delete Section ${value?.title || ''} ${value?.id}`} open={showDeleteModal}
@@ -75,14 +64,14 @@ export function SectionEdit ({value, i, onChange, attributes, size, onCancel, on
                                 }}
                             />
                             {/*help text*/}
-                            <Popover button={<InfoSquare className='text-blue-400 hover:text-blue-600  w-[24px] h-[24px]' title="Help Text"/>} >
+                            <Popover button={<Icon icon={'InfoSquare'} className='text-blue-400 hover:text-blue-600  w-[24px] h-[24px]' title="Help Text"/>} >
                                 <HelpComp
                                     value={value?.['helpText']}
                                     onChange={(v) => updateAttribute('helpText', v)}
                                 />
                             </Popover>
                             {/*tags*/}
-                            <Popover button={<Tags className='text-blue-400 hover:text-blue-600  w-[24px] h-[24px]' title="Tags"/>} >
+                            <Popover button={<Icon icon={'Tags'} className='text-blue-400 hover:text-blue-600  w-[24px] h-[24px]' title="Tags"/>} >
                                 <TagComponent
                                     edit={true}
                                     className='p-2 flex-0'
@@ -93,14 +82,14 @@ export function SectionEdit ({value, i, onChange, attributes, size, onCancel, on
                             </Popover>
                             {/*save*/}
                             <Button type='plain' padding='p-1' onClick={onSave}>
-                                <FloppyDisk className='text-slate-400 hover:text-blue-500 w-[24px] h-[24px]'/>
+                                <Icon icon={'FloppyDisk'} className='text-slate-400 hover:text-blue-500 w-[24px] h-[24px]'/>
                             </Button>
                             {/*cancel*/}
                             <Button type='plain' padding='p-1' onClick={onCancel}>
-                                <CancelCircle className='text-slate-400 hover:text-red-500 w-[24px] h-[24px]'/>
+                                <Icon icon={'CancelCircle'} className='text-slate-400 hover:text-red-500 w-[24px] h-[24px]'/>
                             </Button>
                             {/*section details*/}
-                            <Popover button={<MoreSquare className='text-blue-400 hover:text-blue-600  w-[24px] h-[24px]' title="section details"/>} >
+                            <Popover button={<Icon icon={'MoreSquare'} className='text-blue-400 hover:text-blue-600  w-[24px] h-[24px]' title="section details"/>} >
                                 <div className='flex flex-col'>
                                     <div className='flex-0 grow'>
                                         <TitleComp //todo make it blue if H!
@@ -189,8 +178,8 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
     let [referenceElement, setReferenceElement] = useState()
     let [popperElement, setPopperElement] = useState()
     let { styles, attributes:popperAttributes } = usePopper(referenceElement, popperElement)
-    const { baseUrl, user, theme } = React.useContext(CMSContext) || {}
-
+    const { baseUrl, user, theme, UI } = React.useContext(CMSContext) || {}
+    const {Menu, Icon} = UI;
     // const updateAttribute = (k, v) => {
     //     onChange(value, k, v)
     // }
@@ -406,7 +395,7 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
                             
                                 (<Popover button={
                                     <div className='p-2 border border-[#E0EBF0] rounded-full'>
-                                        <Tags className='text-slate-400 hover:text-blue-500 size-4' title="Tags"/>
+                                        <Icon icon={'Tags'} className='text-slate-400 hover:text-blue-500 size-4' title="Tags"/>
                                     </div>
                                     }>
                                     <TagComponent
@@ -419,7 +408,7 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
                                 </Popover>) : null}
                                         
                                 {helpTextCondition && (
-                                    <Popover button={<InfoSquare className='text-blue-400 hover:text-blue-500 w-[24px] h-[24px]' title="Move Up"/>}>
+                                    <Popover button={<Icon icon={'InfoSquare'} className='text-blue-400 hover:text-blue-500 w-[24px] h-[24px]' title="Move Up"/>}>
                                         <HelpComp value={value?.['helpText']} />
                                     </Popover>)
                             }
@@ -516,6 +505,8 @@ const RenderError = ({data}) => (
     </div>)
 
 function TagComponent ({value, placeholder, onChange, edit=false}) {
+    const {UI} = useContext(CMSContext);
+    const {Icon} = UI;
     const arrayValue = Array.isArray(value) ? value :  (value?.split(',')?.filter(v => v?.length) || [])
     const [newTag, setNewTag] = useState('');
     //console.log('hola', value, arrayValue)
@@ -585,7 +576,7 @@ function TagComponent ({value, placeholder, onChange, edit=false}) {
                             <div key={i} className='flex justify-between items-center'>
                                 {d}
                                 {edit ? <div className='cursor-pointer' onClick={() => onChange(arrayValue.filter(v => v !== d ).join(','))}>
-                                    <RemoveCircle className='text-red-400 hover:text-red-600  w-[16px] h-[16px]'/>
+                                    <Icon icon={'RemoveCircle'} className='text-red-400 hover:text-red-600  w-[16px] h-[16px]'/>
                                 </div> : null}
                             </div>
                         } />

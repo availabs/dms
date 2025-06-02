@@ -138,7 +138,8 @@ const Card = ({
 }) => {
     const { theme = {} } = React.useContext(CMSContext) || {};
     const dataCard = theme.dataCard || dataCardTheme;
-
+    const {UI} = useContext(CMSContext);
+    const {Icon} = UI;
     const {state:{columns, data, sourceInfo, display}, setState, controls={}} = useContext(ComponentContext);
     const {compactView, gridSize, gridGap, padding, colGap, headerValueLayout, reverse, hideIfNull, removeBorder, allowAdddNew, bgColor='#FFFFFF'} = display;
     const [draggedCol, setDraggedCol] = useState(null);
@@ -242,7 +243,7 @@ const Card = ({
                                                          (imageSrc || rawValue)}
                                                 /> :
                                             ['icon', 'color'].includes(attr.formatFn) && formatFunctions[attr.formatFn] ?
-                                                <div className={'flex items-center gap-1.5 uppercase'}>{formatFunctions[attr.formatFn](rawValue, attr.isDollar)}</div> :
+                                                <div className={'flex items-center gap-1.5 uppercase'}>{formatFunctions[attr.formatFn](rawValue, attr.isDollar, Icon)}</div> :
                                                 attr.formatFn && formatFunctions[attr.formatFn] ?
                                                     formatFunctions[attr.formatFn](rawValue, attr.isDollar).replaceAll(' ', '') :
                                                     rawValue;

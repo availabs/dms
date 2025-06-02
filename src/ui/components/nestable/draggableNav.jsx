@@ -1,14 +1,14 @@
 import React, {Fragment, useState, useEffect, useRef, useMemo} from 'react'
 import { NavLink, useSubmit, useLocation, matchPath, matchRoutes, useMatch } from "react-router";
-import { CMSContext } from '../../../context'
+import { CMSContext } from '../../../patterns/page/context'
 
 import Nestable from './index';
-import { json2DmsForm, getUrlSlug } from '../../../pages/_utils'
+import { json2DmsForm, getUrlSlug } from '../../../patterns/page/pages/_utils'
 
 
-import {ArrowDown, ArrowUp, ArrowRight, ArrowLeft, DraftPage} from '../../icons';
+import {ArrowDown, ArrowUp, ArrowRight, ArrowLeft, DraftPage} from '../../../patterns/page/ui/icons';
 
-import { Button } from '../../';
+import { Button } from '../../../patterns/page/ui';
 
 
 export const nestableTheme = {

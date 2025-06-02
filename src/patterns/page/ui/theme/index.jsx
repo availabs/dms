@@ -1,15 +1,13 @@
-import React from 'react'
-import { Link } from 'react-router'
+import React from 'react';
 // -- Components
-//import { layoutTheme } from '../components/layout'
 import { sideNavTheme } from '../components/sidenav'
 import { topNavTheme } from '../components/topnav'
 import { tabsTheme } from '../components/tabs'
 import { buttonTheme } from '../components/button'
 import { iconTheme } from '../components/icon'
 import { inputTheme  } from '../components/input'
-import { nestableTheme } from '../components/nestable/draggableNav'
-import { dialogTheme } from '../components/dialog'
+// import { nestableTheme } from '../../../../ui/components/nestable/draggableNav'
+import { dialogTheme } from '../../../../ui/components'
 import { popoverTheme } from '../components/popover'
 import { selectTheme } from '../components/select'
 import { listboxTheme } from '../components/listbox'
@@ -18,10 +16,6 @@ import { fieldTheme } from '../components/fieldset'
 import { sectionArrayTheme } from '../dataComponents/sections/sectionArray'
 
 // -- Component Registery Components
-
-//import lexicalTheme from '../dataComponents/selector/ComponentRegistry/richtext/theme';
-
-
 import {dataCardTheme} from "../dataComponents/selector/ComponentRegistry/Card";
 import { attributionTheme } from "../dataComponents/selector/ComponentRegistry/shared/Attribution";
 import { sectionGroupTheme } from '../dataComponents/sections/sectionGroup'
@@ -109,7 +103,7 @@ const theme = {
   input: inputTheme,
   icon: iconTheme,
   field: fieldTheme,
-  nestable: nestableTheme,
+  // nestable: nestableTheme,
   dialog: dialogTheme,
   popover: popoverTheme,
   label: labelTheme,

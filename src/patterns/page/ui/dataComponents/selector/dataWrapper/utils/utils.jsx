@@ -579,7 +579,7 @@ export const formatFunctions = {
     'comma_dollar': (d) => fnum(d, true),
     'zero_to_na': d => !d || (d && +d === 0) || d === '0' ? 'N/A' : d,
     'date': (d) => formatDate(d),
-    'icon': (strValue, props) => <><Icon icon={strValue} className={'size-8'} {...props}/> <span>{strValue}</span></>,
+    'icon': (strValue, props, Icon) => <><Icon icon={strValue} className={'size-8'} {...props}/> <span>{strValue}</span></>,
     'color': (strValue, map) => <>
         <div style={{borderRadius: '1000px', height: '10px', width: '10px', backgroundColor: map?.[strValue] || strColorMap[strValue] || strColorMap.default}} />
         <div>{strValue}</div>

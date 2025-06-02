@@ -15,6 +15,7 @@ import { registerDataType } from '../../data-types'
 import Selector from './ui/dataComponents/selector'
 
 import defaultTheme from '../../ui/defaultTheme.json'
+import PageEdit from "./pages/edit";
 
 
 const pagesConfig = ({
@@ -83,7 +84,16 @@ const pagesConfig = ({
           attributes:['title', 'index', 'url_slug', 'parent','published', 'description','icon','navOptions','hide_in_nav']
         },
         children: [
-
+          {
+            type: (props) => (
+                <PageEdit
+                    {...props}
+                />
+            ),
+            path: "edit/*",
+            action: "edit",
+            authLevel: 5
+          },
           {
             //type: (props) => <div><pre>{JSON.stringify(props.dataItems, null,3)}</pre></div>,
             type: (props) => (
@@ -92,7 +102,7 @@ const pagesConfig = ({
               />
             ),
             filter: {
-              attributes:['title', 'index', 'url_slug', 'parent', 'published', 'hide_in_nav' ,'sections','section_groups','sidebar','navOptions']
+              attributes:['title', 'index', 'filters', 'url_slug', 'parent', 'published', 'hide_in_nav' ,'sections','section_groups','sidebar','navOptions']
             },
             path: "/*",
             action: "view"

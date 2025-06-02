@@ -64,10 +64,10 @@ const initialState = defaultState => {
 }
 
 function EditComp(props) {
-    console.log('selector', props)
     const {value, onChange, size, handlePaste, pageformat, ...rest} = props;
     const { theme } = React.useContext(CMSContext);
-    const { pageState, editPane, apiLoad, apiUpdate, format, ...r  } =  React.useContext(PageContext) || {}
+    const component = (RegisteredComponents[get(value, "element-type", "lexical")] || RegisteredComponents['lexical']);
+    const { pageState, editPane, apiLoad, apiUpdate, format, ...r  } =  React.useContext(PageContext) || {};
     const [state, setState] = useImmer(convertOldState(value?.['element-data'] || '', initialState(component.defaultState)));
     const [key, setKey] = useState();
 
@@ -83,7 +83,6 @@ function EditComp(props) {
         }
     }, []);
 
-    const component = (RegisteredComponents[get(value, "element-type", "lexical")] || RegisteredComponents['lexical']);
     //const DataComp = component.useDataSource ? DataWrapper.EditComp : component.EditComp;
     let DataComp = component.EditComp
 

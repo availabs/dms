@@ -1,5 +1,5 @@
 import React, { PureComponent, useContext } from 'react';
-import { CMSContext } from '../../../../../page/context.js';
+import { CMSContext } from '../../../../patterns/page/context.js';
 
 
 class Icon extends PureComponent {

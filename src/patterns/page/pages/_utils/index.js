@@ -1,8 +1,5 @@
-import { matchRoutes } from 'react-router'
 import { v4 as uuidv4 } from 'uuid';
 import { isEqual, reduce, map, cloneDeep} from "lodash-es"
-//import {getCurrentDataItem} from "./navItems.js";
-// const baseUrl = ''
 export const convertToUrlParams = (obj, delimiter='|||') => {
     const params = new URLSearchParams();
 
@@ -69,11 +66,11 @@ export function getChildNav(item, dataItems, baseUrl='', edit) {
 }
 
 export function getCurrentDataItem(dataItems, baseUrl) {
-    const location =
-        window.location.pathname
-            .replace(baseUrl, '')
-            .replace('/', '')
-            .replace('edit/', '');
+    const location =''
+        // window ? window.location.pathname
+        //     .replace(baseUrl, '')
+        //     .replace('/', '')
+        //     .replace('edit/', '') : '';
 
     return location === '' ?
         dataItems.find(d => d.index === 0 && d.parent === '') :

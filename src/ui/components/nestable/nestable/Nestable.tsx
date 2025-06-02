@@ -1,8 +1,6 @@
-import React, { Component, CSSProperties, UpdateSpec, UpdateSpecPath } from 'react';
-import {isEqual, merge} from 'lodash-es';
+import React, { Component, type CSSProperties, type UpdateSpec, type UpdateSpecPath } from 'react';
+import {isEqual} from 'lodash-es';
 import update from 'immutability-helper';
-import cx from './classnames';
-
 import {
   isArray,
   closest,
@@ -11,7 +9,7 @@ import {
   getTransformProps,
   listWithChildren,
   getAllNonEmptyNodesIds,
-} from '../utils';
+} from "../utils";
 // import { NestableProps, NestableState, NestableItemOptions, Item, Collapse } from '../types';
 
 import NestableItem from './NestableItem';

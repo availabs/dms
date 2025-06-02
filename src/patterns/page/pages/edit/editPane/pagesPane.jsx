@@ -1,25 +1,16 @@
 import React, { useEffect, Fragment, useRef, useState } from 'react'
 import { useLocation, useSubmit, NavLink} from "react-router";
 import { cloneDeep, get, isEqual } from "lodash-es"
-
-import { 
-  Button,
-  Menu, 
-  /*Input,*/
-  DraggableNav,
-  Dialog
-} 
-  from '../../../ui'
-import { ArrowRight, ArrowDown, CaretDown, EllipsisVertical} from '../../../ui/icons'
+import { CMSContext,PageContext } from '../../../context'
 import { json2DmsForm, getUrlSlug } from '../../_utils'
 import { publish, discardChanges, insertSubPage} from '../editFunctions'
 
-import { CMSContext,PageContext } from '../../../context'
-
-
 
 function PagesPane () {
-  const { item, dataItems } =  React.useContext(PageContext) || {}
+  const { item, dataItems } =  React.useContext(PageContext) || {};
+  const {UI} = React.useContext(CMSContext);
+  const {DraggableNav} = UI;
+
   return (
     <div className="flex h-full flex-col flex-1">
       <div className="px-4 sm:px-6 py-2">
@@ -30,10 +21,10 @@ function PagesPane () {
         </div>
       </div>
       <div className="relative flex-1 w-full ">
-        <DraggableNav 
-          item={item} 
-          dataItems={dataItems} 
-          NavComp={DraggableNavItem} 
+        <DraggableNav
+          item={item}
+          dataItems={dataItems}
+          NavComp={DraggableNavItem}
         />
       </div>
     </div>
@@ -43,7 +34,8 @@ function PagesPane () {
 export default PagesPane
 
 function DraggableNavItem ({activeItem, item, dataItems, handleCollapseIconClick, isCollapsed, edit}) {
-    const { baseUrl, user, theme } = React.useContext(CMSContext);
+    const { baseUrl, user, theme, UI } = React.useContext(CMSContext);
+    const {Icon} = UI;
     const { apiUpdate } =  React.useContext(PageContext) || {}
     const { pathname = '/edit' } = useLocation();
     const submit = useSubmit()
@@ -82,17 +74,17 @@ function DraggableNavItem ({activeItem, item, dataItems, handleCollapseIconClick
                     <Menu
                       items={[
                         {
-                          name: (<span className=''>Rename</span>), 
+                          name: (<span className=''>Rename</span>),
                           onClick: () => setShowRename(true)
                         },
                         {
-                          name: (<span className='text-red-400'>Delete</span>), 
+                          name: (<span className='text-red-400'>Delete</span>),
                           onClick: () => setShowDelete(true)
                         }
                       ]}
-                    > 
+                    >
                       <div className='flex items-center text-slate-300 hover:text-slate-600 rounded-full hover:bg-blue-300'>
-                        <EllipsisVertical className='size-5' />
+                        <Icon icon={'EllipsisVertical'} className='size-5' />
                       </div>
                     </Menu>
                     {/*unpublished pill*/}
@@ -106,19 +98,19 @@ function DraggableNavItem ({activeItem, item, dataItems, handleCollapseIconClick
 
 
                 {!item.children?.length ? <div className='size-6'/> : isCollapsed  ?
-                    <ArrowRight className={theme?.nestable?.collapsIcon}  onClick={() => handleCollapseIconClick()}/> :
-                    <ArrowDown className={theme?.nestable?.collapsIcon} onClick={() => handleCollapseIconClick()}/>
+                    <Icon icon={'ArrowRight'} className={theme?.nestable?.collapsIcon}  onClick={() => handleCollapseIconClick()}/> :
+                    <Icon icon={'ArrowDown'} className={theme?.nestable?.collapsIcon} onClick={() => handleCollapseIconClick()}/>
                 }
 
-                
+
             </div>
             {/*<div className='border-t border-transparent hover:border-blue-500 w-full relative'>
                 <div className='hidden group-hover:block absolute left-0 -bottom-0 hover:bg-blue-500 size-4 flex items-center rounded-full p-1'>+</div>
             </div>*/}
-            <DeleteModal 
-              item={item} 
-              open={showDelete} 
-              setOpen={() => setShowDelete(!showDelete)} 
+            <DeleteModal
+              item={item}
+              open={showDelete}
+              setOpen={() => setShowDelete(!showDelete)}
               onDelete={() => {
                 async function deleteItem () {
                     await submit(json2DmsForm(item,'delete'), { method: "post", action: pathname })
@@ -128,22 +120,23 @@ function DraggableNavItem ({activeItem, item, dataItems, handleCollapseIconClick
               }}
             />
 
-            <RenameModal 
+            <RenameModal
               activeItem={activeItem}
               item={item}
               dataItems={dataItems}
-              open={showRename} 
-              setOpen={() => setShowRename(!showRename)} 
+              open={showRename}
+              setOpen={() => setShowRename(!showRename)}
             />
         </div>
     )
-  
+
 }
 
 function DeleteModal ({title, prompt, item={}, open, setOpen, onDelete})  {
-  const cancelButtonRef = useRef(null)
-  //const { baseUrl } = React.useContext(CMSContext) || {}
-  const [loading, setLoading] = useState(false)
+  const cancelButtonRef = useRef(null);
+  const { UI } = React.useContext(CMSContext) || {};
+  const {Button, Dialog} = UI;
+  const [loading, setLoading] = useState(false);
 
   return (
     <Dialog
@@ -190,8 +183,9 @@ function DeleteModal ({title, prompt, item={}, open, setOpen, onDelete})  {
 
 function RenameModal ({title, prompt, item={}, dataItems, open, setOpen})  {
   const cancelButtonRef = useRef(null)
-  const {  user } = React.useContext(CMSContext) || {}
-  const submit = useSubmit()
+  const {  user, UI } = React.useContext(CMSContext) || {};
+  const {Button, Dialog} = UI;
+  const submit = useSubmit();
   const { pathname = '/edit' } = useLocation();
   const [loading, setLoading] = useState(false)
   const [newName, setNewName] = useState(item.title)
@@ -206,15 +200,15 @@ function RenameModal ({title, prompt, item={}, dataItems, open, setOpen})  {
         // let history = editItem.history ? cloneDeep(item.history) : []
         // let edit = {
         //   type: `changed page title to ${newName}`,
-        //   user: user.email, 
+        //   user: user.email,
         //   time: new Date().toString()
         // }
         // history.push(edit)
-        
+
         const newItem = {
           id: editItem.id,
           title: newName,
-          parent: editItem?.parent   
+          parent: editItem?.parent
         }
         newItem.url_slug = getUrlSlug(newItem, dataItems)
         const newPathName = pathname.endsWith(item.url_slug) ? pathname.replace(new RegExp(item.url_slug + '$'), newItem.url_slug) : pathname;
@@ -227,7 +221,7 @@ function RenameModal ({title, prompt, item={}, dataItems, open, setOpen})  {
     }
     updateItem()
   }
-  
+
   return (
     <Dialog
       open={open}
@@ -252,7 +246,7 @@ function RenameModal ({title, prompt, item={}, dataItems, open, setOpen})  {
           disabled={loading}
           onClick={update}
         >
-          { loading ? 'Saving...' : 'Submit' } 
+          { loading ? 'Saving...' : 'Submit' }
         </Button>
         <Button
           type="plain"
@@ -271,36 +265,36 @@ function RenameModal ({title, prompt, item={}, dataItems, open, setOpen})  {
 export function PublishButton () {
   const {item, apiUpdate } =  React.useContext(PageContext) || {}
   const hasChanges = item.published === 'draft' || item.has_changes
-  const { user } = React.useContext(CMSContext) || {}
-  
+  const { user, UI } = React.useContext(CMSContext) || {};
+  const {Button} = UI;
   return (
     <div className='w-full flex justify-center h-[40px]'>
       { hasChanges && (
-        <Button 
-          padding={'flex items-center h-[40px] mr-1 cursor-pointer'} 
+        <Button
+          padding={'flex items-center h-[40px] mr-1 cursor-pointer'}
           type={'inactive'}
-          onClick={() => discardChanges(user,item, apiUpdate)} 
+          onClick={() => discardChanges(user,item, apiUpdate)}
         >
           <span className='text-nowrap'> Discard </span>
         </Button>
       )}
-      <Button 
-          padding={' flex items-center h-[40px]'} 
+      <Button
+          padding={' flex items-center h-[40px]'}
           disabled={!hasChanges}
           type={hasChanges ? 'active' : 'inactive'}
-          onClick={() => publish(user,item, apiUpdate)} 
+          onClick={() => publish(user,item, apiUpdate)}
       >
         <span className='text-nowrap'> {hasChanges ? `Publish` : `No Changes`} </span>
-         
+
       </Button>
-      
+
       {/*hasChanges && (
-        <Menu 
+        <Menu
           items={[{
-            name: (<span className='text-red-400'>Discard Changes</span>), 
+            name: (<span className='text-red-400'>Discard Changes</span>),
             onClick: () =>  }
           ]}
-        > 
+        >
           <Button padding={'py-1 w-[35px] h-[40px]'} rounded={'rounded-r-lg'} type={hasChanges ? 'active' : 'inactive'}>
             <CaretDown className='size-[28px]' />
           </Button>
@@ -309,6 +303,3 @@ export function PublishButton () {
     </div>
   )
 }
-
-
-

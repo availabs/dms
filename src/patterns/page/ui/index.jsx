@@ -8,23 +8,23 @@ import defaultTheme from './theme'
 import * as Headless from '@headlessui/react'
 
 
-export { default as DraggableNav } from './components/nestable/draggableNav';
+export { default as DraggableNav } from '../../../ui/components/nestable/draggableNav';
 export { default as Layout }  from './components/layout';
 export { default as SideNav } from './components/sidenav';
 export { default as TopNav } from './components/topnav';
-export { default as Nestable } from './components/nestable';
+export { default as Nestable } from '../../../ui/components/nestable';
 export { default as Drawer } from './components/drawer';
 export { default as Tabs } from './components/tabs';
 export { default as Button } from './components/button';
 export { default as Menu } from './components/menu';
 export { default as Input, ConfirmInput } from './components/input';
 export { default as Icon } from './components/icon';
-export { default as Dialog } from './components/dialog';
+export { default as Dialog } from '../../../ui/components';
 export { default as Label } from './components/label';
 export { default as Popover } from './components/popover';
 export { default as Select } from './components/select';
 export { default as Listbox } from './components/listbox';
-export { default as ColorPicker } from './components/colorpicker'
+// export { default as ColorPicker } from './components/colorpicker'
 export * from './components/select';
 export { default as FieldSet } from './components/fieldset';
 

@@ -1,6 +1,6 @@
 import React, {Fragment, useEffect, useRef, useState} from 'react'
 import {NavLink, useSubmit, useLocation, useNavigate} from "react-router";
-import Nestable from '../../ui/components/nestable';
+import Nestable from '../../../../ui/components/nestable';
 import {ArrowDown, ArrowUp, ArrowRight, ArrowLeft, DraftPage} from '../../ui/icons';
 import {json2DmsForm, getUrlSlug} from '../_utils'
 import {CMSContext} from '../../context'

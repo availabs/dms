@@ -1,21 +1,21 @@
-import Layout from './components/Layout'
-import SideNav from './components/SideNav'
-import TopNav from './components/TopNav'
-import Icon from './components/Icon'
-import Button from './components/Button'
-import Dialog from './components/Dialog'
-import Label from './components/Label'
-import Menu from './components/Menu'
-import Popover from './components/Popover'
-import Pill from './components/Pill'
-import FieldSet from './components/FieldSet.jsx'
-import Switch from './components/Switch'
+import Layout from './components/Layout';
+import SideNav from './components/SideNav';
+import TopNav from './components/TopNav';
+import Icon from './components/Icon';
+import Button from './components/Button';
+import Label from './components/Label';
+import Menu from './components/Menu';
+import Popover from './components/Popover';
+import Pill from './components/Pill';
+import FieldSet from './components/FieldSet.jsx';
+import Switch from './components/Switch';
 import ColorPicker from "./components/Colorpicker";
-//import Input from './components/Input'
-import Select from './components/Select'
-//import Listbox from './components/Listbox'
-
-
+import Tabs from "./components/Tabs";
+import Drawer from "./components/Drawer";
+import Select from './components/Select';
+import Dialog from "./components/Dialog";
+// import Nestable from "./components/nestable";
+import DraggableNav from "./components/nestable/draggableNav";
 export default {
 	// --- Layout
 	Layout,
@@ -33,10 +33,11 @@ export default {
 	// --- Forms
 	FieldSet,
 	Switch,
-	//Input,
-	//ConfirmInput,
 	Select,
-	//Listbox
-	ColorPicker
-	//Layout:  () => import('./components/Layout'),
+	ColorPicker,
+	Tabs,
+	Drawer,
+	Dialog,
+	// Nestable,
+	DraggableNav
 }
