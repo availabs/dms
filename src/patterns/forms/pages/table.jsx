@@ -5,7 +5,7 @@ import Spreadsheet from "../../page/ui/dataComponents/selector/ComponentRegistry
 import {useNavigate} from "react-router";
 import DataWrapper from "../../page/ui/dataComponents/selector/dataWrapper";
 import {cloneDeep, uniqBy} from "lodash-es";
-import {Controls} from "~/modules/dms/src/patterns/page/ui/dataComponents/selector/dataWrapper/components/Controls";
+// import {Controls} from "~/modules/dms/src/patterns/page/ui/dataComponents/selector/dataWrapper/components/Controls";
 import {ComponentContext} from "../../page/context";
 import {useImmer} from "use-immer";
 
@@ -92,7 +92,7 @@ const TableView = ({apiUpdate, apiLoad, format, item, params}) => {
                             controls: SpreadSheetCompWithControls.controls,
                             app: item.app
                         }}>
-                            <Controls />
+                            {/*<Controls />*/}
                             <DataWrapper.EditComp
                                 component={SpreadSheetCompWithControls}
                                 key={'table-page-spreadsheet'}
