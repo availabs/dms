@@ -2,8 +2,11 @@ import React from 'react'
 import { merge,cloneDeep } from "lodash-es"
 import {parseIfJSON, updateRegisteredFormats, updateAttributes} from './pages/_utils'
 
+import UI from '../../ui'
+import { ThemeContext } from '../../ui/useTheme.js'
+
 // pages
-import PageView from "./pages/view"
+import PageView from "./pages/view_small"
 import PageEdit from "./pages/edit"
 
 // templates
@@ -24,6 +27,7 @@ import { useFalcor } from "@availabs/avl-falcor"
 
 import { Link } from 'react-router'
 import { SearchPage } from "./components/search/SearchPage";
+import { CMSContext } from './context'
 import DefaultMenu from './components/menu'
 
 
@@ -89,8 +93,10 @@ const pagesConfig = ({
           const {falcor = {}, falcorCache = {}} = uf;
           // console.log('hola', user, defaultUser, user || defaultUser)
           return (
-            <CMSContext.Provider value={{API_HOST, baseUrl, damaBaseUrl, user, theme, falcor, falcorCache, pgEnv, app, type, siteType, patternFilters, Menu: () => <>{rightMenu}</> }} >
-              {children}
+            <CMSContext.Provider value={{UI, API_HOST, baseUrl, damaBaseUrl, user, theme, falcor, falcorCache, pgEnv, app, type, siteType, patternFilters, Menu: () => <>{rightMenu}</> }} >
+              <ThemeContext.Provider value={defaultTheme}>
+                {children}
+              </ThemeContext.Provider>  
             </CMSContext.Provider>
           )
         },

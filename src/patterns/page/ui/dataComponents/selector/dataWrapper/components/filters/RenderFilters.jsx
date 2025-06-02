@@ -36,6 +36,7 @@ export const RenderFilters = ({
   apiLoad, defaultOpen = true, showNavigate = false,
 }) => {
     const { UI, theme = { filters: filterTheme } } = React.useContext(CMSContext) || {};
+    const { Icon } = UI;
         const [open, setOpen] = useState(defaultOpen);
         const [filterOptions, setFilterOptions] = useState([]); // [{column, uniqValues}]
         const [loading, setLoading] = useState(false);

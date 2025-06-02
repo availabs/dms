@@ -1,5 +1,5 @@
 import React, {Fragment} from 'react'
-import { Popover, Transition, Button} from '@headlessui/react'
+import { Popover, Transition, Button } from '@headlessui/react'
 import useTheme from '../useTheme'
 import Icon from './Icon'
 

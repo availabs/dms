@@ -69,7 +69,6 @@ export default function dmsPageFactory (
         <AuthedManager
           path={ `/${params['*'] || ''}` }
           config={dmsConfig}
-          theme={dmsTheme}
           navigate={navigate}
         />
       </FalcorProvider>

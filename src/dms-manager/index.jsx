@@ -1,6 +1,6 @@
 import React from 'react'
-import { configMatcher, getActiveConfig, validFormat } from './_utils.js'
-import { defaultCheck, defaultCheckAuth } from './_auth.js'
+import { configMatcher, getActiveConfig, validFormat } from './_utils'
+import { defaultCheck, defaultCheckAuth } from './_auth'
 import Wrapper from './wrapper.jsx'
 
 
@@ -25,8 +25,6 @@ const Components = {
 		)
 	}
 }
-
-
 let childKey = 0
 
 export function getActiveView(config, path, format, user, depth=0) {
@@ -37,12 +35,12 @@ export function getActiveView(config, path, format, user, depth=0) {
 	// get the component for the active config
 	// or the default component
 	return activeConfigs.map(activeConfig => {
-		const comp = typeof activeConfig.type === 'function' ?
-			activeConfig.type : () => <div>components deprecated</div>
+		const comp = activeConfig.type //|| DefaultComponent
 		
 		// get the wrapper for the config, or the default wrapper
 		//console.log('activeConfig Action',activeConfig.action)
-		const Wrapper = Wrappers[activeConfig.action] || DefaultWrapper		
+		
+		
 		// if there are children 
 		let children = []
 		if(activeConfig.children) {
@@ -70,7 +68,7 @@ export function getActiveView(config, path, format, user, depth=0) {
 // import ThemeContext from '../theme'
 // import defaultTheme from '../theme/default-theme'
 
-const { InvalidConfig, NoRouteMatch } = Components;
+// const { InvalidConfig, NoRouteMatch } = Components;
 
 const DmsManager = (props) => {
 	const { 
@@ -80,14 +78,17 @@ const DmsManager = (props) => {
 		navigate
 	} = props
 
+
+	
 	//console.log('dms manager', props)
 	if(!config) { 
-		return <NoRouteMatch path={path} />
+		return <div>No Route Match {path}</div>
 	}
 	const {
 		check = defaultCheck,
 		checkAuth = defaultCheckAuth,
 	} = config
+	
 	
 	
 
@@ -100,13 +101,13 @@ const DmsManager = (props) => {
 		}
 	},[path])
 
-	// React.useEffect(() => console.log('dms manager unmount') , [])
+	// // React.useEffect(() => console.log('dms manager unmount') , [])
     
 
-	// check for valid config
-	if(!config.children || !validFormat(config.format)) {
-		return <InvalidConfig config={config} />
-	}
+	// // check for valid config
+	// if(!config.children || !validFormat(config.format)) {
+	// 	return <InvalidConfig config={config} />
+	// }
 
 	// add default data to format
 	// const enhancedFormat = React.useMemo(() => 
@@ -118,10 +119,12 @@ const DmsManager = (props) => {
 		return getActiveView(config.children, path, config.format, user)
 	}, [path])
 
+
 	if(!RenderView) {
-		return <NoRouteMatch path={path} />
+		return <div>No Route Match {path}</div>
 	}
 
+	//return <div>dms manager</div>
 	// console.log('DMS Manager: render')
 	return React.useMemo(() => (
 		<>{RenderView}</>

@@ -179,7 +179,7 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
     let [popperElement, setPopperElement] = useState()
     let { styles, attributes:popperAttributes } = usePopper(referenceElement, popperElement)
     const { baseUrl, user, theme, UI } = React.useContext(CMSContext) || {}
-    const {Menu, Icon} = UI;
+    const {Popover, Menu, Icon} = UI;
     // const updateAttribute = (k, v) => {
     //     onChange(value, k, v)
     // }
