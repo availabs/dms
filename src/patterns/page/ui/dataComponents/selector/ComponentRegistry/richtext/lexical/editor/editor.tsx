@@ -31,7 +31,7 @@ import ActionsPlugin from './plugins/ActionsPlugin';
 import AutocompletePlugin from './plugins/AutocompletePlugin';
 import AutoEmbedPlugin from './plugins/AutoEmbedPlugin';
 import AutoLinkPlugin from './plugins/AutoLinkPlugin';
-import ClickableLinkPlugin from './plugins/ClickableLinkPlugin'
+// import ClickableLinkPlugin from './plugins/ClickableLinkPlugin'
 import CodeHighlightPlugin from './plugins/CodeHighlightPlugin';
 import CollapsiblePlugin from './plugins/CollapsiblePlugin';
 
@@ -182,7 +182,7 @@ export default function Editor(props): JSX.Element {
                         <InlineImagePlugin/>
                         <ButtonPlugin />
                         <LinkPlugin/>
-                       
+
                         <YouTubePlugin/>
                         <HorizontalRulePlugin/>
 
