@@ -117,6 +117,8 @@ const DesktopSidebar = ({
 	//const { theme: fullTheme  } = React.useContext(CMSContext) || {}
 	const fullTheme = useTheme() || {}
 	const theme = (fullTheme?.['sidenav'] || {})//(themeOptions);
+
+
 	return (
 		<>
 			<div
@@ -176,27 +178,26 @@ const SideNav = (props) => {
 
 export default SideNav;
 
-
 export const SideNavItem = ({
-	navItem,
-	parent,
 	depth = 0,
-	maxDepth = 1,
+	navItem,
 	children,
 	icon,
 	to,
 	onClick,
 	className = null,
+	type = "side",
 	active = false,
 	subMenus = [],
-	themeOptions,
-	subMenuActivate = 'onHover',
+	subMenuActivate = 'onClick',
 	subMenuOpen = false
 }) => {
-	// console.log('renderMenu')
-	//const { theme: fullTheme  } = React.useContext(CMSContext) || {}
+	//console.log('renderMenu', subMenuActivate)
+	// const { theme: fullTheme  } = React.useContext(CMSContext) || {}
+	// const theme = (fullTheme?.['sidenav'] || {}) 
 	const fullTheme = useTheme() || {}
-	const theme = (fullTheme?.['sidenav'] || {}) //(themeOptions);
+   const theme = (fullTheme?.['sidenav'] || {}) //(themeOptions);
+
 
 	const navigate = useNavigate();
 	const To = React.useMemo(() => {
@@ -205,7 +206,6 @@ export const SideNavItem = ({
 		}
 		return to;
 	}, [to]);
-
 	const subTos = React.useMemo(() => {
 		const subs = subMenus.reduce((a, c) => {
 			if (Array.isArray(c.path)) {
@@ -220,163 +220,139 @@ export const SideNavItem = ({
 
 	const routeMatch = Boolean(useMatch({ path: `${subTos[0]}/*` || '', end: true }));
 
-	const linkClasses = theme?.navitemSide
-	const activeClasses = theme?.navitemSideActive 
+	const linkClasses = type === "side" ? theme?.navitemSide : theme?.navitemTop;
+	const activeClasses =
+		type === "side" ? theme?.navitemSideActive : theme?.navitemTopActive;
 
 	const isActive = routeMatch || active
 	const navClass = isActive ? activeClasses : linkClasses;
 
-	const [showSubMenu, setShowSubMenu] = React.useState(subMenuOpen);
+	const [showSubMenu, setShowSubMenu] = React.useState(subMenuOpen || routeMatch);
 
 	// when subMenuActivate !== onHover, and submenu needs to flyout for non-active menuItem
 	const [hovering, setHovering] = React.useState(false);
 
-	React.useEffect(() => {
-	       setShowSubMenu(routeMatch && subMenuActivate === 'onActive');
-	}, [routeMatch]);
-
-	// console.log('item', theme, theme?.menuItemWrapper1?.[depth])
-
 	return (
-			<div className={
-				parent?.description ? 
-				(theme?.menuItemWrapper1Parent?.[depth] || theme?.menuItemWrapper1Parent) :
-				(theme?.menuItemWrapper1?.[depth] || theme?.menuItemWrapper1) }
-				onMouseOutCapture={() => {
-					setHovering(false); 
-					setShowSubMenu(false)
-				}}
-				onMouseMove={() => {
-					setHovering(true);
-					setShowSubMenu(true);
-				}}
+			<div className={type === "side" ? theme?.subMenuParentWrapper : null}
+				 onMouseOutCapture={() =>
+					 (subMenuActivate === 'onHover' && setHovering(true) && setShowSubMenu(false)) 
+					
+				 }
+				 onMouseMove={() =>
+					 (subMenuActivate === 'onHover' && setHovering(true) && setShowSubMenu(true))
+				 }
 			>
 				
 				<div
 					className={`${className ? className : navClass}`}
-					
-					onClick={(e) => {
-						e.stopPropagation();
-						if (onClick) return onClick(To[0]);
-						if (To[0]) navigate(To[0]);
-					}}
 				>
-					<div className={theme.menuItemWrapper2?.[depth] || theme?.menuItemWrapper2}>
-						<div className='flex-1 flex items-center gap-[2px]' >
+					<div className={theme?.menuItemWrapper?.[depth] || theme?.menuItemWrapper?.[0] || theme?.menuItemWrapper}>
+						<div className='flex-1 flex items-center' >
 							{!icon ? null : (
 								<Icon
 									icon={icon}
 									className={
-										(isActive ? theme?.menuIconSideActive : theme?.menuIconSide)
+										type === "side" ? 
+											(isActive ? theme?.menuIconSideActive : theme?.menuIconSide )
+											: (isActive ? theme?.menuIconTopActive : theme?.menuIconTop )
+
 									}
 								/>
 							)}
-							<div>
-								{navItem?.description ? (
-									<>
-										<div  className={''}>
-											{navItem?.name}
-										</div>
-										<div className={theme?.navItemDescription?.[depth] || theme?.navItemDescription}>
-											{navItem?.description}
-										</div>
-									</>
-								) : (
-									<div  className={theme?.navItemContent?.[depth] || theme?.navItemContent?.[0]}>
-										{navItem?.name}
-									</div>
-								)}
+							<div className={`${theme?.navItemContent} ${className ? '' : theme?.navItemContents?.[depth] || theme?.navItemContents }`}
+								onClick={(e) => {
+									e.stopPropagation();
+									if (onClick) return onClick(To[0]);
+									if (To[0]) navigate(To[0]);
+								}}
+							>	
+								{navItem?.name}
 							</div>
 							<div
+								className='pr-2'
 								onClick={() => {
 									if (subMenuActivate === 'onClick') {
+										//console.log('click ', to )
 										// localStorage.setItem(`${to}_toggled`, `${!showSubMenu}`);
 										setShowSubMenu(!showSubMenu);
 									}
 								}}
 							>
 								{
-									depth < maxDepth && subMenus.length ? <Icon icon={theme?.indicatorIcon || 'ArrowDown'} className={theme?.indicatorIconWrapper} /> : null
+									subMenus.length ?
+										<Icon
+											className={theme?.indicatorIconWrapper}
+											icon={showSubMenu ? theme?.indicatorIconOpen || 'ArrowRight' : theme?.indicatorIcon || 'ArrowDown'}/>
+										: null
 								}
 								
 							</div>
 						</div>
-						
-						{ depth < maxDepth && subMenus.length ?
+						<div className={theme?.subMenuOuterWrappers?.[depth]}>
+						{	subMenus.length ?
 								<SubMenu
-									parent={navItem}
 									depth={depth}
 									showSubMenu={showSubMenu}
 									subMenuActivate={subMenuActivate}
 									active={routeMatch}
 									hovering={hovering}
 									subMenus={subMenus}
+									type={type}
 									className={className}
-									maxDepth={maxDepth}
 								/> : ''
-							}
+						}
+						</div>
 					</div>
 				</div>
 			</div>
 	);
 };
 
+const SubMenu = ({ depth, showSubMenu, subMenus, type, hovering, subMenuActivate, active }) => {
+	// const { theme: fullTheme  } = React.useContext(CMSContext)
+	// const theme = (fullTheme?.['sidenav'] || {}) 
+ 	const fullTheme = useTheme() || {}
+   const theme = (fullTheme?.['sidenav'] || {}) //(themeOptions);
 
-const SubMenu = ({ parent, depth, showSubMenu, subMenus, hovering, subMenuActivate, active, maxDepth }) => {
-	//const { theme: fullTheme  } = React.useContext(CMSContext)
-	const fullTheme = useTheme() || {}
-	const theme = (fullTheme?.['sidenav'] || {}) //(themeOptions);
-	
-	// if(depth === 0) {
-	// 	console.log('submenu parent',parent)
-	// }
-	
-	if (!showSubMenu) {
-		return <></>;
+	const inactiveHoveing = !active && subMenuActivate !== 'onHover' && hovering;
+	if ((!showSubMenu || !subMenus.length) && !(inactiveHoveing)) {
+		return null;
 	}
+
+	// console.log('subMenu theme', i, type, theme?.subMenuWrappers?.[i], theme)
 
 	return (
 		<div
-			className={ 	
-				theme?.subMenuWrapper1?.[depth] || theme?.subMenuWrapper1 
-			}
+			className={ type === "side" ?
+				(theme?.subMenuWrappers?.[depth] || theme?.subMenuWrapper) :
+				inactiveHoveing && depth === 0 ? theme?.subMenuWrapperInactiveFlyout :
+					inactiveHoveing && depth > 0 ? theme?.subMenuWrapperInactiveFlyoutBelow :
+					theme?.subMenuWrapperTop
+		}
 		>
 			
 			<div
-				className={`${ theme?.subMenuWrapper2?.[depth]} || ${theme?.subMenuWrapper2}`}
+				className={`
+							${inactiveHoveing && theme?.subMenuWrapperInactiveFlyoutDirection}
+							${!inactiveHoveing && theme?.subMenuWrapperChild}
+				`}
 			>
-				{parent?.description && (
-					<div className={theme?.subMenuParentContent}>
-						<div className={theme?.subMenuParentName}>
-							{parent?.name}
-						</div>
-						<div className={theme?.subMenuParentDesc}>
-							{parent?.description}
-						</div>
-						{parent?.path && (
-							<div className='pt-8 pb-2'>
-								<Link className={theme?.subMenuParentLink} to={parent.path}>{parent.linkText || 'Explore'}</Link>
-							</div>
-						)}
-					</div>
-				)}
-				<div className={parent?.description ? theme.subMenuItemsWrapperParent : theme.subMenuItemsWrapper}>
-					{subMenus.map((sm, i) => (
-						<SideNavItem
-							parent={parent}
-							depth={depth+1}
-							key={i}
-							to={sm.path}
-							icon={sm.icon} 
-							className={sm.className}
-							onClick={sm.onClick}
-							subMenus={sm.subMenus}
-							navItem={sm}
-							maxDepth={maxDepth}
-						/>
-					))}
-				</div>
+				{subMenus.map((sm, i) => (
+					<SideNavItem
+						depth={depth+1}
+						key={i}
+						to={sm.path}
+						icon={sm.icon}
+						navItem={sm}
+						type={type} 
+						className={sm.className}
+						onClick={sm.onClick}
+						subMenus={sm.subMenus}
+					/>
+						
+				))}
 			</div>
+			
 		</div>
 	);
 };

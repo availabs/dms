@@ -161,7 +161,7 @@ function EditComp(props) {
 }
 
 function ViewComp({value, ...rest}) {
-    console.log('selector', value)
+    //console.log('selector', value)
     const { theme } = React.useContext(CMSContext);
     const { pageState, editPane, apiLoad, apiUpdate, format, ...r  } =  React.useContext(PageContext) || {}
     const defaultComp = () => <div> Component {value["element-type"]} Not Registered </div>;

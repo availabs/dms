@@ -94,7 +94,7 @@ const pagesConfig = ({
           // console.log('hola', user, defaultUser, user || defaultUser)
           return (
             <CMSContext.Provider value={{UI, API_HOST, baseUrl, damaBaseUrl, user, theme, falcor, falcorCache, pgEnv, app, type, siteType, patternFilters, Menu: () => <>{rightMenu}</> }} >
-              <ThemeContext.Provider value={defaultTheme}>
+              <ThemeContext.Provider value={theme}>
                 {children}
               </ThemeContext.Provider>  
             </CMSContext.Provider>

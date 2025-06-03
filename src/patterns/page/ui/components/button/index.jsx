@@ -12,12 +12,14 @@ export const buttonTheme = {
   padding: 'px-[calc(theme(spacing[3.5])-1px)] py-[calc(theme(spacing[2.5])-1px)] sm:px-[calc(theme(spacing.3)-1px)] sm:py-[calc(theme(spacing[1.5])-1px)]'
 }
 
-
-
 export default function ButtonComp ({ children, disabled, onClick=()=>{}, type='default', padding, rounded, className, ...props}) {
   const { theme = { button: buttonTheme } } = React.useContext(CMSContext) || {}
   return (
-    <Button disabled={disabled} className={`${className} ${theme?.button?.[type] || theme?.button?.default} ${padding || theme?.button?.padding} ${rounded || theme?.button?.rounded}` } onClick={onClick} {...props}>
+    <Button
+      disabled={disabled} 
+      className={`${className} ${theme?.button?.[type] || theme?.button?.default} ${padding || theme?.button?.padding} ${rounded || theme?.button?.rounded}` } 
+      onClick={onClick} {...props}
+    >
       {children}
     </Button>
   )

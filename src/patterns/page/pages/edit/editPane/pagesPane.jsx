@@ -35,7 +35,7 @@ export default PagesPane
 
 function DraggableNavItem ({activeItem, item, dataItems, handleCollapseIconClick, isCollapsed, edit}) {
     const { baseUrl, user, theme, UI } = React.useContext(CMSContext);
-    const {Icon} = UI;
+    const { Icon, Menu } = UI;
     const { apiUpdate } =  React.useContext(PageContext) || {}
     const { pathname = '/edit' } = useLocation();
     const submit = useSubmit()
