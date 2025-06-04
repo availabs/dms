@@ -1,6 +1,6 @@
 import React, {useContext} from "react";
-import { tableTheme } from '../spreadsheet'
 import {CMSContext, ComponentContext} from '../../../../../siteConfig'
+import {tableTheme} from "~/modules/dms/src/patterns/page/ui/components/table";
 
 export const paginationTheme = {
     

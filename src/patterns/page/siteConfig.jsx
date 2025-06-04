@@ -70,7 +70,7 @@ export const pagesConfig = ({
   
 
   // console.log('testing', theme.navOptions)
-  console.log('page siteConfig app,type', `"${app}","${type}"`)
+  // console.log('page siteConfig app,type', `"${app}","${type}"`)
 
 
   const format = cloneDeep(cmsFormat)

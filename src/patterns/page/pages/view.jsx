@@ -87,6 +87,11 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
     return items
   }, [dataItems])
 
+    const menuItemsSecondNav = React.useMemo(() => {
+    let items = dataItemsNav(theme?.navOptions?.secondaryNav?.navItems || [],baseUrl,false)
+    return items
+  }, [theme?.navOptions?.secondaryNav?.navItems])
+
   
   const getSectionGroups =  ( sectionName ) => {
     return (item?.section_groups || [])
@@ -107,7 +112,7 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
           {getSectionGroups('top')}
           <Layout 
             navItems={menuItems} 
-            secondNav={theme?.navOptions?.secondaryNav?.navItems || []}
+            secondNav={menuItemsSecondNav}
             pageTheme={{navOptions: item.navOptions || {}}}
           >
             {getSectionGroups('content')}

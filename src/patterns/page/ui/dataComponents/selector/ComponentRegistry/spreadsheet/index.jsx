@@ -1,14 +1,19 @@
 import React, {useContext, useEffect, useMemo, useRef, useState} from "react";
-import TableHeaderCell from "./components/TableHeaderCell";
-import {useCopy, usePaste} from "./utils/hooks";
-import {handleKeyDown} from "./utils/keyboard";
-import {handleMouseUp, handleMouseMove, handleMouseDown} from "./utils/mouse";
-import { TableRow } from "./components/TableRow";
-import {actionsColSize, numColSize as numColSizeDf, gutterColSize as gutterColSizeDf, minColSize, minInitColSize} from "./constants"
+import {useCopy, usePaste} from "../../../../components/table/utils/hooks";
+import {handleKeyDown} from "../../../../components/table/utils/keyboard";
+import {
+    actionsColSize,
+    gutterColSize as gutterColSizeDf,
+    minColSize,
+    minInitColSize,
+    numColSize as numColSizeDf
+} from "./constants"
 import ActionControls from "./controls/ActionControls";
 import {CMSContext, ComponentContext} from '../../../../../siteConfig'
 import {isEqualColumns} from "../../dataWrapper/utils/utils";
 import {duplicateControl} from "../shared/utils";
+import Table, {tableTheme} from "../../../../components/table";
+import controls from "~/pages/DataManager/DataTypes/gis_dataset/pages/Map/symbology/controls";
 
 const getLocation = selectionPoint => {
     let {index, attrI} = typeof selectionPoint === 'number' ? {
@@ -40,41 +45,11 @@ const updateItemsOnPaste = ({pastedContent, e, index, attrI, data, visibleAttrib
 const frozenCols = [0,1] // testing
 const frozenColClass = '' // testing
 
-export const tableTheme = {
-    tableContainer: 'flex flex-col overflow-x-auto',
-    tableContainerNoPagination: '',
-    tableContainer1: 'flex flex-col no-wrap min-h-[40px] max-h-[calc(78vh_-_10px)] overflow-y-auto',
-    headerContainer: 'sticky top-0 grid',
-    thead: 'flex justify-between',
-    theadfrozen: '',
-    thContainer: 'w-full font-semibold px-3 py-1 text-sm font-semibold text-gray-600 border',
-    thContainerBgSelected: 'bg-blue-100 text-gray-900',
-    thContainerBg: 'bg-gray-50 text-gray-500',
-    cell: 'relative flex items-center min-h-[35px]  border border-slate-50',
-    cellInner: `
-        w-full min-h-full flex flex-wrap items-center truncate py-0.5 px-1
-        font-[400] text-[14px]  leading-[18px] text-slate-600
-    `,
-    cellBg: 'bg-white',
-    cellBgSelected: 'bg-blue-50',
-    cellFrozenCol: '',
-    paginationInfoContainer: '',
-    paginationPagesInfo: 'font-[500] text-[12px] uppercase text-[#2d3e4c] leading-[18px]',
-    paginationRowsInfo: 'text-xs',
-    paginationContainer: 'w-full p-2 flex items-center justify-between',
-    paginationControlsContainer: 'flex flex-row items-center overflow-hidden gap-0.5',
-    pageRangeItem: 'cursor-pointer px-3  text-[#2D3E4C] py-1  text-[12px] hover:bg-slate-50 font-[500] rounded  uppercase leading-[18px]' ,
-    pageRangeItemInactive: '',
-    pageRangeItemActive: 'bg-slate-100 ',
-    openOutContainerWrapper: 'fixed inset-0 right-0 h-full w-full z-[100]',
-    openOutHeader: 'font-semibold text-gray-600'
-}
-
 
 
 export const RenderTable = ({isEdit, updateItem, removeItem, addItem, newItem, setNewItem, loading, allowEdit}) => {
     const { theme = { table: tableTheme } } = React.useContext(CMSContext) || {}
-    const {state:{columns, sourceInfo, display, data}, setState} = useContext(ComponentContext);
+    const {state:{columns, sourceInfo, display, data}, setState, controls={}} = useContext(ComponentContext);
     const gridRef = useRef(null);
     const [isSelecting, setIsSelecting] = useState(false);
     const [editing, setEditing] = useState({}); // {index, attrI}
@@ -235,179 +210,23 @@ export const RenderTable = ({isEdit, updateItem, removeItem, addItem, newItem, s
     }, [triggerSelectionDelete])
     // ============================================ Trigger delete end =================================================
 
-    
+
 
     if(!visibleAttributes.length) return <div className={'p-2'}>No columns selected.</div>;
 
-    return (
-        <div className={`${theme?.table?.tableContainer} ${!paginationActive && theme?.table?.tableContainerNoPagination}`} ref={gridRef}>
-            <div className={theme?.table?.tableContainer1}
-                 onMouseLeave={e => handleMouseUp({setIsDragging})}>
-
-                {/****************************************** Header begin ********************************************/}
-                <div 
-                    className={theme?.table?.headerContainer}
-                    style={{
-                        zIndex: 5, 
-                        gridTemplateColumns: `${numColSize}px ${visibleAttrsWithoutOpenOut.map(v => `${v.size}px` || 'auto').join(' ')} ${gutterColSize}px`, 
-                        gridColumn: `span ${visibleAttrsWithoutOpenOut.length + 2} / ${visibleAttrsWithoutOpenOut.length + 2}`
-                    }}
-                >
-                    {/*********************** header left gutter *******************/}
-                    <div className={'flex justify-between sticky left-0 z-[1]'} style={{width: numColSize}}>
-                        <div key={'#'} className={`w-full ${theme?.table?.thContainerBg} ${frozenColClass}`} />
-                    </div>
-                    {/******************************************&*******************/}
-
-                    {visibleAttrsWithoutOpenOut
-                        .map((attribute, i) => (
-                            <div 
-                                key={i}
-                                className={`${theme?.table?.thead} ${frozenCols.includes(i) ? theme?.table?.theadfrozen : ''}`}
-                                style={{width: attribute.size}}
-                            >
-
-                                <div key={`controls-${i}`}
-                                    className={`
-                                        ${theme?.table?.thContainer}  
-                                        ${selection.find(s => s.attrI === i) ? 
-                                            theme?.table?.thContainerBgSelected : theme?.table?.thContainerBg  
-                                        }`
-                                    }
-                                >
-                                    <TableHeaderCell attribute={attribute} isEdit={isEdit} />
-                                </div>
-
-                                <div 
-                                    key={`resizer-${i}`} 
-                                    className="z-5 -ml-2 w-[1px] hover:w-[2px] bg-gray-200 hover:bg-gray-400"
-                                    style={{
-                                        height: '100%',
-                                        cursor: 'col-resize',
-                                        position: 'relative',
-                                        right: 0,
-                                        top: 0
-                                    }}
-                                    onMouseDown={colResizer(attribute)}
-                                />
-
-                            </div>
-                        )
-                    )}
-
-                    {/***********gutter column cell*/}
-                    <div key={'##'}
-                         className={`${theme?.table?.thContainerBg} z-[1] flex shrink-0 justify-between`}
-                    > {` `}</div>
-                </div>
-                {/****************************************** Header end **********************************************/}
-
-
-                {/****************************************** Rows begin **********************************************/}
-                {data.filter(d => !d.totalRow)
-                    .map((d, i) => (
-                        <TableRow key={i} {...{
-                            i, d,  isEdit, frozenCols,
-                            allowEdit, isDragging, isSelecting, editing, setEditing, loading:false,
-                            selection, setSelection, selectionRange, triggerSelectionDelete,
-                            handleMouseDown, handleMouseMove, handleMouseUp,
-                            setIsDragging, startCellCol, startCellRow,
-                            updateItem, removeItem
-                        }} />
-                    ))}
-                <div id={display.loadMoreId} className={`${paginationActive ? 'hidden' : ''} min-h-2 w-full text-center`}>
-                    {loading ? 'loading...' : ''}
-                </div>
-
-
-                {/*/!****************************************** Gutter Row **********************************************!/*/}
-                {/*<RenderGutter {...{allowEdit, c, visibleAttributes, isDragging, colSizes, attributes}} />*/}
-
-
-                {/*/!****************************************** Total Row ***********************************************!/*/}
-                {/*{data*/}
-                {/*    .filter(d => showTotal && d.totalRow)*/}
-                {/*    .map((d, i) => (*/}
-                {/*        <TableRow key={'total row'} {...{*/}
-                {/*            i, c, d,*/}
-                {/*            allowEdit, isDragging, isSelecting, editing, setEditing, loading,*/}
-                {/*            striped, visibleAttributes, attributes, customColNames, frozenCols,*/}
-                {/*            colSizes, selection, setSelection, selectionRange, triggerSelectionDelete,*/}
-                {/*            isEdit, groupBy, filters, actions, linkCols, openOutCols,*/}
-                {/*            colJustify, formatFn, fontSize,*/}
-                {/*            handleMouseDown, handleMouseMove, handleMouseUp,*/}
-                {/*            setIsDragging, startCellCol, startCellRow,*/}
-                {/*            updateItem, removeItem*/}
-                {/*        }} />*/}
-                {/*    ))}*/}
-                {/*/!****************************************** Rows end ************************************************!/*/}
-            </div>
-            {/********************************************* out of scroll ********************************************/}
-            {/***********************(((***************** Add New Row Begin ******************************************/}
-            {/*{*/}
-            {/*    allowEdit ?*/}
-            {/*        <div*/}
-            {/*            className={`bg-white grid ${allowEdit ? c[visibleAttributes.length + 3] : c[visibleAttributes.length + 2]} divide-x divide-y ${isDragging ? `select-none` : ``} sticky bottom-0 z-[1]`}*/}
-            {/*            style={{gridTemplateColumns: `${numColSize}px ${visibleAttributes.map(v => `${colSizes[v]}px` || 'auto').join(' ')} ${allowEdit ? `${actionsColSize}px` : ``} ${gutterColSize}px`}}*/}
-            {/*        >*/}
-            {/*            <div className={'flex justify-between sticky left-0 z-[1]'} style={{width: numColSize}}>*/}
-            {/*                <div key={'#'} className={`w-full font-semibold border bg-gray-50 text-gray-500`}>*/}
-            {/*                    **/}
-            {/*                </div>*/}
-            {/*            </div>*/}
-            {/*            {*/}
-            {/*                visibleAttributes.map(va => attributes.find(attr => attr.name === va))*/}
-            {/*                    .filter(a => a)*/}
-            {/*                    .map((attribute, attrI) => {*/}
-            {/*                        const Comp = DataTypes[attribute?.type || 'text']?.EditComp || DisplayCalculatedCell;*/}
-            {/*                        return (*/}
-            {/*                            <div*/}
-            {/*                                key={`add-new-${attrI}`}*/}
-            {/*                                className={`flex border`}*/}
-            {/*                                style={{width: colSizes[attribute.name]}}*/}
-            {/*                            >*/}
-            {/*                                <Comp*/}
-            {/*                                    key={`${attribute.name}`}*/}
-            {/*                                    menuPosition={'top'}*/}
-            {/*                                    className={'p-1 bg-white hover:bg-blue-50 w-full h-full'}*/}
-            {/*                                    {...attribute}*/}
-            {/*                                    value={newItem[attribute.name]}*/}
-            {/*                                    placeholder={'+ add new'}*/}
-            {/*                                    onChange={e => setNewItem({...newItem, [attribute.name]: e})}*/}
-            {/*                                    onPaste={e => {*/}
-            {/*                                        e.preventDefault();*/}
-            {/*                                        e.stopPropagation();*/}
-
-            {/*                                        const paste =*/}
-            {/*                                            (e.clipboardData || window.clipboardData).getData("text")?.split('\n').map(row => row.split('\t'));*/}
-            {/*                                        const pastedColumns = [...new Array(paste[0].length).keys()].map(i => visibleAttributes[attrI + i]).filter(i => i);*/}
-            {/*                                        const tmpNewItem = pastedColumns.reduce((acc, c, i) => ({*/}
-            {/*                                            ...acc,*/}
-            {/*                                            [c]: paste[0][i]*/}
-            {/*                                        }), {})*/}
-            {/*                                        setNewItem({...newItem, ...tmpNewItem})*/}
-
-            {/*                                    }}*/}
-            {/*                                />*/}
-            {/*                            </div>*/}
-            {/*                        )*/}
-            {/*                    })*/}
-            {/*            }*/}
-            {/*            <div className={'bg-white flex flex-row h-fit justify-evenly'}*/}
-            {/*                 style={{width: actionsColSize}}>*/}
-            {/*                <button*/}
-            {/*                    className={'w-fit p-0.5 bg-blue-300 hover:bg-blue-500 text-white rounded-lg'}*/}
-            {/*                    onClick={e => {*/}
-            {/*                        addItem()*/}
-            {/*                    }}>*/}
-            {/*                    <Add className={'text-white'} height={20} width={20}/>*/}
-            {/*                </button>*/}
-            {/*            </div>*/}
-            {/*        </div> : null*/}
-            {/*}*/}
-            {/***********************(((***************** Add New Row End ********************************************/}
-        </div>
-    )
+    return <Table columns={columns} data={data} display={display} controls={controls} setState={setState}
+                  allowEdit={allowEdit} isEdit={isEdit} loading={loading}
+                  gridRef={gridRef}
+                  theme={theme} paginationActive={paginationActive}
+                  isDragging={isDragging} setIsDragging={setIsDragging}
+                  selection={selection} setSelection={setSelection}
+                  isSelecting={isSelecting}
+                  editing={editing} setEditing={setEditing}
+                  selectionRange={selectionRange} triggerSelectionDelete={triggerSelectionDelete}
+                  startCellCol={startCellCol} startCellRow={startCellRow}
+                  updateItem={updateItem} removeItem={removeItem}
+                  numColSize={numColSize} gutterColSize={gutterColSize} frozenColClass={frozenColClass} frozenCols={frozenCols} colResizer={colResizer}
+    />
 }
 
 export default {
@@ -422,7 +241,7 @@ export default {
             // settings from columns dropdown are stored in state.columns array, per column
             {type: 'select', label: 'Fn', key: 'fn',
                 options: [
-                    {label: 'fn', value: ' '}, {label: 'list', value: 'list'}, {label: 'sum', value: 'sum'}, {label: 'count', value: 'count'}
+                    {label: 'fn', value: ' '}, {label: 'list', value: 'list'}, {label: 'sum', value: 'sum'}, {label: 'count', value: 'count'}, {label: 'avg', value: 'avg'}
                 ]},
             {type: 'toggle', label: 'show', key: 'show'},
             {type: 'toggle', label: 'Exclude N/A', key: 'excludeNA'},
@@ -473,6 +292,7 @@ export default {
                     {label: 'Abbreviated ($)', value: 'abbreviate_dollar'},
                     {label: 'Date', value: 'date'},
                     {label: 'Title', value: 'title'},
+                    {label: '0 = N/A', value: 'zero_to_na'},
                 ]},
 
             // link controls

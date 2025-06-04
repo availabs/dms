@@ -1,5 +1,5 @@
 import {formatFunctions, isEqualColumns} from "../dataWrapper/utils/utils";
-import TableHeaderCell from "./spreadsheet/components/TableHeaderCell";
+import TableHeaderCell from "../../../components/table/components/TableHeaderCell";
 import React, {useContext, useEffect, useMemo, useRef, useState} from "react";
 import {Link} from "react-router";
 import {CMSContext, ComponentContext} from "../../../../siteConfig";
@@ -138,7 +138,8 @@ const Card = ({
     const { theme = {} } = React.useContext(CMSContext) || {};
     const dataCard = theme.dataCard || dataCardTheme;
 
-    const {state:{columns, data, sourceInfo, display: {compactView, gridSize, gridGap, padding, colGap, headerValueLayout, reverse, hideIfNull, removeBorder, allowAdddNew, bgColor='#FFFFFF'}}, setState} = useContext(ComponentContext);
+    const {state:{columns, data, sourceInfo, display}, setState, controls={}} = useContext(ComponentContext);
+    const {compactView, gridSize, gridGap, padding, colGap, headerValueLayout, reverse, hideIfNull, removeBorder, allowAdddNew, bgColor='#FFFFFF'} = display;
     const [draggedCol, setDraggedCol] = useState(null);
     const visibleColumns = useMemo(() => columns.filter(({show}) => show), [columns]);
     const cardsWithoutSpanLength = useMemo(() => columns.filter(({show, cardSpan}) => show && !cardSpan).length, [columns]);
@@ -207,6 +208,8 @@ const Card = ({
                             <TableHeaderCell
                                 isEdit={isEdit}
                                 attribute={attribute}
+                                columns={columns}
+                                display={display} controls={controls} setState={setState}
                             />
                         </div>
                     ))}
@@ -336,7 +339,7 @@ export default {
             // settings from columns dropdown are stored in state.columns array, per column
             {type: 'select', label: 'Fn', key: 'fn',
                 options: [
-                    {label: 'fn', value: ' '}, {label: 'list', value: 'list'}, {label: 'sum', value: 'sum'}, {label: 'count', value: 'count'}
+                    {label: 'fn', value: ' '}, {label: 'list', value: 'list'}, {label: 'sum', value: 'sum'}, {label: 'count', value: 'count'}, {label: 'avg', value: 'avg'}
                 ]},
             {type: 'select', label: 'Exclude N/A', key: 'excludeNA',
                 options: [

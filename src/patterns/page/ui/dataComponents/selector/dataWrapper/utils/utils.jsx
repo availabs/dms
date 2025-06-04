@@ -87,6 +87,7 @@ export const applyFn = (col={}, isDms=false) => {
         '': `${colNameWithAccessor} as ${colNameAfterAS}`,
         list: `array_to_string(array_agg(distinct ${colNameWithAccessor}), ', ') as ${colNameAfterAS}`,
         sum: isDms ? `sum((${colNameWithAccessor})::integer) as ${colNameAfterAS}` : `sum(${colNameWithAccessor}) as ${colNameAfterAS}`,
+        avg: isDms ? `avg((${colNameWithAccessor})::integer) as ${colNameAfterAS}` : `avg(${colNameWithAccessor}) as ${colNameAfterAS}`,
         count: `count(${colNameWithAccessor}) as ${colNameAfterAS}`,
         max: `max(${colNameWithAccessor}) as ${colNameAfterAS}`,
     }
@@ -552,6 +553,7 @@ export const formatFunctions = {
     'abbreviate_dollar': (d) => fnumIndex(d, 1, true),
     'comma': (d, isDollar) => fnum(d, isDollar),
     'comma_dollar': (d) => fnum(d, true),
+    'zero_to_na': d => !d || (d && +d === 0) || d === '0' ? 'N/A' : d,
     'date': (d) => formatDate(d),
     'icon': (strValue, props) => <><Icon icon={strValue} className={'size-8'} {...props}/> <span>{strValue}</span></>,
     'color': (strValue, map) => <>

@@ -1,33 +1,52 @@
 import React, {useContext, useMemo, useState} from "react";
-import {numColSize as numColSizeDf, gutterColSize as gutterColSizeDf, } from "../constants"
+import {numColSize as numColSizeDf, gutterColSize as gutterColSizeDf, } from "../../../dataComponents/selector/ComponentRegistry/spreadsheet/constants"
 import {TableCell} from "./TableCell";
-import {CMSContext, ComponentContext} from '../../../../../../siteConfig'
-import { tableTheme } from '../'
-import {XMark} from "../../../../../icons";
+import {XMark} from "../../../icons";
 
-const getEdge = ({startI, endI, startCol, endCol}, i, attrI) => {
-    const e =
-        startI === endI && startCol === endCol ? 'all' :
-            startCol === endCol && startI === i ? 'ltr' :
-                startCol === endCol && endI === i ? 'lbr' :
-                    startCol === endCol && startI !== i && endI !== i ? 'x' :
-                        startI === endI && attrI === startCol ? 'tlb' :
-                            startI === endI && attrI === endCol ? 'trb' :
-                                startI === endI && startCol !== attrI && endCol !== attrI ? 'y' :
-                                    startI === i && startCol === attrI ? 'top-left' :
-                                        startI === i && endCol === attrI ? 'top-right' :
-                                            startI === i && startCol !== attrI && endCol !== attrI ? 'top' :
-                                                endI === i && startCol === attrI ? 'bottom-left' :
-                                                    endI === i && endCol === attrI ? 'bottom-right' :
-                                                        endI === i && startCol !== attrI && endCol !== attrI ? 'bottom' :
-                                                            startCol === attrI && startI !== i && endI !== i ? 'left' :
-                                                                endCol === attrI && startI !== i && endI !== i ? 'right' : '';
+const getEdge = ({ startI, endI, startCol, endCol }, i, attrI) => {
+    const top = Math.min(startI, endI);
+    const bottom = Math.max(startI, endI);
+    const left = Math.min(startCol, endCol);
+    const right = Math.max(startCol, endCol);
 
-    return e;
-}
+    // Single cell
+    if (top === bottom && left === right) return 'all';
+
+    // Vertical line
+    if (left === right) {
+        if (top === i) return 'ltr';
+        if (bottom === i) return 'lbr';
+        if (i > top && i < bottom) return 'x';
+    }
+
+    // Horizontal line
+    if (top === bottom) {
+        if (attrI === left) return 'tlb';
+        if (attrI === right) return 'trb';
+        if (attrI > left && attrI < right) return 'y';
+    }
+
+    // Corners and edges of a rectangle
+    if (i === top) {
+        if (attrI === left) return 'top-left';
+        if (attrI === right) return 'top-right';
+        if (attrI > left && attrI < right) return 'top';
+    }
+
+    if (i === bottom) {
+        if (attrI === left) return 'bottom-left';
+        if (attrI === right) return 'bottom-right';
+        if (attrI > left && attrI < right) return 'bottom';
+    }
+
+    if (attrI === left && i > top && i < bottom) return 'left';
+    if (attrI === right && i > top && i < bottom) return 'right';
+
+    return '';
+};
 
 export const TableRow = ({
-  frozenCols,
+  frozenCols, theme, columns, display,
   i, d,
   allowEdit, isDragging, isSelecting, editing, setEditing, loading,
   selection, setSelection, selectionRange, triggerSelectionDelete,
@@ -35,8 +54,6 @@ export const TableRow = ({
   setIsDragging, startCellCol, startCellRow,
   updateItem, removeItem
 }) => {
-    const {state: {columns, display}, setState} = useContext(ComponentContext);
-    const { theme = { table: tableTheme } } = React.useContext(CMSContext) || {}
     const [showOpenOut, setShowOpenOut] = useState(false);
 
     const visibleAttributes = useMemo(() => columns.filter(({show}) => show), [columns]);
@@ -61,19 +78,21 @@ export const TableRow = ({
             >
                 <div key={'#'}
                      className={` flex text-xs items-center justify-center cursor-pointer sticky left-0 z-[1]
-                             ${selection.find(s => (s.index !== undefined ? s.index : s) === i) ? 'bg-blue-100 text-gray-900' : 'bg-gray-50 text-gray-500'}`}
+                             ${selection?.find(s => (s.index !== undefined ? s.index : s) === i) ? 'bg-blue-100 text-gray-900' : 'bg-gray-50 text-gray-500'}`}
                      style={{width: numColSize}}
                      onClick={e => {
                          // single click = replace selection
                          // click and mouse move = add to selection
                          // ctrl + click add
+                         if(!setSelection) return;
+
                          if (e.ctrlKey) {
                              setSelection(selection.includes(i) ? selection.filter(v => v !== i) : [...selection, i])
                          } else {
                              setSelection([i])
                          }
                      }}
-                     onMouseDown={e => handleMouseDown({
+                     onMouseDown={e => setSelection && setIsDragging && handleMouseDown({
                          e,
                          index: i,
                          setSelection,
@@ -82,7 +101,7 @@ export const TableRow = ({
                          startCellRow,
                          selection
                      })}
-                     onMouseMove={e => handleMouseMove({
+                     onMouseMove={e => setSelection && handleMouseMove({
                          e,
                          index: i,
                          isDragging,
@@ -90,22 +109,25 @@ export const TableRow = ({
                          startCellRow,
                          setSelection
                      })}
-                     onMouseUp={e => handleMouseUp({setIsDragging})}
+                     onMouseUp={e => setIsDragging && handleMouseUp({setIsDragging})}
                 >
                     {display.showGutters && (d.totalRow ? 'T' : i + 1)}
                 </div>
                 {visibleAttrsWithoutOpenOut
                     .map((attribute, attrI) =>
                         <TableCell
+                            columns={columns}
+                            display={display}
+                            theme={theme}
                             showOpenOutCaret={openOutAttributes.length && attrI === 0}
                             showOpenOut={showOpenOut} setShowOpenOut={setShowOpenOut}
                             isSelecting={isSelecting}
-                            isSelected={selection.find(s => s.index === i && s.attrI === attrI) || selection.includes(i)}
-                            isFrozen={frozenCols.includes(attrI)}
+                            isSelected={selection?.find(s => s.index === i && s.attrI === attrI) || selection?.includes(i)}
+                            isFrozen={frozenCols?.includes(attrI)}
                             edge={
-                                selection.find(s => s.index === i && s.attrI === attrI) || selection.includes(i) ?
+                                selection?.find(s => s.index === i && s.attrI === attrI) || selection?.includes(i) ?
                                     getEdge(selectionRange, i, attrI) : null}
-                            editing={editing.index === i && editing.attrI === attrI}
+                            editing={editing?.index === i && editing?.attrI === attrI}
                             triggerDelete={triggerSelectionDelete}
                             key={`cell-${i}-${attrI}`}
 
@@ -116,7 +138,7 @@ export const TableRow = ({
 
                             i={i}
                             item={d}
-                            onMouseDown={e => handleMouseDown({
+                            onMouseDown={e => setSelection && setIsDragging && handleMouseDown({
                                 e,
                                 index: i,
                                 attrI,
@@ -126,7 +148,7 @@ export const TableRow = ({
                                 startCellRow,
                                 selection
                             })}
-                            onMouseMove={e => handleMouseMove({
+                            onMouseMove={e => setSelection && handleMouseMove({
                                 e,
                                 index: i,
                                 attrI,
@@ -135,10 +157,10 @@ export const TableRow = ({
                                 startCellRow,
                                 setSelection
                             })}
-                            onMouseUp={e => handleMouseUp({setIsDragging})}
+                            onMouseUp={e => setIsDragging && handleMouseUp({setIsDragging})}
                             onClick={() => {
-                                setSelection([{index: i, attrI}]);
-                                setEditing({index: i, attrI});
+                                setSelection && setSelection([{index: i, attrI}]);
+                                setEditing && setEditing({index: i, attrI});
                             }}
                             onDoubleClick={() => {}}
                             allowEdit={allowEdit}
@@ -169,6 +191,9 @@ export const TableRow = ({
                         {/* First column as title of the open out drawer*/}
                         <TableCell
                             key={`open-out-title`}
+                            columns={columns}
+                            display={display}
+                            theme={theme}
                             attribute={visibleAttrsWithoutOpenOut[0]}
                             openOut={true}
                             loading={loading}
@@ -184,7 +209,10 @@ export const TableRow = ({
                                 <div key={`data-open-out-${i}`}
                                      className={''} >
                                     <TableCell
-                                        editing={editing.index === i && editing.attrI === attrI}
+                                        columns={columns}
+                                        display={display}
+                                        theme={theme}
+                                        editing={editing?.index === i && editing?.attrI === attrI}
                                         key={`cell-${i}-${attrI}`}
                                         attribute={attribute}
                                         openOut={true}

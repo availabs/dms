@@ -83,11 +83,11 @@ export function dataItemsNav(dataItems, baseUrl = '', edit = false, level=1) {
         .filter(d => !d.parent)
         .filter(d => (edit || d.published !== 'draft' ))
         .map((d, i) => {
-            //console.log(d)
+            const url = `${d.url_slug || d.path || d.id}`;
             let item = {
                 id: d.id,
-                path: `${edit ? `${baseUrl}/edit` : baseUrl}/${/*i === 0 && !edit ? '' : */d.url_slug || d.id}`,
-                name: `${d.title} ${d.published === 'draft' ? '*' : ''}`,
+                path: `${edit ? `${baseUrl}/edit` : baseUrl}${url?.startsWith('/') ? `` : `/`}${url}`,
+                name: `${d.title || d.name} ${d.published === 'draft' ? '*' : ''}`,
                 description: d.description,
                 hideInNav: d.hide_in_nav
             }
