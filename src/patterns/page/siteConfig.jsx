@@ -37,6 +37,7 @@ const parseIfJSON = (text, fallback={}) => {
     return fallback;
   }
 }
+
 export const pagesConfig = ({
   app = "dms-site",
   type = "docs-page",
@@ -77,6 +78,7 @@ export const pagesConfig = ({
   format.type = type
   updateRegisteredFormats(format.registerFormats, app, type)
   updateAttributes(format.attributes, app, type)
+  //siteType = siteType || type
   //console.log('foramat after update', app, type, format)
 
 
@@ -84,7 +86,7 @@ export const pagesConfig = ({
   // for instances without auth turned on, default user can edit
   // should move this to dmsFactory default authWrapper
   const defaultUser = { email: "user", authLevel: 10, authed: true, fake: true}
-  const patternFilters = parseIfJSON(pattern.filters, []);
+  const patternFilters = parseIfJSON(pattern?.filters, []);
   // const rightMenuWithSearch = rightMenu; // for live site
   return {
     siteType,

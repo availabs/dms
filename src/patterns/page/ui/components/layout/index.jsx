@@ -55,7 +55,7 @@ const Layout = ({ children, navItems, secondNav, title, pageTheme, EditPane, yPa
 		color: sideNav.color || 'transparent',
 		menuItems: (sideNav?.nav === 'main' ? nav2Level(navItems, sideNav.depth, pathname, theme.layout.navTitle)  : sideNav?.nav === 'secondary' ? secondNav || [] : []).filter(page => !page.hideInNav),
 		topMenu: (
-			<div className={theme.sidenav.topNavWrapper}>
+			<div className={theme?.sidenav?.topNavWrapper}>
 				{sideNav?.logo === 'top' && logo}
 	        	{sideNav?.dropdown === 'top' && <Menu />}
 	        	
