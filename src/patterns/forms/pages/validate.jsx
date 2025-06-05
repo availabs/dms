@@ -12,6 +12,10 @@ import {Filter, FilterRemove} from "../ui/icons";
 import dataTypes from "../../../data-types";
 import {useImmer} from "use-immer";
 import {ComponentContext} from "../../page/siteConfig";
+import {Controls} from "~/modules/dms/src/patterns/page/ui/dataComponents/selector/dataWrapper/components/Controls";
+import {
+    RenderFilters
+} from "~/modules/dms/src/patterns/page/ui/dataComponents/selector/ComponentRegistry/shared/filters/RenderFilters";
 
 const getErrorValueSql = (fullName, shortName, options, required, type) => {
     const sql = `SUM(CASE ${required ? `WHEN (data->>'${fullName}' IS NULL OR data->>'${fullName}'::text = '') THEN 1` : ``}
@@ -112,6 +116,7 @@ const getInitState = ({columns, defaultColumns=[], app, doc_type, params, data, 
         loadMoreId: `id-validate-page`,
         usePageFilters: true,
         allowDownload: true,
+        hideDatasourceSelector: true
     },
 })
 
@@ -555,6 +560,8 @@ const Validate = ({status, apiUpdate, apiLoad, item, params}) => {
                                                 controls: SpreadSheetCompWithControls.controls,
                                                 app: item.app
                                             }}>
+                                                <Controls />
+                                                <RenderFilters state={value} setState={setValue} apiLoad={apiLoad} isEdit={true} defaultOpen={true} />
                                                 <DataWrapper.EditComp
                                                     component={SpreadSheetCompWithControls}
                                                     key={ssKey}
