@@ -32,6 +32,7 @@ export const sideNavTheme = {
    	transition-all cursor-pointer border-l-2 border-blue-500`,
    "indicatorIcon": "ArrowRight",
    "indicatorIconOpen": "ArrowDown",
+   "indicatorIconWrapper": 'text-[#37576B] size-4',
    "subMenuWrappers": ['w-full bg-[#F3F8F9] rounded-[12px]','w-full bg-[#E0EBF0]'],
    "subMenuOuterWrappers": ['pl-4'],
    "subMenuWrapper": "pl-2 w-full",
