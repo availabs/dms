@@ -3,9 +3,8 @@ import { merge, cloneDeep } from "lodash-es"
 
 import TopNav from './TopNav';
 import SideNav from './SideNav';
-//import { SearchButton } from '../../../components/search';
 import { matchRoutes, useLocation } from 'react-router'
-import useTheme from '../useTheme.js'
+import {ThemeContext} from '../useTheme.js'
 
 
 const Logos = () => <div className='h-12'/>
@@ -44,8 +43,8 @@ const Layout = ({ children, navItems, secondNav, title, pageTheme, EditPane, Men
 	
 	// ------------------------------------------------------
 	// ------- Get Options from Context and Defaults
-	// ------------------------------------------------------ 
-	const defaultTheme = useTheme() || { "layout": layoutTheme } // ???
+	// ------------------------------------------------------
+	const { theme: defaultTheme = {layout: layoutTheme} } = React.useContext(ThemeContext);
 	const { pathname } = useLocation();
 	const theme = merge(cloneDeep(defaultTheme), cloneDeep(pageTheme))
 	// console.log('theme navOptions', pageTheme)

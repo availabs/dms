@@ -1,6 +1,6 @@
-import React, { useEffect } from 'react'
-import { Layout } from '../../ui'
+import React from 'react'
 import { CMSContext } from '../../context'
+import {ThemeContext} from "../../../../ui/useTheme";
 
 
 const managerTheme={
@@ -28,7 +28,9 @@ const managerTheme={
 function CmsManager ({children}) {
  
   
-  const { baseUrl, theme, user } = React.useContext(CMSContext) || {}
+  const { baseUrl, UI } = React.useContext(CMSContext) || {};
+  const {Layout} = UI;
+  const { theme } = React.useContext(ThemeContext);
   
 
   const managerNavItems = [

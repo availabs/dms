@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useMatch, useNavigate, Link } from "react-router";
 import Icon from './Icon'
 import { MobileMenu } from './TopNav'
-import useTheme from '../useTheme'
+import {ThemeContext} from '../useTheme'
 
 const NOOP = () => { return {} }
 
@@ -58,8 +58,8 @@ const MobileSidebar = ({
 	subMenuActivate, subMenuStyle,
    ...props
 }) => {
-	const fullTheme = useTheme() || {}
-	const theme = (fullTheme?.['sidenav'] || {})//(themeOptions);
+	const { theme: fullTheme } = React.useContext(ThemeContext);
+	const theme = (fullTheme?.['sidenav'] || {});
 	// theme = props.theme || theme;
 
 	return (
@@ -115,7 +115,7 @@ const DesktopSidebar = ({
 	...props }) => {
 	//let theme = useTheme()['sidenav'](themeOptions);
 	//const { theme: fullTheme  } = React.useContext(CMSContext) || {}
-	const fullTheme = useTheme() || {}
+	const { theme: fullTheme } = React.useContext(ThemeContext);
 	const theme = (fullTheme?.['sidenav'] || {})//(themeOptions);
 
 
@@ -195,7 +195,7 @@ export const SideNavItem = ({
 	//console.log('renderMenu', subMenuActivate)
 	// const { theme: fullTheme  } = React.useContext(CMSContext) || {}
 	// const theme = (fullTheme?.['sidenav'] || {}) 
-	const fullTheme = useTheme() || {}
+	const { theme: fullTheme } = React.useContext(ThemeContext);
    const theme = (fullTheme?.['sidenav'] || {}) //(themeOptions);
 
 
@@ -311,7 +311,7 @@ export const SideNavItem = ({
 const SubMenu = ({ depth, showSubMenu, subMenus, type, hovering, subMenuActivate, active }) => {
 	// const { theme: fullTheme  } = React.useContext(CMSContext)
 	// const theme = (fullTheme?.['sidenav'] || {}) 
- 	const fullTheme = useTheme() || {}
+	const { theme: fullTheme } = React.useContext(ThemeContext);
    const theme = (fullTheme?.['sidenav'] || {}) //(themeOptions);
 
 	const inactiveHoveing = !active && subMenuActivate !== 'onHover' && hovering;

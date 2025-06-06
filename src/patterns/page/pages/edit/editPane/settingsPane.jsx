@@ -4,6 +4,7 @@ import { cloneDeep, set, get } from 'lodash-es'
 import { updateTitle } from '../editFunctions'
 import { v4 as uuidv4 } from 'uuid';
 import { PageContext, CMSContext } from '../../../context'
+import {ThemeContext} from "../../../../../ui/useTheme";
 
 
 const FilterSettings = ({label, type, value, stateValue, onChange}) => {
@@ -46,8 +47,8 @@ const FilterSettings = ({label, type, value, stateValue, onChange}) => {
 };
 
 function SettingsPane () {
-
-  const { UI, baseUrl, user, theme  } = React.useContext(CMSContext) || {}
+  const { theme } = React.useContext(ThemeContext);
+  const { UI, baseUrl, user  } = React.useContext(CMSContext) || {}
   const { item, pageState, dataItems, apiUpdate } =  React.useContext(PageContext) || {}
   const { Button, Menu, FieldSet, Icon } = UI;
 

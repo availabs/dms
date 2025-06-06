@@ -1,11 +1,10 @@
 import React from 'react'
 import { CMSContext } from '../../context'
+import {ThemeContext} from "../../../../ui/useTheme";
 
 
 function FormsManager ({item, dataItems, attributes, logo, rightMenu}) {
- 
-  
-  const { theme } = React.useContext(CMSContext) || {}
+    const { theme } = React.useContext(ThemeContext) || {};
 
   return (
       <div className={`${theme?.page?.wrapper2}`}>

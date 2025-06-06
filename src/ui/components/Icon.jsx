@@ -1,6 +1,6 @@
 import React from "react";
-import useTheme from '../useTheme'
-
+import {ThemeContext} from '../useTheme'
+import icons from '../icons'
 export const iconTheme = {
     iconWrapper: '',
     icon: 'size-6'
@@ -14,9 +14,8 @@ export const Default = ({...props}) => (
 
 
 export default function ({icon = 'Default', className, ...props}) {
-    //const { theme = { icon: iconTheme } } = React.useContext(CMSContext) || {};
-    const theme = useTheme()
-    let Icon = theme?.Icons?.[icon] || Default
-    return  <Icon className={className || theme.icon.icon} {...props}/>
+    const { theme = {Icons: iconTheme} } = React.useContext(ThemeContext);
+    let Icon = theme?.Icons?.[icon] || icons[icon] || Default
+    return  <Icon className={className || theme?.icon?.icon} {...props}/>
 
 }

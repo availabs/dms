@@ -1,5 +1,5 @@
 import React from 'react'
-import SectionArray from './ui/dataComponents/sections/sectionArray'
+import SectionArray from './components/sections/sectionArray'
 
 export const cmsSection = {
   app: "dms-site",

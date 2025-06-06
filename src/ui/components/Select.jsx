@@ -1,7 +1,7 @@
 import * as Headless from '@headlessui/react'
 import React, { forwardRef } from 'react'
 //import { CMSContext } from '../../../siteConfig';
-import useTheme from '../useTheme'
+import {ThemeContext} from '../useTheme'
 /*  ---------------------------------------------------------
  Use Example: 
   <Select 
@@ -58,7 +58,7 @@ export const selectTheme = {
 }
 
 const Select = forwardRef(function Select({ className, multiple, options=[], value, onChange=()=>{}, ...props }, ref) {
-  const theme = useTheme();
+  const { theme = {select: selectTheme}} = React.useContext(ThemeContext);
   //const { theme = { select: selectTheme } } = React.useContext(CMSContext) || {}
   return (
     <span

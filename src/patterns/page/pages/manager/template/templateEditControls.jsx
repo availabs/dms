@@ -1,4 +1,4 @@
-import React, { useEffect, Fragment, useRef, useState } from 'react'
+import React, {useEffect, Fragment, useRef, useState, useContext} from 'react'
 import { useSubmit, useLocation } from "react-router";
 import { Dialog, Transition, Switch, Popover } from '@headlessui/react'
 import { usePopper } from 'react-popper'
@@ -14,8 +14,7 @@ import {json2DmsForm, getUrlSlug, toSnakeCase, parseJSON} from '../../_utils'
 //import EditPagesNav  from './editPages'
 //import EditHistory from './editHistory'
 
-import {Modal, DeleteModal} from '../../../ui/'
-import { RegisteredComponents } from '../../../ui/dataComponents/selector'
+import { RegisteredComponents } from '../../../components/selector'
 
 import { CMSContext } from '../../../context'
 
@@ -45,7 +44,8 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
 
 
 
-  const { baseUrl, user, falcor, falcorCache} = React.useContext(CMSContext)
+  const { baseUrl, user, falcor, UI} = React.useContext(CMSContext)
+    const {DeleteModal} = UI;
   const NoOp = () => {}
 
   const saveItem = async (newSections) => {

@@ -1,6 +1,6 @@
 import React from 'react'
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react'
-import { CMSContext } from '../../patterns/page/context';
+import {ThemeContext} from "../useTheme";
 
 const defaultTabs = [
   {
@@ -28,7 +28,7 @@ export default function Tabs ({tabs=defaultTabs, defaultIndex=0, selectedIndex, 
 
   React.useEffect(() => setInternalIndex(selectedIndex),[selectedIndex])
 
-  const { theme = { tabs: tabsTheme } } = React.useContext(CMSContext) || {}
+  const { theme = { tabs: tabsTheme } } = React.useContext(ThemeContext) || {}
   return (
     <TabGroup selectedIndex={internalIndex} onChange={setSelectedIndex || setInternalIndex}>
       <TabList className={theme?.tabs?.tablist}>

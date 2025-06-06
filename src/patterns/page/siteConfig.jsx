@@ -1,4 +1,5 @@
 import React from 'react'
+import { Link } from 'react-router'
 import { merge,cloneDeep } from "lodash-es"
 import {parseIfJSON, updateRegisteredFormats, updateAttributes} from './pages/_utils'
 
@@ -6,13 +7,8 @@ import UI from '../../ui'
 import { ThemeContext } from '../../ui/useTheme.js'
 
 // pages
-import PageView from "./pages/view_small"
+import PageView from "./pages/view"
 import PageEdit from "./pages/edit"
-
-// templates
-// import TemplateList from './pages/manager/template/list'
-// import TemplatePages from './pages/manager/template/pages'
-// import TemplateEdit from './pages/manager/template/edit'
 
 // Manager
 import ManageLayout from './pages/manager/layout'
@@ -21,47 +17,48 @@ import PageManager from './pages/manager/pages'
 import DesignEditor from './pages/manager/design'
 
 import cmsFormat from "./page.format.js"
-import defaultTheme from './ui/theme'
-
-import { useFalcor } from "@availabs/avl-falcor"
-
-import { Link } from 'react-router'
-import { SearchPage } from "./components/search/SearchPage";
 import { CMSContext } from './context'
 import DefaultMenu from './components/menu'
+import { useFalcor } from "../../../../avl-falcor"
 
+import { SearchPage } from "./components/search/SearchPage";
 
+import { registerDataType } from '../../data-types'
+import Selector from './components/selector'
+import defaultTheme from '../../ui/defaultTheme.json'
+
+registerDataType("selector", Selector)
 
 const pagesConfig = ({
-  app = "dms-site",
-  type = "docs-page",
-  siteType,
-  rightMenu = <DefaultMenu />,
-  baseUrl = '/',
-  damaBaseUrl,
-  logo, // deprecated
-  authLevel = -1,
-  themes = { default: {} },
-  pattern,
-  site,
-  pgEnv,
-  API_HOST
-}) => {
+                       app = "dms-site",
+                       type = "docs-page",
+                       siteType,
+                       rightMenu = <DefaultMenu />,
+                       baseUrl = '/',
+                       damaBaseUrl,
+                       logo, // deprecated
+                       authLevel = -1,
+                       themes = { default: {} },
+                       pattern,
+                       site,
+                       pgEnv,
+                       API_HOST
+                     }) => {
   //console.log('pagesConfig')
   let theme = merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern?.theme?.settings?.theme?.theme] || themes.default), cloneDeep(pattern?.theme) || {})
   //console.log('pageConfig', pattern.doc_type, pattern.id, themes[pattern?.theme?.settings?.theme?.theme], pattern?.theme, pattern)
   // baseUrl = baseUrl[0] === '/' ? baseUrl.slice(1) : baseUrl
   baseUrl = baseUrl === '/' ? '' : baseUrl
   const defaultLogo = (
-    <Link to={`${baseUrl || '/'}`} className='h-12 flex px-4 items-center'>
-      <div className='rounded-full h-8 w-8 bg-blue-500 border-2 border-blue-300 hover:bg-blue-600' />
-    </Link>
+      <Link to={`${baseUrl || '/'}`} className='h-12 flex px-4 items-center'>
+        <div className='rounded-full h-8 w-8 bg-blue-500 border-2 border-blue-300 hover:bg-blue-600' />
+      </Link>
   )
 
   if(!theme?.navOptions?.logo) {
     theme.navOptions = {...(theme?.navOptions || {}), logo: (logo ? logo : defaultLogo)}
   }
-  
+
 
   // console.log('testing', theme.navOptions)
   // console.log('page siteConfig app,type', `"${app}","${type}"`)
@@ -79,7 +76,7 @@ const pagesConfig = ({
   // for instances without auth turned on, default user can edit
   // should move this to dmsFactory default authWrapper
   const defaultUser = { email: "user", authLevel: 10, authed: true, fake: true}
-  const patternFilters = parseIfJSON(pattern.filters, []);
+  const patternFilters = parseIfJSON(pattern?.filters, []);
   // const rightMenuWithSearch = rightMenu; // for live site
   return {
     siteType,
@@ -93,11 +90,11 @@ const pagesConfig = ({
           const {falcor = {}, falcorCache = {}} = uf;
           // console.log('hola', user, defaultUser, user || defaultUser)
           return (
-            <CMSContext.Provider value={{UI, API_HOST, baseUrl, damaBaseUrl, user, theme, falcor, falcorCache, pgEnv, app, type, siteType, patternFilters, Menu: () => <>{rightMenu}</> }} >
-              <ThemeContext.Provider value={theme}>
-                {children}
-              </ThemeContext.Provider>  
-            </CMSContext.Provider>
+              <CMSContext.Provider value={{UI, API_HOST, baseUrl, damaBaseUrl, user, falcor, falcorCache, pgEnv, app, type, siteType, patternFilters, Menu: () => <>{rightMenu}</> }} >
+                <ThemeContext.Provider value={{theme}}>
+                  {children}
+                </ThemeContext.Provider>
+              </CMSContext.Provider>
           )
         },
         authLevel,
@@ -114,9 +111,9 @@ const pagesConfig = ({
         children: [
           {
             type: (props) => (
-              <PageEdit
-                {...props}
-              />
+                <PageEdit
+                    {...props}
+                />
             ),
             path: "edit/*",
             action: "edit",
@@ -124,9 +121,9 @@ const pagesConfig = ({
           },
           {
             type: (props) => (
-              <PageView
-                {...props}
-              />
+                <PageView
+                    {...props}
+                />
             ),
             filter: {
               attributes:['title', 'index', 'filters', 'url_slug', 'parent', 'published', 'hide_in_nav' ,'sections','section_groups','sidebar','navOptions']
@@ -139,14 +136,14 @@ const pagesConfig = ({
           //   path: "search/*",
           //   action: "list"
           // },
-          
+
           // {
           //   type: TemplatePreview,
           //   action: "edit",
           //   path: "/view/:id"
           // },
-          
-        
+
+
         ]
       },
 
@@ -155,29 +152,29 @@ const pagesConfig = ({
 }
 
 const pagesManagerConfig = ({
-  app = "dms-site",
-  type = "docs-page",
-  siteType,
-  rightMenu = <DefaultMenu />,
-  baseUrl = '/',
-  damaBaseUrl,
-  logo, // deprecated
-  authLevel = -1,
-  themes = { default: {} },
-  pattern,
-  site,
-  pgEnv,
-  API_HOST
-}) => {
+                              app = "dms-site",
+                              type = "docs-page",
+                              siteType,
+                              rightMenu = <DefaultMenu />,
+                              baseUrl = '/',
+                              damaBaseUrl,
+                              logo, // deprecated
+                              authLevel = -1,
+                              themes = { default: {} },
+                              pattern,
+                              site,
+                              pgEnv,
+                              API_HOST
+                            }) => {
   //console.log('hola', pattern?.theme)
   let theme =  defaultTheme //merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern?.theme?.settings?.theme?.theme] || themes.default), pattern?.theme || {})
   // console.log('pageConfig', theme, themes[pattern?.theme?.settings?.theme?.theme], pattern?.theme )
   // baseUrl = baseUrl[0] === '/' ? baseUrl.slice(1) : baseUrl
   baseUrl = baseUrl === '/' ? '' : baseUrl
   const defaultLogo = cloneDeep(themes[pattern?.theme?.settings?.theme?.theme] || themes.default)?.navOptions?.logo || (
-    <Link to={`${baseUrl || '/'}`} className='h-12 flex px-4 items-center'>
-      <div className='rounded-full h-8 w-8 bg-blue-500 border-2 border-blue-300 hover:bg-blue-600' />
-    </Link>
+      <Link to={`${baseUrl || '/'}`} className='h-12 flex px-4 items-center'>
+        <div className='rounded-full h-8 w-8 bg-blue-500 border-2 border-blue-300 hover:bg-blue-600' />
+      </Link>
   )
 
 
@@ -185,11 +182,11 @@ const pagesManagerConfig = ({
   if(!theme?.navOptions?.logo) {
     theme.navOptions = {...(theme?.navOptions || {}), logo: (logo ? logo : defaultLogo)}
   }
-  theme.navOptions.sideNav.size = 'compact'  
+  theme.navOptions.sideNav.size = 'compact'
   theme.navOptions.sideNav.nav = 'main'
   theme.navOptions.topNav.nav = 'none'
 
-    
+
   // console.log('testing', theme.navOptions)
 
   const format = cloneDeep(cmsFormat)
@@ -216,11 +213,11 @@ const pagesManagerConfig = ({
         type: ({children, user=defaultUser, ...props}) => {
           const { falcor, falcorCache } = useFalcor();
           return (
-            <CMSContext.Provider value={{API_HOST, baseUrl, damaBaseUrl, user, theme, falcor, falcorCache, pgEnv, app, type, siteType, Menu: () => <>{rightMenu}</> }} >
-              <ManageLayout {...props}>
-                {children}
-              </ManageLayout>
-            </CMSContext.Provider>
+              <CMSContext.Provider value={{API_HOST, baseUrl, damaBaseUrl, user, falcor, falcorCache, pgEnv, app, type, siteType, Menu: () => <>{rightMenu}</> }} >
+                <ManageLayout {...props}>
+                  {children}
+                </ManageLayout>
+              </CMSContext.Provider>
           )
         },
         authLevel,
@@ -235,17 +232,17 @@ const pagesManagerConfig = ({
           attributes:['title', 'index', 'url_slug', 'parent','published', 'hide_in_nav']
         },
         children: [
-          { 
+          {
             type: Dashboard,
             path: "",
             action: "edit"
           },
-          { 
+          {
             type: (props) => <DesignEditor themes={themes} {...props} />,
             path: "design",
             action: "edit"
           },
-          { 
+          {
             type: PageManager,
             path: "pages",
             action: "edit"
@@ -281,5 +278,5 @@ const pagesManagerConfig = ({
   }
 }
 
-export default [pagesConfig,pagesManagerConfig] 
+export default [pagesConfig,pagesManagerConfig]
 

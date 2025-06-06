@@ -1,6 +1,5 @@
 import { cloneDeep } from "lodash-es"
 import { json2DmsForm, getUrlSlug, toSnakeCase, parseJSON } from '../_utils'
-import { PencilIcon, CirclePlus, WrenchIcon, SlidersIcon, MenuIcon , ClockIcon} from '../../ui/icons'
 // import { ButtonSelector,SidebarSwitch } from '../../ui'
 
 

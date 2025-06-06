@@ -1,5 +1,7 @@
+import React from "react";
 import Layout from './components/Layout';
 import SideNav from './components/SideNav';
+import SideNavContainer from "./components/SideNavContainer";
 import TopNav from './components/TopNav';
 import Icon from './components/Icon';
 import Button from './components/Button';
@@ -14,12 +16,17 @@ import Tabs from "./components/Tabs";
 import Drawer from "./components/Drawer";
 import Select from './components/Select';
 import Dialog from "./components/Dialog";
+import Dropdown from "./components/Dropdown";
+import Modal from "./components/Modal";
+import {DeleteModal} from "./components/DeleteModal";
 // import Nestable from "./components/nestable";
 import DraggableNav from "./components/nestable/draggableNav";
+import Pagination from "./components/Pagination";
 export default {
 	// --- Layout
 	Layout,
 	SideNav,
+	SideNavContainer,
 	TopNav,
 	// --- Utilities
 	Icon,
@@ -37,7 +44,10 @@ export default {
 	ColorPicker,
 	Tabs,
 	Drawer,
-	Dialog,
+	Dropdown,
+	Modal,
+	DeleteModal,
 	// Nestable,
-	DraggableNav
+	DraggableNav,
+	Pagination
 }

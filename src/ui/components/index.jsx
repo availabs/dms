@@ -1,6 +1,6 @@
 import React from 'react'
 import * as Headless from '@headlessui/react'
-import { CMSContext } from '../../patterns/page/context';
+import {ThemeContext} from "../useTheme";
 export const dialogTheme  = {
   backdrop: "fixed inset-0 flex w-screen justify-center overflow-y-auto bg-zinc-950/25 px-2 py-2 transition duration-100 focus:outline-0 data-[closed]:opacity-0 data-[enter]:ease-out data-[leave]:ease-in sm:px-6 sm:py-8 lg:px-8 lg:py-16 dark:bg-zinc-950/50",
   dialogContainer: "fixed inset-0 w-screen overflow-y-auto pt-6 sm:pt-0",
@@ -23,7 +23,7 @@ export const dialogTheme  = {
 }
 
 export default function DialogComp({ size = 'lg', open=false, onClose=()=>{}, className, children, ...props }) {
-  const { theme = { dialog: dialogTheme } } = React.useContext(CMSContext) || {}
+  const { theme = { dialog: dialogTheme } } = React.useContext(ThemeContext) || {}
   return (
     <Headless.Dialog open={open} onClose={onClose} {...props}>
       <Headless.DialogBackdrop

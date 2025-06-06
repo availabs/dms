@@ -4,6 +4,7 @@ import { cloneDeep, get, isEqual } from "lodash-es"
 import { CMSContext,PageContext } from '../../../context'
 import { json2DmsForm, getUrlSlug } from '../../_utils'
 import { publish, discardChanges, insertSubPage} from '../editFunctions'
+import {ThemeContext} from "../../../../../ui/useTheme";
 
 
 function PagesPane () {
@@ -34,7 +35,9 @@ function PagesPane () {
 export default PagesPane
 
 function DraggableNavItem ({activeItem, item, dataItems, handleCollapseIconClick, isCollapsed, edit}) {
-    const { baseUrl, user, theme, UI } = React.useContext(CMSContext);
+    const { baseUrl, user, UI } = React.useContext(CMSContext);
+    const { theme } = React.useContext(ThemeContext);
+
     const { Icon, Menu } = UI;
     const { apiUpdate } =  React.useContext(PageContext) || {}
     const { pathname = '/edit' } = useLocation();

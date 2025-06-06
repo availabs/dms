@@ -3,6 +3,7 @@ import { NavLink, Link, useSubmit, useNavigate, useLocation, useParams, useSearc
 import {cloneDeep, isEqual, merge} from "lodash-es";
 import { v4 as uuidv4 } from 'uuid';
 import {useImmer} from "use-immer";
+import { ThemeContext } from "../../../../ui/useTheme";
 import { CMSContext, PageContext } from '../../context'
 import {
 	sectionsEditBackill,
@@ -16,7 +17,7 @@ import {
 	updatePageStateFiltersOnSearchParamChange,
 	initNavigateUsingSearchParams
 } from '../_utils'
-import SectionGroup from '../../ui/dataComponents/sections/sectionGroup'
+import SectionGroup from '../../components/sections/sectionGroup'
 import PageControls from './editPane'
 
 
@@ -30,7 +31,8 @@ function PageEdit ({
 	const [searchParams] = useSearchParams();
 	const submit = useSubmit();
 	const { pathname = '/edit', search } = useLocation();
-	let { UI,baseUrl, user, theme, patternFilters=[] } = React.useContext(CMSContext) || {};
+	const { theme: fullTheme } = React.useContext(ThemeContext);
+	const { UI,baseUrl, user, patternFilters=[] } = React.useContext(CMSContext) || {};
 	const { Layout } = UI;
 	const [ editPane, setEditPane ] = React.useState({ open: false, index: 1, showGrid: false });
 	const [pageState, setPageState] =
@@ -51,7 +53,7 @@ function PageEdit ({
 	}, [theme?.navOptions?.secondaryNav?.navItems])
 
 	// console.log('-----------render edit----------------', item.draft_sections.length, item.draft_section_groups.length)
-	theme = merge(cloneDeep(theme), item?.theme || {})
+	let theme = merge(cloneDeep(theme), item?.theme || {})
 	const level = item?.index == '999' || theme?.navOptions?.topNav?.nav !== 'main' ? 1 : detectNavLevel(dataItems, baseUrl);
 	const inPageNav = getInPageNav(item, theme);
 	const sectionAttr = attributes?.['sections']?.attributes || {}

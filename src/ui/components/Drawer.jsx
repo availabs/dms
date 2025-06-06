@@ -1,6 +1,6 @@
 import React, {Fragment, useState, useEffect} from 'react'
 import { Dialog, Transition } from '@headlessui/react'
-import { XMark } from '../../patterns/page/ui/icons'
+import Icon from './Icon'
 import { CMSContext } from '../../patterns/page/context';
 // TO DO - theme this comp
 
@@ -47,8 +47,9 @@ import { CMSContext } from '../../patterns/page/context';
 //   )
 // }
 
-export default function Drawer ({ open, setOpen, CloseIcon=XMark, width='max-w-64', children, closeOnClick=true }) {
-  
+export default function Drawer ({ open, setOpen, CloseIcon:CloseIconFromProps, width='max-w-64', children, closeOnClick=true }) {
+  const CloseIcon = typeof CloseIconFromProps === 'string' ? <Icon icon={CloseIconFromProps} /> :
+      CloseIconFromProps ? <CloseIconFromProps /> : <Icon icon={'XMark'} />
   return (
     <Transition.Root  as={Fragment} show={open}>
       <Transition.Child

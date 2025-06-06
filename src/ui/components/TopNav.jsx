@@ -3,7 +3,7 @@ import { get } from "lodash-es";
 import { useMatch, useNavigate, Link } from "react-router";
 import { SideNavItem } from './SideNav'
 import Icon from './Icon'
-import useTheme from '../useTheme'
+import {ThemeContext} from '../useTheme'
 
 const NOOP = () => { return {} }
 
@@ -70,7 +70,7 @@ const NOOP = () => { return {} }
 
 export const MobileMenu = ({ open, toggle, menuItems = [], rightMenu = null,themeOptions={}}) => {
   //const { theme: fullTheme  } = React.useContext(CMSContext) || {}
-  const fullTheme = useTheme()
+    const { theme: fullTheme } = React.useContext(ThemeContext);
   const theme = (fullTheme?.['topnav'] || {} ) //(themeOptions);
 
   return (
@@ -109,7 +109,7 @@ export const DesktopMenu = ({
   themeOptions={}
 }) => {
   //const { theme: fullTheme  } = React.useContext(CMSContext) || {}
-  const fullTheme = useTheme()
+    const { theme: fullTheme } = React.useContext(ThemeContext);
   const theme = (fullTheme?.['topnav'] || {} ) //(themeOptions);
   return (
     <div className={`${theme?.topnavWrapper}`}>
@@ -183,7 +183,7 @@ const NavItem = ({
 }) => {
   // console.log('renderMenu')
   //const { theme: fullTheme  } = React.useContext(CMSContext) || {}
-  const fullTheme = useTheme()
+    const { theme: fullTheme } = React.useContext(ThemeContext);
   const theme = (fullTheme?.[type === 'side' ? 'sidenav' : 'topnav'] || {}) //(themeOptions);
 
   const navigate = useNavigate();
@@ -315,7 +315,7 @@ const NavItem = ({
 };
 
 const SubMenu = ({ parent, depth, showSubMenu, subMenus, type, hovering, subMenuActivate, active, maxDepth }) => {
-  const fullTheme = useTheme()
+    const { theme: fullTheme } = React.useContext(ThemeContext);
   //const { theme: fullTheme  } = React.useContext(CMSContext)
   const theme = (fullTheme?.[type === 'side' ? 'sidenav' : 'topnav'] || {}) //(themeOptions);
   

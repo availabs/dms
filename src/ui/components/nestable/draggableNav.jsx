@@ -4,11 +4,7 @@ import { CMSContext } from '../../../patterns/page/context'
 
 import Nestable from './index';
 import { json2DmsForm, getUrlSlug } from '../../../patterns/page/pages/_utils'
-
-
-import {ArrowDown, ArrowUp, ArrowRight, ArrowLeft, DraftPage} from '../../../patterns/page/ui/icons';
-
-import { Button } from '../../../patterns/page/ui';
+import {ThemeContext} from "../../useTheme";
 
 
 export const nestableTheme = {
@@ -26,7 +22,8 @@ export const nestableTheme = {
 
 
 function DefaultNavItem ({item, dataItems, handleCollapseIconClick, isCollapsed, edit, OpenIcon=ArrowDown, ClosedIcon=ArrowRight}) {
-    const { baseUrl, user, theme = { nestable: nestableTheme } } = React.useContext(CMSContext);
+    const { theme = { nestable: nestableTheme } } = React.useContext(ThemeContext);
+    const { baseUrl, user } = React.useContext(CMSContext);
 
     const { pathname = '/edit' } = useLocation()
 
@@ -174,7 +171,8 @@ function DraggableNav ({item, dataItems, NavComp=DefaultNavItem, edit=true}) {
 function AddItemButton ({dataItems}) {
   const submit = useSubmit();
   const { pathname = '/edit' } = useLocation();
-  const { baseUrl, user, theme = { nestable: nestableTheme } } = React.useContext(CMSContext);
+  const { UI, user } = React.useContext(CMSContext);
+  const {Button} = UI;
   const [loading, setLoading] = useState(false);
   
   const highestIndex = dataItems

@@ -1,17 +1,16 @@
-import React, {useEffect, useMemo, useState} from "react";
+import React, {useContext, useEffect, useMemo, useState} from "react";
 import { FormsContext } from '../siteConfig'
 import SourcesLayout from "../components/patternListComponent/layout";
-import Spreadsheet from "../../page/ui/dataComponents/selector/ComponentRegistry/spreadsheet";
-import DataWrapper from "../../page/ui/dataComponents/selector/dataWrapper";
+import Spreadsheet from "../../page/components/selector/ComponentRegistry/spreadsheet";
+import DataWrapper from "../../page/components/selector/dataWrapper";
 import {useNavigate, useSearchParams} from "react-router";
-import {getData as getFilterData} from "../../page/ui/dataComponents/selector/dataWrapper/components/filters/utils";
-import {applyFn, attributeAccessorStr, isJson} from "../../page/ui/dataComponents/selector/dataWrapper/utils/utils";
+import {getData as getFilterData} from "../../page/components/selector/dataWrapper/components/filters/utils";
+import {applyFn, attributeAccessorStr, isJson} from "../../page/components/selector/dataWrapper/utils/utils";
 import {cloneDeep, isEqual, uniq, uniqBy} from "lodash-es";
-import {XMark} from "../../page/ui/icons";
 import {Filter, FilterRemove} from "../ui/icons";
 import dataTypes from "../../../data-types";
 import {useImmer} from "use-immer";
-import {ComponentContext} from "../../page/context";
+import {CMSContext, ComponentContext} from "../../page/context";
 
 const getErrorValueSql = (fullName, shortName, options, required, type) => {
     const sql = `SUM(CASE ${required ? `WHEN (data->>'${fullName}' IS NULL OR data->>'${fullName}'::text = '') THEN 1` : ``}
@@ -125,6 +124,8 @@ const updateCall = async ({column, app, type, maps, falcor, user, setUpdating, s
 
 const RenderMassUpdater = ({sourceInfo, open, setOpen, falcor, columns, data, user, updating, setUpdating}) => {
     if(!open) return;
+    const {UI} = useContext(CMSContext);
+    const {Icon} = UI;
     const [maps, setMaps] = useState([]);
     const [loadingAfterUpdate, setLoadingAfterUpdate] = useState(false);
     const currColumn = columns.find(col => col.name === open);
@@ -151,7 +152,7 @@ const RenderMassUpdater = ({sourceInfo, open, setOpen, falcor, columns, data, us
                     <div className={'w-fit h-fit p-[8px] text-[#37576B] border border-[#E0EBF0] rounded-full cursor-pointer'}
                          onClick={() => setOpen(false)}
                     >
-                        <XMark height={16} width={16}/>
+                        <Icon icon={'XMark'} height={16} width={16}/>
                     </div>
                 </div>
 

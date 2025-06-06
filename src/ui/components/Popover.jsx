@@ -1,6 +1,6 @@
 import React, {Fragment} from 'react'
 import { Popover, Transition, Button } from '@headlessui/react'
-import useTheme from '../useTheme'
+import {ThemeContext} from '../useTheme'
 import Icon from './Icon'
 
 //-----------------------------------
@@ -27,7 +27,7 @@ const DefaultButton = (
 
 
 export default function PopoverComp ({ children, button=DefaultButton, onClick=()=>{}, anchor='bottom', width='max-w-sm lg:max-w-lg', ...props}) {
-  const theme = useTheme()
+    const { theme = {popover: popoverTheme}} = React.useContext(ThemeContext);
   const bg = '#ffffff'
   const border = 'rgba(0,0,0,0.01)'
   return (

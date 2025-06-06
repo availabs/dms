@@ -1,5 +1,5 @@
 import React from "react";
-import useTheme from '../useTheme'
+import {ThemeContext} from '../useTheme'
 
 export const labelTheme = {
     labelWrapper: 'px-[12px] pt-[9px] pb-[7px] rounded-md',
@@ -7,7 +7,7 @@ export const labelTheme = {
 }
 
 export default function ({text, children}) {
-    const theme = useTheme()//{ theme = { label: labelTheme } } = React.useContext(CMSContext) || {};
+    const { theme = {label: labelTheme}} = React.useContext(ThemeContext);
     return (
         <div className={`${theme.label.labelWrapper}`}>
             <span className={`${theme.label.label}`}>{text || children}</span>

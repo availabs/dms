@@ -1,5 +1,5 @@
 import React, { PureComponent, useContext } from 'react';
-import { CMSContext } from '../../../../patterns/page/context.js';
+import {ThemeContext} from "../../../../ui/useTheme";
 
 
 class Icon extends PureComponent {
@@ -16,7 +16,7 @@ class Icon extends PureComponent {
 
 
 const NestableItem = (props) => {
-    const { theme, UI } = React.useContext(CMSContext) || {};
+    const { theme } = React.useContext(ThemeContext) || {};
     // const {Icon} = UI;
     const { item, isCopy, options, index, depth=0 } = props;
 

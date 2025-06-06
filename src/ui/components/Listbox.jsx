@@ -2,7 +2,6 @@
 import React, { Fragment } from 'react'
 import * as Headless from '@headlessui/react'
 // import { CMSContext } from '../../../siteConfig';
-import useTheme from '../useTheme'
 /*  ---------------------------------------------------------
  Use Example: 
   <ListBox 

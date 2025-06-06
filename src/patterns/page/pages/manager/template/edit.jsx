@@ -1,12 +1,12 @@
-import React, {useEffect} from 'react'
-import { NavLink, Link, useSubmit, useNavigate, useLocation, useParams} from "react-router";
+import React from 'react'
+import { useSubmit, useNavigate, useLocation } from "react-router";
 import { cloneDeep } from "lodash-es"
 
 
 import { json2DmsForm, getInPageNav  } from '../../_utils'
-import { SideNavContainer, SideNav } from '../../../ui'
 import EditControls from './templateEditControls'
 import { CMSContext } from '../../../context'
+import {ThemeContext} from "../../../../../ui/useTheme";
 
 
 
@@ -14,12 +14,11 @@ import { CMSContext } from '../../../context'
 function TemplateEdit ({
   item, dataItems, updateAttribute ,attributes, setItem, status, params, apiLoad, apiUpdate, logo, rightMenu, sideNav=[]
 }) {
-  const navigate = useNavigate()
   const submit = useSubmit()
-  const { baseUrl, user, theme } = React.useContext(CMSContext)
+  const { theme } = React.useContext(ThemeContext);
+  const { baseUrl, user, UI } = React.useContext(CMSContext);
   const { pathname = '/edit' } = useLocation()
-  //const { baseUrl } = React.useContext(CMSContext)
-  
+
   const { id } = params
   
   const level = 1;
@@ -160,6 +159,8 @@ function TemplateEdit ({
 }
 
 function RenderSideNav({inPageNav}) {
+  const { UI } = React.useContext(CMSContext);
+  const {SideNav, SideNavContainer} = UI;
   return (
     <SideNavContainer  custom='max-h-[calc(100vh_-_6rem)] overflow-y-auto overflow-x-hidden top-20 sticky'>
           <SideNav {...inPageNav} /> 

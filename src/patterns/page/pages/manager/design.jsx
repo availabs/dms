@@ -1,20 +1,13 @@
-import React, {useEffect} from 'react'
+import React, {useContext} from 'react'
 import { Disclosure, DisclosureButton, DisclosurePanel } from '@headlessui/react'
 import { merge } from "lodash-es"
 import { cloneDeep } from "lodash-es"
 import { isEqual } from "lodash-es"
 import Frame from 'react-frame-component'
-//import { NavLink, Link, useSubmit, useNavigate, useLocation, useParams} from "react-router";
-
-
-import ManagerLayout from './layout'
-import Icons from '../../ui/icons'
-import {dataItemsNav, detectNavLevel, getInPageNav} from '../_utils'
-// import SideNav from '../../ui/nav/Side'
-import { ArrowUp, ArrowDown } from '../../ui/icons'
-import { Layout, SideNavContainer } from '../../ui'
+import {dataItemsNav} from '../_utils'
 import { CMSContext } from '../../context'
-import { themeOptions } from '../../ui/theme'
+import { themeOptions } from './themeOptions'
+import {ThemeContext} from "../../../../ui/useTheme";
 
 
 function SelectControl ({ themeOptions, theme, newTheme, setNewTheme, sectionKey, navKey, controlKey }) 
@@ -103,6 +96,8 @@ function MenuItemsEditor({onSave, onCancel, items}) {
 
 
 function MenuControl ({ themeOptions, theme, newTheme, setNewTheme, sectionKey, navKey, controlKey })  {
+    const {UI} = useContext(CMSContext);
+    const {Icon} = UI;
     let [editIndex, setEditIndex] = React.useState(-2)
 
     //console.log('test 123', navKey, controlKey, newTheme.navOptions?.[navKey]?.[controlKey])
@@ -139,12 +134,12 @@ function MenuControl ({ themeOptions, theme, newTheme, setNewTheme, sectionKey, 
                         <span className='font-medium text-slate-600'>{d.name}</span> <span className='text-slate-400'>{d.path}</span> 
                       </div>
                       <div onClick={() => { console.log('pencil click', i); setEditIndex(i); }}>
-                        <Icons.PencilIcon 
+                        <Icon icon={'PencilIcon'}
                           className='h-5 w-5 cursor-pointer text-slate-500 hover:text-blue-500'
                         />
                       </div>
                       <div>
-                        <Icons.RemoveCircle 
+                        <Icon icon={'RemoveCircle'}
                           onClick={() => {
                             console.log('menuItems', menuItems)
                             menuItems.splice(i,1)
@@ -191,8 +186,9 @@ const controls = {
 }
 
 function DesignEditor ({item, dataItems, attributes, apiLoad, apiUpdate, format, logo, rightMenu,themes, ...props}) {
- 
-  const { baseUrl, theme, user } = React.useContext(CMSContext) || {}
+    const { theme } = React.useContext(ThemeContext);
+    const { baseUrl, UI } = React.useContext(CMSContext) || {}
+    const {Layout, SideNavContainer, Icon} = UI;
   const [ newTheme, setNewTheme ] = React.useState({})
   const [ pattern, setPattern ] = React.useState({})
   // console.log('test', pattern,newTheme)
@@ -291,7 +287,7 @@ function DesignEditor ({item, dataItems, attributes, apiLoad, apiUpdate, format,
                               <span className="text-xs/6 font-bold text-slate-700 group-data-[hover]:text-slate-700/80">
                                 {themeOptions[sectionKey][navKey].label}
                               </span>
-                              <span >{ open ? <ArrowUp className='text-slate-400 h-6 w-6 mr-2'/> : <ArrowDown className='text-slate-400 h-6 w-6 mr-2' /> }</span>
+                              <span >{ open ? <Icon icon={'ArrowUp'} className='text-slate-400 h-6 w-6 mr-2'/> : <Icon icon={'ArrowDown'} className='text-slate-400 h-6 w-6 mr-2' /> }</span>
                             </DisclosureButton>
                             <DisclosurePanel className="text-xs/5 text-slate-700/50 py-1 px-2">
                               {

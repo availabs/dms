@@ -1,13 +1,14 @@
-import React, {Fragment, useState} from 'react'
+import React from 'react'
 import { cloneDeep, set } from 'lodash-es'
-import { Button, Menu, FieldSet, Icon } from '../../../ui'
 import { v4 as uuidv4 } from 'uuid';
 import { CMSContext,PageContext } from '../../../context'
+import {ThemeContext} from "../../../../../ui/useTheme";
 
 function SectionGroupControl ({group}) {
-  const { theme  } = React.useContext(CMSContext) || {}
+    const { theme } = React.useContext(ThemeContext) || {};
   const { item, apiUpdate } =  React.useContext(PageContext) || {}
-
+    const {UI} = React.useContext(CMSContext);
+  const {Menu, Icon} = UI;
   const updateAttribute = (attr, value) => {
     let newSections = cloneDeep(item.draft_section_groups)
     const updateIndex = newSections.findIndex(d => d.name === group.name)
@@ -86,8 +87,7 @@ function SectionGroupControl ({group}) {
 }
 
 export default function SectionGroupsPane () {
-  const { baseUrl, user, theme  } = React.useContext(CMSContext) || {}
-  const { item, dataItems, apiUpdate } =  React.useContext(PageContext) || {}
+    const { item, apiUpdate } =  React.useContext(PageContext) || {}
 
   const sectionTargets = ['top', 'content','bottom']
   const addSectionGroup = (target) => {

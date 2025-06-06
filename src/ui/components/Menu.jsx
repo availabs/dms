@@ -1,6 +1,6 @@
 import React, { useRef, forwardRef } from 'react';
 import { MenuSeparator } from '@headlessui/react'
-import useTheme from '../useTheme'
+import {ThemeContext} from '../useTheme'
 import Icon from "./Icon"
 export const menuTheme = {
   menuItems: 'absolute z-40 -mr-1 mt-1 w-64 p-1 origin-top-left rounded-md bg-white shadow-lg ring-1 ring-black/5 transition focus:outline-none data-[closed]:scale-95 data-[closed]:transform data-[closed]:opacity-0 data-[enter]:duration-50 data-[leave]:duration-75 data-[enter]:ease-out data-[leave]:ease-in'
@@ -68,7 +68,7 @@ const ItemTypes = {
 // left-8 -top-2
 export default function MenuComp ({ children, items=defaultItems, zIndex=40, origin='right-0' }) {
   const [open, setOpen] = React.useState(false)
-  const theme = useTheme()
+    const { theme = {menu: menuTheme} } = React.useContext(ThemeContext);
   //const { theme = { menu: menuTheme } } = React.useContext(CMSContext) || {}
   
   return (

@@ -3,7 +3,7 @@ import {createBrowserRouter, Outlet, RouterProvider} from "react-router";
 
 //import {  adminConfig } from "./modules/dms/src/"
 import { dmsDataLoader, dmsPageFactory, registerDataType } from '../../'
-import Selector from '../../patterns/page/ui/dataComponents/selector'
+import Selector from '../page/components/selector'
 import { falcorGraph, useFalcor } from "@availabs/avl-falcor"
 import { cloneDeep } from "lodash-es"
 

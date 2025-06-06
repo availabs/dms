@@ -4,7 +4,7 @@ import Select from './Select'
 import Listbox from './Listbox'
 import Input, { ConfirmInput } from './Input'
 
-import useTheme from '../useTheme';
+import {ThemeContext} from '../useTheme';
 
 
 const componentRegistry= {
@@ -22,8 +22,6 @@ export const fieldTheme = {
 
 
 export default function FieldSetComp ({ components }) {
-  const theme = useTheme();
-  //const { theme = { ield: fieldTheme } } = React.useContext(CMSContext) || {}
   return (
     <Fieldset>
       {
@@ -41,7 +39,7 @@ export default function FieldSetComp ({ components }) {
 }
 
 export function FieldComp  ({ label, description, children}) {
-  const theme = useTheme();
+  const { theme = {field: fieldTheme} } = React.useContext(ThemeContext);
   //const { theme = { input: inputTheme, field: fieldTheme } } = React.useContext(CMSContext) || {}
   return (
     <Field className={theme.field.field}>

@@ -3,7 +3,6 @@ import {Dialog, DialogPanel, Input, Transition} from '@headlessui/react'
 import {dmsDataLoader} from "../../../../api";
 import {CMSContext} from "../../context";
 import {boldMatchingText, getScore, searchTypeMapping} from "./SearchPage";
-import {ArrowRight} from "../../../admin/ui/icons";
 
 export const SearchButton = ({app, type}) => {
     const [open, setOpen] = useState(false)
