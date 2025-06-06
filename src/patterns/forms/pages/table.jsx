@@ -8,6 +8,9 @@ import {cloneDeep, uniqBy} from "lodash-es";
 import {Controls} from "~/modules/dms/src/patterns/page/ui/dataComponents/selector/dataWrapper/components/Controls";
 import {ComponentContext} from "../../page/siteConfig";
 import {useImmer} from "use-immer";
+import {
+    RenderFilters
+} from "~/modules/dms/src/patterns/page/ui/dataComponents/selector/ComponentRegistry/shared/filters/RenderFilters";
 
 const TableView = ({apiUpdate, apiLoad, format, item, params}) => {
     const { baseUrl, pageBaseUrl, theme, user } = useContext(FormsContext) || {};
@@ -93,6 +96,7 @@ const TableView = ({apiUpdate, apiLoad, format, item, params}) => {
                             app: item.app
                         }}>
                             <Controls />
+                            <RenderFilters state={value} setState={setValue} apiLoad={apiLoad} isEdit={true} defaultOpen={true} />
                             <DataWrapper.EditComp
                                 component={SpreadSheetCompWithControls}
                                 key={'table-page-spreadsheet'}

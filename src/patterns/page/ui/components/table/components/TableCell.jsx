@@ -91,7 +91,7 @@ export const TableCell = ({
         // send update to api
         if (!(editing && allowEdit)) return;
 
-        if (!isEqual(rawValue, item[attribute.name]) && UpdateItem){
+        if (!isEqual(rawValue, item[attribute.name]) && updateItem){
             updateItem(undefined, undefined, newItem)
         }
 
