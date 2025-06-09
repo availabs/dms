@@ -18,6 +18,7 @@ import {
 	initNavigateUsingSearchParams
 } from '../_utils'
 import SectionGroup from '../../components/sections/sectionGroup'
+import SearchButton from '../../components/search'
 import PageControls from './editPane'
 
 
@@ -32,7 +33,7 @@ function PageEdit ({
 	const submit = useSubmit();
 	const { pathname = '/edit', search } = useLocation();
 	const { theme: fullTheme } = React.useContext(ThemeContext);
-	const { UI,baseUrl, user, patternFilters=[] } = React.useContext(CMSContext) || {};
+	const { UI, Menu, baseUrl, user, patternFilters=[] } = React.useContext(CMSContext) || {};
 	const { Layout } = UI;
 	const [ editPane, setEditPane ] = React.useState({ open: false, index: 1, showGrid: false });
 	const [pageState, setPageState] =
@@ -154,6 +155,8 @@ function PageEdit ({
 					navItems={menuItems}
 					secondNav={menuItemsSecondNav}
 					pageTheme={{navOptions: item.navOptions || {}}}
+					Menu={Menu}
+          SearchButton={SearchButton}
 				>
 					{React.useMemo(() => getSectionGroups('content'),[item?.draft_section_groups])}
 				</Layout>

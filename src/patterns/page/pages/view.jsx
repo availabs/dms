@@ -12,6 +12,7 @@ import { /*sectionsBackill,*/
 } from './_utils'
 
 import SectionGroup from '../components/sections/sectionGroup'
+import SearchButton from '../components/search'
 //import {PDF, PencilEditSquare, Printer} from '../ui/icons'
 //import {selectablePDF} from "../components/saveAsPDF/PrintWell/selectablePDF";
 import { PageContext, CMSContext } from '../context';
@@ -24,7 +25,7 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
     const navigate = useNavigate()
     const [searchParams] = useSearchParams();
     const {theme: fullTheme} = useContext(ThemeContext);
-    const { UI, baseUrl, patternFilters=[], user, API_HOST } = React.useContext(CMSContext) || {};
+    const { UI, Menu, baseUrl, patternFilters=[], user, API_HOST } = React.useContext(CMSContext) || {};
     const {Layout} = UI;
     const [pageState, setPageState] =
         useImmer({
@@ -123,6 +124,8 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
                     navItems={menuItems}
                     secondNav={menuItemsSecondNav}
                     pageTheme={{navOptions: item.navOptions || {}}}
+                    Menu={Menu}
+                    SearchButton={SearchButton}
                 >
                     {getSectionGroups('content')}
                 </Layout>

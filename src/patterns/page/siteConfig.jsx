@@ -30,20 +30,20 @@ import defaultTheme from '../../ui/defaultTheme.json'
 registerDataType("selector", Selector)
 
 const pagesConfig = ({
-                       app = "dms-site",
-                       type = "docs-page",
-                       siteType,
-                       rightMenu = <DefaultMenu />,
-                       baseUrl = '/',
-                       damaBaseUrl,
-                       logo, // deprecated
-                       authLevel = -1,
-                       themes = { default: {} },
-                       pattern,
-                       site,
-                       pgEnv,
-                       API_HOST
-                     }) => {
+  app = "dms-site",
+  type = "docs-page",
+  siteType,
+  rightMenu = <DefaultMenu />,
+  baseUrl = '/',
+  damaBaseUrl,
+  logo, // deprecated
+  authLevel = -1,
+  themes = { default: {} },
+  pattern,
+  site,
+  pgEnv,
+  API_HOST
+}) => {
   //console.log('pagesConfig')
   let theme = merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern?.theme?.settings?.theme?.theme] || themes.default), cloneDeep(pattern?.theme) || {})
   //console.log('pageConfig', pattern.doc_type, pattern.id, themes[pattern?.theme?.settings?.theme?.theme], pattern?.theme, pattern)
@@ -72,10 +72,11 @@ const pagesConfig = ({
   //console.log('foramat after update', app, type, format)
 
 
-  // console.log('pgEnv siteConfig', app, type, pgEnv)
+  // ---------------------------------------------
   // for instances without auth turned on, default user can edit
   // should move this to dmsFactory default authWrapper
   const defaultUser = { email: "user", authLevel: 10, authed: true, fake: true}
+  // ---------------------------------------------
   const patternFilters = parseIfJSON(pattern?.filters, []);
   // const rightMenuWithSearch = rightMenu; // for live site
   return {
@@ -90,7 +91,18 @@ const pagesConfig = ({
           const {falcor = {}, falcorCache = {}} = uf;
           // console.log('hola', user, defaultUser, user || defaultUser)
           return (
-              <CMSContext.Provider value={{UI, API_HOST, baseUrl, damaBaseUrl, user, falcor, falcorCache, pgEnv, app, type, siteType, patternFilters, Menu: () => <>{rightMenu}</> }} >
+              <CMSContext.Provider value={{
+                app, type, siteType,
+                UI, 
+                API_HOST, 
+                baseUrl, 
+                pgEnv, damaBaseUrl, 
+                user, 
+                falcor, 
+                falcorCache, 
+                patternFilters, 
+                Menu: () => <>{rightMenu}</> 
+              }}>
                 <ThemeContext.Provider value={{theme}}>
                   {children}
                 </ThemeContext.Provider>

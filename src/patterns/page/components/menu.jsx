@@ -1,6 +1,7 @@
 import React, {useContext} from "react"
 import {Link, useLocation} from 'react-router'
 import { CMSContext } from '../context'
+import { ThemeContext } from "../../../ui/useTheme";
 
 // import {NavItem, NavMenu, NavMenuItem, NavMenuSeparator, withAuth} from 'components/avl-components/src'
 // import user from "@availabs/ams/dist/reducers/user";
@@ -33,7 +34,8 @@ export const Item = ({to, icon,children}) => (
 
 
 export default ({title, children}) => {
-    const { user, baseUrl, theme, UI } = React.useContext(CMSContext)
+    const { user, baseUrl, UI } = React.useContext(CMSContext)
+    const { theme } = React.useContext(ThemeContext)
     const {Dropdown} = UI;
     const location = useLocation();
     let authMenuItems = theme?.navOptions?.authMenu?.navItems || [

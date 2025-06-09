@@ -47,7 +47,7 @@ const Layout = ({
 	pageTheme, 
 	EditPane, 
 	Menu=NoComp,
-	SearchButton=NoComp
+	SearchButton=NoComp,
 	yPadding = '0px', 
 	...props 
 	}) => {

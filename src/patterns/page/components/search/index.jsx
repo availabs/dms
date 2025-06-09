@@ -4,10 +4,10 @@ import {dmsDataLoader} from "../../../../api";
 import {CMSContext} from "../../context";
 import {boldMatchingText, getScore, searchTypeMapping} from "./SearchPage";
 
-export const SearchButton = ({app, type}) => {
+export default function SearchButton ({app, type}) {
     const [open, setOpen] = useState(false)
-    const {UI} = useContext(CMSContext);
-    const {Icon} = UI;
+    const { UI } = useContext(CMSContext);
+    const { Icon } = UI;
     return (
         <>
             <button
