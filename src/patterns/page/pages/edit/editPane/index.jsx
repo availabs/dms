@@ -26,7 +26,7 @@ const panes = [
 
 export function EditPane () {
   const { UI } = React.useContext(CMSContext) || {};
-  const {Icon} = UI;
+  const { Icon } = UI;
   const {item, dataItems, apiUpdate, editPane, setEditPane } =  React.useContext(PageContext) || {}
   const hasChanges = item.published === 'draft' || item.has_changes
 

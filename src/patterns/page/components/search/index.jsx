@@ -4,10 +4,10 @@ import {dmsDataLoader} from "../../../../api";
 import {CMSContext} from "../../context";
 import {boldMatchingText, getScore, searchTypeMapping} from "./SearchPage";
 
-export const SearchButton = ({app, type}) => {
+export default function SearchButton ({app, type}) {
     const [open, setOpen] = useState(false)
-    const {UI} = useContext(CMSContext);
-    const {Icon} = UI;
+    const { UI } = useContext(CMSContext);
+    const { Icon } = UI;
     return (
         <>
             <button
@@ -299,7 +299,7 @@ export const SearchPallet = ({open, setOpen, app, type, searchStr}) => {
                                         }}
                                     />
                                     <div className={'p-0.5'}>
-                                        <Search height={24} width={24} className={theme.searchIcon}/>
+                                        <Icon icon={'Search'} />
                                     </div>
                                     {/*<Link*/}
                                     {/*    className={'fa-light fa-arrow-up-right-from-square h-5 w-5 text-gray-400'}*/}

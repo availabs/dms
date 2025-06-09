@@ -8,7 +8,7 @@ import {ThemeContext} from '../useTheme.js'
 
 
 const Logos = () => <div className='h-12'/>
-const SearchButton = () => <div className='h-12'/>
+const NoComp = () => <div className='h-12'/>
 
 const layoutTheme = {
 	wrapper: 'relative isolate flex min-h-svh w-full max-lg:flex-col',
@@ -39,7 +39,18 @@ function nav2Level(items, level=1, path, navTitle='') {
 	return output || items
 }
 
-const Layout = ({ children, navItems, secondNav, title, pageTheme, EditPane, Menu=Logos, yPadding = '0px', ...props }) => {
+const Layout = ({ 
+	children, 
+	navItems, 
+	secondNav,
+	title, 
+	pageTheme, 
+	EditPane, 
+	Menu=NoComp,
+	SearchButton=NoComp,
+	yPadding = '0px', 
+	...props 
+	}) => {
 	
 	// ------------------------------------------------------
 	// ------- Get Options from Context and Defaults
@@ -48,7 +59,7 @@ const Layout = ({ children, navItems, secondNav, title, pageTheme, EditPane, Men
 	const { pathname } = useLocation();
 	const theme = merge(cloneDeep(defaultTheme), cloneDeep(pageTheme))
 	// console.log('theme navOptions', pageTheme)
-	const { sideNav={ }, topNav={}, logo=Logos } = cloneDeep(theme?.navOptions) || {}
+	const { sideNav={ }, topNav={}, logo=NoComp } = cloneDeep(theme?.navOptions) || {}
 	
 	const sideNavOptions = {
 		size: sideNav.size || 'none',

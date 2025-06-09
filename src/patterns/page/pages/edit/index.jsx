@@ -18,6 +18,7 @@ import {
 	initNavigateUsingSearchParams
 } from '../_utils'
 import SectionGroup from '../../components/sections/sectionGroup'
+import SearchButton from '../../components/search'
 import PageControls from './editPane'
 
 
@@ -32,7 +33,7 @@ function PageEdit ({
 	const submit = useSubmit();
 	const { pathname = '/edit', search } = useLocation();
 	const { theme: fullTheme } = React.useContext(ThemeContext);
-	const { UI,baseUrl, user, patternFilters=[] } = React.useContext(CMSContext) || {};
+	const { UI, Menu, baseUrl, user, patternFilters=[] } = React.useContext(CMSContext) || {};
 	const { Layout } = UI;
 	const [ editPane, setEditPane ] = React.useState({ open: false, index: 1, showGrid: false });
 	const [pageState, setPageState] =
@@ -40,6 +41,7 @@ function PageEdit ({
 			...item,
 			filters: mergeFilters(item.filters, patternFilters)
 		});
+	const theme = merge(cloneDeep(fullTheme), item?.theme || {})
 
 	const menuItems = React.useMemo(() => {
 		let items = dataItemsNav(dataItems,baseUrl,true)
@@ -53,7 +55,7 @@ function PageEdit ({
 	}, [theme?.navOptions?.secondaryNav?.navItems])
 
 	// console.log('-----------render edit----------------', item.draft_sections.length, item.draft_section_groups.length)
-	let theme = merge(cloneDeep(theme), item?.theme || {})
+	
 	const level = item?.index == '999' || theme?.navOptions?.topNav?.nav !== 'main' ? 1 : detectNavLevel(dataItems, baseUrl);
 	const inPageNav = getInPageNav(item, theme);
 	const sectionAttr = attributes?.['sections']?.attributes || {}
@@ -153,6 +155,8 @@ function PageEdit ({
 					navItems={menuItems}
 					secondNav={menuItemsSecondNav}
 					pageTheme={{navOptions: item.navOptions || {}}}
+					Menu={Menu}
+          SearchButton={SearchButton}
 				>
 					{React.useMemo(() => getSectionGroups('content'),[item?.draft_section_groups])}
 				</Layout>
