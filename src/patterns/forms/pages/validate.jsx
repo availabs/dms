@@ -12,7 +12,9 @@ import dataTypes from "../../../data-types";
 import {useImmer} from "use-immer";
 
 import {CMSContext, ComponentContext} from "../../page/context";
-import { RenderFilters } from "../../page/components/selector/ComponentRegistry/shared/filters/RenderFilters";
+import {
+    RenderFilters
+} from "../../page/components/selector/dataWrapper/components/filters/RenderFilters";
 import { Controls } from "../../page/components/selector/dataWrapper/components/Controls";
 
 const getErrorValueSql = (fullName, shortName, options, required, type) => {

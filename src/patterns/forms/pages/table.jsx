@@ -10,7 +10,7 @@ import {ComponentContext} from "../../page/context";
 import {useImmer} from "use-immer";
 import {
     RenderFilters
-} from "../../page/components/selector/ComponentRegistry/shared/filters/RenderFilters";
+} from "../../page/components/selector/dataWrapper/components/filters/RenderFilters";
 import { Controls } from "../../page/components/selector/dataWrapper/components/Controls";
 const TableView = ({apiUpdate, apiLoad, format, item, params}) => {
     const { baseUrl, pageBaseUrl, theme, user } = useContext(FormsContext) || {};
