@@ -27,9 +27,9 @@ export function SectionEdit ({value, i, onChange, attributes, size, onCancel, on
     const { Popover, Button, Icon, Menu, Label } = UI
 
     const updateAttribute = (k, v) => {
-        console.log('change',k,v, {...value, [k]: v})
+        // console.log('change',k,v, {...value, [k]: v})
         if(!isEqual(value, {...value, [k]: v})) {
-            console.log('change',k,v, {...value, [k]: v})
+            // console.log('change',k,v, {...value, [k]: v})
             onChange({...value, [k]: v})
         }
     }
