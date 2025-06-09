@@ -83,8 +83,8 @@ function EditComp(props) {
         }
     }, []);
 
-    //const DataComp = component.useDataSource ? DataWrapper.EditComp : component.EditComp;
-    let DataComp = component.EditComp
+    const DataComp = component.useDataSource ? DataWrapper.EditComp : component.EditComp;
+    // let DataComp = component.EditComp
 
 
     return (
@@ -171,13 +171,13 @@ function ViewComp({value, ...rest}) {
     const [state, setState] = useImmer(convertOldState(value?.['element-data'] || '', initialState(component?.defaultState)));
 
 
-    // let DataComp = state?.hideSection ?
-    // blankComp : !component ?
-    // defaultComp : component.useDataSource ?
-    // DataWrapper.ViewComp : component.ViewComp;
+    let DataComp = state?.hideSection ?
+    blankComp : !component ?
+    defaultComp : component.useDataSource ?
+    DataWrapper.ViewComp : component.ViewComp;
 
-    let DataComp = !component ?
-        defaultComp : component.ViewComp;
+    // let DataComp = !component ?
+    //     defaultComp : component.ViewComp;
     
 
 

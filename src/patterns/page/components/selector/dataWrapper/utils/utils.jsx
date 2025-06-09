@@ -1,4 +1,4 @@
-import {useCallback} from 'react'
+import {useCallback, useEffect} from 'react'
 import { getData as getFilterData } from "../components/filters/utils";
 import {isEqual, uniq} from "lodash-es";
 //import {Icon} from "../../../../index";
