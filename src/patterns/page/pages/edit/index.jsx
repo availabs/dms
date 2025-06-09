@@ -40,6 +40,7 @@ function PageEdit ({
 			...item,
 			filters: mergeFilters(item.filters, patternFilters)
 		});
+	const theme = merge(cloneDeep(fullTheme), item?.theme || {})
 
 	const menuItems = React.useMemo(() => {
 		let items = dataItemsNav(dataItems,baseUrl,true)
@@ -53,7 +54,7 @@ function PageEdit ({
 	}, [theme?.navOptions?.secondaryNav?.navItems])
 
 	// console.log('-----------render edit----------------', item.draft_sections.length, item.draft_section_groups.length)
-	let theme = merge(cloneDeep(theme), item?.theme || {})
+	
 	const level = item?.index == '999' || theme?.navOptions?.topNav?.nav !== 'main' ? 1 : detectNavLevel(dataItems, baseUrl);
 	const inPageNav = getInPageNav(item, theme);
 	const sectionAttr = attributes?.['sections']?.attributes || {}

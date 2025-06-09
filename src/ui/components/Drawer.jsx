@@ -1,7 +1,6 @@
 import React, {Fragment, useState, useEffect} from 'react'
 import { Dialog, Transition } from '@headlessui/react'
 import Icon from './Icon'
-import { CMSContext } from '../../patterns/page/context';
 // TO DO - theme this comp
 
 // export default function Drawer ({ open, setOpen, CloseIcon=XMark, width='max-w-64', children, closeOnClick=true }) {
@@ -47,11 +46,9 @@ import { CMSContext } from '../../patterns/page/context';
 //   )
 // }
 
-export default function Drawer ({ open, setOpen, CloseIcon:CloseIconFromProps, width='max-w-64', children, closeOnClick=true }) {
-  const CloseIcon = typeof CloseIconFromProps === 'string' ? <Icon icon={CloseIconFromProps} /> :
-      CloseIconFromProps ? <CloseIconFromProps /> : <Icon icon={'XMark'} />
+export default function Drawer ({ open, setOpen, width='max-w-64', children, closeOnClick=true }) {
   return (
-    <Transition.Root  as={Fragment} show={open}>
+    <Transition.Root as={Fragment} show={open}>
       <Transition.Child
         as={Fragment}
         enter="transform transition ease-in-out duration-500 sm:duration-700"
@@ -71,7 +68,7 @@ export default function Drawer ({ open, setOpen, CloseIcon:CloseIconFromProps, w
               >
                 <span className="absolute -inset-2.5" />
                 <span className="sr-only">Close panel</span>
-                <CloseIcon className="size-6" aria-hidden="true" />
+                <Icon icon={'XMark'}  className="size-6" aria-hidden="true" />
               </button>
             </div>
           </div>
