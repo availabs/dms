@@ -1,5 +1,5 @@
 import React, {useEffect} from 'react'
-import { useLoaderData, useActionData, useParams,useSubmit, useLocation } from "react-router";
+import { useLoaderData, useActionData,useSubmit, useLocation, useNavigate } from "react-router";
 import { getAttributes,filterParams } from './_utils'
 import { dmsDataEditor, dmsDataLoader } from '../index'
 import { useFalcor } from '../../../avl-falcor';//"@availabs/avl-falcor"
@@ -21,7 +21,8 @@ export default function EditWrapper({ Component, format, options, params, user, 
 	const {app, type} = format;
 	const attributes = getAttributes(format, options, 'edit')
 	const submit = useSubmit();
-	const { pathname, search } = useLocation()
+	const { pathname, search } = useLocation();
+	const navigate = useNavigate();
 	const { data=[] } = useLoaderData()
 	const [ busy, setBusy ] = React.useState({updating: 0, loading: 0})
 	let status = useActionData()
@@ -65,7 +66,7 @@ export default function EditWrapper({ Component, format, options, params, user, 
 	const apiUpdate = async ({data, config = {format}, requestType='', newPath=`${pathname}${search}`}) => {
 		setBusy((prevState) => { return {...prevState, updating: prevState.updating+1 }})
 		const res = await dmsDataEditor(falcor, config, data, requestType);
-		submit(null, {action: newPath })
+		navigate(newPath || `${pathname}${search}`) //submit with null target doesn't carry search
 		setBusy((prevState) => { return {...prevState, updating: prevState.updating-1 }})
 		if(!data.id) return res; // return id if apiUpdate was used to create an entry.
 		if(data.app !== app || data.type !== type) return; // if apiUpdate was used to manually update something, don't refresh.
