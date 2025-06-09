@@ -38,8 +38,8 @@ export default function DialogComp({ size = 'lg', open=false, onClose=()=>{}, cl
             transition
             className={`
               ${className}
-              ${theme.dialog.sizes[size]}
-              ${theme.dialog.dialogPanel}
+              ${theme?.dialog?.sizes?.[size]}
+              ${theme?.dialog?.dialogPanel}
             `}
           >
             {children}

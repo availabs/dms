@@ -2,6 +2,7 @@ import {handleMouseDown, handleMouseMove, handleMouseUp} from "./utils/mouse";
 import TableHeaderCell from "./components/TableHeaderCell";
 import {TableRow} from "./components/TableRow";
 import React, {useMemo} from "react";
+import { ThemeContext } from '../../useTheme'
 
 export const defaultNumColSize = 20;
 export const defaultGutterColSize = 20;
@@ -37,7 +38,7 @@ export const tableTheme = {
 }
 
 export default function ({
-    theme= {table: tableTheme}, paginationActive, gridRef,
+    paginationActive, gridRef,
     isDragging, setIsDragging, selection=[], setSelection,
     allowEdit, isSelecting, editing, setEditing, selectionRange, triggerSelectionDelete,
     startCellCol, startCellRow,
@@ -45,6 +46,7 @@ export default function ({
     numColSize=defaultNumColSize, gutterColSize=defaultGutterColSize, frozenColClass, frozenCols=[], colResizer,
     columns, data, display, controls, setState
 }) {
+    const { theme = {table: tableTheme}} = React.useContext(ThemeContext) || {}
     const visibleAttrsWithoutOpenOut = useMemo(() => columns.filter(({show, openOut}) => show && !openOut), [columns]);
 
     return (

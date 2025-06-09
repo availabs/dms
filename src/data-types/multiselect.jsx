@@ -1,6 +1,10 @@
 import React, {useEffect, useRef, useState} from "react"
 
-const ArrowDown = () => <div>^</div>
+const ArrowDown = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={24} height={24} stroke="currentColor" fill={"none"} {...props}>
+    <path d="M18 9.00005C18 9.00005 13.5811 15 12 15C10.4188 15 6 9 6 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
 
 const theme = {
     multiselect: {
@@ -10,7 +14,7 @@ const theme = {
         tokenWrapper:'flex px-2 py-1 mx-1 bg-gray-100 hover:bg-gray-300 rounded-md transition ease-in',
         removeIcon:'fa fa-x px-1 text-xs text-red-300 hover:text-red-500 self-center transition ease-in',
         menuWrapper:'p-2 shadow-lg z-10',
-        menuItem:'px-2 py-1 hover:bg-gray-300 hover:cursor-pointer transition ease-in',
+        menuItem:'px-2 py-1 hover:bg-blue-300 hover:cursor-pointer transition ease-in',
     }
 }
 

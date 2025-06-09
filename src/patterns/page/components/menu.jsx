@@ -11,7 +11,7 @@ const UserMenu = ({user}) => {
     const {Icon} = UI;
     return (
         <div className={`h-[47px] w-[47px] border border-[#E0EBF0] rounded-full place-items-center content-center`}>
-            <Icon icon={'user'} height={24} width={24} />
+            <Icon icon={'User'} className='size-6 fill-[#37576b]' />
         </div>
     )
 }
@@ -57,7 +57,7 @@ export default ({title, children}) => {
         <>
             {!user.authed ?            
                 <Link className={`flex items-center px-8 text-lg font-bold h-12 text-slate-500 px-4`} to="/auth/login" state={{from: location?.pathname}}>Login</Link> :
-                <Dropdown control={<UserMenu user={user}/>} className={``} >
+                <Dropdown control={<div className={'px-1'}><UserMenu user={user}/></div>} className={``} >
                     <div className='p-1 bg-blue-500 z-30'>
                        
                         <div className='text-white py-2'>

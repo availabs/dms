@@ -2,7 +2,8 @@ import React, {useContext, useEffect, useState} from "react";
 import {merge, cloneDeep} from 'lodash-es';
 import {ColorPickerComp} from "./components/colorPickerComp";
 import theme from './theme'
-import {CMSContext} from "../../../../context";
+import { CMSContext } from "../../../../context";
+import { ThemeContext } from "../../../../../../ui/useTheme";
 import LexicalComp from "./lexical";
 
 const isJson = (str)  => {
@@ -160,8 +161,8 @@ const Edit = ({value, onChange}) => {
                             bgColor={bgColor}
                             theme={{
                                 lexical: isCard ?
-                                    merge(cloneDeep(theme), cloneDeep(cardTypes?.[isCard] || cardTypes?.['Annotation']), {Icons: context?.theme?.Icons || {}}) :
-                                    merge(theme, {Icons: context?.theme?.Icons || {}})
+                                    merge(cloneDeep(theme.lexical), cloneDeep(cardTypes?.[isCard] || cardTypes?.['Annotation']), {Icons: theme?.Icons || {}}) :
+                                    merge(theme.lexical,  {Icons: theme?.Icons || {}})
                             }}
                         />
                     </div>
@@ -178,6 +179,7 @@ Edit.settings = {
 
 const View = ({value}) => {
     const context = useContext(CMSContext);
+    const { theme } = useContext(ThemeContext)
     if (!value) return <div className='h-6' />
     let data = typeof value === 'object' ?
         value['element-data'] :
@@ -203,8 +205,8 @@ const View = ({value}) => {
                 bgColor={data?.bgColor}
                 theme={{
                     lexical: isCard ?
-                         merge(cloneDeep(theme), cloneDeep(cardTypes?.[isCard] || cardTypes?.['Annotation']), {Icons: context?.theme?.Icons || {}}) :
-                        merge(theme, {Icons: context?.theme?.Icons || {}})
+                        merge(cloneDeep(theme.lexical), cloneDeep(cardTypes?.[isCard] || cardTypes?.['Annotation']), {Icons: theme?.Icons || {}}) :
+                        merge(theme.lexical,  {Icons: theme?.Icons || {}})
                 }}/>
             </div>
         </div>

@@ -5,6 +5,7 @@ import DataTypes from "../../../../data-types";
 import {formatFunctions} from "../../../../patterns/page/components/selector/dataWrapper/utils/utils";
 
 import { RenderAction } from "./RenderActions";
+//import { ThemeContext } from '../../../useTheme'
 
 const InfoCircle = () => <div>i</div> //- get this from theme in future
 
@@ -52,6 +53,7 @@ export const TableCell = ({
     isFrozen, isSelected, isSelecting, editing, edge, loading, allowEdit,
     onClick, onDoubleClick, onMouseDown, onMouseMove, onMouseUp
 }) => {
+    //const { theme = {table: tableTheme}} =  = React.useContext(ThemeContext) || {}
     const [newItem, setNewItem] = useState(item);
     const rawValue = newItem[attribute.normalName] || newItem[attribute.name]
     // const Comp = DataTypes[attribute.type]?.[isSelecting ? 'ViewComp' : 'EditComp'];

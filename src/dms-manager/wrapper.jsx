@@ -35,7 +35,7 @@ export default function EditWrapper({ Component, format, options, params, user, 
 
 	const [item, setItem] = React.useState(
 		defaultSort(data).filter(d => filterParams(d,params,format))[0]
-		|| {}
+		|| (data[0] || {})
 	)
 	// console.log('item: edit', item)
 	useEffect(() => {
