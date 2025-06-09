@@ -27,43 +27,7 @@ const Components = {
 }
 let childKey = 0
 
-export function getActiveView(config, path, format, user, depth=0) {
-	// add '' to params array to allow root (/) route  matching
-	let activeConfigs = configMatcher(config,path)
 
-	// console.log('activeConfigs', activeConfigs)
-	// get the component for the active config
-	// or the default component
-	return activeConfigs.map(activeConfig => {
-		const comp = activeConfig.type //|| DefaultComponent
-		
-		// get the wrapper for the config, or the default wrapper
-		//console.log('activeConfig Action',activeConfig.action)
-		
-		
-		// if there are children 
-		let children = []
-		if(activeConfig.children) {
-			children = getActiveView(
-				activeConfig.children,
-				path,
-				format,
-				user,
-				depth+1
-			)
-		}
-		// JSX version: deprecated
-		return <Wrapper
-			Component={comp}
-			format={format}
-			key={childKey++}
-			{...activeConfig}
-			children={children}
-			user={user}
-		/>
-		
-	})
-}
 
 // import ThemeContext from '../theme'
 // import defaultTheme from '../theme/default-theme'
@@ -75,10 +39,48 @@ const DmsManager = (props) => {
 		config,
 		path = '',
 		user,
-		navigate
+		navigate,
+		falcor
 	} = props
 
+	function getActiveView(config, path, format, user, depth=0) {
+		// add '' to params array to allow root (/) route  matching
+		let activeConfigs = configMatcher(config,path)
 
+		// console.log('activeConfigs', activeConfigs)
+		// get the component for the active config
+		// or the default component
+		return activeConfigs.map(activeConfig => {
+			const comp = activeConfig.type //|| DefaultComponent
+			
+			// get the wrapper for the config, or the default wrapper
+			//console.log('activeConfig Action',activeConfig.action)
+			
+			
+			// if there are children 
+			let children = []
+			if(activeConfig.children) {
+				children = getActiveView(
+					activeConfig.children,
+					path,
+					format,
+					user,
+					depth+1,
+				)
+			}
+			// JSX version: deprecated
+			return <Wrapper
+				Component={comp}
+				format={format}
+				key={childKey++}
+				{...activeConfig}
+				children={children}
+				user={user}
+				falcor={falcor}
+			/>
+			
+		})
+	}
 	
 	//console.log('dms manager', props)
 	if(!config) { 

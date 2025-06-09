@@ -25,8 +25,18 @@ import PageControls from './editPane'
 
 
 function PageEdit ({
-					   format, item, dataItems, updateAttribute, attributes, setItem, apiLoad, apiUpdate, status, navOptions, busy
-				   }) {
+ format, 
+ item, 
+ dataItems, 
+ updateAttribute, 
+ attributes, 
+ setItem, 
+ apiLoad, 
+ apiUpdate, 
+ status, 
+ navOptions, 
+ busy
+}) {
 	// console.log('props in pageEdit', siteType)
 	const navigate = useNavigate();
 	const [searchParams] = useSearchParams();
@@ -147,7 +157,18 @@ function PageEdit ({
 
 	if(!item) return;
 	return (
-		<PageContext.Provider value={{ item, pageState, setPageState, updatePageStateFilters, dataItems, apiLoad, apiUpdate, updateAttribute, editPane, setEditPane, format, busy }} >
+		<PageContext.Provider value={{ 
+			item,
+			pageState, 
+			setPageState, 
+			updatePageStateFilters, 
+			dataItems, 
+			apiLoad, apiUpdate,
+			updateAttribute, 
+			editPane, setEditPane, 
+			format,
+			busy 
+		}}>
 			<div className={`${theme?.page?.container}`}>
 				<PageControls />
 				{React.useMemo(() => getSectionGroups('top'),[item?.draft_section_groups])}

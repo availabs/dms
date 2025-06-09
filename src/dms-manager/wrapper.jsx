@@ -2,7 +2,6 @@ import React, {useEffect} from 'react'
 import { useLoaderData, useActionData,useSubmit, useLocation, useNavigate } from "react-router";
 import { getAttributes,filterParams } from './_utils'
 import { dmsDataEditor, dmsDataLoader } from '../index'
-import { useFalcor } from '../../../avl-falcor';//"@availabs/avl-falcor"
 import { isEqual } from "lodash-es"
 //import { useImmer } from "use-immer";
 
@@ -15,9 +14,8 @@ const json2DmsForm = (data,requestType='update') => {
   return out
 }
 
-export default function EditWrapper({ Component, format, options, params, user, ...props}) {
-	const uf = useFalcor() || {}
-	const {falcor = {}} = uf;
+export default function EditWrapper({ Component, format, options, params, user, falcor, ...props}) {
+
 	const {app, type} = format;
 	const attributes = getAttributes(format, options, 'edit')
 	const submit = useSubmit();
@@ -43,7 +41,6 @@ export default function EditWrapper({ Component, format, options, params, user, 
 		// update item on data update
 		if(!isEqual(item,filteredItem) && filteredItem){
 			//console.log('setItem', item, filteredItem)
-			//console.log('updating item')
 			setItem( filteredItem || {})
 		}
 	},[data,params])
@@ -66,7 +63,8 @@ export default function EditWrapper({ Component, format, options, params, user, 
 	const apiUpdate = async ({data, config = {format}, requestType='', newPath=`${pathname}${search}`}) => {
 		setBusy((prevState) => { return {...prevState, updating: prevState.updating+1 }})
 		const res = await dmsDataEditor(falcor, config, data, requestType);
-		navigate(newPath || `${pathname}${search}`) //submit with null target doesn't carry search
+		//navigate(newPath || `${pathname}${search}`) //submit with null target doesn't carry search
+		submit(null, {action: newPath })
 		setBusy((prevState) => { return {...prevState, updating: prevState.updating-1 }})
 		if(!data.id) return res; // return id if apiUpdate was used to create an entry.
 		if(data.app !== app || data.type !== type) return; // if apiUpdate was used to manually update something, don't refresh.
@@ -98,6 +96,7 @@ export default function EditWrapper({ Component, format, options, params, user, 
 			// -- I believe these are deprecated to apiLoad / apiUpdate / busy
 			submit={submitForm}
 			updateAttribute={updateAttribute}
+			falcor={falcor}
 			// setItem={setItem}
 			// --status={status}		
 			

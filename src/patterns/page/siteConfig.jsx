@@ -19,7 +19,7 @@ import DesignEditor from './pages/manager/design'
 import cmsFormat from "./page.format.js"
 import { CMSContext } from './context'
 import DefaultMenu from './components/menu'
-import { useFalcor } from "../../../../avl-falcor"
+//import { useFalcor } from "../../../../avl-falcor"
 
 import { SearchPage } from "./components/search/SearchPage";
 
@@ -86,9 +86,7 @@ const pagesConfig = ({
     API_HOST,
     children: [
       {
-        type: ({children, user=defaultUser, ...props}) => {
-          const uf = useFalcor() || {}
-          const {falcor = {}, falcorCache = {}} = uf;
+        type: ({children, user=defaultUser, falcor, ...props}) => {
           // console.log('hola', user, defaultUser, user || defaultUser)
           return (
               <CMSContext.Provider value={{
@@ -98,8 +96,7 @@ const pagesConfig = ({
                 baseUrl, 
                 pgEnv, damaBaseUrl, 
                 user, 
-                falcor, 
-                falcorCache, 
+                falcor,
                 patternFilters, 
                 Menu: () => <>{rightMenu}</> 
               }}>

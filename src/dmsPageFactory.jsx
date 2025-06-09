@@ -70,6 +70,7 @@ export default function dmsPageFactory (
           path={ `/${params['*'] || ''}` }
           config={dmsConfig}
           navigate={navigate}
+          falcor={falcor}
         />
       </FalcorProvider>
     ),[params['*']])
