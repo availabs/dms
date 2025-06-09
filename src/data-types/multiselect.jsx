@@ -8,14 +8,18 @@ const ArrowDown = (props) => (
 
 const theme = {
     multiselect: {
-        inputWrapper:'flex px-2 py-1 w-full text-sm font-light border focus:border-blue-300 bg-white hover:bg-gray-100 transition ease-in',
-        mainWrapper:'w-full',
-        input:'focus:outline-none w-full',
-        tokenWrapper:'flex px-2 py-1 mx-1 bg-gray-100 hover:bg-gray-300 rounded-md transition ease-in',
-        removeIcon:'fa fa-x px-1 text-xs text-red-300 hover:text-red-500 self-center transition ease-in',
-        menuWrapper:'p-2 shadow-lg z-10',
-        menuItem:'px-2 py-1 hover:bg-blue-300 hover:cursor-pointer transition ease-in',
-    }
+        view: 'w-full h-full',
+        mainWrapper: 'w-full h-full',
+        inputWrapper: 'flex px-2 py-1 w-full text-sm font-light border focus:border-blue-300 rounded-md bg-white hover:bg-blue-100 transition ease-in',
+        input: 'w-full px-2 py-1 border rounded-lg focus:outline-none',
+        tokenWrapper: 'w-fit flex m-0.5 px-2 py-1 mx-1 bg-[#C5D7E0] text-[#37576B] hover:bg-[#E0EBF0] rounded-md transition ease-in',
+        removeIcon: 'fa fa-xmark px-1 text-xs text-red-500 hover:text-red-600 self-center cursor-pointer transition ease-in',
+        menuWrapper: 'absolute p-2 bg-white w-full max-h-[150px] overflow-auto scrollbar-sm shadow-lg z-10 rounded-lg',
+        menuItem: 'px-2 py-1 text-sm hover:bg-blue-300 hover:cursor-pointer transition ease-in rounded-md',
+        smartMenuWrapper: 'w-full h-full flex flex-wrap',
+        smartMenuItem: 'w-fit px-1 py-0.5 m-1 bg-blue-100 hover:bg-blue-300 hover:cursor-pointer transition ease-in border rounded-lg text-xs',
+        error: 'p-1 text-xs text-red-700 font-bold'
+    },
 }
 
 const looselyEqual = (a, b) => {
