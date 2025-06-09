@@ -9,7 +9,8 @@
 //import './index.css';
 
 import {$isCodeHighlightNode} from '@lexical/code';
-import {$isLinkNode, TOGGLE_LINK_COMMAND} from '@lexical/link';
+import {$isLinkNode} from '@lexical/link';
+import {TOGGLE_LINK_COMMAND} from "../LinkPlugin";
 import {useLexicalComposerContext} from '@lexical/react/LexicalComposerContext';
 import {mergeRegister} from '@lexical/utils';
 import {
@@ -58,11 +59,19 @@ function TextFormatFloatingToolbar({
 
   const insertLink = useCallback(() => {
     if (!isLink) {
-      editor.dispatchCommand(TOGGLE_LINK_COMMAND, 'https://');
+      editor.dispatchCommand(TOGGLE_LINK_COMMAND, {url: 'https://'});
     } else {
-      editor.dispatchCommand(TOGGLE_LINK_COMMAND, null);
+      editor.dispatchCommand(TOGGLE_LINK_COMMAND, {url: ''});
     }
   }, [editor, isLink]);
+
+  // const insertLinkExternal = useCallback(() => {
+  //   if (!isLink) {
+  //     editor.dispatchCommand(TOGGLE_EXTERNAL_LINK_COMMAND, 'https://');
+  //   } else {
+  //     editor.dispatchCommand(TOGGLE_EXTERNAL_LINK_COMMAND, null);
+  //   }
+  // }, [editor, isLink]);
 
   // const insertComment = () => {
   //   editor.dispatchCommand(INSERT_INLINE_COMMAND, undefined);

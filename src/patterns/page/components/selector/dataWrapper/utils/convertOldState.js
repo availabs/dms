@@ -29,7 +29,8 @@ export const convertOldState = (state, initialState) => {
                 ].filter(f => f)
             }
         }))
-        if(oldState.columns.find(c => Array.isArray(c.filters) && c.filters?.find(f => f.usePageFilters || f.allowSearchParams))) oldState.data = [];
+        // if using page filters, or if editing data is allowed, don't cache data.
+        if(oldState?.display?.allowEditInView || oldState.columns.find(c => Array.isArray(c.filters) && c.filters?.find(f => f.usePageFilters || f.allowSearchParams))) oldState.data = [];
         return oldState;
     }
     if(oldState?.dataRequest) {
@@ -40,7 +41,7 @@ export const convertOldState = (state, initialState) => {
             }
             return column
         })
-        if(oldState.columns.find(c => Array.isArray(c.filters) && c.filters?.find(f => f.usePageFilters))) oldState.data = [];
+        if(oldState?.display?.allowEditInView || oldState.columns.find(c => Array.isArray(c.filters) && c.filters?.find(f => f.usePageFilters))) oldState.data = [];
         // if(oldState.display.useCache === undefined) oldState.display.useCache = true;
         return oldState; // return already valid state.}
     }

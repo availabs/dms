@@ -5,10 +5,13 @@ import Spreadsheet from "../../page/components/selector/ComponentRegistry/spread
 import {useNavigate} from "react-router";
 import DataWrapper from "../../page/components/selector/dataWrapper";
 import {cloneDeep, uniqBy} from "lodash-es";
-// import {Controls} from "~/modules/dms/src/patterns/page/ui/dataComponents/selector/dataWrapper/components/Controls";
+
 import {ComponentContext} from "../../page/context";
 import {useImmer} from "use-immer";
-
+import {
+    RenderFilters
+} from "../../page/components/selector/ComponentRegistry/shared/filters/RenderFilters";
+import { Controls } from "../../page/components/selector/dataWrapper/components/Controls";
 const TableView = ({apiUpdate, apiLoad, format, item, params}) => {
     const { baseUrl, pageBaseUrl, theme, user } = useContext(FormsContext) || {};
     const navigate = useNavigate();
@@ -92,7 +95,10 @@ const TableView = ({apiUpdate, apiLoad, format, item, params}) => {
                             controls: SpreadSheetCompWithControls.controls,
                             app: item.app
                         }}>
-                            {/*<Controls />*/}
+
+                            <Controls />
+                            <RenderFilters state={value} setState={setValue} apiLoad={apiLoad} isEdit={true} defaultOpen={true} />
+
                             <DataWrapper.EditComp
                                 component={SpreadSheetCompWithControls}
                                 key={'table-page-spreadsheet'}

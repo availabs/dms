@@ -107,7 +107,12 @@ export const dataCardTheme = {
 
 const DefaultComp = ({value, className}) => <div className={className}>{value}</div>;
 
-const EditComp = ({attribute, value, rawValue, isValueFormatted, id, updateItem, newItem, setNewItem, allowEdit}) => {
+const EditComp = ({
+    attribute, value, rawValue,
+    isValueFormatted, id,
+    updateItem, liveEdit, tmpItem, setTmpItem, allowEdit,
+    isNewItem, newItem, setNewItem, // when allowAddNewItem is on
+}) => {
     const [isEditing, setIsEditing] = useState(false);
     const compRef = useRef(null);
     const compId = `${attribute.name}-${id}-${JSON.stringify(rawValue)}`;
@@ -124,11 +129,157 @@ const EditComp = ({attribute, value, rawValue, isValueFormatted, id, updateItem,
         <Comp value={allowEdit && isValueFormatted ? rawValue : value}
               placeholder={'please enter value...'}
               id={allowEdit && isEditing ? compIdEdit : compId}
-              onChange={newValue => updateItem ? updateItem(newValue, attribute, {id, [attribute.name]: newValue}) :
-                  setNewItem ? setNewItem({...newItem, [attribute.name]: newValue}) : {}} className={allowEdit && !value ? 'border' : ' '}
+              onChange={newValue => {
+                  if(!allowEdit) return;
+
+                  return !liveEdit && setTmpItem ? setTmpItem({...tmpItem, [attribute.name]: newValue}) : // form like edit
+                            liveEdit && updateItem ? updateItem(newValue, attribute, {id, [attribute.name]: newValue}) : // live edit
+                                isNewItem && setNewItem ? setNewItem({...newItem, [attribute.name]: newValue}) : {} // add new item
+              }
+        }
+              className={allowEdit && !value ? 'border' : ' '}
               {...attribute}
         />
     </div>
+}
+
+const RenderItem = ({
+    theme,
+    compactView, reverse, removeBorder, padding, allowAdddNew, headerValueLayout, liveEdit, // state.display
+    isDms, // state.sourceInfo
+    item, newItem, setNewItem, addItem, updateItem, allowEdit,
+    subWrapperStyle,
+    visibleColumns,
+}) => {
+    const [tmpItem, setTmpItem] = useState(item || {}); // for form edit controls
+    return (
+        //  in normal view, grid applied here
+        <div
+             className={`${theme.subWrapper} ${compactView ? `${theme.subWrapperCompactView} ${removeBorder ? `` : 'border shadow'}` : theme.subWrapperSimpleView} `}
+             style={subWrapperStyle}>
+            {
+                visibleColumns
+                    .map(attr => {
+                        const isNewItem = allowAdddNew && !tmpItem.id && isDms && addItem;
+                        const {isLink, location, linkText, isImg, imageSrc, imageLocation, imageExtension, imageSize, imageMargin} = attr || {};
+                        const span = compactView ? 'span 1' : `span ${attr.cardSpan || 1}`;
+                        const rawValue = tmpItem[attr.normalName] || tmpItem[attr.name];
+                        const id = tmpItem?.id;
+                        const value =
+                            isImg ?
+                                <img className={theme[imageSize] || 'max-w-[50px] max-h-[50px]'}
+                                     alt={' '}
+                                     src={imageLocation ?
+                                         `${imageLocation}/${rawValue}${imageExtension ? `.${imageExtension}` : ``}` :
+                                         (imageSrc || rawValue)}
+                                /> :
+                                ['icon', 'color'].includes(attr.formatFn) && formatFunctions[attr.formatFn] ?
+                                    <div className={'flex items-center gap-1.5 uppercase'}>{formatFunctions[attr.formatFn](rawValue, attr.isDollar)}</div> :
+                                    attr.formatFn && formatFunctions[attr.formatFn] ?
+                                        formatFunctions[attr.formatFn](rawValue, attr.isDollar).replaceAll(' ', '') :
+                                        rawValue;
+                        const formatClass = attr.formatFn === 'title' ? 'capitalize' : '';
+                        const isValueFormatted = isImg || isLink || Boolean(formatFunctions[attr.formatFn]);
+                        const headerTextJustifyClass = justifyClass[attr.justify || 'center']?.header || justifyClass[attr.justify || 'center'];
+                        const valueTextJustifyClass = justifyClass[attr.justify || 'center']?.value || justifyClass[attr.justify || 'center'];
+                        return (
+                            <div key={attr.normalName || attr.name}
+                                 className={`
+                                                 ${theme.headerValueWrapper}
+                                                 flex-${headerValueLayout} ${reverse && headerValueLayout === 'col' ? `flex-col-reverse` : reverse ? `flex-row-reverse` : ``}
+                                                 ${compactView ? theme.headerValueWrapperCompactView : `${theme.headerValueWrapperSimpleView} ${removeBorder ? `` : 'border shadow'}`}
+                                                 ${compactView && attr.borderBelow ? `border-b rounded-none ${theme.headerValueWrapperBorderBColor}` : ``}
+                                                 ${compactView && attr.pb ? `pb-[${attr.pb}px]` : ``}
+                                                 `}
+                                 style={{
+                                     gridColumn: span,
+                                     padding: compactView ? undefined : padding,
+                                     marginTop: `${imageMargin}px`,
+                                     backgroundColor: compactView ? undefined : attr.bgColor}}
+                            >
+                                {
+                                    attr.hideHeader ? null : (
+                                        <div className={`
+                                                        ${theme.header} ${compactView ? theme.headerCompactView : theme.headerSimpleView}
+                                                         ${theme[headerTextJustifyClass]}
+                                                          ${theme[attr.headerFontStyle || 'textXS']}
+                                                          
+                                                          `}>
+                                            {attr.customName || attr.display_name || attr.normalName || attr.name}
+                                        </div>
+                                    )
+                                }
+                                <div className={`
+                                                ${theme.value} ${compactView ? theme.valueCompactView : theme.valueSimpleView}
+                                                ${theme[valueTextJustifyClass]}
+                                                 ${theme[attr.valueFontStyle || 'textXS']}
+                                                 ${formatClass}
+                                                 `}>
+                                    {
+                                        isLink && !allowEdit ?
+                                            <Link className={theme.linkColValue}
+                                                  to={`${location || value}${attr.searchParams === 'id' ? encodeURIComponent(id) : attr.searchParams === 'value' ? encodeURIComponent(value) : ``}`}
+                                            >
+                                                <EditComp attribute={attr}
+                                                          value={linkText || value}
+                                                          rawValue={rawValue}
+                                                          isValueFormatted={isValueFormatted}
+                                                          updateItem={isNewItem ? undefined : updateItem}
+
+                                                          // form edit controls
+                                                          liveEdit={liveEdit}
+                                                          tmpItem={tmpItem}
+                                                          setTmpItem={setTmpItem}
+
+                                                          // add new item controls
+                                                          isNewItem={isNewItem}
+                                                          newItem={isNewItem ? newItem : undefined}
+                                                          setNewItem={isNewItem ? setNewItem : undefined}
+
+                                                          id={id}
+                                                          allowEdit={allowEdit}
+                                                />
+                                            </Link> :
+                                            <EditComp attribute={attr}
+                                                      value={value}
+                                                      rawValue={rawValue}
+                                                      isValueFormatted={isValueFormatted}
+                                                      updateItem={isNewItem ? undefined : updateItem}
+
+                                                      // form edit controls
+                                                      liveEdit={liveEdit}
+                                                      tmpItem={tmpItem}
+                                                      setTmpItem={setTmpItem}
+
+                                                      // add new item controls
+                                                      isNewItem={isNewItem}
+                                                      newItem={isNewItem ? newItem : undefined}
+                                                      setNewItem={isNewItem ? setNewItem : undefined}
+
+                                                      id={id}
+                                                      allowEdit={allowEdit}
+                                            />
+                                    }
+                                </div>
+                            </div>
+                        )
+                    })
+            }
+            {
+                allowEdit && !liveEdit ? (
+                    <div className={'self-end flex gap-0.5 text-sm'}>
+                        <button className={'bg-blue-300 hover:bg-blue-400 text-blue-700 rounded-lg w-fit px-2 py-0.5'} onClick={() => updateItem(undefined, undefined, tmpItem)}>save</button>
+                        <button className={'bg-red-300 hover:bg-red-400 text-red-700 rounded-lg w-fit px-2 py-0.5'} onClick={() => setTmpItem(item)}>cancel</button>
+                    </div>
+                ) : null
+            }
+            {
+                allowAdddNew && !item.id && isDms && addItem ? (
+                    <button className={'bg-blue-300 hover:bg-blue-400 text-blue-700 rounded-lg w-fit px-2 py-0.5 text-sm self-end'} onClick={() => addItem()}>add</button>
+                ) : null
+            }
+        </div>
+    )
 }
 
 const Card = ({
@@ -142,7 +293,7 @@ const Card = ({
     const {UI} = useContext(CMSContext);
     const {Icon} = UI;
     const {state:{columns, data, sourceInfo, display}, setState, controls={}} = useContext(ComponentContext);
-    const {compactView, gridSize, gridGap, padding, colGap, headerValueLayout, reverse, hideIfNull, removeBorder, allowAdddNew, bgColor='#FFFFFF'} = display;
+    const {compactView, gridSize, gridGap, padding, colGap, headerValueLayout, reverse, hideIfNull, removeBorder, allowAdddNew, liveEdit, bgColor='#FFFFFF'} = display;
     const [draggedCol, setDraggedCol] = useState(null);
     const visibleColumns = useMemo(() => columns.filter(({show}) => show), [columns]);
     const cardsWithoutSpanLength = useMemo(() => columns.filter(({show, cardSpan}) => show && !cardSpan).length, [columns]);
@@ -223,106 +374,16 @@ const Card = ({
             <div className={gridSize && compactView ? dataCard.mainWrapperCompactView : dataCard.mainWrapperSimpleView} style={mainWrapperStyle}>
                 {
                     (allowAdddNew ? [...data, newItem] : data).map((item, i) => (
-                        //  in normal view, grid applied here
-                        <div key={i}
-                             className={`${dataCard.subWrapper} ${compactView ? `${dataCard.subWrapperCompactView} ${removeBorder ? `` : 'border shadow'}` : dataCard.subWrapperSimpleView} `}
-                             style={subWrapperStyle}>
-                            {
-                                visibleColumns
-                                    .map(attr => {
-                                        const isNewItem = allowAdddNew && !item.id && sourceInfo.isDms && addItem;
-                                        const {isLink, location, linkText, useId, isImg, imageSrc, imageLocation, imageExtension, imageSize, imageMargin} = attr || {};
-                                        const span = compactView ? 'span 1' : `span ${attr.cardSpan || 1}`;
-                                        const rawValue = item[attr.normalName] || item[attr.name];
-                                        const id = item?.id;
-                                        const value =
-                                            isImg ?
-                                                <img className={dataCard[imageSize] || 'max-w-[50px] max-h-[50px]'}
-                                                     alt={' '}
-                                                     src={imageLocation ?
-                                                         `${imageLocation}/${rawValue}${imageExtension ? `.${imageExtension}` : ``}` :
-                                                         (imageSrc || rawValue)}
-                                                /> :
-                                            ['icon', 'color'].includes(attr.formatFn) && formatFunctions[attr.formatFn] ?
-                                                <div className={'flex items-center gap-1.5 uppercase'}>{formatFunctions[attr.formatFn](rawValue, attr.isDollar, Icon)}</div> :
-                                                attr.formatFn && formatFunctions[attr.formatFn] ?
-                                                    formatFunctions[attr.formatFn](rawValue, attr.isDollar).replaceAll(' ', '') :
-                                                    rawValue;
-                                        const formatClass = attr.formatFn === 'title' ? 'capitalize' : '';
-                                        const isValueFormatted = isImg || isLink || Boolean(formatFunctions[attr.formatFn]);
-                                        const headerTextJustifyClass = justifyClass[attr.justify || 'center']?.header || justifyClass[attr.justify || 'center'];
-                                        const valueTextJustifyClass = justifyClass[attr.justify || 'center']?.value || justifyClass[attr.justify || 'center'];
-                                        return (
-                                            <div key={attr.normalName || attr.name}
-                                                 className={`
-                                                 ${dataCard.headerValueWrapper}
-                                                 flex-${headerValueLayout} ${reverse && headerValueLayout === 'col' ? `flex-col-reverse` : reverse ? `flex-row-reverse` : ``}
-                                                 ${compactView ? dataCard.headerValueWrapperCompactView : `${dataCard.headerValueWrapperSimpleView} ${removeBorder ? `` : 'border shadow'}`}
-                                                 ${compactView && attr.borderBelow ? `border-b rounded-none ${dataCard.headerValueWrapperBorderBColor}` : ``}
-                                                 ${compactView && attr.pb ? `pb-[${attr.pb}px]` : ``}
-                                                 `}
-                                                 style={{
-                                                     gridColumn: span,
-                                                     padding: compactView ? undefined : padding,
-                                                     marginTop: `${imageMargin}px`,
-                                                     backgroundColor: compactView ? undefined : attr.bgColor}}
-                                            >
-                                                {
-                                                    attr.hideHeader ? null : (
-                                                        <div className={`
-                                                        ${dataCard.header} ${compactView ? dataCard.headerCompactView : dataCard.headerSimpleView}
-                                                         ${dataCard[headerTextJustifyClass]}
-                                                          ${dataCard[attr.headerFontStyle || 'textXS']}
-
-                                                          `}>
-                                                            {attr.customName || attr.display_name || attr.normalName || attr.name}
-                                                        </div>
-                                                    )
-                                                }
-                                                <div className={`
-                                                ${dataCard.value} ${compactView ? dataCard.valueCompactView : dataCard.valueSimpleView}
-                                                ${dataCard[valueTextJustifyClass]}
-                                                 ${dataCard[attr.valueFontStyle || 'textXS']}
-                                                 ${formatClass}
-                                                 `}>
-                                                    {
-                                                        isLink && !allowEdit ?
-                                                        <Link className={dataCard.linkColValue}
-                                                              to={`${location || value}${attr.searchParams === 'id' ? encodeURIComponent(id) : attr.searchParams === 'value' ? encodeURIComponent(value) : ``}`}
-                                                        >
-                                                            <EditComp attribute={attr}
-                                                                      value={linkText || value}
-                                                                      rawValue={rawValue}
-                                                                      isValueFormatted={isValueFormatted}
-                                                                      updateItem={isNewItem ? undefined : updateItem}
-                                                                      newItem={isNewItem ? newItem : undefined}
-                                                                      setNewItem={isNewItem ? setNewItem : undefined}
-                                                                      id={id}
-                                                                      allowEdit={allowEdit}
-                                                            />
-                                                        </Link> :
-                                                            <EditComp attribute={attr}
-                                                                      value={value}
-                                                                      rawValue={rawValue}
-                                                                      isValueFormatted={isValueFormatted}
-                                                                      updateItem={isNewItem ? undefined : updateItem}
-                                                                      newItem={isNewItem ? newItem : undefined}
-                                                                      setNewItem={isNewItem ? setNewItem : undefined}
-                                                                      id={id}
-                                                                      allowEdit={allowEdit}
-                                                            />
-                                                    }
-                                                </div>
-                                            </div>
-                                        )
-                                    })
-                            }
-                            {
-                                allowAdddNew && !item.id && sourceInfo.isDms && addItem ? (
-                                    <button className={'bg-blue-300 hover:bg-blue-400 text-blue-700 rounded-lg w-fit px-2 py-0.5 text-sm self-end'} onClick={() => addItem()}>add</button>
-                                ) : null
-                            }
-                        </div>
+                        <RenderItem
+                            key={i}
+                            theme={dataCard}
+                            {...display}
+                            isDms={sourceInfo.isDms}
+                            item={item} newItem={newItem} setNewItem={setNewItem}
+                            addItem={addItem} updateItem={updateItem} allowEdit={allowEdit}
+                            subWrapperStyle={subWrapperStyle}
+                            visibleColumns={visibleColumns}
+                        />
                     ))
                 }
             </div>
@@ -356,7 +417,12 @@ export default {
         more: [
             // settings from more dropdown are stored in state.display
             {type: 'toggle', label: 'Attribution', key: 'showAttribution'},
-            {type: 'toggle', label: 'Allow Edit', key: 'allowEditInView'},
+            {type: 'toggle', label: 'Allow Edit', key: 'allowEditInView',
+                onChange: ({value, state}) => {
+                // if editing data is allowed, data should not be cached. unless live edit is used.
+                    if (value) state.display.readyToLoad = true
+                }},
+            {type: 'toggle', label: 'Live Edit', key: 'liveEdit', displayCdn: ({display}) => display.allowEditInView},
             {type: 'toggle', label: 'Allow Add New', key: 'allowAdddNew'},
             {type: 'toggle', label: 'Use Page Filters', key: 'usePageFilters'},
             {type: 'toggle', label: 'Compact View', key: 'compactView'},

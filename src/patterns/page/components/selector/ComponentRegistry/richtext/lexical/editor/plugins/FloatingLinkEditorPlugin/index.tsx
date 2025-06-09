@@ -7,7 +7,7 @@
  */
 //import './index.css';
 
-import {$isAutoLinkNode, $isLinkNode, TOGGLE_LINK_COMMAND} from '@lexical/link';
+import {$isAutoLinkNode, $isLinkNode} from '@lexical/link';
 import {useLexicalComposerContext} from '@lexical/react/LexicalComposerContext';
 import {$findMatchingParent, mergeRegister} from '@lexical/utils';
 import {
@@ -32,6 +32,7 @@ import {getSelectedNode} from '../../utils/getSelectedNode';
 import {setFloatingElemPositionForLinkEditor} from '../../utils/setFloatingElemPositionForLinkEditor';
 import {sanitizeUrl} from '../../utils/url';
 import theme from '../../themes/PlaygroundEditorTheme';
+import {TOGGLE_LINK_COMMAND} from "../LinkPlugin";
 
 function FloatingLinkEditor({
   editor,
@@ -52,6 +53,7 @@ function FloatingLinkEditor({
   const inputRef = useRef<HTMLInputElement>(null);
   const [linkUrl, setLinkUrl] = useState('');
   const [editedLinkUrl, setEditedLinkUrl] = useState('https://');
+  const [linkTarget, setLinkTarget] = useState('_self'); // default to _self
   const [lastSelection, setLastSelection] = useState<
     RangeSelection | GridSelection | NodeSelection | null
   >(null);
@@ -63,10 +65,21 @@ function FloatingLinkEditor({
       const parent = node.getParent();
       if ($isLinkNode(parent)) {
         setLinkUrl(parent.getURL());
+        if ('getTarget' in parent) {
+          setLinkTarget(parent.getTarget());
+        } else {
+          setLinkTarget('_self');
+        }
       } else if ($isLinkNode(node)) {
         setLinkUrl(node.getURL());
+        if ('getTarget' in node) {
+          setLinkTarget(node.getTarget());
+        } else {
+          setLinkTarget('_self');
+        }
       } else {
         setLinkUrl('');
+        setLinkTarget('_self');
       }
     }
     const editorElem = editorRef.current;
@@ -185,13 +198,20 @@ function FloatingLinkEditor({
 
   const handleLinkSubmission = () => {
     if (lastSelection !== null) {
-      if (linkUrl !== '') {
-        editor.dispatchCommand(TOGGLE_LINK_COMMAND, sanitizeUrl(editedLinkUrl));
-      }
+      const sanitized = sanitizeUrl(editedLinkUrl.trim());
+      editor.dispatchCommand(TOGGLE_LINK_COMMAND, { url: sanitized, target: linkTarget });
+
+      // if (linkTarget === '_blank') {
+      //   editor.dispatchCommand(TOGGLE_EXTERNAL_LINK_COMMAND, sanitized);
+      // } else {
+      //   editor.dispatchCommand(TOGGLE_INTERNAL_LINK_COMMAND, sanitized);
+      // }
+
       setEditedLinkUrl('https://');
       setIsLinkEditMode && setIsLinkEditMode(false);
     }
   };
+
 
   return (
     <div ref={editorRef} className={theme.linkEditor.base || "link-editor"}>
@@ -208,6 +228,16 @@ function FloatingLinkEditor({
               monitorInputInteraction(event);
             }}
           />
+          <select
+              className={theme.linkEditor.linkInput.base || 'link-input'}
+              value={linkTarget}
+              onChange={(event) => {
+                setLinkTarget(event.target.value);
+              }}
+          >
+            <option value="_self">Same tab (_self)</option>
+            <option value="_blank">New tab (_blank)</option>
+          </select>
           <div>
             <div
               className={theme.linkEditor.div.linkCancel || "link-cancel"}
@@ -218,7 +248,6 @@ function FloatingLinkEditor({
                 setIsLinkEditMode && setIsLinkEditMode(false);
               }}
             />
-
             <div
               className={theme.linkEditor.div.linkConfirm || "link-confirm"}
               role="button"
@@ -243,7 +272,7 @@ function FloatingLinkEditor({
             tabIndex={0}
             onMouseDown={(event) => event.preventDefault()}
             onClick={() => {
-              setEditedLinkUrl(linkUrl);
+              setEditedLinkUrl(linkUrl || 'https://');
               setIsLinkEditMode && setIsLinkEditMode(true);
             }}
           />
