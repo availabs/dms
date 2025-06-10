@@ -185,12 +185,12 @@ const RenderItem = ({
                         return (
                             <div key={attr.normalName || attr.name}
                                  className={`
-                                                 ${theme.headerValueWrapper}
-                                                 flex-${headerValueLayout} ${reverse && headerValueLayout === 'col' ? `flex-col-reverse` : reverse ? `flex-row-reverse` : ``}
-                                                 ${compactView ? theme.headerValueWrapperCompactView : `${theme.headerValueWrapperSimpleView} ${removeBorder ? `` : 'border shadow'}`}
-                                                 ${compactView && attr.borderBelow ? `border-b rounded-none ${theme.headerValueWrapperBorderBColor}` : ``}
-                                                 ${compactView && attr.pb ? `pb-[${attr.pb}px]` : ``}
-                                                 `}
+                                     ${theme.headerValueWrapper}
+                                     flex-${headerValueLayout} ${reverse && headerValueLayout === 'col' ? `flex-col-reverse` : reverse ? `flex-row-reverse` : ``}
+                                     ${compactView ? theme.headerValueWrapperCompactView : `${theme.headerValueWrapperSimpleView} ${removeBorder ? `` : 'border shadow'}`}
+                                     ${compactView && attr.borderBelow ? `border-b rounded-none ${theme.headerValueWrapperBorderBColor}` : ``}
+                                     ${compactView && attr.pb ? `pb-[${attr.pb}px]` : ``}
+                                 `}
                                  style={{
                                      gridColumn: span,
                                      padding: compactView ? undefined : padding,
