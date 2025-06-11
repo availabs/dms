@@ -3,6 +3,7 @@ import React from "react";
 import { CMSContext } from "../../../../context";
 export const ToggleControl = ({value, setValue, title, className}) => {
     const { UI } = React.useContext(CMSContext) || {}
+    const {Switch} = UI;
     return setValue ? (
         <div>
             <div
