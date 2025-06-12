@@ -54,7 +54,8 @@ const View = ({value, onChange, size, apiLoad, apiUpdate, renderCard, ...rest}) 
                         doc_type: state.sourceInfo.type,
                         source_id: `${state.sourceInfo.source_id}`,
                         view_id: `${state.sourceInfo.view_id}`,
-                        defaultColumns: [state.sourceInfo.columns[0], state.sourceInfo.columns[1]],
+                        default_columns: JSON.parse(state.sourceInfo.default_columns || '[]'),
+                        // defaultColumns: [state.sourceInfo.columns[0], state.sourceInfo.columns[1]],
                         config: JSON.stringify({attributes: state.sourceInfo.columns})
                     }}
                     apiLoad={apiLoad}

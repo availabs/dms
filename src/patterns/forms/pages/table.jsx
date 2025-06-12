@@ -16,7 +16,7 @@ const TableView = ({apiUpdate, apiLoad, format, item, params}) => {
     const { baseUrl, pageBaseUrl, theme, user } = useContext(FormsContext) || {};
     const navigate = useNavigate();
     const columns = JSON.parse(item?.config || '{}')?.attributes || [];
-    const defaultColumns = item.defaultColumns;
+    const default_columns = (item.default_columns || item.defaultColumns);
     const [value, setValue] = useImmer({
         dataRequest: {},
         data: [],
@@ -38,8 +38,8 @@ const TableView = ({apiUpdate, apiLoad, format, item, params}) => {
             allowDownload: true,
             hideDatasourceSelector: true,
         },
-        columns: defaultColumns?.length ?
-            uniqBy(defaultColumns.map(dc => columns.find(col => col.name === dc.name)).filter(c => c).map(c => ({...c, show: true})), d => d?.name) :
+        columns: default_columns?.length ?
+            uniqBy(default_columns.map(dc => columns.find(col => col.name === dc.name)).filter(c => c).map(c => ({...c, show: true})), d => d?.name) :
             columns.slice(0, 3).map(c => ({...c, show:true})),
     })
 
@@ -49,7 +49,7 @@ const TableView = ({apiUpdate, apiLoad, format, item, params}) => {
                 .filter(({show}) => show)
                 .map(col => ({...col, filters: undefined, group: undefined})); // not including some settings
 
-        apiUpdate({data: {...item, defaultColumns: columns}, config: {format}});
+        apiUpdate({data: {...item, default_columns: columns}, config: {format}});
     }, [value]);
 
     useEffect(() => {
@@ -96,8 +96,8 @@ const TableView = ({apiUpdate, apiLoad, format, item, params}) => {
                             app: item.app
                         }}>
 
-                            <Controls />
-                            <RenderFilters state={value} setState={setValue} apiLoad={apiLoad} isEdit={true} defaultOpen={true} />
+                            <Controls context={ComponentContext} cms_context={FormsContext}/>
+                            <RenderFilters state={value} setState={setValue} apiLoad={apiLoad} isEdit={true} defaultOpen={true} cms_context={FormsContext}/>
 
                             <DataWrapper.EditComp
                                 component={SpreadSheetCompWithControls}

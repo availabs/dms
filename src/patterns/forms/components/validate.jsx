@@ -97,12 +97,12 @@ const getFilterFromSearchParams = searchParams => Array.from(searchParams.keys()
     [column]: searchParams.get(column)?.split(filterValueDelimiter)?.filter(d => d.length),
 }), {});
 
-const getInitState = ({columns, defaultColumns=[], state={}, app, doc_type, view_id, data, searchParams}) => {
+const getInitState = ({columns, default_columns=[], state={}, app, doc_type, view_id, data, searchParams}) => {
     const res = {
         dataRequest: {filter: getFilterFromSearchParams(searchParams)},
         data: [],
         columns: uniqBy([
-            ...defaultColumns.map(dc => {
+            ...default_columns.map(dc => {
                 const rawColumn = columns.find(c => c.name === dc.name)
                 const stateColumn = Array.isArray(state?.columns) && state.columns.length && state.columns.find(c => c.name === dc.name) || {}
                 if (!rawColumn) return undefined;
@@ -111,7 +111,7 @@ const getInitState = ({columns, defaultColumns=[], state={}, app, doc_type, view
 
             ...columns.filter(({name, shortName}) => {
                 // error columns + state columns - default columns
-                const cdn1 = (!defaultColumns.some(dc => dc.name === name) && data[`${shortName}_error`])
+                const cdn1 = (!default_columns.some(dc => dc.name === name) && data[`${shortName}_error`])
                 const cdn2 = (Array.isArray(state?.columns) && state.columns.length && state.columns.some(c => c.name === name))
                 return cdn1 || cdn2
             })
@@ -274,10 +274,10 @@ const Edit = ({
     const [searchParams] = useSearchParams();
     const dmsServerPath = `${API_HOST}/dama-admin`;
 
-    const {app, doc_type, config, defaultColumns, view_id, source_id, views} = item;
+    const {app, doc_type, config, default_columns, view_id, source_id, views} = item;
     const columns = (JSON.parse(config || '{}')?.attributes || []).filter(col => col.type !== 'calculated').map((col, i) => ({...col, shortName: `col_${i}`}));
-    console.log('columns in validate', {app, doc_type, config, defaultColumns, view_id, source_id});
-    const [value, setValue] = useImmer(getInitState({columns, defaultColumns, app, doc_type, data, searchParams, view_id}));
+    console.log('columns in validate', {app, doc_type, config, default_columns, view_id, source_id});
+    const [value, setValue] = useImmer(getInitState({columns, default_columns, app, doc_type, data, searchParams, view_id}));
     const validEntriesFormat = {
         app,
         type: `${doc_type}-${view_id}`,
@@ -435,7 +435,7 @@ const Edit = ({
                 }, {});
 
             setData(mappedData);
-            setValue(getInitState({columns, defaultColumns, state: value, app, doc_type, view_id, data: mappedData, searchParams}))
+            setValue(getInitState({columns, default_columns, state: value, app, doc_type, view_id, data: mappedData, searchParams}))
             setSSKey(`${Date.now()}`);
             setLoading(false);
             setMassUpdateColumn(undefined);
@@ -447,7 +447,7 @@ const Edit = ({
         return () => {
             isStale = true;
         }
-    }, [app, doc_type, config, defaultColumns?.length, view_id, source_id, searchParams, updating, validating])
+    }, [app, doc_type, config, default_columns?.length, view_id, source_id, searchParams, updating, validating])
 
     const SpreadSheetCompWithControls = cloneDeep(Spreadsheet);
     SpreadSheetCompWithControls.controls.columns = SpreadSheetCompWithControls.controls.columns.filter(({label}) => label !== 'duplicate')

@@ -24,7 +24,7 @@ const Validate = ({item, params,  apiUpdate, apiLoad}) => {
                     !params.view_id || params.view_id === 'undefined' ? 'Please select a version' :
                         <ValidateComp.EditComp
                             API_HOST={API_HOST} baseUrl={baseUrl} pageBaseUrl={pageBaseUrl} theme={theme} user={user} falcor={falcor}
-                            item={{...item, view_id: params.view_id, source_id: params.id}}
+                            item={{...item, view_id: params.view_id, source_id: params.id, default_columns: item.default_columns || item.defaultColumns}}
                             apiLoad={apiLoad}
                             apiUpdate={apiUpdate}
                             cms_context={FormsContext}
