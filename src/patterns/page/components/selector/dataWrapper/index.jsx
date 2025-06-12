@@ -56,7 +56,7 @@ const RenderDownload = ({state, apiLoad}) => {
     // two options:
     // 1. download visible columns: add primary column if set
     // 2. download all columns: unavailable for grouped mode
-    const {UI} = useContext(CMSContext);
+    const {UI} = useContext(CMSContext) || {UI: {Icon: () => <></>}};
     const {Icon} = UI;
     const [open, setOpen] = React.useState(false);
     const [loading, setLoading] = React.useState(false);
@@ -99,7 +99,7 @@ const RenderDownload = ({state, apiLoad}) => {
 
 const Edit = ({value, onChange, pageFormat, apiUpdate, component, hideSourceSelector}) => {
     const isEdit = Boolean(onChange);
-    const {UI} = useContext(CMSContext);
+    const {UI} = useContext(CMSContext) || {UI: {Icon: () => <></>}};;
     const {Icon} = UI;
     const {state, setState, apiLoad} = useContext(ComponentContext);
     const [loading, setLoading] = useState(false);
@@ -109,7 +109,6 @@ const Edit = ({value, onChange, pageFormat, apiUpdate, component, hideSourceSele
     const Comp = useMemo(() => component.EditComp, [component]);
     // ========================================= init comp begin =======================================================
     // useSetDataRequest
-    console.time(`datawrapper edit render time`)
     useEffect(() => {
         // creates data request object
         if(!isValidState) return;
@@ -252,6 +251,7 @@ const Edit = ({value, onChange, pageFormat, apiUpdate, component, hideSourceSele
     // =========================================== saving settings begin ===============================================
     useEffect(() => {
         if (!isEdit || !isValidState  || isEqual(value, JSON.stringify(state))) return;
+        console.log('saving state')
         onChange(JSON.stringify(state));
     }, [state])
     // =========================================== saving settings end =================================================
@@ -343,7 +343,7 @@ const Edit = ({value, onChange, pageFormat, apiUpdate, component, hideSourceSele
 
 const View = ({value, onChange, size, apiUpdate, component, ...rest}) => {
     const isEdit = false;
-    const {UI} = useContext(CMSContext);
+    const {UI} = useContext(CMSContext) || {UI: {Icon: () => <></>}};;
     const {Icon} = UI;
     const {state, setState, apiLoad} = useContext(ComponentContext);
 
@@ -356,7 +356,6 @@ const View = ({value, onChange, size, apiUpdate, component, ...rest}) => {
     const Comp = useMemo(() => component.ViewComp, [component]);
     // const useCache = state.display.useCache //=== false ? false : true; // false: loads data on load. can be expensive. useCache can be undefined for older components.
     const setReadyToLoad = useCallback(() => setState(draft => {draft.display.readyToLoad = true}), [setState]);
-    //console.time(`datawrapper view render time`)
     useEffect(() => {
         const newState = convertOldState(value)
         setState(newState)
@@ -551,7 +550,6 @@ const View = ({value, onChange, size, apiUpdate, component, ...rest}) => {
         })
         return apiUpdate({data: item, config: {format: state.sourceInfo}, requestType: 'delete'})
     }
-    //console.timeEnd(`datawrapper view render time`)
     // =========================================== util fns end ========================================================
     if(showChangeFormatModal || !isValidState) return <div className={'p-1 text-center'}>Form data not available.</div>;
     // component.name === 'Spreadsheet' && console.log('dw?', state)

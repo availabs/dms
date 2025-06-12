@@ -1,14 +1,14 @@
 import React, { useContext } from 'react'
 import ColumnControls from "./ColumnControls";
 import MoreControls from "./MoreControls";
-import { ComponentContext } from "../../../../context";
+import { ComponentContext, CMSContext } from "../../../../context";
 
 const controlComponents = {
     columns: ColumnControls,
     more: MoreControls
 }
 
-export const Controls = ({context=ComponentContext}) => {
+export const Controls = ({context=ComponentContext, cms_context=CMSContext}) => {
     const {controls= {}} = useContext(context);
     return (
         <div className={'flex items-center'}>
@@ -17,7 +17,7 @@ export const Controls = ({context=ComponentContext}) => {
                     const Component = controls[control]?.Comp || controlComponents[control];
 
                     if (!Component) return null;
-                    return <Component key={control} context={context}/>
+                    return <Component key={control} context={context} cms_context={cms_context}/>
                 })
             }
         </div>
