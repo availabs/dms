@@ -11,6 +11,7 @@ import Graph from "./graph"
 import ComponentsIndexTable from "../componentsIndexTable";
 import FilterComponent from "./FilterComponent";
 import UploadComponent from "./UploadComponent";
+import ValidateComponent from "./ValidateComponent";
 // //import Item from "./item";
 const ComponentRegistry = {
     lexical,
@@ -22,6 +23,7 @@ const ComponentRegistry = {
     Graph,
     Filter: FilterComponent,
     Upload: UploadComponent,
+    Validate: ValidateComponent,
     "Table: Components Index": ComponentsIndexTable,
     // //Item,
 }

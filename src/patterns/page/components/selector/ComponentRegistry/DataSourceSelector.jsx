@@ -89,7 +89,7 @@ export default function DataSourceSelector ({
                 isDms: true,
                 // {doc_type}-{view_id} is used as type to fetch data items for dms views.
                 // for invalid entries, it should be {doc_type}-{view_id}-invalid-entry.
-                srcAttributes: ['app', 'name', 'doc_type', 'config'],
+                srcAttributes: ['app', 'name', 'doc_type', 'config', 'default_columns'],
                 viewAttributes: ['name', 'updated_at']
             }
         }

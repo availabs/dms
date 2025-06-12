@@ -151,6 +151,8 @@ const RenderItem = ({
     subWrapperStyle,
     visibleColumns,
 }) => {
+    const {UI} = useContext(CMSContext);
+    const {Icon} = UI;
     const [tmpItem, setTmpItem] = useState(item || {}); // for form edit controls
     return (
         //  in normal view, grid applied here
@@ -174,7 +176,7 @@ const RenderItem = ({
                                          (imageSrc || rawValue)}
                                 /> :
                                 ['icon', 'color'].includes(attr.formatFn) && formatFunctions[attr.formatFn] ?
-                                    <div className={'flex items-center gap-1.5 uppercase'}>{formatFunctions[attr.formatFn](rawValue, attr.isDollar)}</div> :
+                                    <div className={'flex items-center gap-1.5 uppercase'}>{formatFunctions[attr.formatFn](rawValue, attr.isDollar, Icon)}</div> :
                                     attr.formatFn && formatFunctions[attr.formatFn] ?
                                         formatFunctions[attr.formatFn](rawValue, attr.isDollar).replaceAll(' ', '') :
                                         rawValue;
@@ -185,12 +187,12 @@ const RenderItem = ({
                         return (
                             <div key={attr.normalName || attr.name}
                                  className={`
-                                                 ${theme.headerValueWrapper}
-                                                 flex-${headerValueLayout} ${reverse && headerValueLayout === 'col' ? `flex-col-reverse` : reverse ? `flex-row-reverse` : ``}
-                                                 ${compactView ? theme.headerValueWrapperCompactView : `${theme.headerValueWrapperSimpleView} ${removeBorder ? `` : 'border shadow'}`}
-                                                 ${compactView && attr.borderBelow ? `border-b rounded-none ${theme.headerValueWrapperBorderBColor}` : ``}
-                                                 ${compactView && attr.pb ? `pb-[${attr.pb}px]` : ``}
-                                                 `}
+                                     ${theme.headerValueWrapper}
+                                     flex-${headerValueLayout} ${reverse && headerValueLayout === 'col' ? `flex-col-reverse` : reverse ? `flex-row-reverse` : ``}
+                                     ${compactView ? theme.headerValueWrapperCompactView : `${theme.headerValueWrapperSimpleView} ${removeBorder ? `` : 'border shadow'}`}
+                                     ${compactView && attr.borderBelow ? `border-b rounded-none ${theme.headerValueWrapperBorderBColor}` : ``}
+                                     ${compactView && attr.pb ? `pb-[${attr.pb}px]` : ``}
+                                 `}
                                  style={{
                                      gridColumn: span,
                                      padding: compactView ? undefined : padding,
@@ -290,8 +292,6 @@ const Card = ({
 }) => {
     const { theme = {}} = React.useContext(ThemeContext) || {};
     const dataCard = theme.dataCard || dataCardTheme;
-    const {UI} = useContext(CMSContext);
-    const {Icon} = UI;
     const {state:{columns, data, sourceInfo, display}, setState, controls={}} = useContext(ComponentContext);
     const {compactView, gridSize, gridGap, padding, colGap, headerValueLayout, reverse, hideIfNull, removeBorder, allowAdddNew, liveEdit, bgColor='#FFFFFF'} = display;
     const [draggedCol, setDraggedCol] = useState(null);

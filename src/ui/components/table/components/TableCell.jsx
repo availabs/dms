@@ -62,7 +62,7 @@ export const TableCell = ({
                             editing && allowEdit ? 'EditComp' : 'ViewComp';
     const Comp = loading ? LoadingComp : (DataTypes[compType]?.[compMode] || DisplayCalculatedCell);
     const CompWithLink = LinkComp({attribute, columns, newItem, removeItem, value: rawValue, Comp});
-    const value = attribute.formatFn && formatFunctions[attribute.formatFn.toLowerCase()] ? formatFunctions[attribute.formatFn.toLowerCase()](rawValue, attribute.isDollar) : rawValue
+    const value = compMode === 'EditComp' ? rawValue : attribute.formatFn && formatFunctions[attribute.formatFn.toLowerCase()] ? formatFunctions[attribute.formatFn.toLowerCase()](rawValue, attribute.isDollar) : rawValue
     const justifyClass = {
         left: 'justify-start',
         right: 'justify-end',

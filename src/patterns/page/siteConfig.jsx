@@ -220,8 +220,7 @@ const pagesManagerConfig = ({
     API_HOST,
     children: [
       {
-        type: ({children, user=defaultUser, ...props}) => {
-          const { falcor, falcorCache } = useFalcor();
+        type: ({children, user=defaultUser, falcor, ...props}) => {
           return (
               <CMSContext.Provider value={{API_HOST, baseUrl, damaBaseUrl, user, falcor, falcorCache, pgEnv, app, type, siteType, Menu: () => <>{rightMenu}</> }} >
                 <ManageLayout {...props}>
