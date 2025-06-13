@@ -71,7 +71,7 @@ function PatternEdit({
 	const [showActionsIndex, setShowActionsIndex] = useState();
 	const [isDuplicating, setIsDuplicating] = useState(false);
 	const attrToShow = Object.keys(attributes).filter(attrKey => ['pattern_type', 'name', 'subdomain', 'base_url', 'authLevel', 'filters'].includes(attrKey));
-	const columns = attrToShow.map(attr => ({name: attr, display_name: attr, show:true}))
+	const columns = attrToShow.map(attr => ({name: attr, display_name: attr, show:true, type: 'text'}))
 	const numAttributes = attrToShow.length;
 	const dmsServerPath = `${API_HOST}/dama-admin`;
 
@@ -124,7 +124,13 @@ function PatternEdit({
 					<div className={'text-2xl font-semibold text-gray-700'}>Patterns</div>
 					<button onClick={() => navigate(-1)}>back</button>
 				</div>
-				<Table columns={columns} data={data} isEdit={false} gridRef={gridRef}/>
+				<Table columns={columns}
+					   data={data}
+					   isEdit={false}
+					   allowEdit={true}
+					   // display={{allowEditInView: true}}
+					   gridRef={gridRef}
+				/>
 				{/*{*/}
 				{/*	data.map((pattern, index) => (*/}
 				{/*		<div key={pattern.id} className={`${c[numAttributes+1]} ${showActionsIndex === index ? `bg-gray-100` : ``} items-center px-2`}>*/}

@@ -1,12 +1,17 @@
+import react from "react";
+import { ThemeContext } from '../../useTheme';
 import {handleMouseDown, handleMouseMove, handleMouseUp} from "./utils/mouse";
 import TableHeaderCell from "./components/TableHeaderCell";
 import {TableRow} from "./components/TableRow";
-import React, {useEffect, useMemo} from "react";
-import { ThemeContext } from '../../useTheme'
+import React, {useEffect, useMemo, useRef, useState} from "react";
+import {useCopy, usePaste, getLocation} from "./utils/hooks";
+import {isEqualColumns} from "./utils";
+import {handleKeyDown} from "./utils/keyboard";
 
 const defaultNumColSize = 0;
 const defaultGutterColSize = 0;
 const defColSize = 250;
+const minColSize = 150;
 export const tableTheme = {
     tableContainer: 'flex flex-col overflow-x-auto',
     tableContainerNoPagination: '',
@@ -36,20 +41,84 @@ export const tableTheme = {
     openOutContainerWrapper: 'fixed inset-0 right-0 h-full w-full z-[100]',
     openOutHeader: 'font-semibold text-gray-600'
 }
-const Noop = () => {};
 
+const updateItemsOnPaste = ({pastedContent, e, index, attrI, data, visibleAttributes, updateItem}) => {
+    const paste = pastedContent?.split('\n').filter(row => row.length).map(row => row.split('\t'));
+    if(!paste) return;
+
+    const rowsToPaste = [...new Array(paste.length).keys()].map(i => index + i).filter(i => i < data.length)
+    const columnsToPaste = [...new Array(paste[0].length).keys()]
+        .map(i => visibleAttributes[attrI + i])
+        .filter(i => i);
+
+    const itemsToUpdate = rowsToPaste.map((row, rowI) => (
+        {
+            ...data[row],
+            ...columnsToPaste.reduce((acc, col, colI) => ({...acc, [col]: paste[rowI][colI]}), {})
+        }
+    ));
+
+    updateItem(undefined, undefined, itemsToUpdate);
+}
 export default function ({
     paginationActive, gridRef,
-    isDragging, setIsDragging=Noop, selection=[], setSelection=Noop,
-    allowEdit, isSelecting, editing, setEditing=Noop, selectionRange, triggerSelectionDelete,
-    startCellCol, startCellRow,
+    allowEdit,
     updateItem, removeItem, loading, isEdit,
-    numColSize=defaultNumColSize, gutterColSize=defaultGutterColSize, frozenColClass, frozenCols=[], colResizer,
+    numColSize=defaultNumColSize, gutterColSize=defaultGutterColSize, frozenColClass, frozenCols=[],
     columns=[], data=[], display={}, controls={}, setState
 }) {
     const { theme = {table: tableTheme}} = React.useContext(ThemeContext) || {}
     const [defaultColumnSize, setDefaultColumnSize] = React.useState(defColSize);
     const visibleAttrsWithoutOpenOut = useMemo(() => columns.filter(({show, openOut}) => show && !openOut), [columns]);
+    const visibleAttributes = useMemo(() => columns.filter(({show}) => show), [columns]);
+
+    // =================================================================================================================
+    // ======================================= selection variables begin ===============================================
+    // =================================================================================================================
+    const [isSelecting, setIsSelecting] = useState(false);
+    const [editing, setEditing] = useState({}); // {index, attrI}
+    const [selection, setSelection] = useState([]);
+    const [triggerSelectionDelete, setTriggerSelectionDelete] = useState(false);
+    const [isDragging, setIsDragging] = useState(false);
+    const startCellRow = useRef(null);
+    const startCellCol = useRef(null);
+    const selectionRange = useMemo(() => {
+        const rows = [...new Set(selection.map(s => s?.index !== undefined ? s.index : s))].sort((a, b) => a - b);
+        const cols = [...new Set(selection.map(s => s.attrI).sort((a, b) => a - b) || columns.filter(({show}) => show).map((v, i) => i))];
+        return {
+            startI: rows[0],
+            endI: rows[rows.length - 1],
+            startCol: cols[0],
+            endCol: cols[cols.length - 1]
+        }
+    }, [selection]);
+    // ======================================== selection variables end ================================================
+
+    // =================================================================================================================
+    // =========================================== copy/paste begin ====================================================
+    // =================================================================================================================
+    usePaste((pastedContent, e) => {
+        let {index, attrI} = typeof selection[selection.length - 1] === 'number' ?
+            {index: selection[selection.length - 1], attrI: undefined} :
+            selection[selection.length - 1];
+        updateItemsOnPaste({pastedContent, e, index, attrI, data, visibleAttributes, updateItem})
+    }, gridRef.current);
+
+    useCopy(() => {
+        return Object.values(
+            selection.sort((a, b) => {
+                const {index: rowA, attrI: colA} = getLocation(a);
+                const {index: rowB, attrI: colB} = getLocation(b);
+
+                return (rowA - rowB) || (colA - colB);
+            })
+                .reduce((acc, s) => {
+                    const {index, attrI} = getLocation(s);
+                    acc[index] = acc[index] ? `${acc[index]}\t${data[index][visibleAttributes[attrI]]}` : data[index][visibleAttributes[attrI]]; // join cells of a row
+                    return acc;
+                }, {})).join('\n') // join rows
+    }, gridRef.current)
+    // ============================================ copy/paste end =====================================================
 
     useEffect(() => {
         if(!gridRef.current) return;
@@ -57,6 +126,88 @@ export default function ({
         const gridWidth = gridRef?.current?.offsetWidth || 1;
         setDefaultColumnSize(Math.max(50, gridWidth / columns.length) - 5)
     }, [gridRef.current, columns.length]);
+
+    // =================================================================================================================
+    // =========================================== Mouse Controls begin ================================================
+    // =================================================================================================================
+    const colResizer = (attribute) => (e) => {
+        const element = gridRef.current;
+        if(!element) return;
+
+        const column = visibleAttributes.find(va => isEqualColumns(va, attribute));
+        const startX = e.clientX;
+        const startWidth = column.size || 0;
+        const handleMouseMove = (moveEvent) => {
+            if(!setState) return;
+
+            const newWidth = Math.max(minColSize, startWidth + moveEvent.clientX - startX);
+            setState(draft => {
+                const idx = draft.columns.findIndex(column => isEqualColumns(column, attribute));
+                draft.columns[idx].size = newWidth;
+            })
+        };
+
+        const handleMouseUp = () => {
+            element.removeEventListener('mousemove', handleMouseMove);
+            element.removeEventListener('mouseup', handleMouseUp);
+        };
+
+        element.addEventListener('mousemove', handleMouseMove);
+        element.addEventListener('mouseup', handleMouseUp);
+    };
+    // =========================================== Mouse Controls end ==================================================
+
+    // =================================================================================================================
+    // =========================================== Keyboard Controls begin =============================================
+    // =================================================================================================================
+    useEffect(() => {
+        const element = gridRef.current;
+        if(!element) return;
+        const handleKeyUp = () => {
+            setIsSelecting(false)
+            setIsDragging(false)
+            setTriggerSelectionDelete(false);
+        }
+
+        const keyDownListener = e => handleKeyDown({
+            e, dataLen: data.length, selection, setSelection, setIsSelecting,
+            editing, setEditing, setTriggerSelectionDelete,
+            visibleAttributes, pageSize: display.pageSize, setIsDragging
+        })
+
+        element.addEventListener('keydown', keyDownListener);
+        element.addEventListener('keyup', handleKeyUp);
+
+        return () => {
+            element.removeEventListener('keydown', keyDownListener);
+            element.removeEventListener('keyup', handleKeyUp);
+        };
+    }, [selection, editing, data?.length]);
+    // =========================================== Keyboard Controls end ===============================================
+
+    // =================================================================================================================
+    // =========================================== Trigger delete begin ================================================
+    // =================================================================================================================
+    useEffect(() => {
+        async function deleteFn() {
+            if (triggerSelectionDelete) {
+                const selectionRows = data.filter((d, i) => selection.find(s => (s.index || s) === i))
+                const selectionCols = visibleAttributes.filter((_, i) => selection.map(s => s.attrI).includes(i))
+
+                if (selectionCols.length) {
+                    // partial selection
+                    updateItem(undefined, undefined, selectionRows.map(row => ({...row, ...selectionCols.reduce((acc, curr) => ({...acc, [curr]: ''}), {})})))
+                }else{
+                    // full row selection
+                    updateItem(undefined, undefined, selectionRows.map(row => ({...row, ...visibleAttributes.reduce((acc, curr) => ({...acc, [curr]: ''}), {})})))
+                }
+            }
+        }
+
+        deleteFn()
+    }, [triggerSelectionDelete])
+    // ============================================ Trigger delete end =================================================
+
 
     return (
         <div className={`${theme?.table?.tableContainer} ${!paginationActive && theme?.table?.tableContainerNoPagination}`} ref={gridRef}>
