@@ -1,12 +1,12 @@
 import {handleMouseDown, handleMouseMove, handleMouseUp} from "./utils/mouse";
 import TableHeaderCell from "./components/TableHeaderCell";
 import {TableRow} from "./components/TableRow";
-import React, {useMemo} from "react";
+import React, {useEffect, useMemo} from "react";
 import { ThemeContext } from '../../useTheme'
 
-export const defaultNumColSize = 20;
-export const defaultGutterColSize = 20;
-
+const defaultNumColSize = 0;
+const defaultGutterColSize = 0;
+const defColSize = 250;
 export const tableTheme = {
     tableContainer: 'flex flex-col overflow-x-auto',
     tableContainerNoPagination: '',
@@ -36,18 +36,27 @@ export const tableTheme = {
     openOutContainerWrapper: 'fixed inset-0 right-0 h-full w-full z-[100]',
     openOutHeader: 'font-semibold text-gray-600'
 }
+const Noop = () => {};
 
 export default function ({
     paginationActive, gridRef,
-    isDragging, setIsDragging, selection=[], setSelection,
-    allowEdit, isSelecting, editing, setEditing, selectionRange, triggerSelectionDelete,
+    isDragging, setIsDragging=Noop, selection=[], setSelection=Noop,
+    allowEdit, isSelecting, editing, setEditing=Noop, selectionRange, triggerSelectionDelete,
     startCellCol, startCellRow,
     updateItem, removeItem, loading, isEdit,
     numColSize=defaultNumColSize, gutterColSize=defaultGutterColSize, frozenColClass, frozenCols=[], colResizer,
-    columns, data, display, controls, setState
+    columns=[], data=[], display={}, controls={}, setState
 }) {
     const { theme = {table: tableTheme}} = React.useContext(ThemeContext) || {}
+    const [defaultColumnSize, setDefaultColumnSize] = React.useState(defColSize);
     const visibleAttrsWithoutOpenOut = useMemo(() => columns.filter(({show, openOut}) => show && !openOut), [columns]);
+
+    useEffect(() => {
+        if(!gridRef.current) return;
+
+        const gridWidth = gridRef?.current?.offsetWidth || 1;
+        setDefaultColumnSize(Math.max(50, gridWidth / columns.length) - 5)
+    }, [gridRef.current, columns.length]);
 
     return (
         <div className={`${theme?.table?.tableContainer} ${!paginationActive && theme?.table?.tableContainerNoPagination}`} ref={gridRef}>
@@ -59,7 +68,7 @@ export default function ({
                     className={theme?.table?.headerContainer}
                     style={{
                         zIndex: 5,
-                        gridTemplateColumns: `${numColSize}px ${visibleAttrsWithoutOpenOut.map(v => `${v.size}px` || 'auto').join(' ')} ${gutterColSize}px`,
+                        gridTemplateColumns: `${numColSize}px ${visibleAttrsWithoutOpenOut.map(v => v.size ? `${v.size}px` : `${defaultColumnSize}px`).join(' ')} ${gutterColSize}px`,
                         gridColumn: `span ${visibleAttrsWithoutOpenOut.length + 2} / ${visibleAttrsWithoutOpenOut.length + 2}`
                     }}
                 >
@@ -122,7 +131,7 @@ export default function ({
                             selection, setSelection, selectionRange, triggerSelectionDelete,
                             handleMouseDown, handleMouseMove, handleMouseUp,
                             setIsDragging, startCellCol, startCellRow,
-                            updateItem, removeItem
+                            updateItem, removeItem, defaultColumnSize
                         }} />
                     ))}
                 <div id={display?.loadMoreId} className={`${paginationActive ? 'hidden' : ''} min-h-2 w-full text-center`}>

@@ -22,6 +22,7 @@ import {DeleteModal} from "./components/DeleteModal";
 // import Nestable from "./components/nestable";
 import DraggableNav from "./components/nestable/draggableNav";
 import Pagination from "./components/Pagination";
+import Table from "./components/table"
 export default {
 	// --- Layout
 	Layout,
@@ -49,5 +50,6 @@ export default {
 	DeleteModal,
 	// Nestable,
 	DraggableNav,
-	Pagination
+	Pagination,
+	Table
 }

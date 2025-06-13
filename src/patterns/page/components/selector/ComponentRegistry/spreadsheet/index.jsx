@@ -10,6 +10,7 @@ import {
 } from "./constants"
 import ActionControls from "./controls/ActionControls";
 import {CMSContext, ComponentContext} from '../../../../context'
+import {ThemeContext} from "../../../../../../ui/useTheme"
 import {isEqualColumns} from "../../dataWrapper/utils/utils";
 import {duplicateControl} from "../shared/utils";
 import Table, {tableTheme} from "../../../../../../ui/components/table";
@@ -47,7 +48,9 @@ const frozenColClass = '' // testing
 
 
 export const RenderTable = ({isEdit, updateItem, removeItem, addItem, newItem, setNewItem, loading, allowEdit}) => {
-    const { theme = { table: tableTheme } } = React.useContext(CMSContext) || {}
+    const { theme = { table: tableTheme } } = React.useContext(ThemeContext) || {}
+    const { UI } = React.useContext(CMSContext) || {UI: {Icon: () => <></>}}
+    const {Table} = UI;
     const {state:{columns, sourceInfo, display, data}, setState, controls={}} = useContext(ComponentContext);
     const gridRef = useRef(null);
     const [isSelecting, setIsSelecting] = useState(false);
