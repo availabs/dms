@@ -1,15 +1,5 @@
-import React, { useEffect, Fragment, useRef, useState } from 'react'
-import { useLocation, useSubmit, NavLink} from "react-router";
-import { cloneDeep, get, isEqual } from "lodash-es"
-
-import { Drawer, Tabs, Button, Menu, DraggableNav, Dialog, Icon } from '../../../ui'
-import { ArrowRight, ArrowDown, AdjustmentsHorizontal, CaretDown, EllipsisVertical} from '../../../ui/icons'
-import { json2DmsForm, getUrlSlug, toSnakeCase, parseJSON } from '../../_utils'
-import { publish, discardChanges} from '../editFunctions'
-
-import { CMSContext } from '../../../siteConfig'
-import { PageContext } from '../../view'
-
+import React, { Fragment } from 'react';
+import { CMSContext,PageContext } from '../../../context'
 import SettingsPane from './settingsPane'
 import PagesPane, { PublishButton } from './pagesPane'
 import HistoryPane from './historyPane'
@@ -35,7 +25,8 @@ const panes = [
     ]
 
 export function EditPane () {
-  const { baseUrl, user } = React.useContext(CMSContext) || {}
+  const { UI } = React.useContext(CMSContext) || {};
+  const { Icon } = UI;
   const {item, dataItems, apiUpdate, editPane, setEditPane } =  React.useContext(PageContext) || {}
   const hasChanges = item.published === 'draft' || item.has_changes
 
@@ -48,24 +39,24 @@ export function EditPane () {
         {panes.map((pane,i) => (
           <div
             key={pane?.icon || i}
-          className='flex items-cemter  px-2 py-2 cursor-pointer rounded-[12px] hover:bg-slate-700 group' 
+          className='flex items-cemter  px-2 py-2 cursor-pointer rounded-[12px] hover:bg-slate-700 group'
           onClick={() => setEditPane({...editPane,index:i, open: !editPane.openX})}
           >
-            <Icon 
-              icon={pane?.icon} 
+            <Icon
+              icon={pane?.icon}
               className='size-6 group-hover:text-blue-500 text-slate-400'
             />
           </div>
         ))}
-        
-        
+
+
         <div className='h-9 mt-0.5 w-[1px] mx-1  bg-slate-600' />
-        <div 
-          className='flex items-cemter  px-2 py-2 cursor-pointer rounded-[12px] hover:bg-slate-700 group' 
+        <div
+          className='flex items-cemter  px-2 py-2 cursor-pointer rounded-[12px] hover:bg-slate-700 group'
           onClick={() => setEditPane({...editPane,  showGrid: !editPane.showGrid})}
         >
-          <Icon 
-            icon='Grid' 
+          <Icon
+            icon='Grid'
             className='size-6 group-hover:text-blue-500 text-slate-400'
           />
         </div>
@@ -87,38 +78,39 @@ function LoadingDisplay () {
 }
 
 export function EditDrawer() {
-  const { baseUrl, user} = React.useContext(CMSContext) || {}
-  const { item={}, dataItems=[], apiUpdate,  editPane, setEditPane } =  React.useContext(PageContext) || {}
+    const { UI } = React.useContext(CMSContext) || {};
+    const {Icon, Tabs, Drawer} = UI;
+    const { item={}, dataItems=[], apiUpdate,  editPane, setEditPane } =  React.useContext(PageContext) || {}
   // console.log('editPane', editPane)
   const [ editState, setEditState ] = React.useState({
       deleteId: -1
   })
 
   const hasChanges = item.published === 'draft' || item.has_changes
-  return ( 
-    <Drawer 
-      width={'w-[350px]'} 
-      open={editPane.open} 
-      setOpen={v => setEditPane({...editPane, open: v})} 
+  return (
+    <Drawer
+      width={'w-[350px]'}
+      open={editPane.open}
+      setOpen={v => setEditPane({...editPane, open: v})}
       closeOnClick={false}
     >
       {/*<div className='h-8 w-[500px]' />*/}
-      <Tabs 
+      <Tabs
         selectedIndex = {editPane.index}
-        setSelectedIndex = {v => setEditPane({...editPane, index: v})} 
+        setSelectedIndex = {v => setEditPane({...editPane, index: v})}
         tabs={
           panes.map(pane => {
             return {
-              name: <Icon 
-                icon={pane.icon} 
+              name: <Icon
+                icon={pane.icon}
                 className='size-6 hover:text-blue-500 text-slate-400'
-              />, 
+              />,
               Component: pane.Component,
             }
           })
-        } 
+        }
       />
-    </Drawer>  
+    </Drawer>
   )
 }
 

@@ -1,10 +1,14 @@
 // import { falcor } from '~/index'
-import { getActiveConfig /*, filterParams*/ } from '../dms-manager/_utils'
+//import getActiveConfig  from '../dms-manager/getActiveConfig.js'
 import { get } from "lodash-es"
-import createRequest, {getIdPath} from './createRequest'
-import {processNewData} from "./proecessNewData";
-// import {loadFullData} from "./loadFullData";
-import {updateDMSAttrs} from "./updateDMSAttrs";
+import {createRequest, getIdPath} from './createRequest'
+import processNewData from "./proecessNewData";
+import updateDMSAttrs from "./updateDMSAttrs";
+// import * as DmsManagerUtils from '../dms-manager/_utils.js'
+// const { getActiveConfig } = DmsManagerUtils
+//console.log('hola')
+
+// const {createRequest, getIdPath} = cr
 
 // function rand(min, max) { // min and max included 
 //   return Math.floor(Math.random() * (max - min + 1) + min)
@@ -16,15 +20,19 @@ let fullDataLoad = {}
 // let runCount = 0
 
 export async function dmsDataLoader (falcor, config, path='/') {
+
+	// console.log('hola utils', utils)
 	//---- Testing stuff to delete ----------
 	// runCount += 1
 	// const runId = runCount
 	//-------------------------------------------
 	// console.log('dmsDataLoader', config, path)
 	//-------------------------------------------
-
-
-	if(config.formatFn){
+	if(!config || !falcor.get) {
+		return [{ message: "dmsDataLoader no config or falcor."}]
+	}
+	//console.log ('api', config)
+	if(config?.formatFn){
 		config.format = await config.formatFn();
 	}
 
@@ -34,10 +42,12 @@ export async function dmsDataLoader (falcor, config, path='/') {
 	// Pages can have many configs active at one time
 	// Because any config can have children
 	//---------------------------------------------------------
-	const { format } = config
+	const { format = {} } = config || {}
 	//console.log('2 - ', config, config.dmsConfig.format)
 	const { app , type, view_id, env, /*defaultSearch,*/ attributes = {} } = format
 
+	
+	const { getActiveConfig } = await import('../dms-manager/_utils.js')
 	const activeConfigs = getActiveConfig(config.children, path)
 	// console.log('------------dmsDataLoader-------------')
 	const dmsAttrsConfigs = (Object.values(attributes))
@@ -282,4 +292,11 @@ export async function dmsDataEditor (falcor, config, data={}, requestType, /*pat
 	}
 
 	return output
-} 
+}
+
+const api = {
+  dmsDataLoader,
+  dmsDataEditor
+}
+
+export default api

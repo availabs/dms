@@ -1,7 +1,7 @@
 import React, {useEffect, useMemo, useState} from "react";
 import { get } from "lodash-es";
 import TemplateSelector from "./TemplateSelector";
-import { CMSContext } from '../../../../siteConfig'
+import { CMSContext } from '../../../../context'
 
 export const SourcesSelect = ({value, onChange}) => {
 

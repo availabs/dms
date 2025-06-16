@@ -1,11 +1,9 @@
-import React, {Fragment, useState} from 'react'
+import React, {Fragment, useContext, useState} from 'react'
 
 
-import { CMSContext } from '../../../siteConfig'
+import { CMSContext,PageContext } from '../../../context'
 import {timeAgo} from '../../_utils'
-import {Add} from "../../../ui/icons";
 import { updateHistory } from '../editFunctions'
-import { PageContext } from '../../view'
 
 
 function EditHistory () {
@@ -39,6 +37,8 @@ function classNames(...classes) {
 }
 
 function HistoryList({history, onChange}) {
+    const {UI} = useContext(CMSContext);
+    const {Icon} = UI;
   const [comment, setComment] = useState('');
   return (
     <>
@@ -54,7 +54,7 @@ function HistoryList({history, onChange}) {
           </div>
           <>
             <div className="relative flex h-6 w-6 flex-none items-center justify-center bg-white">
-              <Add width={10} height={10} className={'text-gray-400 hover:text-gray-500 cursor-pointer'} />
+              <Icon icon={'Add'} width={10} height={10} className={'text-gray-400 hover:text-gray-500 cursor-pointer'} />
             </div>
             <input className="flex-auto py-0.5 text-xs leading-5 text-gray-500 rounded-md"
                    type={'text'}

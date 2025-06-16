@@ -1,12 +1,10 @@
 import React, {Fragment, useContext, useEffect, useState} from "react";
-import {useParams, useNavigate, useSearchParams} from "react-router";
+import {useNavigate, useSearchParams} from "react-router";
 import {dmsDataLoader} from "../../../../api";
 import {getConfig} from "./index";
-import { Layout } from "../../ui";
-import {CMSContext} from "../../siteConfig";
-import {dataItemsNav, detectNavLevel} from "../../pages/_utils";
+import {CMSContext} from "../../context";
+import {dataItemsNav} from "../../pages/_utils";
 import dataTypes from "../../../../data-types";
-import {ArrowRight, Page, Section} from '../../../admin/ui/icons';
 
 export const searchTypeMapping = {
     tags: 'byTag',
@@ -68,6 +66,8 @@ export const RenderTagSuggestions = ({individualTags, query, setQuery, navigate,
 );
 
 export const RenderItems = ({items, query, setQuery}) => {
+    const {UI} = useContext(CMSContext);
+    const {Icon} = UI;
     return (
         <div className="max-h-[calc(100vh-150px)] scroll-py-3 overflow-y-auto overflow-x-hidden p-3 bg-slate-100 scrollbar-sm">
             {Object.keys(items)
@@ -84,9 +84,9 @@ export const RenderItems = ({items, query, setQuery}) => {
                                  window.location = `${items[page_id].url}` // using this in modal would mean no action on click
                              }
                          }}>
-                        <Page className="flex items-center h-6 w-6 mr-2 border rounded-md"/>
+                        <Icon icon={'Page'} className="flex items-center h-6 w-6 mr-2 border rounded-md"/>
                         <div>{boldMatchingText(items[page_id].page_title || page_id, query)}</div>
-                        <ArrowRight className={'h-6 w-6 ml-2 text-transparent group-hover:text-gray-900'}/>
+                        <Icon icon={'ArrowRight'} className={'h-6 w-6 ml-2 text-transparent group-hover:text-gray-900'}/>
                     </div>
 
                     <div className="ml-3 pl-4 flex-auto border-l border-gray-900">
@@ -101,9 +101,9 @@ export const RenderItems = ({items, query, setQuery}) => {
                                     {/*section title*/}
                                     <div
                                         className={'w-full flex items-center text-md font-medium text-gray-700 hover:text-gray-700'}>
-                                        <Section className="h-6 w-6 mr-2 border rounded-md"/>
+                                        <Icon icon={'Section'} className="h-6 w-6 mr-2 border rounded-md"/>
                                         <div>{boldMatchingText(section_title || section_id, query)}</div>
-                                        <ArrowRight className={'h-6 w-6 ml-2 text-transparent group-hover:text-gray-900'}/>
+                                        <Icon icon={'ArrowRight'} className={'h-6 w-6 ml-2 text-transparent group-hover:text-gray-900'}/>
 
                                     </div>
                                     {/*tags*/}
@@ -147,7 +147,8 @@ export const RenderStatus = ({loading, query, itemsLen}) =>
 export const SearchPage = ({item, dataItems, format, attributes, logo, rightMenu}) => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
-    const {baseUrl, theme, user, falcor, falcorCache, ...rest} = useContext(CMSContext) || {}
+    const {baseUrl, theme, user, falcor, falcorCache, UI, ...rest} = useContext(CMSContext) || {}
+    const {Layout} = UI;
     const [loading, setLoading] = useState(false);
     const [tags, setTags] = useState([]);
     const [individualTags, setIndividualTags] = useState([]);

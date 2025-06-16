@@ -1,14 +1,26 @@
 import React, {useEffect, useRef, useState} from "react"
-import {useTheme} from '../theme'
-import {Alert, ArrowDown} from "../patterns/admin/ui/icons";
 
-const inputWrapper = 'flex px-2 py-1 w-full text-sm font-light border focus:border-blue-300 bg-white hover:bg-gray-100 transition ease-in';
-const mainWrapper = 'w-full';
-const input = 'focus:outline-none w-full';
-const tokenWrapper = 'flex px-2 py-1 mx-1 bg-gray-100 hover:bg-gray-300 rounded-md transition ease-in';
-const removeIcon = 'fa fa-x px-1 text-xs text-red-300 hover:text-red-500 self-center transition ease-in';
-const menuWrapper = 'p-2 shadow-lg z-10';
-const menuItem = 'px-2 py-1 hover:bg-gray-300 hover:cursor-pointer transition ease-in';
+const ArrowDown = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={24} height={24} stroke="currentColor" fill={"none"} {...props}>
+    <path d="M18 9.00005C18 9.00005 13.5811 15 12 15C10.4188 15 6 9 6 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+const theme = {
+    multiselect: {
+        view: 'w-full h-full',
+        mainWrapper: 'w-full h-full',
+        inputWrapper: 'flex px-2 py-1 w-full text-sm font-light border focus:border-blue-300 rounded-md bg-white hover:bg-blue-100 transition ease-in',
+        input: 'w-full px-2 py-1 border rounded-lg focus:outline-none',
+        tokenWrapper: 'w-fit flex m-0.5 px-2 py-1 mx-1 bg-[#C5D7E0] text-[#37576B] hover:bg-[#E0EBF0] rounded-md transition ease-in',
+        removeIcon: 'fa fa-xmark px-1 text-xs text-red-500 hover:text-red-600 self-center cursor-pointer transition ease-in',
+        menuWrapper: 'absolute p-2 bg-white w-full max-h-[150px] overflow-auto scrollbar-sm shadow-lg z-10 rounded-lg',
+        menuItem: 'px-2 py-1 text-sm hover:bg-blue-300 hover:cursor-pointer transition ease-in rounded-md',
+        smartMenuWrapper: 'w-full h-full flex flex-wrap',
+        smartMenuItem: 'w-fit px-1 py-0.5 m-1 bg-blue-100 hover:bg-blue-300 hover:cursor-pointer transition ease-in border rounded-lg text-xs',
+        error: 'p-1 text-xs text-red-700 font-bold'
+    },
+}
 
 const looselyEqual = (a, b) => {
     if (a == null && b == null) return true;
@@ -49,12 +61,12 @@ const RenderMenu = ({
     const selectAllOption = {label: 'Select All', value: 'select-all'};
     const removeAllOption = {label: 'Remove All', value: 'remove-all'};
     return (
-        <div className={`${isSearching ? `block` : `hidden`} ${theme?.multiselect?.menuWrapper || menuWrapper}`}>
+        <div className={`${isSearching ? `block` : `hidden`} ${theme?.multiselect?.menuWrapper}`}>
             <input
                 autoFocus
                 key={'input'}
                 placeholder={placeholder || 'search...'}
-                className={theme?.multiselect?.input || input}
+                className={theme?.multiselect?.input}
                 onChange={e => setSearchKeyword(e.target.value)}
                 onFocus={() => setIsSearching(true)}
             />
@@ -68,7 +80,7 @@ const RenderMenu = ({
                         .map((o, i) =>
                             <div
                                 key={`smart-option-${i}`}
-                                className={theme?.multiselect?.smartMenuItem || menuItem}
+                                className={theme?.multiselect?.smartMenuItem}
                                 onClick={e => {
                                     onChange(
                                         o.value === 'select-all' ? options :
@@ -81,13 +93,13 @@ const RenderMenu = ({
                             </div>)
                 }
             </div>
-            { loading ? <div className={theme?.multiselect?.menuItem || menuItem}>loading...</div> :
+            { loading ? <div className={theme?.multiselect?.menuItem}>loading...</div> :
                 (options || [])
                     .filter(o => !mappedValue.includes(o.value || o) && (o.label || o)?.toString()?.toLowerCase().includes(searchKeyword?.toLowerCase()))
                     .map((o, i) =>
                         <div
                             key={`option-${i}`}
-                            className={theme?.multiselect?.menuItem || menuItem}
+                            className={theme?.multiselect?.menuItem}
                             onClick={e => {
                                 onChange(singleSelectOnly ? [o] : [...value, o]);
                                 setIsSearching(false);
@@ -132,7 +144,7 @@ const Edit = ({value = [], loading, onChange, className,placeholder, options = [
     // options: ['1', 's', 't'] || [{label: '1', value: '1'}, {label: 's', value: '2'}, {label: 't', value: '3'}]
     const [searchKeyword, setSearchKeyword] = useState('');
     const typeSafeValue = (Array.isArray(value) ? value : [value]).map(v => options.find(o => looselyEqual((o?.value || o), (v?.value || v))) || v);
-    const theme = useTheme();
+
     const {
         ref,
         isSearching,
@@ -142,12 +154,12 @@ const Edit = ({value = [], loading, onChange, className,placeholder, options = [
     const invalidValues = typeSafeValue.filter(v => v && (v.value || v) && !options?.some(o => (o.value || o) === (v.value || v)));
 
     return (
-        <div ref={ref} className={`${theme?.multiselect?.mainWrapper || mainWrapper} ${menuPosition === 'top' ? 'flex flex-col flex-col-reverse' : ''} ${loading ? 'cursor-wait' : ''}`}>
+        <div ref={ref} className={`${theme?.multiselect?.mainWrapper} ${menuPosition === 'top' ? 'flex flex-col flex-col-reverse' : ''} ${loading ? 'cursor-wait' : ''}`}>
             {
                 invalidValues.length && displayInvalidMsg ?
                     <Alert className={theme?.multiselect?.error} title={`Invalid Values: ${JSON.stringify(invalidValues)}`} /> : null
             }
-            <div className={className || (theme?.multiselect?.inputWrapper) || inputWrapper} onClick={() => {
+            <div className={className || (theme?.multiselect?.inputWrapper)} onClick={() => {
                 setIsSearching(!isSearching)
                 // console.log('ms?', ref.current.top)
             }}>
@@ -186,7 +198,7 @@ const Edit = ({value = [], loading, onChange, className,placeholder, options = [
 }
 
 const View = ({className, value, options = []}) => {
-    const theme = useTheme();
+    
     if (!value) return <div className={theme?.multiselect?.mainWrapper} />
 
     const mappedValue = (Array.isArray(value) ? value : [value]).map(v => options.find(o => looselyEqual((o.value || o), (v.value || v))) || v);

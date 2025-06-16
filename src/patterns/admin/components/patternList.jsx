@@ -2,7 +2,7 @@ import React, {useContext, useState} from 'react'
 import {Link} from 'react-router'
 import {VerticalDots} from "../ui/icons";
 import {v4 as uuidv4} from "uuid";
-import {AdminContext} from "~/modules/dms/src/patterns/admin/siteConfig";
+import {AdminContext} from "../siteConfig";
 
 function PatternList (props) {
 

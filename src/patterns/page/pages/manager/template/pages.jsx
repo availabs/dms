@@ -4,7 +4,7 @@ import {dmsDataLoader} from "../../../../../api";
 import {DeleteModal} from "./list";
 import Table from "../../../../forms/components/Table"
 import {getNestedValue} from "../../_utils";
-import { CMSContext } from "../../../siteConfig";
+import { CMSContext } from "../../../context";
 import { get } from "lodash-es";;
 
 export const locationNameMap = {

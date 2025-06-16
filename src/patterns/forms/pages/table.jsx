@@ -1,19 +1,22 @@
 import React, {useCallback, useContext, useEffect, useState} from "react";
 import { FormsContext } from '../siteConfig'
 import SourcesLayout from "../components/patternListComponent/layout";
-import Spreadsheet from "../../page/ui/dataComponents/selector/ComponentRegistry/spreadsheet";
+import Spreadsheet from "../../page/components/selector/ComponentRegistry/spreadsheet";
 import {useNavigate} from "react-router";
-import DataWrapper from "../../page/ui/dataComponents/selector/dataWrapper";
+import DataWrapper from "../../page/components/selector/dataWrapper";
 import {cloneDeep, uniqBy} from "lodash-es";
-import {Controls} from "~/modules/dms/src/patterns/page/ui/dataComponents/selector/dataWrapper/components/Controls";
-import {ComponentContext} from "../../page/siteConfig";
-import {useImmer} from "use-immer";
 
+import {ComponentContext} from "../../page/context";
+import {useImmer} from "use-immer";
+import {
+    RenderFilters
+} from "../../page/components/selector/dataWrapper/components/filters/RenderFilters";
+import { Controls } from "../../page/components/selector/dataWrapper/components/Controls";
 const TableView = ({apiUpdate, apiLoad, format, item, params}) => {
     const { baseUrl, pageBaseUrl, theme, user } = useContext(FormsContext) || {};
     const navigate = useNavigate();
     const columns = JSON.parse(item?.config || '{}')?.attributes || [];
-    const defaultColumns = item.defaultColumns;
+    const default_columns = (item.default_columns || item.defaultColumns);
     const [value, setValue] = useImmer({
         dataRequest: {},
         data: [],
@@ -35,8 +38,8 @@ const TableView = ({apiUpdate, apiLoad, format, item, params}) => {
             allowDownload: true,
             hideDatasourceSelector: true,
         },
-        columns: defaultColumns?.length ?
-            uniqBy(defaultColumns.map(dc => columns.find(col => col.name === dc.name)).filter(c => c).map(c => ({...c, show: true})), d => d?.name) :
+        columns: default_columns?.length ?
+            uniqBy(default_columns.map(dc => columns.find(col => col.name === dc.name)).filter(c => c).map(c => ({...c, show: true})), d => d?.name) :
             columns.slice(0, 3).map(c => ({...c, show:true})),
     })
 
@@ -46,7 +49,7 @@ const TableView = ({apiUpdate, apiLoad, format, item, params}) => {
                 .filter(({show}) => show)
                 .map(col => ({...col, filters: undefined, group: undefined})); // not including some settings
 
-        apiUpdate({data: {...item, defaultColumns: columns}, config: {format}});
+        apiUpdate({data: {...item, default_columns: columns}, config: {format}});
     }, [value]);
 
     useEffect(() => {
@@ -92,7 +95,10 @@ const TableView = ({apiUpdate, apiLoad, format, item, params}) => {
                             controls: SpreadSheetCompWithControls.controls,
                             app: item.app
                         }}>
-                            <Controls />
+
+                            <Controls context={ComponentContext} cms_context={FormsContext}/>
+                            <RenderFilters state={value} setState={setValue} apiLoad={apiLoad} isEdit={true} defaultOpen={true} cms_context={FormsContext}/>
+
                             <DataWrapper.EditComp
                                 component={SpreadSheetCompWithControls}
                                 key={'table-page-spreadsheet'}

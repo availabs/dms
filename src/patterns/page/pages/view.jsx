@@ -1,45 +1,64 @@
-import React, {useEffect, useRef} from 'react'
+import React, {useContext, useEffect, useRef} from 'react'
 import { Link, useSubmit, useSearchParams, useLocation, useNavigate } from "react-router";
 import { cloneDeep, merge } from "lodash-es"
+import { useImmer } from "use-immer";
 
-// -- 
-import { CMSContext } from '../siteConfig'
-import { sectionsBackill, dataItemsNav } from './_utils'
-import { Layout, SectionGroup } from '../ui'
-
-import {PDF, PencilEditSquare, Printer} from '../ui/icons'
-import {selectablePDF} from "../components/saveAsPDF/PrintWell/selectablePDF";
-import {useImmer} from "use-immer";
-import {
+import { /*sectionsBackill,*/
+    dataItemsNav,
     convertToUrlParams,
-    initNavigateUsingSearchParams, mergeFilters,
+    mergeFilters,
+    initNavigateUsingSearchParams,
     updatePageStateFiltersOnSearchParamChange
-} from "~/modules/dms/src/patterns/page/pages/edit";
-export const PageContext = React.createContext(undefined);
+} from './_utils'
+
+import SectionGroup from '../components/sections/sectionGroup'
+import SearchButton from '../components/search'
+//import {PDF, PencilEditSquare, Printer} from '../ui/icons'
+//import {selectablePDF} from "../components/saveAsPDF/PrintWell/selectablePDF";
+import { PageContext, CMSContext } from '../context';
+import { ThemeContext } from "../../../ui/useTheme";
 
 
 function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiLoad, apiUpdate, format,busy}) {
-  const submit = useSubmit()
+
+    const submit = useSubmit()
     const navigate = useNavigate()
     const [searchParams] = useSearchParams();
-    let { baseUrl, theme, patternFilters=[], user, API_HOST } = React.useContext(CMSContext) || {}
+    const {theme: fullTheme} = useContext(ThemeContext);
+    const { UI, Menu, baseUrl, patternFilters=[], user, API_HOST } = React.useContext(CMSContext) || {};
+    const {Layout} = UI;
     const [pageState, setPageState] =
         useImmer({
             ...item,
             filters: mergeFilters(item?.filters, patternFilters)
         });
     const { search } = useLocation()
+    const pdfRef = useRef(); // To capture the section of the page to be converted to PDF
 
-  if(!item) { item = {} }// create a default item to set up first time experience.
+    let theme = merge(cloneDeep(fullTheme), item?.theme || {})
 
-  React.useEffect(() => {
-      // -------------------------------------------------------------------
-      // -- This on load effect backfills pages created before sectionGroups
-      // -- This should be deleted by JUNE 1 2025
-      // -------------------------------------------------------------------
-      sectionsBackill(item,baseUrl,submit)
-     
-  },[])
+
+    //console.log('item', item)
+    if(!item) { item = {} }// create a default item to set up first time experience.
+
+    const menuItems = React.useMemo(() => {
+        let items = dataItemsNav(dataItems,baseUrl,false)
+        return items
+    }, [dataItems])
+
+
+    const menuItemsSecondNav = React.useMemo(() => {
+        let items = dataItemsNav(theme?.navOptions?.secondaryNav?.navItems || [],baseUrl,false)
+        return items
+    }, [theme?.navOptions?.secondaryNav?.navItems])
+    // React.useEffect(() => {
+    //     // -------------------------------------------------------------------
+    //     // -- This on load effect backfills pages created before sectionGroups
+    // /     // -- This should be deleted by JUNE 1 2025
+    //     // -------------------------------------------------------------------
+    //     //sectionsBackill(item,baseUrl,submit)
+    //
+    // },[])
 
     useEffect(() => {
         updatePageStateFiltersOnSearchParamChange({searchParams, item, patternFilters, setPageState})
@@ -78,49 +97,44 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
             }
         }
     }
-  const pdfRef = useRef(); // To capture the section of the page to be converted to PDF
-  //let pageTheme = {page: {container: `bg-[linear-gradient(0deg,rgba(33,52,64,.96),rgba(55,87,107,.96)),url('/themes/mny/topolines.png')] bg-[size:500px] pb-[4px]`}}
-  theme = merge(cloneDeep(theme), item?.theme || {})
 
-  const menuItems = React.useMemo(() => {
-    let items = dataItemsNav(dataItems,baseUrl,false)
-    return items
-  }, [dataItems])
 
-    const menuItemsSecondNav = React.useMemo(() => {
-    let items = dataItemsNav(theme?.navOptions?.secondaryNav?.navItems || [],baseUrl,false)
-    return items
-  }, [theme?.navOptions?.secondaryNav?.navItems])
 
-  
-  const getSectionGroups =  ( sectionName ) => {
-    return (item?.section_groups || [])
-        .filter((g,i) => g.position === sectionName)
-        .sort((a,b) => a?.index - b?.index)
-        .map((group,i) => (
-          <SectionGroup
-            key={group?.name || i}
-            group={group}
-            attributes={attributes}
-          />
-        ))
-  }
 
-  return (
-      <PageContext.Provider value={{ item, pageState, setPageState, updatePageStateFilters, dataItems, apiLoad, apiUpdate, format, busy }} >
-        <div className={`${theme?.page?.container}`}>
-          {getSectionGroups('top')}
-          <Layout 
-            navItems={menuItems} 
-            secondNav={menuItemsSecondNav}
-            pageTheme={{navOptions: item.navOptions || {}}}
-          >
-            {getSectionGroups('content')}
-          </Layout>
-          {getSectionGroups('bottom')}
-        </div>
-      </PageContext.Provider>
-  ) 
+
+
+    const getSectionGroups =  ( sectionName ) => {
+        return (item?.section_groups || [])
+            .filter((g,i) => g.position === sectionName)
+            .sort((a,b) => a?.index - b?.index)
+            .map((group,i) => (
+                <SectionGroup
+                    key={group?.name || i}
+                    group={group}
+                    attributes={attributes}
+                />
+            ))
+    }
+
+    return (
+        <PageContext.Provider value={{ item, pageState, setPageState, updatePageStateFilters, dataItems, apiLoad, apiUpdate, format, busy }} >
+            <div className={`${theme?.page?.container}`}>
+                {getSectionGroups('top')}
+                <Layout
+                    navItems={menuItems}
+                    secondNav={menuItemsSecondNav}
+                    pageTheme={{navOptions: item.navOptions || {}}}
+                    Menu={Menu}
+                    SearchButton={SearchButton}
+                >
+                    {getSectionGroups('content')}
+                </Layout>
+                {getSectionGroups('bottom')}
+            </div>
+        </PageContext.Provider>
+
+    )
+
 }
 
 

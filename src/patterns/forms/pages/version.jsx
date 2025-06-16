@@ -1,13 +1,15 @@
-import React, {useState} from "react";
+import React, {useContext, useState} from "react";
 import { FormsContext } from '../siteConfig'
 import SourcesLayout from "../components/patternListComponent/layout";
-import {DeleteModal} from "../../page/ui";
 import { cloneDeep } from "lodash-es";
 import {useNavigate} from "react-router";
+import {CMSContext} from "../../page/context";
 const buttonRedClass = 'w-full p-2 mx-1 bg-red-300 hover:bg-red-500 text-gray-800 rounded-md';
 const buttonGreenClass = 'p-2 mx-1 bg-green-500 hover:bg-green-700 text-white rounded-md';
 
 const DeleteViewBtn = ({item, view_id, format, url, apiUpdate, baseUrl}) => {
+    const {UI} = useContext(CMSContext);
+    const {DeleteModal} = UI;
     // update parent to exclude item. the item still stays in the DB.
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const navigate = useNavigate();
@@ -45,6 +47,8 @@ const DeleteViewBtn = ({item, view_id, format, url, apiUpdate, baseUrl}) => {
 }
 
 const ClearDataBtn = ({app, type, view_id, apiLoad, apiUpdate}) => {
+    const {UI} = useContext(CMSContext);
+    const {DeleteModal} = UI;
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const clearData = async () => {
         // fetch all ids based on app and type (doc_type of source), and then call dmsDataEditor with config={app, type}, data={id}, requestType='delete

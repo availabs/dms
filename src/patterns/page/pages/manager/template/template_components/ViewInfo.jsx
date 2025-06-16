@@ -3,7 +3,7 @@ import {getConfig} from "../pages";
 import {dmsDataLoader} from "../../../../../../api";
 import { get } from "lodash-es";;
 //import {falcor} from "~/modules/avl-falcor"
-import { CMSContext } from '../../../../siteConfig'
+import { CMSContext } from '../../../../context'
 import TemplateSelector from "./TemplateSelector";
 import {generatePages} from "./generatePages";
 const ViewInfo = ({submit, item, onChange, loadingStatus, apiLoad, setLoadingStatus=() => {}}) => {

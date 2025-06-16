@@ -11,7 +11,6 @@ const ManageForm = ({
     updateAttribute,
     user,
     params,
-    submit,
     manageTemplates = false,
     ...rest
 }) => {
@@ -59,7 +58,6 @@ const ViewForm = ({
     item,
     user,
     params,
-    submit,
     ...rest
 }) => {
     // const {id} = params;

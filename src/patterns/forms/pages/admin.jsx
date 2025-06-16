@@ -1,14 +1,16 @@
-import React, {useEffect, useState} from "react";
+import React, {useContext, useState} from "react";
 import { FormsContext } from '../siteConfig'
 import SourcesLayout from "../components/patternListComponent/layout";
-import {DeleteModal, Modal} from "../../page/ui";
 import { cloneDeep } from "lodash-es";
 import {useNavigate} from "react-router";
+import {CMSContext} from "../../page/context";
 const buttonRedClass = 'p-2 mx-1 bg-red-500 hover:bg-red-700 text-white rounded-md';
 const buttonGreenClass = 'p-2 mx-1 bg-green-500 hover:bg-green-700 text-white rounded-md';
 
 const DeleteSourceBtn = ({parent, item, apiUpdate, baseUrl}) => {
     // update parent to exclude item. the item still stays in the DB.
+    const {UI} = useContext(CMSContext);
+    const {DeleteModal} = UI;
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const navigate = useNavigate();
 
@@ -54,6 +56,8 @@ const DeleteSourceBtn = ({parent, item, apiUpdate, baseUrl}) => {
 
 const AddViewBtn = ({item, format, apiLoad, apiUpdate}) => {
     // update parent to exclude item. the item still stays in the DB.
+    const {UI} = useContext(CMSContext);
+    const {Modal} = UI;
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [name, setName] = useState('');
     const navigate = useNavigate();
@@ -89,6 +93,8 @@ const AddViewBtn = ({item, format, apiLoad, apiUpdate}) => {
 }
 
 const ClearDataBtn = ({app, type, apiLoad, apiUpdate}) => {
+    const {UI} = useContext(CMSContext);
+    const {DeleteModal} = UI;
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const clearData = async () => {
         // fetch all ids based on app and type (doc_type of source), and then call dmsDataEditor with config={app, type}, data={id}, requestType='delete

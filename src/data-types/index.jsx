@@ -3,10 +3,10 @@ import text from './text'
 import textarea from './textarea'
 import boolean from './boolean'
 import config from './form-config'
-import template from './template'
+//import template from './template'
 import dmsFormat from './dms-format'
 import Array from './array'
-import Lexical from '../patterns/page/ui/dataComponents/selector/ComponentRegistry/richtext/lexical'
+import Lexical from '../patterns/page/components/selector/ComponentRegistry/richtext/lexical'
 
 import { get } from "lodash-es"
 import Select from "./select";
@@ -19,7 +19,7 @@ export const dmsDataTypes = {
 	'datetime': text,
 	'textarea': textarea,
 	'config': config,
-	'form-template': template,
+	//'form-template': template,
 	'boolean': boolean,
 	'dms-format': dmsFormat,
 	'lexical': Lexical,

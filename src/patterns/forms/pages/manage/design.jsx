@@ -4,10 +4,7 @@ import { merge } from "lodash-es"
 import { cloneDeep } from "lodash-es"
 import { isEqual } from "lodash-es"
 import Frame from 'react-frame-component'
-//import { NavLink, Link, useSubmit, useNavigate, useLocation, useParams} from "react-router";
 
-
-import ManagerLayout from './layout'
 import Layout from '../../ui/avail-layout'
 import Icons from '../../ui/icons'
 import {dataItemsNav, detectNavLevel, getInPageNav} from '../_utils'
