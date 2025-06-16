@@ -6,18 +6,20 @@ import SiteEdit from "./pages/siteEdit"
 
 
 import adminFormat from "./admin.format.js"
-import defaultTheme from './theme/theme'
-import Layout from './ui/avail-layout'
+// import defaultTheme from './theme/theme'
+// import Layout from './ui/avail-layout'
 
 import { Link } from 'react-router'
 
 export const AdminContext = React.createContext(undefined);
 const defaultUser = { email: "user", authLevel: 5, authed: true, fake: true}
 
+import UI from "../../ui"
+import {ThemeContext} from '../../ui/useTheme'
+import defaultTheme from '../../ui/defaultTheme.json'
 
 
-
-const adminConfig = ({ 
+const adminConfig = ({
   app = "default-app",
   type = "default-page",
   sideNav = null,
@@ -72,12 +74,15 @@ const adminConfig = ({
     children: [
       {
         type: (props) => {
+          const {Layout} = UI;
           return (
-              <AdminContext.Provider value={{baseUrl, user: props.user || defaultUser, theme, app, type, API_HOST, parent}}>
-                <Layout navItems={menuItems} >
+            <AdminContext.Provider value={{baseUrl, user: props.user || defaultUser, app, type, API_HOST, parent, UI}}>
+              <ThemeContext.Provider value={{theme}}>
+                <Layout navItems={menuItems}>
                   {props.children}
                 </Layout>
-              </AdminContext.Provider>
+              </ThemeContext.Provider>
+            </AdminContext.Provider>
           )
         },
         action: "list",
