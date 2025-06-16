@@ -1,5 +1,5 @@
 
-import React, {Fragment, useState} from 'react'
+import React, {Fragment, useContext, useState} from 'react'
 import { cloneDeep, set, get } from 'lodash-es'
 import { updateTitle } from '../editFunctions'
 import { v4 as uuidv4 } from 'uuid';
@@ -8,6 +8,8 @@ import {ThemeContext} from "../../../../../ui/useTheme";
 
 
 const FilterSettings = ({label, type, value, stateValue, onChange}) => {
+  const {UI} = useContext(CMSContext);
+  const {Input, Select, Button} = UI;
   const [newFilter, setNewFilter] = useState({});
   const [tmpValue, setTmpValue] = useState(typeof value === 'string' ? JSON.parse(value) : (value || []));
 

@@ -14,6 +14,7 @@ import Switch from './components/Switch';
 import ColorPicker from "./components/Colorpicker";
 import Tabs from "./components/Tabs";
 import Drawer from "./components/Drawer";
+import Input from "./components/Input"
 import Select from './components/Select';
 import Dialog from "./components/Dialog";
 import Dropdown from "./components/Dropdown";
@@ -41,6 +42,7 @@ export default {
 	// --- Forms
 	FieldSet,
 	Switch,
+	Input,
 	Select,
 	ColorPicker,
 	Tabs,

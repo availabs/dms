@@ -3,10 +3,10 @@ import { cloneDeep } from "lodash-es"
 
 import PatternList from "./components/patternList";
 import SiteEdit from "./pages/siteEdit"
-import UI from "../../ui"
-import {ThemeContext} from '../../ui/useTheme'
+
+
 import adminFormat from "./admin.format.js"
-import defaultTheme from '../../ui/defaultTheme.json'
+import defaultTheme from './theme/theme'
 import Layout from './ui/avail-layout'
 
 import { Link } from 'react-router'
@@ -55,13 +55,13 @@ const adminConfig = ({
     {
       name: 'Team',
       path:`${baseUrl}team`
-    }  
+    }
   ]
-  
+
   // ----------------------
   // update app for all the children formats
-  format.registerFormats = updateRegisteredFormats(format.registerFormats, app) 
-  format.attributes = updateAttributes(format.attributes, app) 
+  format.registerFormats = updateRegisteredFormats(format.registerFormats, app)
+  format.attributes = updateAttributes(format.attributes, app)
   // ----------------------
   //console.log('test 123', theme)
   return {
@@ -70,17 +70,14 @@ const adminConfig = ({
     format: format,
     baseUrl,
     children: [
-      { 
+      {
         type: (props) => {
-          const {Layout} = UI;
           return (
-            <AdminContext.Provider value={{baseUrl, user: props.user || defaultUser, app, type, API_HOST, parent, UI}}>
-              <ThemeContext.Provider value={{theme}}>
-                <Layout navItems={menuItems}>
+              <AdminContext.Provider value={{baseUrl, user: props.user || defaultUser, theme, app, type, API_HOST, parent}}>
+                <Layout navItems={menuItems} >
                   {props.children}
                 </Layout>
-              </ThemeContext.Provider>
-            </AdminContext.Provider>
+              </AdminContext.Provider>
           )
         },
         action: "list",
@@ -93,7 +90,7 @@ const adminConfig = ({
             path: "/*",
 
           },
-         
+
           {
             type: (props) => (<div>Team</div>),
             action: "view",

@@ -127,9 +127,14 @@ function PatternEdit({
 				<Table columns={columns}
 					   data={data}
 					   isEdit={false}
-					   allowEdit={true}
+					   // allowEdit={true}
 					   // display={{allowEditInView: true}}
 					   gridRef={gridRef}
+					   // updateItem={(_value, _attribute, data) => {
+						//    const newValue = value.map(v => v.id === data.id ? data : v);
+						//    onChange(newValue)
+						//    onSubmit(newValue)
+					   // }}
 				/>
 				{/*{*/}
 				{/*	data.map((pattern, index) => (*/}
