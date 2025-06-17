@@ -4,21 +4,23 @@ import {ThemeContext} from "../../../../ui/useTheme";
 
 
 const managerTheme={
-  navOptions: {
-    sideNav: {
-      size: 'compact',
-      search: 'none',
-      logo: 'none',
-      dropdown: 'none',
-      nav: 'main'
-    },
-    topNav: {
-      size: 'compact',
-      dropdown: 'right',
-      search: 'none',
-      logo: 'left',
-      position: 'fixed',
-      nav: 'none' 
+  layout: {
+    navOptions: {
+      sideNav: {
+        size: 'compact',
+        search: 'none',
+        logo: 'none',
+        dropdown: 'none',
+        nav: 'main'
+      },
+      topNav: {
+        size: 'compact',
+        dropdown: 'right',
+        search: 'none',
+        logo: 'left',
+        position: 'fixed',
+        nav: 'none'
+      }
     }
   }
 }
@@ -30,7 +32,7 @@ function CmsManager ({children}) {
   
   const { baseUrl, UI } = React.useContext(CMSContext) || {};
   const {Layout} = UI;
-  const { theme } = React.useContext(ThemeContext);
+  const { theme ={}} = React.useContext(ThemeContext);
   
 
   const managerNavItems = [

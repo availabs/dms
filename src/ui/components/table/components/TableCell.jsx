@@ -60,7 +60,7 @@ export const TableCell = ({
     const compType = attribute.type === 'calculated' && Array.isArray(rawValue) ? 'multiselect' : attribute.type;
     const compMode = attribute.type === 'calculated' && Array.isArray(rawValue) ? 'ViewComp' :
                             editing && allowEdit ? 'EditComp' : 'ViewComp';
-    const Comp = loading ? LoadingComp : (DataTypes[compType]?.[compMode] || DisplayCalculatedCell);
+    const Comp = loading ? LoadingComp : compType === 'ui' ? attribute.Comp : (DataTypes[compType]?.[compMode] || DisplayCalculatedCell);
     const CompWithLink = LinkComp({attribute, columns, newItem, removeItem, value: rawValue, Comp});
     const value = compMode === 'EditComp' ? rawValue : attribute.formatFn && formatFunctions[attribute.formatFn.toLowerCase()] ? formatFunctions[attribute.formatFn.toLowerCase()](rawValue, attribute.isDollar) : rawValue
     const justifyClass = {
@@ -165,6 +165,7 @@ export const TableCell = ({
                   `}
                   {...attribute}
                   value={value}
+                  row={newItem}
                   onChange={e => isTotalRow ? null : setNewItem({...newItem, [attribute.name]: e})}
             />
         </div>
