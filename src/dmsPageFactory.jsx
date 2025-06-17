@@ -28,7 +28,7 @@ function ScrollToTop() {
 
 export default function dmsPageFactory (
   dmsConfig,
-  authWrapper = Component => Component,
+  authWrapper = (Component) => Component,
 ) {
   //console.log('hola', dmsConfig, authWrapper)
   //const {falcor, falcorCache} = useFalcor()
