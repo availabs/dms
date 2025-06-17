@@ -4,23 +4,21 @@ import {ThemeContext} from "../../../../ui/useTheme";
 
 
 const managerTheme={
-  layout: {
-    navOptions: {
-      sideNav: {
-        size: 'compact',
-        search: 'none',
-        logo: 'none',
-        dropdown: 'none',
-        nav: 'main'
-      },
-      topNav: {
-        size: 'compact',
-        dropdown: 'right',
-        search: 'none',
-        logo: 'left',
-        position: 'fixed',
-        nav: 'none'
-      }
+  navOptions: {
+    sideNav: {
+      size: 'compact',
+      search: 'none',
+      logo: 'none',
+      dropdown: 'none',
+      nav: 'main'
+    },
+    topNav: {
+      size: 'compact',
+      dropdown: 'right',
+      search: 'none',
+      logo: 'left',
+      position: 'fixed',
+      nav: 'none'
     }
   }
 }

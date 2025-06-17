@@ -47,7 +47,7 @@ const adminConfig = ({
 
   const menuItems = [
     {
-      name: 'Dashboard',
+      name: 'Sites',
       path: `${baseUrl}`
     },
     {
@@ -73,6 +73,7 @@ const adminConfig = ({
     baseUrl,
     children: [
       {
+        //todo move theme edit page here
         type: (props) => {
           const {Layout} = UI;
           return (
@@ -97,11 +98,23 @@ const adminConfig = ({
           },
 
           {
+            type: (props) => {
+              console.log('props', props);
+              return <div>Themes</div>
+            },
+            action: "edit",
+            path: "themes",
+
+          },
+
+          {
             type: (props) => (<div>Team</div>),
             action: "view",
             path: "team",
 
-          }
+          },
+            // add a themes list page. a user can send themes object to DMSSite, and new themes from that object need to bbe saved to db.
+            // after theme list page, create a components list page.
         ]
       }
     ]

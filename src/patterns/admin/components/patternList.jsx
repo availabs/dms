@@ -2,7 +2,7 @@ import React, {useContext, useRef, useState} from 'react'
 import {Link} from 'react-router'
 import {v4 as uuidv4} from "uuid";
 import {AdminContext} from "../siteConfig";
-i
+
 function PatternList (props) {
 
 	const data = props?.dataItems[0] || {};

@@ -62,15 +62,7 @@ export const pattern = {
     { key: 'theme',
       placeholder: '',
       type: 'config'
-    },
-    {
-      key: 'templates',
-      // type: 'form-template',
-      type: 'dms-format',
-      isArray: true,
-      format: 'admin+template',
-      DisplayComp: TemplateList
-    },
+    }
   ] 
 }
 
@@ -95,6 +87,10 @@ const patternAdminFormat = {
       format: 'admin+pattern',
       DisplayComp: PatternList
     },
+    {
+      key: 'themes',
+      type: 'json'
+    }
   ]
 }
 

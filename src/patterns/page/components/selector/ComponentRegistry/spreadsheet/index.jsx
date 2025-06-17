@@ -1,10 +1,7 @@
 import React, {useContext, useEffect, useMemo, useRef, useState} from "react";
-import {useCopy, usePaste} from "../../../../../../ui/components/table/utils/hooks";
-import {handleKeyDown} from "../../../../../../ui/components/table/utils/keyboard";
 import {
     actionsColSize,
     gutterColSize as gutterColSizeDf,
-    minColSize,
     minInitColSize,
     numColSize as numColSizeDf
 } from "./constants"
@@ -72,14 +69,8 @@ export const RenderTable = ({isEdit, updateItem, removeItem, addItem, newItem, s
                   allowEdit={allowEdit} isEdit={isEdit} loading={loading}
                   gridRef={gridRef}
                   theme={theme} paginationActive={paginationActive}
-                  isDragging={isDragging} setIsDragging={setIsDragging}
-                  selection={selection} setSelection={setSelection}
-                  isSelecting={isSelecting}
-                  editing={editing} setEditing={setEditing}
-                  selectionRange={selectionRange} triggerSelectionDelete={triggerSelectionDelete}
-                  startCellCol={startCellCol} startCellRow={startCellRow}
                   updateItem={updateItem} removeItem={removeItem}
-                  numColSize={numColSize} gutterColSize={gutterColSize} frozenColClass={frozenColClass} frozenCols={frozenCols} colResizer={colResizer}
+                  numColSize={numColSize} gutterColSize={gutterColSize} frozenColClass={frozenColClass} frozenCols={frozenCols}
     />
 }
 

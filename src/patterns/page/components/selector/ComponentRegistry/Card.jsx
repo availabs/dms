@@ -154,6 +154,10 @@ const RenderItem = ({
     const {UI} = useContext(CMSContext);
     const {Icon} = UI;
     const [tmpItem, setTmpItem] = useState(item || {}); // for form edit controls
+
+    useEffect(() => {
+        setTmpItem(item)
+    }, [item])
     return (
         //  in normal view, grid applied here
         <div
@@ -346,6 +350,8 @@ const Card = ({
             draft.columns = newCols;
         });
     }
+
+    console.log('??????????????????/', data)
     return (
         <>
             {

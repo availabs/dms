@@ -295,21 +295,18 @@ export default function ({
 
 
                 {/*/!****************************************** Total Row ***********************************************!/*/}
-                {/*{data*/}
-                {/*    .filter(d => showTotal && d.totalRow)*/}
-                {/*    .map((d, i) => (*/}
-                {/*        <TableRow key={'total row'} {...{*/}
-                {/*            i, c, d,*/}
-                {/*            allowEdit, isDragging, isSelecting, editing, setEditing, loading,*/}
-                {/*            striped, visibleAttributes, attributes, customColNames, frozenCols,*/}
-                {/*            colSizes, selection, setSelection, selectionRange, triggerSelectionDelete,*/}
-                {/*            isEdit, groupBy, filters, actions, linkCols, openOutCols,*/}
-                {/*            colJustify, formatFn, fontSize,*/}
-                {/*            handleMouseDown, handleMouseMove, handleMouseUp,*/}
-                {/*            setIsDragging, startCellCol, startCellRow,*/}
-                {/*            updateItem, removeItem*/}
-                {/*        }} />*/}
-                {/*    ))}*/}
+                {data
+                    .filter(d => display.showTotal && d.totalRow)
+                    .map((d, i) => (
+                        <TableRow key={i} {...{
+                            i, d,  isEdit, frozenCols, theme, columns, display,
+                            allowEdit, isDragging, isSelecting, editing, setEditing, loading:false,
+                            selection, setSelection, selectionRange, triggerSelectionDelete,
+                            handleMouseDown, handleMouseMove, handleMouseUp,
+                            setIsDragging, startCellCol, startCellRow,
+                            updateItem, removeItem, defaultColumnSize
+                        }} />
+                    ))}
                 {/*/!****************************************** Rows end ************************************************!/*/}
             </div>
             {/********************************************* out of scroll ********************************************/}
