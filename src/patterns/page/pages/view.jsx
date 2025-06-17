@@ -38,7 +38,7 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
     let theme = merge(cloneDeep(fullTheme), item?.theme || {})
 
 
-    console.log('item', item)
+    //console.log('item', item)
     if(!item) { item = {} }// create a default item to set up first time experience.
 
     const menuItems = React.useMemo(() => {

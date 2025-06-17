@@ -3,22 +3,22 @@ import {useNavigate, useSearchParams} from 'react-router'
 import {
     applyFn,
     attributeAccessorStr, isJson
-} from "~/modules/dms/src/patterns/page/components/selector/dataWrapper/utils/utils";
+} from "../../page/components/selector/dataWrapper/utils/utils";
 import {cloneDeep, isEqual, uniq, uniqBy} from "lodash-es";
 import {CMSContext, ComponentContext} from "../../page/context"
-import dataTypes from "~/modules/dms/src/data-types";
+import dataTypes from "../../../data-types";
 import {useImmer} from "use-immer";
 import {
     getData as getFilterData
-} from "~/modules/dms/src/patterns/page/components/selector/dataWrapper/components/filters/utils";
-import Spreadsheet from "~/modules/dms/src/patterns/page/components/selector/ComponentRegistry/spreadsheet";
-import {Filter, FilterRemove} from "~/modules/dms/src/patterns/forms/ui/icons";
-import SourcesLayout from "~/modules/dms/src/patterns/forms/components/patternListComponent/layout";
-import {Controls} from "~/modules/dms/src/patterns/page/components/selector/dataWrapper/components/Controls";
+} from "../../page/components/selector/dataWrapper/components/filters/utils";
+import Spreadsheet from "../../page/components/selector/ComponentRegistry/spreadsheet";
+import {Filter, FilterRemove} from "../ui/icons";
+import SourcesLayout from "../../forms/components/patternListComponent/layout";
+import {Controls} from "../../page/components/selector/dataWrapper/components/Controls";
 import {
     RenderFilters
-} from "~/modules/dms/src/patterns/page/components/selector/dataWrapper/components/filters/RenderFilters";
-import DataWrapper from "~/modules/dms/src/patterns/page/components/selector/dataWrapper";
+} from "../../page/components/selector/dataWrapper/components/filters/RenderFilters";
+import DataWrapper from "../../page/components/selector/dataWrapper";
 
 
 const getErrorValueSql = (fullName, shortName, options, required, type) => {
