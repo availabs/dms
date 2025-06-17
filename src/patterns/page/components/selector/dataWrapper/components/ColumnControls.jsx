@@ -10,7 +10,7 @@ import DataSourceSelector from "../../ComponentRegistry/DataSourceSelector";
 import { ComponentContext, CMSContext } from "../../../../context";
 
 
-//const DataSourceSelector = () => <div />
+
 const gridClasses = {
     2: {
         gridClass: 'grid grid-cols-2',
@@ -65,9 +65,9 @@ const gridClasses = {
 };
 
 
-export default function ColumnControls({context}) {
+export default function ColumnControls({context, cms_context}) {
     const {state: {columns=[], sourceInfo, display}, setState, controls= {}} = useContext(context || ComponentContext);
-    const { UI } = React.useContext(CMSContext) || {}
+    const { UI } = React.useContext(cms_context || CMSContext) || {UI: {Icon: () => <></>, Pill: () => <></>, Switch: () => <></>}}
     if(!controls.columns?.length) return;
     const { Icon, Switch, Pill } = UI;
     const dragItem = useRef();
@@ -309,7 +309,7 @@ export default function ColumnControls({context}) {
                                 controls.columns.find(({key}) => key === 'show') ?
                                     <Pill text={isEveryColVisible ? 'Hide all' : 'Show all'} color={'blue'} onClick={() => toggleGlobalVisibility(!isEveryColVisible)}/> : null
                             }
-                            <AddFormulaColumn columns={columnsToRender} addFormulaColumn={addFormulaColumn}/>
+                            <AddFormulaColumn columns={columnsToRender} addFormulaColumn={addFormulaColumn} cms_context={cms_context}/>
                             <Pill text={isSystemIDColOn ? 'Hide ID column' : 'Show ID column'} color={'blue'} onClick={() => toggleIdFilter()}/>
                             <Pill text={'Reset all'} color={'orange'} onClick={() => resetAllColumns()}/>
                         </div>
@@ -393,7 +393,7 @@ export default function ColumnControls({context}) {
                                         }
 
                                         <button key={'restore-btn'} className={'w-fit place-self-end'} onClick={() => resetColumn(attribute)}>
-                                            <Icon icon='restore' className={'text-orange-500 hover:text-orange-700'} />
+                                            <Icon icon='TrashCan' className={'text-orange-500 hover:text-orange-700 size-4'} />
                                         </button>
                                     </div>
                                 </div>

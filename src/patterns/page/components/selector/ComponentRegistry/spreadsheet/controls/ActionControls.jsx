@@ -1,12 +1,11 @@
 import React, {useRef, useState, useEffect, useContext, useCallback} from "react";
-//import Icons, {ArrowDown, TouchInteraction} from "../../../../../../../forms/ui/icons"
 import {useHandleClickOutside} from "../../shared/utils";
 import {CMSContext, ComponentContext} from '../../../../../context'
 
 const Icons = []
 
 const RenderIconSelector = ({onClick, icon}) => {
-    const { UI } = React.useContext(CMSContext) || {}
+    const { UI } = React.useContext(CMSContext) || {UI: {Icon: () => <></>}}
     const { Icon } = UI;
     const [open, setOpen] = useState(false);
     const [search, setSearch] = useState('');
@@ -51,7 +50,7 @@ const RenderIconSelector = ({onClick, icon}) => {
     )
 }
 const RenderAction = ({actions, updateAction, deleteAction, action = {}}) => {
-    const { UI } = React.useContext(CMSContext) || {}
+    const { UI } = React.useContext(CMSContext) || {UI: {Icon: () => <></>}}
     const { Icon } = UI;
     const [isEditing, setIsEditing] = useState(false);
     const [newAction, setNewAction] = useState(action);
@@ -239,6 +238,8 @@ export default function ActionControls({context}) {
     // display: edit only, view only, both
     // attach search params
     const {state:{columns}, setState} = useContext(context || ComponentContext);
+    const {UI} = useContext(CMSContext) || {UI: {Icon: () => <></>}};
+    const {Icon} = UI;
     const menuRef = useRef(null);
     const [search, setSearch] = useState();
     const [isOpen, setIsOpen] = useState(false);
@@ -285,7 +286,7 @@ export default function ActionControls({context}) {
                     text-gray-900 shadow-sm ring-1 ring-inset ${actionColumns.length ? `ring-blue-300` : `ring-gray-300`} 
                     ${isOpen ? `bg-gray-50` : `bg-white hover:bg-gray-50`} cursor-pointer`}
                     onClick={e => setIsOpen(!isOpen)}>
-                    Action <ArrowDown id={menuBtnId} height={18} width={18} className={'mt-1'}/>
+                    Action <Icon icon={'ArrowDown'} id={menuBtnId} height={18} width={18} className={'mt-1'}/>
                 </div>
             </div>
 

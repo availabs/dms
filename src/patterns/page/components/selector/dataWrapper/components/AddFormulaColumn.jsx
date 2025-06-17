@@ -34,8 +34,8 @@ const grouping = [
     {operation: ')', Icon: () => <>)</>}
 ];
 
-const Modal = ({ open, setOpen, columns, addFormulaColumn }) => {
-    const {UI} = useContext(CMSContext);
+const Modal = ({ open, setOpen, columns, addFormulaColumn, cms_context }) => {
+    const {UI} = useContext(cms_context || CMSContext) || {UI: {Icon: () => <></>}};
     const {Icon} = UI;
     if (!open) return null;
     const [state, setState] = useImmer({
@@ -184,14 +184,14 @@ const Modal = ({ open, setOpen, columns, addFormulaColumn }) => {
     );
 };
 
-const AddFormulaColumn = ({columns=[], addFormulaColumn}) => {
+const AddFormulaColumn = ({columns=[], addFormulaColumn, cms_context}) => {
     const [open, setOpen] = useState(false);
-    const {UI} = useContext(CMSContext);
+    const {UI} = useContext(cms_context || CMSContext) || {UI: {Pill: () => <></>}};
     const {Pill} = UI;
     return (
         <>
             <Pill text={'+ Formula column'} color={'blue'} onClick={() => setOpen(true)}/>
-            <Modal open={open} setOpen={setOpen} columns={columns} addFormulaColumn={addFormulaColumn}/>
+            <Modal open={open} setOpen={setOpen} columns={columns} addFormulaColumn={addFormulaColumn} cms_context={cms_context}/>
         </>
     )
 }

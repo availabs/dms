@@ -3,7 +3,7 @@ import {CMSContext, ComponentContext} from "../../../../context";
 
 export const Pagination = ({currentPage, setCurrentPage, showPagination, setReadyToLoad}) => {
     const { state } = useContext(ComponentContext);
-    const {UI} = useContext(CMSContext);
+    const {UI} = useContext(CMSContext) || {UI: {Pagination: () => <></>}};
     const {Pagination} = UI;
     if(!state.columns.filter(column => column.show).length || !showPagination) return;
 
