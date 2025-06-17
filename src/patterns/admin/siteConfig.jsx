@@ -16,7 +16,7 @@ const defaultUser = { email: "user", authLevel: 5, authed: true, fake: true}
 
 import UI from "../../ui"
 import {ThemeContext} from '../../ui/useTheme'
-import defaultTheme from '../../ui/defaultTheme.json'
+import defaultTheme from '../../ui/defaultTheme'
 
 
 const adminConfig = ({
