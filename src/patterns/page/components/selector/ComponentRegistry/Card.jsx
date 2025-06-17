@@ -91,7 +91,7 @@ export const dataCardTheme = {
     img8XL: "max-w-128 max-h-128",
 
     header: 'w-full capitalize',
-    value: 'w-full'
+    value: ''
 }
 // cards can be:
 // one cell per row, that carries one column's data,
