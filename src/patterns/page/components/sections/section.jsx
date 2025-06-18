@@ -509,7 +509,7 @@ const RenderError = ({data}) => (
 
 function TagComponent ({value, placeholder, onChange, edit=false}) {
     const {UI} = useContext(CMSContext);
-    const {Icon} = UI;
+    const {Icon, Label} = UI;
     const arrayValue = Array.isArray(value) ? value :  (value?.split(',')?.filter(v => v?.length) || [])
     const [newTag, setNewTag] = useState('');
     //console.log('hola', value, arrayValue)
