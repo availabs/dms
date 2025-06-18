@@ -1,4 +1,4 @@
-{
+const theme = {
     "navOptions": {
         "logo": "",
         "sideNav": {
@@ -404,3 +404,5 @@
     },
     "Icons": {}
 }
+
+export default theme
