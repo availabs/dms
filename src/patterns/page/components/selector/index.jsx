@@ -167,7 +167,7 @@ function ViewComp({value, ...rest}) {
     const defaultComp = () => <div> Component {value["element-type"]} Not Registered </div>;
     const blankComp = () => <div></div>;
 
-    const component = (RegisteredComponents[get(value, "element-type", "lexical")] || defaultComp);
+    const component = RegisteredComponents[get(value, "element-type", "lexical")];
     const [state, setState] = useImmer(convertOldState(value?.['element-data'] || '', initialState(component?.defaultState)));
 
 
@@ -182,7 +182,7 @@ function ViewComp({value, ...rest}) {
 
 
     return (
-        <ComponentContext.Provider value={{state, setState, apiLoad, controls: component.controls}}>
+        <ComponentContext.Provider value={{state, setState, apiLoad, controls: component?.controls}}>
             <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={false} defaultOpen={true}/>
             <DataComp value={value?.['element-data'] || ''}
                       state={state} setState={setState}
