@@ -25,7 +25,12 @@ const ComponentRegistry = {
     Upload: UploadComponent,
     Validate: ValidateComponent,
     "Table: Components Index": ComponentsIndexTable,
-    // //Item,
+    Item: {
+        name: 'Item',
+        controls: {},
+        EditComp: () => <div>Item Component Deprecated.</div>,
+        ViewComp: () => <div>Item Component Deprecated.</div>
+    },
 }
 
 

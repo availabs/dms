@@ -137,8 +137,8 @@ function EditComp(props) {
             </div>
             <ComponentContext.Provider value={{
                 state, setState, apiLoad,
-                compType: component.name.toLowerCase(), // should be deprecated
-                controls: component.controls,
+                compType: component?.name?.toLowerCase(), // should be deprecated
+                controls: component?.controls,
                 app: pageformat?.app
             }}>
                 {/* controls with datasource selector */}
