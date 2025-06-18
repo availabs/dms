@@ -55,6 +55,10 @@ const adminConfig = ({
       path: `${baseUrl}/datasets`
     },
     {
+      name: 'Themes',
+      path: `${baseUrl}/themes`
+    },
+    {
       name: 'Team',
       path:`${baseUrl}team`
     }
@@ -104,7 +108,6 @@ const adminConfig = ({
             },
             action: "edit",
             path: "themes",
-
           },
 
           {
