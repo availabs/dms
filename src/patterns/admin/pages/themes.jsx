@@ -1,0 +1,168 @@
+import React, {useContext, useRef, useState} from 'react'
+import {AdminContext} from "../siteConfig";
+import { Link } from 'react-router'
+import {v4 as uuidv4} from "uuid";
+
+
+
+function ThemeList ({
+   item={},
+   dataItems,
+   attributes,
+   updateAttribute,
+   apiUpdate,
+   format,
+}) {
+	// themes is an array of {name, theme, id}
+	const { baseUrl, theme, user, UI } = React.useContext(AdminContext) || {};
+	const [addingNew, setAddingNew] = useState(false);
+	const [newItem, setNewItem] = useState({});
+	const [editingItem, setEditingItem] = useState();
+	const [search, setSearch] = useState('');
+	const gridRef = useRef(null);
+	const {Modal, Input, Button, Table} = UI;
+
+
+	const attrToAddNew = ['name', 'theme'];
+	const columns = [
+		{name: 'name', display_name: 'Theme name', show: true, type: 'text'},
+		{name: 'edit', display_name: 'Edit', show: true, type: 'ui',
+			Comp: (d) => {
+				return <Button onClick={() => setEditingItem(d.row)}>Edit</Button>
+			}},
+	]
+	const data = (item.themes || []).filter(v => !search || v.name.toLowerCase().includes(search.toLowerCase()));
+
+	const onSubmit = (value) => {
+		apiUpdate({data: {...item, ...{themes: value}}, config: {format}})
+		updateAttribute('themes', value)
+	}
+
+	const addNewValue = () => {
+		const value = item.themes || [];
+		const newValue = [...value, newItem];
+		onSubmit(newValue);
+		setNewItem({});
+		setAddingNew(false);
+	}
+
+	if(!item.id && dataItems?.length > 0) {
+		item = dataItems[0]
+	}
+
+	// render a list of themes. render an add new form
+	return (
+		<div className={'flex flex-col p-10 w-full divide-y-2'}>
+			<div className={'w-full flex justify-between border-b-2 border-blue-400'}>
+				<div className={'text-2xl font-semibold text-gray-700'}>Themes</div>
+				<button onClick={() => navigate(-1)}>back</button>
+			</div>
+			<div className={'w-full flex'}>
+				<Input type={'text'} value={search} onChange={e => setSearch(e.target.value)} placeHolder={'Filter themes'} />
+				<Button className={'shrink-0'} onClick={() => setAddingNew(true)}> Add theme </Button>
+				{/*<Button className={'shrink-0'} onClick={() => onSubmit([])}> Clear themes </Button>*/}
+			</div>
+			<Table columns={columns}
+				   data={data}
+				   isEdit={false}
+				   gridRef={gridRef}
+			/>
+
+			<Modal open={addingNew} setOpen={setAddingNew}>
+				<div className={`flex flex-col`}>
+					{
+						attrToAddNew
+							.map((attrKey, i) => {
+								return (
+									<Input
+										value={newItem?.[attrKey]}
+										placeHolder={attrKey}
+										onChange={(v) => setNewItem({...newItem, [attrKey]: v.target.value})}
+										key={`${attrKey}-${i}`}
+									/>
+
+								)
+							})
+					}
+					<div className={'w-full flex items-center justify-start'}>
+						<button
+							className={'bg-blue-100 hover:bg-blue-300 text-sm text-blue-800 px-2 py-0.5 m-1 rounded-lg w-fit h-fit'}
+							onClick={() => addNewValue({...newItem, id: uuidv4()})}
+						>
+							Add
+						</button>
+					</div>
+				</div>
+			</Modal>
+
+			<Modal open={Boolean(editingItem)} setOpen={setEditingItem}>
+				<div className={`flex flex-col`}>
+					{
+						attrToAddNew
+							.map((attrKey, i) => {
+								return (
+									<Input
+										value={editingItem?.[attrKey]}
+										onChange={(v) => setEditingItem({...editingItem, [attrKey]: v.target.value})}
+										key={`${attrKey}-${i}`}
+									/>
+
+								)
+							})
+					}
+					<div className={'w-full flex items-center justify-start gap-0.5'}>
+						<Button
+							className={'bg-blue-100 hover:bg-blue-300 text-sm text-blue-800 px-2 py-0.5 m-1 rounded-lg w-fit h-fit'}
+							type={'plain'}
+							title={'save item'}
+							onClick={() => {
+								const newValue = item.themes.map(v => v.id === editingItem.id ? editingItem : v);
+								onSubmit(newValue)
+								setEditingItem(undefined)
+							}}
+						>
+							Save
+						</Button>
+
+						<Button
+							className={'bg-red-100 hover:bg-red-300 text-sm text-red-800 px-2 py-0.5 m-1 rounded-lg w-fit h-fit'}
+							type={'plain'}
+							title={'cancel item'}
+							onClick={() => {
+								setEditingItem(undefined)
+							}}
+						>
+							Cancel
+						</Button>
+
+						<Button
+							className={'bg-green-100 hover:bg-green-300 text-green-800 px-2 py-0.5 m-1 rounded-lg w-fit h-fit'}
+							type={'plain'}
+							title={'duplicate item'}
+							onClick={async () => {
+								const id = uuidv4();
+								const newValue = [...item.themes, {...editingItem, id}]
+								onSubmit(newValue);
+								setEditingItem(undefined)
+							}}
+						> duplicate
+						</Button>
+						<Button
+							className={'bg-red-100 hover:bg-red-300 text-red-800 px-2 py-0.5 m-1 rounded-lg w-fit h-fit'}
+							type={'plain'}
+							title={'remove item'}
+							onClick={() => {
+								const newData = item.themes.filter((v, i) => v.id !== editingItem.id);
+								onSubmit(newData)
+								setEditingItem(undefined)
+							}}
+						> remove
+						</Button>
+					</div>
+				</div>
+			</Modal>
+		</div>
+	)
+}
+
+export default ThemeList

@@ -87,6 +87,7 @@ function SiteEdit ({
 	return (
 		<>
 			{Object.keys(attributes)
+				.filter(attr => !['name', 'themes'].includes(attr))
 				.map((attrKey, i) => {
 					let EditComp = attributes[attrKey].EditComp
 					//console.log('what', attributes[attrKey])
