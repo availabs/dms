@@ -200,7 +200,12 @@ export const RenderFilters = ({
                         debug && console.log('debug filters: data', data)
                         return {
                             column: columnName,
-                            uniqValues: uniqBy(Array.isArray(metaOptions) ? [...metaOptions, ...dataOptions] : dataOptions, d => d.value),
+                            uniqValues: uniqBy(Array.isArray(metaOptions) ? [...metaOptions, ...dataOptions] : dataOptions, d => d.value)
+                                .sort((a,b) =>
+                                typeof a?.label === 'string' && typeof b?.label === 'string' ?
+                                    a.label.localeCompare(b.label) :
+                                    b?.label - a?.label
+                                ),
                         }
                     }));
 
