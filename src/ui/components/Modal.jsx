@@ -1,5 +1,11 @@
 import React, {Fragment} from "react";
 import {Transition, Dialog, DialogPanel} from "@headlessui/react"
+
+export const docs = {
+    children: <div>modal content</div>,
+    open: true,
+    setOpen: () => {}
+}
 export default function({open, setOpen, initialFocus, children}) {
     return (
         <Transition.Root show={open} as={Fragment}>

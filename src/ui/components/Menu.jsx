@@ -66,11 +66,14 @@ const ItemTypes = {
   //'input': InputItem
 }
 // left-8 -top-2
+export const docs = {
+    children: <div>menu btn</div>
+}
 export default function MenuComp ({ children, items=defaultItems, zIndex=40, origin='right-0' }) {
   const [open, setOpen] = React.useState(false)
-    const { theme = {menu: menuTheme} } = React.useContext(ThemeContext);
-  //const { theme = { menu: menuTheme } } = React.useContext(CMSContext) || {}
-  
+    const { theme: themeFromContext = {} } = React.useContext(ThemeContext);
+  const theme = {...themeFromContext, menu: {...menuTheme, ...(themeFromContext.menu || {})}};
+
   return (
       <div className={`relative block `}>
         <div className="" onClick={() => setOpen(!open)}>

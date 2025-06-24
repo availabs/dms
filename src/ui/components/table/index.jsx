@@ -42,6 +42,40 @@ export const tableTheme = {
     openOutHeader: 'font-semibold text-gray-600'
 }
 
+export const docs = {
+    columns: [
+        { "name": "first_name", "display_name": "First Name", "show": true, "type": "text" },
+        { "name": "last_name", "display_name": "Last Name", "show": true, "type": "text" },
+        { "name": "email", "display_name": "Email Address", "show": true, "type": "text" },
+        { "name": "city", "display_name": "City", "show": true, "type": "text" }
+    ],
+    data: [
+        {
+            "first_name": "Alice",
+            "last_name": "Johnson",
+            "email": "alice.johnson@example.com",
+            "city": "New York"
+        },
+        {
+            "first_name": "Bob",
+            "last_name": "Smith",
+            "email": "bob.smith@example.com",
+            "city": "Los Angeles"
+        },
+        {
+            "first_name": "Carol",
+            "last_name": "Davis",
+            "email": "carol.davis@example.com",
+            "city": "Chicago"
+        },
+        {
+            "first_name": "David",
+            "last_name": "Brown",
+            "email": "david.brown@example.com",
+            "city": "Houston"
+        }
+    ]
+}
 const updateItemsOnPaste = ({pastedContent, e, index, attrI, data, visibleAttributes, updateItem}) => {
     const paste = pastedContent?.split('\n').filter(row => row.length).map(row => row.split('\t'));
     if(!paste) return;
@@ -67,7 +101,8 @@ export default function ({
     numColSize=defaultNumColSize, gutterColSize=defaultGutterColSize, frozenColClass, frozenCols=[],
     columns=[], data=[], display={}, controls={}, setState
 }) {
-    const { theme = {table: tableTheme}} = React.useContext(ThemeContext) || {}
+    const { theme: themeFromContext = {table: tableTheme}} = React.useContext(ThemeContext) || {};
+    const theme = {...themeFromContext, table: {...tableTheme, ...(themeFromContext.table || {})}};
     const [defaultColumnSize, setDefaultColumnSize] = React.useState(defColSize);
     const visibleAttrsWithoutOpenOut = useMemo(() => columns.filter(({show, openOut}) => show && !openOut), [columns]);
     const visibleAttributes = useMemo(() => columns.filter(({show}) => show), [columns]);
@@ -102,7 +137,7 @@ export default function ({
             {index: selection[selection.length - 1], attrI: undefined} :
             selection[selection.length - 1];
         updateItemsOnPaste({pastedContent, e, index, attrI, data, visibleAttributes, updateItem})
-    }, gridRef.current);
+    }, gridRef?.current);
 
     useCopy(() => {
         return Object.values(
@@ -117,21 +152,21 @@ export default function ({
                     acc[index] = acc[index] ? `${acc[index]}\t${data[index][visibleAttributes[attrI]]}` : data[index][visibleAttributes[attrI]]; // join cells of a row
                     return acc;
                 }, {})).join('\n') // join rows
-    }, gridRef.current)
+    }, gridRef?.current)
     // ============================================ copy/paste end =====================================================
 
     useEffect(() => {
-        if(!gridRef.current) return;
+        if(!gridRef?.current) return;
 
         const gridWidth = gridRef?.current?.offsetWidth || 1;
         setDefaultColumnSize(Math.max(50, gridWidth / columns.length) - 5)
-    }, [gridRef.current, columns.length]);
+    }, [gridRef?.current, columns.length]);
 
     // =================================================================================================================
     // =========================================== Mouse Controls begin ================================================
     // =================================================================================================================
     const colResizer = (attribute) => (e) => {
-        const element = gridRef.current;
+        const element = gridRef?.current;
         if(!element) return;
 
         const column = visibleAttributes.find(va => isEqualColumns(va, attribute));
@@ -161,7 +196,7 @@ export default function ({
     // =========================================== Keyboard Controls begin =============================================
     // =================================================================================================================
     useEffect(() => {
-        const element = gridRef.current;
+        const element = gridRef?.current;
         if(!element) return;
         const handleKeyUp = () => {
             setIsSelecting(false)

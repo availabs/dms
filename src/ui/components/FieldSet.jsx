@@ -40,9 +40,17 @@ export default function FieldSetComp ({ components }) {
   )
 }
 
+export const docs = {
+  themeKey: 'field',
+  components: [
+    {label: 'field 1', description: 'this is field 1.'},
+    {label: 'field 2', description: 'this is field 2.'},
+  ]
+}
 export function FieldComp  ({ label, description, children}) {
-  const { theme = {field: fieldTheme} } = React.useContext(ThemeContext);
-  //const { theme = { input: inputTheme, field: fieldTheme } } = React.useContext(CMSContext) || {}
+  const { theme: themeFromContext = {} } = React.useContext(ThemeContext);
+  const theme = {...themeFromContext, field: {...fieldTheme, ...(themeFromContext.field || {})}};
+
   return (
     <Field className={theme.field.field}>
       {label && <Label className={theme?.field?.label}>{label}</Label>}

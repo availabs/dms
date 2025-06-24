@@ -17,6 +17,16 @@ const useClickOutside = handleClick => {
   return [setNode, node];
 }
 
+export const docs = [{
+    doc_name: 'hover',
+    control: <div>hover me!</div>,
+    children: <div>content</div>
+}, {
+    doc_name: 'click',
+    control: <div>hover me!</div>,
+    children: <div>content</div>,
+    openType: 'click'
+}]
 export default function ({ control, children,className, width='w-full min-w-[200px] max-w-[200px]', openType='hover' }) {
     const [open, setOpen] = React.useState(false),
         clickedOutside = React.useCallback(() => setOpen(false), []),

@@ -26,21 +26,24 @@ function ThemeList ({
 	const attrToAddNew = ['name', 'theme'];
 	const columns = [
 		{name: 'name', display_name: 'Theme name', show: true, type: 'text'},
+		{name: 'manage_url', display_name: 'Manage', show: true, type: 'text', isLink: true, linkText: 'manage'},
 		{name: 'edit', display_name: 'Edit', show: true, type: 'ui',
 			Comp: (d) => {
 				return <Button onClick={() => setEditingItem(d.row)}>Edit</Button>
 			}},
 	]
-	const data = (item.themes || []).filter(v => !search || v.name.toLowerCase().includes(search.toLowerCase()));
+	const data = (item.themes || [])
+		.map(v => ({...v, manage_url: `${baseUrl}/theme/${v.id}`}))
+		.filter(v => !search || v.name.toLowerCase().includes(search.toLowerCase()));
 
 	const onSubmit = (value) => {
 		apiUpdate({data: {...item, ...{themes: value}}, config: {format}})
 		updateAttribute('themes', value)
 	}
 
-	const addNewValue = () => {
+	const addNewValue = (valueToAdd) => {
 		const value = item.themes || [];
-		const newValue = [...value, newItem];
+		const newValue = [...value, valueToAdd];
 		onSubmit(newValue);
 		setNewItem({});
 		setAddingNew(false);

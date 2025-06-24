@@ -23,12 +23,26 @@ export const tabsTheme = {
   tabpanel: 'rounded-xl bg-white/5'
 }
 
+export const docs = {
+  tabs: [
+    {
+      name: 'Tab1',
+      Component: () => <div>This is Tab 1</div>
+    },
+    {
+      name: 'Tab2',
+      Component: () => <div>This is Tab 2</div>
+    }
+    ]
+}
+
 export default function Tabs ({tabs=defaultTabs, defaultIndex=0, selectedIndex, setSelectedIndex}) {
   const [internalIndex, setInternalIndex] = React.useState(selectedIndex || defaultIndex)
 
   React.useEffect(() => setInternalIndex(selectedIndex),[selectedIndex])
 
-  const { theme = { tabs: tabsTheme } } = React.useContext(ThemeContext) || {}
+  const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {}
+  const theme = {...themeFromContext, tabs: {...tabsTheme, ...(themeFromContext.tabs || {})}};
   return (
     <TabGroup selectedIndex={internalIndex} onChange={setSelectedIndex || setInternalIndex}>
       <TabList className={theme?.tabs?.tablist}>

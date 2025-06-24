@@ -46,6 +46,10 @@ import Icon from './Icon'
 //   )
 // }
 
+export const docs = {
+  open: true,
+  children: <div>drawer content</div>
+}
 export default function Drawer ({ open, setOpen, width='max-w-64', children, closeOnClick=true }) {
   return (
     <Transition.Root as={Fragment} show={open}>

@@ -4,6 +4,7 @@ import { cloneDeep } from "lodash-es"
 import PatternList from "./components/patternList";
 import SiteEdit from "./pages/siteEdit"
 import ThemeList from "./pages/themes"
+import ComponentList from "./pages/components"
 
 import adminFormat from "./admin.format.js"
 // import defaultTheme from './theme/theme'
@@ -105,6 +106,11 @@ const adminConfig = ({
             type: props => <ThemeList {...props} />,
             action: "edit",
             path: "themes",
+          },
+          {
+            type: props => <ComponentList {...props} />,
+            action: "edit",
+            path: "theme/:theme_id",
           },
 
           {

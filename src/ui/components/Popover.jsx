@@ -25,9 +25,12 @@ const DefaultButton = (
 )
 
 
-
+export const docs = {
+    anchor: 'bottom'
+}
 export default function PopoverComp ({ children, button=DefaultButton, onClick=()=>{}, anchor='bottom', width='max-w-sm lg:max-w-lg', ...props}) {
-    const { theme = {popover: popoverTheme}} = React.useContext(ThemeContext);
+    const { themeFromContext = {}} = React.useContext(ThemeContext);
+    const theme = {...themeFromContext, popover: {...popoverTheme, ...(themeFromContext.popover || {}) }}
   const bg = '#ffffff'
   const border = 'rgba(0,0,0,0.01)'
   return (

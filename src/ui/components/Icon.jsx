@@ -12,9 +12,11 @@ export const Default = ({...props}) => (
   </svg>
 );
 
-
+export const docs = [{icon: 'Default'}, {icon: 'ArrowDown'}]
 export default function ({icon = 'Default', className, ...props}) {
-    const { theme = {Icons: iconTheme} } = React.useContext(ThemeContext);
+    const { theme: themeFromContext = {} } = React.useContext(ThemeContext);
+    const theme = {...themeFromContext, icon: {...iconTheme, ...(themeFromContext.icon || {})}};
+
     let Icon = theme?.Icons?.[icon] || icons[icon] || Default
     return  <Icon className={className || theme?.icon?.icon} {...props}/>
 
