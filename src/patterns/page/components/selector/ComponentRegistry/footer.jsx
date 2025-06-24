@@ -24,13 +24,13 @@ export const Footer = () => {
                 {
                     parents.map(parent => (
                         <div key={parent.root.url_slug} className={'flex flex-col p-4 pl-[24px] gap-[12px] w-[282px] overflow-hidden'}>
-                            <Link to={parent.root.url_slug}
+                            <Link to={`/${parent.root.url_slug}`}
                                   className={'text-[#2D3E4C] font-[Oswald] font-medium text-[14px] leading-[14px] uppercase tracking-normal'}>
                                 {parent.root.title}
                             </Link>
                             {
                                 parent.children.filter((_, i) => i <= 5).map((child) =>
-                                    <Link key={child.url_slug} to={child.url_slug} className={'text-[#37576B] font-normal text-[16px] leading-[22.4px] tracking-normal'}>
+                                    <Link key={`/${child.url_slug}`} to={child.url_slug} className={'text-[#37576B] font-normal text-[16px] leading-[22.4px] tracking-normal'}>
                                         {child.title}
                                     </Link>
                                 )
