@@ -14,7 +14,7 @@ const Breadcrumbs = ({ chain, show }) => {
             <div className="flex flex-wrap items-center gap-[4px] text-[#37576B] text-[14px] sm:text-[16px] leading-[100%] tracking-normal">
                 {chain.map((c, index) => (
                     <div key={index} className={`flex items-center shrink-0`}>
-                        <Link to={c.url_slug} className={`w-fit shrink-0 wrap-none ${index === chain.length - 1 ? `font-regular` : `font-semibold`}`}>{c.title}</Link>
+                        <Link to={`/${c.url_slug}`} className={`w-fit shrink-0 wrap-none ${index === chain.length - 1 ? `font-regular` : `font-semibold`}`}>{c.title}</Link>
                         {index < chain.length - 1 && <Icon icon={'ArrowRight'} height={12} width={12} className="ml-1 -mt-1" />}
                     </div>
                 ))}
