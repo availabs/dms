@@ -30,7 +30,7 @@ export const Footer = () => {
                             </Link>
                             {
                                 parent.children.filter((_, i) => i <= 5).map((child) =>
-                                    <Link key={`/${child.url_slug}`} to={child.url_slug} className={'text-[#37576B] font-normal text-[16px] leading-[22.4px] tracking-normal'}>
+                                    <Link key={`/${child.url_slug}`} to={`/${child.url_slug}`} className={'text-[#37576B] font-normal text-[16px] leading-[22.4px] tracking-normal'}>
                                         {child.title}
                                     </Link>
                                 )
