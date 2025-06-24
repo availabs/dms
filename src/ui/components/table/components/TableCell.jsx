@@ -1,13 +1,11 @@
 import React, {useEffect, useState} from "react";
 import {Link} from "react-router";
 import {isEqual} from "lodash-es";
+import Icon from "../../Icon";
 import DataTypes from "../../../../data-types";
 import {formatFunctions} from "../../../../patterns/page/components/selector/dataWrapper/utils/utils";
-
 import { RenderAction } from "./RenderActions";
 //import { ThemeContext } from '../../../useTheme'
-
-const InfoCircle = () => <div>i</div> //- get this from theme in future
 
 const DisplayCalculatedCell = ({value, className}) => <div className={className}>{value}</div>
 const LoadingComp = ({className}) => <div className={className}>loading...</div>
@@ -136,7 +134,7 @@ export const TableCell = ({
                          setShowOpenOut(!showOpenOut)
                      }}
                 >
-                    <InfoCircle className={'bg-transparent text-gray-500 group-hover:text-gray-600'}
+                    <Icon icon={'InfoCircle'} className={'bg-transparent text-gray-500 group-hover:text-gray-600'}
                                title={'Hide Open Out'}
                                width={18} height={18}
                     />
