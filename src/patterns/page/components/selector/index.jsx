@@ -12,8 +12,8 @@ import FilterableSearch from "./FilterableSearch";
 
 import { CMSContext, ComponentContext, PageContext } from '../../context'
 import ComponentRegistry from './ComponentRegistry'
-import {useImmer} from "use-immer";
-import {ThemeContext} from "../../../../ui/useTheme";
+import { useImmer } from "use-immer";
+import { ThemeContext } from "../../../../ui/useTheme";
 
 
 export let RegisteredComponents = ComponentRegistry;
