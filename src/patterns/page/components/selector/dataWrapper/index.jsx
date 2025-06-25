@@ -52,11 +52,11 @@ const triggerDownload = async ({state, apiLoad, loadAllColumns, setLoading}) => 
     });
     setLoading(false);
 }
-const RenderDownload = ({state, apiLoad}) => {
+const RenderDownload = ({state, apiLoad, cms_context}) => {
     // two options:
     // 1. download visible columns: add primary column if set
     // 2. download all columns: unavailable for grouped mode
-    const {UI} = useContext(CMSContext) || {UI: {Icon: () => <></>}};
+    const {UI} = useContext(cms_context || CMSContext) || {UI: {Icon: () => <></>}};
     const {Icon} = UI;
     const [open, setOpen] = React.useState(false);
     const [loading, setLoading] = React.useState(false);
@@ -97,9 +97,9 @@ const RenderDownload = ({state, apiLoad}) => {
 }
 
 
-const Edit = ({value, onChange, pageFormat, apiUpdate, component, hideSourceSelector}) => {
+const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, hideSourceSelector}) => {
     const isEdit = Boolean(onChange);
-    const {UI} = useContext(CMSContext) || {UI: {Icon: () => <></>}};;
+    const {UI} = useContext(cms_context || CMSContext) || {UI: {Icon: () => <></>}};;
     const {Icon} = UI;
     const {state, setState, apiLoad} = useContext(ComponentContext);
     const [loading, setLoading] = useState(false);
@@ -318,9 +318,10 @@ const Edit = ({value, onChange, pageFormat, apiUpdate, component, hideSourceSele
                                      className={`text-slate-400 hover:text-blue-500 size-4 transition ease-in-out duration-200`} /> :
                         state.display.invalidState ? <span className={'text-red-500'}>{state.display.invalidState}</span> : null
                     }
-                    <RenderDownload state={state} apiLoad={apiLoad}/>
+                    <RenderDownload state={state} apiLoad={apiLoad} cms_context={cms_context}/>
                 </div>
                 <Comp isEdit={isEdit}
+                      cms_context={cms_context}
                   {...['Spreadsheet', 'Card'].includes(component.name) && {
                       newItem, setNewItem,
                       updateItem, removeItem, addItem,
@@ -341,9 +342,9 @@ const Edit = ({value, onChange, pageFormat, apiUpdate, component, hideSourceSele
     )
 }
 
-const View = ({value, onChange, size, apiUpdate, component, ...rest}) => {
+const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest}) => {
     const isEdit = false;
-    const {UI} = useContext(CMSContext) || {UI: {Icon: () => <></>}};;
+    const {UI} = useContext(cms_context || CMSContext) || {UI: {Icon: () => <></>}};;
     const {Icon} = UI;
     const {state, setState, apiLoad} = useContext(ComponentContext);
 
@@ -566,9 +567,10 @@ const View = ({value, onChange, size, apiUpdate, component, ...rest}) => {
                         {loading ?  <Icon id={'loading'}
                                           icon={'LoadingHourGlass'}
                                           className={`text-slate-400 hover:text-blue-500 size-4 transition ease-in-out duration-200`} /> : null}
-                        <RenderDownload state={state} apiLoad={apiLoad}/>
+                        <RenderDownload state={state} apiLoad={apiLoad} cms_context={cms_context}/>
                     </div>
                     <Comp isEdit={isEdit}
+                          cms_context={cms_context}
                           {...['Spreadsheet', 'Card'].includes(component.name) && {
                               newItem, setNewItem,
                               updateItem, removeItem, addItem,

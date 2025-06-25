@@ -568,6 +568,7 @@ const Edit = ({
                                 <Controls context={ComponentContext} cms_context={cms_context}/>
                                 <RenderFilters state={value} setState={setValue} apiLoad={apiLoad} isEdit={true} defaultOpen={true} cms_context={cms_context} />
                                 <DataWrapper.EditComp
+                                    cms_context={cms_context}
                                     component={SpreadSheetCompWithControls}
                                     key={ssKey}
                                     value={value}
