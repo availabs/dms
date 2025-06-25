@@ -84,7 +84,7 @@ const RenderItems = ({items, query, theme, Icon}) => Object.keys(items).length ?
                             }}>
                             <Icon icon={'Page'} width={15} height={21}/>
                             <div className={theme.pageTitle}>{boldMatchingText(items[page_id].page_title || page_id, query)}</div>
-                            <Icon icon={ArrowRight} className={'h-6 w-6 ml-2 text-transparent group-hover:text-gray-900'}/>
+                            <Icon icon={'ArrowRight'} className={'h-6 w-6 ml-2 text-transparent group-hover:text-gray-900'}/>
                         </div>
 
                         <div className={theme.sectionsWrapper}>
