@@ -861,6 +861,7 @@ const Icons = {
   Default,
   Settings,
   Pages,
+  Page,
   History,
   InsertSection: SquarePlus,
   Menu: MenuIcon,
