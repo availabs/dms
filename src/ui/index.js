@@ -52,6 +52,7 @@ export default {
 	DeleteModal,
 	// Nestable,
 	DraggableNav,
+	// -- Data Components
 	Pagination,
 	Table
 }

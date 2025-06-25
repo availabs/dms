@@ -136,7 +136,7 @@ const pagesConfig = ({
                 />
             ),
             filter: {
-              attributes:['title', 'index', 'filters', 'url_slug', 'parent', 'published', 'hide_in_nav' ,'sections','section_groups','sidebar','navOptions']
+              attributes:['title', 'index', 'filters', 'url_slug', 'parent', 'published', 'hide_in_nav' ,'sections','section_groups','sidebar','navOptions', 'theme']
             },
             path: "/*",
             action: "view"

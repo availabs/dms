@@ -1,54 +1,24 @@
-import docs from './docs';
-import {sideNavTheme} from "./components/SideNav";
-import {topNavTheme} from "./components/TopNav";
-import {tabsTheme} from "./components/Tabs";
-import {buttonTheme} from "./components/Button";
-import {menuTheme} from "./components/Menu";
-import {inputTheme} from "./components/Input";
-import {iconTheme} from "./components/Icon";
-import {fieldTheme} from "./components/FieldSet";
-import {dialogTheme} from "./components/Dialog";
-import {popoverTheme} from "./components/Popover";
-import {labelTheme} from "./components/Label";
-import {selectTheme} from "./components/Select";
-import {listboxTheme} from "./components/Listbox";
-import {tableTheme} from "./components/table";
-import {nestableTheme} from "./components/nestable/draggableNav"
-// =====================================================================================================
-// ======================================== todo: move these to UI
-// =====================================================================================================
-import {dataCardTheme} from "../patterns/page/components/selector/ComponentRegistry/Card";
-import {
-    attributionTheme
-} from "../patterns/page/components/selector/ComponentRegistry/shared/Attribution";
-import {
-    filterTheme
-} from "../patterns/page/components/selector/dataWrapper/components/filters/RenderFilters";
-import {graphTheme} from "../patterns/page/components/selector/ComponentRegistry/graph";
-// ======================================================================================================
-
-const navOptions = {
-    "logo": "",
-    "sideNav": {
-        "size": "none",
-        "search": "none",
-        "logo": "none",
-        "dropdown": "none",
-        "fixedMargin": "lg:ml-44",
-        "position": "fixed",
-        "nav": "none"
+const theme = {
+    "navOptions": {
+        "logo": "",
+        "sideNav": {
+            "size": "none",
+            "search": "none",
+            "logo": "none",
+            "dropdown": "none",
+            "fixedMargin": "lg:ml-44",
+            "position": "fixed",
+            "nav": "none"
+        },
+        "topNav": {
+            "size": "compact",
+            "dropdown": "right",
+            "search": "right",
+            "logo": "left",
+            "position": "sticky",
+            "nav": "main"
+        }
     },
-    "topNav": {
-        "size": "compact",
-        "dropdown": "right",
-        "search": "right",
-        "logo": "left",
-        "position": "sticky",
-        "nav": "main"
-    }
-}
-
-const components = {
     "heading": {
         "1": "text-blue-500 font-bold text-xl tracking-wider py-1 pl-1",
         "2": "text-lg tracking-wider",
@@ -60,7 +30,7 @@ const components = {
         "1": " pt-2 pb-1 uppercase text-sm text-blue-400 hover:underline cursor-pointer border-r-2 mr-4",
         "2": "pl-2 pt-2 pb-1 uppercase text-sm text-slate-400 hover:underline cursor-pointer border-r-2 mr-4",
         "3": "pl-4 pt-2 pb-1 text-sm text-slate-400 hover:underline cursor-pointer border-r-2 mr-4",
-        "4": "pl-6 pt-2 pb-1 text-sm text-slate-400 hover:underline cursor-pointer border-r-2 mr-4"
+        "4": "text-[36px] sm:text-[48px] tracking-[-2px] items-center font-medium font-['Oswald'] text-[#2D3E4C] sm:leading-[100%] uppercase"
     },
     "navPadding": {
         "1": "pt-0 ",
@@ -182,35 +152,257 @@ const components = {
         "sidenavContainer2": "sticky top-12 h-[calc(100vh_-_50px)]",
         "navTitle": "flex-1 text-[24px] font-['Oswald'] font-[500] leading-[24px] text-[#2D3E4C] py-3 px-4 uppercase"
     },
-
-    nestable: nestableTheme,
-    sidenav: sideNavTheme,
-    topnav: topNavTheme,
-    tabs: tabsTheme,
-    button: buttonTheme,
-    menu: menuTheme,
-    input: inputTheme,
-    icon: iconTheme,
-    field: fieldTheme,
-    dialog: dialogTheme,
-    popover: popoverTheme,
-    label: labelTheme,
-    select: selectTheme,
-    listbox: listboxTheme,
-    table: tableTheme,
-
-    // --- component themes
-    lexical : {},
-    dataCard: dataCardTheme,
-    attribution: attributionTheme,
-    filters: filterTheme,
-    graph: graphTheme,
-}
-const theme = {
-    navOptions,
-    ...components,
-    "Icons": {},
-    docs
+    "sidenav": {
+        "fixed": "",
+        "logoWrapper": "w-44 bg-neutral-100 text-slate-800",
+        "topNavWrapper": "flex flex-row md:flex-col",
+        "sidenavWrapper": "hidden md:block bg-white border-r w-44 h-full z-20",
+        "menuItemWrapper": "flex flex-col",
+        "menuIconSide": "group w-6 mr-2 text-blue-500  group-hover:text-blue-800",
+        "menuIconSideActive": "group w-6 mr-2 text-blue-500  group-hover:text-blue-800",
+        "itemsWrapper": "border-slate-200 pt-5  ",
+        "navItemContent": "transition-transform duration-300 ease-in-out flex-1",
+        "navItemContents": [
+            "text-[14px] font-light hover:bg-blue-50 text-slate-700 px-4 py-2"
+        ],
+        "navitemSide": "\n   \tgroup  flex flex-col\n   \tgroup flex \n   \tfocus:outline-none focus:text-gray-800 focus:bg-gray-50 focus:border-gray-300\n   \ttransition-all cursor-pointer border-l-2 border-white",
+        "navitemSideActive": "\n   \tgroup  flex flex-col   \n    \tfocus:outline-none focus:text-gray-800 focus:bg-gray-50 focus:border-gray-300\n   \ttransition-all cursor-pointer border-l-2 border-blue-500",
+        "indicatorIcon": "ArrowRight",
+        "indicatorIconOpen": "ArrowDown",
+        "subMenuWrappers": [
+            "w-full bg-[#F3F8F9] rounded-[12px]",
+            "w-full bg-[#E0EBF0]"
+        ],
+        "subMenuOuterWrappers": [
+            "pl-4"
+        ],
+        "subMenuWrapper": "pl-2 w-full",
+        "subMenuParentWrapper": "flex flex-col w-full",
+        "bottomMenuWrapper": ""
+    },
+    "topnav": {
+        "fixed": "mt-8",
+        "topnavWrapper": "px-[24px] bg-slate-100  w-full h-full flex items-center md:rounded-lg shadow pointer-events-auto",
+        "topnavContent": "flex items-center w-full h-full  ",
+        "topnavMenu": "hidden py-2  md:flex items-center flex-1  h-full overflow-x-auto overflow-y-hidden scrollbar-sm",
+        "mobileButton": "md:hidden bg-slate-100 inline-flex items-center justify-center pt-[12px] px-2 hover:text-blue-400  text-gray-400 hover:bg-gray-100 ",
+        "indicatorIcon": "ArrowDown",
+        "indicatorIconOpen": "ArrowDown",
+        "indicatorIconWrapper": "size-3",
+        "menuItemWrapper1": [
+            " ",
+            ""
+        ],
+        "menuItemWrapper1Parent": [
+            " ",
+            "bg-[#F3F8F9] p-4 rounded-lg"
+        ],
+        "menuItemWrapper2": [
+            "flex text-[#37576B] ",
+            " "
+        ],
+        "menuIconTop": "text-blue-400 mr-3 text-lg group-hover:text-blue-500",
+        "menuIconTopActive": "text-blue-500 mr-3 text-lg group-hover:text-blue-500",
+        "menuOpenIcon": "Menu",
+        "menuCloseIcon": "XMark",
+        "navitemTop": "\n          w-fit group  whitespace-nowrap\n          flex items-center \n          text-[16px] font-['Proxima_Nova'] font-[500] \n          px-2 uppercase\n          focus:outline-none focus:text-gray-800 focus:bg-gray-50 focus:border-gray-300\n          transition cursor-pointer\n      ",
+        "navitemTopActive": " w-fit group  whitespace-nowrap\n          flex  items-center \n          text-[16px] font-['Proxima_Nova'] font-[500] \n          px-2 text-blue uppercase\n          focus:outline-none focus:text-gray-800 focus:bg-gray-50 focus:border-gray-300\n          transition cursor-pointer \n        ",
+        "navItemDescription": [
+            "hidden",
+            "text-[16px] font-['Proxima_Nova'] font-[400] text-[#37576B] text-wrap"
+        ],
+        "topmenuRightNavContainer": "hidden md:flex h-full items-center",
+        "topnavMobileContainer": "bg-slate-50 pointer-events-auto",
+        "subMenuWrapper1": [
+            "absolute left-0 right-0 normal-case mt-4 z-10 px-4 pt-[42px] px-[62px] cursor-default"
+        ],
+        "subMenuWrapper2": "bg-white flex items-stretch rounded-lg p-4 shadow",
+        "subMenuParentContent": "basis-1/3  text-wrap pr-[64px]",
+        "subMenuParentName": "text-[36px] font-['Oswald'] font-500 text-[#2D3E4C] uppercase pb-2",
+        "subMenuParentDesc": "text-[16px] font-['Proxima_Nova'] font-[400] text-[#37576B]",
+        "subMenuParentLink": "w-fit h-fit cursor-pointer uppercase border boder-[#E0EBF0] bg-white hover:bg-[#E0EBF0] text-[#37576B] font-[700] leading-[14.62px] rounded-full text-[12px] text-center py-[16px] px-[24px]",
+        "subMenuItemsWrapperParent": "grid grid-cols-2 gap-1 flex-1",
+        "subMenuItemsWrapper": "grid grid-cols-4 flex-1"
+    },
+    "tabs": {
+        "tablist": "flex gap-4",
+        "tab": "\n    py-1 px-3 font-semibold text-slate-600 focus:outline-none border-b-2 border-white text-xs hover:text-slate-900\n    data-[selected]:border-blue-500 data-[selected]:bg-white/10 data-[hover]:bg-white/5 data-[selected]:data-[hover]:bg-white/10 data-[focus]:outline-1 data-[focus]:outline-white\n  ",
+        "tabpanels": "",
+        "tabpanel": "rounded-xl bg-white/5"
+    },
+    "button": {
+        "default": "cursor-pointer inline-flex items-center gap-2  bg-gray-700 py-1.5  text-sm/6 font-semibold text-white shadow-inner shadow-white/10 focus:outline-none data-[hover]:bg-gray-600 data-[open]:bg-gray-700 data-[focus]:outline-1 data-[focus]:outline-white",
+        "plain": "cursor-pointer relative isolate inline-flex items-center justify-center gap-x-2 rounded-lg border text-base/6 font-semibold  sm:text-sm/6 focus:outline-none data-[focus]:outline data-[focus]:outline-2 data-[focus]:outline-offset-2 data-[focus]:outline-blue-500 data-[disabled]:opacity-50 [&>[data-slot=icon]]:-mx-0.5 [&>[data-slot=icon]]:my-0.5 [&>[data-slot=icon]]:size-5 [&>[data-slot=icon]]:shrink-0 [&>[data-slot=icon]]:text-[--btn-icon] [&>[data-slot=icon]]:sm:my-1 [&>[data-slot=icon]]:sm:size-4 forced-colors:[--btn-icon:ButtonText] forced-colors:data-[hover]:[--btn-icon:ButtonText] border-transparent text-zinc-950 data-[active]:bg-zinc-950/5 data-[hover]:bg-zinc-950/5 dark:text-white dark:data-[active]:bg-white/10 dark:data-[hover]:bg-white/10 [--btn-icon:theme(colors.zinc.500)] data-[active]:[--btn-icon:theme(colors.zinc.700)] data-[hover]:[--btn-icon:theme(colors.zinc.700)] dark:[--btn-icon:theme(colors.zinc.500)] dark:data-[active]:[--btn-icon:theme(colors.zinc.400)] dark:data-[hover]:[--btn-icon:theme(colors.zinc.400)] cursor-default",
+        "active": "cursor-pointer px-4 inline-flex  justify-center cursor-pointer text-sm font-semibold  bg-blue-600 text-white hover:bg-blue-500 shadow-lg border border-b-4 border-blue-800 hover:border-blue-700 active:border-b-2 active:mb-[2px] active:shadow-none",
+        "inactive": "inline-flex  px-4 justify-center cursor-not-allowed text-sm font-semibold bg-slate-300 text-white shadow border border-slate-400 border-b-4",
+        "rounded": "rounded-lg",
+        "padding": "px-[calc(theme(spacing[3.5])-1px)] py-[calc(theme(spacing[2.5])-1px)] sm:px-[calc(theme(spacing.3)-1px)] sm:py-[calc(theme(spacing[1.5])-1px)]"
+    },
+    "menu": {
+        "menuItems": "absolute z-40 -mr-1 mt-1 w-64 p-1 origin-top-left rounded-md bg-white shadow-lg ring-1 ring-black/5 transition focus:outline-none data-[closed]:scale-95 data-[closed]:transform data-[closed]:opacity-0 data-[enter]:duration-50 data-[leave]:duration-75 data-[enter]:ease-out data-[leave]:ease-in"
+    },
+    "input": {
+        "input": "relative w-full block appearance-none rounded-lg px-[calc(theme(spacing[3.5])-1px)] py-[calc(theme(spacing[2.5])-1px)] sm:px-[calc(theme(spacing[3])-1px)] sm:py-[calc(theme(spacing[1.5])-1px)] text-base/6 text-zinc-950 placeholder:text-zinc-500 sm:text-sm/6 dark:text-white border border-zinc-950/10 data-[hover]:border-zinc-950/20 dark:border-white/10 dark:data-[hover]:border-white/20 bg-transparent dark:bg-white/5 focus:outline-none data-[invalid]:border-red-500 data-[invalid]:data-[hover]:border-red-500 data-[invalid]:dark:border-red-500 data-[invalid]:data-[hover]:dark:border-red-500 data-[disabled]:border-zinc-950/20 dark:data-[hover]:data-[disabled]:border-white/15 data-[disabled]:dark:border-white/15 data-[disabled]:dark:bg-white/[2.5%] dark:[color-scheme:dark]",
+        "inputContainer": "group flex relative w-full before:absolute before:inset-px before:rounded-[calc(theme(borderRadius.lg)-1px)] before:bg-white before:shadow dark:before:hidden after:pointer-events-none after:absolute after:inset-0 after:rounded-lg after:ring-inset after:ring-transparent sm:after:focus-within:ring-2 sm:after:focus-within:ring-blue-500 has-[[data-disabled]]:opacity-50 before:has-[[data-disabled]]:bg-zinc-950/5 before:has-[[data-disabled]]:shadow-none before:has-[[data-invalid]]:shadow-red-500/10",
+        "confirmButtonContainer": "absolute right-0 hidden group-hover:flex items-center",
+        "editButton": "py-1.5 px-2 text-slate-400 hover:text-blue-500 cursor-pointer bg-white/10",
+        "cancelButton": "text-slate-400 hover:text-red-500 cursor-pointer  py-1.5 pr-1 ",
+        "confirmButton": "text-green-500 hover:text-white hover:bg-green-500 cursor-pointer rounded-full"
+    },
+    "icon": {
+        "iconWrapper": "",
+        "icon": "size-6"
+    },
+    "field": {
+        "field": "pb-2",
+        "label": "select-none text-base/6 text-zinc-950 data-[disabled]:opacity-50 sm:text-sm/6 dark:text-white",
+        "description": "text-base/6 text-zinc-500 data-[disabled]:opacity-50 sm:text-sm/6 dark:text-zinc-400"
+    },
+    "nestable": {
+        "container": "max-w-full max-h-full  pb-6 ",
+        "navListContainer": "h-full border-l  pt-3 pl-2 overflow-auto max-h-[calc(100vh_-_155px)] min-h-[calc(100vh_-_155px)]",
+        "navItemContainer": "text-slate-600 border-l border-y rounded border-transparent flex items-center gap-1 cursor-pointer group group-hover:bg-blue-100",
+        "navItemContainerActive": "bg-white text-blue-500  border-l rounded border-y border-slate-300 flex items-center gap-1 cursor-pointer group group-hover:bg-blue-100",
+        "navLink": "flex-1 px-4 py-2 font-light text-elipses",
+        "subList": "pl-[30px]",
+        "collapseIcon": "text-gray-400 hover:text-gray-500",
+        "dragBefore": "before:absolute before:top-0 before:left-0 before:right-0 before:bottom-0 before:bg-blue-300 before:border-dashed before:rounded before:border before:border-blue-600"
+    },
+    "dialog": {
+        "backdrop": "fixed inset-0 flex w-screen justify-center overflow-y-auto bg-zinc-950/25 px-2 py-2 transition duration-100 focus:outline-0 data-[closed]:opacity-0 data-[enter]:ease-out data-[leave]:ease-in sm:px-6 sm:py-8 lg:px-8 lg:py-16 dark:bg-zinc-950/50",
+        "dialogContainer": "fixed inset-0 w-screen overflow-y-auto pt-6 sm:pt-0",
+        "dialogContainer2": "grid min-h-full grid-rows-[1fr_auto] justify-items-center sm:grid-rows-[1fr_auto_3fr] sm:p-4",
+        "dialogPanel": "\n    row-start-2 w-full min-w-0 rounded-t-3xl bg-white p-[--gutter] shadow-lg ring-1 ring-zinc-950/10 [--gutter:theme(spacing.8)] sm:mb-auto sm:rounded-2xl dark:bg-zinc-900 dark:ring-white/10 forced-colors:outline\n    transition duration-100 data-[closed]:translate-y-12 data-[closed]:opacity-0 data-[enter]:ease-out data-[leave]:ease-in sm:data-[closed]:translate-y-0 sm:data-[closed]:data-[enter]:scale-95\n  ",
+        "sizes": {
+            "xs": "sm:max-w-xs",
+            "sm": "sm:max-w-sm",
+            "md": "sm:max-w-md",
+            "lg": "sm:max-w-lg",
+            "xl": "sm:max-w-xl",
+            "2xl": "sm:max-w-2xl",
+            "3xl": "sm:max-w-3xl",
+            "4xl": "sm:max-w-4xl",
+            "5xl": "sm:max-w-5xl"
+        }
+    },
+    "popover": {
+        "button": "flex items-center cursor-pointer pt-1 pr-1",
+        "container": "absolute shadow-lg z-30 transform overflow-visible z-50 rounded-md"
+    },
+    "label": {
+        "labelWrapper": "px-[12px] pt-[9px] pb-[7px] rounded-md",
+        "label": "inline-flex items-center rounded-md px-1.5 py-0.5 text-sm/5 font-medium sm:text-xs/5 forced-colors:outline"
+    },
+    "select": {
+        "selectContainer": "group relative block w-full before:absolute before:inset-px before:rounded-[calc(theme(borderRadius.lg)-1px)] before:bg-white before:shadow dark:before:hidden after:pointer-events-none after:absolute after:inset-0 after:rounded-lg after:ring-inset after:ring-transparent after:has-[[data-focus]]:ring-2 after:has-[[data-focus]]:ring-blue-500 has-[[data-disabled]]:opacity-50 before:has-[[data-disabled]]:bg-zinc-950/5 before:has-[[data-disabled]]:shadow-none",
+        "select": "relative block w-full appearance-none rounded-lg py-[calc(theme(spacing[2.5])-1px)] sm:py-[calc(theme(spacing[1.5])-1px)] px-[calc(theme(spacing[3.5])-1px)] sm:px-[calc(theme(spacing.3)-1px)] [&_optgroup]:font-semibold text-base/6 text-zinc-950 placeholder:text-zinc-500 sm:text-sm/6 dark:text-white dark:*:text-white border border-zinc-950/10 data-[hover]:border-zinc-950/20 dark:border-white/10 dark:data-[hover]:border-white/20 bg-transparent dark:bg-white/5 dark:*:bg-zinc-800 focus:outline-none data-[invalid]:border-red-500 data-[invalid]:data-[hover]:border-red-500 data-[invalid]:dark:border-red-600 data-[invalid]:data-[hover]:dark:border-red-600 data-[disabled]:border-zinc-950/20 data-[disabled]:opacity-100 dark:data-[hover]:data-[disabled]:border-white/15 data-[disabled]:dark:border-white/15 data-[disabled]:dark:bg-white/[2.5%]"
+    },
+    "listbox": {
+        "listboxContainer": "group relative block w-full before:absolute before:inset-px before:rounded-[calc(theme(borderRadius.lg)-1px)] before:bg-white before:shadow dark:before:hidden after:pointer-events-none after:absolute after:inset-0 after:rounded-lg after:ring-inset after:ring-transparent after:has-[[data-focus]]:ring-2 after:has-[[data-focus]]:ring-blue-500 has-[[data-disabled]]:opacity-50 before:has-[[data-disabled]]:bg-zinc-950/5 before:has-[[data-disabled]]:shadow-none",
+        "listboxOptions": "w-[var(--button-width)] z-20 bg-white rounded-xl border p-1 [--anchor-gap:var(--spacing-1)] focus:outline-none transition duration-100 ease-in data-[leave]:data-[closed]:opacity-0",
+        "listboxOption": "group flex gap-2 bg-white data-[focus]:bg-blue-100 z-30",
+        "listboxButton": "relative block w-full rounded-lg bg-white/5 py-1.5 pr-8 pl-3 text-left text-sm/6 text-white focus:outline-none data-[focus]:outline-2 data-[focus]:-outline-offset-2 data-[focus]:outline-white/25"
+    },
+    "table": {
+        "tableContainer": "flex flex-col overflow-x-auto",
+        "tableContainerNoPagination": "",
+        "tableContainer1": "flex flex-col no-wrap min-h-[40px] max-h-[calc(78vh_-_10px)] overflow-y-auto",
+        "headerContainer": "sticky top-0 grid",
+        "thead": "flex justify-between",
+        "theadfrozen": "",
+        "thContainer": "w-full font-semibold px-3 py-1 text-sm font-semibold text-gray-600 border",
+        "thContainerBgSelected": "bg-blue-100 text-gray-900",
+        "thContainerBg": "bg-gray-50 text-gray-500",
+        "cell": "relative flex items-center min-h-[35px]  border border-slate-50",
+        "cellInner": "\n        w-full min-h-full flex flex-wrap items-center truncate py-0.5 px-1\n        font-[400] text-[14px]  leading-[18px] text-slate-600\n    ",
+        "cellBg": "bg-white",
+        "cellBgSelected": "bg-blue-50",
+        "cellFrozenCol": "",
+        "paginationInfoContainer": "",
+        "paginationPagesInfo": "font-[500] text-[12px] uppercase text-[#2d3e4c] leading-[18px]",
+        "paginationRowsInfo": "text-xs",
+        "paginationContainer": "w-full p-2 flex items-center justify-between",
+        "paginationControlsContainer": "flex flex-row items-center overflow-hidden gap-0.5",
+        "pageRangeItem": "cursor-pointer px-3  text-[#2D3E4C] py-1  text-[12px] hover:bg-slate-50 font-[500] rounded  uppercase leading-[18px]",
+        "pageRangeItemInactive": "",
+        "pageRangeItemActive": "bg-slate-100 ",
+        "openOutContainerWrapper": "fixed inset-0 right-0 h-full w-full z-[100]",
+        "openOutHeader": "font-semibold text-gray-600"
+    },
+    "lexical": {},
+    "dataCard": {
+        "columnControlWrapper": "grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-x-1 gap-y-0.5",
+        "columnControlHeaderWrapper": "px-1 font-semibold border bg-gray-50 text-gray-500",
+        "mainWrapperCompactView": "grid",
+        "mainWrapperSimpleView": "flex flex-col",
+        "subWrapper": "w-full",
+        "subWrapperCompactView": "flex flex-col rounded-[12px]",
+        "subWrapperSimpleView": "grid",
+        "headerValueWrapper": "w-full rounded-[12px] flex items-center justify-center p-2",
+        "headerValueWrapperCompactView": "py-0",
+        "headerValueWrapperSimpleView": "",
+        "justifyTextLeft": "text-start justify-items-start",
+        "justifyTextRight": "text-end justify-items-end",
+        "justifyTextCenter": "text-center justify-items-center",
+        "textXS": "text-xs font-medium",
+        "textXSReg": "text-xs font-normal",
+        "textSM": "text-sm font-medium",
+        "textSMReg": "text-sm font-normal",
+        "textSMBold": "text-sm font-normal",
+        "textSMSemiBold": "text-sm font-semibold",
+        "textMD": "ftext-md ont-medium",
+        "textMDReg": "text-md font-normal",
+        "textMDBold": "text-md font-bold",
+        "textMDSemiBold": "text-md font-semibold",
+        "textXL": "text-xl font-medium",
+        "textXLSemiBold": "text-xl font-semibold",
+        "text2XL": "text-2xl font-medium",
+        "text2XLReg": "text-2xl font-regular",
+        "text3XL": "text-3xl font-medium",
+        "text3XLReg": "text-3xl font-normal",
+        "text4XL": "text-4xl font-medium",
+        "text5XL": "text-5xl font-medium",
+        "text6XL": "text-6xl font-medium",
+        "text7XL": "text-7xl font-medium",
+        "text8XL": "text-8xl font-medium",
+        "imgXS": "max-w-16 max-h-16",
+        "imgSM": "max-w-24 max-h-24",
+        "imgMD": "max-w-32 max-h-32",
+        "imgXL": "max-w-40 max-h-40",
+        "img2XL": "max-w-48 max-h-48",
+        "img3XL": "max-w-56 max-h-56",
+        "img4XL": "max-w-64 max-h-64",
+        "img5XL": "max-w-72 max-h-72",
+        "img6XL": "max-w-80 max-h-80",
+        "img7XL": "max-w-96 max-h-96",
+        "img8XL": "max-w-128 max-h-128",
+        "header": "w-full capitalize",
+        "value": "w-full"
+    },
+    "attribution": {
+        "wrapper": "w-full p-1 flex gap-1 text-xs text-gray-900",
+        "label": "",
+        "link": ""
+    },
+    "filters": {
+        "filterLabel": "py-0.5 text-gray-500 font-medium",
+        "loadingText": "pl-0.5 font-thin text-gray-500",
+        "filterSettingsWrapper": "flex flex-col w-full",
+        "input": "w-full max-h-[150px] flex text-xs overflow-auto scrollbar-sm border rounded-md bg-white p-2",
+        "settingPillsWrapper": "flex flex-row flex-wrap gap-1",
+        "settingPill": "px-1 py-0.5 bg-orange-500/15 text-orange-700 hover:bg-orange-500/25 rounded-md",
+        "settingLabel": "text-gray-900 font-regular min-w-fit",
+        "filtersWrapper": "w-full py-6 flex flex-col rounded-md"
+    },
+    "graph": {
+        "text": "font-regular text-[12px]",
+        "darkModeText": "bg-transparent text-white",
+        "headerWrapper": "grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-x-1 gap-y-0.5",
+        "columnControlWrapper": "px-1 font-semibold border bg-gray-50 text-gray-500",
+        "scaleWrapper": "flex rounded-md p-1 divide-x border w-fit",
+        "scaleItem": "font-semibold text-gray-500 hover:text-gray-700 px-2 py-1"
+    },
+    "Icons": {}
 }
 
 export default theme
