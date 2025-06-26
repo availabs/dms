@@ -1,7 +1,7 @@
 import React, {useEffect, useMemo, useState} from "react";
 import { get } from "lodash-es"
 
-import { CMSContext } from '../../../../siteConfig'
+import { CMSContext } from '../../../../context'
 import TemplateSelector from "./TemplateSelector";
 //import {pgEnv} from "../utils/constants.js";
 

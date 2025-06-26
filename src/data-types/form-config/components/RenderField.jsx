@@ -1,6 +1,8 @@
 import React, {useEffect, useMemo, useState} from "react";
-import Lexical from "../../../patterns/page/ui/dataComponents/selector/ComponentRegistry/richtext/lexical"
+//import Lexical from "../../../patterns/page/ui/dataComponents/selector/ComponentRegistry/richtext/lexical"
 import {dmsDataTypes} from "../../index";
+
+const Lexical = { EditComp: () => <div/>}
 
 const fieldTypes = {
     // value: label
@@ -11,6 +13,13 @@ const fieldTypes = {
     'lexical': 'rich text',
     'radio': 'radio',
     'calculated': 'calculated' // can't be inputted, always calculated. don't use data->> to access.
+}
+
+const dataTypes = {
+    numeric: 'Numeric',
+    text: 'Text',
+    date: 'Date',
+    timestamp: 'Timestamp'
 }
 
 const behaviourTypes = {
@@ -551,6 +560,16 @@ export const RenderField = ({i, item, attribute, updateAttribute, removeAttribut
                             col={item.name}
                             attr={'type'}
                             options={fieldTypes}
+                            updateAttribute={updateAttribute}
+                        />
+
+                        <RenderInputSelect
+                            key={`${item.name}-data-type`}
+                            label={'Data Type'}
+                            value={item.dataType}
+                            col={item.name}
+                            attr={'dataType'}
+                            options={dataTypes}
                             updateAttribute={updateAttribute}
                         />
 

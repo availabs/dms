@@ -1,9 +1,8 @@
-import React, { useState, useRef } from 'react'
+import React, {useState, useRef, useContext} from 'react'
 import { Link, useSubmit, useLocation } from "react-router";
 import { Dialog  } from '@headlessui/react'
-import { Modal } from "../../../ui"
 import { json2DmsForm, getUrlSlug, toSnakeCase } from '../../_utils'
-import { CMSContext } from '../../../siteConfig'
+import { CMSContext } from '../../../context'
 
 
 function TemplateRow ({ item={} }) {
@@ -81,6 +80,8 @@ export default function TemplateList ({children, dataItems, edit, ...props}) {
 }
 
 function NewTemplateModal ({ open, setOpen})  {
+  const {UI} = useContext(CMSContext);
+  const {Modal} = UI;
   const cancelButtonRef = useRef(null)
   const submit = useSubmit()
   //const { baseUrl } = React.useContext(CMSContext)
@@ -149,6 +150,8 @@ function NewTemplateModal ({ open, setOpen})  {
 }
 
 export function DeleteModal ({item, open, setOpen})  {
+  const {UI} = useContext(CMSContext);
+  const {Modal} = UI;
   const cancelButtonRef = useRef(null)
   const submit = useSubmit()
   const { pathname = '/edit' } = useLocation()

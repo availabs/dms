@@ -9,7 +9,7 @@ import adminFormat from "./admin.format.js"
 import defaultTheme from './theme/theme'
 import Layout from './ui/avail-layout'
 
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 
 export const AdminContext = React.createContext(undefined);
 const defaultUser = { email: "user", authLevel: 5, authed: true, fake: true}
@@ -23,9 +23,10 @@ const adminConfig = ({
   sideNav = null,
   logo = null,
   rightMenu = <div />,
+  API_HOST = 'https://graph.availabs.org',
   baseUrl = '/',
   checkAuth = () => {},
-  theme = defaultTheme
+  theme = defaultTheme,
 }) => {
   const format = cloneDeep(adminFormat)
   format.app = app
@@ -72,7 +73,7 @@ const adminConfig = ({
       { 
         type: (props) => {
           return (
-            <AdminContext.Provider value={{baseUrl, user: props.user || defaultUser, theme, app, type, parent}}>
+            <AdminContext.Provider value={{baseUrl, user: props.user || defaultUser, theme, app, type, API_HOST, parent}}>
               <Layout navItems={menuItems} >
                 {props.children}
               </Layout>
@@ -84,6 +85,7 @@ const adminConfig = ({
         children: [
           {
             type: (props) => <SiteEdit {...props} />,
+            // authLevel: 5,
             action: "edit",
             path: "/*",
 

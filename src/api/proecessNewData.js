@@ -1,5 +1,4 @@
-import { get } from "lodash-es";;
-import { cloneDeep } from "lodash-es"
+import { get, cloneDeep } from "lodash-es";
 
 export async function processNewData (dataCache, activeIdsIntOrStr, stopFullDataLoad, filteredIdsLength, app, type, dmsAttrsConfigs,format,falcor) {
     const activeIds = Array.isArray(activeIdsIntOrStr) ? activeIdsIntOrStr.map(id => +id) : activeIdsIntOrStr;
@@ -68,6 +67,7 @@ export async function processNewData (dataCache, activeIdsIntOrStr, stopFullData
     return newData
 }
 
+export default processNewData
 
 async function loadDmsFormats (item,dmsAttrsConfigs, format, falcor) {
 

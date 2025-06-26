@@ -1,5 +1,5 @@
 import React, {useEffect, useRef, useState} from "react"
-import {useTheme} from '../../theme'
+
 import {RenderField} from "./components/RenderField";
 import {RenderAddField} from "./components/RenderAddField";
 import {Alert} from "../../patterns/forms/ui/icons"
@@ -13,7 +13,7 @@ const parseJson = value => {
 }
 
 const Edit = ({value = '{}', onChange, className, placeholder, manageTemplates, apiLoad, format, ...rest}) => {
-    const theme = useTheme()
+    const theme = {}//useTheme()
     const [item, setItem] = useState(parseJson(value))
     const [search, setSearch] = useState('');
     const dragItem = useRef();
@@ -114,7 +114,7 @@ const Edit = ({value = '{}', onChange, className, placeholder, manageTemplates, 
 
 const View = ({value, className}) => {
     if (!value) return false
-    const theme = useTheme()
+    const theme = {}// useTheme()
     return (
         <div
             className={className || (theme?.text?.view)}

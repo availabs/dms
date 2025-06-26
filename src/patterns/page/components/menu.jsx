@@ -1,16 +1,17 @@
-import React from "react"
-import { Dropdown } from '../ui/index'
+import React, {useContext} from "react"
 import {Link, useLocation} from 'react-router'
-import { CMSContext } from '../siteConfig'
-import Icons, {Search, User, UserCircle} from '../ui/icons'
+import { CMSContext } from '../context'
+import { ThemeContext } from "../../../ui/useTheme";
 
 // import {NavItem, NavMenu, NavMenuItem, NavMenuSeparator, withAuth} from 'components/avl-components/src'
 // import user from "@availabs/ams/dist/reducers/user";
 
 const UserMenu = ({user}) => {
+    const {UI} = useContext(CMSContext)
+    const {Icon} = UI;
     return (
         <div className={`h-[47px] w-[47px] border border-[#E0EBF0] rounded-full place-items-center content-center`}>
-            <User height={24} width={24} />
+            <Icon icon={'User'} className='size-6 fill-[#37576b]' />
         </div>
     )
 }
@@ -33,7 +34,9 @@ export const Item = ({to, icon,children}) => (
 
 
 export default ({title, children}) => {
-    const { user, baseUrl, theme } = React.useContext(CMSContext)
+    const { user, baseUrl, UI } = React.useContext(CMSContext)
+    const { theme } = React.useContext(ThemeContext)
+    const {Dropdown} = UI;
     const location = useLocation();
     let authMenuItems = theme?.navOptions?.authMenu?.navItems || [
             {
@@ -54,7 +57,7 @@ export default ({title, children}) => {
         <>
             {!user.authed ?            
                 <Link className={`flex items-center px-8 text-lg font-bold h-12 text-slate-500 px-4`} to="/auth/login" state={{from: location?.pathname}}>Login</Link> :
-                <Dropdown control={<UserMenu user={user}/>} className={``} >
+                <Dropdown control={<div className={'px-1'}><UserMenu user={user}/></div>} className={``} >
                     <div className='p-1 bg-blue-500 z-30'>
                        
                         <div className='text-white py-2'>

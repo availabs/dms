@@ -1,9 +1,8 @@
 import React, {Fragment, useEffect, useRef, useState} from 'react'
 import {NavLink, useSubmit, useLocation, useNavigate} from "react-router";
-import Nestable from '../../ui/components/nestable';
-import {ArrowDown, ArrowUp, ArrowRight, ArrowLeft, DraftPage} from '../../ui/icons';
+import Nestable from '../../../../ui/components/nestable';
 import {json2DmsForm, getUrlSlug} from '../_utils'
-import {CMSContext} from '../../siteConfig'
+import {CMSContext} from '../../context'
 import PageEdit from "../edit";
 
 const customTheme = {
@@ -109,7 +108,8 @@ function Nav({dataItems, edit, open, setOpen, selectedPage, setSelectedPage}) {
     const submit = useSubmit()
     const {pathname = '/edit'} = useLocation()
     const navigate = useNavigate();
-    const {baseUrl} = React.useContext(CMSContext)
+    const {UI} = React.useContext(CMSContext)
+    const {Icon} = UI;
     const [expandedItems, setExpandedItems] = useState({});
     const nestableRef = useRef(null);
 
@@ -178,19 +178,19 @@ function Nav({dataItems, edit, open, setOpen, selectedPage, setSelectedPage}) {
 
                         <div className={'flex gap-0.5 items-center'}>
                             {/*unpublished pill*/}
-                            {hasChanges ?  <DraftPage className={'text-orange-500'} />  : null}
+                            {hasChanges ?  <Icon icon={'DraftPage'} className={'text-orange-500'} />  : null}
                             {/*unpublished children pill*/}
-                            {unpublishedChildren ? <Pill text={unpublishedChildren} color={'orange'} /> : null}
+                            {unpublishedChildren ? <Icon icon={'Pill'} text={unpublishedChildren} color={'orange'} /> : null}
                             {/*total children pill*/}
-                            {allChildren ? <Pill text={allChildren} color={'gray'} /> : null}
+                            {allChildren ? <Icon icon={'Pill'} text={allChildren} color={'gray'} /> : null}
                         </div>
 
 
                     {!item.children?.length ? '' : isExpanded ?
-                        <ArrowUp className={'text-gray-400 hover:text-gray-500'}  onClick={() => {
+                        <Icon icon={'ArrowUp'} className={'text-gray-400 hover:text-gray-500'}  onClick={() => {
                             toggleExpand(item.id)
                         }}/> :
-                        <ArrowDown className={'text-gray-400 hover:text-gray-500'} onClick={() => {
+                        <Icon icon={'ArrowDown'} className={'text-gray-400 hover:text-gray-500'} onClick={() => {
                             toggleExpand(item.id)
                         }}/>
                     }
@@ -255,7 +255,7 @@ function Nav({dataItems, edit, open, setOpen, selectedPage, setSelectedPage}) {
     }
 
     if(!open) {
-        return <ArrowRight className={'cursor-pointer text-blue-400 hover:text-blue-500'} onClick={() => setOpen(true)} />
+        return <Icon icon={'ArrowRight'} className={'cursor-pointer text-blue-400 hover:text-blue-500'} onClick={() => setOpen(true)} />
     }
     return (
         <div className={customTheme.nav.container(open)}>
@@ -271,7 +271,7 @@ function Nav({dataItems, edit, open, setOpen, selectedPage, setSelectedPage}) {
                             }), {}))}
                     >Expand All
                     </button>
-                    <ArrowLeft className={'cursor-pointer text-blue-400 hover:text-blue-500'} onClick={() => setOpen(false)} />
+                    <Icon icon={'ArrowLeft'} className={'cursor-pointer text-blue-400 hover:text-blue-500'} onClick={() => setOpen(false)} />
                 </div>
 
                 <Nestable

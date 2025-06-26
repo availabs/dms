@@ -1,87 +1,140 @@
-import React, {useEffect, useRef} from 'react'
-import { Link, useSubmit } from "react-router";
+import React, {useContext, useEffect, useRef} from 'react'
+import { Link, useSubmit, useSearchParams, useLocation, useNavigate } from "react-router";
 import { cloneDeep, merge } from "lodash-es"
+import { useImmer } from "use-immer";
 
-// -- 
-import { CMSContext } from '../siteConfig'
-import { sectionsBackill, dataItemsNav } from './_utils'
-import { Layout, SectionGroup } from '../ui'
+import { /*sectionsBackill,*/
+    dataItemsNav,
+    convertToUrlParams,
+    mergeFilters,
+    initNavigateUsingSearchParams,
+    updatePageStateFiltersOnSearchParamChange
+} from './_utils'
 
-import {PDF, PencilEditSquare, Printer} from '../ui/icons'
-import {selectablePDF} from "../components/saveAsPDF/PrintWell/selectablePDF";
-//import {Footer} from "../ui/dataComponents/selector/ComponentRegistry/footer";
-export const PageContext = React.createContext(undefined);
+import SectionGroup from '../components/sections/sectionGroup'
+import SearchButton from '../components/search'
+//import {PDF, PencilEditSquare, Printer} from '../ui/icons'
+//import {selectablePDF} from "../components/saveAsPDF/PrintWell/selectablePDF";
+import { PageContext, CMSContext } from '../context';
+import { ThemeContext } from "../../../ui/useTheme";
 
 
 function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiLoad, apiUpdate, format,busy}) {
-  const submit = useSubmit()
-  // console.log('page_view')
-  // if(!item) return <div> No Pages </div>
-  
-  if(!item) { item = {} }// create a default item to set up first time experience.
 
-  React.useEffect(() => {
-      // -------------------------------------------------------------------
-      // -- This on load effect backfills pages created before sectionGroups
-      // -- This should be deleted by JUNE 1 2025
-      // -------------------------------------------------------------------
-      sectionsBackill(item,baseUrl,submit)
-     
-  },[])
+    const submit = useSubmit()
+    const navigate = useNavigate()
+    const [searchParams] = useSearchParams();
+    const {theme: fullTheme} = useContext(ThemeContext);
+    const { UI, Menu, baseUrl, patternFilters=[], user, API_HOST } = React.useContext(CMSContext) || {};
+    const {Layout} = UI;
+    const [pageState, setPageState] =
+        useImmer({
+            ...item,
+            filters: mergeFilters(item?.filters, patternFilters)
+        });
+    const { search } = useLocation()
+    const pdfRef = useRef(); // To capture the section of the page to be converted to PDF
 
-  //console.log('test 123', item)
+    let theme = merge(cloneDeep(fullTheme), item?.theme || {})
 
-  //console.log('item', item, dataItems, status)
-  const pdfRef = useRef(); // To capture the section of the page to be converted to PDF
-  let { baseUrl, theme, user, API_HOST } = React.useContext(CMSContext) || {}
-  //let pageTheme = {page: {container: `bg-[linear-gradient(0deg,rgba(33,52,64,.96),rgba(55,87,107,.96)),url('/themes/mny/topolines.png')] bg-[size:500px] pb-[4px]`}}
-  theme = merge(cloneDeep(theme), item?.theme || {})
-  const ContentView = React.useMemo(() => {
-    return attributes['sections'].ViewComp
-  }, [])
 
-  const menuItems = React.useMemo(() => {
-    let items = dataItemsNav(dataItems,baseUrl,false)
-    return items
-  }, [dataItems])
+    console.log('item', item)
+    if(!item) { item = {} }// create a default item to set up first time experience.
 
-  //console.log('view item', item)
+    const menuItems = React.useMemo(() => {
+        let items = dataItemsNav(dataItems,baseUrl,false)
+        return items
+    }, [dataItems])
 
-  // const level = item?.index == '999' || theme?.navOptions?.topNav?.nav !== 'main' ? 1 : detectNavLevel(dataItems, baseUrl);
 
-  const draftSections = item?.['sections'] || [] 
+    const menuItemsSecondNav = React.useMemo(() => {
+        let items = dataItemsNav(theme?.navOptions?.secondaryNav?.navItems || [],baseUrl,false)
+        return items
+    }, [theme?.navOptions?.secondaryNav?.navItems])
+    // React.useEffect(() => {
+    //     // -------------------------------------------------------------------
+    //     // -- This on load effect backfills pages created before sectionGroups
+    // /     // -- This should be deleted by JUNE 1 2025
+    //     // -------------------------------------------------------------------
+    //     //sectionsBackill(item,baseUrl,submit)
+    //
+    // },[])
 
-  //console.log('draft_sections', draftSections)
+    useEffect(() => {
+        updatePageStateFiltersOnSearchParamChange({searchParams, item, patternFilters, setPageState})
+    }, [searchParams]);
 
-  
-  const getSectionGroups =  ( sectionName ) => {
-    return (item?.section_groups || [])
-        .filter((g,i) => g.position === sectionName)
-        .sort((a,b) => a?.index - b?.index)
-        .map((group,i) => (
-          <SectionGroup
-            key={group?.name || i}
-            group={group}
-            attributes={attributes}
-          />
-        ))
-  }
+    useEffect(() => {
+        initNavigateUsingSearchParams({pageState, search, navigate, baseUrl, item, isView: true})
+    }, [])
 
-  return (
-      <PageContext.Provider value={{ item, dataItems, apiLoad, apiUpdate, format, busy }} >
-        <div className={`${theme?.page?.container}`}>
-          {getSectionGroups('top')}
-          <Layout 
-            navItems={menuItems} 
-            secondNav={theme?.navOptions?.secondaryNav?.navItems || []}
-            pageTheme={{navOptions: item.navOptions || {}}}
-          >
-            {getSectionGroups('content')}
-          </Layout>
-          {getSectionGroups('bottom')}
-        </div>
-      </PageContext.Provider>
-  ) 
+    const updatePageStateFilters = (filters) => {
+        const searchParamFilters = pageState.filters.filter(f => f.useSearchParams).map(f => filters.find(updatedFilter => updatedFilter.searchKey === f.searchKey) || f)
+        const nonSearchParamFilters = filters
+            .filter(({searchKey}) => {
+                const matchingFilter = (pageState.filters || []).find(f => f.searchKey === searchKey);
+                return matchingFilter && !matchingFilter.useSearchParams
+            })
+        // set non navigable filters
+        if(nonSearchParamFilters?.length){
+            setPageState(page => {
+                nonSearchParamFilters.forEach(f => {
+                    const idx = page.filters.findIndex(({searchKey}) => searchKey === f.searchKey);
+                    if(idx >= 0) {
+                        page.filters[idx].values = f.values;
+                    }
+                })
+            })
+        }
+
+        // navigate
+        if(searchParamFilters?.length){
+            const filtersObject = searchParamFilters
+                .reduce((acc, curr) => ({...acc, [curr.searchKey]: typeof curr.values === 'string' ? [curr.values] : curr.values}), {});
+            const url = `?${convertToUrlParams(filtersObject)}`;
+            if(url !== search){
+                navigate(`${baseUrl}/edit/${item.url_slug}${url}`)
+            }
+        }
+    }
+
+
+
+
+
+
+    const getSectionGroups =  ( sectionName ) => {
+        return (item?.section_groups || [])
+            .filter((g,i) => g.position === sectionName)
+            .sort((a,b) => a?.index - b?.index)
+            .map((group,i) => (
+                <SectionGroup
+                    key={group?.name || i}
+                    group={group}
+                    attributes={attributes}
+                />
+            ))
+    }
+
+    return (
+        <PageContext.Provider value={{ item, pageState, setPageState, updatePageStateFilters, dataItems, apiLoad, apiUpdate, format, busy }} >
+            <div className={`${theme?.page?.container}`}>
+                {getSectionGroups('top')}
+                <Layout
+                    navItems={menuItems}
+                    secondNav={menuItemsSecondNav}
+                    pageTheme={{navOptions: item.navOptions || {}}}
+                    Menu={Menu}
+                    SearchButton={SearchButton}
+                >
+                    {getSectionGroups('content')}
+                </Layout>
+                {getSectionGroups('bottom')}
+            </div>
+        </PageContext.Provider>
+
+    )
+
 }
 
 

@@ -3,14 +3,14 @@ import {createBrowserRouter, Outlet, RouterProvider} from "react-router";
 
 //import {  adminConfig } from "./modules/dms/src/"
 import { dmsDataLoader, dmsPageFactory, registerDataType } from '../../'
-import Selector from '../../patterns/page/ui/dataComponents/selector'
+import Selector from '../page/components/selector'
 import { falcorGraph, useFalcor } from "@availabs/avl-falcor"
 import { cloneDeep } from "lodash-es"
 
-
+import pageConfig from '../page/siteConfig'
 import dataManagerConfig from '../forms/siteConfig'; // meta level forms config. this "pattern" serves as parent for all forms.
 
-import pageConfig from '../page/siteConfig'
+
 //import {template} from "./admin.format"
 
 
@@ -38,8 +38,9 @@ import {useLocation} from "react-router";
 // to do:
 // Allow users to pass Pattern Configs
 // --
+console.log('hola', pageConfig)
 const configs = {
-    page: pageConfig,
+    page: pageConfig ,
     forms: dataManagerConfig,
 }
 
@@ -78,7 +79,8 @@ function pattern2routes (siteData, props) {
             baseUrl: SUBDOMAIN === 'admin' ?  '/' : adminPath,
             authLevel: 1,
             API_HOST, 
-            theme: themes['default']
+            theme: themes['default'],
+            pgEnvs
         },authWrapper),
         // default Data manager
         // ...dataManagerConfig.map(config => {
@@ -222,7 +224,7 @@ export function DmsSite ({
         Component: () => (<div className={'w-screen h-screen flex items-center bg-blue-50'}>404</div>)
     }
 
-    //console.log('routes',  dynamicRoutes)
+    // console.log('routes',  dynamicRoutes, routes)
 
     return (
         <RouterProvider 

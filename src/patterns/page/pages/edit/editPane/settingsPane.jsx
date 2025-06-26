@@ -1,17 +1,56 @@
+
 import React, {Fragment, useState} from 'react'
 import { cloneDeep, set, get } from 'lodash-es'
-import { Button, Menu, FieldSet, Icon } from '../../../ui'
-import { CMSContext } from '../../../siteConfig'
-import { timeAgo } from '../../_utils'
-import { Add, CaretDown } from "../../../ui/icons";
 import { updateTitle } from '../editFunctions'
+import { v4 as uuidv4 } from 'uuid';
+import { PageContext, CMSContext } from '../../../context'
+import {ThemeContext} from "../../../../../ui/useTheme";
 
-import { PageContext } from '../../view'
 
+const FilterSettings = ({label, type, value, stateValue, onChange}) => {
+  const [newFilter, setNewFilter] = useState({});
+  const [tmpValue, setTmpValue] = useState(typeof value === 'string' ? JSON.parse(value) : (value || []));
+
+  const updateFilters = (idx, key, valueToUpdate) => {
+    setTmpValue(value.map((v, i) => i === idx ? {...v, [key]: valueToUpdate} : v))
+    onChange(value.map((v, i) => i === idx ? {...v, [key]: valueToUpdate} : v));
+  }
+  return (
+      <div className={'flex flex-col'}>
+        {
+          tmpValue.map((filter, i) => (
+                  <div className={'grid grid-cols-5 gap-0.5'}>
+                    <Input placeholder={'search key'} value={filter.searchKey} onChange={e => updateFilters(i, 'searchKey', e.target.value)}/>
+                    <Input placeholder={'value'} value={filter.values} onChange={e => updateFilters(i, 'values', e.target.value)}/>
+                    <label className={'text-red-500 self-center'}>{stateValue?.find(sv => sv.searchKey === filter.searchKey)?.values}</label>
+                    <Select value={filter.useSearchParams} onChange={e => updateFilters(i, 'useSearchParams', e.target.value === 'true')}
+                            options={[{label: 'please select', value: undefined}, {label: 'Use Search params', value: true}, {label: `Don't use Search params`, value: false}]} />
+                    <Button onClick={() => {
+                      onChange(value.filter((_, idx) => i !== idx));
+                      setTmpValue(value.filter((_, idx) => i !== idx))
+                    }} > remove </Button>
+                  </div>
+              ))
+        }
+        <div className={'grid grid-cols-3 gap-0.5'}>
+          <Input placeholder={'search key'} value={newFilter.searchKey} onChange={e => setNewFilter({...newFilter, searchKey: e.target.value})} />
+          <Input placeholder={'value'} value={newFilter.values} onChange={e => setNewFilter({...newFilter, values: e.target.value})} />
+          <Button onClick={() => {
+            const id = uuidv4();
+                            onChange([...value, {id, ...newFilter}]);
+                            setTmpValue([...value, {id, ...newFilter}])
+                            setNewFilter({});
+                          }} > add </Button>
+        </div>
+      </div>
+  )
+};
 
 function SettingsPane () {
-  const { baseUrl, user, theme  } = React.useContext(CMSContext) || {}
-  const { item, dataItems, apiUpdate } =  React.useContext(PageContext) || {}
+  const { theme } = React.useContext(ThemeContext);
+  const { UI, baseUrl, user  } = React.useContext(CMSContext) || {}
+  const { item, pageState, dataItems, apiUpdate } =  React.useContext(PageContext) || {}
+  const { Button, Menu, FieldSet, Icon } = UI;
 
   const themeSettings = React.useMemo(() => {
     return (theme?.pageOptions?.settingsPane || [])
@@ -124,6 +163,15 @@ function SettingsPane () {
               togglePageSetting(item, 'description', e.target.value,  apiUpdate)
             }
           },
+          {
+            type: FilterSettings,
+            label: 'Filters',
+            value: item?.filters || [],
+            stateValue: pageState?.filters || [],
+            onChange:(e) => {
+              togglePageSetting(item, 'filters', e,  apiUpdate)
+            }
+          },
           ...themeSettings
         ]} />
       </div>
@@ -158,36 +206,37 @@ export const togglePageSetting = async (item,type, value='', apiUpdate) => {
 }
 
 export function PublishButton () {
-  const {item, apiUpdate } =  React.useContext(PageContext) || {}
-  const hasChanges = item.published === 'draft' || item.has_changes
-  const { user } = React.useContext(CMSContext) || {}
-  
-  return (
-    <div className='w-full flex justify-center h-[40px]'>
-      <Button 
-          padding={'pl-2 flex items-center h-[40px]'} 
-          disabled={!hasChanges} 
-          rounded={hasChanges ? 'rounded-l-lg' : 'rounded-lg'} 
-          type={hasChanges ? 'active' : 'inactive'}
-          onClick={() => publish(user,item, apiUpdate)} 
-      >
-        <span className='text-nowrap'> {hasChanges ? `Publish` : `No Changes`} </span>
-         
-      </Button>
-      {hasChanges && (
-        <Menu 
-          items={[{
-            name: (<span className='text-red-400'>Discard Changes</span>), 
-            onClick: () =>  discardChanges(user,item, apiUpdate)}
-          ]}
-        > 
-          <Button padding={'py-1 w-[35px] h-[40px]'} rounded={'rounded-r-lg'} type={hasChanges ? 'active' : 'inactive'}>
-            <CaretDown className='size-[28px]' />
-          </Button>
-        </Menu>
-      )}
-    </div>
-  )
+  // const {item, apiUpdate } =  React.useContext(PageContext) || {}
+  // const hasChanges = item.published === 'draft' || item.has_changes
+  // const { user, UI } = React.useContext(CMSContext) || {};
+  // const {Icon, Button} = UI;
+  //
+  // return (
+  //   <div className='w-full flex justify-center h-[40px]'>
+  //     <Button
+  //         padding={'pl-2 flex items-center h-[40px]'}
+  //         disabled={!hasChanges}
+  //         rounded={hasChanges ? 'rounded-l-lg' : 'rounded-lg'}
+  //         type={hasChanges ? 'active' : 'inactive'}
+  //         // onClick={() => publish(user,item, apiUpdate)}
+  //     >
+  //       <span className='text-nowrap'> {hasChanges ? `Publish` : `No Changes`} </span>
+  //
+  //     </Button>
+  //     {hasChanges && (
+  //       <Menu
+  //         items={[{
+  //           name: (<span className='text-red-400'>Discard Changes</span>),
+  //           // onClick: () =>  discardChanges(user,item, apiUpdate)}
+  //         ]}
+  //       >
+  //         <Button padding={'py-1 w-[35px] h-[40px]'} rounded={'rounded-r-lg'} type={hasChanges ? 'active' : 'inactive'}>
+  //           <Icon icon={'CaretDown'} className='size-[28px]' />
+  //         </Button>
+  //       </Menu>
+  //     )}
+  //   </div>
+  // )
 }
 
 
