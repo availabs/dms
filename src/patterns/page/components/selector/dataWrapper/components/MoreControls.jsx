@@ -6,7 +6,7 @@ import {ComponentContext, CMSContext} from "../../../../context";
 
 export default function MoreControls({context}) {
     const {state: {display}, setState, controls} = useContext(context || ComponentContext);
-    const { UI } = React.useContext(CMSContext) || {}
+    const { UI } = React.useContext(CMSContext) || {UI: {Icon: () => <></>}};
     if(!controls.more?.length) return;
 
     const menuRef = useRef(null);

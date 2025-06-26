@@ -91,7 +91,7 @@ export const dataCardTheme = {
     img8XL: "max-w-128 max-h-128",
 
     header: 'w-full capitalize',
-    value: 'w-full'
+    value: ''
 }
 // cards can be:
 // one cell per row, that carries one column's data,
@@ -154,6 +154,10 @@ const RenderItem = ({
     const {UI} = useContext(CMSContext);
     const {Icon} = UI;
     const [tmpItem, setTmpItem] = useState(item || {}); // for form edit controls
+
+    useEffect(() => {
+        setTmpItem(item)
+    }, [item])
     return (
         //  in normal view, grid applied here
         <div
@@ -299,7 +303,7 @@ const Card = ({
     const cardsWithoutSpanLength = useMemo(() => columns.filter(({show, cardSpan}) => show && !cardSpan).length, [columns]);
 
     const imageTopMargin = Math.max(...visibleColumns.map(attr => attr.isImg && !isNaN(attr.imageMargin) ? Math.abs(attr.imageMargin) : undefined).filter(m=>m));
-    const getGridSize = gridSize => window.innerWidth < 640 ? 1 : gridSize;
+    const getGridSize = gridSize => gridSize//window?.innerWidth < 640 ? 1 : gridSize;
 
     const mainWrapperStyle = gridSize && compactView ?
         {
@@ -346,6 +350,8 @@ const Card = ({
             draft.columns = newCols;
         });
     }
+
+    console.log('??????????????????/', data)
     return (
         <>
             {

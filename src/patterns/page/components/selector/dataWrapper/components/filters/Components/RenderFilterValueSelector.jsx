@@ -58,11 +58,11 @@ const RenderSearchKeySelector = ({filter, pageState, onChange}) => {
 }
 
 export const RenderFilterValueSelector = ({
-                                              loading, isEdit, filterColumn, filterOptions=[], state, setState, filterWithSearchParamKeys, columns
+                                              loading, isEdit, filterColumn, filterOptions=[], state, setState, filterWithSearchParamKeys, columns, cms_context
                                           }) => {
     const navigate = useNavigate();
     const { pageState, updatePageStateFilters } =  React.useContext(PageContext) || {}; // page to extract page filters
-    const { UI } = React.useContext(CMSContext) || {};
+    const { UI } = React.useContext(cms_context || CMSContext) || {};
     const { theme = { filters: filterTheme } } = React.useContext(ThemeContext) || {};
     const {Switch} = UI;
     const options = useMemo(() => filterOptions.find(fo => fo.column === filterColumn.name)?.uniqValues, [filterOptions, filterColumn.name]);

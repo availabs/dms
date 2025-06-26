@@ -1,5 +1,12 @@
 import {useEffect} from "react";
 
+export const getLocation = selectionPoint => {
+    let {index, attrI} = typeof selectionPoint === 'number' ? {
+        index: selectionPoint,
+        attrI: undefined
+    } : selectionPoint;
+    return {index, attrI}
+}
 export function usePaste(callback, element) {
     useEffect(() => {
         if(!element) return;

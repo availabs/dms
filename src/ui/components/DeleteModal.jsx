@@ -1,10 +1,16 @@
 import React, {useRef, useState} from "react";
-import {CMSContext} from "../../patterns/page/context";
+import {DialogTitle, } from "@headlessui/react";
 import Modal from "./Modal";
 
+export const docs = {
+    title: 'title',
+    prompt: 'Prompt',
+    open: true,
+    setOpen: () => {},
+    onDelete: () => {}
+}
 export function DeleteModal ({title, prompt, item={}, open, setOpen, onDelete})  {
     const cancelButtonRef = useRef(null)
-    const { baseUrl } = React.useContext(CMSContext) || {}
     const [loading, setLoading] = useState(false)
     return (
         <Modal
@@ -17,9 +23,9 @@ export function DeleteModal ({title, prompt, item={}, open, setOpen, onDelete}) 
                     <i className="fa fa-danger h-6 w-6 text-red-600" aria-hidden="true" />
                 </div>
                 <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left">
-                    <Headless.DialogTitle as="h3" className="text-base font-semibold leading-6 text-gray-900">
+                    <DialogTitle as="h3" className="text-base font-semibold leading-6 text-gray-900">
                         {title || `Delete ${item.title || ''} ${item.id}`}
-                    </Headless.DialogTitle>
+                    </DialogTitle>
                     <div className="mt-2">
                         <p className="text-sm text-gray-500">
                             {prompt || `Are you sure you want to delete this page? All of the page data will be permanently removed

@@ -30,9 +30,10 @@ export const RenderFilters = ({
                                   isEdit,
                                   state = {columns: [], sourceInfo: {}}, setState,
                                   apiLoad, defaultOpen = true, showNavigate = false,
+    cms_context
                               }) => {
     const { theme = { filters: filterTheme } } = React.useContext(ThemeContext) || {};
-    const { UI } = React.useContext(CMSContext) || {};
+    const { UI } = React.useContext(cms_context || CMSContext) || {UI: {Icon: () => <></>}};;
     const {Icon} = UI;
     const { pageState } =  React.useContext(PageContext) || {}; // page to extract page filters
     const [open, setOpen] = useState(defaultOpen);
@@ -199,7 +200,12 @@ export const RenderFilters = ({
                         debug && console.log('debug filters: data', data)
                         return {
                             column: columnName,
-                            uniqValues: uniqBy(Array.isArray(metaOptions) ? [...metaOptions, ...dataOptions] : dataOptions, d => d.value),
+                            uniqValues: uniqBy(Array.isArray(metaOptions) ? [...metaOptions, ...dataOptions] : dataOptions, d => d.value)
+                                .sort((a,b) =>
+                                typeof a?.label === 'string' && typeof b?.label === 'string' ?
+                                    a.label.localeCompare(b.label) :
+                                    b?.label - a?.label
+                                ),
                         }
                     }));
 
@@ -252,6 +258,7 @@ export const RenderFilters = ({
                                                        filterWithSearchParamKeys={filterWithSearchParamKeys}
                                                        delimiter={filterValueDelimiter}
                                                        columns={state.columns}
+                                                       cms_context={cms_context}
                             />
                         </div>
                     </div>

@@ -1,72 +1,26 @@
 import React, {useContext, useEffect, useMemo, useRef, useState} from "react";
-import {useCopy, usePaste} from "../../../../../../ui/components/table/utils/hooks";
-import {handleKeyDown} from "../../../../../../ui/components/table/utils/keyboard";
 import {
     actionsColSize,
     gutterColSize as gutterColSizeDf,
-    minColSize,
     minInitColSize,
     numColSize as numColSizeDf
 } from "./constants"
 import ActionControls from "./controls/ActionControls";
 import {CMSContext, ComponentContext} from '../../../../context'
+import {ThemeContext} from "../../../../../../ui/useTheme"
 import {isEqualColumns} from "../../dataWrapper/utils/utils";
 import {duplicateControl} from "../shared/utils";
 import Table, {tableTheme} from "../../../../../../ui/components/table";
 
-const getLocation = selectionPoint => {
-    let {index, attrI} = typeof selectionPoint === 'number' ? {
-        index: selectionPoint,
-        attrI: undefined
-    } : selectionPoint;
-    return {index, attrI}
-}
-
-const updateItemsOnPaste = ({pastedContent, e, index, attrI, data, visibleAttributes, updateItem}) => {
-    const paste = pastedContent?.split('\n').filter(row => row.length).map(row => row.split('\t'));
-    if(!paste) return;
-
-    const rowsToPaste = [...new Array(paste.length).keys()].map(i => index + i).filter(i => i < data.length)
-    const columnsToPaste = [...new Array(paste[0].length).keys()]
-        .map(i => visibleAttributes[attrI + i])
-        .filter(i => i);
-
-    const itemsToUpdate = rowsToPaste.map((row, rowI) => (
-        {
-            ...data[row],
-            ...columnsToPaste.reduce((acc, col, colI) => ({...acc, [col]: paste[rowI][colI]}), {})
-        }
-    ));
-
-    updateItem(undefined, undefined, itemsToUpdate);
-}
-
 const frozenCols = [0,1] // testing
 const frozenColClass = '' // testing
 
-
-
-export const RenderTable = ({isEdit, updateItem, removeItem, addItem, newItem, setNewItem, loading, allowEdit}) => {
-    const { theme = { table: tableTheme } } = React.useContext(CMSContext) || {}
+export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addItem, newItem, setNewItem, loading, allowEdit}) => {
+    const { theme = { table: tableTheme } } = React.useContext(ThemeContext) || {}
+    const { UI } = React.useContext(cms_context || CMSContext) || {UI: {Icon: () => <></>}}
+    const {Table} = UI;
     const {state:{columns, sourceInfo, display, data}, setState, controls={}} = useContext(ComponentContext);
     const gridRef = useRef(null);
-    const [isSelecting, setIsSelecting] = useState(false);
-    const [editing, setEditing] = useState({}); // {index, attrI}
-    const [selection, setSelection] = useState([]);
-    const [triggerSelectionDelete, setTriggerSelectionDelete] = useState(false);
-    const [isDragging, setIsDragging] = useState(false);
-    const startCellRow = useRef(null);
-    const startCellCol = useRef(null);
-    const selectionRange = useMemo(() => {
-        const rows = [...new Set(selection.map(s => s?.index !== undefined ? s.index : s))].sort((a, b) => a - b);
-        const cols = [...new Set(selection.map(s => s.attrI).sort((a, b) => a - b) || columns.filter(({show}) => show).map((v, i) => i))];
-        return {
-            startI: rows[0],
-            endI: rows[rows.length - 1],
-            startCol: cols[0],
-            endCol: cols[cols.length - 1]
-        }
-    }, [selection]);
 
     const visibleAttributes = useMemo(() => columns.filter(({show}) => show), [columns]);
     const visibleAttributesLen = useMemo(() => columns.filter(({show}) => show).length, [columns]);
@@ -79,28 +33,6 @@ export const RenderTable = ({isEdit, updateItem, removeItem, addItem, newItem, s
     const paginationActive = display.usePagination && Math.ceil(display.totalLength / display.pageSize) > 1;
     const numColSize = display.showGutters ? numColSizeDf : 0
     const gutterColSize = display.showGutters ? gutterColSizeDf : 0
-
-    usePaste((pastedContent, e) => {
-        let {index, attrI} = typeof selection[selection.length - 1] === 'number' ?
-            {index: selection[selection.length - 1], attrI: undefined} :
-            selection[selection.length - 1];
-        updateItemsOnPaste({pastedContent, e, index, attrI, data, visibleAttributes, updateItem})
-    }, gridRef.current);
-
-    useCopy(() => {
-        return Object.values(
-            selection.sort((a, b) => {
-                const {index: rowA, attrI: colA} = getLocation(a);
-                const {index: rowB, attrI: colB} = getLocation(b);
-
-                return (rowA - rowB) || (colA - colB);
-            })
-                .reduce((acc, s) => {
-                    const {index, attrI} = getLocation(s);
-                    acc[index] = acc[index] ? `${acc[index]}\t${data[index][visibleAttributes[attrI]]}` : data[index][visibleAttributes[attrI]]; // join cells of a row
-                    return acc;
-                }, {})).join('\n') // join rows
-    }, gridRef.current)
 
     // =================================================================================================================
     // =========================================== auto resize begin ===================================================
@@ -130,86 +62,6 @@ export const RenderTable = ({isEdit, updateItem, removeItem, addItem, newItem, s
     }, [visibleAttributesLen, visibleAttrsWithoutOpenOutLen, openOutAttributesLen, sourceInfo.columns]);
     // ============================================ auto resize end ====================================================
 
-    // =================================================================================================================
-    // =========================================== Mouse Controls begin ================================================
-    // =================================================================================================================
-    const colResizer = (attribute) => (e) => {
-        const element = gridRef.current;
-        if(!element) return;
-
-        const column = visibleAttributes.find(va => isEqualColumns(va, attribute));
-        const startX = e.clientX;
-        const startWidth = column.size || 0;
-        const handleMouseMove = (moveEvent) => {
-            const newWidth = Math.max(minColSize, startWidth + moveEvent.clientX - startX);
-            setState(draft => {
-                const idx = draft.columns.findIndex(column => isEqualColumns(column, attribute));
-                draft.columns[idx].size = newWidth;
-            })
-        };
-
-        const handleMouseUp = () => {
-            element.removeEventListener('mousemove', handleMouseMove);
-            element.removeEventListener('mouseup', handleMouseUp);
-        };
-
-        element.addEventListener('mousemove', handleMouseMove);
-        element.addEventListener('mouseup', handleMouseUp);
-    };
-    // =========================================== Mouse Controls end ==================================================
-
-    // =================================================================================================================
-    // =========================================== Keyboard Controls begin =============================================
-    // =================================================================================================================
-    useEffect(() => {
-        const element = gridRef.current;
-        if(!element) return;
-        const handleKeyUp = () => {
-            setIsSelecting(false)
-            setIsDragging(false)
-            setTriggerSelectionDelete(false);
-        }
-
-        const keyDownListener = e => handleKeyDown({
-            e, dataLen: data.length, selection, setSelection, setIsSelecting,
-            editing, setEditing, setTriggerSelectionDelete,
-            visibleAttributes, pageSize: display.pageSize, setIsDragging
-        })
-
-        element.addEventListener('keydown', keyDownListener);
-        element.addEventListener('keyup', handleKeyUp);
-
-        return () => {
-            element.removeEventListener('keydown', keyDownListener);
-            element.removeEventListener('keyup', handleKeyUp);
-        };
-    }, [selection, editing, data?.length]);
-    // =========================================== Keyboard Controls end ===============================================
-
-    // =================================================================================================================
-    // =========================================== Trigger delete begin ================================================
-    // =================================================================================================================
-    useEffect(() => {
-        async function deleteFn() {
-            if (triggerSelectionDelete) {
-                const selectionRows = data.filter((d, i) => selection.find(s => (s.index || s) === i))
-                const selectionCols = visibleAttributes.filter((_, i) => selection.map(s => s.attrI).includes(i))
-
-                if (selectionCols.length) {
-                    // partial selection
-                    updateItem(undefined, undefined, selectionRows.map(row => ({...row, ...selectionCols.reduce((acc, curr) => ({...acc, [curr]: ''}), {})})))
-                }else{
-                    // full row selection
-                    updateItem(undefined, undefined, selectionRows.map(row => ({...row, ...visibleAttributes.reduce((acc, curr) => ({...acc, [curr]: ''}), {})})))
-                }
-            }
-        }
-
-        deleteFn()
-    }, [triggerSelectionDelete])
-    // ============================================ Trigger delete end =================================================
-
-
 
     if(!visibleAttributes.length) return <div className={'p-2'}>No columns selected.</div>;
 
@@ -217,14 +69,8 @@ export const RenderTable = ({isEdit, updateItem, removeItem, addItem, newItem, s
                   allowEdit={allowEdit} isEdit={isEdit} loading={loading}
                   gridRef={gridRef}
                   theme={theme} paginationActive={paginationActive}
-                  isDragging={isDragging} setIsDragging={setIsDragging}
-                  selection={selection} setSelection={setSelection}
-                  isSelecting={isSelecting}
-                  editing={editing} setEditing={setEditing}
-                  selectionRange={selectionRange} triggerSelectionDelete={triggerSelectionDelete}
-                  startCellCol={startCellCol} startCellRow={startCellRow}
                   updateItem={updateItem} removeItem={removeItem}
-                  numColSize={numColSize} gutterColSize={gutterColSize} frozenColClass={frozenColClass} frozenCols={frozenCols} colResizer={colResizer}
+                  numColSize={numColSize} gutterColSize={gutterColSize} frozenColClass={frozenColClass} frozenCols={frozenCols}
     />
 }
 

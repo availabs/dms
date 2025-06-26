@@ -9,7 +9,7 @@ import formsFormat, {source} from "./forms.format";
 
 import defaultTheme from './theme/theme'
 import DefaultMenu from './components/menu'
-
+import UI from '../../ui'
 
 //--- Admin Pages
 import ManageLayout from './pages/manage/layout'
@@ -85,7 +85,13 @@ const formsAdminConfig = ({
             {
                 type: (props) => {
                   return (
-                      <FormsContext.Provider value={{baseUrl: `${baseUrl}`, damaBaseUrl, user: props.user || defaultUser, theme, app, type, parent: pattern, Menu, API_HOST}}>
+                      <FormsContext.Provider value={{
+                          UI,
+                          baseUrl: `${baseUrl}`, damaBaseUrl,
+                          user: props.user || defaultUser,
+                          theme, app, type,
+                          parent: pattern, Menu, API_HOST
+                      }}>
                             {props.children}
                       </FormsContext.Provider>
                   )
@@ -194,7 +200,18 @@ const formsSourceConfig = ({
                 type: (props) => {
                     const { falcor, falcorCache } = useFalcor();
                   return (
-                      <FormsContext.Provider value={{baseUrl: `${baseUrl}`, pageBaseUrl: `${baseUrl}/source`, damaBaseUrl, user: props.user || defaultUser, pgEnv, theme, app, type, parent: pattern, Menu, API_HOST, falcor, falcorCache}}>
+                      <FormsContext.Provider value={{
+                          UI,
+                          baseUrl: `${baseUrl}`,
+                          pageBaseUrl: `${baseUrl}/source`,
+                          damaBaseUrl,
+                          user: props.user || defaultUser,
+                          pgEnv,
+                          theme, app, type,
+                          parent: pattern,
+                          Menu, API_HOST,
+                          falcor, falcorCache
+                      }}>
                         <AvailLayout>
                             {props.children}
                         </AvailLayout>

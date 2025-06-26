@@ -1,10 +1,10 @@
-import React, {Fragment, useState, useEffect, useRef, useMemo} from 'react'
+import React, {Fragment, useState, useEffect, useRef, useMemo, useContext} from 'react'
 import { NavLink, useSubmit, useLocation, matchPath, matchRoutes, useMatch } from "react-router";
-import { CMSContext } from '../../../patterns/page/context'
-
 import Nestable from './index';
 import { json2DmsForm, getUrlSlug } from '../../../patterns/page/pages/_utils'
 import {ThemeContext} from "../../useTheme";
+import Icon from "../Icon"
+import Button from "../Button"
 
 
 export const nestableTheme = {
@@ -21,15 +21,16 @@ export const nestableTheme = {
 
 
 
-function DefaultNavItem ({item, dataItems, handleCollapseIconClick, isCollapsed, edit, OpenIcon=ArrowDown, ClosedIcon=ArrowRight}) {
-    const { theme = { nestable: nestableTheme } } = React.useContext(ThemeContext);
-    const { baseUrl, user } = React.useContext(CMSContext);
-
+function DefaultNavItem ({item, dataItems, handleCollapseIconClick, isCollapsed, edit, baseUrl, OpenIcon: openIconFromProps = 'ArrowDown', ClosedIcon: closedIconFromProps = 'ArrowRight'}) {
+    const { theme: themeFromContext = { nestable: nestableTheme } } = React.useContext(ThemeContext);
+    const theme = {...themeFromContext, nestable: {...nestableTheme, ...(themeFromContext.nestable || {})}};
     const { pathname = '/edit' } = useLocation()
 
     //-- this is not ideal, better to check id and parent
-    const isActive = matchRoutes([{path: item.url_slug}], pathname.replace('/edit')).length > 0
+    const isActive = matchRoutes([{path: item.url_slug}], pathname.replace('/edit'))?.length > 0
 
+    const OpenIcon = () => <Icon icon={openIconFromProps} />;
+    const ClosedIcon = () => <Icon icon={closedIconFromProps} />;
     return (
         <div key={item.id} className='group'>
             {/*<div className='border-t border-transparent hover:border-blue-500 w-full relative'>
@@ -50,8 +51,10 @@ function DefaultNavItem ({item, dataItems, handleCollapseIconClick, isCollapsed,
 
                 </div>
 
-
-                {!item.children?.length ? <div className='size-6'/> : isCollapsed  ?
+                {
+                    !item.children?.length ?
+                    null :
+                    isCollapsed  ?
                     <OpenIcon className={theme?.nestable?.collapsIcon}  onClick={() => handleCollapseIconClick()}/> :
                     <ClosedIcon className={theme?.nestable?.collapsIcon} onClick={() => handleCollapseIconClick()}/>
                 }
@@ -66,9 +69,77 @@ function DefaultNavItem ({item, dataItems, handleCollapseIconClick, isCollapsed,
   
 }
 
+export const docs = {
+    themeKey: 'nestable',
+    dataItems: [
+        // Parent 1
+        {
+            id: 1,
+            index: 0,
+            title: 'Parent One',
+            url_slug: '/parent-one',
+        },
+        // Children of Parent 1
+        {
+            id: 2,
+            index: 1,
+            title: 'Child One A',
+            url_slug: '/parent-one/child-a',
+            parent: 1
+        },
+        {
+            id: 3,
+            index: 2,
+            title: 'Child One B',
+            url_slug: '/parent-one/child-b',
+            parent: 1
+        },
 
-function DraggableNav ({item, dataItems, NavComp=DefaultNavItem, edit=true}) {
-    const { baseUrl, theme = { nestable: nestableTheme } } = React.useContext(CMSContext) || {}
+        // Parent 2
+        {
+            id: 4,
+            index: 3,
+            title: 'Parent Two',
+            url_slug: '/parent-two',
+        },
+        // Child of Parent 2
+        {
+            id: 5,
+            index: 4,
+            title: 'Child Two A',
+            url_slug: '/parent-two/child-a',
+            parent: 4
+        },
+
+        // Parent 3
+        {
+            id: 6,
+            index: 5,
+            title: 'Parent Three',
+            url_slug: '/parent-three',
+        },
+        // Children of Parent 3
+        {
+            id: 7,
+            index: 6,
+            title: 'Child Three A',
+            url_slug: '/parent-three/child-a',
+            parent: 6
+        },
+        {
+            id: 8,
+            index: 7,
+            title: 'Child Three B',
+            url_slug: '/parent-three/child-b',
+            parent: 6
+        }
+    ]
+
+}
+
+function DraggableNav ({item, dataItems, NavComp=DefaultNavItem, baseUrl, edit=true}) {
+    const {theme: themeFromContext = {}} = useContext(ThemeContext);
+    const theme = {...themeFromContext, nestable: {...nestableTheme, ...(themeFromContext.nestable || {})}}
     const submit = useSubmit()
     
     const { pathname = '/edit' } = useLocation()
@@ -168,11 +239,9 @@ function DraggableNav ({item, dataItems, NavComp=DefaultNavItem, edit=true}) {
 
 
 
-function AddItemButton ({dataItems}) {
+function AddItemButton ({dataItems, user={}}) {
   const submit = useSubmit();
   const { pathname = '/edit' } = useLocation();
-  const { UI, user } = React.useContext(CMSContext);
-  const {Button} = UI;
   const [loading, setLoading] = useState(false);
   
   const highestIndex = dataItems

@@ -1,5 +1,5 @@
 
-import React, {Fragment, useState} from 'react'
+import React, {Fragment, useContext, useState} from 'react'
 import { cloneDeep, set, get } from 'lodash-es'
 import { updateTitle } from '../editFunctions'
 import { v4 as uuidv4 } from 'uuid';
@@ -8,6 +8,8 @@ import {ThemeContext} from "../../../../../ui/useTheme";
 
 
 const FilterSettings = ({label, type, value, stateValue, onChange}) => {
+  const {UI} = useContext(CMSContext);
+  const {Input, Select, Button} = UI;
   const [newFilter, setNewFilter] = useState({});
   const [tmpValue, setTmpValue] = useState(typeof value === 'string' ? JSON.parse(value) : (value || []));
 
@@ -16,10 +18,10 @@ const FilterSettings = ({label, type, value, stateValue, onChange}) => {
     onChange(value.map((v, i) => i === idx ? {...v, [key]: valueToUpdate} : v));
   }
   return (
-      <div className={'flex flex-col'}>
+      <div className={'flex flex-col gap-0.5'}>
         {
           tmpValue.map((filter, i) => (
-                  <div className={'grid grid-cols-5 gap-0.5'}>
+                  <div key={i} className={'grid grid-cols-5 gap-0.5'}>
                     <Input placeholder={'search key'} value={filter.searchKey} onChange={e => updateFilters(i, 'searchKey', e.target.value)}/>
                     <Input placeholder={'value'} value={filter.values} onChange={e => updateFilters(i, 'values', e.target.value)}/>
                     <label className={'text-red-500 self-center'}>{stateValue?.find(sv => sv.searchKey === filter.searchKey)?.values}</label>
@@ -32,7 +34,7 @@ const FilterSettings = ({label, type, value, stateValue, onChange}) => {
                   </div>
               ))
         }
-        <div className={'grid grid-cols-3 gap-0.5'}>
+        <div key={'add-new-filter'} className={'grid grid-cols-3 gap-0.5'}>
           <Input placeholder={'search key'} value={newFilter.searchKey} onChange={e => setNewFilter({...newFilter, searchKey: e.target.value})} />
           <Input placeholder={'value'} value={newFilter.values} onChange={e => setNewFilter({...newFilter, values: e.target.value})} />
           <Button onClick={() => {
@@ -42,6 +44,11 @@ const FilterSettings = ({label, type, value, stateValue, onChange}) => {
                             setNewFilter({});
                           }} > add </Button>
         </div>
+        <Button onClick={() => {
+          onChange([]);
+          setTmpValue([])
+          setNewFilter({});
+        }} > clear all </Button>
       </div>
   )
 };

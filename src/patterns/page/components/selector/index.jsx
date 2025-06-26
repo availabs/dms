@@ -12,8 +12,8 @@ import FilterableSearch from "./FilterableSearch";
 
 import { CMSContext, ComponentContext, PageContext } from '../../context'
 import ComponentRegistry from './ComponentRegistry'
-import {useImmer} from "use-immer";
-import {ThemeContext} from "../../../../ui/useTheme";
+import { useImmer } from "use-immer";
+import { ThemeContext } from "../../../../ui/useTheme";
 
 
 export let RegisteredComponents = ComponentRegistry;
@@ -137,8 +137,8 @@ function EditComp(props) {
             </div>
             <ComponentContext.Provider value={{
                 state, setState, apiLoad,
-                compType: component.name.toLowerCase(), // should be deprecated
-                controls: component.controls,
+                compType: component?.name?.toLowerCase(), // should be deprecated
+                controls: component?.controls,
                 app: pageformat?.app
             }}>
                 {/* controls with datasource selector */}
@@ -167,7 +167,7 @@ function ViewComp({value, ...rest}) {
     const defaultComp = () => <div> Component {value["element-type"]} Not Registered </div>;
     const blankComp = () => <div></div>;
 
-    const component = (RegisteredComponents[get(value, "element-type", "lexical")] || defaultComp);
+    const component = RegisteredComponents[get(value, "element-type", "lexical")];
     const [state, setState] = useImmer(convertOldState(value?.['element-data'] || '', initialState(component?.defaultState)));
 
 
@@ -182,7 +182,7 @@ function ViewComp({value, ...rest}) {
 
 
     return (
-        <ComponentContext.Provider value={{state, setState, apiLoad, controls: component.controls}}>
+        <ComponentContext.Provider value={{state, setState, apiLoad, controls: component?.controls}}>
             <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={false} defaultOpen={true}/>
             <DataComp value={value?.['element-data'] || ''}
                       state={state} setState={setState}

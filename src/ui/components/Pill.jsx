@@ -1,5 +1,12 @@
 import React from 'react'
 
+export const docs = [{
+    color: 'orange',
+    text: 'text'
+},{
+    color: 'blue',
+    text: 'text'
+}]
 export default function Pill ({color, text, ...rest}) {
     const colors = {
         orange: `bg-orange-500/15 text-orange-700 hover:bg-orange-500/25`,

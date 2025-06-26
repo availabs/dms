@@ -23,8 +23,15 @@ export const dialogTheme  = {
   }
 }
 
+export const docs = {
+    size: 'lg',
+    open: true,
+    onClose: () => {},
+    children: <div>Dialog</div>
+}
 export default function DialogComp({ size = 'lg', open=false, onClose=()=>{}, className, children, ...props }) {
-    const { theme = {dialog: dialogTheme}} = React.useContext(ThemeContext);
+    const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
+    const theme = {...themeFromContext, dialog: {...dialogTheme, ...(themeFromContext?.dialog || {})}};
   return (
     <Headless.Dialog open={open} onClose={onClose} {...props}>
       <Headless.DialogBackdrop

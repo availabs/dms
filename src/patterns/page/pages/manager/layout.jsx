@@ -18,7 +18,7 @@ const managerTheme={
       search: 'none',
       logo: 'left',
       position: 'fixed',
-      nav: 'none' 
+      nav: 'none'
     }
   }
 }
@@ -30,7 +30,7 @@ function CmsManager ({children}) {
   
   const { baseUrl, UI } = React.useContext(CMSContext) || {};
   const {Layout} = UI;
-  const { theme } = React.useContext(ThemeContext);
+  const { theme ={}} = React.useContext(ThemeContext);
   
 
   const managerNavItems = [

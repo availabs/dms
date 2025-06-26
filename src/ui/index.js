@@ -14,6 +14,7 @@ import Switch from './components/Switch';
 import ColorPicker from "./components/Colorpicker";
 import Tabs from "./components/Tabs";
 import Drawer from "./components/Drawer";
+import Input from "./components/Input"
 import Select from './components/Select';
 import Dialog from "./components/Dialog";
 import Dropdown from "./components/Dropdown";
@@ -22,6 +23,7 @@ import {DeleteModal} from "./components/DeleteModal";
 // import Nestable from "./components/nestable";
 import DraggableNav from "./components/nestable/draggableNav";
 import Pagination from "./components/Pagination";
+import Table from "./components/table"
 export default {
 	// --- Layout
 	Layout,
@@ -40,6 +42,7 @@ export default {
 	// --- Forms
 	FieldSet,
 	Switch,
+	Input,
 	Select,
 	ColorPicker,
 	Tabs,
@@ -49,5 +52,6 @@ export default {
 	DeleteModal,
 	// Nestable,
 	DraggableNav,
-	Pagination
+	Pagination,
+	Table
 }

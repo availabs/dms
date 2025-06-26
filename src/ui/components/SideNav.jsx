@@ -6,7 +6,7 @@ import {ThemeContext} from '../useTheme'
 
 const NOOP = () => { return {} }
 
-const sideNavTheme = {
+export const sideNavTheme = {
    "fixed": "",
    "logoWrapper": "w-44 bg-neutral-100 text-slate-800",
    "topNavWrapper": "flex flex-row md:flex-col", //used in layout
@@ -162,6 +162,15 @@ const DesktopSidebar = ({
 	);
 };
 
+export const docs = {
+	menuItems: [
+		{name: 'Nav Item 1', to: '/one'},
+		{name: 'Nav Item 2', to: '/two'},
+		{name: 'Nav Item 3', to: '/three'},
+		{name: 'Nav Item 4', to: '/four'},
+		{name: 'Nav Item 5', to: '/five'}
+	]
+}
 const SideNav = (props) => {
 	const [open, setOpen] = useState(false);
 	return (

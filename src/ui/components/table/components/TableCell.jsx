@@ -1,13 +1,11 @@
 import React, {useEffect, useState} from "react";
 import {Link} from "react-router";
 import {isEqual} from "lodash-es";
+import Icon from "../../Icon";
 import DataTypes from "../../../../data-types";
 import {formatFunctions} from "../../../../patterns/page/components/selector/dataWrapper/utils/utils";
-
 import { RenderAction } from "./RenderActions";
 //import { ThemeContext } from '../../../useTheme'
-
-const InfoCircle = () => <div>i</div> //- get this from theme in future
 
 const DisplayCalculatedCell = ({value, className}) => <div className={className}>{value}</div>
 const LoadingComp = ({className}) => <div className={className}>loading...</div>
@@ -60,7 +58,7 @@ export const TableCell = ({
     const compType = attribute.type === 'calculated' && Array.isArray(rawValue) ? 'multiselect' : attribute.type;
     const compMode = attribute.type === 'calculated' && Array.isArray(rawValue) ? 'ViewComp' :
                             editing && allowEdit ? 'EditComp' : 'ViewComp';
-    const Comp = loading ? LoadingComp : (DataTypes[compType]?.[compMode] || DisplayCalculatedCell);
+    const Comp = loading ? LoadingComp : compType === 'ui' ? attribute.Comp : (DataTypes[compType]?.[compMode] || DisplayCalculatedCell);
     const CompWithLink = LinkComp({attribute, columns, newItem, removeItem, value: rawValue, Comp});
     const value = compMode === 'EditComp' ? rawValue : attribute.formatFn && formatFunctions[attribute.formatFn.toLowerCase()] ? formatFunctions[attribute.formatFn.toLowerCase()](rawValue, attribute.isDollar) : rawValue
     const justifyClass = {
@@ -136,7 +134,7 @@ export const TableCell = ({
                          setShowOpenOut(!showOpenOut)
                      }}
                 >
-                    <InfoCircle className={'bg-transparent text-gray-500 group-hover:text-gray-600'}
+                    <Icon icon={'InfoCircle'} className={'bg-transparent text-gray-500 group-hover:text-gray-600'}
                                title={'Hide Open Out'}
                                width={18} height={18}
                     />
@@ -165,6 +163,7 @@ export const TableCell = ({
                   `}
                   {...attribute}
                   value={value}
+                  row={newItem}
                   onChange={e => isTotalRow ? null : setNewItem({...newItem, [attribute.name]: e})}
             />
         </div>

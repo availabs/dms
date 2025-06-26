@@ -25,7 +25,8 @@ import { SearchPage } from "./components/search/SearchPage";
 
 import { registerDataType } from '../../data-types'
 import Selector from './components/selector'
-import defaultTheme from '../../ui/defaultTheme.json'
+import defaultTheme from '../../ui/defaultTheme'
+// const defaultTheme = {}
 
 registerDataType("selector", Selector)
 
@@ -44,7 +45,6 @@ const pagesConfig = ({
   pgEnv,
   API_HOST
 }) => {
-  //console.log('pagesConfig')
   let theme = merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern?.theme?.settings?.theme?.theme] || themes.default), cloneDeep(pattern?.theme) || {})
   //console.log('pageConfig', pattern.doc_type, pattern.id, themes[pattern?.theme?.settings?.theme?.theme], pattern?.theme, pattern)
   // baseUrl = baseUrl[0] === '/' ? baseUrl.slice(1) : baseUrl
@@ -162,22 +162,22 @@ const pagesConfig = ({
 }
 
 const pagesManagerConfig = ({
-                              app = "dms-site",
-                              type = "docs-page",
-                              siteType,
-                              rightMenu = <DefaultMenu />,
-                              baseUrl = '/',
-                              damaBaseUrl,
-                              logo, // deprecated
-                              authLevel = -1,
-                              themes = { default: {} },
-                              pattern,
-                              site,
-                              pgEnv,
-                              API_HOST
-                            }) => {
+  app = "dms-site",
+  type = "docs-page",
+  siteType,
+  rightMenu = <DefaultMenu />,
+  baseUrl = '/',
+  damaBaseUrl,
+  logo, // deprecated
+  authLevel = -1,
+  themes = { default: {} },
+  pattern,
+  site,
+  pgEnv,
+  API_HOST
+}) => {
   //console.log('hola', pattern?.theme)
-  let theme =  defaultTheme //merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern?.theme?.settings?.theme?.theme] || themes.default), pattern?.theme || {})
+  let theme =  merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern?.theme?.settings?.theme?.theme] || themes.default), pattern?.theme || {})
   // console.log('pageConfig', theme, themes[pattern?.theme?.settings?.theme?.theme], pattern?.theme )
   // baseUrl = baseUrl[0] === '/' ? baseUrl.slice(1) : baseUrl
   baseUrl = baseUrl === '/' ? '' : baseUrl
@@ -220,10 +220,9 @@ const pagesManagerConfig = ({
     API_HOST,
     children: [
       {
-        type: ({children, user=defaultUser, ...props}) => {
-          const { falcor, falcorCache } = useFalcor();
+        type: ({children, user=defaultUser, falcor, ...props}) => {
           return (
-              <CMSContext.Provider value={{API_HOST, baseUrl, damaBaseUrl, user, falcor, falcorCache, pgEnv, app, type, siteType, Menu: () => <>{rightMenu}</> }} >
+              <CMSContext.Provider value={{UI, API_HOST, baseUrl, damaBaseUrl, user, falcor, pgEnv, app, type, siteType, Menu: () => <>{rightMenu}</> }} >
                 <ManageLayout {...props}>
                   {children}
                 </ManageLayout>
@@ -256,31 +255,7 @@ const pagesManagerConfig = ({
             type: PageManager,
             path: "pages",
             action: "edit"
-          },
-          // {
-          //   type: TemplateList,
-          //   action: "list",
-          //   path: "templates/*",
-          //   lazyLoad: true,
-          //   filter: {
-          //     options: JSON.stringify({
-          //       filter: {
-          //         "data->>'template_id'": ['-99'],
-          //       }
-          //     }),
-          //     attributes:['title', 'index', 'url_slug', 'parent', 'hide_in_nav', 'template_id' ]
-          //   }
-          // },
-          // {
-          //   type: TemplateEdit,
-          //   action: "edit",
-          //   path: "templates/edit/:id"
-          // },
-          // {
-          //   type: TemplatePages,
-          //   action: "edit",
-          //   path: "templates/pages/:id"
-          // }
+          }
         ]
       },
 
