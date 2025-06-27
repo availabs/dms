@@ -67,6 +67,8 @@ export const RenderFilterValueSelector = ({
     const {Switch} = UI;
     const options = useMemo(() => filterOptions.find(fo => fo.column === filterColumn.name)?.uniqValues, [filterOptions, filterColumn.name]);
 
+    console.log("options", options);
+    
     const useDebouncedUpdateFilter = (delay = 300) => {
         const timeoutRef = useRef(null);
 

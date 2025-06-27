@@ -124,6 +124,8 @@ const getColAccessor = (col, isDms) => !col ? null : applyFn(col, isDms);
 
 export const getLength = async ({options, state, apiLoad}) => {
     const {orderBy, meta, ...optionsForLen} = options;
+    const t = randomLongInt().toString();
+    console.time(`length total ${t}`);
     const children = [{
         type: () => {
         },
@@ -132,10 +134,16 @@ export const getLength = async ({options, state, apiLoad}) => {
         filter: {options: JSON.stringify(optionsForLen)},
     }]
 
+    const tt = randomLongInt().toString();
+    console.time(`length apiload ${tt}`);
     const length = await apiLoad({
         format: state.sourceInfo,
-        children
+        children,
+        timeKey: randomLongInt().toString(),
+        isLen: true
     });
+    console.timeEnd(`length apiload ${tt}`);
+    console.timeEnd(`length total ${t}`)
     return length;
 }
 
@@ -160,9 +168,24 @@ const evaluateAST = (node, values) => {
     }
 };
 
+function randomLongInt() {
+  const max = BigInt("0x7FFFFFFFFFFFFFFF");               // Max signed 64-bit int
+  const min = BigInt("0x8000000000000000") * BigInt(-1);  // Correct way to get -2^63
+
+  const range = max - min + BigInt(1);
+
+  // Generate a positive BigInt using current time and randomness
+  const seed = BigInt(Date.now()) * BigInt(Math.floor(Math.random() * 100000));
+  const rand = seed % range;
+
+  return rand + min;
+}
+
 export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => {
     const {groupBy=[], orderBy={}, filter={}, normalFilter=[], fn={}, exclude={}, meta={}, ...restOfDataRequestOptions} = state.dataRequest;
 
+    const t = randomLongInt().toString();
+    console.time(`utils - getData - ${t}`);
     const debug = false;
     debug && console.log('=======getDAta called===========')
     // get columns with all settings and info about them.
@@ -456,10 +479,14 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
     }]
     let data;
     try{
+        const tt = randomLongInt().toString();
+        console.time(`getData ApiLoad  ${tt}`);
         data = await apiLoad({
             format: state.sourceInfo,
-            children
+            children,
+            timeKey: randomLongInt().toString()
         });
+        console.timeEnd(`getData ApiLoad  ${tt}`);
     }catch (e) {
         if (process.env.NODE_ENV === "development") console.error(e)
         return {length, data: [], invalidState: 'An Error occurred while fetching data.'};
@@ -509,6 +536,7 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
     //     }) , {}))
     //
     //     )
+    console.timeEnd(`utils - getData - ${t}`);
     return {
         length,
         data: data.map(row => {
