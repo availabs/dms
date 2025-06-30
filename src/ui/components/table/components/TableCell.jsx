@@ -17,7 +17,8 @@ const LinkComp = ({attribute, columns, newItem, removeItem, value, Comp}) => {
         // location (optional)
         // searchParams: none|value|id
     if(isLink){
-        const searchParams = attribute.searchParams === 'id' ? encodeURIComponent(newItem.id) : attribute.searchParams === 'value' ? encodeURIComponent(value) : ``;
+        const valueFormattedForSearchParams = Array.isArray(value) ? value.join('|||') : value;
+        const searchParams = attribute.searchParams === 'id' ? encodeURIComponent(newItem.id) : attribute.searchParams === 'value' ? encodeURIComponent(valueFormattedForSearchParams) : ``;
         const url = `${location || value}${searchParams}`;
         return (props) => <Link {...props} to={url} >{linkText || value}</Link>
     }

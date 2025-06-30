@@ -158,9 +158,9 @@ export default async function dmsSiteFactory(props) {
     dmsConfigUpdated.attributes = updateAttributes(dmsConfigUpdated.attributes, dmsConfig.app)
 
     falcor = falcor || falcorGraph(API_HOST)
-    console.time('load routes')
+    // console.time('load routes')
     let data = await dmsDataLoader(falcor, dmsConfigUpdated, `/`);
-    console.timeEnd('load routes')
+    // console.timeEnd('load routes')
     //console.log('data -- get site data here', data)
 
     return pattern2routes(data, props)
@@ -200,7 +200,7 @@ export function DmsSite ({
     
     useEffect(() => {
         (async function() {
-            console.time('dmsSiteFactory')
+            // console.time('dmsSiteFactory')
             const dynamicRoutes = await dmsSiteFactory({
                 dmsConfig,
                 adminPath,
@@ -212,7 +212,7 @@ export function DmsSite ({
                 damaBaseUrl
                 //theme   
             });
-            console.timeEnd('dmsSiteFactory')
+            // console.timeEnd('dmsSiteFactory')
             //console.log('dynamicRoutes ', dynamicRoutes)
             setDynamicRoutes(dynamicRoutes);
         })()
