@@ -100,6 +100,7 @@ const TableView = ({apiUpdate, apiLoad, format, item, params}) => {
                             <RenderFilters state={value} setState={setValue} apiLoad={apiLoad} isEdit={true} defaultOpen={true} cms_context={FormsContext}/>
 
                             <DataWrapper.EditComp
+                                cms_context={FormsContext}
                                 component={SpreadSheetCompWithControls}
                                 key={'table-page-spreadsheet'}
                                 // onChange={(stringValue) => {setValue(JSON.parse(stringValue))}}
