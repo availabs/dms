@@ -60,6 +60,7 @@ export const sectionArrayTheme = {
 const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
     
     const [ values, setValues ] = useState([]);
+    const [active, setActive] = useState(); // to handle multiple spreadsheet components on a page in conjunction with arrow/selection/copy controls
     const { UI, baseUrl, user } = React.useContext(CMSContext) || {}
     const { theme = { sectionArray: sectionArrayTheme} } = React.useContext(ThemeContext) || {}
     const { editPane, apiLoad, apiUpdate, format  } =  React.useContext(PageContext) || {}
@@ -199,6 +200,11 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
                                 
                             `}
                             style={{paddingTop: v?.offset }}
+                            onClick={() => {
+                                if (active !== v?.id) {
+                                    setActive(v.id);
+                                }
+                            }}
                         >
                             <div className={theme?.sectionArray?.sectionEditHover} />
                             {/* add to top */}
@@ -234,6 +240,7 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
                                     apiLoad={apiLoad}
                                     apiUpdate={apiUpdate}
                                     format={format}
+                                    isActive={active === v?.id}
                                 />
                                 : ''
                             }
@@ -254,7 +261,8 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
                                     apiLoad={apiLoad}
                                     apiUpdate={apiUpdate}
                                     format={format}
-                                /> : v?.status?.length > 1 ? <RenderError data={v} /> : ''}
+                                    isActive={active === v?.id}
+                                /> : v?.status?.length > 1 ? <div>Error</div> : ''}
 
                             {/* add new section at end  */}
                             
@@ -275,8 +283,8 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
 const View = ({value, attr, group, siteType}) => {
     if (!value || !value.map) { return '' }
     const { theme = {sectionArray: sectionArrayTheme} } = React.useContext(ThemeContext);
-    const { baseUrl, user } = React.useContext(CMSContext) || {}
     const { apiLoad, apiUpdate, format  } =  React.useContext(PageContext) || {}
+    const [active, setActive] = useState();
 
     const hideSectionCondition = section => {
         //console.log('hideSectionCondition', section?.element?.['element-data'] || '{}')
@@ -298,7 +306,6 @@ const View = ({value, attr, group, siteType}) => {
                     .filter(v => v.group === group.name || (!v.group && group?.name === 'default'))
                     //.sort((a,b) => a.order - b.order)
                     .map((v, i) => {
-                        
                         const size = v?.size || "1";
                         const rowspan = v?.rowspan || "1";
                         const colspanClass = (theme?.sectionArray?.sizes?.[size] || theme?.sectionArray?.sizes?.["1"])?.className;
@@ -313,6 +320,11 @@ const View = ({value, attr, group, siteType}) => {
                                     ${theme?.sectionArray?.border?.[v?.border || 'none']}
                                 `}
                                 style={{ paddingTop: v?.offset }}
+                                 onClick={() => {
+                                     if (active !== v?.id) {
+                                         setActive(v.id);
+                                     }
+                                 }}
                             >   
 
                                 <SectionView
@@ -324,6 +336,7 @@ const View = ({value, attr, group, siteType}) => {
                                     apiLoad={apiLoad}
                                     apiUpdate={apiUpdate}
                                     format={format}
+                                    isActive={active === v?.id}
                                 />
                             </div>
                         )

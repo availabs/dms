@@ -3,6 +3,10 @@ export const handleKeyDown = ({
     editing, setEditing, setTriggerSelectionDelete,
     visibleAttributes, pageSize, setIsDragging
 }) => {
+    if (!(e.ctrlKey && e.key === 'c')) {
+        e.preventDefault();
+    }
+
     if (e.shiftKey) {
         setIsDragging(true)
         let lastSelected = selection[selection.length - 1]; // [int or {index, attrI}]
@@ -65,9 +69,9 @@ export const handleKeyDown = ({
             default:
                 break;
         }
-    } else if (e.ctrlKey) {
+    } /*else if (e.ctrlKey) {
         setIsSelecting(true);
-    } else if (e.key === 'Delete'){
+    }*/ else if (e.key === 'Delete'){
         setTriggerSelectionDelete(true)
     } else if (e.key === 'Escape'){
         setSelection([])

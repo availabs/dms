@@ -19,7 +19,7 @@ const isJson = (str)  => {
     return true;
 }
 
-export function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, onRemove, siteType, apiLoad, apiUpdate, format}) {
+export function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, onRemove, siteType, apiLoad, apiUpdate, format, isActive}) {
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     let sectionTitleCondition = value?.['title']
     const { theme } = React.useContext(ThemeContext);
@@ -153,6 +153,7 @@ export function SectionEdit ({value, i, onChange, attributes, size, onCancel, on
                         apiLoad={apiLoad}
                         apiUpdate={apiUpdate}
                         pageFormat={format}
+                        isActive={isActive}
                     />
                 </div>
         </div>
@@ -174,7 +175,7 @@ let handleCopy = (value) => {
     navigator.clipboard.writeText(JSON.stringify(value))
 }
 
-export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemove, moveItem, addAbove, siteType, apiLoad, apiUpdate, format}) {
+export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemove, moveItem, addAbove, siteType, apiLoad, apiUpdate, format, isActive}) {
     
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     let [referenceElement, setReferenceElement] = useState()
@@ -223,9 +224,10 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
                 apiLoad={apiLoad} 
                 apiUpdate={apiUpdate} 
                 pageFormat={format}
+                isActive={isActive}
             />
         )
-    }, [value])
+    }, [value, isActive])
     if(!value?.element?.['element-type'] && !value?.element?.['element-data']) return null;
     const sectionMenuItems = [
       { icon: 'PencilSquare', name: 'Edit', onClick: onEdit },

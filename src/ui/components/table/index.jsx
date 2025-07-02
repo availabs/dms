@@ -1,9 +1,8 @@
-import react from "react";
+import React, {useEffect, useMemo, useRef, useState} from "react";
 import { ThemeContext } from '../../useTheme';
 import {handleMouseDown, handleMouseMove, handleMouseUp} from "./utils/mouse";
 import TableHeaderCell from "./components/TableHeaderCell";
 import {TableRow} from "./components/TableRow";
-import React, {useEffect, useMemo, useRef, useState} from "react";
 import {useCopy, usePaste, getLocation} from "./utils/hooks";
 import {isEqualColumns} from "./utils";
 import {handleKeyDown} from "./utils/keyboard";
@@ -99,7 +98,7 @@ export default function ({
     allowEdit,
     updateItem, removeItem, loading, isEdit,
     numColSize=defaultNumColSize, gutterColSize=defaultGutterColSize, frozenColClass, frozenCols=[],
-    columns=[], data=[], display={}, controls={}, setState
+    columns=[], data=[], display={}, controls={}, setState, isActive
 }) {
     const { theme: themeFromContext = {table: tableTheme}} = React.useContext(ThemeContext) || {};
     const theme = {...themeFromContext, table: {...tableTheme, ...(themeFromContext.table || {})}};
@@ -137,7 +136,7 @@ export default function ({
             {index: selection[selection.length - 1], attrI: undefined} :
             selection[selection.length - 1];
         updateItemsOnPaste({pastedContent, e, index, attrI, data, visibleAttributes, updateItem})
-    }, gridRef?.current);
+    }, window, isActive);
 
     useCopy(() => {
         return Object.values(
@@ -149,10 +148,12 @@ export default function ({
             })
                 .reduce((acc, s) => {
                     const {index, attrI} = getLocation(s);
-                    acc[index] = acc[index] ? `${acc[index]}\t${data[index][visibleAttributes[attrI]]}` : data[index][visibleAttributes[attrI]]; // join cells of a row
+                    const currColName = visibleAttributes[attrI]?.name;
+                    const currData = data[index][currColName];
+                    acc[index] = acc[index] ? `${acc[index]}\t${currData}` : currData; // join cells of a row
                     return acc;
                 }, {})).join('\n') // join rows
-    }, gridRef?.current)
+    }, window, isActive)
     // ============================================ copy/paste end =====================================================
 
     useEffect(() => {
@@ -195,9 +196,19 @@ export default function ({
     // =================================================================================================================
     // =========================================== Keyboard Controls begin =============================================
     // =================================================================================================================
+
+    useEffect(() =>  {
+        if(!isActive) {
+            setSelection([])
+        }
+    }, [isActive]);
+
     useEffect(() => {
-        const element = gridRef?.current;
-        if(!element) return;
+        const element = document //gridRef?.current;
+        if(!element || !selection?.length || !isActive) {
+            return;
+        }
+
         const handleKeyUp = () => {
             setIsSelecting(false)
             setIsDragging(false)
@@ -217,7 +228,7 @@ export default function ({
             element.removeEventListener('keydown', keyDownListener);
             element.removeEventListener('keyup', handleKeyUp);
         };
-    }, [selection, editing, data?.length]);
+    }, [selection, editing, data?.length, isActive]);
     // =========================================== Keyboard Controls end ===============================================
 
     // =================================================================================================================
