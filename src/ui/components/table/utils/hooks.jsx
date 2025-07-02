@@ -8,7 +8,7 @@ export const getLocation = selectionPoint => {
     return {index, attrI}
 }
 export function usePaste(callback, element, isActive) {
-    useEffect(() => {
+    return useEffect(() => {
         if(!element || !isActive) return;
 
         function handlePaste(event) {

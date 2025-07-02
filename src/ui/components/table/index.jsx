@@ -81,7 +81,7 @@ const updateItemsOnPaste = ({pastedContent, e, index, attrI, data, visibleAttrib
 
     const rowsToPaste = [...new Array(paste.length).keys()].map(i => index + i).filter(i => i < data.length)
     const columnsToPaste = [...new Array(paste[0].length).keys()]
-        .map(i => visibleAttributes[attrI + i])
+        .map(i => visibleAttributes[attrI + i]?.name)
         .filter(i => i);
 
     const itemsToUpdate = rowsToPaste.map((row, rowI) => (
@@ -132,9 +132,11 @@ export default function ({
     // =========================================== copy/paste begin ====================================================
     // =================================================================================================================
     usePaste((pastedContent, e) => {
-        let {index, attrI} = typeof selection[selection.length - 1] === 'number' ?
-            {index: selection[selection.length - 1], attrI: undefined} :
-            selection[selection.length - 1];
+        if(!allowEdit) return;
+
+        // first cell of selection
+        let {index, attrI} = typeof selection[0] === 'number' ? {index: selection[0], attrI: undefined} : selection[0];
+
         updateItemsOnPaste({pastedContent, e, index, attrI, data, visibleAttributes, updateItem})
     }, window, isActive);
 
@@ -236,9 +238,9 @@ export default function ({
     // =================================================================================================================
     useEffect(() => {
         async function deleteFn() {
-            if (triggerSelectionDelete) {
+            if (triggerSelectionDelete && allowEdit) {
                 const selectionRows = data.filter((d, i) => selection.find(s => (s.index || s) === i))
-                const selectionCols = visibleAttributes.filter((_, i) => selection.map(s => s.attrI).includes(i))
+                const selectionCols = visibleAttributes.filter((_, i) => selection.map(s => s.attrI).includes(i)).map(c => c.name)
 
                 if (selectionCols.length) {
                     // partial selection

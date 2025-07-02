@@ -3,7 +3,7 @@ export const handleKeyDown = ({
     editing, setEditing, setTriggerSelectionDelete,
     visibleAttributes, pageSize, setIsDragging
 }) => {
-    if (!(e.ctrlKey && e.key === 'c')) {
+    if (!(e.ctrlKey && ['c', 'v'].includes(e.key))) {
         e.preventDefault();
     }
 
