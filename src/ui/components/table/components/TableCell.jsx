@@ -91,13 +91,17 @@ export const TableCell = ({
     useEffect(() => setNewItem(item), [item])
 
     useEffect(() => {
-        // send update to api
         if (!(editing && allowEdit)) return;
 
-        if (!isEqual(rawValue, item[attribute.name]) && updateItem){
-            updateItem(undefined, undefined, newItem)
-        }
+        const timeoutId = setTimeout(() => {
+            if (!isEqual(rawValue, item[attribute.name]) && updateItem) {
+                updateItem(undefined, undefined, newItem);
+            }
+        }, 500);
 
+        return () => {
+            clearTimeout(timeoutId);
+        };
     }, [rawValue]);
     const isValid = ['multiselect', 'select', 'radio'].includes(attribute.type) || attribute.required === 'yes' ? validate({
         value: rawValue,

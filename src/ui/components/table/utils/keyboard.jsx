@@ -3,8 +3,8 @@ export const handleKeyDown = ({
     editing, setEditing, setTriggerSelectionDelete,
     visibleAttributes, pageSize, setIsDragging
 }) => {
-    if (!(e.ctrlKey && ['c', 'v'].includes(e.key))) {
-        e.preventDefault();
+    if (e.key.includes('Arrow')) {
+        e.preventDefault(); // stop scrolling page on arrow key press
     }
 
     if (e.shiftKey) {
