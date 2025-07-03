@@ -317,24 +317,6 @@ const Card = ({
             gridTemplateColumns: `repeat(${getGridSize(gridSize) || cardsWithoutSpanLength}, minmax(0, 1fr))`,
             gap: gridGap || 2
         }
-    useEffect(() => {
-        // set hideSection flag
-        if(!hideIfNull){
-            setState(draft => {
-                draft.hideSection = false;
-            })
-        }else{
-            const hide = data.length === 0 ||
-                         data.every(row => columns.filter(({ show }) => show)
-                                                    .every(col => {
-                                                        const value = row[col.normalName || col.name];
-                                                        return value === null || value === undefined || value === "";
-                                                    }));
-            setState(draft => {
-                draft.hideSection = hide;
-            })
-        }
-    }, [data, hideIfNull])
 
 
 // Reordering function

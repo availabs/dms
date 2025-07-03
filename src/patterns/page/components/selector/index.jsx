@@ -166,16 +166,15 @@ function ViewComp({value, isActive, ...rest}) {
     const { theme } = React.useContext(ThemeContext);
     const { pageState, editPane, apiLoad, apiUpdate, format, ...r  } =  React.useContext(PageContext) || {}
     const defaultComp = () => <div> Component {value["element-type"]} Not Registered </div>;
-    const blankComp = () => <div></div>;
 
     const component = RegisteredComponents[get(value, "element-type", "lexical")];
     const [state, setState] = useImmer(convertOldState(value?.['element-data'] || '', initialState(component?.defaultState)));
 
 
-    let DataComp = state?.hideSection ?
-    blankComp : !component ?
-    defaultComp : component.useDataSource ?
-    DataWrapper.ViewComp : component.ViewComp;
+    let DataComp =
+        !component ? defaultComp :
+            component.useDataSource ? DataWrapper.ViewComp :
+                component.ViewComp;
 
     // let DataComp = !component ?
     //     defaultComp : component.ViewComp;
