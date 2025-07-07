@@ -1,9 +1,10 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {Link} from 'react-router';
 import { ThemeContext } from '../useTheme';
-import {isEqualColumns} from "~/modules/dms/src/patterns/page/components/selector/dataWrapper/utils/utils";
+//import {isEqualColumns} from "~/modules/dms/src/patterns/page/components/selector/dataWrapper/utils/utils";
 import TableHeaderCell from "./table/components/TableHeaderCell";
 import Icon from "./Icon";
+
 export const dataCardTheme = {
     columnControlWrapper: 'grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-x-1 gap-y-0.5',
     columnControlHeaderWrapper: `px-1 font-semibold border bg-gray-50 text-gray-500`,
@@ -59,6 +60,11 @@ export const dataCardTheme = {
     header: 'w-full capitalize',
     value: ''
 }
+
+const isEqualColumns = (column1, column2) =>
+    column1?.name === column2?.name &&
+    column1?.isDuplicate === column2.isDuplicate &&
+    column1?.copyNum === column2?.copyNum;
 
 const useHandleClickOutside = (menuRef, menuBtnId, onClose) => {
     const handleClickOutside = useCallback(
