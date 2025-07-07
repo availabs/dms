@@ -6,8 +6,8 @@ import {
     GraphComponent
 } from "./GraphComponent";
 import TableHeaderCell from "../table/components/TableHeaderCell";
-import {fnumIndex} from "~/modules/dms/src/patterns/page/components/selector/dataWrapper/utils/utils";
-import {strictNaN} from "./utils";
+//import {fnumIndex} from "~/modules/dms/src/patterns/page/components/selector/dataWrapper/utils/utils";
+import {strictNaN, fnumIndex} from "./utils";
 
 export const graphTheme = ({
     text: 'font-regular text-[12px]',

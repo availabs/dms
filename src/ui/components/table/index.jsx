@@ -11,6 +11,9 @@ const defaultNumColSize = 0;
 const defaultGutterColSize = 0;
 const defColSize = 250;
 const minColSize = 150;
+
+const windowFake = typeof window === "undefined" ? {} : window
+
 export const tableTheme = {
     tableContainer: 'flex flex-col overflow-x-auto',
     tableContainerNoPagination: '',
@@ -138,7 +141,7 @@ export default function ({
         let {index, attrI} = typeof selection[0] === 'number' ? {index: selection[0], attrI: undefined} : selection[0];
 
         updateItemsOnPaste({pastedContent, e, index, attrI, data, visibleAttributes, updateItem})
-    }, window, isActive);
+    }, windowFake, isActive);
 
     useCopy(() => {
         return Object.values(
@@ -155,7 +158,7 @@ export default function ({
                     acc[index] = acc[index] ? `${acc[index]}\t${currData}` : currData; // join cells of a row
                     return acc;
                 }, {})).join('\n') // join rows
-    }, window, isActive)
+    }, windowFake, isActive)
     // ============================================ copy/paste end =====================================================
 
     useEffect(() => {
