@@ -38,7 +38,7 @@ import {useLocation} from "react-router";
 // to do:
 // Allow users to pass Pattern Configs
 // --
-console.log('hola', pageConfig)
+//console.log('hola', pageConfig)
 const configs = {
     page: pageConfig ,
     forms: dataManagerConfig,
@@ -202,7 +202,7 @@ export function DmsSite ({
         (async function() {
             console.time('dmsSiteFactory')
             const dynamicRoutes = await dmsSiteFactory({
-                dmsConfig,
+                dmsConfig,//adminConfig
                 adminPath,
                 themes,
                 falcor,

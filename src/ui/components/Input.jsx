@@ -16,8 +16,7 @@ export const inputTheme = {
 export const docs = {
   doc_name: 'example 1',
   type: 'text',
-  placeholder: 'placeholder',
-  placeHolder: 'Please Enter value...'
+  placeholder: 'Please Enter value...'
 }
 
 export default function Input ({ type='text', label, description, value, onChange=() => {}, placeholder, disabled, onClick=()=>{}, rounded,...props}) {

@@ -70,6 +70,7 @@ const adminConfig = ({
   format.registerFormats = updateRegisteredFormats(format.registerFormats, app)
   format.attributes = updateAttributes(format.attributes, app)
   // ----------------------
+  console.log('admin pattern - site', app, type, format)
   //console.log('test 123', theme)
   return {
     app,
@@ -82,7 +83,7 @@ const adminConfig = ({
         type: (props) => {
           const {Layout} = UI;
           return (
-            <AdminContext.Provider value={{baseUrl, user: props.user || defaultUser, app, type, API_HOST, parent, UI}}>
+            <AdminContext.Provider value={{baseUrl, user: props.user || defaultUser, app, type, API_HOST, UI}}>
               <ThemeContext.Provider value={{theme}}>
                 <Layout navItems={menuItems}>
                   {props.children}
@@ -126,8 +127,8 @@ const adminConfig = ({
     ]
   }
 }
-
-export default adminConfig
+const config = [adminConfig]
+export default config
 
 
 

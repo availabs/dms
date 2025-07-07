@@ -2,9 +2,9 @@ import {docs as Select} from "./components/Select";
 import {docs as Table} from "./components/table";
 import {docs as Input} from "./components/Input";
 import {docs as Modal} from "./components/Modal";
-import {docs as SideNav} from "./components/SideNav";
-import {docs as TopNav} from "./components/TopNav";
-import {docs as Icon} from "./components/Icon";
+import SideNav from "./components/SideNav.docs";
+import TopNav from "./components/TopNav.docs";
+import Icon from "./components/Icon.docs";
 import {docs as Button} from "./components/Button";
 import {docs as Dialog} from "./components/Dialog";
 import {docs as Label} from "./components/Label";
@@ -20,7 +20,7 @@ import {docs as DeleteModal} from "./components/DeleteModal";
 import {docs as Pagination} from "./components/Pagination";
 import {docs as DraggableNav} from "./components/nestable/draggableNav";
 
-export default {
+const output = {
     Input,
     Select,
     Table,
@@ -44,3 +44,5 @@ export default {
     DraggableNav,
     Pagination,
 }
+
+export default output
