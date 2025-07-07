@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 const theme = {
     "navOptions": {
         "logo": "",
@@ -18,6 +19,47 @@ const theme = {
             "position": "sticky",
             "nav": "main"
         }
+=======
+import docs from './docs';
+import sideNavTheme from "./components/SideNav.theme";
+import topNavTheme from "./components/TopNav.theme";
+import {tabsTheme} from "./components/Tabs";
+import {buttonTheme} from "./components/Button";
+import {menuTheme} from "./components/Menu";
+import {inputTheme} from "./components/Input";
+import iconTheme from "./components/Icon.theme";
+import {fieldTheme} from "./components/FieldSet";
+import {dialogTheme} from "./components/Dialog";
+import {popoverTheme} from "./components/Popover";
+import {labelTheme} from "./components/Label";
+import {selectTheme} from "./components/Select";
+import {listboxTheme} from "./components/Listbox";
+import {tableTheme} from "./components/table";
+import {nestableTheme} from "./components/nestable/draggableNav"
+import {dataCardTheme} from "./components/Card";
+import {graphTheme} from "./components/graph";
+// =====================================================================================================
+// ======================================== todo: move these to UI
+// =====================================================================================================
+import {
+    attributionTheme
+} from "../patterns/page/components/selector/ComponentRegistry/shared/Attribution";
+import {
+    filterTheme
+} from "../patterns/page/components/selector/dataWrapper/components/filters/RenderFilters";
+// ======================================================================================================
+
+const navOptions = {
+    "logo": "",
+    "sideNav": {
+        "size": "none",
+        "search": "none",
+        "logo": "none",
+        "dropdown": "none",
+        "fixedMargin": "lg:ml-44",
+        "position": "fixed",
+        "nav": "none"
+>>>>>>> be55d88a5ce791458d21ea03af21ddb500bada8a
     },
     "heading": {
         "1": "text-blue-500 font-bold text-xl tracking-wider py-1 pl-1",

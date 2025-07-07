@@ -23,7 +23,9 @@ import {DeleteModal} from "./components/DeleteModal";
 // import Nestable from "./components/nestable";
 import DraggableNav from "./components/nestable/draggableNav";
 import Pagination from "./components/Pagination";
-import Table from "./components/table"
+import Table from "./components/table";
+import Card from "./components/Card";
+import Graph from "./components/graph"
 export default {
 	// --- Layout
 	Layout,
@@ -54,5 +56,7 @@ export default {
 	DraggableNav,
 	// -- Data Components
 	Pagination,
-	Table
+	Table,
+	Card,
+	Graph
 }

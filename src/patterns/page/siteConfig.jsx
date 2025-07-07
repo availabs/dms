@@ -55,6 +55,8 @@ const pagesConfig = ({
       </Link>
   )
 
+  console.log('page site config', app, type)
+
   if(!theme?.navOptions?.logo) {
     theme.navOptions = {...(theme?.navOptions || {}), logo: (logo ? logo : defaultLogo)}
   }

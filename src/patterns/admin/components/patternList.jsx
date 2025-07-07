@@ -113,7 +113,7 @@ function PatternEdit({
 					<button onClick={() => navigate(-1)}>back</button>
 				</div>
 				<div className={'w-full flex'}>
-					<Input type={'text'} value={search} onChange={e => setSearch(e.target.value)} placeHolder={'Filter sites'} />
+					<Input type={'text'} value={search} onChange={e => setSearch(e.target.value)} placeholder={'Filter sites'} />
 					<Button className={'shrink-0'} onClick={() => setAddingNew(true)}> Add site </Button>
 				</div>
 				<Table columns={columns}

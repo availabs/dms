@@ -1,5 +1,5 @@
 import React, {useContext, useEffect, useMemo, useState} from 'react'
-import Frame from 'react-frame-component'
+import {useNavigate} from 'react-router';
 import {AdminContext} from "../siteConfig";
 import {ThemeContext} from "../../../ui/useTheme";
 
@@ -15,6 +15,34 @@ const parseIfJson = (value) => {
 
 const DefaultComp = () => <div>Component not registered.</div>
 const ComponentRenderer = ({Component=DefaultComp, props}) => <Component {...props} />;
+
+const compOptions = [
+	{ label: 'Button', value: 'Button' },
+	{ label: 'Card', value: 'Card' },
+	{ label: 'Drawer', value: 'Drawer' },
+	{ label: 'DraggableNav', value: 'DraggableNav' },
+	{ label: 'Dropdown', value: 'Dropdown' },
+	{ label: 'FieldSet', value: 'FieldSet' },
+	{ label: 'Graph', value: 'Graph' },
+	{ label: 'Icon', value: 'Icon' },
+	{ label: 'Input', value: 'Input' },
+	{ label: 'Label', value: 'Label' },
+	{ label: 'Menu', value: 'Menu' },
+	{ label: 'Pagination', value: 'Pagination' },
+	{ label: 'Pill', value: 'Pill' },
+	{ label: 'Popover', value: 'Popover' },
+	{ label: 'Select', value: 'Select' },
+	{ label: 'SideNav', value: 'SideNav' },
+	{ label: 'Switch', value: 'Switch' },
+	{ label: 'Table', value: 'Table' },
+	{ label: 'Tabs', value: 'Tabs' },
+	{ label: 'TopNav', value: 'TopNav' },
+
+	{ label: 'DeleteModal', value: 'DeleteModal' },
+	{ label: 'Dialog', value: 'Dialog' },
+	{ label: 'Modal', value: 'Modal' },
+];
+
 function ComponentList ({
    item={},
    dataItems,
@@ -23,13 +51,17 @@ function ComponentList ({
    apiUpdate,
    format,
 	params,
+	path,
 	...rest
 }) {
 	// themes is an array of {name, theme, id}
-	const {theme_id} = params;
+	const navigate = useNavigate();
+	const {theme_id, component, ...restparams} = params;
 	const themeObj = useMemo(() => (item.themes || []).find(t => t.id === theme_id), [item.themes, theme_id])
 	const [currentTheme, setCurrentTheme] = useState(parseIfJson(themeObj?.theme));
-	const [currentComponent, setCurrentComponent] = useState('Button');
+	const compFromProps = useMemo(() => compOptions.find(c => c.value.toLowerCase() === component.toLowerCase())?.value, [component]);
+	const [currentComponent, setCurrentComponent] = useState(compFromProps || 'Button');
+	console.log('comp', component, compFromProps, currentComponent)
 	const [currentComponentPropsIdx, setCurrentComponentPropsIdx] = useState(0);
 
 	const {theme} = useContext(ThemeContext);
@@ -39,6 +71,11 @@ function ComponentList ({
 	useEffect(() => {
 		setCurrentTheme(parseIfJson(themeObj?.theme))
 	}, [themeObj]);
+
+	useEffect(() => {
+		console.log('settting comp', compFromProps)
+		setCurrentComponent(compFromProps || 'Button')
+	}, [compFromProps])
 
 	const onSubmit = (updateCurrentTheme) => {
 		const value = item.themes.map(t => t.id === theme_id ? {...t, theme: JSON.stringify(updateCurrentTheme)} : t);
@@ -63,32 +100,11 @@ function ComponentList ({
 				<button onClick={() => navigate(-1)}>back</button>
 			</div>
 			<div className={'w-full flex'}>
-				<Select value={currentComponent} onChange={e => setCurrentComponent(e.target.value)}
-						options={[
-							{ label: 'Button', value: 'Button' },
-							{ label: 'Drawer', value: 'Drawer' },
-							{ label: 'DraggableNav', value: 'DraggableNav' },
-							{ label: 'Dropdown', value: 'Dropdown' },
-							{ label: 'FieldSet', value: 'FieldSet' },
-							{ label: 'Icon', value: 'Icon' },
-							{ label: 'Input', value: 'Input' },
-							{ label: 'Label', value: 'Label' },
-							{ label: 'Menu', value: 'Menu' },
-							{ label: 'Pagination', value: 'Pagination' },
-							{ label: 'Pill', value: 'Pill' },
-							{ label: 'Popover', value: 'Popover' },
-							{ label: 'Select', value: 'Select' },
-							{ label: 'SideNav', value: 'SideNav' },
-							{ label: 'Switch', value: 'Switch' },
-							{ label: 'Table', value: 'Table' },
-							{ label: 'Tabs', value: 'Tabs' },
-							{ label: 'TopNav', value: 'TopNav' },
-
-							{ label: 'DeleteModal', value: 'DeleteModal' },
-							{ label: 'Dialog', value: 'Dialog' },
-							{ label: 'Modal', value: 'Modal' },
-
-						]}
+				<Select value={currentComponent} onChange={e => {
+					setCurrentComponent(e.target.value)
+					navigate(`${baseUrl}/${path.replace(':theme_id', theme_id).replace(':component?', e.target.value.toLowerCase())}`)
+				}}
+						options={compOptions}
 				/>
 
 				<Select value={currentComponentPropsIdx}

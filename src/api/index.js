@@ -36,7 +36,7 @@ export async function dmsDataLoader (falcor, config, path='/') {
 		config.format = await config.formatFn();
 	}
 
-	//console.log('dmsDataLoader', config)
+	console.log('api - dmsDataLoader', config?.format?.app, config?.format?.type)
 
 	//---------------------------------------------------------
 	// Pages can have many configs active at one time
@@ -90,7 +90,7 @@ export async function dmsDataLoader (falcor, config, path='/') {
 		.map(config => createRequest(config, format, path, length))
 		.filter(routes => routes?.length)
 
-	//console.log('newRequests',newRequests)
+	//console.log('api - newRequests', newRequests)
     //--------- Route Data Loading ------------------------
 	//let dataresp = null
 	if (newRequests.length > 0 ) {

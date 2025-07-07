@@ -7,7 +7,8 @@ import Wrapper from './wrapper.jsx'
 const Components = {
 	NoRouteMatch: ({path}) =>{
 		return (
-			<div> These aren't the droids you are looking for 
+			<div> 
+				These aren't the droids you are looking for 
 				<div className='text-5xl'>
 					404
 				</div>
@@ -45,6 +46,7 @@ const DmsManager = (props) => {
 
 	function getActiveView(config, path, format, user, depth=0) {
 		// add '' to params array to allow root (/) route  matching
+		//console.log('testing', config)
 		let activeConfigs = configMatcher(config,path)
 
 		// console.log('activeConfigs', activeConfigs)

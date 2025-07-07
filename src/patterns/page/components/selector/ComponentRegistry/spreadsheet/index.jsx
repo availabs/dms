@@ -15,11 +15,11 @@ import Table, {tableTheme} from "../../../../../../ui/components/table";
 const frozenCols = [0,1] // testing
 const frozenColClass = '' // testing
 
-export const RenderTable = ({isEdit, updateItem, removeItem, addItem, newItem, setNewItem, loading, allowEdit}) => {
+export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addItem, newItem, setNewItem, loading, allowEdit}) => {
     const { theme = { table: tableTheme } } = React.useContext(ThemeContext) || {}
-    const { UI } = React.useContext(CMSContext) || {UI: {Icon: () => <></>}}
+    const { UI } = React.useContext(cms_context || CMSContext) || {UI: {Icon: () => <></>}}
     const {Table} = UI;
-    const {state:{columns, sourceInfo, display, data}, setState, controls={}} = useContext(ComponentContext);
+    const {state:{columns, sourceInfo, display, data}, setState, controls={}, isActive} = useContext(ComponentContext);
     const gridRef = useRef(null);
 
     const visibleAttributes = useMemo(() => columns.filter(({show}) => show), [columns]);
@@ -64,13 +64,13 @@ export const RenderTable = ({isEdit, updateItem, removeItem, addItem, newItem, s
 
 
     if(!visibleAttributes.length) return <div className={'p-2'}>No columns selected.</div>;
-
     return <Table columns={columns} data={data} display={display} controls={controls} setState={setState}
                   allowEdit={allowEdit} isEdit={isEdit} loading={loading}
                   gridRef={gridRef}
                   theme={theme} paginationActive={paginationActive}
                   updateItem={updateItem} removeItem={removeItem}
                   numColSize={numColSize} gutterColSize={gutterColSize} frozenColClass={frozenColClass} frozenCols={frozenCols}
+                  isActive={isActive}
     />
 }
 

@@ -17,7 +17,8 @@ const LinkComp = ({attribute, columns, newItem, removeItem, value, Comp}) => {
         // location (optional)
         // searchParams: none|value|id
     if(isLink){
-        const searchParams = attribute.searchParams === 'id' ? encodeURIComponent(newItem.id) : attribute.searchParams === 'value' ? encodeURIComponent(value) : ``;
+        const valueFormattedForSearchParams = Array.isArray(value) ? value.join('|||') : value;
+        const searchParams = attribute.searchParams === 'id' ? encodeURIComponent(newItem.id) : attribute.searchParams === 'value' ? encodeURIComponent(valueFormattedForSearchParams) : ``;
         const url = `${location || value}${searchParams}`;
         return (props) => <Link {...props} to={url} >{linkText || value}</Link>
     }
@@ -90,13 +91,17 @@ export const TableCell = ({
     useEffect(() => setNewItem(item), [item])
 
     useEffect(() => {
-        // send update to api
         if (!(editing && allowEdit)) return;
 
-        if (!isEqual(rawValue, item[attribute.name]) && updateItem){
-            updateItem(undefined, undefined, newItem)
-        }
+        const timeoutId = setTimeout(() => {
+            if (!isEqual(rawValue, item[attribute.name]) && updateItem) {
+                updateItem(undefined, undefined, newItem);
+            }
+        }, 500);
 
+        return () => {
+            clearTimeout(timeoutId);
+        };
     }, [rawValue]);
     const isValid = ['multiselect', 'select', 'radio'].includes(attribute.type) || attribute.required === 'yes' ? validate({
         value: rawValue,
