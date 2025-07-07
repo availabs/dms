@@ -48,7 +48,7 @@ export const RenderFilters = ({
     const filters = useMemo(() => getFilters(filterColumnsToTrack), [filterColumnsToTrack]);
     const normalFilters = useMemo(() => getNormalFilters(normalFilterColumnsToTrack), [normalFilterColumnsToTrack]);
 
-    const debug = true;
+    const debug = false;
     const getFormattedAttributeStr = useCallback((column) => formattedAttributeStr(column, isDms, isCalculatedCol(column, state.columns)), [state.columns, isDms]);
     const getAttributeAccessorStr = useCallback((column) => attributeAccessorStr(column, isDms, isCalculatedCol(column, state.columns), isSystemCol(column, state.columns)), [state.columns, isDms]);
     const filterWithSearchParamKeys = useMemo(() =>
@@ -177,12 +177,6 @@ export const RenderFilters = ({
                             filterBy
                         })
 
-                        const len = Math.min(data.length, MAX_FILTER_LENGTH + 1);
-                        // data.length = len;
-                        let bool = false;
-                        if (data.length > 1000) {
-                            bool = true;
-                        }
                         // console.log('fo data?', columnName, data)
                         if (isStale) {
                             setLoading(false)
@@ -190,12 +184,8 @@ export const RenderFilters = ({
                         }
                         // not adding options from meta to allow options to filter down wrt other filter values
                         const metaOptions = [] //(state.columns || []).find(({name}) => name === columnName)?.options;
-                        bool && console.time('this is why');
-
                         const formattedAttrStr = getFormattedAttributeStr(columnName);
-                        console.log("formattedAttrStr", formattedAttrStr);
 
-                        const ll = data.length;
                         // const dataOptions = data.reduce((acc, d, i) => {
                         //     const islogg = (i>(ll-11) || i<10) ;
                         //     // array values flattened here for multiselects.
@@ -219,45 +209,25 @@ export const RenderFilters = ({
                         //     bool && islogg && console.timeEnd(`${i} - inner third`);
 
                         //     bool && islogg && console.time(`${i} - inner fourth`);
-                        //     const output = [...acc, ...value.filter(({ label, value }) => label && typeof label !== 'object')];
+                            // const output = [...acc, ...value.filter(({ label, value }) => label && typeof label !== 'object')];
                         //     bool && islogg && console.timeEnd(`${i} - inner fourth`);
                         //     return output
                         // }, []);
 
                         const dataOptions = data.reduce((acc, d, i) => {
-                            const islogg = (i > (ll - 11) || i < 10);
 
                             const responseValue = d[formattedAttrStr]?.value || d[formattedAttrStr];
 
-                            bool && islogg && console.time(`${i} - inner first`);
                             const metaValue = parseIfJson(responseValue?.value || responseValue);
-                            bool && islogg && console.timeEnd(`${i} - inner first`);
 
-                            bool && islogg && console.time(`${i} - inner second`);
                             const originalValue = parseIfJson(responseValue?.originalValue || responseValue);
-                            bool && islogg && console.timeEnd(`${i} - inner second`);
 
-                            bool && islogg && console.time(`${i} - inner third`);
                             const value = Array.isArray(originalValue)
                                 ? originalValue.map((pv, i) => ({ label: metaValue?.[i] || pv, value: pv }))
                                 : [{ label: metaValue || originalValue, value: originalValue }];
-                            bool && islogg && console.timeEnd(`${i} - inner third`);
-
-                            bool && islogg && console.time(`${i} - inner fourth`);
-                            //   for (let j = 0; j < value.length; j++) {
-                            //     const item = value[j];
-                            //     if (item.label && typeof item.label !== 'object') {
-                            //       acc.push(item);
-                            //     }
-                            //   }
                             value.forEach(({ label, value }) => { if (label && typeof label !== 'object') acc.push({ label, value }); });
-
-                            bool && islogg && console.timeEnd(`${i} - inner fourth`);
-
                             return acc;
                         }, []);
-
-                        bool && console.timeEnd('this is why');
                         debug && console.log('debug filters: data', data)
                         return {
                             column: columnName,

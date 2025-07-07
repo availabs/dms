@@ -20,9 +20,6 @@ let fullDataLoad = {}
 // let runCount = 0
 
 export async function dmsDataLoader (falcor, config, path='/') {	
-	// console.log("config", config);
-	config.isLen && config.timeKey && console.time(`outer dmsDataLoader - ${config.timeKey}`);
-	// config.isLen && console.time(`outer len - ${config.timeKey}`);
 	// console.log('hola utils', utils)
 	//---- Testing stuff to delete ----------
 	// runCount += 1
@@ -95,20 +92,13 @@ export async function dmsDataLoader (falcor, config, path='/') {
 	//console.log('newRequests',newRequests)
     //--------- Route Data Loading ------------------------
 	//let dataresp = null
-	// console.log(`${config.timeKey} at ${newRequests.length}`);
 	
-	config.isLen && config.timeKey && console.time(`inner dmsDataLoader - ${config.timeKey}`);
 	if (newRequests.length > 0 ) {
-		console.time(`api - falcor.get ${config.timeKey}`)
 		await falcor.get(...newRequests)
-		console.timeEnd(`api - falcor.get ${config.timeKey}`)
 	}
 	// get api response
-	config.isLen && config.timeKey && console.time(`api - falcor.getCache ${config.timeKey}`)
 	let newReqFalcor = falcor.getCache()
-	config.isLen && config.timeKey && console.timeEnd(`api - falcor.getCache ${config.timeKey}`)
 
-	config.isLen && config.timeKey && console.timeEnd(`inner dmsDataLoader - ${config.timeKey}`);
 	//console.log('data response', newReqFalcor, dataresp)
 
 	if(activeConfigs.find(ac => ac.action === 'search')){
@@ -136,10 +126,7 @@ export async function dmsDataLoader (falcor, config, path='/') {
 		// special return for 'uda' action
 		const path =  newRequests[0].filter((r, i) => i <= newRequests[0].indexOf('dataByIndex'));
 		const {from, to} = newRequests[0][newRequests[0].indexOf('dataByIndex') + 1]
-		let udaData = Array.from({length: (to + 1 - from)}, (v, k) => get(newReqFalcor, [...path, k+from], {}));
-		config.isLen && config.timeKey && console.timeEnd(`outer dmsDataLoader - ${config.timeKey}`);
-		config.isLen && config.timeKey && console.timeEnd(`outer len - ${config.timeKey}`);
-		return udaData
+		return Array.from({length: (to + 1 - from)}, (v, k) => get(newReqFalcor, [...path, k+from], {}));
 	}
 
 
