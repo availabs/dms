@@ -14,17 +14,17 @@ import {selectTheme} from "./components/Select";
 import {listboxTheme} from "./components/Listbox";
 import {tableTheme} from "./components/table";
 import {nestableTheme} from "./components/nestable/draggableNav"
+import {dataCardTheme} from "./components/Card";
+import {graphTheme} from "./components/graph";
 // =====================================================================================================
 // ======================================== todo: move these to UI
 // =====================================================================================================
-import {dataCardTheme} from "../patterns/page/components/selector/ComponentRegistry/Card";
 import {
     attributionTheme
 } from "../patterns/page/components/selector/ComponentRegistry/shared/Attribution";
 import {
     filterTheme
 } from "../patterns/page/components/selector/dataWrapper/components/filters/RenderFilters";
-import {graphTheme} from "../patterns/page/components/selector/ComponentRegistry/graph";
 // ======================================================================================================
 
 const navOptions = {

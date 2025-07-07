@@ -111,7 +111,7 @@ const adminConfig = ({
           {
             type: props => <ComponentList {...props} />,
             action: "edit",
-            path: "theme/:theme_id",
+            path: "theme/:theme_id/:component?",
           },
 
           {

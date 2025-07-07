@@ -1,5 +1,7 @@
 import {docs as Select} from "./components/Select";
 import {docs as Table} from "./components/table";
+import {docs as Card} from "./components/Card";
+import {docs as Graph} from "./components/graph";
 import {docs as Input} from "./components/Input";
 import {docs as Modal} from "./components/Modal";
 import SideNav from "./components/SideNav.docs";
@@ -24,6 +26,8 @@ const output = {
     Input,
     Select,
     Table,
+    Card,
+    Graph,
     Modal,
     SideNav,
     TopNav,

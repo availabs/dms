@@ -354,7 +354,7 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
     const groupByColumnsLength = useMemo(() => state?.columns?.filter(({group}) => group).length, [state?.columns]);
     const showChangeFormatModal = !state?.sourceInfo?.columns;
     const isValidState = state?.dataRequest; // new state structure
-    const Comp = useMemo(() => component.ViewComp, [component]);
+    const Comp = useMemo(() => state.display.hideSection ? () => <></> : component.ViewComp, [component, state.display.hideSection]);
     // const useCache = state.display.useCache //=== false ? false : true; // false: loads data on load. can be expensive. useCache can be undefined for older components.
     const setReadyToLoad = useCallback(() => setState(draft => {draft.display.readyToLoad = true}), [setState]);
     useEffect(() => {
@@ -554,6 +554,25 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
     // =========================================== util fns end ========================================================
     if(showChangeFormatModal || !isValidState) return <div className={'p-1 text-center'}>Form data not available.</div>;
     // component.name === 'Spreadsheet' && console.log('dw?', state)
+
+    useEffect(() => {
+        // set hideSection flag
+        if(!state.display.hideIfNull){
+            setState(draft => {
+                draft.hideSection = false;
+            })
+        }else{
+            const hide = state.data.length === 0 ||
+                state.data.every(row => state.columns.filter(({ show }) => show)
+                    .every(col => {
+                        const value = row[col.normalName || col.name];
+                        return value === null || value === undefined || value === "";
+                    }));
+            setState(draft => {
+                draft.hideSection = hide;
+            })
+        }
+    }, [state.data, state.display.hideIfNull])
     return (
             <div className={'w-full h-full'}>
                 <div className={'w-full'}>

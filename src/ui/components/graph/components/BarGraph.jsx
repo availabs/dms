@@ -1,7 +1,7 @@
 import React from "react"
 
 import * as Plot from "@observablehq/plot";
-import {formatFunctions} from "../../../dataWrapper/utils/utils";
+import {formatFunctions} from "../../../../patterns/page/components/selector/dataWrapper/utils/utils";
 
 import { useAxisTicks } from "../utils"
 

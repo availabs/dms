@@ -65,7 +65,7 @@ const initialState = defaultState => {
 }
 
 function EditComp(props) {
-    const {value, onChange, size, handlePaste, pageformat, ...rest} = props;
+    const {value, onChange, size, handlePaste, pageformat, isActive, ...rest} = props;
     const component = (RegisteredComponents[get(value, "element-type", "lexical")] || RegisteredComponents['lexical']);
     const { pageState, editPane, apiLoad, apiUpdate, format, ...r  } =  React.useContext(PageContext) || {};
     const [state, setState] = useImmer(convertOldState(value?.['element-data'] || '', initialState(component.defaultState)));
@@ -139,7 +139,8 @@ function EditComp(props) {
                 state, setState, apiLoad,
                 compType: component?.name?.toLowerCase(), // should be deprecated
                 controls: component?.controls,
-                app: pageformat?.app
+                app: pageformat?.app,
+                isActive
             }}>
                 {/* controls with datasource selector */}
                 <Controls />
@@ -160,29 +161,27 @@ function EditComp(props) {
     )
 }
 
-function ViewComp({value, ...rest}) {
+function ViewComp({value, isActive, ...rest}) {
     //console.log('selector', value)
     const { theme } = React.useContext(ThemeContext);
     const { pageState, editPane, apiLoad, apiUpdate, format, ...r  } =  React.useContext(PageContext) || {}
     const defaultComp = () => <div> Component {value["element-type"]} Not Registered </div>;
-    const blankComp = () => <div></div>;
 
     const component = RegisteredComponents[get(value, "element-type", "lexical")];
     const [state, setState] = useImmer(convertOldState(value?.['element-data'] || '', initialState(component?.defaultState)));
 
 
-    let DataComp = state?.hideSection ?
-    blankComp : !component ?
-    defaultComp : component.useDataSource ?
-    DataWrapper.ViewComp : component.ViewComp;
+    let DataComp =
+        !component ? defaultComp :
+            component.useDataSource ? DataWrapper.ViewComp :
+                component.ViewComp;
 
     // let DataComp = !component ?
     //     defaultComp : component.ViewComp;
     
 
-
     return (
-        <ComponentContext.Provider value={{state, setState, apiLoad, controls: component?.controls}}>
+        <ComponentContext.Provider value={{state, setState, apiLoad, controls: component?.controls, isActive}}>
             <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={false} defaultOpen={true}/>
             <DataComp value={value?.['element-data'] || ''}
                       state={state} setState={setState}
