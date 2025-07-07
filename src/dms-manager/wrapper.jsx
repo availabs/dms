@@ -26,6 +26,8 @@ export default function EditWrapper({ Component, format, options, params, user, 
 	let status = useActionData()
 	const {defaultSort = (d) => d } = format
 
+	console.log('EditWrapper - data length', data.length)
+
 	//useEffect(() => {console.log('edit wrapper on load')},[])
 
 	//useEffect(()=> console.log('status change', status), [status])
