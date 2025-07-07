@@ -1,8 +1,13 @@
 import React from "react"
 
 import uniq from "lodash/uniq"
-import {formatFunctions} from "../../dataWrapper/utils/utils";
+import {formatFunctions} from "../../../patterns/page/components/selector/dataWrapper/utils/utils";
 
+export const strictNaN = v => {
+    const NaNValues = ["", null]
+    if (NaNValues.includes(v)) return true;
+    return isNaN(v);
+}
 export const useAxisTicks = (data, tickSpacing, key = "index") => {
     return React.useMemo(() => {
         const indexes = uniq(data.map(d => d[key]));
