@@ -21,7 +21,6 @@ import { ThemeContext } from "../../../ui/useTheme";
 
 function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiLoad, apiUpdate, format,busy}) {
 
-    const submit = useSubmit()
     const navigate = useNavigate()
     const [searchParams] = useSearchParams();
     const {theme: fullTheme} = useContext(ThemeContext);
@@ -56,7 +55,7 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
     //     // -- This on load effect backfills pages created before sectionGroups
     // /     // -- This should be deleted by JUNE 1 2025
     //     // -------------------------------------------------------------------
-    //     //sectionsBackill(item,baseUrl,submit)
+    //     //sectionsBackill(item,baseUrl,apiUpdate)
     //
     // },[])
 

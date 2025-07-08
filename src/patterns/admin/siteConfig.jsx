@@ -10,7 +10,7 @@ import adminFormat from "./admin.format.js"
 // import defaultTheme from './theme/theme'
 // import Layout from './ui/avail-layout'
 
-import { Link } from 'react-router'
+import { Link, useLocation } from 'react-router'
 
 export const AdminContext = React.createContext(undefined);
 const defaultUser = { email: "user", authLevel: 5, authed: true, fake: true}
@@ -61,7 +61,7 @@ const adminConfig = ({
     },
     {
       name: 'Team',
-      path:`${baseUrl}team`
+      path:`${baseUrl}/team`
     }
   ]
 
@@ -70,7 +70,7 @@ const adminConfig = ({
   format.registerFormats = updateRegisteredFormats(format.registerFormats, app)
   format.attributes = updateAttributes(format.attributes, app)
   // ----------------------
-  console.log('admin pattern - site', app, type, format)
+  console.log('admin pattern - site', app, type, format, baseUrl)
   //console.log('test 123', theme)
   return {
     app,
@@ -82,6 +82,8 @@ const adminConfig = ({
         //todo move theme edit page here
         type: (props) => {
           const {Layout} = UI;
+          const location = useLocation()
+          console.log('admin wrapper', location)
           return (
             <AdminContext.Provider value={{baseUrl, user: props.user || defaultUser, app, type, API_HOST, UI}}>
               <ThemeContext.Provider value={{theme}}>
@@ -92,31 +94,31 @@ const adminConfig = ({
             </AdminContext.Provider>
           )
         },
-        action: "list",
+        action: 'list',
         path: "/*",
         children: [
           {
             type: (props) => <SiteEdit {...props} />,
             // authLevel: 5,
-            action: "edit",
             path: "/*",
 
           },
 
           {
             type: props => <ThemeList {...props} />,
-            action: "edit",
             path: "themes",
           },
           {
             type: props => <ComponentList {...props} />,
-            action: "edit",
             path: "theme/:theme_id/:component?",
           },
+           {
+            type: (props) => (<div>Datasets</div>),
+            path: "datasets",
 
+          },
           {
             type: (props) => (<div>Team</div>),
-            action: "view",
             path: "team",
 
           },

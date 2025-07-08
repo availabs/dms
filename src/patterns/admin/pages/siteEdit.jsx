@@ -50,6 +50,7 @@ function SiteEdit ({
 	
 	const { baseUrl, theme, user } = React.useContext(AdminContext) || {}
 	const updateData = (data, attrKey) => {
+		console.log('admin pattern - siteEdit - updateData', attrKey, data, format)
 		apiUpdate({data: {...item, ...{[attrKey]: data}}, config: {format}})
 	}
 	
