@@ -11,7 +11,6 @@ import type {
   DOMConversionOutput,
   DOMExportOutput,
   EditorConfig,
-  ElementFormatType,
   LexicalEditor,
   LexicalNode,
   NodeKey,

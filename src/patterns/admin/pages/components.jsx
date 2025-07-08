@@ -59,7 +59,7 @@ function ComponentList ({
 	const {theme_id, component, ...restparams} = params;
 	const themeObj = useMemo(() => (item.themes || []).find(t => t.id === theme_id), [item.themes, theme_id])
 	const [currentTheme, setCurrentTheme] = useState(parseIfJson(themeObj?.theme));
-	const compFromProps = useMemo(() => compOptions.find(c => c.value.toLowerCase() === component.toLowerCase())?.value, [component]);
+	const compFromProps = useMemo(() => compOptions.find(c => c.value.toLowerCase() === component?.toLowerCase())?.value, [component]);
 	const [currentComponent, setCurrentComponent] = useState(compFromProps || 'Button');
 	console.log('comp', component, compFromProps, currentComponent)
 	const [currentComponentPropsIdx, setCurrentComponentPropsIdx] = useState(0);
