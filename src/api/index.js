@@ -35,7 +35,7 @@ export async function dmsDataLoader (falcor, config, path='/') {
 		config.format = await config.formatFn();
 	}
 
-	console.log('api - dmsDataLoader', config?.format?.app, config?.format?.type)
+	 //console.log('api - dmsDataLoader - app, type', config?.format?.app, config?.format?.type)
 
 	//---------------------------------------------------------
 	// Pages can have many configs active at one time

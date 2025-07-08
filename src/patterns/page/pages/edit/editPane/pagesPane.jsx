@@ -8,7 +8,7 @@ import {ThemeContext} from "../../../../../ui/useTheme";
 
 
 function PagesPane () {
-  const { item, dataItems } =  React.useContext(PageContext) || {};
+  const { item, dataItems, apiUpdate } =  React.useContext(PageContext) || {};
   const {UI} = React.useContext(CMSContext);
   const {DraggableNav} = UI;
 
@@ -25,6 +25,7 @@ function PagesPane () {
         <DraggableNav
           item={item}
           dataItems={dataItems}
+          apiUpdate={apiUpdate}
           NavComp={DraggableNavItem}
         />
       </div>
@@ -187,6 +188,7 @@ function DeleteModal ({title, prompt, item={}, open, setOpen, onDelete})  {
 function RenameModal ({title, prompt, item={}, dataItems, open, setOpen})  {
   const cancelButtonRef = useRef(null)
   const {  user, UI } = React.useContext(CMSContext) || {};
+  const { apiUpdate } =  React.useContext(PageContext) || {};
   const {Button, Dialog} = UI;
   const submit = useSubmit();
   const { pathname = '/edit' } = useLocation();
@@ -217,7 +219,8 @@ function RenameModal ({title, prompt, item={}, dataItems, open, setOpen})  {
         const newPathName = pathname.endsWith(item.url_slug) ? pathname.replace(new RegExp(item.url_slug + '$'), newItem.url_slug) : pathname;
 
         setLoading(true)
-        await submit(json2DmsForm(newItem), { method: "post", action: newPathName })
+        //await submit(json2DmsForm(newItem), { method: "post", action: newPathName })
+        await apiUpdate({data: newItem, newPath: newPathName})
         setLoading(false)
         setOpen()
       }

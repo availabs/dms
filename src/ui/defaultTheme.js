@@ -1,6 +1,7 @@
 import docs from './docs';
 import sideNavTheme from "./components/SideNav.theme";
 import topNavTheme from "./components/TopNav.theme";
+import layoutTheme  from './components/Layout.theme'
 import {tabsTheme} from "./components/Tabs";
 import {buttonTheme} from "./components/Button";
 import {menuTheme} from "./components/Menu";
@@ -16,6 +17,7 @@ import {tableTheme} from "./components/table";
 import {nestableTheme} from "./components/nestable/draggableNav"
 import {dataCardTheme} from "./components/Card";
 import {graphTheme} from "./components/graph";
+import {logoTheme} from "./components/Logo";
 // =====================================================================================================
 // ======================================== todo: move these to UI
 // =====================================================================================================
@@ -171,21 +173,11 @@ const components = {
             "borderX": "border border-[#E0EBF0] border-y-transparent"
         }
     },
-    "layout": {
-        "wrapper": "relative isolate flex min-h-svh w-full max-lg:flex-col",
-        "wrapper2": "flex-1 flex items-start flex-col items-stretch max-w-full",
-        "wrapper3": "flex flex-1",
-        "childWrapper": "flex-1 h-full",
-        "topnavContainer1": "sticky top-0 left-0 right-0 z-20 ",
-        "topnavContainer2": "",
-        "sidenavContainer1": "w-44",
-        "sidenavContainer2": "sticky top-12 h-[calc(100vh_-_50px)]",
-        "navTitle": "flex-1 text-[24px] font-['Oswald'] font-[500] leading-[24px] text-[#2D3E4C] py-3 px-4 uppercase"
-    },
-
+    layout: layoutTheme,
     nestable: nestableTheme,
     sidenav: sideNavTheme,
     topnav: topNavTheme,
+    logo: logoTheme,
     tabs: tabsTheme,
     button: buttonTheme,
     menu: menuTheme,
@@ -207,6 +199,29 @@ const components = {
     graph: graphTheme,
 }
 const theme = {
+    admin: {
+        navOptions: {
+            "logo": "",
+            "sideNav": {
+                "size": "compact",
+                "logo": "top",
+                "dropdown": "none",
+                "position": "fixed",
+                "nav": "main"
+            },
+            "topNav": {
+                "size": "none",
+                "dropdown": "right",
+                "logo": "left",
+                "position": "sticky",
+                "nav": "none"
+            }
+        },
+        page: {
+            pageWrapper: 'w-full h-full flex-1 flex flex-row p-2',
+            pageWrapper2: 'grow p-6 lg:rounded-lg lg:bg-white lg:p-10 lg:shadow-xs lg:ring-1 lg:ring-zinc-950/5 dark:lg:bg-zinc-900 dark:lg:ring-white/10'
+        }
+    },
     navOptions,
     ...components,
     "Icons": {},

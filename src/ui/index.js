@@ -1,6 +1,7 @@
 import React from "react";
 import Layout from './components/Layout';
 import SideNav from './components/SideNav';
+import Logo from './components/Logo';
 import SideNavContainer from "./components/SideNavContainer";
 import TopNav from './components/TopNav';
 import Icon from './components/Icon';
@@ -29,6 +30,7 @@ import Graph from "./components/graph"
 export default {
 	// --- Layout
 	Layout,
+	Logo,
 	SideNav,
 	SideNavContainer,
 	TopNav,
@@ -54,6 +56,7 @@ export default {
 	DeleteModal,
 	// Nestable,
 	DraggableNav,
+	// -- Data Components
 	Pagination,
 	Table,
 	Card,

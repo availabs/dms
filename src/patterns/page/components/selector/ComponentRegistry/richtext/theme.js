@@ -20,7 +20,7 @@ const theme = {
       h2: "font-[500]  text-[#2D3E4C] text-[24px] leading-[24px] scroll-mt-36 font-['Oswald'] pb-[12x]", //'PlaygroundEditorTheme__h2',
       h3: "font-[500]  text-[#2D3E4C] text-[16px] leading-[16px] scroll-mt-36 font-['Oswald'] pb-[12x]", //'PlaygroundEditorTheme__h3',
       h4: "font-medium text-[#2D3E4C] scroll-mt-36 font-display", //'PlaygroundEditorTheme__h4',
-      h5: "scroll-mt-36 font-display", //'PlaygroundEditorTheme__h5',
+      h5: "flex gap-1 text-[36px] sm:text-[72px] tracking-[0px] items-center font-medium font-['Oswald'] text-[#2D3E4C] sm:leading-[100%] uppercase", //'PlaygroundEditorTheme__h5',
       h6: "scroll-mt-36 font-display", //'PlaygroundEditorTheme__h6',
   },
   paragraph: "m-0 relative", //'PlaygroundEditorTheme__paragraph',

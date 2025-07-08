@@ -14,6 +14,7 @@ function ThemeList ({
    format,
 }) {
 	// themes is an array of {name, theme, id}
+	console.log('admin pattern - themeList - hello world')
 	const { baseUrl, theme, user, UI } = React.useContext(AdminContext) || {};
 	const [addingNew, setAddingNew] = useState(false);
 	const [newItem, setNewItem] = useState({});

@@ -137,10 +137,10 @@ export const docs = {
 
 }
 
-function DraggableNav ({item, dataItems, NavComp=DefaultNavItem, baseUrl, edit=true}) {
+function DraggableNav ({item, dataItems, NavComp=DefaultNavItem, baseUrl, apiUpdate, edit=true}) {
     const {theme: themeFromContext = {}} = useContext(ThemeContext);
     const theme = {...themeFromContext, nestable: {...nestableTheme, ...(themeFromContext.nestable || {})}}
-    const submit = useSubmit()
+    //const submit = useSubmit()
     
     const { pathname = '/edit' } = useLocation()
     
@@ -181,8 +181,8 @@ function DraggableNav ({item, dataItems, NavComp=DefaultNavItem, baseUrl, edit=t
     //send updates to API
     //---------------------------------
     Promise.all(updates.map((item) => {
-      // apiUpdate(item)
-      submit(json2DmsForm(item), { method: "post", action: pathname })
+       apiUpdate({data:item})
+       //submit(json2DmsForm(item), { method: "post", action: pathname })
     })).then(values => {
       //console.log('updating nav', values)
     })
@@ -231,7 +231,7 @@ function DraggableNav ({item, dataItems, NavComp=DefaultNavItem, baseUrl, edit=t
       
       
       </div>
-      {edit && <AddItemButton dataItems={dataItems}/>}
+      {edit && <AddItemButton dataItems={dataItems} apiUpdate={apiUpdate}/>}
     </div>
     
   )
@@ -239,8 +239,8 @@ function DraggableNav ({item, dataItems, NavComp=DefaultNavItem, baseUrl, edit=t
 
 
 
-function AddItemButton ({dataItems, user={}}) {
-  const submit = useSubmit();
+function AddItemButton ({dataItems, apiUpdate, user={}}) {
+  //const submit = useSubmit();
   const { pathname = '/edit' } = useLocation();
   const [loading, setLoading] = useState(false);
   
@@ -265,7 +265,7 @@ function AddItemButton ({dataItems, user={}}) {
 
   const addItem = async () => {
       setLoading(true);
-      await submit(json2DmsForm(item), { method: "post", action: pathname })
+      await apiUpdate({data:item})//submit(json2DmsForm(item), { method: "post", action: pathname })
       setLoading(false);
   }
   return (

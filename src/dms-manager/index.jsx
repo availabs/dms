@@ -41,7 +41,8 @@ const DmsManager = (props) => {
 		path = '',
 		user,
 		navigate,
-		falcor
+		falcor,
+		mode
 	} = props
 
 	function getActiveView(config, path, format, user, depth=0) {
@@ -49,7 +50,7 @@ const DmsManager = (props) => {
 		//console.log('testing', config)
 		let activeConfigs = configMatcher(config,path)
 
-		// console.log('activeConfigs', activeConfigs)
+		//console.log('activeConfigs', activeConfigs, config, 'depth:', depth, 'path', path)
 		// get the component for the active config
 		// or the default component
 		return activeConfigs.map(activeConfig => {
@@ -78,6 +79,7 @@ const DmsManager = (props) => {
 				{...activeConfig}
 				children={children}
 				user={user}
+				mode={mode}
 				falcor={falcor}
 			/>
 			

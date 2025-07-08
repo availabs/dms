@@ -150,7 +150,7 @@ function toTitleCase(str='') {
     text => text.charAt(0).toUpperCase() + text.substring(1).toLowerCase()
   );
 }
-export const sectionsEditBackill = (item, baseUrl, submit, search) => {
+export const sectionsEditBackill = (item, baseUrl, apiUpdate, search) => {
     if(!item.draft_section_groups && item?.id) {
             let newItem = {id: item.id}
             newItem.draft_section_groups = [
@@ -188,11 +188,11 @@ export const sectionsEditBackill = (item, baseUrl, submit, search) => {
                     section.padding = 'p-0'
                 }
             })
-            submit(json2DmsForm(newItem), { method: "post", action: `${baseUrl}/edit/${item.url_slug}${search}` })
+            apiUpdate({data:newItem, newPath:`${baseUrl}/edit/${item.url_slug}${search}` })
         }
 }
 
-export const sectionsBackill = (item, baseUrl, submit) => {
+export const sectionsBackill = (item, baseUrl, apiUpdate) => {
      if(!item.section_groups && item.id) {
         //console.log('edit item', item)
         let newItem = {id: item.id}
@@ -230,7 +230,8 @@ export const sectionsBackill = (item, baseUrl, submit) => {
             section.group = 'header'
           }
         })
-        submit(json2DmsForm(newItem), { method: "post", action: `${baseUrl}/${item.url_slug}` })
+        //submit(json2DmsForm(newItem), { method: "post", action: `${baseUrl}/${item.url_slug}` })
+        apiUpdate({data:newItem, newPath:`${baseUrl}/${item.url_slug}` })
       }
 }
 
