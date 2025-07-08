@@ -23,12 +23,8 @@ import defaultTheme from '../../ui/defaultTheme'
 const adminConfig = ({
   app = "default-app",
   type = "default-page",
-  sideNav = null,
-  logo = null,
-  rightMenu = <div />,
   API_HOST = 'https://graph.availabs.org',
   baseUrl = '/',
-  checkAuth = () => {},
   theme = defaultTheme,
 }) => {
   const format = cloneDeep(adminFormat)
@@ -36,15 +32,8 @@ const adminConfig = ({
   format.type = type
   baseUrl = baseUrl === '/' ? '' : baseUrl
 
-  const defaultLogo = (
-    <Link to={`${baseUrl}`} className='h-12 flex px-4 items-center'>
-      <div className='rounded-full h-8 w-8 bg-blue-500 border-2 border-blue-300 hover:bg-blue-600' /><div className='p-2'>Admin</div>
-    </Link>
-  )
-
-  if(!theme.navOptions.logo) {
-    theme.navOptions.logo = logo ? logo : defaultLogo
-  }
+  //console.log('defaultTheme', theme)
+  theme.navOptions = theme?.admin?.navOptions || theme?.navOptions
 
   const menuItems = [
     {
@@ -70,8 +59,6 @@ const adminConfig = ({
   format.registerFormats = updateRegisteredFormats(format.registerFormats, app)
   format.attributes = updateAttributes(format.attributes, app)
   // ----------------------
-  console.log('admin pattern - site', app, type, format, baseUrl)
-  //console.log('test 123', theme)
   return {
     app,
     type,
@@ -83,12 +70,16 @@ const adminConfig = ({
         type: (props) => {
           const {Layout} = UI;
           const location = useLocation()
-          console.log('admin wrapper', location)
+          console.log('admin wrapper', props.dataItems)
           return (
             <AdminContext.Provider value={{baseUrl, user: props.user || defaultUser, app, type, API_HOST, UI}}>
               <ThemeContext.Provider value={{theme}}>
                 <Layout navItems={menuItems}>
-                  {props.children}
+                  <div className={theme?.admin?.page?.pageWrapper}>
+                    <div className={theme?.admin?.page?.pageWrapper2}>
+                      {props.children}
+                    </div>
+                  </div>
                 </Layout>
               </ThemeContext.Provider>
             </AdminContext.Provider>

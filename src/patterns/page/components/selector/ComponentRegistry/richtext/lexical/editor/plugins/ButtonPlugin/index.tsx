@@ -7,6 +7,7 @@
 //  */
 import {
   $insertNodes,
+    $getNodeByKey,
   COMMAND_PRIORITY_EDITOR,
   createCommand,
   type LexicalCommand,

@@ -36,7 +36,7 @@ export const Item = ({to, icon,children}) => (
 export default ({title, children}) => {
     const { user, baseUrl, UI } = React.useContext(CMSContext)
     const { theme } = React.useContext(ThemeContext)
-    const {Dropdown} = UI;
+    const { Dropdown } = UI;
     const location = useLocation();
     let authMenuItems = theme?.navOptions?.authMenu?.navItems || [
             {

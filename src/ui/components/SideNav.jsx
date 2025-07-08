@@ -233,15 +233,26 @@ export const SideNavItem = ({
 									}
 								/>
 							)}
-							<div className={`${theme?.navItemContent} ${className ? '' : theme?.navItemContents?.[depth] || theme?.navItemContents }`}
-								onClick={(e) => {
-									e.stopPropagation();
-									if (onClick) return onClick(To[0]);
-									if (To[0]) navigate(To[0]);
-								}}
-							>	
-								{navItem?.name}
-							</div>
+							{onClick ? 
+								(<div className={`${theme?.navItemContent} ${className ? '' : theme?.navItemContents?.[depth] || theme?.navItemContents }`}
+									onClick={(e) => {
+										e.stopPropagation();
+										if (onClick) return onClick(To[0]);
+										if (To[0]) navigate(To[0]);
+									}}
+								>	
+									{navItem?.name}
+								</div>) : 
+								(<Link to={To[0]} 
+									className={`
+										${theme?.navItemContent} 
+										${className ? '' : theme?.navItemContents?.[depth] || theme?.navItemContents }`
+									}
+								>	
+									{navItem?.name}
+								</Link>)
+							}
+
 							<div
 								className='pr-2'
 								onClick={() => {
