@@ -1,11 +1,13 @@
 import { BarGraphOption } from "./BarGraph"
 import { LineGraphOption } from "./LineGraph"
 import { ScatterPlotOption } from "./ScatterPlot"
+import { GridGraphOption } from "./GridGraph"
 
 const GraphTypeOptions = [
   BarGraphOption,
   LineGraphOption,
-  ScatterPlotOption
+  ScatterPlotOption,
+  GridGraphOption
 ]
 
 const [GraphTypes, GraphTypeMap, EditorOptionsMap] = GraphTypeOptions.reduce((a, c) => {
