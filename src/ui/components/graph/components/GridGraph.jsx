@@ -38,7 +38,7 @@ const GridGraph = (props) => {
                         fill: bgColor,
                         fontSize: tooltip.fontSize || 12,
                         title: (d) =>
-                            `index: ${d?.index}\ntype: ${d?.type}\nvalue: ${(+d?.value).toFixed(2)}`
+                            `index: ${d?.index} \ntype: ${d?.type} \nvalue: ${(+d?.value).toFixed(2)}`
                     })
                 )
             );
@@ -47,6 +47,7 @@ const GridGraph = (props) => {
         const plot = Plot.plot({
             ...plotOptions,
             padding: 0,
+            // inset: 0.5,
             x: {
                 domain: xDomain,
                 tickFormat: d => d.toString()
@@ -56,7 +57,8 @@ const GridGraph = (props) => {
                 reverse: true
             },
             color: {
-                scheme: "viridis",
+                scheme: "YlOrBr",
+                zero: true,
                 legend: true
             },
             marks
