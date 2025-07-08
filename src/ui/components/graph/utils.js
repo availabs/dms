@@ -1,8 +1,33 @@
 import React from "react"
 
 import uniq from "lodash/uniq"
-import {formatFunctions} from "../../dataWrapper/utils/utils";
+import {formatFunctions} from "../../../patterns/page/components/selector/dataWrapper/utils/utils";
 
+
+const fnum = (number, currency = false) => `${currency ? '$ ' : ''} ${isNaN(number) ? 0 : parseInt(number).toLocaleString()}`;
+export const fnumIndex = (d, fractions = 2, currency = false) => {
+        if(isNaN(d)) return '0'
+        if(typeof d === 'number' && d < 1) return `${currency ? '$' : ``} ${d?.toFixed(fractions)}`
+        if (d >= 1_000_000_000_000_000) {
+            return `${currency ? '$' : ``} ${(d / 1_000_000_000_000_000).toFixed(fractions)} Q`;
+        }else if (d >= 1_000_000_000_000) {
+            return `${currency ? '$' : ``} ${(d / 1_000_000_000_000).toFixed(fractions)} T`;
+        } else if (d >= 1_000_000_000) {
+            return `${currency ? '$' : ``} ${(d / 1_000_000_000).toFixed(fractions)} B`;
+        } else if (d >= 1_000_000) {
+            return `${currency ? '$' : ``} ${(d / 1_000_000).toFixed(fractions)} M`;
+        } else if (d >= 1_000) {
+            return `${currency ? '$' : ``} ${(d / 1_000).toFixed(fractions)} K`;
+        } else {
+            return typeof d === "object" ? `` : `${currency ? '$' : ``} ${parseInt(d)}`;
+        }
+    }
+;
+export const strictNaN = v => {
+    const NaNValues = ["", null]
+    if (NaNValues.includes(v)) return true;
+    return isNaN(v);
+}
 export const useAxisTicks = (data, tickSpacing, key = "index") => {
     return React.useMemo(() => {
         const indexes = uniq(data.map(d => d[key]));

@@ -57,6 +57,7 @@ function SiteEdit ({
 		item = dataItems[0]
 	}
 
+	console.log('admin pattern - siteEdit - item', item)
 	if(!item.id) return <NewSite apiUpdate={apiUpdate} />// (<Layout></Layout>)()
 
 

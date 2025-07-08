@@ -91,7 +91,9 @@ export const RenderFilters = ({
                         })
                     }
                 });
-                draft.display.readyToLoad = true;
+                if(draft.display){
+                    draft.display.readyToLoad = true;
+                }
             });
         }
     }, [filters, pageState?.filters]);

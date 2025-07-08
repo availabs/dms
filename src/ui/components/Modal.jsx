@@ -6,6 +6,10 @@ export const docs = {
     open: true,
     setOpen: () => {}
 }
+
+export const modalTheme = {
+    "key": "value pair"
+} 
 export default function({open, setOpen, initialFocus, children}) {
     return (
         <Transition.Root show={open} as={Fragment}>

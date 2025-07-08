@@ -19,7 +19,7 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
     const { theme = { table: tableTheme } } = React.useContext(ThemeContext) || {}
     const { UI } = React.useContext(cms_context || CMSContext) || {UI: {Icon: () => <></>}}
     const {Table} = UI;
-    const {state:{columns, sourceInfo, display, data}, setState, controls={}} = useContext(ComponentContext);
+    const {state:{columns, sourceInfo, display, data}, setState, controls={}, isActive} = useContext(ComponentContext);
     const gridRef = useRef(null);
 
     const visibleAttributes = useMemo(() => columns.filter(({show}) => show), [columns]);
@@ -64,13 +64,13 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
 
 
     if(!visibleAttributes.length) return <div className={'p-2'}>No columns selected.</div>;
-
     return <Table columns={columns} data={data} display={display} controls={controls} setState={setState}
                   allowEdit={allowEdit} isEdit={isEdit} loading={loading}
                   gridRef={gridRef}
                   theme={theme} paginationActive={paginationActive}
                   updateItem={updateItem} removeItem={removeItem}
                   numColSize={numColSize} gutterColSize={gutterColSize} frozenColClass={frozenColClass} frozenCols={frozenCols}
+                  isActive={isActive}
     />
 }
 

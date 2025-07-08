@@ -7,9 +7,9 @@ export const getLocation = selectionPoint => {
     } : selectionPoint;
     return {index, attrI}
 }
-export function usePaste(callback, element) {
-    useEffect(() => {
-        if(!element) return;
+export function usePaste(callback, element, isActive) {
+    return useEffect(() => {
+        if(!element || !isActive) return;
 
         function handlePaste(event) {
             const pastedText = event.clipboardData.getData('Text');
@@ -23,23 +23,26 @@ export function usePaste(callback, element) {
         return () => {
             element.removeEventListener('paste', handlePaste);
         };
-    }, [callback, element]);
+    }, [callback, element, isActive]);
 }
 
-export function useCopy(callback, element) {
-    useEffect(() => {
-        if(!element) return;
+export function useCopy(callback, element, isActive) {
+    return useEffect(() => {
+        if (!element || !isActive) return;
 
         function handleCopy(event) {
             const dataToCopy = callback();
-            // event.clipboardData.setData('text/plain', dataToCopy)
-            return navigator.clipboard.writeText(dataToCopy)
+            if (event.clipboardData) {
+                event.preventDefault(); // to override clipboard
+                event.clipboardData.setData('text/plain', dataToCopy);
+            } else {
+                navigator.clipboard.writeText(dataToCopy).catch(console.error);
+            }
         }
 
         element.addEventListener('copy', handleCopy);
-
         return () => {
             element.removeEventListener('copy', handleCopy);
         };
-    }, [callback, element]);
+    }, [callback, element, isActive]);
 }
