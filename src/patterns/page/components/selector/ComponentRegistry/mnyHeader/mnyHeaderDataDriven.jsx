@@ -28,7 +28,7 @@ const SearchButton = ({app, type, show}) => {
     const {Icon, Label} = UI;
     const [open, setOpen] = useState(false);
     const [searchStr, setSearchStr] = useState('');
-    const featured_searches = ['Hurricane Sandy', 'Climate Change', 'Flood Risk']
+    const featured_searches = ['Climate Change', 'Flood Risk', 'Local Planning', 'Funding']
     if(!show) return null;
     return (
         <>

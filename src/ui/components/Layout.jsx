@@ -60,10 +60,7 @@ const Layout = ({
 	const theme = merge(cloneDeep(defaultTheme), cloneDeep(pageTheme))
 	// console.log('theme navOptions', pageTheme)
 	const { sideNav={ }, topNav={}, logo=NoComp } = cloneDeep(theme?.navOptions) || {}
-<<<<<<< HEAD
-	// console.log('navItems', navItems, sideNav, secondNav, theme, defaultTheme, pageTheme, children)
-=======
->>>>>>> be55d88a5ce791458d21ea03af21ddb500bada8a
+
 	const sideNavOptions = {
 		size: sideNav.size || 'none',
 		color: sideNav.color || 'transparent',

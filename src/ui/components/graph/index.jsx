@@ -176,7 +176,7 @@ export default function ({
     const stopPoints = [0.75, 0.5, 0.05];
     const stopValues = stopPoints.map(p => maxIndexValue * p)
 
-    console.log('graph data', graphData, columns, display)
+    //console.log('graph data', graphData, columns, display)
     return (
         <>
             {

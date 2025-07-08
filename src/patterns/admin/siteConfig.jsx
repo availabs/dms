@@ -70,8 +70,8 @@ const adminConfig = ({
   format.registerFormats = updateRegisteredFormats(format.registerFormats, app)
   format.attributes = updateAttributes(format.attributes, app)
   // ----------------------
-  console.log('admin pattern - site', app, type, format)
-  //console.log('test 123', theme)
+  // console.log('admin pattern - site', app, type, format)
+  // console.log('test 123', theme)
   return {
     app,
     type,

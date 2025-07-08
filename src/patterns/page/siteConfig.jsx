@@ -55,7 +55,7 @@ const pagesConfig = ({
       </Link>
   )
 
-  console.log('page site config', app, type)
+  //console.log('page site config', app, type)
 
   if(!theme?.navOptions?.logo) {
     theme.navOptions = {...(theme?.navOptions || {}), logo: (logo ? logo : defaultLogo)}
@@ -65,6 +65,7 @@ const pagesConfig = ({
   // console.log('testing', theme.navOptions)
   // console.log('page siteConfig app,type', `"${app}","${type}"`)
 
+  //console.log('theme', theme)
 
   const format = cloneDeep(cmsFormat)
   format.app = app
