@@ -90,7 +90,8 @@ export default function EditWrapper({ Component, format, options, params, user, 
 		let data = null
 		if(mode === 'ssr'){
 			let res =  await fetch(`/dms_api`, { method:"POST", body: json2DmsForm(data,'data',config, path||'/') })
-			data = await res.json()
+			let resData = await res.json()
+			data = resData?.data || []
 		} else {
 			data = await dmsDataLoader(falcor, config, path || '/')
 		}

@@ -89,7 +89,7 @@ export async function dmsDataLoader (falcor, config, path='/') {
 		.map(config => createRequest(config, format, path, length))
 		.filter(routes => routes?.length)
 
-	//console.log('api - newRequests', newRequests)
+	console.log('api - newRequests', newRequests)
     //--------- Route Data Loading ------------------------
 	//let dataresp = null
 	

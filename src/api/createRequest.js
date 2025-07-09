@@ -13,11 +13,13 @@ export const createRequest = (wrapperConfig,format, path, length) => {
 	//----------- ---------------------------------------
 	let fromIndex =	typeof wrapperConfig?.filter?.fromIndex === 'function' ?
 			wrapperConfig?.filter?.fromIndex(path) :
-		(+wrapperConfig.params?.[wrapperConfig?.filter?.fromIndex] || 0);
+		(+wrapperConfig?.filter?.fromIndex || 0);
 	
 	let toIndex = typeof wrapperConfig?.filter?.toIndex === "function" ?
 			wrapperConfig?.filter?.toIndex(path) :
-			(+wrapperConfig.params?.[wrapperConfig?.filter?.toIndex] || length - 1);
+			(+wrapperConfig?.filter?.toIndex || Math.max(0,length-1)); //
+
+	console.log('api - createRequest - indexs',fromIndex, toIndex, wrapperConfig?.filter?.fromIndex, wrapperConfig?.filter?.toIndex )
 	let options = wrapperConfig?.filter?.options || '{}';
 	let tags = wrapperConfig?.filter?.tags || [];
 	let searchType = wrapperConfig?.filter?.searchType || 'byTag';

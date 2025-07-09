@@ -33,6 +33,7 @@ const adminConfig = ({
   baseUrl = baseUrl === '/' ? '' : baseUrl
 
   //console.log('defaultTheme', theme)
+  theme = cloneDeep(theme)
   theme.navOptions = theme?.admin?.navOptions || theme?.navOptions
 
   const menuItems = [
