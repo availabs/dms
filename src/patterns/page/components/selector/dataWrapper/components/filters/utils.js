@@ -33,8 +33,8 @@ export const getData = async ({format, apiLoad,
         action: 'uda',
         path: '/',
         filter: {
-            fromIndex: path => fromIndex,
-            toIndex: path => toIndex,
+            fromIndex: fromIndex,
+            toIndex: toIndex,
             options: JSON.stringify({
                 ...filterBy,
                 // exclude: {[attribute]: ['null']},

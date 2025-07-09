@@ -49,23 +49,12 @@ const pagesConfig = ({
   //console.log('pageConfig', pattern.doc_type, pattern.id, themes[pattern?.theme?.settings?.theme?.theme], pattern?.theme, pattern)
   // baseUrl = baseUrl[0] === '/' ? baseUrl.slice(1) : baseUrl
   baseUrl = baseUrl === '/' ? '' : baseUrl
-  const defaultLogo = (
-      <Link to={`${baseUrl || '/'}`} className='h-12 flex px-4 items-center'>
-        <div className='rounded-full h-8 w-8 bg-blue-500 border-2 border-blue-300 hover:bg-blue-600' />
-      </Link>
-  )
-
-  //console.log('page site config', app, type)
-
-  if(!theme?.navOptions?.logo) {
-    theme.navOptions = {...(theme?.navOptions || {}), logo: (logo ? logo : defaultLogo)}
-  }
-
+  
 
   // console.log('testing', theme.navOptions)
   // console.log('page siteConfig app,type', `"${app}","${type}"`)
 
-  //console.log('theme', theme)
+  console.log('theme', theme)
 
   const format = cloneDeep(cmsFormat)
   format.app = app
