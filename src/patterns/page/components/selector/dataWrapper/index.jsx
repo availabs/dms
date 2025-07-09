@@ -199,21 +199,18 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
         isValidState]);
 
     // useGetDataOnPageChange
-    const onPageChange = (currentPage) => {
+    const onPageChange = async (currentPage) => {
         if(!isValidState || !component.useGetDataOnPageChange) return;
         // only run when page changes
-        async function load() {
-            setLoading(true)
-            const {length, data} = await getData({state, currentPage, apiLoad});
-            setState(draft => {
-                // on page change append data unless using pagination
-                draft.data =  state.display.usePagination ? data : [...draft.data.filter(r => !r.totalRow), ...data];
-                draft.display.totalLength = length;
-            })
-            setLoading(false)
-        }
-
-        return load()
+        setLoading(true)
+        setCurrentPage(currentPage)
+        const {length, data} = await getData({state, currentPage, apiLoad});
+        setState(draft => {
+            // on page change append data unless using pagination
+            draft.data =  state.display.usePagination ? data : [...draft.data.filter(r => !r.totalRow), ...data];
+            draft.display.totalLength = length;
+        })
+        setLoading(false)
     }
 
     // useInfiniteScroll
@@ -330,9 +327,8 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
                 />
                 <div>
                     {/*Pagination*/}
-                    <Pagination currentPage={currentPage} setCurrentPage={i => {
-                        setCurrentPage(i)
-                        return onPageChange(i);
+                    <Pagination currentPage={currentPage} setCurrentPage={async i => {
+                        return await onPageChange(i);
                     }} showPagination={component.showPagination}/>
                     {/*/!*Attribution*!/*/}
                     {state.display.showAttribution ? <Attribution/> : null}
@@ -452,28 +448,19 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
     }, [state?.dataRequest, isValidState, state.display.readyToLoad, state.display.allowEditInView]);
 
     // useGetDataOnPageChange
-    const onPageChange = (currentPage) => {
-        if(!isValidState || !component.useGetDataOnPageChange || (!state.display.readyToLoad && !state.display.allowEditInView)) return;
+    const onPageChange = async (currentPage) => {
+        if(!isValidState || !component.useGetDataOnPageChange /*|| (!state.display.readyToLoad && !state.display.allowEditInView)*/) return;
         // only run when page changes
-        let isStale = false;
-        async function load() {
-            setLoading(true)
+        setLoading(true)
+        const {length, data} = await getData({state, currentPage, apiLoad});
 
-            const {length, data} = await getData({state, currentPage, apiLoad});
-
-            if(isStale) {
-                setLoading(false);
-                return;
-            }
-            setState(draft => {
-                // on page change append data unless using pagination
-                draft.data =  state.display.usePagination ? data : [...draft.data.filter(r => !r.totalRow), ...data];
-                draft.display.totalLength = length;
-            })
-            setLoading(false)
-        }
-
-        return load()
+        setCurrentPage(currentPage)
+        setState(draft => {
+            // on page change append data unless using pagination
+            draft.data =  state.display.usePagination ? data : [...draft.data.filter(r => !r.totalRow), ...data];
+            draft.display.totalLength = length;
+        })
+        setLoading(false)
     }
 
     // useInfiniteScroll
@@ -503,7 +490,7 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
         return () => {
             isStale = true;
         }
-    }, [state?.display?.loadMoreId, state?.display?.totalLength, state?.data?.length, state?.display?.usePagination, isValidState]);
+    }, [state?.display?.loadMoreId, state?.display?.totalLength, /*state?.data?.length, */state?.display?.usePagination, isValidState]);
     // =========================================== get data end ========================================================
 
     // =========================================== util fns begin ======================================================
@@ -602,9 +589,8 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
                     />
                     <div>
                         {/*Pagination*/}
-                        <Pagination currentPage={currentPage} setCurrentPage={i => {
-                            setCurrentPage(i)
-                            return onPageChange(i);
+                        <Pagination currentPage={currentPage} setCurrentPage={async i => {
+                            return await onPageChange(i);
                         }} setReadyToLoad={setReadyToLoad} showPagination={component.showPagination}/>
                         {/*Attribution*/}
                         {state.display.showAttribution ? <Attribution/> : null}
