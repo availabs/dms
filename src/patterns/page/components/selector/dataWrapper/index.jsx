@@ -202,14 +202,9 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
     const onPageChange = (currentPage) => {
         if(!isValidState || !component.useGetDataOnPageChange) return;
         // only run when page changes
-        let isStale = false;
         async function load() {
             setLoading(true)
             const {length, data} = await getData({state, currentPage, apiLoad});
-            if(isStale) {
-                setLoading(false);
-                return;
-            }
             setState(draft => {
                 // on page change append data unless using pagination
                 draft.data =  state.display.usePagination ? data : [...draft.data.filter(r => !r.totalRow), ...data];
@@ -223,13 +218,14 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
 
     // useInfiniteScroll
     useEffect(() => {
+        let isStale = false;
         // infinite scroll watch
         if(!isValidState || !component.useInfiniteScroll) return;
         // observer that sets current page on scroll. no data fetching should happen here
         const observer = new IntersectionObserver(
             async (entries) => {
                 const hasMore = (currentPage * state.display.pageSize + state.display.pageSize) < state.display.totalLength;
-                if (state.data.length && entries[0].isIntersecting && hasMore) {
+                if (state.data.length && entries[0].isIntersecting && hasMore && !isStale) {
                     setCurrentPage(prevPage => prevPage+1)
                     await onPageChange(currentPage + 1)
                 }
@@ -245,6 +241,9 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
         // return () => {
         //     if (target) observer.unobserve(target);
         // };
+        return () => {
+            isStale = true;
+        }
     }, [state.display?.loadMoreId, state.display?.totalLength, state.data?.length, state.display?.usePagination]);
     // // =========================================== get data end ========================================================
 
@@ -479,12 +478,13 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
 
     // useInfiniteScroll
     useEffect(() => {
+        let isStale = false;
         if(!isValidState || !component.useInfiniteScroll) return;
         // observer that sets current page on scroll. no data fetching should happen here
         const observer = new IntersectionObserver(
             async (entries) => {
                 const hasMore = (currentPage * state.display.pageSize + state.display.pageSize) < state.display.totalLength;
-                if (state.data.length && entries[0].isIntersecting && hasMore) {
+                if (state.data.length && entries[0].isIntersecting && hasMore && !isStale) {
                     setCurrentPage(prevPage => prevPage+1)
                     await onPageChange(currentPage+1);
                 }
@@ -500,6 +500,9 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
         // return () => {
         //     if (target) observer.unobserve(target);
         // };
+        return () => {
+            isStale = true;
+        }
     }, [state?.display?.loadMoreId, state?.display?.totalLength, state?.data?.length, state?.display?.usePagination, isValidState]);
     // =========================================== get data end ========================================================
 
