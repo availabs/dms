@@ -63,7 +63,7 @@ export default function ({totalLength, pageSize, usePagination,
                             }
 
                             <div className={`${theme?.table?.pageRangeItem} ${theme?.table?.pageRangeItemInactive}`}
-                                 onClick={() => setCurrentPage(currentPage < totalPages ? currentPage + 1 : currentPage)}>{`next >`}</div>
+                                 onClick={() => setCurrentPage(currentPage < totalPages - 1  ? currentPage + 1 : currentPage)}>{`next >`}</div>
                         </div>
                     </>
                 ) : (

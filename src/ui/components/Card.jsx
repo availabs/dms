@@ -146,7 +146,7 @@ export const docs = [
 const DefaultComp = ({value, className}) => <div className={className}>{value}</div>;
 
 const EditComp = ({
-                      attribute, value, rawValue,
+                      attribute, value, rawValue, className,
                       isValueFormatted, id, DataTypes,
                       updateItem, liveEdit, tmpItem, setTmpItem, allowEdit, formatFunctions,
                       isNewItem, newItem, setNewItem, // when allowAddNewItem is on
@@ -163,7 +163,7 @@ const EditComp = ({
 
     return <div ref={compRef}
                 onClick={() => !isEditing && setIsEditing(true)}
-                className={(allowEdit && isEditing) || (allowEdit && !value) ? `w-full` : ``}>
+                className={(allowEdit && isEditing) || (allowEdit && !value) ? `w-full` : `w-full`}>
         <Comp value={allowEdit && isValueFormatted ? rawValue : value}
               placeholder={'please enter value...'}
               id={allowEdit && isEditing ? compIdEdit : compId}
@@ -175,7 +175,7 @@ const EditComp = ({
                           isNewItem && setNewItem ? setNewItem({...newItem, [attribute.name]: newValue}) : {} // add new item
               }
               }
-              className={allowEdit && !value ? 'border' : ' '}
+              className={allowEdit && !value ? 'border' : className}
               {...attribute}
         />
     </div>
@@ -254,9 +254,8 @@ const RenderItem = ({
                                         </div>
                                     )
                                 }
-                                <div className={`
+                                <div className={`w-full
                                                 ${theme.value} ${compactView ? theme.valueCompactView : theme.valueSimpleView}
-                                                ${theme[valueTextJustifyClass]}
                                                  ${theme[attr.valueFontStyle || 'textXS']}
                                                  ${formatClass}
                                                  `}>
@@ -285,6 +284,7 @@ const RenderItem = ({
                                                           allowEdit={allowEdit}
                                                           DataTypes={DataTypes}
                                                           formatFunctions={formatFunctions}
+                                                          className={theme[valueTextJustifyClass]}
                                                 />
                                             </Link> :
                                             <EditComp attribute={attr}
@@ -307,6 +307,7 @@ const RenderItem = ({
                                                       allowEdit={allowEdit}
                                                       DataTypes={DataTypes}
                                                       formatFunctions={formatFunctions}
+                                                      className={theme[valueTextJustifyClass]}
                                             />
                                     }
                                 </div>
