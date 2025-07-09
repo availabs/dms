@@ -58,7 +58,7 @@ export const dataCardTheme = {
     img8XL: "max-w-128 max-h-128",
 
     header: 'w-full capitalize',
-    value: ''
+    value: 'w-full'
 }
 
 const isEqualColumns = (column1, column2) =>
@@ -254,7 +254,7 @@ const RenderItem = ({
                                         </div>
                                     )
                                 }
-                                <div className={`w-full
+                                <div className={`
                                                 ${theme.value} ${compactView ? theme.valueCompactView : theme.valueSimpleView}
                                                  ${theme[attr.valueFontStyle || 'textXS']}
                                                  ${formatClass}
