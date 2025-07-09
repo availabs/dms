@@ -16,7 +16,6 @@ export const Pagination = ({currentPage, setCurrentPage, showPagination, setRead
         currentPage={currentPage}
         setCurrentPage={(i) => {
             setCurrentPage && setCurrentPage(i)
-            setReadyToLoad && setReadyToLoad(true)
         }}
     />
 }

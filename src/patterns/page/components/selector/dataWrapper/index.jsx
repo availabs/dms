@@ -199,37 +199,30 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
         isValidState]);
 
     // useGetDataOnPageChange
-    const onPageChange = (currentPage) => {
+    const onPageChange = async (currentPage) => {
         if(!isValidState || !component.useGetDataOnPageChange) return;
         // only run when page changes
-        let isStale = false;
-        async function load() {
-            setLoading(true)
-            const {length, data} = await getData({state, currentPage, apiLoad});
-            if(isStale) {
-                setLoading(false);
-                return;
-            }
-            setState(draft => {
-                // on page change append data unless using pagination
-                draft.data =  state.display.usePagination ? data : [...draft.data.filter(r => !r.totalRow), ...data];
-                draft.display.totalLength = length;
-            })
-            setLoading(false)
-        }
-
-        return load()
+        setLoading(true)
+        setCurrentPage(currentPage)
+        const {length, data} = await getData({state, currentPage, apiLoad});
+        setState(draft => {
+            // on page change append data unless using pagination
+            draft.data =  state.display.usePagination ? data : [...draft.data.filter(r => !r.totalRow), ...data];
+            draft.display.totalLength = length;
+        })
+        setLoading(false)
     }
 
     // useInfiniteScroll
     useEffect(() => {
+        let isStale = false;
         // infinite scroll watch
         if(!isValidState || !component.useInfiniteScroll) return;
         // observer that sets current page on scroll. no data fetching should happen here
         const observer = new IntersectionObserver(
             async (entries) => {
                 const hasMore = (currentPage * state.display.pageSize + state.display.pageSize) < state.display.totalLength;
-                if (state.data.length && entries[0].isIntersecting && hasMore) {
+                if (state.data.length && entries[0].isIntersecting && hasMore && !isStale) {
                     setCurrentPage(prevPage => prevPage+1)
                     await onPageChange(currentPage + 1)
                 }
@@ -245,6 +238,9 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
         // return () => {
         //     if (target) observer.unobserve(target);
         // };
+        return () => {
+            isStale = true;
+        }
     }, [state.display?.loadMoreId, state.display?.totalLength, state.data?.length, state.display?.usePagination]);
     // // =========================================== get data end ========================================================
 
@@ -331,9 +327,8 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
                 />
                 <div>
                     {/*Pagination*/}
-                    <Pagination currentPage={currentPage} setCurrentPage={i => {
-                        setCurrentPage(i)
-                        return onPageChange(i);
+                    <Pagination currentPage={currentPage} setCurrentPage={async i => {
+                        return await onPageChange(i);
                     }} showPagination={component.showPagination}/>
                     {/*/!*Attribution*!/*/}
                     {state.display.showAttribution ? <Attribution/> : null}
@@ -453,38 +448,30 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
     }, [state?.dataRequest, isValidState, state.display.readyToLoad, state.display.allowEditInView]);
 
     // useGetDataOnPageChange
-    const onPageChange = (currentPage) => {
-        if(!isValidState || !component.useGetDataOnPageChange || (!state.display.readyToLoad && !state.display.allowEditInView)) return;
+    const onPageChange = async (currentPage) => {
+        if(!isValidState || !component.useGetDataOnPageChange /*|| (!state.display.readyToLoad && !state.display.allowEditInView)*/) return;
         // only run when page changes
-        let isStale = false;
-        async function load() {
-            setLoading(true)
+        setLoading(true)
+        const {length, data} = await getData({state, currentPage, apiLoad});
 
-            const {length, data} = await getData({state, currentPage, apiLoad});
-
-            if(isStale) {
-                setLoading(false);
-                return;
-            }
-            setState(draft => {
-                // on page change append data unless using pagination
-                draft.data =  state.display.usePagination ? data : [...draft.data.filter(r => !r.totalRow), ...data];
-                draft.display.totalLength = length;
-            })
-            setLoading(false)
-        }
-
-        return load()
+        setCurrentPage(currentPage)
+        setState(draft => {
+            // on page change append data unless using pagination
+            draft.data =  state.display.usePagination ? data : [...draft.data.filter(r => !r.totalRow), ...data];
+            draft.display.totalLength = length;
+        })
+        setLoading(false)
     }
 
     // useInfiniteScroll
     useEffect(() => {
+        let isStale = false;
         if(!isValidState || !component.useInfiniteScroll) return;
         // observer that sets current page on scroll. no data fetching should happen here
         const observer = new IntersectionObserver(
             async (entries) => {
                 const hasMore = (currentPage * state.display.pageSize + state.display.pageSize) < state.display.totalLength;
-                if (state.data.length && entries[0].isIntersecting && hasMore) {
+                if (state.data.length && entries[0].isIntersecting && hasMore && !isStale) {
                     setCurrentPage(prevPage => prevPage+1)
                     await onPageChange(currentPage+1);
                 }
@@ -500,7 +487,10 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
         // return () => {
         //     if (target) observer.unobserve(target);
         // };
-    }, [state?.display?.loadMoreId, state?.display?.totalLength, state?.data?.length, state?.display?.usePagination, isValidState]);
+        return () => {
+            isStale = true;
+        }
+    }, [state?.display?.loadMoreId, state?.display?.totalLength, /*state?.data?.length, */state?.display?.usePagination, isValidState]);
     // =========================================== get data end ========================================================
 
     // =========================================== util fns begin ======================================================
@@ -599,9 +589,8 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
                     />
                     <div>
                         {/*Pagination*/}
-                        <Pagination currentPage={currentPage} setCurrentPage={i => {
-                            setCurrentPage(i)
-                            return onPageChange(i);
+                        <Pagination currentPage={currentPage} setCurrentPage={async i => {
+                            return await onPageChange(i);
                         }} setReadyToLoad={setReadyToLoad} showPagination={component.showPagination}/>
                         {/*Attribution*/}
                         {state.display.showAttribution ? <Attribution/> : null}
