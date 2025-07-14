@@ -3,13 +3,12 @@ import { FormsContext } from '../siteConfig'
 import SourcesLayout from "../components/patternListComponent/layout";
 import { cloneDeep } from "lodash-es";
 import {useNavigate} from "react-router";
-import {CMSContext} from "../../page/context";
 const buttonRedClass = 'p-2 mx-1 bg-red-500 hover:bg-red-700 text-white rounded-md';
 const buttonGreenClass = 'p-2 mx-1 bg-green-500 hover:bg-green-700 text-white rounded-md';
 
 const DeleteSourceBtn = ({parent, item, apiUpdate, baseUrl}) => {
     // update parent to exclude item. the item still stays in the DB.
-    const {UI} = useContext(CMSContext);
+    const {UI} = useContext(FormsContext);
     const {DeleteModal} = UI;
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const navigate = useNavigate();
@@ -56,7 +55,7 @@ const DeleteSourceBtn = ({parent, item, apiUpdate, baseUrl}) => {
 
 const AddViewBtn = ({item, format, apiLoad, apiUpdate}) => {
     // update parent to exclude item. the item still stays in the DB.
-    const {UI} = useContext(CMSContext);
+    const {UI} = useContext(FormsContext);
     const {Modal} = UI;
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [name, setName] = useState('');
@@ -93,7 +92,7 @@ const AddViewBtn = ({item, format, apiLoad, apiUpdate}) => {
 }
 
 const ClearDataBtn = ({app, type, apiLoad, apiUpdate}) => {
-    const {UI} = useContext(CMSContext);
+    const {UI} = useContext(FormsContext);
     const {DeleteModal} = UI;
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const clearData = async () => {

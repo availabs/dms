@@ -448,8 +448,8 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
         action: actionType,
         path: '/',
         filter: {
-            fromIndex: fromIndex,
-            toIndex: toIndex,
+            fromIndex: () => fromIndex,
+            toIndex: () => toIndex,
             options: JSON.stringify(options),
             attributes: columnsToFetch.map(a => a.reqName).filter(a => a),
             stopFullDataLoad: true
