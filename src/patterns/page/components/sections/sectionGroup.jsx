@@ -45,7 +45,7 @@ export default function SectionGroup ({group, attributes, edit}) {
   const { SideNav, Icon } = UI;
 
   const inPageNav = getInPageNav(item,theme)
-  const sectionTheme = theme?.sectionGroup?.[group.theme || 'default'] || {icon: 'z-[100] w-[30px] h-[30px]'}
+  const sectionTheme = theme?.sectionGroup?.[group.theme || 'default'] || {}
   const sectionFormat = format?.registerFormats.find(d => d?.type?.includes('|cms-section'))
   const sectionAttributes =  attributes?.['sections']?.attributes
   const SectionArray = React.useMemo(() => {
