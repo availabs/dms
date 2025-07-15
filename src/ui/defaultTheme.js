@@ -85,7 +85,7 @@ const components = {
         "default": {
             "wrapper1": "w-full h-full flex-1 flex flex-row pt-2",
             "wrapper2": "flex flex-1 w-full  flex-col  shadow-md bg-white rounded-lg relative text-md font-light leading-7 p-4 h-full min-h-[200px]",
-            "iconWrapper": "z-5 absolute right-[10px] top-[5px]",
+            "iconWrapper": "z-[100] absolute right-[10px] top-[5px] w-[30px] h-[30px]",
             "icon": "text-slate-400 hover:text-blue-500"
         },
         "content": {
