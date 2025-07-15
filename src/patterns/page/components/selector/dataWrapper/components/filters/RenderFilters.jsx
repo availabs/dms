@@ -13,7 +13,6 @@ import {
 import { RenderFilterValueSelector } from "./Components/RenderFilterValueSelector";
 import { ThemeContext } from "../../../../../../../ui/useTheme";
 
-const MAX_FILTER_LENGTH = 1000;
 const filterValueDelimiter = '|||';
 
 export const filterTheme = {
