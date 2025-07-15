@@ -19,8 +19,7 @@ import updateDMSAttrs from "./updateDMSAttrs";
 let fullDataLoad = {}
 // let runCount = 0
 
-export async function dmsDataLoader (falcor, config, path='/') {
-
+export async function dmsDataLoader (falcor, config, path='/') {	
 	// console.log('hola utils', utils)
 	//---- Testing stuff to delete ----------
 	// runCount += 1
@@ -93,6 +92,7 @@ export async function dmsDataLoader (falcor, config, path='/') {
 	console.log('api - newRequests', newRequests)
     //--------- Route Data Loading ------------------------
 	//let dataresp = null
+	
 	if (newRequests.length > 0 ) {
 		await falcor.get(...newRequests)
 	}

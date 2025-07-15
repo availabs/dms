@@ -163,7 +163,7 @@ const evaluateAST = (node, values) => {
 export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => {
     const {groupBy=[], orderBy={}, filter={}, normalFilter=[], fn={}, exclude={}, meta={}, ...restOfDataRequestOptions} = state.dataRequest;
 
-    const debug = true;
+    const debug = false;
     debug && console.log('=======getDAta called===========')
     // get columns with all settings and info about them.
     const columnsWithSettings = state.columns.filter(({actionType, type}) => !actionType && type !== 'formula').map(column => {
@@ -386,7 +386,6 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
     // not grouping by, and all visible columns have fn applied
     const isRequestingSingleRow = !options.groupBy.length && columnsToFetch.filter(col => col.fn).length === columnsToFetch.length;
     const length = isRequestingSingleRow ? 1 : await getLength({options, state, apiLoad});
-    console.log('get data length', length)
     const actionType = 'uda';
     const fromIndex = fullDataLoad ? 0 : currentPage * state.display.pageSize;
     const toIndex = fullDataLoad ? length : Math.min(length, currentPage * state.display.pageSize + state.display.pageSize) - 1;
@@ -457,10 +456,6 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
     }]
     let data;
     try{
-        console.log('getting data',{
-            format: state.sourceInfo,
-            children
-        })
         data = await apiLoad({
             format: state.sourceInfo,
             children
@@ -480,8 +475,8 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
             action: actionType,
             path: '/',
             filter: {
-                fromIndex: 0,
-                toIndex: 1,
+                fromIndex: () => 0,
+                toIndex: () => 1,
                 options: JSON.stringify({
                     filter: options.filter,
                     exclude: options.exclude,
@@ -514,7 +509,6 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
     //     }) , {}))
     //
     //     )
-    console.log('got data', data)
     return {
         length,
         data: data.map(row => {
