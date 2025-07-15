@@ -41,11 +41,11 @@ export const sectionGroupTheme = {
 export default function SectionGroup ({group, attributes, edit}) {
   const { theme } = React.useContext(ThemeContext);
   const { UI, baseUrl, user } = React.useContext(CMSContext) || {};
-  const { apiUpdate, format, item, updateAttribute } = React.useContext(PageContext) || {};
+  const { apiUpdate, format, item, updateAttribute } = React.useContext(PageContext) || {viewIcon: 'ViewPage', editIcon: 'EditPage'};
   const { SideNav, Icon } = UI;
 
   const inPageNav = getInPageNav(item,theme)
-  const sectionTheme = theme?.sectionGroup?.[group.theme || 'default'] || {}
+  const sectionTheme = theme?.sectionGroup?.[group.theme || 'default'] || {icon: 'z-[100] w-[30px] h-[30px]'}
   const sectionFormat = format?.registerFormats.find(d => d?.type?.includes('|cms-section'))
   const sectionAttributes =  attributes?.['sections']?.attributes
   const SectionArray = React.useMemo(() => {
