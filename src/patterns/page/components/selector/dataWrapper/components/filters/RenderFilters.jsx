@@ -1,7 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { isEqual, uniqBy } from "lodash-es"
-import { CMSContext, PageContext } from "../../../../../context";
-import { attributeAccessorStr, isJson } from "../../utils/utils";
+import React, {useCallback, useEffect, useMemo, useState } from "react";
+import {isEqual, uniqBy} from "lodash-es"
+import {CMSContext, PageContext} from "../../../../../context";
+import {attributeAccessorStr, isJson} from "../../utils/utils";
 import {
     getData,
     parseIfJson,
@@ -10,8 +10,8 @@ import {
     formattedAttributeStr,
     getNormalFilters, getData as getFilterData, isSystemCol
 } from "./utils"
-import { RenderFilterValueSelector } from "./Components/RenderFilterValueSelector";
-import { ThemeContext } from "../../../../../../../ui/useTheme";
+import {RenderFilterValueSelector} from "./Components/RenderFilterValueSelector";
+import {ThemeContext} from "../../../../../../../ui/useTheme";
 
 const MAX_FILTER_LENGTH = 1000;
 const filterValueDelimiter = '|||';
@@ -34,16 +34,16 @@ export const RenderFilters = ({
     cms_context
 }) => {
     const { theme = { filters: filterTheme } } = React.useContext(ThemeContext) || {};
-    const { UI } = React.useContext(cms_context || CMSContext) || { UI: { Icon: () => <></> } };;
-    const { Icon } = UI;
+    const { UI } = React.useContext(cms_context || CMSContext) || {UI: {Icon: () => <></>}};
+    const {Icon} = UI;
     const { pageState } = React.useContext(PageContext) || {}; // page to extract page filters
     const [open, setOpen] = useState(defaultOpen);
     const [filterOptions, setFilterOptions] = useState([]); // [{column, uniqValues}]
     const [loading, setLoading] = useState(false);
     const isDms = state.sourceInfo?.isDms;
-    const filterColumnsToTrack = useMemo(() => (state.columns || []).filter(({ filters, isDuplicate }) => filters?.length && !isDuplicate), [state.columns]);
+    const filterColumnsToTrack = useMemo(() => (state.columns || []).filter(({filters, isDuplicate}) => filters?.length && !isDuplicate), [state.columns]);
     const filterValuesToTrack = useMemo(() =>
-        (state.columns || []).filter(({ filters, isDuplicate }) => filters?.length && filters?.[0]?.values?.length && !isDuplicate).reduce((acc, f) => [...acc, ...f.filters[0].values], []), [state.columns]);
+        (state.columns || []).filter(({filters, isDuplicate}) => filters?.length && filters?.[0]?.values?.length && !isDuplicate).reduce((acc, f) => [...acc, ...f.filters[0].values], []), [state.columns]);
     const normalFilterColumnsToTrack = useMemo(() => (state.columns || []).filter(({ filters, isDuplicate }) => filters?.length && isDuplicate), [state.columns]);
     const filters = useMemo(() => getFilters(filterColumnsToTrack), [filterColumnsToTrack]);
     const normalFilters = useMemo(() => getNormalFilters(normalFilterColumnsToTrack), [normalFilterColumnsToTrack]);
@@ -74,7 +74,7 @@ export const RenderFilters = ({
         // component level filter: inherits page filter;
         //                         sync with page level filter if enabled.
         // if any filter is synced, changes should propagate both ways.
-        const pageFilters = (pageState?.filters || []).reduce((acc, curr) => ({ ...acc, [curr.searchKey]: curr.values }), {});
+        const pageFilters = (pageState?.filters || []).reduce((acc, curr) => ({...acc, [curr.searchKey]: curr.values }), {});
         // Extract filters from the URL
         // If searchParams have changed, they should take priority and update the state
         if (Object.keys(pageFilters).length) {
@@ -85,7 +85,7 @@ export const RenderFilters = ({
                         column.filters.forEach((filter) => {
                             const tmpValue = pageFilters[filter.searchParamKey]
                             const pageFilterValues = Array.isArray(tmpValue) ? tmpValue : [tmpValue];
-                            if (tmpValue && filter.usePageFilters && pageFilterValues && !isEqual(filter.values, pageFilterValues)) {
+                            if(tmpValue && filter.usePageFilters && pageFilterValues && !isEqual(filter.values, pageFilterValues)) {
                                 filter.values = pageFilterValues;
                             }
                         })
@@ -107,11 +107,11 @@ export const RenderFilters = ({
                 [...Object.keys(filters), ...normalFilters?.map(f => f.column)]
                     // don't pull filter data for internal filters in view mode
                     .filter(f => {
-                        const filter = (state.columns || []).find(({ name }) => name === f)?.filters?.[0];
+                        const filter = (state.columns || []).find(({name}) => name === f)?.filters?.[0];
 
-                        if (['gt', 'gte', 'lt', 'lte', 'like'].includes(filter.operation)) return false; // never load numerical data
-                        if (isEdit) return true;
-                        if (filter?.type === 'external') return true;
+                        if(['gt', 'gte', 'lt', 'lte', 'like'].includes(filter.operation)) return false; // never load numerical data
+                        if(isEdit) return true;
+                        if(filter?.type === 'external') return true;
                     })
                     .map(async columnName => {
                         // other filter values to filter by
@@ -121,7 +121,7 @@ export const RenderFilters = ({
                             .reduce(async (accPromise, columnName) => {
                                 const acc = await accPromise;
 
-                                const filterColumn = (state.columns || []).find(({ name }) => name === columnName);
+                                const filterColumn = (state.columns || []).find(({name}) => name === columnName);
                                 const filter = filterColumn?.filters?.[0];
                                 if (!filter?.values?.length) return acc;
 
@@ -169,7 +169,7 @@ export const RenderFilters = ({
                         // get all the filters with value
                         // build a filterOptions object including each filter type (filter, exclude, gt, gte...),
                         // for filter and exclude types, and multiselect column combination, pull value sets for
-                        let data = await getData({
+                        const data = await getData({
                             format: state.sourceInfo,
                             apiLoad,
                             // length,
@@ -180,7 +180,7 @@ export const RenderFilters = ({
                         })
 
                         // console.log('fo data?', columnName, data)
-                        if (isStale) {
+                        if(isStale) {
                             setLoading(false)
                             return;
                         }
@@ -217,7 +217,6 @@ export const RenderFilters = ({
                         // }, []);
 
                         const dataOptions = data.reduce((acc, d, i) => {
-
                             const responseValue = d[formattedAttrStr]?.value || d[formattedAttrStr];
 
                             const metaValue = parseIfJson(responseValue?.value || responseValue);
@@ -236,8 +235,8 @@ export const RenderFilters = ({
                             uniqValues: uniqBy(Array.isArray(metaOptions) ? [...metaOptions, ...dataOptions] : dataOptions, d => d.value)
                                 .sort((a, b) =>
                                     typeof a?.label === 'string' && typeof b?.label === 'string' ?
-                                        a.label.localeCompare(b.label) :
-                                        b?.label - a?.label
+                                    a.label.localeCompare(b.label) :
+                                    b?.label - a?.label
                                 ),
                         }
                     }));
