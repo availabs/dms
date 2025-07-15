@@ -10,7 +10,7 @@ import DataSourceSelector from "../../ComponentRegistry/DataSourceSelector";
 import { ComponentContext, CMSContext } from "../../../../context";
 
 
-// const DataSourceSelector = () => <div />
+
 const gridClasses = {
     2: {
         gridClass: 'grid grid-cols-2',

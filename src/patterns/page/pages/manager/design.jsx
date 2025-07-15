@@ -12,12 +12,12 @@ import {ThemeContext} from "../../../../ui/useTheme";
 
 function SelectControl ({ themeOptions, theme, newTheme, setNewTheme, sectionKey, navKey, controlKey }) 
 {
-    let control = themeOptions[sectionKey][navKey].controls[controlKey]         
+    let control = themeOptions[sectionKey][navKey].controls[controlKey]
     return (
       <div className='w-full'>
         <div className='text-xs font-medium pt-1 text-slate-400'>{control.label}</div>
         <div className='w-full'>
-        <select className='p-2 bg-white w-full' value={newTheme[sectionKey]?.[navKey]?.[controlKey] || theme[sectionKey]?.[navKey]?.[controlKey]} onChange={(e) => {
+        <select className='p-2 bg-white w-full' value={newTheme?.[sectionKey]?.[navKey]?.[controlKey] || theme?.[sectionKey]?.[navKey]?.[controlKey]} onChange={(e) => {
           setNewTheme(merge(cloneDeep(newTheme), {[sectionKey]: {[navKey]: {[controlKey]: e.target.value}}}))
         }}>
           {control.options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
@@ -240,7 +240,7 @@ function DesignEditor ({item, dataItems, attributes, apiLoad, apiUpdate, format,
 
   return (
       <div className='flex h-full'>
-        <div className='flex-1 h-full flex p-4 h-[calc(100vh_-_6rem)] overflow-y-auto'>
+        <div className='flex-1 flex p-4 h-[calc(100vh_-_6rem)] overflow-y-auto'>
           <Frame
             className='flex-1 h-[calc(100vh_-_6rem)] border'
             head={

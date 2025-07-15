@@ -52,11 +52,11 @@ const triggerDownload = async ({state, apiLoad, loadAllColumns, setLoading}) => 
     });
     setLoading(false);
 }
-const RenderDownload = ({state, apiLoad}) => {
+const RenderDownload = ({state, apiLoad, cms_context}) => {
     // two options:
     // 1. download visible columns: add primary column if set
     // 2. download all columns: unavailable for grouped mode
-    const {UI} = useContext(CMSContext) || {UI: {Icon: () => <></>}};
+    const {UI} = useContext(cms_context || CMSContext) || {UI: {Icon: () => <></>}};
     const {Icon} = UI;
     const [open, setOpen] = React.useState(false);
     const [loading, setLoading] = React.useState(false);
@@ -97,9 +97,9 @@ const RenderDownload = ({state, apiLoad}) => {
 }
 
 
-const Edit = ({value, onChange, pageFormat, apiUpdate, component, hideSourceSelector}) => {
+const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, hideSourceSelector}) => {
     const isEdit = Boolean(onChange);
-    const {UI} = useContext(CMSContext) || {UI: {Icon: () => <></>}};;
+    const {UI} = useContext(cms_context || CMSContext) || {UI: {Icon: () => <></>}};;
     const {Icon} = UI;
     const {state, setState, apiLoad} = useContext(ComponentContext);
     const [loading, setLoading] = useState(false);
@@ -199,37 +199,30 @@ const Edit = ({value, onChange, pageFormat, apiUpdate, component, hideSourceSele
         isValidState]);
 
     // useGetDataOnPageChange
-    const onPageChange = (currentPage) => {
+    const onPageChange = async (currentPage) => {
         if(!isValidState || !component.useGetDataOnPageChange) return;
         // only run when page changes
-        let isStale = false;
-        async function load() {
-            setLoading(true)
-            const {length, data} = await getData({state, currentPage, apiLoad});
-            if(isStale) {
-                setLoading(false);
-                return;
-            }
-            setState(draft => {
-                // on page change append data unless using pagination
-                draft.data =  state.display.usePagination ? data : [...draft.data.filter(r => !r.totalRow), ...data];
-                draft.display.totalLength = length;
-            })
-            setLoading(false)
-        }
-
-        return load()
+        setLoading(true)
+        setCurrentPage(currentPage)
+        const {length, data} = await getData({state, currentPage, apiLoad});
+        setState(draft => {
+            // on page change append data unless using pagination
+            draft.data =  state.display.usePagination ? data : [...draft.data.filter(r => !r.totalRow), ...data];
+            draft.display.totalLength = length;
+        })
+        setLoading(false)
     }
 
     // useInfiniteScroll
     useEffect(() => {
+        let isStale = false;
         // infinite scroll watch
         if(!isValidState || !component.useInfiniteScroll) return;
         // observer that sets current page on scroll. no data fetching should happen here
         const observer = new IntersectionObserver(
             async (entries) => {
                 const hasMore = (currentPage * state.display.pageSize + state.display.pageSize) < state.display.totalLength;
-                if (state.data.length && entries[0].isIntersecting && hasMore) {
+                if (state.data.length && entries[0].isIntersecting && hasMore && !isStale) {
                     setCurrentPage(prevPage => prevPage+1)
                     await onPageChange(currentPage + 1)
                 }
@@ -245,6 +238,9 @@ const Edit = ({value, onChange, pageFormat, apiUpdate, component, hideSourceSele
         // return () => {
         //     if (target) observer.unobserve(target);
         // };
+        return () => {
+            isStale = true;
+        }
     }, [state.display?.loadMoreId, state.display?.totalLength, state.data?.length, state.display?.usePagination]);
     // // =========================================== get data end ========================================================
 
@@ -318,9 +314,10 @@ const Edit = ({value, onChange, pageFormat, apiUpdate, component, hideSourceSele
                                      className={`text-slate-400 hover:text-blue-500 size-4 transition ease-in-out duration-200`} /> :
                         state.display.invalidState ? <span className={'text-red-500'}>{state.display.invalidState}</span> : null
                     }
-                    <RenderDownload state={state} apiLoad={apiLoad}/>
+                    <RenderDownload state={state} apiLoad={apiLoad} cms_context={cms_context}/>
                 </div>
                 <Comp isEdit={isEdit}
+                      cms_context={cms_context}
                   {...['Spreadsheet', 'Card'].includes(component.name) && {
                       newItem, setNewItem,
                       updateItem, removeItem, addItem,
@@ -330,9 +327,8 @@ const Edit = ({value, onChange, pageFormat, apiUpdate, component, hideSourceSele
                 />
                 <div>
                     {/*Pagination*/}
-                    <Pagination currentPage={currentPage} setCurrentPage={i => {
-                        setCurrentPage(i)
-                        return onPageChange(i);
+                    <Pagination currentPage={currentPage} setCurrentPage={async i => {
+                        return await onPageChange(i);
                     }} showPagination={component.showPagination}/>
                     {/*/!*Attribution*!/*/}
                     {state.display.showAttribution ? <Attribution/> : null}
@@ -341,9 +337,9 @@ const Edit = ({value, onChange, pageFormat, apiUpdate, component, hideSourceSele
     )
 }
 
-const View = ({value, onChange, size, apiUpdate, component, ...rest}) => {
+const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest}) => {
     const isEdit = false;
-    const {UI} = useContext(CMSContext) || {UI: {Icon: () => <></>}};;
+    const {UI} = useContext(cms_context || CMSContext) || {UI: {Icon: () => <></>}};;
     const {Icon} = UI;
     const {state, setState, apiLoad} = useContext(ComponentContext);
 
@@ -353,7 +349,7 @@ const View = ({value, onChange, size, apiUpdate, component, ...rest}) => {
     const groupByColumnsLength = useMemo(() => state?.columns?.filter(({group}) => group).length, [state?.columns]);
     const showChangeFormatModal = !state?.sourceInfo?.columns;
     const isValidState = state?.dataRequest; // new state structure
-    const Comp = useMemo(() => component.ViewComp, [component]);
+    const Comp = useMemo(() => state.display.hideSection ? () => <></> : component.ViewComp, [component, state.display.hideSection]);
     // const useCache = state.display.useCache //=== false ? false : true; // false: loads data on load. can be expensive. useCache can be undefined for older components.
     const setReadyToLoad = useCallback(() => setState(draft => {draft.display.readyToLoad = true}), [setState]);
     useEffect(() => {
@@ -452,38 +448,30 @@ const View = ({value, onChange, size, apiUpdate, component, ...rest}) => {
     }, [state?.dataRequest, isValidState, state.display.readyToLoad, state.display.allowEditInView]);
 
     // useGetDataOnPageChange
-    const onPageChange = (currentPage) => {
-        if(!isValidState || !component.useGetDataOnPageChange || (!state.display.readyToLoad && !state.display.allowEditInView)) return;
+    const onPageChange = async (currentPage) => {
+        if(!isValidState || !component.useGetDataOnPageChange /*|| (!state.display.readyToLoad && !state.display.allowEditInView)*/) return;
         // only run when page changes
-        let isStale = false;
-        async function load() {
-            setLoading(true)
+        setLoading(true)
+        const {length, data} = await getData({state, currentPage, apiLoad});
 
-            const {length, data} = await getData({state, currentPage, apiLoad});
-
-            if(isStale) {
-                setLoading(false);
-                return;
-            }
-            setState(draft => {
-                // on page change append data unless using pagination
-                draft.data =  state.display.usePagination ? data : [...draft.data.filter(r => !r.totalRow), ...data];
-                draft.display.totalLength = length;
-            })
-            setLoading(false)
-        }
-
-        return load()
+        setCurrentPage(currentPage)
+        setState(draft => {
+            // on page change append data unless using pagination
+            draft.data =  state.display.usePagination ? data : [...draft.data.filter(r => !r.totalRow), ...data];
+            draft.display.totalLength = length;
+        })
+        setLoading(false)
     }
 
     // useInfiniteScroll
     useEffect(() => {
+        let isStale = false;
         if(!isValidState || !component.useInfiniteScroll) return;
         // observer that sets current page on scroll. no data fetching should happen here
         const observer = new IntersectionObserver(
             async (entries) => {
                 const hasMore = (currentPage * state.display.pageSize + state.display.pageSize) < state.display.totalLength;
-                if (state.data.length && entries[0].isIntersecting && hasMore) {
+                if (state.data.length && entries[0].isIntersecting && hasMore && !isStale) {
                     setCurrentPage(prevPage => prevPage+1)
                     await onPageChange(currentPage+1);
                 }
@@ -499,7 +487,10 @@ const View = ({value, onChange, size, apiUpdate, component, ...rest}) => {
         // return () => {
         //     if (target) observer.unobserve(target);
         // };
-    }, [state?.display?.loadMoreId, state?.display?.totalLength, state?.data?.length, state?.display?.usePagination, isValidState]);
+        return () => {
+            isStale = true;
+        }
+    }, [state?.display?.loadMoreId, state?.display?.totalLength, /*state?.data?.length, */state?.display?.usePagination, isValidState]);
     // =========================================== get data end ========================================================
 
     // =========================================== util fns begin ======================================================
@@ -553,6 +544,25 @@ const View = ({value, onChange, size, apiUpdate, component, ...rest}) => {
     // =========================================== util fns end ========================================================
     if(showChangeFormatModal || !isValidState) return <div className={'p-1 text-center'}>Form data not available.</div>;
     // component.name === 'Spreadsheet' && console.log('dw?', state)
+
+    useEffect(() => {
+        // set hideSection flag
+        if(!state.display.hideIfNull){
+            setState(draft => {
+                draft.hideSection = false;
+            })
+        }else{
+            const hide = state.data.length === 0 ||
+                state.data.every(row => state.columns.filter(({ show }) => show)
+                    .every(col => {
+                        const value = row[col.normalName || col.name];
+                        return value === null || value === undefined || value === "";
+                    }));
+            setState(draft => {
+                draft.hideSection = hide;
+            })
+        }
+    }, [state.data, state.display.hideIfNull])
     return (
             <div className={'w-full h-full'}>
                 <div className={'w-full'}>
@@ -566,9 +576,10 @@ const View = ({value, onChange, size, apiUpdate, component, ...rest}) => {
                         {loading ?  <Icon id={'loading'}
                                           icon={'LoadingHourGlass'}
                                           className={`text-slate-400 hover:text-blue-500 size-4 transition ease-in-out duration-200`} /> : null}
-                        <RenderDownload state={state} apiLoad={apiLoad}/>
+                        <RenderDownload state={state} apiLoad={apiLoad} cms_context={cms_context}/>
                     </div>
                     <Comp isEdit={isEdit}
+                          cms_context={cms_context}
                           {...['Spreadsheet', 'Card'].includes(component.name) && {
                               newItem, setNewItem,
                               updateItem, removeItem, addItem,
@@ -578,9 +589,8 @@ const View = ({value, onChange, size, apiUpdate, component, ...rest}) => {
                     />
                     <div>
                         {/*Pagination*/}
-                        <Pagination currentPage={currentPage} setCurrentPage={i => {
-                            setCurrentPage(i)
-                            return onPageChange(i);
+                        <Pagination currentPage={currentPage} setCurrentPage={async i => {
+                            return await onPageChange(i);
                         }} setReadyToLoad={setReadyToLoad} showPagination={component.showPagination}/>
                         {/*Attribution*/}
                         {state.display.showAttribution ? <Attribution/> : null}

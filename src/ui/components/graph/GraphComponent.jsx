@@ -6,10 +6,9 @@ import {
 } from "d3-array";
 import {get} from "lodash-es";
 import { getGraphComponent } from "./components";
-import {mapColors} from "./utils";;
-import {CMSContext} from "../../../../context";
+import {mapColors} from "./utils";
 import {graphTheme} from "./index";
-import {ThemeContext} from "../../../../../../ui/useTheme";
+import {ThemeContext} from "../../useTheme";
 
 export const getColorRange = (size, name, reverse=false) => {
   let range = get(mapColors, [name, size], []).slice();
@@ -56,9 +55,9 @@ export const GraphComponent = props => {
     viewData,
     showCategories,
     xAxisColumn,
-    yAxisColumns
+    yAxisColumns,
+    theme
   } = props;
-  const { theme = { graph: graphTheme } } = React.useContext(ThemeContext) || {};
 
   const GraphComponent = React.useMemo(() => {
     return getGraphComponent(activeGraphType.GraphComp);

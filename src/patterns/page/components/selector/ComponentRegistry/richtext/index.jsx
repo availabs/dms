@@ -93,6 +93,7 @@ const cardTypes = {
 
 const Edit = ({value, onChange}) => {
     const context = useContext(CMSContext);
+    const { theme } = useContext(ThemeContext)
     const {UI} = context;
     const {Select} = UI;
     const cachedData = value && isJson(value) ? JSON.parse(value) : {}

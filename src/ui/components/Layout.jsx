@@ -3,24 +3,27 @@ import { merge, cloneDeep } from "lodash-es"
 
 import TopNav from './TopNav';
 import SideNav from './SideNav';
+import Logo from './Logo'
 import { matchRoutes, useLocation } from 'react-router'
 import {ThemeContext} from '../useTheme.js'
-
+import layoutTheme from './Layout.theme'
 
 const Logos = () => <div className='h-12'/>
 const NoComp = () => <div className='h-12'/>
 
-const layoutTheme = {
-	wrapper: 'relative isolate flex min-h-svh w-full max-lg:flex-col',
-	wrapper2: 'flex-1 flex items-start flex-col items-stretch max-w-full',
-	wrapper3: 'flex flex-1',
-	childWrapper: 'flex-1 h-full',
-	topnavContainer1:`sticky top-0 left-0 right-0 z-20 `,
-	topnavContainer2:``,
-	sidenavContainer1: 'w-44',
-	sidenavContainer2: 'sticky top-12 h-[calc(100vh_-_50px)]',
-	navTitle: `flex-1 text-[24px] font-['Oswald'] font-[500] leading-[24px] text-[#2D3E4C] py-3 px-4 uppercase`
-}
+// const layoutTheme = {
+// 	wrapper: 'relative isolate flex min-h-svh w-full max-lg:flex-col',
+// 	wrapper2: 'flex-1 flex items-start flex-col items-stretch max-w-full',
+// 	wrapper3: 'flex flex-1',
+// 	childWrapper: 'flex-1 h-full',
+// 	topnavContainer1:`sticky top-0 left-0 right-0 z-20 `,
+// 	topnavContainer2:``,
+// 	sidenavContainer1: 'w-44',
+// 	sidenavContainer2: 'sticky top-12 h-[calc(100vh_-_50px)]',
+// 	navTitle: `flex-1 text-[24px] font-['Oswald'] font-[500] leading-[24px] text-[#2D3E4C] py-3 px-4 uppercase`
+// }
+
+
 
 function nav2Level(items, level=1, path, navTitle='') {
 	let output =  null
@@ -59,15 +62,16 @@ const Layout = ({
 	const { pathname } = useLocation();
 	const theme = merge(cloneDeep(defaultTheme), cloneDeep(pageTheme))
 	// console.log('theme navOptions', pageTheme)
-	const { sideNav={ }, topNav={}, logo=NoComp } = cloneDeep(theme?.navOptions) || {}
-	
+	const { sideNav={ }, topNav={} } = cloneDeep(theme?.navOptions) || {}
+	console.log('UI - layout - theme', theme.layout)
+
 	const sideNavOptions = {
 		size: sideNav.size || 'none',
 		color: sideNav.color || 'transparent',
-		menuItems: (sideNav?.nav === 'main' ? nav2Level(navItems, sideNav.depth, pathname, theme.layout.navTitle)  : sideNav?.nav === 'secondary' ? secondNav || [] : []).filter(page => !page.hideInNav),
+		menuItems: (sideNav?.nav === 'main' ? (nav2Level(navItems, sideNav.depth, pathname, theme?.layout?.navTitle) || [])  : sideNav?.nav === 'secondary' ? secondNav || [] : []).filter(page => !page.hideInNav),
 		topMenu: (
 			<div className={theme?.sidenav?.topNavWrapper}>
-				{sideNav?.logo === 'top' && logo}
+				{sideNav?.logo === 'top' && <Logo />}
 	        	{sideNav?.dropdown === 'top' && <Menu />}
 	        	
 	        	{sideNav?.search === 'top' && <SearchButton />}
@@ -76,7 +80,7 @@ const Layout = ({
 	    ),
 		bottomMenu: (
 	      	<div className={'flex flex-row md:flex-col'}>
-	      		{sideNav?.logo === 'bottom' && logo}
+	      		{sideNav?.logo === 'bottom' && <Logo />}
 	      		{sideNav?.search === 'bottom' && <SearchButton />}
 	        	{sideNav?.dropdown === 'bottom' && <Menu />}
 	        	{(EditPane && sideNav?.dropdown ==='bottom') && <EditPane />}
@@ -92,7 +96,7 @@ const Layout = ({
 		menuItems: (topNav?.nav === 'main' ? navItems : []).filter(page => !page.hideInNav),
 		leftMenu: (
 			<div className={'flex flex-col md:flex-row'}>
-	      		{topNav?.logo === 'left' && logo}
+	      		{topNav?.logo === 'left' && <Logo />}
 	        	{topNav?.search === 'left' && <SearchButton />}
 	        	{topNav?.dropdown === 'left' && <Menu />}
 	      	</div>),
@@ -101,13 +105,13 @@ const Layout = ({
 	      		{topNav?.rightMenu}
 	        	{topNav?.search === 'right' && <SearchButton />}
 	        	{topNav?.dropdown === 'right' && <Menu />}
-	        	{topNav?.logo === 'right' && logo}
+	        	{topNav?.logo === 'right' && <Logo />}
 	        	{EditPane && <EditPane />}
 	      	</>
 	  	)	
 	}
-	const Logo = sideNavOptions.logo
-	//z console.log('layout', topNav)
+	//const Logo = sideNavOptions.logo
+	
 	// console.log('topnav stuff', topNav.size !== 'none' && topNav.position === 'fixed' ? topNav.size : '', topNav)
 	// ------------------------------------------------------
 	// ------- 

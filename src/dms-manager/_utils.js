@@ -42,7 +42,7 @@ export function getActiveConfig (config=[], path='/', depth = 0) {
 		
     //console.log(childConfigs)
 
-	return [...configs,...childConfigs] || []
+	return [...configs,...childConfigs]
 }
 
 

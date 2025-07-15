@@ -5,7 +5,7 @@ import {
     attributeAccessorStr, isJson
 } from "../../page/components/selector/dataWrapper/utils/utils";
 import {cloneDeep, isEqual, uniq, uniqBy} from "lodash-es";
-import {CMSContext, ComponentContext} from "../../page/context"
+import {ComponentContext} from "../../page/context"
 import dataTypes from "../../../data-types";
 import {useImmer} from "use-immer";
 import {
@@ -160,9 +160,9 @@ const updateCall = async ({column, app, type, maps, falcor, user, setUpdating, s
     setLoadingAfterUpdate(true);
 }
 
-const RenderMassUpdater = ({sourceInfo, open, setOpen, falcor, columns, data, user, updating, setUpdating}) => {
+const RenderMassUpdater = ({sourceInfo, open, setOpen, falcor, columns, data, user, updating, setUpdating, cms_context}) => {
     if(!open) return;
-    const {UI} = useContext(CMSContext);
+    const {UI} = useContext(cms_context);
     const {Icon} = UI;
     const [maps, setMaps] = useState([]);
     const [loadingAfterUpdate, setLoadingAfterUpdate] = useState(false);
@@ -547,6 +547,7 @@ const Edit = ({
                                        user={user}
                                        updating={updating}
                                        setUpdating={setUpdating}
+                                       cms_context={cms_context}
                     />
 
                     {/* invalid rows */}
@@ -568,6 +569,7 @@ const Edit = ({
                                 <Controls context={ComponentContext} cms_context={cms_context}/>
                                 <RenderFilters state={value} setState={setValue} apiLoad={apiLoad} isEdit={true} defaultOpen={true} cms_context={cms_context} />
                                 <DataWrapper.EditComp
+                                    cms_context={cms_context}
                                     component={SpreadSheetCompWithControls}
                                     key={ssKey}
                                     value={value}

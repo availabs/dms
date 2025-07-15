@@ -7,8 +7,8 @@ export const Pagination = ({currentPage, setCurrentPage, showPagination, setRead
     const {Pagination} = UI;
     if(!state.columns.filter(column => column.show).length || !showPagination) return;
 
-    if(!state.display.usePagination){
-        setReadyToLoad && setReadyToLoad(true);
+    if(!state.display.usePagination && !state.display.readyToLoad && setReadyToLoad){
+        setReadyToLoad(true);
     }
 
     return <Pagination
@@ -16,7 +16,6 @@ export const Pagination = ({currentPage, setCurrentPage, showPagination, setRead
         currentPage={currentPage}
         setCurrentPage={(i) => {
             setCurrentPage && setCurrentPage(i)
-            setReadyToLoad && setReadyToLoad(true)
         }}
     />
 }

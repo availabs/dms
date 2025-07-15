@@ -50,7 +50,10 @@ export default {
     "type": 'filter',
     "variables": [],
     controls: {
-        columns: [{type: 'toggle', label: 'Filter', key: 'filters', trueValue: [{type: 'internal', operation: 'filter', values: []}]}]
+        columns: [{type: 'toggle', label: 'Filter', key: 'filters', trueValue: [{type: 'internal', operation: 'filter', values: []}],
+        onChange: ({key, value, attribute, state, columnIdx}) => {
+            state.columns[columnIdx].show = Boolean(value?.length);
+        }}]
     },
     "EditComp": Edit,
     "ViewComp": View

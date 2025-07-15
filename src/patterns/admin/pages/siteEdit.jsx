@@ -50,6 +50,7 @@ function SiteEdit ({
 	
 	const { baseUrl, theme, user } = React.useContext(AdminContext) || {}
 	const updateData = (data, attrKey) => {
+		console.log('admin pattern - siteEdit - updateData', attrKey, data, format)
 		apiUpdate({data: {...item, ...{[attrKey]: data}}, config: {format}})
 	}
 	
@@ -57,6 +58,7 @@ function SiteEdit ({
 		item = dataItems[0]
 	}
 
+	console.log('admin pattern - siteEdit - item', item)
 	if(!item.id) return <NewSite apiUpdate={apiUpdate} />// (<Layout></Layout>)()
 
 
@@ -87,6 +89,7 @@ function SiteEdit ({
 	return (
 		<>
 			{Object.keys(attributes)
+				.filter(attr => !['site_name', 'themes'].includes(attr))
 				.map((attrKey, i) => {
 					let EditComp = attributes[attrKey].EditComp
 					//console.log('what', attributes[attrKey])

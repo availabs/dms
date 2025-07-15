@@ -13,8 +13,15 @@ export const inputTheme = {
 
 }
 
+export const docs = {
+  doc_name: 'example 1',
+  type: 'text',
+  placeholder: 'Please Enter value...'
+}
+
 export default function Input ({ type='text', label, description, value, onChange=() => {}, placeholder, disabled, onClick=()=>{}, rounded,...props}) {
-  const { theme = {input: inputTheme} } = React.useContext(ThemeContext);
+  const { theme: themeFromContext = {} } = React.useContext(ThemeContext);
+  const theme = {...themeFromContext, input: {...inputTheme, ...(themeFromContext.input || {})}};
   //const { theme = { input: inputTheme, field: fieldTheme } } = React.useContext(CMSContext) || {}
   return (
     <span className={`${theme?.input?.inputContainer}`}>

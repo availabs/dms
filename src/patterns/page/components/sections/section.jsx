@@ -19,7 +19,7 @@ const isJson = (str)  => {
     return true;
 }
 
-export function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, onRemove, siteType, apiLoad, apiUpdate, format}) {
+export function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, onRemove, siteType, apiLoad, apiUpdate, format, isActive}) {
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     let sectionTitleCondition = value?.['title']
     const { theme } = React.useContext(ThemeContext);
@@ -153,6 +153,7 @@ export function SectionEdit ({value, i, onChange, attributes, size, onCancel, on
                         apiLoad={apiLoad}
                         apiUpdate={apiUpdate}
                         pageFormat={format}
+                        isActive={isActive}
                     />
                 </div>
         </div>
@@ -174,7 +175,7 @@ let handleCopy = (value) => {
     navigator.clipboard.writeText(JSON.stringify(value))
 }
 
-export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemove, moveItem, addAbove, siteType, apiLoad, apiUpdate, format}) {
+export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemove, moveItem, addAbove, siteType, apiLoad, apiUpdate, format, isActive}) {
     
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     let [referenceElement, setReferenceElement] = useState()
@@ -223,9 +224,10 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
                 apiLoad={apiLoad} 
                 apiUpdate={apiUpdate} 
                 pageFormat={format}
+                isActive={isActive}
             />
         )
-    }, [value])
+    }, [value, isActive])
     if(!value?.element?.['element-type'] && !value?.element?.['element-data']) return null;
     const sectionMenuItems = [
       { icon: 'PencilSquare', name: 'Edit', onClick: onEdit },
@@ -509,7 +511,7 @@ const RenderError = ({data}) => (
 
 function TagComponent ({value, placeholder, onChange, edit=false}) {
     const {UI} = useContext(CMSContext);
-    const {Icon} = UI;
+    const {Icon, Label} = UI;
     const arrayValue = Array.isArray(value) ? value :  (value?.split(',')?.filter(v => v?.length) || [])
     const [newTag, setNewTag] = useState('');
     //console.log('hola', value, arrayValue)
@@ -626,7 +628,7 @@ export function DeleteModal ({title, prompt, item={}, open, setOpen, onDelete}) 
       setOpen={setOpen}
       initialFocus={cancelButtonRef}
     >
-      <div className="sm:flex sm:items-start">
+      <div className="sm:flex sm:items-start z-50">
         <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
           <i className="fa fa-danger h-6 w-6 text-red-600" aria-hidden="true" />
         </div>

@@ -2,11 +2,21 @@ import React from "react";
 import {tableTheme} from "./table";
 import {ThemeContext} from "../useTheme";
 
+export const docs = {
+    themeKey: 'table',
+    totalLength: 100,
+    pageSize: 10,
+    usePagination: true,
+    currentPage: 0,
+    setCurrentPage: () => {}
+}
+
 export default function ({totalLength, pageSize, usePagination,
                              currentPage,
     setCurrentPage
                          }) {
-    const { theme = { table: tableTheme } } = React.useContext(ThemeContext) || {}
+    const { theme: themeFromProps  = {} } = React.useContext(ThemeContext) || {};
+    const theme = {...themeFromProps, table: {...tableTheme, ...(themeFromProps.table || {})}};
 
     const rangeSize = 5;
     const totalPages=Math.ceil(totalLength / pageSize);
@@ -53,7 +63,7 @@ export default function ({totalLength, pageSize, usePagination,
                             }
 
                             <div className={`${theme?.table?.pageRangeItem} ${theme?.table?.pageRangeItemInactive}`}
-                                 onClick={() => setCurrentPage(currentPage < totalPages ? currentPage + 1 : currentPage)}>{`next >`}</div>
+                                 onClick={() => setCurrentPage(currentPage < totalPages - 1  ? currentPage + 1 : currentPage)}>{`next >`}</div>
                         </div>
                     </>
                 ) : (

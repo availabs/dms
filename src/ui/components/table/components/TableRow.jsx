@@ -52,7 +52,7 @@ export const TableRow = ({
   selection, setSelection, selectionRange, triggerSelectionDelete,
   handleMouseDown, handleMouseMove, handleMouseUp,
   setIsDragging, startCellCol, startCellRow,
-  updateItem, removeItem
+  updateItem, removeItem, defaultColumnSize
 }) => {
     const [showOpenOut, setShowOpenOut] = useState(false);
 
@@ -72,7 +72,7 @@ export const TableRow = ({
                             ${display.striped ? `odd:bg-gray-50` : ``} ${d.totalRow ? `bg-gray-100` : ``}`
                             }
                 style={{
-                    gridTemplateColumns: `${numColSize}px ${visibleAttrsWithoutOpenOut.map(v => `${v.size}px` || 'auto').join(' ')} ${gutterColSize}px`,
+                    gridTemplateColumns: `${numColSize}px ${visibleAttrsWithoutOpenOut.map(v => v.size ? `${v.size}px` : `${defaultColumnSize}px`).join(' ')} ${gutterColSize}px`,
                     gridColumn: `span ${visibleAttrsWithoutOpenOut.length + 2} / ${visibleAttrsWithoutOpenOut.length + 2}`
                 }}
             >

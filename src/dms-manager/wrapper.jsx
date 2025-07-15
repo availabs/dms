@@ -7,14 +7,20 @@ import { isEqual } from "lodash-es"
 
 import { get } from "lodash-es"
 
-const json2DmsForm = (data,requestType='update') => {
+const json2DmsForm = (data,requestType='update',config, path) => {
   let out = new FormData()
   out.append('data', JSON.stringify(data))
   out.append('requestType', requestType)
+  if(config) {
+  	out.append('dmsConfig', JSON.stringify(config))
+  }
+  if(path) {
+  	out.append('path', path)
+  }
   return out
 }
 
-export default function EditWrapper({ Component, format, options, params, user, falcor, ...props}) {
+export default function EditWrapper({ Component, format, options, params, user, falcor, mode, ...props}) {
 
 	const {app, type} = format;
 	const attributes = getAttributes(format, options, 'edit')
@@ -26,9 +32,10 @@ export default function EditWrapper({ Component, format, options, params, user, 
 	let status = useActionData()
 	const {defaultSort = (d) => d } = format
 
-	//useEffect(() => {console.log('edit wrapper on load')},[])
 
-	//useEffect(()=> console.log('status change', status), [status])
+	// console.log('EditWrapper - data length', data.length)
+	// useEffect(() => {console.log('edit wrapper on load')},[])
+	// useEffect(()=> console.log('status change', status), [status])
 
 
 	const [item, setItem] = React.useState(
@@ -56,23 +63,38 @@ export default function EditWrapper({ Component, format, options, params, user, 
 		}
 	}
 
-	const submitForm = () => {
-		submit(json2DmsForm(item), { method: "post", action: `${pathname}${search}` })
-	}
+	// const submitForm = () => {
+	// 	submit(json2DmsForm(item), { method: "post", action: `${pathname}${search}` })
+	// }
 
 	const apiUpdate = async ({data, config = {format}, requestType='', newPath=`${pathname}${search}`}) => {
 		setBusy((prevState) => { return {...prevState, updating: prevState.updating+1 }})
-		const res = await dmsDataEditor(falcor, config, data, requestType);
-		//navigate(newPath || `${pathname}${search}`) //submit with null target doesn't carry search
-		submit(null, {action: newPath })
+		console.log('apiUpdate - arguements', data, config,requestType, newPath)
+		let resData = null
+		if(mode === 'ssr'){
+			let res =  await fetch(`/dms_api`, { method:"POST", body: json2DmsForm(data,requestType,config,newPath) })
+  		resData = await res.json()
+  	} else {
+			resData = await dmsDataEditor(falcor, config, data, requestType);
+		}
+		console.log('apiUpdate - response', resData)
+		navigate(newPath || `${pathname}${search}`) //submit with null target doesn't carry search
+		//submit(null, {action: newPath })
 		setBusy((prevState) => { return {...prevState, updating: prevState.updating-1 }})
-		if(!data.id) return res; // return id if apiUpdate was used to create an entry.
+		if(!data.id) return resData; // return id if apiUpdate was used to create an entry.
 		if(data.app !== app || data.type !== type) return; // if apiUpdate was used to manually update something, don't refresh.
 	}
 
 	const apiLoad = async (config, path) => {
 		setBusy((prevState) => { return {...prevState, loading: prevState.loading+1 }})
-		let data = await dmsDataLoader(falcor, config, path || '/')
+		let data = null
+		if(mode === 'ssr'){
+			let res =  await fetch(`/dms_api`, { method:"POST", body: json2DmsForm(data,'data',config, path||'/') })
+			let resData = await res.json()
+			data = resData?.data || []
+		} else {
+			data = await dmsDataLoader(falcor, config, path || '/')
+		}
 		setBusy((prevState) => { return {...prevState, loading: prevState.loading-1 }})
 		return data
 	}
@@ -94,7 +116,7 @@ export default function EditWrapper({ Component, format, options, params, user, 
 			options={options}
 			user={user}
 			// -- I believe these are deprecated to apiLoad / apiUpdate / busy
-			submit={submitForm}
+			// -- submit={submitForm}
 			updateAttribute={updateAttribute}
 			falcor={falcor}
 			// setItem={setItem}

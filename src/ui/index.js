@@ -1,6 +1,7 @@
 import React from "react";
 import Layout from './components/Layout';
 import SideNav from './components/SideNav';
+import Logo from './components/Logo';
 import SideNavContainer from "./components/SideNavContainer";
 import TopNav from './components/TopNav';
 import Icon from './components/Icon';
@@ -14,6 +15,7 @@ import Switch from './components/Switch';
 import ColorPicker from "./components/Colorpicker";
 import Tabs from "./components/Tabs";
 import Drawer from "./components/Drawer";
+import Input from "./components/Input"
 import Select from './components/Select';
 import Dialog from "./components/Dialog";
 import Dropdown from "./components/Dropdown";
@@ -22,9 +24,13 @@ import {DeleteModal} from "./components/DeleteModal";
 // import Nestable from "./components/nestable";
 import DraggableNav from "./components/nestable/draggableNav";
 import Pagination from "./components/Pagination";
+import Table from "./components/table";
+import Card from "./components/Card";
+import Graph from "./components/graph"
 export default {
 	// --- Layout
 	Layout,
+	Logo,
 	SideNav,
 	SideNavContainer,
 	TopNav,
@@ -40,6 +46,7 @@ export default {
 	// --- Forms
 	FieldSet,
 	Switch,
+	Input,
 	Select,
 	ColorPicker,
 	Tabs,
@@ -49,5 +56,9 @@ export default {
 	DeleteModal,
 	// Nestable,
 	DraggableNav,
-	Pagination
+	// -- Data Components
+	Pagination,
+	Table,
+	Card,
+	Graph
 }
