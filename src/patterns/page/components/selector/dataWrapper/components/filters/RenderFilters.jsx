@@ -187,34 +187,6 @@ export const RenderFilters = ({
                         const metaOptions = [] //(state.columns || []).find(({name}) => name === columnName)?.options;
                         const formattedAttrStr = getFormattedAttributeStr(columnName);
 
-                        // const dataOptions = data.reduce((acc, d, i) => {
-                        //     const islogg = (i>(ll-11) || i<10) ;
-                        //     // array values flattened here for multiselects.
-                        //     // if meta column, value: {value, originalValue}, else direct value comes in response
-                        //     const responseValue = d[formattedAttrStr]?.value || d[formattedAttrStr];
-                        //     bool && islogg && console.time(`${i} - inner first`);
-                        //     const metaValue = parseIfJson(responseValue?.value || responseValue); // meta processed value
-                        //     bool && islogg && console.timeEnd(`${i} - inner first`);
-
-
-                        //     bool && islogg && console.time(`${i} - inner second`);
-                        //     const originalValue = parseIfJson(responseValue?.originalValue || responseValue);
-                        //     bool && islogg && console.timeEnd(`${i} - inner second`);
-
-
-                        //     bool && islogg && console.time(`${i} - inner third`);
-                        //     const value =
-                        //         Array.isArray(originalValue) ?
-                        //             originalValue.map((pv, i) => ({ label: metaValue?.[i] || pv, value: pv })) :
-                        //             [{ label: metaValue || originalValue, value: originalValue }];
-                        //     bool && islogg && console.timeEnd(`${i} - inner third`);
-
-                        //     bool && islogg && console.time(`${i} - inner fourth`);
-                            // const output = [...acc, ...value.filter(({ label, value }) => label && typeof label !== 'object')];
-                        //     bool && islogg && console.timeEnd(`${i} - inner fourth`);
-                        //     return output
-                        // }, []);
-
                         const dataOptions = data.reduce((acc, d, i) => {
 
                             const responseValue = d[formattedAttrStr]?.value || d[formattedAttrStr];
