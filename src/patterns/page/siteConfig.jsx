@@ -23,6 +23,7 @@ import DefaultMenu from './components/menu'
 
 import { SearchPage } from "./components/search/SearchPage";
 
+
 import { registerDataType } from '../../data-types'
 import Selector from './components/selector'
 import defaultTheme from '../../ui/defaultTheme'
@@ -61,6 +62,7 @@ const pagesConfig = ({
   format.type = type
   updateRegisteredFormats(format.registerFormats, app, type)
   updateAttributes(format.attributes, app, type)
+  //siteType = siteType || type
   //console.log('foramat after update', app, type, format)
 
 
@@ -69,6 +71,7 @@ const pagesConfig = ({
   // should move this to dmsFactory default authWrapper
   const defaultUser = { email: "user", authLevel: 10, authed: true, fake: true}
   // ---------------------------------------------
+
 
   const patternFilters = parseIfJSON(pattern?.filters, []);
   // const rightMenuWithSearch = rightMenu; // for live site

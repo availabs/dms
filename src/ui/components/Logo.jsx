@@ -7,6 +7,7 @@ export const logoTheme = {
   logoAltImg: 'rounded-full h-8 w-8 bg-blue-500 border-2 border-blue-300 hover:bg-blue-600',
   imgWrapper: '',
   img: '',
+  imgClass: 'min-h-12',
   titleWrapper: 'p-2',
   title: 'Admin',
   linkPath: '/'
@@ -24,7 +25,7 @@ export default function LogoComp (props) {
     <Link to={theme?.logo?.linkPath} className={theme?.logo?.logoWrapper}>
       {theme?.logo?.img ? 
         <div className={theme?.logo?.imgWrapper}>
-          <img src={theme?.logo?.img} />
+          <img className={theme?.logo?.imgClass} src={theme?.logo?.img} />
         </div> : 
         <div className={theme.logo.logoAltImg} />
       }
