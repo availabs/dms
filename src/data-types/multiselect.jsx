@@ -144,7 +144,7 @@ const Edit = ({value = [], loading, onChange, className,placeholder, options = [
     // options: ['1', 's', 't'] || [{label: '1', value: '1'}, {label: 's', value: '2'}, {label: 't', value: '3'}]
     const [searchKeyword, setSearchKeyword] = useState('');
     const typeSafeValue = (Array.isArray(value) ? value : [value]).map(v => options.find(o => looselyEqual((o?.value || o), (v?.value || v))) || v);
-    console.log('value', value)
+
     const {
         ref,
         isSearching,
