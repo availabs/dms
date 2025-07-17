@@ -37,7 +37,7 @@ const validate = ({value, required, options, name}) => {
         Array.isArray(options) && (typeof value === "string" || typeof value === "boolean") ? // select
             options.map(o => o.value || o).includes(value.toString()) :
             Array.isArray(options) && Array.isArray(value) ?  // multiselect
-                value.reduce((acc, v) => acc && options.map(o => o.value || o).includes(v.value || v), true) :
+                value.reduce((acc, v) => acc && options.map(o => o.value || o).includes(v?.value || v), true) :
                 false
     );
     // if (!(requiredValidation && optionsValidation)) console.log('----', name, requiredValidation, optionsValidation, options, value)
