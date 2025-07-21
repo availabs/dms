@@ -23,6 +23,7 @@ const parseIfJson = str => {
 const cols = {
     [`data->>'base_url' as base_url`]: {label: 'Base Url', name: 'base_url'},
     [`data->>'doc_type' as doc_type`]: {label: 'Doc Type', name: 'doc_type'},
+    [`data->>'name' as name`]: {label: 'Name', name: 'name'},
     [`data->>'subdomain' as subdomain`]: {label: 'Subdomain', name: 'subdomain'},
     [`data->>'authLevel' as authLevel`]: {label: 'Auth Level', name: 'authLevel'}
 }
@@ -204,7 +205,7 @@ async function getPatterns({app, falcor}){
         }
     });
     const attributes = [
-        `data->>'base_url' as base_url`,`data->>'doc_type' as doc_type`,
+        `data->>'base_url' as base_url`,`data->>'doc_type' as doc_type`,`data->>'name' as name`,
         `data->>'subdomain' as subdomain`, `data->>'authLevel' as authLevel`
     ]
     const lenPath = ['dms', 'data', `${app}+pattern`, 'options', options, 'length']
@@ -217,7 +218,7 @@ async function getPatterns({app, falcor}){
     await falcor.get([...dataPath, {from: 0, to: length - 1}, attributes]);
     const data = get(falcor.getCache(), dataPath, {});
 
-    return Object.values(data).map(pattern => Object.keys(pattern).reduce((acc, col) => ({...acc, [cols[col].name]: pattern[col]}), {}));
+    return Object.values(data).map(pattern => Object.keys(pattern).reduce((acc, col) => ({...acc, [cols[col].name]: typeof pattern[col] === 'object' ? undefined : pattern[col]}), {}));
 }
 
 async function getSections({app, pattern, falcor, setLoading}){
