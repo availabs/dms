@@ -331,7 +331,7 @@ const updateSections = async ({sections, newView, falcor, user, setUpdating}) =>
 
 const Edit = ({value, onChange}) => {
     const {app, siteType, baseUrl, falcor, falcorCache, pgEnv, user, ...rest} = useContext(CMSContext) || {}
-    const cachedData = parseIfJson(value) ? JSON.parse(value) : {};
+    const cachedData = parseIfJson(value) || {};
     const [loading, setLoading] = useState(false);
     const [patterns, setPatterns] = useState([]);
     const [pattern, setPattern] = useState(cachedData.pattern || []);
@@ -430,8 +430,10 @@ const Edit = ({value, onChange}) => {
                     >
                         <option>please select a pattern</option>
                         {
-                            (patterns || []).map(pattern => <option key={pattern.doc_type}
-                                                                    value={pattern.doc_type}>{pattern.doc_type}</option>)
+                            (patterns || [])
+                                .sort((a,b) => (a?.name || a?.doc_type).localeCompare(b?.name || b?.doc_type))
+                                .map(pattern => <option key={`${pattern.doc_type}-${pattern.subdomain}`}
+                                                                    value={pattern.doc_type}>{`${pattern.name || pattern.doc_type} ${pattern.subdomain ? `(${pattern.subdomain})` : ``}`}</option>)
                         }
                     </select>
                 </div>
