@@ -43,7 +43,7 @@ export function SectionEdit ({value, i, onChange, attributes, size, onCancel, on
     return (
         <div className={``}>
             {/* -------------------top line buttons ----------------------*/}
-            <div className={`flex w-full`}>
+            <div className={theme?.section?.editTopLineIcons || `flex w-full`}>
                 <div className='flex-1'/>
                     <div className={`z-10 relative`}>
                         <div className={`absolute mr-16 top-[-24px] right-[-60px] flex`}>
