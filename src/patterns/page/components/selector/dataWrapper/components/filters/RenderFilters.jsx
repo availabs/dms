@@ -42,7 +42,7 @@ export const RenderFilters = ({
     const isDms = state.sourceInfo?.isDms;
     const filterColumnsToTrack = useMemo(() => (state.columns || []).filter(({ filters, isDuplicate }) => filters?.length && !isDuplicate), [state.columns]);
     const filterValuesToTrack = useMemo(() =>
-        (state.columns || []).filter(({ filters, isDuplicate }) => filters?.length && filters?.[0]?.values?.length && !isDuplicate).reduce((acc, f) => [...acc, ...f.filters[0].values], []), [state.columns]);
+        (state.columns || []).filter(({ filters, isDuplicate }) => filters?.length && filters?.[0]?.values?.length && !isDuplicate).reduce((acc, f) => {acc.push(f.filters[0].values); return acc;}, []), [state.columns]);
     const normalFilterColumnsToTrack = useMemo(() => (state.columns || []).filter(({ filters, isDuplicate }) => filters?.length && isDuplicate), [state.columns]);
     const filters = useMemo(() => getFilters(filterColumnsToTrack), [filterColumnsToTrack]);
     const normalFilters = useMemo(() => getNormalFilters(normalFilterColumnsToTrack), [normalFilterColumnsToTrack]);
@@ -74,9 +74,19 @@ export const RenderFilters = ({
         //                         sync with page level filter if enabled.
         // if any filter is synced, changes should propagate both ways.
         const pageFilters = (pageState?.filters || []).reduce((acc, curr) => ({ ...acc, [curr.searchKey]: curr.values }), {});
+        const hasMatchingFilters = state.columns.some(c => {
+            const hasFiltersToUpdate = (c.filters || []).some(f => {
+                if(!f.usePageFilters || !pageFilters[f.searchParamKey]) return false;
+
+                const tmpValue = Array.isArray(pageFilters[f.searchParamKey]) ? pageFilters[f.searchParamKey] : [pageFilters[f.searchParamKey]];
+                return !isEqual(f.values, tmpValue)
+            })
+
+            return hasFiltersToUpdate;
+        })
         // Extract filters from the URL
         // If searchParams have changed, they should take priority and update the state
-        if (Object.keys(pageFilters).length) {
+        if (Object.keys(pageFilters).length && hasMatchingFilters) {
             setState(draft => {
                 (draft.columns || []).forEach(column => {
                     if (column.filters?.length) {
@@ -101,6 +111,8 @@ export const RenderFilters = ({
         // fetch filter data
         let isStale = false;
         async function load() {
+            if(isStale) return;
+
             setLoading(true);
             const fetchedFilterData = await Promise.all(
                 [...Object.keys(filters), ...normalFilters?.map(f => f.column)]
@@ -218,8 +230,12 @@ export const RenderFilters = ({
                 return
             }
             debug && console.log('debug filters: filter data use effect', fetchedFilterData)
-            setFilterOptions(fetchedFilterData)
-            setLoading(false);
+            if(!isStale && !isEqual(fetchedFilterData, filterOptions)){
+                setFilterOptions(fetchedFilterData)
+                setLoading(false);
+            }else{
+                setLoading(false)
+            }
         }
 
         load()
