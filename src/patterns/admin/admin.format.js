@@ -45,6 +45,12 @@ export const pattern = {
       required: false,
       default: [],
     },
+    {
+      key: "authPermissions",
+      type: "json",
+      required: false,
+      default: {},
+    },
     { key: 'config',
       placeholder: 'please select a type',
       type: 'config'

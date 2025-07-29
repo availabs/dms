@@ -50,7 +50,9 @@ const formsAdminConfig = ({
     baseUrl,
     damaBaseUrl,
     Menu=DefaultMenu,
-    API_HOST='https://graph.availabs.org', 
+    API_HOST='https://graph.availabs.org',
+    user,
+    authPermissions,
     columns,
     logo,
     pattern,
@@ -88,7 +90,7 @@ const formsAdminConfig = ({
                       <FormsContext.Provider value={{
                           UI,
                           baseUrl: `${baseUrl}`, damaBaseUrl,
-                          user: props.user || defaultUser,
+                          user,
                           theme, app, type,
                           parent: pattern, Menu, API_HOST
                       }}>
@@ -161,6 +163,7 @@ const formsSourceConfig = ({
     damaBaseUrl,
     Menu=DefaultMenu,
     API_HOST='https://graph.availabs.org',
+    user,
     columns,
     logo,
     pattern,
@@ -199,13 +202,14 @@ const formsSourceConfig = ({
             {
                 type: (props) => {
                     const { falcor, falcorCache } = useFalcor();
+                    console.log('forms wrapper called', props, user)
                   return (
                       <FormsContext.Provider value={{
                           UI,
                           baseUrl: `${baseUrl}`,
                           pageBaseUrl: `${baseUrl}/source`,
                           damaBaseUrl,
-                          user: props.user || defaultUser,
+                          user,
                           pgEnv,
                           theme, app, type,
                           parent: pattern,

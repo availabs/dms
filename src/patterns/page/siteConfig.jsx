@@ -30,6 +30,19 @@ import defaultTheme from '../../ui/defaultTheme'
 // const defaultTheme = {}
 
 registerDataType("selector", Selector)
+const isUserAuthed = ({user={}, reqPermissions=[], authPermissions=[]}) => {
+  const userAuthPermissions =
+      (user.groups || [])
+          .filter(group => authPermissions[group])
+          .reduce((acc, group) => {
+            const groupPermissions = Array.isArray(authPermissions[group]) ? authPermissions[group] : [authPermissions[group]];
+            if(groupPermissions?.length){
+              acc.push(...groupPermissions)
+            }
+            return acc;
+          }, [])
+  return !reqPermissions?.length || userAuthPermissions.some(permission => permission === '*' || reqPermissions.includes(permission))
+}
 
 const pagesConfig = ({
   app = "dms-site",
@@ -40,11 +53,13 @@ const pagesConfig = ({
   damaBaseUrl,
   logo, // deprecated
   authLevel = -1,
+  authPermissions,
   themes = { default: {} },
   pattern,
   site,
   pgEnv,
-  API_HOST
+  API_HOST,
+    user
 }) => {
   let theme = merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern?.theme?.settings?.theme?.theme] || themes.default), cloneDeep(pattern?.theme) || {})
   //console.log('pageConfig', pattern.doc_type, pattern.id, themes[pattern?.theme?.settings?.theme?.theme], pattern?.theme, pattern)
@@ -55,7 +70,6 @@ const pagesConfig = ({
   // console.log('testing', theme.navOptions)
   // console.log('page siteConfig app,type', `"${app}","${type}"`)
 
-  console.log('theme', theme)
 
   const format = cloneDeep(cmsFormat)
   format.app = app
@@ -82,7 +96,7 @@ const pagesConfig = ({
     API_HOST,
     children: [
       {
-        type: ({children, user=defaultUser, falcor, ...props}) => {
+        type: ({children, falcor, ...props}) => {
           // console.log('hola', user, defaultUser, user || defaultUser)
           return (
               <CMSContext.Provider value={{
@@ -91,10 +105,12 @@ const pagesConfig = ({
                 API_HOST, 
                 baseUrl, 
                 pgEnv, damaBaseUrl, 
-                user, 
+                user,
                 falcor,
-                patternFilters, 
-                Menu: () => <>{rightMenu}</> 
+                patternFilters,
+                authPermissions,
+                isUserAuthed: (reqPermissions) => isUserAuthed({user, authPermissions, reqPermissions}),
+                Menu: () => <>{rightMenu}</>
               }}>
                 <ThemeContext.Provider value={{theme}}>
                   {children}
@@ -103,6 +119,7 @@ const pagesConfig = ({
           )
         },
         authLevel,
+        authPermissions, // passed down from dmsSiteFactory. these are saved authorisations in patterns.
         action: "list",
         path: "/*",
         filter: {
@@ -122,7 +139,9 @@ const pagesConfig = ({
             ),
             path: "edit/*",
             action: "edit",
-            authLevel: 5
+            authLevel: 5,
+            authPermissions,
+            reqPermissions: ['create-page', 'update-page']
           },
           {
             type: (props) => (
@@ -169,7 +188,8 @@ const pagesManagerConfig = ({
   pattern,
   site,
   pgEnv,
-  API_HOST
+  API_HOST,
+    user
 }) => {
   //console.log('hola', pattern?.theme)
   let theme =  merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern?.theme?.settings?.theme?.theme] || themes.default), pattern?.theme || {})
@@ -215,7 +235,7 @@ const pagesManagerConfig = ({
     API_HOST,
     children: [
       {
-        type: ({children, user=defaultUser, falcor, ...props}) => {
+        type: ({children, falcor, ...props}) => {
           return (
               <CMSContext.Provider value={{UI, API_HOST, baseUrl, damaBaseUrl, user, falcor, pgEnv, app, type, siteType, Menu: () => <>{rightMenu}</> }} >
                 <ManageLayout {...props}>

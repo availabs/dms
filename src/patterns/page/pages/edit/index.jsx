@@ -32,7 +32,8 @@ function PageEdit ({
  attributes, 
  setItem, 
  apiLoad, 
- apiUpdate, 
+ apiUpdate,
+	reqPermissions,
  status, 
  navOptions, 
  busy
@@ -43,7 +44,7 @@ function PageEdit ({
 	const submit = useSubmit();
 	const { pathname = '/edit', search } = useLocation();
 	const { theme: fullTheme } = React.useContext(ThemeContext);
-	const { UI, Menu, baseUrl, user, patternFilters=[] } = React.useContext(CMSContext) || {};
+	const { UI, Menu, baseUrl, user, authPermissions, patternFilters=[] } = React.useContext(CMSContext) || {};
 	const { Layout } = UI;
 	const [ editPane, setEditPane ] = React.useState({ open: false, index: 1, showGrid: false });
 	const [pageState, setPageState] =
@@ -57,7 +58,7 @@ function PageEdit ({
 		let items = dataItemsNav(dataItems,baseUrl,true)
 		return items
 	}, [dataItems])
-
+	console.log('pageEdit', authPermissions, user, reqPermissions)
 
 	const menuItemsSecondNav = React.useMemo(() => {
 		let items = dataItemsNav(theme?.navOptions?.secondaryNav?.navItems || [],baseUrl,true)
@@ -162,7 +163,8 @@ function PageEdit ({
 			pageState, 
 			setPageState, 
 			updatePageStateFilters, 
-			dataItems, 
+			dataItems,
+			reqPermissions,
 			apiLoad, apiUpdate,
 			updateAttribute, 
 			editPane, setEditPane, 

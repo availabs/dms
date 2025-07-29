@@ -5,16 +5,23 @@ export const defaultCheck = ( checkAuth, {user}, activeConfig, navigate ,path) =
   const getReqAuth = (configs) => {
     //console.log('')
     return configs.reduce((out,config) => {
+      console.log('_auth: config', config)
       let authLevel = config.authLevel || -1
+      let reqPermissions = config.reqPermissions || [];
+      let authPermissions = config.authPermissions || {};
       // if(config.children) {
       //   authLevel = Math.max(authLevel, getReqAuth(config.children))
       // }
-      return Math.max(out, authLevel)
-    },-1)
+      return {
+        authLevel: Math.max(out.authLevel, authLevel),
+        reqPermissions: [...new Set([...reqPermissions, ...out.reqPermissions])],
+        authPermissions // same for a pattern
+      }
+    }, {authLevel: -1, reqPermissions: [], authPermissions: []})
   } 
-  let requiredAuth = getReqAuth(activeConfig)
+  let {authLevel, reqPermissions, authPermissions} = getReqAuth(activeConfig)
   //console.log('requiredAuth', requiredAuth)
-  checkAuth({user, authLevel:requiredAuth}, navigate, path)
+  checkAuth({user, authLevel, reqPermissions, authPermissions}, navigate, path)
 }
 
 export const defaultCheckAuth = ( props, navigate, path ) => {
@@ -31,7 +38,8 @@ export const defaultCheckAuth = ( props, navigate, path ) => {
   // can we switch to isAuthenticating is true
   //------------------------------------------
 
-  const {user = {}} = props
+  const {user = {}, authLevel, reqPermissions, authPermissions} = props
+  console.log('_auth:', authLevel, reqPermissions, authPermissions, user)
   let reqAuthLevel = props?.authLevel || -1;
   const authReq = props?.auth  || false;
   
@@ -39,10 +47,20 @@ export const defaultCheckAuth = ( props, navigate, path ) => {
 
   const userAuthed = user?.authed || false
   const userAuthLevel = user?.authLevel || -1 //get(props, ["user", "authLevel"], -1);
+  const userAuthPermissions =
+      (user.groups || [])
+          .filter(group => authPermissions[group])
+          .reduce((acc, group) => {
+            const groupPermissions = Array.isArray(authPermissions[group]) ? authPermissions[group] : [authPermissions[group]];
+            if(groupPermissions?.length){
+              acc.push(...groupPermissions)
+            }
+            return acc;
+            }, [])
 
-  const sendToLogin = !userAuthed && (reqAuthLevel >= 0);
-  const sendToHome = userAuthLevel < reqAuthLevel;
-
+  const sendToLogin = !userAuthed && (reqAuthLevel >= 0 || reqPermissions?.length);
+  const sendToHome = userAuthLevel < reqAuthLevel || (reqPermissions?.length && !userAuthPermissions.some(permission => permission === '*' || reqPermissions.includes(permission)));
+  console.log('permissions match', userAuthPermissions, reqPermissions, userAuthed, reqAuthLevel)
   //console.log('checkAuth', reqAuthLevel, userAuthLevel, path)
 
   //----------------------------------------
@@ -51,8 +69,8 @@ export const defaultCheckAuth = ( props, navigate, path ) => {
   // send to login 
   //----------------------------------------
   if( sendToLogin ) {
-    //console.log('navigate to login',  user)
-    navigate('/auth/login', {state:{ from: props.path }})
+    console.log('navigate to login',  props, path)
+    navigate('/dms_auth/login', {state:{ from: path }})
     // return <Navigate 
     //   to={ "/auth/login" } 
     //   state={{ from: props.path }}

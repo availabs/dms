@@ -9,6 +9,7 @@ import { cloneDeep } from "lodash-es"
 
 import pageConfig from '../page/siteConfig'
 import dataManagerConfig from '../forms/siteConfig'; // meta level forms config. this "pattern" serves as parent for all forms.
+import authConfig from "../auth/siteConfig"
 
 
 //import {template} from "./admin.format"
@@ -33,6 +34,7 @@ const getSubdomain = (host) => {
 
 import {updateAttributes, updateRegisteredFormats} from "./siteConfig";
 import {useLocation} from "react-router";
+import {getUser} from "./utils";
 
 // --
 // to do:
@@ -42,6 +44,7 @@ import {useLocation} from "react-router";
 const configs = {
     page: pageConfig ,
     forms: dataManagerConfig,
+    auth: authConfig[0]
 }
 
 registerDataType("selector", Selector)
@@ -56,6 +59,9 @@ function pattern2routes (siteData, props) {
         pgEnvs = ['hazmit_dama'],
         falcor,
         API_HOST = 'https://graph.availabs.org',
+        AUTH_HOST,
+        PROJECT_NAME,
+        user, setUser,
         damaBaseUrl
     } = props
 
@@ -70,46 +76,31 @@ function pattern2routes (siteData, props) {
     dmsConfigUpdated.registerFormats = updateRegisteredFormats(dmsConfigUpdated.registerFormats, dmsConfig.app)
     dmsConfigUpdated.attributes = updateAttributes(dmsConfigUpdated.attributes, dmsConfig.app)
 
-
+    console.log('patterns', patterns)
     return [
+        // auth
+        dmsPageFactory(configs.auth({
+            app: dmsConfigUpdated?.format?.app || dmsConfigUpdated.app,
+            siteType: dmsConfigUpdated.type,
+            API_HOST,
+            AUTH_HOST,
+            PROJECT_NAME,
+            user,
+            setUser,
+            damaBaseUrl
+        }), undefined, user, true),
         //pattern manager
         dmsPageFactory({
             ...dmsConfigUpdated,
             siteType: dmsConfigUpdated.type,
             baseUrl: SUBDOMAIN === 'admin' ?  '/' : adminPath,
             authLevel: 1,
-            API_HOST, 
+            API_HOST,
+            PROJECT_NAME,
+            user,
             theme: themes['default'],
             pgEnvs
-        },authWrapper),
-        // default Data manager
-        // ...dataManagerConfig.map(config => {
-        //     const configObj = config({
-        //         app: dmsConfigUpdated.app,
-        //         type:`${dmsConfigUpdated.app}-datasets`,
-        //         siteType: dmsConfigUpdated?.format?.type || dmsConfigUpdated.type,
-        //         baseUrl: `/datasets`, // only leading slash allowed
-        //         adminPath,
-        //         authLevel: 1,
-        //         pgEnv:pgEnvs?.[0] || '',
-        //         themes,
-        //         useFalcor,
-        //         API_HOST,
-        //         //rightMenu: <div>RIGHT</div>,
-        //     });
-        //     return ({...dmsPageFactory(configObj, authWrapper)})
-        // }),
-
-        // default data manager
-        // dmsPageFactory({
-        //     app: dmsConfigUpdated.app,
-        //     type:`${dmsConfigUpdated.app}-${datasets}`,
-        //     siteType: dmsConfigUpdated.type,
-        //     baseUrl: '/datasets',
-        //     authLevel: 1,
-        //     API_HOST, 
-        //     theme: themes['default']
-        // },authWrapper),
+        },authWrapper, user),
         // patterns
         ...patterns.reduce((acc, pattern) => {
             //console.log('Patterns', pattern, SUBDOMAIN)
@@ -130,15 +121,19 @@ function pattern2routes (siteData, props) {
                             format: pattern?.config,
                             pattern: pattern,
                             pattern_type:pattern?.pattern_type,
+                            authPermissions: JSON.parse(pattern?.authPermissions || "{}"),
                             authLevel: +pattern.authLevel || -1,
                             pgEnv:pgEnvs?.[0] || '',
                             themes,
                             useFalcor,
                             API_HOST,
+                            PROJECT_NAME,
+                            user,
                             damaBaseUrl
                             //rightMenu: <div>RIGHT</div>,
                         });
-                        return ({...dmsPageFactory(configObj, authWrapper)})
+                        console.log('configObj', configObj)
+                        return ({...dmsPageFactory(configObj, authWrapper, user)})
                 }));
             }
             return acc;
@@ -150,7 +145,7 @@ export default async function dmsSiteFactory(props) {
     let {
         dmsConfig,
         falcor,
-        API_HOST = 'https://graph.availabs.org'
+        API_HOST = 'https://graph.availabs.org',
     } = props
 
     let dmsConfigUpdated = cloneDeep(dmsConfig);
@@ -175,6 +170,8 @@ export function DmsSite ({
     falcor,
     pgEnvs=['hazmit_dama'],
     API_HOST = 'https://graph.availabs.org',
+    AUTH_HOST,
+    PROJECT_NAME,
     damaBaseUrl,
     routes = []
 }) {
@@ -182,6 +179,20 @@ export function DmsSite ({
     // to do:
     // could save sites to localstorage cache clear on load.
     //-----------
+    const [user, setUser] = useState({});
+
+    useEffect(() => {
+        async function load (){
+            const user = await getUser(API_HOST, PROJECT_NAME);
+            setUser(user || {});
+            console.log('set user', user)
+        }
+
+        return () => {
+            load();
+        }
+    }, []);
+
     const [dynamicRoutes, setDynamicRoutes] = useState(
         defaultData ? 
             pattern2routes(defaultData, {
@@ -190,6 +201,10 @@ export function DmsSite ({
                 themes,
                 falcor,
                 API_HOST,
+                AUTH_HOST,
+                PROJECT_NAME,
+                user,
+                setUser,
                 authWrapper,
                 pgEnvs,
                 damaBaseUrl
@@ -199,24 +214,37 @@ export function DmsSite ({
         );
     
     useEffect(() => {
-        (async function() {
+        let isStale = false;
+        async function load () {
             // console.time('dmsSiteFactory')
+            // console.log('setting dynamic routes', user)
             const dynamicRoutes = await dmsSiteFactory({
                 dmsConfig,//adminConfig
                 adminPath,
                 themes,
                 falcor,
                 API_HOST,
+                AUTH_HOST,
+                PROJECT_NAME,
+                user,
+                setUser,
                 authWrapper,
                 pgEnvs,
                 damaBaseUrl
-                //theme   
+                //theme
             });
+            // console.log('dynamic routes set', user, dynamicRoutes)
             // console.timeEnd('dmsSiteFactory')
             //console.log('dynamicRoutes ', dynamicRoutes)
-            setDynamicRoutes(dynamicRoutes);
-        })()
-    }, []);
+            if(!isStale) setDynamicRoutes(dynamicRoutes);
+        }
+
+        load()
+
+        return () => {
+            isStale = true
+        }
+    }, [user]);
 
 
     const PageNotFoundRoute = {

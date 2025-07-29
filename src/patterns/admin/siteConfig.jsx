@@ -24,7 +24,9 @@ const adminConfig = ({
   app = "default-app",
   type = "default-page",
   API_HOST = 'https://graph.availabs.org',
+  AUTH_HOST = 'https://graph.availabs.org',
   baseUrl = '/',
+  authPath = '/dms_auth',
   theme = defaultTheme,
 }) => {
   const format = cloneDeep(adminFormat)
@@ -71,9 +73,9 @@ const adminConfig = ({
         type: (props) => {
           const {Layout} = UI;
           const location = useLocation()
-          console.log('admin wrapper', props.dataItems)
+          console.log('admin wrapper', authPath)
           return (
-            <AdminContext.Provider value={{baseUrl, user: props.user || defaultUser, app, type, API_HOST, UI}}>
+            <AdminContext.Provider value={{baseUrl, authPath, user: props.user || defaultUser, app, type, API_HOST, AUTH_HOST, UI}}>
               <ThemeContext.Provider value={{theme}}>
                 <Layout navItems={menuItems}>
                   <div className={theme?.admin?.page?.pageWrapper}>

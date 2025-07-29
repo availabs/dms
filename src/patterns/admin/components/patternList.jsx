@@ -64,7 +64,7 @@ function PatternEdit({
 	const [addingNew, setAddingNew] = useState(false);
 	const [editingItem, setEditingItem] = useState(undefined);
 	const [isDuplicating, setIsDuplicating] = useState(false);
-	const attrToAddNew = ['pattern_type', 'name', 'subdomain', 'base_url', 'filters', 'authLevel'];
+	const attrToAddNew = ['pattern_type', 'name', 'subdomain', 'base_url', 'filters', 'authLevel', 'authPermissions'];
 	const columns = [
 		{name: 'name', display_name: 'Name', show: true, type: 'text'},
 		{name: 'subdomain', display_name: 'Subdomain', show: true, type: 'text'},
@@ -134,6 +134,7 @@ function PatternEdit({
 											value={newItem?.[attrKey]}
 											onChange={(v) => setNewItem({...newItem, [attrKey]: v})}
 											{...props}
+											placeHolder={attrKey}
 											key={`${attrKey}-${i}`}
 										/>
 
@@ -162,6 +163,7 @@ function PatternEdit({
 										<EditComp
 											value={editingItem?.[attrKey]}
 											onChange={(v) => setEditingItem({...editingItem, [attrKey]: v})}
+											placeHolder={attrKey}
 											{...props}
 											key={`${attrKey}-${i}`}
 										/>

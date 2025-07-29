@@ -1,4 +1,3 @@
-//import {API_HOST} from "../../../../../../../../config"; no references outside the pattern!!!!!!
 const tailwindcss = "https://cdn.jsdelivr.net/npm/tailwindcss@2.2.15/dist/tailwind.min.css";
 
 export const selectablePDF = async (pdfRef, API_HOST) => {
