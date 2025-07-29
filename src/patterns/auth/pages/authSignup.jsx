@@ -30,7 +30,7 @@ export default (props) => {
                             setCredentials({...credentials, email: e.target.value})
                         }
                     },
-                    /*{
+                    {
                         type:'Input',
                         input_type: 'password',
                         label: 'Password',
@@ -46,16 +46,16 @@ export default (props) => {
                         onChange: (e) => {
                             setCredentials({...credentials, verifyPassword: e.target.value})
                         }
-                    },*/
+                    },
                 ]}
             />
 
             <Button
-                // disabled={credentials.password !== credentials.verifyPassword}
+                disabled={credentials.password !== credentials.verifyPassword}
                 onClick={async () => {
                 console.log('call signup', credentials, AUTH_HOST)
-                    // todo assign to the public group
-                await callAuthServer(`${AUTH_HOST}/signup/request`, {...credentials, project: PROJECT_NAME, sendEmail: false, host: `${window.location.host}/`, url: 'dms_auth/password/set'})
+                await callAuthServer(`${AUTH_HOST}/signup/assign/group`,
+                    {...credentials, project: PROJECT_NAME})
                     .then(res => {
                         console.log('res', res)
                         if (res.error) {
@@ -63,11 +63,7 @@ export default (props) => {
                             console.error('Error', res.error)
                         } else {
                             setStatus(res.message)
-                            // if (window.localStorage) {
-                            //     window.localStorage.setItem('userToken', res?.user?.token);
-                            // }
-                            // setUser({...res.user, isAuthenticating: false, authed: true})
-                            // window.location = location?.state?.from || defaultRedirectUrl;
+                            navigate(`${baseUrl}/login`)
                         }
                     })
                     .catch(error => {
