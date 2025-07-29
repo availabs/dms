@@ -4,6 +4,7 @@ import {duplicateControl} from "./shared/utils";
 import {formatFunctions} from "../dataWrapper/utils/utils";
 import DataTypes from "../../../../../data-types";
 import ColorControls from "./shared/ColorControls";
+import {ToggleControl} from "../dataWrapper/components/ToggleControl";
 
 const fontStyleOptions = [
     { label: 'X-Small', value: 'textXS' },
@@ -58,6 +59,79 @@ const Card = ({
     />
 }
 
+const inHeader = [
+    // settings from in header dropdown are stores in the columns array per column.
+    {type: 'select', label: 'Sort', key: 'sort',
+        options: [
+            {label: 'Not Sorted', value: ''}, {label: 'A->Z', value: 'asc nulls last'}, {label: 'Z->A', value: 'desc nulls last'}
+        ]},
+    {type: 'select', label: 'Justify', key: 'justify', isBatchUpdatable: true,
+        options: [
+            {label: 'Not Justified', value: ''},
+            {label: 'Left', value: 'left'},
+            {label: 'Center', value: 'center'},
+            {label: 'Right', value: 'right'},
+            {label: 'Full Justified', value: 'full'}
+        ]},
+    {type: 'select', label: 'Format', key: 'formatFn', isBatchUpdatable: true,
+        options: [
+            {label: 'No Format Applied', value: ' '},
+            {label: 'Comma Seperated', value: 'comma'},
+            {label: 'Comma Seperated ($)', value: 'comma_dollar'},
+            {label: 'Abbreviated', value: 'abbreviate'},
+            {label: 'Abbreviated ($)', value: 'abbreviate_dollar'},
+            {label: 'Date', value: 'date'},
+            {label: 'Title', value: 'title'},
+            {label: 'Icon', value: 'icon'},
+            {label: 'Color', value: 'color'},
+        ]},
+
+    {type: 'toggle', label: 'Border Below', key: 'borderBelow', displayCdn: ({display}) => display.compactView},
+    {type: 'input', inputType: 'number', label: 'Padding Below', key: 'pb', isBatchUpdatable: true, displayCdn: ({display}) => display.compactView},
+    {type: 'toggle', label: 'Hide Header', key: 'hideHeader', isBatchUpdatable: true},
+    {type: 'select', label: 'Header', key: 'headerFontStyle', options: fontStyleOptions, isBatchUpdatable: true, displayCdn: ({attribute}) => !attribute.hideHeader},
+    {type: 'select', label: 'Value', key: 'valueFontStyle', options: fontStyleOptions, isBatchUpdatable: true},
+
+    {type: 'input', inputType: 'number', label: 'Span', key: 'cardSpan', displayCdn: ({display}) => !display.compactView},
+
+    // link controls
+    {type: 'toggle', label: 'Is Link', key: 'isLink', displayCdn: ({isEdit}) => isEdit},
+    {type: 'input', inputType: 'text', label: 'Link Text', key: 'linkText', displayCdn: ({attribute, isEdit}) => isEdit && attribute.isLink},
+    {type: 'input', inputType: 'text', label: 'Location', key: 'location', displayCdn: ({attribute, isEdit}) => isEdit && attribute.isLink},
+    {type: 'select', label: 'Search Params', key: 'searchParams', displayCdn: ({attribute, isEdit}) => isEdit && attribute.isLink,
+        options: [
+            {label: 'None', value: undefined},
+            {label: 'ID', value: 'id'},
+            {label: 'Value', value: 'value'}
+        ]
+    },
+
+    // image controls
+    {type: 'toggle', label: 'Is Image', key: 'isImg', displayCdn: ({isEdit}) => isEdit},
+    {type: 'input', inputType: 'text', label: 'Image Url', key: 'imageSrc', displayCdn: ({attribute, isEdit}) => isEdit && attribute.isImg},
+    {type: 'input', inputType: 'text', label: 'Image Location', key: 'imageLocation', displayCdn: ({attribute, isEdit}) => isEdit && attribute.isImg},
+    {type: 'input', inputType: 'text', label: 'Image Extension', key: 'imageExtension', displayCdn: ({attribute, isEdit}) => isEdit && attribute.isImg && attribute.imageLocation},
+    {type: 'select', label: 'Image Size', key: 'imageSize',
+        options: [
+            { label: 'X-Small', value: 'imgXS' },
+            { label: 'Small', value: 'imgSM' },
+            { label: 'Base', value: 'imgMD' },
+            { label: 'XL', value: 'imgXL' },
+            { label: '2XL', value: 'img2XL' },
+            { label: '3XL', value: 'img3XL' },
+            { label: '4XL', value: 'img4XL' },
+            { label: '5XL', value: 'img5XL' },
+            { label: '6XL', value: 'img6XL' },
+            { label: '7XL', value: 'img7XL' },
+            { label: '8XL', value: 'img8XL' },
+        ],
+        displayCdn: ({attribute, isEdit}) => isEdit && attribute.isImg},
+    {type: 'input', inputType: 'number', label: 'Image Top Margin', key: 'imageMargin', displayCdn: ({attribute, isEdit}) => isEdit && attribute.isImg},
+
+
+    {type: ({value, setValue}) => (<ColorControls value={value} setValue={setValue} title={'Background Color'}/>), key: 'bgColor', displayCdn: ({display}) => !display.compactView}
+];
+
 export default {
     "name": 'Card',
     "type": 'card',
@@ -107,79 +181,84 @@ export default {
             {type: 'toggle', label: 'Remove Border', key: 'removeBorder'},
             {type: ({value, setValue}) => <ColorControls value={value} setValue={setValue} title={'Background Color'}/>, key: 'bgColor', displayCdn: ({display}) => display.compactView},
         ],
-        inHeader: [
-            // settings from in header dropdown are stores in the columns array per column.
-            {type: 'select', label: 'Sort', key: 'sort',
-                options: [
-                    {label: 'Not Sorted', value: ''}, {label: 'A->Z', value: 'asc nulls last'}, {label: 'Z->A', value: 'desc nulls last'}
-                ]},
-            {type: 'select', label: 'Justify', key: 'justify',
-                options: [
-                    {label: 'Not Justified', value: ''},
-                    {label: 'Left', value: 'left'},
-                    {label: 'Center', value: 'center'},
-                    {label: 'Right', value: 'right'},
-                    {label: 'Full Justified', value: 'full'}
-                ]},
-            {type: 'select', label: 'Format', key: 'formatFn',
-                options: [
-                    {label: 'No Format Applied', value: ' '},
-                    {label: 'Comma Seperated', value: 'comma'},
-                    {label: 'Comma Seperated ($)', value: 'comma_dollar'},
-                    {label: 'Abbreviated', value: 'abbreviate'},
-                    {label: 'Abbreviated ($)', value: 'abbreviate_dollar'},
-                    {label: 'Date', value: 'date'},
-                    {label: 'Title', value: 'title'},
-                    {label: 'Icon', value: 'icon'},
-                    {label: 'Color', value: 'color'},
-                ]},
+        inHeader,
+        appearance: {Comp: ({context}) => {
+                const {state: {display, columns}, setState} = useContext(context || ComponentContext);
+                const {UI} = useContext(CMSContext);
+                const {Icon} = UI;
+                const selectWrapperClass = 'group px-2 w-full flex items-center cursor-pointer hover:bg-gray-100'
+                const selectLabelClass = 'w-fit font-regular text-gray-500 cursor-default'
+                const selectClasses = 'w-full rounded-md bg-white group-hover:bg-gray-100 cursor-pointer'
 
-            {type: 'toggle', label: 'Border Below', key: 'borderBelow', displayCdn: ({display}) => display.compactView},
-            {type: 'input', inputType: 'number', label: 'Padding Below', key: 'pb', displayCdn: ({display}) => display.compactView},
-            {type: 'toggle', label: 'Hide Header', key: 'hideHeader'},
-            {type: 'select', label: 'Header', key: 'headerFontStyle', options: fontStyleOptions, displayCdn: ({attribute}) => !attribute.hideHeader},
-            {type: 'select', label: 'Value', key: 'valueFontStyle', options: fontStyleOptions},
+                if(!display.columnSelection) return <></>
 
-            {type: 'input', inputType: 'number', label: 'Span', key: 'cardSpan', displayCdn: ({display}) => !display.compactView},
+                const columnSelectionData = columns.filter(column => display.columnSelection.includes(column.normalName || column.name));
+                const selectionValues = inHeader
+                    .filter(({isBatchUpdatable}) => isBatchUpdatable)
+                    .reduce((acc, {key}) => {
+                        acc[key] = columnSelectionData.reduce((acc, data) => {
+                            // if all selected columns have same value for the key, save the value
+                            return acc === data?.[key] ? acc : ''
+                        }, columnSelectionData[0]?.[key]);
 
-            // link controls
-            {type: 'toggle', label: 'Is Link', key: 'isLink', displayCdn: ({isEdit}) => isEdit},
-            {type: 'input', inputType: 'text', label: 'Link Text', key: 'linkText', displayCdn: ({attribute, isEdit}) => isEdit && attribute.isLink},
-            {type: 'input', inputType: 'text', label: 'Location', key: 'location', displayCdn: ({attribute, isEdit}) => isEdit && attribute.isLink},
-            {type: 'select', label: 'Search Params', key: 'searchParams', displayCdn: ({attribute, isEdit}) => isEdit && attribute.isLink,
-                options: [
-                    {label: 'None', value: undefined},
-                    {label: 'ID', value: 'id'},
-                    {label: 'Value', value: 'value'}
-                ]
-            },
+                        return acc;
+                    } ,{});
 
-            // image controls
-            {type: 'toggle', label: 'Is Image', key: 'isImg', displayCdn: ({isEdit}) => isEdit},
-            {type: 'input', inputType: 'text', label: 'Image Url', key: 'imageSrc', displayCdn: ({attribute, isEdit}) => isEdit && attribute.isImg},
-            {type: 'input', inputType: 'text', label: 'Image Location', key: 'imageLocation', displayCdn: ({attribute, isEdit}) => isEdit && attribute.isImg},
-            {type: 'input', inputType: 'text', label: 'Image Extension', key: 'imageExtension', displayCdn: ({attribute, isEdit}) => isEdit && attribute.isImg && attribute.imageLocation},
-            {type: 'select', label: 'Image Size', key: 'imageSize',
-                options: [
-                    { label: 'X-Small', value: 'imgXS' },
-                    { label: 'Small', value: 'imgSM' },
-                    { label: 'Base', value: 'imgMD' },
-                    { label: 'XL', value: 'imgXL' },
-                    { label: '2XL', value: 'img2XL' },
-                    { label: '3XL', value: 'img3XL' },
-                    { label: '4XL', value: 'img4XL' },
-                    { label: '5XL', value: 'img5XL' },
-                    { label: '6XL', value: 'img6XL' },
-                    { label: '7XL', value: 'img7XL' },
-                    { label: '8XL', value: 'img8XL' },
-                ],
-                displayCdn: ({attribute, isEdit}) => isEdit && attribute.isImg},
-            {type: 'input', inputType: 'number', label: 'Image Top Margin', key: 'imageMargin', displayCdn: ({attribute, isEdit}) => isEdit && attribute.isImg},
-
-
-            {type: ({value, setValue}) => (<ColorControls value={value} setValue={setValue} title={'Background Color'}/>), key: 'bgColor', displayCdn: ({display}) => !display.compactView}
-        ]
-
+                const updateColumns = (key, value) => {
+                    setState(draft => {
+                        draft.columns.filter(column => (draft.display.columnSelection || []).includes(column.normalName || column.name))
+                            .forEach(column => {
+                                column[key] = value;
+                            })
+                    })
+                }
+                return (
+                    <div className={'px-2'}>
+                        <div className="flex flex-row gap-0.5 items-center px-1 text-xs text-gray-600 font-regular border rounded-lg">
+                            {
+                                inHeader
+                                    .filter(({isBatchUpdatable}) => isBatchUpdatable)
+                                    .map(({type, inputType, label, key, options}) =>
+                                        type === 'select' ?
+                                            <div key={`${key}`} className={selectWrapperClass}>
+                                                <label className={selectLabelClass}>{label}</label>
+                                                <select
+                                                    className={selectClasses}
+                                                    value={selectionValues[key]}
+                                                    onChange={e => updateColumns(key, e.target.value)}
+                                                >
+                                                    {
+                                                        options.map(({label, value}) => <option key={value} value={value}>{label}</option>)
+                                                    }
+                                                </select>
+                                            </div> :
+                                            type === 'toggle' ?
+                                                <div className={'px-2 py-1 w-full rounded-md bg-white hover:bg-gray-100 cursor-pointer'}>
+                                                    <ToggleControl
+                                                        className={`inline-flex w-full justify-center items-center rounded-md cursor-pointer ${selectLabelClass}`}
+                                                        title={label}
+                                                        value={selectionValues[key]}
+                                                        setValue={e => updateColumns(key, e)}
+                                                    />
+                                                </div> :
+                                                type === 'input' ?
+                                                    <div className={selectWrapperClass}>
+                                                        <label className={selectLabelClass}>{label}</label>
+                                                        <input
+                                                            className={selectClasses}
+                                                            type={inputType}
+                                                            value={selectionValues[key]}
+                                                            onChange={e => updateColumns(key, e.target.value)}
+                                                        />
+                                                    </div> :
+                                                    typeof type === 'function' ? type({value: selectionValues[key], setValue: newValue => updateColumns(key, newValue)}) :
+                                                        `${type} not available`
+                                    )
+                            }
+                        </div>
+                    </div>
+                )
+            }},
     },
     "EditComp": Card,
     "ViewComp": Card,
