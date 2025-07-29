@@ -7,6 +7,7 @@ import ColorControls from "./shared/ColorControls";
 import {ToggleControl} from "../dataWrapper/components/ToggleControl";
 
 const fontStyleOptions = [
+    { label: '', value: '' },
     { label: 'X-Small', value: 'textXS' },
     { label: 'X-Small Regular', value: 'textXSReg' },
     { label: 'Small', value: 'textSM' },
@@ -196,10 +197,13 @@ export default {
                 const selectionValues = inHeader
                     .filter(({isBatchUpdatable}) => isBatchUpdatable)
                     .reduce((acc, {key}) => {
-                        acc[key] = columnSelectionData.reduce((acc, data) => {
+                        acc[key] = columnSelectionData.reduce((acc, data, i) => {
                             // if all selected columns have same value for the key, save the value
-                            return acc === data?.[key] ? acc : ''
-                        }, columnSelectionData[0]?.[key]);
+                            return i === 0 ?
+                                    data?.[key] :
+                                        acc === data?.[key] ?
+                                        acc : ''
+                        }, '');
 
                         return acc;
                     } ,{});
