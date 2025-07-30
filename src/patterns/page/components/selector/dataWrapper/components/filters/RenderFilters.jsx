@@ -74,7 +74,7 @@ export const RenderFilters = ({
         //                         sync with page level filter if enabled.
         // if any filter is synced, changes should propagate both ways.
         const pageFilters = (pageState?.filters || []).reduce((acc, curr) => ({ ...acc, [curr.searchKey]: curr.values }), {});
-        const hasMatchingFilters = state.columns.some(c => {
+        const hasMatchingFilters = (state.columns || []).some(c => {
             const hasFiltersToUpdate = (c.filters || []).some(f => {
                 if(!f.usePageFilters || !pageFilters[f.searchParamKey]) return false;
 
