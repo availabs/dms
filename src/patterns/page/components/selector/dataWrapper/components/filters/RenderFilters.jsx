@@ -76,7 +76,7 @@ export const RenderFilters = ({
         const pageFilters = (pageState?.filters || []).reduce((acc, curr) => ({ ...acc, [curr.searchKey]: curr.values }), {});
         const hasMatchingFilters = (state.columns || []).some(c => {
             const hasFiltersToUpdate = (c.filters || []).some(f => {
-                if(!f.usePageFilters || !pageFilters[f.searchParamKey]) return false;
+                if(!f.usePageFilters) return false;
 
                 const tmpValue = Array.isArray(pageFilters[f.searchParamKey]) ? pageFilters[f.searchParamKey] : [pageFilters[f.searchParamKey]];
                 return !isEqual(f.values, tmpValue)
@@ -93,8 +93,8 @@ export const RenderFilters = ({
                         // filter can be either internal or external. and one of the operations
                         column.filters.forEach((filter) => {
                             const tmpValue = pageFilters[filter.searchParamKey]
-                            const pageFilterValues = Array.isArray(tmpValue) ? tmpValue : [tmpValue];
-                            if (tmpValue && filter.usePageFilters && pageFilterValues && !isEqual(filter.values, pageFilterValues)) {
+                            const pageFilterValues = !tmpValue ? [] : Array.isArray(tmpValue) ? tmpValue : [tmpValue];
+                            if (filter.usePageFilters && pageFilterValues && !isEqual(filter.values, pageFilterValues)) {
                                 filter.values = pageFilterValues;
                             }
                         })

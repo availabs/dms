@@ -258,7 +258,7 @@ export const RenderFilterValueSelector = ({
                                         const newPageFilters = Object.keys(newFilters).map(searchKey => ({searchKey, values: newFilters[searchKey]}))
                                         // const url = convertToUrlParams(newFilters, delimiter);
                                         // navigate(`?${url}`)
-                                        updatePageStateFilters( newPageFilters)
+                                        updatePageStateFilters(newPageFilters, {[filter.searchParamKey || filterColumn.name]: !newValues.length})
                                         updateFilter({key: 'values', value: newValues, filterColumn, filter, setState})
                                     }else {
                                         updateFilter({key: 'values', value: newValues, filterColumn, filter, setState})
