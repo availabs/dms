@@ -47,6 +47,7 @@ const pagesConfig = ({
   API_HOST
 }) => {
   let theme = merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern?.theme?.settings?.theme?.theme] || themes.default), cloneDeep(pattern?.theme) || {})
+  console.log('test 123', themes, pattern?.theme?.settings?.theme?.theme )
   //console.log('pageConfig', pattern.doc_type, pattern.id, themes[pattern?.theme?.settings?.theme?.theme], pattern?.theme, pattern)
   // baseUrl = baseUrl[0] === '/' ? baseUrl.slice(1) : baseUrl
   baseUrl = baseUrl === '/' ? '' : baseUrl
