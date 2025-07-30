@@ -13,13 +13,16 @@ const Noop = () => {};
 export default function TableHeaderCell({isEdit, attribute, columns, display, controls, setState=Noop}) {
     const menuRef = useRef(null);
     const [isOpen, setIsOpen] = useState(false);
-    const menuBtnId = `menu-btn-${getColIdName(attribute)}-in-header-column-controls`; // used to control isOpen on menu-btm click;
-    useHandleClickOutside(menuRef, menuBtnId, () => setIsOpen(false));
+    const colIdName = getColIdName(attribute);
+    const menuBtnId = `menu-btn-${colIdName}-in-header-column-controls`; // used to control isOpen on menu-btm click;
+    useHandleClickOutside(menuRef, menuBtnId, () => {
+        setIsOpen(false)
+    });
 
     // updates column if present, else adds it with the change the user made.
     const updateColumns = useCallback((key, value, onChange, dataFetch) => setState(draft => {
         // update requested key
-        const idx = columns.findIndex(column => getColIdName(column) === getColIdName(attribute));
+        const idx = columns.findIndex(column => getColIdName(column) === colIdName);
         if (idx !== -1) {
             draft.columns[idx][key] = value;
         }
@@ -44,24 +47,37 @@ export default function TableHeaderCell({isEdit, attribute, columns, display, co
     }
 
     return (
-        <div key={getColIdName(attribute)} className="relative w-full">
+        <div key={colIdName} className="relative w-full">
             <div id={menuBtnId}
                  key={'menu-btn'}
-                 className={`group inline-flex items-center w-full justify-between gap-x-1.5 rounded-md cursor-pointer`}
-                 onClick={e => setIsOpen(!isOpen)}>
+                 className={`group inline-flex items-center w-full justify-between gap-x-1.5 rounded-md cursor-pointer ${display.columnSelection?.includes(colIdName) ? `bg-gray-300` : ``}`}
+                 onClick={e => {
+                     if(e.ctrlKey){
+                         setState(draft => {
+                             const existingSelection = draft.display.columnSelection || [];
+                             draft.display.columnSelection = existingSelection.includes(colIdName) ? existingSelection.filter(name => name !== colIdName) : [...existingSelection, colIdName]
+                         })
+                     }else {
+                         setState(draft => {
+                             draft.display.columnSelection = undefined;
+                         })
+                         setIsOpen(!isOpen)
+                     }
+                 }}
+            >
                 {
                     controls.header?.displayFn ? controls.header.displayFn(attribute) :
                         (
-                            <span key={`${getColIdName(attribute)}-name`} className={'truncate select-none'}
-                                  title={attribute.customName || attribute.display_name || getColIdName(attribute)}>
-                                {attribute.customName || attribute.display_name || getColIdName(attribute)}
+                            <span key={`${colIdName}-name`} className={'truncate select-none'}
+                                  title={attribute.customName || attribute.display_name || colIdName}>
+                                {attribute.customName || attribute.display_name || colIdName}
                             </span>
                         )
                 }
                 <div id={menuBtnId} className={'flex items-center'}>
                     {/*/!*<InfoCircle width={16} height={16} className={'text-gray-500'} />*!/ needs a lexical modal*/}
                     {
-                        attribute.group ? <Icon icon={'Group'} key={`group-${getColIdName(attribute)}`} className={iconClass} {...iconSizes} /> :
+                        attribute.group ? <Icon icon={'Group'} key={`group-${colIdName}`} className={iconClass} {...iconSizes} /> :
                             attribute.fn ? fnIcons[attribute.fn] || attribute.fn : null
                     }
                     {
@@ -69,7 +85,7 @@ export default function TableHeaderCell({isEdit, attribute, columns, display, co
                             attribute.sort === 'desc nulls last' ? <Icon icon={'SortDesc'} key={'sort-desc-icon'} className={iconClass} {...iconSizes} /> : null
                     }
 
-                    <Icon icon={'ArrowDown'} key={`arrow-down-${getColIdName(attribute)}`}
+                    <Icon icon={'ArrowDown'} key={`arrow-down-${colIdName}`}
                                id={menuBtnId}
                                className={'text-gray-400 group-hover:text-gray-600 transition ease-in-out duration-200'}/>
                 </div>
@@ -92,7 +108,7 @@ export default function TableHeaderCell({isEdit, attribute, columns, display, co
                                                 typeof displayCdn === 'boolean' ? displayCdn : true)
                                         .map(({type, inputType, label, key, dataFetch, options, onChange}) =>
                                             type === 'select' ?
-                                                <div key={`${getColIdName(attribute)}-${key}`} className={selectWrapperClass}>
+                                                <div key={`${colIdName}-${key}`} className={selectWrapperClass}>
                                                     <label className={selectLabelClass}>{label}</label>
                                                     <select
                                                         className={selectClasses}
