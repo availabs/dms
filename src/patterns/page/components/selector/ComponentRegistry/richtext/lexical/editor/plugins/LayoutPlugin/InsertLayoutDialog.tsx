@@ -23,6 +23,7 @@ export const LAYOUTS = [
   {label: '3 columns (equal width)', value: 'grid-cols-1 md:grid-cols-3', count: 3},
   {label: '3 columns (25% - 50% - 25%)', value: 'grid-cols-1 md:grid-cols-[1fr_2fr_1fr]', count: 3},
   {label: '4 columns (equal width)', value: 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4', count: 4},
+  {label: '5 columns (equal width)', value: 'grid-cols-1 md:grid-cols-5 lg:grid-cols-5', count: 4},
 ];
 
 export default function InsertLayoutDialog({
