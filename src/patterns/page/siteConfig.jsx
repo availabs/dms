@@ -23,6 +23,7 @@ import DefaultMenu from './components/menu'
 
 import { SearchPage } from "./components/search/SearchPage";
 
+
 import { registerDataType } from '../../data-types'
 import Selector from './components/selector'
 import defaultTheme from '../../ui/defaultTheme'
@@ -49,29 +50,19 @@ const pagesConfig = ({
   //console.log('pageConfig', pattern.doc_type, pattern.id, themes[pattern?.theme?.settings?.theme?.theme], pattern?.theme, pattern)
   // baseUrl = baseUrl[0] === '/' ? baseUrl.slice(1) : baseUrl
   baseUrl = baseUrl === '/' ? '' : baseUrl
-  const defaultLogo = (
-      <Link to={`${baseUrl || '/'}`} className='h-12 flex px-4 items-center'>
-        <div className='rounded-full h-8 w-8 bg-blue-500 border-2 border-blue-300 hover:bg-blue-600' />
-      </Link>
-  )
-
-  //console.log('page site config', app, type)
-
-  if(!theme?.navOptions?.logo) {
-    theme.navOptions = {...(theme?.navOptions || {}), logo: (logo ? logo : defaultLogo)}
-  }
-
+  
 
   // console.log('testing', theme.navOptions)
   // console.log('page siteConfig app,type', `"${app}","${type}"`)
 
-  //console.log('theme', theme)
+  console.log('theme', theme)
 
   const format = cloneDeep(cmsFormat)
   format.app = app
   format.type = type
   updateRegisteredFormats(format.registerFormats, app, type)
   updateAttributes(format.attributes, app, type)
+  //siteType = siteType || type
   //console.log('foramat after update', app, type, format)
 
 
@@ -80,6 +71,7 @@ const pagesConfig = ({
   // should move this to dmsFactory default authWrapper
   const defaultUser = { email: "user", authLevel: 10, authed: true, fake: true}
   // ---------------------------------------------
+
 
   const patternFilters = parseIfJSON(pattern?.filters, []);
   // const rightMenuWithSearch = rightMenu; // for live site

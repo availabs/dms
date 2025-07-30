@@ -23,6 +23,7 @@ const parseIfJson = str => {
 const cols = {
     [`data->>'base_url' as base_url`]: {label: 'Base Url', name: 'base_url'},
     [`data->>'doc_type' as doc_type`]: {label: 'Doc Type', name: 'doc_type'},
+    [`data->>'name' as name`]: {label: 'Name', name: 'name'},
     [`data->>'subdomain' as subdomain`]: {label: 'Subdomain', name: 'subdomain'},
     [`data->>'authLevel' as authLevel`]: {label: 'Auth Level', name: 'authLevel'}
 }
@@ -204,7 +205,7 @@ async function getPatterns({app, falcor}){
         }
     });
     const attributes = [
-        `data->>'base_url' as base_url`,`data->>'doc_type' as doc_type`,
+        `data->>'base_url' as base_url`,`data->>'doc_type' as doc_type`,`data->>'name' as name`,
         `data->>'subdomain' as subdomain`, `data->>'authLevel' as authLevel`
     ]
     const lenPath = ['dms', 'data', `${app}+pattern`, 'options', options, 'length']
@@ -217,7 +218,7 @@ async function getPatterns({app, falcor}){
     await falcor.get([...dataPath, {from: 0, to: length - 1}, attributes]);
     const data = get(falcor.getCache(), dataPath, {});
 
-    return Object.values(data).map(pattern => Object.keys(pattern).reduce((acc, col) => ({...acc, [cols[col].name]: pattern[col]}), {}));
+    return Object.values(data).map(pattern => Object.keys(pattern).reduce((acc, col) => ({...acc, [cols[col].name]: typeof pattern[col] === 'object' ? undefined : pattern[col]}), {}));
 }
 
 async function getSections({app, pattern, falcor, setLoading}){
@@ -331,7 +332,7 @@ const updateSections = async ({sections, newView, falcor, user, setUpdating}) =>
 
 const Edit = ({value, onChange}) => {
     const {app, siteType, baseUrl, falcor, falcorCache, pgEnv, user, ...rest} = useContext(CMSContext) || {}
-    const cachedData = parseIfJson(value) ? JSON.parse(value) : {};
+    const cachedData = parseIfJson(value) || {};
     const [loading, setLoading] = useState(false);
     const [patterns, setPatterns] = useState([]);
     const [pattern, setPattern] = useState(cachedData.pattern || []);
@@ -430,8 +431,10 @@ const Edit = ({value, onChange}) => {
                     >
                         <option>please select a pattern</option>
                         {
-                            (patterns || []).map(pattern => <option key={pattern.doc_type}
-                                                                    value={pattern.doc_type}>{pattern.doc_type}</option>)
+                            (patterns || [])
+                                .sort((a,b) => (a?.name || a?.doc_type).localeCompare(b?.name || b?.doc_type))
+                                .map(pattern => <option key={`${pattern.doc_type}-${pattern.subdomain}`}
+                                                                    value={pattern.doc_type}>{`${pattern.name || pattern.doc_type} ${pattern.subdomain ? `(${pattern.subdomain})` : ``}`}</option>)
                         }
                     </select>
                 </div>

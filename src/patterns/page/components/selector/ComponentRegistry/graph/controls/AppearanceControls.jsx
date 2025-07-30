@@ -89,6 +89,7 @@ export default function AppearanceControls({context}) {
                                     {label: 'Bar', value: 'BarGraph'},
                                     {label: 'Line', value: 'LineGraph'},
                                     {label: 'Scatter', value: 'ScatterPlot'},
+                                    {label: 'Grid', value: 'GridGraph'},
                                 ].map(({label, value}) => <option key={value} value={value}>{label}</option>)
                             }
                         </select>

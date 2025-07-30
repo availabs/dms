@@ -41,7 +41,7 @@ export const sectionGroupTheme = {
 export default function SectionGroup ({group, attributes, edit}) {
   const { theme } = React.useContext(ThemeContext);
   const { UI, baseUrl, user } = React.useContext(CMSContext) || {};
-  const { apiUpdate, format, item, updateAttribute } = React.useContext(PageContext) || {};
+  const { apiUpdate, format, item, updateAttribute } = React.useContext(PageContext) || {viewIcon: 'ViewPage', editIcon: 'EditPage'};
   const { SideNav, Icon } = UI;
 
   const inPageNav = getInPageNav(item,theme)

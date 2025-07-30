@@ -92,7 +92,7 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
                 .reduce((acc, curr) => ({...acc, [curr.searchKey]: typeof curr.values === 'string' ? [curr.values] : curr.values}), {});
             const url = `?${convertToUrlParams(filtersObject)}`;
             if(url !== search){
-                navigate(`${baseUrl}/edit/${item.url_slug}${url}`)
+                navigate(`${baseUrl}/${item.url_slug}${url}`)
             }
         }
     }

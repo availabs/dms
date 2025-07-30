@@ -1,11 +1,11 @@
 import React from "react";
 import {Link} from "react-router";
-import {PageContext} from "../../../context";
+import {ComponentContext, PageContext} from "../../../context";
 
 
 export const Footer = () => {
     const {dataItems, item} = React.useContext(PageContext);
-
+    const {state: {display}} = React.useContext(ComponentContext);
     const parents = dataItems.filter(({parent, hide_in_nav, navOptions,title}) => !parent & navOptions?.show_in_footer === 'show')
         // (
         //     title.toLowerCase().includes('at risk') ||
@@ -41,10 +41,10 @@ export const Footer = () => {
             </div>
 
             <div className={'p-[16px] md:px-[25px] md:px-[56px] flex flex-col md:flex-row items-center justify-between md:h-[70px] md:max-h-[70px] md:min-h-[70px] bg-white flex flex-1 px-4 xl:px-[64px] rounded-[12px] shadow-md'}>
-                <div>© 2024 MitigateNY, All Rights Reserved.</div>
+                <div>{display.disclaimer || '© 2024 MitigateNY, All Rights Reserved.'}</div>
                 <div className={'flex gap-[24px] '}>
-                    <Link to={"#"}>Privacy Policy</Link>
-                    <Link to={"#"}>Terms and Conditions</Link>
+                    <Link to={display.privacyPolicyURL || "#"}>Privacy Policy</Link>
+                    <Link to={display.termsURL || "#"}>Terms and Conditions</Link>
                 </div>
             </div>
         </div>
@@ -58,7 +58,11 @@ export default {
     defaultState: {   
     },
     controls: {
-        
+        more: [
+            {type: 'input', inputType: 'text', label: 'Disclaimer', key: 'disclaimer'},
+            {type: 'input', inputType: 'text', label: 'Privacy Policy URL', key: 'privacyPolicyURL'},
+            {type: 'input', inputType: 'text', label: 'Terms and Conditions URL', key: 'termsURL',}
+        ]
     },
     "EditComp": Footer,
     "ViewComp": Footer

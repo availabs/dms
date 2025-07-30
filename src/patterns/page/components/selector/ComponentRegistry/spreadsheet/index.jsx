@@ -127,7 +127,7 @@ export default {
                     {label: 'Left', value: 'left'},
                     {label: 'Center', value: 'center'},
                     {label: 'Right', value: 'right'},
-                ]},
+                ], displayCdn: ({isEdit}) => isEdit},
             {type: 'select', label: 'Format', key: 'formatFn',
                 options: [
                     {label: 'No Format Applied', value: ' '},
@@ -138,7 +138,7 @@ export default {
                     {label: 'Date', value: 'date'},
                     {label: 'Title', value: 'title'},
                     {label: '0 = N/A', value: 'zero_to_na'},
-                ]},
+                ], displayCdn: ({isEdit}) => isEdit},
 
             // link controls
             {type: 'toggle', label: 'Is Link', key: 'isLink', displayCdn: ({isEdit}) => isEdit},

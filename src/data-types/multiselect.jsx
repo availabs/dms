@@ -37,7 +37,7 @@ const RenderToken = ({token, value, onChange, theme, isSearching, setIsSearching
             {
                 onChange && <div
                     className={theme?.multiselect?.removeIcon || removeIcon}
-                    onClick={e => onChange(value.filter(v => (v.value || v) !== (token.value || token)))}
+                    onClick={e => onChange(value.filter(v => (v.value || v) !== (token.value || token)).map(v => v?.value || v))}
                 > </div>
             }
         </div>
@@ -83,9 +83,9 @@ const RenderMenu = ({
                                 className={theme?.multiselect?.smartMenuItem}
                                 onClick={e => {
                                     onChange(
-                                        o.value === 'select-all' ? options :
+                                        o.value === 'select-all' ? options.map(o => o?.value || o) :
                                             o.value === 'remove-all' ? [] :
-                                                [...value, o]
+                                                [...value, o].map(v => v?.value || v)
                                     );
                                     setIsSearching(false);
                                 }}>
@@ -101,7 +101,7 @@ const RenderMenu = ({
                             key={`option-${i}`}
                             className={theme?.multiselect?.menuItem}
                             onClick={e => {
-                                onChange(singleSelectOnly ? [o] : [...value, o]);
+                                onChange(singleSelectOnly ? [o?.value || o] : [...value, o].map(o => o?.value || o));
                                 setIsSearching(false);
                             }}>
                             {o.label || o}
@@ -156,8 +156,7 @@ const Edit = ({value = [], loading, onChange, className,placeholder, options = [
     return (
         <div ref={ref} className={`${theme?.multiselect?.mainWrapper} ${menuPosition === 'top' ? 'flex flex-col flex-col-reverse' : ''} ${loading ? 'cursor-wait' : ''}`}>
             {
-                invalidValues.length && displayInvalidMsg ?
-                    <Alert className={theme?.multiselect?.error} title={`Invalid Values: ${JSON.stringify(invalidValues)}`} /> : null
+                invalidValues.length && displayInvalidMsg ? <div>Invalid Values: {JSON.stringify(invalidValues)}</div> : null
             }
             <div className={className || (theme?.multiselect?.inputWrapper)} onClick={() => {
                 setIsSearching(!isSearching)

@@ -447,8 +447,8 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
         action: actionType,
         path: '/',
         filter: {
-            fromIndex: path => fromIndex,
-            toIndex: path => toIndex,
+            fromIndex: () => fromIndex,
+            toIndex: () => toIndex,
             options: JSON.stringify(options),
             attributes: columnsToFetch.map(a => a.reqName).filter(a => a),
             stopFullDataLoad: true
@@ -459,7 +459,7 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
         data = await apiLoad({
             format: state.sourceInfo,
             children
-        });
+        }, '/');
     }catch (e) {
         if (process.env.NODE_ENV === "development") console.error(e)
         return {length, data: [], invalidState: 'An Error occurred while fetching data.'};
@@ -475,8 +475,8 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
             action: actionType,
             path: '/',
             filter: {
-                fromIndex: path => 0,
-                toIndex: path => 1,
+                fromIndex: () => 0,
+                toIndex: () => 1,
                 options: JSON.stringify({
                     filter: options.filter,
                     exclude: options.exclude,

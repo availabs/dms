@@ -256,6 +256,7 @@ const RenderItem = ({
                                 }
                                 <div className={`
                                                 ${theme.value} ${compactView ? theme.valueCompactView : theme.valueSimpleView}
+                                                 ${theme[valueTextJustifyClass]}
                                                  ${theme[attr.valueFontStyle || 'textXS']}
                                                  ${formatClass}
                                                  `}>
