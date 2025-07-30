@@ -3,15 +3,19 @@ import { useLocation, useSubmit, NavLink} from "react-router";
 import { cloneDeep, get, isEqual } from "lodash-es"
 import { CMSContext,PageContext } from '../../../context'
 import { json2DmsForm, getUrlSlug } from '../../_utils'
-import { publish, discardChanges, insertSubPage} from '../editFunctions'
+import {publish, discardChanges, insertSubPage, duplicateItem} from '../editFunctions'
 import {ThemeContext} from "../../../../../ui/useTheme";
 
 
 function PagesPane () {
   const { item, dataItems, apiUpdate } =  React.useContext(PageContext) || {};
-  const {UI} = React.useContext(CMSContext);
+  const {UI, user} = React.useContext(CMSContext);
   const {DraggableNav} = UI;
+    const duplicatePage = (itemId) => {
+        if (!itemId || !dataItems?.length) return;
 
+        return duplicateItem(dataItems.find(dI => dI.id === itemId), dataItems, user, apiUpdate)
+    }
   return (
     <div className="flex h-full flex-col flex-1">
       <div className="px-4 sm:px-6 py-2">
@@ -26,7 +30,7 @@ function PagesPane () {
           item={item}
           dataItems={dataItems}
           apiUpdate={apiUpdate}
-          NavComp={DraggableNavItem}
+          NavComp={(props) => DraggableNavItem({...props, duplicatePage})}
         />
       </div>
     </div>
@@ -35,7 +39,7 @@ function PagesPane () {
 
 export default PagesPane
 
-function DraggableNavItem ({activeItem, item, dataItems, handleCollapseIconClick, isCollapsed, edit}) {
+function DraggableNavItem ({activeItem, item, dataItems, handleCollapseIconClick, isCollapsed, edit, duplicatePage}) {
     const { baseUrl, user, UI } = React.useContext(CMSContext);
     const { theme } = React.useContext(ThemeContext);
 
@@ -45,7 +49,7 @@ function DraggableNavItem ({activeItem, item, dataItems, handleCollapseIconClick
     const submit = useSubmit()
     const [showDelete, setShowDelete] = React.useState(false)
     const [showRename, setShowRename] = React.useState(false)
-
+    const [duplicating, setDuplicating] = React.useState(false);
     if(!dataItems.find(i => item?.id === i.id)) return;
     //-- this is not ideal, better to check id and parent
     const isActive = pathname.includes(item.url_slug)
@@ -81,11 +85,21 @@ function DraggableNavItem ({activeItem, item, dataItems, handleCollapseIconClick
                           name: (<span className=''>Rename</span>),
                           onClick: () => setShowRename(true)
                         },
-                        {
+                        item.id === activeItem.id ? {
+                            name: (<span className=''>{duplicating ? 'Duplicating...' : 'Duplicate'}</span>),
+                            onClick: async () => {
+                                if(item.id === activeItem.id){
+                                    setDuplicating(true);
+                                    await duplicatePage(item.id);
+                                    setDuplicating(false)
+                                }
+                            }
+                        } : undefined,
+                          {
                           name: (<span className='text-red-400'>Delete</span>),
                           onClick: () => setShowDelete(true)
                         }
-                      ]}
+                      ].filter(f => f)}
                     >
                       <div className='flex items-center text-slate-300 hover:text-slate-600 rounded-full hover:bg-blue-300'>
                         <Icon icon={'EllipsisVertical'} className='size-5' />
