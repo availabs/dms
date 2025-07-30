@@ -301,7 +301,10 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
                 columnsForOperation.forEach((columnName) => {
                     const { refName, reqName, fn, filters, ...restCol } = getFullColumn(columnName, columnsWithSettings);
                     const reqNameWithoutAS = splitColNameOnAS(reqName)[0];
-                    const currOperationValues = restOfDataRequestOptions[filterOperation][columnName];
+                    const currOperationValues =
+                        filterOperation === 'like' ?
+                                `%${restOfDataRequestOptions[filterOperation][columnName]}%`
+                            : restOfDataRequestOptions[filterOperation][columnName];
                     const valueToFilterBy = Array.isArray(currOperationValues) ? currOperationValues[0] : currOperationValues;
 
                     if (valueToFilterBy == null) return;

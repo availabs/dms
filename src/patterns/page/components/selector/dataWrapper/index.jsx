@@ -364,7 +364,7 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
         const isNormalisedColumn = state.columns.filter(col => col.name === column.name && col.filters?.length).length > 1;
 
         (column.filters || [])
-            .filter(({values}) => Array.isArray(values) && values.every(v => typeof v === 'string' ? v.length : typeof v !== 'object'))
+            .filter(({values}) => Array.isArray(values) && values.every(v => /*typeof v === 'string' ? v.length :*/ typeof v !== 'object'))
             .forEach(({type, operation, values, fn}) => {
                 // here, operation is filter, exclude, >, >=, <, <=.
                 // normal columns only support filter.

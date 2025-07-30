@@ -142,6 +142,7 @@ export const RenderFilterValueSelector = ({
                         >
                             <option key="filter" value="filter">include</option>
                             <option key="exclude" value="exclude">exclude</option>
+                            <option key="like" value="like">text</option>
                             <option key="gt" value="gt"> {">"} </option>
                             <option key="gte" value="gte"> {">="} </option>
                             <option key="lt" value="lt"> {"<"} </option>
@@ -268,9 +269,9 @@ export const RenderFilterValueSelector = ({
                             <Comp
                                 key={`filter-${filterColumn.name}-${filter.type}`}
                                 className={`${theme.filters.input}`}
-                                placeholder={'Please enter a number...'}
+                                placeholder={filter.operation === 'like' ? 'search...' : 'Please enter a number...'}
                                 value={ value }
-                                type={'number'}
+                                type={filter.operation === 'like' ? 'text' : 'number'}
                                 onChange={e => {
                                     const newValue = filterColumn.type === 'number' && e ? +e : e;
                                     let newValues = [newValue];
