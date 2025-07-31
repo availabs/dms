@@ -1,4 +1,4 @@
-import React from "react";
+import React, {useEffect} from "react";
 import {Link, useNavigate, useLocation} from "react-router";
 import {ThemeContext} from "../../../ui/useTheme";
 import {AuthContext} from "../siteConfig";
@@ -6,7 +6,6 @@ import {callAuthServer} from "../utils";
 
 
 export default (props) => {
-    const location = useLocation();
     const [credentials, setCredentials] = React.useState({email: '', password: ''});
     const [status, setStatus] = React.useState('');
     const {theme} = React.useContext(ThemeContext);
@@ -18,7 +17,7 @@ export default (props) => {
 
     return (
         <div className={'max-w-xs mx-auto my-auto flex flex-col gap-3'}>
-            Signup
+            Forgot Password
 
             <FieldSet
                 components={[
@@ -29,33 +28,15 @@ export default (props) => {
                         onChange: (e) => {
                             setCredentials({...credentials, email: e.target.value})
                         }
-                    },
-                    {
-                        type:'Input',
-                        input_type: 'password',
-                        label: 'Password',
-                        value: credentials.password,
-                        onChange: (e) => {
-                            setCredentials({...credentials, password: e.target.value})
-                        }
-                    },{
-                        type:'Input',
-                        input_type: 'password',
-                        label: 'Verify Password',
-                        value: credentials.verifyPassword,
-                        onChange: (e) => {
-                            setCredentials({...credentials, verifyPassword: e.target.value})
-                        }
-                    },
+                    }
                 ]}
             />
 
             <Button
-                disabled={credentials.password !== credentials.verifyPassword}
                 onClick={async () => {
-                console.log('call signup', credentials, AUTH_HOST)
-                await callAuthServer(`${AUTH_HOST}/signup/assign/group`,
-                    {...credentials, project: PROJECT_NAME})
+                console.log('call password reset', credentials, AUTH_HOST)
+                await callAuthServer(`${AUTH_HOST}/password/reset`,
+                    {...credentials, token: user.token, project: PROJECT_NAME, host: `${window.location.host}`, url: `/${baseUrl}/login`})
                     .then(res => {
                         console.log('res', res)
                         if (res.error) {
@@ -63,16 +44,14 @@ export default (props) => {
                             console.error('Error', res.error)
                         } else {
                             setStatus(res.message)
-                            navigate(`${baseUrl}/login`)
+                            // navigate(`${baseUrl}/login`)
                         }
                     })
                     .catch(error => {
                         setStatus('Cannot contact authentication server.')
                         console.error('Cannot contact authentication server.');
                     });
-            }}> Signup </Button>
-
-            <div className={'text-sm'}>Already have an account? <Link to={`${baseUrl}/login`} className={'underline'}>login</Link></div>
+            }}> Reset </Button>
         </div>
     )
 }

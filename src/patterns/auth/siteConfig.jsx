@@ -6,9 +6,10 @@ import defaultTheme from "../../ui/defaultTheme";
 import AuthLogin from "./pages/authLogin";
 import AuthLogout from "./pages/authLogout";
 import AuthSignup from "./pages/authSignup";
-import AuthSetPassword from "./pages/authSetPassword";
 import AuthUsers from "./pages/authUsers";
 import AuthGroups from "./pages/authGroups";
+import AuthResetPassword from "./pages/authResetPassword";
+import AuthForgotPassword from "./pages/authForgotPassword";
 
 export const AuthContext = React.createContext(null);
 
@@ -89,6 +90,14 @@ const authConfig = ({
             path: "signup",
           },
           {
+            type: props => <AuthResetPassword {...props} />,
+            path: "password/reset",
+          },
+          {
+            type: props => <AuthForgotPassword {...props} />,
+            path: "password/forgot",
+          },
+          {
             type: props => <AuthUsers {...props} />,
             authLevel: 10,
             path: "users",
@@ -97,10 +106,6 @@ const authConfig = ({
             type: props => <AuthGroups {...props} />,
             authLevel: 10,
             path: "groups",
-          },
-          {
-            type: props => <AuthSetPassword {...props} />,
-            path: "password/set/:token",
           },
           {
             type: props => <div>reset password</div>,
