@@ -76,7 +76,7 @@ function pattern2routes (siteData, props) {
     dmsConfigUpdated.registerFormats = updateRegisteredFormats(dmsConfigUpdated.registerFormats, dmsConfig.app)
     dmsConfigUpdated.attributes = updateAttributes(dmsConfigUpdated.attributes, dmsConfig.app)
 
-    console.log('patterns', patterns)
+    // console.log('patterns', patterns)
     return [
         // auth
         dmsPageFactory(configs.auth({
@@ -132,7 +132,7 @@ function pattern2routes (siteData, props) {
                             damaBaseUrl
                             //rightMenu: <div>RIGHT</div>,
                         });
-                        console.log('configObj', configObj)
+                        // console.log('configObj', configObj)
                         return ({...dmsPageFactory(configObj, authWrapper, user)})
                 }));
             }
@@ -185,7 +185,7 @@ export function DmsSite ({
         async function load (){
             const user = await getUser(API_HOST, PROJECT_NAME);
             setUser(user || {});
-            console.log('set user', user)
+            // console.log('set user', user)
         }
 
         return () => {

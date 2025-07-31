@@ -47,7 +47,7 @@ const DmsManager = (props) => {
 		mode
 	} = props
 	const location = useLocation()
-	console.log('location dms-manager', location, baseUrl, path)
+	// console.log('location dms-manager', location, baseUrl, path)
 	function getActiveView(config, path, format, user, depth=0) {
 		// add '' to params array to allow root (/) route  matching
 		//console.log('testing', config)
@@ -102,14 +102,14 @@ const DmsManager = (props) => {
 	
 
 	React.useEffect(()=>{
-		console.log('check checkauth', path)
+		// console.log('check checkauth', path)
 		// console.log(' dmsManager:31 - user', user, props, config.format)
 		if(check) {
 			let activeConfig = getActiveConfig(config.children, path, config.format)
 			// console.log('activeConfig', activeConfig, props)
 			check( checkAuth, props, activeConfig, navigate, `${baseUrl}${path}` )
 		}
-		console.log('location dms-manager useEffect', location, path)
+		// console.log('location dms-manager useEffect', location, path)
 	},[path, user])
 
 	// // React.useEffect(() => console.log('dms manager unmount') , [])

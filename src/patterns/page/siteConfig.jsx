@@ -109,7 +109,7 @@ const pagesConfig = ({
                 falcor,
                 patternFilters,
                 authPermissions,
-                isUserAuthed: (reqPermissions) => isUserAuthed({user, authPermissions, reqPermissions}),
+                isUserAuthed: (reqPermissions, customAuthPermissions) => isUserAuthed({user, authPermissions: customAuthPermissions || authPermissions, reqPermissions}),
                 Menu: () => <>{rightMenu}</>
               }}>
                 <ThemeContext.Provider value={{theme}}>
@@ -150,7 +150,7 @@ const pagesConfig = ({
                 />
             ),
             filter: {
-              attributes:['title', 'index', 'filters', 'url_slug', 'parent', 'published', 'hide_in_nav' ,'sections','section_groups','sidebar','navOptions', 'theme']
+              attributes:['title', 'index', 'filters', 'authPermissions', 'url_slug', 'parent', 'published', 'hide_in_nav' ,'sections','section_groups','sidebar','navOptions', 'theme']
             },
             path: "/*",
             action: "view"

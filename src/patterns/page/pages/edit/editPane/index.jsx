@@ -4,6 +4,7 @@ import SettingsPane from './settingsPane'
 import PagesPane, { PublishButton } from './pagesPane'
 import HistoryPane from './historyPane'
 import SectionGroupsPane from './sectionGroupsPane'
+import PermissionsPane from "./permissionsPane";
 
 const panes = [
       {
@@ -21,6 +22,11 @@ const panes = [
       {
         icon: 'History',
         Component: HistoryPane
+      },
+      {
+        icon: 'AccessControl',
+        Component: PermissionsPane,
+          reqPermissions: ['set-page-auth']
       }
     ]
 

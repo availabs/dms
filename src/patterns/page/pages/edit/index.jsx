@@ -1,75 +1,36 @@
 import React, {useEffect} from 'react';
-import { NavLink, Link, useSubmit, useNavigate, useLocation, useParams, useSearchParams} from "react-router";
-import {cloneDeep, isEqual, merge} from "lodash-es";
-import { v4 as uuidv4 } from 'uuid';
+import { Link, useNavigate, useLocation, useSearchParams} from "react-router";
+import {cloneDeep, merge} from "lodash-es";
 import {useImmer} from "use-immer";
 import { ThemeContext } from "../../../../ui/useTheme";
 import { CMSContext, PageContext } from '../../context'
 import {
-	sectionsEditBackill,
-	getInPageNav,
-	dataItemsNav,
-	detectNavLevel,
-	json2DmsForm,
-	parseIfJSON,
-	mergeFilters,
-	convertToUrlParams,
-	updatePageStateFiltersOnSearchParamChange,
-	initNavigateUsingSearchParams
+	sectionsEditBackill, dataItemsNav, mergeFilters,
+	convertToUrlParams, updatePageStateFiltersOnSearchParamChange, initNavigateUsingSearchParams
 } from '../_utils'
 import SectionGroup from '../../components/sections/sectionGroup'
 import SearchButton from '../../components/search'
 import PageControls from './editPane'
 
-
-
-
-function PageEdit ({
- format, 
- item, 
- dataItems, 
- updateAttribute, 
- attributes, 
- setItem, 
- apiLoad, 
- apiUpdate,
-	reqPermissions,
- status, 
- navOptions, 
- busy
-}) {
-	// console.log('props in pageEdit', siteType)
+function PageEdit ({format, item, dataItems, updateAttribute, attributes, apiLoad, apiUpdate, reqPermissions, busy}) {
 	const navigate = useNavigate();
 	const [searchParams] = useSearchParams();
-	const submit = useSubmit();
 	const { pathname = '/edit', search } = useLocation();
-	const { theme: fullTheme } = React.useContext(ThemeContext);
-	const { UI, Menu, baseUrl, user, authPermissions, patternFilters=[] } = React.useContext(CMSContext) || {};
-	const { Layout } = UI;
-	const [ editPane, setEditPane ] = React.useState({ open: false, index: 1, showGrid: false });
-	const [pageState, setPageState] =
-		useImmer({
-			...item,
-			filters: mergeFilters(item.filters, patternFilters)
-		});
-	const theme = merge(cloneDeep(fullTheme), item?.theme || {})
 
-	const menuItems = React.useMemo(() => {
-		let items = dataItemsNav(dataItems,baseUrl,true)
-		return items
-	}, [dataItems])
-	console.log('pageEdit', authPermissions, user, reqPermissions)
+	const { theme: fullTheme } = React.useContext(ThemeContext);
+	const { UI, Menu, baseUrl, user, authPermissions, patternFilters=[], isUserAuthed } = React.useContext(CMSContext) || {};
+
+	const [ pageState, setPageState ] = useImmer({ ...item, filters: mergeFilters(item.filters, patternFilters) });
+	const [ editPane, setEditPane ] = React.useState({ open: false, index: 1, showGrid: false });
+
+	const { Layout } = UI;
+	const theme = merge(cloneDeep(fullTheme), item?.theme || {});
+	const menuItems = React.useMemo(() => dataItemsNav(dataItems,baseUrl,true), [dataItems]);
 
 	const menuItemsSecondNav = React.useMemo(() => {
 		let items = dataItemsNav(theme?.navOptions?.secondaryNav?.navItems || [],baseUrl,true)
 		return items
 	}, [theme?.navOptions?.secondaryNav?.navItems])
-
-	// console.log('-----------render edit----------------', item.draft_sections.length, item.draft_section_groups.length)
-	
-	const level = item?.index == '999' || theme?.navOptions?.topNav?.nav !== 'main' ? 1 : detectNavLevel(dataItems, baseUrl);
-	const inPageNav = getInPageNav(item, theme);
-	const sectionAttr = attributes?.['sections']?.attributes || {}
 
 	React.useEffect(() => {
 		if(!item?.url_slug) {
@@ -136,10 +97,6 @@ function PageEdit ({
 		}
 	}
 
-
-	//console.log('draft_sections', draftSections)
-
-
 	const getSectionGroups =  ( sectionName ) => {
 		return (item?.draft_section_groups || [])
 			.filter((g,i) => g.position === sectionName)
@@ -148,15 +105,17 @@ function PageEdit ({
 				<SectionGroup
 					key={group?.name || i}
 					group={group}
-					//.filter(d => d.group === group.name || (!d.group && group?.name === 'default'))}
 					attributes={ attributes }
 					edit={true}
 				/>
 			))
 	}
 
-
 	if(!item) return;
+
+	if(pageState?.authPermissions && typeof pageState.authPermissions === 'string' && !isUserAuthed(reqPermissions, JSON.parse(pageState.authPermissions))){
+		return <div>You do not have permission to view this page. <Link to={baseUrl}>Click here to visit Home</Link></div>
+	}
 	return (
 		<PageContext.Provider value={{ 
 			item,
