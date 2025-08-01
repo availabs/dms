@@ -105,6 +105,7 @@ function PatternEdit({
 	const data = value
 		.map(v => ({...v, name: v.name || v.doc_type, manage_url: `${v.base_url === '/' ? '' : v.base_url}/manage/design`}))
 		.filter(v => !search || v.name.toLowerCase().includes(search.toLowerCase()));
+	const authExists = data.some(d => d.pattern_type === 'auth')
 
 	return (
 			<div className={'flex flex-col p-10 w-full divide-y-2'}>
@@ -127,13 +128,17 @@ function PatternEdit({
 						{
 							attrToAddNew
 								.map((attrKey, i) => {
-									let {EditComp, ViewComp, ...props} = attributes[attrKey]
+									let {EditComp, ViewComp, ...props} = attributes[attrKey];
+									const options =
+										attrKey === 'pattern_type' && authExists && props.options?.length ?
+											props.options.filter(o => o.value !== 'auth') :
+											props.options;
 									return (
-
 										<EditComp
 											value={newItem?.[attrKey]}
 											onChange={(v) => setNewItem({...newItem, [attrKey]: v})}
 											{...props}
+											options={options}
 											placeHolder={attrKey}
 											key={`${attrKey}-${i}`}
 										/>

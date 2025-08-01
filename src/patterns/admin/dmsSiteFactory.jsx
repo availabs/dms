@@ -44,7 +44,7 @@ import {getUser} from "./utils";
 const configs = {
     page: pageConfig ,
     forms: dataManagerConfig,
-    auth: authConfig[0]
+    auth: authConfig
 }
 
 registerDataType("selector", Selector)
@@ -78,17 +78,6 @@ function pattern2routes (siteData, props) {
 
     // console.log('patterns', patterns)
     return [
-        // auth
-        dmsPageFactory(configs.auth({
-            app: dmsConfigUpdated?.format?.app || dmsConfigUpdated.app,
-            siteType: dmsConfigUpdated.type,
-            API_HOST,
-            AUTH_HOST,
-            PROJECT_NAME,
-            user,
-            setUser,
-            damaBaseUrl
-        }), undefined, user, true),
         //pattern manager
         dmsPageFactory({
             ...dmsConfigUpdated,
@@ -127,13 +116,14 @@ function pattern2routes (siteData, props) {
                             themes,
                             useFalcor,
                             API_HOST,
+                            AUTH_HOST,
                             PROJECT_NAME,
                             user,
+                            setUser,
                             damaBaseUrl
-                            //rightMenu: <div>RIGHT</div>,
                         });
-                        // console.log('configObj', configObj)
-                        return ({...dmsPageFactory(configObj, authWrapper, user)})
+
+                        return ({...dmsPageFactory(configObj, authWrapper, user, pattern.pattern_type === 'auth')})
                 }));
             }
             return acc;
@@ -180,6 +170,7 @@ export function DmsSite ({
     // could save sites to localstorage cache clear on load.
     //-----------
     const [user, setUser] = useState({});
+    const [loading, setLoading] = useState(false);
 
     useEffect(() => {
         async function load (){
@@ -216,6 +207,7 @@ export function DmsSite ({
     useEffect(() => {
         let isStale = false;
         async function load () {
+            setLoading(true)
             // console.time('dmsSiteFactory')
             // console.log('setting dynamic routes', user)
             const dynamicRoutes = await dmsSiteFactory({
@@ -237,6 +229,7 @@ export function DmsSite ({
             // console.timeEnd('dmsSiteFactory')
             //console.log('dynamicRoutes ', dynamicRoutes)
             if(!isStale) setDynamicRoutes(dynamicRoutes);
+            setLoading(false)
         }
 
         load()
@@ -249,7 +242,9 @@ export function DmsSite ({
 
     const PageNotFoundRoute = {
         path: "/*",
-        Component: () => (<div className={'w-screen h-screen flex items-center bg-blue-50'}>404</div>)
+        Component: () => loading ?
+            <div className={'w-screen h-screen mx-auto flex items-center justify-center'}>loading...</div>
+        : <div className={'w-screen h-screen mx-auto flex items-center justify-center'}>404</div>
     }
 
     // console.log('routes',  dynamicRoutes, routes)

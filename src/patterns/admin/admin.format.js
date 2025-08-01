@@ -13,6 +13,7 @@ export const pattern = {
       required: true,
       default: "page",
         options: [
+        {value: 'auth', label: 'Auth'},
         {value: 'page', label: 'Page'},
         {value: 'forms', label: 'Forms'}
       ],

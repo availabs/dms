@@ -100,11 +100,13 @@ const authConfig = ({
           {
             type: props => <AuthUsers {...props} />,
             authLevel: 10,
+            reqPermissions: ['auth-users'],
             path: "users",
           },
           {
             type: props => <AuthGroups {...props} />,
             authLevel: 10,
+            reqPermissions: ['auth-groups'],
             path: "groups",
           },
           {

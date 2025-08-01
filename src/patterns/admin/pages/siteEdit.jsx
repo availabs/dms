@@ -7,13 +7,13 @@ import {callAuthServer} from "../utils";
 
 
 function NewSite ({app, user, AUTH_HOST, apiUpdate}) {
-	const {UI} = React.useContext(AdminContext);
+	const {UI, PROJECT_NAME} = React.useContext(AdminContext);
 	const {Input, Button} = UI;
 	const [newUser, setNewUser] = React.useState({email: '', password: '', verify: ''});
 	const [status, setStatus] = React.useState('');
 	const [newSite, setNewSite] = React.useState({
 		site_name: '',
-		patterns: []
+		patterns: [{pattern_type: 'auth', name: 'Auth', base_url: 'dms_auth', authPermissions: JSON.stringify({[`${PROJECT_NAME} Admin`]: ['*']})}]
 	})
 
 	async function createSite () {
