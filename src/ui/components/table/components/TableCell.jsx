@@ -56,10 +56,12 @@ export const TableCell = ({
     const [newItem, setNewItem] = useState(item);
     const rawValue = newItem[attribute.normalName] || newItem[attribute.name]
     // const Comp = DataTypes[attribute.type]?.[isSelecting ? 'ViewComp' : 'EditComp'];
+    const renderTextBox = attribute.type === 'text' && editing && allowEdit;
     const compType = attribute.type === 'calculated' && Array.isArray(rawValue) ? 'multiselect' : attribute.type;
     const compMode = attribute.type === 'calculated' && Array.isArray(rawValue) ? 'ViewComp' :
                             editing && allowEdit ? 'EditComp' : 'ViewComp';
-    const Comp = loading ? LoadingComp : compType === 'ui' ? attribute.Comp : (DataTypes[compType]?.[compMode] || DisplayCalculatedCell);
+    const Comp = loading ? LoadingComp : compType === 'ui' ? attribute.Comp :
+        renderTextBox ? DataTypes.textarea.EditComp : (DataTypes[compType]?.[compMode] || DisplayCalculatedCell);
     const CompWithLink = LinkComp({attribute, columns, newItem, removeItem, value: rawValue, Comp});
     const value = compMode === 'EditComp' ? rawValue : attribute.formatFn && formatFunctions[attribute.formatFn.toLowerCase()] ? formatFunctions[attribute.formatFn.toLowerCase()](rawValue, attribute.isDollar) : rawValue
     const justifyClass = {
@@ -165,6 +167,7 @@ export const TableCell = ({
                           attribute.type === 'multiselect' && !rawValue?.length ? 'p-0.5' : 'p-0.5'
                   } 
                   ${formatClass}
+                  ${renderTextBox ? `whitespace-pre-wrap` : ``}
                   `}
                   {...attribute}
                   value={value}

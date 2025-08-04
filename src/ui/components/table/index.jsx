@@ -210,7 +210,7 @@ export default function ({
 
     useEffect(() => {
         const element = document //gridRef?.current;
-        if(!element || !selection?.length || !isActive) {
+        if(!element || !selection?.length || !isActive || editing.index >= 0) {
             return;
         }
 
