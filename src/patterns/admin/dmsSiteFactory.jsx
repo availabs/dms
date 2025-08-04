@@ -83,7 +83,6 @@ function pattern2routes (siteData, props) {
             ...dmsConfigUpdated,
             siteType: dmsConfigUpdated.type,
             baseUrl: SUBDOMAIN === 'admin' ?  '/' : adminPath,
-            authLevel: 1,
             API_HOST,
             PROJECT_NAME,
             user,
@@ -111,7 +110,6 @@ function pattern2routes (siteData, props) {
                             pattern: pattern,
                             pattern_type:pattern?.pattern_type,
                             authPermissions: JSON.parse(pattern?.authPermissions || "{}"),
-                            authLevel: +pattern.authLevel || -1,
                             pgEnv:pgEnvs?.[0] || '',
                             themes,
                             useFalcor,
@@ -228,8 +226,10 @@ export function DmsSite ({
             // console.log('dynamic routes set', user, dynamicRoutes)
             // console.timeEnd('dmsSiteFactory')
             //console.log('dynamicRoutes ', dynamicRoutes)
-            if(!isStale) setDynamicRoutes(dynamicRoutes);
-            setLoading(false)
+            if(!isStale) {
+                setDynamicRoutes(dynamicRoutes);
+                setLoading(false);
+            }
         }
 
         load()

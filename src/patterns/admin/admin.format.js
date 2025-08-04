@@ -35,12 +35,6 @@ export const pattern = {
       required: true
     },
     {
-      key: "authLevel",
-      placeholder: "-1",
-      type: "text",
-      required: true
-    },
-    {
       key: "filters",
       type: "json",
       required: false,

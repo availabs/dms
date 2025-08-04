@@ -25,7 +25,7 @@ const cols = {
     [`data->>'doc_type' as doc_type`]: {label: 'Doc Type', name: 'doc_type'},
     [`data->>'name' as name`]: {label: 'Name', name: 'name'},
     [`data->>'subdomain' as subdomain`]: {label: 'Subdomain', name: 'subdomain'},
-    [`data->>'authLevel' as authLevel`]: {label: 'Auth Level', name: 'authLevel'}
+    // [`data->>'authLevel' as authLevel`]: {label: 'Auth Level', name: 'authLevel'}
 }
 
 const sectionCols = [
@@ -206,7 +206,8 @@ async function getPatterns({app, falcor}){
     });
     const attributes = [
         `data->>'base_url' as base_url`,`data->>'doc_type' as doc_type`,`data->>'name' as name`,
-        `data->>'subdomain' as subdomain`, `data->>'authLevel' as authLevel`
+        `data->>'subdomain' as subdomain`,
+        // `data->>'authLevel' as authLevel`
     ]
     const lenPath = ['dms', 'data', `${app}+pattern`, 'options', options, 'length']
     const lengthRes = await falcor.get(lenPath);

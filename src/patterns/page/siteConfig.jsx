@@ -52,7 +52,6 @@ const pagesConfig = ({
   baseUrl = '/',
   damaBaseUrl,
   logo, // deprecated
-  authLevel = -1,
   authPermissions,
   themes = { default: {} },
   pattern,
@@ -83,7 +82,6 @@ const pagesConfig = ({
   // ---------------------------------------------
   // for instances without auth turned on, default user can edit
   // should move this to dmsFactory default authWrapper
-  const defaultUser = { email: "user", authLevel: 10, authed: true, fake: true}
   // ---------------------------------------------
 
 
@@ -118,7 +116,6 @@ const pagesConfig = ({
               </CMSContext.Provider>
           )
         },
-        authLevel,
         authPermissions, // passed down from dmsSiteFactory. these are saved authorisations in patterns.
         action: "list",
         path: "/*",
@@ -139,7 +136,6 @@ const pagesConfig = ({
             ),
             path: "edit/*",
             action: "edit",
-            authLevel: 5,
             authPermissions,
             reqPermissions: ['create-page', 'update-page']
           },
@@ -183,7 +179,7 @@ const pagesManagerConfig = ({
   baseUrl = '/',
   damaBaseUrl,
   logo, // deprecated
-  authLevel = -1,
+  authPermissions,
   themes = { default: {} },
   pattern,
   site,
@@ -225,7 +221,6 @@ const pagesManagerConfig = ({
   // console.log('pgEnv siteConfig', app, type, pgEnv)
   // for instances without auth turned on, default user can edit
   // should move this to dmsFactory default authWrapper
-  const defaultUser = { email: "user", authLevel: 5, authed: true, fake: true}
 
   // const rightMenuWithSearch = rightMenu; // for live site
   return {
@@ -244,7 +239,7 @@ const pagesManagerConfig = ({
               </CMSContext.Provider>
           )
         },
-        authLevel,
+        authPermissions,
         action: "list",
         path: "/*",
         filter: {

@@ -1,23 +1,15 @@
 import React from 'react'
+import { useLocation } from 'react-router'
 import { cloneDeep } from "lodash-es"
-
-import PatternList from "./components/patternList";
 import SiteEdit from "./pages/siteEdit"
 import ThemeList from "./pages/themes"
 import ComponentList from "./pages/components"
-
 import adminFormat from "./admin.format.js"
-// import defaultTheme from './theme/theme'
-// import Layout from './ui/avail-layout'
-
-import { Link, useLocation } from 'react-router'
-
-export const AdminContext = React.createContext(undefined);
-const defaultUser = { email: "user", authLevel: 5, authed: true, fake: true}
-
 import UI from "../../ui"
 import {ThemeContext} from '../../ui/useTheme'
 import defaultTheme from '../../ui/defaultTheme'
+
+export const AdminContext = React.createContext(undefined);
 
 
 const adminConfig = ({
@@ -27,7 +19,7 @@ const adminConfig = ({
   AUTH_HOST = 'https://graph.availabs.org',
   baseUrl = '/',
   authPath = '/dms_auth',
-    PROJECT_NAME,
+  PROJECT_NAME,
   theme = defaultTheme,
 }) => {
   const format = cloneDeep(adminFormat)
@@ -76,7 +68,7 @@ const adminConfig = ({
           const location = useLocation()
           console.log('admin wrapper', authPath)
           return (
-            <AdminContext.Provider value={{baseUrl, authPath, PROJECT_NAME, user: props.user || defaultUser, app, type, API_HOST, AUTH_HOST, UI}}>
+            <AdminContext.Provider value={{baseUrl, authPath, PROJECT_NAME, user: props.user, app, type, API_HOST, AUTH_HOST, UI}}>
               <ThemeContext.Provider value={{theme}}>
                 <Layout navItems={menuItems}>
                   <div className={theme?.admin?.page?.pageWrapper}>
@@ -94,7 +86,6 @@ const adminConfig = ({
         children: [
           {
             type: (props) => <SiteEdit {...props} />,
-            // authLevel: 5,
             path: "/*",
 
           },

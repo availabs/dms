@@ -10,7 +10,7 @@ export default (props) => {
     const [searchGroup, setSearchGroup] = React.useState('');
     const [addingNew, setAddingNew] = React.useState(false);
     const [status, setStatus] = React.useState('');
-    const [newGroup, setNewGroup] = React.useState({name: '', authLevel: 0});
+    const [newGroup, setNewGroup] = React.useState({name: ''});
     const {theme} = React.useContext(ThemeContext);
     const {UI, user, AUTH_HOST, PROJECT_NAME, defaultRedirectUrl, ...restAuthContext} = React.useContext(AuthContext);
     const {Table, Input, Modal, Button} = UI;
@@ -72,13 +72,6 @@ export default (props) => {
                            onChange={e => setNewGroup({...newGroup, name: e.target.value})}
                            placeHolder={'Please enter Group Name'}
                     />
-                    <Input type={'number'}
-                           value={newGroup.authLevel}
-                           onChange={e => setNewGroup({...newGroup, authLevel: e.target.value})}
-                           min={0}
-                           max={10}
-                           placeHolder={'Please enter Auth Level'}
-                    />
                     <Button onClick={async () => {
                         setStatus('Adding');
                         await callAuthServer(`${AUTH_HOST}/group/create/project/assign`,
@@ -86,7 +79,7 @@ export default (props) => {
                                 token: user.token,
                                 group_name: newGroup.name,
                                 project_name: PROJECT_NAME,
-                                auth_level: newGroup.authLevel
+                                auth_level: 0
                             })
                             .then(res => {
                                 console.log('res', res)
@@ -99,7 +92,7 @@ export default (props) => {
                             .catch(error => {
                                 console.error('Cannot contact authentication server.');
                             });
-                        setNewGroup({name: '', authLevel: 0})
+                        setNewGroup({name: ''})
                         setStatus('');
                     }}>{status || 'Add'}</Button>
                 </div>

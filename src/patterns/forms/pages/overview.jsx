@@ -82,8 +82,8 @@ const defaultLexicalValue = {
     }
 }
 
-const RenderPencil = ({user, editing, setEditing, attr}) => {
-    if (user?.authLevel <= 5) return null;
+const RenderPencil = ({user, editing, setEditing, attr, show}) => {
+    if (!show) return null;
 
     return (
         <div className='hidden group-hover:block text-blue-500 cursor-pointer'
@@ -106,7 +106,7 @@ const OverViewEdit = ({
       submit,
       apiLoad
 }) => {
-    const {app, falcor, falcorCache, baseUrl, pageBaseUrl, user} = useContext(FormsContext);
+    const {app, falcor, falcorCache, baseUrl, pageBaseUrl, user, isUserAuthed} = useContext(FormsContext);
 
     const [editing, setEditing] = useState();
     const columns = useMemo(() => isJson(item.config) ? JSON.parse(item.config)?.attributes : [], [item.config]);
@@ -148,7 +148,7 @@ const OverViewEdit = ({
                             }}
                             {...attributes.description}
                         />
-                        <RenderPencil attr={'description'} user={user} editing={editing} setEditing={setEditing}/>
+                        <RenderPencil attr={'description'} user={user} editing={editing} setEditing={setEditing} show={isUserAuthed(['update-source'])}/>
                     </div>
 
                     <div className={'w-full md:w-[30%]'}>
@@ -180,7 +180,7 @@ const OverViewEdit = ({
                                     </div>
                                 </dd>
                             </div>
-                            <RenderPencil attr={'categories'} user={user} editing={editing} setEditing={setEditing}/>
+                            <RenderPencil attr={'categories'} user={user} editing={editing} setEditing={setEditing} show={isUserAuthed(['update-source'])}/>
                         </div>
                     </div>
                 </div>

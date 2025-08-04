@@ -42,14 +42,12 @@ export default ({title, children}) => {
             {
                 name: 'Datasets',
                 icon: 'fad fa-sign-out-alt pb-2 pr-1',
-                path: '/datasets',
-                authLevel: 5
+                path: '/datasets'
             },
             {
                 name: 'Manager',
                 icon: 'fad fa-sign-out-alt pb-2 pr-1',
-                path: `${baseUrl}/manage`,
-                authLevel: 5
+                path: `${baseUrl}/manage`
             },
         ]
     
@@ -63,9 +61,11 @@ export default ({title, children}) => {
                         <div className='text-white py-2'>
                             <div className='text-md font-thin tracking-tighter text-left'>{user.email ? user.email : ''}</div>
                             <div className='text-xs font-medium -mt-1 tracking-widest text-left'>{user?.groups?.[0] ? user.groups[0] : ''}</div>
-                            {authMenuItems.map((item,i) => {
+                            {authMenuItems
+                                // .filter(item => user.authLevel >= (+item.authLevel || -1))
+                                .map((item,i) => {
                                 return <div key={i}>
-                                    {user.authLevel >= (+item.authLevel || -1) && (
+                                    {(
                                         <Item to={item.path} icon={item.icon}>
                                             {item.name}
                                         </Item>

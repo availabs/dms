@@ -24,7 +24,6 @@ function PatternList (props) {
 				<div className={'font-semibold grid grid-cols-4 '}>
 					<div>Pattern Type</div>
 					<div>Doc Type</div>
-					<div>Auth Level</div>
 					<div>Base Url</div>
 					<div></div>
 				</div>
@@ -33,7 +32,6 @@ function PatternList (props) {
 						<div key={pattern.id} className={'grid grid-cols-4 '}>
 							<div>{pattern.pattern_type}</div>
 							<div>{pattern.name || pattern.doc_type}</div>
-							<div>{pattern.authLevel}</div>
 							<Link to={pattern.base_url}>{pattern.base_url} ok?</Link>
 							<Link to={`/manage_pattern/${pattern.id}`}>Manage</Link>
 						</div>
@@ -64,7 +62,7 @@ function PatternEdit({
 	const [addingNew, setAddingNew] = useState(false);
 	const [editingItem, setEditingItem] = useState(undefined);
 	const [isDuplicating, setIsDuplicating] = useState(false);
-	const attrToAddNew = ['pattern_type', 'name', 'subdomain', 'base_url', 'filters', 'authLevel', 'authPermissions'];
+	const attrToAddNew = ['pattern_type', 'name', 'subdomain', 'base_url', 'filters', 'authPermissions'];
 	const columns = [
 		{name: 'name', display_name: 'Name', show: true, type: 'text'},
 		{name: 'subdomain', display_name: 'Subdomain', show: true, type: 'text'},

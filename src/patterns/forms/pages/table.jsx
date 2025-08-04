@@ -13,7 +13,7 @@ import {
 } from "../../page/components/selector/dataWrapper/components/filters/RenderFilters";
 import { Controls } from "../../page/components/selector/dataWrapper/components/Controls";
 const TableView = ({apiUpdate, apiLoad, format, item, params}) => {
-    const { baseUrl, pageBaseUrl, theme, user } = useContext(FormsContext) || {};
+    const { baseUrl, pageBaseUrl, theme, user, isUserAuthed } = useContext(FormsContext) || {};
     const navigate = useNavigate();
     const columns = JSON.parse(item?.config || '{}')?.attributes || [];
     const default_columns = (item.default_columns || item.defaultColumns);
@@ -82,7 +82,7 @@ const TableView = ({apiUpdate, apiLoad, format, item, params}) => {
                     !params.view_id || params.view_id === 'undefined' ? 'Please select a version' :
                     <div className={`${theme?.page?.wrapper1}`}>
                         {
-                            user.authLevel >= 10 ?
+                            isUserAuthed(['update-source']) ?
                                 <button className={'w-fit p-1 bg-blue-100 hover:bg-blue-200 text-blue-500 text-sm place-self-end rounded-md'}
                                         onClick={saveSettings}>
                                     Set Default Columns

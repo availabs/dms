@@ -12,7 +12,7 @@ import Layout from './ui/avail-layout'
 import { Link } from 'react-router'
 
 export const AdminContext = React.createContext(undefined);
-const defaultUser = { email: "user", authLevel: 5, authed: true, fake: true}
+const defaultUser = { email: "user", authed: true, fake: true}
 
 
 
@@ -85,7 +85,6 @@ const adminConfig = ({
         children: [
           {
             type: (props) => <SiteEdit {...props} />,
-            // authLevel: 5,
             action: "edit",
             path: "/*",
 
