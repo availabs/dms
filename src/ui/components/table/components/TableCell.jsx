@@ -167,7 +167,7 @@ export const TableCell = ({
                           attribute.type === 'multiselect' && !rawValue?.length ? 'p-0.5' : 'p-0.5'
                   } 
                   ${formatClass}
-                  ${renderTextBox ? `whitespace-pre-wrap` : ``}
+                  ${attribute.wrapText || renderTextBox ? `whitespace-pre-wrap` : ``}
                   `}
                   {...attribute}
                   value={value}

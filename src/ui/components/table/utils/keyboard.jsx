@@ -56,6 +56,7 @@ export const handleKeyDown = ({
                 }
                 break;
             case 'ArrowRight':
+            case 'Tab':
                 if (lastSelected.attrI < visibleAttributes.length - 1) {
                     setSelection(prevSelection => {
                         const newattrI = lastSelected.attrI + 1;
