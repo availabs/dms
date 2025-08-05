@@ -126,7 +126,7 @@ export const TableCell = ({
             `}
             style={{
                 ...!(attribute.openOut || openOutTitle) && {width: attribute.size},
-                ...isSelected && {borderWidth: '1px', ...selectionEdgeClassNames[edge]},
+                ...isSelected && !renderTextBox && {borderWidth: '1px', ...selectionEdgeClassNames[edge]},
             }}
             onClick={attribute.isLink || attribute.actionType ? undefined : onClick}
             onMouseDown={attribute.isLink || attribute.actionType ? undefined : onMouseDown}
@@ -168,7 +168,9 @@ export const TableCell = ({
                   } 
                   ${formatClass}
                   ${attribute.wrapText || renderTextBox ? `whitespace-pre-wrap` : ``}
+                  ${renderTextBox ? `absolute border focus:outline-none min-w-[180px] min-h-[50px] z-[10]` : ``}
                   `}
+                          style={renderTextBox ? {borderColor: selectionColor} : undefined}
                   {...attribute}
                   value={value}
                   row={newItem}

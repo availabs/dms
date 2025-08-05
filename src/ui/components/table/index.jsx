@@ -210,14 +210,16 @@ export default function ({
 
     useEffect(() => {
         const element = document //gridRef?.current;
-        if(!element || !selection?.length || !isActive || editing.index >= 0) {
+        if(!element || !selection?.length || !isActive) {
             return;
         }
 
         const handleKeyUp = () => {
-            setIsSelecting(false)
-            setIsDragging(false)
-            setTriggerSelectionDelete(false);
+            if(!editing?.index >= 0){
+                setIsSelecting(false)
+                setIsDragging(false)
+                setTriggerSelectionDelete(false);
+            }
         }
 
         const keyDownListener = e => handleKeyDown({

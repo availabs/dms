@@ -45,8 +45,8 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
         const currUsedWidth = visibleAttrsWithoutOpenOut.reduce((acc, {size}) => acc + +(size || 0), 0);
         if (
             !columnsWithSizeLength ||
-            columnsWithSizeLength !== visibleAttrsWithoutOpenOutLen ||
-            currUsedWidth < gridWidth // resize to use full width
+            columnsWithSizeLength !== visibleAttrsWithoutOpenOutLen
+            // || currUsedWidth < gridWidth // resize to use full width
         ) {
             const availableVisibleAttributes = visibleAttrsWithoutOpenOut.filter(v => v.actionType || v.type === 'formula' || sourceInfo.columns.find(attr => attr.name === v.name));
             const initialColumnWidth = Math.max(minInitColSize, gridWidth / availableVisibleAttributes.length);
