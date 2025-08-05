@@ -160,7 +160,7 @@ export const TableRow = ({
                             onMouseUp={e => setIsDragging && handleMouseUp({setIsDragging})}
                             onClick={() => {
                                 setSelection && setSelection([{index: i, attrI}]);
-                                setEditing && setEditing({index: i, attrI});
+                                setEditing && allowEdit && setEditing({index: i, attrI});
                             }}
                             onDoubleClick={() => {}}
                             allowEdit={allowEdit}
