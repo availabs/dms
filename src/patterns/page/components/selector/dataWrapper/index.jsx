@@ -142,6 +142,7 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
         const newDataReq = {
             // visibleColumns: state.columns.filter(column => column.show),
             ...filterOptions,
+            filterRelation: state.display?.filterRelation,
             groupBy: state.columns.filter(column => column.group).map(column => column.name),
             orderBy: state.columns.filter(column => column.sort).reduce((acc, column) => ({...acc, [column.name]: column.sort}), {}),
             fn: state.columns.filter(column => column.fn).reduce((acc, column) => ({...acc, [column.name]: column.fn}), {}),
@@ -161,7 +162,7 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
         return () => {
             isStale = true;
         }
-    }, [state?.columns, isValidState])
+    }, [state?.columns, state?.display?.filterRelation, isValidState])
 
     // // ========================================== get data begin =======================================================
     // uweGetDataOnSettingsChange

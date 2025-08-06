@@ -113,6 +113,9 @@ export default {
             {type: 'toggle', label: 'Allow Download', key: 'allowDownload'},
             {type: 'toggle', label: 'Always Fetch Data', key: 'readyToLoad'},
             {type: 'toggle', label: 'Use Pagination', key: 'usePagination'},
+            {type: 'select', label: 'Filter Relation', key: 'filterRelation',
+                options: [{label: 'and', value: 'and'}, {label: 'or', value: 'or'}]
+            },
             {type: 'input', inputType: 'number', label: 'Page Size', key: 'pageSize', displayCdn: ({display}) => display.usePagination === true},
         ],
         inHeader: [
