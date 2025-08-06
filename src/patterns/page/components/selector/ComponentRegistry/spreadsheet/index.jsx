@@ -113,6 +113,7 @@ export default {
             {type: 'toggle', label: 'Allow Download', key: 'allowDownload'},
             {type: 'toggle', label: 'Always Fetch Data', key: 'readyToLoad'},
             {type: 'toggle', label: 'Use Pagination', key: 'usePagination'},
+            {type: 'toggle', label: 'Hide Null Open out columns', key: 'hideIfNullOpenouts'},
             {type: 'select', label: 'Filter Relation', key: 'filterRelation',
                 options: [{label: 'and', value: 'and'}, {label: 'or', value: 'or'}]
             },

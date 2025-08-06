@@ -203,7 +203,15 @@ export const TableRow = ({
                         />
 
                         {/* Open out columns */}
-                        {openOutAttributes.map((attribute, openOutAttrI) => {
+                        {openOutAttributes
+                            .filter(attribute => {
+                                if(display.hideIfNullOpenouts){
+                                    let value = d[attribute.normalName] || d[attribute.name]
+                                    return Array.isArray(value) ? value.length : value;
+                                }
+                               return true;
+                            })
+                            .map((attribute, openOutAttrI) => {
                             const attrI = visibleAttrsWithoutOpenOutsLen + 1 + openOutAttrI;
                             return (
                                 <div key={`data-open-out-${i}`}
