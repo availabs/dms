@@ -18,14 +18,24 @@ const filterValueDelimiter = '|||';
 export const filterTheme = {
     filterLabel: 'py-0.5 text-gray-500 font-medium',
     loadingText: 'pl-0.5 font-thin text-gray-500',
-    filterSettingsWrapper: 'flex flex-col w-full',
-    input: 'w-full max-h-[150px] flex text-xs overflow-auto scrollbar-sm border rounded-md bg-white p-2',
+    filterSettingsWrapperInline: 'w-2/3',
+    filterSettingsWrapperStacked: 'w-full',
+    labelWrapperInline: 'w-1/3 text-xs',
+    labelWrapperStacked: 'w-full text-xs',
+    input: 'w-full max-h-[150px] flex text-xs overflow-auto scrollbar-sm border rounded-md bg-white p-2 text-nowrap',
     settingPillsWrapper: 'flex flex-row flex-wrap gap-1',
     settingPill: 'px-1 py-0.5 bg-orange-500/15 text-orange-700 hover:bg-orange-500/25 rounded-md',
     settingLabel: 'text-gray-900 font-regular min-w-fit',
     filtersWrapper: 'w-full py-6 flex flex-col rounded-md',
 }
 
+const gridClasses = {
+    1: 'grid-cols-1',
+    2: 'grid-cols-2',
+    3: 'grid-cols-3',
+    4: 'grid-cols-4',
+    5: 'grid-cols-5',
+}
 export const RenderFilters = ({
     isEdit,
     state = { columns: [], sourceInfo: {} }, setState,
@@ -252,45 +262,61 @@ export const RenderFilters = ({
     // add UI dropdown to change filter type
     // add UI to change filter operation
     //console.log('filters', filterOptions)
-    return (
-        open ?
+    const gridSize = Math.min(state?.display?.gridSize, filterColumnsToRender.length);
+    const placement = state?.display?.placement || 'stacked';
+    const placementClass = {
+        inline: theme.filters.filterSettingsWrapperInline,
+        stacked: theme.filters.filterSettingsWrapperStacked
+    }
+    const labelWrapperClass = {
+        inline: theme.filters.labelWrapperInline,
+        stacked: theme.filters.labelWrapperStacked
+    }
+    if(!open) {
+        return (
             <div className={theme.filters.filtersWrapper}>
                 <div className={'w-fit -mt-4 p-2 border rounded-full self-end'}>
                     <Icon icon={'Filter'}
-                        className={'text-slate-400 hover:text-blue-500 size-4 hover:cursor-pointer'}
-                        title={'Filter'}
-                        onClick={() => setOpen(false)} />
+                          className={'text-slate-400 hover:text-blue-500 size-4 hover:cursor-pointer'}
+                          title={'Filter'}
+                          onClick={() => setOpen(true)} />
                 </div>
+            </div>
+        )
+    }
+
+    return (
+        <div className={theme.filters.filtersWrapper}>
+            <div className={'w-fit -mt-4 p-2 border rounded-full self-end'}>
+                <Icon icon={'Filter'}
+                    className={'text-slate-400 hover:text-blue-500 size-4 hover:cursor-pointer'}
+                    title={'Filter'}
+                    onClick={() => setOpen(false)} />
+            </div>
+            <div className={`grid ${gridClasses[gridSize]}`}>
                 {filterColumnsToRender.map((filterColumn, i) => (
-                    <div key={i} className={'w-full flex flex-row flex-wrap items-center'}>
-                        <div className={'w-full min-w-fit text-sm'}>
+                    <div key={i} className={`w-full flex ${placement === 'inline' ? 'flex-row'  : 'flex-col'} items-center gap-1`}>
+                        <div className={labelWrapperClass[placement]}>
                             <span className={theme.filters.filterLabel}>{filterColumn.customName || filterColumn.display_name || filterColumn.name}</span>
                             <span className={theme.filters.loadingText}>{loading ? 'loading...' : ''}</span>
                         </div>
-                        <div className={theme.filters.filterSettingsWrapper}>
+                        <div className={placementClass[placement]}>
                             <RenderFilterValueSelector key={`${filterColumn.name}-filter`}
-                                isEdit={isEdit}
-                                filterColumn={filterColumn}
-                                filterOptions={filterOptions}
-                                state={state}
-                                setState={setState}
-                                loading={loading}
-                                filterWithSearchParamKeys={filterWithSearchParamKeys}
-                                delimiter={filterValueDelimiter}
-                                columns={state.columns}
-                                cms_context={cms_context}
+                                                       isEdit={isEdit}
+                                                       filterColumn={filterColumn}
+                                                       filterOptions={filterOptions}
+                                                       state={state}
+                                                       setState={setState}
+                                                       loading={loading}
+                                                       filterWithSearchParamKeys={filterWithSearchParamKeys}
+                                                       delimiter={filterValueDelimiter}
+                                                       columns={state.columns}
+                                                       cms_context={cms_context}
                             />
                         </div>
                     </div>
                 ))}
-            </div> :
-            <div className={theme.filters.filtersWrapper}>
-                <div className={'w-fit -mt-4 p-2 border rounded-full self-end'}>
-                    <Icon icon={'Filter'}
-                        className={'text-slate-400 hover:text-blue-500 size-4 hover:cursor-pointer'}
-                        title={'Filter'}
-                        onClick={() => setOpen(true)} />
-                </div>
             </div>
+        </div>
     )
 }

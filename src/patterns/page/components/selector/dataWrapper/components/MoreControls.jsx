@@ -45,12 +45,12 @@ export default function MoreControls({context}) {
                             .filter(({displayCdn}) =>
                                 typeof displayCdn === 'function' ? displayCdn({display}) :
                                  typeof displayCdn === 'boolean' ? displayCdn : true)
-                            .map(({type, inputType, label, key, options, onChange}) =>
+                            .map(({type, inputType, label, key, options, onChange, ...rest}) =>
                             type === 'toggle' ?
                                 <ToggleControl key={key} title={label} value={display[key]}
                                                setValue={value => updateDisplayValue(key, value, onChange)}/> :
                                 type === 'input' ?
-                                    <InputControl key={key} type={inputType} title={label} value={display[key]} setValue={value => updateDisplayValue(key, value)}/> :
+                                    <InputControl key={key} type={inputType} title={label} value={display[key]} setValue={value => updateDisplayValue(key, value)} {...rest}/> :
                                     type === 'select' ?
                                         <div
                                             key={key}
