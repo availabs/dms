@@ -19,7 +19,7 @@ import { PageContext, CMSContext } from '../context';
 import { ThemeContext } from "../../../ui/useTheme";
 
 
-function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiLoad, apiUpdate, format,busy}) {
+function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiLoad, apiUpdate, format,busy, hideBottom}) {
 
     const navigate = useNavigate()
     const [searchParams] = useSearchParams();
@@ -116,7 +116,7 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
     }
 
     return (
-        <PageContext.Provider value={{ item, pageState, setPageState, updatePageStateFilters, dataItems, apiLoad, apiUpdate, format, busy }} >
+        <PageContext.Provider value={{ item, pageState, attributes, setPageState, updatePageStateFilters, dataItems, apiLoad, apiUpdate, format, busy }} >
             <div className={`${theme?.page?.container}`}>
                 {getSectionGroups('top')}
                 <Layout
@@ -128,7 +128,7 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
                 >
                     {getSectionGroups('content')}
                 </Layout>
-                {getSectionGroups('bottom')}
+                {!hideBottom? getSectionGroups('bottom'): null}
             </div>
         </PageContext.Provider>
 

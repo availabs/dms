@@ -8,16 +8,28 @@ export const selectablePDF = async (pdfRef, API_HOST) => {
                             <head>
                                 <title>PDF</title>
                                 <meta name="viewport" content="width=1600, initial-scale=1" />
-                                <link rel="stylesheet" type="text/css" href="https://mitigateny.org/css/build.css" />
+                                <link rel="stylesheet" type="text/css" href="https://devmny.org/css/build.css" />
+                                  <script src="https://cdn.tailwindcss.com"></script>
                                 <style>
                                   @import url('https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800;900&family=IBM+Plex+Sans:wght@100;200;300;400;500;600;700&family=Inter:wght@100;200;300;400;500;600;700;800;900&family=Montserrat:wght@100;200;300;400;500;600;700;800;900&family=Oswald:wght@300;500;700&family=Poppins:wght@100;200;300;400;500;600;700;800;900&family=Roboto:wght@100;300;400;500;700;900&family=Rubik:wght@300;400;500;600;700;800&family=Work+Sans:wght@100;200;300;400;500;600;700;800;900&display=swap');
                                 </style>
+                                <style>
+                                  .pdf-page-break-before {
+                                    break-before: page;
+                                  }
+                                  .pdf-page-break-after {
+                                    break-after: page;
+                                  }
+                                  .pdf-hide-icon {
+                                    display: none;
+                                  }
+                              </style>
                             </head>
-                            <body style="padding:30px;width: 1400px">
+                            <body class="justor-tag" style="padding:30px;width: 1400px">
                                 ${pdfRef.current.innerHTML}
                             </body>
                             </html>`;
-    console.log(html)
+    // console.log(html)
    const response = await fetch(`${API_HOST}/dama-admin/hazmit_dama/downloadpdf`,
        {
           method: 'POST',

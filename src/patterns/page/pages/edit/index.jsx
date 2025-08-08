@@ -163,6 +163,7 @@ function PageEdit ({
 			setPageState, 
 			updatePageStateFilters, 
 			dataItems, 
+			attributes,
 			apiLoad, apiUpdate,
 			updateAttribute, 
 			editPane, setEditPane, 

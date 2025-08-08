@@ -395,7 +395,7 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
                                     value={value?.['title']}
                                 />
                             </div>
-                            <div className='flex item-center h-full pointer-events-auto'>
+                            <div className='pdf-hide-icon flex item-center h-full pointer-events-auto'>
                             {value?.['tags']?.length ? 
                             
                                 (<Popover button={

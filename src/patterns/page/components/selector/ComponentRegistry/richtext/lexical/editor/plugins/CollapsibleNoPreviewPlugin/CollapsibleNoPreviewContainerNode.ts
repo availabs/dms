@@ -60,6 +60,7 @@ export class CollapsibleNoPreviewContainerNode extends ElementNode {
     dom.open = this.__open;
     // Set default state (open or partially collapsed)
     dom.style.maxHeight = this.__open ? 'none' : minimisedHeight;
+    // dom.style.overflow = this.__open ? 'visible' : 'hidden';
 
     // Listen for toggle event
     dom.addEventListener('toggle', () => {
