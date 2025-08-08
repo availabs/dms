@@ -447,14 +447,12 @@ export const mergeFilters = (pageFilters=[], patternFilters=[]) => {
 export const updatePageStateFiltersOnSearchParamChange = ({searchParams, item, patternFilters, setPageState}) => {
     // Extract filters from the URL
     const urlFilters = Array.from(searchParams.keys()).reduce((acc, searchKey) => {
-        const urlValues = searchParams.get(searchKey)?.split('|||');
-        acc[searchKey] = urlValues;
+        acc[searchKey] = searchParams.get(searchKey)?.split('|||');
         return acc;
     }, {});
 
     // If searchParams have changed, they should take priority and update the state
-
-    if (Object.keys(urlFilters).length) {
+    if (Object.keys(urlFilters).length || true) {
         const existingFilters = mergeFilters(item.filters, patternFilters);
         const newFilters = (existingFilters || []).map(filter => {
             if(filter.useSearchParams && urlFilters[filter.searchKey]){

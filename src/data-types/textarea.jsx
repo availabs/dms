@@ -20,6 +20,7 @@ const Edit = ({value, onChange, className, placeholder, ...rest}) => {
                 setTmpValue(e.target.value)
                 onChange(e.target.value)
             }}
+            {...rest}
         />      
     )
 }

@@ -142,6 +142,7 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
         const newDataReq = {
             // visibleColumns: state.columns.filter(column => column.show),
             ...filterOptions,
+            filterRelation: state.display?.filterRelation,
             groupBy: state.columns.filter(column => column.group).map(column => column.name),
             orderBy: state.columns.filter(column => column.sort).reduce((acc, column) => ({...acc, [column.name]: column.sort}), {}),
             fn: state.columns.filter(column => column.fn).reduce((acc, column) => ({...acc, [column.name]: column.fn}), {}),
@@ -161,7 +162,7 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
         return () => {
             isStale = true;
         }
-    }, [state?.columns, isValidState])
+    }, [state?.columns, state?.display?.filterRelation, isValidState])
 
     // // ========================================== get data begin =======================================================
     // uweGetDataOnSettingsChange
@@ -364,7 +365,7 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
         const isNormalisedColumn = state.columns.filter(col => col.name === column.name && col.filters?.length).length > 1;
 
         (column.filters || [])
-            .filter(({values}) => Array.isArray(values) && values.every(v => typeof v === 'string' ? v.length : typeof v !== 'object'))
+            .filter(({values}) => Array.isArray(values) && values.every(v => /*typeof v === 'string' ? v.length :*/ typeof v !== 'object'))
             .forEach(({type, operation, values, fn}) => {
                 // here, operation is filter, exclude, >, >=, <, <=.
                 // normal columns only support filter.

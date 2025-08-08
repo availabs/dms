@@ -11,7 +11,8 @@ export const themeOptions = {
                         "default",
                         "catalyst",
                         "mny",
-                        "mny_admin"
+                        "mny_admin",
+                        "fullmap"
                     ]
                 }
             }

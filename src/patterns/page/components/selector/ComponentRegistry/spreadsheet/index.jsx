@@ -45,8 +45,8 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
         const currUsedWidth = visibleAttrsWithoutOpenOut.reduce((acc, {size}) => acc + +(size || 0), 0);
         if (
             !columnsWithSizeLength ||
-            columnsWithSizeLength !== visibleAttrsWithoutOpenOutLen ||
-            currUsedWidth < gridWidth // resize to use full width
+            columnsWithSizeLength !== visibleAttrsWithoutOpenOutLen
+            // || currUsedWidth < gridWidth // resize to use full width
         ) {
             const availableVisibleAttributes = visibleAttrsWithoutOpenOut.filter(v => v.actionType || v.type === 'formula' || sourceInfo.columns.find(attr => attr.name === v.name));
             const initialColumnWidth = Math.max(minInitColSize, gridWidth / availableVisibleAttributes.length);
@@ -113,6 +113,10 @@ export default {
             {type: 'toggle', label: 'Allow Download', key: 'allowDownload'},
             {type: 'toggle', label: 'Always Fetch Data', key: 'readyToLoad'},
             {type: 'toggle', label: 'Use Pagination', key: 'usePagination'},
+            {type: 'toggle', label: 'Hide Null Open out columns', key: 'hideIfNullOpenouts'},
+            {type: 'select', label: 'Filter Relation', key: 'filterRelation',
+                options: [{label: 'and', value: 'and'}, {label: 'or', value: 'or'}]
+            },
             {type: 'input', inputType: 'number', label: 'Page Size', key: 'pageSize', displayCdn: ({display}) => display.usePagination === true},
         ],
         inHeader: [
@@ -139,7 +143,7 @@ export default {
                     {label: 'Title', value: 'title'},
                     {label: '0 = N/A', value: 'zero_to_na'},
                 ], displayCdn: ({isEdit}) => isEdit},
-
+            {type: 'toggle', label: 'Wrap Text', key: 'wrapText', displayCdn: ({isEdit}) => isEdit},
             // link controls
             {type: 'toggle', label: 'Is Link', key: 'isLink', displayCdn: ({isEdit}) => isEdit},
             {type: 'input', inputType: 'text', label: 'Link Text', key: 'linkText', displayCdn: ({attribute, isEdit}) => isEdit && attribute.isLink},

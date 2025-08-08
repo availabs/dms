@@ -28,7 +28,7 @@ export const insertSubPage = async (item, dataItems, user, apiUpdate) => {
     apiUpdate({data:newItem})
   }
 
-const duplicateItem = (item, dataItems, user, apiUpdate) => {
+export const duplicateItem = (item, dataItems, user, apiUpdate) => {
     const highestIndex = dataItems
         .filter(d => !d.parent)
         .reduce((out,d) => {

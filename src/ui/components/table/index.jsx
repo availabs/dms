@@ -215,9 +215,11 @@ export default function ({
         }
 
         const handleKeyUp = () => {
-            setIsSelecting(false)
-            setIsDragging(false)
-            setTriggerSelectionDelete(false);
+            if(!editing?.index >= 0){
+                setIsSelecting(false)
+                setIsDragging(false)
+                setTriggerSelectionDelete(false);
+            }
         }
 
         const keyDownListener = e => handleKeyDown({

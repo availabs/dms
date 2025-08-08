@@ -161,7 +161,7 @@ const evaluateAST = (node, values) => {
 };
 
 export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => {
-    const {groupBy=[], orderBy={}, filter={}, normalFilter=[], fn={}, exclude={}, meta={}, ...restOfDataRequestOptions} = state.dataRequest;
+    const {groupBy=[], orderBy={}, filter={}, normalFilter=[], fn={}, exclude={}, meta={}, filterRelation, ...restOfDataRequestOptions} = state.dataRequest;
 
     const debug = false;
     debug && console.log('=======getDAta called===========')
@@ -266,6 +266,7 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
 
     // should this be saved in state directly?
     const options = {
+        filterRelation,
         groupBy: groupBy.map(columnName => getFullColumn(columnName, columnsWithSettings)?.refName),
         orderBy: Object.keys(orderBy)
             .filter(columnName => columnsToFetch.find(ctf => ctf.name === columnName)) // take out any sort from non-visible column
@@ -301,7 +302,10 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
                 columnsForOperation.forEach((columnName) => {
                     const { refName, reqName, fn, filters, ...restCol } = getFullColumn(columnName, columnsWithSettings);
                     const reqNameWithoutAS = splitColNameOnAS(reqName)[0];
-                    const currOperationValues = restOfDataRequestOptions[filterOperation][columnName];
+                    const currOperationValues =
+                        filterOperation === 'like' ?
+                                `%${restOfDataRequestOptions[filterOperation][columnName]}%`
+                            : restOfDataRequestOptions[filterOperation][columnName];
                     const valueToFilterBy = Array.isArray(currOperationValues) ? currOperationValues[0] : currOperationValues;
 
                     if (valueToFilterBy == null) return;
