@@ -112,8 +112,8 @@ function pattern2routes (siteData, props) {
         // },authWrapper),
         // patterns
         ...patterns.reduce((acc, pattern) => {
-            //console.log('Patterns', pattern, SUBDOMAIN)
-            if(pattern?.pattern_type && (!SUBDOMAIN || pattern.subdomain === SUBDOMAIN || pattern.subdomain === '*')){
+            console.log('Patterns', pattern.doc_type, pattern.name, pattern.base_url, pattern.subdomain, SUBDOMAIN, (!SUBDOMAIN && !pattern.subdomain)  || pattern.subdomain === SUBDOMAIN || pattern.subdomain === '*')
+            if(pattern?.pattern_type && ((!SUBDOMAIN && !pattern.subdomain) || pattern.subdomain === SUBDOMAIN || pattern.subdomain === '*')){
                 //console.log('add patterns', pattern, SUBDOMAIN)
                 const c = configs[pattern.pattern_type];
                 if(!c) return acc;
