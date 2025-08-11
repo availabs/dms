@@ -283,15 +283,16 @@ function pdfExport({ }) {
 
         <Button
             onClick={() => setSelectedPageIds(new Set())}
-            // className="px-3 py-1 bg-blue-600 text-white rounded"
+            className={!selectedPageIds.size ? `cursor-not-allowed` : ``}
+            disabled={!selectedPageIds.size}
         >
-          Remove All
+          Clear Selection
         </Button>
 
         <Button
             onClick={handleFetchSelected}
-            // className="px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center justify-center"
-            disabled={isGenerating || selectedPageIds.size === 0}
+            className={isGenerating ? `cursor-progress` : selectedPageIds.size === 0 ? 'cursor-not-allowed' : ``}
+            disabled={isGenerating || !selectedPageIds.size}
         >
           {isGenerating ? (
               'Generating PDF'
