@@ -12,7 +12,7 @@ import ComponentsIndexTable from "../componentsIndexTable";
 import FilterComponent from "./FilterComponent";
 import UploadComponent from "./UploadComponent";
 import ValidateComponent from "./ValidateComponent";
-import Export from "./ExportPdf";
+import PDFGenerator from "./ExportPdf";
 
 // //import Item from "./item";
 const ComponentRegistry = {
@@ -26,7 +26,7 @@ const ComponentRegistry = {
     Filter: FilterComponent,
     Upload: UploadComponent,
     Validate: ValidateComponent,
-    Export,
+    PDFGenerator,
     "Table: Components Index": ComponentsIndexTable,
     Item: {
         name: 'Item',

@@ -10,10 +10,9 @@ function pdfExport({ }) {
   const [expandedNodeIds, setExpandedNodeIds] = useState(new Set());
   const [loadedpg, setLoadedPG] = useState([]);
   const { UI, app, type, API_HOST } = React.useContext(CMSContext) || {};
-  const { apiLoad, /*apiUpdate, */ format, /*attributes*/ } = React.useContext(PageContext) || {};
-  const ref = useRef();
+  const { apiLoad, format} = React.useContext(PageContext) || {};
 
-  const { Icon } = UI || {};
+  const { Icon, Button } = UI || {};
 
   useEffect(() => {
     if (!app || !type) return;
@@ -234,25 +233,20 @@ function pdfExport({ }) {
           <li key={node.id}>
             <div
               onClick={() => toggleSelect(node.id)}
-              className={`flex items-center justify-between px-2 py-1 rounded cursor-pointer transition-colors duration-150 ${isSelected ? "bg-blue-500 text-white" : "hover:bg-gray-200"
-                }`}
+              className={`flex items-center justify-between px-2 py-1 rounded-md cursor-pointer transition-colors duration-150 
+              ${isSelected ? "bg-blue-300 hover:bg-blue-400 text-blue-800" : "hover:bg-blue-200"}`}
             >
               <span>{node.name}</span>
               {hasChildren && (
-                <button
+                <Icon
                   onClick={(e) => {
                     e.stopPropagation();
                     toggleExpand(node.id);
                   }}
-                  className="text-gray-600 hover:text-black focus:outline-none"
+                  className={`${isSelected ? `text-blue-800` : ``} focus:outline-none`}
                   title={isExpanded ? "Collapse" : "Expand"}
-                >
-                  {isExpanded ? (
-                    <Icon icon={'ArrowDown'} />
-                  ) : (
-                    <Icon icon={'ArrowRight'} />
-                  )}
-                </button>
+                  icon={isExpanded ? 'ArrowDown' : 'ArrowRight'}
+                 />
               )}
             </div>
 
@@ -267,47 +261,46 @@ function pdfExport({ }) {
 
   return (
     <>
-      <div className="p-4 max-w-xl overflow-auto max-h-[500px] scrollbar-sm">
-        <div className="flex space-x-2 mb-4">
-          <button
+      <div className="flex space-x-2 mb-4">
+        <Button
             onClick={() => {
               const getAllIds = (nodes) =>
-                nodes?.reduce(
-                  (acc, node) => [
-                    ...acc,
-                    node.id,
-                    ...(node.subMenus ? getAllIds(node.subMenus) : []),
-                  ],
-                  []
-                );
+                  nodes?.reduce(
+                      (acc, node) => [
+                        ...acc,
+                        node.id,
+                        ...(node.subMenus ? getAllIds(node.subMenus) : []),
+                      ],
+                      []
+                  );
 
               setSelectedPageIds(new Set(getAllIds(pageTree)));
             }}
-            className="px-3 py-1 bg-blue-600 text-white rounded"
-          >
-            Select All
-          </button>
+            // className="px-3 py-1 bg-blue-600 text-white rounded"
+        >
+          Select All
+        </Button>
 
-          <button
+        <Button
             onClick={() => setSelectedPageIds(new Set())}
-            className="px-3 py-1 bg-blue-600 text-white rounded"
-          >
-            Remove All
-          </button>
+            // className="px-3 py-1 bg-blue-600 text-white rounded"
+        >
+          Remove All
+        </Button>
 
-          <button
+        <Button
             onClick={handleFetchSelected}
-            className="px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center justify-center"
+            // className="px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center justify-center"
             disabled={isGenerating || selectedPageIds.size === 0}
-          >
-            {isGenerating ? (
+        >
+          {isGenerating ? (
               'Generating PDF'
-            ) : (
+          ) : (
               'Generate PDF'
-            )}
-          </button>
-        </div>
-
+          )}
+        </Button>
+      </div>
+      <div className="p-4 max-w-xl overflow-auto max-h-[500px] scrollbar-sm">
         {renderTree(pageTree)}
       </div>
     </>
@@ -316,8 +309,8 @@ function pdfExport({ }) {
 
 
 export default {
-  "name": 'Export: MNY',
-  "type": 'Export',
+  "name": 'PDF Generator',
+  "type": 'PDF Generator',
   defaultState: {
   },
   "EditComp": pdfExport,
