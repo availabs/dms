@@ -175,54 +175,53 @@ function pdfExport({ }) {
   };
 
   const handleFetchSelected = async () => {
-    const results = [];
-    setIsGenerating(true);
-    const orderedSelected = getOrderedSelectedPages(pageTree);
+  setIsGenerating(true);
+  const results = [];
+  const orderedSelected = getOrderedSelectedPages(pageTree);
 
-    try {
-      for (const page of orderedSelected) {
-        const config = {
-          format,
-          children: [
-            {
-              type: () => { },
-              action: 'view',
-              filter: {
-                stopFullDataLoad: true,
-                options: JSON.stringify({ filter: { id: [page.id] } }),
-              },
-              path: `view/:id`,
-              params: { id: page.id },
+  try {
+    for (const page of orderedSelected) {
+      const config = {
+        format,
+        children: [
+          {
+            type: () => {},
+            action: 'view',
+            filter: {
+              stopFullDataLoad: true,
+              options: JSON.stringify({ filter: { id: [page.id] } }),
             },
-          ],
-        };
+            path: `view/:id`,
+            params: { id: page.id },
+          },
+        ],
+      };
 
-        try {
-          const res = await apiLoad(config, `/view/${page.id}`);
-          const fullPage = res?.[0] || {};
-          results.push({
-            ...page,
-            ...fullPage,
-            navOptions: { sideNav: { size: null }, topNav: { size: 'none' } },
-            header: false,
-            footer: null,
-          });
-        } catch (err) {
-        } finally {
-          setIsGenerating(false);
-        }
+      try {
+        const res = await apiLoad(config, `/view/${page.id}`);
+        const fullPage = res?.[0] || {};
+        results.push({
+          ...page,
+          ...fullPage,
+          navOptions: { sideNav: { size: null }, topNav: { size: 'none' } },
+          header: false,
+          footer: null,
+        });
+      } catch (err) {
+        console.error(`Failed to load page ID ${page.id}`, err);
       }
-
-      setLoadedPG(results);
-      const origin = window.location.origin;
-      await selectablePDF2(results.map(r => `${origin}${r.path}`), API_HOST)
-    } catch (error) {
-    } finally {
-      setIsGenerating(false);
+      // No setIsGenerating(false) here!
     }
-  };
 
-
+    setLoadedPG(results);
+    const origin = window.location.origin;
+    await selectablePDF2(results.map((r) => `${origin}${r.path}`), API_HOST);
+  } catch (error) {
+    console.error('Error during PDF generation', error);
+  } finally {
+    setIsGenerating(false); // <-- only here
+  }
+};
 
   const renderTree = (nodes) => (
     <ul className="ml-4 space-y-1">
@@ -265,7 +264,6 @@ function pdfExport({ }) {
       })}
     </ul>
   );
-
 
   return (
     <>
