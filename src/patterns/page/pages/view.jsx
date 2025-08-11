@@ -116,7 +116,7 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
     }
 
     return (
-        <PageContext.Provider value={{ item, pageState, attributes, setPageState, updatePageStateFilters, dataItems, apiLoad, apiUpdate, format, busy }} >
+        <PageContext.Provider value={{ item, pageState, setPageState, updatePageStateFilters, dataItems, apiLoad, apiUpdate, format, busy }} >
             <div className={`${theme?.page?.container}`}>
                 {getSectionGroups('top')}
                 <Layout
