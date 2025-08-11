@@ -223,7 +223,7 @@ function pdfExport({ }) {
 };
 
   const renderTree = (nodes) => (
-    <ul className="ml-4 space-y-1">
+    <ul className="">
       {nodes?.map((node) => {
         const isExpanded = expandedNodeIds.has(node.id);
         const hasChildren = node.subMenus?.length > 0;
@@ -260,7 +260,7 @@ function pdfExport({ }) {
   );
 
   return (
-    <>
+    <div>
       <div className="flex space-x-2 mb-4">
         <Button
             onClick={() => {
@@ -300,10 +300,10 @@ function pdfExport({ }) {
           )}
         </Button>
       </div>
-      <div className="p-4 max-w-xl overflow-auto max-h-[500px] scrollbar-sm">
+      <div className="max-w-xl overflow-auto max-h-[500px] scrollbar-sm">
         {renderTree(pageTree)}
       </div>
-    </>
+    </div>
   );
 }
 
