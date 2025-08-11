@@ -1,7 +1,4 @@
 import React, {useEffect, useMemo, useState} from "react";
-//import Lexical from "../../../patterns/page/ui/dataComponents/selector/ComponentRegistry/richtext/lexical"
-import {dmsDataTypes} from "../../index";
-
 const Lexical = { EditComp: () => <div/>}
 
 const fieldTypes = {
@@ -132,7 +129,7 @@ const RenderOptions = ({col, drivingAttribute, attr, value=[], updateAttribute})
             <div className={'w-full flex flex-col'}>
                 <div className={'w-full flex'}>
                     <input
-                        className='bg-white p-2 flex-1 px-2 shadow bg-blue-100 focus:ring-blue-700 focus:border-blue-500  border-gray-300 rounded-none rounded-md'
+                        className='bg-white p-2 flex-1 px-2 shadow focus:ring-blue-700 focus:border-blue-500  border-gray-300 rounded-md'
                         value={newOption}
                         onChange={e => setNewOption(e.target.value)}
                         onKeyDown={e => e.key === 'Enter' && addNewValue(value, newOption)}
@@ -162,310 +159,38 @@ const RenderOptions = ({col, drivingAttribute, attr, value=[], updateAttribute})
     )
 }
 
-export const getData = async ({format, apiLoad, length}) =>{
-    // fetch all data items based on app and type. see if you can associate those items to its pattern. this will be useful when you have multiple patterns.
-    const attributes = isJson(format?.config) ? (format.config?.attributes || []) :
-                                    JSON.parse(format?.config || '{}')?.attributes || [];
-    const fromIndex = 0;
-    const toIndex = length-1;
-    const children = [{
-        type: () => {
-        },
-        action: 'list',
-        path: '/',
-        filter: {
-            fromIndex: path => fromIndex,
-            toIndex: path => toIndex,
-            options: JSON.stringify({}),
-            stopFullDataLoad: true
-        },
-    }]
-    const data = await apiLoad({
-        app: format.app,
-        type: format.type,
-        format,
-        attributes,
-        children
-    });
-    return data;
-}
+const RenderMappedOptions = ({col, drivingAttribute, attr, value='', updateAttribute}) => {
+    if(!['select', 'multiselect'].includes(drivingAttribute)) return null;
+    // {viewId: "1346450", sourceId: "1346449", labelColumn: "municipality_name", valueColumn: "geoid", isDms: true}
+    const [newOption, setNewOption] = useState(value || '');
 
-export const getValues = async ({format, apiLoad, length, attributes, groupBy=[], filterBy={}}) =>{
-    // fetch all data items based on app and type. see if you can associate those items to its pattern. this will be useful when you have multiple patterns.
-    const finalAttributes = attributes || (
-                                        isJson(format?.config) ? (format.config?.attributes || []) :
-                                            JSON.parse(format?.config || '{}')?.attributes || []
-                                        );
-    const fromIndex = 0;
-    const toIndex = length-1;
-    const children = [{
-        type: () => {
-        },
-        action: 'load',
-        path: '/',
-        filter: {
-            fromIndex: path => fromIndex,
-            toIndex: path => toIndex,
-            options: JSON.stringify({groupBy, aggregatedLen: groupBy.length, filter: filterBy}),
-            attributes: finalAttributes,
-            stopFullDataLoad: true
-        },
-    }]
-    const data = await apiLoad({
-        app: format.app,
-        type: format.type,
-        format,
-        attributes: finalAttributes,
-        children
-    });
-    return data;
-}
-
-export const getLength = async ({format, apiLoad, groupBy= [], filterBy}) =>{
-    const finalAttributes = isJson(format?.config) ? (format.config?.attributes || []) :
-                                        JSON.parse(format?.config || '{}')?.attributes || [];
-
-    const children = [{
-        type: () => {
-        },
-        action: 'filteredLength',
-        path: '/',
-        filter: {
-            options: JSON.stringify({groupBy, aggregatedLen: groupBy.length, filter: filterBy})
-        },
-    }]
-    const length = await apiLoad({
-        app: format.app,
-        type: format.type,
-        format,
-        attributes: finalAttributes,
-        children
-    });
-    return length;
-}
-
-const RenderMappings = ({col, drivingAttribute, attr, value=[], updateAttribute, apiLoad, format}) => {
-    const [adding, setAdding] = useState(false);
-    const [formats, setFormats] = useState([]);
-    const [mapping, setMapping] = useState({}); // selectedFormat, selectedAttribute, mappedValues
-    const [targetValues, setTargetValues] = useState([]);
-    const [srcValues, setSrcValues] = useState([]);
-    const [editingIndex, setEditingIndex] = useState();
-
-    const MultiSelectComp = dmsDataTypes.multiselect.EditComp;
-    const valueClasses = 'p-1 truncate';
-
-    // ============================================ get formats ========================================================
     useEffect(() => {
-        if(!adding) return;
-        async function load(){
-            const length = await getLength({format: {...format, app: 'dms-site', type: 'forms-config'}, apiLoad});
-            const data = await getData({
-                format: {...format, app: 'dms-site', type: 'forms-config'},
-                apiLoad,
-                length
-            })
-            setFormats(data.map(d => ({...d, config: JSON.parse(d.config || '{}')})));
+        let isStale = false;
+
+        setTimeout(() => {
+            if(!isStale && value !== newOption){
+                updateAttribute(col, {[attr]: newOption})
+            }
+        }, 300)
+        return () => {
+            isStale = true;
         }
-
-        load()
-    }, [adding]);
-    // ============================================ get formats end ====================================================
-
-    // ============================================ get src values =====================================================
-    useEffect(() => {
-        async function load(){
-            if(!adding) return;
-            const formattedAttribute = `data->>'${col}' as ${col}`;
-            const length = await getLength({format, apiLoad, groupBy: [`data->>'${col}'`]});
-
-            const data = await getValues({
-                format,
-                apiLoad,
-                length,
-                attributes: [formattedAttribute],
-                groupBy: [`data->>'${col}'`]
-            })
-
-            setSrcValues(data?.map(d => d[formattedAttribute]).filter(d => typeof d !== "object"));
-        }
-
-        load()
-    }, [adding]);
-    // ============================================ get src values end==================================================
-
-    // ============================================ get target values ==================================================
-    useEffect(() => {
-        async function load(){
-            if(!mapping.selectedFormat || !mapping.selectedAttribute) return;
-            const formattedAttribute = `data->>'${mapping.selectedAttribute}' as ${mapping.selectedAttribute}`;
-            const length = await getLength({format: mapping.selectedFormat.config, apiLoad, groupBy: [`data->>'${mapping.selectedAttribute}'`]});
-
-            const data = await getValues({
-                format: mapping.selectedFormat.config,
-                apiLoad,
-                length,
-                attributes: [formattedAttribute],
-                groupBy: [`data->>'${mapping.selectedAttribute}'`]
-            })
-
-            setTargetValues(data?.map(d => d[formattedAttribute]));
-        }
-
-        load()
-    }, [mapping.selectedAttribute]);
-    // ============================================ get target values end ==============================================
-
+    }, [newOption])
+    console.log('????????????', value, newOption)
     return (
-        <div>
-            meta mappings
-            <div className={'w-full grid grid-cols-6 border-t-2 border-gray-300 rounded-md'}>
-                {
-                    ['#', 'Source Values', 'Target Data Type', 'Target Column', 'Target Values', 'Actions'].map(attribute => (
-                        <div className={'p-1'}>{attribute}</div>
-                    ))
-                }
+        <div className={'flex flex-col items-start w-full'}>
+            <label className={labelClass}>Options Map</label>
+
+            <div className={'w-full flex flex-col'}>
+                <div className={'w-full flex'}>
+                    <input
+                        className='bg-white p-2 flex-1 px-2 shadow focus:ring-blue-700 focus:border-blue-500  border-gray-300 rounded-md'
+                        value={newOption}
+                        onChange={e => setNewOption(e.target.value)}
+                        placeholder={'Add a mapping...'}
+                    />
+                </div>
             </div>
-            {
-                value.map((v, i) => (
-                    <div className={'w-full grid grid-cols-6 border-2 border-gray-300 rounded-md items-center font-semibold justify-between hover:bg-blue-200'}>
-                        <div className={`${valueClasses} text-xs`}>Mapping {i + 1}</div>
-                        <div className={valueClasses}>{v?.srcValues?.length || 0} source values</div>
-                        <div className={valueClasses}>{v?.selectedFormat?.name}</div>
-                        <div className={valueClasses}>{v?.selectedAttribute}</div>
-                        <div className={valueClasses}>{v?.mappedValues?.length} mapped values</div>
-                        <div className={'p-1'}>
-                            <button className={'bg-blue-300 hover:bg-blue-500 text-white text-sm p-1 rounded-md'}
-                                    onClick={() => {
-                                        setMapping(v)
-                                        setEditingIndex(i)
-                                        setAdding(true)
-                                    }}>edit
-                            </button>
-                            <button className={'bg-red-300 hover:bg-red-500 text-white text-sm p-1 rounded-md'}
-                                    onClick={() => updateAttribute(col, {[attr]: value.filter((v, vI) => vI !== i)})}>remove
-                            </button>
-                        </div>
-                    </div>
-                ))
-            }
-
-            {
-                adding ? (
-                    <div className={'flex flex-col items-start'}>
-                        <button className={'bg-red-300 hover:bg-red-500 text-white text-sm p-1 rounded-md'}
-                                onClick={() => setAdding(false)}>done
-                        </button>
-                        <div className={`grid grid-cols-6 w-full items-start`}>
-                            <div className={'p-1 text-xs'}>Mapping {value?.length + 1}</div>
-
-                            <MultiSelectComp
-                                className={`border rounded-md bg-white h-full ${mapping.srcValues?.length ? `p-1` : `p-4`}`}
-                                placeholder={'Please select values...'}
-                                value={mapping.srcValues}
-                                onChange={e => {
-                                    setMapping({...mapping, srcValues: e})
-                                }}
-                                options={srcValues}
-                                displayInvalidMsg={false}
-                            />
-
-                            <select
-                                className={'border p-2 rounded-md bg-white'}
-                                value={mapping.selectedFormat?.config?.type}
-                                onChange={e => {
-                                    setMapping({
-                                        ...mapping,
-                                        selectedFormat: formats.find(f => f.config.type === e.target.value)
-                                    })
-                                }}
-                            >
-                                <option>{'Please select a format'}</option>
-                                {
-                                    formats.map(value => <option key={value.config.type}
-                                                                 value={value.config.type}>{value.name}</option>)
-                                }
-                            </select>
-
-                            {
-                                mapping.selectedFormat?.config?.attributes ? (
-                                    <select
-                                        className={'border p-2 rounded-md bg-white'}
-                                        value={mapping.selectedAttribute}
-                                        onChange={e => {
-                                            setMapping({...mapping, selectedAttribute: e.target.value})
-                                        }}
-                                    >
-                                        <option>{'Please select a format'}</option>
-                                        {
-                                            mapping.selectedFormat.config.attributes.map(attr => <option
-                                                key={attr.display_name || attr.name}
-                                                value={attr.name}>{attr.name}</option>)
-                                        }
-                                    </select>
-                                ) : <div></div>
-                            }
-
-                            {
-                                targetValues?.length ? (
-                                    <MultiSelectComp
-                                        className={`border rounded-md bg-white h-full ${mapping.mappedValues?.length ? `p-1` : `p-4`}`}
-                                        placeholder={'Please select values...'}
-                                        value={mapping.mappedValues}
-                                        onChange={e => {
-                                            setMapping({...mapping, mappedValues: e})
-                                        }}
-                                        options={targetValues}
-                                    />
-                                ) : <div></div>
-                            }
-
-                            {
-                                targetValues.length && editingIndex !== undefined ?
-                                    <div className={'p-1'}>
-                                        <button
-                                            title={'save'}
-                                            className={'bg-blue-300 hover:bg-blue-500 text-white text-sm p-1 rounded-md h-fit self-center'}
-                                            onClick={() => {
-                                                updateAttribute(col, {[attr]: value.map((v, i) => i === editingIndex ? mapping : v)});
-                                                setMapping({});
-                                                setEditingIndex(undefined);
-                                            }}
-                                        > save
-                                        </button>
-                                        <button
-                                            title={'cancel'}
-                                            className={'bg-red-300 hover:bg-red-500 text-white text-sm p-1 rounded-md h-fit self-center'}
-                                            onClick={() => {
-                                                setMapping({});
-                                                setEditingIndex(undefined);
-                                                setAdding(false);
-                                            }}
-                                        > cancel
-                                        </button>
-                                    </div> :
-                                    <div>
-                                        <button
-                                            title={'add mapping'}
-                                            className={'bg-blue-300 hover:bg-blue-500 text-white text-sm p-2 rounded-md h-fit self-end'}
-                                            onClick={() => {
-                                                updateAttribute(col, {[attr]: [...value, mapping]})
-                                                setMapping({});
-                                            }}
-                                        >+
-                                        </button>
-                                    </div>
-                            }
-                        </div>
-                    </div>
-                ) : (
-                    <div className={'flex flex-col items-start'}>
-                        <button className={'bg-blue-300 hover:bg-blue-500 text-white text-sm p-1 rounded-md'}
-                                onClick={() => setAdding(true)}>+ add mappings
-                        </button>
-                    </div>
-                )
-            }
         </div>
     )
 }
@@ -635,9 +360,8 @@ export const RenderField = ({i, item, attribute, updateAttribute, removeAttribut
                         updateAttribute={updateAttribute}
                     />
                     <RenderOptions key={`${item.name}-options`} col={item.name} drivingAttribute={item.type} value={item.options} attr={'options'} updateAttribute={updateAttribute}/>
+                    <RenderMappedOptions key={`${item.name}-mapped-options`} col={item.name} drivingAttribute={item.type} value={item.mapped_options} attr={'mapped_options'} updateAttribute={updateAttribute}/>
                     <RenderMeta key={`${item.name}-meta_lookup`} col={item.name} drivingAttribute={item.display} value={item.meta_lookup} attr={'meta_lookup'} updateAttribute={updateAttribute}/>
-                    <RenderMappings key={`${item.name}-mappings`} col={item.name} drivingAttribute={item.display} value={item.mappings} attr={'mappings'}
-                                    updateAttribute={updateAttribute} apiLoad={apiLoad} format={format}/>
                     <RenderRemoveBtn key={`${item.name}-removeBtn`} col={item.name} removeAttribute={removeAttribute}/>
 
                 </div>

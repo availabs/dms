@@ -144,6 +144,8 @@ export default {
                     {label: '0 = N/A', value: 'zero_to_na'},
                 ], displayCdn: ({isEdit}) => isEdit},
             {type: 'toggle', label: 'Wrap Text', key: 'wrapText', displayCdn: ({isEdit}) => isEdit},
+            {type: 'toggle', label: 'Show Total', key: 'showTotal', displayCdn: ({isEdit}) => isEdit},
+
             // link controls
             {type: 'toggle', label: 'Is Link', key: 'isLink', displayCdn: ({isEdit}) => isEdit},
             {type: 'input', inputType: 'text', label: 'Link Text', key: 'linkText', displayCdn: ({attribute, isEdit}) => isEdit && attribute.isLink},

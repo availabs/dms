@@ -36,16 +36,18 @@ const validate = ({value, required, options, name}) => {
         Array.isArray(options) && !value && !required ? true : // blank value with not required condition
         Array.isArray(options) && (typeof value === "string" || typeof value === "boolean") ? // select
             options.map(o => o.value || o).includes(value.toString()) :
-            Array.isArray(options) && Array.isArray(value) ?  // multiselect
-                value.reduce((acc, v) => acc && options.map(o => o.value || o).includes(v?.value || v), true) :
-                false
+            Array.isArray(options) && typeof value === 'number' ? //select
+                options.map(o => o.value || o).includes(value) :
+                Array.isArray(options) && Array.isArray(value) ?  // multiselect
+                    value.reduce((acc, v) => acc && options.map(o => o.value || o).includes(v?.value || v), true) :
+                    false
     );
     // if (!(requiredValidation && optionsValidation)) console.log('----', name, requiredValidation, optionsValidation, options, value)
     return requiredValidation && optionsValidation;
 }
 
 export const TableCell = ({
-    columns, display, theme,
+    isTotalCell, columns, display, theme,
     showOpenOutCaret, showOpenOut, setShowOpenOut,
     attribute, openOutTitle,
     i, item, updateItem, removeItem, onPaste,
@@ -63,7 +65,8 @@ export const TableCell = ({
     const Comp = loading ? LoadingComp : compType === 'ui' ? attribute.Comp :
         renderTextBox ? DataTypes.textarea.EditComp : (DataTypes[compType]?.[compMode] || DisplayCalculatedCell);
     const CompWithLink = LinkComp({attribute, columns, newItem, removeItem, value: rawValue, Comp});
-    const value = compMode === 'EditComp' ? rawValue : attribute.formatFn && formatFunctions[attribute.formatFn.toLowerCase()] ? formatFunctions[attribute.formatFn.toLowerCase()](rawValue, attribute.isDollar) : rawValue
+    const value = isTotalCell && !(attribute.showTotal || display.showTotal) ? null :
+        compMode === 'EditComp' ? rawValue : attribute.formatFn && formatFunctions[attribute.formatFn.toLowerCase()] ? formatFunctions[attribute.formatFn.toLowerCase()](rawValue, attribute.isDollar) : rawValue
     const justifyClass = {
         left: 'justify-start',
         right: 'justify-end',
