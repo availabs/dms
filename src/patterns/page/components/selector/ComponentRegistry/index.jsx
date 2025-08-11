@@ -12,6 +12,8 @@ import ComponentsIndexTable from "../componentsIndexTable";
 import FilterComponent from "./FilterComponent";
 import UploadComponent from "./UploadComponent";
 import ValidateComponent from "./ValidateComponent";
+import Export from "./ExportPdf";
+
 // //import Item from "./item";
 const ComponentRegistry = {
     lexical,
@@ -24,6 +26,7 @@ const ComponentRegistry = {
     Filter: FilterComponent,
     Upload: UploadComponent,
     Validate: ValidateComponent,
+    Export,
     "Table: Components Index": ComponentsIndexTable,
     Item: {
         name: 'Item',
