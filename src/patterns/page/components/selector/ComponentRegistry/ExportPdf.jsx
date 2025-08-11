@@ -1,18 +1,16 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 
 import { PageContext, CMSContext } from '../../../context';
-import PageView from '../../../pages/view';
-import { selectablePDF } from '../../saveAsPDF/PrintWell/selectablePDF';
-
-import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/20/solid';
+import { selectablePDF, selectablePDF2 } from '../../saveAsPDF/PrintWell/selectablePDF';
 
 function pdfExport({ }) {
   const [pages, setPages] = useState([]);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [selectedPageIds, setSelectedPageIds] = useState(new Set());
   const [expandedNodeIds, setExpandedNodeIds] = useState(new Set());
   const [loadedpg, setLoadedPG] = useState([]);
   const { UI, app, type, API_HOST } = React.useContext(CMSContext) || {};
-  const { apiLoad, apiUpdate, format, attributes } = React.useContext(PageContext) || {};
+  const { apiLoad, /*apiUpdate, */ format, /*attributes*/ } = React.useContext(PageContext) || {};
   const ref = useRef();
 
   const { Icon } = UI || {};
@@ -114,7 +112,7 @@ function pdfExport({ }) {
   const findNodeById = (nodes, id) => {
     for (const node of nodes) {
       if (node.id === id) return node;
-      if (node.subMenus) {
+      if (node?.subMenus) {
         const found = findNodeById(node.subMenus, id);
         if (found) return found;
       }
@@ -126,16 +124,14 @@ function pdfExport({ }) {
     let orderedPages = [];
 
     const traverse = (pageList) => {
-      pageList
-        .sort((a, b) => a.index - b.index)
-        .forEach((node) => {
-          if (selectedPageIds.has(node.id)) {
-            orderedPages.push(node);
-          }
-          if (node.subMenus?.length) {
-            traverse(node.subMenus);
-          }
-        });
+      pageList?.sort((a, b) => a.index - b.index)?.forEach((node) => {
+        if (selectedPageIds.has(node.id)) {
+          orderedPages.push(node);
+        }
+        if (node.subMenus?.length) {
+          traverse(node.subMenus);
+        }
+      });
     };
 
     traverse(pages);
@@ -144,8 +140,8 @@ function pdfExport({ }) {
 
   const toggleSelect = (id) => {
     const getAllDescendants = (node) => {
-      const children = node.subMenus || [];
-      return children.reduce(
+      const children = node?.subMenus || [];
+      return children?.reduce(
         (acc, child) => acc.concat(child.id, getAllDescendants(child)),
         []
       );
@@ -180,48 +176,49 @@ function pdfExport({ }) {
 
   const handleFetchSelected = async () => {
     const results = [];
+    setIsGenerating(true);
     const orderedSelected = getOrderedSelectedPages(pageTree);
 
-    for (const page of orderedSelected) {
-      const config = {
-        format,
-        children: [
-          {
-            type: () => { },
-            action: 'view',
-            filter: {
-              stopFullDataLoad: true,
-              options: JSON.stringify({ filter: { id: [page.id] } }),
+    try {
+      for (const page of orderedSelected) {
+        const config = {
+          format,
+          children: [
+            {
+              type: () => { },
+              action: 'view',
+              filter: {
+                stopFullDataLoad: true,
+                options: JSON.stringify({ filter: { id: [page.id] } }),
+              },
+              path: `view/:id`,
+              params: { id: page.id },
             },
-            path: `view/:id`,
-            params: { id: page.id },
-          },
-        ],
-      };
+          ],
+        };
 
-      try {
-        const res = await apiLoad(config, `/view/${page.id}`);
-        const fullPage = res?.[0] || {};
-        results.push({
-          ...page,
-          ...fullPage,
-          navOptions: { sideNav: { size: null }, topNav: { size: 'none' } },
-          header: false,
-          footer: null,
-        });
-      } catch (err) {
-        console.error(`Failed to load page ID ${page.id}:`, err);
+        try {
+          const res = await apiLoad(config, `/view/${page.id}`);
+          const fullPage = res?.[0] || {};
+          results.push({
+            ...page,
+            ...fullPage,
+            navOptions: { sideNav: { size: null }, topNav: { size: 'none' } },
+            header: false,
+            footer: null,
+          });
+        } catch (err) {
+        } finally {
+          setIsGenerating(false);
+        }
       }
-    }
 
-    setLoadedPG(results);
-
-    await new Promise((resolve) => setTimeout(resolve, 5000));
-
-    if (ref.current) {
-      console.log('Generating PDF...');
-      await selectablePDF(ref, API_HOST);
-      console.log('PDF downloaded.');
+      setLoadedPG(results);
+      const origin = window.location.origin;
+      await selectablePDF2(results.map(r => `${origin}${r.path}`), API_HOST)
+    } catch (error) {
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -229,43 +226,39 @@ function pdfExport({ }) {
 
   const renderTree = (nodes) => (
     <ul className="ml-4 space-y-1">
-      {nodes.map((node) => {
+      {nodes?.map((node) => {
         const isExpanded = expandedNodeIds.has(node.id);
         const hasChildren = node.subMenus?.length > 0;
+        const isSelected = selectedPageIds.has(node.id);
 
         return (
           <li key={node.id}>
-            <div className="flex items-start space-x-2">
-              {hasChildren ? (
+            <div
+              onClick={() => toggleSelect(node.id)}
+              className={`flex items-center justify-between px-2 py-1 rounded cursor-pointer transition-colors duration-150 ${isSelected ? "bg-blue-500 text-white" : "hover:bg-gray-200"
+                }`}
+            >
+              <span>{node.name}</span>
+              {hasChildren && (
                 <button
-                  onClick={() => toggleExpand(node.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleExpand(node.id);
+                  }}
                   className="text-gray-600 hover:text-black focus:outline-none"
-                  title={isExpanded ? 'Collapse' : 'Expand'}
+                  title={isExpanded ? "Collapse" : "Expand"}
                 >
                   {isExpanded ? (
-                    <ChevronDownIcon className="h-4 w-4" />
+                    <Icon icon={'ArrowDown'} />
                   ) : (
-                    <ChevronRightIcon className="h-4 w-4" />
+                    <Icon icon={'ArrowRight'} />
                   )}
                 </button>
-              ) : (
-                <span className="w-4 inline-block" />
               )}
-
-              <label className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  checked={selectedPageIds.has(node.id)}
-                  onChange={() => toggleSelect(node.id)}
-                />
-                <span>{node.name}</span>
-              </label>
             </div>
 
             {hasChildren && isExpanded && (
-              <div className="ml-6">
-                {renderTree(node.subMenus)}
-              </div>
+              <div className="ml-4 mt-1">{renderTree(node.subMenus)}</div>
             )}
           </li>
         );
@@ -273,41 +266,51 @@ function pdfExport({ }) {
     </ul>
   );
 
+
   return (
     <>
-      <div className="p-4 max-w-2xl mx-auto">
-        <h2 className="text-xl font-semibold mb-4">Select Pages for Export</h2>
-        {renderTree(pageTree)}
+      <div className="p-4 max-w-xl overflow-auto max-h-[500px] scrollbar-sm">
+        <div className="flex space-x-2 mb-4">
+          <button
+            onClick={() => {
+              const getAllIds = (nodes) =>
+                nodes?.reduce(
+                  (acc, node) => [
+                    ...acc,
+                    node.id,
+                    ...(node.subMenus ? getAllIds(node.subMenus) : []),
+                  ],
+                  []
+                );
 
-        <button
-          onClick={handleFetchSelected}
-          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-        >
-          Generate PDF
-        </button>
-      </div>
-      <div className="hidden">
-        <div ref={ref}>
-          {loadedpg.map((pg, ind) => (
-            <div
-              key={pg.url_slug || ind}
-              className={
-                ind === loadedpg.length - 1
-                  ? "pdf-page-break-before pdf-page-break-after"
-                  : "pdf-page-break-before"
-              }
-            >
-              <PageView
-                item={pg}
-                dataItems={[]}
-                attributes={attributes}
-                apiLoad={apiLoad}
-                apiUpdate={apiUpdate}
-                hideBottom={true}
-              />
-            </div>
-          ))}
+              setSelectedPageIds(new Set(getAllIds(pageTree)));
+            }}
+            className="px-3 py-1 bg-blue-600 text-white rounded"
+          >
+            Select All
+          </button>
+
+          <button
+            onClick={() => setSelectedPageIds(new Set())}
+            className="px-3 py-1 bg-blue-600 text-white rounded"
+          >
+            Remove All
+          </button>
+
+          <button
+            onClick={handleFetchSelected}
+            className="px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center justify-center"
+            disabled={isGenerating || selectedPageIds.size === 0}
+          >
+            {isGenerating ? (
+              'Generating PDF'
+            ) : (
+              'Generate PDF'
+            )}
+          </button>
         </div>
+
+        {renderTree(pageTree)}
       </div>
     </>
   );
