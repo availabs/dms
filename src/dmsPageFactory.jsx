@@ -25,15 +25,14 @@ function ScrollToTop() {
 export default function dmsPageFactory (
   dmsConfig,
   authWrapper = (Component) => Component,
+  ErrorBoundary
 ) {
-  //console.log('hola', dmsConfig, authWrapper)
-  //const {falcor, falcorCache} = useFalcor()
   let {
     API_HOST = 'https://graph.availabs.org',
-    baseUrl = ""
+    baseUrl = "",
+    errorElement
   } = dmsConfig
-  //baseUrl = baseUrl[0] === '/' ? baseUrl.slice(1) : baseUrl
-  //console.log('page factory', API_HOST, dmsConfig )
+  const ErrorBoundaryComp = errorElement || ErrorBoundary
   const dmsPath= `${baseUrl}${baseUrl === '/' ? '' : '/'}`
   const falcor = falcorGraph(API_HOST)
 
@@ -72,15 +71,6 @@ export default function dmsPageFactory (
     ),[params['*']])
   }
 
-  function ErrorBoundary({ error }) {
-    return (
-      <div>
-        <h1>DMS Error</h1>
-        <pre className='p-4 bg-gray-300'>{JSON.stringify(error,null,3)}</pre>
-      </div>
-    );
-  }
-
   return {
     path: `${dmsPath}*`,
     Component: (props) =>  (
@@ -90,6 +80,7 @@ export default function dmsPageFactory (
       </>
     ),
     loader: loader,
-    action: action
+    action: action,
+    errorElement: <ErrorBoundaryComp />
   }
 }
