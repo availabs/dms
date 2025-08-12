@@ -274,7 +274,7 @@ export const RenderFilters = ({
     }
     if(!open) {
         return (
-            <div className={theme.filters.filtersWrapper}>
+            <div className={`${theme.filters.filtersWrapper} print:hidden`}>
                 <div className={'w-fit -mt-4 p-2 border rounded-full self-end'}>
                     <Icon icon={'Filter'}
                           className={'text-slate-400 hover:text-blue-500 size-4 hover:cursor-pointer'}
@@ -286,7 +286,7 @@ export const RenderFilters = ({
     }
 
     return (
-        <div className={theme.filters.filtersWrapper}>
+        <div className={`${theme.filters.filtersWrapper} print:hidden`}>
             <div className={'w-fit -mt-4 p-2 border rounded-full self-end'}>
                 <Icon icon={'Filter'}
                     className={'text-slate-400 hover:text-blue-500 size-4 hover:cursor-pointer'}

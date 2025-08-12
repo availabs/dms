@@ -399,7 +399,7 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
                             {value?.['tags']?.length ? 
                             
                                 (<Popover button={
-                                    <div className='p-2 border border-[#E0EBF0] rounded-full'>
+                                    <div className='p-2 border border-[#E0EBF0] rounded-full print:hidden'>
                                         <Icon icon={'Tags'} className='text-slate-400 hover:text-blue-500 size-4' title="Tags"/>
                                     </div>
                                     }>
@@ -413,7 +413,7 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
                                 </Popover>) : null}
                                         
                                 {helpTextCondition && (
-                                    <Popover button={<Icon icon={'InfoSquare'} className='text-blue-400 hover:text-blue-500 w-[24px] h-[24px]' title="Move Up"/>}>
+                                    <Popover button={<Icon icon={'InfoSquare'} className='text-blue-400 hover:text-blue-500 w-[24px] h-[24px] print:hidden' title="Help Text"/>}>
                                         <HelpComp value={value?.['helpText']} />
                                     </Popover>)
                             }

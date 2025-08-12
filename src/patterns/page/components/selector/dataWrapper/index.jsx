@@ -69,7 +69,7 @@ const RenderDownload = ({state, apiLoad, cms_context}) => {
     if(!state.display.allowDownload) return;
     return (
         <div className={''}>
-            <div className={'relative flex flex-col'}>
+            <div className={'relative flex flex-col print:hidden'}>
                 <div className={'w-fit p-2 border rounded-full '}>
                     <Icon id={menuBtnId}
                           icon={icon}
