@@ -188,7 +188,7 @@ export function Header ({app, type, title, note, logo, overlay='overlay', bgImg,
 
 
 const getChain = (dataItems, currentItem) => {
-    const {id, parent, title, url_slug} = currentItem;
+    const {id, parent, title, url_slug} = currentItem || {};
     if (parent){
         const chainForCurrItem = getChain(dataItems, dataItems.find(di => di.id === parent));
         return [...chainForCurrItem, {id, parent, title, url_slug}]

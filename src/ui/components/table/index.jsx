@@ -350,7 +350,7 @@ export default function ({
 
                 {/*/!****************************************** Total Row ***********************************************!/*/}
                 {data
-                    .filter(d => display.showTotal && d.totalRow)
+                    .filter(d => (display.showTotal || columns.some(c => c.showTotal)) && d.totalRow)
                     .map((d, i) => (
                         <TableRow key={i} {...{
                             i, d,  isEdit, frozenCols, theme, columns, display,
@@ -358,7 +358,8 @@ export default function ({
                             selection, setSelection, selectionRange, triggerSelectionDelete,
                             handleMouseDown, handleMouseMove, handleMouseUp,
                             setIsDragging, startCellCol, startCellRow,
-                            updateItem, removeItem, defaultColumnSize
+                            updateItem, removeItem, defaultColumnSize,
+                            isTotalRow: true
                         }} />
                     ))}
                 {/*/!****************************************** Rows end ************************************************!/*/}

@@ -125,7 +125,7 @@ const OverViewEdit = ({
 
     console.log('props',item, baseUrl, pageBaseUrl, params.id)
     const Lexical = dmsDataTypes.lexical.ViewComp;
-
+    // console.log('item', item)
     return (
         <SourcesLayout fullWidth={false} baseUrl={baseUrl} pageBaseUrl={pageBaseUrl} isListAll={false} hideBreadcrumbs={false}
                        form={{name: item.name || item.doc_type, href: format.url_slug}}

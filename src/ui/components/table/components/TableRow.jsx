@@ -52,7 +52,7 @@ export const TableRow = ({
   selection, setSelection, selectionRange, triggerSelectionDelete,
   handleMouseDown, handleMouseMove, handleMouseUp,
   setIsDragging, startCellCol, startCellRow,
-  updateItem, removeItem, defaultColumnSize
+  updateItem, removeItem, defaultColumnSize, isTotalRow
 }) => {
     const [showOpenOut, setShowOpenOut] = useState(false);
 
@@ -116,6 +116,7 @@ export const TableRow = ({
                 {visibleAttrsWithoutOpenOut
                     .map((attribute, attrI) =>
                         <TableCell
+                            isTotalCell={isTotalRow}
                             columns={columns}
                             display={display}
                             theme={theme}
@@ -217,6 +218,7 @@ export const TableRow = ({
                                 <div key={`data-open-out-${i}`}
                                      className={''} >
                                     <TableCell
+                                        isTotalCell={isTotalRow}
                                         columns={columns}
                                         display={display}
                                         theme={theme}
