@@ -77,7 +77,7 @@ let {
 
 
 
-const getDmsConfig = (host, path, patterns=[] ) => {
+const getDmsConfig = (host, path, patterns=[], themes={} ) => {
     
     const subdomain = getSubdomain(host)
     const matches = matchRoutes(
@@ -116,32 +116,40 @@ const getDmsConfig = (host, path, patterns=[] ) => {
         pattern: patternConfig,
         siteType: adminSettings.type,
         baseUrl: `/${patternConfig.base_url?.replace(/^\/|\/$/g, '')}`,
-        pgEnv:'hazmit_dama'
+        pgEnv:'hazmit_dama',
+        themes
     })
 }
 
 
 export default getDmsConfig
 
-const updateRegisteredFormats = (registerFormats, app) => {
-  if(Array.isArray(registerFormats)){
-    registerFormats = registerFormats.map(rFormat => {
-      rFormat.app = app;
-      rFormat.registerFormats = updateRegisteredFormats(rFormat.registerFormats, app);
-      rFormat.attributes = updateAttributes(rFormat.attributes, app);
-      return rFormat;
-    })
-  }
-  return registerFormats;
+export const parseJson = value => {
+    try {
+        return JSON.parse(value)
+    } catch (e) {
+        return value
+    }
 }
+// const updateRegisteredFormats = (registerFormats, app) => {
+//   if(Array.isArray(registerFormats)){
+//     registerFormats = registerFormats.map(rFormat => {
+//       rFormat.app = app;
+//       rFormat.registerFormats = updateRegisteredFormats(rFormat.registerFormats, app);
+//       rFormat.attributes = updateAttributes(rFormat.attributes, app);
+//       return rFormat;
+//     })
+//   }
+//   return registerFormats;
+// }
 
-const updateAttributes = (attributes, app) => {
-  if(Array.isArray(attributes)){
-    attributes = attributes.map(attr => {
-      attr.format = attr.format ? `${app}+${attr.format.split('+')[1]}`: undefined;
-      return updateRegisteredFormats(attr, app);
-    })
-    //console.log('attr', attributes)
-  }
-  return attributes;
-}
+// const updateAttributes = (attributes, app) => {
+//   if(Array.isArray(attributes)){
+//     attributes = attributes.map(attr => {
+//       attr.format = attr.format ? `${app}+${attr.format.split('+')[1]}`: undefined;
+//       return updateRegisteredFormats(attr, app);
+//     })
+//     //console.log('attr', attributes)
+//   }
+//   return attributes;
+// }
