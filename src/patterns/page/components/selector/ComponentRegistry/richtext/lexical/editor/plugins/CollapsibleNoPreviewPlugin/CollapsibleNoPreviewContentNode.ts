@@ -76,22 +76,26 @@ export class CollapsibleNoPreviewContentNode extends ElementNode {
     if (isOpen) {
       dom.classList.remove(
           'bg-gradient-to-b', 'from-[#2D3E4C]', 'to-[#F3F8F9]',
-          'bg-clip-text', 'text-transparent'
+          'bg-clip-text', 'text-transparent', 'max-h-[64px]', 'overflow-hidden'
       );
-      dom.classList.add('text-[#37576B]'); // Solid color when open
+      dom.classList.add('text-[#37576B]', 'max-h-none', 'overflow-auto'); // Solid color when open
 
       // Reset styles
       dom.style.background = '';
       dom.style.webkitMaskImage = '';  // Remove mask when open
       dom.style.maskImage = '';
     } else {
-      dom.classList.remove('text-[#37576B]');
-      dom.classList.add('text-[#2D3E4C]'); // Ensure text is visible
+      dom.classList.remove('text-[#37576B]', 'max-h-none', 'overflow-auto');
+      dom.classList.add('text-[#2D3E4C]', 'max-h-[64px]', 'overflow-hidden', 'print:overflow-visible', 'print:max-h-full'); // Ensure text is visible
+      dom.classList.add(
+          '[mask-image:linear-gradient(to_bottom,_rgba(0,0,0,1),_rgba(0,0,0,0.2))]',
+          'print:[mask-image:none]'
 
+      )
       // Use mask-image to create the fade effect at the bottom
       dom.style.background = '';
-      dom.style.webkitMaskImage = 'linear-gradient(to bottom, rgba(0,0,0,1), rgba(0,0,0,0.2))';
-      dom.style.maskImage = 'linear-gradient(to bottom, rgba(0,0,0,1), rgba(0,0,0,0.2))';
+      // dom.style.webkitMaskImage = 'linear-gradient(to bottom, rgba(0,0,0,1), rgba(0,0,0,0.2))';
+      // dom.style.maskImage = 'linear-gradient(to bottom, rgba(0,0,0,1), rgba(0,0,0,0.2))';
     }
   }
 

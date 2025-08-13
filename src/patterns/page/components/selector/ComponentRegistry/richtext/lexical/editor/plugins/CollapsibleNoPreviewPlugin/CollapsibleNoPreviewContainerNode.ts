@@ -56,11 +56,13 @@ export class CollapsibleNoPreviewContainerNode extends ElementNode {
     const minimisedHeight = '50px';
     const dom = document.createElement('div');
     dom.classList.add('Collapsible__container');
-    dom.classList.add('flex', 'flex-col', 'gap-4', 'bg-[#F3F8F9]', 'p-[12px]', 'pt-[16px]', 'rounded-lg', 'mb-2');
+    dom.classList.add('flex', 'flex-col', 'gap-4', 'bg-[#F3F8F9]', 'p-[12px]', 'pt-[16px]', 'rounded-lg', 'mb-2', 'print:max-h-full', 'print:overflow-visible');
+    dom.classList.add(this.__open ? 'max-h-full' : `max-h-[${minimisedHeight}]`,
+        this.__open ? 'overflow-visible' : `overflow-hidden`);
     dom.open = this.__open;
     // Set default state (open or partially collapsed)
-    dom.style.maxHeight = this.__open ? 'none' : minimisedHeight;
-    dom.style.overflow = this.__open ? 'visible' : 'hidden';
+    // dom.style.maxHeight = this.__open ? 'none' : minimisedHeight;
+    // dom.style.overflow = this.__open ? 'visible' : 'hidden';
 
     // Listen for toggle event
     dom.addEventListener('toggle', () => {
