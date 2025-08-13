@@ -47,11 +47,11 @@ export class CollapsibleContainerNode extends ElementNode {
     const minimisedHeight = '300px';
     const dom = document.createElement('div');
     dom.classList.add('Collapsible__container');
-    dom.classList.add('flex', 'flex-col', 'gap-4', 'bg-[#F3F8F9]', 'p-[12px]', 'pt-[16px]', 'rounded-lg', 'mb-2');
+    dom.classList.add('flex', 'flex-col', 'gap-4', 'bg-[#F3F8F9]', 'p-[12px]', 'pt-[16px]', 'rounded-lg', 'mb-2', 'print:max-h-full', 'print:overflow-visible');
     dom.open = this.__open;
     // Set default state (open or partially collapsed)
-    dom.style.maxHeight = this.__open ? 'none' : minimisedHeight;
-    dom.style.overflow = this.__open ? 'visible' : 'hidden';
+    // dom.style.maxHeight = this.__open ? 'none' : minimisedHeight;
+    // dom.style.overflow = this.__open ? 'visible' : 'hidden';
 
     // Listen for toggle event
     dom.addEventListener('toggle', () => {
@@ -59,8 +59,13 @@ export class CollapsibleContainerNode extends ElementNode {
         const open = this.getOpen();
 
         // Control height instead of relying on "open" attribute
-        dom.style.maxHeight = open ? 'none' : minimisedHeight;
-        dom.style.overflow = open ? 'visible' : 'hidden';
+        // dom.style.maxHeight = open ? 'none' : minimisedHeight;
+        // dom.style.overflow = open ? 'visible' : 'hidden';
+        dom.classList.add('Collapsible__container');
+        dom.classList.add(
+            open ? 'max-h-full' : `max-h-[${minimisedHeight}]`,
+            open ? 'overflow-visible' : `overflow-hidden`
+        );
       });
     });
 
