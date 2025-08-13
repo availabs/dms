@@ -69,7 +69,7 @@ const RenderDownload = ({state, apiLoad, cms_context}) => {
     if(!state.display.allowDownload) return;
     return (
         <div className={''}>
-            <div className={'relative flex flex-col'}>
+            <div className={'relative flex flex-col print:hidden'}>
                 <div className={'w-fit p-2 border rounded-full '}>
                     <Icon id={menuBtnId}
                           icon={icon}
@@ -142,6 +142,7 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
         const newDataReq = {
             // visibleColumns: state.columns.filter(column => column.show),
             ...filterOptions,
+            filterRelation: state.display?.filterRelation,
             groupBy: state.columns.filter(column => column.group).map(column => column.name),
             orderBy: state.columns.filter(column => column.sort).reduce((acc, column) => ({...acc, [column.name]: column.sort}), {}),
             fn: state.columns.filter(column => column.fn).reduce((acc, column) => ({...acc, [column.name]: column.fn}), {}),
@@ -161,7 +162,7 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
         return () => {
             isStale = true;
         }
-    }, [state?.columns, isValidState])
+    }, [state?.columns, state?.display?.filterRelation, isValidState])
 
     // // ========================================== get data begin =======================================================
     // uweGetDataOnSettingsChange
@@ -339,7 +340,7 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
 
 const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest}) => {
     const isEdit = false;
-    const {UI} = useContext(cms_context || CMSContext) || {UI: {Icon: () => <></>}};;
+    const {UI, pgEnv} = useContext(cms_context || CMSContext) || {UI: {Icon: () => <></>}};;
     const {Icon} = UI;
     const {state, setState, apiLoad} = useContext(ComponentContext);
 
@@ -352,6 +353,8 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
     const Comp = useMemo(() => state.display.hideSection ? () => <></> : component.ViewComp, [component, state.display.hideSection]);
     // const useCache = state.display.useCache //=== false ? false : true; // false: loads data on load. can be expensive. useCache can be undefined for older components.
     const setReadyToLoad = useCallback(() => setState(draft => {draft.display.readyToLoad = true}), [setState]);
+    const allowEdit = groupByColumnsLength ? false : state.sourceInfo?.isDms && state.display.allowEditInView && Boolean(apiUpdate);
+
     useEffect(() => {
         const newState = convertOldState(value)
         setState(newState)
@@ -491,6 +494,108 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
             isStale = true;
         }
     }, [state?.display?.loadMoreId, state?.display?.totalLength, /*state?.data?.length, */state?.display?.usePagination, isValidState]);
+
+    // =========================================== get input data ======================================================
+    useEffect(() => {
+        // loads options for select / multiselect columns that point to a datasource
+        if(!allowEdit) return;
+        let isStale = false;
+
+        async function loadOptionsData () {
+            const columnsToFetch = state.columns.filter(c => c.mapped_options);
+
+            const responses = await columnsToFetch.reduce(async (acc, column) => {
+                const mapped_options = JSON.parse(column.mapped_options);
+                const columns = [...new Set([mapped_options.labelColumn, mapped_options.valueColumn])].filter(c => c);
+                const prev = await acc;
+                const {data} = await getData({apiLoad, fullDataLoad: true, currentPage: 0, state: {
+                        dataRequest: mapped_options.filter || {},
+                        display: {},
+                        sourceInfo: {
+                            source_id: mapped_options.sourceId,
+                            view_id: mapped_options.viewId,
+                            isDms: mapped_options.isDms,
+                            columns: columns.map(c => ({name: c})),
+                            app: state.sourceInfo.app,
+                            type: mapped_options.type,
+                            env: mapped_options.isDms ? `${state.sourceInfo.app}+${mapped_options.type}` : pgEnv // can only access datasets from current app / pgEnv
+                        },
+                        columns: columns.map(c => ({name: c, show: true}))
+                    }});
+
+                prev[column.name] = data.map(d => ({label: d[mapped_options.labelColumn] || 'N/A', value: d[mapped_options.valueColumn]}))
+                return prev;
+            }, {});
+
+            if(!isStale){
+                setState(draft => {
+                    draft.columns.filter(c => c.mapped_options)
+                        .forEach(c => {
+                            const fetchedOptions = responses[c.name] || [];
+                            if(!isEqual(c.options, fetchedOptions)){
+                                c.options = fetchedOptions
+                            }
+                        })
+                })
+            }
+        }
+
+        loadOptionsData();
+        return () => {
+            isStale = true;
+        }
+    }, [allowEdit, state.columns, isEdit]);
+
+    // useEffect(() => {
+    //     // filters down options for columns that depend on other columns' values
+    //     if(!allowEdit) return;
+    //     let isStale = false;
+    //
+    //     async function loadOptionsData () {
+    //         const columnsToFetch = state.columns.filter(c => c.mapped_options);
+    //
+    //         const responses = await columnsToFetch.reduce(async (acc, column) => {
+    //             const mapped_options = JSON.parse(column.mapped_options);
+    //             const columns = [...new Set([mapped_options.labelColumn, mapped_options.valueColumn])].filter(c => c);
+    //             const prev = await acc;
+    //             const {data} = await getData({apiLoad, fullDataLoad: true, currentPage: 0, state: {
+    //                     dataRequest: mapped_options.filter || {},
+    //                     display: {},
+    //                     sourceInfo: {
+    //                         source_id: mapped_options.sourceId,
+    //                         view_id: mapped_options.viewId,
+    //                         isDms: mapped_options.isDms,
+    //                         columns: columns.map(c => ({name: c})),
+    //                         app: state.sourceInfo.app,
+    //                         type: mapped_options.type,
+    //                         env: mapped_options.isDms ? `${state.sourceInfo.app}+${mapped_options.type}` : pgEnv // can only access datasets from current app / pgEnv
+    //                     },
+    //                     columns: columns.map(c => ({name: c, show: true}))
+    //                 }});
+    //
+    //             prev[column.name] = data.map(d => ({label: d[mapped_options.labelColumn] || 'N/A', value: d[mapped_options.valueColumn]}))
+    //             return prev;
+    //         }, {});
+    //
+    //         if(!isStale){
+    //             setState(draft => {
+    //                 draft.columns.filter(c => c.mapped_options)
+    //                     .forEach(c => {
+    //                         const fetchedOptions = responses[c.name] || [];
+    //                         if(!isEqual(c.options, fetchedOptions)){
+    //                             c.options = fetchedOptions
+    //                         }
+    //                     })
+    //             })
+    //         }
+    //     }
+    //
+    //     loadOptionsData();
+    //     return () => {
+    //         isStale = true;
+    //     }
+    // }, [allowEdit, state.columns, isEdit]);
+    // ========================================= get input data end ======================================================
     // =========================================== get data end ========================================================
 
     // =========================================== util fns begin ======================================================
@@ -584,7 +689,7 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
                               newItem, setNewItem,
                               updateItem, removeItem, addItem,
                               currentPage, loading, isEdit,
-                              allowEdit: groupByColumnsLength ? false : state.sourceInfo?.isDms && state.display.allowEditInView && Boolean(apiUpdate)
+                              allowEdit
                           }}
                     />
                     <div>

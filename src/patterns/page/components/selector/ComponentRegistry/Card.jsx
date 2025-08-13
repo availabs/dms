@@ -180,6 +180,9 @@ export default {
             {type: 'toggle', label: 'Reverse', key: 'reverse'},
             {type: 'toggle', label: 'Hide if No Data', key: 'hideIfNull'},
             {type: 'toggle', label: 'Remove Border', key: 'removeBorder'},
+            {type: 'select', label: 'Filter Relation', key: 'filterRelation',
+                options: [{label: 'and', value: 'and'}, {label: 'or', value: 'or'}]
+            },
             {type: ({value, setValue}) => <ColorControls value={value} setValue={setValue} title={'Background Color'}/>, key: 'bgColor', displayCdn: ({display}) => display.compactView},
         ],
         inHeader,

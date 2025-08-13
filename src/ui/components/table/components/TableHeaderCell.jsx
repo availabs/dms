@@ -87,7 +87,7 @@ export default function TableHeaderCell({isEdit, attribute, columns, display, co
 
                     <Icon icon={'ArrowDown'} key={`arrow-down-${colIdName}`}
                                id={menuBtnId}
-                               className={'text-gray-400 group-hover:text-gray-600 transition ease-in-out duration-200'}/>
+                               className={'text-gray-400 group-hover:text-gray-600 transition ease-in-out duration-200 print:hidden'}/>
                 </div>
             </div>
 

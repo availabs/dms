@@ -19,7 +19,7 @@ export const Footer = () => {
     }));
 
     return (
-        <div className={'my-2 flex flex-col gap-[8px] max-w-[1362px] mx-auto text-[#37576B]  overflow-hidden'}>
+        <div className={'my-2 flex flex-col gap-[8px] max-w-[1362px] mx-auto text-[#37576B]  overflow-hidden print:hidden'}>
             <div className={'p-[56px] md:h-[386px] md:max-h-[386px] md:min-h-[386px] bg-white flex flex-col md:flex-row flex-1 px-4 xl:px-[64px] rounded-[12px] shadow-md divide-x divide-[#E0EBF0] justify-center'}>
                 {
                     parents.map(parent => (

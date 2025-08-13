@@ -43,5 +43,17 @@ export const insetImageOptions = [
     {
         label: 'Planetary County',
         value: '/themes/mny/inset_county.jpeg'
+    },
+    {
+        label: 'MNY Landing',
+        value: '/themes/mny/mny_landing.png'
+    },
+    {
+        label: 'MNY Landing Dark',
+        value: '/themes/mny/mny_landing_dark.png'
+    },
+    {
+        label: 'MNY Landing Green',
+        value: '/themes/mny/mny_landing_green.png'
     }
 ]

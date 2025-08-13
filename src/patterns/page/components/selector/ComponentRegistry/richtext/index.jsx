@@ -87,6 +87,18 @@ const cardTypes = {
         editorContainer: "relative block rounded-[10px] min-h-[50px]", //'.editor-shell .editor-container'
         editorShell: "font-['Caveat'] font-[600] text-[20px] text-[#37576B] leading-[22.4px]",
     },
+    'sitemap': {
+        link: "leading-[22.4px] tracking-normal",
+        heading: {
+            h1: "pt-[8px] font-[500] text-[64px] text-white leading-[40px]  font-[500]  uppercase font-['Oswald'] pb-[12px]", //'PlaygroundEditorTheme__h1',
+            h2: "text-[#2D3E4C] no-underline font-[Oswald] font-medium text-[16px] leading-[14px] uppercase tracking-normal", //'PlaygroundEditorTheme__h2',
+            h3: "text-[#2D3E4C] font-[Oswald] font-medium text-[14px] leading-[14px] uppercase tracking-normal", //'PlaygroundEditorTheme__h3',
+            h4: "pt-[8px] font-medium scroll-mt-36 text-white font-display", //'PlaygroundEditorTheme__h4',
+            h5: "scroll-mt-36 font-display", //'PlaygroundEditorTheme__h5',
+            h6: "scroll-mt-36 font-display", //'PlaygroundEditorTheme__h6',
+        },
+
+    },
 
 
 }
@@ -137,6 +149,10 @@ const Edit = ({value, onChange}) => {
                               {
                                 label: 'Handwritten (Caveat)',
                                 value: 'Handwritten_2'
+                              },
+                              {
+                                label: 'Sitemap',
+                                value: 'sitemap'
                               }
                             ]}
                             value={isCard}

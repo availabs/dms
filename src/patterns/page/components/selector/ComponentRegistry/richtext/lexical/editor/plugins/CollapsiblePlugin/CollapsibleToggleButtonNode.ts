@@ -36,7 +36,7 @@ export class CollapsibleButtonNode extends ElementNode {
     button.classList.add(
         'collapsible-toggle',
         'w-fit', 'h-fit', 'cursor-pointer', 'bg-[#C5D7E0]', 'text-[#37576B]', 'font-semibold', 'leading-[14.62px]',
-        'rounded-full', 'text-sm', 'text-center', 'pt-[9px]', 'pb-[7px]', 'px-[12px]'
+        'rounded-full', 'text-sm', 'text-center', 'pt-[9px]', 'pb-[7px]', 'px-[12px]', 'print:hidden'
     );
     const containerNode = this.getParentOrThrow();
     if ($isCollapsibleContainerNode(containerNode)) {

@@ -52,7 +52,7 @@ export const TableRow = ({
   selection, setSelection, selectionRange, triggerSelectionDelete,
   handleMouseDown, handleMouseMove, handleMouseUp,
   setIsDragging, startCellCol, startCellRow,
-  updateItem, removeItem, defaultColumnSize
+  updateItem, removeItem, defaultColumnSize, isTotalRow
 }) => {
     const [showOpenOut, setShowOpenOut] = useState(false);
 
@@ -116,6 +116,7 @@ export const TableRow = ({
                 {visibleAttrsWithoutOpenOut
                     .map((attribute, attrI) =>
                         <TableCell
+                            isTotalCell={isTotalRow}
                             columns={columns}
                             display={display}
                             theme={theme}
@@ -160,7 +161,7 @@ export const TableRow = ({
                             onMouseUp={e => setIsDragging && handleMouseUp({setIsDragging})}
                             onClick={() => {
                                 setSelection && setSelection([{index: i, attrI}]);
-                                setEditing && setEditing({index: i, attrI});
+                                setEditing && allowEdit && setEditing({index: i, attrI});
                             }}
                             onDoubleClick={() => {}}
                             allowEdit={allowEdit}
@@ -179,7 +180,7 @@ export const TableRow = ({
             {/********************************************************************************************************/}
             { showOpenOut ?
                 <div className={theme?.table?.openOutContainerWrapper} style={{backgroundColor: '#00000066'}} onClick={() => setShowOpenOut(false)}>
-                    <div className={'w-[330px] overflow-auto scrollbar-sm flex flex-col gap-[12px] p-[16px] bg-white h-full float-right'} onClick={e => e.stopPropagation()}>
+                    <div className={theme?.table?.openOutContainer} onClick={e => e.stopPropagation()}>
                         <div className={'w-full flex justify-end'}>
                             <div className={'w-fit h-fit p-[8px] text-[#37576B] border border-[#E0EBF0] rounded-full cursor-pointer'}
                                  onClick={() => setShowOpenOut(false)}
@@ -203,12 +204,21 @@ export const TableRow = ({
                         />
 
                         {/* Open out columns */}
-                        {openOutAttributes.map((attribute, openOutAttrI) => {
+                        {openOutAttributes
+                            .filter(attribute => {
+                                if(display.hideIfNullOpenouts){
+                                    let value = d[attribute.normalName] || d[attribute.name]
+                                    return Array.isArray(value) ? value.length : value;
+                                }
+                               return true;
+                            })
+                            .map((attribute, openOutAttrI) => {
                             const attrI = visibleAttrsWithoutOpenOutsLen + 1 + openOutAttrI;
                             return (
                                 <div key={`data-open-out-${i}`}
                                      className={''} >
                                     <TableCell
+                                        isTotalCell={isTotalRow}
                                         columns={columns}
                                         display={display}
                                         theme={theme}

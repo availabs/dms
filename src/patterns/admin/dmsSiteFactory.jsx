@@ -1,5 +1,5 @@
 import React, {useState, useEffect} from 'react'
-import {createBrowserRouter, Outlet, RouterProvider} from "react-router";
+import {createBrowserRouter, RouterProvider, useRouteError} from "react-router";
 
 //import {  adminConfig } from "./modules/dms/src/"
 import { dmsDataLoader, dmsPageFactory, registerDataType } from '../../'
@@ -9,6 +9,7 @@ import { cloneDeep } from "lodash-es"
 
 import pageConfig from '../page/siteConfig'
 import dataManagerConfig from '../forms/siteConfig'; // meta level forms config. this "pattern" serves as parent for all forms.
+import {updateAttributes, updateRegisteredFormats} from "./siteConfig";
 
 
 //import {template} from "./admin.format"
@@ -31,8 +32,17 @@ const getSubdomain = (host) => {
     }
 }
 
-import {updateAttributes, updateRegisteredFormats} from "./siteConfig";
-import {useLocation} from "react-router";
+function RootErrorBoundary() {
+    const error = useRouteError();
+    console.error(error);
+
+    return (
+        <div>
+            <h1>Oops! Something went wrong.</h1>
+            <p>{error.statusText || error.message}</p>
+        </div>
+    );
+}
 
 // --
 // to do:
@@ -81,7 +91,7 @@ function pattern2routes (siteData, props) {
             API_HOST, 
             theme: themes['default'],
             pgEnvs
-        },authWrapper),
+        },authWrapper, RootErrorBoundary),
         // default Data manager
         // ...dataManagerConfig.map(config => {
         //     const configObj = config({
@@ -112,8 +122,8 @@ function pattern2routes (siteData, props) {
         // },authWrapper),
         // patterns
         ...patterns.reduce((acc, pattern) => {
-            //console.log('Patterns', pattern, SUBDOMAIN)
-            if(pattern?.pattern_type && (!SUBDOMAIN || pattern.subdomain === SUBDOMAIN || pattern.subdomain === '*')){
+            // console.log('Patterns', pattern.doc_type, pattern.name, pattern.base_url, pattern.subdomain, SUBDOMAIN, (!SUBDOMAIN && !pattern.subdomain)  || pattern.subdomain === SUBDOMAIN || pattern.subdomain === '*')
+            if(pattern?.pattern_type && ((!SUBDOMAIN && !pattern.subdomain) || pattern.subdomain === SUBDOMAIN || pattern.subdomain === '*')){
                 //console.log('add patterns', pattern, SUBDOMAIN)
                 const c = configs[pattern.pattern_type];
                 if(!c) return acc;
@@ -138,7 +148,7 @@ function pattern2routes (siteData, props) {
                             damaBaseUrl
                             //rightMenu: <div>RIGHT</div>,
                         });
-                        return ({...dmsPageFactory(configObj, authWrapper)})
+                        return ({...dmsPageFactory(configObj, authWrapper, RootErrorBoundary)})
                 }));
             }
             return acc;
@@ -224,15 +234,22 @@ export function DmsSite ({
         Component: () => (<div className={'w-screen h-screen flex items-center bg-blue-50'}>404</div>)
     }
 
-    // console.log('routes',  dynamicRoutes, routes)
+    const routesWithErrorBoundary = routes.map(c => {
+        if (!c.errorElement) {
+            c.errorElement = <RootErrorBoundary />
+        }
+        return c
+    });
 
     return (
-        <RouterProvider 
-            router={createBrowserRouter([
-            ...dynamicRoutes,
-            ...routes,
-            PageNotFoundRoute
-          ])}
+        <RouterProvider router={
+            createBrowserRouter(
+                [
+                    ...dynamicRoutes,
+                    ...routesWithErrorBoundary,
+                    PageNotFoundRoute
+                ]
+            )}
         />
     )
 } 

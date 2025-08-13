@@ -161,7 +161,7 @@ const evaluateAST = (node, values) => {
 };
 
 export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => {
-    const {groupBy=[], orderBy={}, filter={}, normalFilter=[], fn={}, exclude={}, meta={}, ...restOfDataRequestOptions} = state.dataRequest;
+    const {groupBy=[], orderBy={}, filter={}, normalFilter=[], fn={}, exclude={}, meta={}, filterRelation, ...restOfDataRequestOptions} = state.dataRequest || {};
 
     const debug = false;
     debug && console.log('=======getDAta called===========')
@@ -266,6 +266,7 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
 
     // should this be saved in state directly?
     const options = {
+        filterRelation,
         groupBy: groupBy.map(columnName => getFullColumn(columnName, columnsWithSettings)?.refName),
         orderBy: Object.keys(orderBy)
             .filter(columnName => columnsToFetch.find(ctf => ctf.name === columnName)) // take out any sort from non-visible column
@@ -471,7 +472,7 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
     // =================================================================================================================
     // =========================================== fetch total row begin  ==============================================
     // =================================================================================================================
-    if(state.display.showTotal) {
+    if(state.display.showTotal || columnsToFetch.some(c => c.showTotal)) {
         const totalRowChildren = [{
             type: () => {
             },
@@ -484,7 +485,7 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
                     filter: options.filter,
                     exclude: options.exclude,
                 }),
-                attributes: columnsToFetch.map(a => a.totalName).filter(a => a),
+                attributes: columnsToFetch.filter(c => c.showTotal || state.display.showTotal).map(a => a.totalName).filter(a => a),
                 stopFullDataLoad: true
             },
         }]
@@ -570,8 +571,8 @@ const formatDate = (dateString) => {
     const options = {
         year: "numeric",
         month: "2-digit",
-        day: "2-digit"
-
+        day: "2-digit",
+        timeZone: "UTC"
     };
     return dateString ? new Date(dateString).toLocaleDateString(undefined, options) : ``;
 };

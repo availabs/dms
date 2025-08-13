@@ -18,7 +18,7 @@ const Alert = (props) => (
 
 const Edit = ({value = '', onChange, className, placeholder, displayInvalidMsg=true, options = [], ...rest}) => {
     // options: ['1', 's', 't'] || [{label: '1', value: '1'}, {label: 's', value: '2'}, {label: 't', value: '3'}]
-    const isInvalidValue = value && !options.find(o => (o.value || o) === value);
+    const isInvalidValue = value && !options?.find(o => (o.value || o) === value);
     return (
         <>
             {
@@ -31,7 +31,7 @@ const Edit = ({value = '', onChange, className, placeholder, displayInvalidMsg=t
             >
                 <option value={''}>{placeholder}</option>
                 {
-                    options.map((o, i) => <option key={i} value={o.value || o}>{o.label || o}</option>)
+                    options?.map((o, i) => <option key={i} value={o.value || o}>{o.label || o}</option>)
                 }
             </select>
         </>
@@ -43,8 +43,7 @@ const View = ({className, value, options = [], ...rest}) => {
     if (!value) return <div className={ `${className || theme?.select?.input}`} />
 
     
-    const option = options.find(o => (o.value || o) === value) || value;
-    const isInvalidValue = value && !options.find(o => (o.value || o) === value);
+    const option = options?.find(o => (o.value || o) === value) || value;
 
     return (
         <div className={ `${className || theme?.select?.input}`} {...rest}>

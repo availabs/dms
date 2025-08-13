@@ -36,16 +36,18 @@ const validate = ({value, required, options, name}) => {
         Array.isArray(options) && !value && !required ? true : // blank value with not required condition
         Array.isArray(options) && (typeof value === "string" || typeof value === "boolean") ? // select
             options.map(o => o.value || o).includes(value.toString()) :
-            Array.isArray(options) && Array.isArray(value) ?  // multiselect
-                value.reduce((acc, v) => acc && options.map(o => o.value || o).includes(v?.value || v), true) :
-                false
+            Array.isArray(options) && typeof value === 'number' ? //select
+                options.map(o => o.value || o).includes(value) :
+                Array.isArray(options) && Array.isArray(value) ?  // multiselect
+                    value.reduce((acc, v) => acc && options.map(o => o.value || o).includes(v?.value || v), true) :
+                    false
     );
     // if (!(requiredValidation && optionsValidation)) console.log('----', name, requiredValidation, optionsValidation, options, value)
     return requiredValidation && optionsValidation;
 }
 
 export const TableCell = ({
-    columns, display, theme,
+    isTotalCell, columns, display, theme,
     showOpenOutCaret, showOpenOut, setShowOpenOut,
     attribute, openOutTitle,
     i, item, updateItem, removeItem, onPaste,
@@ -56,12 +58,15 @@ export const TableCell = ({
     const [newItem, setNewItem] = useState(item);
     const rawValue = newItem[attribute.normalName] || newItem[attribute.name]
     // const Comp = DataTypes[attribute.type]?.[isSelecting ? 'ViewComp' : 'EditComp'];
+    const renderTextBox = attribute.type === 'text' && editing && allowEdit;
     const compType = attribute.type === 'calculated' && Array.isArray(rawValue) ? 'multiselect' : attribute.type;
     const compMode = attribute.type === 'calculated' && Array.isArray(rawValue) ? 'ViewComp' :
                             editing && allowEdit ? 'EditComp' : 'ViewComp';
-    const Comp = loading ? LoadingComp : compType === 'ui' ? attribute.Comp : (DataTypes[compType]?.[compMode] || DisplayCalculatedCell);
+    const Comp = loading ? LoadingComp : compType === 'ui' ? attribute.Comp :
+        renderTextBox ? DataTypes.textarea.EditComp : (DataTypes[compType]?.[compMode] || DisplayCalculatedCell);
     const CompWithLink = LinkComp({attribute, columns, newItem, removeItem, value: rawValue, Comp});
-    const value = compMode === 'EditComp' ? rawValue : attribute.formatFn && formatFunctions[attribute.formatFn.toLowerCase()] ? formatFunctions[attribute.formatFn.toLowerCase()](rawValue, attribute.isDollar) : rawValue
+    const value = isTotalCell && !(attribute.showTotal || display.showTotal) ? null :
+        compMode === 'EditComp' ? rawValue : attribute.formatFn && formatFunctions[attribute.formatFn.toLowerCase()] ? formatFunctions[attribute.formatFn.toLowerCase()](rawValue, attribute.isDollar) : rawValue
     const justifyClass = {
         left: 'justify-start',
         right: 'justify-end',
@@ -124,7 +129,7 @@ export const TableCell = ({
             `}
             style={{
                 ...!(attribute.openOut || openOutTitle) && {width: attribute.size},
-                ...isSelected && {borderWidth: '1px', ...selectionEdgeClassNames[edge]},
+                ...isSelected && !renderTextBox && {borderWidth: '1px', ...selectionEdgeClassNames[edge]},
             }}
             onClick={attribute.isLink || attribute.actionType ? undefined : onClick}
             onMouseDown={attribute.isLink || attribute.actionType ? undefined : onMouseDown}
@@ -165,7 +170,10 @@ export const TableCell = ({
                           attribute.type === 'multiselect' && !rawValue?.length ? 'p-0.5' : 'p-0.5'
                   } 
                   ${formatClass}
+                  ${attribute.wrapText || renderTextBox ? `whitespace-pre-wrap` : ``}
+                  ${renderTextBox ? `absolute border focus:outline-none min-w-[180px] min-h-[50px] z-[10]` : ``}
                   `}
+                          style={renderTextBox ? {borderColor: selectionColor} : undefined}
                   {...attribute}
                   value={value}
                   row={newItem}

@@ -27,6 +27,7 @@ import { SearchPage } from "./components/search/SearchPage";
 import { registerDataType } from '../../data-types'
 import Selector from './components/selector'
 import defaultTheme from '../../ui/defaultTheme'
+import ErrorPage from "./pages/error";
 // const defaultTheme = {}
 
 registerDataType("selector", Selector)
@@ -81,6 +82,24 @@ const pagesConfig = ({
     format: format,
     baseUrl,
     API_HOST,
+    errorElement: () => {
+      // console.log('hola', user, defaultUser, user || defaultUser)
+      return (
+          <CMSContext.Provider value={{
+            app, type, siteType,
+            UI,
+            API_HOST,
+            baseUrl,
+            pgEnv, damaBaseUrl,
+            patternFilters,
+            Menu: () => <>{rightMenu}</>
+          }}>
+            <ThemeContext.Provider value={{theme}}>
+              <ErrorPage />
+            </ThemeContext.Provider>
+          </CMSContext.Provider>
+      )
+    },
     children: [
       {
         type: ({children, user=defaultUser, falcor, ...props}) => {
