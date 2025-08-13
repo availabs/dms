@@ -1,9 +1,8 @@
 import React, { useEffect, useMemo } from 'react'
 import { useParams, useLocation, useNavigate, matchRoutes } from 'react-router';
 import { cloneDeep } from 'lodash-es';
-import { dmsDataLoader, dmsDataEditor } from '../api/index.js'
-import pageConfig from '../patterns/page/siteConfig.jsx'
-import DmsManager from '../dms-manager'
+import { dmsDataLoader, dmsDataEditor } from '../../../api/index.js'
+import DmsManager from '../../../dms-manager'
 
 import {
   falcorGraph,
@@ -145,14 +144,14 @@ export default function DMS({ loaderData }) {
   //   path, 
   //   path.replace( dmsConfig.baseUrl, '')
   // )
-  if(!dmsConfig) {
-    <div> Invalid config {process.env.DMS_APP} {process.env.DMS_TYPE}</div>
-  }
+  // if(!dmsConfig?.baseUrl) {
+  //   return <div> Invalid config {process.env.DMS_APP} {process.env.DMS_TYPE}</div>
+  // }
 
   const AuthedManager= authWrapper(DmsManager)
   const content = (
       <AuthedManager
-        path={ path.replace( dmsConfig.baseUrl, '') }
+        path={ path.replace( dmsConfig?.baseUrl, '') }
         config={ dmsConfig }
         falcor={ clientFalcor }
         mode={'ssr'}

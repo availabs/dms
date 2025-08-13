@@ -1,7 +1,6 @@
-import pageConfig from '../patterns/page/siteConfig.jsx'
-import adminConfig from '../patterns/admin/siteConfig.jsx'
-import formsConfig from '../patterns/forms/siteConfig.jsx'
-import { dmsDataLoader } from '../api/index.js'
+import pageConfig from '../../../patterns/page/siteConfig.jsx'
+import adminConfig from '../../../patterns/admin/siteConfig.jsx'
+import formsConfig from '../../../patterns/forms/siteConfig.jsx'
 import { matchRoutes } from 'react-router';
 //import DMSconfig from "../dmsconfig.json"
 //const { falcor } = await import('../server/falcor.ts')
@@ -14,15 +13,34 @@ const adminSettings = {
     base_url: "list",
     pattern_type: 'admin',
     subdomain: '*'
-
 }
 export const adminSite = adminConfig?.[0](adminSettings)
 
 const patternTypes = {
-    page: pageConfig,//await import('../modules/dms/src/patterns/page/siteConfig.jsx'),
-    forms: formsConfig,
-    admin: adminConfig,
-
+    page: [
+      {
+        path: "*",
+        config: pageConfig[0]
+      },
+      {
+        path: "manage/*",
+        config: pageConfig[1]
+      }
+    ],//await import('../modules/dms/src/patterns/page/siteConfig.jsx'),
+    forms:  [
+  {
+    path: "*",
+    config: formsConfig[0]
+  },
+  {
+    path: "source/*",
+    config: formsConfig[1]
+  }
+],
+    admin: [{
+        path: '*',
+        config: adminConfig[0],
+    }]
 }
 
 const getSubdomain = (host) => {
@@ -77,17 +95,29 @@ const getDmsConfig = (host, path, patterns=[] ) => {
     )   
     const patternConfig = matches?.[0]?.route
     const config = patternConfig?.pattern_type ? 
-        patternTypes[patternConfig.pattern_type][0]({
-            app: patternConfig.app,
-            type: patternConfig?.doc_type || patternConfig.type,
-            pattern: patternConfig,
-            siteType: adminSettings.type,
-            baseUrl: `/${patternConfig.base_url?.replace(/^\/|\/$/g, '')}`,
-            pgEnv:'hazmit_dama'
-        }) :
-        null
-    //console.log('dms_utils - getDmsConfig', getSubdomain(host), path, patterns.length)
-    return config
+        patternTypes[patternConfig.pattern_type] : null
+
+    const subMatches = matchRoutes(
+        config.map((d,i) => d),
+        {pathname: path}
+    )
+    
+    // console.log('dms_utils - getDmsConfig', 
+    //     getSubdomain(host), 
+    //     path, 
+    //     patterns.length,
+    //     subMatches, 
+    //     config.map((d,i) => ({path:`/${patternConfig.base_url?.replace(/^\/|\/$/g, '')}${d?.path}`, i }))
+    // )
+
+    return subMatches[0].route.config({
+        app: patternConfig.app,
+        type: patternConfig?.doc_type || patternConfig.type,
+        pattern: patternConfig,
+        siteType: adminSettings.type,
+        baseUrl: `/${patternConfig.base_url?.replace(/^\/|\/$/g, '')}`,
+        pgEnv:'hazmit_dama'
+    })
 }
 
 
