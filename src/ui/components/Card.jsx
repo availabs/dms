@@ -143,6 +143,17 @@ export const docs = [
         }
     }]
 
+
+const parseIfJson = strValue => {
+    if (typeof strValue === 'object') return strValue;
+
+    try {
+        return JSON.parse(strValue)
+    }catch (e){
+        return {}
+    }
+}
+
 const DefaultComp = ({value, className}) => <div className={className}>{value}</div>;
 
 const EditComp = ({
@@ -161,6 +172,17 @@ const EditComp = ({
 
     if(!allowEdit && (attribute.isImg || attribute.isLink || ['icon', 'color'].includes(attribute.formatFn) && formatFunctions[attribute.formatFn])) return value;
 
+    const options = ['select', 'multiselect'].includes(attribute.type) && attribute.options.some(o => o.filter) ?
+        attribute.options.filter(o => {
+            const optionFilter = parseIfJson(o.filter);
+            return Object.keys(optionFilter).reduce((acc, col) => {
+                const depValue = (isNewItem ? newItem : tmpItem)[col];
+                if (depValue === undefined || depValue === null) return false;
+                return acc && optionFilter[col].includes(depValue.toString())
+            }, true)
+        }) :
+        attribute.options;
+
     return <div ref={compRef}
                 onClick={() => !isEditing && setIsEditing(true)}
                 className={(allowEdit && isEditing) || (allowEdit && !value) ? `w-full` : `w-full`}>
@@ -170,13 +192,14 @@ const EditComp = ({
               onChange={newValue => {
                   if(!allowEdit) return;
 
-                  return !liveEdit && setTmpItem ? setTmpItem({...tmpItem, [attribute.name]: newValue}) : // form like edit
-                      liveEdit && updateItem ? updateItem(newValue, attribute, {id, [attribute.name]: newValue}) : // live edit
-                          isNewItem && setNewItem ? setNewItem({...newItem, [attribute.name]: newValue}) : {} // add new item
+                  return !liveEdit && setTmpItem && tmpItem.id ? setTmpItem({...tmpItem, [attribute.name]: newValue}) : // form like edit
+                      liveEdit && updateItem && tmpItem.id ? updateItem(newValue, attribute, {id, [attribute.name]: newValue}) : // live edit
+                          isNewItem && setNewItem && !tmpItem.id ? setNewItem({...newItem, [attribute.name]: newValue}) : {} // add new item
               }
               }
               className={allowEdit && !value ? 'border' : className}
               {...attribute}
+            options={options}
         />
     </div>
 }
@@ -317,7 +340,7 @@ const RenderItem = ({
                     })
             }
             {
-                allowEdit && !liveEdit ? (
+                allowEdit && !liveEdit && item.id ? (
                     <div className={'self-end flex gap-0.5 text-sm'}>
                         <button className={'bg-blue-300 hover:bg-blue-400 text-blue-700 rounded-lg w-fit px-2 py-0.5'} onClick={() => updateItem(undefined, undefined, tmpItem)}>save</button>
                         <button className={'bg-red-300 hover:bg-red-400 text-red-700 rounded-lg w-fit px-2 py-0.5'} onClick={() => setTmpItem(item)}>cancel</button>
