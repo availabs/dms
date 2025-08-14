@@ -87,11 +87,11 @@ export class CollapsibleNoPreviewContentNode extends ElementNode {
     } else {
       dom.classList.remove('text-[#37576B]', 'max-h-none', 'overflow-auto');
       dom.classList.add('text-[#2D3E4C]', 'max-h-[64px]', 'overflow-hidden', 'print:overflow-visible', 'print:max-h-full'); // Ensure text is visible
-      dom.classList.add(
-          '[mask-image:linear-gradient(to_bottom,_rgba(0,0,0,1),_rgba(0,0,0,0.2))]',
-          'print:[mask-image:none]'
-
-      )
+      // dom.classList.add(
+      //     // '[mask-image:linear-gradient(to_bottom,_rgba(0,0,0,1),_rgba(0,0,0,0.2))]',
+      //     'print:[mask-image:none]'
+      //
+      // )
       // Use mask-image to create the fade effect at the bottom
       dom.style.background = '';
       // dom.style.webkitMaskImage = 'linear-gradient(to bottom, rgba(0,0,0,1), rgba(0,0,0,0.2))';
