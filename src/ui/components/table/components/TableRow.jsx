@@ -180,7 +180,7 @@ export const TableRow = ({
             {/********************************************************************************************************/}
             { showOpenOut ?
                 <div className={theme?.table?.openOutContainerWrapper} style={{backgroundColor: '#00000066'}} onClick={() => setShowOpenOut(false)}>
-                    <div className={'w-[330px] overflow-auto scrollbar-sm flex flex-col gap-[12px] p-[16px] bg-white h-full float-right'} onClick={e => e.stopPropagation()}>
+                    <div className={theme?.table?.openOutContainer} onClick={e => e.stopPropagation()}>
                         <div className={'w-full flex justify-end'}>
                             <div className={'w-fit h-fit p-[8px] text-[#37576B] border border-[#E0EBF0] rounded-full cursor-pointer'}
                                  onClick={() => setShowOpenOut(false)}

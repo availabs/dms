@@ -27,6 +27,7 @@ import PatternListComponent from "./components/patternListComponent";
 import AvailLayout from "./ui/avail-layout";
 import Admin from "./pages/admin";
 import Version from "./pages/version";
+import ErrorPage from "./pages/error";
 
 // import {updateAttributes, updateRegisteredFormats} from "../admin/siteConfig";
 
@@ -81,6 +82,18 @@ const formsAdminConfig = ({
         format: patternFormat,
         baseUrl: `${baseUrl}`,
         API_HOST,
+        errorElement: () => {
+            return (
+                <FormsContext.Provider value={{
+                    UI,
+                    baseUrl: `${baseUrl}`, damaBaseUrl,
+                    theme, app, type,
+                    parent: pattern, Menu, API_HOST
+                }}>
+                    <ErrorPage />
+                </FormsContext.Provider>
+            )
+        },
         children: [
             {
                 type: (props) => {
@@ -195,6 +208,18 @@ const formsSourceConfig = ({
         format: patternFormat,
         baseUrl: `${baseUrl}/source`,
         API_HOST,
+        errorElement: () => {
+            return (
+                <FormsContext.Provider value={{
+                    UI,
+                    baseUrl: `${baseUrl}`, damaBaseUrl,
+                    theme, app, type,
+                    parent: pattern, Menu, API_HOST
+                }}>
+                    <ErrorPage />
+                </FormsContext.Provider>
+            )
+        },
         children: [
             {
                 type: (props) => {

@@ -4,11 +4,11 @@ import { useParams, useLocation, useNavigate } from 'react-router';
 import {
   dmsDataLoader,
   dmsDataEditor
-} from '../api/index.js'
+} from '../../../api/index.js'
 
-import DmsManager from '../dms-manager'
+import DmsManager from '../../../dms-manager'
 
-import pageConfig from '../patterns/page/siteConfig.jsx'
+import pageConfig from '../../../patterns/page/siteConfig.jsx'
 
 import {
   falcorGraph,

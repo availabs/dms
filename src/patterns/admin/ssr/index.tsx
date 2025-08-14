@@ -1,9 +1,8 @@
 import React, { useEffect, useMemo } from 'react'
 import { useParams, useLocation, useNavigate, matchRoutes } from 'react-router';
 import { cloneDeep } from 'lodash-es';
-import { dmsDataLoader, dmsDataEditor } from '../api/index.js'
-import pageConfig from '../patterns/page/siteConfig.jsx'
-import DmsManager from '../dms-manager'
+import { dmsDataLoader, dmsDataEditor } from '../../../api/index.js'
+import DmsManager from '../../../dms-manager'
 
 import {
   falcorGraph,
@@ -47,13 +46,18 @@ export const loader = async({ request, params }) => {
   //console.log('index - loader - request', request.url)
   const { falcor } = await import('./falcor.ts')
   const adminData =  await dmsDataLoader(falcor, adminSite, `/`) 
-  console.log('dms - loader - adminData', adminData, adminSite)  
+  //console.log('dms - loader - adminData', adminData, adminSite)  
   const patterns = adminData[0]?.patterns
-  
+  const themes = (adminData[0]?.themes || [])
+    .reduce((theme,themes) => {
+      themes[theme?.name] = JSON.parse(theme?.theme || "{}")
+      return themes
+  },{})
   const dmsConfig = getDmsConfig(
     request.headers.get('host'), 
     new URL(request.url).pathname,
-    patterns
+    patterns,
+    themes
   )
   if(!dmsConfig)  return {} 
   // console.log('index - loader - dmsConfig', dmsConfig)
@@ -66,7 +70,8 @@ export const loader = async({ request, params }) => {
   return {
     data,
     host: request.headers.get('host'),
-    patterns
+    patterns,
+    themes
   }
 }
 
@@ -134,9 +139,9 @@ export default function DMS({ loaderData }) {
   //console.log('dms render props', props)
   const params = useParams();
   let path = React.useMemo(() => `/${params['*'] || ''}`,[params])
-  const { host, data, patterns } = loaderData
+  const { host, data, patterns, themes } = loaderData
   //console.log('index - dmsComp - loaderData', host, data?.length, patterns?.length)
-  const dmsConfig = React.useMemo(() => getDmsConfig(host, path,patterns), [path,host])
+  const dmsConfig = React.useMemo(() => getDmsConfig(host, path, patterns, themes), [path,host])
   //console.log('index - DMS Comp - data ', data?.length, path,host)
   //console.log('index - DMS Comp - dmsConfig', dmsConfig)
   // console.log('DMS Comp - dms config', 
