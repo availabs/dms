@@ -123,7 +123,7 @@ export const TableCell = ({
         required: attribute.required === "yes"
     }) : true;
 
-    const options = ['select', 'multiselect'].includes(attribute.type) && attribute.options.some(o => o.filter) ?
+    const options = ['select', 'multiselect'].includes(attribute.type) && (attribute.options || []).some(o => o.filter) ?
         attribute.options.filter(o => {
             const optionFilter = parseIfJson(o.filter);
             return Object.keys(optionFilter).reduce((acc, col) => {
