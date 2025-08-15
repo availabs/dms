@@ -35,7 +35,8 @@ export class CollapsibleContentNode extends ElementNode {
     dom.classList.add(
         'Collapsible__content',
         'text-[14px]', 'leading-[19.6px]',
-        /*'overflow-hidden', 'print:overflow:show', */'transition-all', 'duration-300', 'ease-in-out'
+        /*'overflow-hidden', 'print:overflow:show', */'transition-all', 'duration-300', 'ease-in-out',
+        'print:[mask-image:none]'
     );
 
     const parent = this.getParent();
@@ -70,7 +71,8 @@ export class CollapsibleContentNode extends ElementNode {
       dom.classList.remove(
           'bg-gradient-to-b', 'from-[#2D3E4C]', 'to-[#F3F8F9]',
           'bg-clip-text', 'text-transparent',
-          'max-h-[64px]', 'print:max-h-full', 'overflow-hidden'
+          'max-h-[64px]', 'print:max-h-full', 'overflow-hidden',
+          '[mask-image:linear-gradient(to_bottom,_rgba(0,0,0,1),_rgba(0,0,0,0.2))]'
       );
       dom.classList.add('text-[#37576B]',
           'overflow-auto'
@@ -85,11 +87,7 @@ export class CollapsibleContentNode extends ElementNode {
       dom.classList.add('text-[#2D3E4C]',
           'max-h-[64px]', 'print:max-h-full', 'overflow-hidden'
       ); // Ensure text is visible
-      dom.classList.add(
-          '[mask-image:linear-gradient(to_bottom,_rgba(0,0,0,1),_rgba(0,0,0,0.2))]',
-          'print:[mask-image:none]'
-
-      )
+      dom.classList.add('[mask-image:linear-gradient(to_bottom,_rgba(0,0,0,1),_rgba(0,0,0,0.2))]')
       // Use mask-image to create the fade effect at the bottom
       dom.style.background = '';
       // dom.style.webkitMaskImage = 'linear-gradient(to bottom, rgba(0,0,0,1), rgba(0,0,0,0.2))';

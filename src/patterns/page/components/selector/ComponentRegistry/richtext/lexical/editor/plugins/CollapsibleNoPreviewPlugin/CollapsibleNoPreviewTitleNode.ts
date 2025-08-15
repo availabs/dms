@@ -71,28 +71,33 @@ export class CollapsibleNoPreviewTitleNode extends ElementNode {
     icon.setAttribute("width", "24");
     icon.setAttribute("height", "24");
     icon.setAttribute("fill", "none");
+    icon.setAttribute("id", "find-me");
     icon.innerHTML = `
          <path d="M18 9.00005C18 9.00005 13.5811 15 12 15C10.4188 15 6 9 6 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     `;
     icon.classList.add("inline-block", "align-middle", "cursor-pointer", "absolute", "right-2");
 
     icon.addEventListener('click', () => {
-      console.log('icon clicked')
+        console.log('icon clicked')
       editor.update(() => {
-        const containerNode = this.getParentOrThrow();
+          const containerNode = this.getParentOrThrow();
         // containerNode.toggleOpen();
         if ($isCollapsibleContainerNode(containerNode)) {
-          const isOpen = containerNode.getOpen();
+            const isOpen = containerNode.getOpen();
+            console.log('isopen', isOpen)
           if(isOpen){
+              containerNode.setOpen(false)
             dom.classList.remove(
                 'border-b', 'border-[#C5D7E0]'
             );
           }else{
+              containerNode.setOpen(true)
             dom.classList.add(
                 'border-b', 'border-[#C5D7E0]'
             );
           }
-          containerNode.toggleOpen();
+            this.markDirty(); // Ensure Lexical recognizes updates
+            // containerNode.toggleOpen();
         }
       })
     });
