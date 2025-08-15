@@ -105,14 +105,20 @@ const RenderInputLexical = ({label, value, col, attr, updateAttribute}) => (
     </div>
 )
 
-const RenderOptions = ({col, drivingAttribute, attr, value=[], updateAttribute}) => {
-    if(!['select', 'multiselect', 'radio'].includes(drivingAttribute)) return null;
-
+const RenderOptions = ({attributeList, col, drivingAttribute, attr, value=[], dependsOn=[], updateAttribute}) => {
     const [newOption, setNewOption] = useState(undefined);
+    const [editing, setEditing] = useState(undefined);
     const options = useMemo(() => value?.map(v => v.label ? v : ({label: v, value: v})), [value]);
 
+    if(!['select', 'multiselect', 'radio'].includes(drivingAttribute)) return null;
     const addNewValue = (oldValue, newItem) => {
         const newValue = newItem?.label ? [...(oldValue || []), newItem] : [...(oldValue || []), {label: newItem, value: newItem}]
+        updateAttribute(col, {[attr]: newValue})
+        setNewOption('')
+    }
+
+    const replaceValue = (oldValue, newItem) => {
+        const newValue = oldValue.map(o => o.value === newItem.value ? newItem : o);
         updateAttribute(col, {[attr]: newValue})
         setNewOption('')
     }
@@ -122,30 +128,81 @@ const RenderOptions = ({col, drivingAttribute, attr, value=[], updateAttribute})
         updateAttribute(col, {[attr]: newValue})
     }
 
-    return (
-        <div className={'flex flex-col items-start w-full'}>
-            <label className={labelClass}>Options</label>
+    const RenderAddForm = () => editing ? null : (
+        <div className={'w-full flex'}>
+            <input
+                className='bg-white p-2 flex-1 px-2 shadow focus:ring-blue-700 focus:border-blue-500  border-gray-300 rounded-md'
+                value={newOption}
+                onChange={e => setNewOption(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && addNewValue(value, newOption)}
+                placeholder={'Add new option...'}
+            />
+            <button
+                className={'p-2'}
+                onClick={e => addNewValue(value, newOption)}>
+                add
+            </button>
+        </div>
+    )
 
+    const RenderEditingForm = () => {
+        const [editingCopy, setEditingCopy] = useState(editing);
+        if(!editing) return null;
+        return (
+            <div className={'w-full flex'}>
+                <input
+                    className='bg-white p-2 flex-1 px-2 shadow focus:ring-blue-700 focus:border-blue-500  border-gray-300 rounded-md'
+                    value={editingCopy.label}
+                    onChange={e => setEditingCopy({...editingCopy, label: e.target.value})}
+                    placeholder={'label'}
+                />
+                <input
+                    className='bg-white p-2 flex-1 px-2 shadow focus:ring-blue-700 focus:border-blue-500  border-gray-300 rounded-md'
+                    value={editingCopy.value} // if you change value, it's not going to match
+                    onChange={e => setEditingCopy({...editingCopy, value: e.target.value})}
+                    placeholder={'value'}
+                />
+                <textarea
+                    className='bg-white p-2 flex-1 px-2 shadow focus:ring-blue-700 focus:border-blue-500  border-gray-300 rounded-md'
+                    value={editingCopy.filter}
+                    onChange={e => setEditingCopy({...editingCopy, filter: e.target.value})}
+                    placeholder={'filter'}
+                />
+                <button
+                    className={'p-2'}
+                    onClick={e => {
+                        replaceValue(value, editingCopy)
+                        setEditing(undefined)
+                    }}>
+                    save
+                </button>
+            </div>
+        )
+    }
+    return (
+        <div className={'flex flex-col items-start w-full gap-1'}>
+            <label className={labelClass}>Options</label>
+            <div className={'flex flex-row gap-1 items-center'}>
+                <label className={labelClass}>Depends on:</label>
+                <select
+                    value={dependsOn?.[0]}
+                    onChange={e => updateAttribute(col, {['depends_on']: [e.target.value]})}
+                    className={'bg-white p-2 flex-1 px-2 shadow focus:ring-blue-700 focus:border-blue-500  border-gray-300 rounded-md\''}
+                >
+                    <option>N/A</option>
+                    {
+                        attributeList.map(name => <option key={name} value={name}>{name}</option>)
+                    }
+                </select>
+            </div>
             <div className={'w-full flex flex-col'}>
-                <div className={'w-full flex'}>
-                    <input
-                        className='bg-white p-2 flex-1 px-2 shadow focus:ring-blue-700 focus:border-blue-500  border-gray-300 rounded-md'
-                        value={newOption}
-                        onChange={e => setNewOption(e.target.value)}
-                        onKeyDown={e => e.key === 'Enter' && addNewValue(value, newOption)}
-                        placeholder={'Add new option...'}
-                    />
-                    <button
-                        className={'p-2'}
-                        onClick={e => addNewValue(value, newOption)}>
-                        add
-                    </button>
-                </div>
+                <RenderAddForm />
+                <RenderEditingForm />
                 <div className={'flex flex-row flex-wrap'}>
                     {
                         options?.map(option => (
                             <div className={'bg-red-500 hover:bg-red-700 text-white text-xs font-semibold px-1.5 py-1 m-1 flex no-wrap items-center rounded-md'}>
-                                {option?.label || option}
+                                <label className={'hover:cursor-pointer'} onClick={() => setEditing(option)}>{option?.label || option}</label>
                                 <div title={'remove'}
                                      className={'p-0.5 px-1 cursor-pointer'}
                                      onClick={e => removeValue(value, option)}
@@ -236,7 +293,7 @@ const RenderRemoveBtn = ({col, removeAttribute}) => {
     )
 }
 
-export const RenderField = ({i, item, attribute, updateAttribute, removeAttribute, apiLoad, format, dragStart, dragEnter, dragOver, drop}) => {
+export const RenderField = ({i, item, attribute, attributeList=[], updateAttribute, removeAttribute, apiLoad, format, dragStart, dragEnter, dragOver, drop}) => {
     const [showAdvanced, setShowAdvanced] = useState(false);
     return (
             <div key={i}
@@ -359,7 +416,15 @@ export const RenderField = ({i, item, attribute, updateAttribute, removeAttribut
                         col={item.name}
                         updateAttribute={updateAttribute}
                     />
-                    <RenderOptions key={`${item.name}-options`} col={item.name} drivingAttribute={item.type} value={item.options} attr={'options'} updateAttribute={updateAttribute}/>
+                    <RenderOptions key={`${item.name}-options`}
+                                   col={item.name}
+                                   attributeList={attributeList}
+                                   drivingAttribute={item.type}
+                                   value={item.options}
+                                   dependsOn={item.depends_on}
+                                   attr={'options'}
+                                   updateAttribute={updateAttribute}
+                    />
                     <RenderMappedOptions key={`${item.name}-mapped-options`} col={item.name} drivingAttribute={item.type} value={item.mapped_options} attr={'mapped_options'} updateAttribute={updateAttribute}/>
                     <RenderMeta key={`${item.name}-meta_lookup`} col={item.name} drivingAttribute={item.display} value={item.meta_lookup} attr={'meta_lookup'} updateAttribute={updateAttribute}/>
                     <RenderRemoveBtn key={`${item.name}-removeBtn`} col={item.name} removeAttribute={removeAttribute}/>

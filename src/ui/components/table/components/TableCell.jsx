@@ -5,7 +5,16 @@ import Icon from "../../Icon";
 import DataTypes from "../../../../data-types";
 import {formatFunctions} from "../../../../patterns/page/components/selector/dataWrapper/utils/utils";
 import { RenderAction } from "./RenderActions";
-//import { ThemeContext } from '../../../useTheme'
+
+const parseIfJson = strValue => {
+    if (typeof strValue === 'object') return strValue;
+
+    try {
+        return JSON.parse(strValue)
+    }catch (e){
+        return {}
+    }
+}
 
 const DisplayCalculatedCell = ({value, className}) => <div className={className}>{value}</div>
 const LoadingComp = ({className}) => <div className={className}>loading...</div>
@@ -114,6 +123,16 @@ export const TableCell = ({
         required: attribute.required === "yes"
     }) : true;
 
+    const options = ['select', 'multiselect'].includes(attribute.type) && (attribute.options || []).some(o => o.filter) ?
+        attribute.options.filter(o => {
+            const optionFilter = parseIfJson(o.filter);
+            return Object.keys(optionFilter).reduce((acc, col) => {
+                if (newItem[col] === undefined || newItem[col] === null) return false;
+                return acc && optionFilter[col].includes(newItem[col].toString())
+            }, true)
+        }) :
+        attribute.options;
+
     const isTotalRow = newItem.totalRow;
     const bgColor = openOutTitle || attribute.openOut ? `` : !isValid ? `bg-red-50 hover:bg-red-100` : isTotalRow ? `bg-gray-100` :
                                 display.striped && i % 2 !== 0 ? 'bg-gray-50 hover:bg-gray-100' :
@@ -175,6 +194,7 @@ export const TableCell = ({
                   `}
                           style={renderTextBox ? {borderColor: selectionColor} : undefined}
                   {...attribute}
+                options={options}
                   value={value}
                   row={newItem}
                   onChange={e => isTotalRow ? null : setNewItem({...newItem, [attribute.name]: e})}

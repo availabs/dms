@@ -55,7 +55,7 @@ const Card = ({
     const {state, setState, controls={}} = useContext(ComponentContext);
 
     return <Card {...state} setState={setState} controls={controls}
-                 isEdit={isEdit} updateItem={updateItem} newItem={newItem} setNewItem={setNewItem} allowEdit={allowEdit}
+                 isEdit={isEdit} updateItem={updateItem} addItem={addItem} newItem={newItem} setNewItem={setNewItem} allowEdit={allowEdit}
                  formatFunctions={formatFunctions} DataTypes={DataTypes}
     />
 }
