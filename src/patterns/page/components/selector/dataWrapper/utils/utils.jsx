@@ -136,6 +136,7 @@ export const getLength = async ({options, state, apiLoad}) => {
         format: state.sourceInfo,
         children
     });
+    console.log('getLength', length, state.sourceInfo, children)
     return length;
 }
 

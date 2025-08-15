@@ -47,7 +47,7 @@ const pagesConfig = ({
   pgEnv,
   API_HOST
 }) => {
-  //console.log('pass themes', themes)
+  // console.log('pass themes', themes)
   let theme = merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern?.theme?.settings?.theme?.theme] || themes.default), cloneDeep(pattern?.theme) || {})
   // console.log('test 123', themes, pattern?.theme?.settings?.theme?.theme )
   //console.log('pageConfig', pattern.doc_type, pattern.id, themes[pattern?.theme?.settings?.theme?.theme], pattern?.theme, pattern)

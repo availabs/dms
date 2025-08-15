@@ -17,7 +17,7 @@ import {
 } from "@availabs/avl-falcor"
 
 import { falcor } from './falcor.ts'
-import getDmsConfig, { adminSite } from './dms_utils'
+import getDmsConfig, { adminSite, parseJson } from './dms_utils'
 
 // ----------------------------------------------------
 // -------------- Config Setup-------------------------
@@ -49,10 +49,16 @@ export const loader = async({ request, params }) => {
   console.log('dms_api - loader', request.url, )
   const adminData =  await dmsDataLoader(falcor, adminSite, `/`)
   const patterns = adminData[0]?.patterns
+  const themes = (adminData[0]?.themes || []).reduce((out,curr) => {
+     // console.log('theme curr', curr)
+      out[curr?.name] = parseJson(curr?.theme || {})
+      return out
+  },{})
   const dmsConfig = getDmsConfig(
     request.headers.get('host'), 
     request.body.path,
-    patterns
+    patterns,
+    themes
   )
   console.log('dms_api - loader - dmsConfig', dmsConfig)
   let data =  await dmsDataLoader(falcor, dmsConfig, `/${params['*'] || ''}`)
@@ -61,7 +67,8 @@ export const loader = async({ request, params }) => {
   return {
     host: request.headers.get('host'),
     data,
-    patterns
+    patterns,
+    themes
   }
 }
 
@@ -70,28 +77,35 @@ export const action = async ({ request, params }) => {
   const form = await request.formData();
   const adminData =  await dmsDataLoader(falcor, adminSite, `/`)
   const patterns = adminData[0]?.patterns
+  const themes = (adminData[0]?.themes || []).reduce((out,curr) => {
+     // console.log('theme curr', curr)
+      out[curr?.name] = parseJson(curr?.theme || {})
+      return out
+  },{})
   const dmsConfig = getDmsConfig(
     request.headers.get('host'), 
     form.get("path"),
-    patterns
+    patterns,
+    themes
   )
   
-  console.log('dms_api - action - request', form.get("path"))
+  
   let requestType = form.get("requestType")
   let customConfig = form.get('dmsConfig')
-  
+  console.log('dms_api - action - request', form.get("path"), 'type', requestType, JSON.parse(customConfig))
   if(requestType === 'data') {
     console.log('dms api - data request- config',customConfig ? JSON.parse(customConfig) : dmsConfig)
     const data = await dmsDataLoader(falcor, 
       customConfig ? JSON.parse(customConfig) : dmsConfig, 
       form.get("path")
     )
-    console.log('dms api - data request- data', data)
+    //console.log('dms api - data request- data', data)
     console.timeEnd(`dms-api action ${request.url}`)
     return {
       host: request.headers.get('host'),
       data,
-      patterns
+      patterns,
+      themes
     }
   }
   //return {}
@@ -101,7 +115,7 @@ export const action = async ({ request, params }) => {
     requestType,
     form.get("path")
   )
-  console.log('dms-api - action - return', host, data.length, patterns.length)
+  //console.log('dms-api - action - return', host, data.length, patterns.length)
   
 };
 
