@@ -66,6 +66,7 @@ export class CollapsibleNoPreviewTitleNode extends ElementNode {
     }
     // Create an icon (using an inline SVG)
     const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    icon.id="Collapsable_expand_button";
     icon.setAttribute("xmlns", "http://www.w3.org/2000/svg");
     icon.setAttribute("viewBox", "0 0 24 24");
     icon.setAttribute("width", "24");
@@ -76,7 +77,8 @@ export class CollapsibleNoPreviewTitleNode extends ElementNode {
     `;
     icon.classList.add("inline-block", "align-middle", "cursor-pointer", "absolute", "right-2");
 
-    icon.addEventListener('click', () => {
+    icon.addEventListener('click', (e) => {
+      e.stopPropagation();
       console.log('icon clicked')
       editor.update(() => {
         const containerNode = this.getParentOrThrow();
