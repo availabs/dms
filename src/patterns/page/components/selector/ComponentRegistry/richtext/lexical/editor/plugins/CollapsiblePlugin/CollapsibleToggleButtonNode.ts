@@ -43,7 +43,8 @@ export class CollapsibleButtonNode extends ElementNode {
       button.textContent = containerNode.getOpen() ? 'SHOW LESS' : 'SHOW MORE';
     }
 
-    button.addEventListener('click', () => {
+    button.addEventListener('click', (e) => {
+        e.stopPropagation()
       editor.update(() => {
         const containerNode = this.getParentOrThrow();
         if ($isCollapsibleContainerNode(containerNode)) {

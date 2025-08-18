@@ -210,6 +210,7 @@ export const discardChanges = async (user,item, apiUpdate) => {
       delete s.id;
       return s;
   });
+  newItem.draft_section_groups = newItem.section_groups;
   apiUpdate({data:newItem})
 
 }

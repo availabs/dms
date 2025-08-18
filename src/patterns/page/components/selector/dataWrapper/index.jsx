@@ -546,55 +546,6 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
         }
     }, [allowEdit, state.columns, isEdit]);
 
-    // useEffect(() => {
-    //     // filters down options for columns that depend on other columns' values
-    //     if(!allowEdit) return;
-    //     let isStale = false;
-    //
-    //     async function loadOptionsData () {
-    //         const columnsToFetch = state.columns.filter(c => c.mapped_options);
-    //
-    //         const responses = await columnsToFetch.reduce(async (acc, column) => {
-    //             const mapped_options = JSON.parse(column.mapped_options);
-    //             const columns = [...new Set([mapped_options.labelColumn, mapped_options.valueColumn])].filter(c => c);
-    //             const prev = await acc;
-    //             const {data} = await getData({apiLoad, fullDataLoad: true, currentPage: 0, state: {
-    //                     dataRequest: mapped_options.filter || {},
-    //                     display: {},
-    //                     sourceInfo: {
-    //                         source_id: mapped_options.sourceId,
-    //                         view_id: mapped_options.viewId,
-    //                         isDms: mapped_options.isDms,
-    //                         columns: columns.map(c => ({name: c})),
-    //                         app: state.sourceInfo.app,
-    //                         type: mapped_options.type,
-    //                         env: mapped_options.isDms ? `${state.sourceInfo.app}+${mapped_options.type}` : pgEnv // can only access datasets from current app / pgEnv
-    //                     },
-    //                     columns: columns.map(c => ({name: c, show: true}))
-    //                 }});
-    //
-    //             prev[column.name] = data.map(d => ({label: d[mapped_options.labelColumn] || 'N/A', value: d[mapped_options.valueColumn]}))
-    //             return prev;
-    //         }, {});
-    //
-    //         if(!isStale){
-    //             setState(draft => {
-    //                 draft.columns.filter(c => c.mapped_options)
-    //                     .forEach(c => {
-    //                         const fetchedOptions = responses[c.name] || [];
-    //                         if(!isEqual(c.options, fetchedOptions)){
-    //                             c.options = fetchedOptions
-    //                         }
-    //                     })
-    //             })
-    //         }
-    //     }
-    //
-    //     loadOptionsData();
-    //     return () => {
-    //         isStale = true;
-    //     }
-    // }, [allowEdit, state.columns, isEdit]);
     // ========================================= get input data end ======================================================
     // =========================================== get data end ========================================================
 
@@ -627,7 +578,8 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
 
     const addItem = async () => {
         if(!state.sourceInfo?.isDms || !apiUpdate) return;
-        const res = await apiUpdate({data: newItem, config: {format: {...state.sourceInfo, type: `${state.sourceInfo.type}-${state.sourceInfo.view_id}`}}});
+        const config = {format: {...state.sourceInfo, type: `${state.sourceInfo.type}-${state.sourceInfo.view_id}`}}
+        const res = await apiUpdate({data: newItem, config});
 
         if(res?.id){
             setState(draft => {

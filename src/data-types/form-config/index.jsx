@@ -95,6 +95,7 @@ const Edit = ({value = '{}', onChange, className, placeholder, manageTemplates, 
                             return (
                                 <RenderField i={i} item={attribute} placeholder={placeholder} id={`field-comp-${i}`} key={`field-comp-${i}`}
                                              attribute={attribute?.name}
+                                             attributeList={(item.attributes || []).map(a => a.name)}
                                              theme={theme} updateAttribute={updateAttribute}
                                              removeAttribute={removeAttribute} apiLoad={apiLoad} format={format}
                                              dragStart={dragStart} dragEnter={dragEnter} dragOver={dragOver} drop={drop}
