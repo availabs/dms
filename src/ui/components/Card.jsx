@@ -172,7 +172,7 @@ const EditComp = ({
 
     if(!allowEdit && (attribute.isImg || attribute.isLink || ['icon', 'color'].includes(attribute.formatFn) && formatFunctions[attribute.formatFn])) return value;
 
-    const options = ['select', 'multiselect'].includes(attribute.type) && attribute.options.some(o => o.filter) ?
+    const options = ['select', 'multiselect'].includes(attribute.type) && (attribute.options || []).some(o => o.filter) ?
         attribute.options.filter(o => {
             const optionFilter = parseIfJson(o.filter);
             return Object.keys(optionFilter).reduce((acc, col) => {
