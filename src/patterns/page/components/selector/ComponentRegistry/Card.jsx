@@ -90,8 +90,9 @@ const inHeader = [
     {type: 'toggle', label: 'Border Below', key: 'borderBelow', displayCdn: ({display}) => display.compactView},
     {type: 'input', inputType: 'number', label: 'Padding Below', key: 'pb', isBatchUpdatable: true, displayCdn: ({display}) => display.compactView},
     {type: 'toggle', label: 'Hide Header', key: 'hideHeader', isBatchUpdatable: true},
+    {type: 'toggle', label: 'Hide Value', key: 'hideValue', isBatchUpdatable: true},
     {type: 'select', label: 'Header', key: 'headerFontStyle', options: fontStyleOptions, isBatchUpdatable: true, displayCdn: ({attribute}) => !attribute.hideHeader},
-    {type: 'select', label: 'Value', key: 'valueFontStyle', options: fontStyleOptions, isBatchUpdatable: true},
+    {type: 'select', label: 'Value', key: 'valueFontStyle', options: fontStyleOptions, isBatchUpdatable: true, displayCdn: ({attribute}) => !attribute.hideValue},
 
     {type: 'input', inputType: 'number', label: 'Span', key: 'cardSpan', displayCdn: ({display}) => !display.compactView},
 

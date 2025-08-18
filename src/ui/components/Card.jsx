@@ -277,64 +277,67 @@ const RenderItem = ({
                                         </div>
                                     )
                                 }
-                                <div className={`
-                                                ${theme.value} ${compactView ? theme.valueCompactView : theme.valueSimpleView}
-                                                 ${theme[valueTextJustifyClass]}
-                                                 ${theme[attr.valueFontStyle || 'textXS']}
-                                                 ${formatClass}
-                                                 `}>
-                                    {
-                                        isLink && !allowEdit ?
-                                            <Link className={theme.linkColValue}
-                                                  to={`${location || value}${attr.searchParams === 'id' ? encodeURIComponent(id) : attr.searchParams === 'value' ? encodeURIComponent(value) : ``}`}
-                                            >
-                                                <EditComp attribute={attr}
-                                                          value={linkText || value}
-                                                          rawValue={rawValue}
-                                                          isValueFormatted={isValueFormatted}
-                                                          updateItem={isNewItem ? undefined : updateItem}
+                                {
+                                    attr.hideValue ? null :
+                                        <div className={`
+                                                    ${theme.value} ${compactView ? theme.valueCompactView : theme.valueSimpleView}
+                                                     ${theme[valueTextJustifyClass]}
+                                                     ${theme[attr.valueFontStyle || 'textXS']}
+                                                     ${formatClass}
+                                                     `}>
+                                            {
+                                                isLink && !allowEdit ?
+                                                    <Link className={theme.linkColValue}
+                                                          to={`${location || value}${attr.searchParams === 'id' ? encodeURIComponent(id) : attr.searchParams === 'value' ? encodeURIComponent(value) : ``}`}
+                                                    >
+                                                        <EditComp attribute={attr}
+                                                                  value={linkText || value}
+                                                                  rawValue={rawValue}
+                                                                  isValueFormatted={isValueFormatted}
+                                                                  updateItem={isNewItem ? undefined : updateItem}
 
-                                                    // form edit controls
-                                                          liveEdit={liveEdit}
-                                                          tmpItem={tmpItem}
-                                                          setTmpItem={setTmpItem}
+                                                            // form edit controls
+                                                                  liveEdit={liveEdit}
+                                                                  tmpItem={tmpItem}
+                                                                  setTmpItem={setTmpItem}
 
-                                                    // add new item controls
-                                                          isNewItem={isNewItem}
-                                                          newItem={isNewItem ? newItem : undefined}
-                                                          setNewItem={isNewItem ? setNewItem : undefined}
+                                                            // add new item controls
+                                                                  isNewItem={isNewItem}
+                                                                  newItem={isNewItem ? newItem : undefined}
+                                                                  setNewItem={isNewItem ? setNewItem : undefined}
 
-                                                          id={id}
-                                                          allowEdit={allowEdit}
-                                                          DataTypes={DataTypes}
-                                                          formatFunctions={formatFunctions}
-                                                          className={theme[valueTextJustifyClass]}
-                                                />
-                                            </Link> :
-                                            <EditComp attribute={attr}
-                                                      value={value}
-                                                      rawValue={rawValue}
-                                                      isValueFormatted={isValueFormatted}
-                                                      updateItem={isNewItem ? undefined : updateItem}
+                                                                  id={id}
+                                                                  allowEdit={allowEdit}
+                                                                  DataTypes={DataTypes}
+                                                                  formatFunctions={formatFunctions}
+                                                                  className={theme[valueTextJustifyClass]}
+                                                        />
+                                                    </Link> :
+                                                    <EditComp attribute={attr}
+                                                              value={value}
+                                                              rawValue={rawValue}
+                                                              isValueFormatted={isValueFormatted}
+                                                              updateItem={isNewItem ? undefined : updateItem}
 
-                                                // form edit controls
-                                                      liveEdit={liveEdit}
-                                                      tmpItem={tmpItem}
-                                                      setTmpItem={setTmpItem}
+                                                        // form edit controls
+                                                              liveEdit={liveEdit}
+                                                              tmpItem={tmpItem}
+                                                              setTmpItem={setTmpItem}
 
-                                                // add new item controls
-                                                      isNewItem={isNewItem}
-                                                      newItem={isNewItem ? newItem : undefined}
-                                                      setNewItem={isNewItem ? setNewItem : undefined}
+                                                        // add new item controls
+                                                              isNewItem={isNewItem}
+                                                              newItem={isNewItem ? newItem : undefined}
+                                                              setNewItem={isNewItem ? setNewItem : undefined}
 
-                                                      id={id}
-                                                      allowEdit={allowEdit}
-                                                      DataTypes={DataTypes}
-                                                      formatFunctions={formatFunctions}
-                                                      className={theme[valueTextJustifyClass]}
-                                            />
-                                    }
-                                </div>
+                                                              id={id}
+                                                              allowEdit={allowEdit}
+                                                              DataTypes={DataTypes}
+                                                              formatFunctions={formatFunctions}
+                                                              className={theme[valueTextJustifyClass]}
+                                                    />
+                                            }
+                                        </div>
+                                }
                             </div>
                         )
                     })
