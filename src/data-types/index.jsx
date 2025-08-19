@@ -12,6 +12,7 @@ import { get } from "lodash-es"
 import Select from "./select";
 import Multiselect from "./multiselect";
 import Radio from "./radio";
+import Checkbox from "./checkbox";
 let i = 0
 
 export const dmsDataTypes = {
@@ -23,9 +24,13 @@ export const dmsDataTypes = {
 	'boolean': boolean,
 	'dms-format': dmsFormat,
 	'lexical': Lexical,
-	'select': Select,
+	'select': {
+        EditComp: (props) => <Multiselect.EditComp {...props} singleSelectOnly={true} />,
+        ViewComp: (props) => <Multiselect.ViewComp {...props} singleSelectOnly={true} />,
+    },
 	'multiselect': Multiselect,
 	'radio': Radio,
+    'checkbox': Checkbox,
 	'default': text
 }
 

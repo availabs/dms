@@ -19,9 +19,9 @@ export const dataCardTheme = {
     headerValueWrapper: 'w-full rounded-[12px] flex items-center justify-center p-2',
     headerValueWrapperCompactView: 'py-0',
     headerValueWrapperSimpleView: '',
-    justifyTextLeft: 'text-start justify-items-start',
-    justifyTextRight: 'text-end justify-items-end',
-    justifyTextCenter: 'text-center justify-items-center',
+    justifyTextLeft: 'text-start justify-items-start  rounded-md',
+    justifyTextRight: 'text-end justify-items-end rounded-md',
+    justifyTextCenter: 'text-center justify-items-center rounded-md',
 
     textXS: 'text-xs font-medium',
     textXSReg: 'text-xs font-normal',
@@ -197,7 +197,7 @@ const EditComp = ({
                           isNewItem && setNewItem && !tmpItem.id ? setNewItem({...newItem, [attribute.name]: newValue}) : {} // add new item
               }
               }
-              className={allowEdit && !value ? 'border' : className}
+              className={`${allowEdit ? 'border' : ''} ${className}`}
               {...attribute}
             options={options}
         />

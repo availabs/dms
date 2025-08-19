@@ -9,6 +9,7 @@ const fieldTypes = {
     'multiselect': 'dropdown (multiple choice)',
     'lexical': 'rich text',
     'radio': 'radio',
+    'checkbox': 'checkbox',
     'calculated': 'calculated' // can't be inputted, always calculated. don't use data->> to access.
 }
 
@@ -50,11 +51,11 @@ const isJson = (str)  => {
     return true;
 }
 
-const RenderInputText = ({label, value, col, attr, disabled, updateAttribute}) => {
+const RenderInputText = ({label, value, col, attr, disabled, hidden, updateAttribute}) => {
     const [newValue, setNewValue] = useState(value);
 
     const delayedUpdate = (val) => setTimeout(updateAttribute(col, {[attr]: val}), 500);
-
+    if(hidden) return null;
     return (
         <div className={'flex flex-col items-start'}>
             <label className={labelClass}>{label}</label>
@@ -415,6 +416,15 @@ export const RenderField = ({i, item, attribute, attributeList=[], updateAttribu
                         value={item.prompt}
                         col={item.name}
                         updateAttribute={updateAttribute}
+                    />
+                    <RenderInputText
+                        key={`${item.name}-trueValue`}
+                        label={'Checked Value'}
+                        attr={'trueValue'}
+                        value={item.trueValue}
+                        col={item.name}
+                        updateAttribute={updateAttribute}
+                        hidden={item.type !== 'checkbox'}
                     />
                     <RenderOptions key={`${item.name}-options`}
                                    col={item.name}
