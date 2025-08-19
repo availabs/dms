@@ -378,7 +378,7 @@ export default function ({
 
     const mainWrapperStyle = gridSize && compactView ?
         {
-            gridTemplateColumns: `repeat(${Math.min(getGridSize(gridSize), data.length)}, minmax(0, 1fr))`,
+            gridTemplateColumns: `repeat(${getGridSize(gridSize) || data.length}, minmax(0, 1fr))`,
             gap: gridGap,
             paddingTop: `${imageTopMargin}px`
         } :
@@ -389,7 +389,7 @@ export default function ({
             gap: gridGap || 2
         }
 
-
+    console.log('card wrapper', mainWrapperStyle, subWrapperStyle)
     // Reordering function
     function handleDrop(targetCol) {
         if (!draggedCol || isEqualColumns(draggedCol, targetCol)) return;
