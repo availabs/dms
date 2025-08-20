@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 
-import { Select } from "~/modules/avl-components/src"
+//import { Select } from "~/modules/avl-components/src"
 import { PageContext, CMSContext } from '../../../context';
 import { selectablePDF2 } from '../../saveAsPDF/PrintWell/selectablePDF';
 
@@ -15,7 +15,7 @@ function pdfExport({ }) {
   const { UI, app, /*type,*/ API_HOST, siteType } = React.useContext(CMSContext) || {};
   const { apiLoad, format } = React.useContext(PageContext) || {};
 
-  const { Icon, Button } = UI || {};
+  const { Icon, Button, Select } = UI || {};
 
   useEffect(() => {
     const fetchPatterns = async () => {
