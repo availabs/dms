@@ -136,6 +136,7 @@ export const getLength = async ({options, state, apiLoad}) => {
         format: state.sourceInfo,
         children
     });
+    console.log('getLength', length, state.sourceInfo, children)
     return length;
 }
 
@@ -163,7 +164,7 @@ const evaluateAST = (node, values) => {
 export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => {
     const {groupBy=[], orderBy={}, filter={}, normalFilter=[], fn={}, exclude={}, meta={}, filterRelation, ...restOfDataRequestOptions} = state.dataRequest || {};
 
-    const debug = false;
+    const debug = true;
     debug && console.log('=======getDAta called===========')
     // get columns with all settings and info about them.
     const columnsWithSettings = state.columns.filter(({actionType, type}) => !actionType && type !== 'formula').map(column => {
@@ -437,7 +438,7 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
     const isInvalidState = noGroupSomeFnCondition || groupNoFnCondition;
 
     if(isInvalidState) {
-        debug && console.log('debug getdata: invalid state', noGroupSomeFnCondition, groupNoFnCondition, visibleColumnsLength, groupedColumnsLength, fnColumnsLength)
+        debug && console.log('debug getdata: invalid state', noGroupSomeFnCondition, groupNoFnCondition, 'visible column length', visibleColumnsLength, groupedColumnsLength, fnColumnsLength)
         const invalidStateText = noGroupSomeFnCondition ?
             `All visible columns don't have a function. # Visible columns: ${visibleColumnsLength}, # Function applied: ${fnColumnsLength}` :
             groupNoFnCondition ? `All Non grouped columns must have a function applied. # Non grouped columns: ${nonGroupedColumnsLength}, # Function applied: ${fnColumnsLength}.` : ''
@@ -451,14 +452,18 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
         action: actionType,
         path: '/',
         filter: {
-            fromIndex: () => fromIndex,
-            toIndex: () => toIndex,
+            fromIndex: fromIndex,
+            toIndex: toIndex,
             options: JSON.stringify(options),
             attributes: columnsToFetch.map(a => a.reqName).filter(a => a),
             stopFullDataLoad: true
         },
     }]
     let data;
+    debug && console.log('debug getdata: config + index', {
+            format: state.sourceInfo,
+            children
+    }, fromIndex, toIndex)
     try{
         data = await apiLoad({
             format: state.sourceInfo,
@@ -468,7 +473,7 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
         if (process.env.NODE_ENV === "development") console.error(e)
         return {length, data: [], invalidState: 'An Error occurred while fetching data.'};
     }
-
+    debug && console.log('debug getdata: the data', data)
     // =================================================================================================================
     // =========================================== fetch total row begin  ==============================================
     // =================================================================================================================
@@ -479,8 +484,8 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
             action: actionType,
             path: '/',
             filter: {
-                fromIndex: () => 0,
-                toIndex: () => 1,
+                fromIndex: 0,
+                toIndex: 1,
                 options: JSON.stringify({
                     filter: options.filter,
                     exclude: options.exclude,

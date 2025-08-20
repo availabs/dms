@@ -2,6 +2,28 @@ import pageConfig from '../../../patterns/page/siteConfig.jsx'
 import adminConfig from '../../../patterns/admin/siteConfig.jsx'
 import formsConfig from '../../../patterns/forms/siteConfig.jsx'
 import { matchRoutes } from 'react-router';
+
+// import tailwindcss from '@tailwindcss/postcss'
+// import postcss from 'postcss'
+
+export async function generateTailwindCSS(content, config = {}) {
+  return {}
+  // try {
+  //   const result = await postcss([
+  //     tailwindcss({
+  //       content: [{ raw: content, extension: 'html' }],
+  //       ...config
+  //     })
+  //   ]).process('@import "tailwindcss";', {
+  //     from: undefined
+  //   })
+    
+  //   return result.css
+  // } catch (error) {
+  //   console.error('Error:', error)
+  //   throw error
+  // }
+}
 //import DMSconfig from "../dmsconfig.json"
 //const { falcor } = await import('../server/falcor.ts')
 // ----------------------------------------------------
@@ -128,6 +150,7 @@ export const parseJson = value => {
     try {
         return JSON.parse(value)
     } catch (e) {
+        //console.log('parse error',e)
         return value
     }
 }

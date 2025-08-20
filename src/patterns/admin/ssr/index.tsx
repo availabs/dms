@@ -10,7 +10,7 @@ import {
   useFalcor
 } from "@availabs/avl-falcor"
 
-import getDmsConfig, { adminSite } from './dms_utils.ts'
+import getDmsConfig, { adminSite , parseJson } from './dms_utils.ts'
 
 // ----------------------------------------------------
 // -------------- Config Setup-------------------------
@@ -47,12 +47,15 @@ export const loader = async({ request, params }) => {
   const { falcor } = await import('./falcor.ts')
   const adminData =  await dmsDataLoader(falcor, adminSite, `/`) 
   //console.log('dms - loader - adminData', adminData, adminSite)  
+  
   const patterns = adminData[0]?.patterns
-  const themes = (adminData[0]?.themes || [])
-    .reduce((theme,themes) => {
-      themes[theme?.name] = JSON.parse(theme?.theme || "{}")
-      return themes
+  const themes = (adminData[0]?.themes || []).reduce((out,curr) => {
+     // console.log('theme curr', curr)
+      out[curr?.name] = parseJson(curr?.theme || {})
+      return out
   },{})
+  //console.log('dms - loader - themes',themes)
+  
   const dmsConfig = getDmsConfig(
     request.headers.get('host'), 
     new URL(request.url).pathname,
@@ -60,13 +63,11 @@ export const loader = async({ request, params }) => {
     themes
   )
   if(!dmsConfig)  return {} 
-  // console.log('index - loader - dmsConfig', dmsConfig)
-  // console.log('dms - loader - dmsConfig', dmsConfig)
+  
   
   let data =  await dmsDataLoader(falcor, dmsConfig, `/${params['*'] || ''}`)
   
-  // console.log('index - loader - data', data.length )
-  // const functionTest = (a,b) => a + b 
+  
   return {
     data,
     host: request.headers.get('host'),
@@ -100,7 +101,6 @@ export function HydrateFallback() {
 }
 
 export const clientLoader = async({ request, params }) => {
-  console.log('I am the client loader')
   var body = new FormData();
   body.append("path",  `/${params['*'] || ''}`)
   body.append("requestType",  "data")
@@ -108,7 +108,6 @@ export const clientLoader = async({ request, params }) => {
   console.time('loader data')
   let res =  await fetch(`/dms_api`, { method:"POST", body })
   let data = await res.json()
-  console.log('client loader data', data)
   console.timeEnd('loader data')
 
   return data
@@ -140,29 +139,20 @@ export default function DMS({ loaderData }) {
   const params = useParams();
   let path = React.useMemo(() => `/${params['*'] || ''}`,[params])
   const { host, data, patterns, themes } = loaderData
-  //console.log('index - dmsComp - loaderData', host, data?.length, patterns?.length)
   const dmsConfig = React.useMemo(() => getDmsConfig(host, path, patterns, themes), [path,host])
-  //console.log('index - DMS Comp - data ', data?.length, path,host)
-  //console.log('index - DMS Comp - dmsConfig', dmsConfig)
-  // console.log('DMS Comp - dms config', 
-  //   dmsConfig.baseUrl,
-  //   `/${dmsConfig.baseUrl?.replace(/^\/|\/$/g, '')}`, 
-  //   path, 
-  //   path.replace( dmsConfig.baseUrl, '')
-  // )
-  // if(!dmsConfig?.baseUrl) {
-  //   return <div> Invalid config {process.env.DMS_APP} {process.env.DMS_TYPE}</div>
-  // }
+  
 
   const AuthedManager= authWrapper(DmsManager)
-  const content = (
+  const content = useMemo(() => {
+    console.log('render dms')
+    return (
       <AuthedManager
         path={ path.replace( dmsConfig?.baseUrl, '') }
         config={ dmsConfig }
         falcor={ clientFalcor }
         mode={'ssr'}
-    />
-  )
+    />)
+  },[dmsConfig])
   return (<>{content}</>)
   
 }

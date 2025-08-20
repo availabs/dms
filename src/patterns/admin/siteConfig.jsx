@@ -54,7 +54,13 @@ const adminConfig = ({
       path:`${baseUrl}/team`
     }
   ]
+  /*
+  authlink = patterns.filter[].baseirl
 
+  menuItems = [
+    ...menuItems
+    ...authMenuItmes
+  ]*/
   // ----------------------
   // update app for all the children formats
   format.registerFormats = updateRegisteredFormats(format.registerFormats, app)

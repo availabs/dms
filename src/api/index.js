@@ -159,6 +159,8 @@ export async function dmsDataLoader (falcor, config, path='/') {
 			activeConfigs?.[0]?.filter?.toIndex(path) :
 			(+activeConfigs?.[0]?.params?.[activeConfigs?.[0]?.filter?.toIndex]);
 
+	console.log('api - index - from/to', fromIndex, toIndex)
+
 	const filteredIds = !id && fromIndex !== undefined && toIndex !== undefined ?
 		Object.keys(get(newReqFalcor, [...itemReqByIndex], {}))
 			.filter(index => +index >= +fromIndex && +index <= +toIndex - 1)
