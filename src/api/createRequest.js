@@ -17,7 +17,9 @@ export const createRequest = (wrapperConfig,format, path, length) => {
 	
 	let toIndex = typeof wrapperConfig?.filter?.toIndex === "function" ?
 			wrapperConfig?.filter?.toIndex(path) :
-			(+wrapperConfig?.filter?.toIndex || Math.max(0,length-1)); //
+			(typeof wrapperConfig?.filter?.toIndex === 'undefined' || wrapperConfig?.filter?.toIndex === null ?
+                Math.max(0,length-1) :
+                +wrapperConfig?.filter?.toIndex); //
 
 	// console.log('api - createRequest - indexs',fromIndex, toIndex, wrapperConfig?.filter?.fromIndex, wrapperConfig?.filter?.toIndex )
 	let options = wrapperConfig?.filter?.options || '{}';
