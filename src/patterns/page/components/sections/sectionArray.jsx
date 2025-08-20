@@ -291,7 +291,7 @@ const View = ({value, attr, group, siteType}) => {
         let value = section?.element?.['element-data']
         let elementData = typeof value === 'object' ?
             value : value && isJson(value) ? JSON.parse(value) : {}
-        return !elementData?.hideSection
+        return !elementData?.hideSection && !section?.hideInView;
     }
 
     return (

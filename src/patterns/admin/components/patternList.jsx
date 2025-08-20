@@ -3,6 +3,88 @@ import {Link} from 'react-router'
 import {v4 as uuidv4} from "uuid";
 import {AdminContext} from "../siteConfig";
 
+const parseIfJSON = strValue => {
+    if (typeof strValue !== 'string' && Array.isArray(strValue)) return strValue;
+
+    try {
+        return JSON.parse(strValue)
+    }catch (e){
+        return []
+    }
+}
+
+const RenderFilters = ({value=[], onChange, ...rest}) => {
+    const {UI} = useContext(AdminContext);
+    const [tmpValue, setTmpValue] = useState(parseIfJSON(value));
+    const [newFilter, setNewFilter] = useState({});
+    const {FieldSet, Button} = UI;
+    const customTheme = {
+        field: 'pb-2 flex flex-col'
+    }
+    const customThemeButton = {
+        field: 'pb-2 place-content-end'
+    }
+
+    const updateFilters = (idx, key, valueToUpdate) => {
+        setTmpValue(value.map((v, i) => i === idx ? {...v, [key]: valueToUpdate} : v))
+        onChange(value.map((v, i) => i === idx ? {...v, [key]: valueToUpdate} : v));
+    }
+
+    return (
+        <div className={'flex flex-col gap-1 p-1 border rounded-md'}>
+            <label className={'text-sm'}>Filters</label>
+            {
+                tmpValue.map((filter, i) => (
+                    <FieldSet
+                        className={'grid grid-cols-3 gap-1'}
+                        components={[
+                            {label: 'Search Key', type: 'Input', placeholder: 'search key', value: filter.searchKey,
+                                onChange: e => updateFilters(i, 'searchKey', e.target.value),
+                                customTheme
+                            },
+                            {label: 'Search Value', type: 'Input', placeholder: 'search value', value: filter.values,
+                                onChange: e => updateFilters(i, 'values', e.target.value),
+                                customTheme
+                            },
+                            {type: 'Button', children: 'remove', customTheme: customThemeButton,
+                                onClick: () => {
+                                    onChange(value.filter((_, idx) => i !== idx));
+                                    setTmpValue(value.filter((_, idx) => i !== idx))
+                                }
+                            }
+                        ]}
+                    />
+                ))
+            }
+            <FieldSet
+                className={'grid grid-cols-3 gap-1'}
+                components={[
+                    {label: 'Search Key', type: 'Input', placeholder: 'search key', value: newFilter.searchKey,
+                        onChange: e => setNewFilter({...newFilter, searchKey: e.target.value}),
+                        customTheme
+                    },
+                    {label: 'Search Value', type: 'Input', placeholder: 'search value', value: newFilter.values,
+                        onChange: e => setNewFilter({...newFilter, values: e.target.value}),
+                        customTheme
+                    },
+                    {type: 'Button', children: 'add', customTheme: customThemeButton,
+                        onClick: () => {
+                            const id = uuidv4();
+                            onChange([...value, {id, ...newFilter}]);
+                            setTmpValue([...value, {id, ...newFilter}])
+                            setNewFilter({});
+                        }
+                    }
+                ]}
+            />
+            <Button onClick={() => {
+                onChange([]);
+                setTmpValue([])
+                setNewFilter({});
+            }} > clear all filters </Button>
+        </div>
+    )
+}
 function PatternList (props) {
 
 	const data = props?.dataItems[0] || {};
@@ -128,6 +210,9 @@ function PatternEdit({
 							attrToAddNew
 								.map((attrKey, i) => {
 									let {EditComp, ViewComp, ...props} = attributes[attrKey]
+                                    if(attrKey === 'filters'){
+                                        EditComp = RenderFilters
+                                    }
 									return (
 
 										<EditComp
@@ -141,12 +226,14 @@ function PatternEdit({
 								})
 						}
 						<div className={'w-full flex items-center justify-start'}>
-							<button
+							<Button
+                                type={'plain'}
+                                title={'Add Site'}
 								className={'bg-blue-100 hover:bg-blue-300 text-sm text-blue-800 px-2 py-0.5 m-1 rounded-lg w-fit h-fit'}
 								onClick={() => addNewValue({...newItem, doc_type: uuidv4()})}
 							>
-								Add
-							</button>
+								add
+							</Button>
 						</div>
 					</div>
 				</Modal>
@@ -157,6 +244,9 @@ function PatternEdit({
 							attrToAddNew
 								.map((attrKey, i) => {
 									let {EditComp, ViewComp, ...props} = attributes[attrKey]
+                                    if(attrKey === 'filters'){
+                                        EditComp = RenderFilters
+                                    }
 									return (
 
 										<EditComp
@@ -181,7 +271,7 @@ function PatternEdit({
 									setEditingItem(undefined)
 								}}
 							>
-								Save
+								save
 							</Button>
 
 							<Button
@@ -192,7 +282,7 @@ function PatternEdit({
 									setEditingItem(undefined)
 								}}
 							>
-								Cancel
+								cancel
 							</Button>
 
 							<Button

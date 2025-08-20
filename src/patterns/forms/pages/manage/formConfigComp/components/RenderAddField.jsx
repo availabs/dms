@@ -1,9 +1,14 @@
-import React, {useState} from "react";
-import {Add, Alert} from "../../../patterns/admin/ui/icons";
+import React, {useContext, useState} from "react";
+import {Add, Alert} from "../../../../../admin/ui/icons";
+import {FormsContext} from "../../../../siteConfig";
 
-export const RenderAddField = ({theme, placeholder, attributes=[], className, addAttribute}) => {
+export const RenderAddField = ({theme, placeHolder, attributes=[], className, addAttribute}) => {
+    const {UI} = useContext(FormsContext);
     const [newValue, setNewValue] = useState('');
     const [error, setError] = useState('empty name');
+    
+    const {Input, Button} = UI;
+    
     function fn() {
         addAttribute({name: newValue});
         setNewValue('');
@@ -14,10 +19,9 @@ export const RenderAddField = ({theme, placeholder, attributes=[], className, ad
     const triggerAddEvent = () => setTimeout(fn, 500)
     return (
         <div className={'w-full flex flex-col sm:flex-row'}>
-            <input
-                className={`w-1/4 p-2 border ${error ? 'border-red-500' : ''} rounded-md`}
+            <Input
                 value={newValue}
-                placeholder={placeholder}
+                placeHolder={placeHolder}
                 onChange={e => {
                     if(attributes.find(a => a.name === e.target.value)) {
                         setError('already exists');
@@ -36,12 +40,12 @@ export const RenderAddField = ({theme, placeholder, attributes=[], className, ad
                 }}
                 onKeyDown={e =>  !error && e.key === 'Enter' && triggerAddEvent()}
             />
-            <button className={`p-2 ${error ? 'bg-red-500' : 'bg-blue-300 hover:bg-blue-500'} text-white rounded-md`} onClick={e => fn()}>
+            <Button className={`p-2 ${error ? 'bg-red-500' : 'bg-blue-300 hover:bg-blue-500'} text-white rounded-md`} onClick={e => fn()}>
                 {
                     error ?
                         <div className={'flex items-center '}><Alert className={'text-white px-1'}/> {error} </div> :
                         <div className={'flex items-center '}><Add className={'text-white px-1'}/> {'add'}</div>
                 }
-            </button>
+            </Button>
         </div>)
 }
