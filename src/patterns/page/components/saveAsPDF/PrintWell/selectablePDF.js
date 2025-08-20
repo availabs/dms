@@ -71,10 +71,11 @@ export const selectablePDF2 = async (urls, API_HOST) => {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = 'document.pdf';
+      link.download = 'document.zip';
       document.body.appendChild(link);
       link.click();
       link.remove();
+       window.URL.revokeObjectURL(url);
    } else {
       console.error('Failed to generate PDF');
    }

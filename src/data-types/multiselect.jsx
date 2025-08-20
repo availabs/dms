@@ -176,7 +176,7 @@ const Edit = ({value = [], loading, onChange, className,placeholder, options = [
                                 theme={theme}
                             />)
                 }
-                <ArrowDown className={'ml-auto self-center font-bold'} width={16} height={16}/>
+                <ArrowDown className={`ml-auto self-center font-bold ${typeSafeValue?.length ? `-mt-4` : ``}`} width={16} height={16}/>
             </div>
 
             <RenderMenu
