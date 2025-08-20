@@ -389,7 +389,6 @@ export default function ({
             gap: gridGap || 2
         }
 
-    console.log('card wrapper', mainWrapperStyle, subWrapperStyle)
     // Reordering function
     function handleDrop(targetCol) {
         if (!draggedCol || isEqualColumns(draggedCol, targetCol)) return;
