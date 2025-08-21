@@ -58,6 +58,7 @@ const ManageForm = ({
                                                 item={item}
                                                 apiLoad={apiLoad}
                                                 {...attributes[attrKey]}
+                                                key={`${attrKey}-${i}`}
                                                 format={format}
                                             />
                                         </div>

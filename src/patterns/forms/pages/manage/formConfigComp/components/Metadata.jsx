@@ -153,7 +153,6 @@ const parseIfJSON = strValue => {
 }
 export const Metadata = ({value={}, col, drivingAttribute, attr, updateAttribute}) => {
     const [editing, setEditing] = React.useState(parseIfJSON(value));
-    console.log('?????????????????', editing, value)
     const [type, setType] = React.useState(editing?.view_id ? 'datasource' : 'custom');
     const {UI} = React.useContext(FormsContext);
     const {Tabs, Button} = UI;
@@ -161,7 +160,6 @@ export const Metadata = ({value={}, col, drivingAttribute, attr, updateAttribute
     useEffect(() => {
         if(!isEqual(value, editing)) setEditing(parseIfJSON(value))
     }, [value])
-    console.log('value', value)
     if(drivingAttribute !== 'meta') return null;
     return (
         <div>

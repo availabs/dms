@@ -214,7 +214,7 @@ const RenderOptions = ({attributeList, col, drivingAttribute, attr, value=[], de
                 <div className={'flex flex-row flex-wrap'}>
                     {
                         options?.map((option, optionI) => (
-                            <div className={'bg-red-500 hover:bg-red-700 text-white text-xs font-semibold px-1.5 py-1 m-1 flex no-wrap items-center rounded-md'}>
+                            <div key={optionI} className={'bg-red-500 hover:bg-red-700 text-white text-xs font-semibold px-1.5 py-1 m-1 flex no-wrap items-center rounded-md'}>
                                 <label className={'hover:cursor-pointer'} onClick={() => setEditing(optionI)}>{option?.label || option}</label>
                                 <div title={'remove'}
                                      className={'p-0.5 px-1 cursor-pointer'}
@@ -229,29 +229,71 @@ const RenderOptions = ({attributeList, col, drivingAttribute, attr, value=[], de
     )
 }
 
+const parseIfJSON = strValue => {
+    if(typeof strValue === 'object') return strValue;
+    try {
+        return JSON.parse(strValue);
+    }catch (e){
+        return {}
+    }
+}
 const RenderMappedOptions = ({col, drivingAttribute, attr, value='', updateAttribute}) => {
-    // {viewId: "1346450", sourceId: "1346449", labelColumn: "municipality_name", valueColumn: "geoid", isDms: true}
+    // {"viewId": "1346450", "sourceId": "1346449", "labelColumn": "municipality_name", "valueColumn": "geoid", "isDms": true, "type": "477b3e18-2b35-4e98-82f1-feb821ba4fc3"}
     const {UI} = React.useContext(FormsContext);
-    const {Input} = UI;
-
-    const [newOption, setNewOption] = useState(value || '');
-
-    useEffect(() => {
-        let isStale = false;
-
-        setTimeout(() => {
-            if(!isStale && value !== newOption){
-                updateAttribute(col, {[attr]: newOption})
-            }
-        }, 300)
-        return () => {
-            isStale = true;
-        }
-    }, [newOption])
+    const [newOption, setNewOption] = useState(parseIfJSON(value));
+    const {FieldSet} = UI;
+    const customTheme = {
+        field: 'pb-2 flex flex-col'
+    }
+    const inputKeys = [
+        {key: 'sourceId', placeHolder: 'source id'},
+        {key: 'viewId', placeHolder: 'view id'},
+        {key: 'labelColumn', placeHolder: 'label column'},
+        {key: 'valueColumn', placeHolder: 'value Column'},
+        {key: 'type', placeHolder: 'type'}
+    ]
     if(!['select', 'multiselect'].includes(drivingAttribute)) return null;
     return (
-        <div className={'flex flex-col items-start w-full'}>
+        <>
             <label className={labelClass}>Options Map</label>
+            <FieldSet
+                className={'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-1'}
+                components={[
+                    ...inputKeys.map(({key, placeHolder}) => (
+                        {
+                            type: 'Input', label: placeHolder, placeHolder, value: newOption[key] || '',
+                            onChange: e => setNewOption({...newOption, [key]: e.target.value}),
+                            customTheme
+                        }
+                    )),
+                    {
+                        label: 'Internally sourced',
+                        type: 'Switch',
+                        enabled: newOption.isDms,
+                        size: 'small',
+                        setEnabled: e => setNewOption({...newOption, isDms: e}),
+                        className: 'self-center',
+                        customTheme
+                    },
+                    {
+                        type: 'Button', children: 'update',
+                        onClick: () => {
+                            updateAttribute(col, {[attr]: JSON.stringify(newOption)});
+                        }
+                    },
+                    {
+                        type: 'Button', children: 'remove',
+                        onClick: () => {
+                            updateAttribute(col, {[attr]: undefined});
+                            setNewOption({})
+                        }
+                    }
+                ]}
+            />
+        </>
+    )
+    return (
+        <div className={'flex flex-col items-start w-full'}>
 
             <div className={'w-full flex flex-col'}>
                 <div className={'w-full flex'}>
