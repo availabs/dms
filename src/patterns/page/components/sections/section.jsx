@@ -24,7 +24,7 @@ export function SectionEdit ({value, i, onChange, attributes, size, onCancel, on
     let sectionTitleCondition = value?.['title']
     const { theme } = React.useContext(ThemeContext);
     const { UI } = React.useContext(CMSContext) || {}
-    const { Popover, Button, Icon, Menu, Label } = UI
+    const { Popover, Button, Icon, Switch } = UI
 
     const updateAttribute = (k, v) => {
         // console.log('change',k,v, {...value, [k]: v})
@@ -66,12 +66,37 @@ export function SectionEdit ({value, i, onChange, attributes, size, onCancel, on
                                 }}
                             />
                             {/*help text*/}
-                            <Popover button={<Icon icon={'InfoSquare'} className='text-blue-400 hover:text-blue-600  w-[24px] h-[24px]' title="Help Text"/>} >
-                                <HelpComp
-                                    value={value?.['helpText']}
-                                    onChange={(v) => updateAttribute('helpText', v)}
-                                />
-                            </Popover>
+                            {
+                                value?.helpText ? (
+                                    <Popover button={<Icon icon={'InfoSquare'} className='text-blue-400 hover:text-blue-600  w-[24px] h-[24px]' title="Help Text"/>} >
+                                        <HelpComp
+                                            value={value?.['helpText']}
+                                            onChange={(v) => updateAttribute('helpText', v)}
+                                        />
+                                    </Popover>
+                                ) : null
+                            }
+                            {
+                                value?.infoComp && (
+                                    <Popover button={
+                                        <div className='p-2 border border-[#E0EBF0] rounded-full print:hidden'>
+                                            <div className='text-slate-400 hover:text-blue-500 size-4 print:hidden flex justify-center items-center' title="Info">
+                                                i                                            </div>
+                                        </div>
+                                    }>
+                                        <ElementComp
+                                            value={value?.['element']}
+                                            onChange={(v) => updateAttribute('element', v)}
+                                            handlePaste={(e, setKey, setState) => handlePaste(e, setKey, setState, value, onChange)}
+                                            size={size}
+                                            siteType={siteType}
+                                            apiLoad={apiLoad}
+                                            apiUpdate={apiUpdate}
+                                            pageFormat={format}
+                                            isActive={isActive}
+                                        />
+                                    </Popover>)
+                            }
                             {/*tags*/}
                             <Popover button={<Icon icon={'Tags'} className='text-blue-400 hover:text-blue-600  w-[24px] h-[24px]' title="Tags"/>} >
                                 <TagComponent
@@ -114,6 +139,22 @@ export function SectionEdit ({value, i, onChange, attributes, size, onCancel, on
                                         <SizeSelect
                                             size={value?.['size']}
                                             onChange={v => updateAttribute('size', v)}
+                                        />
+                                    </div>
+                                    <div className={'self-start w-full flex justify-between pl-2'}>
+                                        <label>Info Component</label>
+                                        <Switch
+                                            size={'small'}
+                                            enabled={value?.['infoComp']}
+                                            setEnabled={v => updateAttribute('infoComp', v)}
+                                        />
+                                    </div>
+                                    <div className={'self-start w-full flex justify-between pl-2'}>
+                                        <label>Hide Component</label>
+                                        <Switch
+                                            size={'small'}
+                                            enabled={value?.['hideInView']}
+                                            setEnabled={v => updateAttribute('hideInView', v)}
                                         />
                                     </div>
                                 </div>
@@ -211,6 +252,9 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
         (value?.['helpText']?.root?.children?.length === 1 && value?.['helpText']?.root?.children?.[0]?.children?.length === 0) || // empty child
         (value?.['helpText']?.root?.children?.length === 0) // no children
     )
+    let elementInModalCondition = value?.infoComp;
+    let hideInViewCondition = value?.hideInView;
+
     let sectionTitleCondition = value?.['title'] || value?.['tags'] || helpTextCondition //|| value?.['tags'] ;// edit
     let interactCondition = false //typeof onEdit !== 'function' && value?.element?.['element-type']?.includes('Map:');
     let isTemplateSectionCondition = false//value?.element?.['template-section-id'];
@@ -412,11 +456,29 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
                                     />
                                 </Popover>) : null}
                                         
-                                {helpTextCondition && (
-                                    <Popover button={<Icon icon={'InfoSquare'} className='text-blue-400 hover:text-blue-500 w-[24px] h-[24px] print:hidden' title="Help Text"/>}>
+                                {
+                                    helpTextCondition && (
+                                    <Popover button={
+                                        <div className='p-2 border border-[#E0EBF0] rounded-full print:hidden'>
+                                            <div className='text-slate-400 hover:text-blue-500 size-4 print:hidden flex justify-center items-center' title="Info">
+i                                            </div>
+                                        </div>
+                                    }>
                                         <HelpComp value={value?.['helpText']} />
                                     </Popover>)
-                            }
+                                }
+
+                                {
+                                    elementInModalCondition && (
+                                    <Popover button={
+                                        <div className='p-2 border border-[#E0EBF0] rounded-full print:hidden'>
+                                            <div className='text-slate-400 hover:text-blue-500 size-4 print:hidden flex justify-center items-center' title="Info">
+i                                            </div>
+                                        </div>
+                                    }>
+                                        {element}
+                                    </Popover>)
+                                }
                             </div>
                             
                         </div>
@@ -436,9 +498,13 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
                     </div>
                 )}
             {/* -------------------END Section Header ----------------------*/}
-            <div className={`h-full ${hideDebug ? '' : 'border border-dashed border-orange-500'}`}>
-                {element}
-            </div>
+            {
+                elementInModalCondition ? null : (
+                    <div className={`h-full ${hideDebug ? '' : 'border border-dashed border-orange-500'}`}>
+                        {element}
+                    </div>
+                )
+            }
         </div>
     )
 }

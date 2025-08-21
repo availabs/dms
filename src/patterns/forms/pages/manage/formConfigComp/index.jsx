@@ -1,9 +1,11 @@
-import React, {useEffect, useRef, useState} from "react"
+import React, {useContext, useEffect, useRef, useState} from "react"
+import {cloneDeep} from "lodash-es";
 
 import {RenderField} from "./components/RenderField";
 import {RenderAddField} from "./components/RenderAddField";
-import {Alert} from "../../patterns/forms/ui/icons"
-import {cloneDeep} from "lodash-es";
+import {Alert} from "../../../ui/icons"
+import {FormsContext} from "../../../siteConfig";
+
 const parseJson = value => {
     try {
         return JSON.parse(value)
@@ -12,7 +14,9 @@ const parseJson = value => {
     }
 }
 
-const Edit = ({value = '{}', onChange, className, placeholder, manageTemplates, apiLoad, format, ...rest}) => {
+export default ({value = '{}', onChange, className, apiLoad, format}) => {
+    const {UI} = useContext(FormsContext)
+    const {Input} = UI;
     const theme = {}//useTheme()
     const [item, setItem] = useState(parseJson(value))
     const [search, setSearch] = useState('');
@@ -73,8 +77,7 @@ const Edit = ({value = '{}', onChange, className, placeholder, manageTemplates, 
     return (
         <div className={'p-2'}>
             <div className={'w-full'}>
-                <input className={'p-2 mb-2 w-full border rounded-md shrink'} value={search}
-                       onChange={e => setSearch(e.target.value)} placeholder={'search...'}/>
+                <Input value={search} onChange={e => setSearch(e.target.value)} placeHolder={'search...'}/>
                 {
                     item.is_dirty ?
                         <div className={'flex text-sm italic items-center'}>
@@ -89,11 +92,11 @@ const Edit = ({value = '{}', onChange, className, placeholder, manageTemplates, 
                         .filter(attribute =>
                             !search ||
                             (attribute.name.toLowerCase().includes(search.toLowerCase()) ||
-                                attribute.display_name.toLowerCase().includes(search.toLowerCase()))
+                                attribute.display_name?.toLowerCase()?.includes(search.toLowerCase()))
                         )
                         .map((attribute, i) => {
                             return (
-                                <RenderField i={i} item={attribute} placeholder={placeholder} id={`field-comp-${i}`} key={`field-comp-${i}`}
+                                <RenderField i={i} item={attribute} id={`field-comp-${i}`} key={`field-comp-${i}`}
                                              attribute={attribute?.name}
                                              attributeList={(item.attributes || []).map(a => a.name)}
                                              theme={theme} updateAttribute={updateAttribute}
@@ -106,26 +109,9 @@ const Edit = ({value = '{}', onChange, className, placeholder, manageTemplates, 
             </div>
 
             <div className={'w-full p-2'}>
-                <RenderAddField attributes={item.attributes} placeholder={'New field name...'} theme={theme}
+                <RenderAddField attributes={item.attributes} placeHolder={'New field name...'} theme={theme}
                           className={className} addAttribute={addAttribute}/>
             </div>
         </div>
     )
-}
-
-const View = ({value, className}) => {
-    if (!value) return false
-    const theme = {}// useTheme()
-    return (
-        <div
-            className={className || (theme?.text?.view)}
-        >
-            {value}
-        </div>
-    )
-}
-
-export default {
-    "EditComp": Edit,
-    "ViewComp": View
 }

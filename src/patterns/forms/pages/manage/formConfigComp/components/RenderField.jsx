@@ -1,4 +1,7 @@
 import React, {useEffect, useMemo, useState} from "react";
+import {FormsContext} from "../../../../siteConfig";
+import {Metadata} from "./Metadata";
+
 const Lexical = { EditComp: () => <div/>}
 
 const fieldTypes = {
@@ -40,18 +43,10 @@ const defaultReqTypes = {
 }
 
 const labelClass = 'text-sm font-light capitalize font-gray-700';
-const inputClass = 'bg-white w-full border p-2 rounded-md'
-
-const isJson = (str)  => {
-    try {
-        JSON.parse(str);
-    } catch (e) {
-        return false;
-    }
-    return true;
-}
 
 const RenderInputText = ({label, value, col, attr, disabled, hidden, updateAttribute}) => {
+    const {UI} = React.useContext(FormsContext);
+    const {Input} = UI;
     const [newValue, setNewValue] = useState(value);
 
     const delayedUpdate = (val) => setTimeout(updateAttribute(col, {[attr]: val}), 500);
@@ -59,11 +54,11 @@ const RenderInputText = ({label, value, col, attr, disabled, hidden, updateAttri
     return (
         <div className={'flex flex-col items-start'}>
             <label className={labelClass}>{label}</label>
-            <input
+            <Input
+                type={'text'}
                 disabled={disabled}
-                className={inputClass}
                 value={newValue}
-                placeholder={label}
+                placeHolder={label}
                 onChange={e => {
                     setNewValue(e.target.value)
                     delayedUpdate(e.target.value)
@@ -73,24 +68,24 @@ const RenderInputText = ({label, value, col, attr, disabled, hidden, updateAttri
     )
 }
 
-const RenderInputSelect = ({label, value, col, attr, updateAttribute, placeholder, options}) => (
-    <div className={'flex flex-col items-start'}>
-        <label className={labelClass}>{label}</label>
-        <select
-            className={inputClass}
-            value={value}
-            onChange={e => {
-                // onChange(e.target.value)
-                updateAttribute(col, {[attr]: e.target.value})
-            }}
-        >
-            <option>{placeholder}</option>
-            {
-                Object.keys(options).map(value => <option key={value} value={value}>{options[value]}</option>)
-            }
-        </select>
-    </div>
-)
+const RenderInputSelect = ({label, value, col, attr, updateAttribute, placeHolder='please select...', options}) => {
+    const {UI} = React.useContext(FormsContext);
+    const {Select} = UI;
+
+    return (
+        <div className={'flex flex-col items-start'}>
+            <label className={labelClass}>{label}</label>
+            <Select
+                value={value}
+                onChange={e => {
+                    // onChange(e.target.value)
+                    updateAttribute(col, {[attr]: e.target.value})
+                }}
+                options={[{label: placeHolder, value: undefined}, ...Object.keys(options).map(key => ({value: key, label: options[key]}))]}
+            />
+        </div>
+    )
+}
 
 const RenderInputLexical = ({label, value, col, attr, updateAttribute}) => (
     <div className={'flex flex-col items-start'}>
@@ -101,13 +96,80 @@ const RenderInputLexical = ({label, value, col, attr, updateAttribute}) => (
             onChange={e => {
                 updateAttribute(col, {[attr]: e})
             }}
-            placeholder={label}
+            placeHolder={label}
         />
     </div>
 )
 
+const RenderAddForm = ({editing, newOption, setNewOption, addNewValue, value}) => {
+    const {UI} = React.useContext(FormsContext);
+    const {Input, Button} = UI;
+
+    if(editing !== undefined) return null;
+    return (
+        <div className={'w-full flex'}>
+            <Input
+                value={newOption}
+                onChange={e => {
+                    setNewOption(e.target.value)
+                }}
+                onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addNewValue(value, newOption)
+                    }
+                }}
+                placeHolder={'Add new option...'}
+            />
+            <Button
+                className={'p-2'}
+                onClick={e => addNewValue(value, newOption)}>
+                add
+            </Button>
+        </div>
+    )
+}
+
+const RenderEditingForm = ({editingIndex, item, setEditing, value, replaceValue}) => {
+    if(editingIndex === undefined) return null;
+
+    const {UI} = React.useContext(FormsContext);
+    const {Input, Textarea, Button} = UI;
+    const [editingCopy, setEditingCopy] = useState(item); // using prop as state is fine since uniq key is used to render this component.
+
+    return (
+        <div className={'w-full flex'}>
+            <Input
+                value={editingCopy.label}
+                onChange={e => setEditingCopy({...editingCopy, label: e.target.value})}
+                placeHolder={'label'}
+            />
+            <Input
+                value={editingCopy.value} // if you change value, it's not going to match
+                disabled={true}
+                onChange={e => setEditingCopy({...editingCopy, value: e.target.value})}
+                placeHolder={'value'}
+            />
+            <Textarea
+                value={editingCopy.filter}
+                onChange={e => setEditingCopy({...editingCopy, filter: e.target.value})}
+                placeHolder={'filter'}
+            />
+            <Button
+                className={'p-2'}
+                onClick={e => {
+                    replaceValue(value, editingCopy, editingIndex)
+                    setEditing(undefined)
+                }}>
+                save
+            </Button>
+        </div>
+    )
+}
 const RenderOptions = ({attributeList, col, drivingAttribute, attr, value=[], dependsOn=[], updateAttribute}) => {
-    const [newOption, setNewOption] = useState(undefined);
+    const {UI} = React.useContext(FormsContext);
+    const {Input, Button} = UI;
+    const [newOption, setNewOption] = useState('');
     const [editing, setEditing] = useState(undefined);
     const options = useMemo(() => value?.map(v => v.label ? v : ({label: v, value: v})), [value]);
 
@@ -118,8 +180,8 @@ const RenderOptions = ({attributeList, col, drivingAttribute, attr, value=[], de
         setNewOption('')
     }
 
-    const replaceValue = (oldValue, newItem) => {
-        const newValue = oldValue.map(o => o.value === newItem.value ? newItem : o);
+    const replaceValue = (oldValue, newItem, i) => {
+        const newValue = oldValue.map((o, ii) => ii === i ? newItem : o);
         updateAttribute(col, {[attr]: newValue})
         setNewOption('')
     }
@@ -129,61 +191,10 @@ const RenderOptions = ({attributeList, col, drivingAttribute, attr, value=[], de
         updateAttribute(col, {[attr]: newValue})
     }
 
-    const RenderAddForm = () => editing ? null : (
-        <div className={'w-full flex'}>
-            <input
-                className='bg-white p-2 flex-1 px-2 shadow focus:ring-blue-700 focus:border-blue-500  border-gray-300 rounded-md'
-                value={newOption}
-                onChange={e => setNewOption(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && addNewValue(value, newOption)}
-                placeholder={'Add new option...'}
-            />
-            <button
-                className={'p-2'}
-                onClick={e => addNewValue(value, newOption)}>
-                add
-            </button>
-        </div>
-    )
-
-    const RenderEditingForm = () => {
-        const [editingCopy, setEditingCopy] = useState(editing);
-        if(!editing) return null;
-        return (
-            <div className={'w-full flex'}>
-                <input
-                    className='bg-white p-2 flex-1 px-2 shadow focus:ring-blue-700 focus:border-blue-500  border-gray-300 rounded-md'
-                    value={editingCopy.label}
-                    onChange={e => setEditingCopy({...editingCopy, label: e.target.value})}
-                    placeholder={'label'}
-                />
-                <input
-                    className='bg-white p-2 flex-1 px-2 shadow focus:ring-blue-700 focus:border-blue-500  border-gray-300 rounded-md'
-                    value={editingCopy.value} // if you change value, it's not going to match
-                    onChange={e => setEditingCopy({...editingCopy, value: e.target.value})}
-                    placeholder={'value'}
-                />
-                <textarea
-                    className='bg-white p-2 flex-1 px-2 shadow focus:ring-blue-700 focus:border-blue-500  border-gray-300 rounded-md'
-                    value={editingCopy.filter}
-                    onChange={e => setEditingCopy({...editingCopy, filter: e.target.value})}
-                    placeholder={'filter'}
-                />
-                <button
-                    className={'p-2'}
-                    onClick={e => {
-                        replaceValue(value, editingCopy)
-                        setEditing(undefined)
-                    }}>
-                    save
-                </button>
-            </div>
-        )
-    }
     return (
         <div className={'flex flex-col items-start w-full gap-1'}>
             <label className={labelClass}>Options</label>
-            <div className={'flex flex-row gap-1 items-center'}>
+            {/*<div className={'flex flex-row gap-1 items-center'}>
                 <label className={labelClass}>Depends on:</label>
                 <select
                     value={dependsOn?.[0]}
@@ -195,15 +206,16 @@ const RenderOptions = ({attributeList, col, drivingAttribute, attr, value=[], de
                         attributeList.map(name => <option key={name} value={name}>{name}</option>)
                     }
                 </select>
-            </div>
+            </div>*/}
             <div className={'w-full flex flex-col'}>
-                <RenderAddForm />
-                <RenderEditingForm />
+                <RenderAddForm {...{editing, Input, newOption, setNewOption, addNewValue, Button, value}} />
+                <RenderEditingForm key={editing} {...{editingIndex: editing, item: options[editing], setEditing, value, replaceValue}} />
+
                 <div className={'flex flex-row flex-wrap'}>
                     {
-                        options?.map(option => (
-                            <div className={'bg-red-500 hover:bg-red-700 text-white text-xs font-semibold px-1.5 py-1 m-1 flex no-wrap items-center rounded-md'}>
-                                <label className={'hover:cursor-pointer'} onClick={() => setEditing(option)}>{option?.label || option}</label>
+                        options?.map((option, optionI) => (
+                            <div key={optionI} className={'bg-red-500 hover:bg-red-700 text-white text-xs font-semibold px-1.5 py-1 m-1 flex no-wrap items-center rounded-md'}>
+                                <label className={'hover:cursor-pointer'} onClick={() => setEditing(optionI)}>{option?.label || option}</label>
                                 <div title={'remove'}
                                      className={'p-0.5 px-1 cursor-pointer'}
                                      onClick={e => removeValue(value, option)}
@@ -217,35 +229,79 @@ const RenderOptions = ({attributeList, col, drivingAttribute, attr, value=[], de
     )
 }
 
+const parseIfJSON = strValue => {
+    if(typeof strValue === 'object') return strValue;
+    try {
+        return JSON.parse(strValue);
+    }catch (e){
+        return {}
+    }
+}
 const RenderMappedOptions = ({col, drivingAttribute, attr, value='', updateAttribute}) => {
+    // {"viewId": "1346450", "sourceId": "1346449", "labelColumn": "municipality_name", "valueColumn": "geoid", "isDms": true, "type": "477b3e18-2b35-4e98-82f1-feb821ba4fc3"}
+    const {UI} = React.useContext(FormsContext);
+    const [newOption, setNewOption] = useState(parseIfJSON(value));
+    const {FieldSet} = UI;
+    const customTheme = {
+        field: 'pb-2 flex flex-col'
+    }
+    const inputKeys = [
+        {key: 'sourceId', placeHolder: 'source id'},
+        {key: 'viewId', placeHolder: 'view id'},
+        {key: 'labelColumn', placeHolder: 'label column'},
+        {key: 'valueColumn', placeHolder: 'value Column'},
+        {key: 'type', placeHolder: 'type'}
+    ]
     if(!['select', 'multiselect'].includes(drivingAttribute)) return null;
-    // {viewId: "1346450", sourceId: "1346449", labelColumn: "municipality_name", valueColumn: "geoid", isDms: true}
-    const [newOption, setNewOption] = useState(value || '');
-
-    useEffect(() => {
-        let isStale = false;
-
-        setTimeout(() => {
-            if(!isStale && value !== newOption){
-                updateAttribute(col, {[attr]: newOption})
-            }
-        }, 300)
-        return () => {
-            isStale = true;
-        }
-    }, [newOption])
-    console.log('????????????', value, newOption)
+    return (
+        <>
+            <label className={labelClass}>Options Map</label>
+            <FieldSet
+                className={'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-1'}
+                components={[
+                    ...inputKeys.map(({key, placeHolder}) => (
+                        {
+                            type: 'Input', label: placeHolder, placeHolder, value: newOption[key] || '',
+                            onChange: e => setNewOption({...newOption, [key]: e.target.value}),
+                            customTheme
+                        }
+                    )),
+                    {
+                        label: 'Internally sourced',
+                        type: 'Switch',
+                        enabled: newOption.isDms,
+                        size: 'small',
+                        setEnabled: e => setNewOption({...newOption, isDms: e}),
+                        className: 'self-center',
+                        customTheme
+                    },
+                    {
+                        type: 'Button', children: 'update',
+                        onClick: () => {
+                            updateAttribute(col, {[attr]: JSON.stringify(newOption)});
+                        }
+                    },
+                    {
+                        type: 'Button', children: 'remove',
+                        onClick: () => {
+                            updateAttribute(col, {[attr]: undefined});
+                            setNewOption({})
+                        }
+                    }
+                ]}
+            />
+        </>
+    )
     return (
         <div className={'flex flex-col items-start w-full'}>
-            <label className={labelClass}>Options Map</label>
 
             <div className={'w-full flex flex-col'}>
                 <div className={'w-full flex'}>
-                    <input
-                        className='bg-white p-2 flex-1 px-2 shadow focus:ring-blue-700 focus:border-blue-500  border-gray-300 rounded-md'
+                    <Input
+                        // className='bg-white p-2 flex-1 px-2 shadow focus:ring-blue-700 focus:border-blue-500  border-gray-300 rounded-md'
                         value={newOption}
                         onChange={e => setNewOption(e.target.value)}
-                        placeholder={'Add a mapping...'}
+                        placeHolder={'Add a mapping...'}
                     />
                 </div>
             </div>
@@ -253,43 +309,32 @@ const RenderMappedOptions = ({col, drivingAttribute, attr, value='', updateAttri
     )
 }
 
-const RenderMeta = ({value, col, drivingAttribute, attr, updateAttribute}) =>
-    drivingAttribute === 'meta' ? (
-        <div className={'flex flex-col items-start'}>
-            <label className={labelClass}>Meta Lookup</label>
-            <textarea
-                className={inputClass}
-                value={value}
-                placeholder={'Please enter meta lookup if available'}
-                onChange={e => {
-                    updateAttribute(col, {[attr]: e.target.value})
-                }}
-            />
-        </div>) : null;
-
 const RenderRemoveBtn = ({col, removeAttribute}) => {
-    const [timerId, setTimerId] = useState(undefined);
+    const {UI} = React.useContext(FormsContext);
+    const {Button, Modal} = UI;
+    const [showDeleteModal, setShowDeleteModal] = React.useState(false);
 
-    const delayedRemove = () => {
-        setTimerId(undefined)
-        removeAttribute(col)
-    }
     return (
-        <div className={'w-full'}>
-            <button
-                className={`${timerId ? `bg-blue-300 hover:bg-blue-500` : `bg-red-300 hover:bg-red-500`} w-fit p-1 m-2 text-white float-right rounded-md`}
-                onClick={() => {
-                    if (timerId) {
-                        clearTimeout(timerId)
-                        setTimerId(undefined)
-                    } else {
-                        const timerId = setTimeout(delayedRemove, 1500);
-                        setTimerId(timerId)
-                    }
-                }}
+        <div className={'w-full text-end'}>
+            <Modal open={showDeleteModal} setOpen={setShowDeleteModal} className={'border border-red-500'}>
+                <div className={'text-lg font-medium text-gray-900'}>Confirm Delete</div>
+                <div className={'text-md font-medium text-gray-900 py-4 px-2'}>
+                    Are you sure you want to delete column: <span className={'font-semibold'}>{col}</span>?
+                <div>This action can not be undone.</div>
+                </div>
+                <Button
+                    className={'bg-red-500 text-red-900'}
+                    onClick={() => removeAttribute(col)}
+                >
+                    delete
+                </Button>
+            </Modal>
+            <Button
+                className={'bg-red-500 text-red-900'}
+                onClick={() => setShowDeleteModal(true)}
             >
-                {timerId ? 'undo' : 'remove'}
-            </button>
+                delete
+            </Button>
         </div>
     )
 }
@@ -383,7 +428,7 @@ export const RenderField = ({i, item, attribute, attributeList=[], updateAttribu
                                 attr={'display'}
                                 options={item.type  === 'calculated' ? {'calculated': 'calculated'} : behaviourTypes} // don't rely on user selecting display. even if type is calculated, consider the column to be calculated.
                                 updateAttribute={updateAttribute}
-                                placeholder={'Please select behaviour type'}
+                                placeHolder={'Please select behaviour type'}
                             />
 
                             <RenderInputSelect
@@ -394,7 +439,7 @@ export const RenderField = ({i, item, attribute, attributeList=[], updateAttribu
                                 attr={'defaultFn'}
                                 options={defaultFnTypes}
                                 updateAttribute={updateAttribute}
-                                placeholder={'Please select default function'}
+                                placeHolder={'Please select default function'}
                             />
 
                             <RenderInputSelect
@@ -405,7 +450,7 @@ export const RenderField = ({i, item, attribute, attributeList=[], updateAttribu
                                 attr={'required'}
                                 options={defaultReqTypes}
                                 updateAttribute={updateAttribute}
-                                placeholder={'Please select property'}
+                                placeHolder={'Please select property'}
                             />
                         </div>
                     </div>
@@ -436,7 +481,7 @@ export const RenderField = ({i, item, attribute, attributeList=[], updateAttribu
                                    updateAttribute={updateAttribute}
                     />
                     <RenderMappedOptions key={`${item.name}-mapped-options`} col={item.name} drivingAttribute={item.type} value={item.mapped_options} attr={'mapped_options'} updateAttribute={updateAttribute}/>
-                    <RenderMeta key={`${item.name}-meta_lookup`} col={item.name} drivingAttribute={item.display} value={item.meta_lookup} attr={'meta_lookup'} updateAttribute={updateAttribute}/>
+                    <Metadata key={`${item.name}-meta_lookup`} col={item.name} drivingAttribute={item.display} value={item.meta_lookup} attr={'meta_lookup'} updateAttribute={updateAttribute}/>
                     <RenderRemoveBtn key={`${item.name}-removeBtn`} col={item.name} removeAttribute={removeAttribute}/>
 
                 </div>

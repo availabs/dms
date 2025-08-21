@@ -497,54 +497,86 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
 
     // =========================================== get input data ======================================================
     useEffect(() => {
-        // loads options for select / multiselect columns that point to a datasource
-        if(!allowEdit) return;
+        if (!allowEdit) return;
         let isStale = false;
 
-        async function loadOptionsData () {
-            const columnsToFetch = state.columns.filter(c => c.mapped_options);
+        async function loadOptionsData() {
+            try {
+                const columnsToFetch = state.columns.filter(c => c.mapped_options);
 
-            const responses = await columnsToFetch.reduce(async (acc, column) => {
-                const mapped_options = JSON.parse(column.mapped_options);
-                const columns = [...new Set([mapped_options.labelColumn, mapped_options.valueColumn])].filter(c => c);
-                const prev = await acc;
-                const {data} = await getData({apiLoad, fullDataLoad: true, currentPage: 0, state: {
-                        dataRequest: mapped_options.filter || {},
-                        display: {},
-                        sourceInfo: {
-                            source_id: mapped_options.sourceId,
-                            view_id: mapped_options.viewId,
-                            isDms: mapped_options.isDms,
-                            columns: columns.map(c => ({name: c})),
-                            app: state.sourceInfo.app,
-                            type: mapped_options.type,
-                            env: mapped_options.isDms ? `${state.sourceInfo.app}+${mapped_options.type}` : pgEnv // can only access datasets from current app / pgEnv
-                        },
-                        columns: columns.map(c => ({name: c, show: true}))
-                    }});
+                const fetchPromises = columnsToFetch.map(async column => {
+                    let mapped_options;
+                    try {
+                        mapped_options = JSON.parse(column.mapped_options);
+                    } catch {
+                        console.warn('Invalid mapped_options JSON', column.mapped_options);
+                        return [column.name, column.options || []];
+                    }
 
-                prev[column.name] = data.map(d => ({label: d[mapped_options.labelColumn] || 'N/A', value: d[mapped_options.valueColumn]}))
-                return prev;
-            }, {});
+                    const columns = [...new Set([mapped_options.labelColumn, mapped_options.valueColumn])].filter(Boolean);
 
-            if(!isStale){
-                setState(draft => {
-                    draft.columns.filter(c => c.mapped_options)
-                        .forEach(c => {
-                            const fetchedOptions = responses[c.name] || [];
-                            if(!isEqual(c.options, fetchedOptions)){
-                                c.options = fetchedOptions
+                    try {
+                        const { data } = await getData({
+                            apiLoad,
+                            fullDataLoad: true,
+                            currentPage: 0,
+                            state: {
+                                dataRequest: mapped_options.filter || {},
+                                display: {},
+                                sourceInfo: {
+                                    source_id: mapped_options.sourceId,
+                                    view_id: mapped_options.viewId,
+                                    isDms: mapped_options.isDms,
+                                    columns: columns.map(c => ({ name: c })),
+                                    app: state.sourceInfo.app,
+                                    type: mapped_options.type,
+                                    env: mapped_options.isDms
+                                        ? `${state.sourceInfo.app}+${mapped_options.type}`
+                                        : pgEnv
+                                },
+                                columns: columns.map(c => ({ name: c, show: true }))
                             }
-                        })
-                })
+                        });
+                        return [
+                            column.name,
+                            data.map(d => ({
+                                label: d[mapped_options.labelColumn] || 'N/A',
+                                value: d[mapped_options.valueColumn]
+                            }))
+                        ];
+                    } catch (err) {
+                        console.error(`Failed to load options for column ${column.name}:`, err);
+                        return [column.name, column.options || []];
+                    }
+                });
+
+                const results = await Promise.all(fetchPromises);
+
+                if (!isStale) {
+                    const responses = Object.fromEntries(results);
+
+                    setState(draft => {
+                        draft.columns.forEach(c => {
+                            if (c.mapped_options) {
+                                const fetchedOptions = responses[c.name] || [];
+                                if (!isEqual(c.options, fetchedOptions)) {
+                                    c.options = fetchedOptions;
+                                }
+                            }
+                        });
+                    });
+                }
+            } catch (err) {
+                console.error('Error loading options:', err);
             }
         }
 
         loadOptionsData();
         return () => {
             isStale = true;
-        }
-    }, [allowEdit, state.columns, isEdit]);
+        };
+    }, [allowEdit, isEdit, state.columns.map(c => c.mapped_options).join(',')]);
+
 
     // ========================================= get input data end ======================================================
     // =========================================== get data end ========================================================

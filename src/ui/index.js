@@ -16,6 +16,7 @@ import ColorPicker from "./components/Colorpicker";
 import Tabs from "./components/Tabs";
 import Drawer from "./components/Drawer";
 import Input from "./components/Input"
+import Textarea from "./components/Textarea"
 import Select from './components/Select';
 import Dialog from "./components/Dialog";
 import Dropdown from "./components/Dropdown";
@@ -26,7 +27,9 @@ import DraggableNav from "./components/nestable/draggableNav";
 import Pagination from "./components/Pagination";
 import Table from "./components/table";
 import Card from "./components/Card";
-import Graph from "./components/graph"
+import Graph from "./components/graph";
+import Listbox from "./components/Listbox";
+
 export default {
 	// --- Layout
 	Layout,
@@ -47,6 +50,7 @@ export default {
 	FieldSet,
 	Switch,
 	Input,
+    Textarea,
 	Select,
 	ColorPicker,
 	Tabs,
@@ -60,5 +64,6 @@ export default {
 	Pagination,
 	Table,
 	Card,
-	Graph
+	Graph,
+    Listbox
 }
