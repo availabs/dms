@@ -10,7 +10,7 @@ function pdfExport({ }) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedPageIds, setSelectedPageIds] = useState(new Set());
   const [expandedNodeIds, setExpandedNodeIds] = useState(new Set());
-  const [loadedpg, setLoadedPG] = useState([]);
+  // const [loadedpg, setLoadedPG] = useState([]);
   const { UI, app, /*type,*/ API_HOST, siteType } = React.useContext(CMSContext) || {};
   const { apiLoad, format } = React.useContext(PageContext) || {};
 
@@ -51,6 +51,9 @@ function pdfExport({ }) {
         })
         data = data?.map(d => ({ app: d.app, doc_type: d.doc_type, name: d.name }));
         setPatterns(data);
+        if (data && data.length>0 && data[0]) {
+          setSelectedPattern(data[0]);
+        }
       }
     };
 
@@ -257,7 +260,7 @@ function pdfExport({ }) {
         // No setIsGenerating(false) here!
       }
 
-      setLoadedPG(results);
+      // setLoadedPG(results);
       const origin = window.location.origin;
       await selectablePDF2(results.map((r) => `${origin}${r.path}`), API_HOST);
     } catch (error) {
