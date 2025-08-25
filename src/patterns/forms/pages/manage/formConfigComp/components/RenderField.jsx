@@ -1,46 +1,52 @@
-import React, {useEffect, useMemo, useState} from "react";
+import React, {useMemo, useState} from "react";
 import {FormsContext} from "../../../../siteConfig";
 import {Metadata} from "./Metadata";
 
 const Lexical = { EditComp: () => <div/>}
 
-const fieldTypes = {
-    // value: label
-    'text': 'text',
-    'textarea': 'text area',
-    'select': 'dropdown',
-    'multiselect': 'dropdown (multiple choice)',
-    'lexical': 'rich text',
-    'radio': 'radio',
-    'checkbox': 'checkbox',
-    'calculated': 'calculated' // can't be inputted, always calculated. don't use data->> to access.
-}
+const fieldTypes = [
+    { value: 'text', label: 'text' },
+    { value: 'textarea', label: 'text area' },
+    { value: 'lexical', label: 'rich text' },
+    { value: 'number', label: 'number', dataType: 'numeric' },
+    { value: 'date', label: 'date', dataType: 'date' },
+    { value: 'timestamp', label: 'timestamp', dataType: 'timestamp' },
+    { value: 'select', label: 'dropdown' },
+    { value: 'multiselect', label: 'dropdown (multiple choice)' },
+    { value: 'switch', label: 'switch', dataType: 'boolean' },
+    { value: 'radio', label: 'radio' },
+    { value: 'checkbox', label: 'checkbox' },
+    { value: 'calculated', label: 'calculated' } // can't be inputted, always calculated. don't use data->> to access.
+];
 
-const dataTypes = {
-    numeric: 'Numeric',
-    text: 'Text',
-    date: 'Date',
-    timestamp: 'Timestamp'
-}
+// required to sort differently than the input type.
+// select, multiselect are saved as text, but may need to be sorted numerically
+const dataTypes = [
+    { value: 'numeric', label: 'Numeric' },
+    { value: 'text', label: 'Text' },
+    { value: 'boolean', label: 'Boolean' },
+    { value: 'date', label: 'Date' },
+    { value: 'timestamp', label: 'Timestamp' }
+];
 
-const behaviourTypes = {
-    'data': 'Simple Data',
-    'meta': 'Group-able/Meta',
-    'fips': 'fips',
-    'geoid': 'geoid',
-    'calculated': 'calculated'
-}
+// certain calculated columns (array output) may beed to be shown as select/multiselect,
+// but they still need to be identified as calculated.
+const behaviourTypes = [
+    { value: 'data', label: 'Simple Data' },
+    { value: 'meta', label: 'Meta' },
+    { value: 'calculated', label: 'calculated' }
+];
 
-const defaultFnTypes = {
-    'sum': 'Sum',
-    'list': 'List',
-    'count': 'Count',
-}
+const defaultFnTypes = [
+    { value: 'sum', label: 'Sum' },
+    { value: 'list', label: 'List' },
+    { value: 'count', label: 'Count' }
+];
 
-const defaultReqTypes = {
-    'yes': 'Yes',
-    'no': 'No'
-}
+const defaultReqTypes = [
+    { value: 'yes', label: 'Yes' },
+    { value: 'no', label: 'No' }
+];
 
 const labelClass = 'text-sm font-light capitalize font-gray-700';
 
@@ -68,7 +74,7 @@ const RenderInputText = ({label, value, col, attr, disabled, hidden, updateAttri
     )
 }
 
-const RenderInputSelect = ({label, value, col, attr, updateAttribute, placeHolder='please select...', options}) => {
+const RenderInputSelect = ({label, value='', col, attr, updateAttribute, placeHolder='please select...', options}) => {
     const {UI} = React.useContext(FormsContext);
     const {Select} = UI;
 
@@ -78,10 +84,14 @@ const RenderInputSelect = ({label, value, col, attr, updateAttribute, placeHolde
             <Select
                 value={value}
                 onChange={e => {
-                    // onChange(e.target.value)
-                    updateAttribute(col, {[attr]: e.target.value})
+                    const valueToUpdate = {[attr]: e.target.value};
+                    if(attr === 'type') {
+                        valueToUpdate['dataType'] = options.find(o => o.value === e.target.value)?.dataType || undefined;
+
+                    }
+                    updateAttribute(col, valueToUpdate)
                 }}
-                options={[{label: placeHolder, value: undefined}, ...Object.keys(options).map(key => ({value: key, label: options[key]}))]}
+                options={[{label: placeHolder, value: undefined}, ...options]}
             />
         </div>
     )
@@ -426,7 +436,7 @@ export const RenderField = ({i, item, attribute, attributeList=[], updateAttribu
                                 value={item.display}
                                 col={item.name}
                                 attr={'display'}
-                                options={item.type  === 'calculated' ? {'calculated': 'calculated'} : behaviourTypes} // don't rely on user selecting display. even if type is calculated, consider the column to be calculated.
+                                options={item.type  === 'calculated' ? [{'calculated': 'calculated'}] : behaviourTypes} // don't rely on user selecting display. even if type is calculated, consider the column to be calculated.
                                 updateAttribute={updateAttribute}
                                 placeHolder={'Please select behaviour type'}
                             />
@@ -469,7 +479,7 @@ export const RenderField = ({i, item, attribute, attributeList=[], updateAttribu
                         value={item.trueValue}
                         col={item.name}
                         updateAttribute={updateAttribute}
-                        hidden={item.type !== 'checkbox'}
+                        hidden={!['checkbox', 'switch'].includes(item.type)}
                     />
                     <RenderOptions key={`${item.name}-options`}
                                    col={item.name}

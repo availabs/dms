@@ -15,6 +15,7 @@ const Edit = ({value = '', onChange, className, placeholder, ...rest}) => {
     useEffect(() => setTmpValue(value), [value]);
     return (
         <input
+            type={''}
             {...rest}
             className={ className || (theme?.text?.input || 'w-full border p-2')}
             value={tmpValue}

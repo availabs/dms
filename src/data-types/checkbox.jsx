@@ -16,13 +16,13 @@ const Edit = ({value = '', onChange, className, placeholder, trueValue=true, ...
     return (
         <input
             {...rest}
-            type={'checkbox'}
-            className={ className || (theme?.text?.input || 'w-full border p-2')}
+            type="checkbox"
+            className={className || "w-full border p-2"}
             checked={tmpValue === trueValue}
-            placeholder={placeholder}
             onChange={(e) => {
-                setTmpValue(e.target.checked ? trueValue : undefined)
-                onChange(e.target.value ? trueValue : undefined)
+                const newValue = e.target.checked ? trueValue : undefined;
+                setTmpValue(newValue);
+                onChange?.(newValue);
             }}
         />
     )
