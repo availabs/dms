@@ -39,12 +39,11 @@ export const dmsDataTypes = {
     'switch': {
         EditComp: ({trueValue=true, value, onChange, ...props}) =>
             <Switch {...props} enabled={value === trueValue}
-                    setEnabled={e => {
-                        onChange(e ? trueValue : false)
-                    }}
+                    setEnabled={e => onChange(e ? trueValue : false)}
+                    size={'small'}
             />,
         ViewComp: ({trueValue=true, onChange, value, ...props}) =>
-            <Switch {...props} enabled={value === trueValue} disabled={true} />
+            <Switch {...props} enabled={value === trueValue} disabled={true} size={'small'}/>
     },
 	'default': Text
 }
