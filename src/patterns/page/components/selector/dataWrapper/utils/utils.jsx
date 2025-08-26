@@ -163,7 +163,7 @@ const evaluateAST = (node, values) => {
 export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => {
     const {groupBy=[], orderBy={}, filter={}, normalFilter=[], fn={}, exclude={}, meta={}, filterRelation, ...restOfDataRequestOptions} = state.dataRequest || {};
 
-    const debug = false;
+    const debug = true;
     debug && console.log('=======getDAta called===========')
     // get columns with all settings and info about them.
     const columnsWithSettings = state.columns.filter(({actionType, type}) => !actionType && type !== 'formula').map(column => {
@@ -451,14 +451,18 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
         action: actionType,
         path: '/',
         filter: {
-            fromIndex: () => fromIndex,
-            toIndex: () => toIndex,
+            fromIndex: fromIndex,
+            toIndex: toIndex,
             options: JSON.stringify(options),
             attributes: columnsToFetch.map(a => a.reqName).filter(a => a),
             stopFullDataLoad: true
         },
     }]
     let data;
+     debug && console.log('debug getdata: config', {
+            format: state.sourceInfo,
+            children
+    }, fromIndex, toIndex)
     try{
         data = await apiLoad({
             format: state.sourceInfo,
@@ -468,7 +472,7 @@ export const getData = async ({state, apiLoad, fullDataLoad, currentPage=0}) => 
         if (process.env.NODE_ENV === "development") console.error(e)
         return {length, data: [], invalidState: 'An Error occurred while fetching data.'};
     }
-
+    debug && console.log('debug getdata: the data', data.length) 
     // =================================================================================================================
     // =========================================== fetch total row begin  ==============================================
     // =================================================================================================================

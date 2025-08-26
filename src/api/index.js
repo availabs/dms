@@ -165,6 +165,7 @@ export async function dmsDataLoader (falcor, config, path='/') {
 			.map(index => get(newReqFalcor, [...itemReqByIndex, index, 'value', 3])) // ['dms', 'data', 'byId', id]
 			.filter(d => d) : [];
 
+	console.log('api - index - from/to', fromIndex, toIndex)
 	activeIds.push(...(filteredIds || []))
 	// ---------------------------------------------------------------------------------------------------
 
