@@ -10,7 +10,7 @@ export const docs = {
 export const modalTheme = {
     "key": "value pair"
 } 
-export default function({open, setOpen, initialFocus, children}) {
+export default function({open, setOpen, initialFocus, children, className}) {
     return (
         <Transition.Root show={open} as={Fragment}>
             <Dialog as="div" className="relative z-30" initialFocus={initialFocus} onClose={setOpen}>
@@ -40,7 +40,7 @@ export default function({open, setOpen, initialFocus, children}) {
                             leaveFrom="opacity-100 translate-y-0 sm:scale-100"
                             leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
                         >
-                            <DialogPanel className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6">
+                            <DialogPanel className={`relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6 ${className}`}>
                                 {children}
                             </DialogPanel>
                         </Transition.Child>

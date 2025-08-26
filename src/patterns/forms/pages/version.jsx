@@ -1,14 +1,14 @@
 import React, {useContext, useState} from "react";
 import { FormsContext } from '../siteConfig'
+import { ThemeContext } from "../../../ui/useTheme";
 import SourcesLayout from "../components/patternListComponent/layout";
 import { cloneDeep } from "lodash-es";
 import {useNavigate} from "react-router";
-import {CMSContext} from "../../page/context";
 const buttonRedClass = 'w-full p-2 mx-1 bg-red-300 hover:bg-red-500 text-gray-800 rounded-md';
 const buttonGreenClass = 'p-2 mx-1 bg-green-500 hover:bg-green-700 text-white rounded-md';
 
 const DeleteViewBtn = ({item, view_id, format, url, apiUpdate, baseUrl}) => {
-    const {UI} = useContext(CMSContext);
+    const {UI} = useContext(FormsContext);
     const {DeleteModal} = UI;
     // update parent to exclude item. the item still stays in the DB.
     const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -47,7 +47,7 @@ const DeleteViewBtn = ({item, view_id, format, url, apiUpdate, baseUrl}) => {
 }
 
 const ClearDataBtn = ({app, type, view_id, apiLoad, apiUpdate}) => {
-    const {UI} = useContext(CMSContext);
+    const {UI} = useContext(FormsContext);
     const {DeleteModal} = UI;
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const clearData = async () => {
@@ -134,8 +134,9 @@ const Version = ({
                    manageTemplates = false,
                    ...r
                }) => {
-    const {API_HOST, baseUrl, pageBaseUrl, theme, user, parent} = React.useContext(FormsContext) || {};
-    const {app, type, config} = parent;
+    const {baseUrl, pageBaseUrl, parent} = React.useContext(FormsContext) || {};
+    const {theme} = React.useContext(ThemeContext) || {};
+    const {app} = parent;
 
     const currentView = (item?.views || []).find(v => v.id === params.view_id);
 

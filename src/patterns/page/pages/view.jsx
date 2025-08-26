@@ -50,14 +50,14 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
         let items = dataItemsNav(theme?.navOptions?.secondaryNav?.navItems || [],baseUrl,false)
         return items
     }, [theme?.navOptions?.secondaryNav?.navItems])
-    // React.useEffect(() => {
-    //     // -------------------------------------------------------------------
-    //     // -- This on load effect backfills pages created before sectionGroups
-    // /     // -- This should be deleted by JUNE 1 2025
-    //     // -------------------------------------------------------------------
-    //     //sectionsBackill(item,baseUrl,apiUpdate)
-    //
-    // },[])
+    React.useEffect(() => {
+        // -------------------------------------------------------------------
+        // -- This on load effect backfills pages created before sectionGroups
+        // -- This should be deleted by JUNE 1 2025
+        // -------------------------------------------------------------------
+        //sectionsBackill(item,baseUrl,apiUpdate)
+    
+    },[])
 
     useEffect(() => {
         updatePageStateFiltersOnSearchParamChange({searchParams, item, patternFilters, setPageState})

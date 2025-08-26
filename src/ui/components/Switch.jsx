@@ -8,7 +8,7 @@ export const docs = [
     { enabled: false, size: 'medium', doc_name: 'medium inactive' },
     { enabled: true, size: 'medium', doc_name: 'medium active' },
 ]
-export default function RenderSwitch({ enabled=false, setEnabled, label, size='medium' }) {
+export default function RenderSwitch({ enabled=false, setEnabled, label, disabled, size='medium' }) {
     const sizeClassesPill = {
         xs: 'h-2 w-6',
         small: 'h-4 w-8',
@@ -46,8 +46,9 @@ export default function RenderSwitch({ enabled=false, setEnabled, label, size='m
             aria-checked={enabled}
             aria-label={label}
             tabIndex={0}
-            onClick={() => setEnabled && setEnabled(!enabled)}
+            onClick={() =>setEnabled && setEnabled(!enabled)}
             onKeyDown={(e) => {
+                if(disabled) return;
                 if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
                     setEnabled && setEnabled(!enabled);

@@ -1,8 +1,7 @@
-import React, {useEffect, useState} from "react";
-import Layout from '../../ui/avail-layout'
+import React from "react";
 import { FormsContext } from '../../siteConfig'
 import SourcesLayout from "../../components/patternListComponent/layout";
-
+import FormConfigComp from "./formConfigComp";
 
 const ManageForm = ({
     status,
@@ -36,12 +35,15 @@ const ManageForm = ({
             <div className={`${theme?.page?.wrapper1}`}>
                     <div className={'overflow-auto flex flex-1 w-full flex-col shadow bg-white relative text-md font-light leading-7 p-4'}>
                         {status ? <div>{JSON.stringify(status)}</div> : ''}
-                        <div className='w-full max-w-6xl mx-auto'>
+                        <div className='w-full'>
                             {Object.keys(attributes)
                                 .filter(attr => attr === 'config')
                                 .map((attrKey, i) => {
                                     let EditComp = attributes[attrKey].EditComp;
                                     //console.log('attrs', attributes[attrKey], item)
+                                    if(attrKey === 'config') {
+                                        EditComp = FormConfigComp
+                                    }
                                     return (
                                         <div key={`${attrKey}-${i}`}>
                                             <EditComp
@@ -56,6 +58,7 @@ const ManageForm = ({
                                                 item={item}
                                                 apiLoad={apiLoad}
                                                 {...attributes[attrKey]}
+                                                key={`${attrKey}-${i}`}
                                                 format={format}
                                             />
                                         </div>

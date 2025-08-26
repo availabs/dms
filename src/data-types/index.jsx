@@ -1,32 +1,51 @@
 import React from 'react'
-import text from './text'
+import Text from './text'
 import textarea from './textarea'
 import boolean from './boolean'
-import config from './form-config'
-//import template from './template'
 import dmsFormat from './dms-format'
 import Array from './array'
 import Lexical from '../patterns/page/components/selector/ComponentRegistry/richtext/lexical'
-
 import { get } from "lodash-es"
-import Select from "./select";
 import Multiselect from "./multiselect";
 import Radio from "./radio";
-let i = 0
+import Checkbox from "./checkbox";
+import Switch from "../ui/components/Switch";
 
 export const dmsDataTypes = {
-	'text': text,
-	'datetime': text,
-	'textarea': textarea,
-	'config': config,
-	//'form-template': template,
+	'text': Text,
+    'textarea': textarea,
+    'lexical': Lexical,
+    'number': {
+        EditComp: (props) => <Text.EditComp {...props} type={'number'} />,
+        ViewComp: (props) => <Text.ViewComp {...props} type={'number'} />,
+    },
+    'date': {
+        EditComp: (props) => <Text.EditComp {...props} type={'date'} />,
+        ViewComp: (props) => <Text.ViewComp {...props} type={'date'} />,
+    },
+    'timestamp': {
+        EditComp: (props) => <Text.EditComp {...props} type={'datetime-local'} />,
+        ViewComp: (props) => <Text.ViewComp {...props} type={'datetime-local'} />,
+    },
 	'boolean': boolean,
 	'dms-format': dmsFormat,
-	'lexical': Lexical,
-	'select': Select,
+	'select': {
+        EditComp: (props) => <Multiselect.EditComp {...props} singleSelectOnly={true} />,
+        ViewComp: (props) => <Multiselect.ViewComp {...props} singleSelectOnly={true} />,
+    },
 	'multiselect': Multiselect,
 	'radio': Radio,
-	'default': text
+    'checkbox': Checkbox,
+    'switch': {
+        EditComp: ({trueValue=true, value, onChange, ...props}) =>
+            <Switch {...props} enabled={value === trueValue}
+                    setEnabled={e => onChange(e ? trueValue : false)}
+                    size={'small'}
+            />,
+        ViewComp: ({trueValue=true, onChange, value, ...props}) =>
+            <Switch {...props} enabled={value === trueValue} disabled={true} size={'small'}/>
+    },
+	'default': Text
 }
 
 

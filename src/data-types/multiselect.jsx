@@ -140,7 +140,7 @@ function useComponentVisible(initial) {
 }
 
 
-const Edit = ({value = [], loading, onChange, className,placeholder, options = [], displayInvalidMsg=true, menuPosition='bottom', singleSelectOnly=false}) => {
+const Edit = ({value = [], loading, onChange, className,placeholder, options = [], displayInvalidMsg=false, menuPosition='bottom', singleSelectOnly=false}) => {
     // options: ['1', 's', 't'] || [{label: '1', value: '1'}, {label: 's', value: '2'}, {label: 't', value: '3'}]
     const [searchKeyword, setSearchKeyword] = useState('');
     const typeSafeValue = (Array.isArray(value) ? value : [value]).map(v => options.find(o => looselyEqual((o?.value || o), (v?.value || v))) || v);
@@ -176,7 +176,7 @@ const Edit = ({value = [], loading, onChange, className,placeholder, options = [
                                 theme={theme}
                             />)
                 }
-                <ArrowDown className={'ml-auto self-center font-bold'} width={16} height={16}/>
+                <ArrowDown className={`ml-auto self-center font-bold ${typeSafeValue?.length ? `-mt-4` : ``}`} width={16} height={16}/>
             </div>
 
             <RenderMenu

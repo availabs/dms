@@ -37,9 +37,8 @@ export default function ({totalLength, pageSize, usePagination,
     for (let i = start; i <= end; i++) {
         paginationRange.push(i);
     }
-
-    if(paginationRange.length === 1 ) return null;
-
+    const showPaginationStats = false;
+    if(paginationRange.length === 1 || (!usePagination && !showPaginationStats) ) return null;
     return (
         <div className={theme?.table?.paginationContainer}>
             {
@@ -66,11 +65,11 @@ export default function ({totalLength, pageSize, usePagination,
                                  onClick={() => setCurrentPage(currentPage < totalPages - 1  ? currentPage + 1 : currentPage)}>{`next >`}</div>
                         </div>
                     </>
-                ) : (
+                ) : showPaginationStats ? (
                     <div className={'text-xs italic'}>
                         showing {totalLength} rows
                     </div>
-                )
+                ) : null
             }
         </div>
     )

@@ -1,7 +1,6 @@
 import React from 'react';
-import {Link, useNavigate, useParams} from 'react-router'
-//import {Alert} from "../../ui/icons";
-//import {Database} from "~/modules/dms/src/patterns/page/ui/icons";
+import {Link, useNavigate} from 'react-router'
+import {FormsContext} from "../../siteConfig";
 
 const Alert = () => <div>A</div>
 const Database =  () => <div>D</div>
@@ -15,13 +14,13 @@ const navPages = [
   {name: 'Admin', href: `admin`, viewDependentPage: false},
 ]
 
-const SourcesLayout = ({children, fullWidth, hideBreadcrumbs, hideNav, form, page, baseUrl, pageBaseUrl, id, views=[], view_id, showVersionSelector = false }) => {
+const SourcesLayout = ({children, hideBreadcrumbs, hideNav, form, page, baseUrl, pageBaseUrl, id, views=[], view_id, showVersionSelector = false }) => {
     const navigate = useNavigate();
   return (
-    <div className={`${fullWidth ? '' : 'max-w-6xl mx-72'} h-full flex flex-col`}>
-      {hideBreadcrumbs ? '' :  <div className=''>
-        <Breadcrumbs fullWidth={fullWidth} baseUrl={baseUrl} form={form} page={page} />
-      </div> }
+    <div className={`h-full flex flex-col`}>
+        {hideBreadcrumbs ? '' :  <div className=''>
+            <Breadcrumbs baseUrl={baseUrl} form={form} page={page} />
+        </div> }
 
         <div className={'w-full flex justify-between'}>
             <Nav navPages={navPages} page={page} hideNav={hideNav} baseUrl={pageBaseUrl} id={id} view_id={view_id}/>
@@ -67,16 +66,18 @@ const Nav = ({baseUrl, navPages, page, hideNav, id, view_id}) => hideNav ? null 
       }
     </nav>
 )
-const Breadcrumbs = ({fullWidth, baseUrl, form, page}) => {
+const Breadcrumbs = ({baseUrl, form, page}) => {
+    const {UI} = React.useContext(FormsContext);
+    const {Icon} = UI;
   const isListAll = false;
 
   return (
       <nav className="border-b border-gray-200 flex " aria-label="Breadcrumb">
-        <ol className={`${fullWidth ? `w-full` : `max-w-screen-xl w-full mx-auto`}  px-4 flex space-x-4 sm:px-6 lg:px-8`}>
+        <ol className={`w-full px-4 flex space-x-4 sm:px-6 lg:px-8`}>
           <li className="flex">
             <div className="flex items-center">
               <Link to={`${baseUrl || '/'}${isListAll ? `/listall` : ``}`} className={"hover:text-[#bbd4cb] text-[#679d89]"}>
-                  <Database className={"text-slate-400 hover:text-slate-500 size-4"} />
+                  <Icon icon={'Database'} className={"text-slate-400 hover:text-slate-500 size-4"} />
                   <span className="sr-only">Data Sources</span>
             </Link>
           </div>

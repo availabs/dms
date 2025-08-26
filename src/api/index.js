@@ -72,8 +72,13 @@ export async function dmsDataLoader (falcor, config, path='/') {
 		const options = activeConfigs.find(ac => ['udaLength'].includes(ac.action))?.filter?.options;
 		if(options) lengthReq = ['uda', env, 'viewsById', view_id, 'options', options, 'length' ];
 	}
-
-	const length = get(await falcor.get(lengthReq), ['json',...lengthReq], 0)
+    let length;
+    try{
+        length = get(await falcor.get(lengthReq), ['json',...lengthReq], 0)
+    }catch (e){
+        console.error('Error getting length')
+        length = 0;
+    }
 	// console.log('length',length)
 	if(activeConfigs.find(ac => ['length', 'filteredLength', 'udaLength', 'udaLength'].includes(ac.action))){
 		return length;
@@ -94,7 +99,11 @@ export async function dmsDataLoader (falcor, config, path='/') {
 	//let dataresp = null
 	
 	if (newRequests.length > 0 ) {
-		await falcor.get(...newRequests)
+        try{
+            await falcor.get(...newRequests)
+        }catch (e){
+            console.error('Error fetching data', e)
+        }
 	}
 	// get api response
 	let newReqFalcor = falcor.getCache()
@@ -158,6 +167,8 @@ export async function dmsDataLoader (falcor, config, path='/') {
 		typeof activeConfigs?.[0]?.filter?.toIndex === "function" ?
 			activeConfigs?.[0]?.filter?.toIndex(path) :
 			(+activeConfigs?.[0]?.params?.[activeConfigs?.[0]?.filter?.toIndex]);
+
+	console.log('api - index - from/to', fromIndex, toIndex)
 
 	const filteredIds = !id && fromIndex !== undefined && toIndex !== undefined ?
 		Object.keys(get(newReqFalcor, [...itemReqByIndex], {}))

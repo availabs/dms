@@ -88,6 +88,10 @@ export const RenderFilterValueSelector = ({
                     if (key === 'usePageFilters' && value === true && !targetFilter['searchParamKey']) {
                         targetFilter['searchParamKey'] = filterColumn.name;
                     }
+
+                    if (key === 'usePageFilters' && value === false) {
+                        targetFilter['allowSearchParams'] = false;
+                    }
                     draft.display.readyToLoad = true;
                 });
             }, delay);

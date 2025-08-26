@@ -262,7 +262,7 @@ export const RenderFilters = ({
     // add UI dropdown to change filter type
     // add UI to change filter operation
     //console.log('filters', filterOptions)
-    const gridSize = Math.min(state?.display?.gridSize, filterColumnsToRender.length);
+    const gridSize = Math.min(state?.display?.gridSize || 1, filterColumnsToRender.length);
     const placement = state?.display?.placement || 'stacked';
     const placementClass = {
         inline: theme.filters.filterSettingsWrapperInline,
