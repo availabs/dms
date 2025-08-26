@@ -1,5 +1,6 @@
 import React, {useContext, useState} from "react";
 import { FormsContext } from '../siteConfig'
+import { ThemeContext } from "../../../ui/useTheme";
 import SourcesLayout from "../components/patternListComponent/layout";
 import { cloneDeep } from "lodash-es";
 import {useNavigate} from "react-router";
@@ -160,7 +161,8 @@ const Admin = ({
                    manageTemplates = false,
                    ...r
                }) => {
-    const {app, API_HOST, baseUrl, pageBaseUrl, theme, user, parent, ...rest} = React.useContext(FormsContext) || {};
+    const {app, API_HOST, baseUrl, pageBaseUrl, user, parent, ...rest} = React.useContext(FormsContext) || {};
+    const {theme} = React.useContext(ThemeContext) || {};
 
     return (
         <SourcesLayout fullWidth={false} baseUrl={baseUrl} pageBaseUrl={pageBaseUrl} isListAll={false}

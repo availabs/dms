@@ -2,6 +2,7 @@ import React, {useContext, useEffect, useState} from "react";
 import { FormsContext } from '../siteConfig'
 import SourcesLayout from "../components/patternListComponent/layout";
 import Upload from "../components/upload";
+import {ThemeContext} from "../../../ui/useTheme";
 
 const UploadPage = ({
     status,
@@ -18,7 +19,8 @@ const UploadPage = ({
     manageTemplates = false,
     // ...rest
 }) => {
-    const { API_HOST, baseUrl, pageBaseUrl, theme, user, ...rest } = React.useContext(FormsContext) || {};
+    const { API_HOST, baseUrl, pageBaseUrl, user, ...rest } = React.useContext(FormsContext) || {};
+    const {theme} = useContext(ThemeContext) || {};
 
     return (
         <SourcesLayout fullWidth={false} baseUrl={baseUrl} pageBaseUrl={pageBaseUrl} isListAll={false} hideBreadcrumbs={false}

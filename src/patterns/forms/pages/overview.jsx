@@ -106,7 +106,7 @@ const OverViewEdit = ({
       submit,
       apiLoad
 }) => {
-    const {app, falcor, falcorCache, baseUrl, pageBaseUrl, user} = useContext(FormsContext);
+    const {baseUrl, pageBaseUrl, user} = useContext(FormsContext);
 
     const [editing, setEditing] = useState();
     const columns = useMemo(() => isJson(item.config) ? JSON.parse(item.config)?.attributes : [], [item.config]);
@@ -122,10 +122,8 @@ const OverViewEdit = ({
     const updatedTimeStamp = new Date(item?.updated_at || '').toLocaleDateString(undefined, dateOptions);
     const DescComp = useMemo(() => editing === 'description' ? attributes['description'].EditComp : attributes['description'].ViewComp, [editing]);
     const CategoriesComp = SourceCategories // useMemo(() => editing === 'categories' ? attributes['categories'].EditComp : attributes['categories'].ViewComp, [editing]);
-
-    console.log('props',item, baseUrl, pageBaseUrl, params.id)
     const Lexical = dmsDataTypes.lexical.ViewComp;
-    // console.log('item', item)
+
     return (
         <SourcesLayout fullWidth={false} baseUrl={baseUrl} pageBaseUrl={pageBaseUrl} isListAll={false} hideBreadcrumbs={false}
                        form={{name: item.name || item.doc_type, href: format.url_slug}}

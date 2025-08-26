@@ -35,7 +35,7 @@ const ManageForm = ({
             <div className={`${theme?.page?.wrapper1}`}>
                     <div className={'overflow-auto flex flex-1 w-full flex-col shadow bg-white relative text-md font-light leading-7 p-4'}>
                         {status ? <div>{JSON.stringify(status)}</div> : ''}
-                        <div className='w-full max-w-6xl mx-auto'>
+                        <div className='w-full'>
                             {Object.keys(attributes)
                                 .filter(attr => attr === 'config')
                                 .map((attrKey, i) => {
