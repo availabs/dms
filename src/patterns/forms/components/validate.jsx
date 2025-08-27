@@ -6,7 +6,6 @@ import {
 } from "../../page/components/selector/dataWrapper/utils/utils";
 import {cloneDeep, isEqual, uniq, uniqBy} from "lodash-es";
 import {ComponentContext} from "../../page/context"
-import dataTypes from "../../../data-types";
 import {useImmer} from "use-immer";
 import {
     getData as getFilterData
@@ -163,12 +162,12 @@ const updateCall = async ({column, app, type, maps, falcor, user, setUpdating, s
 const RenderMassUpdater = ({sourceInfo, open, setOpen, falcor, columns, data, user, updating, setUpdating, cms_context}) => {
     if(!open) return;
     const {UI} = useContext(cms_context);
-    const {Icon} = UI;
+    const {Icon, ColumnTypes} = UI;
     const [maps, setMaps] = useState([]);
     const [loadingAfterUpdate, setLoadingAfterUpdate] = useState(false);
     const currColumn = columns.find(col => col.name === open);
     const {app, type} = sourceInfo;
-    const Comp = useMemo(() => dataTypes[currColumn.type]?.EditComp || dataTypes.text.EditComp, [currColumn.type]);
+    const Comp = useMemo(() => ColumnTypes[currColumn.type]?.EditComp || ColumnTypes.text.EditComp, [currColumn.type]);
 
     const invalidValues = useMemo(() => data[`${currColumn.shortName}_invalid_values`], [data, currColumn.shortName]);
     const uniqueInvalidValues = useMemo(() => uniq(

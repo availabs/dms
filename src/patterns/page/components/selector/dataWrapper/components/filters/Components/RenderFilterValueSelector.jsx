@@ -1,6 +1,4 @@
 import React, {useCallback, useMemo, useRef} from "react";
-import {useNavigate} from "react-router";
-import dataTypes from "../../../../../../../../data-types";
 import {useHandleClickOutside, isEqualColumns} from "../../../utils/utils";
 import {filterTheme} from "../RenderFilters";
 import {CMSContext, PageContext} from "../../../../../../context";
@@ -64,7 +62,7 @@ export const RenderFilterValueSelector = ({
     const { UI } = React.useContext(cms_context || CMSContext) || {};
     const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
     const theme = {...themeFromContext, filters: {...filterTheme, ...(themeFromContext.filter || {})}};
-    const {Switch} = UI;
+    const {Switch, ColumnTypes} = UI;
     const options = useMemo(() => filterOptions.find(fo => fo.column === filterColumn.name)?.uniqValues, [filterOptions, filterColumn.name]);
 
     const useDebouncedUpdateFilter = (delay = 300) => {
@@ -108,7 +106,7 @@ export const RenderFilterValueSelector = ({
         .map((filter) => {
             const selector = ['filter', 'exclude'].includes(filter.operation) ? 'multiselect' : 'text'
 
-            const Comp = dataTypes[selector].EditComp;
+            const Comp = ColumnTypes[selector].EditComp;
 
             const value = ['filter', 'exclude'].includes(filter.operation) ? (filter.values || []) :
                 (Array.isArray(filter.values) ? filter.values[0] : typeof filter.values === 'object' ? '' : filter.values);

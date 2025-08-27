@@ -1,7 +1,7 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {Link} from 'react-router';
 import { ThemeContext } from '../useTheme';
-//import {isEqualColumns} from "~/modules/dms/src/patterns/page/components/selector/dataWrapper/utils/utils";
+import ColumnTypes from "../columnTypes";
 import TableHeaderCell from "./table/components/TableHeaderCell";
 import Icon from "./Icon";
 
@@ -158,7 +158,7 @@ const DefaultComp = ({value, className}) => <div className={className}>{value}</
 
 const EditComp = ({
                       attribute, value, rawValue, className,
-                      isValueFormatted, id, DataTypes,
+                      isValueFormatted, id,
                       updateItem, liveEdit, tmpItem, setTmpItem, allowEdit, formatFunctions,
                       isNewItem, newItem, setNewItem, // when allowAddNewItem is on
                   }) => {
@@ -166,8 +166,7 @@ const EditComp = ({
     const compRef = useRef(null);
     const compId = `${attribute.name}-${id}-${JSON.stringify(rawValue)}`;
     const compIdEdit = `${attribute.name}-${id}`;
-    const Comp = DataTypes[attribute.type]?.[allowEdit ? 'EditComp' : 'ViewComp'] || DefaultComp;
-    // const Comp = DataTypes[attribute.type]?.[allowEdit && isEditing ? 'EditComp' : 'ViewComp'];
+    const Comp = ColumnTypes[attribute.type]?.[allowEdit ? 'EditComp' : 'ViewComp'] || DefaultComp;
     useHandleClickOutside(compRef, compId, () => isEditing && setIsEditing(false));
 
     if(!allowEdit && (attribute.isImg || attribute.isLink || ['icon', 'color'].includes(attribute.formatFn) && formatFunctions[attribute.formatFn])) return value;
@@ -211,9 +210,7 @@ const RenderItem = ({
                         item, newItem, setNewItem, addItem, updateItem, allowEdit,
                         subWrapperStyle,
                         visibleColumns,
-    // todo: should provide default formatFunctions and DataTypes
                         formatFunctions= {},
-                        DataTypes={} // components to render text/select/richtext etc. each component is expected to have EditComp and ViewComp
                     }) => {
     const [tmpItem, setTmpItem] = useState(item || {}); // for form edit controls
 
@@ -308,7 +305,6 @@ const RenderItem = ({
 
                                                                   id={id}
                                                                   allowEdit={allowEdit}
-                                                                  DataTypes={DataTypes}
                                                                   formatFunctions={formatFunctions}
                                                                   className={theme[valueTextJustifyClass]}
                                                         />
@@ -331,7 +327,6 @@ const RenderItem = ({
 
                                                               id={id}
                                                               allowEdit={allowEdit}
-                                                              DataTypes={DataTypes}
                                                               formatFunctions={formatFunctions}
                                                               className={theme[valueTextJustifyClass]}
                                                     />
@@ -363,7 +358,7 @@ export default function ({
     allowEdit,
     updateItem, addItem, isEdit,
     columns=[], data=[], display={}, controls={}, sourceInfo={}, setState, isActive,
-    newItem, setNewItem, formatFunctions, DataTypes
+    newItem, setNewItem, formatFunctions
 }) {
     const { theme: themeFromContext = {dataCard: dataCardTheme}} = React.useContext(ThemeContext) || {};
     const theme = {...themeFromContext, dataCard: {...dataCardTheme, ...(themeFromContext.dataCard || {})}};
@@ -441,7 +436,6 @@ export default function ({
                             subWrapperStyle={subWrapperStyle}
                             visibleColumns={visibleColumns}
                             formatFunctions={formatFunctions}
-                            DataTypes={DataTypes}
                         />
                     ))
                 }

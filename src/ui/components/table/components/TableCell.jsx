@@ -2,7 +2,7 @@ import React, {useEffect, useState} from "react";
 import {Link} from "react-router";
 import {isEqual} from "lodash-es";
 import Icon from "../../Icon";
-import DataTypes from "../../../../data-types";
+import DataTypes from "../../../columnTypes";
 import {formatFunctions} from "../../../../patterns/page/components/selector/dataWrapper/utils/utils";
 import { RenderAction } from "./RenderActions";
 

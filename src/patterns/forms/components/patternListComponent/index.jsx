@@ -3,7 +3,6 @@ import {useParams, useLocation} from "react-router"
 import { get } from "lodash-es";
 import {Link, useSearchParams} from "react-router";
 import SourcesLayout from "./layout";
-import {dmsDataTypes} from "../../../../index"
 import {FormsContext} from "../../siteConfig";
 import {Modal} from "../../ui";
 import { cloneDeep } from "lodash-es";
@@ -94,7 +93,9 @@ const getData = async ({format, apiLoad, parent}) => {
 }
 
 const SourceThumb = ({ source }) => {
-    const Lexical = dmsDataTypes.lexical.ViewComp;
+    const {UI} = useContext(FormsContext);
+    const {ColumnTypes} = UI;
+    const Lexical = ColumnTypes.lexical.ViewComp;
 
     return (
         <div className="w-full p-4 bg-white hover:bg-blue-50 block border shadow flex">

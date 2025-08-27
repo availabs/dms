@@ -3,15 +3,13 @@ import Text from './text'
 import textarea from './textarea'
 import boolean from './boolean'
 import dmsFormat from './dms-format'
-import Array from './array'
-import Lexical from '../patterns/page/components/selector/ComponentRegistry/richtext/lexical'
-import { get } from "lodash-es"
+import Lexical from '../components/lexical'
 import Multiselect from "./multiselect";
 import Radio from "./radio";
 import Checkbox from "./checkbox";
-import Switch from "../ui/components/Switch";
+import Switch from "../components/Switch";
 
-export const dmsDataTypes = {
+const columnTypes = {
 	'text': Text,
     'textarea': textarea,
     'lexical': Lexical,
@@ -48,34 +46,4 @@ export const dmsDataTypes = {
 	'default': Text
 }
 
-
-export function registerDataType (name, dataType) {
-	dmsDataTypes[name] = dataType
-}
-
-export function getViewComp (attr) {
-	const { type='default', isArray=false, attributes } = attr
-	let Comp = get(dmsDataTypes, `[${type}]`, dmsDataTypes['default'])
-	// console.log('attr',attr)
-	let output = Comp.ViewComp
-	if( isArray ) {
-		let ArrayComp = attr.DisplayComp ? attr.DisplayComp.ViewComp : Array.ViewComp
-		output = (props) => <ArrayComp Component={Comp} {...props} attr={attr} />
-	}
-	return output
-}
-
-export function getEditComp (attr) {
-	const { type='default', isArray=false, attributes } = attr
-	// console.log('get EditComp attr:', attr)
-	let Comp = get(dmsDataTypes, `[${type}]`, dmsDataTypes['default'])
-	let output = Comp.EditComp
-	if( isArray ) {
-		let ArrayComp = attr.DisplayComp ? attr.DisplayComp.EditComp : Array.EditComp
-		output = (props) => <ArrayComp Component={Comp} {...props} attr={attr} />
-	}
-	return output
-}
-
-
-export default dmsDataTypes
+export default columnTypes;

@@ -27,7 +27,7 @@ import DefaultMenu from "./components/menu";
 
 import { SearchPage } from "./components/search/SearchPage";
 
-import { registerDataType } from "../../data-types";
+import { registerDataType } from "../../dms-manager/_utils";
 import Selector from "./components/selector";
 import defaultTheme from "../../ui/defaultTheme";
 import ErrorPage from "./pages/error";

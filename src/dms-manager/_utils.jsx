@@ -1,6 +1,8 @@
 import { matchRoutes } from 'react-router'
 import { get, cloneDeep } from 'lodash-es'
-import { getViewComp, getEditComp } from '../data-types'
+import dmsColumnTypes from '../ui/columnTypes'
+import Array from "~/modules/dms/src/ui/columnTypes/array";
+import React from "react";
 
 // import Wrappers from '../wrappers' //comment this out and it breaks, why?!?!
 // import Components from '../components'
@@ -191,4 +193,33 @@ export function processFormat (format, formats = {}) {
   formats[`${ Format.app }+${ Format.type }`] = Format;
 
   return formats;
+}
+// todo: deprecate
+export function registerDataType (name, dataType) {
+    dmsColumnTypes[name] = dataType
+}
+
+
+export function getViewComp (attr) {
+    const { type='default', isArray=false, attributes } = attr
+    let Comp = get(dmsColumnTypes, `[${type}]`, dmsColumnTypes['default'])
+    // console.log('attr',attr)
+    let output = Comp.ViewComp
+    if( isArray ) {
+        let ArrayComp = attr.DisplayComp ? attr.DisplayComp.ViewComp : Array.ViewComp
+        output = (props) => <ArrayComp Component={Comp} {...props} attr={attr} />
+    }
+    return output
+}
+
+export function getEditComp (attr) {
+    const { type='default', isArray=false, attributes } = attr
+    // console.log('get EditComp attr:', attr)
+    let Comp = get(dmsColumnTypes, `[${type}]`, dmsColumnTypes['default'])
+    let output = Comp.EditComp
+    if( isArray ) {
+        let ArrayComp = attr.DisplayComp ? attr.DisplayComp.EditComp : Array.EditComp
+        output = (props) => <ArrayComp Component={Comp} {...props} attr={attr} />
+    }
+    return output
 }

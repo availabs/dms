@@ -30,6 +30,7 @@ import Table from "./components/table";
 import Card from "./components/Card";
 import Graph from "./components/graph";
 import Listbox from "./components/Listbox";
+import ColumnTypes from "./columnTypes";
 
 export default {
 	// --- Layout
@@ -67,5 +68,8 @@ export default {
 	Table,
 	Card,
 	Graph,
-    Listbox
+    Listbox,
+
+    // component modes: {EditComp, ViewComp}
+    ColumnTypes,
 }

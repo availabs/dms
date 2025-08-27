@@ -46,7 +46,7 @@ export async function dmsDataLoader (falcor, config, path='/') {
 	const { app , type, view_id, env, /*defaultSearch,*/ attributes = {} } = format
 
 	
-	const { getActiveConfig } = await import('../dms-manager/_utils.js')
+	const { getActiveConfig } = await import('../dms-manager/_utils')
 	const activeConfigs = getActiveConfig(config.children, path)
 	// console.log('------------dmsDataLoader-------------')
 	const dmsAttrsConfigs = (Object.values(attributes))

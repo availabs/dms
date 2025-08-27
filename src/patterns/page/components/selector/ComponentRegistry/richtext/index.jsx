@@ -1,10 +1,8 @@
 import React, {useContext, useEffect, useState} from "react";
 import {merge, cloneDeep} from 'lodash-es';
 import {ColorPickerComp} from "./components/colorPickerComp";
-import theme from './theme'
 import { CMSContext } from "../../../../context";
 import { ThemeContext } from "../../../../../../ui/useTheme";
-import LexicalComp from "./lexical";
 
 const isJson = (str)  => {
     try {
@@ -107,7 +105,7 @@ const Edit = ({value, onChange}) => {
     const context = useContext(CMSContext);
     const { theme } = useContext(ThemeContext)
     const {UI} = context;
-    const {Select} = UI;
+    const {Select, ColumnTypes: {lexical: Lexical}} = UI;
     const cachedData = value && isJson(value) ? JSON.parse(value) : {}
     const emptyTextBlock = {text: '', size: '4xl', color: '000000'};
     const [bgColor, setBgColor] = useState(cachedData?.bgColor || 'rgba(0,0,0,0)');
@@ -125,7 +123,7 @@ const Edit = ({value, onChange}) => {
     return (
         <div className='w-full'>
             <div className='relative'>
-                <div className={'flex w-full px-2 py-1 flex flex-row text-sm items-center'}>
+                <div className={'w-full px-2 py-1 flex flex-row text-sm items-center'}>
                     <label className={'shrink-0 pr-2 w-1/4'}>Style</label>
                     <div className={''}>
                         <Select
@@ -172,7 +170,7 @@ const Edit = ({value, onChange}) => {
                 <div className='flex'>
                     {isCard === 'Handwritten' && <div className='w-[50px]'> {'<---'} </div>}
                     <div className='flex-1'>
-                        <LexicalComp.EditComp
+                        <Lexical.EditComp
                             value={text}
                             onChange={setText}
                             bgColor={bgColor}
@@ -196,6 +194,8 @@ Edit.settings = {
 
 const View = ({value}) => {
     const context = useContext(CMSContext);
+    const {UI} = context;
+    const {ColumnTypes: {lexical: Lexical}} = UI;
     const { theme } = useContext(ThemeContext)
     if (!value) return <div className='h-6' />
     let data = typeof value === 'object' ?
@@ -217,7 +217,7 @@ const View = ({value}) => {
         <div className='flex'>
             {['Handwritten', 'Handwritten_1', 'Handwritten_2', 'Handwritten_3'].includes(isCard)  && <div className='pt-2 pr-2'><img src='/themes/mny/handwritten_arrow.svg'/></div>}
             <div className='flex-1'>
-            <LexicalComp.ViewComp
+            <Lexical.ViewComp
                 value={dataOrValue}
                 bgColor={data?.bgColor}
                 theme={{

@@ -2,7 +2,6 @@ import React, {useContext} from "react";
 import {CMSContext, ComponentContext} from "../../../context";
 import {duplicateControl} from "./shared/utils";
 import {formatFunctions} from "../dataWrapper/utils/utils";
-import DataTypes from "../../../../../data-types";
 import ColorControls from "./shared/ColorControls";
 import {ToggleControl} from "../dataWrapper/components/ToggleControl";
 
@@ -56,7 +55,7 @@ const Card = ({
 
     return <Card {...state} setState={setState} controls={controls}
                  isEdit={isEdit} updateItem={updateItem} addItem={addItem} newItem={newItem} setNewItem={setNewItem} allowEdit={allowEdit}
-                 formatFunctions={formatFunctions} DataTypes={DataTypes}
+                 formatFunctions={formatFunctions}
     />
 }
 
