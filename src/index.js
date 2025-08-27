@@ -1,5 +1,5 @@
 export { dmsDataLoader, dmsDataEditor } from './api'
-export { updateRegisteredFormats, updateAttributes, registerDataType, json2DmsForm } from './dms-manager/_utils'
+export { updateRegisteredFormats, updateAttributes, json2DmsForm } from './dms-manager/_utils'
 export { default as dmsColumnTypes } from './ui/columnTypes'
 export { default as dmsPageFactory } from './dmsPageFactory'
 export { default as dmsSiteFactory, DmsSite } from "./patterns/admin/dmsSiteFactory";

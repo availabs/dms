@@ -23,17 +23,11 @@ import DesignEditor from "./pages/manager/design";
 import cmsFormat from "./page.format.js";
 import { CMSContext } from "./context";
 import DefaultMenu from "./components/menu";
-//import { useFalcor } from "../../../../avl-falcor"
 
 import { SearchPage } from "./components/search/SearchPage";
 
-import { registerDataType } from "../../dms-manager/_utils";
-import Selector from "./components/selector";
 import defaultTheme from "../../ui/defaultTheme";
 import ErrorPage from "./pages/error";
-// const defaultTheme = {}
-
-registerDataType("selector", Selector);
 
 const pagesConfig = ({
   app = "dms-site",

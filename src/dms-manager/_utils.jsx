@@ -194,10 +194,10 @@ export function processFormat (format, formats = {}) {
 
   return formats;
 }
-// todo: deprecate
-export function registerDataType (name, dataType) {
-    dmsColumnTypes[name] = dataType
-}
+
+// export function registerDataType (name, dataType) {
+//     dmsColumnTypes[name] = dataType
+// }
 
 
 export function getViewComp (attr) {

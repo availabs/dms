@@ -2,7 +2,7 @@ import React, {useState, useEffect} from 'react'
 import {createBrowserRouter, RouterProvider, useRouteError} from "react-router";
 
 //import {  adminConfig } from "./modules/dms/src/"
-import { dmsDataLoader, dmsPageFactory, registerDataType } from '../../'
+import { dmsDataLoader, dmsPageFactory } from '../../'
 import Selector from '../page/components/selector'
 import { falcorGraph, useFalcor } from "@availabs/avl-falcor"
 import { cloneDeep } from "lodash-es"
@@ -53,9 +53,6 @@ const configs = {
     page: pageConfig ,
     forms: dataManagerConfig,
 }
-
-registerDataType("selector", Selector)
-
 
 function pattern2routes (siteData, props) {
     let {

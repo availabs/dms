@@ -4,7 +4,7 @@ import { Combobox } from '@headlessui/react'
 import { Link } from "react-router";
 import { usePopper } from 'react-popper'
 import { CMSContext } from '../../context'
-
+import Selector from "../selector";
 import {convert} from './convertToSpreadSheet'
 import {ThemeContext} from "../../../../ui/useTheme";
 
@@ -36,7 +36,6 @@ export function SectionEdit ({value, i, onChange, attributes, size, onCancel, on
 
     let TitleComp = attributes?.title?.EditComp
     let LevelComp = attributes?.level?.EditComp
-    let ElementComp = attributes?.element?.EditComp
     let HelpComp = attributes?.helpText?.EditComp
 
     return (
@@ -83,7 +82,7 @@ export function SectionEdit ({value, i, onChange, attributes, size, onCancel, on
                                                 i                                            </div>
                                         </div>
                                     }>
-                                        <ElementComp
+                                        <Selector.EditComp
                                             value={value?.['element']}
                                             onChange={(v) => updateAttribute('element', v)}
                                             handlePaste={(e, setKey, setState) => handlePaste(e, setKey, setState, value, onChange)}
@@ -184,7 +183,7 @@ export function SectionEdit ({value, i, onChange, attributes, size, onCancel, on
                 <div className={''}>
                     {/* controls */}
 
-                    <ElementComp
+                    <Selector.EditComp
                         value={value?.['element']}
                         onChange={(v) => updateAttribute('element', v)}
                         handlePaste={(e, setKey, setState) => handlePaste(e, setKey, setState, value, onChange)}
@@ -244,8 +243,6 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
 
     const hideDebug = true
     let TitleComp = attributes?.title?.ViewComp
-    let TagsComp = attributes?.tags?.ViewComp 
-    let ElementComp = attributes?.element?.ViewComp // selector
     let HelpComp = attributes?.helpText?.ViewComp
     let helpTextCondition = value?.['helpText'] && !(
         (value?.['helpText']?.root?.children?.length === 1 && value?.['helpText']?.root?.children?.[0]?.children?.length === 0) || // empty child
@@ -261,7 +258,7 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
 
     const element = React.useMemo(() => {
         return (
-            <ElementComp 
+            <Selector.ViewComp
                 value={value?.['element']} 
                 siteType={siteType} 
                 apiLoad={apiLoad} 
@@ -270,7 +267,8 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
                 isActive={isActive}
             />
         )
-    }, [value, isActive])
+    }, [value, isActive]);
+
     if(!value?.element?.['element-type'] && !value?.element?.['element-data']) return null;
     const sectionMenuItems = [
       { icon: 'PencilSquare', name: 'Edit', onClick: onEdit },
