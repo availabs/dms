@@ -6,6 +6,7 @@ import SideNavContainer from "./components/SideNavContainer";
 import TopNav from './components/TopNav';
 import Icon from './components/Icon';
 import Button from './components/Button';
+import ButtonSelect from './components/ButtonSelect';
 import Label from './components/Label';
 import Menu from './components/Menu';
 import Popover from './components/Popover';
@@ -40,6 +41,7 @@ export default {
 	// --- Utilities
 	Icon,
 	Button,
+    ButtonSelect,
 	Dialog,
 	Label,
 	Popover,

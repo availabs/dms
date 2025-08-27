@@ -21,7 +21,6 @@ const Validate = ({item, params,  apiUpdate, apiLoad}) => {
                        showVersionSelector={true}
 
         >
-            <div className={`${theme?.page?.wrapper1}`}>
                 {
                     !params.view_id || params.view_id === 'undefined' ? 'Please select a version' :
                         <ValidateComp.EditComp
@@ -32,7 +31,6 @@ const Validate = ({item, params,  apiUpdate, apiLoad}) => {
                             cms_context={FormsContext}
                         />
                 }
-            </div>
         </SourcesLayout>
     )
 }

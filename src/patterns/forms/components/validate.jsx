@@ -515,7 +515,7 @@ const Edit = ({
     return (
             <div
                 className={'flex flex-1 w-full flex-col shadow bg-white relative text-md font-light leading-7 p-4'}>
-                <div className='w-full max-w-6xl mx-auto'>
+                <div className='w-full max-w-7xl mx-auto'>
                     <div
                         className={'flex justify-between w-full'}>
                         {/* stat boxes */}

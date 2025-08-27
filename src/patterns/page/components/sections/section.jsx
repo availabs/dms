@@ -36,7 +36,6 @@ export function SectionEdit ({value, i, onChange, attributes, size, onCancel, on
 
     let TitleComp = attributes?.title?.EditComp
     let LevelComp = attributes?.level?.EditComp
-    let TagsComp = attributes?.tags?.EditComp
     let ElementComp = attributes?.element?.EditComp
     let HelpComp = attributes?.helpText?.EditComp
 

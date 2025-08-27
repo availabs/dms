@@ -82,7 +82,7 @@ const TableView = ({apiUpdate, apiLoad, format, item, params}) => {
             {
                 !item.config || !value?.sourceInfo?.columns?.length ? <div className={'p-1 text-center'}>Please setup metadata.</div> :
                     !params.view_id || params.view_id === 'undefined' ? 'Please select a version' :
-                    <div className={`${theme?.page?.wrapper1} bg-white`}>
+                    <div className={`${theme?.page?.wrapper1} max-w-7xl mx-auto bg-white`}>
                         {
                             user.authLevel >= 10 ?
                                 <button className={'w-fit p-1 bg-blue-100 hover:bg-blue-200 text-blue-500 text-sm place-self-end rounded-md'}

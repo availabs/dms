@@ -13,7 +13,7 @@ const fieldTypes = [
     { value: 'timestamp', label: 'timestamp', dataType: 'timestamp' },
     { value: 'select', label: 'dropdown' },
     { value: 'multiselect', label: 'dropdown (multiple choice)' },
-    { value: 'switch', label: 'switch', dataType: 'boolean' },
+    { value: 'switch', label: 'switch'},
     { value: 'radio', label: 'radio' },
     { value: 'checkbox', label: 'checkbox' },
     { value: 'calculated', label: 'calculated' } // can't be inputted, always calculated. don't use data->> to access.
@@ -22,30 +22,25 @@ const fieldTypes = [
 // required to sort differently than the input type.
 // select, multiselect are saved as text, but may need to be sorted numerically
 const dataTypes = [
-    { value: 'numeric', label: 'Numeric' },
-    { value: 'text', label: 'Text' },
-    { value: 'boolean', label: 'Boolean' },
-    { value: 'date', label: 'Date' },
-    { value: 'timestamp', label: 'Timestamp' }
+    { value: 'text', label: 'text' },
+    { value: 'numeric', label: 'numeric' },
+    // { value: 'boolean', label: 'Boolean' },4
+    { value: 'date', label: 'date' },
+    { value: 'timestamp', label: 'timestamp' }
 ];
 
 // certain calculated columns (array output) may beed to be shown as select/multiselect,
 // but they still need to be identified as calculated.
 const behaviourTypes = [
-    { value: 'data', label: 'Simple Data' },
-    { value: 'meta', label: 'Meta' },
+    { value: 'data', label: 'data' },
+    { value: 'meta', label: 'meta' },
     { value: 'calculated', label: 'calculated' }
 ];
 
 const defaultFnTypes = [
-    { value: 'sum', label: 'Sum' },
-    { value: 'list', label: 'List' },
-    { value: 'count', label: 'Count' }
-];
-
-const defaultReqTypes = [
-    { value: 'yes', label: 'Yes' },
-    { value: 'no', label: 'No' }
+    { value: 'sum', label: 'sum' },
+    { value: 'list', label: 'list' },
+    { value: 'count', label: 'count' }
 ];
 
 const labelClass = 'text-sm font-light capitalize font-gray-700';
@@ -92,6 +87,39 @@ const RenderInputSelect = ({label, value='', col, attr, updateAttribute, placeHo
                     updateAttribute(col, valueToUpdate)
                 }}
                 options={[{label: placeHolder, value: undefined}, ...options]}
+            />
+        </div>
+    )
+}
+
+
+const RenderInputSwitch = ({label, value='', col, attr, updateAttribute, trueValue=true}) => {
+    const {UI} = React.useContext(FormsContext);
+    const {Switch} = UI;
+
+    return (
+        <div className={'flex flex-col items-start'}>
+            <label className={labelClass}>{label}</label>
+            <Switch
+                enabled={value === trueValue}
+                setEnabled={e => updateAttribute(col, {[attr]: e ? trueValue : false})}
+                size={'small'}
+            />
+        </div>
+    )
+}
+
+const RenderInputButtonSelect = ({label, value='', col, attr, updateAttribute, options}) => {
+    const {UI} = React.useContext(FormsContext);
+    const {ButtonSelect} = UI;
+
+    return (
+        <div className={'flex flex-col items-start'}>
+            <label className={labelClass}>{label}</label>
+            <ButtonSelect
+                value={value}
+                options={options}
+                onChange={e => updateAttribute(col, {[attr]: e})}
             />
         </div>
     )
@@ -181,8 +209,7 @@ const RenderOptions = ({attributeList, col, drivingAttribute, attr, value=[], de
     const {Input, Button} = UI;
     const [newOption, setNewOption] = useState('');
     const [editing, setEditing] = useState(undefined);
-    const options = useMemo(() => value?.map(v => v.label ? v : ({label: v, value: v})), [value]);
-
+    const options = useMemo(() => (value || [])?.map(v => v.label ? v : ({label: v, value: v})), [value]);
     if(!['select', 'multiselect', 'radio'].includes(drivingAttribute)) return null;
     const addNewValue = (oldValue, newItem) => {
         const newValue = newItem?.label ? [...(oldValue || []), newItem] : [...(oldValue || []), {label: newItem, value: newItem}]
@@ -371,7 +398,7 @@ export const RenderField = ({i, item, attribute, attributeList=[], updateAttribu
                                   d="M8.5 7a1.5 1.5 0 1 0 0-3a1.5 1.5 0 0 0 0 3m0 6.5a1.5 1.5 0 1 0 0-3a1.5 1.5 0 0 0 0 3m1.5 5a1.5 1.5 0 1 1-3 0a1.5 1.5 0 0 1 3 0M15.5 7a1.5 1.5 0 1 0 0-3a1.5 1.5 0 0 0 0 3m1.5 5a1.5 1.5 0 1 1-3 0a1.5 1.5 0 0 1 3 0m-1.5 8a1.5 1.5 0 1 0 0-3a1.5 1.5 0 0 0 0 3"></path>
                         </svg>
                     </div>
-                    <div className={'w-full flex flex-wrap justify-between flex-col sm:flex-row items-center'}>
+                    <div className={'w-full flex flex-wrap justify-between flex-col sm:flex-row items-stretch sm:items-center'}>
                         <RenderInputText
                             key={`${item.name}-name`}
                             disabled={true}
@@ -393,24 +420,52 @@ export const RenderField = ({i, item, attribute, attributeList=[], updateAttribu
 
                         <RenderInputSelect
                             key={`${item.name}-type`}
-                            label={'Input Type'}
+                            label={'Column Type'}
                             value={item.type}
                             col={item.name}
                             attr={'type'}
                             options={fieldTypes}
                             updateAttribute={updateAttribute}
                         />
+                        <RenderInputSwitch
+                            key={`${item.name}-required`}
+                            label={'Required'}
+                            value={item.required}
+                            trueValue={'yes'}
+                            col={item.name}
+                            attr={'required'}
+                            updateAttribute={updateAttribute}
+                        />
+                        <RenderInputButtonSelect
+                            key={`${item.name}-display`}
+                            label={'Behaviour Type'}
+                            value={item.display}
+                            col={item.name}
+                            attr={'display'}
+                            options={item.type  === 'calculated' ? [{'calculated': 'calculated'}] : behaviourTypes} // don't rely on user selecting display. even if type is calculated, consider the column to be calculated.
+                            updateAttribute={updateAttribute}
+                            placeHolder={'Please select behaviour type'}
+                        />
 
-                        <RenderInputSelect
+                        <RenderInputButtonSelect
+                            key={`${item.name}-defaultFn`}
+                            label={'Default Fn'}
+                            value={item.defaultFn}
+                            col={item.name}
+                            attr={'defaultFn'}
+                            options={defaultFnTypes}
+                            updateAttribute={updateAttribute}
+                        />
+
+                        <RenderInputButtonSelect
                             key={`${item.name}-data-type`}
-                            label={'Data Type'}
+                            label={'Sort as'}
                             value={item.dataType}
                             col={item.name}
                             attr={'dataType'}
                             options={dataTypes}
                             updateAttribute={updateAttribute}
                         />
-
                         <div title={'Advanced Settings'}
                              className={'cursor-pointer p-2 text-gray-500 hover:text-gray-900 text-xl'}
                              onClick={() => setShowAdvanced(!showAdvanced)}
@@ -430,38 +485,7 @@ export const RenderField = ({i, item, attribute, attributeList=[], updateAttribu
                             updateAttribute={updateAttribute}
                         />
                         <div className={'flex flex-col'}>
-                            <RenderInputSelect
-                                key={`${item.name}-display`}
-                                label={'Behaviour Type'}
-                                value={item.display}
-                                col={item.name}
-                                attr={'display'}
-                                options={item.type  === 'calculated' ? [{'calculated': 'calculated'}] : behaviourTypes} // don't rely on user selecting display. even if type is calculated, consider the column to be calculated.
-                                updateAttribute={updateAttribute}
-                                placeHolder={'Please select behaviour type'}
-                            />
 
-                            <RenderInputSelect
-                                key={`${item.name}-defaultFn`}
-                                label={'Default Fn'}
-                                value={item.defaultFn}
-                                col={item.name}
-                                attr={'defaultFn'}
-                                options={defaultFnTypes}
-                                updateAttribute={updateAttribute}
-                                placeHolder={'Please select default function'}
-                            />
-
-                            <RenderInputSelect
-                                key={`${item.name}-required`}
-                                label={'Required'}
-                                value={item.required}
-                                col={item.name}
-                                attr={'required'}
-                                options={defaultReqTypes}
-                                updateAttribute={updateAttribute}
-                                placeHolder={'Please select property'}
-                            />
                         </div>
                     </div>
                     <RenderInputText
