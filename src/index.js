@@ -5,4 +5,4 @@ export { default as dmsPageFactory } from './dmsPageFactory'
 export { default as dmsSiteFactory, DmsSite } from "./patterns/admin/dmsSiteFactory";
 export { CMSContext } from './patterns/page/context'
 export { default as adminConfig }  from './patterns/admin/siteConfig'
-export { default as Selector, registerComponents } from "./patterns/page/components/selector"
+export { registerComponents } from "./patterns/page/components/selector"
