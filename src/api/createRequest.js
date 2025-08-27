@@ -18,7 +18,7 @@ export const createRequest = (wrapperConfig,format, path, length) => {
 	let toIndex = typeof wrapperConfig?.filter?.toIndex === "function" ?
 		wrapperConfig?.filter?.toIndex(path) :
 
-	typeof wrapperConfig?.filter?.toIndex === 'undefined' || wrapperConfig?.filter?.toIndex === null) ?
+	typeof (wrapperConfig?.filter?.toIndex === 'undefined' || wrapperConfig?.filter?.toIndex === null) ?
     Math.max(0,length-1) : +wrapperConfig?.filter?.toIndex
 
 
