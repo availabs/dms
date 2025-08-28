@@ -1,5 +1,5 @@
 import React, {useEffect, useState} from "react"
-import {ThemeContext} from "~/modules/dms/src/ui/useTheme";
+import {ThemeContext} from "../useTheme";
 
 
 const textTheme = {

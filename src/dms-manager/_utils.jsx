@@ -1,7 +1,7 @@
 import { matchRoutes } from 'react-router'
 import { get, cloneDeep } from 'lodash-es'
 import dmsColumnTypes from '../ui/columnTypes'
-import Array from "~/modules/dms/src/ui/columnTypes/array";
+import Array from "../ui/columnTypes/array";
 import React from "react";
 
 // import Wrappers from '../wrappers' //comment this out and it breaks, why?!?!

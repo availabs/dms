@@ -20,7 +20,6 @@ export const createRequest = (wrapperConfig,format, path, length) => {
     Math.max(0,length-1) : +wrapperConfig?.filter?.toIndex)
 
 
-	console.log('api - createRequest - indexs',fromIndex, toIndex, wrapperConfig?.filter?.fromIndex, wrapperConfig?.filter?.toIndex )
 	let options = wrapperConfig?.filter?.options || '{}';
 	let tags = wrapperConfig?.filter?.tags || [];
 	let searchType = wrapperConfig?.filter?.searchType || 'byTag';

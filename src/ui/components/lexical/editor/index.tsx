@@ -21,7 +21,7 @@ import PlaygroundEditorTheme from './themes/PlaygroundEditorTheme';
 function isLexicalJSON(str) {
     try {
         const parsed = JSON.parse(str);
-        return !!parsed?.root;
+        return !!parsed?.root && parsed.root.children?.length > 0;
     } catch {
         return false;
     }
@@ -49,7 +49,7 @@ export default function Lexicals ({value, onChange, bgColor, editable=false, id,
   return (
     <LexicalComposer key={id} initialConfig={initialConfig}>
       <div className={`${lexicalTheme.editorShell}`}>
-        <UpdateEditor 
+        <UpdateEditor
           value={value}
           onChange={onChange}
           bgColor={bgColor}
@@ -61,47 +61,45 @@ export default function Lexicals ({value, onChange, bgColor, editable=false, id,
   );
 }
 
-function UpdateEditor ({value, onChange, bgColor, theme, editable}) {
-  const isFirstRender = React.useRef(true);
-  const [editor] = useLexicalComposerContext()
+function UpdateEditor({ value, onChange, bgColor, theme, editable }) {
+    const isFirstRender = React.useRef(true);
+    const [editor] = useLexicalComposerContext();
 
     React.useEffect(() => {
-        if (!value) return;
+        if (!isFirstRender.current) return;
+        isFirstRender.current = false;
 
-        let parsedValue = null;
-        let isLexical = false;
+        if (!value) {
+            // fallback: empty paragraph
+            editor.update(() => {
+                const root = $getRoot();
+                root.clear();
+                const paragraph = $createParagraphNode();
+                paragraph.append($createTextNode(""));
+                root.append(paragraph);
+            });
+            return;
+        }
 
-        try {
-            parsedValue = JSON.parse(value);
-            isLexical = !!parsedValue?.root;
-        } catch {
+        if (isLexicalJSON(value)) {
+            const newEditorState = editor.parseEditorState(value);
+            editor.setEditorState(newEditorState);
+        } else {
             // plain text
+            editor.update(() => {
+                const root = $getRoot();
+                root.clear();
+                const paragraph = $createParagraphNode();
+                paragraph.append($createTextNode(value));
+                root.append(paragraph);
+            });
         }
+    }, [editor, value]);
 
-        // Only set state on first render, or if switching between JSON/plain text
-        if (isFirstRender.current) {
-            isFirstRender.current = false;
-
-            if (isLexical) {
-                const newEditorState = editor.parseEditorState(value);
-                editor.setEditorState(newEditorState);
-            } else {
-                editor.update(() => {
-                    const root = $getRoot();
-                    root.clear();
-                    const paragraph = $createParagraphNode();
-                    paragraph.append($createTextNode(value));
-                    root.append(paragraph);
-                });
-            }
-        }
-    }, [value, editor]);
-
-  return (
-
-    <>
-      <Editor theme={theme} editable={editable} bgColor={bgColor}/>
-      <OnChangePlugin onChange={onChange} />
-    </>
-  )
+    return (
+        <>
+            <Editor theme={theme} editable={editable} bgColor={bgColor} />
+            <OnChangePlugin onChange={onChange} />
+        </>
+    );
 }

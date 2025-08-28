@@ -5,8 +5,6 @@ import { updateTitle } from '../editFunctions'
 import { v4 as uuidv4 } from 'uuid';
 import { PageContext, CMSContext } from '../../../context'
 import {ThemeContext} from "../../../../../ui/useTheme";
-import FieldSet from "~/modules/dms/src/ui/components/FieldSet";
-
 
 const FilterSettings = ({label, type, value, stateValue, onChange}) => {
   const {UI} = useContext(CMSContext);

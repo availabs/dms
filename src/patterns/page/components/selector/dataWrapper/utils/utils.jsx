@@ -225,7 +225,7 @@ export const getData = async ({
     ...restOfDataRequestOptions
   } = state.dataRequest || {};
 
-  const debug = true;
+  const debug = false;
   debug && console.log("=======getDAta called===========");
   // get columns with all settings and info about them.
   const columnsWithSettings = state.columns

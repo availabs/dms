@@ -168,7 +168,6 @@ export async function dmsDataLoader (falcor, config, path='/') {
 			activeConfigs?.[0]?.filter?.toIndex(path) :
 			(+activeConfigs?.[0]?.params?.[activeConfigs?.[0]?.filter?.toIndex]);
 
-	console.log('api - index - from/to', fromIndex, toIndex)
 
 	const filteredIds = !id && fromIndex !== undefined && toIndex !== undefined ?
 		Object.keys(get(newReqFalcor, [...itemReqByIndex], {}))
@@ -176,7 +175,6 @@ export async function dmsDataLoader (falcor, config, path='/') {
 			.map(index => get(newReqFalcor, [...itemReqByIndex, index, 'value', 3])) // ['dms', 'data', 'byId', id]
 			.filter(d => d) : [];
 
-	console.log('api - index - from/to', fromIndex, toIndex)
 	activeIds.push(...(filteredIds || []))
 	// ---------------------------------------------------------------------------------------------------
 

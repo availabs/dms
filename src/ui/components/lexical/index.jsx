@@ -1,30 +1,24 @@
 import React from "react"
 import Editor from "./editor"
 
-function isJsonString(str) {
-    try { JSON.parse(str) }
-    catch (e) { return false }
-    return true;
-}
-// export default () => <div>afgfdsv</div>
 function parseValue(value) {
-    // --------------------------------
-    // normalize incoming value for Lexical
-    // --------------------------------
-    if (!value) return null;
+    if (typeof value === 'undefined' || value === null) return null;
 
     if (typeof value === "object") {
-        // already JS object → stringify
+        // ensure it’s a proper string for Lexical
         return JSON.stringify(value);
     }
 
     if (typeof value === "string") {
-        if (isJsonString(value)) {
-            // lexical JSON string
-            return value;
-        } else {
-            // plain text → pass through as text
-            return value;
+        try {
+            const parsed = JSON.parse(value);
+            if (parsed?.root) {
+                return value; // valid Lexical JSON string
+            } else {
+                return value; // plain text
+            }
+        } catch {
+            return value; // plain text
         }
     }
 
