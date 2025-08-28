@@ -9,6 +9,7 @@ import React from 'react';
 import {LexicalComposer} from '@lexical/react/LexicalComposer';
 import {OnChangePlugin} from '@lexical/react/LexicalOnChangePlugin';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
+import { $getRoot, $createParagraphNode, $createTextNode } from 'lexical';
 import { merge,cloneDeep } from 'lodash-es'
 
 
@@ -17,27 +18,32 @@ import PlaygroundNodes from './nodes/PlaygroundNodes';
 import PlaygroundEditorTheme from './themes/PlaygroundEditorTheme';
 // import './lexical.css';
 
-
+function isLexicalJSON(str) {
+    try {
+        const parsed = JSON.parse(str);
+        return !!parsed?.root;
+    } catch {
+        return false;
+    }
+}
 
 export default function Lexicals ({value, onChange, bgColor, editable=false, id, theme}) {
   
   const lexicalTheme = merge(cloneDeep(PlaygroundEditorTheme), cloneDeep(theme?.lexical || {}))
   // console.log('theme?', lexicalTheme)
   // console.log(PlaygroundEditorTheme, theme?.lexical, lexicalTheme)
-  const initialConfig = {
-    editorState:
-        JSON.parse(value || '{}')?.root &&
-        JSON.parse(value || '{}')?.root?.children?.length
-            ? value : null,
-    namespace: 'dms-lexical',
-    nodes: [...PlaygroundNodes],
-    editable: editable,
-    readOnly: !editable,
-    onError: (error) => {
-      throw error;
-    },
-    theme: lexicalTheme
-  };
+
+    const initialConfig = {
+        editorState: isLexicalJSON(value) ? value : null,
+        namespace: 'dms-lexical',
+        nodes: [...PlaygroundNodes],
+        editable: editable,
+        readOnly: !editable,
+        onError: (error) => {
+            throw error;
+        },
+        theme: lexicalTheme,
+    };
 
   
   return (
@@ -59,22 +65,37 @@ function UpdateEditor ({value, onChange, bgColor, theme, editable}) {
   const isFirstRender = React.useRef(true);
   const [editor] = useLexicalComposerContext()
 
-  React.useEffect(() => {
-      if (isFirstRender.current) {
-          isFirstRender.current = false;
-      }
-      if(!editable && !isFirstRender.current){
-        const parsedValue = JSON.parse(value || '{}')
-        const update = parsedValue.root && parsedValue?.root?.children?.length
-          ? value : null
-        if(update) {
-          const newEditorState = editor.parseEditorState(update)
-          queueMicrotask(() => {
-            editor.setEditorState(newEditorState)
-          })
+    React.useEffect(() => {
+        if (!value) return;
+
+        let parsedValue = null;
+        let isLexical = false;
+
+        try {
+            parsedValue = JSON.parse(value);
+            isLexical = !!parsedValue?.root;
+        } catch {
+            // plain text
         }
-      }
-  }, [isFirstRender.current, value, theme])
+
+        // Only set state on first render, or if switching between JSON/plain text
+        if (isFirstRender.current) {
+            isFirstRender.current = false;
+
+            if (isLexical) {
+                const newEditorState = editor.parseEditorState(value);
+                editor.setEditorState(newEditorState);
+            } else {
+                editor.update(() => {
+                    const root = $getRoot();
+                    root.clear();
+                    const paragraph = $createParagraphNode();
+                    paragraph.append($createTextNode(value));
+                    root.append(paragraph);
+                });
+            }
+        }
+    }, [value, editor]);
 
   return (
 

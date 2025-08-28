@@ -20,7 +20,6 @@ export const docs = {
 export default function ButtonSelect({ options=[], value, onChange=()=>{} }) {
     const { theme: themeFromContext = {buttonSelect: buttonSelectTheme}} = React.useContext(ThemeContext);
     const theme = {...themeFromContext, buttonSelect: {...buttonSelectTheme, ...(themeFromContext.buttonSelect || {})}};
-    console.log('value', value)
     return (
         <div className={'flex divide-x-2 divide-y-2'}>
             {

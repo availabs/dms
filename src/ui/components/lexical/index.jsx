@@ -7,13 +7,28 @@ function isJsonString(str) {
     return true;
 }
 // export default () => <div>afgfdsv</div>
-function parseValue (value) {
+function parseValue(value) {
     // --------------------------------
-    // parse DMS value for lexical
-    // lexical wants strigified JSON
+    // normalize incoming value for Lexical
     // --------------------------------
-    return value && typeof value === 'object' ?
-        JSON.stringify(value) : (isJsonString(value) ? value : null)
+    if (!value) return null;
+
+    if (typeof value === "object") {
+        // already JS object → stringify
+        return JSON.stringify(value);
+    }
+
+    if (typeof value === "string") {
+        if (isJsonString(value)) {
+            // lexical JSON string
+            return value;
+        } else {
+            // plain text → pass through as text
+            return value;
+        }
+    }
+
+    return null;
 }
 
 const Edit = ({value, onChange, theme,  ...rest}) => {

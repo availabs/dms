@@ -442,7 +442,7 @@ export const RenderField = ({i, item, attribute, attributeList=[], updateAttribu
                             value={item.display}
                             col={item.name}
                             attr={'display'}
-                            options={item.type  === 'calculated' ? [{'calculated': 'calculated'}] : behaviourTypes} // don't rely on user selecting display. even if type is calculated, consider the column to be calculated.
+                            options={item.type  === 'calculated' ? [{value: 'calculated', label: 'calculated'}] : behaviourTypes} // don't rely on user selecting display. even if type is calculated, consider the column to be calculated.
                             updateAttribute={updateAttribute}
                             placeHolder={'Please select behaviour type'}
                         />
