@@ -2,10 +2,19 @@ import React, {useEffect, useState} from "react";
 import {Link} from "react-router";
 import {isEqual} from "lodash-es";
 import Icon from "../../Icon";
-import DataTypes from "../../../../data-types";
+import DataTypes from "../../../columnTypes";
 import {formatFunctions} from "../../../../patterns/page/components/selector/dataWrapper/utils/utils";
 import { RenderAction } from "./RenderActions";
-//import { ThemeContext } from '../../../useTheme'
+
+const parseIfJson = strValue => {
+    if (typeof strValue === 'object') return strValue;
+
+    try {
+        return JSON.parse(strValue)
+    }catch (e){
+        return {}
+    }
+}
 
 const DisplayCalculatedCell = ({value, className}) => <div className={className}>{value}</div>
 const LoadingComp = ({className}) => <div className={className}>loading...</div>
@@ -36,16 +45,18 @@ const validate = ({value, required, options, name}) => {
         Array.isArray(options) && !value && !required ? true : // blank value with not required condition
         Array.isArray(options) && (typeof value === "string" || typeof value === "boolean") ? // select
             options.map(o => o.value || o).includes(value.toString()) :
-            Array.isArray(options) && Array.isArray(value) ?  // multiselect
-                value.reduce((acc, v) => acc && options.map(o => o.value || o).includes(v?.value || v), true) :
-                false
+            Array.isArray(options) && typeof value === 'number' ? //select
+                options.map(o => o.value || o).includes(value) :
+                Array.isArray(options) && Array.isArray(value) ?  // multiselect
+                    value.reduce((acc, v) => acc && options.map(o => o.value || o).includes(v?.value || v), true) :
+                    false
     );
     // if (!(requiredValidation && optionsValidation)) console.log('----', name, requiredValidation, optionsValidation, options, value)
     return requiredValidation && optionsValidation;
 }
 
 export const TableCell = ({
-    columns, display, theme,
+    isTotalCell, columns, display, theme,
     showOpenOutCaret, showOpenOut, setShowOpenOut,
     attribute, openOutTitle,
     i, item, updateItem, removeItem, onPaste,
@@ -56,12 +67,15 @@ export const TableCell = ({
     const [newItem, setNewItem] = useState(item);
     const rawValue = newItem[attribute.normalName] || newItem[attribute.name]
     // const Comp = DataTypes[attribute.type]?.[isSelecting ? 'ViewComp' : 'EditComp'];
+    const renderTextBox = attribute.type === 'text' && editing && allowEdit;
     const compType = attribute.type === 'calculated' && Array.isArray(rawValue) ? 'multiselect' : attribute.type;
     const compMode = attribute.type === 'calculated' && Array.isArray(rawValue) ? 'ViewComp' :
                             editing && allowEdit ? 'EditComp' : 'ViewComp';
-    const Comp = loading ? LoadingComp : compType === 'ui' ? attribute.Comp : (DataTypes[compType]?.[compMode] || DisplayCalculatedCell);
+    const Comp = loading ? LoadingComp : compType === 'ui' ? attribute.Comp :
+        renderTextBox ? DataTypes.textarea.EditComp : (DataTypes[compType]?.[compMode] || DisplayCalculatedCell);
     const CompWithLink = LinkComp({attribute, columns, newItem, removeItem, value: rawValue, Comp});
-    const value = compMode === 'EditComp' ? rawValue : attribute.formatFn && formatFunctions[attribute.formatFn.toLowerCase()] ? formatFunctions[attribute.formatFn.toLowerCase()](rawValue, attribute.isDollar) : rawValue
+    const value = isTotalCell && !(attribute.showTotal || display.showTotal) ? null :
+        compMode === 'EditComp' ? rawValue : attribute.formatFn && formatFunctions[attribute.formatFn.toLowerCase()] ? formatFunctions[attribute.formatFn.toLowerCase()](rawValue, attribute.isDollar) : rawValue
     const justifyClass = {
         left: 'justify-start',
         right: 'justify-end',
@@ -109,6 +123,16 @@ export const TableCell = ({
         required: attribute.required === "yes"
     }) : true;
 
+    const options = ['select', 'multiselect'].includes(attribute.type) && (attribute.options || []).some(o => o.filter) ?
+        attribute.options.filter(o => {
+            const optionFilter = parseIfJson(o.filter);
+            return Object.keys(optionFilter).reduce((acc, col) => {
+                if (newItem[col] === undefined || newItem[col] === null) return false;
+                return acc && optionFilter[col].includes(newItem[col].toString())
+            }, true)
+        }) :
+        attribute.options;
+
     const isTotalRow = newItem.totalRow;
     const bgColor = openOutTitle || attribute.openOut ? `` : !isValid ? `bg-red-50 hover:bg-red-100` : isTotalRow ? `bg-gray-100` :
                                 display.striped && i % 2 !== 0 ? 'bg-gray-50 hover:bg-gray-100' :
@@ -124,7 +148,7 @@ export const TableCell = ({
             `}
             style={{
                 ...!(attribute.openOut || openOutTitle) && {width: attribute.size},
-                ...isSelected && {borderWidth: '1px', ...selectionEdgeClassNames[edge]},
+                ...isSelected && !renderTextBox && {borderWidth: '1px', ...selectionEdgeClassNames[edge]},
             }}
             onClick={attribute.isLink || attribute.actionType ? undefined : onClick}
             onMouseDown={attribute.isLink || attribute.actionType ? undefined : onMouseDown}
@@ -165,8 +189,12 @@ export const TableCell = ({
                           attribute.type === 'multiselect' && !rawValue?.length ? 'p-0.5' : 'p-0.5'
                   } 
                   ${formatClass}
+                  ${attribute.wrapText || renderTextBox ? `whitespace-pre-wrap` : ``}
+                  ${renderTextBox ? `absolute border focus:outline-none min-w-[180px] min-h-[50px] z-[10]` : ``}
                   `}
+                          style={renderTextBox ? {borderColor: selectionColor} : undefined}
                   {...attribute}
+                options={options}
                   value={value}
                   row={newItem}
                   onChange={e => isTotalRow ? null : setNewItem({...newItem, [attribute.name]: e})}

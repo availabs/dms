@@ -30,7 +30,7 @@ function nav2Level(items, level=1, path, navTitle='') {
 	if(level > 1) {
 		let levelPath = '/'+path.replace('/edit','').split('/').filter(d => d).filter((d,i) => i < level-1).join('/')
 		let matchItems = items.map(d => {
-			return {...d, path: d.path.replace('/edit','') }
+			return {...d, path: d?.path?.replace('/edit','') }
 		})
 		let matches = matchRoutes(matchItems, {pathname: levelPath })
 		output = matches?.[0]?.route?.subMenus || []

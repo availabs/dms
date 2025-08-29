@@ -67,8 +67,8 @@ function PageEdit ({format, item, dataItems, updateAttribute, attributes, apiLoa
 		initNavigateUsingSearchParams({pageState, search, navigate, baseUrl, item})
 	}, [])
 
-	const updatePageStateFilters = (filters) => {
-		const searchParamFilters = pageState.filters.filter(f => f.useSearchParams).map(f => filters.find(updatedFilter => updatedFilter.searchKey === f.searchKey) || f)
+	const updatePageStateFilters = (filters, removeFilter={}) => {
+		const searchParamFilters = pageState.filters.filter(f => f.useSearchParams && !removeFilter[f.searchKey]).map(f => filters.find(updatedFilter => updatedFilter.searchKey === f.searchKey) || f)
 		const nonSearchParamFilters = filters
 			.filter(({searchKey}) => {
 				const matchingFilter = (pageState.filters || []).find(f => f.searchKey === searchKey);
@@ -87,7 +87,7 @@ function PageEdit ({format, item, dataItems, updateAttribute, attributes, apiLoa
 		}
 
 		// navigate
-		if(searchParamFilters?.length){
+		if(searchParamFilters?.length || true){
 			const filtersObject = searchParamFilters
 				.reduce((acc, curr) => ({...acc, [curr.searchKey]: typeof curr.values === 'string' ? [curr.values] : curr.values}), {});
 			const url = `?${convertToUrlParams(filtersObject)}`;

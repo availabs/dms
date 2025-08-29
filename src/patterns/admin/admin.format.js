@@ -1,5 +1,4 @@
 import PatternList from './components/patternList'
-import TemplateList from "../forms/components/templateList";
 
 
 export const pattern = {

@@ -40,6 +40,7 @@ export const tableTheme = {
     pageRangeItem: 'cursor-pointer px-3  text-[#2D3E4C] py-1  text-[12px] hover:bg-slate-50 font-[500] rounded  uppercase leading-[18px]',
     pageRangeItemInactive: '',
     pageRangeItemActive: 'bg-slate-100 ',
+    openOutContainer: 'w-[330px] overflow-auto scrollbar-sm flex flex-col gap-[12px] p-[16px] bg-white h-full float-right',
     openOutContainerWrapper: 'fixed inset-0 right-0 h-full w-full z-[100]',
     openOutHeader: 'font-semibold text-gray-600'
 }
@@ -84,16 +85,14 @@ const updateItemsOnPaste = ({pastedContent, e, index, attrI, data, visibleAttrib
 
     const rowsToPaste = [...new Array(paste.length).keys()].map(i => index + i).filter(i => i < data.length)
     const columnsToPaste = [...new Array(paste[0].length).keys()]
-        .map(i => visibleAttributes[attrI + i]?.name)
+        .map(i => visibleAttributes[attrI + i]?.allowEditInView ? visibleAttributes[attrI + i]?.name : undefined)
         .filter(i => i);
-
     const itemsToUpdate = rowsToPaste.map((row, rowI) => (
         {
             ...data[row],
             ...columnsToPaste.reduce((acc, col, colI) => ({...acc, [col]: paste[rowI][colI]}), {})
         }
     ));
-
     updateItem(undefined, undefined, itemsToUpdate);
 }
 export default function ({
@@ -135,7 +134,7 @@ export default function ({
     // =========================================== copy/paste begin ====================================================
     // =================================================================================================================
     usePaste((pastedContent, e) => {
-        if(!allowEdit) return;
+        if(!allowEdit || !columns.some(c => c.allowEditInView)) return;
 
         // first cell of selection
         let {index, attrI} = typeof selection[0] === 'number' ? {index: selection[0], attrI: undefined} : selection[0];
@@ -215,9 +214,11 @@ export default function ({
         }
 
         const handleKeyUp = () => {
-            setIsSelecting(false)
-            setIsDragging(false)
-            setTriggerSelectionDelete(false);
+            if(!editing?.index >= 0){
+                setIsSelecting(false)
+                setIsDragging(false)
+                setTriggerSelectionDelete(false);
+            }
         }
 
         const keyDownListener = e => handleKeyDown({
@@ -241,16 +242,16 @@ export default function ({
     // =================================================================================================================
     useEffect(() => {
         async function deleteFn() {
-            if (triggerSelectionDelete && allowEdit) {
+            if (triggerSelectionDelete && (allowEdit || columns.some(c => c.allowEditInView))) {
                 const selectionRows = data.filter((d, i) => selection.find(s => (s.index || s) === i))
-                const selectionCols = visibleAttributes.filter((_, i) => selection.map(s => s.attrI).includes(i)).map(c => c.name)
+                const selectionCols = visibleAttributes.filter((c, i) => c.allowEditInView && selection.map(s => s.attrI).includes(i)).map(c => c.name)
 
                 if (selectionCols.length) {
                     // partial selection
                     updateItem(undefined, undefined, selectionRows.map(row => ({...row, ...selectionCols.reduce((acc, curr) => ({...acc, [curr]: ''}), {})})))
                 }else{
                     // full row selection
-                    updateItem(undefined, undefined, selectionRows.map(row => ({...row, ...visibleAttributes.reduce((acc, curr) => ({...acc, [curr]: ''}), {})})))
+                    updateItem(undefined, undefined, selectionRows.map(row => ({...row, ...visibleAttributes.filter(c => c.allowEditInView).reduce((acc, curr) => ({...acc, [curr]: ''}), {})})))
                 }
             }
         }
@@ -347,7 +348,7 @@ export default function ({
 
                 {/*/!****************************************** Total Row ***********************************************!/*/}
                 {data
-                    .filter(d => display.showTotal && d.totalRow)
+                    .filter(d => (display.showTotal || columns.some(c => c.showTotal)) && d.totalRow)
                     .map((d, i) => (
                         <TableRow key={i} {...{
                             i, d,  isEdit, frozenCols, theme, columns, display,
@@ -355,7 +356,8 @@ export default function ({
                             selection, setSelection, selectionRange, triggerSelectionDelete,
                             handleMouseDown, handleMouseMove, handleMouseUp,
                             setIsDragging, startCellCol, startCellRow,
-                            updateItem, removeItem, defaultColumnSize
+                            updateItem, removeItem, defaultColumnSize,
+                            isTotalRow: true
                         }} />
                     ))}
                 {/*/!****************************************** Rows end ************************************************!/*/}

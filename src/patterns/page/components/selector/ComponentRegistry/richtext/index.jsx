@@ -1,10 +1,8 @@
 import React, {useContext, useEffect, useState} from "react";
 import {merge, cloneDeep} from 'lodash-es';
 import {ColorPickerComp} from "./components/colorPickerComp";
-import theme from './theme'
 import { CMSContext } from "../../../../context";
 import { ThemeContext } from "../../../../../../ui/useTheme";
-import LexicalComp from "./lexical";
 
 const isJson = (str)  => {
     try {
@@ -87,6 +85,18 @@ const cardTypes = {
         editorContainer: "relative block rounded-[10px] min-h-[50px]", //'.editor-shell .editor-container'
         editorShell: "font-['Caveat'] font-[600] text-[20px] text-[#37576B] leading-[22.4px]",
     },
+    'sitemap': {
+        link: "leading-[22.4px] tracking-normal",
+        heading: {
+            h1: "pt-[8px] font-[500] text-[64px] text-white leading-[40px]  font-[500]  uppercase font-['Oswald'] pb-[12px]", //'PlaygroundEditorTheme__h1',
+            h2: "text-[#2D3E4C] no-underline font-[Oswald] font-medium text-[16px] leading-[14px] uppercase tracking-normal", //'PlaygroundEditorTheme__h2',
+            h3: "text-[#2D3E4C] font-[Oswald] font-medium text-[14px] leading-[14px] uppercase tracking-normal", //'PlaygroundEditorTheme__h3',
+            h4: "pt-[8px] font-medium scroll-mt-36 text-white font-display", //'PlaygroundEditorTheme__h4',
+            h5: "scroll-mt-36 font-display", //'PlaygroundEditorTheme__h5',
+            h6: "scroll-mt-36 font-display", //'PlaygroundEditorTheme__h6',
+        },
+
+    },
 
 
 }
@@ -95,12 +105,12 @@ const Edit = ({value, onChange}) => {
     const context = useContext(CMSContext);
     const { theme } = useContext(ThemeContext)
     const {UI} = context;
-    const {Select} = UI;
+    const {Select, ColumnTypes: {lexical: Lexical}} = UI;
     const cachedData = value && isJson(value) ? JSON.parse(value) : {}
     const emptyTextBlock = {text: '', size: '4xl', color: '000000'};
     const [bgColor, setBgColor] = useState(cachedData?.bgColor || 'rgba(0,0,0,0)');
     const [isCard, setIsCard] = useState(cachedData?.isCard || '');
-    const [text, setText] = useState(cachedData?.text || value || emptyTextBlock);
+    const [text, setText] = useState(cachedData?.text || value);
 
     useEffect(() => {
 
@@ -113,7 +123,7 @@ const Edit = ({value, onChange}) => {
     return (
         <div className='w-full'>
             <div className='relative'>
-                <div className={'flex w-full px-2 py-1 flex flex-row text-sm items-center'}>
+                <div className={'w-full px-2 py-1 flex flex-row text-sm items-center'}>
                     <label className={'shrink-0 pr-2 w-1/4'}>Style</label>
                     <div className={''}>
                         <Select
@@ -137,6 +147,10 @@ const Edit = ({value, onChange}) => {
                               {
                                 label: 'Handwritten (Caveat)',
                                 value: 'Handwritten_2'
+                              },
+                              {
+                                label: 'Sitemap',
+                                value: 'sitemap'
                               }
                             ]}
                             value={isCard}
@@ -156,7 +170,7 @@ const Edit = ({value, onChange}) => {
                 <div className='flex'>
                     {isCard === 'Handwritten' && <div className='w-[50px]'> {'<---'} </div>}
                     <div className='flex-1'>
-                        <LexicalComp.EditComp
+                        <Lexical.EditComp
                             value={text}
                             onChange={setText}
                             bgColor={bgColor}
@@ -180,6 +194,8 @@ Edit.settings = {
 
 const View = ({value}) => {
     const context = useContext(CMSContext);
+    const {UI} = context;
+    const {ColumnTypes: {lexical: Lexical}} = UI;
     const { theme } = useContext(ThemeContext)
     if (!value) return <div className='h-6' />
     let data = typeof value === 'object' ?
@@ -201,7 +217,7 @@ const View = ({value}) => {
         <div className='flex'>
             {['Handwritten', 'Handwritten_1', 'Handwritten_2', 'Handwritten_3'].includes(isCard)  && <div className='pt-2 pr-2'><img src='/themes/mny/handwritten_arrow.svg'/></div>}
             <div className='flex-1'>
-            <LexicalComp.ViewComp
+            <Lexical.ViewComp
                 value={dataOrValue}
                 bgColor={data?.bgColor}
                 theme={{

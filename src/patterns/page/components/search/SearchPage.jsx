@@ -4,7 +4,6 @@ import {dmsDataLoader} from "../../../../api";
 import {getConfig} from "./index";
 import {CMSContext} from "../../context";
 import {dataItemsNav} from "../../pages/_utils";
-import dataTypes from "../../../../data-types";
 
 export const searchTypeMapping = {
     tags: 'byTag',
@@ -159,8 +158,6 @@ export const SearchPage = ({item, dataItems, format, attributes, logo, rightMenu
 
     const app = format?.app;
     const type = format?.type;
-
-    const Radio = dataTypes.radio.EditComp;
 
     const menuItems = React.useMemo(() => {
         let items = dataItemsNav(dataItems,baseUrl,false)

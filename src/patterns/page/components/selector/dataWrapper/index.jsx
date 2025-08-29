@@ -69,7 +69,7 @@ const RenderDownload = ({state, apiLoad, cms_context}) => {
     if(!state.display.allowDownload) return;
     return (
         <div className={''}>
-            <div className={'relative flex flex-col'}>
+            <div className={'relative flex flex-col print:hidden'}>
                 <div className={'w-fit p-2 border rounded-full '}>
                     <Icon id={menuBtnId}
                           icon={icon}
@@ -142,6 +142,7 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
         const newDataReq = {
             // visibleColumns: state.columns.filter(column => column.show),
             ...filterOptions,
+            filterRelation: state.display?.filterRelation,
             groupBy: state.columns.filter(column => column.group).map(column => column.name),
             orderBy: state.columns.filter(column => column.sort).reduce((acc, column) => ({...acc, [column.name]: column.sort}), {}),
             fn: state.columns.filter(column => column.fn).reduce((acc, column) => ({...acc, [column.name]: column.fn}), {}),
@@ -161,7 +162,7 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
         return () => {
             isStale = true;
         }
-    }, [state?.columns, isValidState])
+    }, [state?.columns, state?.display?.filterRelation, isValidState])
 
     // // ========================================== get data begin =======================================================
     // uweGetDataOnSettingsChange
@@ -253,8 +254,10 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
     // =========================================== saving settings end =================================================
 
     // =========================================== util fns begin ======================================================
+    const groupByColumnsLength = useMemo(() => state?.columns?.filter(({group}) => group).length, [state?.columns]);
+
     const updateItem = (value, attribute, d) => {
-        if(!state.sourceInfo?.isDms) return;
+        if(!state.sourceInfo?.isDms || groupByColumnsLength) return;
 
         if(attribute?.name){
             setState(draft => {
@@ -280,7 +283,7 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
     }
 
     const addItem = async () => {
-        if(!state.sourceInfo?.isDms || !apiUpdate) return;
+        if(!state.sourceInfo?.isDms || !apiUpdate || groupByColumnsLength) return;
         const res = await apiUpdate({data: newItem, config: {format: {...state.sourceInfo, type: `${state.sourceInfo.type}-${state.sourceInfo.view_id}`}}});
 
         if(res?.id){
@@ -294,17 +297,13 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
     }
 
     const removeItem = item => {
-        if(!state.sourceInfo?.isDms) return;
+        if(!state.sourceInfo?.isDms || groupByColumnsLength) return;
         setState(draft => {
             draft.data = draft.data.filter(d => d.id !== item.id);
         })
         return apiUpdate({data: item, config: {format: state.sourceInfo}, requestType: 'delete'})
     }
     // =========================================== util fns end ========================================================
-
-
-    const groupByColumnsLength = useMemo(() => state?.columns?.filter(({group}) => group).length, [state?.columns]);
-
 
     return (
             <div className={'w-full h-full'}>
@@ -339,7 +338,7 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
 
 const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest}) => {
     const isEdit = false;
-    const {UI} = useContext(cms_context || CMSContext) || {UI: {Icon: () => <></>}};;
+    const {UI, pgEnv} = useContext(cms_context || CMSContext) || {UI: {Icon: () => <></>}};;
     const {Icon} = UI;
     const {state, setState, apiLoad} = useContext(ComponentContext);
 
@@ -352,6 +351,8 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
     const Comp = useMemo(() => state.display.hideSection ? () => <></> : component.ViewComp, [component, state.display.hideSection]);
     // const useCache = state.display.useCache //=== false ? false : true; // false: loads data on load. can be expensive. useCache can be undefined for older components.
     const setReadyToLoad = useCallback(() => setState(draft => {draft.display.readyToLoad = true}), [setState]);
+    const allowEdit = groupByColumnsLength ? false : state.sourceInfo?.isDms && state.display.allowEditInView && Boolean(apiUpdate);
+
     useEffect(() => {
         const newState = convertOldState(value)
         setState(newState)
@@ -364,7 +365,7 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
         const isNormalisedColumn = state.columns.filter(col => col.name === column.name && col.filters?.length).length > 1;
 
         (column.filters || [])
-            .filter(({values}) => Array.isArray(values) && values.every(v => typeof v === 'string' ? v.length : typeof v !== 'object'))
+            .filter(({values}) => Array.isArray(values) && values.every(v => /*typeof v === 'string' ? v.length :*/ typeof v !== 'object'))
             .forEach(({type, operation, values, fn}) => {
                 // here, operation is filter, exclude, >, >=, <, <=.
                 // normal columns only support filter.
@@ -491,11 +492,96 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
             isStale = true;
         }
     }, [state?.display?.loadMoreId, state?.display?.totalLength, /*state?.data?.length, */state?.display?.usePagination, isValidState]);
+
+    // =========================================== get input data ======================================================
+    useEffect(() => {
+        if (!allowEdit) return;
+        let isStale = false;
+
+        async function loadOptionsData() {
+            try {
+                const columnsToFetch = state.columns.filter(c => c.mapped_options);
+
+                const fetchPromises = columnsToFetch.map(async column => {
+                    let mapped_options;
+                    try {
+                        mapped_options = JSON.parse(column.mapped_options);
+                    } catch {
+                        console.warn('Invalid mapped_options JSON', column.mapped_options);
+                        return [column.name, column.options || []];
+                    }
+
+                    const columns = [...new Set([mapped_options.labelColumn, mapped_options.valueColumn])].filter(Boolean);
+
+                    try {
+                        const { data } = await getData({
+                            apiLoad,
+                            fullDataLoad: true,
+                            currentPage: 0,
+                            state: {
+                                dataRequest: mapped_options.filter || {},
+                                display: {},
+                                sourceInfo: {
+                                    source_id: mapped_options.sourceId,
+                                    view_id: mapped_options.viewId,
+                                    isDms: mapped_options.isDms,
+                                    columns: columns.map(c => ({ name: c })),
+                                    app: state.sourceInfo.app,
+                                    type: mapped_options.type,
+                                    env: mapped_options.isDms
+                                        ? `${state.sourceInfo.app}+${mapped_options.type}`
+                                        : pgEnv
+                                },
+                                columns: columns.map(c => ({ name: c, show: true }))
+                            }
+                        });
+                        return [
+                            column.name,
+                            data.map(d => ({
+                                label: d[mapped_options.labelColumn] || 'N/A',
+                                value: d[mapped_options.valueColumn]
+                            }))
+                        ];
+                    } catch (err) {
+                        console.error(`Failed to load options for column ${column.name}:`, err);
+                        return [column.name, column.options || []];
+                    }
+                });
+
+                const results = await Promise.all(fetchPromises);
+
+                if (!isStale) {
+                    const responses = Object.fromEntries(results);
+
+                    setState(draft => {
+                        draft.columns.forEach(c => {
+                            if (c.mapped_options) {
+                                const fetchedOptions = responses[c.name] || [];
+                                if (!isEqual(c.options, fetchedOptions)) {
+                                    c.options = fetchedOptions;
+                                }
+                            }
+                        });
+                    });
+                }
+            } catch (err) {
+                console.error('Error loading options:', err);
+            }
+        }
+
+        loadOptionsData();
+        return () => {
+            isStale = true;
+        };
+    }, [allowEdit, isEdit, state.columns.map(c => c.mapped_options).join(',')]);
+
+
+    // ========================================= get input data end ======================================================
     // =========================================== get data end ========================================================
 
     // =========================================== util fns begin ======================================================
     const updateItem = (value, attribute, d) => {
-        if(!state.sourceInfo?.isDms || !apiUpdate) return;
+        if(!state.sourceInfo?.isDms || !apiUpdate || groupByColumnsLength) return;
 
         if(attribute?.name){
             setState(draft => {
@@ -521,8 +607,9 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
     }
 
     const addItem = async () => {
-        if(!state.sourceInfo?.isDms || !apiUpdate) return;
-        const res = await apiUpdate({data: newItem, config: {format: {...state.sourceInfo, type: `${state.sourceInfo.type}-${state.sourceInfo.view_id}`}}});
+        if(!state.sourceInfo?.isDms || !apiUpdate || groupByColumnsLength) return;
+        const config = {format: {...state.sourceInfo, type: `${state.sourceInfo.type}-${state.sourceInfo.view_id}`}}
+        const res = await apiUpdate({data: newItem, config});
 
         if(res?.id){
             setState(draft => {
@@ -535,7 +622,7 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
     }
 
     const removeItem = item => {
-        if(!state.sourceInfo?.isDms || !apiUpdate) return;
+        if(!state.sourceInfo?.isDms || !apiUpdate || groupByColumnsLength) return;
         setState(draft => {
             draft.data = draft.data.filter(d => d.id !== item.id);
         })
@@ -584,7 +671,7 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
                               newItem, setNewItem,
                               updateItem, removeItem, addItem,
                               currentPage, loading, isEdit,
-                              allowEdit: groupByColumnsLength ? false : state.sourceInfo?.isDms && state.display.allowEditInView && Boolean(apiUpdate)
+                              allowEdit
                           }}
                     />
                     <div>

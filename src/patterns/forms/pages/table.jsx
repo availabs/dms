@@ -12,8 +12,10 @@ import {
     RenderFilters
 } from "../../page/components/selector/dataWrapper/components/filters/RenderFilters";
 import { Controls } from "../../page/components/selector/dataWrapper/components/Controls";
+import {ThemeContext} from "../../../ui/useTheme";
 const TableView = ({apiUpdate, apiLoad, format, item, params}) => {
-    const { baseUrl, pageBaseUrl, theme, user, isUserAuthed } = useContext(FormsContext) || {};
+    const { baseUrl, pageBaseUrl, user, isUserAuthed } = useContext(FormsContext) || {};
+    const {theme} = useContext(ThemeContext) || {};
     const navigate = useNavigate();
     const columns = JSON.parse(item?.config || '{}')?.attributes || [];
     const default_columns = (item.default_columns || item.defaultColumns);
@@ -80,7 +82,7 @@ const TableView = ({apiUpdate, apiLoad, format, item, params}) => {
             {
                 !item.config || !value?.sourceInfo?.columns?.length ? <div className={'p-1 text-center'}>Please setup metadata.</div> :
                     !params.view_id || params.view_id === 'undefined' ? 'Please select a version' :
-                    <div className={`${theme?.page?.wrapper1}`}>
+                    <div className={`${theme?.page?.wrapper1} max-w-7xl mx-auto bg-white`}>
                         {
                             isUserAuthed(['update-source']) ?
                                 <button className={'w-fit p-1 bg-blue-100 hover:bg-blue-200 text-blue-500 text-sm place-self-end rounded-md'}

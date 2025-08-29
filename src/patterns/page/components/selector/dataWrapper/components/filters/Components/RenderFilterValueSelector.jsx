@@ -1,6 +1,4 @@
 import React, {useCallback, useMemo, useRef} from "react";
-import {useNavigate} from "react-router";
-import dataTypes from "../../../../../../../../data-types";
 import {useHandleClickOutside, isEqualColumns} from "../../../utils/utils";
 import {filterTheme} from "../RenderFilters";
 import {CMSContext, PageContext} from "../../../../../../context";
@@ -60,11 +58,11 @@ const RenderSearchKeySelector = ({filter, pageState, onChange}) => {
 export const RenderFilterValueSelector = ({
                                               loading, isEdit, filterColumn, filterOptions=[], state, setState, filterWithSearchParamKeys, columns, cms_context
                                           }) => {
-    const navigate = useNavigate();
     const { pageState, updatePageStateFilters } =  React.useContext(PageContext) || {}; // page to extract page filters
     const { UI } = React.useContext(cms_context || CMSContext) || {};
-    const { theme = { filters: filterTheme } } = React.useContext(ThemeContext) || {};
-    const {Switch} = UI;
+    const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
+    const theme = {...themeFromContext, filters: {...filterTheme, ...(themeFromContext.filter || {})}};
+    const {Switch, ColumnTypes} = UI;
     const options = useMemo(() => filterOptions.find(fo => fo.column === filterColumn.name)?.uniqValues, [filterOptions, filterColumn.name]);
 
     const useDebouncedUpdateFilter = (delay = 300) => {
@@ -89,6 +87,10 @@ export const RenderFilterValueSelector = ({
                     if (key === 'usePageFilters' && value === true && !targetFilter['searchParamKey']) {
                         targetFilter['searchParamKey'] = filterColumn.name;
                     }
+
+                    if (key === 'usePageFilters' && value === false) {
+                        targetFilter['allowSearchParams'] = false;
+                    }
                     draft.display.readyToLoad = true;
                 });
             }, delay);
@@ -104,141 +106,153 @@ export const RenderFilterValueSelector = ({
         .map((filter) => {
             const selector = ['filter', 'exclude'].includes(filter.operation) ? 'multiselect' : 'text'
 
-            const Comp = dataTypes[selector].EditComp;
+            const Comp = ColumnTypes[selector].EditComp;
 
             const value = ['filter', 'exclude'].includes(filter.operation) ? (filter.values || []) :
                 (Array.isArray(filter.values) ? filter.values[0] : typeof filter.values === 'object' ? '' : filter.values);
 
             const isStaleFilter = state.sourceInfo.columns.findIndex(({name}) => name === filterColumn.name) === -1;
             return (
-                <div key={`${filterColumn.name}-${filter.operation}`} className={'w-full p-1 relative text-xs'}>
-                    <div className={theme.filters.settingPillsWrapper}>
-                        <select
-                            className={`${isEdit ? 'cursor-pointer' : 'hidden'} ${theme.filters.settingPill}`}
-                            value={filter.type}
-                            disabled={!isEdit}
-                            onChange={e => updateFilter({
-                                key: 'type',
-                                value: e.target.value,
-                                filterColumn,
-                                filter,
-                                setState
-                            })}
-                        >
-                            <option key="internal" value="internal">internal</option>
-                            <option key="external" value="external">external</option>
-                        </select>
-                        <select
-                            className={`${isEdit ? 'cursor-pointer' : 'hidden'} ${theme.filters.settingPill}`}
-                            value={filter.operation}
-                            disabled={!isEdit}
-                            onChange={e => updateFilter({
-                                key: 'operation',
-                                value: e.target.value,
-                                filterColumn,
-                                filter,
-                                setState
-                            })}
-                        >
-                            <option key="filter" value="filter">include</option>
-                            <option key="exclude" value="exclude">exclude</option>
-                            <option key="gt" value="gt"> {">"} </option>
-                            <option key="gte" value="gte"> {">="} </option>
-                            <option key="lt" value="lt"> {"<"} </option>
-                            <option key="lte" value="lte"> {"<="} </option>
-                        </select>
+                <div key={`${filterColumn.name}-${filter.operation}`} className={'p-1 relative text-xs'}>
+                    {
+                        isEdit ? (
+                            <div className={theme.filters.settingPillsWrapper}>
+                                <select
+                                    className={`cursor-pointer ${theme.filters.settingPill}`}
+                                    value={filter.type}
+                                    disabled={!isEdit}
+                                    onChange={e => updateFilter({
+                                        key: 'type',
+                                        value: e.target.value,
+                                        filterColumn,
+                                        filter,
+                                        setState
+                                    })}
+                                >
+                                    <option key="internal" value="internal">internal</option>
+                                    <option key="external" value="external">external</option>
+                                </select>
 
-                        {
-                            /*['gt', 'gte', 'lt', 'lte'].includes(filter.operation) &&*/ isGrouping ?
-                            <select
-                                className={`${isEdit ? 'cursor-pointer' : 'hidden'} ${theme.filters.settingPill}`}
-                                value={filter.fn}
-                                disabled={!isEdit}
-                                onChange={e => updateFilter({
-                                    key: 'fn',
-                                    value: e.target.value,
-                                    filterColumn,
-                                    filter,
-                                    setState
-                                })}
-                            >
-                                <option key="none" value="">no fn</option>
-                                <option key="sum" value="sum">sum</option>
-                                <option key="count" value="count">count</option>
-                                <option key="max" value="max">max</option>
-                                <option key="list" value="list">list</option>
-                            </select> : null
-                        }
-                        {
-                            isEdit && ['filter', 'exclude'].includes(filter.operation) ? (
-                                <div className={'flex flex-wrap items-center gap-1'}>
-                                    <label className={theme.filters.settingLabel}>Multiselect: </label>
-                                    <Switch label={'Multi'}
-                                                  enabled={filter.isMulti}
-                                                  setEnabled={value => updateFilter({
-                                                      key: 'isMulti',
-                                                      value,
-                                                      filterColumn,
-                                                      filter,
-                                                      setState
-                                                  })}
-                                                  size={'xs'}
-                                    />
-                                </div>
-                            ) : null
-                        }
-                        {/* UI to match to search params. only show if using search params.*/}
-                        {
-                            isEdit ? (
+                                <select
+                                    className={`cursor-pointer ${theme.filters.settingPill}`}
+                                    value={filter.operation}
+                                    disabled={!isEdit}
+                                    onChange={e => updateFilter({
+                                        key: 'operation',
+                                        value: e.target.value,
+                                        filterColumn,
+                                        filter,
+                                        setState
+                                    })}
+                                >
+                                    <option key="filter" value="filter">include</option>
+                                    <option key="exclude" value="exclude">exclude</option>
+                                    <option key="like" value="like">text</option>
+                                    <option key="gt" value="gt"> {">"} </option>
+                                    <option key="gte" value="gte"> {">="} </option>
+                                    <option key="lt" value="lt"> {"<"} </option>
+                                    <option key="lte" value="lte"> {"<="} </option>
+                                </select>
+
+                                {
+                                    isGrouping ?
+                                        <select
+                                            className={`cursor-pointer ${theme.filters.settingPill}`}
+                                            value={filter.fn}
+                                            disabled={!isEdit}
+                                            onChange={e => updateFilter({
+                                                key: 'fn',
+                                                value: e.target.value,
+                                                filterColumn,
+                                                filter,
+                                                setState
+                                            })}
+                                        >
+                                            <option key="none" value="">no fn</option>
+                                            <option key="sum" value="sum">sum</option>
+                                            <option key="count" value="count">count</option>
+                                            <option key="max" value="max">max</option>
+                                            <option key="list" value="list">list</option>
+                                        </select> : null
+                                }
+
+                                {
+                                    ['filter', 'exclude'].includes(filter.operation) ? (
+                                        <div className={'flex flex-wrap items-center gap-1'}>
+                                            <label className={theme.filters.settingLabel}>Multiselect: </label>
+                                            <Switch label={'Multi'}
+                                                    enabled={filter.isMulti}
+                                                    setEnabled={value => updateFilter({
+                                                        key: 'isMulti',
+                                                        value,
+                                                        filterColumn,
+                                                        filter,
+                                                        setState
+                                                    })}
+                                                    size={'xs'}
+                                            />
+                                        </div>
+                                    ) : null
+                                }
+
+                                {/* UI to match to search params. only show if using search params.*/}
                                 <div className={'flex flex-wrap items-center gap-1'}>
                                     <label className={theme.filters.settingLabel}>Use Page Filters: </label>
                                     <Switch label={'Use Page Filters'}
-                                                  enabled={filter.usePageFilters}
-                                                  setEnabled={value => updateFilter({
-                                                      key: 'usePageFilters',
-                                                      value,
-                                                      filterColumn,
-                                                      filter,
-                                                      setState
-                                                  })}
-                                                  size={'xs'}
+                                            enabled={filter.usePageFilters}
+                                            setEnabled={value => updateFilter({
+                                                key: 'usePageFilters',
+                                                value,
+                                                filterColumn,
+                                                filter,
+                                                setState
+                                            })}
+                                            size={'xs'}
                                     />
                                 </div>
-                            ) : null
-                        }
-                        {
-                            filter.usePageFilters && isEdit ?
-                                <div className={'flex items-center gap-0.5'}>
-                                    <label className={`shrink-0 ${theme.filters.settingLabel}`}>Search key: </label>
-                                    <RenderSearchKeySelector pageState={pageState}
-                                                             filter={filter}
-                                                             onChange={e => updateFilter({
-                                                                 key: 'searchParamKey',
-                                                                 value: e,
-                                                                 filterColumn,
-                                                                 filter,
-                                                                 setState
-                                                             })}
-                                    />
-                                </div> : null
-                        }
 
-                        {
-                            isEdit && isStaleFilter ? <button className={theme.filters.settingPill} onClick={() => resetColumn(filterColumn, setState, state.sourceInfo.columns)}>Reset Stale Column</button> : null
-                        }
-                    </div>
+                                {
+                                    filter.usePageFilters ?
+                                        <div className={'flex items-center gap-0.5'}>
+                                            <label className={`shrink-0 ${theme.filters.settingLabel}`}>Search key: </label>
+                                            <RenderSearchKeySelector pageState={pageState}
+                                                                     filter={filter}
+                                                                     onChange={e => updateFilter({
+                                                                         key: 'searchParamKey',
+                                                                         value: e,
+                                                                         filterColumn,
+                                                                         filter,
+                                                                         setState
+                                                                     })}
+                                            />
+                                        </div> : null
+                                }
+
+                                {
+                                    isStaleFilter ? <button className={theme.filters.settingPill} onClick={() => resetColumn(filterColumn, setState, state.sourceInfo.columns)}>Reset Stale Column</button> : null
+                                }
+                            </div>
+                        ) : null
+                    }
+
                     {
-                        ['filter', 'exclude'].includes(filter.operation) ?
                             <Comp
                                 key={`filter-${filterColumn.name}-${filter.type}`}
-                                className={`${theme.filters.input}`}
-                                placeholder={'Search...'}
+                                className={theme.filters.input}
                                 loading={loading}
                                 value={value}
-                                options={options || []}
-                                singleSelectOnly={!filter.isMulti}
+                                placeholder={filter.operation === 'like' ? 'search...' : 'Please enter a number...'}
+                                options={['filter', 'exclude'].includes(filter.operation) ? (options || []) : undefined}
+                                singleSelectOnly={['filter', 'exclude'].includes(filter.operation) ? !filter.isMulti : undefined}
+                                type={['filter', 'exclude'].includes(filter.operation) ? undefined : filter.operation === 'like' ? 'text' : 'number'}
+                                displayInvalidMsg={false}
+                                onWheel={e => e.target.blur()}
                                 onChange={e => {
-                                    let newValues = (e || []).map(filterItem => filterItem?.value || filterItem);
+                                    let newValues =
+                                        ['filter', 'exclude'].includes(filter.operation) ?
+                                            (e || []).map(filterItem => filterItem?.value || filterItem) :
+                                            filterColumn.type === 'number' && e ? [+e] : [e];
+
                                     if(filter.usePageFilters) {
                                         const newFilters =  Object.keys(filterWithSearchParamKeys).filter(col => {
                                             if((filter.searchParamKey || filterColumn.name) === col) return false;
@@ -255,51 +269,13 @@ export const RenderFilterValueSelector = ({
                                         }
 
                                         const newPageFilters = Object.keys(newFilters).map(searchKey => ({searchKey, values: newFilters[searchKey]}))
-                                        // const url = convertToUrlParams(newFilters, delimiter);
-                                        // navigate(`?${url}`)
-                                        updatePageStateFilters( newPageFilters)
+
+                                        updatePageStateFilters(newPageFilters, {[filter.searchParamKey || filterColumn.name]: !newValues.length})
                                         updateFilter({key: 'values', value: newValues, filterColumn, filter, setState})
                                     }else {
                                         updateFilter({key: 'values', value: newValues, filterColumn, filter, setState})
                                     }
                                 }}
-                                displayInvalidMsg={false}
-                            /> :
-                            <Comp
-                                key={`filter-${filterColumn.name}-${filter.type}`}
-                                className={`${theme.filters.input}`}
-                                placeholder={'Please enter a number...'}
-                                value={ value }
-                                type={'number'}
-                                onChange={e => {
-                                    const newValue = filterColumn.type === 'number' && e ? +e : e;
-                                    let newValues = [newValue];
-                                    if(filter.usePageFilters) {
-                                        const newFilters =  Object.keys(filterWithSearchParamKeys).filter(col => {
-                                            if((filter.searchParamKey || filterColumn.name) === col) return false;
-
-                                            const currValue = filterWithSearchParamKeys[col];
-                                            return currValue?.length;
-                                        }).reduce((acc, col) => {
-                                            acc[col] = filterWithSearchParamKeys[col];
-                                            return acc;
-                                        }, {})
-
-                                        if(newValues.length){
-                                            newFilters[filter.searchParamKey || filterColumn.name] = newValues;
-                                        }
-                                        // const url = convertToUrlParams(newFilters, delimiter);
-                                        // navigate(`?${url}`)
-                                        const newPageFilters = Object.keys(newFilters).map(searchKey => ({searchKey, values: newFilters[searchKey]}))
-
-                                        updatePageStateFilters(newPageFilters)
-                                        updateFilter({key: 'values', value: newValues, filterColumn, filter, setState})
-                                    } else {
-                                        updateFilter({key: 'values', value: newValues, filterColumn, filter, setState})
-                                    }
-                                }}
-                                onWheel={e => e.target.blur()}
-                                displayInvalidMsg={false}
                             />
                     }
                 </div>

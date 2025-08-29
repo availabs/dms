@@ -6,10 +6,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { PageContext, CMSContext } from '../../../context'
 import {ThemeContext} from "../../../../../ui/useTheme";
 
-
 const FilterSettings = ({label, type, value, stateValue, onChange}) => {
   const {UI} = useContext(CMSContext);
-  const {Input, Select, Button} = UI;
+  const {Input, FieldSet, Switch, Button} = UI;
   const [newFilter, setNewFilter] = useState({});
   const [tmpValue, setTmpValue] = useState(typeof value === 'string' ? JSON.parse(value) : (value || []));
 
@@ -17,33 +16,66 @@ const FilterSettings = ({label, type, value, stateValue, onChange}) => {
     setTmpValue(value.map((v, i) => i === idx ? {...v, [key]: valueToUpdate} : v))
     onChange(value.map((v, i) => i === idx ? {...v, [key]: valueToUpdate} : v));
   }
+
+  const customTheme = {
+      field: 'pb-2 flex flex-col'
+  }
   return (
-      <div className={'flex flex-col gap-0.5'}>
+      <div className={'flex flex-col gap-1'}>
         {
           tmpValue.map((filter, i) => (
-                  <div key={i} className={'grid grid-cols-5 gap-0.5'}>
-                    <Input placeholder={'search key'} value={filter.searchKey} onChange={e => updateFilters(i, 'searchKey', e.target.value)}/>
-                    <Input placeholder={'value'} value={filter.values} onChange={e => updateFilters(i, 'values', e.target.value)}/>
-                    <label className={'text-red-500 self-center'}>{stateValue?.find(sv => sv.searchKey === filter.searchKey)?.values}</label>
-                    <Select value={filter.useSearchParams} onChange={e => updateFilters(i, 'useSearchParams', e.target.value === 'true')}
-                            options={[{label: 'please select', value: undefined}, {label: 'Use Search params', value: true}, {label: `Don't use Search params`, value: false}]} />
-                    <Button onClick={() => {
-                      onChange(value.filter((_, idx) => i !== idx));
-                      setTmpValue(value.filter((_, idx) => i !== idx))
-                    }} > remove </Button>
-                  </div>
+              <FieldSet
+                  className={'grid grid-cols-3 gap-1'}
+                  components={[
+                      {label: 'Search Key', type: 'Input', placeholder: 'search key', value: filter.searchKey,
+                          onChange: e => updateFilters(i, 'searchKey', e.target.value),
+                          customTheme
+                      },
+                      {label: 'Search Value', type: 'Input', placeholder: 'search value', value: filter.values,
+                          onChange: e => updateFilters(i, 'values', e.target.value),
+                          customTheme
+                      },
+                      {label: 'Use URL', type: 'Switch', enabled: filter.useSearchParams, size: 'small',
+                          setEnabled: e => updateFilters(i, 'useSearchParams', e),
+                          className: 'self-center',
+                          customTheme
+                      },
+                      {type: 'Button', children: 'remove',
+                          onClick: () => {
+                              onChange(value.filter((_, idx) => i !== idx));
+                              setTmpValue(value.filter((_, idx) => i !== idx))
+                          }
+                      }
+                  ]}
+              />
               ))
         }
-        <div key={'add-new-filter'} className={'grid grid-cols-3 gap-0.5'}>
-          <Input placeholder={'search key'} value={newFilter.searchKey} onChange={e => setNewFilter({...newFilter, searchKey: e.target.value})} />
-          <Input placeholder={'value'} value={newFilter.values} onChange={e => setNewFilter({...newFilter, values: e.target.value})} />
-          <Button onClick={() => {
-            const id = uuidv4();
+            <FieldSet
+                className={'grid grid-cols-3 gap-1'}
+                components={[
+                    {label: 'Search Key', type: 'Input', placeholder: 'search key', value: newFilter.searchKey,
+                        onChange: e => setNewFilter({...newFilter, searchKey: e.target.value}),
+                        customTheme
+                    },
+                    {label: 'Search Value', type: 'Input', placeholder: 'search value', value: newFilter.values,
+                        onChange: e => setNewFilter({...newFilter, values: e.target.value}),
+                        customTheme
+                    },
+                    {label: 'Use URL', type: 'Switch', enabled: newFilter.useSearchParams, size: 'small',
+                        setEnabled: e => setNewFilter({...newFilter, useSearchParams: e}),
+                        className: 'self-center',
+                        customTheme
+                    },
+                    {type: 'Button', children: 'add',
+                        onClick: () => {
+                            const id = uuidv4();
                             onChange([...value, {id, ...newFilter}]);
                             setTmpValue([...value, {id, ...newFilter}])
                             setNewFilter({});
-                          }} > add </Button>
-        </div>
+                        }
+                    }
+                ]}
+            />
         <Button onClick={() => {
           onChange([]);
           setTmpValue([])

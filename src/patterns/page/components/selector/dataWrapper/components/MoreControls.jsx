@@ -19,6 +19,12 @@ export default function MoreControls({context}) {
         setState(draft => {
             draft.display[key] = value;
 
+            if(key === 'allowEditInView' && value){
+                draft.columns.forEach(column => {
+                    column.allowEditInView = true;
+                })
+            }
+
             if(onChange) {
                 onChange({key, value, state: draft})
             }
@@ -45,12 +51,12 @@ export default function MoreControls({context}) {
                             .filter(({displayCdn}) =>
                                 typeof displayCdn === 'function' ? displayCdn({display}) :
                                  typeof displayCdn === 'boolean' ? displayCdn : true)
-                            .map(({type, inputType, label, key, options, onChange}) =>
+                            .map(({type, inputType, label, key, options, onChange, ...rest}) =>
                             type === 'toggle' ?
                                 <ToggleControl key={key} title={label} value={display[key]}
                                                setValue={value => updateDisplayValue(key, value, onChange)}/> :
                                 type === 'input' ?
-                                    <InputControl key={key} type={inputType} title={label} value={display[key]} setValue={value => updateDisplayValue(key, value)}/> :
+                                    <InputControl key={key} type={inputType} title={label} value={display[key]} setValue={value => updateDisplayValue(key, value)} {...rest}/> :
                                     type === 'select' ?
                                         <div
                                             key={key}

@@ -5,32 +5,32 @@ export const createRequest = (wrapperConfig,format, path, length) => {
 	// generate requests for config based on TYPE and FILTERS
 	//---------------------------------------------------------
 	let filterAttrs = wrapperConfig?.filter?.attributes || []
-	let dataAttrs = filterAttrs.length > 0 ? 
+	let dataAttrs = filterAttrs.length > 0 ?
 		filterAttrs.map(attr =>  `data ->> '${attr}'` ) : ['data'];
 
 	//---------------------------------------------------
 	//----------- Param mathcing from filters
 	//----------- ---------------------------------------
 	let fromIndex =	typeof wrapperConfig?.filter?.fromIndex === 'function' ?
-			wrapperConfig?.filter?.fromIndex(path) :
+		wrapperConfig?.filter?.fromIndex(path) :
 		(+wrapperConfig?.filter?.fromIndex || 0);
-	
-	let toIndex = typeof wrapperConfig?.filter?.toIndex === "function" ?
-			wrapperConfig?.filter?.toIndex(path) :
-			(+wrapperConfig?.filter?.toIndex || Math.max(0,length-1)); //
 
-	// console.log('api - createRequest - indexs',fromIndex, toIndex, wrapperConfig?.filter?.fromIndex, wrapperConfig?.filter?.toIndex )
+	let toIndex = typeof wrapperConfig?.filter?.toIndex === "function" ?
+		wrapperConfig?.filter?.toIndex(path) : (typeof wrapperConfig?.filter?.toIndex === 'undefined' || wrapperConfig?.filter?.toIndex === null ?
+    Math.max(0,length-1) : +wrapperConfig?.filter?.toIndex)
+
+
 	let options = wrapperConfig?.filter?.options || '{}';
 	let tags = wrapperConfig?.filter?.tags || [];
 	let searchType = wrapperConfig?.filter?.searchType || 'byTag';
-	// wrapperConfig.action === 'edit' makes it pull either by id or full data. 
+	// wrapperConfig.action === 'edit' makes it pull either by id or full data.
 	// this makes 'new' slow, as there's no id this fixes that.
 	if(wrapperConfig?.filter?.type === 'new') return [];
 
 	switch (wrapperConfig.action) {
 		case 'list': {
 			return [
-				'dms', 'data', `${ app }+${ type }`, 
+				'dms', 'data', `${ app }+${ type }`,
 				 options !== '{}' ? 'opts' : false,
 				 options !== '{}' ? options : false,
 				'byIndex', {from: fromIndex, to: toIndex },
@@ -42,7 +42,7 @@ export const createRequest = (wrapperConfig,format, path, length) => {
 			// if
 			const idPath = getIdPath(wrapperConfig,format)
 			//console.log('view edit dataAttrs', dataAttrs)
-			return  idPath ? idPath : 
+			return  idPath ? idPath :
 				[
 				'dms', 'data', `${ app }+${ type }`, 'byIndex',
 				{from: fromIndex, to: toIndex },
@@ -80,14 +80,14 @@ export const createRequest = (wrapperConfig,format, path, length) => {
 		default:
 			return []
 	}
-	
+
 }
 
 export function getIdPath (wrapperConfig,format) {
 	const { app , type, defaultSearch, attributes = [] } = format
-	
+
 	let filterAttrs = wrapperConfig?.filter?.attributes || []
-	let dataAttrs = filterAttrs.length > 0 ? 
+	let dataAttrs = filterAttrs.length > 0 ?
 		filterAttrs.map(attr =>  `data ->> '${attr}'` ) : ['data'];
 
 	const wildKey = attributes?.reduce((out,attr) => {
@@ -102,23 +102,23 @@ export function getIdPath (wrapperConfig,format) {
 	//console.log('hola', id , wildKey, defaultSearch, wrapperConfig, format)
 	// if you have an id prefer that to a wildkey
 
-	return id ? 
+	return id ?
 	[
-		'dms', 'data', 'byId', id, 
+		'dms', 'data', 'byId', id,
 		[ "id", "updated_at", "created_at","app", "type",...dataAttrs]
 	] : wildKey ? [
 		'dms', 'data', `${ app }+${ type }`,
 		'searchOne',
 		[JSON.stringify({
-			wildKey: `data ->> '${wildKey}'`, 
+			wildKey: `data ->> '${wildKey}'`,
 			params: wrapperConfig.params['*'] || '',
 			defaultSearch
 		})],
 		[ "id", "updated_at", "created_at","app", "type", ...dataAttrs]
 	] :  null
-				
 
-	
+
+
 
 }
 

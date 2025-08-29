@@ -28,7 +28,7 @@ export const insertSubPage = async (item, dataItems, user, apiUpdate) => {
     apiUpdate({data:newItem})
   }
 
-const duplicateItem = (item, dataItems, user, apiUpdate) => {
+export const duplicateItem = (item, dataItems, user, apiUpdate) => {
     const highestIndex = dataItems
         .filter(d => !d.parent)
         .reduce((out,d) => {
@@ -210,6 +210,7 @@ export const discardChanges = async (user,item, apiUpdate) => {
       delete s.id;
       return s;
   });
+  newItem.draft_section_groups = newItem.section_groups;
   apiUpdate({data:newItem})
 
 }

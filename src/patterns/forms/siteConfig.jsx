@@ -4,16 +4,17 @@ import { merge } from "lodash-es"
 import { cloneDeep } from "lodash-es"
 import { useFalcor } from "@availabs/avl-falcor"
 import formsFormat, {source} from "./forms.format";
-
+import { ThemeContext } from "../../ui/useTheme";
 import defaultTheme from './theme/theme'
 import DefaultMenu from './components/menu'
 import UI from '../../ui'
 
-//--- Admin Pages
+// --- Admin Pages
 import ManageLayout from './pages/manage/layout'
 import Dashboard from './pages/manage'
 import DesignEditor from "./pages/manage/design";
 
+// --- source / view pages
 import Validate from "./pages/validate";
 import Overview from "./pages/overview";
 import TableView from "./pages/table";
@@ -23,6 +24,7 @@ import PatternListComponent from "./components/patternListComponent";
 import AvailLayout from "./ui/avail-layout";
 import Admin from "./pages/admin";
 import Version from "./pages/version";
+import ErrorPage from "./pages/error";
 
 
 export const FormsContext = React.createContext(undefined);
@@ -57,7 +59,7 @@ const formsAdminConfig = ({
     themes={ default: {} },
 }) => {
 
-    let theme = merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern?.theme_name] || themes.default))
+    let theme = merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern?.theme_name] || themes.mny_admin))
     baseUrl = baseUrl === '/' ? '' : baseUrl
     const defaultLogo = (
         <Link to={baseUrl || '/'} className='h-12 flex px-4 items-center'>
@@ -68,7 +70,22 @@ const formsAdminConfig = ({
     if(!theme.navOptions.logo) {
         theme.navOptions.logo = logo ? logo : defaultLogo
     }
-    
+    theme.navOptions.sideNav = {
+        "size": "compact",
+        "search": "none",
+        "logo": "top", "menu": "top",
+        "nav": "main"
+    }
+
+    theme.navOptions.topNav = {
+        "size": "none",
+        "dropdown": "right",
+        "search": "right",
+        "logo": "left",
+        "position": "fixed",
+        "nav": "main"
+    }
+
     const patternFormat = cloneDeep(formsFormat);
     patternFormat.app = app
     patternFormat.type = type
@@ -80,9 +97,22 @@ const formsAdminConfig = ({
         format: patternFormat,
         baseUrl: `${baseUrl}`,
         API_HOST,
+        errorElement: () => {
+            return (
+                <FormsContext.Provider value={{
+                    UI,
+                    baseUrl: `${baseUrl}`, damaBaseUrl,
+                    theme, app, type,
+                    parent: pattern, Menu, API_HOST
+                }}>
+                    <ErrorPage />
+                </FormsContext.Provider>
+            )
+        },
         children: [
             {
                 type: (props) => {
+                    const {Layout} = UI;
                   return (
                       <FormsContext.Provider value={{
                           UI,
@@ -93,7 +123,11 @@ const formsAdminConfig = ({
                           authPermissions,
                           isUserAuthed: (reqPermissions, customAuthPermissions) => isUserAuthed({user, authPermissions: customAuthPermissions || authPermissions, reqPermissions}),
                       }}>
-                            {props.children}
+                          <ThemeContext.Provider value={{theme}}>
+                                  <Layout navItems={[]} Menu={Menu}>
+                                      {props.children}
+                                  </Layout>
+                          </ThemeContext.Provider>
                       </FormsContext.Provider>
                   )
                 },
@@ -110,13 +144,7 @@ const formsAdminConfig = ({
                         // sources list component on blank 
                          
                         // sources list component on blank 
-                        type: props => (
-                            <AvailLayout secondNav={theme?.navOptions?.secondaryNav?.navItems || []}>
-                                <div className='max-w-7xl mx-auto'>
-                                    <PatternListComponent.EditComp {...props} />
-                                </div>
-                             </AvailLayout>
-                        ),
+                        type: props => <PatternListComponent.EditComp {...props} />,
                         path: "",
                         action: "edit"
                     },
@@ -171,7 +199,8 @@ const formsSourceConfig = ({
     themes={ default: {} },
     checkAuth = () => {}
 }) => {
-    let theme = merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern?.theme_name] || themes.default))
+    let theme = merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern?.theme_name] || themes.mny_admin));
+
     baseUrl = baseUrl === '/' ? '' : baseUrl
     const defaultLogo = (
         <Link to={baseUrl || '/'} className='h-12 flex px-4 items-center'>
@@ -182,8 +211,21 @@ const formsSourceConfig = ({
     if(!theme.navOptions.logo) {
         theme.navOptions.logo = logo ? logo : defaultLogo
     }
+    theme.navOptions.sideNav = {
+        "size": "compact",
+        "search": "none",
+        "logo": "top", "menu": "top",
+        "nav": "main"
+    }
 
-    //console.log('forms siteconfig theme', theme )
+    theme.navOptions.topNav = {
+        "size": "none",
+        "dropdown": "right",
+        "search": "right",
+        "logo": "left",
+        "position": "fixed",
+        "nav": "main"
+    }
 
     const patternFormat = cloneDeep(source);
     const newType = `${type}|source`;
@@ -198,11 +240,23 @@ const formsSourceConfig = ({
         format: patternFormat,
         baseUrl: `${baseUrl}/source`,
         API_HOST,
+        errorElement: () => {
+            return (
+                <FormsContext.Provider value={{
+                    UI,
+                    baseUrl: `${baseUrl}`, damaBaseUrl,
+                    theme, app, type,
+                    parent: pattern, Menu, API_HOST
+                }}>
+                    <ErrorPage />
+                </FormsContext.Provider>
+            )
+        },
         children: [
             {
                 type: (props) => {
                     const { falcor, falcorCache } = useFalcor();
-                    console.log('forms wrapper called', props, user)
+                    const {Layout} = UI;
                   return (
                       <FormsContext.Provider value={{
                           UI,
@@ -218,9 +272,11 @@ const formsSourceConfig = ({
                           authPermissions,
                           isUserAuthed: (reqPermissions, customAuthPermissions) => isUserAuthed({user, authPermissions: customAuthPermissions || authPermissions, reqPermissions}),
                       }}>
-                        <AvailLayout>
-                            {props.children}
-                        </AvailLayout>
+                          <ThemeContext.Provider value={{theme}}>
+                                  <Layout navItems={[]} Menu={Menu}>
+                                      {props.children}
+                                  </Layout>
+                          </ThemeContext.Provider>
                       </FormsContext.Provider>
                   )
                 },

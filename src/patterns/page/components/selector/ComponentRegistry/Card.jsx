@@ -2,7 +2,6 @@ import React, {useContext} from "react";
 import {CMSContext, ComponentContext} from "../../../context";
 import {duplicateControl} from "./shared/utils";
 import {formatFunctions} from "../dataWrapper/utils/utils";
-import DataTypes from "../../../../../data-types";
 import ColorControls from "./shared/ColorControls";
 import {ToggleControl} from "../dataWrapper/components/ToggleControl";
 
@@ -55,13 +54,15 @@ const Card = ({
     const {state, setState, controls={}} = useContext(ComponentContext);
 
     return <Card {...state} setState={setState} controls={controls}
-                 isEdit={isEdit} updateItem={updateItem} newItem={newItem} setNewItem={setNewItem} allowEdit={allowEdit}
-                 formatFunctions={formatFunctions} DataTypes={DataTypes}
+                 isEdit={isEdit} updateItem={updateItem} addItem={addItem} newItem={newItem} setNewItem={setNewItem} allowEdit={allowEdit}
+                 formatFunctions={formatFunctions}
     />
 }
 
 const inHeader = [
-    // settings from in header dropdown are stores in the columns array per column.
+    // settings from in header dropdown are stored in the columns array per column.
+    {type: 'toggle', label: 'Allow Edit', key: 'allowEditInView', displayCdn: ({isEdit}) => isEdit},
+
     {type: 'select', label: 'Sort', key: 'sort',
         options: [
             {label: 'Not Sorted', value: ''}, {label: 'A->Z', value: 'asc nulls last'}, {label: 'Z->A', value: 'desc nulls last'}
@@ -90,8 +91,9 @@ const inHeader = [
     {type: 'toggle', label: 'Border Below', key: 'borderBelow', displayCdn: ({display}) => display.compactView},
     {type: 'input', inputType: 'number', label: 'Padding Below', key: 'pb', isBatchUpdatable: true, displayCdn: ({display}) => display.compactView},
     {type: 'toggle', label: 'Hide Header', key: 'hideHeader', isBatchUpdatable: true},
+    {type: 'toggle', label: 'Hide Value', key: 'hideValue', isBatchUpdatable: true},
     {type: 'select', label: 'Header', key: 'headerFontStyle', options: fontStyleOptions, isBatchUpdatable: true, displayCdn: ({attribute}) => !attribute.hideHeader},
-    {type: 'select', label: 'Value', key: 'valueFontStyle', options: fontStyleOptions, isBatchUpdatable: true},
+    {type: 'select', label: 'Value', key: 'valueFontStyle', options: fontStyleOptions, isBatchUpdatable: true, displayCdn: ({attribute}) => !attribute.hideValue},
 
     {type: 'input', inputType: 'number', label: 'Span', key: 'cardSpan', displayCdn: ({display}) => !display.compactView},
 
@@ -180,6 +182,9 @@ export default {
             {type: 'toggle', label: 'Reverse', key: 'reverse'},
             {type: 'toggle', label: 'Hide if No Data', key: 'hideIfNull'},
             {type: 'toggle', label: 'Remove Border', key: 'removeBorder'},
+            {type: 'select', label: 'Filter Relation', key: 'filterRelation',
+                options: [{label: 'and', value: 'and'}, {label: 'or', value: 'or'}]
+            },
             {type: ({value, setValue}) => <ColorControls value={value} setValue={setValue} title={'Background Color'}/>, key: 'bgColor', displayCdn: ({display}) => display.compactView},
         ],
         inHeader,

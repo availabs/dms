@@ -1,10 +1,13 @@
-import React, {useContext, useEffect} from 'react'
+import React, {useContext, useEffect, useRef} from 'react'
 import { Link, useSearchParams, useLocation, useNavigate } from "react-router";
 import { cloneDeep, merge } from "lodash-es"
 import { useImmer } from "use-immer";
 import {
-    dataItemsNav, convertToUrlParams, mergeFilters,
-    initNavigateUsingSearchParams, updatePageStateFiltersOnSearchParamChange
+    dataItemsNav,
+    convertToUrlParams,
+    mergeFilters,
+    initNavigateUsingSearchParams,
+    updatePageStateFiltersOnSearchParamChange
 } from './_utils'
 import SectionGroup from '../components/sections/sectionGroup'
 import SearchButton from '../components/search'
@@ -12,13 +15,20 @@ import { PageContext, CMSContext } from '../context';
 import { ThemeContext } from "../../../ui/useTheme";
 
 function PageView ({item, dataItems, attributes, apiLoad, apiUpdate, reqPermissions, format,busy}) {
+
     const navigate = useNavigate()
     const [searchParams] = useSearchParams();
-    const { search } = useLocation()
-
     const {theme: fullTheme} = useContext(ThemeContext);
     const { UI, Menu, baseUrl, patternFilters=[], isUserAuthed } = React.useContext(CMSContext) || {};
-    const [pageState, setPageState] = useImmer({ ...item, filters: mergeFilters(item?.filters, patternFilters) });
+    const [pageState, setPageState] =
+        useImmer({
+            ...item,
+            filters: mergeFilters(item?.filters, patternFilters)
+        });
+
+    const { search } = useLocation()
+    const pdfRef = useRef(); // To capture the section of the page to be converted to PDF
+
 
     const {Layout} = UI;
     let theme = merge(cloneDeep(fullTheme), item?.theme || {})
@@ -41,8 +51,8 @@ function PageView ({item, dataItems, attributes, apiLoad, apiUpdate, reqPermissi
         initNavigateUsingSearchParams({pageState, search, navigate, baseUrl, item, isView: true})
     }, [])
 
-    const updatePageStateFilters = (filters) => {
-        const searchParamFilters = pageState.filters.filter(f => f.useSearchParams).map(f => filters.find(updatedFilter => updatedFilter.searchKey === f.searchKey) || f)
+    const updatePageStateFilters = (filters, removeFilter={}) => {
+        const searchParamFilters = pageState.filters.filter(f => f.useSearchParams && !removeFilter[f.searchKey]).map(f => filters.find(updatedFilter => updatedFilter.searchKey === f.searchKey) || f)
         const nonSearchParamFilters = filters
             .filter(({searchKey}) => {
                 const matchingFilter = (pageState.filters || []).find(f => f.searchKey === searchKey);
@@ -61,7 +71,7 @@ function PageView ({item, dataItems, attributes, apiLoad, apiUpdate, reqPermissi
         }
 
         // navigate
-        if(searchParamFilters?.length){
+        if(searchParamFilters?.length || true){
             const filtersObject = searchParamFilters
                 .reduce((acc, curr) => ({...acc, [curr.searchKey]: typeof curr.values === 'string' ? [curr.values] : curr.values}), {});
             const url = `?${convertToUrlParams(filtersObject)}`;

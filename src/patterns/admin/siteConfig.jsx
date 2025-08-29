@@ -49,7 +49,13 @@ const adminConfig = ({
       path:`${baseUrl}/team`
     }
   ]
+  /*
+  authlink = patterns.filter[].baseirl
 
+  menuItems = [
+    ...menuItems
+    ...authMenuItmes
+  ]*/
   // ----------------------
   // update app for all the children formats
   format.registerFormats = updateRegisteredFormats(format.registerFormats, app)
@@ -60,6 +66,24 @@ const adminConfig = ({
     type,
     format: format,
     baseUrl,
+    errorElement:  (props) => {
+      const {Layout} = UI;
+      return (
+          <AdminContext.Provider value={{baseUrl, user: props.user || defaultUser, app, type, API_HOST, UI}}>
+            <ThemeContext.Provider value={{theme}}>
+              <Layout navItems={menuItems}>
+                <div className={theme?.admin?.page?.pageWrapper}>
+                  <div className={theme?.admin?.page?.pageWrapper2}>
+                    <div className={'mx-auto max-w-fit pt-[120px] text-lg'}>
+                      Unable to complete your request at the moment. Please try again later.
+                    </div>
+                  </div>
+                </div>
+              </Layout>
+            </ThemeContext.Provider>
+          </AdminContext.Provider>
+      )
+    },
     children: [
       {
         //todo move theme edit page here

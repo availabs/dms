@@ -1,11 +1,13 @@
-import React, {useMemo} from "react";
+import React, {useContext, useMemo} from "react";
 import {CMSContext, ComponentContext} from "../../page/context"
 import { FormsContext } from '../siteConfig'
 import ValidateComp from "../components/validate"
 import SourcesLayout from "../components/patternListComponent/layout";
+import {ThemeContext} from "../../../ui/useTheme";
 
 const Validate = ({item, params,  apiUpdate, apiLoad}) => {
-    const { API_HOST, baseUrl, pageBaseUrl, theme, user, falcor } = React.useContext(FormsContext) || {};
+    const { API_HOST, baseUrl, pageBaseUrl, user, falcor } = React.useContext(FormsContext) || {};
+    const {theme} = useContext(ThemeContext) || {};
     const {config} = item;
     const is_dirty = (JSON.parse(config || '{}')?.is_dirty);
     const page = useMemo(() => ({name: 'Validate', href: `${pageBaseUrl}/${params.id}/validate`, /*warn: is_dirty*/}), [is_dirty, pageBaseUrl, params.id])
@@ -19,7 +21,6 @@ const Validate = ({item, params,  apiUpdate, apiLoad}) => {
                        showVersionSelector={true}
 
         >
-            <div className={`${theme?.page?.wrapper1}`}>
                 {
                     !params.view_id || params.view_id === 'undefined' ? 'Please select a version' :
                         <ValidateComp.EditComp
@@ -30,7 +31,6 @@ const Validate = ({item, params,  apiUpdate, apiLoad}) => {
                             cms_context={FormsContext}
                         />
                 }
-            </div>
         </SourcesLayout>
     )
 }

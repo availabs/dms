@@ -1,7 +1,7 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {Link} from 'react-router';
 import { ThemeContext } from '../useTheme';
-//import {isEqualColumns} from "~/modules/dms/src/patterns/page/components/selector/dataWrapper/utils/utils";
+import ColumnTypes from "../columnTypes";
 import TableHeaderCell from "./table/components/TableHeaderCell";
 import Icon from "./Icon";
 
@@ -19,9 +19,9 @@ export const dataCardTheme = {
     headerValueWrapper: 'w-full rounded-[12px] flex items-center justify-center p-2',
     headerValueWrapperCompactView: 'py-0',
     headerValueWrapperSimpleView: '',
-    justifyTextLeft: 'text-start justify-items-start',
-    justifyTextRight: 'text-end justify-items-end',
-    justifyTextCenter: 'text-center justify-items-center',
+    justifyTextLeft: 'text-start justify-items-start  rounded-md',
+    justifyTextRight: 'text-end justify-items-end rounded-md',
+    justifyTextCenter: 'text-center justify-items-center rounded-md',
 
     textXS: 'text-xs font-medium',
     textXSReg: 'text-xs font-normal',
@@ -143,11 +143,22 @@ export const docs = [
         }
     }]
 
+
+const parseIfJson = strValue => {
+    if (typeof strValue === 'object') return strValue;
+
+    try {
+        return JSON.parse(strValue)
+    }catch (e){
+        return {}
+    }
+}
+
 const DefaultComp = ({value, className}) => <div className={className}>{value}</div>;
 
 const EditComp = ({
                       attribute, value, rawValue, className,
-                      isValueFormatted, id, DataTypes,
+                      isValueFormatted, id,
                       updateItem, liveEdit, tmpItem, setTmpItem, allowEdit, formatFunctions,
                       isNewItem, newItem, setNewItem, // when allowAddNewItem is on
                   }) => {
@@ -155,11 +166,21 @@ const EditComp = ({
     const compRef = useRef(null);
     const compId = `${attribute.name}-${id}-${JSON.stringify(rawValue)}`;
     const compIdEdit = `${attribute.name}-${id}`;
-    const Comp = DataTypes[attribute.type]?.[allowEdit ? 'EditComp' : 'ViewComp'] || DefaultComp;
-    // const Comp = DataTypes[attribute.type]?.[allowEdit && isEditing ? 'EditComp' : 'ViewComp'];
+    const Comp = ColumnTypes[attribute.type]?.[allowEdit ? 'EditComp' : 'ViewComp'] || DefaultComp;
     useHandleClickOutside(compRef, compId, () => isEditing && setIsEditing(false));
 
     if(!allowEdit && (attribute.isImg || attribute.isLink || ['icon', 'color'].includes(attribute.formatFn) && formatFunctions[attribute.formatFn])) return value;
+
+    const options = ['select', 'multiselect'].includes(attribute.type) && (attribute.options || []).some(o => o.filter) ?
+        attribute.options.filter(o => {
+            const optionFilter = parseIfJson(o.filter);
+            return Object.keys(optionFilter).reduce((acc, col) => {
+                const depValue = (isNewItem ? newItem : tmpItem)[col];
+                if (depValue === undefined || depValue === null) return false;
+                return acc && optionFilter[col].includes(depValue.toString())
+            }, true)
+        }) :
+        attribute.options;
 
     return <div ref={compRef}
                 onClick={() => !isEditing && setIsEditing(true)}
@@ -170,13 +191,14 @@ const EditComp = ({
               onChange={newValue => {
                   if(!allowEdit) return;
 
-                  return !liveEdit && setTmpItem ? setTmpItem({...tmpItem, [attribute.name]: newValue}) : // form like edit
-                      liveEdit && updateItem ? updateItem(newValue, attribute, {id, [attribute.name]: newValue}) : // live edit
-                          isNewItem && setNewItem ? setNewItem({...newItem, [attribute.name]: newValue}) : {} // add new item
+                  return !liveEdit && setTmpItem && tmpItem.id ? setTmpItem({...tmpItem, [attribute.name]: newValue}) : // form like edit
+                      liveEdit && updateItem && tmpItem.id ? updateItem(newValue, attribute, {id, [attribute.name]: newValue}) : // live edit
+                          isNewItem && setNewItem && !tmpItem.id ? setNewItem({...newItem, [attribute.name]: newValue}) : {} // add new item
               }
               }
-              className={allowEdit && !value ? 'border' : className}
+              className={`${allowEdit ? 'border' : ''} ${className}`}
               {...attribute}
+            options={options}
         />
     </div>
 }
@@ -188,9 +210,7 @@ const RenderItem = ({
                         item, newItem, setNewItem, addItem, updateItem, allowEdit,
                         subWrapperStyle,
                         visibleColumns,
-    // todo: should provide default formatFunctions and DataTypes
                         formatFunctions= {},
-                        DataTypes={} // components to render text/select/richtext etc. each component is expected to have EditComp and ViewComp
                     }) => {
     const [tmpItem, setTmpItem] = useState(item || {}); // for form edit controls
 
@@ -254,70 +274,71 @@ const RenderItem = ({
                                         </div>
                                     )
                                 }
-                                <div className={`
-                                                ${theme.value} ${compactView ? theme.valueCompactView : theme.valueSimpleView}
-                                                 ${theme[valueTextJustifyClass]}
-                                                 ${theme[attr.valueFontStyle || 'textXS']}
-                                                 ${formatClass}
-                                                 `}>
-                                    {
-                                        isLink && !allowEdit ?
-                                            <Link className={theme.linkColValue}
-                                                  to={`${location || value}${attr.searchParams === 'id' ? encodeURIComponent(id) : attr.searchParams === 'value' ? encodeURIComponent(value) : ``}`}
-                                            >
-                                                <EditComp attribute={attr}
-                                                          value={linkText || value}
-                                                          rawValue={rawValue}
-                                                          isValueFormatted={isValueFormatted}
-                                                          updateItem={isNewItem ? undefined : updateItem}
+                                {
+                                    attr.hideValue ? null :
+                                        <div className={`
+                                                    ${theme.value} ${compactView ? theme.valueCompactView : theme.valueSimpleView}
+                                                     ${theme[valueTextJustifyClass]}
+                                                     ${theme[attr.valueFontStyle || 'textXS']}
+                                                     ${formatClass}
+                                                     `}>
+                                            {
+                                                isLink && !(allowEdit || attr.allowEditInView) ?
+                                                    <Link className={theme.linkColValue}
+                                                          to={`${location || value}${attr.searchParams === 'id' ? encodeURIComponent(id) : attr.searchParams === 'value' ? encodeURIComponent(value) : ``}`}
+                                                    >
+                                                        <EditComp attribute={attr}
+                                                                  value={linkText || value}
+                                                                  rawValue={rawValue}
+                                                                  isValueFormatted={isValueFormatted}
+                                                                  updateItem={isNewItem ? undefined : updateItem}
 
-                                                    // form edit controls
-                                                          liveEdit={liveEdit}
-                                                          tmpItem={tmpItem}
-                                                          setTmpItem={setTmpItem}
+                                                            // form edit controls
+                                                                  liveEdit={liveEdit}
+                                                                  tmpItem={tmpItem}
+                                                                  setTmpItem={setTmpItem}
 
-                                                    // add new item controls
-                                                          isNewItem={isNewItem}
-                                                          newItem={isNewItem ? newItem : undefined}
-                                                          setNewItem={isNewItem ? setNewItem : undefined}
+                                                            // add new item controls
+                                                                  isNewItem={isNewItem}
+                                                                  newItem={isNewItem ? newItem : undefined}
+                                                                  setNewItem={isNewItem ? setNewItem : undefined}
 
-                                                          id={id}
-                                                          allowEdit={allowEdit}
-                                                          DataTypes={DataTypes}
-                                                          formatFunctions={formatFunctions}
-                                                          className={theme[valueTextJustifyClass]}
-                                                />
-                                            </Link> :
-                                            <EditComp attribute={attr}
-                                                      value={value}
-                                                      rawValue={rawValue}
-                                                      isValueFormatted={isValueFormatted}
-                                                      updateItem={isNewItem ? undefined : updateItem}
+                                                                  id={id}
+                                                                  allowEdit={allowEdit || attr.allowEditInView}
+                                                                  formatFunctions={formatFunctions}
+                                                                  className={theme[valueTextJustifyClass]}
+                                                        />
+                                                    </Link> :
+                                                    <EditComp attribute={attr}
+                                                              value={value}
+                                                              rawValue={rawValue}
+                                                              isValueFormatted={isValueFormatted}
+                                                              updateItem={isNewItem ? undefined : updateItem}
 
-                                                // form edit controls
-                                                      liveEdit={liveEdit}
-                                                      tmpItem={tmpItem}
-                                                      setTmpItem={setTmpItem}
+                                                        // form edit controls
+                                                              liveEdit={liveEdit}
+                                                              tmpItem={tmpItem}
+                                                              setTmpItem={setTmpItem}
 
-                                                // add new item controls
-                                                      isNewItem={isNewItem}
-                                                      newItem={isNewItem ? newItem : undefined}
-                                                      setNewItem={isNewItem ? setNewItem : undefined}
+                                                        // add new item controls
+                                                              isNewItem={isNewItem}
+                                                              newItem={isNewItem ? newItem : undefined}
+                                                              setNewItem={isNewItem ? setNewItem : undefined}
 
-                                                      id={id}
-                                                      allowEdit={allowEdit}
-                                                      DataTypes={DataTypes}
-                                                      formatFunctions={formatFunctions}
-                                                      className={theme[valueTextJustifyClass]}
-                                            />
-                                    }
-                                </div>
+                                                              id={id}
+                                                              allowEdit={allowEdit || attr.allowEditInView}
+                                                              formatFunctions={formatFunctions}
+                                                              className={theme[valueTextJustifyClass]}
+                                                    />
+                                            }
+                                        </div>
+                                }
                             </div>
                         )
                     })
             }
             {
-                allowEdit && !liveEdit ? (
+                (allowEdit || visibleColumns.some(c => c.allowEditInView)) && !liveEdit && item.id ? (
                     <div className={'self-end flex gap-0.5 text-sm'}>
                         <button className={'bg-blue-300 hover:bg-blue-400 text-blue-700 rounded-lg w-fit px-2 py-0.5'} onClick={() => updateItem(undefined, undefined, tmpItem)}>save</button>
                         <button className={'bg-red-300 hover:bg-red-400 text-red-700 rounded-lg w-fit px-2 py-0.5'} onClick={() => setTmpItem(item)}>cancel</button>
@@ -337,7 +358,7 @@ export default function ({
     allowEdit,
     updateItem, addItem, isEdit,
     columns=[], data=[], display={}, controls={}, sourceInfo={}, setState, isActive,
-    newItem, setNewItem, formatFunctions, DataTypes
+    newItem, setNewItem, formatFunctions
 }) {
     const { theme: themeFromContext = {dataCard: dataCardTheme}} = React.useContext(ThemeContext) || {};
     const theme = {...themeFromContext, dataCard: {...dataCardTheme, ...(themeFromContext.dataCard || {})}};
@@ -352,7 +373,7 @@ export default function ({
 
     const mainWrapperStyle = gridSize && compactView ?
         {
-            gridTemplateColumns: `repeat(${Math.min(getGridSize(gridSize), data.length)}, minmax(0, 1fr))`,
+            gridTemplateColumns: `repeat(${getGridSize(gridSize) || data.length}, minmax(0, 1fr))`,
             gap: gridGap,
             paddingTop: `${imageTopMargin}px`
         } :
@@ -362,7 +383,6 @@ export default function ({
             gridTemplateColumns: `repeat(${getGridSize(gridSize) || cardsWithoutSpanLength}, minmax(0, 1fr))`,
             gap: gridGap || 2
         }
-
 
     // Reordering function
     function handleDrop(targetCol) {
@@ -416,7 +436,6 @@ export default function ({
                             subWrapperStyle={subWrapperStyle}
                             visibleColumns={visibleColumns}
                             formatFunctions={formatFunctions}
-                            DataTypes={DataTypes}
                         />
                     ))
                 }

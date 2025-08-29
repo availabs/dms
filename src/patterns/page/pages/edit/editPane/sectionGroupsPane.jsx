@@ -124,7 +124,7 @@ export default function SectionGroupsPane () {
               <div onClick={() => addSectionGroup(target)}> Add </div>
             </div>
             {
-              item?.draft_section_groups
+              (item?.draft_section_groups || [])
                 .filter((g,i) => g.position === target)
                 .sort((a,b) => a?.index - b?.index)
                 .map((group,i) => <SectionGroupControl group={group} key={i} />)

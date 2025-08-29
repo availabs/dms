@@ -1,12 +1,8 @@
 import {useRef, useState, Fragment, useEffect} from "react";
 import { Dialog, Transition } from '@headlessui/react'
-import Multiselect from "../../../data-types/multiselect.jsx";
-// import MultiSelect from "~/component_registry/shared/MultiSelect.jsx";
 import {getColAccessor} from "../utils/getColAccesor";
 import { CSVLink } from "react-csv";
 import {getData} from "../utils/getData.js";
-// import {ButtonSelector} from "~/component_registry/shared/buttonSelector.jsx";
-// import {falcor} from "~/modules/avl-falcor"
 
 export const DownloadModal = ({
   columns, visibleCols, form, data, filteredData, displayDownload, setDisplayDownload,

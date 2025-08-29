@@ -50,7 +50,7 @@ export const cmsSection = {
       type: "text"
     },
     { key: "element",
-      type: "selector",
+      // type: "selector",
       required: false,
     }
   ] 

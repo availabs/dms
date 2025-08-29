@@ -3,11 +3,11 @@ export const handleKeyDown = ({
     editing, setEditing, setTriggerSelectionDelete,
     visibleAttributes, pageSize, setIsDragging
 }) => {
-    if (e.key.includes('Arrow')) {
-        e.preventDefault(); // stop scrolling page on arrow key press
-    }
-
-    if (e.shiftKey) {
+    const isEditing = editing.index >= 0;
+    // if (e.key.includes('Arrow')) {
+    //     e.preventDefault(); // stop scrolling page on arrow key press
+    // }
+    if (e.shiftKey && !isEditing) {
         setIsDragging(true)
         let lastSelected = selection[selection.length - 1]; // [int or {index, attrI}]
         let attrIRange = selection.map(s => s.attrI).filter(s => s !== undefined).sort((a,b) => a-b);
@@ -56,6 +56,7 @@ export const handleKeyDown = ({
                 }
                 break;
             case 'ArrowRight':
+            case 'Tab':
                 if (lastSelected.attrI < visibleAttributes.length - 1) {
                     setSelection(prevSelection => {
                         const newattrI = lastSelected.attrI + 1;
@@ -69,17 +70,17 @@ export const handleKeyDown = ({
             default:
                 break;
         }
-    } /*else if (e.ctrlKey) {
-        setIsSelecting(true);
-    }*/ else if (e.key === 'Delete'){
+    } else if (e.key === 'Delete'){
         setTriggerSelectionDelete(true)
-    } else if (e.key === 'Escape'){
+    } else if (e.key === 'Escape' && isEditing){
+        setEditing({})
+    } else if (e.key === 'Escape' && !isEditing){
         setSelection([])
-    } else if (e.key.includes('Arrow')){
+    } else if (e.key.includes('Arrow') && !isEditing){
         let {index, attrI} = typeof selection[selection.length - 1] === 'number' ?
             { index: selection[selection.length - 1], attrI: undefined } :
             selection[selection.length - 1];
-
+        console.log('in arrow logic', e.key, selection, {index, attrI})
         switch (e.key){
             case "ArrowUp":
                 index > 0 && setSelection([{index: index - 1, attrI: attrI || 0}]);

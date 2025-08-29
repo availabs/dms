@@ -1,35 +1,34 @@
-import React from 'react'
-import { Link } from 'react-router'
-import { merge,cloneDeep } from "lodash-es"
-import {parseIfJSON, updateRegisteredFormats, updateAttributes} from './pages/_utils'
+import React from "react";
+import { Link } from "react-router";
+import { merge, cloneDeep } from "lodash-es";
+import {
+  parseIfJSON,
+  updateRegisteredFormats,
+  updateAttributes,
+} from "./pages/_utils";
 
-import UI from '../../ui'
-import { ThemeContext } from '../../ui/useTheme.js'
+import UI from "../../ui";
+import { ThemeContext } from "../../ui/useTheme.js";
 
 // pages
-import PageView from "./pages/view"
-import PageEdit from "./pages/edit"
+import PageView from "./pages/view";
+import PageEdit from "./pages/edit";
 
 // Manager
-import ManageLayout from './pages/manager/layout'
-import Dashboard from './pages/manager'
-import PageManager from './pages/manager/pages'
-import DesignEditor from './pages/manager/design'
+import ManageLayout from "./pages/manager/layout";
+import Dashboard from "./pages/manager";
+import PageManager from "./pages/manager/pages";
+import DesignEditor from "./pages/manager/design";
 
-import cmsFormat from "./page.format.js"
-import { CMSContext } from './context'
-import DefaultMenu from './components/menu'
-//import { useFalcor } from "../../../../avl-falcor"
+import cmsFormat from "./page.format.js";
+import { CMSContext } from "./context";
+import DefaultMenu from "./components/menu";
 
 import { SearchPage } from "./components/search/SearchPage";
 
+import defaultTheme from "../../ui/defaultTheme";
+import ErrorPage from "./pages/error";
 
-import { registerDataType } from '../../data-types'
-import Selector from './components/selector'
-import defaultTheme from '../../ui/defaultTheme'
-// const defaultTheme = {}
-
-registerDataType("selector", Selector)
 const isUserAuthed = ({user={}, reqPermissions=[], authPermissions=[]}) => {
   const userAuthPermissions =
       (user.groups || [])
@@ -49,7 +48,7 @@ const pagesConfig = ({
   type = "docs-page",
   siteType,
   rightMenu = <DefaultMenu />,
-  baseUrl = '/',
+  baseUrl = "/",
   damaBaseUrl,
   logo, // deprecated
   authPermissions,
@@ -60,30 +59,33 @@ const pagesConfig = ({
   API_HOST,
     user
 }) => {
-  let theme = merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern?.theme?.settings?.theme?.theme] || themes.default), cloneDeep(pattern?.theme) || {})
+  // console.log('pass themes', themes)
+  let theme = merge(
+    cloneDeep(defaultTheme),
+    cloneDeep(themes[pattern?.theme?.settings?.theme?.theme] || themes.default),
+    cloneDeep(pattern?.theme) || {},
+  );
+  // console.log('test 123', themes, pattern?.theme?.settings?.theme?.theme )
   //console.log('pageConfig', pattern.doc_type, pattern.id, themes[pattern?.theme?.settings?.theme?.theme], pattern?.theme, pattern)
   // baseUrl = baseUrl[0] === '/' ? baseUrl.slice(1) : baseUrl
-  baseUrl = baseUrl === '/' ? '' : baseUrl
-  
+  baseUrl = baseUrl === "/" ? "" : baseUrl;
 
   // console.log('testing', theme.navOptions)
   // console.log('page siteConfig app,type', `"${app}","${type}"`)
 
 
-  const format = cloneDeep(cmsFormat)
-  format.app = app
-  format.type = type
-  updateRegisteredFormats(format.registerFormats, app, type)
-  updateAttributes(format.attributes, app, type)
+  const format = cloneDeep(cmsFormat);
+  format.app = app;
+  format.type = type;
+  updateRegisteredFormats(format.registerFormats, app, type);
+  updateAttributes(format.attributes, app, type);
   //siteType = siteType || type
   //console.log('foramat after update', app, type, format)
-
 
   // ---------------------------------------------
   // for instances without auth turned on, default user can edit
   // should move this to dmsFactory default authWrapper
   // ---------------------------------------------
-
 
   const patternFilters = parseIfJSON(pattern?.filters, []);
   // const rightMenuWithSearch = rightMenu; // for live site
@@ -92,6 +94,29 @@ const pagesConfig = ({
     format: format,
     baseUrl,
     API_HOST,
+    errorElement: () => {
+      // console.log('hola', user, defaultUser, user || defaultUser)
+      return (
+        <CMSContext.Provider
+          value={{
+            app,
+            type,
+            siteType,
+            UI,
+            API_HOST,
+            baseUrl,
+            pgEnv,
+            damaBaseUrl,
+            patternFilters,
+            Menu: () => <>{rightMenu}</>,
+          }}
+        >
+          <ThemeContext.Provider value={{ theme }}>
+            <ErrorPage />
+          </ThemeContext.Provider>
+        </CMSContext.Provider>
+      );
+    },
     children: [
       {
         type: ({children, falcor, ...props}) => {
@@ -122,31 +147,46 @@ const pagesConfig = ({
         filter: {
           options: JSON.stringify({
             filter: {
-              "data->>'template_id'": ['null'],
-            }
+              "data->>'template_id'": ["null"],
+            },
           }),
-          attributes:['title', 'index', 'url_slug', 'parent','published', 'description','icon','navOptions','hide_in_nav']
+          attributes: [
+            "title",
+            "index",
+            "url_slug",
+            "parent",
+            "published",
+            "description",
+            "icon",
+            "navOptions",
+            "hide_in_nav",
+          ],
         },
         children: [
           {
-            type: (props) => (
-                <PageEdit
-                    {...props}
-                />
-            ),
+            type: (props) => <PageEdit {...props} />,
             path: "edit/*",
             action: "edit",
             authPermissions,
             reqPermissions: ['create-page', 'update-page']
           },
           {
-            type: (props) => (
-                <PageView
-                    {...props}
-                />
-            ),
+            type: (props) => <PageView {...props} />,
             filter: {
-              attributes:['title', 'index', 'filters', 'authPermissions', 'url_slug', 'parent', 'published', 'hide_in_nav' ,'sections','section_groups','sidebar','navOptions', 'theme']
+              attributes: [
+                  'title',
+                  'index',
+                  'filters',
+                  'authPermissions',
+                  'url_slug',
+                  'parent',
+                  'published',
+                  'hide_in_nav',
+                  'sections',
+                  'section_groups',
+                  'sidebar',
+                  'navOptions',
+                  'theme']
             },
             path: "/*",
             action: "view"
@@ -162,21 +202,18 @@ const pagesConfig = ({
           //   action: "edit",
           //   path: "/view/:id"
           // },
-
-
-        ]
+        ],
       },
-
-    ]
-  }
-}
+    ],
+  };
+};
 
 const pagesManagerConfig = ({
   app = "dms-site",
   type = "docs-page",
   siteType,
   rightMenu = <DefaultMenu />,
-  baseUrl = '/',
+  baseUrl = "/",
   damaBaseUrl,
   logo, // deprecated
   authPermissions,
@@ -187,36 +224,44 @@ const pagesManagerConfig = ({
   API_HOST,
     user
 }) => {
-  //console.log('hola', pattern?.theme)
-  let theme =  merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern?.theme?.settings?.theme?.theme] || themes.default), pattern?.theme || {})
+  //console.log('hola', themes)
+  let theme = merge(
+    cloneDeep(defaultTheme),
+    cloneDeep(
+      themes[pattern?.theme?.settings?.manager_theme?.theme] || themes.default,
+    ),
+    pattern?.theme || {},
+  );
+
   // console.log('pageConfig', theme, themes[pattern?.theme?.settings?.theme?.theme], pattern?.theme )
   // baseUrl = baseUrl[0] === '/' ? baseUrl.slice(1) : baseUrl
-  baseUrl = baseUrl === '/' ? '' : baseUrl
-  const defaultLogo = cloneDeep(themes[pattern?.theme?.settings?.theme?.theme] || themes.default)?.navOptions?.logo || (
-      <Link to={`${baseUrl || '/'}`} className='h-12 flex px-4 items-center'>
-        <div className='rounded-full h-8 w-8 bg-blue-500 border-2 border-blue-300 hover:bg-blue-600' />
-      </Link>
-  )
+  baseUrl = baseUrl === "/" ? "" : baseUrl;
+  const defaultLogo = cloneDeep(
+    themes[pattern?.theme?.settings?.theme?.theme] || themes.default,
+  )?.navOptions?.logo || (
+    <Link to={`${baseUrl || "/"}`} className="h-12 flex px-4 items-center">
+      <div className="rounded-full h-8 w-8 bg-blue-500 border-2 border-blue-300 hover:bg-blue-600" />
+    </Link>
+  );
 
-
-
-  if(!theme?.navOptions?.logo) {
-    theme.navOptions = {...(theme?.navOptions || {}), logo: (logo ? logo : defaultLogo)}
+  if (!theme?.navOptions?.logo) {
+    theme.navOptions = {
+      ...(theme?.navOptions || {}),
+      logo: logo ? logo : defaultLogo,
+    };
   }
-  theme.navOptions.sideNav.size = 'compact'
-  theme.navOptions.sideNav.nav = 'main'
-  theme.navOptions.topNav.nav = 'none'
-
+  theme.navOptions.sideNav.size = "compact";
+  theme.navOptions.sideNav.nav = "main";
+  theme.navOptions.topNav.nav = "none";
 
   // console.log('testing', theme.navOptions)
 
-  const format = cloneDeep(cmsFormat)
-  format.app = app
-  format.type = type
-  updateRegisteredFormats(format.registerFormats, app, type)
-  updateAttributes(format.attributes, app, type)
+  const format = cloneDeep(cmsFormat);
+  format.app = app;
+  format.type = type;
+  updateRegisteredFormats(format.registerFormats, app, type);
+  updateAttributes(format.attributes, app, type);
   //console.log('foramat after update', app, type, format)
-
 
   // console.log('pgEnv siteConfig', app, type, pgEnv)
   // for instances without auth turned on, default user can edit
@@ -232,12 +277,26 @@ const pagesManagerConfig = ({
       {
         type: ({children, falcor, ...props}) => {
           return (
-              <CMSContext.Provider value={{UI, API_HOST, baseUrl, damaBaseUrl, user, falcor, pgEnv, app, type, siteType, Menu: () => <>{rightMenu}</> }} >
-                <ManageLayout {...props}>
-                  {children}
-                </ManageLayout>
-              </CMSContext.Provider>
-          )
+            <CMSContext.Provider
+              value={{
+                UI,
+                API_HOST,
+                baseUrl,
+                damaBaseUrl,
+                user,
+                falcor,
+                pgEnv,
+                app,
+                type,
+                siteType,
+                Menu: () => <>{rightMenu}</>,
+              }}
+            >
+              <ThemeContext.Provider value={{ theme }}>
+                <ManageLayout {...props}>{children}</ManageLayout>
+              </ThemeContext.Provider>
+            </CMSContext.Provider>
+          );
         },
         authPermissions,
         action: "list",
@@ -245,33 +304,38 @@ const pagesManagerConfig = ({
         filter: {
           options: JSON.stringify({
             filter: {
-              "data->>'hide_in_nav'": ['null']
-            }
+              "data->>'hide_in_nav'": ["null"],
+            },
           }),
-          attributes:['title', 'index', 'url_slug', 'parent','published', 'hide_in_nav']
+          attributes: [
+            "title",
+            "index",
+            "url_slug",
+            "parent",
+            "published",
+            "hide_in_nav",
+          ],
         },
         children: [
           {
             type: Dashboard,
             path: "",
-            action: "edit"
+            action: "edit",
           },
           {
             type: (props) => <DesignEditor themes={themes} {...props} />,
             path: "design",
-            action: "edit"
+            action: "edit",
           },
           {
             type: PageManager,
             path: "pages",
-            action: "edit"
-          }
-        ]
+            action: "edit",
+          },
+        ],
       },
+    ],
+  };
+};
 
-    ]
-  }
-}
-
-export default [pagesConfig,pagesManagerConfig]
-
+export default [pagesConfig, pagesManagerConfig];

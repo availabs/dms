@@ -3,7 +3,6 @@ import { get } from "lodash-es";
 import SourcesLayout from "../components/patternListComponent/layout";
 import {FormsContext} from "../siteConfig";
 import Table from "../components/Table";
-import dmsDataTypes from "../../../data-types";
 import SourceCategories from "../components/patternListComponent/categories";
 import {Link} from "react-router";
 
@@ -106,8 +105,8 @@ const OverViewEdit = ({
       submit,
       apiLoad
 }) => {
-    const {app, falcor, falcorCache, baseUrl, pageBaseUrl, user, isUserAuthed} = useContext(FormsContext);
-
+    const {baseUrl, pageBaseUrl, user, isUserAuthed, UI} = useContext(FormsContext);
+    const {ColumnTypes} = UI;
     const [editing, setEditing] = useState();
     const columns = useMemo(() => isJson(item.config) ? JSON.parse(item.config)?.attributes : [], [item.config]);
     const [pageSize, setPageSize] = useState(15);
@@ -122,9 +121,7 @@ const OverViewEdit = ({
     const updatedTimeStamp = new Date(item?.updated_at || '').toLocaleDateString(undefined, dateOptions);
     const DescComp = useMemo(() => editing === 'description' ? attributes['description'].EditComp : attributes['description'].ViewComp, [editing]);
     const CategoriesComp = SourceCategories // useMemo(() => editing === 'categories' ? attributes['categories'].EditComp : attributes['categories'].ViewComp, [editing]);
-
-    console.log('props',item, baseUrl, pageBaseUrl, params.id)
-    const Lexical = dmsDataTypes.lexical.ViewComp;
+    const Lexical = ColumnTypes.lexical.ViewComp;
 
     return (
         <SourcesLayout fullWidth={false} baseUrl={baseUrl} pageBaseUrl={pageBaseUrl} isListAll={false} hideBreadcrumbs={false}

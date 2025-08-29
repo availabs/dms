@@ -1,16 +1,17 @@
 import React, {useState, useEffect} from 'react'
-import {createBrowserRouter, Outlet, RouterProvider} from "react-router";
+import {createBrowserRouter, RouterProvider, useRouteError} from "react-router";
 
 //import {  adminConfig } from "./modules/dms/src/"
-import { dmsDataLoader, dmsPageFactory, registerDataType } from '../../'
-import Selector from '../page/components/selector'
+import { dmsDataLoader, dmsPageFactory } from '../../'
 import { falcorGraph, useFalcor } from "@availabs/avl-falcor"
 import { cloneDeep } from "lodash-es"
 
 import pageConfig from '../page/siteConfig'
 import dataManagerConfig from '../forms/siteConfig'; // meta level forms config. this "pattern" serves as parent for all forms.
+import {updateAttributes, updateRegisteredFormats} from "./siteConfig";
 import authConfig from "../auth/siteConfig"
-
+import {useLocation} from "react-router";
+import {getUser} from "./utils";
 
 //import {template} from "./admin.format"
 
@@ -32,9 +33,17 @@ const getSubdomain = (host) => {
     }
 }
 
-import {updateAttributes, updateRegisteredFormats} from "./siteConfig";
-import {useLocation} from "react-router";
-import {getUser} from "./utils";
+function RootErrorBoundary() {
+    const error = useRouteError();
+    console.error(error);
+
+    return (
+        <div>
+            <h1>Oops! Something went wrong.</h1>
+            <p>{error.statusText || error.message}</p>
+        </div>
+    );
+}
 
 // --
 // to do:
@@ -46,9 +55,6 @@ const configs = {
     forms: dataManagerConfig,
     auth: authConfig
 }
-
-registerDataType("selector", Selector)
-
 
 function pattern2routes (siteData, props) {
     let {
@@ -76,7 +82,7 @@ function pattern2routes (siteData, props) {
     dmsConfigUpdated.registerFormats = updateRegisteredFormats(dmsConfigUpdated.registerFormats, dmsConfig.app)
     dmsConfigUpdated.attributes = updateAttributes(dmsConfigUpdated.attributes, dmsConfig.app)
 
-    // console.log('patterns', patterns)
+
     return [
         //pattern manager
         dmsPageFactory({
@@ -88,11 +94,11 @@ function pattern2routes (siteData, props) {
             user,
             theme: themes['default'],
             pgEnvs
-        },authWrapper, user),
+        },authWrapper, user, RootErrorBoundary),
         // patterns
         ...patterns.reduce((acc, pattern) => {
-            //console.log('Patterns', pattern, SUBDOMAIN)
-            if(pattern?.pattern_type && (!SUBDOMAIN || pattern.subdomain === SUBDOMAIN || pattern.subdomain === '*')){
+            // console.log('Patterns', pattern.doc_type, pattern.name, pattern.base_url, pattern.subdomain, SUBDOMAIN, (!SUBDOMAIN && !pattern.subdomain)  || pattern.subdomain === SUBDOMAIN || pattern.subdomain === '*')
+            if(pattern?.pattern_type && ((!SUBDOMAIN && !pattern.subdomain) || pattern.subdomain === SUBDOMAIN || pattern.subdomain === '*')){
                 //console.log('add patterns', pattern, SUBDOMAIN)
                 const c = configs[pattern.pattern_type];
                 if(!c) return acc;
@@ -120,8 +126,7 @@ function pattern2routes (siteData, props) {
                             setUser,
                             damaBaseUrl
                         });
-
-                        return ({...dmsPageFactory(configObj, authWrapper, user, pattern.pattern_type === 'auth')})
+                        return ({...dmsPageFactory(configObj, authWrapper, user, pattern.pattern_type === 'auth', RootErrorBoundary)})
                 }));
             }
             return acc;
@@ -207,7 +212,6 @@ export function DmsSite ({
         async function load () {
             setLoading(true)
             // console.time('dmsSiteFactory')
-            // console.log('setting dynamic routes', user)
             const dynamicRoutes = await dmsSiteFactory({
                 dmsConfig,//adminConfig
                 adminPath,
@@ -223,7 +227,6 @@ export function DmsSite ({
                 damaBaseUrl
                 //theme
             });
-            // console.log('dynamic routes set', user, dynamicRoutes)
             // console.timeEnd('dmsSiteFactory')
             //console.log('dynamicRoutes ', dynamicRoutes)
             if(!isStale) {
@@ -247,15 +250,22 @@ export function DmsSite ({
         : <div className={'w-screen h-screen mx-auto flex items-center justify-center'}>404</div>
     }
 
-    // console.log('routes',  dynamicRoutes, routes)
+    const routesWithErrorBoundary = routes.map(c => {
+        if (!c.errorElement) {
+            c.errorElement = <RootErrorBoundary />
+        }
+        return c
+    });
 
     return (
-        <RouterProvider 
-            router={createBrowserRouter([
-            ...dynamicRoutes,
-            ...routes,
-            PageNotFoundRoute
-          ])}
+        <RouterProvider router={
+            createBrowserRouter(
+                [
+                    ...dynamicRoutes,
+                    ...routesWithErrorBoundary,
+                    PageNotFoundRoute
+                ]
+            )}
         />
     )
 } 

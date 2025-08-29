@@ -1,8 +1,7 @@
-import React, {useEffect, useState} from "react";
-import Layout from '../../ui/avail-layout'
+import React from "react";
 import { FormsContext } from '../../siteConfig'
 import SourcesLayout from "../../components/patternListComponent/layout";
-
+import FormConfigComp from "./formConfigComp";
 
 const ManageForm = ({
     status,
@@ -36,32 +35,19 @@ const ManageForm = ({
             <div className={`${theme?.page?.wrapper1}`}>
                     <div className={'overflow-auto flex flex-1 w-full flex-col shadow bg-white relative text-md font-light leading-7 p-4'}>
                         {status ? <div>{JSON.stringify(status)}</div> : ''}
-                        <div className='w-full max-w-6xl mx-auto'>
-                            {Object.keys(attributes)
-                                .filter(attr => attr === 'config')
-                                .map((attrKey, i) => {
-                                    let EditComp = attributes[attrKey].EditComp;
-                                    //console.log('attrs', attributes[attrKey], item)
-                                    return (
-                                        <div key={`${attrKey}-${i}`}>
-                                            <EditComp
-                                                value={item?.[attrKey]}
-                                                onChange={(v) => {
-                                                    // setItem({...item, ...{[attrKey]: v}})
-                                                    updateData(v, attrKey)
-                                                }}
-                                                manageTemplates={manageTemplates}
-                                                placeholder={attributes[attrKey].placeholder}
-                                                options={attributes[attrKey].options}
-                                                item={item}
-                                                apiLoad={apiLoad}
-                                                {...attributes[attrKey]}
-                                                format={format}
-                                            />
-                                        </div>
-                                    )
-                                })
-                            }
+                        <div className='w-full'>
+                            <FormConfigComp
+                                value={item?.config}
+                                onChange={(v) => {
+                                    // setItem({...item, ...{[attrKey]: v}})
+                                    updateData(v, 'config')
+                                }}
+                                manageTemplates={manageTemplates}
+                                item={item}
+                                apiLoad={apiLoad}
+                                {...attributes.config}
+                                format={format}
+                            />
                         </div>
                     </div>
             </div>
