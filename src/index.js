@@ -6,3 +6,4 @@ export { default as dmsSiteFactory, DmsSite } from "./patterns/admin/dmsSiteFact
 export { CMSContext } from './patterns/page/context'
 export { default as adminConfig }  from './patterns/admin/siteConfig'
 export { registerComponents } from "./patterns/page/components/selector"
+export { getUser } from "./patterns/admin/utils"
