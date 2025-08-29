@@ -1,6 +1,6 @@
 import React from 'react'
 import { useLocation } from 'react-router'
-import { cloneDeep } from "lodash-es"
+import {cloneDeep, merge} from "lodash-es"
 import SiteEdit from "./pages/siteEdit"
 import ThemeList from "./pages/themes"
 import ComponentList from "./pages/components"
@@ -20,7 +20,8 @@ const adminConfig = ({
   baseUrl = '/',
   authPath = '/dms_auth',
   PROJECT_NAME,
-  theme = defaultTheme,
+    themes={},
+  // theme = defaultTheme,
 }) => {
   const format = cloneDeep(adminFormat)
   format.app = app
@@ -28,7 +29,10 @@ const adminConfig = ({
   baseUrl = baseUrl === '/' ? '' : baseUrl
 
   //console.log('defaultTheme', theme)
-  theme = cloneDeep(theme)
+    let theme = merge(
+        cloneDeep(defaultTheme),
+        cloneDeep(themes.mny_admin)
+    );
   theme.navOptions = theme?.admin?.navOptions || theme?.navOptions
 
   const menuItems = [
@@ -69,7 +73,7 @@ const adminConfig = ({
     errorElement:  (props) => {
       const {Layout} = UI;
       return (
-          <AdminContext.Provider value={{baseUrl, user: props.user || defaultUser, app, type, API_HOST, UI}}>
+          <AdminContext.Provider value={{baseUrl, app, type, API_HOST, UI}}>
             <ThemeContext.Provider value={{theme}}>
               <Layout navItems={menuItems}>
                 <div className={theme?.admin?.page?.pageWrapper}>
@@ -94,13 +98,15 @@ const adminConfig = ({
           return (
             <AdminContext.Provider value={{baseUrl, authPath, PROJECT_NAME, user: props.user, app, type, API_HOST, AUTH_HOST, UI}}>
               <ThemeContext.Provider value={{theme}}>
-                <Layout navItems={menuItems}>
-                  <div className={theme?.admin?.page?.pageWrapper}>
-                    <div className={theme?.admin?.page?.pageWrapper2}>
-                      {props.children}
-                    </div>
-                  </div>
-                </Layout>
+                <div className={theme?.page?.container}>
+                    <Layout navItems={menuItems}>
+                        <div className={theme?.admin?.page?.pageWrapper}>
+                            <div className={theme?.admin?.page?.pageWrapper2}>
+                                {props.children}
+                            </div>
+                        </div>
+                    </Layout>
+                </div>
               </ThemeContext.Provider>
             </AdminContext.Provider>
           )

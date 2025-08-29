@@ -288,7 +288,6 @@ export function PublishButton () {
   const hasChanges = item.published === 'draft' || item.has_changes
   const { user, UI, authPermissions, isUserAuthed } = React.useContext(CMSContext) || {};
   const {Button} = UI;
-  console.log('publish button', isUserAuthed(['publish-changes']));
 
   if(!isUserAuthed(['publish-changes'])) return <div className={'w-full flex items-center h-[40px] text-white'}>user not authorised to publish.</div>
   return (

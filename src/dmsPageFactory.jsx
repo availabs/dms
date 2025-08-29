@@ -23,11 +23,13 @@ function ScrollToTop() {
 }
 
 export default function dmsPageFactory (
-  dmsConfig,
-  authWrapper = (Component) => Component,
-  ErrorBoundary,
-  user,
-  isAuth
+    {
+        dmsConfig,
+        authWrapper = (Component) => Component,
+        ErrorBoundary,
+        user,
+        isAuth
+    }
 ) {
   let {
     API_HOST = 'https://graph.availabs.org',

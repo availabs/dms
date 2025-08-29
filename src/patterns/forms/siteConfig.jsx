@@ -31,6 +31,8 @@ export const FormsContext = React.createContext(undefined);
 // for instances without auth turned on can edit
 
 const isUserAuthed = ({user={}, reqPermissions=[], authPermissions=[]}) => {
+    if(!Object.keys(authPermissions).length) return true;
+
     const userAuthPermissions =
         (user.groups || [])
             .filter(group => authPermissions[group])
@@ -288,6 +290,7 @@ const formsSourceConfig = ({
                     toIndex: () => 0,
                 },
                 path: "/*",
+                authLevel: 5,
                 children: [
                     {
                         type: props => <Overview.EditComp {...props} />,

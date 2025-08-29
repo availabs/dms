@@ -52,8 +52,6 @@ export default function SectionGroup ({group, attributes, edit}) {
     return edit ? attributes['sections'].EditComp : attributes['sections'].ViewComp 
   }, [])
 
-  console.log('render group', isUserAuthed(['update-page']))
-
   return (
          
       <div className={`${sectionTheme?.wrapper1}`}>

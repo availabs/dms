@@ -2,7 +2,6 @@ export const defaultCheck = ( checkAuth, {user}, activeConfig, navigate ,path) =
       
   const getReqAuth = (configs) => {
     return configs.reduce((out,config) => {
-      console.log('_auth: config', config)
       let reqPermissions = config.reqPermissions || [];
       let authPermissions = config.authPermissions || {};
       return {
@@ -32,17 +31,20 @@ export const defaultCheckAuth = ( props, navigate, path ) => {
             return acc;
             }, [])
 
-  const sendToLogin = !userAuthed && reqPermissions?.length;
-  const sendToHome = (reqPermissions?.length && !userAuthPermissions.some(permission => permission === '*' || reqPermissions.includes(permission)));
-  console.log('permissions match', userAuthPermissions, reqPermissions, userAuthed)
-
+  const sendToLogin = !userAuthed && // user is not authed
+      reqPermissions?.length && // there are required permissions to access this pattern at siteconfig level
+      Object.keys(authPermissions).length; // pattern defines SOME auth; if not, allow access.
+  const sendToHome =
+      reqPermissions?.length && // there are requires permissions to access this pattern in siteconfig
+      Object.keys(authPermissions).length && // pattern defines SOME auth; if not, allow access.
+      !userAuthPermissions.some(permission => permission === '*' || reqPermissions.includes(permission));
+    console.log('_auth:', reqPermissions, authPermissions)
   //----------------------------------------
   // if page requires auth
   // && user isn't logged in
   // send to login 
   //----------------------------------------
   if( sendToLogin ) {
-    console.log('navigate to login',  props, path)
     navigate('/dms_auth/login', {state:{ from: path }})
   }
 

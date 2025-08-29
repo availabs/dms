@@ -30,17 +30,20 @@ import defaultTheme from "../../ui/defaultTheme";
 import ErrorPage from "./pages/error";
 
 const isUserAuthed = ({user={}, reqPermissions=[], authPermissions=[]}) => {
-  const userAuthPermissions =
-      (user.groups || [])
-          .filter(group => authPermissions[group])
-          .reduce((acc, group) => {
-            const groupPermissions = Array.isArray(authPermissions[group]) ? authPermissions[group] : [authPermissions[group]];
-            if(groupPermissions?.length){
-              acc.push(...groupPermissions)
-            }
-            return acc;
-          }, [])
-  return !reqPermissions?.length || userAuthPermissions.some(permission => permission === '*' || reqPermissions.includes(permission))
+    if(!Object.keys(authPermissions).length) return true;
+
+    const userAuthPermissions =
+        (user.groups || [])
+            .filter(group => authPermissions[group])
+            .reduce((acc, group) => {
+                const groupPermissions = Array.isArray(authPermissions[group]) ? authPermissions[group] : [authPermissions[group]];
+                if(groupPermissions?.length){
+                    acc.push(...groupPermissions)
+                }
+                return acc;
+                }, []);
+
+    return !reqPermissions?.length || userAuthPermissions.some(permission => permission === '*' || reqPermissions.includes(permission))
 }
 
 const pagesConfig = ({

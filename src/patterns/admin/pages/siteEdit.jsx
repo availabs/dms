@@ -120,7 +120,6 @@ function SiteEdit ({
 		item = dataItems[0]
 	}
 
-	console.log('admin pattern - siteEdit - item', authPath, window.location)
 	if(!item.id) return <NewSite app={app} user={user} AUTH_HOST={AUTH_HOST} apiUpdate={apiUpdate} />// (<Layout></Layout>)()
 	if(!user?.authed) return <div>To access this page, you need to: <Link to={`${authPath}/login`} state={{ from: window.location.pathname }}>login</Link></div>
 

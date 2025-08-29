@@ -137,7 +137,7 @@ function PatternEdit({
 	 ...rest
 }) {
 	const {app, API_HOST, UI} = useContext(AdminContext);
-	const {Table, Input, Button, Modal, Drawer} = UI;
+	const {Table, Input, Button, Modal} = UI;
 	const gridRef = useRef(null);
 	const [search, setSearch] = useState('');
 	const [newItem, setNewItem] = useState({app: format?.app});
@@ -188,7 +188,7 @@ function PatternEdit({
 	const authExists = data.some(d => d.pattern_type === 'auth')
 
 	return (
-			<div className={'flex flex-col p-10 w-full divide-y-2'}>
+			<div className={'flex flex-col p-10 w-full divide-y-2 max-w-7xl mx-auto overflow-auto'}>
 				<div className={'w-full flex justify-between border-b-2 border-blue-400'}>
 					<div className={'text-2xl font-semibold text-gray-700'}>Sites</div>
 					<button onClick={() => navigate(-1)}>back</button>

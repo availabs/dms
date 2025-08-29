@@ -86,15 +86,20 @@ function pattern2routes (siteData, props) {
     return [
         //pattern manager
         dmsPageFactory({
-            ...dmsConfigUpdated,
-            siteType: dmsConfigUpdated.type,
-            baseUrl: SUBDOMAIN === 'admin' ?  '/' : adminPath,
-            API_HOST,
-            PROJECT_NAME,
+            dmsConfig: {
+                ...dmsConfigUpdated,
+                siteType: dmsConfigUpdated.type,
+                baseUrl: SUBDOMAIN === 'admin' ?  '/' : adminPath,
+                API_HOST,
+                PROJECT_NAME,
+                user,
+                theme: themes['default'],
+                pgEnvs
+            },
+            authWrapper,
             user,
-            theme: themes['default'],
-            pgEnvs
-        },authWrapper, user, RootErrorBoundary),
+            ErrorBoundary: RootErrorBoundary
+        }),
         // patterns
         ...patterns.reduce((acc, pattern) => {
             // console.log('Patterns', pattern.doc_type, pattern.name, pattern.base_url, pattern.subdomain, SUBDOMAIN, (!SUBDOMAIN && !pattern.subdomain)  || pattern.subdomain === SUBDOMAIN || pattern.subdomain === '*')
@@ -126,7 +131,13 @@ function pattern2routes (siteData, props) {
                             setUser,
                             damaBaseUrl
                         });
-                        return ({...dmsPageFactory(configObj, authWrapper, user, pattern.pattern_type === 'auth', RootErrorBoundary)})
+                        return ({...dmsPageFactory({
+                                dmsConfig: configObj,
+                                authWrapper,
+                                user,
+                                isAuth: pattern.pattern_type === 'auth',
+                                ErrorBoundary: RootErrorBoundary
+                            })})
                 }));
             }
             return acc;
