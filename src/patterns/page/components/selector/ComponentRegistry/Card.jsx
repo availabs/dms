@@ -60,7 +60,9 @@ const Card = ({
 }
 
 const inHeader = [
-    // settings from in header dropdown are stores in the columns array per column.
+    // settings from in header dropdown are stored in the columns array per column.
+    {type: 'toggle', label: 'Allow Edit', key: 'allowEditInView', displayCdn: ({isEdit}) => isEdit},
+
     {type: 'select', label: 'Sort', key: 'sort',
         options: [
             {label: 'Not Sorted', value: ''}, {label: 'A->Z', value: 'asc nulls last'}, {label: 'Z->A', value: 'desc nulls last'}

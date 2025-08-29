@@ -283,7 +283,7 @@ const RenderItem = ({
                                                      ${formatClass}
                                                      `}>
                                             {
-                                                isLink && !allowEdit ?
+                                                isLink && !(allowEdit || attr.allowEditInView) ?
                                                     <Link className={theme.linkColValue}
                                                           to={`${location || value}${attr.searchParams === 'id' ? encodeURIComponent(id) : attr.searchParams === 'value' ? encodeURIComponent(value) : ``}`}
                                                     >
@@ -304,7 +304,7 @@ const RenderItem = ({
                                                                   setNewItem={isNewItem ? setNewItem : undefined}
 
                                                                   id={id}
-                                                                  allowEdit={allowEdit}
+                                                                  allowEdit={allowEdit || attr.allowEditInView}
                                                                   formatFunctions={formatFunctions}
                                                                   className={theme[valueTextJustifyClass]}
                                                         />
@@ -326,7 +326,7 @@ const RenderItem = ({
                                                               setNewItem={isNewItem ? setNewItem : undefined}
 
                                                               id={id}
-                                                              allowEdit={allowEdit}
+                                                              allowEdit={allowEdit || attr.allowEditInView}
                                                               formatFunctions={formatFunctions}
                                                               className={theme[valueTextJustifyClass]}
                                                     />
@@ -338,7 +338,7 @@ const RenderItem = ({
                     })
             }
             {
-                allowEdit && !liveEdit && item.id ? (
+                (allowEdit || visibleColumns.some(c => c.allowEditInView)) && !liveEdit && item.id ? (
                     <div className={'self-end flex gap-0.5 text-sm'}>
                         <button className={'bg-blue-300 hover:bg-blue-400 text-blue-700 rounded-lg w-fit px-2 py-0.5'} onClick={() => updateItem(undefined, undefined, tmpItem)}>save</button>
                         <button className={'bg-red-300 hover:bg-red-400 text-red-700 rounded-lg w-fit px-2 py-0.5'} onClick={() => setTmpItem(item)}>cancel</button>
