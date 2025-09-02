@@ -2,7 +2,7 @@ import React, {useEffect, useState} from "react";
 import {useNavigate, useLocation} from "react-router";
 import {ThemeContext} from "../../../ui/useTheme";
 import {AuthContext} from "../siteConfig";
-import {callAuthServer} from "../utils";
+import {callAuthServer, getGroups} from "../utils";
 
 export default (props) => {
     const location = useLocation();
@@ -17,10 +17,7 @@ export default (props) => {
 
     useEffect(() => {
         async function loadGroups(){
-            await callAuthServer(`${AUTH_HOST}/groups/byproject`, {
-                token: user.token,
-                project: PROJECT_NAME
-            }).then(res => {
+            await getGroups({user, AUTH_HOST, PROJECT_NAME}).then(res => {
                 if(res.error){
                     console.error(res.error);
                 }else{
