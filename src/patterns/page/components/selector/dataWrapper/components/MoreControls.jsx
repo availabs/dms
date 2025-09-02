@@ -19,6 +19,12 @@ export default function MoreControls({context}) {
         setState(draft => {
             draft.display[key] = value;
 
+            if(key === 'allowEditInView' && value){
+                draft.columns.forEach(column => {
+                    column.allowEditInView = true;
+                })
+            }
+
             if(onChange) {
                 onChange({key, value, state: draft})
             }

@@ -110,7 +110,7 @@ const Edit = ({value, onChange}) => {
     const emptyTextBlock = {text: '', size: '4xl', color: '000000'};
     const [bgColor, setBgColor] = useState(cachedData?.bgColor || 'rgba(0,0,0,0)');
     const [isCard, setIsCard] = useState(cachedData?.isCard || '');
-    const [text, setText] = useState(cachedData?.text || value || emptyTextBlock);
+    const [text, setText] = useState(cachedData?.text || value);
 
     useEffect(() => {
 

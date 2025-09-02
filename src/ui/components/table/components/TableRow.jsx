@@ -161,10 +161,10 @@ export const TableRow = ({
                             onMouseUp={e => setIsDragging && handleMouseUp({setIsDragging})}
                             onClick={() => {
                                 setSelection && setSelection([{index: i, attrI}]);
-                                setEditing && allowEdit && setEditing({index: i, attrI});
+                                setEditing && (allowEdit || attribute.allowEditInView) && setEditing({index: i, attrI});
                             }}
                             onDoubleClick={() => {}}
-                            allowEdit={allowEdit}
+                            allowEdit={allowEdit || attribute.allowEditInView}
                         />)}
 
                 <div className={'flex items-center border'}>
@@ -232,7 +232,7 @@ export const TableRow = ({
 
                                         i={i}
                                         item={d}
-                                        allowEdit={allowEdit}
+                                        allowEdit={allowEdit || attribute.allowEditInView}
                                     />
                                 </div>
                             )

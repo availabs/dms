@@ -254,8 +254,10 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
     // =========================================== saving settings end =================================================
 
     // =========================================== util fns begin ======================================================
+    const groupByColumnsLength = useMemo(() => state?.columns?.filter(({group}) => group).length, [state?.columns]);
+
     const updateItem = (value, attribute, d) => {
-        if(!state.sourceInfo?.isDms) return;
+        if(!state.sourceInfo?.isDms || groupByColumnsLength) return;
 
         if(attribute?.name){
             setState(draft => {
@@ -281,7 +283,7 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
     }
 
     const addItem = async () => {
-        if(!state.sourceInfo?.isDms || !apiUpdate) return;
+        if(!state.sourceInfo?.isDms || !apiUpdate || groupByColumnsLength) return;
         const res = await apiUpdate({data: newItem, config: {format: {...state.sourceInfo, type: `${state.sourceInfo.type}-${state.sourceInfo.view_id}`}}});
 
         if(res?.id){
@@ -295,17 +297,13 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
     }
 
     const removeItem = item => {
-        if(!state.sourceInfo?.isDms) return;
+        if(!state.sourceInfo?.isDms || groupByColumnsLength) return;
         setState(draft => {
             draft.data = draft.data.filter(d => d.id !== item.id);
         })
         return apiUpdate({data: item, config: {format: state.sourceInfo}, requestType: 'delete'})
     }
     // =========================================== util fns end ========================================================
-
-
-    const groupByColumnsLength = useMemo(() => state?.columns?.filter(({group}) => group).length, [state?.columns]);
-
 
     return (
             <div className={'w-full h-full'}>
@@ -583,7 +581,7 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
 
     // =========================================== util fns begin ======================================================
     const updateItem = (value, attribute, d) => {
-        if(!state.sourceInfo?.isDms || !apiUpdate) return;
+        if(!state.sourceInfo?.isDms || !apiUpdate || groupByColumnsLength) return;
 
         if(attribute?.name){
             setState(draft => {
@@ -609,7 +607,7 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
     }
 
     const addItem = async () => {
-        if(!state.sourceInfo?.isDms || !apiUpdate) return;
+        if(!state.sourceInfo?.isDms || !apiUpdate || groupByColumnsLength) return;
         const config = {format: {...state.sourceInfo, type: `${state.sourceInfo.type}-${state.sourceInfo.view_id}`}}
         const res = await apiUpdate({data: newItem, config});
 
@@ -624,7 +622,7 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
     }
 
     const removeItem = item => {
-        if(!state.sourceInfo?.isDms || !apiUpdate) return;
+        if(!state.sourceInfo?.isDms || !apiUpdate || groupByColumnsLength) return;
         setState(draft => {
             draft.data = draft.data.filter(d => d.id !== item.id);
         })

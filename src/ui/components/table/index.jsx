@@ -85,16 +85,14 @@ const updateItemsOnPaste = ({pastedContent, e, index, attrI, data, visibleAttrib
 
     const rowsToPaste = [...new Array(paste.length).keys()].map(i => index + i).filter(i => i < data.length)
     const columnsToPaste = [...new Array(paste[0].length).keys()]
-        .map(i => visibleAttributes[attrI + i]?.name)
+        .map(i => visibleAttributes[attrI + i]?.allowEditInView ? visibleAttributes[attrI + i]?.name : undefined)
         .filter(i => i);
-
     const itemsToUpdate = rowsToPaste.map((row, rowI) => (
         {
             ...data[row],
             ...columnsToPaste.reduce((acc, col, colI) => ({...acc, [col]: paste[rowI][colI]}), {})
         }
     ));
-
     updateItem(undefined, undefined, itemsToUpdate);
 }
 export default function ({
@@ -136,7 +134,7 @@ export default function ({
     // =========================================== copy/paste begin ====================================================
     // =================================================================================================================
     usePaste((pastedContent, e) => {
-        if(!allowEdit) return;
+        if(!allowEdit || !columns.some(c => c.allowEditInView)) return;
 
         // first cell of selection
         let {index, attrI} = typeof selection[0] === 'number' ? {index: selection[0], attrI: undefined} : selection[0];
@@ -244,16 +242,16 @@ export default function ({
     // =================================================================================================================
     useEffect(() => {
         async function deleteFn() {
-            if (triggerSelectionDelete && allowEdit) {
+            if (triggerSelectionDelete && (allowEdit || columns.some(c => c.allowEditInView))) {
                 const selectionRows = data.filter((d, i) => selection.find(s => (s.index || s) === i))
-                const selectionCols = visibleAttributes.filter((_, i) => selection.map(s => s.attrI).includes(i)).map(c => c.name)
+                const selectionCols = visibleAttributes.filter((c, i) => c.allowEditInView && selection.map(s => s.attrI).includes(i)).map(c => c.name)
 
                 if (selectionCols.length) {
                     // partial selection
                     updateItem(undefined, undefined, selectionRows.map(row => ({...row, ...selectionCols.reduce((acc, curr) => ({...acc, [curr]: ''}), {})})))
                 }else{
                     // full row selection
-                    updateItem(undefined, undefined, selectionRows.map(row => ({...row, ...visibleAttributes.reduce((acc, curr) => ({...acc, [curr]: ''}), {})})))
+                    updateItem(undefined, undefined, selectionRows.map(row => ({...row, ...visibleAttributes.filter(c => c.allowEditInView).reduce((acc, curr) => ({...acc, [curr]: ''}), {})})))
                 }
             }
         }
