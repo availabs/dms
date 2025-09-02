@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from "react";
+import React, {useEffect, useMemo, useState} from "react";
 import {useNavigate, useLocation} from "react-router";
 import {ThemeContext} from "../../../ui/useTheme";
 import {AuthContext} from "../siteConfig";
@@ -9,7 +9,6 @@ import {callAuthServer} from "../utils";
 // admin should be able to set user permissions.
 // permit users for pattern, and actions in the pattern (CRUD pages, sections)
 export default (props) => {
-    const location = useLocation();
     const [groups, setGroups] = React.useState([]);
     const [users, setUsers] = React.useState([]);
     const [requests, setRequests] = React.useState([]);
@@ -19,7 +18,6 @@ export default (props) => {
     const {UI, user, AUTH_HOST, PROJECT_NAME, defaultRedirectUrl, ...restAuthContext} = React.useContext(AuthContext);
     const {Table, Input, Select, Button} = UI;
     const navigate = useNavigate();
-    console.log('user', user)
 
     useEffect(() => {
         async function loadGroups(){
@@ -65,9 +63,9 @@ export default (props) => {
     }, [PROJECT_NAME]);
 
     const requestsColumns = [
-        {name: 'user_email', display_name: 'User', show: true, type: 'text', size: 900},
+        {name: 'user_email', display_name: 'User', show: true, type: 'text', size: 500},
         {name: 'state', display_name: 'Status', show: true, type: 'select', size: 100},
-        {name: 'approve', display_name: ' ', show: true, type: 'ui', size: 500,
+        {name: 'approve', display_name: ' ', show: true, type: 'ui', size: 550,
             Comp: ({row}) => {
             const [groupName, setGroupName] = useState('');
                 return (
@@ -132,33 +130,73 @@ export default (props) => {
     ]
 
     const userColumns = [
-        {name: 'email', display_name: 'User', show: true, type: 'text', size: 900},
-        {name: 'groups', display_name: 'Groups', show: true, type: 'multiselect', size: 600, options: groups.map(g => g.name)},
+        {name: 'email', display_name: 'User', show: true, type: 'text', size: 500},
+        {name: 'groups', display_name: 'Groups', show: true, type: 'multiselect', size: 750, options: groups.map(g => g.name)},
     ]
-    console.log('data', users, requests, groups)
-    return (
-        <div className={'flex flex-col gap-3'}>
-            Manage Users
-            <div className={'border rounded-md p-2'}>
-                <div>Requests</div>
-                    <Table data={requests.filter(r => !searchRequest || r.user_email.toLowerCase().includes(searchRequest))}
-                           columns={requestsColumns}
-                           controls={{header: {displayFn: (attribute) => (
-                                       <div className={'flex gap-3 items-center'}>
-                                           {attribute.display_name}
-                                           {
-                                               attribute.name === 'user_email' ?
-                                                   <Input type={'text'} value={searchRequest} onChange={e => setSearchRequest(e.target.value)} placeHolder={'search...'}/> :
-                                                   null
-                                           }
-                                       </div>
-                                   )}}}
-                           customTheme={{tableContainer1: 'flex flex-col no-wrap min-h-[40px] max-h-[300px] overflow-y-auto'}} />
-            </div>
 
-            <div className={'border rounded-md p-2'}>
+    const InputControl = ({show, value, onChange, placeHolder}) => {
+        const [tmpValue, setTmpValue] = useState(value);
+
+        useEffect(() => {
+            let isStale = false;
+
+            setTimeout(() => {
+                if (!isStale) {
+                    onChange(tmpValue)
+                }
+            }, 300);
+
+            return () => {
+                isStale = true;
+            }
+        }, [tmpValue]);
+
+        if(!show) return;
+        return <Input type={'text'} value={tmpValue} onChange={e => setTmpValue(e.target.value)} placeHolder={placeHolder}/>
+    }
+    const requesstTableControls = {
+        header: {
+            displayFn: (attribute) => (
+                <div className={'flex gap-3 items-center'}>
+                    {attribute.display_name}
+                    <InputControl show={attribute.name === 'user_email'}
+                                  type={'text'}
+                                  value={searchRequest}
+                                  onChange={setSearchRequest}
+                                  placeHolder={'search...'}/>
+                </div>
+            )}}
+
+    const usersTableControls = useMemo(() => ({
+        header: {
+            displayFn: (attribute) => (
+                <div className={'flex gap-3 items-center'}>
+                    {attribute.display_name}
+                    <InputControl show={attribute.name === 'email'}
+                                  type={'text'}
+                                  value={searchUser}
+                                  onChange={setSearchUser}
+                                  placeHolder={'search...'}/>
+                </div>
+            )}}), [searchUser])
+    const filteredUsers = useMemo(() => users.filter(r => !searchUser || r.email.toLowerCase().includes(searchUser)), [users, searchUser]);
+    const filteredRequests = useMemo(() => requests.filter(r => !searchRequest || r.user_email.toLowerCase().includes(searchRequest)), [requests, searchRequest])
+    const customTableTheme = {tableContainer1: 'flex flex-col no-wrap min-h-[40px] max-h-[700px] overflow-y-auto'}
+    return (
+        <div className={'flex flex-col gap-3 max-w-7xl mx-auto'}>
+            Manage Users
+            {/*<div className={''}>
+                <div>Requests</div>
+                    <Table data={filteredRequests}
+                           columns={requestsColumns}
+                           controls={requesstTableControls}
+                           customTheme={customTableTheme}
+                    />
+            </div>*/}
+
+            <div className={''}>
                 <div>Users</div>
-                    <Table data={users.filter(r => !searchUser || r.email.toLowerCase().includes(searchUser))}
+                    <Table data={filteredUsers}
                            columns={userColumns}
                            allowEdit={true}
                            updateItem={async (_, __, e) => {
@@ -207,40 +245,10 @@ export default (props) => {
                                        });
                                }
                            }}
-                           controls={{header: {displayFn: (attribute) => (
-                                       <div className={'flex gap-3 items-center'}>
-                                           {attribute.display_name}
-                                           {
-                                               attribute.name === 'email' ?
-                                                   <Input type={'text'} value={searchUser} onChange={e => setSearchUser(e.target.value)} placeHolder={'search...'}/> :
-                                                   null
-                                           }
-                                       </div>
-                                   )}}}
-                           customTheme={{tableContainer1: 'flex flex-col no-wrap min-h-[40px] max-h-[300px] overflow-y-auto'}}
+                           controls={usersTableControls}
+                           customTheme={customTableTheme}
                     />
             </div>
-            {/*
-
-            <Button onClick={async () => {
-                console.log('call login', credentials, AUTH_HOST)
-                await callAuthServer(`${AUTH_HOST}/login`, {...credentials, project: PROJECT_NAME})
-                    .then(res => {
-                        console.log('res', res)
-                        if (res.error) {
-                            console.error('Error', res.error)
-                        } else {
-                            if (window.localStorage) {
-                                window.localStorage.setItem('userToken', res?.user?.token);
-                            }
-                            setUser({...res.user, isAuthenticating: false, authed: true})
-                            window.location = location?.state?.from || defaultRedirectUrl;
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Cannot contact authentication server.');
-                    });
-            }}> Login </Button>*/}
         </div>
     )
 }

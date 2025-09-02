@@ -35,7 +35,7 @@ export default (props) => {
     ]
     console.log('data', groups)
     return (
-        <div className={'flex flex-col gap-3'}>
+        <div className={'flex flex-col gap-3 max-w-7xl mx-auto'}>
             <div className={'w-full flex'}>
                 <div className={'flex-1'}>
                     Manage Groups
@@ -44,7 +44,6 @@ export default (props) => {
             </div>
 
 
-            <div className={'border rounded-md p-2'}>
                     <Table data={groups.filter(r => !searchGroup || r.name.toLowerCase().includes(searchGroup))}
                            columns={groupColumns}
                            allowEdit={true}
@@ -58,9 +57,8 @@ export default (props) => {
                                            }
                                        </div>
                                    )}}}
-                           customTheme={{tableContainer1: 'flex flex-col no-wrap min-h-[40px] max-h-[700px] overflow-y-auto'}}
+                           // customTheme={{tableContainer1: 'flex flex-col no-wrap min-h-[40px] max-h-[700px] overflow-y-auto'}}
                     />
-            </div>
 
             <Modal open={addingNew} setOpen={setAddingNew}>
                 <div className={'flex flex-row gap-3'}>

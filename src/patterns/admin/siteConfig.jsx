@@ -51,6 +51,20 @@ const adminConfig = ({
     {
       name: 'Team',
       path:`${baseUrl}/team`
+    },
+      {
+      name: 'Auth',
+      path:`${authPath}`,
+          subMenus: [
+              {
+                  name: 'Users',
+                  path: `${authPath}/users`
+              },
+              {
+                  name: 'Groups',
+                  path: `${authPath}/groups`
+              }
+          ]
     }
   ]
   /*
@@ -94,7 +108,6 @@ const adminConfig = ({
         type: (props) => {
           const {Layout} = UI;
           const location = useLocation()
-          console.log('admin wrapper', authPath)
           return (
             <AdminContext.Provider value={{baseUrl, authPath, PROJECT_NAME, user: props.user, app, type, API_HOST, AUTH_HOST, UI}}>
               <ThemeContext.Provider value={{theme}}>

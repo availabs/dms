@@ -10,6 +10,7 @@ import AuthUsers from "./pages/authUsers";
 import AuthGroups from "./pages/authGroups";
 import AuthResetPassword from "./pages/authResetPassword";
 import AuthForgotPassword from "./pages/authForgotPassword";
+import {cloneDeep, merge} from "lodash-es";
 
 export const AuthContext = React.createContext(null);
 
@@ -22,12 +23,49 @@ const authConfig = ({
   PROJECT_NAME, // defaults to app
   defaultRedirectUrl='/',
   baseUrl = '/dms_auth',
-  theme = defaultTheme,
+  adminPath='/',
+  themes = {},
   user, setUser,
 }) => {
 
-  baseUrl = baseUrl === '/' ? '' : baseUrl
+    const menuItems = [
+        {
+            name: 'Sites',
+            path: `${adminPath}`
+        },
+        {
+            name: 'Datasets',
+            path: `${adminPath}/datasets`
+        },
+        {
+            name: 'Themes',
+            path: `${adminPath}/themes`
+        },
+        {
+            name: 'Team',
+            path:`${adminPath}/team`
+        },
+        {
+            name: 'Auth',
+            path: baseUrl,
+            subMenus: [
+                {
+                    name: 'Users',
+                    path: `${baseUrl}/users`
+                },
+                {
+                    name: 'Groups',
+                    path: `${baseUrl}/groups`
+                }
+            ]
+        }
+    ]
 
+  baseUrl = baseUrl === '/' ? '' : baseUrl
+    let theme = merge(
+        cloneDeep(defaultTheme),
+        cloneDeep(themes.mny_admin)
+    );
   //console.log('defaultTheme', theme)
   theme.navOptions = theme?.admin?.navOptions || theme?.navOptions
 
@@ -41,19 +79,20 @@ const authConfig = ({
       {
         type: (props) => {
           const {Layout} = UI;
-          console.log('rendering auth siteconfig', user)
           return (
             <AuthContext.Provider value={{baseUrl,
               user, setUser,
               app, API_HOST, AUTH_HOST, PROJECT_NAME: PROJECT_NAME || app, defaultRedirectUrl, UI}}>
               <ThemeContext.Provider value={{theme}}>
-                <Layout navItems={[]}>
-                  <div className={theme?.admin?.page?.pageWrapper}>
-                    <div className={theme?.admin?.page?.pageWrapper2}>
-                      {props.children}
-                    </div>
+                  <div className={theme?.page?.container}>
+                      <Layout navItems={menuItems}>
+                          <div className={theme?.admin?.page?.pageWrapper}>
+                              <div className={theme?.admin?.page?.pageWrapper2}>
+                                  {props.children}
+                              </div>
+                          </div>
+                      </Layout>
                   </div>
-                </Layout>
               </ThemeContext.Provider>
             </AuthContext.Provider>
           )
