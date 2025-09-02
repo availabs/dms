@@ -70,14 +70,6 @@ const components = {
         "3": "md:pt-32 pt-0"
     },
     "navLabel": "px-6 pb-1 pt-6 uppercase text-xs text-blue-400",
-    "page": {
-        "container": "bg-slate-100",
-        "wrapper1": "w-full h-full flex-1 flex flex-col",
-        "wrapper2": "w-full h-full flex-1 flex flex-row px-1 md:px-6 py-6",
-        "wrapper3": "flex flex-1 w-full  flex-col border shadow bg-white relative text-md font-light leading-7 p-4 min-h-[calc(100vh_-_102px)]",
-        "iconWrapper": "z-5 absolute right-[10px] top-[5px]",
-        "icon": "text-slate-400 hover:text-blue-500"
-    },
     "sectionGroup": {
         "sideNavContainer1": "w-[302px] hidden xl:block",
         "sideNavContainer2": "w-[302px] sticky top-[120px] hidden xl:block h-[calc(100vh_-_128px)] pr-2",

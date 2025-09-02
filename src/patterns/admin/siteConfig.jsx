@@ -75,7 +75,7 @@ const adminConfig = ({
       const {Layout} = UI;
       return (
           <AdminContext.Provider value={{baseUrl, user: props.user || defaultUser, app, type, API_HOST, UI}}>
-            <ThemeContext.Provider value={{theme}}>
+            <ThemeContext.Provider value={{theme, UI}}>
               <Layout navItems={menuItems}>
                 <div className={theme?.admin?.page?.pageWrapper}>
                   <div className={theme?.admin?.page?.pageWrapper2}>
@@ -98,7 +98,7 @@ const adminConfig = ({
           console.log('admin wrapper', props.dataItems)
           return (
             <AdminContext.Provider value={{baseUrl, user: props.user || defaultUser, app, type, API_HOST, UI}}>
-              <ThemeContext.Provider value={{theme}}>
+              <ThemeContext.Provider value={{theme, UI}}>
                 <Layout navItems={menuItems}>
                   <div className={theme?.admin?.page?.pageWrapper}>
                     <div className={theme?.admin?.page?.pageWrapper2}>

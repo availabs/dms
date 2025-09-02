@@ -1,19 +1,20 @@
 import React, {Fragment, useEffect, useContext, useState} from "react";
 import {Dialog, DialogPanel, Input, Transition} from '@headlessui/react'
 import {dmsDataLoader} from "../../../../api";
+import { ThemeContext } from "../../../../ui/useTheme";
 import {CMSContext} from "../../context";
 import {boldMatchingText, getScore, searchTypeMapping} from "./SearchPage";
 
 export default function SearchButton ({app, type}) {
     const [open, setOpen] = useState(false)
-    const { UI } = useContext(CMSContext);
+    const { UI } = useContext(ThemeContext);
     const { Icon } = UI;
     return (
         <>
             <button
                 className={`
-                bg-white flex justify-between items-center 
-                h-[48px] w-[217px] py-[8px] pr-[8px] pl-[24px] 
+                bg-white flex justify-between items-center
+                h-[48px] w-[217px] py-[8px] pr-[8px] pl-[24px]
                 border border-[#E0EBF0] rounded-[1000px]
                 shadow-sm transition ease-in
                 `}
@@ -116,7 +117,7 @@ const RenderItems = ({items, query, theme, Icon}) => Object.keys(items).length ?
                                     <div className={'w-full ml-8'}>
                                         {
                                             tags?.split(',').filter(t => t && t.length).map(tag => (
-                                                <span className={`tracking-wide p-1 text-xs text-white font-semibold rounded-md border 
+                                                <span className={`tracking-wide p-1 text-xs text-white font-semibold rounded-md border
                                                 ${tag.toLowerCase() === query.toLowerCase() ? 'border-1 border-red-600 bg-red-400' : 'bg-red-300'}`}>
                                                     {boldMatchingText(tag, query)}
                                                 </span>))
@@ -150,7 +151,8 @@ const RenderStatus = ({loading, query, itemsLen}) =>
         );
 
 export const SearchPallet = ({open, setOpen, app: appFromProps, type: typeFromProps, searchStr}) => {
-    const {baseUrl, falcor, UI, app=appFromProps, type=typeFromProps} = useContext(CMSContext) || {};
+    const {baseUrl, falcor, app=appFromProps, type=typeFromProps} = useContext(CMSContext) || {};
+    const { UI } = useContext(ThemeContext);
     const {Icon} = UI;
     const [query, setQuery] = useState();
     const [tmpQuery, setTmpQuery] = useState(searchStr);

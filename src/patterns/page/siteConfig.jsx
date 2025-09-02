@@ -103,7 +103,7 @@ const pagesConfig = ({
             Menu: () => <>{rightMenu}</>,
           }}
         >
-          <ThemeContext.Provider value={{ theme }}>
+          <ThemeContext.Provider value={{ theme, UI }}>
             <ErrorPage />
           </ThemeContext.Provider>
         </CMSContext.Provider>
@@ -113,6 +113,7 @@ const pagesConfig = ({
       {
         type: ({ children, user = defaultUser, falcor, ...props }) => {
           // console.log('hola', user, defaultUser, user || defaultUser)
+          console.log('page siteConfig - UI', UI )
           return (
             <CMSContext.Provider
               value={{
@@ -130,7 +131,7 @@ const pagesConfig = ({
                 Menu: () => <>{rightMenu}</>,
               }}
             >
-              <ThemeContext.Provider value={{ theme }}>
+              <ThemeContext.Provider value={{ theme, UI }}>
                 {children}
               </ThemeContext.Provider>
             </CMSContext.Provider>

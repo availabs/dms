@@ -19,22 +19,24 @@ import { PageContext, CMSContext } from '../context';
 import { ThemeContext } from "../../../ui/useTheme";
 
 
-function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiLoad, apiUpdate, format,busy}) {
+function PageView(props) {
+  // console.log('PageView Props', props)
+  const { item, dataItems, attributes, logo, rightMenu, siteType, apiLoad, apiUpdate, format, busy } = props
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams();
+  const { theme: fullTheme, UI = {} } = useContext(ThemeContext) || {};
+  const { Menu, baseUrl, patternFilters=[], user, API_HOST } = React.useContext(CMSContext) || {};
+  console.log('pageview UI', UI)
+  const { Layout = () => <></> } = UI;
+  const [pageState, setPageState] =
+    useImmer({
+        ...item,
+        filters: mergeFilters(item?.filters, patternFilters)
+    });
+  const { search } = useLocation()
+  const pdfRef = useRef(); // To capture the section of the page to be converted to PDF
 
-    const navigate = useNavigate()
-    const [searchParams] = useSearchParams();
-    const {theme: fullTheme} = useContext(ThemeContext);
-    const { UI, Menu, baseUrl, patternFilters=[], user, API_HOST } = React.useContext(CMSContext) || {};
-    const {Layout} = UI;
-    const [pageState, setPageState] =
-        useImmer({
-            ...item,
-            filters: mergeFilters(item?.filters, patternFilters)
-        });
-    const { search } = useLocation()
-    const pdfRef = useRef(); // To capture the section of the page to be converted to PDF
-
-    let theme = merge(cloneDeep(fullTheme), item?.theme || {})
+  let theme = merge(cloneDeep(fullTheme), item?.theme || {})
 
 
     //console.log('item', item)
@@ -56,7 +58,7 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
         // -- This should be deleted by JUNE 1 2025
         // -------------------------------------------------------------------
         //sectionsBackill(item,baseUrl,apiUpdate)
-    
+
     },[])
 
     useEffect(() => {
@@ -97,45 +99,36 @@ function PageView ({item, dataItems, attributes, logo, rightMenu, siteType, apiL
         }
     }
 
+  const getSectionGroups =  ( sectionName ) => {
+      return (item?.section_groups || [])
+          .filter((g,i) => g.position === sectionName)
+          .sort((a,b) => a?.index - b?.index)
+          .map((group,i) => (
+              <SectionGroup
+                  key={group?.name || i}
+                  group={group}
+                  attributes={attributes}
+              />
+          ))
+  }
 
+  return (
+      <PageContext.Provider value={{ item, pageState, setPageState, updatePageStateFilters, dataItems, apiLoad, apiUpdate, format, busy }} >
+        <Layout
+            navItems={menuItems}
+            secondNav={menuItemsSecondNav}
+            pageTheme={{navOptions: item.navOptions || {}}}
+            Menu={Menu}
+            SearchButton={SearchButton}
+            headerChildren={getSectionGroups('top')}
+            footerChildren={getSectionGroups('bottom')}
+        >
+            {getSectionGroups('content')}
+        </Layout>
+      </PageContext.Provider>
 
-
-
-
-    const getSectionGroups =  ( sectionName ) => {
-        return (item?.section_groups || [])
-            .filter((g,i) => g.position === sectionName)
-            .sort((a,b) => a?.index - b?.index)
-            .map((group,i) => (
-                <SectionGroup
-                    key={group?.name || i}
-                    group={group}
-                    attributes={attributes}
-                />
-            ))
-    }
-
-    return (
-        <PageContext.Provider value={{ item, pageState, setPageState, updatePageStateFilters, dataItems, apiLoad, apiUpdate, format, busy }} >
-            <div className={`${theme?.page?.container}`}>
-                {getSectionGroups('top')}
-                <Layout
-                    navItems={menuItems}
-                    secondNav={menuItemsSecondNav}
-                    pageTheme={{navOptions: item.navOptions || {}}}
-                    Menu={Menu}
-                    SearchButton={SearchButton}
-                >
-                    {getSectionGroups('content')}
-                </Layout>
-                {getSectionGroups('bottom')}
-            </div>
-        </PageContext.Provider>
-
-    )
-
+  )
 }
 
 
 export default PageView
-

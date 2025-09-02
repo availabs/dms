@@ -58,11 +58,11 @@ export const sectionArrayTheme = {
 }
 
 const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
-    
+
     const [ values, setValues ] = useState([]);
     const [active, setActive] = useState(); // to handle multiple spreadsheet components on a page in conjunction with arrow/selection/copy controls
-    const { UI, baseUrl, user } = React.useContext(CMSContext) || {}
-    const { theme = { sectionArray: sectionArrayTheme} } = React.useContext(ThemeContext) || {}
+    const { baseUrl, user } = React.useContext(CMSContext) || {}
+    const { theme = { sectionArray: sectionArrayTheme}, UI } = React.useContext(ThemeContext) || {}
     const { editPane, apiLoad, apiUpdate, format  } =  React.useContext(PageContext) || {}
     const { Icon } = UI;
 
@@ -85,9 +85,9 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
 
     const setEditValue = (v) => setEdit({...edit, value: v})
     const setEditIndex = (i) => setEdit({...edit, index: i})
-    
+
     const cancel = () => {
-       setEdit({index: -1, value:'',type:'new'}) 
+       setEdit({index: -1, value:'',type:'new'})
     }
 
     const saveIndex = (i, v) => {
@@ -112,20 +112,20 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
             action = `added section ${edit?.value?.title ? `${edit?.value?.title} ${edit.index+1}` : edit.index+1}`
         }
         //console.log('edit on save', edit)
-        
+
         cancel()
         setValues([...cloneValue, ''])
         /* await */ onChange(cloneValue,action)
-    
+
     }
 
     const remove = (i) => {
         let cloneValue = cloneDeep(value)
-        
+
         if(edit.type === 'update') {
             cloneValue.splice(edit.index, 1)
         } else {
-           cloneValue.splice(i, 1) 
+           cloneValue.splice(i, 1)
         }
         const action = `removed section ${edit?.value?.title ? `${edit?.value?.title} ${edit.index+1}` : edit.index+1}`
         //console.log('remove', value, cloneValue)
@@ -142,7 +142,7 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
         let cloneValue = cloneDeep(value)
         // remove `from` item and store it
         let to = from + dir
-        
+
         if(to < 0 || to >= cloneValue.length){
             return
         }
@@ -154,14 +154,14 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
 
     const hideDebug = true
     //console.log('test 123', values, group)
-    
+
     return (
         <div className='relative'>
         { editPane?.showGrid && (
             <div className='absolute inset-0 pointer-events-none  '>
                 <div className={`
-                        ${theme?.sectionArray?.container} 
-                        ${theme?.sectionArray?.gridviewGrid} 
+                        ${theme?.sectionArray?.container}
+                        ${theme?.sectionArray?.gridviewGrid}
                         ${theme?.sectionArray?.layouts[group?.full_width === 'show' ? 'fullwidth' : 'centered']}
                     `}
                 >
@@ -170,10 +170,10 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
             </div>
         )}
             <div className={`
-                ${theme?.sectionArray?.container} 
+                ${theme?.sectionArray?.container}
                 ${theme?.sectionArray?.layouts?.[group?.full_width === 'show' ? 'fullwidth' : 'centered']}
             `}>
-                
+
                 {[...values,{}]
                     .map((v,i) => {
                     //only render sections in this group
@@ -193,11 +193,11 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
                             key={i}
                             id={v?.id}
                             className={`
-                                ${v?.padding ?  v.padding : theme?.sectionArray?.sectionPadding} 
-                                ${theme?.sectionArray?.sectionEditWrapper} 
+                                ${v?.padding ?  v.padding : theme?.sectionArray?.sectionPadding}
+                                ${theme?.sectionArray?.sectionEditWrapper}
                                 ${colspanClass} ${rowspanClass}
                                 ${theme?.sectionArray?.border?.[v?.border || 'none']}
-                                
+
                             `}
                             style={{paddingTop: v?.offset }}
                             onClick={() => {
@@ -208,27 +208,27 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
                         >
                             <div className={theme?.sectionArray?.sectionEditHover} />
                             {/* add to top */}
-                            { 
-                                edit?.index === -1 && <div 
+                            {
+                                edit?.index === -1 && <div
                                     onClick={() => setEditIndex(Math.max(i, 0))}
                                     className={`
-                                        cursor-pointer py-0.5 text-sm text-blue-200 hover:text-blue-400 truncate w-full  
+                                        cursor-pointer py-0.5 text-sm text-blue-200 hover:text-blue-400 truncate w-full
                                         hover:bg-blue-50/75 -ml-4 hidden group-hover:flex absolute -top-5
                                     `}>
                                     <div className='flex-1' />
                                     <div className='flex items-center'>
-                                        
+
                                         <div><Icon icon='InsertSection' className='size-6'/></div>
-                                        
+
                                     </div>
                                     <div className='flex-1' />
                                 </div>
                              }
 
                             {/* edit new or existing section */}
-                            {edit.index === i 
-                                ? <SectionEdit 
-                                    value={edit.value} 
+                            {edit.index === i
+                                ? <SectionEdit
+                                    value={edit.value}
                                     onChange={setEditValue}
                                     onSave={save}
                                     onCancel={cancel}
@@ -265,7 +265,7 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
                                 /> : v?.status?.length > 1 ? <div>Error</div> : ''}
 
                             {/* add new section at end  */}
-                            
+
                         </div>
                     )
                 })
@@ -273,7 +273,7 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
             {
                 edit?.index === -1 && <AddSectionButton onClick={() => setEditIndex(Math.max(values.length, 0))}/>
             }
-            
+
             <ScrollToHashElement />
             </div>
         </div>
@@ -295,9 +295,9 @@ const View = ({value, attr, group, siteType}) => {
     }
 
     return (
-        <div 
+        <div
             className={`
-                ${theme?.sectionArray?.container} 
+                ${theme?.sectionArray?.container}
                 ${theme?.sectionArray?.layouts?.[group?.full_width === 'show' ? 'fullwidth' : 'centered']}
             `}
         >
@@ -312,10 +312,10 @@ const View = ({value, attr, group, siteType}) => {
                         const rowspanClass = (theme?.sectionArray?.rowspans?.[rowspan] || theme?.sectionArray?.rowspans?.["1"])?.className;
 
                         return (
-                            <div id={v?.id} key={i} 
+                            <div id={v?.id} key={i}
                                 className={`
                                     ${v?.is_header ? '' : v?.padding ?  v.padding : theme?.sectionArray?.sectionPadding}
-                                    ${theme?.sectionArray?.sectionViewWrapper} 
+                                    ${theme?.sectionArray?.sectionViewWrapper}
                                     ${colspanClass} ${rowspanClass}
                                     ${theme?.sectionArray?.border?.[v?.border || 'none']}
                                 `}
@@ -325,7 +325,7 @@ const View = ({value, attr, group, siteType}) => {
                                          setActive(v.id);
                                      }
                                  }}
-                            >   
+                            >
 
                                 <SectionView
                                     attributes={attr.attributes}
@@ -390,25 +390,25 @@ const AddSectionButton = ({onClick}) => {
     return (
         <div
             className={`
-                ${theme?.sectionArray?.sectionPadding} 
-                ${theme?.sectionArray?.sectionEditWrapper} 
-                ${theme?.sectionArray?.sizes?.["1"]?.className} 
+                ${theme?.sectionArray?.sectionPadding}
+                ${theme?.sectionArray?.sectionEditWrapper}
+                ${theme?.sectionArray?.sizes?.["1"]?.className}
                 ${theme?.sectionArray?.rowspans?.["1"]?.className}
                 ${theme?.sectionArray?.border?.['none']}
             `}
         >
             <div className={theme?.sectionArray?.sectionEditHover} />
-                <div 
+                <div
                     onClick={onClick}
                     className={`
-                        cursor-pointer py-0.5 text-sm text-blue-200 hover:text-blue-400 truncate w-full  
+                        cursor-pointer py-0.5 text-sm text-blue-200 hover:text-blue-400 truncate w-full
                         hover:bg-blue-50/75 -ml-4 hidden group-hover:flex absolute -top-5
                     `}>
                     <div className='flex-1' />
                     <div className='flex items-center'>
-                        
+
                         <div><Icon icon='InsertSection' className='size-6'/></div>
-                        
+
                     </div>
                     <div className='flex-1' />
                 </div>

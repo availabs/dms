@@ -42,19 +42,21 @@ function nav2Level(items, level=1, path, navTitle='') {
 	return output || items
 }
 
-const Layout = ({ 
-	children, 
-	navItems, 
+const Layout = ({
+	children,
+	navItems,
 	secondNav,
-	title, 
-	pageTheme, 
-	EditPane, 
+	title,
+	pageTheme,
+	EditPane,
 	Menu=NoComp,
 	SearchButton=NoComp,
-	yPadding = '0px', 
-	...props 
+	yPadding = '0px',
+	headerChildren,
+	footerChildren,
+	...props
 	}) => {
-	
+
 	// ------------------------------------------------------
 	// ------- Get Options from Context and Defaults
 	// ------------------------------------------------------
@@ -73,7 +75,7 @@ const Layout = ({
 			<div className={theme?.sidenav?.topNavWrapper}>
 				{sideNav?.logo === 'top' && <Logo />}
 	        	{sideNav?.dropdown === 'top' && <Menu />}
-	        	
+
 	        	{sideNav?.search === 'top' && <SearchButton />}
 
 	      	</div>
@@ -108,65 +110,69 @@ const Layout = ({
 	        	{topNav?.logo === 'right' && <Logo />}
 	        	{EditPane && <EditPane />}
 	      	</>
-	  	)	
+	  	)
 	}
 	//const Logo = sideNavOptions.logo
-	
+
 	// console.log('topnav stuff', topNav.size !== 'none' && topNav.position === 'fixed' ? topNav.size : '', topNav)
 	// ------------------------------------------------------
-	// ------- 
-	// ------------------------------------------------------ 
+	// -------
+	// ------------------------------------------------------
 
-	return (
-		<div className={theme?.layout?.wrapper} >
-			
-			<div 
-				className={theme?.layout?.wrapper2} 
-				style={{
-					minHeight: `calc(100vh - ${yPadding}`,
-				}}
-			>
-				{
-					topNavOptions.size === 'none' ? '' : (<>
-						<div className={`${theme?.layout?.topnavContainer1}`}>
-							<div className={`${theme?.layout?.topnavContainer2}`}>
-								{<TopNav
-									themeOptions={topNavOptions}
-									// subMenuActivate={'onHover'}
-									leftMenu={topNavOptions.leftMenu}
-									menuItems={topNavOptions.menuItems}
-									rightMenu={topNavOptions.rightMenu}
-									
-								/>}
-							</div>
-						</div>
-					</>)
-				}
-				<div className={`${theme?.layout?.wrapper3}`}>
-					{
-						sideNavOptions.size === 'none' ? '' : (
-							<div className={`${theme?.layout?.sidenavContainer1} `}>
-								<div className={`${theme?.layout?.sidenavContainer2} ${topNav.size !== 'none' && topNav.position === 'fixed' ? theme.topnav.fixed : ''}`}>
-									{<SideNav 
-										topMenu={sideNavOptions.topMenu}
-										bottomMenu={sideNavOptions.bottomMenu}
-										themeOptions={sideNavOptions}
-										menuItems={sideNavOptions.menuItems}
-									/>}
-								</div>
-							</div>
-						)
-					}
-					<div className={`
-						${theme?.layout?.childWrapper} 
-						${sideNav.size !== 'none' && sideNav.position === 'fixed' ? theme.sidenav.fixed : ''} 
-						`}
-					>
-						{children}
-					</div>
-				</div>
-			</div>
-		</div>
+  return (
+    <div className={theme?.layout?.outerWrapper}>
+      { headerChildren }
+  	  <div className={theme?.layout?.wrapper} >
+
+  			<div
+  				className={theme?.layout?.wrapper2}
+  				style={{
+  					minHeight: `calc(100vh - ${yPadding}`,
+  				}}
+  			>
+  				{
+  					topNavOptions.size === 'none' ? '' : (<>
+  						<div className={`${theme?.layout?.topnavContainer1}`}>
+  							<div className={`${theme?.layout?.topnavContainer2}`}>
+  								{<TopNav
+  									themeOptions={topNavOptions}
+  									// subMenuActivate={'onHover'}
+  									leftMenu={topNavOptions.leftMenu}
+  									menuItems={topNavOptions.menuItems}
+  									rightMenu={topNavOptions.rightMenu}
+
+  								/>}
+  							</div>
+  						</div>
+  					</>)
+  				}
+  				<div className={`${theme?.layout?.wrapper3}`}>
+  					{
+  						sideNavOptions.size === 'none' ? '' : (
+  							<div className={`${theme?.layout?.sidenavContainer1} `}>
+  								<div className={`${theme?.layout?.sidenavContainer2} ${topNav.size !== 'none' && topNav.position === 'fixed' ? theme.topnav.fixed : ''}`}>
+  									{<SideNav
+  										topMenu={sideNavOptions.topMenu}
+  										bottomMenu={sideNavOptions.bottomMenu}
+  										themeOptions={sideNavOptions}
+  										menuItems={sideNavOptions.menuItems}
+  									/>}
+  								</div>
+  							</div>
+  						)
+  					}
+  					<div className={`
+  						${theme?.layout?.childWrapper}
+  						${sideNav.size !== 'none' && sideNav.position === 'fixed' ? theme.sidenav.fixed : ''}
+  						`}
+  					>
+  						{children}
+  					</div>
+  				</div>
+  			</div>
+  		</div>
+      {footerChildren}
+    </div>
 	);
 };
 

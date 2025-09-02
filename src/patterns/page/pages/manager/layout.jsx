@@ -26,12 +26,12 @@ const managerTheme={
 
 
 function CmsManager ({children}) {
- 
-  
+
+
   const { baseUrl, UI } = React.useContext(CMSContext) || {};
-  const {Layout} = UI;
+  const { Layout } = UI;
   const { theme ={}} = React.useContext(ThemeContext);
-  
+
 
   const managerNavItems = [
     { name: '< Manage Site', path: '/list' },
@@ -51,17 +51,16 @@ function CmsManager ({children}) {
 
 
   return (
-    <div id='page_view'>
-      {/* Layout */}
-      <Layout navItems={managerNavItems} theme={managerTheme}>
-        <div className={`${theme?.page?.wrapper1} `}>
-          {children}
-        </div>
-      </Layout>
-    </div>
-  ) 
+    <Layout
+      navItems={managerNavItems}
+
+    >
+      <div className={`${theme?.page?.wrapper1} `}>
+        {children}
+      </div>
+    </Layout>
+  )
 }
 
 
 export default CmsManager
-

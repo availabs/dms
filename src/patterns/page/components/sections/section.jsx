@@ -22,8 +22,7 @@ const isJson = (str)  => {
 export function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, onRemove, siteType, apiLoad, apiUpdate, format, isActive}) {
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     let sectionTitleCondition = value?.['title']
-    const { theme } = React.useContext(ThemeContext);
-    const { UI } = React.useContext(CMSContext) || {}
+    const { theme, UI } = React.useContext(ThemeContext);
     const { Popover, Button, Icon, Switch } = UI
 
     const updateAttribute = (k, v) => {
@@ -215,7 +214,7 @@ let handleCopy = (value) => {
 }
 
 export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemove, moveItem, addAbove, siteType, apiLoad, apiUpdate, format, isActive}) {
-    
+
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     let [referenceElement, setReferenceElement] = useState()
     let [popperElement, setPopperElement] = useState()
@@ -226,7 +225,7 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
     // const updateAttribute = (k, v) => {
     //     onChange(value, k, v)
     // }
-    
+
 
     // const updateAttribute = (k, v) => {
     //     console.log('change',k,v, {...value, [k]: v})
@@ -259,10 +258,10 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
     const element = React.useMemo(() => {
         return (
             <Selector.ViewComp
-                value={value?.['element']} 
-                siteType={siteType} 
-                apiLoad={apiLoad} 
-                apiUpdate={apiUpdate} 
+                value={value?.['element']}
+                siteType={siteType}
+                apiLoad={apiLoad}
+                apiUpdate={apiUpdate}
                 pageFormat={format}
                 isActive={isActive}
             />
@@ -277,9 +276,9 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
       { icon: 'ChevronUpSquare', name: 'Move Up', onClick: () => moveItem(i,-1) },
       { icon: 'ChevronDownSquare', name: 'Move Down', onClick: () =>  moveItem(i,1) },
       { type: 'seperator'},
-      { 
+      {
         icon:'Column', name: 'Width',
-        type: 'menu', 
+        type: 'menu',
         value: value?.['size'] || 1,
         items: Object.keys(theme?.sectionArray?.sizes || {}).sort((a,b) => {
             let first = +theme?.sectionArray?.sizes?.[a].iconSize || 100
@@ -296,9 +295,9 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
             }
         })
       },
-      { 
-        icon: 'Row', name: 'Rowspan', 
-        type: 'menu', 
+      {
+        icon: 'Row', name: 'Rowspan',
+        type: 'menu',
         value: value?.['rowspan'] || 1,
         items: Object.keys(theme?.sectionArray?.rowspans || {}).sort((a,b) => {
             return +a - +b
@@ -313,7 +312,7 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
             }
         })
       },
-      { icon: 'Padding', name: 'Offset', 
+      { icon: 'Padding', name: 'Offset',
         type: 'menu',
         value: value?.['offset'] || 16,
         items: [25,50,100,150,200,250,300,350,400,500].map((v,i) => {
@@ -326,13 +325,13 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
                 }
             }
         }),
-        // inputProps: { 
-        //     type: 'number', 
-        //     value: value?.offset || theme?.sectionArray?.defaultOffset, 
+        // inputProps: {
+        //     type: 'number',
+        //     value: value?.offset || theme?.sectionArray?.defaultOffset,
         //     onChange: (v) => updateAttribute('offset', v.target.value)
         // }
       },
-      { icon: 'Padding', name: 'padding', 
+      { icon: 'Padding', name: 'padding',
         type: 'menu',
         value: value?.['padding'] || theme?.sectionArray?.sectionPadding,
         items: ['p-0', 'p-1','p-2', theme?.sectionArray?.sectionPadding].map((v,i) => {
@@ -345,9 +344,9 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
                 }
             }
         }),
-        // inputProps: { 
-        //     type: 'number', 
-        //     value: value?.offset || theme?.sectionArray?.defaultOffset, 
+        // inputProps: {
+        //     type: 'number',
+        //     value: value?.offset || theme?.sectionArray?.defaultOffset,
         //     onChange: (v) => updateAttribute('offset', v.target.value)
         // }
       },
@@ -390,11 +389,11 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
             {/* -------------------top line buttons ----------------------*/}
             <div className={`flex w-full`}>
                 <div className='flex-1'/>
-                    
-                   
+
+
                     <div className={`z-10`}>
-                        <div className={`absolute top-[6px] right-[6px] hidden group-hover:flex items-center`}> 
-                            
+                        <div className={`absolute top-[6px] right-[6px] hidden group-hover:flex items-center`}>
+
                             {showEditIcons && (
                                 <>
                                     {/*<Button type='plain' padding='p-0.5' onClick={ () => moveItem(i,-1) }>
@@ -407,21 +406,21 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
                                         <Copy title={'Copy Section'} className='text-slate-400 hover:text-blue-500 w-[24px] h-[24px]'/>
                                     </Button>*/}
                                     {
-                                    <Menu items={sectionMenuItems}> 
+                                    <Menu items={sectionMenuItems}>
                                         <div  className='p-1 hover:bg-slate-100/75 rounded-lg'>
                                             <Icon icon="Menu" className='text-slate-500 hover:text-slate-900 size-6'/>
                                         </div>
                                     </Menu>
                                     }
-                                    {/*<Button type='plain' padding='p-0.5' onClick={addAbove}> 
+                                    {/*<Button type='plain' padding='p-0.5' onClick={addAbove}>
                                         <SquarePlus className='text-slate-400 hover:text-blue-500 w-[24px] h-[24px]'/>
                                     </Button>*/}
                                 </>
                             )}
                         </div>
                     </div>
-                    
-                   
+
+
                 </div>
                 {/* -------------------END top line buttons ----------------------*/}
                 {/* -------------------Section Header ----------------------*/}
@@ -437,22 +436,22 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
                                 />
                             </div>
                             <div className='flex item-center h-full pointer-events-auto'>
-                            {value?.['tags']?.length ? 
-                            
+                            {value?.['tags']?.length ?
+
                                 (<Popover button={
                                     <div className='p-2 border border-[#E0EBF0] rounded-full print:hidden'>
                                         <Icon icon={'Tags'} className='text-slate-400 hover:text-blue-500 size-4' title="Tags"/>
                                     </div>
                                     }>
                                     <TagComponent
-                                        
+
                                         className='p-2 flex-0'
                                         value={value?.['tags']}
-                                        placeholder={'Add Tag...'} 
+                                        placeholder={'Add Tag...'}
                                         onChange={(v) => updateAttribute('tags', v)}
                                     />
                                 </Popover>) : null}
-                                        
+
                                 {
                                     helpTextCondition && (
                                     <Popover button={
@@ -477,7 +476,7 @@ i                                            </div>
                                     </Popover>)
                                 }
                             </div>
-                            
+
                         </div>
 
 
@@ -491,7 +490,7 @@ i                                            </div>
                             </Link>
                         }
 
-                        
+
                     </div>
                 )}
             {/* -------------------END Section Header ----------------------*/}
@@ -545,7 +544,7 @@ function SizeSelect ({size='1', setSize, onChange}) {
           className="flex space-x-1 z-50 rounded-lg bg-blue-50 p-0.5"
           role="tablist"
           aria-orientation="horizontal"
-        >        
+        >
         {Object.keys(theme?.sectionArray?.sizes || {}).map((name,i) => (
             <button
                 key={i}
@@ -565,7 +564,7 @@ function SizeSelect ({size='1', setSize, onChange}) {
         ))}
         </div>
     )
-} 
+}
 
 const RenderError = ({data}) => (
     <div className={'p-2 rounded-md bg-red-300 border-red-500 text-white min-h-[50px]'}>
@@ -728,4 +727,3 @@ export function DeleteModal ({title, prompt, item={}, open, setOpen, onDelete}) 
     </Dialog>
   )
 }
-

@@ -21,8 +21,10 @@ import {docs as Dropdown} from "./components/Dropdown";
 import {docs as DeleteModal} from "./components/DeleteModal";
 import {docs as Pagination} from "./components/Pagination";
 import {docs as DraggableNav} from "./components/nestable/draggableNav";
+import pageViewDoc from "../patterns/page/pages/view.doc";
 
 const output = {
+    PageView: pageViewDoc,
     Input,
     Select,
     Table,

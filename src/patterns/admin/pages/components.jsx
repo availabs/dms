@@ -3,12 +3,12 @@ import {useNavigate} from 'react-router';
 import {AdminContext} from "../siteConfig";
 import {ThemeContext} from "../../../ui/useTheme";
 
+
 const parseIfJson = (value) => {
 	try {
 		if(typeof value === 'object' && value !== null) return value;
-
 		return JSON.parse(value)
-	}catch (e){
+	} catch (e){
 		return {}
 	}
 }
@@ -18,6 +18,7 @@ const ComponentRenderer = ({Component=DefaultComp, props}) => <Component {...pro
 
 const compOptions = [
 	{ label: 'Button', value: 'Button' },
+	{ label: 'PageView', value: 'PageView' },
 	{ label: 'Card', value: 'Card' },
 	{ label: 'Drawer', value: 'Drawer' },
 	{ label: 'DraggableNav', value: 'DraggableNav' },
@@ -61,19 +62,22 @@ function ComponentList ({
 	const [currentTheme, setCurrentTheme] = useState(parseIfJson(themeObj?.theme));
 	const compFromProps = useMemo(() => compOptions.find(c => c.value.toLowerCase() === component?.toLowerCase())?.value, [component]);
 	const [currentComponent, setCurrentComponent] = useState(compFromProps || 'Button');
-	console.log('comp', component, compFromProps, currentComponent)
-	const [currentComponentPropsIdx, setCurrentComponentPropsIdx] = useState(0);
+  const [currentComponentPropsIdx, setCurrentComponentPropsIdx] = useState(0);
+  // console.log('comp', component, compFromProps, currentComponent);
 
 	const {theme} = useContext(ThemeContext);
 	const { baseUrl, user, UI } = React.useContext(AdminContext) || {};
 	const {Select, Button} = UI;
+
+ console.log( 'docs', currentTheme?.docs, theme?.docs)
+
 
 	useEffect(() => {
 		setCurrentTheme(parseIfJson(themeObj?.theme))
 	}, [themeObj]);
 
 	useEffect(() => {
-		console.log('settting comp', compFromProps)
+		// console.log('settting comp', compFromProps)
 		setCurrentComponent(compFromProps || 'Button')
 	}, [compFromProps])
 
@@ -94,41 +98,42 @@ function ComponentList ({
 	const currCompTheme = currentTheme?.[currThemeKey] || theme?.[currThemeKey] || {};
 
 	return (
-		<div className={'flex flex-col p-10 w-full divide-y-2'}>
+		<div className={'flex flex-col p-4 w-full divide-y-2'}>
 			<div className={'w-full flex justify-between border-b-2 border-blue-400'}>
 				<div className={'text-2xl font-semibold text-gray-700'}>Components</div>
 				<button onClick={() => navigate(-1)}>back</button>
 			</div>
-			<div className={'w-full flex'}>
-				<Select value={currentComponent} onChange={e => {
-					setCurrentComponent(e.target.value)
-					navigate(`${baseUrl}/${path.replace(':theme_id', theme_id).replace(':component?', e.target.value.toLowerCase())}`)
-				}}
-						options={compOptions}
-				/>
 
-				<Select value={currentComponentPropsIdx}
-						onChange={e => setCurrentComponentPropsIdx(e.target.value)}
-						options={
-					(Array.isArray(theme?.docs?.[currentComponent]) ? theme?.docs?.[currentComponent] : [theme?.docs?.[currentComponent]])
-						.map((o, i) => ({label: o?.doc_name || `Example ${i + 1}`, value: i}))
-				}
-				/>
-			</div>
 
-			<div className={'flex flex-col sm:flex-row divide-x'}>
-				<div className={'w-full sm:w-1/2 h-[calc(100vh_-_20rem)] overflow-auto scrollbar-sm'}>
+			<div className={'flex flex-col sm:flex-row divide-x '}>
+				<div className={'w-[400px] p-4 '}>
+  		  <div className={'pb-2'}>
+  					<Select value={currentComponent} onChange={e => {
+   						  setCurrentComponent(e.target.value)
+     						navigate(`${baseUrl}/${path.replace(':theme_id', theme_id).replace(':component?', e.target.value.toLowerCase())}`)
+  					  }}
+  							options={compOptions}
+  					/>
+
+  					<Select value={currentComponentPropsIdx}
+  							onChange={e => setCurrentComponentPropsIdx(e.target.value)}
+  							options={
+  						(Array.isArray(theme?.docs?.[currentComponent]) ? theme?.docs?.[currentComponent] : [theme?.docs?.[currentComponent]])
+  							.map((o, i) => ({label: o?.doc_name || `Example ${i + 1}`, value: i}))
+  					}
+  					/>
+  				</div>
 					<div className={'w-full flex gap-0.5 justify-end'}>
 						<Button className={'w-fit'} onClick={() => onSubmit(currentTheme)}>Save</Button>
 						<Button className={'w-fit'} onClick={() => setCurrentTheme(parseIfJson(themeObj?.theme))}>Reset</Button>
 					</div>
-
+					<div className='h-[calc(100vh_-_20rem)] overflow-auto scrollbar-sm p-2 '>
 					{
 						Object.keys(currCompTheme)
 							.map(key => (
 								<div className={'w-full'}>
-									<div className={'text-semibold text-gray-700 w-full'}>{key}</div>
-									<textarea className={'w-full'}
+									<div className={'font-semibold text-gray-700 w-full'}>{key}</div>
+									<textarea className={'w-full  border p-2'}
 											  value={currCompTheme?.[key]}
 											  onChange={e => {
 												  setCurrentTheme({
@@ -143,12 +148,14 @@ function ComponentList ({
 								</div>
 							))
 					}
+					</div>
 				</div>
 
-				<div className={'flex w-full sm:w-1/2 h-full justify-center'}>
-					<ThemeContext.Provider value={{theme: currentTheme}}>
-						<ComponentRenderer Component={UI[currentComponent]}
-										   props={theme?.docs?.[currentComponent][currentComponentPropsIdx] || theme?.docs?.[currentComponent]}
+				<div className={'flex h-full justify-center p-2'}>
+					<ThemeContext.Provider value={{theme: currentTheme, UI}}>
+						<ComponentRenderer
+						  Component={theme?.docs?.[currentComponent]?.component || UI[currentComponent]}
+							props={theme?.docs?.[currentComponent][currentComponentPropsIdx] || theme?.docs?.[currentComponent]?.props || theme?.docs?.[currentComponent] }
 						/>
 					</ThemeContext.Provider>
 				</div>

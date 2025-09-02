@@ -25,16 +25,16 @@ import PageControls from './editPane'
 
 
 function PageEdit ({
- format, 
- item, 
- dataItems, 
- updateAttribute, 
- attributes, 
- setItem, 
- apiLoad, 
- apiUpdate, 
- status, 
- navOptions, 
+ format,
+ item,
+ dataItems,
+ updateAttribute,
+ attributes,
+ setItem,
+ apiLoad,
+ apiUpdate,
+ status,
+ navOptions,
  busy
 }) {
 	// console.log('props in pageEdit', siteType)
@@ -65,7 +65,7 @@ function PageEdit ({
 	}, [theme?.navOptions?.secondaryNav?.navItems])
 
 	// console.log('-----------render edit----------------', item.draft_sections.length, item.draft_section_groups.length)
-	
+
 	const level = item?.index == '999' || theme?.navOptions?.topNav?.nav !== 'main' ? 1 : detectNavLevel(dataItems, baseUrl);
 	const inPageNav = getInPageNav(item, theme);
 	const sectionAttr = attributes?.['sections']?.attributes || {}
@@ -154,36 +154,35 @@ function PageEdit ({
 			))
 	}
 
-
 	if(!item) return;
-	return (
-		<PageContext.Provider value={{ 
-			item,
-			pageState, 
-			setPageState, 
-			updatePageStateFilters, 
-			dataItems, 
-			apiLoad, apiUpdate,
-			updateAttribute, 
-			editPane, setEditPane, 
-			format,
-			busy 
-		}}>
-			<div className={`${theme?.page?.container}`}>
-				<PageControls />
-				{React.useMemo(() => getSectionGroups('top'),[item?.draft_section_groups])}
-				<Layout
-					navItems={menuItems}
-					secondNav={menuItemsSecondNav}
-					pageTheme={{navOptions: item.navOptions || {}}}
-					Menu={Menu}
-          SearchButton={SearchButton}
-				>
-					{React.useMemo(() => getSectionGroups('content'),[item?.draft_section_groups])}
-				</Layout>
-				{React.useMemo(() => getSectionGroups('bottom'),[item?.draft_section_groups])}
 
-			</div>
+	return (
+		<PageContext.Provider value={{
+			item,
+			pageState,
+			setPageState,
+			updatePageStateFilters,
+			dataItems,
+			apiLoad, apiUpdate,
+			updateAttribute,
+			editPane, setEditPane,
+			format,
+			busy
+		}}>
+			<>
+				<PageControls />
+				<Layout
+              navItems={menuItems}
+              secondNav={menuItemsSecondNav}
+              pageTheme={{navOptions: item.navOptions || {}}}
+              Menu={Menu}
+              SearchButton={SearchButton}
+              headerChildren={React.useMemo(() => getSectionGroups('top'),[item?.draft_section_groups])}
+              footerChildren={React.useMemo(() => getSectionGroups('bottom'),[item?.draft_section_groups])}
+          >
+            {React.useMemo(() => getSectionGroups('content'),[item?.draft_section_groups])}
+        </Layout>
+			</>
 		</PageContext.Provider>
 	)
 }
