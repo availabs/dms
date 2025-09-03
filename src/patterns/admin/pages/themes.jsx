@@ -15,7 +15,7 @@ function ThemeList ({
 }) {
 	// themes is an array of {name, theme, id}
 	console.log('admin pattern - themeList - hello world')
-	const { baseUrl, theme, user, UI } = React.useContext(AdminContext) || {};
+	const { baseUrl, authPath, user, UI } = React.useContext(AdminContext) || {};
 	const [addingNew, setAddingNew] = useState(false);
 	const [newItem, setNewItem] = useState({});
 	const [editingItem, setEditingItem] = useState();
@@ -53,7 +53,7 @@ function ThemeList ({
 	if(!item.id && dataItems?.length > 0) {
 		item = dataItems[0]
 	}
-
+    if(!user?.authed) return <div>To access this page, you need to: <Link to={`${authPath}/login`} state={{ from: window.location.pathname }}>login</Link></div>
 	// render a list of themes. render an add new form
 	return (
 		<div className={'flex flex-col p-10 w-full divide-y-2'}>

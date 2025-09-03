@@ -174,7 +174,7 @@ export function DmsSite ({
     falcor,
     pgEnvs=['hazmit_dama'],
     API_HOST = 'https://graph.availabs.org',
-    AUTH_HOST,
+    AUTH_HOST= 'https://graph.availabs.org',
     PROJECT_NAME,
     damaBaseUrl,
     routes = []
@@ -188,18 +188,14 @@ export function DmsSite ({
 
     useEffect(() => {
         async function load (){
-            const user = await getUser(API_HOST, PROJECT_NAME);
+            const user = await getUser(AUTH_HOST, PROJECT_NAME);
             setUser(user || {});
-            // console.log('set user', user)
         }
-
-        return () => {
-            load();
-        }
+        load();
     }, []);
 
     const [dynamicRoutes, setDynamicRoutes] = useState(
-        defaultData ? 
+        defaultData ?
             pattern2routes(defaultData, {
                 dmsConfig,
                 adminPath,
@@ -213,8 +209,8 @@ export function DmsSite ({
                 authWrapper,
                 pgEnvs,
                 damaBaseUrl
-                //theme   
-            }) 
+                //theme
+            })
             : []
         );
     

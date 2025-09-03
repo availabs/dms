@@ -44,8 +44,11 @@ const authConfig = ({
         {
             name: 'Team',
             path:`${adminPath}/team`
-        },
-        {
+        }
+    ];
+
+    if(user?.authed) {
+        menuItems.push({
             name: 'Auth',
             path: baseUrl,
             subMenus: [
@@ -58,8 +61,8 @@ const authConfig = ({
                     path: `${baseUrl}/groups`
                 }
             ]
-        }
-    ]
+        })
+    }
 
   baseUrl = baseUrl === '/' ? '' : baseUrl
     let theme = merge(

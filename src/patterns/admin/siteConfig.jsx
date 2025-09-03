@@ -35,45 +35,6 @@ const adminConfig = ({
     );
   theme.navOptions = theme?.admin?.navOptions || theme?.navOptions
 
-  const menuItems = [
-    {
-      name: 'Sites',
-      path: `${baseUrl}`
-    },
-    {
-      name: 'Datasets',
-      path: `${baseUrl}/datasets`
-    },
-    {
-      name: 'Themes',
-      path: `${baseUrl}/themes`
-    },
-    {
-      name: 'Team',
-      path:`${baseUrl}/team`
-    },
-      {
-      name: 'Auth',
-      path:`${authPath}`,
-          subMenus: [
-              {
-                  name: 'Users',
-                  path: `${authPath}/users`
-              },
-              {
-                  name: 'Groups',
-                  path: `${authPath}/groups`
-              }
-          ]
-    }
-  ]
-  /*
-  authlink = patterns.filter[].baseirl
-
-  menuItems = [
-    ...menuItems
-    ...authMenuItmes
-  ]*/
   // ----------------------
   // update app for all the children formats
   format.registerFormats = updateRegisteredFormats(format.registerFormats, app)
@@ -107,8 +68,41 @@ const adminConfig = ({
         //todo move theme edit page here
         type: (props) => {
           const {Layout} = UI;
-          const location = useLocation()
-          return (
+            const menuItems = [
+                {
+                    name: 'Sites',
+                    path: `${baseUrl}`
+                },
+                {
+                    name: 'Datasets',
+                    path: `${baseUrl}/datasets`
+                },
+                {
+                    name: 'Themes',
+                    path: `${baseUrl}/themes`
+                },
+                {
+                    name: 'Team',
+                    path:`${baseUrl}/team`
+                }
+            ]
+
+            if(props?.user?.authed) {
+                menuItems.push({
+                    name: 'Auth',
+                    path:`${authPath}`,
+                    subMenus: [
+                        {
+                            name: 'Users',
+                            path: `${authPath}/users`
+                        },
+                        {
+                            name: 'Groups',
+                            path: `${authPath}/groups`
+                        }
+                    ]
+                })
+            }          return (
             <AdminContext.Provider value={{baseUrl, authPath, PROJECT_NAME, user: props.user, app, type, API_HOST, AUTH_HOST, UI}}>
               <ThemeContext.Provider value={{theme}}>
                 <div className={theme?.page?.container}>
