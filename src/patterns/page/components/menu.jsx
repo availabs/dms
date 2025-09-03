@@ -19,7 +19,7 @@ const UserMenu = ({user}) => {
 export const Item = ({to, icon,children}) => (
     (
         <Link to={ to } >
-            <div className='px-6 py-1 bg-blue-500 text-white hover:text-blue-100'>
+            <div className='px-6 py-1 hover:bg-slate-100'>
                 <div className='hover:translate-x-2 transition duration-100 ease-out hover:ease-in'>
                     <i className={`${icon} `} />
                     <span className='pl-2'>
@@ -54,15 +54,14 @@ export default ({title, children}) => {
     return (
         <>
             {!user.authed ?            
-                <Link className={`flex items-center px-8 text-lg font-bold h-12 text-slate-500 px-4`} to="/auth/login" state={{from: location?.pathname}}>Login</Link> :
+                <Link className={`flex items-center px-8 text-lg font-bold h-12 text-slate-500`} to="/auth/login" state={{from: location?.pathname}}>Login</Link> :
                 <Dropdown control={<div className={'px-1'}><UserMenu user={user}/></div>} className={``} >
-                    <div className='p-1 bg-blue-500 z-30'>
+                    <div className='p-1 bg-white rounded-md z-30 shadow-md'>
                        
-                        <div className='text-white py-2'>
+                        <div className='py-2'>
                             <div className='text-md font-thin tracking-tighter text-left'>{user.email ? user.email : ''}</div>
                             <div className='text-xs font-medium -mt-1 tracking-widest text-left'>{user?.groups?.[0] ? user.groups[0] : ''}</div>
                             {authMenuItems
-                                // .filter(item => user.authLevel >= (+item.authLevel || -1))
                                 .map((item,i) => {
                                 return <div key={i}>
                                     {(
@@ -76,7 +75,7 @@ export default ({title, children}) => {
                                          
                         </div>
                         {!user.fake && (
-                            <div className='py-1 border-t border-blue-400'> 
+                            <div className='py-1 border-t border-slate-200'>
                                 <Item to='/auth/logout' icon={'fad fa-sign-out-alt pb-2 pr-1'}>
                                     Logout
                                 </Item>
