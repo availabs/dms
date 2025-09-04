@@ -167,7 +167,7 @@ const EditComp = ({
     const compId = `${attribute.name}-${id}-${JSON.stringify(rawValue)}`;
     const compIdEdit = `${attribute.name}-${id}`;
     const Comp = ColumnTypes[attribute.type]?.[allowEdit ? 'EditComp' : 'ViewComp'] || DefaultComp;
-    useHandleClickOutside(compRef, compId, () => isEditing && setIsEditing(false));
+    // useHandleClickOutside(compRef, compId, () => isEditing && setIsEditing(false));
 
     if(!allowEdit && (attribute.isImg || attribute.isLink || ['icon', 'color'].includes(attribute.formatFn) && formatFunctions[attribute.formatFn])) return value;
 
@@ -183,11 +183,14 @@ const EditComp = ({
         attribute.options;
 
     return <div ref={compRef}
-                onClick={() => !isEditing && setIsEditing(true)}
-                className={(allowEdit && isEditing) || (allowEdit && !value) ? `w-full` : `w-full`}>
+                // onClick={() => !isEditing && setIsEditing(true)}
+                className={`w-full`}
+                // className={(allowEdit && isEditing) || (allowEdit && !value) ? `w-full` : `w-full`}
+    >
         <Comp value={allowEdit && isValueFormatted ? rawValue : value}
               placeholder={'please enter value...'}
-              id={allowEdit && isEditing ? compIdEdit : compId}
+              id={compIdEdit}
+              // id={allowEdit && isEditing ? compIdEdit : compId}
               onChange={newValue => {
                   if(!allowEdit) return;
 
