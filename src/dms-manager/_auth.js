@@ -32,8 +32,8 @@ export const defaultCheckAuth = ( props, navigate, path ) => {
             }, [])
 
   const sendToLogin = !userAuthed && // user is not authed
-      reqPermissions?.length && // there are required permissions to access this pattern at siteconfig level
-      Object.keys(authPermissions).length; // pattern defines SOME auth; if not, allow access.
+      reqPermissions?.length // there are required permissions to access this pattern at siteconfig level
+      // Object.keys(authPermissions).length; // pattern defines SOME auth; if not, allow access.
   const sendToHome =
       reqPermissions?.length && // there are requires permissions to access this pattern in siteconfig
       Object.keys(authPermissions).length && // pattern defines SOME auth; if not, allow access.
@@ -44,7 +44,7 @@ export const defaultCheckAuth = ( props, navigate, path ) => {
   // send to login 
   //----------------------------------------
   if( sendToLogin ) {
-    navigate('/dms_auth/login', {state:{ from: path }})
+    navigate('/auth/login', {state:{ from: path }})
   }
 
   //----------------------------------------
