@@ -56,10 +56,9 @@ function ThemeList ({
     if(!user?.authed) return <div>To access this page, you need to: <Link to={`${authPath}/login`} state={{ from: window.location.pathname }}>login</Link></div>
 	// render a list of themes. render an add new form
 	return (
-		<div className={'flex flex-col p-10 w-full divide-y-2'}>
+		<div className={'flex flex-col w-full'}>
 			<div className={'w-full flex justify-between border-b-2 border-blue-400'}>
 				<div className={'text-2xl font-semibold text-gray-700'}>Themes</div>
-				<button onClick={() => navigate(-1)}>back</button>
 			</div>
 			<div className={'w-full flex'}>
 				<Input type={'text'} value={search} onChange={e => setSearch(e.target.value)} placeHolder={'Filter themes'} />

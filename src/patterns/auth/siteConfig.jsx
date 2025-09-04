@@ -3,6 +3,7 @@ import {Link} from "react-router";
 import UI from "../../ui";
 import {ThemeContext} from "../../ui/useTheme";
 import defaultTheme from "../../ui/defaultTheme";
+import DefaultMenu from "./components/menu"
 import AuthLogin from "./pages/authLogin";
 import AuthLogout from "./pages/authLogout";
 import AuthSignup from "./pages/authSignup";
@@ -14,6 +15,40 @@ import {cloneDeep, merge} from "lodash-es";
 
 export const AuthContext = React.createContext(null);
 
+const AdminLayout = ({menuItems, children, theme, Menu}) => {
+    const {Layout} = UI;
+    return (
+        <div className={theme?.page?.container}>
+            <Layout navItems={menuItems} Menu={Menu}>
+                <div className={`${theme?.sectionGroup?.content?.wrapper1}`}>
+                    <div className={theme?.sectionGroup?.content?.wrapper2}>
+                        <div className={`${theme?.sectionGroup?.content?.wrapper3}`}>
+                            {children}
+                        </div>
+                    </div>
+                </div>
+            </Layout>
+        </div>
+    )
+}
+
+const AuthLayout = ({children, theme}) => {
+    const {Layout} = UI;
+
+    return (
+        <div className={theme?.page?.container}>
+            <Layout>
+                <div className={`${theme?.sectionGroup?.content?.wrapper1}`}>
+                    <div className={theme?.sectionGroup?.content?.wrapper2}>
+                        <div className={`${theme?.sectionGroup?.content?.wrapper3} pt-[150px]`}>
+                            {children}
+                        </div>
+                    </div>
+                </div>
+            </Layout>
+        </div>
+    )
+}
 const authConfig = ({
   app = "default-app",
   siteType = "default-page",
@@ -25,6 +60,92 @@ const authConfig = ({
   baseUrl = '/dms_auth',
   adminPath='/',
   themes = {},
+  user, setUser,
+}) => {
+
+  baseUrl = baseUrl === '/' ? '' : baseUrl;
+
+    let theme = merge(
+        cloneDeep(defaultTheme),
+        cloneDeep(themes.mny_auth)
+    );
+
+  // ----------------------
+  return {
+    app,
+    baseUrl,
+    format: {app, attributes: []},
+    children: [
+      {
+        type: (props) => {
+          return (
+            <AuthContext.Provider value={{baseUrl,
+              user, setUser,
+              app, API_HOST, AUTH_HOST, PROJECT_NAME: PROJECT_NAME || app, defaultRedirectUrl, UI}}>
+              <ThemeContext.Provider value={{theme}}>
+                      <div className={theme?.page?.container}>
+                          <AuthLayout theme={theme}>
+                              {props.children}
+                          </AuthLayout>
+                      </div>
+              </ThemeContext.Provider>
+            </AuthContext.Provider>
+          )
+        },
+        action: 'list',
+        path: `/*`,
+        children: [
+            {
+                type: (props) => {
+                    const linkClass = 'w-full sm:w-1/3 px-12 py-8 bg-blue-100 hover:bg-blue-300 rounded-md'
+                    return (
+                        <div className={'flex flex-col gap-3'}>
+                            Admin
+
+                        </div>
+                    )
+                },
+                path: `/*`,
+
+            },
+          {
+              type: props => <AuthLogin {...props} />,
+              path: "login",
+          },
+          {
+              type: props => <AuthLogout {...props} />,
+              path: "logout",
+          },
+          {
+              type: props => <AuthSignup{...props} />,
+              path: "signup",
+          },
+          {
+              type: props => <AuthResetPassword {...props} />,
+              path: "password/reset",
+          },
+          {
+              type: props => <AuthForgotPassword {...props} />,
+              path: "password/forgot",
+          },
+        ]
+      }
+    ]
+  }
+}
+
+const manageAuthConfig = ({
+  app = "default-app",
+  siteType = "default-page",
+  API_HOST = 'https://graph.availabs.org',
+  AUTH_HOST = 'https://graph.availabs.org',
+  // AUTH_HOST = 'http://localhost:4444',
+  PROJECT_NAME, // defaults to app
+  defaultRedirectUrl='/',
+  baseUrl = '/dms_auth',
+  adminPath='/',
+  themes = {},
+  rightMenu = <DefaultMenu />,
   user, setUser,
 }) => {
 
@@ -50,52 +171,45 @@ const authConfig = ({
     if(user?.authed) {
         menuItems.push({
             name: 'Auth',
-            path: baseUrl,
             subMenus: [
                 {
                     name: 'Users',
-                    path: `${baseUrl}/users`
+                    path: `${baseUrl}/manage/users`
                 },
                 {
                     name: 'Groups',
-                    path: `${baseUrl}/groups`
+                    path: `${baseUrl}/manage/groups`
                 }
             ]
         })
     }
 
-  baseUrl = baseUrl === '/' ? '' : baseUrl
+    baseUrl = baseUrl === '/' ? '' : baseUrl;
+
     let theme = merge(
         cloneDeep(defaultTheme),
         cloneDeep(themes.mny_admin)
     );
-  //console.log('defaultTheme', theme)
-  theme.navOptions = theme?.admin?.navOptions || theme?.navOptions
-
+    theme.navOptions = theme?.admin?.navOptions || theme?.navOptions
+    theme.navOptions.sideNav.dropdown = 'top'
 
   // ----------------------
   return {
     app,
-    baseUrl,
+    baseUrl: `${baseUrl}/manage`,
     format: {app, attributes: []},
     children: [
       {
         type: (props) => {
-          const {Layout} = UI;
           return (
             <AuthContext.Provider value={{baseUrl,
               user, setUser,
-              app, API_HOST, AUTH_HOST, PROJECT_NAME: PROJECT_NAME || app, defaultRedirectUrl, UI}}>
+              app, API_HOST, AUTH_HOST, PROJECT_NAME: PROJECT_NAME || app, defaultRedirectUrl, UI
+            }}>
               <ThemeContext.Provider value={{theme}}>
-                  <div className={theme?.page?.container}>
-                      <Layout navItems={menuItems}>
-                          <div className={theme?.admin?.page?.pageWrapper}>
-                              <div className={theme?.admin?.page?.pageWrapper2}>
-                                  {props.children}
-                              </div>
-                          </div>
-                      </Layout>
-                  </div>
+                  <AdminLayout menuItems={menuItems} theme={theme} Menu={() => <>{rightMenu}</>}>
+                          {props.children}
+                  </AdminLayout>
               </ThemeContext.Provider>
             </AuthContext.Provider>
           )
@@ -103,41 +217,6 @@ const authConfig = ({
         action: 'list',
         path: `/*`,
         children: [
-          {
-            type: (props) => {
-              const linkClass = 'w-full sm:w-1/3 px-12 py-8 bg-blue-100 hover:bg-blue-300 rounded-md'
-              return (
-                <div className={'flex flex-col gap-3'}>
-                  Admin
-                  <div className={'flex flex-col sm:flex-row gap-3 text-center text-blue-800'}>
-                    <Link className={linkClass} to={'groups'}>Manage Groups</Link>
-                    <Link className={linkClass} to={'users'}>Manage Users</Link>
-                  </div>
-                </div>)
-            },
-            path: `/*`,
-
-          },
-          {
-            type: props => <AuthLogin {...props} />,
-            path: "login",
-          },
-          {
-            type: props => <AuthLogout {...props} />,
-            path: "logout",
-          },
-          {
-            type: props => <AuthSignup {...props} />,
-            path: "signup",
-          },
-          {
-            type: props => <AuthResetPassword {...props} />,
-            path: "password/reset",
-          },
-          {
-            type: props => <AuthForgotPassword {...props} />,
-            path: "password/forgot",
-          },
           {
             type: props => <AuthUsers {...props} />,
             reqPermissions: ['auth-users'],
@@ -148,14 +227,10 @@ const authConfig = ({
             reqPermissions: ['auth-groups'],
             path: "groups",
           },
-          {
-            type: props => <div>reset password</div>,
-            path: "forgot_password",
-          },
         ]
       }
     ]
   }
 }
-const config = [authConfig]
+const config = [authConfig, manageAuthConfig]
 export default config

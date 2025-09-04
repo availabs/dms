@@ -66,7 +66,7 @@ export default function SectionGroup ({group, attributes, edit}) {
         )}  
         <div className={sectionTheme?.wrapper2}>
           <div className={sectionTheme?.wrapper3}>
-            {(group.name === 'default' && isUserAuthed(['update-page'])) && (
+            {(group.name === 'default' && user?.authed && isUserAuthed(['update-page'])) && (
               <Link className={`${sectionTheme?.iconWrapper}`} to={`${baseUrl}/${edit ? '' : 'edit/'}${item?.url_slug || ''}`}>
                 {/*have to use rr to get query paramswindow.location.search*/}
                 <Icon icon={edit ? sectionTheme?.viewIcon : sectionTheme?.editIcon} className={sectionTheme?.icon} />

@@ -38,7 +38,6 @@ export const defaultCheckAuth = ( props, navigate, path ) => {
       reqPermissions?.length && // there are requires permissions to access this pattern in siteconfig
       Object.keys(authPermissions).length && // pattern defines SOME auth; if not, allow access.
       !userAuthPermissions.some(permission => permission === '*' || reqPermissions.includes(permission));
-    console.log('_auth:', reqPermissions, authPermissions)
   //----------------------------------------
   // if page requires auth
   // && user isn't logged in

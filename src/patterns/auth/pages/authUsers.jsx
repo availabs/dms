@@ -1,5 +1,5 @@
-import React, {useEffect, useMemo, useState} from "react";
-import {useNavigate, useLocation} from "react-router";
+import React, {useEffect, useMemo, useRef, useState} from "react";
+import {useNavigate, Link} from "react-router";
 import {ThemeContext} from "../../../ui/useTheme";
 import {AuthContext} from "../siteConfig";
 import {callAuthServer} from "../utils";
@@ -16,6 +16,7 @@ export default (props) => {
     const [searchRequest, setSearchRequest] = React.useState('');
     const {theme} = React.useContext(ThemeContext);
     const {UI, user, AUTH_HOST, PROJECT_NAME, defaultRedirectUrl, ...restAuthContext} = React.useContext(AuthContext);
+    const gridRef = useRef(null)
     const {Table, Input, Select, Button} = UI;
     const navigate = useNavigate();
 
@@ -130,8 +131,8 @@ export default (props) => {
     ]
 
     const userColumns = [
-        {name: 'email', display_name: 'User', show: true, type: 'text', size: 500},
-        {name: 'groups', display_name: 'Groups', show: true, type: 'multiselect', size: 750, options: groups.map(g => g.name)},
+        {name: 'email', display_name: 'User', show: true, type: 'text'},
+        {name: 'groups', display_name: 'Groups', show: true, type: 'multiselect', options: groups.map(g => g.name)},
     ]
 
     const InputControl = ({show, value, onChange, placeHolder}) => {
@@ -182,9 +183,14 @@ export default (props) => {
     const filteredUsers = useMemo(() => users.filter(r => !searchUser || r.email.toLowerCase().includes(searchUser)), [users, searchUser]);
     const filteredRequests = useMemo(() => requests.filter(r => !searchRequest || r.user_email.toLowerCase().includes(searchRequest)), [requests, searchRequest])
     const customTableTheme = {tableContainer1: 'flex flex-col no-wrap min-h-[40px] max-h-[700px] overflow-y-auto'}
+
+    if(!user?.authed) return <div>To access this page, you need to login.</div>
+
     return (
-        <div className={'flex flex-col gap-3 max-w-7xl mx-auto'}>
-            Manage Users
+        <div className={'flex flex-col gap-3'}>
+            <div className={'w-full flex justify-between border-b-2 border-blue-400'}>
+                <div className={'text-2xl font-semibold text-gray-700'}>Users</div>
+            </div>
             {/*<div className={''}>
                 <div>Requests</div>
                     <Table data={filteredRequests}
@@ -195,8 +201,8 @@ export default (props) => {
             </div>*/}
 
             <div className={''}>
-                <div>Users</div>
-                    <Table data={filteredUsers}
+                    <Table gridRef={gridRef}
+                           data={filteredUsers}
                            columns={userColumns}
                            allowEdit={true}
                            updateItem={async (_, __, e) => {

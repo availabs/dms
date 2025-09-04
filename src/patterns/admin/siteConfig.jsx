@@ -8,6 +8,7 @@ import adminFormat from "./admin.format.js"
 import UI from "../../ui"
 import {ThemeContext} from '../../ui/useTheme'
 import defaultTheme from '../../ui/defaultTheme'
+import DefaultMenu from "./components/menu";
 
 export const AdminContext = React.createContext(undefined);
 
@@ -20,8 +21,8 @@ const adminConfig = ({
   baseUrl = '/',
   authPath = '/dms_auth',
   PROJECT_NAME,
-    themes={},
-  // theme = defaultTheme,
+  themes={},
+  rightMenu = <DefaultMenu />,
 }) => {
   const format = cloneDeep(adminFormat)
   format.app = app
@@ -34,7 +35,7 @@ const adminConfig = ({
         cloneDeep(themes.mny_admin)
     );
   theme.navOptions = theme?.admin?.navOptions || theme?.navOptions
-
+    theme.navOptions.sideNav.dropdown = 'top'
   // ----------------------
   // update app for all the children formats
   format.registerFormats = updateRegisteredFormats(format.registerFormats, app)
@@ -50,7 +51,7 @@ const adminConfig = ({
       return (
           <AdminContext.Provider value={{baseUrl, app, type, API_HOST, UI}}>
             <ThemeContext.Provider value={{theme}}>
-              <Layout navItems={menuItems}>
+              <Layout navItems={[]}>
                 <div className={theme?.admin?.page?.pageWrapper}>
                   <div className={theme?.admin?.page?.pageWrapper2}>
                     <div className={'mx-auto max-w-fit pt-[120px] text-lg'}>
@@ -65,7 +66,6 @@ const adminConfig = ({
     },
     children: [
       {
-        //todo move theme edit page here
         type: (props) => {
           const {Layout} = UI;
             const menuItems = [
@@ -90,30 +90,31 @@ const adminConfig = ({
             if(props?.user?.authed) {
                 menuItems.push({
                     name: 'Auth',
-                    path:`${authPath}`,
                     subMenus: [
                         {
                             name: 'Users',
-                            path: `${authPath}/users`
+                            path: `${authPath}/manage/users`
                         },
                         {
                             name: 'Groups',
-                            path: `${authPath}/groups`
+                            path: `${authPath}/manage/groups`
                         }
                     ]
                 })
             }          return (
             <AdminContext.Provider value={{baseUrl, authPath, PROJECT_NAME, user: props.user, app, type, API_HOST, AUTH_HOST, UI}}>
               <ThemeContext.Provider value={{theme}}>
-                <div className={theme?.page?.container}>
-                    <Layout navItems={menuItems}>
-                        <div className={theme?.admin?.page?.pageWrapper}>
-                            <div className={theme?.admin?.page?.pageWrapper2}>
-                                {props.children}
-                            </div>
-                        </div>
-                    </Layout>
-                </div>
+                  <div className={theme?.page?.container}>
+                      <Layout navItems={menuItems} Menu={() => <>{rightMenu}</>}>
+                          <div className={`${theme?.sectionGroup?.content?.wrapper1}`}>
+                              <div className={theme?.sectionGroup?.content?.wrapper2}>
+                                  <div className={`${theme?.sectionGroup?.content?.wrapper3}`}>
+                                      {props.children}
+                                  </div>
+                              </div>
+                          </div>
+                      </Layout>
+                  </div>
               </ThemeContext.Provider>
             </AdminContext.Provider>
           )

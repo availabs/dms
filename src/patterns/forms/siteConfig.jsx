@@ -31,6 +31,7 @@ export const FormsContext = React.createContext(undefined);
 // for instances without auth turned on can edit
 
 const isUserAuthed = ({user={}, reqPermissions=[], authPermissions=[]}) => {
+    if(!user?.authed) return false;
     if(!Object.keys(authPermissions).length) return true;
 
     const userAuthPermissions =

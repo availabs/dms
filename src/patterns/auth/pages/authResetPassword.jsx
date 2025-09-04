@@ -20,8 +20,11 @@ export default (props) => {
     if(status) return <div>{status}</div>
 
     return (
-        <div>
-            Reset Password
+        <div className={'max-w-xs mx-auto my-auto flex flex-col gap-3'}>
+            <div className={'border-b w-full'}>
+                <div className={theme?.loginPage?.titleWrapper}>{theme?.loginPage?.titleText}</div>
+                <div className={theme?.dataCard?.header}>Reset Password</div>
+            </div>
 
             <FieldSet
                 components={[
@@ -64,13 +67,13 @@ export default (props) => {
             />
 
             <Button
+                type={'plain'}
+                className={`${theme?.resetPasswordButton}`}
                 disabled={credentials.password !== credentials.verifyPassword}
                 onClick={async () => {
-                console.log('call password reset', credentials, AUTH_HOST)
                 await callAuthServer(`${AUTH_HOST}/password/update`,
                     {...credentials, token: user.token, project: PROJECT_NAME})
                     .then(res => {
-                        console.log('res', res)
                         if (res.error) {
                             setStatus(res.error)
                             console.error('Error', res.error)
@@ -83,7 +86,7 @@ export default (props) => {
                         setStatus('Cannot contact authentication server.')
                         console.error('Cannot contact authentication server.');
                     });
-            }}> Reset </Button>
+            }}> <span className={`text-sm ${theme?.dataCard?.value}`}> reset </span> </Button>
         </div>
     )
 }

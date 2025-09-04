@@ -30,6 +30,7 @@ import defaultTheme from "../../ui/defaultTheme";
 import ErrorPage from "./pages/error";
 
 const isUserAuthed = ({user={}, reqPermissions=[], authPermissions=[]}) => {
+    if(!user?.authed) return false;
     if(!Object.keys(authPermissions).length) return true;
 
     const userAuthPermissions =

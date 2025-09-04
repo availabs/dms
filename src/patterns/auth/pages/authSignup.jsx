@@ -17,8 +17,11 @@ export default (props) => {
     if(status) return <div>{status}</div>
 
     return (
-        <div className={'max-w-xs mx-auto my-auto flex flex-col gap-3'}>
-            Signup
+        <div className={'max-w-sm mx-auto my-auto flex flex-col gap-3'}>
+            <div className={'border-b w-full'}>
+                <div className={theme?.loginPage?.titleWrapper}>{theme?.loginPage?.titleText}</div>
+                <div className={theme?.dataCard?.header}>Signup</div>
+            </div>
 
             <FieldSet
                 components={[
@@ -51,13 +54,13 @@ export default (props) => {
             />
 
             <Button
+                type={'plain'}
+                className={`${theme?.signupButton}`}
                 disabled={credentials.password !== credentials.verifyPassword}
                 onClick={async () => {
-                console.log('call signup', credentials, AUTH_HOST)
                 await callAuthServer(`${AUTH_HOST}/signup/assign/group`,
                     {...credentials, project: PROJECT_NAME})
                     .then(res => {
-                        console.log('res', res)
                         if (res.error) {
                             setStatus(res.error)
                             console.error('Error', res.error)
@@ -70,9 +73,11 @@ export default (props) => {
                         setStatus('Cannot contact authentication server.')
                         console.error('Cannot contact authentication server.');
                     });
-            }}> Signup </Button>
+            }}>
+                <span className={`text-sm ${theme?.dataCard?.value}`}> signup </span>
+            </Button>
 
-            <div className={'text-sm'}>Already have an account? <Link to={`${baseUrl}/login`} className={'underline'}>login</Link></div>
+            <div className={`text-sm ${theme?.dataCard?.value}`}>Already have an account? <Link to={`${baseUrl}/login`} className={'underline'}>login</Link></div>
         </div>
     )
 }

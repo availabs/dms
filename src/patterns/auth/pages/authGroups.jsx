@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from "react";
+import React, {useEffect, useRef, useState} from "react";
 import {useNavigate, useLocation} from "react-router";
 import {ThemeContext} from "../../../ui/useTheme";
 import {AuthContext} from "../siteConfig";
@@ -13,6 +13,7 @@ export default (props) => {
     const [newGroup, setNewGroup] = React.useState({name: ''});
     const {theme} = React.useContext(ThemeContext);
     const {UI, user, AUTH_HOST, PROJECT_NAME, defaultRedirectUrl, ...restAuthContext} = React.useContext(AuthContext);
+    const gridRef = useRef(null);
     const {Table, Input, Modal, Button} = UI;
 
     useEffect(() => {
@@ -30,21 +31,23 @@ export default (props) => {
     }, [PROJECT_NAME]);
 
     const groupColumns = [
-        {name: 'name', display_name: 'Group', show: true, type: 'text', size: 900},
-        {name: 'num_members', display_name: '# Members', show: true, type: 'text', size: 600},
+        {name: 'name', display_name: 'Group', show: true, type: 'text'},
+        {name: 'num_members', display_name: '# Members', show: true, type: 'text'},
     ]
-    console.log('data', groups)
+    if(!user?.authed) return <div>To access this page, you need to login.</div>
+
     return (
-        <div className={'flex flex-col gap-3 max-w-7xl mx-auto'}>
+        <div className={'flex flex-col gap-3'}>
             <div className={'w-full flex'}>
-                <div className={'flex-1'}>
-                    Manage Groups
+                <div className={'w-full flex justify-between border-b-2 border-blue-400'}>
+                    <div className={'text-2xl font-semibold text-gray-700'}>Groups</div>
                 </div>
                 <Button className={'shrink-0'} onClick={() => setAddingNew(true)}> Add new </Button>
             </div>
 
 
-                    <Table data={groups.filter(r => !searchGroup || r.name.toLowerCase().includes(searchGroup))}
+                    <Table gridRef={gridRef}
+                           data={groups.filter(r => !searchGroup || r.name.toLowerCase().includes(searchGroup))}
                            columns={groupColumns}
                            allowEdit={true}
                            controls={{header: {displayFn: (attribute) => (

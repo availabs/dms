@@ -113,9 +113,12 @@ function PageEdit ({format, item, dataItems, updateAttribute, attributes, apiLoa
 
 	if(!item) return;
 
-	// if(pageState?.authPermissions && typeof pageState.authPermissions === 'string' && !isUserAuthed(reqPermissions, JSON.parse(pageState.authPermissions))){
-	// 	return <div>You do not have permission to view this page. <Link to={baseUrl}>Click here to visit Home</Link></div>
-	// }
+	if( !isUserAuthed(['update-page']) ||
+        (pageState?.authPermissions && typeof pageState.authPermissions === 'string' && !isUserAuthed(reqPermissions, JSON.parse(pageState.authPermissions)))
+    ){
+        // throw Error('404')
+		return <div>You do not have permission to view this page. <Link to={baseUrl}>Click here to visit Home</Link></div>
+	}
 	return (
 		<PageContext.Provider value={{ 
 			item,
