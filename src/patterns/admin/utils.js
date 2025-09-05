@@ -16,7 +16,7 @@ export const callAuthServer = (url, body, options = {}) =>
             throw new Error("There was a network problem.")
         });
 
-export const getUser = (AUTH_HOST, PROJECT_NAME) => {
+export const getUser = ({AUTH_HOST, PROJECT_NAME}) => {
     const token = window.localStorage.getItem('userToken');
 
     if(!token) return;
