@@ -26,7 +26,7 @@ function PageView(props) {
   const [searchParams] = useSearchParams();
   const { theme: fullTheme, UI = {} } = useContext(ThemeContext) || {};
   const { Menu, baseUrl, patternFilters=[], user, API_HOST } = React.useContext(CMSContext) || {};
-  console.log('pageview UI', UI)
+  // console.log('pageview UI', UI)
   const { Layout = () => <></> } = UI;
   const [pageState, setPageState] =
     useImmer({

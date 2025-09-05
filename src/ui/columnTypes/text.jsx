@@ -1,15 +1,14 @@
 import React, {useEffect, useState} from "react"
-import {ThemeContext} from "../useTheme";
+//import {ThemeContext} from "../useTheme";
+import textTheme from "./text.theme";
 
-
-const textTheme = {
-    input: 'px-2 py-1 w-full text-sm font-light border rounded-md focus:border-blue-300 bg-white focus:outline-none transition ease-in',
-    view: 'text-sm font-light truncate bg-red-500'
+const theme = {
+  text: textTheme
 }
 
 const Edit = ({value = '', onChange, className, placeholder, ...rest}) => {
-    const {theme: themeFromContext={}} = React.useContext(ThemeContext) || {};
-    const theme = {...themeFromContext, text: {...textTheme, ...(themeFromContext.text || {})}}
+    // const {theme: themeFromContext={}} = React.useContext(ThemeContext) || {};
+    // const theme = {...themeFromContext, text: {...textTheme, ...(themeFromContext.text || {})}}
     const [tmpValue, setTmpValue] = useState(value)
 
     useEffect(() => setTmpValue(value), [value]);
@@ -29,8 +28,8 @@ const Edit = ({value = '', onChange, className, placeholder, ...rest}) => {
 }
 
 const View = ({value, className, ...rest}) => {
-    const {theme: themeFromContext={}} = React.useContext(ThemeContext) || {};
-    const theme = {...themeFromContext, text: {...textTheme, ...(themeFromContext.text || {})}}
+    // const {theme: themeFromContext={}} = React.useContext(ThemeContext) || {};
+    // const theme = {...themeFromContext, text: {...textTheme, ...(themeFromContext.text || {})}}
     if (!value) return false
 
     return (

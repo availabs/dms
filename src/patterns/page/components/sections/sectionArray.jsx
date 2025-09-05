@@ -233,7 +233,7 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
                                     onSave={save}
                                     onCancel={cancel}
                                     onRemove={remove}
-                                    attributes={attr.attributes}
+                                    attributes={attr?.attributes}
                                     size={size}
                                     i={i}
                                     siteType={siteType}
@@ -251,7 +251,7 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
                                     value={v}
                                     i={i}
                                     moveItem={moveItem}
-                                    attributes={attr.attributes}
+                                    attributes={attr?.attributes}
                                     edit={true}
                                     onEdit={ edit.index === -1 ? (e) => update(i)  : null }
                                     onRemove={remove}
@@ -328,7 +328,7 @@ const View = ({value, attr, group, siteType}) => {
                             >
 
                                 <SectionView
-                                    attributes={attr.attributes}
+                                    attributes={attr?.attributes}
                                     key={i}
                                     i={i}
                                     value={v}

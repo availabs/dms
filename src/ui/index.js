@@ -23,37 +23,40 @@ import Dialog from "./components/Dialog";
 import Dropdown from "./components/Dropdown";
 import Modal from "./components/Modal";
 import {DeleteModal} from "./components/DeleteModal";
-// import Nestable from "./components/nestable";
 import DraggableNav from "./components/nestable/draggableNav";
 import Pagination from "./components/Pagination";
 import Table from "./components/table";
 import Card from "./components/Card";
 import Graph from "./components/graph";
 import Listbox from "./components/Listbox";
-import ColumnTypes from "./columnTypes";
+import ColumnTypes from "./columnTypes/index.jsx"
 
-export default {
+//console.log('UI start - columnTpces', columnTypes)
+const UI = {
 	// --- Layout
 	Layout,
 	Logo,
-	SideNav,
 	SideNavContainer,
+	// --- Navigation
+	Menu,
+	SideNav,
 	TopNav,
+  // Nestable,
+	DraggableNav,
 	// --- Utilities
 	Icon,
 	Button,
-    ButtonSelect,
+  ButtonSelect,
 	Dialog,
 	Label,
 	Popover,
 	Pill,
-	// --- Navigation
-	Menu,
+
 	// --- Forms
 	FieldSet,
 	Switch,
 	Input,
-    Textarea,
+  Textarea,
 	Select,
 	ColorPicker,
 	Tabs,
@@ -61,15 +64,17 @@ export default {
 	Dropdown,
 	Modal,
 	DeleteModal,
-	// Nestable,
-	DraggableNav,
+
 	// -- Data Components
 	Pagination,
 	Table,
 	Card,
 	Graph,
-    Listbox,
+  Listbox,
 
-    // component modes: {EditComp, ViewComp}
-    ColumnTypes,
+  // ------ component modes: {EditComp, ViewComp}
+  ColumnTypes
 }
+
+//console.log('UI - index - UI', UI, columnTypes)
+export default UI;

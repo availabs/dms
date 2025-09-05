@@ -102,9 +102,8 @@ const cardTypes = {
 }
 
 const Edit = ({value, onChange}) => {
-    const context = useContext(CMSContext);
-    const { theme } = useContext(ThemeContext)
-    const {UI} = context;
+    //const context = useContext(CMSContext);
+    const { theme, UI } = useContext(ThemeContext)
     const {Select, ColumnTypes: {lexical: Lexical}} = UI;
     const cachedData = value && isJson(value) ? JSON.parse(value) : {}
     const emptyTextBlock = {text: '', size: '4xl', color: '000000'};
@@ -193,10 +192,9 @@ Edit.settings = {
 }
 
 const View = ({value}) => {
-    const context = useContext(CMSContext);
-    const {UI} = context;
-    const {ColumnTypes: {lexical: Lexical}} = UI;
-    const { theme } = useContext(ThemeContext)
+  const { theme , UI } = useContext(ThemeContext)
+  // console.log('richtext view - UI', UI)
+  const { ColumnTypes: { lexical: Lexical } } = UI;
     if (!value) return <div className='h-6' />
     let data = typeof value === 'object' ?
         value['element-data'] :

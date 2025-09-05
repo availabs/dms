@@ -7,7 +7,7 @@ import { ThemeContext } from "../../../ui/useTheme";
 // import user from "@availabs/ams/dist/reducers/user";
 
 const UserMenu = ({user}) => {
-    const {UI} = useContext(CMSContext)
+    const {UI} = useContext(ThemeContext)
     const {Icon} = UI;
     return (
         <div className={`h-[47px] w-[47px] border border-[#E0EBF0] rounded-full place-items-center content-center`}>
@@ -29,13 +29,13 @@ export const Item = ({to, icon,children}) => (
             </div>
         </Link>
     )
-   
+
 )
 
 
 export default ({title, children}) => {
-    const { user, baseUrl, UI } = React.useContext(CMSContext)
-    const { theme } = React.useContext(ThemeContext)
+    const { user, baseUrl } = React.useContext(CMSContext)
+    const { theme, UI } = React.useContext(ThemeContext)
     const { Dropdown } = UI;
     const location = useLocation();
     let authMenuItems = theme?.navOptions?.authMenu?.navItems || [
@@ -52,14 +52,14 @@ export default ({title, children}) => {
                 authLevel: 5
             },
         ]
-    
+
     return (
         <>
-            {!user.authed ?            
+            {!user.authed ?
                 <Link className={`flex items-center px-8 text-lg font-bold h-12 text-slate-500 px-4`} to="/auth/login" state={{from: location?.pathname}}>Login</Link> :
                 <Dropdown control={<div className={'px-1'}><UserMenu user={user}/></div>} className={``} >
                     <div className='p-1 bg-blue-500 z-30'>
-                       
+
                         <div className='text-white py-2'>
                             <div className='text-md font-thin tracking-tighter text-left'>{user.email ? user.email : ''}</div>
                             <div className='text-xs font-medium -mt-1 tracking-widest text-left'>{user?.groups?.[0] ? user.groups[0] : ''}</div>
@@ -71,12 +71,12 @@ export default ({title, children}) => {
                                         </Item>
                                     )}
                                 </div>
-                           
+
                             })}
-                                         
+
                         </div>
                         {!user.fake && (
-                            <div className='py-1 border-t border-blue-400'> 
+                            <div className='py-1 border-t border-blue-400'>
                                 <Item to='/auth/logout' icon={'fad fa-sign-out-alt pb-2 pr-1'}>
                                     Logout
                                 </Item>
@@ -89,5 +89,3 @@ export default ({title, children}) => {
         </>
     )
 }
-
-

@@ -42,9 +42,8 @@ export const RenderFilters = ({
     apiLoad, defaultOpen = true, showNavigate = false,
     cms_context
 }) => {
-    const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
+    const { theme: themeFromContext = {}, UI } = React.useContext(ThemeContext) || {};
     const theme = {...themeFromContext, filters: {...filterTheme, ...(themeFromContext.filter || {})}}
-    const { UI } = React.useContext(cms_context || CMSContext) || { UI: { Icon: () => <></> } };;
     const { Icon } = UI;
     const { pageState } = React.useContext(PageContext) || {}; // page to extract page filters
     const [open, setOpen] = useState(defaultOpen);

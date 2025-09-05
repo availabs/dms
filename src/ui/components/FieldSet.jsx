@@ -4,7 +4,7 @@ import Select from './Select'
 import Listbox from './Listbox'
 import Switch from './Switch'
 import Button from './Button'
-import Input, { ConfirmInput } from './Input'
+import Input, { ConfirmInput, Textarea } from './Input'
 
 import {ThemeContext} from '../useTheme';
 
@@ -12,6 +12,7 @@ import {ThemeContext} from '../useTheme';
 const componentRegistry = {
     Input,
     ConfirmInput,
+    Textarea,
     Select,
     Listbox,
     Switch,
@@ -69,5 +70,3 @@ export function FieldComp  ({ label, description, children, customTheme}) {
     </Field>
   )
 }
-
-

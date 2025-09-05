@@ -1,7 +1,11 @@
 import React, {useContext, useEffect, useMemo, useState} from 'react'
+import { useImmer } from 'use-immer';
 import {useNavigate} from 'react-router';
-import {AdminContext} from "../siteConfig";
+import Frame from 'react-frame-component'
+import { merge, cloneDeep } from "lodash-es";
+
 import {ThemeContext} from "../../../ui/useTheme";
+import {AdminContext} from "../siteConfig";
 
 
 const parseIfJson = (value) => {
@@ -55,21 +59,29 @@ function ComponentList ({
 	path,
 	...rest
 }) {
-	// themes is an array of {name, theme, id}
+
+  // themes is an array of {name, theme, id}
 	const navigate = useNavigate();
+	const { theme, UI } = useContext(ThemeContext);
+	const { baseUrl, user } = React.useContext(AdminContext) || {};
+	const { Select, Button } = UI;
+
 	const {theme_id, component, ...restparams} = params;
-	const themeObj = useMemo(() => (item.themes || []).find(t => t.id === theme_id), [item.themes, theme_id])
-	const [currentTheme, setCurrentTheme] = useState(parseIfJson(themeObj?.theme));
 	const compFromProps = useMemo(() => compOptions.find(c => c.value.toLowerCase() === component?.toLowerCase())?.value, [component]);
 	const [currentComponent, setCurrentComponent] = useState(compFromProps || 'Button');
   const [currentComponentPropsIdx, setCurrentComponentPropsIdx] = useState(0);
-  // console.log('comp', component, compFromProps, currentComponent);
+  const [currentThemeSetting, setCurrentThemeSetting ] = React.useState('layout')
 
-	const {theme} = useContext(ThemeContext);
-	const { baseUrl, user, UI } = React.useContext(AdminContext) || {};
-	const {Select, Button} = UI;
 
- console.log( 'docs', currentTheme?.docs, theme?.docs)
+	const themeObj = useMemo(() => (item.themes || []).find(t => t.id === theme_id), [item.themes, theme_id])
+	const [currentTheme, setCurrentTheme] = useImmer(parseIfJson(themeObj?.theme));
+
+  const mergedTheme = React.useMemo(() => merge(cloneDeep(theme),cloneDeep(currentTheme)), [theme, currentTheme])
+
+  console.log('currentTheme', currentTheme, theme)
+
+
+
 
 
 	useEffect(() => {
@@ -95,88 +107,109 @@ function ComponentList ({
 	// key to access theme for current component.
 	const currThemeKey = theme?.docs?.[currentComponent]?.themeKey || currentComponent?.toLowerCase();
 	// current theme. either saved, or default.
-	const currCompTheme = currentTheme?.[currThemeKey] || theme?.[currThemeKey] || {};
+	const currCompTheme = mergedTheme?.[currentThemeSetting] || theme?.[currentThemeSetting] || {};
 
 	return (
 		<div className={'flex flex-col p-4 w-full divide-y-2'}>
 			<div className={'w-full flex justify-between border-b-2 border-blue-400'}>
-				<div className={'text-2xl font-semibold text-gray-700'}>Components</div>
+				<div className='flex'>
+				  <div className={'text-2xl font-semibold text-gray-700'}>Components</div>
+					<div className='px-4'>
+						<Select
+  					  value={currentComponent}
+  						onChange={e => {
+    						  setCurrentComponent(e.target.value)
+      						navigate(`${baseUrl}/${path.replace(':theme_id', theme_id).replace(':component?', e.target.value.toLowerCase())}`)
+    				  }}
+     			    options={compOptions}
+       	    />
+					</div>
+					<div>
+			      <Select value={currentComponentPropsIdx}
+     					onChange={e => setCurrentComponentPropsIdx(e.target.value)}
+     					options={
+      						(Array.isArray(theme?.docs?.[currentComponent]) ? theme?.docs?.[currentComponent] : [theme?.docs?.[currentComponent]])
+     							.map((o, i) => ({label: o?.doc_name || `Example ${i + 1}`, value: i}))
+     					}
+   					/>
+					</div>
+				</div>
 				<button onClick={() => navigate(-1)}>back</button>
 			</div>
 
 
-			<div className={'flex flex-col sm:flex-row divide-x '}>
-				<div className={'w-[400px] p-4 '}>
-  		  <div className={'pb-2'}>
-  					<Select value={currentComponent} onChange={e => {
-   						  setCurrentComponent(e.target.value)
-     						navigate(`${baseUrl}/${path.replace(':theme_id', theme_id).replace(':component?', e.target.value.toLowerCase())}`)
-  					  }}
-  							options={compOptions}
-  					/>
+			<div className={'flex flex-col sm:flex-row divide-x'}>
+				<div className={'w-[150px] p-4 order-2'}>
+    		  <div className={'pb-2'}>
+   					<Select value={currentThemeSetting}
+                onChange={e => {
+    						  setCurrentThemeSetting(e.target.value)
+      						//navigate(`${baseUrl}/${path.replace(':theme_id', theme_id).replace(':component?', e.target.value.toLowerCase())}`)
+   					  }}
+   							options={
+                  Object.keys(mergedTheme)
+                    .map(k => ({label:k, value:k}))
+                }
+   					/>
 
-  					<Select value={currentComponentPropsIdx}
-  							onChange={e => setCurrentComponentPropsIdx(e.target.value)}
-  							options={
-  						(Array.isArray(theme?.docs?.[currentComponent]) ? theme?.docs?.[currentComponent] : [theme?.docs?.[currentComponent]])
-  							.map((o, i) => ({label: o?.doc_name || `Example ${i + 1}`, value: i}))
+
+    				</div>
+  					<div className={'w-full flex gap-0.5 justify-end'}>
+  						<Button className={'w-fit'} onClick={() => onSubmit(currentTheme)}>Save</Button>
+  						<Button className={'w-fit'} onClick={() => setCurrentTheme(parseIfJson(themeObj?.theme))}>Reset</Button>
+  					</div>
+  					<div className='h-[calc(100vh_-_20rem)] overflow-auto scrollbar-sm p-2 '>
+  					{
+  						Object.keys(currCompTheme)
+  							.map(key => (
+  								<div className={'w-full'}>
+  									<div className={'font-semibold text-gray-700 w-full'}>{key}</div>
+  									<textarea className={'w-full  border p-2'}
+  											  value={typeof currCompTheme?.[key] === 'object' ? JSON.stringify(currCompTheme?.[key]) : currCompTheme?.[key]}
+  											  onChange={e => {
+  												  setCurrentTheme({
+  													  ...currentTheme,
+  													  [currentThemeSetting]: {
+  														  ...(currCompTheme || {}),
+  														  [key]: e.target.value
+  													  }
+  												  })
+  											  }}
+  									/>
+  								</div>
+  							))
   					}
-  					/>
-  				</div>
-					<div className={'w-full flex gap-0.5 justify-end'}>
-						<Button className={'w-fit'} onClick={() => onSubmit(currentTheme)}>Save</Button>
-						<Button className={'w-fit'} onClick={() => setCurrentTheme(parseIfJson(themeObj?.theme))}>Reset</Button>
-					</div>
-					<div className='h-[calc(100vh_-_20rem)] overflow-auto scrollbar-sm p-2 '>
-					{
-						Object.keys(currCompTheme)
-							.map(key => (
-								<div className={'w-full'}>
-									<div className={'font-semibold text-gray-700 w-full'}>{key}</div>
-									<textarea className={'w-full  border p-2'}
-											  value={currCompTheme?.[key]}
-											  onChange={e => {
-												  setCurrentTheme({
-													  ...currentTheme,
-													  [currThemeKey]: {
-														  ...(currCompTheme || {}),
-														  [key]: e.target.value
-													  }
-												  })
-											  }}
-									/>
-								</div>
-							))
-					}
-					</div>
+  					</div>
 				</div>
 
-				<div className={'flex h-full justify-center p-2'}>
+				{/* <div className={'flex h-full justify-center p-2'}>
 					<ThemeContext.Provider value={{theme: currentTheme, UI}}>
 						<ComponentRenderer
 						  Component={theme?.docs?.[currentComponent]?.component || UI[currentComponent]}
 							props={theme?.docs?.[currentComponent][currentComponentPropsIdx] || theme?.docs?.[currentComponent]?.props || theme?.docs?.[currentComponent] }
 						/>
 					</ThemeContext.Provider>
-				</div>
-				{/*<div className={'w-full h-[calc(100vh_-_6rem)] sm:w-1/2'}>
+				</div>*/}
+				<div className={'flex-1 h-[calc(100vh_-_6rem)]'}>
 					<Frame
-						className='w-full flex-1 h-[calc(100vh_-_6rem)] border'
+						className='w-full h-[calc(100vh_-_6rem)] border-2 border-orange-500'
 						head={
 							<>
-
+					      <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
 								<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.15/dist/tailwind.min.css" rel="stylesheet" />
-								<link href="/build.css" rel="stylesheet" />
+                <link href="/index-C-y3Pj2B.css" rel="stylesheet" />
 							</>
 						}
 					>
-						<ThemeContext.Provider value={{theme: currentTheme}}>
-							<ComponentRenderer Component={UI[currentComponent]}
-											   props={theme?.docs?.[currentComponent][currentComponentPropsIdx] || theme?.docs?.[currentComponent]}
-							/>
-						</ThemeContext.Provider>
+  					<ThemeContext.Provider value={{theme: currentTheme, UI}}>
+  						<ComponentRenderer
+  						  Component={theme?.docs?.[currentComponent]?.component || UI[currentComponent]}
+  							props={theme?.docs?.[currentComponent][currentComponentPropsIdx] || theme?.docs?.[currentComponent]?.props || theme?.docs?.[currentComponent] }
+  						/>
+  					</ThemeContext.Provider>
 					</Frame>
-				</div>*/}
+				</div>
+
 			</div>
 		</div>
 	)

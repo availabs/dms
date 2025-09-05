@@ -23,7 +23,7 @@ export function SectionEdit ({value, i, onChange, attributes, size, onCancel, on
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     let sectionTitleCondition = value?.['title']
     const { theme, UI } = React.useContext(ThemeContext);
-    const { Popover, Button, Icon, Switch } = UI
+    const { Popover, Button, Icon, Switch, Input } = UI
 
     const updateAttribute = (k, v) => {
         // console.log('change',k,v, {...value, [k]: v})
@@ -219,8 +219,8 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
     let [referenceElement, setReferenceElement] = useState()
     let [popperElement, setPopperElement] = useState()
     let { styles, attributes:popperAttributes } = usePopper(referenceElement, popperElement)
-    const { theme = {} } = React.useContext(ThemeContext);
-    const {UI } = React.useContext(CMSContext) || {}
+    const { theme = {}, UI } = React.useContext(ThemeContext);
+    // const { } = React.useContext(CMSContext) || {}
     const {Popover, Menu, Icon} = UI;
     // const updateAttribute = (k, v) => {
     //     onChange(value, k, v)
@@ -681,7 +681,8 @@ const handlePaste = async (e, setKey, setState, value, onChange) => {
 
 export function DeleteModal ({title, prompt, item={}, open, setOpen, onDelete})  {
   const cancelButtonRef = useRef(null)
-  const { UI, baseUrl } = React.useContext(CMSContext) || {}
+  const { UI } = React.useContext(ThemeContext)
+  const { baseUrl } = React.useContext(CMSContext) || {}
   const { Dialog } = UI
   const [loading, setLoading] = useState(false)
   return (

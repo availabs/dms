@@ -9,32 +9,37 @@ import Radio from "./radio";
 import Checkbox from "./checkbox";
 import Switch from "../components/Switch";
 
+// console.log('in column types', Lexical)
 const columnTypes = {
 	'text': Text,
-    'textarea': textarea,
-    'lexical': Lexical,
-    'number': {
-        EditComp: (props) => <Text.EditComp {...props} type={'number'} />,
-        ViewComp: (props) => <Text.ViewComp {...props} type={'number'} />,
-    },
-    'date': {
-        EditComp: (props) => <Text.EditComp {...props} type={'date'} />,
-        ViewComp: (props) => <Text.ViewComp {...props} type={'date'} />,
-    },
-    'timestamp': {
-        EditComp: (props) => <Text.EditComp {...props} type={'datetime-local'} />,
-        ViewComp: (props) => <Text.ViewComp {...props} type={'datetime-local'} />,
-    },
+  'textarea': textarea,
+  'lexical': Lexical,
+  // 'lexical': {
+  //     EditComp: (props) => <Text.EditComp {...props}  />,
+  //     ViewComp: (props) => <Text.ViewComp {...props}  />,
+  // },
+  'number': {
+      EditComp: (props) => <Text.EditComp {...props} type={'number'} />,
+      ViewComp: (props) => <Text.ViewComp {...props} type={'number'} />,
+  },
+  'date': {
+      EditComp: (props) => <Text.EditComp {...props} type={'date'} />,
+      ViewComp: (props) => <Text.ViewComp {...props} type={'date'} />,
+  },
+  'timestamp': {
+      EditComp: (props) => <Text.EditComp {...props} type={'datetime-local'} />,
+      ViewComp: (props) => <Text.ViewComp {...props} type={'datetime-local'} />,
+  },
 	'boolean': boolean,
 	'dms-format': dmsFormat,
 	'select': {
-        EditComp: (props) => <Multiselect.EditComp {...props} singleSelectOnly={true} />,
-        ViewComp: (props) => <Multiselect.ViewComp {...props} singleSelectOnly={true} />,
-    },
+      EditComp: (props) => <Multiselect.EditComp {...props} singleSelectOnly={true} />,
+      ViewComp: (props) => <Multiselect.ViewComp {...props} singleSelectOnly={true} />,
+	},
 	'multiselect': Multiselect,
 	'radio': Radio,
-    'checkbox': Checkbox,
-    'switch': {
+  'checkbox': Checkbox,
+  'switch': {
         EditComp: ({trueValue=true, value, onChange, ...props}) =>
             <Switch {...props} enabled={value === trueValue}
                     setEnabled={e => onChange(e ? trueValue : false)}
@@ -45,5 +50,5 @@ const columnTypes = {
     },
 	'default': Text
 }
-
+//console.log('columnTypes', columnTypes)
 export default columnTypes;
