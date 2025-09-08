@@ -4,6 +4,57 @@ import { get, isEqual } from "lodash-es";
 import FilterableSearch from "../FilterableSearch";
 import { CMSContext, ComponentContext } from "../../../context";
 
+const pageColumns = [
+    {
+        "name": "title",
+        "type": "text",
+        "display_name": "title"
+    },
+    {
+        "name": "url_slug",
+        "type": "text",
+        "display_name": "url"
+    },
+    {
+        "name": "parent",
+        "type": "text",
+        "display_name": "parent"
+    },
+    {
+        "name": "published",
+        "type": "text",
+        "display_name": "published"
+    },
+    {
+        "name": "sidebar",
+        "type": "switch",
+        "display_name": "sidebar"
+    },
+    {
+        "name": "sections",
+        "type": "text", // UDA doesn't support dms-format
+        "display_name": "sections"
+    },
+];
+
+const sectionColumns = [
+    {
+        "name": "title",
+        "type": "text",
+        "display_name": "title"
+    },
+    {
+        "name": "data->'element'->'element-type' as element_type",
+        "type": "calculated",
+        "display_name": "component type"
+    },
+    {
+        "name": "data->'element'->>'element-data' as element_data",
+        "type": "calculated", // this can be a new column type "component"
+        "display": "calculated",
+        "display_name": "data"
+    }
+]
 const range = (start, end) => Array.from({length: (end + 1 - start)}, (v, k) => k + start);
 
 // get forms, and their sources
@@ -69,7 +120,7 @@ export default function DataSourceSelector ({
   formatFromProps,
   sourceTypes=['external', 'internal'] // lists Externally Sourced and Internally Sourced Datasets.
 }) {
-    const {app, siteType, falcor, pgEnv} = useContext(CMSContext);
+    const {app, type, siteType, falcor, pgEnv, ...rest} = useContext(CMSContext);
     const {state, setState, apiLoad} = useContext(ComponentContext);
     const [sources, setSources] = useState([]);
     const [views, setViews] = useState([]);
@@ -139,7 +190,12 @@ export default function DataSourceSelector ({
             isStale = true;
         }
     }, [state.sourceInfo?.source_id])
-    const sourceOptions = sources.map(({source_id, name, srcEnv}) => ({key: source_id, label: `${name} (${envs[srcEnv].label})`}));
+
+    const sourceOptions = [
+        {key: `${app}+${type}`, label: `${type} (pages)`},
+        {key: `${app}+${type}+sections`, label: `${type} (sections)`},
+        ...sources.map(({source_id, name, srcEnv}) => ({key: source_id, label: `${name} (${envs[srcEnv]?.label || ''})`}))
+    ];
     const viewOptions = views.map(({view_id, name, version}) => ({key: view_id, label: name || version || view_id}));
     return (
         <div className={'px-3 flex w-full items-center bg-blue-50'}>
@@ -155,9 +211,25 @@ export default function DataSourceSelector ({
                         setState(draft => {
                             // reset values, set source
                             draft.columns = []; // clears our visible columns, and all of their settings (group, filter, etc).
-                            draft.sourceInfo = {...source};
-                            // for internally sourced data-sources, doc_type becomes type when we fetch their data items.
-                            draft.sourceInfo.type = doc_type;
+                            if(!sources.some(f => +f.source_id === +e) && typeof e === 'string' && e.includes('+')){
+                                const sourceType =
+                                    e.includes('+') && e.includes('+sections') ? 'sections' :
+                                        e.includes('+') ? 'pages' : 'dataset';
+                                draft.sourceInfo = {
+                                    isDms: true,
+                                    app,
+                                    type: sourceType === 'pages' ? type : `${type.replace('+sections', '')}|cms-section`,
+                                    name: sourceType,
+                                    columns: sourceType === 'pages' ? pageColumns : sectionColumns,
+                                    env: sourceType === 'pages' ? e : `${app}+${type.replace('+sections', '')}|cms-section`,
+                                    view_id: "",
+                                    source_id: e
+                                }
+                            }else{
+                                draft.sourceInfo = {...source};
+                                // for internally sourced data-sources, doc_type becomes type when we fetch their data items.
+                                draft.sourceInfo.type = doc_type;
+                            }
                         })
                     }}
                 />
