@@ -77,7 +77,8 @@ const formsAdminConfig = ({
         "size": "compact",
         "search": "none",
         "logo": "top", "menu": "top",
-        "nav": "main"
+        "nav": "main",
+        "dropdown": "top"
     }
 
     theme.navOptions.topNav = {
@@ -218,7 +219,8 @@ const formsSourceConfig = ({
         "size": "compact",
         "search": "none",
         "logo": "top", "menu": "top",
-        "nav": "main"
+        "nav": "main",
+        "dropdown": "top"
     }
 
     theme.navOptions.topNav = {
