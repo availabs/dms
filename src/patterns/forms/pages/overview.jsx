@@ -158,6 +158,10 @@ const OverViewEdit = ({
                             Updated
                             <span className={'text-l font-medium text-blue-600 '}>{updatedTimeStamp}</span>
                         </div>
+                        <div className={'mt-2 flex flex-col px-6 text-sm text-gray-600'}>
+                            Type
+                            <span className={'text-l font-medium text-blue-600 '}>{item?.doc_type}</span>
+                        </div>
 
                         <div key={'categories'} className='flex justify-between group'>
                             <div className="flex-1 sm:grid sm:grid-cols-2 sm:gap-1 sm:px-6">
