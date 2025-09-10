@@ -142,8 +142,8 @@ export const applyFn = (col = {}, isDms = false) => {
   ).toLowerCase();
 
   const functions = {
-    [undefined]: `${colNameWithAccessor} as ${colNameAfterAS}`,
-    "": `${colNameWithAccessor} as ${colNameAfterAS}`,
+    [undefined]: !isDms && !isCalculatedCol ? colNameWithAccessor : `${colNameWithAccessor} as ${colNameAfterAS}`,
+    "": !isDms && !isCalculatedCol ? colNameWithAccessor : `${colNameWithAccessor} as ${colNameAfterAS}`,
     list: `array_to_string(array_agg(distinct ${colNameWithAccessor}), ', ') as ${colNameAfterAS}`,
     sum: isDms
       ? `sum((${colNameWithAccessor})::integer) as ${colNameAfterAS}`
