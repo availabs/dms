@@ -250,7 +250,7 @@ export const RenderFilterValueSelector = ({
                                 onChange={e => {
                                     let newValues =
                                         ['filter', 'exclude'].includes(filter.operation) ?
-                                            (e || []).map(filterItem => filterItem?.value || filterItem) :
+                                            (Array.isArray(e) ? e : ([e] || [])).map(filterItem => filterItem?.value || filterItem) :
                                             filterColumn.type === 'number' && e ? [+e] : [e];
 
                                     if(filter.usePageFilters) {
