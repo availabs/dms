@@ -12,6 +12,7 @@ export const pattern = {
       required: true,
       default: "page",
         options: [
+        {value: 'auth', label: 'Auth'},
         {value: 'page', label: 'Page'},
         {value: 'forms', label: 'Forms'}
       ],
@@ -33,16 +34,16 @@ export const pattern = {
       required: true
     },
     {
-      key: "authLevel",
-      placeholder: "-1",
-      type: "text",
-      required: true
-    },
-    {
       key: "filters",
       type: "json",
       required: false,
       default: [],
+    },
+    {
+      key: "authPermissions",
+      type: "json",
+      required: false,
+      default: {},
     },
     { key: 'config',
       placeholder: 'please select a type',

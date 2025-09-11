@@ -21,7 +21,7 @@ export const tableTheme = {
     headerContainer: 'sticky top-0 grid',
     thead: 'flex justify-between',
     theadfrozen: '',
-    thContainer: 'w-full font-semibold px-3 py-1 text-sm font-semibold text-gray-600 border',
+    thContainer: 'w-full font-semibold px-3 py-1 content-center text-sm font-semibold text-gray-600 border',
     thContainerBgSelected: 'bg-blue-100 text-gray-900',
     thContainerBg: 'bg-gray-50 text-gray-500',
     cell: 'relative flex items-center min-h-[35px]  border border-slate-50',
@@ -100,10 +100,10 @@ export default function ({
     allowEdit,
     updateItem, removeItem, loading, isEdit,
     numColSize=defaultNumColSize, gutterColSize=defaultGutterColSize, frozenColClass, frozenCols=[],
-    columns=[], data=[], display={}, controls={}, setState, isActive
+    columns=[], data=[], display={}, controls={}, setState, isActive, customTheme={}
 }) {
     const { theme: themeFromContext = {table: tableTheme}} = React.useContext(ThemeContext) || {};
-    const theme = {...themeFromContext, table: {...tableTheme, ...(themeFromContext.table || {})}};
+    const theme = {...themeFromContext, table: {...tableTheme, ...(themeFromContext.table || {}), ...customTheme}};
     const [defaultColumnSize, setDefaultColumnSize] = React.useState(defColSize);
     const visibleAttrsWithoutOpenOut = useMemo(() => columns.filter(({show, openOut}) => show && !openOut), [columns]);
     const visibleAttributes = useMemo(() => columns.filter(({show}) => show), [columns]);
@@ -291,7 +291,7 @@ export default function ({
 
                                     <div key={`controls-${i}`}
                                          className={`
-                                        ${theme?.table?.thContainer}  
+                                        ${theme?.table?.thContainer}
                                         ${selection?.find(s => s.attrI === i) ?
                                              theme?.table?.thContainerBgSelected : theme?.table?.thContainerBg
                                          }`

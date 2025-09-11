@@ -44,7 +44,7 @@ function nav2Level(items, level=1, path, navTitle='') {
 
 const Layout = ({
 	children,
-	navItems,
+	navItems=[],
 	secondNav,
 	title,
 	pageTheme,
@@ -55,7 +55,7 @@ const Layout = ({
 	headerChildren,
 	footerChildren,
 	...props
-	}) => {
+}) => {
 
 	// ------------------------------------------------------
 	// ------- Get Options from Context and Defaults

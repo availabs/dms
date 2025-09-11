@@ -14,10 +14,6 @@ const columnTypes = {
 	'text': Text,
   'textarea': textarea,
   'lexical': Lexical,
-  // 'lexical': {
-  //     EditComp: (props) => <Text.EditComp {...props}  />,
-  //     ViewComp: (props) => <Text.ViewComp {...props}  />,
-  // },
   'number': {
       EditComp: (props) => <Text.EditComp {...props} type={'number'} />,
       ViewComp: (props) => <Text.ViewComp {...props} type={'number'} />,

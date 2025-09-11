@@ -1,31 +1,28 @@
 import React from 'react'
-import { cloneDeep } from "lodash-es"
-
-import PatternList from "./components/patternList";
+import { useLocation } from 'react-router'
+import {cloneDeep, merge} from "lodash-es"
 import SiteEdit from "./pages/siteEdit"
 import ThemeList from "./pages/themes"
 import ComponentList from "./pages/components"
-
 import adminFormat from "./admin.format.js"
-// import defaultTheme from './theme/theme'
-// import Layout from './ui/avail-layout'
-
-import { Link, useLocation } from 'react-router'
-
-export const AdminContext = React.createContext(undefined);
-const defaultUser = { email: "user", authLevel: 5, authed: true, fake: true}
-
 import UI from "../../ui"
 import {ThemeContext} from '../../ui/useTheme'
 import defaultTheme from '../../ui/defaultTheme'
+import DefaultMenu from "./components/menu";
+
+export const AdminContext = React.createContext(undefined);
 
 
 const adminConfig = ({
   app = "default-app",
   type = "default-page",
   API_HOST = 'https://graph.availabs.org',
+  AUTH_HOST = 'https://graph.availabs.org',
   baseUrl = '/',
-  theme = defaultTheme,
+  authPath = '/dms_auth',
+  PROJECT_NAME,
+  themes={},
+  rightMenu = <DefaultMenu />,
 }) => {
   const format = cloneDeep(adminFormat)
   format.app = app
@@ -33,34 +30,12 @@ const adminConfig = ({
   baseUrl = baseUrl === '/' ? '' : baseUrl
 
   //console.log('defaultTheme', theme)
-  theme = cloneDeep(theme)
+    let theme = merge(
+        cloneDeep(defaultTheme),
+        cloneDeep(themes.mny_admin)
+    );
   theme.navOptions = theme?.admin?.navOptions || theme?.navOptions
-
-  const menuItems = [
-    {
-      name: 'Sites',
-      path: `${baseUrl}`
-    },
-    {
-      name: 'Datasets',
-      path: `${baseUrl}/datasets`
-    },
-    {
-      name: 'Themes',
-      path: `${baseUrl}/themes`
-    },
-    {
-      name: 'Team',
-      path:`${baseUrl}/team`
-    }
-  ]
-  /*
-  authlink = patterns.filter[].baseirl
-
-  menuItems = [
-    ...menuItems
-    ...authMenuItmes
-  ]*/
+    theme.navOptions.sideNav.dropdown = 'top'
   // ----------------------
   // update app for all the children formats
   format.registerFormats = updateRegisteredFormats(format.registerFormats, app)
@@ -76,7 +51,7 @@ const adminConfig = ({
       return (
           <AdminContext.Provider value={{baseUrl, user: props.user || defaultUser, app, type, API_HOST, UI}}>
             <ThemeContext.Provider value={{theme, UI}}>
-              <Layout navItems={menuItems}>
+              <Layout navItems={[]}>
                 <div className={theme?.admin?.page?.pageWrapper}>
                   <div className={theme?.admin?.page?.pageWrapper2}>
                     <div className={'mx-auto max-w-fit pt-[120px] text-lg'}>
@@ -91,21 +66,55 @@ const adminConfig = ({
     },
     children: [
       {
-        //todo move theme edit page here
         type: (props) => {
           const {Layout} = UI;
-          const location = useLocation()
-          console.log('admin wrapper', props.dataItems)
-          return (
-            <AdminContext.Provider value={{baseUrl, user: props.user || defaultUser, app, type, API_HOST, UI}}>
+            const menuItems = [
+                {
+                    name: 'Sites',
+                    path: `${baseUrl}`
+                },
+                {
+                    name: 'Datasets',
+                    path: `${baseUrl}/datasets`
+                },
+                {
+                    name: 'Themes',
+                    path: `${baseUrl}/themes`
+                },
+                {
+                    name: 'Team',
+                    path:`${baseUrl}/team`
+                }
+            ]
+
+            if(props?.user?.authed) {
+                menuItems.push({
+                    name: 'Auth',
+                    subMenus: [
+                        {
+                            name: 'Users',
+                            path: `${authPath}/manage/users`
+                        },
+                        {
+                            name: 'Groups',
+                            path: `${authPath}/manage/groups`
+                        }
+                    ]
+                })
+            }          return (
+            <AdminContext.Provider value={{baseUrl, authPath, PROJECT_NAME, user: props.user, app, type, API_HOST, AUTH_HOST, UI}}>
               <ThemeContext.Provider value={{theme, UI}}>
-                <Layout navItems={menuItems}>
-                  <div className={theme?.admin?.page?.pageWrapper}>
-                    <div className={theme?.admin?.page?.pageWrapper2}>
-                      {props.children}
-                    </div>
+                  <div className={theme?.page?.container}>
+                      <Layout navItems={menuItems} Menu={() => <>{rightMenu}</>}>
+                          <div className={`${theme?.sectionGroup?.content?.wrapper1}`}>
+                              <div className={theme?.sectionGroup?.content?.wrapper2}>
+                                  <div className={`${theme?.sectionGroup?.content?.wrapper3}`}>
+                                      {props.children}
+                                  </div>
+                              </div>
+                          </div>
+                      </Layout>
                   </div>
-                </Layout>
               </ThemeContext.Provider>
             </AdminContext.Provider>
           )
@@ -115,7 +124,6 @@ const adminConfig = ({
         children: [
           {
             type: (props) => <SiteEdit {...props} />,
-            // authLevel: 5,
             path: "/*",
 
           },

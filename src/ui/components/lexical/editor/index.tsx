@@ -29,8 +29,7 @@ function isLexicalJSON(str) {
 
 export default function Lexicals ({value, onChange, bgColor, editable=false, id, theme}) {
   
-  const lexicalTheme = merge(cloneDeep(PlaygroundEditorTheme), cloneDeep(theme?.lexical || {}))
-  // console.log('theme?', lexicalTheme)
+  const lexicalTheme = merge(cloneDeep(PlaygroundEditorTheme), cloneDeep(theme?.lexical || {}), {tableScrollableWrapper: 'overflow-auto'})
   // console.log(PlaygroundEditorTheme, theme?.lexical, lexicalTheme)
 
     const initialConfig = {
@@ -83,7 +82,10 @@ function UpdateEditor({ value, onChange, bgColor, theme, editable }) {
 
         if (isLexicalJSON(value)) {
             const newEditorState = editor.parseEditorState(value);
-            editor.setEditorState(newEditorState);
+            // lexical calls flushSync that results in a warning. queueMicrotask is a fix for that.
+            queueMicrotask(() => {
+                editor.setEditorState(newEditorState);
+            });
         } else {
             // plain text
             editor.update(() => {

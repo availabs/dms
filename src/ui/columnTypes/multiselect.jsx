@@ -31,9 +31,11 @@ const looselyEqual = (a, b) => {
 }
 
 const RenderToken = ({token, value, onChange, theme, isSearching, setIsSearching}) => {
+    const label = token.label || token;
+    const safeLabel = label && typeof label === 'object' ? JSON.stringify(label) : label
     return (
         <div className={theme?.multiselect?.tokenWrapper || tokenWrapper}>
-            <div onClick={() => setIsSearching(!isSearching)}>{token.label || token}</div>
+            <div onClick={() => setIsSearching(!isSearching)}>{safeLabel}</div>
             {
                 onChange && <div
                     className={theme?.multiselect?.removeIcon || removeIcon}

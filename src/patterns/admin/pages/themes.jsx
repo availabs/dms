@@ -1,6 +1,7 @@
 import React, {useContext, useRef, useState} from 'react'
 import {AdminContext} from "../siteConfig";
-import { Link } from 'react-router'
+import { ThemeContext } from '../../../ui/useTheme';
+import { Link, useLocation } from 'react-router'
 import {v4 as uuidv4} from "uuid";
 
 
@@ -14,8 +15,9 @@ function ThemeList ({
    format,
 }) {
 	// themes is an array of {name, theme, id}
-	console.log('admin pattern - themeList - hello world')
-	const { baseUrl, theme, user, UI } = React.useContext(AdminContext) || {};
+	const location = useLocation()
+	const { baseUrl, authPath, user, } = React.useContext(AdminContext) || {};
+  const { UI } = React.useContext(ThemeContext) || {};
 	const [addingNew, setAddingNew] = useState(false);
 	const [newItem, setNewItem] = useState({});
 	const [editingItem, setEditingItem] = useState();
@@ -53,13 +55,12 @@ function ThemeList ({
 	if(!item.id && dataItems?.length > 0) {
 		item = dataItems[0]
 	}
-
+  // if(!user?.authed) return <div>To access this page, you need to: <Link to={`${authPath}/login`} state={{ from: location.pathname }}>login</Link></div>
 	// render a list of themes. render an add new form
 	return (
-		<div className={'flex flex-col p-10 w-full divide-y-2'}>
+		<div className={'flex flex-col w-full'}>
 			<div className={'w-full flex justify-between border-b-2 border-blue-400'}>
 				<div className={'text-2xl font-semibold text-gray-700'}>Themes</div>
-				<button onClick={() => navigate(-1)}>back</button>
 			</div>
 			<div className={'w-full flex'}>
 				<Input type={'text'} value={search} onChange={e => setSearch(e.target.value)} placeHolder={'Filter themes'} />

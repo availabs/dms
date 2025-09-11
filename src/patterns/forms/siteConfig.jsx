@@ -1,5 +1,5 @@
-import React, {useEffect, useState} from "react"
-import {Link, useParams, useLocation, matchRoutes} from "react-router";
+import React from "react"
+import {Link} from "react-router";
 import { merge } from "lodash-es"
 import { cloneDeep } from "lodash-es"
 import { useFalcor } from "@availabs/avl-falcor"
@@ -26,34 +26,40 @@ import Admin from "./pages/admin";
 import Version from "./pages/version";
 import ErrorPage from "./pages/error";
 
-// import {updateAttributes, updateRegisteredFormats} from "../admin/siteConfig";
-
-
 
 export const FormsContext = React.createContext(undefined);
 // for instances without auth turned on can edit
-// move this to dmsFactory default authWrapper?
-const defaultUser = { email: "user", authLevel: 10, authed: true, fake: true}
 
+const isUserAuthed = ({user={}, reqPermissions=[], authPermissions=[]}) => {
+    if(!user?.authed) return false;
+    if(!Object.keys(authPermissions).length) return true;
 
-
-
+    const userAuthPermissions =
+        (user.groups || [])
+            .filter(group => authPermissions[group])
+            .reduce((acc, group) => {
+                const groupPermissions = Array.isArray(authPermissions[group]) ? authPermissions[group] : [authPermissions[group]];
+                if(groupPermissions?.length){
+                    acc.push(...groupPermissions)
+                }
+                return acc;
+            }, [])
+    return !reqPermissions?.length || userAuthPermissions.some(permission => permission === '*' || reqPermissions.includes(permission))
+}
 
 const formsAdminConfig = ({ 
     app, 
     type,
     siteType,
-    adminPath,
-    title, 
     baseUrl,
     damaBaseUrl,
     Menu=DefaultMenu,
-    API_HOST='https://graph.availabs.org', 
-    columns,
+    API_HOST='https://graph.availabs.org',
+    user,
+    authPermissions,
     logo,
     pattern,
     themes={ default: {} },
-    checkAuth = () => {}
 }) => {
 
     let theme = merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern?.theme_name] || themes.mny_admin))
@@ -82,7 +88,7 @@ const formsAdminConfig = ({
         "position": "fixed",
         "nav": "main"
     }
-    
+
     const patternFormat = cloneDeep(formsFormat);
     patternFormat.app = app
     patternFormat.type = type
@@ -114,9 +120,11 @@ const formsAdminConfig = ({
                       <FormsContext.Provider value={{
                           UI,
                           baseUrl: `${baseUrl}`, damaBaseUrl,
-                          user: props.user || defaultUser,
+                          user,
                           theme, app, type,
-                          parent: pattern, Menu, API_HOST
+                          parent: pattern, Menu, API_HOST,
+                          authPermissions,
+                          isUserAuthed: (reqPermissions, customAuthPermissions) => isUserAuthed({user, authPermissions: customAuthPermissions || authPermissions, reqPermissions}),
                       }}>
                           <ThemeContext.Provider value={{theme}}>
                                   <Layout navItems={[]} Menu={Menu}>
@@ -126,6 +134,7 @@ const formsAdminConfig = ({
                       </FormsContext.Provider>
                   )
                 },
+                authPermissions,
                 action: "list",
                 filter: {
                     stopFullDataLoad: true,
@@ -145,7 +154,6 @@ const formsAdminConfig = ({
                     {
                         type: ManageLayout,
                         path: "manage/*",
-                        //authLevel: 5,
                         action: "list",
                         filter: {
                           options: JSON.stringify({
@@ -185,6 +193,8 @@ const formsSourceConfig = ({
     damaBaseUrl,
     Menu=DefaultMenu,
     API_HOST='https://graph.availabs.org',
+    user,
+    authPermissions,
     columns,
     logo,
     pattern,
@@ -256,12 +266,14 @@ const formsSourceConfig = ({
                           baseUrl: `${baseUrl}`,
                           pageBaseUrl: `${baseUrl}/source`,
                           damaBaseUrl,
-                          user: props.user || defaultUser,
+                          user,
                           pgEnv,
                           theme, app, type,
                           parent: pattern,
                           Menu, API_HOST,
-                          falcor, falcorCache
+                          falcor, falcorCache,
+                          authPermissions,
+                          isUserAuthed: (reqPermissions, customAuthPermissions) => isUserAuthed({user, authPermissions: customAuthPermissions || authPermissions, reqPermissions}),
                       }}>
                           <ThemeContext.Provider value={{theme}}>
                                   <Layout navItems={[]} Menu={Menu}>
@@ -271,6 +283,7 @@ const formsSourceConfig = ({
                       </FormsContext.Provider>
                   )
                 },
+                authPermissions,
                 action: "list",
                 filter: {
                     stopFullDataLoad: true,

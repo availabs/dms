@@ -41,7 +41,8 @@ export const sectionGroupTheme = {
 
 export default function SectionGroup ({group, attributes, edit}) {
   const { theme,  UI } = React.useContext(ThemeContext);
-  const { baseUrl, user } = React.useContext(CMSContext) || {};
+  const { baseUrl, user, isUserAuthed } = React.useContext(CMSContext) || {};
+
   const { apiUpdate, format, item, updateAttribute } = React.useContext(PageContext) || {viewIcon: 'ViewPage', editIcon: 'EditPage'};
   const { SideNav, Icon } = UI;
 
@@ -52,8 +53,6 @@ export default function SectionGroup ({group, attributes, edit}) {
   const SectionArrayComp = React.useMemo(() => {
     return edit ? SectionArray.EditComp : SectionArray.ViewComp
   }, [])
-
-  //console.log('render group', group)
 
   return (
 
@@ -69,7 +68,7 @@ export default function SectionGroup ({group, attributes, edit}) {
         )}
         <div className={sectionTheme?.wrapper2}>
           <div className={sectionTheme?.wrapper3}>
-            {(group.name === 'default' && user?.authLevel >= 5) && (
+            {(group.name === 'default' && user?.authed && isUserAuthed(['update-page'])) && (
               <Link className={`${sectionTheme?.iconWrapper}`} to={`${baseUrl}/${edit ? '' : 'edit/'}${item?.url_slug || ''}`}>
                 {/*have to use rr to get query paramswindow.location.search*/}
                 <Icon icon={edit ? sectionTheme?.viewIcon : sectionTheme?.editIcon} className={sectionTheme?.icon} />
@@ -124,4 +123,4 @@ export const updateSections = async ({update, action, item, user, apiUpdate, upd
 
     //console.log('editFunction saveSection newItem',newItem, update)
     await apiUpdate({data: newItem})
-  }
+}

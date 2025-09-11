@@ -9,7 +9,7 @@ import {ThemeContext} from "../../../../../ui/useTheme";
 
 function PagesPane () {
   const { item, dataItems, apiUpdate } =  React.useContext(PageContext) || {};
-  const {UI, user} = React.useContext(CMSContext);
+  const {UI, isUserAuthed, user} = React.useContext(CMSContext);
   const {DraggableNav} = UI;
     const duplicatePage = (itemId) => {
         if (!itemId || !dataItems?.length) return;
@@ -30,6 +30,7 @@ function PagesPane () {
           item={item}
           dataItems={dataItems}
           apiUpdate={apiUpdate}
+          renderAddItemButton={isUserAuthed(['create-page'])}
           NavComp={(props) => DraggableNavItem({...props, duplicatePage})}
         />
       </div>
@@ -283,10 +284,12 @@ function RenameModal ({title, prompt, item={}, dataItems, open, setOpen})  {
 
 
 export function PublishButton () {
-  const {item, apiUpdate } =  React.useContext(PageContext) || {}
+  const {item, apiUpdate, reqPermissions } =  React.useContext(PageContext) || {}
   const hasChanges = item.published === 'draft' || item.has_changes
-  const { user, UI } = React.useContext(CMSContext) || {};
+  const { user, UI, authPermissions, isUserAuthed } = React.useContext(CMSContext) || {};
   const {Button} = UI;
+
+  if(!isUserAuthed(['publish-changes'])) return <div className={'w-full flex items-center h-[40px] text-white'}>user not authorised to publish.</div>
   return (
     <div className='w-full flex justify-center h-[40px]'>
       { hasChanges && (

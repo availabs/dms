@@ -2,37 +2,98 @@ import React from 'react'
 import { InputComp , ButtonPrimary} from '../ui'
 import Layout from '../ui/avail-layout'
 import {AdminContext} from "../siteConfig";
-import { Link } from 'react-router'
+import { Link, useLocation } from 'react-router'
+import {callAuthServer} from "../utils";
 
 
-function NewSite ({apiUpdate}) {
+function NewSite ({app, user, AUTH_HOST, apiUpdate}) {
+	const {UI, PROJECT_NAME} = React.useContext(AdminContext);
+	const {Input, Button} = UI;
+	const [newUser, setNewUser] = React.useState({email: '', password: '', verify: ''});
+	const [status, setStatus] = React.useState('');
 	const [newSite, setNewSite] = React.useState({
 		site_name: '',
-		patterns: []
+		patterns: [{pattern_type: 'auth', name: 'Auth', base_url: 'dms_auth', authPermissions: JSON.stringify({[`${PROJECT_NAME} Admin`]: ['*']})}]
 	})
 
-	function createSite () {
-		if(newSite?.site_name?.length > 3) {
-			apiUpdate({data: newSite})
+	async function createSite () {
+		if(newSite?.site_name?.length > 3 && newUser.email ) {
+			console.log('calling', AUTH_HOST)
+			await callAuthServer(`${AUTH_HOST}/init/setup`,
+				{
+					email: newUser.email,
+					password: newUser.password,
+					project: app,
+				})
+				.then(res => {
+					console.log('res', res)
+					if (res.error) {
+						setStatus(res.error)
+					} else {
+						apiUpdate({data: newSite})
+					}
+				})
+				.catch(error => {
+					console.error('Cannot contact authentication server.');
+				});
 		}
 	}
 
+	// todo: login / signup to create a new site
+	// existing user: login, then prompt to create site.
+	// 				   after creating site, create project for app,
+	// 				   create group for app + 'admin',
+	// 				   assign group to project with auth level 10.
+	// 				   assign logged in user to the group,
+	// new user: create user,
+	// 			 follow above steps
+	// create a public group
+
 	return (
-		<div className={'h-screen w-screen bg-slate-100 flex items-center justify-center'}>
-			<div className='w-[316px] h-[250px] -mt-[200px] bg-white shadow rounded p-4 flex flex-col justify-between'>
-				<InputComp 
+		<div className={'h-full w-full bg-slate-100 flex items-top justify-center'}>
+			<div className='w-full h-fit max-h-fit p-4 flex flex-col justify-between gap-3'>
+				<InputComp
+					Comp={Input}
 					label='Create Your Site'
 					placeholder='Site Name'
 					value={newSite.site_name}
 					onChange={(e) => setNewSite({...newSite, ['site_name']: e.target.value })}
 				/>
+
+				<InputComp
+					Comp={Input}
+					type={'text'}
+					label='Email'
+					placeholder='email'
+					value={newUser.email}
+					onChange={(e) => setNewUser({...newUser, ['email']: e.target.value})}
+				/>
+				<InputComp
+					Comp={Input}
+					type={'password'}
+					label='Password'
+					placeholder='password'
+					value={newUser.password}
+					onChange={(e) => setNewUser({...newUser, ['password']: e.target.value})}
+				/>
+				<InputComp
+					Comp={Input}
+					type={'password'}
+					label='Verify Password'
+					placeholder='verify password'
+					value={newUser.verify}
+					onChange={(e) => setNewUser({...newUser, ['verify']: e.target.value})}
+				/>
+
 				<div>
-			 	<ButtonPrimary onClick={createSite}>
-			 		Create
-			 	</ButtonPrimary>
-	 		</div>
+					<Button disabled={ (newUser.password !== newUser.verify) || !newSite.site_name } onClick={createSite}>
+						Create
+					</Button>
+				</div>
+				<div>
+					{status}
+				</div>
 			</div>
-			
 	 	</div>
 	)
 }
@@ -44,29 +105,30 @@ function SiteEdit ({
    attributes,
    updateAttribute,
    status,
-   apiUpdate, 
-   format
+   apiUpdate,
+   format,
+	...props
 }) {
-	
-	const { baseUrl, theme, user } = React.useContext(AdminContext) || {}
-	const updateData = (data, attrKey) => {
+
+	const { baseUrl, authPath, theme, app, user, AUTH_HOST } = React.useContext(AdminContext) || {}
+	const location = useLocation()
+  const updateData = (data, attrKey) => {
 		console.log('admin pattern - siteEdit - updateData', attrKey, data, format)
 		apiUpdate({data: {...item, ...{[attrKey]: data}}, config: {format}})
 	}
-	
+
 	if(!item.id && dataItems?.length > 0) {
 		item = dataItems[0]
 	}
 
-	console.log('admin pattern - siteEdit - item', item)
-	if(!item.id) return <NewSite apiUpdate={apiUpdate} />// (<Layout></Layout>)()
-
+	if(!item.id) return <NewSite app={app} user={user} AUTH_HOST={AUTH_HOST} apiUpdate={apiUpdate} />// (<Layout></Layout>)()
+	//if(!user?.authed) return <div>To access this page, you need to: <Link to={`${authPath}/login`} state={{ from: location.pathname }}>login</Link></div>
 
 	const menuItems = [
 		{
 			name: <div className=''>Dashboard</div>,
 			className:''
-		}, 
+		},
 		{
 			name:'manage sites',
 			className: 'px-6 pb-1 pt-4 uppercase text-xs text-blue-400'

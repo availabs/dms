@@ -34,7 +34,6 @@ function MenuItemEditor({onSave, onCancel, item}) {
     icon: '',
     path: '',
     className: '',
-    authLevel: '-1'
   }
   let [newItem, setNewItem] = React.useState(item || blankItem )
 
@@ -42,7 +41,7 @@ function MenuItemEditor({onSave, onCancel, item}) {
 
   return (
     <div>
-      {['name', 'icon', 'path', 'className', 'authLevel']
+      {['name', 'icon', 'path', 'className']
         .map(key => {
         return (
           <div key={key}>

@@ -20,7 +20,7 @@ const json2DmsForm = (data,requestType='update',config, path) => {
   return out
 }
 
-export default function EditWrapper({ Component, format, options, params, user, falcor, mode, ...props}) {
+export default function EditWrapper({ Component, format, options, params, user, falcor, mode, reqPermissions, ...props}) {
 
 	const {app, type} = format;
 	const attributes = getAttributes(format, options, 'edit')
@@ -108,6 +108,7 @@ export default function EditWrapper({ Component, format, options, params, user, 
 			format={format}
 			attributes={attributes}
 			item={item}
+			reqPermissions={reqPermissions}
 			dataItems={data}
 			busy={busy}
 			params={params}

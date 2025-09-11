@@ -23,9 +23,13 @@ function ScrollToTop() {
 }
 
 export default function dmsPageFactory (
-  dmsConfig,
-  authWrapper = (Component) => Component,
-  ErrorBoundary
+    {
+        dmsConfig,
+        authWrapper = (Component) => Component,
+        ErrorBoundary,
+        user,
+        isAuth
+    }
 ) {
   let {
     API_HOST = 'https://graph.availabs.org',
@@ -37,6 +41,7 @@ export default function dmsPageFactory (
   const falcor = falcorGraph(API_HOST)
 
   async function loader ({ request, params }) {
+      if(isAuth) return {data: []}
     let data = await dmsDataLoader(falcor, dmsConfig, `/${params['*'] || ''}`)
     // console.log('loader data', data)
     return {
@@ -45,6 +50,7 @@ export default function dmsPageFactory (
   }
 
   async function action ({ request, params }) {
+      if(isAuth) return;
     const form = await request.formData();
     return dmsDataEditor(falcor,
       dmsConfig,
@@ -56,16 +62,19 @@ export default function dmsPageFactory (
 
   function DMS() {
     const params = useParams();
+    const location = useLocation();
     const navigate = useNavigate();
     const AuthedManager = authWrapper(DmsManager)
 
     return React.useMemo(() => (
       <FalcorProvider falcor={falcor}>
-        <AuthedManager
+        <DmsManager
           path={ `/${params['*'] || ''}` }
+          baseUrl={baseUrl}
           config={dmsConfig}
           navigate={navigate}
           falcor={falcor}
+          user={user}
         />
       </FalcorProvider>
     ),[params['*']])

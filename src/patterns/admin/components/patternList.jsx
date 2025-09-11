@@ -106,7 +106,6 @@ function PatternList (props) {
 				<div className={'font-semibold grid grid-cols-4 '}>
 					<div>Pattern Type</div>
 					<div>Doc Type</div>
-					<div>Auth Level</div>
 					<div>Base Url</div>
 					<div></div>
 				</div>
@@ -115,7 +114,6 @@ function PatternList (props) {
 						<div key={pattern.id} className={'grid grid-cols-4 '}>
 							<div>{pattern.pattern_type}</div>
 							<div>{pattern.name || pattern.doc_type}</div>
-							<div>{pattern.authLevel}</div>
 							<Link to={pattern.base_url}>{pattern.base_url} ok?</Link>
 							<Link to={`/manage_pattern/${pattern.id}`}>Manage</Link>
 						</div>
@@ -139,14 +137,14 @@ function PatternEdit({
 	 ...rest
 }) {
 	const {app, API_HOST, UI} = useContext(AdminContext);
-	const {Table, Input, Button, Modal, Drawer} = UI;
+	const {Table, Input, Button, Modal} = UI;
 	const gridRef = useRef(null);
 	const [search, setSearch] = useState('');
 	const [newItem, setNewItem] = useState({app: format?.app});
 	const [addingNew, setAddingNew] = useState(false);
 	const [editingItem, setEditingItem] = useState(undefined);
 	const [isDuplicating, setIsDuplicating] = useState(false);
-	const attrToAddNew = ['pattern_type', 'name', 'subdomain', 'base_url', 'filters', 'authLevel'];
+	const attrToAddNew = ['pattern_type', 'name', 'subdomain', 'base_url', 'filters', 'authPermissions'];
 	const columns = [
 		{name: 'name', display_name: 'Name', show: true, type: 'text'},
 		{name: 'subdomain', display_name: 'Subdomain', show: true, type: 'text'},
@@ -187,12 +185,12 @@ function PatternEdit({
 	const data = value
 		.map(v => ({...v, name: v.name || v.doc_type, manage_url: `${v.base_url === '/' ? '' : v.base_url}/manage/design`}))
 		.filter(v => !search || v.name.toLowerCase().includes(search.toLowerCase()));
+	const authExists = data.some(d => d.pattern_type === 'auth')
 
 	return (
-			<div className={'flex flex-col p-10 w-full divide-y-2'}>
+			<div className={'flex flex-col w-full overflow-auto'}>
 				<div className={'w-full flex justify-between border-b-2 border-blue-400'}>
 					<div className={'text-2xl font-semibold text-gray-700'}>Sites</div>
-					<button onClick={() => navigate(-1)}>back</button>
 				</div>
 				<div className={'w-full flex'}>
 					<Input type={'text'} value={search} onChange={e => setSearch(e.target.value)} placeholder={'Filter sites'} />
@@ -213,12 +211,17 @@ function PatternEdit({
                                     if(attrKey === 'filters'){
                                         EditComp = RenderFilters
                                     }
+									const options =
+										attrKey === 'pattern_type' && authExists && props.options?.length ?
+											props.options.filter(o => o.value !== 'auth') :
+											props.options;
 									return (
-
 										<EditComp
 											value={newItem?.[attrKey]}
 											onChange={(v) => setNewItem({...newItem, [attrKey]: v})}
 											{...props}
+											options={options}
+											placeHolder={attrKey}
 											key={`${attrKey}-${i}`}
 										/>
 
@@ -247,12 +250,18 @@ function PatternEdit({
                                     if(attrKey === 'filters'){
                                         EditComp = RenderFilters
                                     }
+                                    const options =
+                                        attrKey === 'pattern_type' && authExists && props.options?.length ?
+                                            props.options.filter(o => o.value !== 'auth') :
+                                            props.options;
 									return (
 
 										<EditComp
 											value={editingItem?.[attrKey]}
 											onChange={(v) => setEditingItem({...editingItem, [attrKey]: v})}
+											placeHolder={attrKey}
 											{...props}
+                                            options={options}
 											key={`${attrKey}-${i}`}
 										/>
 

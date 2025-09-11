@@ -137,7 +137,7 @@ export const docs = {
 
 }
 
-function DraggableNav ({item, dataItems, NavComp=DefaultNavItem, baseUrl, apiUpdate, edit=true}) {
+function DraggableNav ({item, dataItems, NavComp=DefaultNavItem, baseUrl, apiUpdate, edit=true, renderAddItemButton=true}) {
     const {theme: themeFromContext = {}} = useContext(ThemeContext);
     const theme = {...themeFromContext, nestable: {...nestableTheme, ...(themeFromContext.nestable || {})}}
     //const submit = useSubmit()
@@ -231,7 +231,7 @@ function DraggableNav ({item, dataItems, NavComp=DefaultNavItem, baseUrl, apiUpd
       
       
       </div>
-      {edit && <AddItemButton dataItems={dataItems} apiUpdate={apiUpdate}/>}
+      {edit && renderAddItemButton && <AddItemButton dataItems={dataItems} apiUpdate={apiUpdate}/>}
     </div>
     
   )

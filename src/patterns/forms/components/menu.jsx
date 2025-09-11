@@ -51,14 +51,12 @@ export default ({title, children, adminPath}) => {
             {
                 name: 'Patterns',
                 icon: 'fad fa-sign-out-alt pb-2 pr-1',
-                path: '/list',
-                authLevel: 5
+                path: '/list'
             },
             {
                 name: 'Manager',
                 icon: 'fad fa-sign-out-alt pb-2 pr-1',
-                path: `${baseUrl}/manage`,
-                authLevel: 5
+                path: `${baseUrl}/manage`
             },
         ]
     
@@ -70,9 +68,12 @@ export default ({title, children, adminPath}) => {
                     <div className='p-1 bg-blue-500 z-40'>
                        
                         <div className='py-2'>
-                            {authMenuItems.map((item) => {
+                            {authMenuItems
+                                // .filter(item => user.authLevel >= (+item.authLevel || -1))
+                                .map((item) => {
                                 return <>
-                                    {user.authLevel >= (+item.authLevel || -1) && (
+                                    {
+                                        (
                                         <Item to={item.path} icon={item.icon}>
                                             {item.name}
                                         </Item>

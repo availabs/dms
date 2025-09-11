@@ -238,7 +238,7 @@ const Edit = ({attributes, item, dataItems, apiLoad, apiUpdate, updateAttribute,
                 </button>
 
                 {
-                    user?.authed && user.authLevel === 10 &&
+                    user?.authed &&
                     <button
                         className={actionButtonClassName} title={'Add'}
                         onClick={() => setIsAdding(!isAdding)}

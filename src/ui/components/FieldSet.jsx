@@ -36,7 +36,7 @@ export default function FieldSetComp ({ components, className }) {
 
           return (
             <FieldComp key={i} {...c}>
-              <Comp {...c} />
+              <Comp {...c} type={c.input_type} />
             </FieldComp>
           )
         })

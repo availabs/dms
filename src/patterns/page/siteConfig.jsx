@@ -24,10 +24,28 @@ import cmsFormat from "./page.format.js";
 import { CMSContext } from "./context";
 import DefaultMenu from "./components/menu";
 
-import { SearchPage } from "./components/search/SearchPage";
+// import { SearchPage } from "./components/search/SearchPage";
 
 import defaultTheme from "../../ui/defaultTheme";
 import ErrorPage from "./pages/error";
+
+const isUserAuthed = ({user={}, reqPermissions=[], authPermissions=[]}) => {
+    if(!user?.authed) return false;
+    if(!Object.keys(authPermissions).length) return true;
+
+    const userAuthPermissions =
+        (user.groups || [])
+            .filter(group => authPermissions[group])
+            .reduce((acc, group) => {
+                const groupPermissions = Array.isArray(authPermissions[group]) ? authPermissions[group] : [authPermissions[group]];
+                if(groupPermissions?.length){
+                    acc.push(...groupPermissions)
+                }
+                return acc;
+                }, []);
+
+    return !reqPermissions?.length || userAuthPermissions.some(permission => permission === '*' || reqPermissions.includes(permission))
+}
 
 const pagesConfig = ({
   app = "dms-site",
@@ -37,12 +55,13 @@ const pagesConfig = ({
   baseUrl = "/",
   damaBaseUrl,
   logo, // deprecated
-  authLevel = -1,
+  authPermissions,
   themes = { default: {} },
   pattern,
   site,
   pgEnv,
   API_HOST,
+    user
 }) => {
   // console.log('pass themes', themes)
   let theme = merge(
@@ -58,7 +77,6 @@ const pagesConfig = ({
   // console.log('testing', theme.navOptions)
   // console.log('page siteConfig app,type', `"${app}","${type}"`)
 
-  // console.log('theme', theme)
 
   const format = cloneDeep(cmsFormat);
   format.app = app;
@@ -71,12 +89,6 @@ const pagesConfig = ({
   // ---------------------------------------------
   // for instances without auth turned on, default user can edit
   // should move this to dmsFactory default authWrapper
-  const defaultUser = {
-    email: "user",
-    authLevel: 10,
-    authed: true,
-    fake: true,
-  };
   // ---------------------------------------------
 
   const patternFilters = parseIfJSON(pattern?.filters, []);
@@ -111,32 +123,29 @@ const pagesConfig = ({
     },
     children: [
       {
-        type: ({ children, user = defaultUser, falcor, ...props }) => {
+        type: ({children, falcor, ...props}) => {
           // console.log('hola', user, defaultUser, user || defaultUser)
           console.log('page siteConfig - UI', UI )
           return (
-            <CMSContext.Provider
-              value={{
-                app,
-                type,
-                siteType,
+              <CMSContext.Provider value={{
+                app, type, siteType,
                 API_HOST,
                 baseUrl,
-                pgEnv,
-                damaBaseUrl,
+                pgEnv, damaBaseUrl,
                 user,
                 falcor,
                 patternFilters,
-                Menu: () => <>{rightMenu}</>,
-              }}
-            >
-              <ThemeContext.Provider value={{ theme, UI }}>
-                {children}
-              </ThemeContext.Provider>
-            </CMSContext.Provider>
-          );
+                authPermissions,
+                isUserAuthed: (reqPermissions, customAuthPermissions) => isUserAuthed({user, authPermissions: customAuthPermissions || authPermissions, reqPermissions}),
+                Menu: () => <>{rightMenu}</>
+              }}>
+                <ThemeContext.Provider value={{theme, UI}}>
+                  {children}
+                </ThemeContext.Provider>
+              </CMSContext.Provider>
+          )
         },
-        authLevel,
+        authPermissions, // passed down from dmsSiteFactory. these are saved authorisations in patterns.
         action: "list",
         path: "/*",
         filter: {
@@ -162,40 +171,35 @@ const pagesConfig = ({
             type: (props) => <PageEdit {...props} />,
             path: "edit/*",
             action: "edit",
-            authLevel: 5,
+            authPermissions,
+            reqPermissions: ['create-page', 'update-page']
           },
           {
             type: (props) => <PageView {...props} />,
             filter: {
               attributes: [
-                "title",
-                "index",
-                "filters",
-                "url_slug",
-                "parent",
-                "published",
-                "hide_in_nav",
-                "sections",
-                "section_groups",
-                "sidebar",
-                "navOptions",
-                "theme",
-              ],
+                  'title',
+                  'index',
+                  'filters',
+                  'authPermissions',
+                  'url_slug',
+                  'parent',
+                  'published',
+                  'hide_in_nav',
+                  'sections',
+                  'section_groups',
+                  'sidebar',
+                  'navOptions',
+                  'theme']
             },
             path: "/*",
-            action: "view",
+            action: "view"
           },
           // {
           //   type: (props) => <SearchPage {...props}/>,
           //   path: "search/*",
           //   action: "list"
-          // },
-
-          // {
-          //   type: TemplatePreview,
-          //   action: "edit",
-          //   path: "/view/:id"
-          // },
+          // }
         ],
       },
     ],
@@ -210,12 +214,13 @@ const pagesManagerConfig = ({
   baseUrl = "/",
   damaBaseUrl,
   logo, // deprecated
-  authLevel = -1,
+  authPermissions,
   themes = { default: {} },
   pattern,
   site,
   pgEnv,
   API_HOST,
+    user
 }) => {
   //console.log('hola', themes)
   let theme = merge(
@@ -259,7 +264,6 @@ const pagesManagerConfig = ({
   // console.log('pgEnv siteConfig', app, type, pgEnv)
   // for instances without auth turned on, default user can edit
   // should move this to dmsFactory default authWrapper
-  const defaultUser = { email: "user", authLevel: 5, authed: true, fake: true };
 
   // const rightMenuWithSearch = rightMenu; // for live site
   return {
@@ -269,7 +273,7 @@ const pagesManagerConfig = ({
     API_HOST,
     children: [
       {
-        type: ({ children, user = defaultUser, falcor, ...props }) => {
+        type: ({children, falcor, ...props}) => {
           return (
             <CMSContext.Provider
               value={{
@@ -292,7 +296,7 @@ const pagesManagerConfig = ({
             </CMSContext.Provider>
           );
         },
-        authLevel,
+        authPermissions,
         action: "list",
         path: "/*",
         filter: {
