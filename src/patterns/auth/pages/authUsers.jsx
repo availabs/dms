@@ -1,5 +1,4 @@
 import React, {useEffect, useMemo, useRef, useState} from "react";
-import {useNavigate, Link} from "react-router";
 import {ThemeContext} from "../../../ui/useTheme";
 import {AuthContext} from "../siteConfig";
 import {callAuthServer} from "../utils";
@@ -13,12 +12,16 @@ export default (props) => {
     const [users, setUsers] = React.useState([]);
     const [requests, setRequests] = React.useState([]);
     const [searchUser, setSearchUser] = React.useState('');
+    const [searchGroup, setSearchUGroup] = React.useState('');
     const [searchRequest, setSearchRequest] = React.useState('');
+    const [newUser, setNewUser] = React.useState({});
+    const [addingNew, setAddingNew] = React.useState(false);
+    const [editUser, setEditUser] = React.useState();
+    const [status, setStatus] = React.useState('');
     const {theme} = React.useContext(ThemeContext);
-    const {UI, user, AUTH_HOST, PROJECT_NAME, defaultRedirectUrl, ...restAuthContext} = React.useContext(AuthContext);
+    const {UI, user, AUTH_HOST, PROJECT_NAME, defaultRedirectUrl, baseUrl, ...restAuthContext} = React.useContext(AuthContext);
     const gridRef = useRef(null)
-    const {Table, Input, Select, Button} = UI;
-    const navigate = useNavigate();
+    const {Modal, Table, Input, Select, Button} = UI;
 
     useEffect(() => {
         async function loadGroups(){
@@ -133,6 +136,8 @@ export default (props) => {
     const userColumns = [
         {name: 'email', display_name: 'User', show: true, type: 'text'},
         {name: 'groups', display_name: 'Groups', show: true, type: 'multiselect', options: groups.map(g => g.name)},
+        {name: '', display_name: '', show: true, type: 'ui',
+        Comp: d => <Button onClick={() => setEditUser(d.row)}>reset password</Button>},
     ]
 
     const InputControl = ({show, value, onChange, placeHolder}) => {
@@ -173,14 +178,26 @@ export default (props) => {
             displayFn: (attribute) => (
                 <div className={'flex gap-3 items-center'}>
                     {attribute.display_name}
-                    <InputControl show={attribute.name === 'email'}
-                                  type={'text'}
-                                  value={searchUser}
-                                  onChange={setSearchUser}
-                                  placeHolder={'search...'}/>
+                    { attribute.name === 'email' ?
+                        <InputControl show={attribute.name === 'email'}
+                                      type={'text'}
+                                      value={searchUser}
+                                      onChange={setSearchUser}
+                                      placeHolder={'search...'}/> :
+                        attribute.name === 'groups' ?
+                            <InputControl show={attribute.name === 'groups'}
+                                          type={'text'}
+                                          value={searchGroup}
+                                          onChange={setSearchUGroup}
+                                          placeHolder={'search...'}/> : null
+                    }
                 </div>
             )}}), [searchUser])
-    const filteredUsers = useMemo(() => users.filter(r => !searchUser || r.email.toLowerCase().includes(searchUser)), [users, searchUser]);
+    const filteredUsers = useMemo(() => users.filter(r =>
+        (!searchUser && !searchGroup) ||
+        (searchUser && r.email.toLowerCase().includes(searchUser)) ||
+        (searchGroup && r.groups.some(g => g.toLowerCase().includes(searchGroup)))),
+        [users, searchUser, searchGroup]);
     const filteredRequests = useMemo(() => requests.filter(r => !searchRequest || r.user_email.toLowerCase().includes(searchRequest)), [requests, searchRequest])
     const customTableTheme = {tableContainer1: 'flex flex-col no-wrap min-h-[40px] max-h-[700px] overflow-y-auto'}
 
@@ -190,6 +207,8 @@ export default (props) => {
         <div className={'flex flex-col gap-3'}>
             <div className={'w-full flex justify-between border-b-2 border-blue-400'}>
                 <div className={'text-2xl font-semibold text-gray-700'}>Users</div>
+                <Button className={'shrink-0'} onClick={() => setAddingNew(true)}> Add new </Button>
+
             </div>
             {/*<div className={''}>
                 <div>Requests</div>
@@ -255,6 +274,71 @@ export default (props) => {
                            customTheme={customTableTheme}
                     />
             </div>
+
+            <Modal open={addingNew} setOpen={setAddingNew}>
+                <div className={'flex flex-row gap-3'}>
+                    <Input type={'text'}
+                           value={newUser.email}
+                           onChange={e => setNewUser({...newUser, email: e.target.value})}
+                           placeHolder={'Please enter user email'}
+                    />
+                    <Button onClick={async () => {
+                        setStatus('Adding');
+                        await callAuthServer(`${AUTH_HOST}/signup/assign/group`,
+                            {
+                                token: user.token,
+                                email: newUser.email,
+                                url: window?.location?.host,
+                                // group: newUser.group,
+                                project: PROJECT_NAME
+                            })
+                            .then(res => {
+                                console.log('res', res)
+                                if (res.error) {
+                                    setStatus(res.error)
+                                } else {
+                                    setStatus('')
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Cannot contact authentication server.');
+                            });
+                        setNewUser({email: ''})
+                        setStatus('');
+                    }}>{status || 'Add'}</Button>
+                </div>
+            </Modal>
+
+            <Modal open={Boolean(editUser)} setOpen={setEditUser}>
+                <div className={'flex flex-row gap-3'}>
+                    Are you sure you want to reset password for user: {editUser?.email}?
+                    <Button
+                        type={'plain'}
+                        className={`${theme?.forgotPasswordButton}`}
+                        onClick={async () => {
+                            await callAuthServer(`${AUTH_HOST}/password/reset`,
+                                {
+                                    project_name: PROJECT_NAME,
+                                    email: editUser?.email,
+                                    host: `${window?.location?.host}`,
+                                    url: `/${baseUrl}/login`
+                                })
+                                .then(res => {
+                                    if (res.error) {
+                                        setStatus(res.error)
+                                        console.error('Error', res.error)
+                                    } else {
+                                        setStatus(res.message)
+                                        // navigate(`${baseUrl}/login`)
+                                    }
+                                })
+                                .catch(error => {
+                                    setStatus('Cannot contact authentication server.')
+                                    console.error('Cannot contact authentication server.');
+                                });
+                        }}> <span className={`text-sm ${theme?.dataCard?.value}`}> {status || "reset"} </span> </Button>
+                </div>
+            </Modal>
         </div>
     )
 }

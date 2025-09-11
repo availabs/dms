@@ -188,7 +188,7 @@ export function DmsSite ({
 
     useEffect(() => {
         async function load (){
-            const user = await getUser(AUTH_HOST, PROJECT_NAME);
+            const user = await getUser({AUTH_HOST, PROJECT_NAME});
             setUser(user || {});
         }
         load();

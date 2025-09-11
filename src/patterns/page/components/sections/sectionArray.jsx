@@ -228,6 +228,7 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
                             {/* edit new or existing section */}
                             {edit.index === i
                                 ? <SectionEdit
+                                    // key={v.id} having key introduces bugs while adding a new section
                                     value={edit.value}
                                     onChange={setEditValue}
                                     onSave={save}
@@ -248,6 +249,7 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
                             {/* show section if not being edited */}
                             { v !== '' && !(edit.index === i && edit.type === 'update') ?
                                 <SectionView
+                                    key={v.id} // to prevent value glitch while removing sections
                                     value={v}
                                     i={i}
                                     moveItem={moveItem}
@@ -328,8 +330,13 @@ const View = ({value, attr, group, siteType}) => {
                             >
 
                                 <SectionView
+<<<<<<< HEAD
                                     attributes={attr?.attributes}
                                     key={i}
+=======
+                                    attributes={attr.attributes}
+                                    key={v.id}
+>>>>>>> 164f5e5d48982c1ced9b9b3687cd1c45a0e6babf
                                     i={i}
                                     value={v}
                                     siteType={siteType}

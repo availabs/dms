@@ -16,7 +16,7 @@ const parseIfJson = strValue => {
     }
 }
 
-const DisplayCalculatedCell = ({value, className}) => <div className={className}>{value}</div>
+const DisplayCalculatedCell = ({value, className}) => <div className={className}>{typeof value === 'object' ? JSON.stringify(value) : value}</div>
 const LoadingComp = ({className}) => <div className={className}>loading...</div>
 
 const LinkComp = ({attribute, columns, newItem, removeItem, value, Comp}) => {

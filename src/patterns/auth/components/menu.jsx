@@ -50,7 +50,7 @@ export default ({title, children}) => {
                     <div className='p-1 bg-white rounded-md z-30 shadow-md'>
                        
                         <div className='py-2'>
-                            <div className='text-md font-thin tracking-tighter text-left'>{user.email ? user.email : ''}</div>
+                            <Link className='text-md font-thin tracking-tighter text-left' to={`${baseUrl}/manage/profile`}>{user.email ? user.email : ''}</Link>
                             <div className='text-xs font-medium -mt-1 tracking-widest text-left'>{user?.groups?.[0] ? user.groups[0] : ''}</div>
                             {authMenuItems
                                 .map((item,i) => {

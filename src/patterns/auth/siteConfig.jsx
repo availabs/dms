@@ -11,6 +11,7 @@ import AuthUsers from "./pages/authUsers";
 import AuthGroups from "./pages/authGroups";
 import AuthResetPassword from "./pages/authResetPassword";
 import AuthForgotPassword from "./pages/authForgotPassword";
+import Profile from "./pages/profile";
 import {cloneDeep, merge} from "lodash-es";
 
 export const AuthContext = React.createContext(null);
@@ -120,7 +121,7 @@ const authConfig = ({
               type: props => <AuthSignup{...props} />,
               path: "signup",
           },
-          {
+            {
               type: props => <AuthResetPassword {...props} />,
               path: "password/reset",
           },
@@ -227,6 +228,10 @@ const manageAuthConfig = ({
             reqPermissions: ['auth-groups'],
             path: "groups",
           },
+            {
+                type: props => <Profile {...props} />,
+                path: "profile/:user_id?",
+            },
         ]
       }
     ]
