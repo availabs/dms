@@ -22,14 +22,8 @@ const isJson = (str)  => {
 export function SectionEdit ({value, i, onChange, attributes, size, onCancel, onSave, onRemove, siteType, apiLoad, apiUpdate, format, isActive}) {
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     let sectionTitleCondition = value?.['title']
-<<<<<<< HEAD
     const { theme, UI } = React.useContext(ThemeContext);
-    const { Popover, Button, Icon, Switch, Input } = UI
-=======
-    const { theme } = React.useContext(ThemeContext);
-    const { UI } = React.useContext(CMSContext) || {}
     const { Popover, Button, Icon, Switch, Listbox } = UI
->>>>>>> 600416b4241bbad4f93f5f8fd3226798ae97dc4e
 
     const updateAttribute = (k, v) => {
         // console.log('change',k,v, {...value, [k]: v})
