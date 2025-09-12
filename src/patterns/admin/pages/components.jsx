@@ -1,12 +1,14 @@
 import React, {useContext, useEffect, useMemo, useState} from 'react'
+import Frame from 'react-frame-component'
 import { useImmer } from 'use-immer';
 import {useNavigate} from 'react-router';
-import Frame from 'react-frame-component'
-import { merge, cloneDeep } from "lodash-es";
+
+import { merge, cloneDeep, get, set } from "lodash-es";
 
 import {ThemeContext} from "../../../ui/useTheme";
 import {AdminContext} from "../siteConfig";
 
+import themeEditorConfig from './themeEditorConfig';
 
 const parseIfJson = (value) => {
 	try {
@@ -48,6 +50,32 @@ const compOptions = [
 	{ label: 'Modal', value: 'Modal' },
 ];
 
+
+
+
+function ControlRenderer({ config, state, setState }) {
+  const { UI } = useContext(ThemeContext);
+  const { FieldSet } = UI;
+  const controls = (config?.controls || [])
+    .filter(d => d) //implement conditionals
+    .map(d => {
+      return {
+        ...d,
+        value: get(state, `${d.path}`, d?.default || ''),
+        onChange: (e) => setState(draft => {
+          set(draft, `${d.path}`, e.target.value)
+        })
+      }
+    })
+  console.log('Fieldset controls', controls)
+  return (
+    <div> {/* controlWrapper goes here */ }
+      <div>{ config?.label || ''}</div>
+      <FieldSet components={controls} />
+    </div>
+  )
+}
+
 function ComponentList ({
    item={},
    dataItems,
@@ -70,13 +98,12 @@ function ComponentList ({
 	const compFromProps = useMemo(() => compOptions.find(c => c.value.toLowerCase() === component?.toLowerCase())?.value, [component]);
 	const [currentComponent, setCurrentComponent] = useState(compFromProps || 'Button');
   const [currentComponentPropsIdx, setCurrentComponentPropsIdx] = useState(0);
-  const [currentThemeSetting, setCurrentThemeSetting ] = React.useState('layout')
+  const [currentThemeSetting, setCurrentThemeSetting ] = React.useState(Object.keys(themeEditorConfig)[0])
 
 
 	const themeObj = useMemo(() => (item.themes || []).find(t => t.id === theme_id), [item.themes, theme_id])
-	const [currentTheme, setCurrentTheme] = useImmer(parseIfJson(themeObj?.theme));
+	const [currentTheme, setCurrentTheme] = useImmer( merge(cloneDeep(theme),parseIfJson(themeObj?.theme)));
 
-  const mergedTheme = React.useMemo(() => merge(cloneDeep(theme),cloneDeep(currentTheme)), [theme, currentTheme])
 
   console.log('currentTheme', currentTheme, theme)
 
@@ -85,7 +112,7 @@ function ComponentList ({
 
 
 	useEffect(() => {
-		setCurrentTheme(parseIfJson(themeObj?.theme))
+		setCurrentTheme( merge(cloneDeep(theme),parseIfJson(themeObj?.theme)))
 	}, [themeObj]);
 
 	useEffect(() => {
@@ -105,9 +132,9 @@ function ComponentList ({
 	}
 
 	// key to access theme for current component.
-	const currThemeKey = theme?.docs?.[currentComponent]?.themeKey || currentComponent?.toLowerCase();
+	//const currThemeKey = theme?.docs?.[currentComponent]?.themeKey || currentComponent?.toLowerCase();
 	// current theme. either saved, or default.
-	const currCompTheme = mergedTheme?.[currentThemeSetting] || theme?.[currentThemeSetting] || {};
+	//const currCompTheme = mergedTheme?.[currentThemeSetting] || theme?.[currentThemeSetting] || {};
 
 	return (
 		<div className={'flex flex-col p-4 w-full divide-y-2'}>
@@ -142,14 +169,14 @@ function ComponentList ({
 				<div className={'w-[150px] p-4 order-2'}>
     		  <div className={'pb-2'}>
    					<Select value={currentThemeSetting}
-                onChange={e => {
-    						  setCurrentThemeSetting(e.target.value)
-      						//navigate(`${baseUrl}/${path.replace(':theme_id', theme_id).replace(':component?', e.target.value.toLowerCase())}`)
-   					  }}
-   							options={
-                  Object.keys(mergedTheme)
-                    .map(k => ({label:k, value:k}))
-                }
+              onChange={e => {
+  						  setCurrentThemeSetting(e.target.value)
+    						//navigate(`${baseUrl}/${path.replace(':theme_id', theme_id).replace(':component?', e.target.value.toLowerCase())}`)
+ 					    }}
+ 							options={
+                Object.keys(themeEditorConfig)
+                  .map(k => ({label:k, value:k}))
+              }
    					/>
 
 
@@ -158,8 +185,17 @@ function ComponentList ({
   						<Button className={'w-fit'} onClick={() => onSubmit(currentTheme)}>Save</Button>
   						<Button className={'w-fit'} onClick={() => setCurrentTheme(parseIfJson(themeObj?.theme))}>Reset</Button>
   					</div>
-  					<div className='h-[calc(100vh_-_20rem)] overflow-auto scrollbar-sm p-2 '>
-  					{
+  					<div className='h-[calc(100vh_-_11rem)] overflow-auto w-full scrollbar-sm p-2 '>
+            { currentThemeSetting }
+            {
+              (themeEditorConfig[currentThemeSetting] || [])
+                .map(conf => <ControlRenderer
+                  config={conf}
+                  state={currentTheme}
+                  setState={setCurrentTheme}
+                />)
+            }
+  					{/* {
   						Object.keys(currCompTheme)
   							.map(key => (
   								<div className={'w-full'}>
@@ -178,7 +214,7 @@ function ComponentList ({
   									/>
   								</div>
   							))
-  					}
+  					}*/}
   					</div>
 				</div>
 
@@ -195,8 +231,9 @@ function ComponentList ({
 						className='w-full h-[calc(100vh_-_6rem)] border-2 border-orange-500'
 						head={
 							<>
-					      <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+
 								<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.15/dist/tailwind.min.css" rel="stylesheet" />
+								<link href="https://unpkg.com/tailwindcss-utilities@1.0.10/dist/tailwind-utilities.min.css" rel="stylesheet" crossorigin />
                 <link href="/index-C-y3Pj2B.css" rel="stylesheet" />
 							</>
 						}

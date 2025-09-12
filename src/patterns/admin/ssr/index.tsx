@@ -10,7 +10,7 @@ import {
   useFalcor
 } from "@availabs/avl-falcor"
 
-import getDmsConfig, { adminSite , parseJson } from './dms_utils.ts'
+import getDmsConfig, { adminSite , parseJson } from './dms_utils.js'
 
 // ----------------------------------------------------
 // -------------- Config Setup-------------------------
@@ -40,14 +40,14 @@ let env = typeof document === "undefined" ? "server" : "client";
 // })
 
 // -------------- Config Setup--------------------------
-  
+
 
 export const loader = async({ request, params }) => {
   //console.log('index - loader - request', request.url)
   const { falcor } = await import('./falcor.ts')
-  const adminData =  await dmsDataLoader(falcor, adminSite, `/`) 
-  //console.log('dms - loader - adminData', adminData, adminSite)  
-  
+  const adminData =  await dmsDataLoader(falcor, adminSite, `/`)
+  //console.log('dms - loader - adminData', adminData, adminSite)
+
   const patterns = adminData[0]?.patterns
   const themes = (adminData[0]?.themes || []).reduce((out,curr) => {
      // console.log('theme curr', curr)
@@ -55,19 +55,19 @@ export const loader = async({ request, params }) => {
       return out
   },{})
   //console.log('dms - loader - themes',themes)
-  
+
   const dmsConfig = getDmsConfig(
-    request.headers.get('host'), 
+    request.headers.get('host'),
     new URL(request.url).pathname,
     patterns,
     themes
   )
-  if(!dmsConfig)  return {} 
-  
-  
+  if(!dmsConfig)  return {}
+
+
   let data =  await dmsDataLoader(falcor, dmsConfig, `/${params['*'] || ''}`)
-  
-  
+
+
   return {
     data,
     host: request.headers.get('host'),
@@ -84,7 +84,7 @@ export const action = async ({ request, params }) => {
   const form = await request.formData();
   //return {}
   const dmsConfig = await getDmsConfig(
-    request.headers.get('host'), 
+    request.headers.get('host'),
     new URL(request.url).pathname,
     patterns
   )
@@ -122,12 +122,12 @@ export const clientAction = async ({ request, params }) => {
   //return {}
   console.time('clientAction  data')
   let res =  await fetch(`/dms_api`, {
-      method:"POST", 
+      method:"POST",
       body: form
   })
   let data = await res.json()
   console.timeEnd('clientAction  data')
-  
+
   return data
 };
 
@@ -139,8 +139,9 @@ export default function DMS({ loaderData }) {
   const params = useParams();
   let path = React.useMemo(() => `/${params['*'] || ''}`,[params])
   const { host, data, patterns, themes } = loaderData
-  const dmsConfig = React.useMemo(() => getDmsConfig(host, path, patterns, themes), [path,host])
-  
+  const { user, setUser } = React.useState({})
+  const dmsConfig = React.useMemo(() => getDmsConfig(host, path, patterns, themes, user, setUser), [path,host])
+
 
   const AuthedManager= authWrapper(DmsManager)
   const content = useMemo(() => {
@@ -154,6 +155,5 @@ export default function DMS({ loaderData }) {
     />)
   },[dmsConfig])
   return (<>{content}</>)
-  
-}
 
+}

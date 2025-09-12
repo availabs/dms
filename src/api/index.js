@@ -10,7 +10,7 @@ import updateDMSAttrs from "./updateDMSAttrs";
 
 // const {createRequest, getIdPath} = cr
 
-// function rand(min, max) { // min and max included 
+// function rand(min, max) { // min and max included
 //   return Math.floor(Math.random() * (max - min + 1) + min)
 // }
 
@@ -19,7 +19,7 @@ import updateDMSAttrs from "./updateDMSAttrs";
 let fullDataLoad = {}
 // let runCount = 0
 
-export async function dmsDataLoader (falcor, config, path='/') {	
+export async function dmsDataLoader (falcor, config, path='/') {
 	// console.log('hola utils', utils)
 	//---- Testing stuff to delete ----------
 	// runCount += 1
@@ -27,7 +27,7 @@ export async function dmsDataLoader (falcor, config, path='/') {
 	//-------------------------------------------
 	// console.log('dmsDataLoader', config, path)
 	//-------------------------------------------
-	if(!config || !falcor.get) {
+	if(!config || !falcor?.get) {
 		return [{ message: "dmsDataLoader no config or falcor."}]
 	}
 	//console.log ('api', config)
@@ -45,7 +45,7 @@ export async function dmsDataLoader (falcor, config, path='/') {
 	//console.log('2 - ', config, config.dmsConfig.format)
 	const { app , type, view_id, env, /*defaultSearch,*/ attributes = {} } = format
 
-	
+
 	const { getActiveConfig } = await import('../dms-manager/_utils')
 	const activeConfigs = getActiveConfig(config.children, path)
 	// console.log('------------dmsDataLoader-------------')
@@ -86,7 +86,7 @@ export async function dmsDataLoader (falcor, config, path='/') {
 	let options = activeConfigs[0]?.filter?.options || '{}';
 	const itemReqByIndex = ['dms', 'data', `${ app }+${ type }`, options !== '{}' ? 'opts' : false,
 									options !== '{}' ? options : false, 'byIndex'].filter(i => i)
-	
+
 	// -- --------------------------------------------------------
 	// -- Create the requests based on all active configs
 	// -----------------------------------------------------------
@@ -97,7 +97,7 @@ export async function dmsDataLoader (falcor, config, path='/') {
 	// console.log('api - newRequests', newRequests)
     //--------- Route Data Loading ------------------------
 	//let dataresp = null
-	
+
 	if (newRequests.length > 0 ) {
         try{
             await falcor.get(...newRequests)
@@ -139,7 +139,7 @@ export async function dmsDataLoader (falcor, config, path='/') {
 	}
 
 
-	// get active ids 
+	// get active ids
 	const activeIds =  activeConfigs
 		.filter(config => config.action !== 'load')
 		.map(config => getIdPath(config, format))
@@ -179,16 +179,16 @@ export async function dmsDataLoader (falcor, config, path='/') {
 	// ---------------------------------------------------------------------------------------------------
 
 	const out = await processNewData(
-	  	newReqFalcor, 
+	  	newReqFalcor,
 	  	activeIds,
 		activeConfigs?.[0]?.filter?.stopFullDataLoad,
-	  	filteredIds?.length, 
-	  	app, type, 
+	  	filteredIds?.length,
+	  	app, type,
 	  	dmsAttrsConfigs,
 	  	format,
 	  	falcor
 	)
-	
+
 	if( activeConfigs?.[0]?.lazyLoad && !fullDataLoad[`${ app }+${ type }`]) {
 		// console.log('lazy loading')
 		// loadFullData(fullDataLoad, app, type, itemReqByIndex, runId, length, dmsAttrsConfigs, format, falcor)
@@ -201,8 +201,8 @@ export async function dmsDataEditor (falcor, config, data={}, requestType, /*pat
 	// console.log('API - dmsDataEditor', config,data)
 	const { app , type } = config.format
 	//const activeConfig = getActiveConfig(config.children, path)
-	
-	const updateRow = async (row) => { 
+
+	const updateRow = async (row) => {
 		const { id } = row
 		const attributeKeys = Object.keys(row)
 			.filter(k => !['id', 'updated_at', 'created_at'].includes(k))
@@ -233,19 +233,19 @@ export async function dmsDataEditor (falcor, config, data={}, requestType, /*pat
 		// console.log('gonna updateDMSAttrs', dmsAttrsData, dmsAttrsConfigs, falcor)
 		let updates = await updateDMSAttrs(dmsAttrsData, dmsAttrsConfigs, falcor)
 		row = {...row, ...updates}
-		
+
 
 		//--------------------------------------------------
 		// Delete
 		//--------------------------------------------------
 		if(requestType === 'delete' && id) {
 			await falcor.call(
-				["dms", "data", "delete"], 
+				["dms", "data", "delete"],
 				[app, type, id]
 			)
 			await falcor.invalidate(['dms', 'data', `${ app }+${ type }`, 'length' ])
 			return {response: `Deleted item ${id}`}
-		} 
+		}
 		//--------------------------------------------------
 		// Update Type ???
 		//--------------------------------------------------
@@ -273,13 +273,13 @@ export async function dmsDataEditor (falcor, config, data={}, requestType, /*pat
 			await falcor.invalidate(['dms', 'data', 'byId', id])
 			// console.timeEnd(`falcor update data ${id}`)
 			return {message: `Update successful: id ${id}.`,  }
-		} 
+		}
 		//--------------------------------------------------
 		// Create New
 		//--------------------------------------------------
 		else if ( attributeKeys.length > 0 ) {
-			/*  if there is only data 
-			    create new                
+			/*  if there is only data
+			    create new
 			*/
 	      	// to do - data verification
 	      	const res = await falcor.call(

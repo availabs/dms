@@ -330,13 +330,8 @@ const View = ({value, attr, group, siteType}) => {
                             >
 
                                 <SectionView
-<<<<<<< HEAD
                                     attributes={attr?.attributes}
-                                    key={i}
-=======
-                                    attributes={attr.attributes}
-                                    key={v.id}
->>>>>>> 164f5e5d48982c1ced9b9b3687cd1c45a0e6babf
+                                    key={v?.id || i}
                                     i={i}
                                     value={v}
                                     siteType={siteType}

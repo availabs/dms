@@ -63,7 +63,7 @@ export default (props) => {
                                 }
                             })
                             .catch(error => {
-                                console.error('Cannot contact authentication server.');
+                                console.error('Cannot contact authentication server.', error);
                             });
                     }}
             > <span className={`text-sm ${theme?.dataCard?.value}`}> login</span> </Button>

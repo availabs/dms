@@ -54,7 +54,7 @@ export default ({title, children}) => {
     return (
         <>
 
-            {!user.authed ?
+            {!user?.authed ?
                 <Link className={`flex items-center px-8 text-lg font-bold h-12 text-slate-500`} to="/auth/login" state={{from: location?.pathname}}>Login</Link> :
                 <Dropdown control={<div className={'px-1'}><UserMenu user={user}/></div>} className={``} >
                     <div className='p-1 bg-white rounded-md z-30 shadow-md'>
