@@ -1,6 +1,7 @@
 import React, {useEffect, useState} from "react";
 import { Typeahead, Menu, MenuItem, Input, useToken } from 'react-bootstrap-typeahead';
 import { CMSContext } from '../../context'
+import { ThemeContext } from "../../../../ui/useTheme";
 
 
 const handleSearch = (text, selected, setSelected) => {
@@ -44,8 +45,8 @@ const renderMenu = ({results, menuProps, labelKey, filter, filters, setFilter, o
                                     key={filterText}
                                     title={`Filter by: ${filterText}`}
                                     className={
-                                        `py-1 px-2 my-0.5 
-                                    ${isActive ? `bg-blue-300 hover:bg-blue-300` : `bg-blue-100 hover:bg-blue-100`} 
+                                        `py-1 px-2 my-0.5
+                                    ${isActive ? `bg-blue-300 hover:bg-blue-300` : `bg-blue-100 hover:bg-blue-100`}
                                      rounded-md`
                                     }
                                     onClick={e => onClickFn(e)}
@@ -77,7 +78,7 @@ export default ({
     showAll = false,
     placeholder = "Search..."
 }) => {
-    const { UI } = React.useContext(CMSContext) || {};
+    const { UI } = React.useContext(ThemeContext) || {};
     const { Icon } = UI;
     const [selected, setSelected] = useState([]);
     const [filter, setFilter] = useState('');

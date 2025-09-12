@@ -136,6 +136,7 @@ const pagesConfig = ({
                 falcor,
                 patternFilters,
                 authPermissions,
+                UI,
                 isUserAuthed: (reqPermissions, customAuthPermissions) => isUserAuthed({user, authPermissions: customAuthPermissions || authPermissions, reqPermissions}),
                 Menu: () => <>{rightMenu}</>
               }}>

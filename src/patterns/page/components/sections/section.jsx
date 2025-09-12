@@ -187,7 +187,7 @@ export function SectionEdit ({value, i, onChange, attributes, size, onCancel, on
                                             className='p-2 w-full bg-transparent'
                                             value={value?.['level']}
                                             placeholder={'level'}
-                                            options={attributes.level.options}
+                                            options={attributes?.level?.options}
                                             onChange={(v) => updateAttribute('level', v)}
                                         />
                                     </div>

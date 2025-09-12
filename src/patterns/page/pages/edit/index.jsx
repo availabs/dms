@@ -5,7 +5,7 @@ import {useImmer} from "use-immer";
 import { ThemeContext } from "../../../../ui/useTheme";
 import { CMSContext, PageContext } from '../../context'
 import {
-	sectionsEditBackill, dataItemsNav, mergeFilters,
+	sectionsEditBackill, dataItemsNav, mergeFilters, detectNavLevel, getInPageNav,
 	convertToUrlParams, updatePageStateFiltersOnSearchParamChange, initNavigateUsingSearchParams
 } from '../_utils'
 import SectionGroup from '../../components/sections/sectionGroup'
@@ -17,8 +17,8 @@ function PageEdit ({format, item, dataItems, updateAttribute, attributes, apiLoa
 	const [searchParams] = useSearchParams();
 	const { pathname = '/edit', search } = useLocation();
 
-	const { theme: fullTheme } = React.useContext(ThemeContext);
-	const { UI, Menu, baseUrl, user, authPermissions, patternFilters=[], isUserAuthed } = React.useContext(CMSContext) || {};
+	const { theme: fullTheme, UI } = React.useContext(ThemeContext);
+	const {  Menu, baseUrl, user, authPermissions, patternFilters=[], isUserAuthed } = React.useContext(CMSContext) || {};
 
 	const [ pageState, setPageState ] = useImmer({ ...item, filters: mergeFilters(item.filters, patternFilters) });
 	const [ editPane, setEditPane ] = React.useState({ open: false, index: 1, showGrid: false });

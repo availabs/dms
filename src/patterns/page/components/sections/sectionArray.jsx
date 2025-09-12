@@ -386,8 +386,7 @@ const ScrollToHashElement = () => {
 };
 
 const AddSectionButton = ({onClick}) => {
-    const { theme = {} } = React.useContext(ThemeContext);
-    const { UI } = React.useContext(CMSContext) || {}
+    const { theme = {}, UI} = React.useContext(ThemeContext);
     const {Icon} = UI;
     return (
         <div

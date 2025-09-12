@@ -47,8 +47,8 @@ const isUserAuthed = ({user={}, reqPermissions=[], authPermissions=[]}) => {
     return !reqPermissions?.length || userAuthPermissions.some(permission => permission === '*' || reqPermissions.includes(permission))
 }
 
-const formsAdminConfig = ({ 
-    app, 
+const formsAdminConfig = ({
+    app,
     type,
     siteType,
     baseUrl,
@@ -74,7 +74,7 @@ const formsAdminConfig = ({
         theme.navOptions.logo = logo ? logo : defaultLogo
     }
     theme.navOptions.sideNav = {
-        "size": "compact",
+        "size": "none",
         "search": "none",
         "logo": "top", "menu": "top",
         "nav": "main",
@@ -82,7 +82,7 @@ const formsAdminConfig = ({
     }
 
     theme.navOptions.topNav = {
-        "size": "none",
+        "size": "compact",
         "dropdown": "right",
         "search": "right",
         "logo": "left",
@@ -144,10 +144,10 @@ const formsAdminConfig = ({
                 },
                 path: "/*",
                 children: [
-                    { 
-                        // sources list component on blank 
-                         
-                        // sources list component on blank 
+                    {
+                        // sources list component on blank
+
+                        // sources list component on blank
                         type: props => <PatternListComponent.EditComp {...props} />,
                         path: "",
                         action: "edit"
@@ -165,12 +165,12 @@ const formsAdminConfig = ({
                           attributes:['title', 'index', 'url_slug', 'parent','published', 'hide_in_nav']
                         },
                         children: [
-                          { 
+                          {
                             type: Dashboard,
                             path: "manage/",
                             action: "edit"
                           },
-                          { 
+                          {
                             type: (props) => <DesignEditor themes={themes} {...props} />,
                             path: "manage/design",
                             action: "edit"
@@ -216,7 +216,7 @@ const formsSourceConfig = ({
         theme.navOptions.logo = logo ? logo : defaultLogo
     }
     theme.navOptions.sideNav = {
-        "size": "compact",
+        "size": "none",
         "search": "none",
         "logo": "top", "menu": "top",
         "nav": "main",
@@ -224,7 +224,7 @@ const formsSourceConfig = ({
     }
 
     theme.navOptions.topNav = {
-        "size": "none",
+        "size": "compact",
         "dropdown": "right",
         "search": "right",
         "logo": "left",
@@ -277,7 +277,7 @@ const formsSourceConfig = ({
                           authPermissions,
                           isUserAuthed: (reqPermissions, customAuthPermissions) => isUserAuthed({user, authPermissions: customAuthPermissions || authPermissions, reqPermissions}),
                       }}>
-                          <ThemeContext.Provider value={{theme}}>
+                          <ThemeContext.Provider value={{theme, UI}}>
                                   <Layout navItems={[]} Menu={Menu}>
                                       {props.children}
                                   </Layout>
@@ -377,7 +377,7 @@ const formsSourceConfig = ({
 export default [
     formsAdminConfig,
     formsSourceConfig
-    
+
 ];
 
 const updateRegisteredFormats = (registerFormats, app, type) => {

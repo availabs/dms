@@ -8,6 +8,7 @@ import {getColumnLabel, isEqualColumns} from "../utils/utils";
 import AddFormulaColumn from "./AddFormulaColumn";
 import DataSourceSelector from "../../ComponentRegistry/DataSourceSelector";
 import { ComponentContext, CMSContext } from "../../../../context";
+import { ThemeContext } from "../../../../../../ui/useTheme";
 
 
 
@@ -67,7 +68,7 @@ const gridClasses = {
 
 export default function ColumnControls({context, cms_context}) {
     const {state: {columns=[], sourceInfo, display}, setState, controls= {}} = useContext(context || ComponentContext);
-    const { UI } = React.useContext(cms_context || CMSContext) || {UI: {Icon: () => <></>, Pill: () => <></>, Switch: () => <></>}}
+    const { UI } = React.useContext(ThemeContext) || {UI: {Icon: () => <></>, Pill: () => <></>, Switch: () => <></>}}
     if(!controls.columns?.length) return;
     const { Icon, Switch, Pill } = UI;
     const dragItem = useRef();
@@ -254,8 +255,8 @@ export default function ColumnControls({context, cms_context}) {
     return (
         <div className="relative inline-block text-left">
             <button id={menuBtnId}
-                 className={`inline-flex w-full justify-center items-center rounded-md px-1.5 py-1 text-sm font-regular 
-                 text-gray-900 shadow-sm ring-1 ring-inset ${columns?.length ? `ring-blue-300` : `ring-gray-300`} 
+                 className={`inline-flex w-full justify-center items-center rounded-md px-1.5 py-1 text-sm font-regular
+                 text-gray-900 shadow-sm ring-1 ring-inset ${columns?.length ? `ring-blue-300` : `ring-gray-300`}
                  ${isOpen ? `bg-gray-50` : `bg-white hover:bg-gray-50`} cursor-pointer`}
                  onClick={() => {
                      setIsOpen(!isOpen);

@@ -1,5 +1,6 @@
 import React, { Fragment } from 'react';
 import { CMSContext,PageContext } from '../../../context'
+import { ThemeContext } from '../../../../../ui/useTheme';
 import SettingsPane from './settingsPane'
 import PagesPane, { PublishButton } from './pagesPane'
 import HistoryPane from './historyPane'
@@ -31,11 +32,11 @@ const panes = [
     ]
 
 export function EditPane () {
-  const { UI } = React.useContext(CMSContext) || {};
-  const { Icon } = UI;
+  const { UI } = React.useContext(ThemeContext) || {};
+
   const {item, dataItems, apiUpdate, editPane, setEditPane } =  React.useContext(PageContext) || {}
   const hasChanges = item.published === 'draft' || item.has_changes
-
+  const { Icon } = UI;
 
 
 
@@ -84,7 +85,7 @@ function LoadingDisplay () {
 }
 
 export function EditDrawer() {
-    const { UI } = React.useContext(CMSContext) || {};
+    const { UI } = React.useContext(ThemeContext) || {};
     const {Icon, Tabs, Drawer} = UI;
     const { item={}, dataItems=[], apiUpdate,  editPane, setEditPane } =  React.useContext(PageContext) || {}
   // console.log('editPane', editPane)

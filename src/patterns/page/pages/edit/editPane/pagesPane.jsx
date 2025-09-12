@@ -9,7 +9,8 @@ import {ThemeContext} from "../../../../../ui/useTheme";
 
 function PagesPane () {
   const { item, dataItems, apiUpdate } =  React.useContext(PageContext) || {};
-  const {UI, isUserAuthed, user} = React.useContext(CMSContext);
+  const { isUserAuthed, user} = React.useContext(CMSContext);
+  const { UI } = React.useContext(ThemeContext)
   const {DraggableNav} = UI;
     const duplicatePage = (itemId) => {
         if (!itemId || !dataItems?.length) return;
@@ -41,8 +42,8 @@ function PagesPane () {
 export default PagesPane
 
 function DraggableNavItem ({activeItem, item, dataItems, handleCollapseIconClick, isCollapsed, edit, duplicatePage}) {
-    const { baseUrl, user, UI } = React.useContext(CMSContext);
-    const { theme } = React.useContext(ThemeContext);
+    const { baseUrl, user } = React.useContext(CMSContext);
+    const { theme, UI } = React.useContext(ThemeContext);
 
     const { Icon, Menu } = UI;
     const { apiUpdate } =  React.useContext(PageContext) || {}
@@ -153,7 +154,7 @@ function DraggableNavItem ({activeItem, item, dataItems, handleCollapseIconClick
 
 function DeleteModal ({title, prompt, item={}, open, setOpen, onDelete})  {
   const cancelButtonRef = useRef(null);
-  const { UI } = React.useContext(CMSContext) || {};
+  const { UI } = React.useContext(ThemeContext) || {};
   const {Button, Dialog} = UI;
   const [loading, setLoading] = useState(false);
 
@@ -202,7 +203,8 @@ function DeleteModal ({title, prompt, item={}, open, setOpen, onDelete})  {
 
 function RenameModal ({title, prompt, item={}, dataItems, open, setOpen})  {
   const cancelButtonRef = useRef(null)
-  const {  user, UI } = React.useContext(CMSContext) || {};
+  const { UI } = React.useContext(ThemeContext)
+  const { user } = React.useContext(CMSContext) || {};
   const { apiUpdate } =  React.useContext(PageContext) || {};
   const {Button, Dialog} = UI;
   const submit = useSubmit();
@@ -286,7 +288,8 @@ function RenameModal ({title, prompt, item={}, dataItems, open, setOpen})  {
 export function PublishButton () {
   const {item, apiUpdate, reqPermissions } =  React.useContext(PageContext) || {}
   const hasChanges = item.published === 'draft' || item.has_changes
-  const { user, UI, authPermissions, isUserAuthed } = React.useContext(CMSContext) || {};
+  const { user, authPermissions, isUserAuthed } = React.useContext(CMSContext) || {};
+  const { UI } = React.useContext(ThemeContext)
   const {Button} = UI;
 
   if(!isUserAuthed(['publish-changes'])) return <div className={'w-full flex items-center h-[40px] text-white'}>user not authorised to publish.</div>
