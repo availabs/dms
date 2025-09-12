@@ -121,7 +121,7 @@ const ClearDataBtn = ({app, type, apiLoad, apiUpdate}) => {
 
         const res = await apiLoad(config);
         if(!res?.length) return;
-        const ids = res.map(r => r.id).filter(r => r);
+        const ids = res.map(r => r.id).filter(r => typeof r !== 'object' && r);
         if(!ids?.length) return;
 
         await apiUpdate({data: {id: ids}, config, requestType: 'delete'});
