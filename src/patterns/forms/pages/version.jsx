@@ -94,7 +94,7 @@ const ClearDataBtn = ({app, type, view_id, apiLoad, apiUpdate}) => {
         const validDataRes = await apiLoad(validDataconfig);
         const invalidDataRes = await apiLoad(invalidDataconfig);
         if(!validDataRes?.length && !invalidDataRes?.length) return;
-        const ids = [...validDataRes, ...invalidDataRes].map(r => r.id).filter(r => r);
+        const ids = [...validDataRes, ...invalidDataRes].map(r => r.id).filter(r => r && typeof r !== 'object');
         if(!ids?.length) return;
 
         await apiUpdate({data: {id: ids}, config: validDataconfig, requestType: 'delete'});

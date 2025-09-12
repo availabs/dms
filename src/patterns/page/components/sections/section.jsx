@@ -24,7 +24,7 @@ export function SectionEdit ({value, i, onChange, attributes, size, onCancel, on
     let sectionTitleCondition = value?.['title']
     const { theme } = React.useContext(ThemeContext);
     const { UI } = React.useContext(CMSContext) || {}
-    const { Popover, Button, Icon, Switch } = UI
+    const { Popover, Button, Icon, Switch, Listbox } = UI
 
     const updateAttribute = (k, v) => {
         // console.log('change',k,v, {...value, [k]: v})
@@ -37,6 +37,14 @@ export function SectionEdit ({value, i, onChange, attributes, size, onCancel, on
     let TitleComp = attributes?.title?.EditComp
     let LevelComp = attributes?.level?.EditComp
     let HelpComp = attributes?.helpText?.EditComp
+    const helpTextArray =
+        Array.isArray(value?.['helpText']) ?
+            value?.['helpText'] :
+            value?.['helpText']?.text ?
+                [value?.['helpText']] :
+                value?.helpText ?
+                    [{text: value?.['helpText']}] :
+                    [];
 
     return (
         <div className={``}>
@@ -47,7 +55,8 @@ export function SectionEdit ({value, i, onChange, attributes, size, onCancel, on
                         <div className={`absolute mr-16 top-[-24px] right-[-60px] flex`}>
                             {/*delete*/}
                             <Button type='plain' padding='p-1' onClick={() => setShowDeleteModal(!showDeleteModal)}>
-                                <Icon icon={'TrashCan'} className='text-red-400 hover:text-red-600 w-[24px] h-[24px]' title="Delete Section"/>
+                                <Icon icon={'TrashCan'} className='text-red-400 hover:text-red-600 w-[24px] h-[24px]'
+                                      title="Delete Section"/>
                             </Button>
                             <DeleteModal
                                 title={`Delete Section ${value?.title || ''} ${value?.id}`} open={showDeleteModal}
@@ -65,21 +74,65 @@ export function SectionEdit ({value, i, onChange, attributes, size, onCancel, on
                             />
                             {/*help text*/}
                             {
-                                value?.helpText ? (
-                                    <Popover button={<Icon icon={'InfoSquare'} className='text-blue-400 hover:text-blue-600  w-[24px] h-[24px]' title="Help Text"/>} >
-                                        <HelpComp
-                                            value={value?.['helpText']}
-                                            onChange={(v) => updateAttribute('helpText', v)}
-                                        />
-                                    </Popover>
-                                ) : null
+                                (
+                                    helpTextArray.map(({text, icon = 'InfoSquare'}, i) => (
+                                        <Popover button={
+                                            <div className='p-2 border border-[#E0EBF0] rounded-full print:hidden'>
+                                                <Icon icon={icon}
+                                                      className='text-slate-400 hover:text-blue-500 size-4 print:hidden flex justify-center items-center'
+                                                      title="Info"/>
+                                            </div>
+                                        }>
+                                            <Listbox value={icon}
+                                                     onChange={(v) => updateAttribute('helpText', helpTextArray.map((t, ii) => i === ii ? {text, icon: v} : t))}
+                                            options={[
+                                                         {label: 'Info', value: 'InfoSquare'},
+                                                         ...Object.keys(theme.Icons)
+                                                             .map((iconName) => {
+                                                                 return {
+                                                                     label: (
+                                                                         <div className='flex'>
+                                                                             <div className='px-2'>
+                                                                                 <Icon icon={iconName}
+                                                                                       className='size-6'/>
+                                                                             </div>
+                                                                             <div>
+                                                                                 {iconName}
+                                                                             </div>
+                                                                         </div>
+                                                                     ),
+                                                                     value: iconName
+                                                                 }
+                                                             }),
+                                                         {label: 'No Icon', value: 'none'}
+                                                     ]}
+                                            />
+
+                                            <HelpComp value={text}
+                                                      onChange={(v) => updateAttribute('helpText', helpTextArray.map((t, ii) => i === ii ? {text: v, icon} : t))}/>
+                                        </Popover>
+                                    ))
+                                )
                             }
+
+                            <div className="relative pt-1">
+                                <div className="p-2 border border-[#E0EBF0] rounded-full print:hidden">
+                                    <Icon icon={'SquarePlus'}
+                                          onClick={() => updateAttribute('helpText', [...helpTextArray, {text: ''}])}
+                                          className='text-slate-400 hover:text-blue-500 size-4 print:hidden flex justify-center items-center'
+                                          title="Info"/>
+                                </div>
+                            </div>
+
                             {
                                 value?.infoComp && (
                                     <Popover button={
                                         <div className='p-2 border border-[#E0EBF0] rounded-full print:hidden'>
-                                            <div className='text-slate-400 hover:text-blue-500 size-4 print:hidden flex justify-center items-center' title="Info">
-                                                i                                            </div>
+                                            <div
+                                                className='text-slate-400 hover:text-blue-500 size-4 print:hidden flex justify-center items-center'
+                                                title="Info">
+                                                i
+                                            </div>
                                         </div>
                                     }>
                                         <Selector.EditComp
@@ -96,7 +149,9 @@ export function SectionEdit ({value, i, onChange, attributes, size, onCancel, on
                                     </Popover>)
                             }
                             {/*tags*/}
-                            <Popover button={<Icon icon={'Tags'} className='text-blue-400 hover:text-blue-600  w-[24px] h-[24px]' title="Tags"/>} >
+                            <Popover button={<Icon icon={'Tags'}
+                                                   className='text-blue-400 hover:text-blue-600  w-[24px] h-[24px]'
+                                                   title="Tags"/>}>
                                 <TagComponent
                                     edit={true}
                                     className='p-2 flex-0'
@@ -107,14 +162,18 @@ export function SectionEdit ({value, i, onChange, attributes, size, onCancel, on
                             </Popover>
                             {/*save*/}
                             <Button type='plain' padding='p-1' onClick={onSave}>
-                                <Icon icon={'FloppyDisk'} className='text-slate-400 hover:text-blue-500 w-[24px] h-[24px]'/>
+                                <Icon icon={'FloppyDisk'}
+                                      className='text-slate-400 hover:text-blue-500 w-[24px] h-[24px]'/>
                             </Button>
                             {/*cancel*/}
                             <Button type='plain' padding='p-1' onClick={onCancel}>
-                                <Icon icon={'CancelCircle'} className='text-slate-400 hover:text-red-500 w-[24px] h-[24px]'/>
+                                <Icon icon={'CancelCircle'}
+                                      className='text-slate-400 hover:text-red-500 w-[24px] h-[24px]'/>
                             </Button>
                             {/*section details*/}
-                            <Popover button={<Icon icon={'MoreSquare'} className='text-blue-400 hover:text-blue-600  w-[24px] h-[24px]' title="section details"/>} >
+                            <Popover button={<Icon icon={'MoreSquare'}
+                                                   className='text-blue-400 hover:text-blue-600  w-[24px] h-[24px]'
+                                                   title="section details"/>}>
                                 <div className='flex flex-col'>
                                     <div className='flex-0 grow'>
                                         <TitleComp //todo make it blue if H!
@@ -159,31 +218,31 @@ export function SectionEdit ({value, i, onChange, attributes, size, onCancel, on
                             </Popover>
                         </div>
                     </div>
-                </div>
-                {sectionTitleCondition && (
-                    <div className='flex h-[50px]'>
-                        <div className='flex'>
-                            <TitleComp
-                                className={`p-2 w-full font-sans font-medium text-md  ${
-                                    (value?.['level']) === '1' ?
-                                        `text-blue-500 font-bold text-xl tracking-wider py-1 pl-1` :
-                                        value?.['level'] === '2' ?
-                                            `text-lg tracking-wider` :
-                                            value?.['level'] === '3' ?
-                                                `text-md tracking-wide` :
-                                                ``}`}
-                                placeholder={'Section Title'}
-                                value={value?.['title']}
+            </div>
+            {sectionTitleCondition && (
+                <div className='flex h-[50px]'>
+                    <div className='flex'>
+                        <TitleComp
+                            className={`p-2 w-full font-sans font-medium text-md  ${
+                                (value?.['level']) === '1' ?
+                                    `text-blue-500 font-bold text-xl tracking-wider py-1 pl-1` :
+                                    value?.['level'] === '2' ?
+                                        `text-lg tracking-wider` :
+                                        value?.['level'] === '3' ?
+                                            `text-md tracking-wide` :
+                                            ``}`}
+                            placeholder={'Section Title'}
+                            value={value?.['title']}
 
-                                onChange={(v) => updateAttribute('title', v)}
-                            />
-                        </div>
+                            onChange={(v) => updateAttribute('title', v)}
+                        />
                     </div>
-                )}
-                <div className={''}>
-                    {/* controls */}
+                </div>
+            )}
+            <div className={''}>
+                {/* controls */}
 
-                    <Selector.EditComp
+                <Selector.EditComp
                         value={value?.['element']}
                         onChange={(v) => updateAttribute('element', v)}
                         handlePaste={(e, setKey, setState) => handlePaste(e, setKey, setState, value, onChange)}
@@ -244,10 +303,19 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
     const hideDebug = true
     let TitleComp = attributes?.title?.ViewComp
     let HelpComp = attributes?.helpText?.ViewComp
-    let helpTextCondition = value?.['helpText'] && !(
-        (value?.['helpText']?.root?.children?.length === 1 && value?.['helpText']?.root?.children?.[0]?.children?.length === 0) || // empty child
-        (value?.['helpText']?.root?.children?.length === 0) // no children
-    )
+    const helpTextArray =
+        Array.isArray(value?.['helpText']) ?
+            value?.['helpText'] :
+            value?.['helpText']?.text ?
+                [value?.['helpText']] :
+                value?.helpText ?
+                    [{text: value?.['helpText']}] :
+                    [];
+    let helpTextCondition = helpTextArray.some(({text, icon}) => text && !(
+        (text?.root?.children?.length === 1 && text?.root?.children?.[0]?.children?.length === 0) || // empty child
+        (text?.root?.children?.length === 0) // no children
+    ))
+
     let elementInModalCondition = value?.infoComp;
     let hideInViewCondition = value?.hideInView;
 
@@ -390,11 +458,11 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
             {/* -------------------top line buttons ----------------------*/}
             <div className={`flex w-full`}>
                 <div className='flex-1'/>
-                    
-                   
+
+
                     <div className={`z-10`}>
-                        <div className={`absolute top-[6px] right-[6px] hidden group-hover:flex items-center`}> 
-                            
+                        <div className={`absolute top-[6px] right-[6px] hidden group-hover:flex items-center`}>
+
                             {showEditIcons && (
                                 <>
                                     {/*<Button type='plain' padding='p-0.5' onClick={ () => moveItem(i,-1) }>
@@ -407,26 +475,26 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
                                         <Copy title={'Copy Section'} className='text-slate-400 hover:text-blue-500 w-[24px] h-[24px]'/>
                                     </Button>*/}
                                     {
-                                    <Menu items={sectionMenuItems}> 
+                                    <Menu items={sectionMenuItems}>
                                         <div  className='p-1 hover:bg-slate-100/75 rounded-lg'>
                                             <Icon icon="Menu" className='text-slate-500 hover:text-slate-900 size-6'/>
                                         </div>
                                     </Menu>
                                     }
-                                    {/*<Button type='plain' padding='p-0.5' onClick={addAbove}> 
+                                    {/*<Button type='plain' padding='p-0.5' onClick={addAbove}>
                                         <SquarePlus className='text-slate-400 hover:text-blue-500 w-[24px] h-[24px]'/>
                                     </Button>*/}
                                 </>
                             )}
                         </div>
                     </div>
-                    
-                   
+
+
                 </div>
                 {/* -------------------END top line buttons ----------------------*/}
                 {/* -------------------Section Header ----------------------*/}
                 {(sectionTitleCondition || interactCondition) && (
-                    <div className={`flex w-full min-h-[50px] items-center  pb-2 ${value?.['title'] ? '' : 'absolute top-2 -right-2 -left-2 pointer-events-none'} ${false && 'border border-dashed border-pink-500'}`}>
+                    <div className={`flex w-full min-h-[50px] items-center  pb-2 pr-1 ${value?.['title'] ? '' : 'absolute -top-6  -left-2 pointer-events-none'} ${false && 'border border-dashed border-pink-500'}`}>
 
                         <div id={`#${value?.title?.replace(/ /g, '_')}`}
                              className={`flex-1 flex flex-row pb-2 font-display font-medium uppercase scroll-mt-36 items-center ${sectionTitleCondition ? '' : 'invisible'}`}>
@@ -437,32 +505,34 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
                                 />
                             </div>
                             <div className='flex item-center h-full pointer-events-auto'>
-                            {value?.['tags']?.length ? 
-                            
+                            {value?.['tags']?.length ?
+
                                 (<Popover button={
                                     <div className='p-2 border border-[#E0EBF0] rounded-full print:hidden'>
                                         <Icon icon={'Tags'} className='text-slate-400 hover:text-blue-500 size-4' title="Tags"/>
                                     </div>
                                     }>
                                     <TagComponent
-                                        
+
                                         className='p-2 flex-0'
                                         value={value?.['tags']}
-                                        placeholder={'Add Tag...'} 
+                                        placeholder={'Add Tag...'}
                                         onChange={(v) => updateAttribute('tags', v)}
                                     />
                                 </Popover>) : null}
-                                        
+
                                 {
                                     helpTextCondition && (
-                                    <Popover button={
-                                        <div className='p-2 border border-[#E0EBF0] rounded-full print:hidden'>
-                                            <div className='text-slate-400 hover:text-blue-500 size-4 print:hidden flex justify-center items-center' title="Info">
-i                                            </div>
-                                        </div>
-                                    }>
-                                        <HelpComp value={value?.['helpText']} />
-                                    </Popover>)
+                                    helpTextArray.map(({text, icon='InfoSquare'}) => (
+                                        <Popover button={
+                                            <div className='p-2 border border-[#E0EBF0] rounded-full print:hidden'>
+                                                <Icon icon={icon} className='text-slate-400 hover:text-blue-500 size-4 print:hidden flex justify-center items-center' title="Info" />
+                                            </div>
+                                        }>
+                                            <HelpComp value={text} />
+                                        </Popover>
+                                    ))
+                                        )
                                 }
 
                                 {
@@ -477,7 +547,7 @@ i                                            </div>
                                     </Popover>)
                                 }
                             </div>
-                            
+
                         </div>
 
 
@@ -491,7 +561,7 @@ i                                            </div>
                             </Link>
                         }
 
-                        
+
                     </div>
                 )}
             {/* -------------------END Section Header ----------------------*/}
