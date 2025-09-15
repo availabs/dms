@@ -51,7 +51,7 @@ export default function SectionGroup ({group, attributes, edit}) {
   const sectionFormat = format?.registerFormats.find(d => d?.type?.includes('|cms-section'))
   const sectionAttributes =  attributes?.['sections']?.attributes
   const SectionArrayComp = React.useMemo(() => {
-    return edit ? SectionArray.EditComp : SectionArray.ViewComp
+      return edit ? attributes['sections'].EditComp : attributes['sections'].ViewComp
   }, [])
 
   return (
