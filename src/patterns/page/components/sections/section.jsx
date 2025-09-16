@@ -82,33 +82,40 @@ export function SectionEdit ({value, i, onChange, attributes, size, onCancel, on
                                                       title="Info"/>
                                             </div>
                                         }>
-                                            <Listbox value={icon}
-                                                     onChange={(v) => updateAttribute('helpText', helpTextArray.map((t, ii) => i === ii ? {text, icon: v} : t))}
-                                            options={[
-                                                         {label: 'Info', value: 'InfoSquare'},
-                                                         ...Object.keys(theme.Icons)
-                                                             .map((iconName) => {
-                                                                 return {
-                                                                     label: (
-                                                                         <div className='flex'>
-                                                                             <div className='px-2'>
-                                                                                 <Icon icon={iconName}
-                                                                                       className='size-6'/>
+                                            <div className={'max-w-[500px] flex flex-col'}>
+                                                <Icon icon={'Trash'}
+                                                      className={'self-end size-4'}
+                                                      onClick={() => updateAttribute('helpText', helpTextArray.filter((t, ii) => i !== ii))
+                                                      } />
+                                                <Listbox value={icon}
+                                                         onChange={(v) => updateAttribute('helpText', helpTextArray.map((t, ii) => i === ii ? {text, icon: v} : t))}
+                                                         options={[
+                                                             {label: 'Info', value: 'InfoSquare'},
+                                                             ...Object.keys(theme.Icons)
+                                                                 .map((iconName) => {
+                                                                     return {
+                                                                         label: (
+                                                                             <div className='flex'>
+                                                                                 <div className='px-2'>
+                                                                                     <Icon icon={iconName}
+                                                                                           className='size-6'/>
+                                                                                 </div>
+                                                                                 <div>
+                                                                                     {iconName}
+                                                                                 </div>
                                                                              </div>
-                                                                             <div>
-                                                                                 {iconName}
-                                                                             </div>
-                                                                         </div>
-                                                                     ),
-                                                                     value: iconName
-                                                                 }
-                                                             }),
-                                                         {label: 'No Icon', value: 'none'}
-                                                     ]}
-                                            />
+                                                                         ),
+                                                                         value: iconName
+                                                                     }
+                                                                 }),
+                                                             {label: 'No Icon', value: 'none'}
+                                                         ]}
+                                                />
 
-                                            <HelpComp value={text}
-                                                      onChange={(v) => updateAttribute('helpText', helpTextArray.map((t, ii) => i === ii ? {text: v, icon} : t))}/>
+                                                <HelpComp value={text}
+                                                          onChange={(v) => updateAttribute('helpText', helpTextArray.map((t, ii) => i === ii ? {text: v, icon} : t))}/>
+                                            </div>
+
                                         </Popover>
                                     ))
                                 )
@@ -528,7 +535,9 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
                                                 <Icon icon={icon} className='text-slate-400 hover:text-blue-500 size-4 print:hidden flex justify-center items-center' title="Info" />
                                             </div>
                                         }>
-                                            <HelpComp value={text} />
+                                            <div className={'max-w-[500px] flex flex-col px-4 py-2'}>
+                                                <HelpComp value={text} />
+                                            </div>
                                         </Popover>
                                     ))
                                         )

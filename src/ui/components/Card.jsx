@@ -154,7 +154,7 @@ const parseIfJson = strValue => {
     }
 }
 
-const DefaultComp = ({value, className}) => <div className={className}>{value}</div>;
+const DefaultComp = ({value, className}) => <div className={className}>{typeof value === 'object' ? JSON.stringify(value) : value}</div>;
 
 const EditComp = ({
                       attribute, value, rawValue, className,
