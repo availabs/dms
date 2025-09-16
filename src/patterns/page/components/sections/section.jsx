@@ -82,40 +82,44 @@ export function SectionEdit ({value, i, onChange, attributes, size, onCancel, on
                                                       title="Info"/>
                                             </div>
                                         }>
-                                            <div className={'max-w-[500px] flex flex-col'}>
-                                                <Icon icon={'Trash'}
-                                                      className={'self-end size-4'}
-                                                      onClick={() => updateAttribute('helpText', helpTextArray.filter((t, ii) => i !== ii))
-                                                      } />
-                                                <Listbox value={icon}
-                                                         onChange={(v) => updateAttribute('helpText', helpTextArray.map((t, ii) => i === ii ? {text, icon: v} : t))}
-                                                         options={[
-                                                             {label: 'Info', value: 'InfoSquare'},
-                                                             ...Object.keys(theme.Icons)
-                                                                 .map((iconName) => {
-                                                                     return {
-                                                                         label: (
-                                                                             <div className='flex'>
-                                                                                 <div className='px-2'>
-                                                                                     <Icon icon={iconName}
-                                                                                           className='size-6'/>
+                                            {({ close }) => (
+                                                <div className={'max-w-[500px] flex flex-col'}>
+                                                    <Icon icon={'Trash'}
+                                                          className={'self-end size-4'}
+                                                          onClick={() => {
+                                                              updateAttribute('helpText', helpTextArray.filter((t, ii) => i !== ii))
+                                                              close()
+                                                          }
+                                                          } />
+                                                    <Listbox value={icon}
+                                                             onChange={(v) => updateAttribute('helpText', helpTextArray.map((t, ii) => i === ii ? {text, icon: v} : t))}
+                                                             options={[
+                                                                 {label: 'Info', value: 'InfoSquare'},
+                                                                 ...Object.keys(theme.Icons)
+                                                                     .map((iconName) => {
+                                                                         return {
+                                                                             label: (
+                                                                                 <div className='flex'>
+                                                                                     <div className='px-2'>
+                                                                                         <Icon icon={iconName}
+                                                                                               className='size-6'/>
+                                                                                     </div>
+                                                                                     <div>
+                                                                                         {iconName}
+                                                                                     </div>
                                                                                  </div>
-                                                                                 <div>
-                                                                                     {iconName}
-                                                                                 </div>
-                                                                             </div>
-                                                                         ),
-                                                                         value: iconName
-                                                                     }
-                                                                 }),
-                                                             {label: 'No Icon', value: 'none'}
-                                                         ]}
-                                                />
+                                                                             ),
+                                                                             value: iconName
+                                                                         }
+                                                                     }),
+                                                                 {label: 'No Icon', value: 'none'}
+                                                             ]}
+                                                    />
 
-                                                <HelpComp value={text}
-                                                          onChange={(v) => updateAttribute('helpText', helpTextArray.map((t, ii) => i === ii ? {text: v, icon} : t))}/>
-                                            </div>
-
+                                                    <HelpComp value={text}
+                                                              onChange={(v) => updateAttribute('helpText', helpTextArray.map((t, ii) => i === ii ? {text: v, icon} : t))}/>
+                                                </div>
+                                            )}
                                         </Popover>
                                     ))
                                 )

@@ -35,30 +35,34 @@ export default function PopoverComp ({ children, button=DefaultButton, onClick=(
   const border = 'rgba(0,0,0,0.01)'
   return (
     <Popover className="relative">
-        <Popover.Button className={theme?.popover?.button}>
-            {button}
-        </Popover.Button>
-        <Transition
-            as={Fragment}
-            enter="transition ease-out duration-200"
-            enterFrom="opacity-0 translate-y-1"
-            enterTo="opacity-100 translate-y-0"
-            leave="transition ease-in duration-150"
-            leaveFrom="opacity-100 translate-y-0"
-            leaveTo="opacity-0 translate-y-1"
-        >
-            <Popover.Panel
-                anchor="bottom"
-                className={`${theme?.popover?.container} ${width}`}
-            >
-               <div className={'w-full flex items-center justify-center'}>
-                   <TriangleIcon color={border} fill={bg}/>
-               </div>
-                <div className={'-mt-[7.52px] border rounded-md'} style={{backgroundColor: bg, borderColor: border}}>
-                    {children}
-                </div>
-            </Popover.Panel>
-        </Transition>
+        {({ close }) => (
+          <>
+              <Popover.Button className={theme?.popover?.button}>
+                  {button}
+              </Popover.Button>
+              <Transition
+                  as={Fragment}
+                  enter="transition ease-out duration-200"
+                  enterFrom="opacity-0 translate-y-1"
+                  enterTo="opacity-100 translate-y-0"
+                  leave="transition ease-in duration-150"
+                  leaveFrom="opacity-100 translate-y-0"
+                  leaveTo="opacity-0 translate-y-1"
+              >
+                  <Popover.Panel
+                      anchor="bottom"
+                      className={`${theme?.popover?.container} ${width}`}
+                  >
+                      <div className={'w-full flex items-center justify-center'}>
+                          <TriangleIcon color={border} fill={bg}/>
+                      </div>
+                      <div className={'-mt-[7.52px] border rounded-md'} style={{backgroundColor: bg, borderColor: border}}>
+                          {typeof children === "function" ? children({ close }) : children}
+                      </div>
+                  </Popover.Panel>
+              </Transition>
+          </>
+        )}
     </Popover>
   )
 }
