@@ -85,7 +85,7 @@ export function SectionEdit ({value, i, onChange, attributes, size, onCancel, on
                                             {({ close }) => (
                                                 <div className={'max-w-[500px] flex flex-col'}>
                                                     <Icon icon={'TrashCan'}
-                                                          className={'self-end size-4'}
+                                                          className={'text-red-400 hover:text-red-600 self-end size-4 hover:cursor-pointer'}
                                                           onClick={() => {
                                                               updateAttribute('helpText', helpTextArray.filter((t, ii) => i !== ii))
                                                               close()
@@ -129,7 +129,7 @@ export function SectionEdit ({value, i, onChange, attributes, size, onCancel, on
                                 <div className="p-2 border border-[#E0EBF0] rounded-full print:hidden">
                                     <Icon icon={'SquarePlus'}
                                           onClick={() => updateAttribute('helpText', [...helpTextArray, {text: ''}])}
-                                          className='text-slate-400 hover:text-blue-500 size-4 print:hidden flex justify-center items-center'
+                                          className='text-slate-400 hover:text-blue-500 size-4 print:hidden flex justify-center items-center hover:cursor-pointer'
                                           title="Info"/>
                                 </div>
                             </div>
