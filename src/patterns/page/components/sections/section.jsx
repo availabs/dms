@@ -84,7 +84,7 @@ export function SectionEdit ({value, i, onChange, attributes, size, onCancel, on
                                         }>
                                             {({ close }) => (
                                                 <div className={'max-w-[500px] flex flex-col'}>
-                                                    <Icon icon={'Trash'}
+                                                    <Icon icon={'TrashCan'}
                                                           className={'self-end size-4'}
                                                           onClick={() => {
                                                               updateAttribute('helpText', helpTextArray.filter((t, ii) => i !== ii))
