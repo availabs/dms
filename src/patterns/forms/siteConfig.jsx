@@ -216,7 +216,7 @@ const formsSourceConfig = ({
         theme.navOptions.logo = logo ? logo : defaultLogo
     }
     theme.navOptions.sideNav = {
-        "size": "none",
+        "size": "compact",
         "search": "none",
         "logo": "top", "menu": "top",
         "nav": "main",
@@ -224,7 +224,7 @@ const formsSourceConfig = ({
     }
 
     theme.navOptions.topNav = {
-        "size": "compact",
+        "size": "none",
         "dropdown": "right",
         "search": "right",
         "logo": "left",
