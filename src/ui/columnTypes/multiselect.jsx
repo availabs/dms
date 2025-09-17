@@ -199,10 +199,10 @@ const Edit = ({value = [], loading, onChange, className,placeholder, options = [
 }
 
 const View = ({className, value, options = []}) => {
-    
-    if (!value) return <div className={theme?.multiselect?.mainWrapper} />
 
-    const mappedValue = (Array.isArray(value) ? value : [value]).map(v => options.find(o => looselyEqual((o.value || o), (v.value || v))) || v);
+    if (!value) return <div className={theme?.multiselect?.mainWrapper} />
+    console.log('options', options)
+    const mappedValue = (Array.isArray(value) ? value : [value]).map(v => (options || []).find(o => looselyEqual((o.value || o), (v.value || v))) || v);
     return (
         <div className={theme?.multiselect?.mainWrapper}>
             <div className={className || (theme?.text?.inputWrapper)}>
