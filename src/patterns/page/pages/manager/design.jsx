@@ -6,11 +6,11 @@ import { isEqual } from "lodash-es"
 import Frame from 'react-frame-component'
 import {dataItemsNav} from '../_utils'
 import { CMSContext } from '../../context'
-import { themeOptions } from './themeOptions'
+import { getThemeOptions } from './themeOptions'
 import {ThemeContext} from "../../../../ui/useTheme";
 
 
-function SelectControl ({ themeOptions, theme, newTheme, setNewTheme, sectionKey, navKey, controlKey }) 
+function SelectControl ({ themeOptions, theme, newTheme, setNewTheme, sectionKey, navKey, controlKey })
 {
     let control = themeOptions[sectionKey][navKey].controls[controlKey]
     return (
@@ -47,9 +47,9 @@ function MenuItemEditor({onSave, onCancel, item}) {
           <div key={key}>
             <div className='text-xs font-medium pt-1 text-slate-400'>{key}</div>
             <div className='w-full'>
-              <input 
-                className='p-2 bg-white w-full' 
-                value={newItem[key]} 
+              <input
+                className='p-2 bg-white w-full'
+                value={newItem[key]}
                 onChange={(e) => setNewItem({...newItem, [key]: e.target.value})}
               />
             </div>
@@ -66,7 +66,7 @@ function MenuItemEditor({onSave, onCancel, item}) {
 }
 
 function MenuItemsEditor({onSave, onCancel, items}) {
-  
+
   let [newItems, setNewItems] = React.useState(JSON.stringify( (items || []), null , 3 ))
 
   //React.useEffect(() => { setNewItem(item || blankItem )},[item])
@@ -75,16 +75,16 @@ function MenuItemsEditor({onSave, onCancel, items}) {
     <div>
       (
           <div>
-            
+
             <div className='w-full'>
-              <textarea 
-                className='p-2 bg-white w-full' 
-                value={newItems} 
+              <textarea
+                className='p-2 bg-white w-full'
+                value={newItems}
                 onChange={(e) => setNewItems(e.target.value)}
               />
             </div>
           </div>
-     
+
       <div className='flex justify-end py-2'>
         <div className='bg-slate-300 rounded px-2 py-1 text-slate-100 cursor-pointer' onClick={onCancel} >Cancel</div>
         <div className='bg-blue-500 rounded px-2 py-1 text-white cursor-pointer ml-2' onClick={() => onSave(JSON.parse(newItems) || items)}>Save</div>
@@ -110,27 +110,27 @@ function MenuControl ({ themeOptions, theme, newTheme, setNewTheme, sectionKey, 
           <div><button className='bg-blue-500 rounded px-0.5 py-1 text-white cursor-pointer' onClick={() => setEditIndex(-3)}>{'</>'}</button></div>
           <div><button className='bg-blue-500 rounded px-0.5 py-1 text-white cursor-pointer' onClick={() => setEditIndex(-1)}>Add Item</button></div>
 
-          
+
         </div>
-        { editIndex === -3 ? 
+        { editIndex === -3 ?
           <div>
-            <MenuItemsEditor 
+            <MenuItemsEditor
               onCancel={(e) =>  setEditIndex(-2)}
               items={menuItems}
               onSave={(newItems) => {
                 setNewTheme(merge(cloneDeep(newTheme), {[sectionKey]: {[navKey]: {[controlKey]: newItems}}}))
                 setEditIndex(-2)
 
-              }} 
+              }}
             />
-          </div> : 
+          </div> :
           (<div>
               {
-                menuItems.length === 0 ? 
+                menuItems.length === 0 ?
                   'No Items' : menuItems.map((d,i) => (
                     <div className='flex w-full text-sm items-center py-1 border-b' key={i}>
                       <div className='flex-1'>
-                        <span className='font-medium text-slate-600'>{d.name}</span> <span className='text-slate-400'>{d.path}</span> 
+                        <span className='font-medium text-slate-600'>{d.name}</span> <span className='text-slate-400'>{d.path}</span>
                       </div>
                       <div onClick={() => { console.log('pencil click', i); setEditIndex(i); }}>
                         <Icon icon={'PencilIcon'}
@@ -156,8 +156,8 @@ function MenuControl ({ themeOptions, theme, newTheme, setNewTheme, sectionKey, 
             )
           }
           <div>
-            {editIndex !== -2 ? 
-              <MenuItemEditor 
+            {editIndex !== -2 ?
+              <MenuItemEditor
                 onCancel={(e) =>  setEditIndex(-2)}
                 item={menuItems?.[editIndex]}
                 onSave={(newItem) => {
@@ -167,11 +167,11 @@ function MenuControl ({ themeOptions, theme, newTheme, setNewTheme, sectionKey, 
                   } else {
                     newItems[editIndex] = newItem
                   }
-                  
+
                   setNewTheme(merge(cloneDeep(newTheme), {[sectionKey]: {[navKey]: {[controlKey]: newItems}}}))
                   setEditIndex(-2)
 
-                }} 
+                }}
               />: ''}
           </div>
 
@@ -185,14 +185,14 @@ const controls = {
 }
 
 function DesignEditor ({item, dataItems, attributes, apiLoad, apiUpdate, format, logo, rightMenu,themes, ...props}) {
-    const { theme } = React.useContext(ThemeContext);
-    const { baseUrl, UI } = React.useContext(CMSContext) || {}
+    const { theme, UI } = React.useContext(ThemeContext);
+    const { baseUrl  } = React.useContext(CMSContext) || {}
     const {Layout, SideNavContainer, Icon} = UI;
   const [ newTheme, setNewTheme ] = React.useState({})
   const [ pattern, setPattern ] = React.useState({})
-  // console.log('test', pattern,newTheme)
+  console.log('Design Editor',themes)
   const combinedTheme = merge(cloneDeep(theme),  cloneDeep(themes[newTheme?.settings?.theme?.theme || 'default']), cloneDeep(newTheme))
-
+  const themeOptions = getThemeOptions(Object.keys(themes))
   // console.log('selected theme', newTheme?.settings?.theme?.theme)
   // console.log('combined theme', combinedTheme?.topnav?.topnavWrapper)
   const PatternFormat = {
@@ -223,7 +223,7 @@ function DesignEditor ({item, dataItems, attributes, apiLoad, apiUpdate, format,
             }],
             format: PatternFormat
         })
-        // console.log('got data', data, format.type)
+        console.log('got data', data, format.type)
         setNewTheme( cloneDeep(data?.[0]?.theme || {}))
         setPattern( cloneDeep( {theme: {},...data?.[0]} || {}))
       }
@@ -244,12 +244,12 @@ function DesignEditor ({item, dataItems, attributes, apiLoad, apiUpdate, format,
             className='flex-1 h-[calc(100vh_-_6rem)] border'
             head={
               <>
-                
+
                 <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.15/dist/tailwind.min.css" rel="stylesheet" />
                 <link href="/build.css" rel="stylesheet" />
               </>
             }
-          >    
+          >
             <Layout navItems={menuItems} secondNav={newTheme?.navOptions?.secondaryNav?.navItems || []} theme={combinedTheme}>
               <div className={`${combinedTheme?.page?.wrapper2}`}>
                 <div className={`${combinedTheme?.page?.wrapper3} `}>
@@ -264,14 +264,14 @@ function DesignEditor ({item, dataItems, attributes, apiLoad, apiUpdate, format,
             <div className='px-1 py-2 w-full flex justify-between items-center'>
               <div>Design Options</div>
               <div>
-                <button  
+                <button
                   onClick={saveTheme}
-                  disabled={isEqual(pattern.theme, newTheme)} 
+                  disabled={isEqual(pattern.theme, newTheme)}
                   className='bg-blue-500 disabled:bg-slate-300  disabled:border-slate-400  rounded px-3 border border-blue-400 shadow  py-1 text-white cursor-pointer mx-2'
                 >
                   Save
                 </button>
-              </div> 
+              </div>
             </div>
             <div className='border-t'>
               {Object.keys(themeOptions).map(sectionKey => {
@@ -302,7 +302,7 @@ function DesignEditor ({item, dataItems, attributes, apiLoad, apiUpdate, format,
                                         sectionKey={sectionKey}
                                         navKey={navKey}
                                         controlKey={controlKey}
-                                      />    
+                                      />
                                     </div>
                                   )
                                 })
@@ -323,9 +323,8 @@ function DesignEditor ({item, dataItems, attributes, apiLoad, apiUpdate, format,
             </div>
           </SideNavContainer>
         </div>
-  )   
+  )
 }
 
 
 export default DesignEditor
-

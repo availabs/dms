@@ -19,7 +19,7 @@ import {getUser} from "./utils";
 const getSubdomain = (host) => {
     // ---
     // takes window.location.host and returns subdomain
-    // only works with single depth subdomains 
+    // only works with single depth subdomains
     // ---
     //console.log('host', host,  host.split('.'));
     if (process.env.NODE_ENV === "development") {
@@ -75,9 +75,16 @@ function pattern2routes (siteData, props) {
     let SUBDOMAIN = getSubdomain(window.location.host)
     // for weird double subdomain tld
     SUBDOMAIN = SUBDOMAIN === 'hazardmitigation' ? '' : SUBDOMAIN
-    
-    themes = themes?.default ? themes : { ...themes, default: {} }
-    
+
+   const dbThemes = (siteData?.[0]?.themes || [])
+      .reduce((out,theme) => {
+          out[theme.name] = JSON.parse(theme.theme)
+          return out
+      }, {})
+   //console.log('patterns2routes',dbThemes)
+
+   themes = themes?.default ? { ...themes, ...dbThemes } : { ...themes, ...dbThemes, default: {} }
+
     let dmsConfigUpdated = cloneDeep(dmsConfig);
     dmsConfigUpdated.registerFormats = updateRegisteredFormats(dmsConfigUpdated.registerFormats, dmsConfig.app)
     dmsConfigUpdated.attributes = updateAttributes(dmsConfigUpdated.attributes, dmsConfig.app)
@@ -89,7 +96,7 @@ function pattern2routes (siteData, props) {
             dmsConfig: {
                 ...dmsConfigUpdated,
                 siteType: dmsConfigUpdated.type,
-                baseUrl: SUBDOMAIN === 'admin' ?  '/' : adminPath,
+                baseUrl: adminPath,
                 API_HOST,
                 PROJECT_NAME,
                 user,
@@ -213,7 +220,7 @@ export function DmsSite ({
             })
             : []
         );
-    
+
     useEffect(() => {
         let isStale = false;
         async function load () {
@@ -275,4 +282,4 @@ export function DmsSite ({
             )}
         />
     )
-} 
+}

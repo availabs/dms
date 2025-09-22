@@ -1,4 +1,5 @@
 import docs from './docs';
+import settings from './themeSettings'
 import sideNavTheme from "./components/SideNav.theme";
 import topNavTheme from "./components/TopNav.theme";
 import layoutTheme  from './components/Layout.theme'
@@ -18,6 +19,12 @@ import {nestableTheme} from "./components/nestable/draggableNav"
 import {dataCardTheme} from "./components/Card";
 import {graphTheme} from "./components/graph";
 import {logoTheme} from "./components/Logo";
+// =========================================
+// Pattern Themes, maybe move registration of these to DMS Site ??
+// =========================================
+import pagesTheme from "../patterns/page/defaultTheme"
+
+
 // =====================================================================================================
 // ======================================== todo: move these to UI
 // =====================================================================================================
@@ -51,6 +58,7 @@ const navOptions = {
 }
 
 const components = {
+    pages: pagesTheme,
     "heading": {
         "1": "text-blue-500 font-bold text-xl tracking-wider py-1 pl-1",
         "2": "text-lg tracking-wider",
@@ -63,39 +71,6 @@ const components = {
         "2": "pl-2 pt-2 pb-1 uppercase text-sm text-slate-400 hover:underline cursor-pointer border-r-2 mr-4",
         "3": "pl-4 pt-2 pb-1 text-sm text-slate-400 hover:underline cursor-pointer border-r-2 mr-4",
         "4": "pl-6 pt-2 pb-1 text-sm text-slate-400 hover:underline cursor-pointer border-r-2 mr-4"
-    },
-    "navPadding": {
-        "1": "pt-0 ",
-        "2": "md:pt-12 pt-0",
-        "3": "md:pt-32 pt-0"
-    },
-    "navLabel": "px-6 pb-1 pt-6 uppercase text-xs text-blue-400",
-    "sectionGroup": {
-        "sideNavContainer1": "w-[302px] hidden xl:block",
-        "sideNavContainer2": "w-[302px] sticky top-[120px] hidden xl:block h-[calc(100vh_-_128px)] pr-2",
-        "sideNavContainer3": "shadow-md rounded-lg overflow-hidden h-full",
-        "default": {
-            "wrapper1": "w-full h-full flex-1 flex flex-row pt-2",
-            "wrapper2": "flex flex-1 w-full  flex-col  shadow-md bg-white rounded-lg relative text-md font-light leading-7 p-4 h-full min-h-[200px]",
-            "iconWrapper": "z-5 absolute right-[10px] top-[5px]",
-            "icon": "text-slate-400 hover:text-blue-500"
-        },
-        "content": {
-            "wrapper1": "w-full h-full flex-1 flex flex-row p-2",
-            "wrapper2": "flex flex-1 w-full  flex-col  shadow-md bg-white rounded-lg relative text-md font-light leading-7 p-4 h-full min-h-[calc(100vh_-_102px)]",
-            "iconWrapper": "z-5 absolute right-[10px] top-[5px]",
-            "icon": "text-slate-400 hover:text-blue-500",
-            "viewIcon": "ViewPage",
-            "editIcon": "EditPage"
-        },
-        "header": {
-            "wrapper1": "w-full h-full flex-1 flex flex-row",
-            "wrapper2": "flex flex-1 w-full  flex-col  relative min-h-[200px]",
-            "iconWrapper": "z-5 absolute right-[10px] top-[5px]",
-            "icon": "text-slate-400 hover:text-blue-500",
-            "sideNavContainer1": "hidden",
-            "sideNavContainer2": "hidden"
-        }
     },
     "sectionArray": {
         "container": "w-full grid grid-cols-6 ",
@@ -217,7 +192,8 @@ const theme = {
     navOptions,
     ...components,
     "Icons": {},
-    docs
+    docs,
+    settings
 }
 
 export default theme

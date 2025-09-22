@@ -1,3 +1,60 @@
+
+export const layoutSettings = [
+  {
+    label: "Layout",
+    type: 'inline',
+    controls: [
+      {
+        label: 'OuterWrapper',
+        type: 'Textarea',
+        path: `layout.outerWrapper`,
+      },
+      {
+        label: 'Wrapper',
+        type: 'Textarea',
+        path: `layout.wrapper`,
+      },
+      {
+        label: 'Wrapper2',
+        type: 'Textarea',
+        path: `layout.wrapper2`,
+      },
+      {
+        label: 'Wrapper3',
+        type: 'Textarea',
+        path: `layout.wrapper3`,
+      },
+      {
+        label: 'ChildWrapper',
+        type: 'Textarea',
+        path: `layout.childWrapper`,
+      },
+      {
+        label: 'TopNavContainer',
+        type: 'Textarea',
+        path: `layout.topnavContainer1`,
+      },
+      {
+        label: 'TopNavContainer2',
+        type: 'Textarea',
+        path: `layout.topnavContainer2`,
+      },
+      {
+        label: 'sidenavContainer1',
+        type: 'Textarea',
+        path: `layout.sidenavContainer1`,
+      },
+      {
+        label: 'sidenavContainer2',
+        type: 'Textarea',
+        path: `layout.sidenavContainer2`,
+      }
+    ]
+  }
+];
+
+
+
 export default {
     outerWrapper: 'bg-slate-100',
     wrapper: 'relative isolate flex min-h-svh w-full max-lg:flex-col bg-white lg:bg-zinc-100 dark:bg-zinc-900 dark:lg:bg-zinc-950 overflow-hidden',

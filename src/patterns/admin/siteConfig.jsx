@@ -49,7 +49,7 @@ const adminConfig = ({
     errorElement:  (props) => {
       const {Layout} = UI;
       return (
-          <AdminContext.Provider value={{baseUrl, user: props.user || defaultUser, app, type, API_HOST, UI}}>
+          <AdminContext.Provider value={{baseUrl, user: props.user || {}, app, type, API_HOST, UI}}>
             <ThemeContext.Provider value={{theme, UI}}>
               <Layout navItems={[]}>
                 <div className={theme?.admin?.page?.pageWrapper}>
