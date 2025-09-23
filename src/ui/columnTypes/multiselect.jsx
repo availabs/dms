@@ -85,7 +85,7 @@ const RenderMenu = ({
                                 className={theme?.multiselect?.smartMenuItem}
                                 onClick={e => {
                                     onChange(
-                                        o.value === 'select-all' ? options.map(o => o?.value || o) :
+                                        o.value === 'select-all' ? (options || []).map(o => o?.value || o) :
                                             o.value === 'remove-all' ? [] :
                                                 [...value, o].map(v => v?.value || v)
                                     );
@@ -145,7 +145,7 @@ function useComponentVisible(initial) {
 const Edit = ({value = [], loading, onChange, className,placeholder, options = [], displayInvalidMsg=false, menuPosition='bottom', singleSelectOnly=false}) => {
     // options: ['1', 's', 't'] || [{label: '1', value: '1'}, {label: 's', value: '2'}, {label: 't', value: '3'}]
     const [searchKeyword, setSearchKeyword] = useState('');
-    const typeSafeValue = (Array.isArray(value) ? value : [value]).map(v => options.find(o => looselyEqual((o?.value || o), (v?.value || v))) || v);
+    const typeSafeValue = (Array.isArray(value) ? value : [value]).map(v => (options || []).find(o => looselyEqual((o?.value || o), (v?.value || v))) || v);
 
     const {
         ref,
@@ -153,7 +153,7 @@ const Edit = ({value = [], loading, onChange, className,placeholder, options = [
         setIsSearching
     } = useComponentVisible(false);
 
-    const invalidValues = typeSafeValue.filter(v => v && (v.value || v) && !options?.some(o => (o.value || o) === (v.value || v)));
+    const invalidValues = typeSafeValue.filter(v => v && (v.value || v) && !(options || [])?.some(o => (o.value || o) === (v.value || v)));
 
     return (
         <div ref={ref} className={`${theme?.multiselect?.mainWrapper} ${menuPosition === 'top' ? 'flex flex-col flex-col-reverse' : ''} ${loading ? 'cursor-wait' : ''}`}>
@@ -202,7 +202,7 @@ const View = ({className, value, options = []}) => {
     
     if (!value) return <div className={theme?.multiselect?.mainWrapper} />
 
-    const mappedValue = (Array.isArray(value) ? value : [value]).map(v => options.find(o => looselyEqual((o.value || o), (v.value || v))) || v);
+    const mappedValue = (Array.isArray(value) ? value : [value]).map(v => (options || []).find(o => looselyEqual((o.value || o), (v.value || v))) || v);
     return (
         <div className={theme?.multiselect?.mainWrapper}>
             <div className={className || (theme?.text?.inputWrapper)}>
