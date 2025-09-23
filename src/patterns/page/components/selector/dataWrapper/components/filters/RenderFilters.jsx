@@ -196,6 +196,7 @@ export const RenderFilters = ({
                             // length,
                             reqName: getFormattedAttributeStr(columnName), // column name with as
                             refName: getAttributeAccessorStr(columnName), // column name without as
+                            rawName: columnName, // column name without accessor (response name)
                             allAttributes: state.columns,
                             filterBy
                         })

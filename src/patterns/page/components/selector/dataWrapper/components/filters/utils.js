@@ -12,12 +12,12 @@ export const formattedAttributeStr = (col, isDms, isCalculatedCol) => isCalculat
 
 export const getData = async ({format, apiLoad,
                                   // length,
-                                  reqName, refName, allAttributes, filterBy={}}) =>{
+                                  reqName, refName, rawName, allAttributes, filterBy={}}) =>{
     const prependWithDistinct = !reqName.toLowerCase().startsWith('distinct');
     const appendWithAS = !reqName.toLowerCase().includes(' as ');
     const mappedAttributeName = `${prependWithDistinct ? `distinct ` : ``}${reqName}${appendWithAS ? ` as ${reqName}` : ``}` // to get uniq values
 
-    const {name, display, meta_lookup} = allAttributes.find(attr => attr.name === reqName) || {};
+    const {name, display, meta_lookup} = allAttributes.find(attr => attr.name === reqName || attr.name === rawName) || {};
     const meta = ['meta-variable', 'geoid-variable', 'meta'].includes(display) && meta_lookup ? {[name]: meta_lookup} : {};
 
     const length = await getLength({
