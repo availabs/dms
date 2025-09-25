@@ -103,14 +103,14 @@ function ComponentList ({
 
   //change display docs
   const compFromProps = useMemo(() => compOptions.find(c => c.value.toLowerCase() === component?.toLowerCase())?.value, [component]);
-	const [currentComponent, setCurrentComponent] = useState(compFromProps || 'Button')
+	const [currentComponent, setCurrentComponent] = useState(compFromProps || 'PageView')
   const [currentComponentPropsIdx, setCurrentComponentPropsIdx] = useState(0);
 
 
 
 
 
-  console.log('currentTheme', currentTheme, themeSettings)
+  // console.log('currentTheme', currentTheme, themeSettings)
 
 
 
