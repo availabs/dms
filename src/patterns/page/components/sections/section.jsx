@@ -317,7 +317,7 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
             onChange(i, {...value, [k]: v})
         }
     }
-
+    const viewComp = () => <div/>
     const hideDebug = true
     let TitleComp = attributes?.title?.ViewComp
     let HelpComp = attributes?.helpText?.ViewComp

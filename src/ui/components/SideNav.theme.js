@@ -1,4 +1,4 @@
-export default {
+const sideNavTheme = {
   fixed: "lg:ml-64",
   logoWrapper: "w-64 bg-neutral-100 text-slate-800",
   sidenavWrapper: "flex flex-col w-64 h-full z-20",
@@ -14,7 +14,7 @@ export default {
    transition-all cursor-pointer`,
   navitemSideActive: `
    group  flex flex-col
-   px-3 py-1.5 text-[14px] font-light hover:bg-blue-50 text-slate-700  mx-2   
+   px-3 py-1.5 text-[14px] font-light hover:bg-blue-50 text-slate-700  mx-2
      focus:outline-none focus:text-gray-800 focus:bg-gray-50 focus:border-gray-300
    transition-all cursor-pointer`,
   indicatorIcon: "fa fa-angle-right pt-2.5",
@@ -23,6 +23,21 @@ export default {
   subMenuParentWrapper: "flex flex-col w-full",
   bottomMenuWrapper: 'border-t'
 }
+
+export default sideNavTheme
+
+export const sideNavsettings =  [{
+    label: "Side Nav",
+    type: 'inline',
+    controls: Object.keys(sideNavTheme)
+        .map(k => {
+          return {
+            label: k,
+            type: 'Textarea',
+            path: `sidenav.${k}`
+          }
+        })
+}]
 // export default {
 //    "fixed": "",
 //    "logoWrapper": "w-44 bg-neutral-100 text-slate-800",
@@ -36,11 +51,11 @@ export default {
 //    "navItemContents": ['text-[14px] font-light hover:bg-blue-50 text-slate-700 px-4 py-2'],
 //    "navitemSide": `
 //    	group  flex flex-col
-//    	group flex 
+//    	group flex
 //    	focus:outline-none focus:text-gray-800 focus:bg-gray-50 focus:border-gray-300
 //    	transition-all cursor-pointer border-l-2 border-white`,
 //    "navitemSideActive": `
-//    	group  flex flex-col   
+//    	group  flex flex-col
 //     	focus:outline-none focus:text-gray-800 focus:bg-gray-50 focus:border-gray-300
 //    	transition-all cursor-pointer border-l-2 border-blue-500`,
 //    "indicatorIcon": "ArrowRight",

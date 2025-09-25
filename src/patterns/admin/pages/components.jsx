@@ -8,7 +8,7 @@ import { merge, cloneDeep, get, set } from "lodash-es";
 import {ThemeContext} from "../../../ui/useTheme";
 import {AdminContext} from "../siteConfig";
 
-import themeEditorConfig from './themeEditorConfig';
+//import themeEditorConfig from './themeEditorConfig';
 
 const parseIfJson = (value) => {
 	try {
@@ -63,14 +63,15 @@ function ControlRenderer({ config, state, setState }) {
         ...d,
         value: get(state, `${d.path}`, d?.default || ''),
         onChange: (e) => setState(draft => {
+          //console.log('onChange', d.path)
           set(draft, `${d.path}`, e.target.value)
         })
       }
     })
-  console.log('Fieldset controls', controls)
+  //console.log('Fieldset controls', controls)
   return (
     <div> {/* controlWrapper goes here */ }
-      <div>{ config?.label || ''}</div>
+      <div className='font-bold underline'>{ config?.label || ''}</div>
       <FieldSet components={controls} />
     </div>
   )
@@ -95,17 +96,21 @@ function ComponentList ({
 	const { Select, Button } = UI;
 
 	const {theme_id, component, ...restparams} = params;
-	const compFromProps = useMemo(() => compOptions.find(c => c.value.toLowerCase() === component?.toLowerCase())?.value, [component]);
-	const [currentComponent, setCurrentComponent] = useState(compFromProps || 'Button');
-  const [currentComponentPropsIdx, setCurrentComponentPropsIdx] = useState(0);
-  const [currentThemeSetting, setCurrentThemeSetting ] = React.useState(Object.keys(themeEditorConfig)[0])
-
-
 	const themeObj = useMemo(() => (item.themes || []).find(t => t.id === theme_id), [item.themes, theme_id])
 	const [currentTheme, setCurrentTheme] = useImmer( merge(cloneDeep(theme),parseIfJson(themeObj?.theme)));
+	const themeSettings = React.useMemo(() => currentTheme.settings(currentTheme), [currentTheme])
+  const [currentThemeSetting, setCurrentThemeSetting ] = React.useState(Object.keys(themeSettings)[0])
+
+  //change display docs
+  const compFromProps = useMemo(() => compOptions.find(c => c.value.toLowerCase() === component?.toLowerCase())?.value, [component]);
+	const [currentComponent, setCurrentComponent] = useState(compFromProps || 'PageView')
+  const [currentComponentPropsIdx, setCurrentComponentPropsIdx] = useState(0);
 
 
-  console.log('currentTheme', currentTheme, theme)
+
+
+
+  // console.log('currentTheme', currentTheme, themeSettings)
 
 
 
@@ -174,7 +179,7 @@ function ComponentList ({
     						//navigate(`${baseUrl}/${path.replace(':theme_id', theme_id).replace(':component?', e.target.value.toLowerCase())}`)
  					    }}
  							options={
-                Object.keys(themeEditorConfig)
+                Object.keys(themeSettings)
                   .map(k => ({label:k, value:k}))
               }
    					/>
@@ -188,7 +193,7 @@ function ComponentList ({
   					<div className='h-[calc(100vh_-_11rem)] overflow-auto w-full scrollbar-sm p-2 '>
             { currentThemeSetting }
             {
-              (themeEditorConfig[currentThemeSetting] || [])
+              (themeSettings[currentThemeSetting] || [])
                 .map(conf => <ControlRenderer
                   config={conf}
                   state={currentTheme}
@@ -228,15 +233,23 @@ function ComponentList ({
 				</div>*/}
 				<div className={'flex-1 h-[calc(100vh_-_6rem)]'}>
 					<Frame
-						className='w-full h-[calc(100vh_-_6rem)] border-2 border-orange-500'
-						head={
-							<>
-
-								<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.15/dist/tailwind.min.css" rel="stylesheet" />
-								<link href="https://unpkg.com/tailwindcss-utilities@1.0.10/dist/tailwind-utilities.min.css" rel="stylesheet" crossorigin />
-                <link href="/index-C-y3Pj2B.css" rel="stylesheet" />
-							</>
-						}
+						className='w-full h-[calc(100vh_-_6rem)] border-1'
+						initialContent={`
+              <!DOCTYPE html>
+              <html>
+                <head>
+                    <meta charset="UTF-8" />
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+                    <style type="text/tailwindcss">
+                      @custom-variant dark (&:where(.dark, .dark *));
+                    </style>
+                </head>
+                <body>
+                  <div id="root" class=""></div>
+                </body>
+              </html>
+            `}
 					>
   					<ThemeContext.Provider value={{theme: currentTheme, UI}}>
   						<ComponentRenderer

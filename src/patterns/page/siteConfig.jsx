@@ -69,7 +69,7 @@ const pagesConfig = ({
     cloneDeep(themes[pattern?.theme?.settings?.theme?.theme] || themes.default),
     cloneDeep(pattern?.theme) || {},
   );
-  // console.log('test 123', themes, pattern?.theme?.settings?.theme?.theme )
+  console.log('pages - siteconfig - themes', themes, pattern?.theme?.settings?.theme?.theme, pattern )
   // console.log('pageConfig', pattern.doc_type, pattern.id, themes[pattern?.theme?.settings?.theme?.theme], pattern?.theme, pattern)
   // baseUrl = baseUrl[0] === '/' ? baseUrl.slice(1) : baseUrl
   baseUrl = baseUrl === "/" ? "" : baseUrl;
@@ -227,7 +227,7 @@ const pagesManagerConfig = ({
   let theme = merge(
     cloneDeep(defaultTheme),
     cloneDeep(
-      themes[pattern?.theme?.settings?.manager_theme?.theme] || themes.default,
+      themes[pattern?.theme?.settings?.manager_theme_2?.theme] || themes.default,
     ),
     pattern?.theme || {},
   );
@@ -235,20 +235,7 @@ const pagesManagerConfig = ({
   // console.log('pageConfig', theme, themes[pattern?.theme?.settings?.theme?.theme], pattern?.theme )
   // baseUrl = baseUrl[0] === '/' ? baseUrl.slice(1) : baseUrl
   baseUrl = baseUrl === "/" ? "" : baseUrl;
-  const defaultLogo = cloneDeep(
-    themes[pattern?.theme?.settings?.theme?.theme] || themes.default,
-  )?.navOptions?.logo || (
-    <Link to={`${baseUrl || "/"}`} className="h-12 flex px-4 items-center">
-      <div className="rounded-full h-8 w-8 bg-blue-500 border-2 border-blue-300 hover:bg-blue-600" />
-    </Link>
-  );
 
-  if (!theme?.navOptions?.logo) {
-    theme.navOptions = {
-      ...(theme?.navOptions || {}),
-      logo: logo ? logo : defaultLogo,
-    };
-  }
   theme.navOptions.sideNav.size = "compact";
   theme.navOptions.sideNav.nav = "main";
   theme.navOptions.topNav.nav = "none";

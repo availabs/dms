@@ -13,6 +13,19 @@ export const logoTheme = {
   linkPath: '/'
 }
 
+export const logoSettings =  [{
+  label: "Logo",
+  type: 'inline',
+  controls: Object.keys(logoTheme)
+      .map(k => {
+        return {
+          label: k,
+          type: 'Textarea',
+          path: `logo.${k}`
+        }
+      })
+}]
+
 export const docs = [
   {type: 'default',doc_name: 'Default Logo'},
 ]
@@ -23,10 +36,10 @@ export default function LogoComp (props) {
 
   return (
     <Link to={theme?.logo?.linkPath} className={theme?.logo?.logoWrapper}>
-      {theme?.logo?.img ? 
+      {theme?.logo?.img ?
         <div className={theme?.logo?.imgWrapper}>
           <img className={theme?.logo?.imgClass} src={theme?.logo?.img} />
-        </div> : 
+        </div> :
         <div className={theme.logo.logoAltImg} />
       }
       {theme?.logo?.title && <div className={theme.logo.titleWrapper}>{theme.logo.title}</div> }
