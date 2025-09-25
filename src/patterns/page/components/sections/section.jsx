@@ -74,7 +74,7 @@ export function SectionEdit ({value, i, onChange, attributes, size, onCancel, on
                             {/*help text*/}
                             {
                                 (
-                                    helpTextArray.map(({text, icon = 'InfoSquare'}, i) => (
+                                    helpTextArray.map(({text, icon = 'InfoSquare', visibility = ''}, i) => (
                                         <Popover button={
                                             <div className='p-2 border border-[#E0EBF0] rounded-full print:hidden'>
                                                 <Icon icon={icon}
@@ -92,7 +92,7 @@ export function SectionEdit ({value, i, onChange, attributes, size, onCancel, on
                                                           }
                                                           } />
                                                     <Listbox value={icon}
-                                                             onChange={(v) => updateAttribute('helpText', helpTextArray.map((t, ii) => i === ii ? {text, icon: v} : t))}
+                                                             onChange={(v) => updateAttribute('helpText', helpTextArray.map((t, ii) => i === ii ? {text, icon: v, visibility} : t))}
                                                              options={[
                                                                  {label: 'Info', value: 'InfoSquare'},
                                                                  ...Object.keys(theme.Icons)
@@ -116,8 +116,16 @@ export function SectionEdit ({value, i, onChange, attributes, size, onCancel, on
                                                              ]}
                                                     />
 
+                                                    <Listbox value={visibility}
+                                                             onChange={(v) => updateAttribute('helpText', helpTextArray.map((t, ii) => i === ii ? {text, icon, visibility: v} : t))}
+                                                             options={[
+                                                                 {label: 'Visibility: view, edit', value: ''},
+                                                                 {label: 'Visibility: edit', value: 'edit'},
+                                                             ]}
+                                                    />
+
                                                     <HelpComp value={text}
-                                                              onChange={(v) => updateAttribute('helpText', helpTextArray.map((t, ii) => i === ii ? {text: v, icon} : t))}/>
+                                                              onChange={(v) => updateAttribute('helpText', helpTextArray.map((t, ii) => i === ii ? {text: v, icon, visibility} : t))}/>
                                                 </div>
                                             )}
                                         </Popover>
@@ -314,13 +322,15 @@ export function SectionView ({value,i, attributes, edit, onEdit,onChange, onRemo
     let TitleComp = attributes?.title?.ViewComp
     let HelpComp = attributes?.helpText?.ViewComp
     const helpTextArray =
-        Array.isArray(value?.['helpText']) ?
+        (Array.isArray(value?.['helpText']) ?
             value?.['helpText'] :
             value?.['helpText']?.text ?
                 [value?.['helpText']] :
                 value?.helpText ?
                     [{text: value?.['helpText']}] :
-                    [];
+                    [])
+            .filter(v => edit ? true : v.visibility !== 'edit');
+
     let helpTextCondition = helpTextArray.some(({text, icon}) => text && !(
         (text?.root?.children?.length === 1 && text?.root?.children?.[0]?.children?.length === 0) || // empty child
         (text?.root?.children?.length === 0) // no children
