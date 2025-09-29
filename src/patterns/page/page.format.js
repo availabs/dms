@@ -5,16 +5,14 @@ export const cmsSection = {
   app: "dms-site",
   type: "cms-section",
   attributes: [
+      {
+          key: 'parent',
+          type: 'text'
+      },
     { key: "title",
       type: "text",
       required: false,
       default: "Untitled Section"
-    },
-    {
-      key: 'is_header',
-      type: 'boolean',
-      hidden: 'true',
-      required: false
     },
     {
       key: "helpText",
@@ -49,6 +47,10 @@ export const cmsSection = {
       key: "size",
       type: "text"
     },
+      {
+          "key": "is_draft",
+          "type": "switch",
+      },
     { key: "element",
       // type: "selector",
       required: false,

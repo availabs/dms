@@ -19,6 +19,7 @@ import ManageLayout from "./pages/manager/layout";
 import Dashboard from "./pages/manager";
 import PageManager from "./pages/manager/pages";
 import DesignEditor from "./pages/manager/design";
+import FormatManager from "./pages/manager/formatManager";
 
 import cmsFormat from "./page.format.js";
 import { CMSContext } from "./context";
@@ -83,7 +84,10 @@ const pagesConfig = ({
   format.type = type;
   updateRegisteredFormats(format.registerFormats, app, type);
   updateAttributes(format.attributes, app, type);
-  //siteType = siteType || type
+  if(pattern.additionalSectionAttributes?.length){
+      (format.registerFormats || []).find(f => f.type.includes('cms-section')).attributes.push(...pattern.additionalSectionAttributes)
+  }
+    //siteType = siteType || type
   //console.log('foramat after update', app, type, format)
 
   // ---------------------------------------------
@@ -311,6 +315,11 @@ const pagesManagerConfig = ({
           {
             type: (props) => <DesignEditor themes={themes} {...props} />,
             path: "design",
+            action: "edit",
+          },
+            {
+            type: (props) => <FormatManager themes={themes} {...props} />,
+            path: "format",
             action: "edit",
           },
           {

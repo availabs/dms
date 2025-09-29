@@ -2,7 +2,7 @@ import React, {useContext, useEffect, useState} from "react";
 import { get, isEqual } from "lodash-es";
 
 import FilterableSearch from "../FilterableSearch";
-import { CMSContext, ComponentContext } from "../../../context";
+import {CMSContext, ComponentContext, PageContext} from "../../../context";
 
 const pageColumns = [
     {
@@ -11,14 +11,22 @@ const pageColumns = [
         "display_name": "title"
     },
     {
-        "name": "url_slug",
-        "type": "text",
-        "display_name": "url"
+        name: "url_slug",
+        type: "text",
+        display_name: "url",
+        // joinKey: "parent", // this is the id key.
+        // valueKey: "url_slug",
+        // joinWithChar: ",", // if undefined, an array is returned
+        // serverFn: "recurse_extract_data"
     },
     {
         "name": "parent",
         "type": "text",
-        "display_name": "parent"
+        "display_name": "parent",
+        joinKey: "parent", // this is the id key.
+        valueKey: "parent",
+        joinWithChar: ",", // if undefined, an array is returned
+        serverFn: "recurse_extract_data"
     },
     {
         "name": "published",
@@ -44,16 +52,61 @@ const sectionColumns = [
         "display_name": "title"
     },
     {
-        "name": "data->'element'->'element-type' as element_type",
-        "type": "calculated",
-        "display_name": "component type"
+        "name": "level",
+        "type": "text",
+        "display_name": "level"
     },
     {
-        "name": "data->'element'->>'element-data' as element_data",
-        "type": "calculated", // this can be a new column type "component"
-        "display": "calculated",
-        "display_name": "data"
-    }
+        "name": "helpText",
+        "type": "text",
+        "display_name": "helpText"
+    },
+    {
+        "name": "tags",
+        "type": "text",
+        "display_name": "tags"
+    },
+    {
+        "name": "is_draft",
+        "type": "switch",
+        "display_name": "is draft"
+    },
+    {
+        "name": "parent",
+        "type": "text",
+        "display_name": "parent",
+        joinKey: "parent", // this is the id key.
+        keepOriginal: false,
+        valueKey: "title",
+        joinWithChar: ",", // if undefined, an array is returned
+        serverFn: "recurse_extract_data"
+    },
+    {
+        "name": "url_slug",
+        "type": "text",
+        "display_name": "url",
+        joinKey: "parent", // this is the id key.
+        keepOriginal: false,
+        valueKey: "url_slug",
+        joinWithChar: ",", // if undefined, an array is returned
+        serverFn: "recurse_extract_data"
+    },
+    // {
+    //     "name": "data->'element'->'element-type' as element_type",
+    //     "type": "calculated",
+    //     "display_name": "component type"
+    // },
+    // {
+    //     "name": "data->'element'->>'element-data' as element_data",
+    //     "type": "text", // this can be a new column type "component"
+    //     "Comp": props => {
+    //         console.log('props', props)
+    //
+    //         return <div>comp</div>
+    //     },
+    //     "display": "calculated",
+    //     "display_name": "data"
+    // }
 ]
 const range = (start, end) => Array.from({length: (end + 1 - start)}, (v, k) => k + start);
 
@@ -118,14 +171,18 @@ const getViews = async ({envs, source, falcor, apiLoad}) => {
 export default function DataSourceSelector ({
     // this comp isn't using context as it's intended to be reused by multiple components with their own states.
   formatFromProps,
-  sourceTypes=['external', 'internal'] // lists Externally Sourced and Internally Sourced Datasets.
+  sourceTypes=['external', 'internal'], // lists Externally Sourced and Internally Sourced Datasets.
 }) {
-    const {app, type, siteType, falcor, pgEnv, ...rest} = useContext(CMSContext);
+    const {app, type, siteType, falcor, pgEnv} = useContext(CMSContext);
+    const { format } = useContext(PageContext)
     const {state, setState, apiLoad} = useContext(ComponentContext);
     const [sources, setSources] = useState([]);
     const [views, setViews] = useState([]);
 
     if(formatFromProps?.config) return null;
+    const additionalSectionColumns =
+        ((format.registerFormats || []).find(f => f.type.includes('cms-section'))?.attributes || [])
+        .filter(a => a.name && !sectionColumns.some(c => c.name === a.name));
 
     const envs = {
         ...sourceTypes.includes('external') && {
@@ -220,7 +277,7 @@ export default function DataSourceSelector ({
                                     app,
                                     type: sourceType === 'pages' ? type : `${type.replace('+sections', '')}|cms-section`,
                                     name: sourceType,
-                                    columns: sourceType === 'pages' ? pageColumns : sectionColumns,
+                                    columns: sourceType === 'pages' ? pageColumns : [...sectionColumns, ...additionalSectionColumns],
                                     env: sourceType === 'pages' ? e : `${app}+${type.replace('+sections', '')}|cms-section`,
                                     view_id: "",
                                     source_id: e

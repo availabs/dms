@@ -222,6 +222,7 @@ export const getData = async ({
     exclude = {},
     meta = {},
     filterRelation,
+    serverFn = {},
     ...restOfDataRequestOptions
   } = state.dataRequest || {};
 
@@ -379,6 +380,7 @@ export const getData = async ({
   // should this be saved in state directly?
   const options = {
     filterRelation,
+    serverFn,
     groupBy: groupBy.map(
       (columnName) => getFullColumn(columnName, columnsWithSettings)?.refName,
     ),

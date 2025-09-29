@@ -145,7 +145,11 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
             filterRelation: state.display?.filterRelation,
             groupBy: state.columns.filter(column => column.group).map(column => column.name),
             orderBy: state.columns.filter(column => column.sort).reduce((acc, column) => ({...acc, [column.name]: column.sort}), {}),
-            fn: state.columns.filter(column => column.fn).reduce((acc, column) => ({...acc, [column.name]: column.fn}), {}),
+            fn: state.columns.filter(column => column.show && column.fn).reduce((acc, column) => ({...acc, [column.name]: column.fn}), {}),
+            serverFn: state.columns.filter(column => column.show && column.serverFn).reduce((acc, {keepOriginal, name, joinKey, valueKey, joinWithChar, serverFn}) => ({
+                ...acc,
+                [name]: {keepOriginal, joinKey, valueKey, joinWithChar, serverFn}
+            }), {}),
             meta: state.columns.filter(column => column.show && 
                                                  ['meta-variable', 'geoid-variable', 'meta'].includes(column.display) && 
                                                  column.meta_lookup)
@@ -341,8 +345,7 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
     const groupByColumnsLength = useMemo(() => state?.columns?.filter(({group}) => group).length, [state?.columns]);
 
     const updateItem = (value, attribute, d) => {
-        if(!state.sourceInfo?.isDms || groupByColumnsLength) return;
-
+        if(!state.sourceInfo?.isDms || !apiUpdate || groupByColumnsLength) return;
         if(attribute?.name){
             setState(draft => {
                 const idx = draft.data.findIndex(draftD => draftD.id === d.id);
@@ -350,19 +353,31 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
                     draft.data[idx] = {...(draft.data[idx] || {}), ...d, [attribute.name]: value}
                 }
             })
-            return apiUpdate({data: {...d, [attribute.name]: value},  config: {format: state.sourceInfo}})
+            const dataToUpdateDB = state.columns.filter(c => !(c.serverFn && c.joinKey))
+                .reduce((acc, col) => {
+                    acc[col.name] = d[col.name];
+                    return {...acc, [col.name]: d[col.name]};
+                }, {})
+            return apiUpdate({data: {...dataToUpdateDB, [attribute.name]: value},  config: {format: state.sourceInfo}})
         }else{
-            let dataToUpdate = Array.isArray(d) ? d : [d];
-
-            let tmpData = [...state.data];
-            dataToUpdate.map(dtu => {
+            const dataToUpdateState = Array.isArray(d) ? d : [d];
+            const dataToUpdateDB = dataToUpdateState.map(row => {
+                return state.columns.filter(c => !(c.serverFn && c.joinKey))
+                    .reduce((acc, col) => {
+                        acc[col.name] = row[col.name];
+                        return {...acc, [col.name]: row[col.name]};
+                    }, {})
+            })
+            const tmpData = [...state.data];
+            dataToUpdateState.map(dtu => {
                 const i = state.data.findIndex(dI => dI.id === dtu.id);
                 tmpData[i] = dtu;
             });
             setState(draft => {
                 draft.data = tmpData
             });
-            return Promise.all(dataToUpdate.map(dtu => apiUpdate({data: dtu, config: {format: state.sourceInfo}})));
+
+            return Promise.all(dataToUpdateDB.map(dtu => apiUpdate({data: dtu, config: {format: state.sourceInfo}})));
         }
     }
 
@@ -666,7 +681,6 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
     // =========================================== util fns begin ======================================================
     const updateItem = (value, attribute, d) => {
         if(!state.sourceInfo?.isDms || !apiUpdate || groupByColumnsLength) return;
-
         if(attribute?.name){
             setState(draft => {
                 const idx = draft.data.findIndex(draftD => draftD.id === d.id);
@@ -674,19 +688,31 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
                     draft.data[idx] = {...(draft.data[idx] || {}), ...d, [attribute.name]: value}
                 }
             })
-            return apiUpdate({data: {...d, [attribute.name]: value},  config: {format: state.sourceInfo}})
+            const dataToUpdateDB = state.columns.filter(c => !(c.serverFn && c.joinKey))
+                .reduce((acc, col) => {
+                    acc[col.name] = d[col.name];
+                    return {...acc, [col.name]: d[col.name]};
+                }, {})
+            return apiUpdate({data: {...dataToUpdateDB, [attribute.name]: value},  config: {format: state.sourceInfo}})
         }else{
-            let dataToUpdate = Array.isArray(d) ? d : [d];
-
-            let tmpData = [...state.data];
-            dataToUpdate.map(dtu => {
+            const dataToUpdateState = Array.isArray(d) ? d : [d];
+            const dataToUpdateDB = dataToUpdateState.map(row => {
+                return state.columns.filter(c => !(c.serverFn && c.joinKey))
+                    .reduce((acc, col) => {
+                        acc[col.name] = row[col.name];
+                        return {...acc, [col.name]: row[col.name]};
+                    }, {})
+            })
+            const tmpData = [...state.data];
+            dataToUpdateState.map(dtu => {
                 const i = state.data.findIndex(dI => dI.id === dtu.id);
                 tmpData[i] = dtu;
             });
             setState(draft => {
                 draft.data = tmpData
             });
-            return Promise.all(dataToUpdate.map(dtu => apiUpdate({data: dtu, config: {format: state.sourceInfo}})));
+
+            return Promise.all(dataToUpdateDB.map(dtu => apiUpdate({data: dtu, config: {format: state.sourceInfo}})));
         }
     }
 
