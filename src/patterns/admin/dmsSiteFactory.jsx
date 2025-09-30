@@ -14,7 +14,14 @@ import {useLocation} from "react-router";
 import {getUser} from "./utils";
 
 //import {template} from "./admin.format"
-
+const parseIfJSON = (text, fallback={}) => {
+    try {
+        if(typeof text !== 'string' || !text) return fallback;
+        return JSON.parse(text)
+    }catch (e){
+        return fallback;
+    }
+}
 
 const getSubdomain = (host) => {
     // ---
@@ -78,7 +85,7 @@ function pattern2routes (siteData, props) {
 
    const dbThemes = (siteData?.[0]?.themes || [])
       .reduce((out,theme) => {
-          out[theme.name] = JSON.parse(theme.theme)
+          out[theme.name] = parseIfJSON(theme.theme)
           return out
       }, {})
    //console.log('patterns2routes',dbThemes)
