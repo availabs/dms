@@ -4,110 +4,6 @@ import { get, isEqual } from "lodash-es";
 import FilterableSearch from "../FilterableSearch";
 import {CMSContext, ComponentContext, PageContext} from "../../../context";
 
-const pageColumns = [
-    {
-        "name": "title",
-        "type": "text",
-        "display_name": "title"
-    },
-    {
-        name: "url_slug",
-        type: "text",
-        display_name: "url",
-        // joinKey: "parent", // this is the id key.
-        // valueKey: "url_slug",
-        // joinWithChar: ",", // if undefined, an array is returned
-        // serverFn: "recurse_extract_data"
-    },
-    {
-        "name": "parent",
-        "type": "text",
-        "display_name": "parent",
-        joinKey: "parent", // this is the id key.
-        valueKey: "parent",
-        joinWithChar: ",", // if undefined, an array is returned
-        serverFn: "recurse_extract_data"
-    },
-    {
-        "name": "published",
-        "type": "text",
-        "display_name": "published"
-    },
-    {
-        "name": "sidebar",
-        "type": "switch",
-        "display_name": "sidebar"
-    },
-    {
-        "name": "sections",
-        "type": "text", // UDA doesn't support dms-format
-        "display_name": "sections"
-    },
-];
-
-const sectionColumns = [
-    {
-        "name": "title",
-        "type": "text",
-        "display_name": "title"
-    },
-    {
-        "name": "level",
-        "type": "text",
-        "display_name": "level"
-    },
-    {
-        "name": "helpText",
-        "type": "text",
-        "display_name": "helpText"
-    },
-    {
-        "name": "tags",
-        "type": "text",
-        "display_name": "tags"
-    },
-    {
-        "name": "is_draft",
-        "type": "switch",
-        "display_name": "is draft"
-    },
-    {
-        "name": "parent",
-        "type": "text",
-        "display_name": "parent",
-        joinKey: "parent", // this is the id key.
-        keepOriginal: false,
-        valueKey: "title",
-        joinWithChar: ",", // if undefined, an array is returned
-        serverFn: "recurse_extract_data"
-    },
-    {
-        "name": "url_slug",
-        "type": "text",
-        "display_name": "url",
-        joinKey: "parent", // this is the id key.
-        keepOriginal: false,
-        valueKey: "url_slug",
-        joinWithChar: ",", // if undefined, an array is returned
-        serverFn: "recurse_extract_data"
-    },
-    // {
-    //     "name": "data->'element'->'element-type' as element_type",
-    //     "type": "calculated",
-    //     "display_name": "component type"
-    // },
-    // {
-    //     "name": "data->'element'->>'element-data' as element_data",
-    //     "type": "text", // this can be a new column type "component"
-    //     "Comp": props => {
-    //         console.log('props', props)
-    //
-    //         return <div>comp</div>
-    //     },
-    //     "display": "calculated",
-    //     "display_name": "data"
-    // }
-]
 const range = (start, end) => Array.from({length: (end + 1 - start)}, (v, k) => k + start);
 
 // get forms, and their sources
@@ -180,9 +76,10 @@ export default function DataSourceSelector ({
     const [views, setViews] = useState([]);
 
     if(formatFromProps?.config) return null;
-    const additionalSectionColumns =
+    const sectionColumns =
         ((format.registerFormats || []).find(f => f.type.includes('cms-section'))?.attributes || [])
-        .filter(a => a.name && !sectionColumns.some(c => c.name === a.name));
+        .map(a => ({...a, name: a.name || a.key}));
+    const pageColumns = format.attributes.map(a => ({...a, name: a.name || a.key}))
 
     const envs = {
         ...sourceTypes.includes('external') && {
@@ -277,7 +174,7 @@ export default function DataSourceSelector ({
                                     app,
                                     type: sourceType === 'pages' ? type : `${type.replace('+sections', '')}|cms-section`,
                                     name: sourceType,
-                                    columns: sourceType === 'pages' ? pageColumns : [...sectionColumns, ...additionalSectionColumns],
+                                    columns: sourceType === 'pages' ? pageColumns : sectionColumns,
                                     env: sourceType === 'pages' ? e : `${app}+${type.replace('+sections', '')}|cms-section`,
                                     view_id: "",
                                     source_id: e

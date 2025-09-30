@@ -6,8 +6,26 @@ export const cmsSection = {
   type: "cms-section",
   attributes: [
       {
-          key: 'parent',
-          type: 'text'
+          "key": "parent",
+          "name": "parent",
+          "type": "text",
+          "display_name": "parent",
+          joinKey: "parent", // this is the id key.
+          keepOriginal: false,
+          valueKey: "title",
+          joinWithChar: ",", // if undefined, an array is returned
+          serverFn: "recurse_extract_data"
+      },
+      {
+          "key": "url_slug",
+          "name": "url_slug",
+          "type": "text",
+          "display_name": "url",
+          joinKey: "parent", // this is the id key.
+          keepOriginal: false,
+          valueKey: "url_slug",
+          joinWithChar: ",", // if undefined, an array is returned
+          serverFn: "recurse_extract_data"
       },
     { key: "title",
       type: "text",
@@ -128,13 +146,19 @@ const cmsPageFormat = {
       editable: false,
       hidden: true
     },
-    {
-      key: "parent",
-      type: "text",
-      default: "",
-      editable: false,
-      hidden: true
-    },
+      {
+          "key": "parent",
+          "name": "parent",
+          "type": "text",
+          "display_name": "parent",
+          // editable: false,
+          // hidden: true,
+          joinKey: "parent", // this is the id key.
+          valueKey: "title",
+          joinWithChar: ",", // if undefined, an array is returned
+          serverFn: "recurse_extract_data",
+          keepOriginal: false,
+      },
     {
       key: 'url_slug',
       type: "text",
