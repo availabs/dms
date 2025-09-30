@@ -2,59 +2,8 @@ import React, {useContext, useEffect, useState} from "react";
 import { get, isEqual } from "lodash-es";
 
 import FilterableSearch from "../FilterableSearch";
-import { CMSContext, ComponentContext } from "../../../context";
+import {CMSContext, ComponentContext, PageContext} from "../../../context";
 
-const pageColumns = [
-    {
-        "name": "title",
-        "type": "text",
-        "display_name": "title"
-    },
-    {
-        "name": "url_slug",
-        "type": "text",
-        "display_name": "url"
-    },
-    {
-        "name": "parent",
-        "type": "text",
-        "display_name": "parent"
-    },
-    {
-        "name": "published",
-        "type": "text",
-        "display_name": "published"
-    },
-    {
-        "name": "sidebar",
-        "type": "switch",
-        "display_name": "sidebar"
-    },
-    {
-        "name": "sections",
-        "type": "text", // UDA doesn't support dms-format
-        "display_name": "sections"
-    },
-];
-
-const sectionColumns = [
-    {
-        "name": "title",
-        "type": "text",
-        "display_name": "title"
-    },
-    {
-        "name": "data->'element'->'element-type' as element_type",
-        "type": "calculated",
-        "display_name": "component type"
-    },
-    {
-        "name": "data->'element'->>'element-data' as element_data",
-        "type": "calculated", // this can be a new column type "component"
-        "display": "calculated",
-        "display_name": "data"
-    }
-]
 const range = (start, end) => Array.from({length: (end + 1 - start)}, (v, k) => k + start);
 
 // get forms, and their sources
@@ -118,14 +67,19 @@ const getViews = async ({envs, source, falcor, apiLoad}) => {
 export default function DataSourceSelector ({
     // this comp isn't using context as it's intended to be reused by multiple components with their own states.
   formatFromProps,
-  sourceTypes=['external', 'internal'] // lists Externally Sourced and Internally Sourced Datasets.
+  sourceTypes=['external', 'internal'], // lists Externally Sourced and Internally Sourced Datasets.
 }) {
-    const {app, type, siteType, falcor, pgEnv, ...rest} = useContext(CMSContext);
+    const {app, type, siteType, falcor, pgEnv} = useContext(CMSContext);
+    const { format } = useContext(PageContext)
     const {state, setState, apiLoad} = useContext(ComponentContext);
     const [sources, setSources] = useState([]);
     const [views, setViews] = useState([]);
 
     if(formatFromProps?.config) return null;
+    const sectionColumns =
+        ((format.registerFormats || []).find(f => f.type.includes('cms-section'))?.attributes || [])
+        .map(a => ({...a, name: a.name || a.key}));
+    const pageColumns = format.attributes.map(a => ({...a, name: a.name || a.key}))
 
     const envs = {
         ...sourceTypes.includes('external') && {

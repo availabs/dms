@@ -5,16 +5,32 @@ export const cmsSection = {
   app: "dms-site",
   type: "cms-section",
   attributes: [
+      {
+          "key": "parent",
+          "name": "parent",
+          "type": "text",
+          "display_name": "parent",
+          joinKey: "parent", // this is the id key.
+          keepOriginal: false,
+          valueKey: "title",
+          joinWithChar: ",", // if undefined, an array is returned
+          serverFn: "recurse_extract_data"
+      },
+      {
+          "key": "url_slug",
+          "name": "url_slug",
+          "type": "text",
+          "display_name": "url",
+          joinKey: "parent", // this is the id key.
+          keepOriginal: false,
+          valueKey: "url_slug",
+          joinWithChar: ",", // if undefined, an array is returned
+          serverFn: "recurse_extract_data"
+      },
     { key: "title",
       type: "text",
       required: false,
       default: "Untitled Section"
-    },
-    {
-      key: 'is_header',
-      type: 'boolean',
-      hidden: 'true',
-      required: false
     },
     {
       key: "helpText",
@@ -49,6 +65,10 @@ export const cmsSection = {
       key: "size",
       type: "text"
     },
+      {
+          "key": "is_draft",
+          "type": "switch",
+      },
     { key: "element",
       // type: "selector",
       required: false,
@@ -126,13 +146,19 @@ const cmsPageFormat = {
       editable: false,
       hidden: true
     },
-    {
-      key: "parent",
-      type: "text",
-      default: "",
-      editable: false,
-      hidden: true
-    },
+      {
+          "key": "parent",
+          "name": "parent",
+          "type": "text",
+          "display_name": "parent",
+          // editable: false,
+          // hidden: true,
+          joinKey: "parent", // this is the id key.
+          valueKey: "title",
+          joinWithChar: ",", // if undefined, an array is returned
+          serverFn: "recurse_extract_data",
+          keepOriginal: false,
+      },
     {
       key: 'url_slug',
       type: "text",

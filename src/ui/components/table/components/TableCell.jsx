@@ -71,7 +71,7 @@ export const TableCell = ({
     const compType = attribute.type === 'calculated' && Array.isArray(rawValue) ? 'multiselect' : attribute.type;
     const compMode = attribute.type === 'calculated' && Array.isArray(rawValue) ? 'ViewComp' :
                             editing && allowEdit ? 'EditComp' : 'ViewComp';
-    const Comp = loading ? LoadingComp : compType === 'ui' ? attribute.Comp :
+    const Comp = loading ? LoadingComp : compType === 'ui' ? (attribute.Comp || DisplayCalculatedCell) :
         renderTextBox ? DataTypes.textarea.EditComp : (DataTypes[compType]?.[compMode] || DisplayCalculatedCell);
     const CompWithLink = LinkComp({attribute, columns, newItem, removeItem, value: rawValue, Comp});
     const value = isTotalCell && !(attribute.showTotal || display.showTotal) ? null :

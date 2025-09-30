@@ -45,7 +45,8 @@ function CmsManager ({children}) {
 
     {name: 'Layout', className: theme.navLabel},
     //{name: 'Navigation', path: `${baseUrl}/manage/nav`},
-    {name: 'Design', path: `${baseUrl}/manage/design`}
+    {name: 'Design', path: `${baseUrl}/manage/design`},
+    {name: 'Format', path: `${baseUrl}/manage/format`},
   ]
 
 

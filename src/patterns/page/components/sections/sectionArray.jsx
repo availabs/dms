@@ -63,7 +63,7 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
     const [active, setActive] = useState(); // to handle multiple spreadsheet components on a page in conjunction with arrow/selection/copy controls
     const { baseUrl, user } = React.useContext(CMSContext) || {}
     const { theme = { sectionArray: sectionArrayTheme}, UI } = React.useContext(ThemeContext) || {}
-    const { editPane, apiLoad, apiUpdate, format  } =  React.useContext(PageContext) || {}
+    const { editPane, apiLoad, apiUpdate, format, item  } =  React.useContext(PageContext) || {}
     const { Icon } = UI;
 
     React.useEffect(() => {
@@ -108,7 +108,16 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
 
             action = `edited section ${edit?.value?.title ? `${edit?.value?.title} ${edit.index+1}` : edit.index+1}`
         } else {
-            cloneValue.splice(edit.index, 0, {...(edit.value || {}), trackingId, group: group?.name})
+            cloneValue.splice(edit.index, 0, {
+                ...(edit.value || {}),
+                trackingId,
+                group: group?.name,
+                is_draft: true,
+                parent: JSON.stringify({
+                    id: item.id,
+                    ref: `${item.app}+${item.type}`
+                })
+            })
             action = `added section ${edit?.value?.title ? `${edit?.value?.title} ${edit.index+1}` : edit.index+1}`
         }
         //console.log('edit on save', edit)

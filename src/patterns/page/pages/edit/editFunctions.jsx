@@ -178,6 +178,8 @@ export const publish = async (user,item, apiUpdate) => {
       } else {
         delete draft.id
       }
+
+      delete draft.is_draft;
       sections.push(draft)
       return sections
     },[])
