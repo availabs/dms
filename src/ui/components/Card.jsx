@@ -181,7 +181,11 @@ const EditComp = ({
             }, true)
         }) :
         attribute.options;
+    let optionsMeta;
 
+    if(!parseIfJson(attribute.meta_lookup)?.view_id){
+        optionsMeta = parseIfJson(attribute.meta_lookup)
+    }
     return <div ref={compRef}
                 // onClick={() => !isEditing && setIsEditing(true)}
                 className={`w-full`}
@@ -202,6 +206,7 @@ const EditComp = ({
               className={`${allowEdit ? 'border' : ''} ${className}`}
               {...attribute}
             options={options}
+            meta={optionsMeta}
         />
     </div>
 }
