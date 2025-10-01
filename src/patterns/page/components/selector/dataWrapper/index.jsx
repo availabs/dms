@@ -357,7 +357,7 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
                 .reduce((acc, col) => {
                     acc[col.name] = d[col.name];
                     return {...acc, [col.name]: d[col.name]};
-                }, {})
+                }, {id: d.id})
             return apiUpdate({data: {...dataToUpdateDB, [attribute.name]: value},  config: {format: state.sourceInfo}})
         }else{
             const dataToUpdateState = Array.isArray(d) ? d : [d];
@@ -366,7 +366,7 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
                     .reduce((acc, col) => {
                         acc[col.name] = row[col.name];
                         return {...acc, [col.name]: row[col.name]};
-                    }, {})
+                    }, {id: row.id})
             })
             const tmpData = [...state.data];
             dataToUpdateState.map(dtu => {
@@ -692,7 +692,7 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
                 .reduce((acc, col) => {
                     acc[col.name] = d[col.name];
                     return {...acc, [col.name]: d[col.name]};
-                }, {})
+                }, {id: d.id})
             return apiUpdate({data: {...dataToUpdateDB, [attribute.name]: value},  config: {format: state.sourceInfo}})
         }else{
             const dataToUpdateState = Array.isArray(d) ? d : [d];
@@ -701,7 +701,7 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
                     .reduce((acc, col) => {
                         acc[col.name] = row[col.name];
                         return {...acc, [col.name]: row[col.name]};
-                    }, {})
+                    }, {id: row.id})
             })
             const tmpData = [...state.data];
             dataToUpdateState.map(dtu => {

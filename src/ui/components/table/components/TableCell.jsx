@@ -132,6 +132,11 @@ export const TableCell = ({
             }, true)
         }) :
         attribute.options;
+    let optionsMeta;
+
+    if(!parseIfJson(attribute.meta_lookup)?.view_id){
+        optionsMeta = parseIfJson(attribute.meta_lookup)
+    }
 
     const isTotalRow = newItem.totalRow;
     const bgColor = openOutTitle || attribute.openOut ? `` : !isValid ? `bg-red-50 hover:bg-red-100` : isTotalRow ? `bg-gray-100` :
@@ -194,7 +199,8 @@ export const TableCell = ({
                   `}
                           style={renderTextBox ? {borderColor: selectionColor} : undefined}
                   {...attribute}
-                options={options}
+                  options={options}
+                  meta={optionsMeta}
                   value={value}
                   row={newItem}
                   onChange={e => isTotalRow ? null : setNewItem({...newItem, [attribute.name]: e})}
