@@ -5,7 +5,7 @@ const customTheme = {
     field: 'pb-2 flex flex-col'
 }
 const DataSourceForm = ({editing, updateAttribute, col, attr, type}) => {
-    const {UI} = React.useContext(FormsContext);
+    const {UI, app} = React.useContext(FormsContext);
     const [metaObj, setMetaObj] = React.useState(editing);
 
     useEffect(() => {
@@ -30,6 +30,14 @@ const DataSourceForm = ({editing, updateAttribute, col, attr, type}) => {
                 {
                     label: 'Value Column', type: 'Input', placeholder: 'value column', value: metaObj.valueAttribute,
                     onChange: e => setMetaObj({...metaObj, valueAttribute: e.target.value}),
+                    customTheme
+                },
+                {
+                    label: 'Type',
+                    type: 'Input',
+                    placeholder: 'type',
+                    value: (metaObj.metaEnv || '').split('+')[1] || '',
+                    onChange: e => setMetaObj({...metaObj, metaEnv: `${app}+${e.target.value}`}),
                     customTheme
                 },
                 {
