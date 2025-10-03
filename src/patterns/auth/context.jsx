@@ -18,22 +18,10 @@ export const useAuth = () => React.useContext(AuthContext);
 export const withAuth = Component => {
   return ({ ...props }) => {
     const authContext = useAuth()
-    console.log('withAuth - authContext', authContext?.user )
     return <Component {...props } user={authContext?.user }/>
   }
 }
-//export cons
-// export const authProvider = (Component, config) => {
-//   const AuthComponent = enableAuth(Component, config)
-//   const AuthProvider = ({ ...props }) => {
-//     return (
-//       <Provider store={store}>
-//         <AuthComponent {...props}/>
-//       </Provider>
-//     )
-//   }
-//   return AuthProvider;
-// }
+
 export const authProvider = (Component, config) => {
   const { AUTH_HOST, PROJECT_NAME, baseUrl = '/auth', defaultRedirectUrl = '/' } = config
   const AuthProvider = ({ ...props }) => {
@@ -41,9 +29,10 @@ export const authProvider = (Component, config) => {
     const [user, setUser] = React.useState(defaultUserState());
     const AuthAPI = getAPI({ AUTH_HOST, PROJECT_NAME })
 
-    React.useEffect(() => {
-      console.log('user updated', user)
-    },[user])
+    // React.useEffect(() => {
+    //   console.log('user updated', user)
+    // },[user])
+    //
     React.useEffect(() => {
       async function load() {
         const user = await AuthAPI.getUser();
