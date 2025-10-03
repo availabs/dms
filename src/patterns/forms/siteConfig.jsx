@@ -259,9 +259,9 @@ const formsSourceConfig = ({
         children: [
             {
                 type: (props) => {
-                    const { falcor, falcorCache } = useFalcor();
-                    const {Layout} = UI;
-                const { user } = props;
+                  const { falcor, falcorCache } = useFalcor();
+                  const {Layout} = UI;
+                  const { user } = props;
                   return (
                       <FormsContext.Provider value={{
                           UI,
