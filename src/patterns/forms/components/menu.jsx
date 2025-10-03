@@ -3,6 +3,7 @@ import { Dropdown } from '../ui/index'
 import {Link, useLocation} from 'react-router'
 import { FormsContext } from '../siteConfig'
 import { User } from '../ui/icons'
+import {AuthContext} from "../../auth/context";
 
 // import {NavItem, NavMenu, NavMenuItem, NavMenuSeparator, withAuth} from 'components/avl-components/src'
 // import user from "@availabs/ams/dist/reducers/user";
@@ -45,7 +46,8 @@ export const Item = ({to, icon,children}) => (
 
 
 export default ({title, children, adminPath}) => {
-    const { user, baseUrl, parent, theme } = React.useContext(FormsContext)
+    const {user} = React.useContext(AuthContext);
+    const { baseUrl, parent, theme } = React.useContext(FormsContext)
     const location = useLocation();
     let authMenuItems = theme?.navOptions?.authMenu?.navItems || [
             {
