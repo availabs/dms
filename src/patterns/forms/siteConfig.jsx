@@ -194,7 +194,6 @@ const formsSourceConfig = ({
     damaBaseUrl,
     Menu=DefaultMenu,
     API_HOST='https://graph.availabs.org',
-    user,
     authPermissions,
     columns,
     logo,
@@ -262,6 +261,7 @@ const formsSourceConfig = ({
                 type: (props) => {
                     const { falcor, falcorCache } = useFalcor();
                     const {Layout} = UI;
+                const { user } = props;
                   return (
                       <FormsContext.Provider value={{
                           UI,
