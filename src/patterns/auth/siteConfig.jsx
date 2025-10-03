@@ -14,7 +14,6 @@ import AuthForgotPassword from "./pages/authForgotPassword";
 import Profile from "./pages/profile";
 import {cloneDeep, merge} from "lodash-es";
 
-export const AuthContext = React.createContext(null);
 
 const AdminLayout = ({menuItems, children, theme, Menu}) => {
     const {Layout} = UI;
@@ -52,16 +51,8 @@ const AuthLayout = ({children, theme}) => {
 }
 const authConfig = ({
   app = "default-app",
-  siteType = "default-page",
-  API_HOST = 'https://graph.availabs.org',
-  AUTH_HOST = 'https://graph.availabs.org',
-  // AUTH_HOST = 'http://localhost:4444',
-  PROJECT_NAME, // defaults to app
-  defaultRedirectUrl='/',
   baseUrl = '/dms_auth',
-  adminPath='/',
-  themes = {},
-  user, setUser,
+  themes = {}
 }) => {
 
   baseUrl = baseUrl === '/' ? '' : baseUrl;
@@ -80,17 +71,15 @@ const authConfig = ({
       {
         type: (props) => {
           return (
-            <AuthContext.Provider value={{baseUrl,
-              user, setUser,
-              app, API_HOST, AUTH_HOST, PROJECT_NAME: PROJECT_NAME || app, defaultRedirectUrl, UI}}>
-              <ThemeContext.Provider value={{theme}}>
+
+              <ThemeContext.Provider value={{theme, UI}}>
                       <div className={theme?.page?.container}>
                           <AuthLayout theme={theme}>
                               {props.children}
                           </AuthLayout>
                       </div>
               </ThemeContext.Provider>
-            </AuthContext.Provider>
+
           )
         },
         action: 'list',
@@ -137,17 +126,10 @@ const authConfig = ({
 
 const manageAuthConfig = ({
   app = "default-app",
-  siteType = "default-page",
-  API_HOST = 'https://graph.availabs.org',
-  AUTH_HOST = 'https://graph.availabs.org',
-  // AUTH_HOST = 'http://localhost:4444',
-  PROJECT_NAME, // defaults to app
-  defaultRedirectUrl='/',
   baseUrl = '/dms_auth',
   adminPath='/',
   themes = {},
   rightMenu = <DefaultMenu />,
-  user, setUser,
 }) => {
 
     const menuItems = [
@@ -166,11 +148,8 @@ const manageAuthConfig = ({
         {
             name: 'Team',
             path:`${adminPath}/team`
-        }
-    ];
-
-    if(user?.authed) {
-        menuItems.push({
+        },
+        {
             name: 'Auth',
             subMenus: [
                 {
@@ -182,8 +161,10 @@ const manageAuthConfig = ({
                     path: `${baseUrl}/manage/groups`
                 }
             ]
-        })
-    }
+        }
+    ];
+
+
 
     baseUrl = baseUrl === '/' ? '' : baseUrl;
 
@@ -203,16 +184,11 @@ const manageAuthConfig = ({
       {
         type: (props) => {
           return (
-            <AuthContext.Provider value={{baseUrl,
-              user, setUser,
-              app, API_HOST, AUTH_HOST, PROJECT_NAME: PROJECT_NAME || app, defaultRedirectUrl, UI
-            }}>
-              <ThemeContext.Provider value={{theme}}>
+              <ThemeContext.Provider value={{theme, UI}}>
                   <AdminLayout menuItems={menuItems} theme={theme} Menu={() => <>{rightMenu}</>}>
                           {props.children}
                   </AdminLayout>
               </ThemeContext.Provider>
-            </AuthContext.Provider>
           )
         },
         action: 'list',

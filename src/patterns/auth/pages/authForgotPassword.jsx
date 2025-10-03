@@ -1,15 +1,15 @@
 import React, {useEffect} from "react";
 import {Link, useNavigate, useLocation} from "react-router";
 import {ThemeContext} from "../../../ui/useTheme";
-import {AuthContext} from "../siteConfig";
-import {callAuthServer} from "../utils";
+import {AuthContext} from "../context";
+
 
 
 export default (props) => {
     const [credentials, setCredentials] = React.useState({email: '', password: ''});
     const [status, setStatus] = React.useState('');
-    const {theme} = React.useContext(ThemeContext);
-    const {UI, user, setUser, AUTH_HOST, PROJECT_NAME, defaultRedirectUrl, baseUrl, ...restAuthContext} = React.useContext(AuthContext);
+    const { theme, UI } = React.useContext(ThemeContext);
+    const { user, PROJECT_NAME, AuthAPI, defaultRedirectUrl, baseUrl} = React.useContext(AuthContext);
     const {FieldSet, Button} = UI;
     const navigate = useNavigate();
 
@@ -40,7 +40,7 @@ export default (props) => {
                 type={'plain'}
                 className={`${theme?.forgotPasswordButton}`}
                 onClick={async () => {
-                await callAuthServer(`${AUTH_HOST}/password/reset`,
+                await AuthAPI.callAuthServer(`/password/reset`,
                     {...credentials, token: user.token, project: PROJECT_NAME, host: `${window.location.host}`, url: `/${baseUrl}/login`})
                     .then(res => {
                         if (res.error) {

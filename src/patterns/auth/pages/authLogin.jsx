@@ -1,18 +1,20 @@
 import React, {useState} from "react";
 import {useNavigate, useLocation, Link} from "react-router";
 import {ThemeContext} from "../../../ui/useTheme";
-import {AuthContext} from "../siteConfig";
-import {callAuthServer} from "../utils";
+import {AuthContext} from "../context";
+import {callAuthServer} from "../api";
 
 
 export default (props) => {
     const location = useLocation();
     const [credentials, setCredentials] = React.useState({email: '', password: ''});
     const [error, setError] = useState('');
-    const {theme} = React.useContext(ThemeContext);
-    const {UI, baseUrl, user, setUser, AUTH_HOST, PROJECT_NAME, defaultRedirectUrl, ...restAuthContext} = React.useContext(AuthContext);
-    const {FieldSet, Button} = UI;
+    const { theme, UI } = React.useContext(ThemeContext);
+    const { baseUrl, user, setUser, AUTH_HOST, PROJECT_NAME, AuthAPI, defaultRedirectUrl } = React.useContext(AuthContext);
+    const { FieldSet, Button } = UI;
     const navigate = useNavigate();
+    // console.log('auth context aapi', AuthAPI)
+
 
     return (
         <div className={'max-w-sm mx-auto my-auto flex flex-col gap-3 p-4'}>
@@ -49,7 +51,7 @@ export default (props) => {
             <Button type={'plain'}
                     className={`${theme?.loginButton}`}
                     onClick={async () => {
-                        await callAuthServer(`${AUTH_HOST}/login`, {...credentials, project: PROJECT_NAME})
+                        await AuthAPI.callAuthServer(`/login`, {...credentials, project: PROJECT_NAME})
                             .then(res => {
                                 if (res.error) {
                                     setError(res.error)
@@ -58,8 +60,9 @@ export default (props) => {
                                     if (window.localStorage) {
                                         window.localStorage.setItem('userToken', res?.user?.token);
                                     }
+                                    console.log('got user', res.user)
                                     setUser({...res.user, isAuthenticating: false, authed: true})
-                                    window.location = location?.state?.from || defaultRedirectUrl;
+                                    navigate(location?.state?.from || defaultRedirectUrl);
                                 }
                             })
                             .catch(error => {
@@ -67,7 +70,10 @@ export default (props) => {
                             });
                     }}
             > <span className={`text-sm ${theme?.dataCard?.value}`}> login</span> </Button>
-            <div className={`text-sm ${theme?.dataCard?.value}`}>Don't have an account? <Link to={`${baseUrl}/signup`} className={`underline`}>Signup</Link></div>
+            <div className={`text-sm ${theme?.dataCard?.value}`}>
+              Don't have an account?
+              <Link to={`${baseUrl}/signup`} className={`underline`}>Signup</Link>
+            </div>
 
         </div>
     )

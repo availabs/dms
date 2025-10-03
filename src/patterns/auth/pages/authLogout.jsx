@@ -1,6 +1,6 @@
 import React, {useEffect} from "react";
 import {useNavigate} from "react-router";
-import {AuthContext} from "../siteConfig";
+import {AuthContext} from "../context";
 
 export default () => {
     const {defaultRedirectUrl, setUser} = React.useContext(AuthContext);

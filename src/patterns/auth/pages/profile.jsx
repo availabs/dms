@@ -1,8 +1,8 @@
 import React, {useEffect, useMemo, useRef, useState} from "react";
 import {Link} from "react-router";
 import {ThemeContext} from "../../../ui/useTheme";
-import {AuthContext} from "../siteConfig";
-import {callAuthServer} from "../utils";
+import {AuthContext} from "../context";
+import {callAuthServer} from "../api";
 
 // list users: dropdown to change groups
 // list user requests: two buttons to accept and reject
@@ -18,8 +18,8 @@ export default (props) => {
     const [newUser, setNewUser] = React.useState({});
     const [addingNew, setAddingNew] = React.useState(false);
     const [status, setStatus] = React.useState('');
-    const {theme} = React.useContext(ThemeContext);
-    const {UI, user, AUTH_HOST, PROJECT_NAME, defaultRedirectUrl, baseUrl, ...restAuthContext} = React.useContext(AuthContext);
+    const {theme, UI} = React.useContext(ThemeContext);
+    const { user, AUTH_HOST, PROJECT_NAME, defaultRedirectUrl, baseUrl } = React.useContext(AuthContext);
     const gridRef = useRef(null)
     const {Modal, Table, Input, Select, Button} = UI;
 

@@ -1,13 +1,13 @@
 import React from 'react'
 import { InputComp , ButtonPrimary} from '../ui'
-import Layout from '../ui/avail-layout'
 import {AdminContext} from "../siteConfig";
 import { Link, useLocation } from 'react-router'
-import {callAuthServer} from "../utils";
+import { AuthContext } from '../../auth/context';
 
 
 function NewSite ({app, user, AUTH_HOST, apiUpdate}) {
-	const {UI, PROJECT_NAME} = React.useContext(AdminContext);
+	const { UI } = React.useContext(AdminContext);
+	const { AuthAPI, PROJECT_NAME } = React.useContext(AuthContext)
 	const {Input, Button} = UI;
 	const [newUser, setNewUser] = React.useState({email: '', password: '', verify: ''});
 	const [status, setStatus] = React.useState('');
@@ -19,7 +19,7 @@ function NewSite ({app, user, AUTH_HOST, apiUpdate}) {
 	async function createSite () {
 		if(newSite?.site_name?.length > 3 && newUser.email ) {
 			console.log('calling', AUTH_HOST)
-			await callAuthServer(`${AUTH_HOST}/init/setup`,
+			await AuthAPI.callAuthServer(`${AUTH_HOST}/init/setup`,
 				{
 					email: newUser.email,
 					password: newUser.password,

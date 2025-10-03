@@ -1,16 +1,16 @@
 import React from "react";
 import {Link, useNavigate, useLocation} from "react-router";
 import {ThemeContext} from "../../../ui/useTheme";
-import {AuthContext} from "../siteConfig";
-import {callAuthServer} from "../utils";
+import {AuthContext} from "../context";
+import {callAuthServer} from "../api";
 
 
 export default (props) => {
     const location = useLocation();
     const [credentials, setCredentials] = React.useState({email: '', password: ''});
     const [status, setStatus] = React.useState('');
-    const {theme} = React.useContext(ThemeContext);
-    const {UI, user, setUser, AUTH_HOST, PROJECT_NAME, defaultRedirectUrl, baseUrl, ...restAuthContext} = React.useContext(AuthContext);
+    const {theme, UI} = React.useContext(ThemeContext);
+    const {user, setUser, AUTH_HOST, PROJECT_NAME, defaultRedirectUrl, baseUrl, ...restAuthContext} = React.useContext(AuthContext);
     const {FieldSet, Button} = UI;
     const navigate = useNavigate();
 

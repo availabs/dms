@@ -4,9 +4,10 @@ import { useParams, useLocation, useNavigate } from "react-router";
 import {
   dmsDataLoader,
   dmsDataEditor,
-} from './api'
+} from '../api'
 
-import DmsManager from './dms-manager/index.jsx'
+import DmsManager from '../dms-manager/index.jsx'
+import { withAuth } from '../patterns/auth/context';
 // import defaultTheme from './theme/default-theme'
 
 import {
@@ -23,13 +24,12 @@ function ScrollToTop() {
 }
 
 export default function dmsPageFactory (
-    {
-        dmsConfig,
-        authWrapper = (Component) => Component,
-        ErrorBoundary,
-        user,
-        isAuth
-    }
+  {
+      dmsConfig,
+      authWrapper = withAuth,
+      ErrorBoundary,
+      isAuth
+  }
 ) {
   let {
     API_HOST = 'https://graph.availabs.org',
@@ -68,13 +68,12 @@ export default function dmsPageFactory (
 
     return React.useMemo(() => (
       <FalcorProvider falcor={falcor}>
-        <DmsManager
+        <AuthedManager
           path={ `/${params['*'] || ''}` }
           baseUrl={baseUrl}
           config={dmsConfig}
           navigate={navigate}
           falcor={falcor}
-          user={user}
         />
       </FalcorProvider>
     ),[params['*']])

@@ -55,14 +55,12 @@ const pagesConfig = ({
   rightMenu = <DefaultMenu />,
   baseUrl = "/",
   damaBaseUrl,
-  logo, // deprecated
   authPermissions,
   themes = { default: {} },
   pattern,
   site,
   pgEnv,
-  API_HOST,
-    user
+  API_HOST
 }) => {
   // console.log('pass themes', themes)
   let theme = merge(
@@ -70,7 +68,7 @@ const pagesConfig = ({
     cloneDeep(themes[pattern?.theme?.settings?.theme?.theme] || themes.default),
     cloneDeep(pattern?.theme) || {},
   );
-  console.log('pages - siteconfig - themes', themes, pattern?.theme?.settings?.theme?.theme, pattern )
+  // console.log('pages - siteconfig - themes', themes, pattern?.theme?.settings?.theme?.theme, pattern )
   // console.log('pageConfig', pattern.doc_type, pattern.id, themes[pattern?.theme?.settings?.theme?.theme], pattern?.theme, pattern)
   // baseUrl = baseUrl[0] === '/' ? baseUrl.slice(1) : baseUrl
   baseUrl = baseUrl === "/" ? "" : baseUrl;
@@ -127,8 +125,8 @@ const pagesConfig = ({
     },
     children: [
       {
-        type: ({children, falcor, ...props}) => {
-          // console.log('hola', user, defaultUser, user || defaultUser)
+        type: ({children, falcor, user, ...props}) => {
+          console.log('pages siteConfig - ', user )
           // console.log('page siteConfig - UI', UI )
           return (
               <CMSContext.Provider value={{

@@ -102,7 +102,7 @@ const adminConfig = ({
                     ]
                 })
             }          return (
-            <AdminContext.Provider value={{baseUrl, authPath, PROJECT_NAME, user: props.user, app, type, API_HOST, AUTH_HOST, UI}}>
+            <AdminContext.Provider value={{baseUrl, authPath,  user: props.user, app, type, API_HOST, UI}}>
               <ThemeContext.Provider value={{theme, UI}}>
                   <div className={theme?.page?.container}>
                       <Layout navItems={menuItems} Menu={() => <>{rightMenu}</>}>

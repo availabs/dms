@@ -55,7 +55,6 @@ const formsAdminConfig = ({
     damaBaseUrl,
     Menu=DefaultMenu,
     API_HOST='https://graph.availabs.org',
-    user,
     authPermissions,
     logo,
     pattern,
@@ -116,7 +115,8 @@ const formsAdminConfig = ({
         children: [
             {
                 type: (props) => {
-                    const {Layout} = UI;
+                  const { user } = props
+                  const {Layout} = UI;
                   return (
                       <FormsContext.Provider value={{
                           UI,

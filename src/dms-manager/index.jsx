@@ -8,8 +8,8 @@ import Wrapper from './wrapper.jsx'
 const Components = {
 	NoRouteMatch: ({path}) =>{
 		return (
-			<div> 
-				These aren't the droids you are looking for 
+			<div>
+				These aren't the droids you are looking for
 				<div className='text-5xl'>
 					404
 				</div>
@@ -19,9 +19,9 @@ const Components = {
 	},
 	InvalidConfig: ({config}) => {
 		return (
-			<div> Invalid DMS Config : 
+			<div> Invalid DMS Config :
 				<pre style={{background: '#dedede'}}>
-					{JSON.stringify(config,null,3)} 
+					{JSON.stringify(config,null,3)}
 				</pre>
 			</div>
 		)
@@ -37,7 +37,7 @@ let childKey = 0
 // const { InvalidConfig, NoRouteMatch } = Components;
 
 const DmsManager = (props) => {
-	const { 
+	const {
 		config,
 		path = '',
 		baseUrl,
@@ -46,7 +46,9 @@ const DmsManager = (props) => {
 		falcor,
 		mode
 	} = props
+	// console.log('dms manager user', user)
 	const location = useLocation()
+  React.useEffect(() => { console.log('DmsManager - user updated', user) },[user])
 	// console.log('location dms-manager', location, baseUrl, path)
 	function getActiveView(config, path, format, user, depth=0) {
 		// add '' to params array to allow root (/) route  matching
@@ -58,12 +60,12 @@ const DmsManager = (props) => {
 		// or the default component
 		return activeConfigs.map(activeConfig => {
 			const comp = activeConfig.type //|| DefaultComponent
-			
+
 			// get the wrapper for the config, or the default wrapper
 			//console.log('activeConfig Action',activeConfig.action)
-			
-			
-			// if there are children 
+
+
+			// if there are children
 			let children = []
 			if(activeConfig.children) {
 				children = getActiveView(
@@ -85,21 +87,21 @@ const DmsManager = (props) => {
 				mode={mode}
 				falcor={falcor}
 			/>
-			
+
 		})
 	}
-	
+
 	//console.log('dms manager', props)
-	if(!config) { 
+	if(!config) {
 		return <div>No Route Match {path}</div>
 	}
 	const {
 		check = defaultCheck,
 		checkAuth = defaultCheckAuth,
 	} = config
-	
-	
-	
+
+
+
 
 	React.useEffect(()=>{
 		// console.log('check checkauth', path)
@@ -113,7 +115,7 @@ const DmsManager = (props) => {
 	},[path, user])
 
 	// // React.useEffect(() => console.log('dms manager unmount') , [])
-    
+
 
 	// // check for valid config
 	// if(!config.children || !validFormat(config.format)) {
@@ -121,11 +123,11 @@ const DmsManager = (props) => {
 	// }
 
 	// add default data to format
-	// const enhancedFormat = React.useMemo(() => 
+	// const enhancedFormat = React.useMemo(() =>
 	// 	enhanceFormat(config.format)
 	// ,[config.format])
 	// console.log('dms manager user', user)
-	
+
 	const RenderView = React.useMemo(() => {
 		return getActiveView(config.children, path, config.format, user)
 	}, [path])
@@ -139,7 +141,7 @@ const DmsManager = (props) => {
 	// console.log('DMS Manager: render')
 	return React.useMemo(() => (
 		<>{RenderView}</>
-	),[RenderView])	
+	),[RenderView])
 }
 
 export default DmsManager

@@ -1,8 +1,7 @@
 import React, {useEffect, useRef, useState} from "react";
 import {useNavigate, useLocation} from "react-router";
 import {ThemeContext} from "../../../ui/useTheme";
-import {AuthContext} from "../siteConfig";
-import {callAuthServer, getGroups} from "../utils";
+import {AuthContext} from "../context";
 
 export default (props) => {
     const location = useLocation();
@@ -11,14 +10,14 @@ export default (props) => {
     const [addingNew, setAddingNew] = React.useState(false);
     const [status, setStatus] = React.useState('');
     const [newGroup, setNewGroup] = React.useState({name: ''});
-    const {theme} = React.useContext(ThemeContext);
-    const {UI, user, AUTH_HOST, PROJECT_NAME, defaultRedirectUrl, ...restAuthContext} = React.useContext(AuthContext);
+    const {theme, UI } = React.useContext(ThemeContext);
+    const { user, AUTH_HOST, PROJECT_NAME, AuthAPI, defaultRedirectUrl } = React.useContext(AuthContext);
     const gridRef = useRef(null);
     const {Table, Input, Modal, Button} = UI;
 
     useEffect(() => {
         async function loadGroups(){
-            await getGroups({user, AUTH_HOST, PROJECT_NAME}).then(res => {
+            await AuthAPI.getGroups({ user }).then(res => {
                 if(res.error){
                     console.error(res.error);
                 }else{
@@ -72,7 +71,7 @@ export default (props) => {
                     />
                     <Button onClick={async () => {
                         setStatus('Adding');
-                        await callAuthServer(`${AUTH_HOST}/group/create/project/assign`,
+                        await AuthAPI.callAuthServer(`/group/create/project/assign`,
                             {
                                 token: user.token,
                                 group_name: newGroup.name,
