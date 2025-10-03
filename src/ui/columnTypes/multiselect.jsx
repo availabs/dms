@@ -30,8 +30,8 @@ const looselyEqual = (a, b) => {
     return String(a) === String(b);
 }
 
-const RenderToken = ({token, value, onChange, theme, isSearching, setIsSearching}) => {
-    const label = token.label || token;
+const RenderToken = ({token, value, onChange, theme, isSearching, setIsSearching, meta}) => {
+    const label = meta?.[token.label || token] || token.label || token;
     const safeLabel = label && typeof label === 'object' ? JSON.stringify(label) : label
     return (
         <div className={theme?.multiselect?.tokenWrapper || tokenWrapper}>
@@ -49,6 +49,7 @@ const RenderToken = ({token, value, onChange, theme, isSearching, setIsSearching
 const RenderMenu = ({
     loading,
     options=[],
+    meta,
     isSearching,
     setIsSearching,
     placeholder,
@@ -106,7 +107,7 @@ const RenderMenu = ({
                                 onChange(singleSelectOnly ? (o?.value || o) : [...value, o].map(o => o?.value || o));
                                 setIsSearching(false);
                             }}>
-                            {o.label || o}
+                            {meta?.[o.label || o] || o.label || o}
                         </div>)
             }
         </div>
@@ -142,7 +143,7 @@ function useComponentVisible(initial) {
 }
 
 
-const Edit = ({value = [], loading, onChange, className,placeholder, options = [], displayInvalidMsg=false, menuPosition='bottom', singleSelectOnly=false}) => {
+const Edit = ({value = [], loading, onChange, className,placeholder, options = [], meta, displayInvalidMsg=false, menuPosition='bottom', singleSelectOnly=false}) => {
     // options: ['1', 's', 't'] || [{label: '1', value: '1'}, {label: 's', value: '2'}, {label: 't', value: '3'}]
     const [searchKeyword, setSearchKeyword] = useState('');
     const typeSafeValue = (Array.isArray(value) ? value : [value]).map(v => (options || []).find(o => looselyEqual((o?.value || o), (v?.value || v))) || v);
@@ -171,6 +172,7 @@ const Edit = ({value = [], loading, onChange, className,placeholder, options = [
                             <RenderToken
                                 key={i}
                                 token={v}
+                                meta={meta}
                                 value={typeSafeValue}
                                 onChange={onChange}
                                 isSearching={isSearching}
@@ -191,6 +193,7 @@ const Edit = ({value = [], loading, onChange, className,placeholder, options = [
                 value={typeSafeValue}
                 onChange={onChange}
                 options={options}
+                meta={meta}
                 singleSelectOnly={singleSelectOnly}
                 theme={theme}
             />
@@ -198,7 +201,7 @@ const Edit = ({value = [], loading, onChange, className,placeholder, options = [
     )
 }
 
-const View = ({className, value, options = []}) => {
+const View = ({className, value, options = [], meta}) => {
 
     if (!value) return <div className={theme?.multiselect?.mainWrapper} />
 
@@ -206,9 +209,8 @@ const View = ({className, value, options = []}) => {
     return (
         <div className={theme?.multiselect?.mainWrapper}>
             <div className={className || (theme?.text?.inputWrapper)}>
-                {(mappedValue).map((i, ii) => <RenderToken key={ii} token={i} isSearching={false}
-                                                           setIsSearching={() => {
-                                                           }} theme={theme}/>)}
+                {(mappedValue).map((i, ii) => <RenderToken key={ii} token={i} meta={meta} isSearching={false}
+                                                           setIsSearching={() => {}} theme={theme}/>)}
             </div>
         </div>
     )

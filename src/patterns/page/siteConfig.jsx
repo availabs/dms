@@ -68,7 +68,6 @@ const pagesConfig = ({
     cloneDeep(themes[pattern?.theme?.settings?.theme?.theme] || themes.default),
     cloneDeep(pattern?.theme) || {},
   );
-  // console.log('pages - siteconfig - themes', themes, pattern?.theme?.settings?.theme?.theme, pattern )
   // console.log('pageConfig', pattern.doc_type, pattern.id, themes[pattern?.theme?.settings?.theme?.theme], pattern?.theme, pattern)
   // baseUrl = baseUrl[0] === '/' ? baseUrl.slice(1) : baseUrl
   baseUrl = baseUrl === "/" ? "" : baseUrl;

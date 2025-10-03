@@ -353,20 +353,20 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
                     draft.data[idx] = {...(draft.data[idx] || {}), ...d, [attribute.name]: value}
                 }
             })
-            const dataToUpdateDB = state.columns.filter(c => !(c.serverFn && c.joinKey))
+            const dataToUpdateDB = state.columns.filter(c => !(c.serverFn && c.joinKey) && c.editable !== false)
                 .reduce((acc, col) => {
                     acc[col.name] = d[col.name];
                     return {...acc, [col.name]: d[col.name]};
-                }, {})
+                }, {id: d.id})
             return apiUpdate({data: {...dataToUpdateDB, [attribute.name]: value},  config: {format: state.sourceInfo}})
         }else{
             const dataToUpdateState = Array.isArray(d) ? d : [d];
             const dataToUpdateDB = dataToUpdateState.map(row => {
-                return state.columns.filter(c => !(c.serverFn && c.joinKey))
+                return state.columns.filter(c => !(c.serverFn && c.joinKey) && c.editable !== false)
                     .reduce((acc, col) => {
                         acc[col.name] = row[col.name];
                         return {...acc, [col.name]: row[col.name]};
-                    }, {})
+                    }, {id: row.id})
             })
             const tmpData = [...state.data];
             dataToUpdateState.map(dtu => {
@@ -688,20 +688,20 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
                     draft.data[idx] = {...(draft.data[idx] || {}), ...d, [attribute.name]: value}
                 }
             })
-            const dataToUpdateDB = state.columns.filter(c => !(c.serverFn && c.joinKey))
+            const dataToUpdateDB = state.columns.filter(c => !(c.serverFn && c.joinKey) && c.editable !== false)
                 .reduce((acc, col) => {
                     acc[col.name] = d[col.name];
                     return {...acc, [col.name]: d[col.name]};
-                }, {})
+                }, {id: d.id})
             return apiUpdate({data: {...dataToUpdateDB, [attribute.name]: value},  config: {format: state.sourceInfo}})
         }else{
             const dataToUpdateState = Array.isArray(d) ? d : [d];
             const dataToUpdateDB = dataToUpdateState.map(row => {
-                return state.columns.filter(c => !(c.serverFn && c.joinKey))
+                return state.columns.filter(c => !(c.serverFn && c.joinKey) && c.editable !== false)
                     .reduce((acc, col) => {
                         acc[col.name] = row[col.name];
                         return {...acc, [col.name]: row[col.name]};
-                    }, {})
+                    }, {id: row.id})
             })
             const tmpData = [...state.data];
             dataToUpdateState.map(dtu => {
