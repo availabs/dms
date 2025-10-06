@@ -20,7 +20,7 @@ const DisplayCalculatedCell = ({value, className}) => <div className={className}
 const LoadingComp = ({className}) => <div className={className}>loading...</div>
 
 const LinkComp = ({attribute, columns, newItem, removeItem, value, Comp}) => {
-    const {actionType, location, linkText, isLink, useId} = attribute;
+    const {actionType, location, linkText, isLink, isLinkExternal, useId} = attribute;
     // isLink:
         // linkText
         // location (optional)
@@ -29,7 +29,7 @@ const LinkComp = ({attribute, columns, newItem, removeItem, value, Comp}) => {
         const valueFormattedForSearchParams = Array.isArray(value) ? value.join('|||') : value;
         const searchParams = attribute.searchParams === 'id' ? encodeURIComponent(newItem.id) : attribute.searchParams === 'value' ? encodeURIComponent(valueFormattedForSearchParams) : ``;
         const url = `${location || value}${searchParams}`;
-        return (props) => <Link {...props} to={url} >{linkText || value}</Link>
+        return (props) => <a {...props} href={url} {...isLinkExternal && {target:"_blank"}} >{linkText || value}</a>
     }
 
     if(actionType){

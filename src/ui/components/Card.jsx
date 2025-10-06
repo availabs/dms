@@ -234,7 +234,7 @@ const RenderItem = ({
                 visibleColumns
                     .map(attr => {
                         const isNewItem = allowAdddNew && !tmpItem.id && isDms && addItem;
-                        const {isLink, location, linkText, isImg, imageSrc, imageLocation, imageExtension, imageSize, imageMargin} = attr || {};
+                        const {isLink, isLinkExternal, location, linkText, isImg, imageSrc, imageLocation, imageExtension, imageSize, imageMargin} = attr || {};
                         const span = compactView ? 'span 1' : `span ${attr.cardSpan || 1}`;
                         const rawValue = tmpItem[attr.normalName] || tmpItem[attr.name];
                         const id = tmpItem?.id;
@@ -292,8 +292,9 @@ const RenderItem = ({
                                                      `}>
                                             {
                                                 isLink && !(allowEdit || attr.allowEditInView) ?
-                                                    <Link className={theme.linkColValue}
-                                                          to={`${location || value}${attr.searchParams === 'id' ? encodeURIComponent(id) : attr.searchParams === 'value' ? encodeURIComponent(value) : ``}`}
+                                                    <a className={theme.linkColValue}
+                                                       {...isLinkExternal && {target:"_blank"}}
+                                                       href={`${location || value}${attr.searchParams === 'id' ? encodeURIComponent(id) : attr.searchParams === 'value' ? encodeURIComponent(value) : ``}`}
                                                     >
                                                         <EditComp attribute={attr}
                                                                   value={linkText || value}
@@ -316,7 +317,7 @@ const RenderItem = ({
                                                                   formatFunctions={formatFunctions}
                                                                   className={theme[valueTextJustifyClass]}
                                                         />
-                                                    </Link> :
+                                                    </a> :
                                                     <EditComp attribute={attr}
                                                               value={value}
                                                               rawValue={rawValue}
