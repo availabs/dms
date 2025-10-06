@@ -81,8 +81,10 @@ const pagesConfig = ({
   format.type = type;
   updateRegisteredFormats(format.registerFormats, app, type);
   updateAttributes(format.attributes, app, type);
-  if(pattern.additionalSectionAttributes?.length){
-      (format.registerFormats || []).find(f => f.type.includes('cms-section')).attributes.push(...pattern.additionalSectionAttributes)
+  if(pattern?.additionalSectionAttributes?.length){
+      (format.registerFormats || [])
+        .find(f => f.type.includes('cms-section'))
+        .attributes.push(...pattern.additionalSectionAttributes)
   }
     //siteType = siteType || type
   //console.log('foramat after update', app, type, format)
