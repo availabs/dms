@@ -1,16 +1,16 @@
-import React, {useEffect} from "react";
-import {Link, useNavigate, useLocation} from "react-router";
+import React from "react";
+import { Link, useNavigate } from "react-router";
 import {ThemeContext} from "../../../ui/useTheme";
 import {AuthContext} from "../context";
 
 
 
 export default (props) => {
-    const [credentials, setCredentials] = React.useState({email: '', password: ''});
+    const [ credentials, setCredentials ] = React.useState({email: '', password: ''});
     const [status, setStatus] = React.useState('');
     const { theme, UI } = React.useContext(ThemeContext);
     const { user, PROJECT_NAME, AuthAPI, defaultRedirectUrl, baseUrl} = React.useContext(AuthContext);
-    const {FieldSet, Button} = UI;
+    const { FieldSet, Button } = UI;
     const navigate = useNavigate();
 
     if(status) return <div>{status}</div>
@@ -21,7 +21,6 @@ export default (props) => {
                 <div className={theme?.loginPage?.titleWrapper}>{theme?.loginPage?.titleText}</div>
                 <div className={theme?.dataCard?.header}>Forgot Password</div>
             </div>
-
 
             <FieldSet
                 components={[

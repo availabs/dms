@@ -10,7 +10,7 @@ export default (props) => {
     const [credentials, setCredentials] = React.useState({email: '', password: ''});
     const [error, setError] = useState('');
     const { theme, UI } = React.useContext(ThemeContext);
-    const { baseUrl, user, setUser, AUTH_HOST, PROJECT_NAME, AuthAPI, defaultRedirectUrl } = React.useContext(AuthContext);
+    const { baseUrl, setUser, PROJECT_NAME, AuthAPI, defaultRedirectUrl } = React.useContext(AuthContext);
     const { FieldSet, Button } = UI;
     const navigate = useNavigate();
     // console.log('auth context aapi', AuthAPI)
