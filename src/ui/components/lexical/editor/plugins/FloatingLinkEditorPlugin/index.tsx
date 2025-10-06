@@ -214,7 +214,7 @@ function FloatingLinkEditor({
 
 
   return (
-    <div ref={editorRef} className={theme.linkEditor.base || "link-editor"}>
+    <div ref={editorRef} className={theme.linkEditor.base || "link-editor z-[50]"}>
       {!isLink ? null : isLinkEditMode ? (
         <>
           <input

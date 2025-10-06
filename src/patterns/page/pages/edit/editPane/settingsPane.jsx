@@ -1,6 +1,6 @@
 
 import React, {Fragment, useContext, useState} from 'react'
-import { cloneDeep, set, get } from 'lodash-es'
+import { cloneDeep, set, get, isEqual } from 'lodash-es'
 import { updateTitle } from '../editFunctions'
 import { v4 as uuidv4 } from 'uuid';
 import { PageContext, CMSContext } from '../../../context'
@@ -39,6 +39,8 @@ const FilterSettings = ({label, type, value, stateValue, onChange}) => {
                           setEnabled: e => updateFilters(i, 'useSearchParams', e),
                           className: 'self-center',
                           customTheme
+                      },
+                      {label: 'Active Value', type: () => <div className={'text-sm pb-2 flex flex-col'}>{(stateValue || []).find(sf => sf.searchKey === filter.searchKey)?.values}</div>
                       },
                       {type: 'Button', children: 'remove',
                           onClick: () => {
@@ -85,11 +87,27 @@ const FilterSettings = ({label, type, value, stateValue, onChange}) => {
   )
 };
 
+function DebouncedInput({value, onChange, Input, ...rest}) {
+    const [tmpValue, setTmpValue] = React.useState(value || '');
+
+    React.useEffect(() => {
+        const handler = setTimeout(() => {
+            if (!isEqual(value, tmpValue)) {
+                onChange(tmpValue);
+            }
+        }, 300);
+
+        return () => clearTimeout(handler);
+    }, [tmpValue, value]);
+
+    return <Input value={tmpValue} onChange={e => setTmpValue(e.target.value)}/>
+}
+
 function SettingsPane () {
   const { theme } = React.useContext(ThemeContext);
   const { UI, baseUrl, user  } = React.useContext(CMSContext) || {}
   const { item, pageState, dataItems, apiUpdate } =  React.useContext(PageContext) || {}
-  const { Button, Menu, FieldSet, Icon } = UI;
+  const { Button, Menu, FieldSet, Icon, Input } = UI;
 
   const themeSettings = React.useMemo(() => {
     return (theme?.pageOptions?.settingsPane || [])
@@ -195,11 +213,12 @@ function SettingsPane () {
             }
           },
           {
-            type:'Input',
+            type: DebouncedInput,
+              Input,
             label: 'Page Description',
             value: item?.description || '',
             onChange:(e) => {
-              togglePageSetting(item, 'description', e.target.value,  apiUpdate)
+              apiUpdate({data: {...item, description: e}})
             }
           },
           {
