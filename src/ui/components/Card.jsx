@@ -162,14 +162,14 @@ const EditComp = ({
                       updateItem, liveEdit, tmpItem, setTmpItem, allowEdit, formatFunctions,
                       isNewItem, newItem, setNewItem, // when allowAddNewItem is on
                   }) => {
+    const editMode = allowEdit || (isNewItem && setNewItem && !tmpItem.id);
     const [isEditing, setIsEditing] = useState(false);
     const compRef = useRef(null);
     const compId = `${attribute.name}-${id}-${JSON.stringify(rawValue)}`;
     const compIdEdit = `${attribute.name}-${id}`;
-    const Comp = ColumnTypes[attribute.type]?.[allowEdit ? 'EditComp' : 'ViewComp'] || DefaultComp;
+    const Comp = ColumnTypes[attribute.type]?.[editMode ? 'EditComp' : 'ViewComp'] || DefaultComp;
     // useHandleClickOutside(compRef, compId, () => isEditing && setIsEditing(false));
-
-    if(!allowEdit && (attribute.isImg || attribute.isLink || ['icon', 'color'].includes(attribute.formatFn) && formatFunctions[attribute.formatFn])) return value;
+    if(!editMode && (attribute.isImg || attribute.isLink || ['icon', 'color'].includes(attribute.formatFn) && formatFunctions[attribute.formatFn])) return value;
 
     const options = ['select', 'multiselect'].includes(attribute.type) && (attribute.options || []).some(o => o.filter) ?
         attribute.options.filter(o => {
@@ -186,24 +186,20 @@ const EditComp = ({
     if(!parseIfJson(attribute.meta_lookup)?.view_id){
         optionsMeta = parseIfJson(attribute.meta_lookup)
     }
-    return <div ref={compRef}
-                // onClick={() => !isEditing && setIsEditing(true)}
-                className={`w-full`}
-                // className={(allowEdit && isEditing) || (allowEdit && !value) ? `w-full` : `w-full`}
-    >
-        <Comp value={allowEdit && isValueFormatted ? rawValue : value}
+    return <div ref={compRef} className={`w-full`}>
+        <Comp value={editMode && isValueFormatted ? rawValue : value}
               placeholder={'please enter value...'}
               id={compIdEdit}
               // id={allowEdit && isEditing ? compIdEdit : compId}
               onChange={newValue => {
-                  if(!allowEdit) return;
+                  if(!editMode) return;
 
                   return !liveEdit && setTmpItem && tmpItem.id ? setTmpItem({...tmpItem, [attribute.name]: newValue}) : // form like edit
                       liveEdit && updateItem && tmpItem.id ? updateItem(newValue, attribute, {id, [attribute.name]: newValue}) : // live edit
                           isNewItem && setNewItem && !tmpItem.id ? setNewItem({...newItem, [attribute.name]: newValue}) : {} // add new item
               }
               }
-              className={`${allowEdit ? 'border' : ''} ${className}`}
+              className={`${editMode ? 'border' : ''} ${className}`}
               {...attribute}
             options={options}
             meta={optionsMeta}

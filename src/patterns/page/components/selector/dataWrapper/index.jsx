@@ -1,4 +1,5 @@
 import React, {useState, useEffect, useMemo, useRef, useCallback, useContext} from 'react'
+import {useNavigate} from "react-router";
 import writeXlsxFile from 'write-excel-file';
 import { isEqual } from "lodash-es";
 import {CMSContext, ComponentContext} from "../../../context";
@@ -437,7 +438,8 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
 
 const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest}) => {
     const isEdit = false;
-    const {UI, pgEnv} = useContext(cms_context || CMSContext) || {UI: {Icon: () => <></>}};;
+    const navigate = useNavigate();
+    const {UI, pgEnv, baseUrl} = useContext(cms_context || CMSContext) || {UI: {Icon: () => <></>}};
     const {Icon} = UI;
     const {state, setState, apiLoad} = useContext(ComponentContext);
 
@@ -718,17 +720,23 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
 
     const addItem = async () => {
         if(!state.sourceInfo?.isDms || !apiUpdate || groupByColumnsLength) return;
+        const {allowAdddNew, addNewBehaviour, navigateUrlOnAdd} = state.display;
         const config = {format: {...state.sourceInfo, type: `${state.sourceInfo.type}-${state.sourceInfo.view_id}`}}
-        const res = await apiUpdate({data: newItem, config});
 
-        if(res?.id){
-            setState(draft => {
-                draft.data.push({...newItem, id: res.id})
-            })
+        if(allowAdddNew){
+            const res = await apiUpdate({data: newItem, config});
+
+            if(res?.id && addNewBehaviour === 'append'){
+                setState(draft => {
+                    draft.data.push({...newItem, id: res.id})
+                })
+            }else if(res?.id && addNewBehaviour === 'navigate' && navigateUrlOnAdd){
+                navigate(`${baseUrl}${navigateUrlOnAdd}${res.id}`)
+            }
+
+            setNewItem({})
+            return res;
         }
-
-        setNewItem({})
-        return res;
     }
 
     const removeItem = item => {

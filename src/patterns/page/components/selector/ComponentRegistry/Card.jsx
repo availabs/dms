@@ -169,6 +169,15 @@ export default {
                 }},
             {type: 'toggle', label: 'Live Edit', key: 'liveEdit', displayCdn: ({display}) => display.allowEditInView},
             {type: 'toggle', label: 'Allow Add New', key: 'allowAdddNew'},
+            {type: 'select', label: 'Add New Behaviour', key: 'addNewBehaviour', displayCdn: ({display}) => display.allowAdddNew,
+                options: [
+                    {label: 'Append Entry', value: 'append'},
+                    {label: 'Clear Form', value: 'clear'},
+                    {label: 'Navigate', value: 'navigate'},
+                ]
+            },
+            {type: 'input', inputType: 'text', label: 'Navigate to', key: 'navigateUrlOnAdd',
+                displayCdn: ({display}) => display.allowAdddNew && display.addNewBehaviour === 'navigate'},
             {type: 'toggle', label: 'Use Page Filters', key: 'usePageFilters'},
             {type: 'toggle', label: 'Compact View', key: 'compactView'},
             {type: 'input', inputType: 'number', label: 'Grid Size', key: 'gridSize'},
