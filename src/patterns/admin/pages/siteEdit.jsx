@@ -18,8 +18,7 @@ function NewSite ({app, user, AUTH_HOST, apiUpdate}) {
 
 	async function createSite () {
 		if(newSite?.site_name?.length > 3 && newUser.email ) {
-			console.log('calling', AUTH_HOST)
-			await AuthAPI.callAuthServer(`${AUTH_HOST}/init/setup`,
+			await AuthAPI.callAuthServer(`/init/setup`,
 				{
 					email: newUser.email,
 					password: newUser.password,

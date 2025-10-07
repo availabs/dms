@@ -14,7 +14,8 @@ export const pattern = {
         options: [
         {value: 'auth', label: 'Auth'},
         {value: 'page', label: 'Page'},
-        {value: 'forms', label: 'Forms'}
+        {value: 'forms', label: 'Forms'},
+        {value: 'datasets', label: 'Datasets'}
       ],
     },
     // doc_type: uuid string to identify pattern entries in db
