@@ -215,7 +215,7 @@ const RenderAddPattern = ({isAdding, setIsAdding, updateData, sources=[], setSou
     )
 }
 export default function ({attributes, item, dataItems, apiLoad, apiUpdate, updateAttribute, format, submit, ...r}) {
-    const {baseUrl, user, parent, falcor, siteType} = useContext(DatasetsContext);
+    const {baseUrl, user, parent, falcor, siteType, type} = useContext(DatasetsContext);
     const [sources, setSources] = useState([]);
     const [layerSearch, setLayerSearch] = useState("");
     const {...rest } = useParams();
@@ -227,22 +227,21 @@ export default function ({attributes, item, dataItems, apiLoad, apiUpdate, updat
     const filteredCategories = []; // categories you want to exclude from landing list page.
     const cat1 = searchParams.get('cat');
     const cat2 = undefined;
-
+    console.log('sources', type)
     const envs = {
         ['hazmit_dama']: {
             label: 'external',
             srcAttributes: ['name', 'type', 'metadata', 'categories'],
             viewAttributes: ['version', '_modified_timestamp']
         },
-        [`mitigat-ny-prod+prod`]: {
         // [`${format.app}+${siteType}`]: {
-            label: 'managed',
-            isDms: true,
-            // {doc_type}-{view_id} is used as type to fetch data items for dms views.
-            // for invalid entries, it should be {doc_type}-{view_id}-invalid-entry.
-            srcAttributes: ['app', 'name', 'type', 'doc_type', 'config', 'default_columns', 'categories'],
-            viewAttributes: ['name', 'updated_at']
-        }
+        //     label: 'managed',
+        //     isDms: true,
+        //     // {doc_type}-{view_id} is used as type to fetch data items for dms views.
+        //     // for invalid entries, it should be {doc_type}-{view_id}-invalid-entry.
+        //     srcAttributes: ['app', 'name', 'type', 'doc_type', 'config', 'default_columns', 'categories'],
+        //     viewAttributes: ['name', 'updated_at']
+        // }
     };
 
     const updateData = (data) => {
