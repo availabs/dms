@@ -19,10 +19,12 @@ import {nestableTheme} from "./components/nestable/draggableNav"
 import {dataCardTheme} from "./components/Card";
 import {graphTheme} from "./components/graph";
 import {logoTheme} from "./components/Logo";
+import icons from './icons'
 // =========================================
 // Pattern Themes, maybe move registration of these to DMS Site ??
 // =========================================
 import pagesTheme from "../patterns/page/defaultTheme"
+
 
 
 // =====================================================================================================
@@ -191,7 +193,7 @@ const theme = {
     },
     navOptions,
     ...components,
-    "Icons": {},
+    "Icons":icons,
     docs,
     settings
 }
