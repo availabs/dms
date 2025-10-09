@@ -596,7 +596,7 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
 
     // =========================================== get input data ======================================================
     useEffect(() => {
-        if (!allowEdit) return;
+        if (!allowEdit && !state.display.allowAdddNew) return;
         let isStale = false;
 
         async function loadOptionsData() {
