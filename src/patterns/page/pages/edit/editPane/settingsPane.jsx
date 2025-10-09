@@ -158,6 +158,18 @@ function SettingsPane () {
           },
           {
             type:'Select',
+            label: 'Cover Page',
+            value: item.is_cover_page || '',
+            options: [
+              {label: 'No', value: ''}, 
+              {label: 'Yes', value: 'yes'}
+            ],
+            onChange:(e) => {
+              togglePageSetting(item, 'is_cover_page', e.target.value,  apiUpdate)
+            }
+          },
+          {
+            type:'Select',
             label: 'Show Content Sidebar',
             value: item.sidebar || '',
             options: [
