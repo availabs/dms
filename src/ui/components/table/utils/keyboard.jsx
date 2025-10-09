@@ -70,7 +70,7 @@ export const handleKeyDown = ({
             default:
                 break;
         }
-    } else if (e.key === 'Delete'){
+    } else if (e.key === 'Delete' && !isEditing){
         setTriggerSelectionDelete(true)
     } else if (e.key === 'Escape' && isEditing){
         setEditing({})
@@ -80,7 +80,6 @@ export const handleKeyDown = ({
         let {index, attrI} = typeof selection[selection.length - 1] === 'number' ?
             { index: selection[selection.length - 1], attrI: undefined } :
             selection[selection.length - 1];
-        console.log('in arrow logic', e.key, selection, {index, attrI})
         switch (e.key){
             case "ArrowUp":
                 index > 0 && setSelection([{index: index - 1, attrI: attrI || 0}]);

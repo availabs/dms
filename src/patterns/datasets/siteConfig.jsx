@@ -3,31 +3,19 @@ import {Link} from "react-router";
 import { merge } from "lodash-es"
 import { cloneDeep } from "lodash-es"
 import { useFalcor } from "@availabs/avl-falcor"
-import formsFormat, {source} from "./forms.format";
+import datasetsFormat, {source} from "./datasets.format";
 import { ThemeContext } from "../../ui/useTheme";
-import defaultTheme from './theme/theme'
-import DefaultMenu from './components/menu'
-import UI from '../../ui'
-
-// --- Admin Pages
+import defaultTheme from "../../ui/defaultTheme";
+import UI from "../../ui"
 import ManageLayout from './pages/manage/layout'
 import Dashboard from './pages/manage'
 import DesignEditor from "./pages/manage/design";
-
-// --- source / view pages
-import Validate from "./pages/validate";
-import Overview from "./pages/overview";
-import TableView from "./pages/table";
-import UploadPage from "./pages/upload";
-import ManageMeta from "./pages/manage/metadata"
-import PatternListComponent from "./components/patternListComponent";
-import AvailLayout from "./ui/avail-layout";
-import Admin from "./pages/admin";
-import Version from "./pages/version";
 import ErrorPage from "./pages/error";
+import DefaultMenu from "./components/menu";
+import DatasetsListComponent from "./components/DatasetsListComponent"
 
 
-export const FormsContext = React.createContext(undefined);
+export const DatasetsContext = React.createContext(undefined);
 // for instances without auth turned on can edit
 
 const isUserAuthed = ({user={}, reqPermissions=[], authPermissions=[]}) => {
@@ -47,13 +35,13 @@ const isUserAuthed = ({user={}, reqPermissions=[], authPermissions=[]}) => {
     return !reqPermissions?.length || userAuthPermissions.some(permission => permission === '*' || reqPermissions.includes(permission))
 }
 
-const formsAdminConfig = ({
+const adminConfig = ({
     app,
     type,
     siteType,
     baseUrl,
     damaBaseUrl,
-    Menu=DefaultMenu,
+    Menu,
     API_HOST='https://graph.availabs.org',
     authPermissions,
     logo,
@@ -61,7 +49,7 @@ const formsAdminConfig = ({
     themes={ default: {} },
 }) => {
 
-    let theme = merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern?.theme_name] || themes.mny_admin))
+    let theme = merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern?.theme_name] || themes.mny_datasets))
     baseUrl = baseUrl === '/' ? '' : baseUrl
     const defaultLogo = (
         <Link to={baseUrl || '/'} className='h-12 flex px-4 items-center'>
@@ -89,7 +77,7 @@ const formsAdminConfig = ({
         "nav": "main"
     }
 
-    const patternFormat = cloneDeep(formsFormat);
+    const patternFormat = cloneDeep(datasetsFormat);
     patternFormat.app = app
     patternFormat.type = type
     patternFormat.registerFormats = updateRegisteredFormats(patternFormat.registerFormats, app, type) // update app for all the children formats. this works, but dms stops providing attributes to patternList
@@ -102,40 +90,44 @@ const formsAdminConfig = ({
         API_HOST,
         errorElement: () => {
             return (
-                <FormsContext.Provider value={{
+                <DatasetsContext.Provider value={{
                     UI,
                     baseUrl: `${baseUrl}`, damaBaseUrl,
                     theme, app, type,
                     parent: pattern, Menu, API_HOST
                 }}>
                     <ErrorPage />
-                </FormsContext.Provider>
+                </DatasetsContext.Provider>
             )
         },
         children: [
             {
                 type: (props) => {
-                  const { user } = props
+                  const { user, falcor, ...rest} = props
                   const {Layout} = UI;
+                  console.log('rest', siteType)
                   return (
-                      <FormsContext.Provider value={{
+                      <DatasetsContext.Provider value={{
                           UI,
                           baseUrl: `${baseUrl}`, damaBaseUrl,
+                          falcor,
                           user,
-                          theme, app, type,
-                          parent: pattern, Menu, API_HOST,
+                          theme, app, type, siteType,
+                          parent: pattern, API_HOST,
                           authPermissions,
+                          Menu: () => <>{Menu || <DefaultMenu theme={theme} UI={UI}/>}</>,
                           isUserAuthed: (reqPermissions, customAuthPermissions) => isUserAuthed({user, authPermissions: customAuthPermissions || authPermissions, reqPermissions}),
                       }}>
                           <ThemeContext.Provider value={{theme}}>
-                                  <Layout navItems={[]} Menu={Menu}>
-                                      {props.children}
-                                  </Layout>
+                                      <Layout navItems={[]} Menu={() => <DefaultMenu theme={theme} UI={UI}/>}>
+                                          {props.children}
+                                      </Layout>
                           </ThemeContext.Provider>
-                      </FormsContext.Provider>
+                      </DatasetsContext.Provider>
                   )
                 },
                 authPermissions,
+                reqPermissions: ['view-sources'],
                 action: "list",
                 filter: {
                     stopFullDataLoad: true,
@@ -145,37 +137,9 @@ const formsAdminConfig = ({
                 path: "/*",
                 children: [
                     {
-                        // sources list component on blank
-
-                        // sources list component on blank
-                        type: props => <PatternListComponent.EditComp {...props} />,
+                        type: props => <DatasetsListComponent {...props} />,
                         path: "",
                         action: "edit"
-                    },
-                    {
-                        type: ManageLayout,
-                        path: "manage/*",
-                        action: "list",
-                        filter: {
-                          options: JSON.stringify({
-                            filter: {
-                              "data->>'hide_in_nav'": ['null']
-                            }
-                          }),
-                          attributes:['title', 'index', 'url_slug', 'parent','published', 'hide_in_nav']
-                        },
-                        children: [
-                          {
-                            type: Dashboard,
-                            path: "manage/",
-                            action: "edit"
-                          },
-                          {
-                            type: (props) => <DesignEditor themes={themes} {...props} />,
-                            path: "manage/design",
-                            action: "edit"
-                          }
-                        ]
                     }
                 ]
             }
@@ -184,7 +148,7 @@ const formsAdminConfig = ({
 }
 
 
-const formsSourceConfig = ({
+const sourceConfig = ({
     app,
     type,
     siteType,
@@ -192,7 +156,7 @@ const formsSourceConfig = ({
     title,
     baseUrl,
     damaBaseUrl,
-    Menu=DefaultMenu,
+    Menu,
     API_HOST='https://graph.availabs.org',
     authPermissions,
     columns,
@@ -202,7 +166,7 @@ const formsSourceConfig = ({
     themes={ default: {} },
     checkAuth = () => {}
 }) => {
-    let theme = merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern?.theme_name] || themes.mny_admin));
+    let theme = merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern?.theme_name] || themes.mny_datasets));
 
     baseUrl = baseUrl === '/' ? '' : baseUrl
     const defaultLogo = (
@@ -246,14 +210,14 @@ const formsSourceConfig = ({
         API_HOST,
         errorElement: () => {
             return (
-                <FormsContext.Provider value={{
+                <DatasetsContext.Provider value={{
                     UI,
                     baseUrl: `${baseUrl}`, damaBaseUrl,
                     theme, app, type,
                     parent: pattern, Menu, API_HOST
                 }}>
                     <ErrorPage />
-                </FormsContext.Provider>
+                </DatasetsContext.Provider>
             )
         },
         children: [
@@ -263,26 +227,24 @@ const formsSourceConfig = ({
                   const {Layout} = UI;
                   const { user } = props;
                   return (
-                      <FormsContext.Provider value={{
+                      <DatasetsContext.Provider value={{
                           UI,
                           baseUrl: `${baseUrl}`,
                           pageBaseUrl: `${baseUrl}/source`,
                           damaBaseUrl,
                           user,
                           pgEnv,
-                          theme, app, type,
+                          theme, app, type, siteType,
                           parent: pattern,
-                          Menu, API_HOST,
+                          Menu: () => <>{Menu || <DefaultMenu theme={theme} UI={UI}/>}</>, API_HOST,
                           falcor, falcorCache,
                           authPermissions,
                           isUserAuthed: (reqPermissions, customAuthPermissions) => isUserAuthed({user, authPermissions: customAuthPermissions || authPermissions, reqPermissions}),
                       }}>
                           <ThemeContext.Provider value={{theme, UI}}>
-                                  <Layout navItems={[]} Menu={Menu}>
                                       {props.children}
-                                  </Layout>
                           </ThemeContext.Provider>
-                      </FormsContext.Provider>
+                      </DatasetsContext.Provider>
                   )
                 },
                 authPermissions,
@@ -305,68 +267,6 @@ const formsSourceConfig = ({
                         action: 'edit',
                         path: `:id`
                     },
-                    {
-                        type: props => <ManageMeta.EditComp {...props} />,
-                        filter: {
-                            stopFullDataLoad: true,
-                            fromIndex: () => 0,
-                            toIndex: () => 0,
-                        },
-                        action: 'edit',
-                        path: `:id/metadata`
-                    },
-                    {
-                        type: props => <Admin {...props} />,
-                        filter: {
-                            stopFullDataLoad: true,
-                            fromIndex: () => 0,
-                            toIndex: () => 0,
-                        },
-                        action: 'edit',
-                        path: `:id/admin`
-                    },
-                    // ============================= version dependent pages begin =====================================
-                    {
-                        type: props => <TableView {...props} />,
-                        filter: {
-                            stopFullDataLoad: true,
-                            fromIndex: () => 0,
-                            toIndex: () => 0,
-                        },
-                        action: 'edit',
-                        path: `:id/table/:view_id?`
-                    },
-                    {
-                        type: props => <UploadPage {...props} />,
-                        filter: {
-                            stopFullDataLoad: true,
-                            fromIndex: () => 0,
-                            toIndex: () => 0,
-                        },
-                        action: 'edit',
-                        path: `:id/upload/:view_id?`
-                    },
-                    {
-                        type: props => <Validate {...props} />,
-                        filter: {
-                            stopFullDataLoad: true,
-                            fromIndex: () => 0,
-                            toIndex: () => 0,
-                        },
-                        action: 'edit',
-                        path: `:id/validate/:view_id?`
-                    },
-                    {
-                        type: props => <Version {...props} />,
-                        filter: {
-                            stopFullDataLoad: true,
-                            fromIndex: () => 0,
-                            toIndex: () => 0,
-                        },
-                        action: 'edit',
-                        path: `:id/view/:view_id?`
-                    }
-                    // ============================= version dependent pages end =======================================
                 ]
             }
         ]
@@ -375,8 +275,8 @@ const formsSourceConfig = ({
 
 
 export default [
-    formsAdminConfig,
-    formsSourceConfig
+    adminConfig,
+    sourceConfig
 
 ];
 

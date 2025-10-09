@@ -9,7 +9,7 @@ const theme = {
 const Edit = ({value = '', onChange, className, placeholder, ...rest}) => {
     // const {theme: themeFromContext={}} = React.useContext(ThemeContext) || {};
     // const theme = {...themeFromContext, text: {...textTheme, ...(themeFromContext.text || {})}}
-    const [tmpValue, setTmpValue] = useState(value)
+    const [tmpValue, setTmpValue] = useState(value && typeof value === 'object' ? JSON.stringify(value) : value)
 
     useEffect(() => setTmpValue(value), [value]);
     return (
