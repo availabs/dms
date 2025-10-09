@@ -17,8 +17,8 @@ const sideNavTheme = {
    px-3 py-1.5 text-[14px] font-light hover:bg-blue-50 text-slate-700  mx-2
      focus:outline-none focus:text-gray-800 focus:bg-gray-50 focus:border-gray-300
    transition-all cursor-pointer`,
-  indicatorIcon: "fa fa-angle-right pt-2.5",
-  indicatorIconOpen: "fal fa-angle-down pt-2.5",
+  indicatorIcon: "ArrowRight",
+  indicatorIconOpen: "ArrowDown",
   subMenuWrapper: "pl-2 w-full",
   subMenuParentWrapper: "flex flex-col w-full",
   bottomMenuWrapper: 'border-t'
