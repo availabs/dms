@@ -103,7 +103,7 @@ export async function dmsDataLoader (falcor, config, path='/') {
         try{
             const udaReqsToInvalidate = newRequests.filter(r => r.includes('uda'));
             if(udaReqsToInvalidate.length){
-                await falcor.invalidate(udaReqsToInvalidate)
+                await falcor.invalidate(...udaReqsToInvalidate)
             }
             await falcor.get(...newRequests)
         }catch (e){

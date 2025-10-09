@@ -1,19 +1,21 @@
-import React, { useMemo, useState, useEffect, useRef } from 'react';
-
+import React, { useMemo, useState, useEffect } from 'react';
 import { PageContext, CMSContext } from '../../../context';
 import { selectablePDF2 } from '../../saveAsPDF/PrintWell/selectablePDF';
 
 function pdfExport({ }) {
-  const [pages, setPages] = useState([]);
+  const [pdfPages, setPdfPages] = useState([]);
+  const [coverPages, setCoverPages] = useState([]);
   const [patterns, setPatterns] = useState([]);
   const [selectedPattern, setSelectedPattern] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedPageIds, setSelectedPageIds] = useState(new Set());
   const [expandedNodeIds, setExpandedNodeIds] = useState(new Set());
-  // const [loadedpg, setLoadedPG] = useState([]);
-  const { UI, app, /*type,*/ API_HOST, siteType } = React.useContext(CMSContext) || {};
-  const { apiLoad, format } = React.useContext(PageContext) || {};
+  const [isTocMode, setIsTocMode] = useState(false);
+  const [includeInTOC, setIncludeInTOC] = useState(false);
+  const [selectedCoverPage, setSelectCoverPage] = useState(null);
 
+  const { UI, app, API_HOST, siteType } = React.useContext(CMSContext) || {};
+  const { apiLoad, format } = React.useContext(PageContext) || {};
   const { Icon, Button, Select } = UI || {};
 
   useEffect(() => {
@@ -37,26 +39,27 @@ function pdfExport({ }) {
           format: {
             app,
             type: `pattern`,
-            attributes: [
-              "id", "app", "type", "doc_type"
-            ]
+            attributes: ["id", "app", "type", "doc_type"]
           },
           children: [{
             action: "list",
             path: "/*",
             filter: {
-              options: JSON.stringify({ filter: { "data->>'id'": appData?.patterns?.map(p => p.id) } }),
-            }
+              options: JSON.stringify({
+                filter: { "data->>'id'": appData?.patterns?.map(p => p.id) },
+              }),
+            },
           }],
-        })
-        data = data?.map(d => ({ app: d.app, doc_type: d.doc_type, name: d.name }));
+        });
+        data = data?.map(d => ({
+          app: d.app,
+          doc_type: d.doc_type,
+          name: d.name,
+        }));
         setPatterns(data);
-        if (data && data.length>0 && data[0]) {
-          setSelectedPattern(data[0]);
-        }
+        if (data?.length > 0) setSelectedPattern(data[0]);
       }
     };
-
     fetchPatterns();
   }, [app, siteType]);
 
@@ -79,22 +82,23 @@ function pdfExport({ }) {
             'hide_in_nav',
             'published',
             'icon',
-            'index'
+            'index',
+            'is_cover_page'
           ]
         },
         children: [{
           type: () => { },
           action: 'list',
           path: '/',
-          filter: {
-            filter: {
-              [`data->>'template_id'`]: [null]
-            }
-          }
         }]
       });
 
-      setPages(res || []);
+      const allPages = res || [];
+      const cover = allPages.filter(p => p.is_cover_page === "yes");
+      const pdf = allPages.filter(p => p.is_cover_page !== "yes" || !p.is_cover_page);
+
+      setCoverPages(cover);
+      setPdfPages(pdf);
     };
 
     fetchPages();
@@ -114,14 +118,10 @@ function pdfExport({ }) {
           description: d.description,
           hideInNav: d.hide_in_nav
         };
-        if (d?.icon && d?.icon !== 'none') {
-          item.icon = d.icon;
-        }
+        if (d?.icon && d?.icon !== 'none') item.icon = d.icon;
 
         const children = getChildNav(d, dataItems, baseUrl, edit).filter(c => c.name);
-        if (children.length) {
-          item.subMenus = children;
-        }
+        if (children.length) item.subMenus = children;
 
         return item;
       });
@@ -141,20 +141,16 @@ function pdfExport({ }) {
           description: d.description,
           hideInNav: d.hide_in_nav
         };
-        if (d?.icon && d?.icon !== 'none') {
-          item.icon = d.icon;
-        }
+        if (d?.icon && d?.icon !== 'none') item.icon = d.icon;
 
         const children = getChildNav(d, dataItems, baseUrl, edit).filter(c => c.name);
-        if (children.length) {
-          item.subMenus = children;
-        }
+        if (children.length) item.subMenus = children;
 
         return item;
       });
   };
 
-  const pageTree = useMemo(() => dataItemsNav(pages), [pages]);
+  const pageTree = useMemo(() => dataItemsNav(pdfPages), [pdfPages]);
 
   const findNodeById = (nodes, id) => {
     for (const node of nodes) {
@@ -168,49 +164,33 @@ function pdfExport({ }) {
   };
 
   const getOrderedSelectedPages = (pages) => {
-    let orderedPages = [];
-
-    const traverse = (pageList) => {
-      pageList?.sort((a, b) => a.index - b.index)?.forEach((node) => {
-        if (selectedPageIds.has(node.id)) {
-          orderedPages.push(node);
-        }
-        if (node.subMenus?.length) {
-          traverse(node.subMenus);
-        }
+    let ordered = [];
+    const traverse = (list) => {
+      list?.sort((a, b) => a.index - b.index)?.forEach((n) => {
+        if (selectedPageIds.has(n.id)) ordered.push(n);
+        if (n.subMenus?.length) traverse(n.subMenus);
       });
     };
-
     traverse(pages);
-    return orderedPages;
+    return ordered;
   };
 
   const toggleSelect = (id) => {
     const getAllDescendants = (node) => {
       const children = node?.subMenus || [];
-      return children?.reduce(
-        (acc, child) => acc.concat(child.id, getAllDescendants(child)),
-        []
-      );
+      return children.reduce((acc, child) => acc.concat(child.id, getAllDescendants(child)), []);
     };
 
-    const updateSelection = (id, add) => {
-      const node = findNodeById(pageTree, id);
-      if (!node) return;
+    const node = findNodeById(pageTree, id);
+    if (!node) return;
+    const allIds = [id, ...getAllDescendants(node)];
 
-      const allIds = [id, ...getAllDescendants(node)];
-
-      setSelectedPageIds((prev) => {
-        const newSet = new Set(prev);
-        allIds.forEach((childId) => {
-          add ? newSet.add(childId) : newSet.delete(childId);
-        });
-        return newSet;
-      });
-    };
-
-    const isSelected = selectedPageIds.has(id);
-    updateSelection(id, !isSelected);
+    setSelectedPageIds((prev) => {
+      const newSet = new Set(prev);
+      const add = !newSet.has(id);
+      allIds.forEach((childId) => (add ? newSet.add(childId) : newSet.delete(childId)));
+      return newSet;
+    });
   };
 
   const toggleExpand = (id) => {
@@ -219,6 +199,25 @@ function pdfExport({ }) {
       newSet.has(id) ? newSet.delete(id) : newSet.add(id);
       return newSet;
     });
+  };
+
+  const buildSelectedTOC = (nodes, selectedIds, origin = window.location.origin) => {
+    let toc = {};
+    nodes.forEach(node => {
+      if (!node?.name) return;
+      const isSelected = selectedIds.has(node.id);
+      let children = {};
+      if (node.subMenus?.length) children = buildSelectedTOC(node.subMenus, selectedIds, origin);
+
+      if (isSelected) {
+        const item = { url: `${origin}${node.path}` };
+        if (Object.keys(children).length > 0) item.children = children;
+        toc[node.name.trim()] = item;
+      } else if (Object.keys(children).length > 0) {
+        toc[node.name.trim()] = { children };
+      }
+    });
+    return toc;
   };
 
   const handleFetchSelected = async () => {
@@ -243,7 +242,6 @@ function pdfExport({ }) {
             },
           ],
         };
-
         try {
           const res = await apiLoad(config, `/view/${page.id}`);
           const fullPage = res?.[0] || {};
@@ -257,26 +255,37 @@ function pdfExport({ }) {
         } catch (err) {
           console.error(`Failed to load page ID ${page.id}`, err);
         }
-        // No setIsGenerating(false) here!
       }
 
-      // setLoadedPG(results);
       const origin = window.location.origin;
-      await selectablePDF2(results.map((r) => `${origin}${r.path}`), API_HOST);
+      const toc = buildSelectedTOC(dataItemsNav(pdfPages), selectedPageIds, origin);
+
+      let coverUrl = null;
+      if (selectedCoverPage) {
+        const coverPage = coverPages.find(p => p.id === selectedCoverPage);
+        coverUrl = coverPage ? `${origin}/${coverPage?.url_slug || coverPage?.path || ''}` : null;
+      }
+
+      await selectablePDF2(results.map(r => `${origin}${r.path}`), toc, includeInTOC , coverUrl, API_HOST);
     } catch (error) {
       console.error('Error during PDF generation', error);
     } finally {
-      setIsGenerating(false); // <-- only here
+      setIsGenerating(false);
     }
   };
 
+  useEffect(() => {
+    if (includeInTOC && coverPages.length > 0 && !selectedCoverPage) {
+      setSelectCoverPage(coverPages[0].id);
+    }
+  }, [includeInTOC, coverPages, selectedCoverPage]);
+
   const renderTree = (nodes) => (
-    <ul className="">
-      {nodes?.map((node) => {
+    <ul>
+      {nodes?.map(node => {
         const isExpanded = expandedNodeIds.has(node.id);
         const hasChildren = node.subMenus?.length > 0;
         const isSelected = selectedPageIds.has(node.id);
-
         return (
           <li key={node.id}>
             <div
@@ -291,13 +300,12 @@ function pdfExport({ }) {
                     e.stopPropagation();
                     toggleExpand(node.id);
                   }}
-                  className={`${isSelected ? `text-blue-800` : ``} focus:outline-none`}
+                  className={`${isSelected ? `text-blue-800` : ``}`}
                   title={isExpanded ? "Collapse" : "Expand"}
                   icon={isExpanded ? 'ArrowDown' : 'ArrowRight'}
                 />
               )}
             </div>
-
             {hasChildren && isExpanded && (
               <div className="ml-4 mt-1">{renderTree(node.subMenus)}</div>
             )}
@@ -309,72 +317,91 @@ function pdfExport({ }) {
 
   return (
     <div>
-      <div className="flex space-x-2 mb-4">
-        <Button
-          onClick={() => {
+      <div className="flex items-center space-x-4 mb-3">
+        <div className="flex space-x-2">
+          <Button onClick={() => {
             const getAllIds = (nodes) =>
-              nodes?.reduce(
-                (acc, node) => [
-                  ...acc,
-                  node.id,
-                  ...(node.subMenus ? getAllIds(node.subMenus) : []),
-                ],
-                []
-              );
-
+              nodes.reduce((acc, n) => [...acc, n.id, ...(n.subMenus ? getAllIds(n.subMenus) : [])], []);
             setSelectedPageIds(new Set(getAllIds(pageTree)));
-          }}
-        >
-          Select All
-        </Button>
+          }}>Select All</Button>
 
-        <Button
-          onClick={() => setSelectedPageIds(new Set())}
-          className={!selectedPageIds.size ? `cursor-not-allowed` : ``}
-          disabled={!selectedPageIds.size}
-        >
-          Clear Selection
-        </Button>
+          <Button onClick={() => setSelectedPageIds(new Set())} disabled={!selectedPageIds.size}>
+            Clear Selection
+          </Button>
 
-        <Button
-          onClick={handleFetchSelected}
-          className={isGenerating ? `cursor-progress` : selectedPageIds.size === 0 ? 'cursor-not-allowed' : ``}
-          disabled={isGenerating || !selectedPageIds.size}
-        >
-          {isGenerating ? (
-            'Generating PDF'
-          ) : (
-            'Generate PDF'
-          )}
-        </Button>
+          <Button onClick={handleFetchSelected} disabled={isGenerating || !selectedPageIds.size}>
+            {isGenerating ? 'Generating PDF' : 'Generate PDF'}
+          </Button>
+        </div>
+
+        <div className="flex items-center space-x-2 ml-4">
+          <input
+            type="checkbox"
+            id="includeInTOC"
+            checked={includeInTOC}
+            onChange={(e) => setIncludeInTOC(e.target.checked)}
+            className="cursor-pointer"
+          />
+          <label htmlFor="includeInTOC" className="cursor-pointer">
+            Add Table of Content page
+          </label>
+        </div>
       </div>
 
-      <div className="mb-4">
+      <div className="mb-3">
         <Select
           options={patterns.map(o => ({
             label: `${o?.name ?? ''} (${o?.doc_type ?? ''})`,
-            value: JSON.stringify(o), 
+            value: JSON.stringify(o),
           }))}
           value={selectedPattern ? JSON.stringify(selectedPattern) : ""}
           onChange={(e) => {
             const obj = JSON.parse(e.target.value);
+            setSelectedPattern(obj);
             setSelectedPageIds(new Set());
             setExpandedNodeIds(new Set());
-            setSelectedPattern(obj); 
           }}
           placeholder="Select a pattern..."
         />
       </div>
-      <div className="max-w-xl overflow-auto max-h-[500px] scrollbar-sm">
-        {selectedPattern ?
-          <>
-            {renderTree(pageTree)}
-          </> : null}
+
+      <div className="flex items-center space-x-2 mb-4">
+        <Button
+          className={!isTocMode ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800'}
+          onClick={() => setIsTocMode(false)}
+        >
+          PDF Pages
+        </Button>
+        <Button
+          className={isTocMode ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800'}
+          onClick={() => setIsTocMode(true)}
+        >
+          Cover pages
+        </Button>
+      </div>
+
+      <div className="overflow-auto max-h-[500px] scrollbar-sm">
+        {!isTocMode && renderTree(pageTree)}
+
+        {isTocMode &&  (
+            coverPages.length > 0 ? (
+              <Select
+                options={coverPages.map(p => ({
+                  label: p.title,
+                  value: p.id,
+                }))}
+                value={selectedCoverPage}
+                onChange={(e) => setSelectCoverPage(e.target.value)}
+                placeholder="Select cover page..."
+              />
+            ) : (
+              <div className="text-gray-600 italic">No cover pages available.</div>
+            )
+        )}
       </div>
     </div>
   );
 }
-
 
 export default {
   "name": 'PDF Generator',
@@ -383,4 +410,4 @@ export default {
   },
   "EditComp": pdfExport,
   "ViewComp": pdfExport
-}
+};

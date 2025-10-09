@@ -54,14 +54,14 @@ export const selectablePDF = async (pdfRef, API_HOST) => {
 };
 
 
-export const selectablePDF2 = async (urls, API_HOST) => {
+export const selectablePDF2 = async (urls, toc_data, is_toc_available, cover_url, API_HOST) => {
    const response = await fetch(`${API_HOST}/dama-admin/hazmit_dama/downloadpdf`,
        {
           method: 'POST',
           headers: {
              'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ urls }),
+          body: JSON.stringify({ urls, toc_data, is_toc_available, cover_url }),
        });
    console.log('res', response)
    if (response.ok) {
