@@ -127,7 +127,7 @@ const pagesConfig = ({
     children: [
       {
         type: ({children, falcor, user, ...props}) => {
-          console.log('pages siteConfig - ', user )
+          // console.log('pages siteConfig - ', user )
           // console.log('page siteConfig - UI', UI )
           return (
               <CMSContext.Provider value={{

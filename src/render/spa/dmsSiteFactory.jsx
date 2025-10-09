@@ -7,7 +7,7 @@ import { cloneDeep } from "lodash-es"
 import { dmsDataLoader, dmsPageFactory } from '../../'
 
 import patternTypes from '../../patterns'
-import {updateAttributes, updateRegisteredFormats} from "../../patterns/admin/siteConfig";
+import { updateAttributes, updateRegisteredFormats } from "../../patterns/admin/siteConfig";
 
 import { withAuth, authProvider } from '../../patterns/auth/context';
 
@@ -66,8 +66,7 @@ function pattern2routes (siteData, props) {
         themes = { default: {} },
         pgEnvs = ['hazmit_dama'],
         API_HOST = 'https://graph.availabs.org',
-        damaBaseUrl,
-        PROJECT_NAME
+        damaBaseUrl
     } = props
 
     const patterns = siteData.reduce((acc, curr) => [...acc, ...(curr?.patterns || [])], []) || [];
@@ -100,7 +99,6 @@ function pattern2routes (siteData, props) {
                 siteType: dmsConfigUpdated.type,
                 baseUrl: adminPath,
                 API_HOST,
-                PROJECT_NAME,
                 theme: themes['default'],
                 pgEnvs
             },
@@ -161,7 +159,7 @@ export default async function dmsSiteFactory(config) {
     // console.time('load routes')
     let data = await dmsDataLoader(falcor, dmsConfigUpdated, `/`);
     // console.timeEnd('load routes')
-    console.log('data -- get site data here', JSON.stringify(data))
+    //console.log('data -- get site data here', JSON.stringify(data))
 
     return pattern2routes(data, config)
 }
@@ -177,8 +175,8 @@ export function DmsSite (config) {
         pgEnvs=['hazmit_dama'],
         API_HOST = 'https://graph.availabs.org',
         AUTH_HOST= 'https://graph.availabs.org',
-        PROJECT_NAME,
         damaBaseUrl,
+        PROJECT_NAME,
         routes = []
     } = config
     //-----------
@@ -186,6 +184,7 @@ export function DmsSite (config) {
     // could save sites to localstorage cache clear on load.
     //-----------
     let CurrentProjectName = PROJECT_NAME ? PROJECT_NAME : dmsConfig.app
+    console.log('current Project name', CurrentProjectName)
     const [loading, setLoading] = useState(false);
 
     const [dynamicRoutes, setDynamicRoutes] = useState(
@@ -220,7 +219,6 @@ export function DmsSite (config) {
                 authWrapper,
                 pgEnvs,
                 damaBaseUrl,
-                PROJECT_NAME: CurrentProjectName
                 //theme
             });
             console.timeEnd('dmsSiteFactory')
@@ -255,7 +253,7 @@ export function DmsSite (config) {
 
     const AuthedRouteProvider = authProvider(
       RouterProvider,
-      { AUTH_HOST, PROJECT_NAME }
+      { AUTH_HOST, PROJECT_NAME:CurrentProjectName }
     );
 
     return (

@@ -1,6 +1,6 @@
 import React from 'react';
 import {Link, useNavigate} from 'react-router'
-import {DatasetsContext} from "~/modules/dms/src/patterns/datasets/siteConfig";
+import {DatasetsContext} from "../../siteConfig";
 
 const Alert = () => <div>A</div>
 const Database =  () => <div>D</div>
@@ -55,8 +55,8 @@ const Nav = ({baseUrl, navPages, page, hideNav, id, view_id}) => hideNav ? null 
             navPages.map(p => (
                 <Link className={
                     `p-2 mx-1 font-display font-medium text-l text-slate-700
-                    ${p.name === page.name ? 
-                        `border-b-2 border-blue-600` : 
+                    ${p.name === page.name ?
+                        `border-b-2 border-blue-600` :
                         `hover:border-b-2 hover:border-gray-300`}`
                 }
                   to={`${baseUrl}/${id}/${p.viewDependentPage ? `${p.href}/${view_id || ''}` : p.href}`}
@@ -95,7 +95,7 @@ const Breadcrumbs = ({baseUrl, form, page}) => {
               >
                 <path d="M.293 0l22 22-22 22h1.414l22-22-22-22H.293z" />
               </svg>
-              {page.href ? 
+              {page.href ?
                 <Link
                   to={page.href}
                   className="ml-4 text-sm font-medium text-gray-500 hover:text-gray-700"
@@ -108,7 +108,7 @@ const Breadcrumbs = ({baseUrl, form, page}) => {
                   aria-current={page.current ? 'page' : undefined}
                 >
                   {page.name}
-                </div> 
+                </div>
               }
             </div>
           </li>
@@ -117,6 +117,3 @@ const Breadcrumbs = ({baseUrl, form, page}) => {
     </nav>
   )
 }
-
-
-
