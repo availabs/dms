@@ -71,7 +71,7 @@ export async function dmsDataLoader (falcor, config, path='/') {
 		// special routes for 'load', 'uda' action
 		const options = activeConfigs.find(ac => ['udaLength'].includes(ac.action))?.filter?.options;
 		if(options) lengthReq = ['uda', env, 'viewsById', view_id, 'options', options, 'length' ];
-        // await falcor.invalidate(lengthReq)
+        await falcor.invalidate(lengthReq)
     }
     let length;
     try{
@@ -103,7 +103,7 @@ export async function dmsDataLoader (falcor, config, path='/') {
         try{
             const udaReqsToInvalidate = newRequests.filter(r => r.includes('uda'));
             if(udaReqsToInvalidate.length){
-                // await falcor.invalidate(udaReqsToInvalidate)
+                await falcor.invalidate(...udaReqsToInvalidate)
             }
             await falcor.get(...newRequests)
         }catch (e){

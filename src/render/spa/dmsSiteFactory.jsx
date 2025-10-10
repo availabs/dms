@@ -74,14 +74,15 @@ function pattern2routes (siteData, props) {
     // for weird double subdomain tld
     SUBDOMAIN = SUBDOMAIN === 'hazardmitigation' ? '' : SUBDOMAIN
 
-   const dbThemes = (siteData?.[0]?.themes || [])
+    const dbThemes = (siteData?.[0]?.themes || [])
       .reduce((out,theme) => {
           out[theme.name] = parseIfJSON(theme.theme)
           return out
       }, {})
-   //console.log('patterns2routes',dbThemes)
+    //console.log('patterns2routes',dbThemes)
 
-   themes = themes?.default ? { ...themes, ...dbThemes } : { ...themes, ...dbThemes, default: {} }
+    themes = themes?.default ? { ...themes, ...dbThemes } : { ...themes, ...dbThemes, default: {} }
+    console.log('themes', themes)
 
     let dmsConfigUpdated = cloneDeep(dmsConfig);
     dmsConfigUpdated.registerFormats = updateRegisteredFormats(dmsConfigUpdated.registerFormats, dmsConfig.app)
@@ -115,7 +116,7 @@ function pattern2routes (siteData, props) {
 
             const c = patternTypes[pattern.pattern_type];
             if(!c) return acc;
-            //console.log('register pattern', pattern.id, pattern)
+            //console.log('register pattern', pattern.id, pattern.subdomain, `/${pattern.base_url?.replace(/^\/|\/$/g, '')}`)
             acc.push(
               ...c.map(config => {
                 const configObj = config({
@@ -159,7 +160,7 @@ export default async function dmsSiteFactory(config) {
     // console.time('load routes')
     let data = await dmsDataLoader(falcor, dmsConfigUpdated, `/`);
     // console.timeEnd('load routes')
-    //console.log('data -- get site data here', JSON.stringify(data))
+    // console.log('data -- get site data here', JSON.stringify(data))
 
     return pattern2routes(data, config)
 }

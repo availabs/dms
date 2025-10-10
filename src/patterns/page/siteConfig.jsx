@@ -62,7 +62,6 @@ const pagesConfig = ({
   pgEnv,
   API_HOST
 }) => {
-  // console.log('pass themes', themes)
   let theme = merge(
     cloneDeep(defaultTheme),
     cloneDeep(themes[pattern?.theme?.settings?.theme?.theme] || themes.default),
@@ -71,7 +70,7 @@ const pagesConfig = ({
   // console.log('pageConfig', pattern.doc_type, pattern.id, themes[pattern?.theme?.settings?.theme?.theme], pattern?.theme, pattern)
   // baseUrl = baseUrl[0] === '/' ? baseUrl.slice(1) : baseUrl
   baseUrl = baseUrl === "/" ? "" : baseUrl;
-
+  rightMenu = theme.rightMenu || rightMenu
   // console.log('testing', theme.navOptions)
   // console.log('page siteConfig app,type', `"${app}","${type}"`)
 
@@ -103,6 +102,7 @@ const pagesConfig = ({
     API_HOST,
     errorElement: () => {
       // console.log('hola', user, defaultUser, user || defaultUser)
+
       return (
         <CMSContext.Provider
           value={{
@@ -129,6 +129,8 @@ const pagesConfig = ({
         type: ({children, falcor, user, ...props}) => {
           // console.log('pages siteConfig - ', user )
           // console.log('page siteConfig - UI', UI )
+          console.log('pass themes', themes, 'pattern',pattern)
+
           return (
               <CMSContext.Provider value={{
                 app, type, siteType,
