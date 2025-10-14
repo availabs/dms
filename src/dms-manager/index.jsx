@@ -17,7 +17,7 @@ const DmsManager = (props) => {
 	} = props
 
 	// const location = useLocation()
-  React.useEffect(() => { console.log('DmsManager - user updated', user) },[user])
+  // React.useEffect(() => { console.log('DmsManager - user updated', user) },[user])
 	// console.log('location dms-manager', location, baseUrl, path)
 	function getActiveView(config, path, format, user, depth=0) {
 		// add '' to params array to allow root (/) route  matching
