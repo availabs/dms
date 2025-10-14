@@ -41,7 +41,7 @@ import {InsertButtonDialog} from '../ButtonPlugin';
 import {InsertInlineImageDialog} from '../InlineImagePlugin';
 import InsertLayoutDialog from '../LayoutPlugin/InsertLayoutDialog';
 import {InsertTableDialog} from '../TablePlugin';
-
+import {INSERT_PAGE_BREAK} from '../PageBreakPlugin';
 
 class ComponentPickerOption extends MenuOption {
     // What shows up in the editor
@@ -241,6 +241,11 @@ function getBaseOptions(editor: LexicalEditor, showModal: ShowModal) {
             onSelect: () =>
                 editor.dispatchCommand(INSERT_HORIZONTAL_RULE_COMMAND, undefined),
         }),
+        new ComponentPickerOption('Page Break', {
+            icon: <i className="icon page-break" />,
+            keywords: ['page break', 'divider'],
+            onSelect: () => editor.dispatchCommand(INSERT_PAGE_BREAK, undefined),
+            }),
         new ComponentPickerOption('Image', {
             icon: <i className={`${theme.typeaheadPopover.ul.li.icon} ${theme.icon.image}`}/>,
             keywords: ['image', 'photo', 'picture', 'file'],

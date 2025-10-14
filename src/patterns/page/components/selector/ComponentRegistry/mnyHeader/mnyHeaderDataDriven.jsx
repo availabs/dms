@@ -214,7 +214,8 @@ const HeaderWrapper = ({isEdit}) => {
     const logo = useMemo(() => data?.[0]?.[logoColumn?.name], [data, imgColumn]);
     const chain = getChain(dataItems, item);
 
-    return <Header title={title || display.defaultTitle}
+    return (<>
+                <Header title={title || display.defaultTitle}
                    note={note || display.defaultNote}
                    logo={logo}
                    bgImg={bgImg || display.defaultBgImg}
@@ -222,7 +223,9 @@ const HeaderWrapper = ({isEdit}) => {
                    chain={chain}
                    app={app}
                    type={type}
-    />
+                />
+                <div className='print-page-break'></div>
+            </>)
 }
 
 export default {

@@ -45,6 +45,8 @@ import {LayoutItemNode} from './LayoutItemNode';
 // import {TweetNode} from './TweetNode';
 // import {YouTubeNode} from './YouTubeNode';
 
+import {PageBreakNode} from './PageBreakNode';
+
 import { ButtonNode } from './ButtonNode'
 import { IconNode } from "./IconNode";
 
@@ -77,6 +79,7 @@ const PlaygroundNodes: Array<Klass<LexicalNode>> = [
   // YouTubeNode,
   // FigmaNode,
   MarkNode,
+  PageBreakNode,
 
   CollapsibleContainerNode,
   CollapsibleContentNode,
