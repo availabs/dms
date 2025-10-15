@@ -46,6 +46,7 @@ import {
   mergeRegister,
 } from '@lexical/utils';
 import {
+  $addUpdateTag,
   $createParagraphNode,
   $getNodeByKey,
   $getRoot,
@@ -69,6 +70,8 @@ import {
   REDO_COMMAND,
   SELECTION_CHANGE_COMMAND,
   UNDO_COMMAND,
+  CommandPayloadType,
+  LexicalCommand
 } from 'lexical';
 import {type Dispatch, useCallback, useEffect, useState} from 'react';
 import * as React from 'react';
@@ -83,6 +86,9 @@ import {INSERT_COLLAPSIBLE_COMMAND} from '../CollapsiblePlugin';
 import {InsertInlineImageDialog} from '../InlineImagePlugin';
 import {InsertTableDialog} from '../TablePlugin';
 import theme from "./../../themes/PlaygroundEditorTheme";
+import {INSERT_PAGE_BREAK} from '../PageBreakPlugin';
+
+export const SKIP_DOM_SELECTION_TAG = 'skip-dom-selection';
 
 const blockTypeToBlockName = {
   bullet: 'Bulleted List',
@@ -537,6 +543,21 @@ export default function ToolbarPlugin({
   const [codeLanguage, setCodeLanguage] = useState<string>('');
   const [isEditable, setIsEditable] = useState(() => editor.isEditable());
 
+  const dispatchToolbarCommand = <T extends LexicalCommand<unknown>>(
+    command: T,
+    payload: CommandPayloadType<T> | undefined = undefined,
+    skipRefocus: boolean = false,
+  ) => {
+    activeEditor.update(() => {
+      if (skipRefocus) {
+        $addUpdateTag(SKIP_DOM_SELECTION_TAG);
+      }
+
+      // Re-assert on Type so that payload can have a default param
+      activeEditor.dispatchCommand(command, payload as CommandPayloadType<T>);
+    });
+  };
+
   const $updateToolbar = useCallback(() => {
     const selection = $getSelection();
     if ($isRangeSelection(selection)) {
@@ -984,6 +1005,13 @@ export default function ToolbarPlugin({
               <i className={`${theme.dropdown.item.icon} ${theme.icon.subscript}` } />
               <span className={`${theme.dropdown.item.text}`}>Subscript</span>
             </DropDownItem>
+              <DropDownItem
+                  onClick={() => dispatchToolbarCommand(INSERT_PAGE_BREAK)}
+                  className="item">
+                  <i className="icon page-break" />
+                  <span className="text">Page Break</span>
+                </DropDownItem>
+
             <DropDownItem
               onClick={() => {
                 activeEditor.dispatchCommand(
