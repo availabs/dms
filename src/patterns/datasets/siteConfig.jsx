@@ -2,17 +2,14 @@ import React from "react"
 import {Link} from "react-router";
 import { merge } from "lodash-es"
 import { cloneDeep } from "lodash-es"
-import { useFalcor } from "@availabs/avl-falcor"
 import datasetsFormat, {source} from "./datasets.format";
 import { ThemeContext } from "../../ui/useTheme";
 import defaultTheme from "../../ui/defaultTheme";
 import UI from "../../ui"
-import ManageLayout from './pages/manage/layout'
-import Dashboard from './pages/manage'
-import DesignEditor from "./pages/manage/design";
 import ErrorPage from "./pages/error";
 import DefaultMenu from "./components/menu";
 import DatasetsListComponent from "./components/DatasetsListComponent"
+import Overview from "./pages/overview"
 
 
 export const DatasetsContext = React.createContext(undefined);
@@ -222,10 +219,8 @@ const sourceConfig = ({
         },
         children: [
             {
-                type: (props) => {
-                  const { falcor, falcorCache } = useFalcor();
+                type: ({user, falcor, children}) => {
                   const {Layout} = UI;
-                  const { user } = props;
                   return (
                       <DatasetsContext.Provider value={{
                           UI,
@@ -237,12 +232,12 @@ const sourceConfig = ({
                           theme, app, type, siteType,
                           parent: pattern,
                           Menu: () => <>{Menu || <DefaultMenu theme={theme} UI={UI}/>}</>, API_HOST,
-                          falcor, falcorCache,
+                          falcor,
                           authPermissions,
                           isUserAuthed: (reqPermissions, customAuthPermissions) => isUserAuthed({user, authPermissions: customAuthPermissions || authPermissions, reqPermissions}),
                       }}>
                           <ThemeContext.Provider value={{theme, UI}}>
-                                      {props.children}
+                                      {children}
                           </ThemeContext.Provider>
                       </DatasetsContext.Provider>
                   )
@@ -258,15 +253,76 @@ const sourceConfig = ({
                 authLevel: 5,
                 children: [
                     {
-                        type: props => <Overview.EditComp {...props} />,
+                        type: Overview,
                         filter: {
                             stopFullDataLoad: true,
                             fromIndex: () => 0,
                             toIndex: () => 0,
                         },
                         action: 'edit',
-                        path: `:id`
+                        path: `:pgEnv/:id`
                     },
+                    {
+                        type: props => <div>meta page</div>,
+                        filter: {
+                            stopFullDataLoad: true,
+                            fromIndex: () => 0,
+                            toIndex: () => 0,
+                        },
+                        action: 'edit',
+                        path: `:id/metadata`
+                    },
+                    {
+                        type: props => <div>admin page</div>,
+                        filter: {
+                            stopFullDataLoad: true,
+                            fromIndex: () => 0,
+                            toIndex: () => 0,
+                        },
+                        action: 'edit',
+                        path: `:id/admin`
+                    },
+                    // ============================= version dependent pages begin =====================================
+                    {
+                        type: props => <div>table page</div>,
+                        filter: {
+                            stopFullDataLoad: true,
+                            fromIndex: () => 0,
+                            toIndex: () => 0,
+                        },
+                        action: 'edit',
+                        path: `:id/table/:view_id?`
+                    },
+                    {
+                        type: props => <div>upload page</div>,
+                        filter: {
+                            stopFullDataLoad: true,
+                            fromIndex: () => 0,
+                            toIndex: () => 0,
+                        },
+                        action: 'edit',
+                        path: `:id/upload/:view_id?`
+                    },
+                    {
+                        type: props => <div>validate page</div>,
+                        filter: {
+                            stopFullDataLoad: true,
+                            fromIndex: () => 0,
+                            toIndex: () => 0,
+                        },
+                        action: 'edit',
+                        path: `:id/validate/:view_id?`
+                    },
+                    {
+                        type: props => <div>version page</div>,
+                        filter: {
+                            stopFullDataLoad: true,
+                            fromIndex: () => 0,
+                            toIndex: () => 0,
+                        },
+                        action: 'edit',
+                        path: `:id/view/:view_id?`
+                    }
                 ]
             }
         ]

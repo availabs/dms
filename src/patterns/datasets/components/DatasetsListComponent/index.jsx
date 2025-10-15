@@ -58,7 +58,7 @@ export const isJson = (str)  => {
 
 const range = (start, end) => Array.from({length: (end + 1 - start)}, (v, k) => k + start);
 
-const getSources = async ({envs, falcor, parent}) => {
+const getSources = async ({envs, falcor, parent, user}) => {
     if(!envs || !Object.keys(envs)) return [];
     const lenRes = await falcor.get(['uda', Object.keys(envs), 'sources', 'length']);
 
@@ -132,16 +132,18 @@ const getData = async ({format, apiLoad, parent}) => {
     // return {data: data.find(d => d.id === itemId), attributes}
 }
 
-const SourceThumb = ({ source }) => {
+const SourceThumb = ({ source={} }) => {
     const {UI} = useContext(DatasetsContext);
     const {ColumnTypes} = UI;
     const Lexical = ColumnTypes.lexical.ViewComp;
     const source_id = source.id || source.source_id;
+    const {isDms} = source;
 
+    console.log('source', source)
     return (
         <div className="w-full p-4 bg-white hover:bg-blue-50 border shadow flex">
             <div>
-                <Link to={`source/${source_id}`} className="text-xl font-medium w-full block">
+                <Link to={`source/${isDms ? 'internal' : source?.env}/${source_id}`} className="text-xl font-medium w-full block">
                     <span>{source?.name || source?.doc_type}</span>
                 </Link>
                 <div>
@@ -163,7 +165,7 @@ const SourceThumb = ({ source }) => {
     );
 };
 
-const RenderAddPattern = ({isAdding, setIsAdding, updateData, sources=[], setSources, submit}) => {
+const RenderAddPattern = ({isAdding, setIsAdding, updateData, sources=[], setSources, submit, type}) => {
     const [data, setData] = useState({name: ''});
     return (
         <Modal open={isAdding} setOpen={setIsAdding} className={'w-full p-4 bg-white hover:bg-blue-50 border shadow flex items-center'}>
@@ -183,7 +185,7 @@ const RenderAddPattern = ({isAdding, setIsAdding, updateData, sources=[], setSou
                     }}>
                 <option key={'create-new'} value={undefined}>Create new</option>
                 {
-                    (sources || []).map(source => <option key={source.id} value={source.id}>{source.name} ({source.doc_type})</option> )
+                    (sources || []).filter(s => s.doc_type).map(source => <option key={source.id} value={source.id}>{source.name} ({source.doc_type})</option> )
                 }
             </select>
 
@@ -201,7 +203,7 @@ const RenderAddPattern = ({isAdding, setIsAdding, updateData, sources=[], setSou
                         delete clonedData.id;
                         delete clonedData.views;
                         clonedData.doc_type = uuidv4();
-                        await updateData({sources: [...(sources || []), clonedData]})
+                        await updateData({sources: [...(sources || []).filter(s => s.type === `${type}|source`), clonedData]})
                         window.location.reload()
                     }}
             >add</button>
@@ -234,14 +236,15 @@ export default function ({attributes, item, dataItems, apiLoad, apiUpdate, updat
             srcAttributes: ['name', 'type', 'metadata', 'categories'],
             viewAttributes: ['version', '_modified_timestamp']
         },
-        // [`${format.app}+${siteType}`]: {
-        //     label: 'managed',
-        //     isDms: true,
-        //     // {doc_type}-{view_id} is used as type to fetch data items for dms views.
-        //     // for invalid entries, it should be {doc_type}-{view_id}-invalid-entry.
-        //     srcAttributes: ['app', 'name', 'type', 'doc_type', 'config', 'default_columns', 'categories'],
-        //     viewAttributes: ['name', 'updated_at']
-        // }
+        // we only show current pattern's sources. copy over sources, views from forms to access here.
+        [`${format.app}+${siteType}`]: {
+            label: 'managed',
+            isDms: true,
+            // {doc_type}-{view_id} is used as type to fetch data items for dms views.
+            // for invalid entries, it should be {doc_type}-{view_id}-invalid-entry.
+            srcAttributes: ['app', 'name', 'type', 'doc_type', 'config', 'default_columns', 'categories'],
+            viewAttributes: ['name', 'updated_at']
+        }
     };
 
     const updateData = (data) => {
@@ -251,11 +254,7 @@ export default function ({attributes, item, dataItems, apiLoad, apiUpdate, updat
 
     useEffect(() => {
         let isStale = false;
-        getSources({envs, falcor, apiLoad}).then(data => {
-            // const validSources =  (parent?.sources || []).map(s => s.id);
-            // console.log('valid sources', validSources, parent.sources)
-            // const finalSources = data.filter(s => !s.env.includes('+') || validSources.includes(s.id));
-            // console.log('final', finalSources)
+        getSources({envs, falcor, apiLoad, user}).then(data => {
             setSources(data)
         });
 
@@ -263,10 +262,6 @@ export default function ({attributes, item, dataItems, apiLoad, apiUpdate, updat
             isStale = true;
         }
     }, [format.app, siteType]);
-
-    useEffect(() => {
-        getData({format, apiLoad, parent}).then(sources => setSources(sources));
-    }, [format, parent?.sources]);
 
     const categories = [...new Set(
         (sources || [])
@@ -337,7 +332,7 @@ export default function ({attributes, item, dataItems, apiLoad, apiUpdate, updat
                     }
                 </div>
                 <div className={'w-3/4 flex flex-col space-y-1.5 ml-1.5 max-h-[80dvh] overflow-auto scrollbar-sm'}>
-                    <RenderAddPattern sources={sources} setSources={setSources} updateData={updateData} isAdding={isAdding} setIsAdding={setIsAdding} submit={submit}/>
+                    <RenderAddPattern sources={sources} setSources={setSources} updateData={updateData} isAdding={isAdding} setIsAdding={setIsAdding} submit={submit} type={type}/>
                     {
                         (sources || [])
                             .filter(source => {
