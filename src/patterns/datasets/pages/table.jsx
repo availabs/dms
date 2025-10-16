@@ -13,8 +13,7 @@ import {
 } from "../../page/components/selector/dataWrapper/components/filters/RenderFilters";
 import { Controls } from "../../page/components/selector/dataWrapper/components/Controls";
 import {ThemeContext} from "../../../ui/useTheme";
-import {isJson} from "~/modules/dms/src/patterns/datasets/pages/overview";
-import {getSourceData} from "~/modules/dms/src/patterns/datasets/pages/utils";
+import {getSourceData, isJson} from "./utils";
 
 export default function Table ({apiUpdate, apiLoad, format, item, params}) {
     const {pgEnv, id, view_id} = params;

@@ -32,3 +32,12 @@ export async function getSourceData ({pgEnv, falcor, source_id, setSource}) {
         throw Error(`Error fetching source: ${e}`);
     }
 }
+
+export const isJson = (str)  => {
+    try {
+        JSON.parse(str);
+    } catch (e) {
+        return false;
+    }
+    return true;
+}

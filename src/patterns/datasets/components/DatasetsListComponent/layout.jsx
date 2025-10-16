@@ -1,6 +1,6 @@
 import React from 'react';
 import {Link, useNavigate} from 'react-router'
-import {DatasetsContext} from "~/modules/dms/src/patterns/datasets/siteConfig";
+import {DatasetsContext} from "../../siteConfig";
 
 const Alert = () => <div>A</div>
 const Database =  () => <div>D</div>

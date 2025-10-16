@@ -4,16 +4,7 @@ import SourcesLayout from "../components/DatasetsListComponent/layout"
 import {DatasetsContext} from "../siteConfig";
 import SourceCategories from "../components/DatasetsListComponent/categories";
 import {Link} from "react-router";
-import {getSourceData} from "./utils";
-
-export const isJson = (str)  => {
-    try {
-        JSON.parse(str);
-    } catch (e) {
-        return false;
-    }
-    return true;
-}
+import {getSourceData, isJson} from "./utils";
 
 export const tableTheme = (opts = {color:'white', size: 'compact'}) => {
     const {color = 'white', size = 'compact'} = opts
