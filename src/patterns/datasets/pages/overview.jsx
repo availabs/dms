@@ -4,7 +4,7 @@ import SourcesLayout from "../components/DatasetsListComponent/layout"
 import {DatasetsContext} from "../siteConfig";
 import SourceCategories from "../components/DatasetsListComponent/categories";
 import {Link} from "react-router";
-import {ExternalSourceAttributes, ExternalViewAttributes} from "./consts";
+import {getSourceData} from "./utils";
 
 export const isJson = (str)  => {
     try {
@@ -121,64 +121,58 @@ export default function Overview ({
             isJson(item.config) ? JSON.parse(item.config)?.attributes : [] :
             (source?.metadata?.columns || []), [item.config, isDms, source?.metadata?.columns])
 
-    console.log('pgEnv', pgEnv, params)
-
     const updateData = (data, attrKey) => {
-        // todo sourceType based
         console.log('updating data', item, attrKey, data, format)
         if(isDms) {
             apiUpdate({data: {...item, ...{[attrKey]: data}}, config: {format}})
             setSource({...source, [attrKey]: data})
+            // falcor.invalidate(['uda', ])
+        }else{
+            falcor.set({
+                paths: [
+                    ['dama', pgEnv, 'sources', 'byId', id, 'attributes', attrKey]
+                ],
+                jsonGraph: {
+                    dama: {
+                        [pgEnv]: {
+                            sources: {
+                                byId: {
+                                    [id]: {
+                                        attributes: {[attrKey]: attrKey === 'description' ? JSON.stringify(data) : data}
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }).then(d => {
+                setSource({...source, [attrKey]: data})
+            })
         }
     }
 
     useEffect(() => {
-        if(isDms){
-            // use item
-        }else{
-            if(!id || !pgEnv) return;
+        // if(isDms) // use item
+        if(!isDms && id && pgEnv){
             // fetch source data
-            async function getViews () {
-                const reqLenPath = ['uda', pgEnv, 'sources', 'byId', +id, 'views', 'length'];
-                const resLenJson = await falcor.get(reqLenPath);
-                const len = get(resLenJson, ['json', ...reqLenPath], 0);
-                if(!len) return;
-
-                const reqIndexPath = ['uda', pgEnv, 'sources', 'byId', +id, 'views', 'byIndex'];
-                const resIndexJson = await falcor.get([...reqIndexPath, {from: 0, to: len - 1}, ExternalViewAttributes]);
-                const views = get(resIndexJson, ['json', ...reqIndexPath], {})
-                return Object.values(views).filter(version => ++version.view_id).map(({version, _created_timestamp, _updated_timestamp, ...rest}) => ({
-                    name: version,
-                    created_at: _created_timestamp,
-                    updated_at: _updated_timestamp,
-                    ...rest
-                }));
-            }
-            async function getSourceData () {
-                const views = await getViews();
-                console.log('views', views)
-                const reqPath = ['uda', pgEnv, 'sources', 'byId', +id]
-                const resJson = await falcor.get([...reqPath, ExternalSourceAttributes]);
-                const res = get(resJson, ['json', ...reqPath], {})
-                setSource({...res, views});
-                console.log('res', res)
-            }
-
-            getSourceData();
+            getSourceData({pgEnv, falcor, source_id: id, setSource})   ;
         }
     }, [isDms, item.config])
+
     const dateOptions = {year: "numeric", month: "long", day: "numeric", hour: "numeric", minute: "numeric"}
-    const createdTimeStamp = new Date(item?.created_at || '').toLocaleDateString(undefined, dateOptions);
-    const updatedTimeStamp = new Date(item?.updated_at || '').toLocaleDateString(undefined, dateOptions);
+    const createdTimeStamp = new Date(source?.created_at || '').toLocaleDateString(undefined, dateOptions);
+    const updatedTimeStamp = new Date(source?.updated_at || '').toLocaleDateString(undefined, dateOptions);
     const DescComp = useMemo(() => editing === 'description' ? ColumnTypes.lexical.EditComp : ColumnTypes.lexical.ViewComp, [editing, source?.description]);
     const CategoriesComp = SourceCategories // useMemo(() => editing === 'categories' ? attributes['categories'].EditComp : attributes['categories'].ViewComp, [editing]);
 
     if(!Object.entries(source).length) return 'loading...';
-    console.log('columns', columns)
+    const LexicalView = ColumnTypes.lexical.ViewComp;
+
     return (
         <SourcesLayout fullWidth={false} baseUrl={baseUrl} pageBaseUrl={pageBaseUrl} isListAll={false} hideBreadcrumbs={false}
                        form={{name: source?.name || source?.doc_type, href: format.url_slug}}
                        page={{name: 'Overview', href: `${pageBaseUrl}/${params.id}`}}
+                       pgEnv={pgEnv}
                        id={params.id} //page id to use for navigation
             >
             <div className={'p-4 bg-white flex flex-col'}>
@@ -190,7 +184,7 @@ export default function Overview ({
                     <div
                         className="w-full md:w-[70%] pl-4 py-2 sm:pl-6 flex justify-between group text-sm text-gray-500 pr-14">
                         <DescComp
-                            value={editing === 'description' ? source?.description : (source?.description)}
+                            value={source?.description || 'No description'}
                             onChange={(v) => {
                                 // setItem({...item, ...{description: v}})
                                 updateData(v, 'description')
@@ -251,10 +245,21 @@ export default function Overview ({
                     <Table
                         gridRef={ref}
                         columns={
-                            ['display_name', 'type', 'description'].map(col => ({
+                            ['display_name', 'description'].map(col => ({
                                 name: col,
                                 display_name: col,
                                 type: 'ui',
+                                Comp: ({value, row, ...rest}) => {
+                                    return (
+                                        <div {...rest}>
+                                            {
+                                                col === 'display_name' ?
+                                                    <div className={'font-semibold'}>{row?.display_name || row?.name} <span className={'font-light italic'}>{row?.type}</span></div> :
+                                                    <LexicalView value={row?.desc || row?.description} />
+                                            }
+                                        </div>
+                                    )
+                                },
                                 show: true,
                                 align: 'left',
                             }))
@@ -282,7 +287,6 @@ export default function Overview ({
                                 display_name: col,
                                 type: 'ui',
                                 Comp: ({value, row, ...rest}) => {
-                                    console.log('props', rest)
                                     return (
                                         <div {...rest}>
                                             {

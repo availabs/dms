@@ -14,16 +14,16 @@ const navPages = [
   {name: 'Admin', href: `admin`, viewDependentPage: false},
 ]
 
-const SourcesLayout = ({children, hideBreadcrumbs, hideNav, form, page, baseUrl, pageBaseUrl, id, views=[], view_id, showVersionSelector = false }) => {
+const SourcesLayout = ({children, hideBreadcrumbs, hideNav, form, page, baseUrl, pageBaseUrl, pgEnv, id, views=[], view_id, showVersionSelector = false }) => {
     const navigate = useNavigate();
   return (
     <div className={`h-full flex flex-col`}>
         {hideBreadcrumbs ? '' :  <div className=''>
-            <Breadcrumbs baseUrl={baseUrl} form={form} page={page} />
+            <Breadcrumbs baseUrl={baseUrl} form={form} page={page} pgEnv={pgEnv} />
         </div> }
 
         <div className={'w-full flex justify-between'}>
-            <Nav navPages={navPages} page={page} hideNav={hideNav} baseUrl={pageBaseUrl} id={id} view_id={view_id}/>
+            <Nav navPages={navPages} page={page} hideNav={hideNav} baseUrl={pageBaseUrl} id={id} view_id={view_id} pgEnv={pgEnv}/>
             {
                 showVersionSelector ?
                     <select id={'version-selector'}
@@ -49,7 +49,7 @@ const SourcesLayout = ({children, hideBreadcrumbs, hideNav, form, page, baseUrl,
 
 export default SourcesLayout
 
-const Nav = ({baseUrl, navPages, page, hideNav, id, view_id}) => hideNav ? null : (
+const Nav = ({baseUrl, navPages, page, hideNav, id, view_id, pgEnv}) => hideNav ? null : (
     <nav className={'w-full flex'}>
         {
             navPages.map(p => (
@@ -59,7 +59,7 @@ const Nav = ({baseUrl, navPages, page, hideNav, id, view_id}) => hideNav ? null 
                         `border-b-2 border-blue-600` : 
                         `hover:border-b-2 hover:border-gray-300`}`
                 }
-                  to={`${baseUrl}/${id}/${p.viewDependentPage ? `${p.href}/${view_id || ''}` : p.href}`}
+                  to={`${baseUrl}/${pgEnv}/${id}/${p.viewDependentPage ? `${p.href}/${view_id || ''}` : p.href}`}
                 >
               <div className={'flex items-center'}><span className={'pr-0.5'}>{p.name}</span> {page.warn && p.name === page.name ? <Alert /> : ''}</div>
             </Link>))

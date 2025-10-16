@@ -10,6 +10,7 @@ import ErrorPage from "./pages/error";
 import DefaultMenu from "./components/menu";
 import DatasetsListComponent from "./components/DatasetsListComponent"
 import Overview from "./pages/overview"
+import Table from "./pages/table"
 
 
 export const DatasetsContext = React.createContext(undefined);
@@ -284,14 +285,14 @@ const sourceConfig = ({
                     },
                     // ============================= version dependent pages begin =====================================
                     {
-                        type: props => <div>table page</div>,
+                        type: Table,
                         filter: {
                             stopFullDataLoad: true,
                             fromIndex: () => 0,
                             toIndex: () => 0,
                         },
                         action: 'edit',
-                        path: `:id/table/:view_id?`
+                        path: `:pgEnv/:id/table/:view_id?`
                     },
                     {
                         type: props => <div>upload page</div>,
