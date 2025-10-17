@@ -7,45 +7,6 @@ import {DatasetsContext} from "../../siteConfig";
 import {Modal} from "../../ui";
 import { cloneDeep } from "lodash-es";
 import { v4 as uuidv4 } from 'uuid';
-export const makeLexicalFormat = value => (isJson(value) ? JSON.parse(value) : value)?.root?.children ? value : {
-        root: {
-            "children": [
-                {
-                    "children": [
-                        {
-                            "detail": 0,
-                            "format": 0,
-                            "mode": "normal",
-                            "text": value || 'No Description',
-                            "type": 'text',
-                            "version": 1
-                        },
-                        {
-                            "detail": 0,
-                            "format": 0,
-                            "mode": "normal",
-                            "text": '\n\n',
-                            "type": 'text',
-                            "version": 1
-                        }
-                    ],
-                    "tag": '',
-                    "direction": "ltr",
-                    "format": "",
-                    "indent": 0,
-                    "type": "paragraph",
-                    "version": 1
-                }
-            ],
-            "direction": "ltr",
-            "format": "",
-            "indent": 0,
-            "type": "root",
-            "version": 1
-        }
-    };
-
-
 
 export const isJson = (str)  => {
     try {
@@ -58,7 +19,7 @@ export const isJson = (str)  => {
 
 const range = (start, end) => Array.from({length: (end + 1 - start)}, (v, k) => k + start);
 
-const getSources = async ({envs, falcor, parent}) => {
+const getSources = async ({envs, falcor, parent, user}) => {
     if(!envs || !Object.keys(envs)) return [];
     const lenRes = await falcor.get(['uda', Object.keys(envs), 'sources', 'length']);
 
@@ -85,6 +46,11 @@ const getSources = async ({envs, falcor, parent}) => {
                             value =  JSON.parse(value || '{}')?.attributes || [];
                             return ({...acc, ['columns']: value})
                         }
+
+                        if(['categories'].includes(attr)) {
+                            value = typeof value === 'string' ? JSON.parse(value || '[]') : (value || []);
+                            return ({...acc, ['categories']: value})
+                        }
                         return ({...acc, [attr]: value})
                     }, {}),
                     source_id: get(r, ['json', 'uda', e, 'sources', 'byIndex', i, '$__path', 4]),
@@ -97,51 +63,18 @@ const getSources = async ({envs, falcor, parent}) => {
     return sources.reduce((acc, curr) => [...acc, ...curr], []);
 }
 
-const getData = async ({format, apiLoad, parent}) => {
-    const sources = (parent?.sources || []);
 
-    if(!sources.length) return;
-    const sourceIds = sources.map(s => +s.id);
-    const sourceRef = (sources[0]?.ref || '').split('+');
-    // use source ids to load source info
-
-    const sourcesChildren = [{
-        type: () => {
-        },
-        action: 'list',
-        path: `/`,
-        filter: {
-            options: JSON.stringify({
-                filter: {
-                    ['id']: sourceIds
-                }
-            })
-        },
-
-    }]
-    // load full pattern to get source ids
-    const sourcesData = await apiLoad({
-        app: format.app,
-        type: sourceRef[1],
-        format: {...format, type: sourceRef[1]},
-        attributes: ['data'],
-        children: sourcesChildren
-    }, `/`);
-
-    return sourcesData;
-    // return {data: data.find(d => d.id === itemId), attributes}
-}
-
-const SourceThumb = ({ source }) => {
+const SourceThumb = ({ source={} }) => {
     const {UI} = useContext(DatasetsContext);
     const {ColumnTypes} = UI;
     const Lexical = ColumnTypes.lexical.ViewComp;
     const source_id = source.id || source.source_id;
+    const {isDms} = source;
 
     return (
         <div className="w-full p-4 bg-white hover:bg-blue-50 border shadow flex">
             <div>
-                <Link to={`source/${source_id}`} className="text-xl font-medium w-full block">
+                <Link to={`source/${isDms ? 'internal' : source?.env}/${source_id}`} className="text-xl font-medium w-full block">
                     <span>{source?.name || source?.doc_type}</span>
                 </Link>
                 <div>
@@ -152,9 +85,9 @@ const SourceThumb = ({ source }) => {
                         )))
                     }
                 </div>
-                <Link to={`source/${source_id}`} className="py-2 block">
+                <Link to={`source/${isDms ? 'internal' : source?.env}/${source_id}`} className="py-2 block">
 
-                    <Lexical value={makeLexicalFormat(source?.description)}/>
+                    <Lexical value={source?.description}/>
                 </Link>
             </div>
 
@@ -163,7 +96,7 @@ const SourceThumb = ({ source }) => {
     );
 };
 
-const RenderAddPattern = ({isAdding, setIsAdding, updateData, sources=[], setSources, submit}) => {
+const RenderAddPattern = ({isAdding, setIsAdding, updateData, sources=[], setSources, submit, type}) => {
     const [data, setData] = useState({name: ''});
     return (
         <Modal open={isAdding} setOpen={setIsAdding} className={'w-full p-4 bg-white hover:bg-blue-50 border shadow flex items-center'}>
@@ -183,7 +116,7 @@ const RenderAddPattern = ({isAdding, setIsAdding, updateData, sources=[], setSou
                     }}>
                 <option key={'create-new'} value={undefined}>Create new</option>
                 {
-                    (sources || []).map(source => <option key={source.id} value={source.id}>{source.name} ({source.doc_type})</option> )
+                    (sources || []).filter(s => s.doc_type).map(source => <option key={source.id} value={source.id}>{source.name} ({source.doc_type})</option> )
                 }
             </select>
 
@@ -201,7 +134,7 @@ const RenderAddPattern = ({isAdding, setIsAdding, updateData, sources=[], setSou
                         delete clonedData.id;
                         delete clonedData.views;
                         clonedData.doc_type = uuidv4();
-                        await updateData({sources: [...(sources || []), clonedData]})
+                        await updateData({sources: [...(sources || []).filter(s => s.type === `${type}|source`), clonedData]})
                         window.location.reload()
                     }}
             >add</button>
@@ -227,21 +160,21 @@ export default function ({attributes, item, dataItems, apiLoad, apiUpdate, updat
     const filteredCategories = []; // categories you want to exclude from landing list page.
     const cat1 = searchParams.get('cat');
     const cat2 = undefined;
-    console.log('sources', type)
     const envs = {
         ['hazmit_dama']: {
             label: 'external',
-            srcAttributes: ['name', 'type', 'metadata', 'categories'],
+            srcAttributes: ['name', 'type', 'metadata', 'categories', 'description'],
             viewAttributes: ['version', '_modified_timestamp']
         },
-        // [`${format.app}+${siteType}`]: {
-        //     label: 'managed',
-        //     isDms: true,
-        //     // {doc_type}-{view_id} is used as type to fetch data items for dms views.
-        //     // for invalid entries, it should be {doc_type}-{view_id}-invalid-entry.
-        //     srcAttributes: ['app', 'name', 'type', 'doc_type', 'config', 'default_columns', 'categories'],
-        //     viewAttributes: ['name', 'updated_at']
-        // }
+        // we only show current pattern's sources. copy over sources, views from forms to access here.
+        [`${format.app}+${siteType}`]: {
+            label: 'managed',
+            isDms: true,
+            // {doc_type}-{view_id} is used as type to fetch data items for dms views.
+            // for invalid entries, it should be {doc_type}-{view_id}-invalid-entry.
+            srcAttributes: ['app', 'name', 'type', 'doc_type', 'config', 'default_columns', 'categories', 'description'],
+            viewAttributes: ['name', 'updated_at']
+        }
     };
 
     const updateData = (data) => {
@@ -251,11 +184,7 @@ export default function ({attributes, item, dataItems, apiLoad, apiUpdate, updat
 
     useEffect(() => {
         let isStale = false;
-        getSources({envs, falcor, apiLoad}).then(data => {
-            // const validSources =  (parent?.sources || []).map(s => s.id);
-            // console.log('valid sources', validSources, parent.sources)
-            // const finalSources = data.filter(s => !s.env.includes('+') || validSources.includes(s.id));
-            // console.log('final', finalSources)
+        getSources({envs, falcor, apiLoad, user}).then(data => {
             setSources(data)
         });
 
@@ -263,10 +192,6 @@ export default function ({attributes, item, dataItems, apiLoad, apiUpdate, updat
             isStale = true;
         }
     }, [format.app, siteType]);
-
-    useEffect(() => {
-        getData({format, apiLoad, parent}).then(sources => setSources(sources));
-    }, [format, parent?.sources]);
 
     const categories = [...new Set(
         (sources || [])
@@ -337,7 +262,7 @@ export default function ({attributes, item, dataItems, apiLoad, apiUpdate, updat
                     }
                 </div>
                 <div className={'w-3/4 flex flex-col space-y-1.5 ml-1.5 max-h-[80dvh] overflow-auto scrollbar-sm'}>
-                    <RenderAddPattern sources={sources} setSources={setSources} updateData={updateData} isAdding={isAdding} setIsAdding={setIsAdding} submit={submit}/>
+                    <RenderAddPattern sources={sources} setSources={setSources} updateData={updateData} isAdding={isAdding} setIsAdding={setIsAdding} submit={submit} type={type}/>
                     {
                         (sources || [])
                             .filter(source => {

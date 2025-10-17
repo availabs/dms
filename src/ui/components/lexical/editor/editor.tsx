@@ -62,6 +62,7 @@ import Placeholder from './ui/Placeholder';
 import InlineImagePlugin from "./plugins/InlineImagePlugin";
 import ButtonPlugin from './plugins/ButtonPlugin'
 import CollapsibleNoPreviewPlugin from "./plugins/CollapsibleNoPreviewPlugin";
+import PageBreakPlugin from './plugins/PageBreakPlugin';
 
 // const skipCollaborationInit =
 //     // @ts-expect-error
@@ -182,6 +183,7 @@ export default function Editor(props): JSX.Element {
                         <ButtonPlugin />
                         <LinkPlugin/>
 
+                        <PageBreakPlugin />
                         {/*<YouTubePlugin/>*/}
                         <HorizontalRulePlugin/>
 
