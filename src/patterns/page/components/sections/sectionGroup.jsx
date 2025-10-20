@@ -1,5 +1,5 @@
 import React from 'react'
-import { Link } from 'react-router'
+import { Link, useLocation } from 'react-router'
 import { cloneDeep } from 'lodash-es'
 
 import { PageContext, CMSContext } from '../../context'
@@ -42,6 +42,7 @@ export const sectionGroupTheme = {
 export default function SectionGroup ({group, attributes, edit}) {
   const { theme,  UI } = React.useContext(ThemeContext);
   const { baseUrl, user, isUserAuthed } = React.useContext(CMSContext) || {};
+  const location = useLocation();
 
   const { apiUpdate, format, item, updateAttribute } = React.useContext(PageContext) || {viewIcon: 'ViewPage', editIcon: 'EditPage'};
   const { SideNav, Icon } = UI;
@@ -71,7 +72,7 @@ export default function SectionGroup ({group, attributes, edit}) {
         <div className={sectionTheme?.wrapper2}>
           <div className={sectionTheme?.wrapper3}>
             {(group.name === 'default' && user?.authed && isUserAuthed(['update-page'])) && (
-              <Link className={`${sectionTheme?.iconWrapper}`} to={`${baseUrl}/${edit ? '' : 'edit/'}${item?.url_slug || ''}`}>
+              <Link className={`${sectionTheme?.iconWrapper}`} to={`${baseUrl}/${edit ? '' : 'edit/'}${item?.url_slug || ''}${location.search}`}>
                 {/*have to use rr to get query paramswindow.location.search*/}
                 <Icon icon={edit ? sectionTheme?.viewIcon : sectionTheme?.editIcon} className={sectionTheme?.icon} />
 
