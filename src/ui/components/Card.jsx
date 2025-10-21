@@ -165,7 +165,7 @@ const EditComp = ({
     const editMode = allowEdit || (isNewItem && setNewItem && !tmpItem.id);
     const [isEditing, setIsEditing] = useState(false);
     const compRef = useRef(null);
-    const compId = `${attribute.name}-${id}-${JSON.stringify(rawValue)}`;
+
     const compIdEdit = `${attribute.name}-${id}`;
     const Comp = ColumnTypes[attribute.type]?.[editMode ? 'EditComp' : 'ViewComp'] || DefaultComp;
     // useHandleClickOutside(compRef, compId, () => isEditing && setIsEditing(false));
@@ -239,14 +239,14 @@ const RenderItem = ({
                                 <img className={theme[imageSize] || 'max-w-[50px] max-h-[50px]'}
                                      alt={' '}
                                      src={imageLocation ?
-                                         `${imageLocation}/${rawValue}${imageExtension ? `.${imageExtension}` : ``}` :
-                                         (imageSrc || rawValue)}
+                                         `${imageLocation}/${rawValue?.value || rawValue}${imageExtension ? `.${imageExtension}` : ``}` :
+                                         (imageSrc || rawValue?.value || rawValue)}
                                 /> :
                                 ['icon', 'color'].includes(attr.formatFn) && formatFunctions[attr.formatFn] ?
-                                    <div className={'flex items-center gap-1.5 uppercase'}>{formatFunctions[attr.formatFn](rawValue, attr.isDollar, Icon)}</div> :
+                                    <div className={'flex items-center gap-1.5 uppercase'}>{formatFunctions[attr.formatFn](rawValue?.value || rawValue, attr.isDollar, Icon)}</div> :
                                     attr.formatFn && formatFunctions[attr.formatFn] ?
-                                        formatFunctions[attr.formatFn](rawValue, attr.isDollar).replaceAll(' ', '') :
-                                        rawValue;
+                                        formatFunctions[attr.formatFn](rawValue?.value || rawValue, attr.isDollar).replaceAll(' ', '') :
+                                        (rawValue?.value || rawValue);
                         const formatClass = attr.formatFn === 'title' ? 'capitalize' : '';
                         const isValueFormatted = isImg || Boolean(formatFunctions[attr.formatFn]);
                         const headerTextJustifyClass = justifyClass[attr.justify || 'center']?.header || justifyClass[attr.justify || 'center'];
