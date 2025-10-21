@@ -26,10 +26,32 @@ const LinkComp = ({attribute, columns, newItem, removeItem, value, Comp}) => {
         // location (optional)
         // searchParams: none|value|id
     if(isLink){
-        const valueFormattedForSearchParams = Array.isArray(value) ? value.join('|||') : value;
-        const searchParams = attribute.searchParams === 'id' ? encodeURIComponent(newItem.id) : attribute.searchParams === 'value' ? encodeURIComponent(valueFormattedForSearchParams) : ``;
-        const url = `${location || value}${searchParams}`;
-        return (props) => <a {...props} href={url} {...isLinkExternal && {target:"_blank"}} >{linkText || value}</a>
+        const valueFormattedForSearchParams = Array.isArray(value) ?
+            value.map(v =>
+                typeof v === 'object' && v.hasOwnProperty('originalValue') && attribute.searchParams === 'rawValue' ?
+                    v.originalValue :
+                    typeof v === 'object' && v.hasOwnProperty('value') ?
+                        v.value : v
+            ).join('|||') :
+            typeof value === 'object' && value.hasOwnProperty('originalValue') && attribute.searchParams === 'rawValue' ?
+                value.originalValue :
+                typeof value === 'object' && value.hasOwnProperty('value') ?
+                    value.value : value;
+
+        const valueFormattedForDisplay = Array.isArray(value) ?
+            value.map(v =>
+                typeof v === 'object' && v.hasOwnProperty('value') ?
+                    v.value : v
+            ) :
+            typeof value === 'object' && value.hasOwnProperty('value') ?
+                value.value : value;
+
+        const searchParams =
+            attribute.searchParams === 'id' ? encodeURIComponent(newItem.id) :
+                ['value', 'rawValue'].includes(attribute.searchParams) ? encodeURIComponent(valueFormattedForSearchParams) : ``;
+
+        const url = `${location || valueFormattedForDisplay}${searchParams}`;
+        return (props) => <a {...props} href={url} {...isLinkExternal && {target:"_blank"}} >{linkText || valueFormattedForDisplay}</a>
     }
 
     if(actionType){
@@ -108,7 +130,7 @@ export const TableCell = ({
         if (!(editing && allowEdit)) return;
 
         const timeoutId = setTimeout(() => {
-            if (!isEqual(rawValue, item[attribute.name]) && updateItem) {
+            if (!isEqual((rawValue?.originalValue || rawValue), item[attribute.name]) && updateItem) {
                 updateItem(undefined, undefined, newItem);
             }
         }, 500);
@@ -118,7 +140,9 @@ export const TableCell = ({
         };
     }, [rawValue]);
     const isValid = ['multiselect', 'select', 'radio'].includes(attribute.type) || attribute.required === 'yes' ? validate({
-        value: rawValue,
+        value: typeof rawValue === 'object' && rawValue.hasOwnProperty('originalValue') ? rawValue.originalValue :
+            typeof rawValue === 'object' && rawValue.hasOwnProperty('value') ? rawValue.value :
+                rawValue,
         options: attribute.options,
         required: attribute.required === "yes"
     }) : true;
@@ -201,7 +225,7 @@ export const TableCell = ({
                   {...attribute}
                   options={options}
                   meta={optionsMeta}
-                  value={value}
+                  value={typeof value === "object" && value.hasOwnProperty('originalValue') ? value?.value : value}
                   row={newItem}
                   onChange={e => isTotalRow ? null : setNewItem({...newItem, [attribute.name]: e})}
             />

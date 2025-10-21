@@ -81,6 +81,7 @@ export default {
     useGetDataOnPageChange: true,
     useInfiniteScroll: true,
     showPagination: true,
+    keepOriginalValues: true,
     controls: {
         columns: [
             // settings from columns dropdown are stored in state.columns array, per column
@@ -156,7 +157,8 @@ export default {
                 options: [
                     {label: 'None', value: undefined},
                     {label: 'ID', value: 'id'},
-                    {label: 'Value', value: 'value'}
+                    {label: 'Value', value: 'value'},
+                    {label: 'Raw Value', value: 'rawValue'}
                 ]
             },
         ]

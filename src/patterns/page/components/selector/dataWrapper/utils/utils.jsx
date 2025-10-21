@@ -111,17 +111,13 @@ const parseIfJson = (value) => {
 };
 
 const cleanValue = (value) =>
-  typeof value === "boolean"
-    ? JSON.stringify(value)
-    : Array.isArray(value)
-      ? value // this will be calculated column only.
-      : typeof value === "object" && value?.value
-        ? cleanValue(value.value)
-        : typeof value === "object" && !value?.value
-          ? undefined
-          : typeof value === "string"
-            ? parseIfJson(value)
-            : parseIfJson(value);
+    typeof value === "boolean" ? JSON.stringify(value)
+        : Array.isArray(value) ? value // this will be calculated column only.
+            : typeof value === "object" && value?.value && value?.originalValue ? value // meta column with original and meta value
+                : typeof value === "object" && value?.value ? cleanValue(value.value)
+                    : typeof value === "object" && !value?.value ? undefined
+                        : typeof value === "string" ? parseIfJson(value)
+                            : parseIfJson(value);
 
 export const applyFn = (col = {}, isDms = false) => {
   // apply fns if: column is not calculated column or it is calculated, and does not have function in name
@@ -211,6 +207,7 @@ export const getData = async ({
   state,
   apiLoad,
   fullDataLoad,
+  keepOriginalValues,
   currentPage = 0,
 }) => {
   const {
@@ -379,6 +376,7 @@ export const getData = async ({
 
   // should this be saved in state directly?
   const options = {
+    keepOriginalValues,
     filterRelation,
     serverFn,
     groupBy: groupBy.map(

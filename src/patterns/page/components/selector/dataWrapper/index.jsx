@@ -179,7 +179,7 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
         async function load() {
             setLoading(true)
             const newCurrentPage = 0; // for all the deps here, it's okay to fetch from page 1.
-            const {length, data, invalidState} = await getData({state, apiLoad, fullDataLoad: component.fullDataLoad});
+            const {length, data, invalidState} = await getData({state, apiLoad, fullDataLoad: component.fullDataLoad, keepOriginalValues: component.keepOriginalValues});
             if(isStale) {
                 setLoading(false);
                 return;
@@ -210,7 +210,7 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
         // only run when page changes
         setLoading(true)
         setCurrentPage(currentPage)
-        const {length, data} = await getData({state, currentPage, apiLoad});
+        const {length, data} = await getData({state, currentPage, apiLoad, keepOriginalValues: component.keepOriginalValues});
         setState(draft => {
             // on page change append data unless using pagination
             draft.data =  state.display.usePagination ? data : [...draft.data.filter(r => !r.totalRow), ...data];
@@ -275,6 +275,7 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
                             apiLoad,
                             fullDataLoad: true,
                             currentPage: 0,
+                            keepOriginalValues: component.keepOriginalValues,
                             state: {
                                 dataRequest: mapped_options.filter || {},
                                 display: {},
@@ -529,7 +530,7 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
             setLoading(true)
             const newCurrentPage = 0; // for all the deps here, it's okay to fetch from page 1.
 
-            const {length, data} = await getData({state, apiLoad, fullDataLoad: component.fullDataLoad});
+            const {length, data} = await getData({state, apiLoad, fullDataLoad: component.fullDataLoad, keepOriginalValues: component.keepOriginalValues});
             if(isStale) {
                 setLoading(false);
                 return;
@@ -554,7 +555,7 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
         if(!isValidState || !component.useGetDataOnPageChange /*|| (!state.display.readyToLoad && !state.display.allowEditInView)*/) return;
         // only run when page changes
         setLoading(true)
-        const {length, data} = await getData({state, currentPage, apiLoad});
+        const {length, data} = await getData({state, currentPage, apiLoad, keepOriginalValues: component.keepOriginalValues});
 
         setCurrentPage(currentPage)
         setState(draft => {
@@ -596,7 +597,7 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
 
     // =========================================== get input data ======================================================
     useEffect(() => {
-        if (!allowEdit && !state.display.allowAdddNew) return;
+        if (!allowEdit && !state.display.allowAdddNew && !state.columns.some(c => c.allowEditInView && c.mapped_options)) return;
         let isStale = false;
 
         async function loadOptionsData() {
@@ -619,6 +620,7 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
                             apiLoad,
                             fullDataLoad: true,
                             currentPage: 0,
+                            keepOriginalValues: component.keepOriginalValues,
                             state: {
                                 dataRequest: mapped_options.filter || {},
                                 display: {},
@@ -653,7 +655,6 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
 
                 if (!isStale) {
                     const responses = Object.fromEntries(results);
-
                     setState(draft => {
                         draft.columns.forEach(c => {
                             if (c.mapped_options) {

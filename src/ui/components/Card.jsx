@@ -248,9 +248,48 @@ const RenderItem = ({
                                         formatFunctions[attr.formatFn](rawValue, attr.isDollar).replaceAll(' ', '') :
                                         rawValue;
                         const formatClass = attr.formatFn === 'title' ? 'capitalize' : '';
-                        const isValueFormatted = isImg || isLink || Boolean(formatFunctions[attr.formatFn]);
+                        const isValueFormatted = isImg || Boolean(formatFunctions[attr.formatFn]);
                         const headerTextJustifyClass = justifyClass[attr.justify || 'center']?.header || justifyClass[attr.justify || 'center'];
                         const valueTextJustifyClass = justifyClass[attr.justify || 'center']?.value || justifyClass[attr.justify || 'center'];
+                        let valueFormattedForSearchParams, valueFormattedForDisplay, valueFormattedForEdit, searchParams, url;
+
+                        valueFormattedForDisplay = Array.isArray(value) ?
+                            value.map(v =>
+                                typeof v === 'object' && v.hasOwnProperty('value') ?
+                                    v.value : v
+                            ) :
+                            typeof value === 'object' && value.hasOwnProperty('value') ?
+                                value.value : value;
+
+                        valueFormattedForEdit = Array.isArray(value) ?
+                            value.map(v =>
+                                typeof v === 'object' && v.hasOwnProperty('originalValue') ?
+                                    v.originalValue : v
+                            ) :
+                            typeof value === 'object' && value.hasOwnProperty('originalValue') ?
+                                value.originalValue : value;
+
+                        if(isLink){
+                            // setup for link
+                            valueFormattedForSearchParams = Array.isArray(value) ?
+                                value.map(v =>
+                                    typeof v === 'object' && v.hasOwnProperty('originalValue') && attr.searchParams === 'rawValue' ?
+                                        v.originalValue :
+                                        typeof v === 'object' && v.hasOwnProperty('value') ?
+                                            v.value : v
+                                ).join('|||') :
+                                typeof value === 'object' && value.hasOwnProperty('originalValue') && attr.searchParams === 'rawValue' ?
+                                    value.originalValue :
+                                    typeof value === 'object' && value.hasOwnProperty('value') ?
+                                        value.value : value;
+
+                            searchParams =
+                                attr.searchParams === 'id' ? encodeURIComponent(id) :
+                                    ['value', 'rawValue'].includes(attr.searchParams) ? encodeURIComponent(valueFormattedForSearchParams) : ``;
+
+                            url = `${location || valueFormattedForDisplay}${searchParams}`;
+                        }
+
                         return (
                             <div key={attr.normalName || attr.name}
                                  className={`
@@ -290,11 +329,11 @@ const RenderItem = ({
                                                 isLink && !(allowEdit || attr.allowEditInView) ?
                                                     <a className={theme.linkColValue}
                                                        {...isLinkExternal && {target:"_blank"}}
-                                                       href={`${location || value}${attr.searchParams === 'id' ? encodeURIComponent(id) : attr.searchParams === 'value' ? encodeURIComponent(value) : ``}`}
+                                                       href={url}
                                                     >
                                                         <EditComp attribute={attr}
-                                                                  value={linkText || value}
-                                                                  rawValue={rawValue}
+                                                                  value={linkText || valueFormattedForDisplay}
+                                                                  rawValue={valueFormattedForEdit}
                                                                   isValueFormatted={isValueFormatted}
                                                                   updateItem={isNewItem ? undefined : updateItem}
 
@@ -315,8 +354,8 @@ const RenderItem = ({
                                                         />
                                                     </a> :
                                                     <EditComp attribute={attr}
-                                                              value={value}
-                                                              rawValue={rawValue}
+                                                              value={valueFormattedForDisplay}
+                                                              rawValue={valueFormattedForEdit}
                                                               isValueFormatted={isValueFormatted}
                                                               updateItem={isNewItem ? undefined : updateItem}
 
