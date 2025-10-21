@@ -246,7 +246,7 @@ const RenderItem = ({
                                     <div className={'flex items-center gap-1.5 uppercase'}>{formatFunctions[attr.formatFn](rawValue?.value || rawValue, attr.isDollar, Icon)}</div> :
                                     attr.formatFn && formatFunctions[attr.formatFn] ?
                                         formatFunctions[attr.formatFn](rawValue?.value || rawValue, attr.isDollar).replaceAll(' ', '') :
-                                        (rawValue?.value || rawValue);
+                                        rawValue;
                         const formatClass = attr.formatFn === 'title' ? 'capitalize' : '';
                         const isValueFormatted = isImg || Boolean(formatFunctions[attr.formatFn]);
                         const headerTextJustifyClass = justifyClass[attr.justify || 'center']?.header || justifyClass[attr.justify || 'center'];
