@@ -28,22 +28,22 @@ const LinkComp = ({attribute, columns, newItem, removeItem, value, Comp}) => {
     if(isLink){
         const valueFormattedForSearchParams = Array.isArray(value) ?
             value.map(v =>
-                typeof v === 'object' && v.hasOwnProperty('originalValue') && attribute.searchParams === 'rawValue' ?
+                typeof v === 'object' && v?.hasOwnProperty('originalValue') && attribute.searchParams === 'rawValue' ?
                     v.originalValue :
-                    typeof v === 'object' && v.hasOwnProperty('value') ?
+                    typeof v === 'object' && v?.hasOwnProperty('value') ?
                         v.value : v
             ).join('|||') :
-            typeof value === 'object' && value.hasOwnProperty('originalValue') && attribute.searchParams === 'rawValue' ?
+            typeof value === 'object' && value?.hasOwnProperty('originalValue') && attribute.searchParams === 'rawValue' ?
                 value.originalValue :
-                typeof value === 'object' && value.hasOwnProperty('value') ?
+                typeof value === 'object' && value?.hasOwnProperty('value') ?
                     value.value : value;
 
         const valueFormattedForDisplay = Array.isArray(value) ?
             value.map(v =>
-                typeof v === 'object' && v.hasOwnProperty('value') ?
+                typeof v === 'object' && v?.hasOwnProperty('value') ?
                     v.value : v
             ) :
-            typeof value === 'object' && value.hasOwnProperty('value') ?
+            typeof value === 'object' && value?.hasOwnProperty('value') ?
                 value.value : value;
 
         const searchParams =
@@ -140,8 +140,8 @@ export const TableCell = ({
         };
     }, [rawValue]);
     const isValid = ['multiselect', 'select', 'radio'].includes(attribute.type) || attribute.required === 'yes' ? validate({
-        value: typeof rawValue === 'object' && rawValue.hasOwnProperty('originalValue') ? rawValue.originalValue :
-            typeof rawValue === 'object' && rawValue.hasOwnProperty('value') ? rawValue.value :
+        value: typeof rawValue === 'object' && rawValue?.hasOwnProperty('originalValue') ? rawValue.originalValue :
+            typeof rawValue === 'object' && rawValue?.hasOwnProperty('value') ? rawValue.value :
                 rawValue,
         options: attribute.options,
         required: attribute.required === "yes"
@@ -225,7 +225,7 @@ export const TableCell = ({
                   {...attribute}
                   options={options}
                   meta={optionsMeta}
-                  value={typeof value === "object" && value.hasOwnProperty('originalValue') ? value?.value : value}
+                  value={typeof value === "object" && value?.hasOwnProperty('originalValue') ? value?.value : value}
                   row={newItem}
                   onChange={e => isTotalRow ? null : setNewItem({...newItem, [attribute.name]: e})}
             />

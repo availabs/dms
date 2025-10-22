@@ -255,32 +255,32 @@ const RenderItem = ({
 
                         valueFormattedForDisplay = Array.isArray(value) ?
                             value.map(v =>
-                                typeof v === 'object' && v.hasOwnProperty('value') ?
+                                typeof v === 'object' && v?.hasOwnProperty('value') ?
                                     v.value : v
                             ) :
-                            typeof value === 'object' && value.hasOwnProperty('value') ?
+                            typeof value === 'object' && value?.hasOwnProperty('value') ?
                                 value.value : value;
 
                         valueFormattedForEdit = Array.isArray(value) ?
                             value.map(v =>
-                                typeof v === 'object' && v.hasOwnProperty('originalValue') ?
+                                typeof v === 'object' && v?.hasOwnProperty('originalValue') ?
                                     v.originalValue : v
                             ) :
-                            typeof value === 'object' && value.hasOwnProperty('originalValue') ?
+                            typeof value === 'object' && value?.hasOwnProperty('originalValue') ?
                                 value.originalValue : value;
 
                         if(isLink){
                             // setup for link
                             valueFormattedForSearchParams = Array.isArray(value) ?
                                 value.map(v =>
-                                    typeof v === 'object' && v.hasOwnProperty('originalValue') && attr.searchParams === 'rawValue' ?
+                                    typeof v === 'object' && v?.hasOwnProperty('originalValue') && attr.searchParams === 'rawValue' ?
                                         v.originalValue :
-                                        typeof v === 'object' && v.hasOwnProperty('value') ?
+                                        typeof v === 'object' && v?.hasOwnProperty('value') ?
                                             v.value : v
                                 ).join('|||') :
-                                typeof value === 'object' && value.hasOwnProperty('originalValue') && attr.searchParams === 'rawValue' ?
+                                typeof value === 'object' && value?.hasOwnProperty('originalValue') && attr.searchParams === 'rawValue' ?
                                     value.originalValue :
-                                    typeof value === 'object' && value.hasOwnProperty('value') ?
+                                    typeof value === 'object' && value?.hasOwnProperty('value') ?
                                         value.value : value;
 
                             searchParams =
