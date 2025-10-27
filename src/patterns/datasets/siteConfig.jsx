@@ -298,6 +298,16 @@ const sourceConfig = ({
                         path: `:pgEnv/:id/table/:view_id?`
                     },
                     {
+                        type: () => <> Map Page </>,
+                        filter: {
+                            stopFullDataLoad: true,
+                            fromIndex: () => 0,
+                            toIndex: () => 0,
+                        },
+                        action: 'edit',
+                        path: `:pgEnv/:id/map/:view_id?`
+                    },
+                    {
                         type: Upload,
                         filter: {
                             stopFullDataLoad: true,
@@ -327,6 +337,7 @@ const sourceConfig = ({
                         action: 'edit',
                         path: `:id/view/:view_id?`
                     }
+                    // ============================== version dependent pages end ======================================
                 ]
             }
         ]

@@ -207,6 +207,7 @@ const Admin = ({
                        form={{name: source.name || source.doc_type, href: format.url_slug}}
                        page={{name: 'Admin', href: `${pageBaseUrl}/${pgEnv}/${params.id}/admin`}}
                        pgEnv={pgEnv}
+                       sourceType={isDms ? 'internal' : source.type}
                        id={params.id} //page id to use for navigation
         >
             <div className={`${theme?.page?.wrapper1} max-w-7xl mx-auto`}>

@@ -40,6 +40,8 @@ export default function ManageForm ({
         <SourcesLayout fullWidth={false} baseUrl={baseUrl} pageBaseUrl={pageBaseUrl} isListAll={false} hideBreadcrumbs={false}
                        form={{name: source.name || source.doc_type, href: format.url_slug}}
                        page={{name: 'Metadata', href: `${pageBaseUrl}/${pgEnv}/${params.id}`}}
+                       pgEnv={pgEnv}
+                       sourceType={isDms ? 'internal' : source.type}
                        id={params.id} //page id to use for navigation
         >
             <div className={`${theme?.page?.wrapper1}`}>

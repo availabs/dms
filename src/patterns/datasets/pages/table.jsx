@@ -124,6 +124,7 @@ export default function Table ({apiUpdate, apiLoad, format, item, params}) {
                        view_id={params.view_id}
                        views={source.views}
                        pgEnv={pgEnv}
+                       sourceType={isDms ? 'internal' : source.type}
                        showVersionSelector={true}
         >
             {

@@ -97,12 +97,14 @@ export default function Overview ({
 
     // if(!Object.entries(source).length) return 'loading...';
     const LexicalView = ColumnTypes.lexical.ViewComp;
-    console.log('format', item)
+    console.log('format', source)
+    if(!source.id && !source.source_id) return;
     return (
         <SourcesLayout fullWidth={false} baseUrl={baseUrl} pageBaseUrl={pageBaseUrl} isListAll={false} hideBreadcrumbs={false}
                        form={{name: source?.name || source?.doc_type, href: format.url_slug}}
                        page={{name: 'Overview', href: `${pageBaseUrl}/${pgEnv}/${params.id}`}}
                        pgEnv={pgEnv}
+                       sourceType={isDms ? 'internal' : source.type}
                        id={params.id} //page id to use for navigation
             >
             <div className={'p-4 bg-white flex flex-col'}>

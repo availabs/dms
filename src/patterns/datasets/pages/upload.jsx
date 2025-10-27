@@ -43,6 +43,7 @@ const UploadPage = ({
                        view_id={params.view_id}
                        views={source.views}
                        pgEnv={pgEnv}
+                       sourceType={isDms ? 'internal' : source.type}
                        showVersionSelector={true}
 
         >

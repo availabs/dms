@@ -8,14 +8,14 @@ const Database =  () => <div>D</div>
 const navPages = [
   {name: 'Overview', href: ``, viewDependentPage: false},
   {name: 'Table', href: `table`, viewDependentPage: true},
-  {name: 'Map', href: `map`, viewDependentPage: true, cdn: ({pgEnv}) => pgEnv !== 'internal'},
+  {name: 'Map', href: `map`, viewDependentPage: true, cdn: ({pgEnv, sourceType}) => pgEnv !== 'internal' && sourceType === 'gis_dataset'},
   // {name: 'Metadata', href: `metadata`, viewDependentPage: false},
   {name: 'Upload', href: `upload`, viewDependentPage: true, cdn: ({pgEnv}) => pgEnv === 'internal'},
     {name: 'Validate', href: `validate`, viewDependentPage: true, cdn: ({pgEnv}) => pgEnv === 'internal'},
     {name: 'Admin', href: `admin`, viewDependentPage: false},
 ]
 
-const SourcesLayout = ({children, hideBreadcrumbs, hideNav, form, page, baseUrl, pageBaseUrl, pgEnv, id, views=[], view_id, showVersionSelector = false }) => {
+const SourcesLayout = ({children, hideBreadcrumbs, hideNav, form, page, baseUrl, pageBaseUrl, pgEnv, id, views=[], view_id, sourceType, showVersionSelector = false }) => {
     const navigate = useNavigate();
   return (
     <div className={`h-full flex flex-col`}>
@@ -24,7 +24,7 @@ const SourcesLayout = ({children, hideBreadcrumbs, hideNav, form, page, baseUrl,
         </div> }
 
         <div className={'w-full flex justify-between'}>
-            <Nav navPages={navPages} page={page} hideNav={hideNav} baseUrl={pageBaseUrl} id={id} view_id={view_id} pgEnv={pgEnv}/>
+            <Nav navPages={navPages} page={page} hideNav={hideNav} baseUrl={pageBaseUrl} id={id} view_id={view_id} pgEnv={pgEnv} sourceType={sourceType}/>
             {
                 showVersionSelector ?
                     <select id={'version-selector'}
@@ -50,11 +50,11 @@ const SourcesLayout = ({children, hideBreadcrumbs, hideNav, form, page, baseUrl,
 
 export default SourcesLayout
 
-const Nav = ({baseUrl, navPages, page, hideNav, id, view_id, pgEnv}) => hideNav ? null : (
+const Nav = ({baseUrl, navPages, page, hideNav, id, view_id, pgEnv, sourceType}) => hideNav ? null : (
     <nav className={'w-full flex'}>
         {
             navPages
-                .filter(p => !p.cdn || p.cdn({pgEnv}))
+                .filter(p => !p.cdn || p.cdn({pgEnv, sourceType}))
                 .map(p => (
                 <Link className={
                     `p-2 mx-1 font-display font-medium text-l text-slate-700

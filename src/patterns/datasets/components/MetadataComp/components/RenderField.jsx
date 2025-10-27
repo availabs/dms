@@ -486,7 +486,7 @@ export const RenderField = ({isDms, i, item, attribute, attributeList=[], update
                             key={`${item.name}-description`}
                             label={'description'}
                             attr={'description'}
-                            value={item.desc || item.description}
+                            value={item.description || item.desc}
                             col={item.name}
                             updateAttribute={updateAttribute}
                         />
