@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link } from "react-router";
 
-import { DatasetsContext } from '../../siteConfig'
+import { DatasetsContext } from '../../context'
 
 import { get } from "lodash-es";
 

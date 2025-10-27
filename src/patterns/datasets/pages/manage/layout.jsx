@@ -6,7 +6,7 @@ import React, {useEffect} from 'react'
 import Layout from '../../ui/avail-layout'
 // import SideNav from '../../ui/nav/Side'
 import { ViewIcon } from '../../ui/icons'
-import { DatasetsContext } from '../../siteConfig'
+import { DatasetsContext } from '../../context'
 
 
 const managerTheme={

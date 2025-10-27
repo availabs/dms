@@ -1,6 +1,6 @@
 import React, {useContext} from "react"
 import {Link, useLocation} from 'react-router'
-import { DatasetsContext} from "../siteConfig";
+import { DatasetsContext} from "../context";
 
 // import {NavItem, NavMenu, NavMenuItem, NavMenuSeparator, withAuth} from 'components/avl-components/src'
 // import user from "@availabs/ams/dist/reducers/user";

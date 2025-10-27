@@ -7,7 +7,7 @@ import { get } from "lodash-es";
 import NavItem from "./Item";
 const NOOP = () => { return {} }
 
-import { DatasetsContext } from '../../siteConfig'
+import { DatasetsContext } from '../../context'
 
 export const MobileMenu = ({ open, toggle, menuItems = [], rightMenu = null,themeOptions={}}) => {
   const { theme: fullTheme  } = React.useContext(DatasetsContext) || {}

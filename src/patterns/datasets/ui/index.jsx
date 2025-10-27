@@ -1,6 +1,6 @@
 import React, { useEffect, Fragment, useRef, useState } from 'react'
 import {PencilIcon} from './icons'
-import { DatasetsContext } from '../siteConfig'
+import { DatasetsContext } from '../context'
 import { Dialog, Transition, Switch, Popover } from '@headlessui/react'
 import { usePopper } from 'react-popper'
 

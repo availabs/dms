@@ -43,7 +43,7 @@
     "typescript-eslint": "^8.26.0"
   },
   "dependencies": {
-    "@availabs/avl-falcor": "^0.0.3",
+    "@availabs/avl-falcor": "^0.0.5",
     "@headlessui/react": "^2.2.0",
     "@lexical/clipboard": "0.25.0",
     "@lexical/code": "0.25.0",

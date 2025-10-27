@@ -4,7 +4,7 @@ import { merge } from "lodash-es"
 import { cloneDeep } from "lodash-es"
 import { isEqual } from "lodash-es"
 import Frame from 'react-frame-component'
-import {DatasetsContext} from "../../siteConfig";
+import {DatasetsContext} from "../../context";
 import { getThemeOptions } from './themeOptions'
 import {ThemeContext} from "../../../../ui/useTheme";
 

@@ -1,10 +1,9 @@
 import React, {useMemo, useState, useEffect, useRef, useContext} from 'react'
-import { get } from "lodash-es";
 import SourcesLayout from "../components/DatasetsListComponent/layout"
-import {DatasetsContext} from "../siteConfig";
+import {DatasetsContext} from "../context";
 import SourceCategories from "../components/DatasetsListComponent/categories";
 import {Link} from "react-router";
-import {getSourceData, isJson} from "./utils";
+import {getSourceData, isJson, updateSourceData, parseIfJson} from "./utils";
 
 export const tableTheme = (opts = {color:'white', size: 'compact'}) => {
     const {color = 'white', size = 'compact'} = opts
@@ -40,36 +39,6 @@ export const tableTheme = (opts = {color:'white', size: 'compact'}) => {
         }
     }
 
-}
-
-const defaultLexicalValue = {
-    "root": {
-        "type": "root",
-        "format": "",
-        "indent": 0,
-        "version": 1,
-        "children": [
-            {
-                "type": "paragraph",
-                "format": "",
-                "indent": 0,
-                "version": 1,
-                "children": [
-                    {
-                        "mode": "normal",
-                        "text": "No Description",
-                        "type": "text",
-                        "style": "",
-                        "detail": 0,
-                        "format": 0,
-                        "version": 1
-                    }
-                ],
-                "direction": "ltr"
-            }
-        ],
-        "direction": "ltr"
-    }
 }
 
 const RenderPencil = ({user, editing, setEditing, attr, show}) => {
@@ -112,57 +81,27 @@ export default function Overview ({
             isJson(item.config) ? JSON.parse(item.config)?.attributes : [] :
             (source?.metadata?.columns || []), [item.config, isDms, source?.metadata?.columns])
 
-    const updateData = (data, attrKey) => {
-        console.log('updating data', item, attrKey, data, format)
-        if(isDms) {
-            apiUpdate({data: {...item, ...{[attrKey]: data}}, config: {format}})
-            setSource({...source, [attrKey]: data})
-            // falcor.invalidate(['uda', ])
-        }else{
-            falcor.set({
-                paths: [
-                    ['dama', pgEnv, 'sources', 'byId', id, 'attributes', attrKey]
-                ],
-                jsonGraph: {
-                    dama: {
-                        [pgEnv]: {
-                            sources: {
-                                byId: {
-                                    [id]: {
-                                        attributes: {[attrKey]: attrKey === 'description' ? JSON.stringify(data) : data}
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }).then(d => {
-                setSource({...source, [attrKey]: data})
-            })
-        }
-    }
-
     useEffect(() => {
         // if(isDms) // use item
-        if(!isDms && id && pgEnv){
+        if((!isDms || (isDms && !Object.entries(item).length)) && id && pgEnv){
             // fetch source data
-            getSourceData({pgEnv, falcor, source_id: id, setSource})   ;
+            getSourceData({pgEnv: isDms ? `${format.app}+${format.type}` : pgEnv, falcor, source_id: id, setSource});
         }
     }, [isDms, item.config])
 
     const dateOptions = {year: "numeric", month: "long", day: "numeric", hour: "numeric", minute: "numeric"}
     const createdTimeStamp = new Date(source?.created_at || '').toLocaleDateString(undefined, dateOptions);
     const updatedTimeStamp = new Date(source?.updated_at || '').toLocaleDateString(undefined, dateOptions);
-    const DescComp = useMemo(() => editing === 'description' ? ColumnTypes.lexical.EditComp : ColumnTypes.lexical.ViewComp, [editing, source?.description]);
+    const DescComp = useMemo(() => editing === 'description' ? ColumnTypes.lexical.EditComp : ColumnTypes.lexical.ViewComp, [editing]);
     const CategoriesComp = SourceCategories // useMemo(() => editing === 'categories' ? attributes['categories'].EditComp : attributes['categories'].ViewComp, [editing]);
 
-    if(!Object.entries(source).length) return 'loading...';
+    // if(!Object.entries(source).length) return 'loading...';
     const LexicalView = ColumnTypes.lexical.ViewComp;
-
+    console.log('format', item)
     return (
         <SourcesLayout fullWidth={false} baseUrl={baseUrl} pageBaseUrl={pageBaseUrl} isListAll={false} hideBreadcrumbs={false}
                        form={{name: source?.name || source?.doc_type, href: format.url_slug}}
-                       page={{name: 'Overview', href: `${pageBaseUrl}/${params.id}`}}
+                       page={{name: 'Overview', href: `${pageBaseUrl}/${pgEnv}/${params.id}`}}
                        pgEnv={pgEnv}
                        id={params.id} //page id to use for navigation
             >
@@ -176,9 +115,10 @@ export default function Overview ({
                         className="w-full md:w-[70%] pl-4 py-2 sm:pl-6 flex justify-between group text-sm text-gray-500 pr-14">
                         <DescComp
                             value={source?.description || 'No description'}
-                            onChange={(v) => {
+                            onChange={(data) => {
                                 // setItem({...item, ...{description: v}})
-                                updateData(v, 'description')
+                                console.log('data', data)
+                                updateSourceData({data, attrKey: 'description', isDms, apiUpdate, setSource, item, format, source, pgEnv, falcor, id})
                             }}
                             {...attributes.description}
                         />
@@ -206,10 +146,9 @@ export default function Overview ({
                                 <dd className="text-sm text-gray-900 sm:mt-0 sm:col-span-2">
                                     <div className="pb-2 px-2 relative">
                                         <CategoriesComp
-                                            value={Array.isArray(source?.categories) ? source?.categories : []}
-                                            onChange={(v) => {
-                                                // setItem({...item, ...{categories: v}})
-                                                updateData(v, 'categories')
+                                            value={Array.isArray(parseIfJson(source?.categories)) ? parseIfJson(source?.categories) : []}
+                                            onChange={(data) => {
+                                                updateSourceData({data, attrKey: 'categories', isDms, apiUpdate, setSource, item, format, source, pgEnv, falcor, id})
                                             }}
                                             editingCategories={editing === 'categories'}
                                             stopEditingCategories={() => setEditing(null)}
@@ -283,7 +222,7 @@ export default function Overview ({
                                             {
                                                 col === 'name' ?
                                                     <Link
-                                                        to={`${pageBaseUrl}/${pgEnv}/${params.id}/view/${row?.view_id}`}>{value || 'No Name'}</Link> :
+                                                        to={`${pageBaseUrl}/${pgEnv}/${params.id}/view/${row?.id || row?.view_id}`}>{value || 'No Name'}</Link> :
                                                     <div>{new Date(value?.replace(/"/g, ''))?.toLocaleString()}</div>
                                             }
                                         </div>

@@ -2,6 +2,7 @@ import React from "react"
 import {Link} from "react-router";
 import { merge } from "lodash-es"
 import { cloneDeep } from "lodash-es"
+import {DatasetsContext} from "./context";
 import datasetsFormat, {source} from "./datasets.format";
 import { ThemeContext } from "../../ui/useTheme";
 import defaultTheme from "../../ui/defaultTheme";
@@ -11,9 +12,10 @@ import DefaultMenu from "./components/menu";
 import DatasetsListComponent from "./components/DatasetsListComponent"
 import Overview from "./pages/overview"
 import Table from "./pages/table"
+import Admin from "./pages/admin"
+import Upload from "./pages/upload"
+import Metadata from "./pages/metadata"
 
-
-export const DatasetsContext = React.createContext(undefined);
 // for instances without auth turned on can edit
 
 const isUserAuthed = ({user={}, reqPermissions=[], authPermissions=[]}) => {
@@ -264,24 +266,25 @@ const sourceConfig = ({
                         path: `:pgEnv/:id`
                     },
                     {
-                        type: props => <div>meta page</div>,
+                        type: Metadata,
                         filter: {
                             stopFullDataLoad: true,
                             fromIndex: () => 0,
                             toIndex: () => 0,
                         },
                         action: 'edit',
-                        path: `:id/metadata`
+                        path: `:pgEnv/:id/metadata`
                     },
                     {
-                        type: props => <div>admin page</div>,
+                        type: Admin,
                         filter: {
                             stopFullDataLoad: true,
                             fromIndex: () => 0,
                             toIndex: () => 0,
                         },
+                        reqPermissions: ['source-admin'],
                         action: 'edit',
-                        path: `:id/admin`
+                        path: `:pgEnv/:id/admin`
                     },
                     // ============================= version dependent pages begin =====================================
                     {
@@ -295,14 +298,14 @@ const sourceConfig = ({
                         path: `:pgEnv/:id/table/:view_id?`
                     },
                     {
-                        type: props => <div>upload page</div>,
+                        type: Upload,
                         filter: {
                             stopFullDataLoad: true,
                             fromIndex: () => 0,
                             toIndex: () => 0,
                         },
                         action: 'edit',
-                        path: `:id/upload/:view_id?`
+                        path: `:pgEnv/:id/upload/:view_id?`
                     },
                     {
                         type: props => <div>validate page</div>,
@@ -312,7 +315,7 @@ const sourceConfig = ({
                             toIndex: () => 0,
                         },
                         action: 'edit',
-                        path: `:id/validate/:view_id?`
+                        path: `:pgEnv/:id/validate/:view_id?`
                     },
                     {
                         type: props => <div>version page</div>,

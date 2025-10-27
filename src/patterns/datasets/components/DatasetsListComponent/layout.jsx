@@ -1,6 +1,6 @@
 import React from 'react';
 import {Link, useNavigate} from 'react-router'
-import {DatasetsContext} from "../../siteConfig";
+import {DatasetsContext} from "../../context";
 
 const Alert = () => <div>A</div>
 const Database =  () => <div>D</div>
@@ -8,10 +8,11 @@ const Database =  () => <div>D</div>
 const navPages = [
   {name: 'Overview', href: ``, viewDependentPage: false},
   {name: 'Table', href: `table`, viewDependentPage: true},
-  {name: 'Validate', href: `validate`, viewDependentPage: true},
-  {name: 'Metadata', href: `metadata`, viewDependentPage: false},
-  {name: 'Upload', href: `upload`, viewDependentPage: true},
-  {name: 'Admin', href: `admin`, viewDependentPage: false},
+  {name: 'Map', href: `map`, viewDependentPage: true, cdn: ({pgEnv}) => pgEnv !== 'internal'},
+  // {name: 'Metadata', href: `metadata`, viewDependentPage: false},
+  {name: 'Upload', href: `upload`, viewDependentPage: true, cdn: ({pgEnv}) => pgEnv === 'internal'},
+    {name: 'Validate', href: `validate`, viewDependentPage: true, cdn: ({pgEnv}) => pgEnv === 'internal'},
+    {name: 'Admin', href: `admin`, viewDependentPage: false},
 ]
 
 const SourcesLayout = ({children, hideBreadcrumbs, hideNav, form, page, baseUrl, pageBaseUrl, pgEnv, id, views=[], view_id, showVersionSelector = false }) => {
@@ -35,7 +36,7 @@ const SourcesLayout = ({children, hideBreadcrumbs, hideNav, form, page, baseUrl,
                             value={view_id}
                     >
                         <option key={'default'} value={undefined}>No version selected</option>
-                        {views.map(view => <option key={view.id} value={view.id}>{view.name || view.id}</option>)}
+                        {views.map(view => <option key={view.id} value={view.view_id || view.id}>{view.name || view.id}</option>)}
                     </select> : null
             }
         </div>
@@ -52,7 +53,9 @@ export default SourcesLayout
 const Nav = ({baseUrl, navPages, page, hideNav, id, view_id, pgEnv}) => hideNav ? null : (
     <nav className={'w-full flex'}>
         {
-            navPages.map(p => (
+            navPages
+                .filter(p => !p.cdn || p.cdn({pgEnv}))
+                .map(p => (
                 <Link className={
                     `p-2 mx-1 font-display font-medium text-l text-slate-700
                     ${p.name === page.name ? 
