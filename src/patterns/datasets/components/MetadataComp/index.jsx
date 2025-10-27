@@ -13,7 +13,7 @@ const parseJson = value => {
     }
 }
 
-export default ({value = '{}', accessKey, onChange, className, apiLoad, format}) => {
+export default ({isDms, value = '{}', accessKey, onChange, className, apiLoad, format}) => {
     const {UI} = useContext(DatasetsContext)
     const {Input, Icon} = UI;
     const theme = {}//useTheme()
@@ -101,6 +101,7 @@ export default ({value = '{}', accessKey, onChange, className, apiLoad, format})
                                              theme={theme} updateAttribute={updateAttribute}
                                              removeAttribute={removeAttribute} apiLoad={apiLoad} format={format}
                                              dragStart={dragStart} dragEnter={dragEnter} dragOver={dragOver} drop={drop}
+                                             isDms={isDms}
                                 />
                             )
                         })

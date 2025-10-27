@@ -1,14 +1,14 @@
-import React, {useMemo, useState} from "react";
+import React, {useContext, useMemo, useState} from "react";
 import {DatasetsContext} from "../../../context";
 import {Metadata} from "./Metadata";
 
-const Lexical = { EditComp: () => <div/>}
-
 const fieldTypes = [
     { value: 'text', label: 'text' },
+    { value: 'string', label: 'string (text)' },
     { value: 'textarea', label: 'text area' },
     { value: 'lexical', label: 'rich text' },
     { value: 'number', label: 'number', dataType: 'numeric' },
+    { value: 'integer', label: 'integer (number)', dataType: 'numeric' },
     { value: 'date', label: 'date', dataType: 'date' },
     { value: 'timestamp', label: 'timestamp', dataType: 'timestamp' },
     { value: 'select', label: 'dropdown' },
@@ -69,7 +69,7 @@ const RenderInputText = ({label, value, col, attr, disabled, hidden, updateAttri
     )
 }
 
-const RenderInputSelect = ({label, value='', col, attr, updateAttribute, placeHolder='please select...', options}) => {
+const RenderInputSelect = ({disabled, label, value='', col, attr, updateAttribute, placeHolder='please select...', options}) => {
     const {UI} = React.useContext(DatasetsContext);
     const {Select} = UI;
 
@@ -77,6 +77,7 @@ const RenderInputSelect = ({label, value='', col, attr, updateAttribute, placeHo
         <div className={'flex flex-col items-start'}>
             <label className={labelClass}>{label}</label>
             <Select
+                disabled={disabled}
                 value={value}
                 onChange={e => {
                     const valueToUpdate = {[attr]: e.target.value};
@@ -125,19 +126,23 @@ const RenderInputButtonSelect = ({label, value='', col, attr, updateAttribute, o
     )
 }
 
-const RenderInputLexical = ({label, value, col, attr, updateAttribute}) => (
-    <div className={'flex flex-col items-start'}>
-        <label className={labelClass}>{label}</label>
-        <Lexical.EditComp
-            value={value}
-            bgColor={'#ffffff'}
-            onChange={e => {
-                updateAttribute(col, {[attr]: e})
-            }}
-            placeHolder={label}
-        />
-    </div>
-)
+const RenderInputLexical = ({label, value, col, attr, updateAttribute}) => {
+    const {UI} = useContext(DatasetsContext);
+    const {ColumnTypes: {lexical: {EditComp}}} = UI;
+    return (
+        <div className={'flex flex-col items-start'}>
+            <label className={labelClass}>{label}</label>
+            <EditComp
+                value={value}
+                bgColor={'#ffffff'}
+                onChange={e => {
+                    updateAttribute(col, {[attr]: e})
+                }}
+                placeHolder={label}
+            />
+        </div>
+    )
+}
 
 const RenderAddForm = ({editing, newOption, setNewOption, addNewValue, value}) => {
     const {UI} = React.useContext(DatasetsContext);
@@ -376,7 +381,7 @@ const RenderRemoveBtn = ({col, removeAttribute}) => {
     )
 }
 
-export const RenderField = ({i, item, attribute, attributeList=[], updateAttribute, removeAttribute, apiLoad, format, dragStart, dragEnter, dragOver, drop}) => {
+export const RenderField = ({isDms, i, item, attribute, attributeList=[], updateAttribute, removeAttribute, apiLoad, format, dragStart, dragEnter, dragOver, drop}) => {
     const [showAdvanced, setShowAdvanced] = useState(false);
     return (
             <div key={i}
@@ -419,6 +424,7 @@ export const RenderField = ({i, item, attribute, attributeList=[], updateAttribu
                         />
 
                         <RenderInputSelect
+                            disabled={!isDms && item.display !== 'calculated' && item.origin !== 'calculated-column'}
                             key={`${item.name}-type`}
                             label={'Column Type'}
                             value={item.type}
@@ -439,7 +445,7 @@ export const RenderField = ({i, item, attribute, attributeList=[], updateAttribu
                         <RenderInputButtonSelect
                             key={`${item.name}-display`}
                             label={'Behaviour Type'}
-                            value={item.display}
+                            value={!isDms && item.meta_lookup ? 'meta' : item.display}
                             col={item.name}
                             attr={'display'}
                             options={item.type  === 'calculated' ? [{value: 'calculated', label: 'calculated'}] : behaviourTypes} // don't rely on user selecting display. even if type is calculated, consider the column to be calculated.
@@ -480,7 +486,7 @@ export const RenderField = ({i, item, attribute, attributeList=[], updateAttribu
                             key={`${item.name}-description`}
                             label={'description'}
                             attr={'description'}
-                            value={item.description}
+                            value={item.desc || item.description}
                             col={item.name}
                             updateAttribute={updateAttribute}
                         />
@@ -515,7 +521,7 @@ export const RenderField = ({i, item, attribute, attributeList=[], updateAttribu
                                    updateAttribute={updateAttribute}
                     />
                     <RenderMappedOptions key={`${item.name}-mapped-options`} col={item.name} drivingAttribute={item.type} value={item.mapped_options} attr={'mapped_options'} updateAttribute={updateAttribute}/>
-                    <Metadata key={`${item.name}-meta_lookup`} col={item.name} drivingAttribute={item.display} value={item.meta_lookup} attr={'meta_lookup'} updateAttribute={updateAttribute}/>
+                    <Metadata key={`${item.name}-meta_lookup`} col={item.name} drivingAttribute={!isDms && item.meta_lookup ? 'meta' : item.display} value={item.meta_lookup} attr={'meta_lookup'} updateAttribute={updateAttribute}/>
                     <RenderRemoveBtn key={`${item.name}-removeBtn`} col={item.name} removeAttribute={removeAttribute}/>
 
                 </div>

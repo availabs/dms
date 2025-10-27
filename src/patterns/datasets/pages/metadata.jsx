@@ -47,6 +47,7 @@ export default function ManageForm ({
                         {status ? <div>{JSON.stringify(status)}</div> : ''}
                         <div className='w-full'>
                             <MetadataComp
+                                isDms={isDms}
                                 value={isDms ? item?.config : source?.metadata}
                                 accessKey={isDms ? 'attributes' : 'columns'}
                                 onChange={(v) => {

@@ -44,7 +44,7 @@ const DataSourceForm = ({editing, updateAttribute, col, attr, type}) => {
                     label: 'Filter',
                     type: 'Input',
                     placeholder: '{"year": [2020], "length(geoid)": [5]}',
-                    value: metaObj.filter,
+                    value: typeof metaObj.filter === 'object' && metaObj.filter ? JSON.stringify(metaObj.filter) : metaObj.filter,
                     onChange: e => setMetaObj({...metaObj, filter: e.target.value}),
                     customTheme
                 },
