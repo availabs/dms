@@ -15,6 +15,7 @@ import Table from "./pages/table"
 import Admin from "./pages/admin"
 import Upload from "./pages/upload"
 import Metadata from "./pages/metadata"
+import Validate from "./pages/validate"
 
 // for instances without auth turned on can edit
 
@@ -318,7 +319,7 @@ const sourceConfig = ({
                         path: `:pgEnv/:id/upload/:view_id?`
                     },
                     {
-                        type: props => <div>validate page</div>,
+                        type: Validate,
                         filter: {
                             stopFullDataLoad: true,
                             fromIndex: () => 0,

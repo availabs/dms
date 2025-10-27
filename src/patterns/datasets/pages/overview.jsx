@@ -142,7 +142,29 @@ export default function Overview ({
                             <span className={'text-l font-medium text-blue-600 '}>{source?.doc_type || source?.type}</span>
                         </div>
 
-                        <div key={'categories'} className='flex justify-between group'>
+                        <div key={'update_interval'} className='flex justify-between group'>
+                            <div className="flex-1 sm:grid sm:grid-cols-2 sm:gap-1 sm:px-6">
+                                <dt className="text-sm font-medium text-gray-500 mt-1.5">{'Update Interval'}</dt>
+                                <dd className="text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                                    <div className="pb-2 relative">
+                                        {
+                                            editing === 'update_interval' ?
+                                                <input className={'w-full'}
+                                                       autoFocus={true}
+                                                       value={source?.update_interval}
+                                                       onChange={e => {
+                                                           updateSourceData({data: e.target.value, attrKey: 'update_interval', isDms, apiUpdate, setSource, item, format, source, pgEnv, falcor, id})
+                                                       }}
+                                                /> :
+                                                <span className={'text-l font-medium text-blue-600 '}>{source?.update_interval}</span>
+                                        }
+                                    </div>
+                                </dd>
+                            </div>
+                            <RenderPencil attr={'update_interval'} user={user} editing={editing} setEditing={setEditing} show={isUserAuthed(['update-source'])}/>
+                        </div>
+
+                    <div key={'categories'} className='flex justify-between group'>
                             <div className="flex-1 sm:grid sm:grid-cols-2 sm:gap-1 sm:px-6">
                                 <dt className="text-sm font-medium text-gray-500 mt-1.5">{'Categories'}</dt>
                                 <dd className="text-sm text-gray-900 sm:mt-0 sm:col-span-2">
