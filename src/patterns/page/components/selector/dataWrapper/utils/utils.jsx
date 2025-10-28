@@ -126,7 +126,9 @@ export const applyFn = (col = {}, isDms = false) => {
   const isCalculatedCol =
     col.type === "calculated" ||
     col.display === "calculated" ||
-    col.origin === "calculated-column";
+    col.origin === "calculated-column" ||
+      col.name.toLowerCase().includes(' as '); // when a column is referenced to get "options" for select/multiselect, we don't have other properties available.
+
   const colNameWithAccessor = attributeAccessorStr(
     col.name,
     isDms,
@@ -134,7 +136,9 @@ export const applyFn = (col = {}, isDms = false) => {
     col.systemCol,
   );
   const colNameAfterAS = (
-    isCalculatedCol ? splitColNameOnAS(col.name)[1] : col.name
+    isCalculatedCol ? // get response name for calculated columns
+        splitColNameOnAS(col.name)[1] :
+        col.name
   ).toLowerCase();
 
   const functions = {
@@ -209,6 +213,7 @@ export const getData = async ({
   fullDataLoad,
   keepOriginalValues,
   currentPage = 0,
+    debugCall
 }) => {
   const {
     groupBy = [],
@@ -223,7 +228,7 @@ export const getData = async ({
     ...restOfDataRequestOptions
   } = state.dataRequest || {};
 
-  const debug = false;
+  const debug = debugCall || false;
   debug && console.log("=======getDAta called===========");
   // get columns with all settings and info about them.
   const columnsWithSettings = state.columns
