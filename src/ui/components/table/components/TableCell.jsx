@@ -66,9 +66,9 @@ const validate = ({value, required, options, name}) => {
     const optionsValidation = !options || !options?.length || (
         Array.isArray(options) && !value && !required ? true : // blank value with not required condition
         Array.isArray(options) && (typeof value === "string" || typeof value === "boolean") ? // select
-            options.map(o => o.value || o).includes(value.toString()) :
+            options.map(o => (o.value || o || '').toString()).includes(value.toString()) :
             Array.isArray(options) && typeof value === 'number' ? //select
-                options.map(o => o.value || o).includes(value) :
+                options.map(o => +(o.value || o)).includes(value) :
                 Array.isArray(options) && Array.isArray(value) ?  // multiselect
                     value.reduce((acc, v) => acc && options.map(o => o.value || o).includes(v?.value || v), true) :
                     false
@@ -139,6 +139,7 @@ export const TableCell = ({
             clearTimeout(timeoutId);
         };
     }, [rawValue]);
+
     const isValid = ['multiselect', 'select', 'radio'].includes(attribute.type) || attribute.required === 'yes' ? validate({
         value: typeof rawValue === 'object' && rawValue?.hasOwnProperty('originalValue') ? rawValue.originalValue :
             typeof rawValue === 'object' && rawValue?.hasOwnProperty('value') ? rawValue.value :
