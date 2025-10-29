@@ -203,11 +203,11 @@ const Edit = ({attributes, item, dataItems, apiLoad, apiUpdate, updateAttribute,
                 return isListAll || (
                     // we're not listing all sources
                     !isListAll &&
-                    !source?.categories?.find(cat =>
+                    !(Array.isArray(source?.categories) ? source?.categories : [source?.categories])?.find(cat =>
                         // find if current category $cat includes any of filtered categories
                         filteredCategories.find(filteredCategory => cat.includes(filteredCategory))))
             })
-            .reduce((acc, s) => [...acc, ...(s?.categories?.map(s1 => s1[0]) || [])], []))].sort()
+            .reduce((acc, s) => [...acc, ...((Array.isArray(s?.categories) ? s?.categories : [s?.categories])?.map(s1 => s1?.[0]) || [])], []))].sort()
 
 
       const categoriesCount = categories.reduce((acc, cat) => {
@@ -273,7 +273,7 @@ const Edit = ({attributes, item, dataItems, apiLoad, apiUpdate, updateAttribute,
                                 return isListAll || (
                                     // we're not listing all sources
                                     !isListAll &&
-                                    !source?.categories?.find(cat =>
+                                    !(Array.isArray(source?.categories) ? source?.categories : [source?.categories])?.find(cat =>
                                         // find if current category $cat includes any of filtered categories
                                         filteredCategories.find(filteredCategory => cat.includes(filteredCategory))))
                             })

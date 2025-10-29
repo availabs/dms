@@ -2,7 +2,7 @@ import React, {useEffect} from "react";
 import { useMatch, useNavigate, Link } from "react-router";
 import Icons from '../icons'
 
-import { DatasetsContext } from '../../siteConfig'
+import { DatasetsContext } from '../../context'
 
 function Icon ({ icon, className }) {
 	let Icon = ''

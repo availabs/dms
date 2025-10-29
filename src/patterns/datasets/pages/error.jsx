@@ -1,6 +1,6 @@
 import React, {useContext} from 'react'
 import {cloneDeep, merge} from "lodash-es"
-import {DatasetsContext} from "../siteConfig";
+import {DatasetsContext} from "../context";
 import {ThemeContext} from "../../../ui/useTheme";
 
 function ErrorPage({}) {

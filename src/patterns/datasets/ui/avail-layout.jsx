@@ -6,7 +6,7 @@ import { Link } from "react-router";
 import TopNav from './nav/Top';
 import SideNav from './nav/Side';
 //import { Search } from '../components/search';
-import { DatasetsContext } from '../siteConfig';
+import { DatasetsContext } from '../context';
 
 
 

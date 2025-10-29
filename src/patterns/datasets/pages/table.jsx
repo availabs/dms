@@ -1,11 +1,11 @@
 import React, {useCallback, useContext, useEffect, useMemo, useState} from "react";
-import { DatasetsContext } from '../siteConfig'
+import { DatasetsContext } from '../context'
 import SourcesLayout from "../components/DatasetsListComponent/layout";
 import Spreadsheet from "../../page/components/selector/ComponentRegistry/spreadsheet";
 import {useNavigate} from "react-router";
 import DataWrapper from "../../page/components/selector/dataWrapper";
 import {cloneDeep, isEqual, uniqBy} from "lodash-es";
-
+import {AuthContext} from "../../auth/context";
 import {ComponentContext} from "../../page/context";
 import {useImmer} from "use-immer";
 import {
@@ -22,7 +22,8 @@ export default function Table ({apiUpdate, apiLoad, format, item, params}) {
     const navigate = useNavigate();
     const {theme} = useContext(ThemeContext) || {};
     const { falcor, baseUrl, pageBaseUrl, user, isUserAuthed } = useContext(DatasetsContext) || {};
-
+    const authContext = useContext(AuthContext) || {};
+    console.log('auth context', authContext)
     const [source, setSource] = useState(isDms ? item : {});
 
     let columns = useMemo(() =>
@@ -34,7 +35,7 @@ export default function Table ({apiUpdate, apiLoad, format, item, params}) {
 
     useEffect(() => {
         // if(isDms) // use item
-        if(!isDms && id && pgEnv){
+        if((!isDms || (isDms && !Object.entries(item).length)) && id && pgEnv){
             // fetch source data
             getSourceData({pgEnv, falcor, source_id: id, setSource});
         }
@@ -118,11 +119,12 @@ export default function Table ({apiUpdate, apiLoad, format, item, params}) {
     return (
         <SourcesLayout fullWidth={false} baseUrl={baseUrl} pageBaseUrl={pageBaseUrl} isListAll={false} hideBreadcrumbs={false}
                        form={{name: source.name || source.doc_type, href: format.url_slug}}
-                       page={{name: 'Table', href: `${pageBaseUrl}/${params.id}/table`}}
+                       page={{name: 'Table', href: `${pageBaseUrl}/${pgEnv}/${params.id}/table`}}
                        id={params.id} //page id to use for navigation
                        view_id={params.view_id}
                        views={source.views}
                        pgEnv={pgEnv}
+                       sourceType={isDms ? 'internal' : source.type}
                        showVersionSelector={true}
         >
             {

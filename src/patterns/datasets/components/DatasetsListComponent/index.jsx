@@ -3,7 +3,7 @@ import {useParams, useLocation} from "react-router"
 import {get, isEqual} from "lodash-es";
 import {Link, useSearchParams} from "react-router";
 import SourcesLayout from "./layout";
-import {DatasetsContext} from "../../siteConfig";
+import {DatasetsContext} from "../../context";
 import {Modal} from "../../ui";
 import { cloneDeep } from "lodash-es";
 import { v4 as uuidv4 } from 'uuid';
@@ -64,18 +64,19 @@ const getSources = async ({envs, falcor, parent, user}) => {
 }
 
 
-const SourceThumb = ({ source={} }) => {
+const SourceThumb = ({ source={}, format }) => {
     const {UI} = useContext(DatasetsContext);
     const {ColumnTypes} = UI;
     const Lexical = ColumnTypes.lexical.ViewComp;
     const source_id = source.id || source.source_id;
     const {isDms} = source;
+    const icon = isDms ? (format.registerFormats || []).find(f => f?.type?.includes('|source'))?.type === source.type ? 'Datasets' : 'Forms' : 'External';
 
     return (
         <div className="w-full p-4 bg-white hover:bg-blue-50 border shadow flex">
             <div>
                 <Link to={`source/${isDms ? 'internal' : source?.env}/${source_id}`} className="text-xl font-medium w-full block">
-                    <span>{source?.name || source?.doc_type}</span>
+                    <span>{source?.name || source?.doc_type}</span> <span className={'text-sm text-gray-900 italic'}>{icon}</span>
                 </Link>
                 <div>
                     {(Array.isArray(source?.categories) ? source?.categories : [])
@@ -167,7 +168,7 @@ export default function ({attributes, item, dataItems, apiLoad, apiUpdate, updat
             viewAttributes: ['version', '_modified_timestamp']
         },
         // we only show current pattern's sources. copy over sources, views from forms to access here.
-        [`${format.app}+${siteType}`]: {
+        [`${format?.app}+${siteType}`]: {
             label: 'managed',
             isDms: true,
             // {doc_type}-{view_id} is used as type to fetch data items for dms views.
@@ -191,7 +192,7 @@ export default function ({attributes, item, dataItems, apiLoad, apiUpdate, updat
         return () => {
             isStale = true;
         }
-    }, [format.app, siteType]);
+    }, [format?.app, siteType]);
 
     const categories = [...new Set(
         (sources || [])
@@ -299,7 +300,7 @@ export default function ({attributes, item, dataItems, apiLoad, apiUpdate, updat
                                 const m = sort === 'asc' ? 1 : -1;
                                 return m * a?.doc_type?.localeCompare(b?.doc_type)
                             })
-                            .map((s, i) => <SourceThumb key={i} source={s} baseUrl={baseUrl} />)
+                            .map((s, i) => <SourceThumb key={i} source={s} baseUrl={baseUrl} format={format} />)
                     }
                 </div>
             </div>

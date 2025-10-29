@@ -111,17 +111,13 @@ const parseIfJson = (value) => {
 };
 
 const cleanValue = (value) =>
-  typeof value === "boolean"
-    ? JSON.stringify(value)
-    : Array.isArray(value)
-      ? value // this will be calculated column only.
-      : typeof value === "object" && value?.value
-        ? cleanValue(value.value)
-        : typeof value === "object" && !value?.value
-          ? undefined
-          : typeof value === "string"
-            ? parseIfJson(value)
-            : parseIfJson(value);
+    typeof value === "boolean" ? JSON.stringify(value)
+        : Array.isArray(value) ? value // this will be calculated column only.
+            : typeof value === "object" && value?.value && value?.originalValue ? value // meta column with original and meta value
+                : typeof value === "object" && value?.value ? cleanValue(value.value)
+                    : typeof value === "object" && !value?.value ? undefined
+                        : typeof value === "string" ? parseIfJson(value)
+                            : parseIfJson(value);
 
 export const applyFn = (col = {}, isDms = false) => {
   // apply fns if: column is not calculated column or it is calculated, and does not have function in name
@@ -130,7 +126,9 @@ export const applyFn = (col = {}, isDms = false) => {
   const isCalculatedCol =
     col.type === "calculated" ||
     col.display === "calculated" ||
-    col.origin === "calculated-column";
+    col.origin === "calculated-column" ||
+      col.name.toLowerCase().includes(' as '); // when a column is referenced to get "options" for select/multiselect, we don't have other properties available.
+
   const colNameWithAccessor = attributeAccessorStr(
     col.name,
     isDms,
@@ -138,7 +136,9 @@ export const applyFn = (col = {}, isDms = false) => {
     col.systemCol,
   );
   const colNameAfterAS = (
-    isCalculatedCol ? splitColNameOnAS(col.name)[1] : col.name
+    isCalculatedCol ? // get response name for calculated columns
+        splitColNameOnAS(col.name)[1] :
+        col.name
   ).toLowerCase();
 
   const functions = {
@@ -211,7 +211,9 @@ export const getData = async ({
   state,
   apiLoad,
   fullDataLoad,
+  keepOriginalValues,
   currentPage = 0,
+    debugCall
 }) => {
   const {
     groupBy = [],
@@ -226,7 +228,7 @@ export const getData = async ({
     ...restOfDataRequestOptions
   } = state.dataRequest || {};
 
-  const debug = false;
+  const debug = debugCall || false;
   debug && console.log("=======getDAta called===========");
   // get columns with all settings and info about them.
   const columnsWithSettings = state.columns
@@ -379,6 +381,7 @@ export const getData = async ({
 
   // should this be saved in state directly?
   const options = {
+    keepOriginalValues,
     filterRelation,
     serverFn,
     groupBy: groupBy.map(

@@ -106,7 +106,8 @@ const inHeader = [
         options: [
             {label: 'None', value: undefined},
             {label: 'ID', value: 'id'},
-            {label: 'Value', value: 'value'}
+            {label: 'Value', value: 'value'},
+            {label: 'Raw Value', value: 'rawValue'}
         ]
     },
 
@@ -143,6 +144,7 @@ export default {
     useGetDataOnPageChange: true,
     useInfiniteScroll: false,
     showPagination: true,
+    keepOriginalValues: true,
     controls: {
         columns: [
             // settings from columns dropdown are stored in state.columns array, per column
