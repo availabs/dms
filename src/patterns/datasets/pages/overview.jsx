@@ -246,7 +246,7 @@ export default function Overview ({
                                             {
                                                 col === 'name' ?
                                                     <Link
-                                                        to={`${pageBaseUrl}/${pgEnv}/${params.id}/view/${row?.id || row?.view_id}`}>{value || 'No Name'}</Link> :
+                                                        to={`${pageBaseUrl}/${pgEnv}/${params.id}/version/${row?.id || row?.view_id}`}>{value || 'No Name'}</Link> :
                                                     <div>{new Date(value?.replace(/"/g, ''))?.toLocaleString()}</div>
                                             }
                                         </div>

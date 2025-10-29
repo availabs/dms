@@ -16,6 +16,7 @@ import Admin from "./pages/admin"
 import Upload from "./pages/upload"
 import Metadata from "./pages/metadata"
 import Validate from "./pages/validate"
+import Version from "./pages/version"
 
 // for instances without auth turned on can edit
 
@@ -329,14 +330,14 @@ const sourceConfig = ({
                         path: `:pgEnv/:id/validate/:view_id?`
                     },
                     {
-                        type: props => <div>version page</div>,
+                        type: Version,
                         filter: {
                             stopFullDataLoad: true,
                             fromIndex: () => 0,
                             toIndex: () => 0,
                         },
                         action: 'edit',
-                        path: `:id/view/:view_id?`
+                        path: `:pgEnv/:id/version/:view_id?`
                     }
                     // ============================== version dependent pages end ======================================
                 ]
