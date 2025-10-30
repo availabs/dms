@@ -250,11 +250,16 @@ export function getInPageNav(item, theme) {
 
     //console.log('test 123', theme)
    
-    const menuItems = (Array.isArray(currentDI?.sections) ? currentDI.sections : []).reduce((acc, {title, element, level, ...props}) => {
+    const menuItems = (Array.isArray(currentDI?.sections) ? currentDI.sections : []).reduce((acc, {title, element, level: levelFromProp, ...props}) => {
         if(!element) return acc;
-
+        const level = Array.isArray(levelFromProp) ? levelFromProp[0] : levelFromProp;
         const isLexical = element['element-type'] === 'lexical' || !element['element-type'];
-        if (((!title || level !== '1') && !isLexical) || level !== '1') return acc; // filtering for level 1 section header
+        const isCard = element['element-type'] === 'Card';
+        const isH1 = level === '1';
+
+        if(!isLexical && !isCard) return acc;
+        if(!isH1) return acc;
+        // if (((!title || !isH1) && !isLexical) || !isH1) return acc; // filtering for level 1 section header
 
         const lexicalNavElements =
             isLexical ? parseData(element['element-data'])?.root?.children?.reduce((acc, {type, tag, children, ...rest}) => {
