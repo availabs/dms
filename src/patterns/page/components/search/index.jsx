@@ -201,7 +201,7 @@ export const SearchPallet = ({open, setOpen, app: appFromProps, type: typeFromPr
 
         getTags().then(tags => {
             setTags((tags?.value || [] ).map(t => t[searchType]).sort());
-            setIndividualTags([...new Set(tags.value.reduce((acc, t) => [...acc, ...t[searchType].split(',')], []))].sort());
+            setIndividualTags([...new Set((tags?.value || []).reduce((acc, t) => [...acc, ...t[searchType].split(',')], []))].sort());
             setLoading(false)
         });
     }, []);
