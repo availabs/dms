@@ -5,6 +5,7 @@ import { ThemeContext } from ".././../../ui/useTheme";
 import SourcesLayout from "../components/DatasetsListComponent/layout";
 import {getSourceData, updateVersionData} from "./utils";
 import {cloneDeep} from "lodash-es";
+import ExternalVersionControl from "../components/ExternalVersionControls";
 
 const buttonRedClass = 'w-full p-2 mx-1 bg-red-300 hover:bg-red-500 text-gray-800 rounded-md';
 
@@ -203,9 +204,9 @@ export default function ManageForm ({
                                     isDms ? (
                                             <>
                                                 <ClearDataBtn app={app} type={item.doc_type} view_id={params.view_id} apiLoad={apiLoad} apiUpdate={apiUpdate}/>
-                                                <DeleteViewBtn item={item} format={format} view_id={params.view_id} url={`${pageBaseUrl}/${params.id}`} apiUpdate={apiUpdate} baseUrl={baseUrl}/>
+                                                <DeleteViewBtn item={item} format={format} view_id={params.view_id} url={`${pageBaseUrl}/${pgEnv}/${params.id}`} apiUpdate={apiUpdate} baseUrl={baseUrl}/>
                                             </>
-                                    ) : <></>
+                                    ) : <ExternalVersionControl source={source} view={currentView} sourceId={params.id} viewId={params.view_id} />
                                 }
                             </div>
                         </div>

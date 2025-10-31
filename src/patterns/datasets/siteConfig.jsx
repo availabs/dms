@@ -17,6 +17,7 @@ import Upload from "./pages/upload"
 import Metadata from "./pages/metadata"
 import Validate from "./pages/validate"
 import Version from "./pages/version"
+import Map from "./pages/map";
 
 // for instances without auth turned on can edit
 
@@ -166,7 +167,8 @@ const sourceConfig = ({
     pattern,
     pgEnv,
     themes={ default: {} },
-    checkAuth = () => {}
+    checkAuth = () => {},
+    datasets
 }) => {
     let theme = merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern?.theme_name] || themes.mny_datasets));
 
@@ -238,6 +240,7 @@ const sourceConfig = ({
                           parent: pattern,
                           Menu: () => <>{Menu || <DefaultMenu theme={theme} UI={UI}/>}</>, API_HOST,
                           falcor,
+                          datasets,
                           authPermissions,
                           isUserAuthed: (reqPermissions, customAuthPermissions) => isUserAuthed({user, authPermissions: customAuthPermissions || authPermissions, reqPermissions}),
                       }}>
@@ -300,7 +303,7 @@ const sourceConfig = ({
                         path: `:pgEnv/:id/table/:view_id?`
                     },
                     {
-                        type: () => <> Map Page </>,
+                        type: Map,
                         filter: {
                             stopFullDataLoad: true,
                             fromIndex: () => 0,

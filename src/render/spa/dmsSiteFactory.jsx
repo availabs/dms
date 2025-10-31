@@ -67,7 +67,8 @@ function pattern2routes (siteData, props) {
         pgEnvs = ['hazmit_dama'],
         API_HOST = 'https://graph.availabs.org',
         damaBaseUrl,
-        PROJECT_NAME
+        PROJECT_NAME,
+        datasets
     } = props
 
     const patterns = siteData.reduce((acc, curr) => [...acc, ...(curr?.patterns || [])], []) || [];
@@ -136,7 +137,8 @@ function pattern2routes (siteData, props) {
                     themes,
                     useFalcor,
                     API_HOST,
-                    damaBaseUrl
+                    damaBaseUrl,
+                    datasets
                 });
                 return ({...dmsPageFactory({
                   dmsConfig: configObj,
@@ -180,7 +182,8 @@ export function DmsSite (config) {
         AUTH_HOST= 'https://graph.availabs.org',
         PROJECT_NAME,
         damaBaseUrl,
-        routes = []
+        routes = [],
+        datasets = []
     } = config
     //-----------
     // to do:
@@ -200,7 +203,8 @@ export function DmsSite (config) {
                 authWrapper,
                 pgEnvs,
                 damaBaseUrl,
-                PROJECT_NAME: CurrentProjectName
+                PROJECT_NAME: CurrentProjectName,
+                datasets
                 //theme
             })
             : []
@@ -221,7 +225,8 @@ export function DmsSite (config) {
                 authWrapper,
                 pgEnvs,
                 damaBaseUrl,
-                PROJECT_NAME: CurrentProjectName
+                PROJECT_NAME: CurrentProjectName,
+                datasets,
                 //theme
             });
             console.timeEnd('dmsSiteFactory')

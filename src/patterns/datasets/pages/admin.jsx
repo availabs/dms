@@ -94,57 +94,25 @@ const AddViewBtn = ({item, format, apiLoad, apiUpdate}) => {
     )
 }
 
-const ClearDataBtn = ({app, type, apiLoad, apiUpdate}) => {
-    const {UI} = useContext(DatasetsContext);
-    const {DeleteModal} = UI;
-    const [showDeleteModal, setShowDeleteModal] = useState(false);
-    const clearData = async () => {
-        // fetch all ids based on app and type (doc_type of source), and then call dmsDataEditor with config={app, type}, data={id}, requestType='delete
-        const attributes = ['id']
-        const action = 'load'
-        const config = {
-            format: {
-                app: app,
-                type: type,
-                attributes
-            },
-            children: [
-                {
-                    type: () => {},
-                    action,
-                    filter: {
-                        options: JSON.stringify({}),
-                        attributes
-                    },
-                    path: '/'
-                }
-            ]
-        }
-
-        const res = await apiLoad(config);
-        if(!res?.length) return;
-        const ids = res.map(r => r.id).filter(r => typeof r !== 'object' && r);
-        if(!ids?.length) return;
-
-        await apiUpdate({data: {id: ids}, config, requestType: 'delete'});
-    }
+const AddExternalVersionBtn = ({source}) => {
+    const {UI, datasets} = useContext(DatasetsContext);
+    const {Modal, Button} = UI;
+    const [showModal, setShowModal] = useState(false);
+    const srcType = (source?.categories || [])[0]?.[0];
+    const CreatePage = datasets.find(d => d.name === srcType)?.pages?.sourceCreate?.component;
+    console.log('????', srcType, datasets.find(d => d.name === srcType))
     return (
         <>
-            <button className={buttonRedClass} onClick={() => setShowDeleteModal(true)}>Clear Data</button>
+            <Button onClick={() => setShowModal(true)}>Add Version</Button>
 
-            <DeleteModal
-                title={`Clear Uploaded Data`} open={showDeleteModal}
-                prompt={`Are you sure you want to clear all uploaded data for this source? This action cannot be undone.`}
-                setOpen={(v) => setShowDeleteModal(v)}
-                onDelete={() => {
-                    async function deleteItem() {
-                        await clearData()
-                        setShowDeleteModal(false)
-                    }
-
-                    deleteItem()
-                }}
-            />
+            <Modal
+                title={`Add Version`} open={showModal}
+                setOpen={(v) => setShowModal(v)}
+            >
+                {
+                    !CreatePage ? `Can't add version.` : <CreatePage source={source} context={DatasetsContext}/>
+                }
+            </Modal>
         </>
     )
 }
@@ -165,13 +133,14 @@ const Admin = ({
                }) => {
     const {pgEnv, id} = params;
     const isDms = pgEnv === 'internal';
-    const {app, API_HOST, baseUrl, pageBaseUrl, user, parent, UI, falcor, ...rest} = React.useContext(DatasetsContext) || {};
+    const {app, API_HOST, baseUrl, pageBaseUrl, user, parent, UI, falcor, datasets} = React.useContext(DatasetsContext) || {};
     const {theme} = React.useContext(ThemeContext) || {};
     const {AuthAPI, ...restAuth} = React.useContext(AuthContext) || {};
     const [users, setUsers] = React.useState([]);
     const [groups, setGroups] = React.useState([]);
     const [source, setSource] = React.useState(isDms ? item : {});
     const {Select, Input, Button} = UI;
+    console.log(datasets, source) // if external source, find sourceCreate from this and render its component for add version
 
     useEffect(() => {
         async function load () {
@@ -320,12 +289,12 @@ const Admin = ({
                             isDms ? (
                                 <>
                                     <AddViewBtn item={item} format={format} apiLoad={apiLoad} apiUpdate={apiUpdate}/>
-                                    <ClearDataBtn app={app} type={item.doc_type} apiLoad={apiLoad} apiUpdate={apiUpdate}/>
+                                    {/*<ClearDataBtn app={app} type={item.doc_type} apiLoad={apiLoad} apiUpdate={apiUpdate}/>*/}
                                     <DeleteSourceBtn parent={parent} item={item} apiUpdate={apiUpdate} baseUrl={baseUrl}/>
                                 </>
                             ) : (
                                 <>
-                                    <Button>Add Version</Button>
+                                    <AddExternalVersionBtn source={source} />
                                     <Button>Delete</Button>
                                 </>
                             )
