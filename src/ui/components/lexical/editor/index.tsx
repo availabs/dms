@@ -62,7 +62,7 @@ export default function Lexicals ({value, onChange, bgColor, editable=false, id,
 
 function UpdateEditor({ value, onChange, bgColor, theme, editable }) {
     const isFirstRender = React.useRef(true);
-    const lastValue = React.useRef(value);
+    const lastValue = React.useRef();
     const [editor] = useLexicalComposerContext();
 
     React.useEffect(() => {
