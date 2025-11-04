@@ -750,23 +750,24 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
     // =========================================== util fns end ========================================================
     if(showChangeFormatModal || !isValidState) return <div className={'p-1 text-center'}>Form data not available.</div>;
     // component.name === 'Spreadsheet' && console.log('dw?', state)
-
     useEffect(() => {
         // set hideSection flag
-        if(!state.display.hideIfNull){
+        if(!state.display.hideIfNull || state.display.allowEditInView){
             setState(draft => {
                 draft.display.hideSection = false;
             })
         }else{
             const hide = state.data.length === 0 ||
-                state.data.every(row => state.columns.filter(({ show }) => show)
-                    .every(col => {
-                        const value = row[col.normalName || col.name];
-                        const isLexical = typeof value === 'object' && Boolean(value?.root)
-                        const isLexicalBlank = isLexical && (value?.root?.children?.length === 0 || value?.root?.children?.[0]?.children?.length === 0)
+                state.data.every(row =>
+                    state.columns.filter(({ show }) => show)
+                        .every(col => {
+                            const value = row[col.normalName || col.name];
+                            const isLexical = typeof value === 'object' && Boolean(value?.root)
+                            const isLexicalBlank = isLexical && (value?.root?.children?.length === 0 || value?.root?.children?.[0]?.children?.length === 0)
 
-                        return value === null || value === undefined || value === "" || isLexicalBlank;
-                    }));
+                            return !col.allowEditInView && (value === null || value === undefined || value === "" || isLexicalBlank);
+                        })
+                );
             setState(draft => {
                 draft.display.hideSection = hide;
             })
