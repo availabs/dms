@@ -755,17 +755,20 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
         // set hideSection flag
         if(!state.display.hideIfNull){
             setState(draft => {
-                draft.hideSection = false;
+                draft.display.hideSection = false;
             })
         }else{
             const hide = state.data.length === 0 ||
                 state.data.every(row => state.columns.filter(({ show }) => show)
                     .every(col => {
                         const value = row[col.normalName || col.name];
-                        return value === null || value === undefined || value === "";
+                        const isLexical = typeof value === 'object' && Boolean(value?.root)
+                        const isLexicalBlank = isLexical && (value?.root?.children?.length === 0 || value?.root?.children?.[0]?.children?.length === 0)
+
+                        return value === null || value === undefined || value === "" || isLexicalBlank;
                     }));
             setState(draft => {
-                draft.hideSection = hide;
+                draft.display.hideSection = hide;
             })
         }
     }, [state.data, state.display.hideIfNull])
