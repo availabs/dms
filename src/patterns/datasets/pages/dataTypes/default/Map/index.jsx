@@ -5,15 +5,15 @@ import isEqual from "lodash/isEqual"
 import cloneDeep from 'lodash/cloneDeep'
 import { useParams, useNavigate, useSearchParams } from 'react-router'
 import GISDatasetLayer from './Layer2'
-import Symbology from './symbology/index'
+import Symbology from './symbology'
 // import { AvlMap } from "~/modules/avl-maplibre/src"
 import { AvlMap, ThemeProvider} from "~/modules/avl-map-2/src"
 import mapTheme from './map-theme'
 
-import { DatasetsContext } from "../../context"
+import { DatasetsContext } from "../../../../context"
 //import config from "~/config.json"
 import { DAMA_HOST } from "~/config"
-import {Protocol, PMTiles} from './utils/pmtiles/index.ts'
+import {Protocol, PMTiles} from './utils/pmtiles'
 
 // import {google_streets_style} from '~/config.json'
 

@@ -71,7 +71,7 @@ export const updateSourceData = ({data, attrKey, isDms, apiUpdate, setSource, fo
         })
 }
 
-export const updateVersionData = ({data, attrKey, isDms, apiUpdate, setView, format, source, pgEnv, falcor, id}) => {
+export const updateVersionData = ({data, attrKey, isDms, apiUpdate, setView, format, source, view, pgEnv, falcor, id}) => {
         if(isDms && (!format?.app || !source?.type)) {
             throw new Error("Update Error. Source invalid.")
         }
@@ -92,7 +92,7 @@ export const updateVersionData = ({data, attrKey, isDms, apiUpdate, setView, for
                 }
             }
         }).then(d => {
-            setView({...source, [attrKey]: data})
+            setView({...view, [attrKey]: data})
         })
 }
 

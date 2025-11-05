@@ -58,6 +58,7 @@ const pagesConfig = ({
   authPermissions,
   themes = { default: {} },
   pattern,
+  datasetPatterns,
   site,
   pgEnv,
   API_HOST
@@ -139,7 +140,7 @@ const pagesConfig = ({
                 pgEnv, damaBaseUrl,
                 user,
                 falcor,
-                patternFilters,
+                patternFilters, datasetPatterns,
                 authPermissions,
                 UI,
                 isUserAuthed: (reqPermissions, customAuthPermissions) => isUserAuthed({user, authPermissions: customAuthPermissions || authPermissions, reqPermissions}),

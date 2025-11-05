@@ -1,26 +1,26 @@
 import React, {useContext, useEffect, useState} from "react";
 import {useNavigate} from "react-router";
-import { DatasetsContext } from '../context'
-import { ThemeContext } from ".././../../ui/useTheme";
-import SourcesLayout from "../components/DatasetsListComponent/layout";
+import { DatasetsContext } from '../../../context'
+import { ThemeContext } from "../../../../../ui/useTheme";
+import SourcesLayout from "../../layout";
 import {getSourceData, updateVersionData} from "./utils";
 import {cloneDeep} from "lodash-es";
-import ExternalVersionControl from "../components/ExternalVersionControls";
+import ExternalVersionControl from "../../../components/ExternalVersionControls";
 
 const buttonRedClass = 'w-full p-2 mx-1 bg-red-300 hover:bg-red-500 text-gray-800 rounded-md';
 
-const DeleteViewBtn = ({item, view_id, format, url, apiUpdate, baseUrl}) => {
+const DeleteViewBtn = ({source, view_id, format, url, apiUpdate, baseUrl}) => {
     const {UI} = useContext(ThemeContext);
     const {DeleteModal} = UI;
-    // update parent to exclude item. the item still stays in the DB.
+    // update parent to exclude source. the source still stays in the DB.
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const navigate = useNavigate();
 
     const deleteSource = async () => {
         const config = {format}
-        const data = cloneDeep(item);
+        const data = cloneDeep(source);
         data.views = data.views.filter(s => s.id !== view_id);
-        console.log('parent', config, data, item)
+        console.log('parent', config, data, source)
 
         await apiUpdate({data, config});
         // navigate(baseUrl)
@@ -122,42 +122,18 @@ const ClearDataBtn = ({app, type, view_id, apiLoad, apiUpdate}) => {
     )
 }
 
-export default function ManageForm ({
-    status,
-    apiUpdate,
-    attributes,
-    dataItems,
-    format,
-    item,
-    setItem,
-    updateAttribute,
-    params,
-    submit,
-    manageTemplates = false,
-    apiLoad,
-    ...rest
-}) {
-    const {pgEnv, id} = params;
-    const isDms = pgEnv === 'internal';
+export default function ManageForm ({ status, apiLoad, apiUpdate, format, source, params, isDms }) {
+    const {id} = params;
     const navigate = useNavigate();
-    const { app, baseUrl, pageBaseUrl, theme, falcor } = React.useContext(DatasetsContext) || {}
+    const { app, baseUrl, pageBaseUrl, theme, falcor, pgEnv } = React.useContext(DatasetsContext) || {}
     const {UI} = React.useContext(ThemeContext) || {}
     const {Input} = UI;
-    const [source, setSource] = React.useState(isDms ? item : {});
     const [currentView, setCurrentView] = React.useState((source?.views || []).find(v => +(v.view_id || v.id) === +params.view_id) || {});
-
-    useEffect(() => {
-        // if(isDms) // use item
-        if((!isDms || (isDms && !Object.entries(item).length)) && id && pgEnv){
-            // fetch source data
-            getSourceData({pgEnv, falcor, source_id: id, setSource});
-        }
-    }, [isDms, item.config])
 
     useEffect(() => {
         if(!params.view_id && source?.views?.length){
             const recentView = Math.max(...source.views.map(({id, view_id}) => view_id || id));
-            navigate(`${pageBaseUrl}/${pgEnv}/${params.id}/version/${recentView}`)
+            navigate(`${pageBaseUrl}/${params.id}/version/${recentView}`)
         }
     }, [source.views]);
 
@@ -169,13 +145,6 @@ export default function ManageForm ({
     console.log('source', source, currentView)
 
     return (
-        <SourcesLayout fullWidth={false} baseUrl={baseUrl} pageBaseUrl={pageBaseUrl} isListAll={false} hideBreadcrumbs={false}
-                       form={{name: source.name || source.doc_type, href: format.url_slug}}
-                       page={{name: 'Version', href: `${pageBaseUrl}/${pgEnv}/${params.id}/view/${params.view_id}`}}
-                       pgEnv={pgEnv}
-                       sourceType={isDms ? 'internal' : source.type}
-                       id={params.id} //page id to use for navigation
-        >
             <div className={`${theme?.page?.wrapper1}`}>
                     <div className={'overflow-auto flex flex-1 gap-2 w-full flex-col shadow bg-white relative text-md font-light leading-7 p-4'}>
                         {status ? <div>{JSON.stringify(status)}</div> : ''}
@@ -187,7 +156,8 @@ export default function ManageForm ({
                                     updateVersionData({
                                         data: e.target.value,
                                         attrKey: isDms ? 'name' : 'version',
-                                        isDms, apiUpdate, setView: setCurrentView, item, format, source, pgEnv, falcor, id: currentView.view_id || currentView.id
+                                        isDms, apiUpdate,
+                                        view: currentView, setView: setCurrentView, format, source, pgEnv, falcor, id: currentView.view_id || currentView.id
                                     })
                                 }}/>
                             </div>
@@ -203,8 +173,8 @@ export default function ManageForm ({
                                 {
                                     isDms ? (
                                             <>
-                                                <ClearDataBtn app={app} type={item.doc_type} view_id={params.view_id} apiLoad={apiLoad} apiUpdate={apiUpdate}/>
-                                                <DeleteViewBtn item={item} format={format} view_id={params.view_id} url={`${pageBaseUrl}/${pgEnv}/${params.id}`} apiUpdate={apiUpdate} baseUrl={baseUrl}/>
+                                                <ClearDataBtn app={app} type={source.doc_type} view_id={params.view_id} apiLoad={apiLoad} apiUpdate={apiUpdate}/>
+                                                <DeleteViewBtn source={source} format={format} view_id={params.view_id} url={`${pageBaseUrl}/${params.id}`} apiUpdate={apiUpdate} baseUrl={baseUrl}/>
                                             </>
                                     ) : <ExternalVersionControl source={source} view={currentView} sourceId={params.id} viewId={params.view_id} />
                                 }
@@ -212,6 +182,5 @@ export default function ManageForm ({
                         </div>
                     </div>
             </div>
-        </SourcesLayout>
     )
 }

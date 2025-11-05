@@ -1,6 +1,6 @@
 import React from 'react';
 import {Link, useNavigate} from 'react-router'
-import {DatasetsContext} from "../../context";
+import {DatasetsContext} from "../context";
 
 const Alert = () => <div>A</div>
 const Database =  () => <div>D</div>
@@ -8,23 +8,22 @@ const Database =  () => <div>D</div>
 const navPages = [
   {name: 'Overview', href: ``, viewDependentPage: false},
   {name: 'Table', href: `table`, viewDependentPage: true},
-  {name: 'Map', href: `map`, viewDependentPage: true, cdn: ({pgEnv, sourceType}) => pgEnv !== 'internal' && sourceType === 'gis_dataset'},
-  // {name: 'Metadata', href: `metadata`, viewDependentPage: false},
-  {name: 'Upload', href: `upload`, viewDependentPage: true, cdn: ({pgEnv}) => pgEnv === 'internal'},
-    {name: 'Validate', href: `validate`, viewDependentPage: true, cdn: ({pgEnv}) => pgEnv === 'internal'},
+  {name: 'Map', href: `map`, viewDependentPage: true, cdn: ({isDms, sourceType}) => !isDms && sourceType === 'gis_dataset'},
+  {name: 'Upload', href: `upload`, viewDependentPage: true, cdn: ({isDms}) => isDms},
+    {name: 'Validate', href: `validate`, viewDependentPage: true, cdn: ({isDms}) => isDms},
     {name: 'Admin', href: `admin`, viewDependentPage: false},
 ]
 
-const SourcesLayout = ({children, hideBreadcrumbs, hideNav, form, page, baseUrl, pageBaseUrl, pgEnv, id, views=[], view_id, sourceType, showVersionSelector = false }) => {
+const SourcesLayout = ({children, hideBreadcrumbs, hideNav, form, page, baseUrl, pageBaseUrl, isDms, id, views=[], view_id, sourceType, additionalNavItems, showVersionSelector = false }) => {
     const navigate = useNavigate();
   return (
-    <div className={`h-full flex flex-col`}>
+    <div className={`h-full flex flex-col max-w-7xl mx-auto`}>
         {hideBreadcrumbs ? '' :  <div className=''>
-            <Breadcrumbs baseUrl={baseUrl} form={form} page={page} pgEnv={pgEnv} />
+            <Breadcrumbs baseUrl={baseUrl} form={form} page={page} isDms={isDms} />
         </div> }
 
         <div className={'w-full flex justify-between'}>
-            <Nav navPages={navPages} page={page} hideNav={hideNav} baseUrl={pageBaseUrl} id={id} view_id={view_id} pgEnv={pgEnv} sourceType={sourceType}/>
+            <Nav navPages={navPages} page={page} hideNav={hideNav} baseUrl={pageBaseUrl} id={id} view_id={view_id} isDms={isDms} sourceType={sourceType} additionalNavItems={additionalNavItems}/>
             {
                 showVersionSelector ?
                     <select id={'version-selector'}
@@ -41,7 +40,7 @@ const SourcesLayout = ({children, hideBreadcrumbs, hideNav, form, page, baseUrl,
             }
         </div>
 
-        <div className='flex-1 flex flex-col'>
+        <div className='flex-1 flex flex-col bg-white'>
             {children}
         </div>
     </div>
@@ -50,11 +49,11 @@ const SourcesLayout = ({children, hideBreadcrumbs, hideNav, form, page, baseUrl,
 
 export default SourcesLayout
 
-const Nav = ({baseUrl, navPages, page, hideNav, id, view_id, pgEnv, sourceType}) => hideNav ? null : (
+const Nav = ({baseUrl, navPages, page, hideNav, id, view_id, isDms, sourceType, additionalNavItems}) => hideNav ? null : (
     <nav className={'w-full flex'}>
         {
-            navPages
-                .filter(p => !p.cdn || p.cdn({pgEnv, sourceType}))
+            [...navPages, ...additionalNavItems]
+                .filter(p => !p.cdn || p.cdn({isDms, sourceType}))
                 .map(p => (
                 <Link className={
                     `p-2 mx-1 font-display font-medium text-l text-slate-700
@@ -62,7 +61,7 @@ const Nav = ({baseUrl, navPages, page, hideNav, id, view_id, pgEnv, sourceType})
                         `border-b-2 border-blue-600` : 
                         `hover:border-b-2 hover:border-gray-300`}`
                 }
-                  to={`${baseUrl}/${pgEnv}/${id}/${p.viewDependentPage ? `${p.href}/${view_id || ''}` : p.href}`}
+                  to={`${baseUrl}/${id}/${p.viewDependentPage ? `${p.href}/${view_id || ''}` : p.href}`}
                 >
               <div className={'flex items-center'}><span className={'pr-0.5'}>{p.name}</span> {page.warn && p.name === page.name ? <Alert /> : ''}</div>
             </Link>))

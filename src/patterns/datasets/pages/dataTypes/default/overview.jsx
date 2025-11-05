@@ -1,7 +1,7 @@
 import React, {useMemo, useState, useEffect, useRef, useContext} from 'react'
-import SourcesLayout from "../components/DatasetsListComponent/layout"
-import {DatasetsContext} from "../context";
-import SourceCategories from "../components/DatasetsListComponent/categories";
+import SourcesLayout from "../../layout"
+import {DatasetsContext} from "../../../context";
+import SourceCategories from "../../../components/DatasetsListComponent/categories";
 import {Link} from "react-router";
 import {getSourceData, isJson, updateSourceData, parseIfJson} from "./utils";
 
@@ -53,41 +53,24 @@ const RenderPencil = ({user, editing, setEditing, attr, show}) => {
 }
 
 export default function Overview ({
-      status,
-      apiUpdate,
-      attributes,
-      dataItems,
-      format,
-      item,
-      setItem,
-      updateAttribute,
-      params,
-      submit,
-      apiLoad
+  apiUpdate,
+  format,
+  source, setSource,
+  params,
+  isDms
 }) {
     const ref = useRef(null);
-    const {baseUrl, pageBaseUrl, user, isUserAuthed, UI, falcor} = useContext(DatasetsContext);
+    const {baseUrl, pageBaseUrl, user, isUserAuthed, UI, falcor, pgEnv} = useContext(DatasetsContext);
     const {ColumnTypes, Table} = UI;
 
-    const {pgEnv, id} = params;
-    const isDms = pgEnv === 'internal';
+    const {id} = params;
 
-    const [source, setSource] = useState(isDms ? item : {});
     const [editing, setEditing] = useState();
     const [pageSize, setPageSize] = useState(15);
 
     let columns = useMemo(() =>
-        isDms ?
-            isJson(item.config) ? JSON.parse(item.config)?.attributes : [] :
-            (source?.metadata?.columns || []), [item.config, isDms, source?.metadata?.columns])
-
-    useEffect(() => {
-        // if(isDms) // use item
-        if((!isDms || (isDms && !Object.entries(item).length)) && id && pgEnv){
-            // fetch source data
-            getSourceData({pgEnv: isDms ? `${format.app}+${format.type}` : pgEnv, falcor, source_id: id, setSource});
-        }
-    }, [isDms, item.config])
+        isDms ? isJson(source.config) ? JSON.parse(source.config)?.attributes : [] :
+            (source?.metadata?.columns || []), [source.config, isDms, source?.metadata?.columns])
 
     const dateOptions = {year: "numeric", month: "long", day: "numeric", hour: "numeric", minute: "numeric"}
     const createdTimeStamp = new Date(source?.created_at || '').toLocaleDateString(undefined, dateOptions);
@@ -97,16 +80,9 @@ export default function Overview ({
 
     // if(!Object.entries(source).length) return 'loading...';
     const LexicalView = ColumnTypes.lexical.ViewComp;
-    console.log('format', source)
-    if(!source.id && !source.source_id) return;
+
     return (
-        <SourcesLayout fullWidth={false} baseUrl={baseUrl} pageBaseUrl={pageBaseUrl} isListAll={false} hideBreadcrumbs={false}
-                       form={{name: source?.name || source?.doc_type, href: format.url_slug}}
-                       page={{name: 'Overview', href: `${pageBaseUrl}/${pgEnv}/${params.id}`}}
-                       pgEnv={pgEnv}
-                       sourceType={isDms ? 'internal' : source.type}
-                       id={params.id} //page id to use for navigation
-            >
+
             <div className={'p-4 bg-white flex flex-col'}>
                 <div className={'mt-1 text-2xl text-blue-600 font-medium overflow-hidden sm:mt-0 sm:col-span-3'}>
                     {source?.name || source?.doc_type}
@@ -120,9 +96,8 @@ export default function Overview ({
                             onChange={(data) => {
                                 // setItem({...item, ...{description: v}})
                                 console.log('data', data)
-                                updateSourceData({data, attrKey: 'description', isDms, apiUpdate, setSource, item, format, source, pgEnv, falcor, id})
+                                updateSourceData({data, attrKey: 'description', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id})
                             }}
-                            {...attributes.description}
                         />
                         <RenderPencil attr={'description'} user={user} editing={editing} setEditing={setEditing} show={isUserAuthed(['update-source'])}/>
                     </div>
@@ -153,7 +128,7 @@ export default function Overview ({
                                                        autoFocus={true}
                                                        value={source?.update_interval}
                                                        onChange={e => {
-                                                           updateSourceData({data: e.target.value, attrKey: 'update_interval', isDms, apiUpdate, setSource, item, format, source, pgEnv, falcor, id})
+                                                           updateSourceData({data: e.target.value, attrKey: 'update_interval', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id})
                                                        }}
                                                 /> :
                                                 <span className={'text-l font-medium text-blue-600 '}>{source?.update_interval}</span>
@@ -172,11 +147,10 @@ export default function Overview ({
                                         <CategoriesComp
                                             value={Array.isArray(parseIfJson(source?.categories)) ? parseIfJson(source?.categories) : []}
                                             onChange={(data) => {
-                                                updateSourceData({data, attrKey: 'categories', isDms, apiUpdate, setSource, item, format, source, pgEnv, falcor, id})
+                                                updateSourceData({data, attrKey: 'categories', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id})
                                             }}
                                             editingCategories={editing === 'categories'}
                                             stopEditingCategories={() => setEditing(null)}
-                                            {...attributes.categories}
                                         />
                                     </div>
                                 </dd>
@@ -246,7 +220,7 @@ export default function Overview ({
                                             {
                                                 col === 'name' ?
                                                     <Link
-                                                        to={`${pageBaseUrl}/${pgEnv}/${params.id}/version/${row?.id || row?.view_id}`}>{value || 'No Name'}</Link> :
+                                                        to={`${pageBaseUrl}/${params.id}/version/${row?.id || row?.view_id}`}>{value || 'No Name'}</Link> :
                                                     <div>{new Date(value?.replace(/"/g, ''))?.toLocaleString()}</div>
                                             }
                                         </div>
@@ -266,6 +240,5 @@ export default function Overview ({
                 </div>
 
             </div>
-        </SourcesLayout>
     )
 }

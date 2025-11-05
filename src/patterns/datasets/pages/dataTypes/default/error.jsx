@@ -1,7 +1,7 @@
 import React, {useContext} from 'react'
 import {cloneDeep, merge} from "lodash-es"
-import {DatasetsContext} from "../context";
-import {ThemeContext} from "../../../ui/useTheme";
+import {DatasetsContext} from "../../../context";
+import {ThemeContext} from "../../../../../ui/useTheme";
 
 function ErrorPage({}) {
     const {theme: fullTheme} = useContext(ThemeContext);

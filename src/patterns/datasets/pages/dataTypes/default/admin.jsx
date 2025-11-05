@@ -1,16 +1,16 @@
 import React, {useContext, useEffect, useState} from "react";
-import { DatasetsContext } from "../context";
-import { ThemeContext } from "../../../ui/useTheme";
-import { AuthContext } from "../../auth/context"
-import SourcesLayout from "../components/DatasetsListComponent/layout";
+import { DatasetsContext } from "../../../context";
+import { ThemeContext } from "../../../../../ui/useTheme";
+import { AuthContext } from "../../../../auth/context"
+import SourcesLayout from "../../layout";
 import { cloneDeep } from "lodash-es";
 import {useNavigate, Link} from "react-router";
 import {getSourceData, updateSourceData, parseIfJson} from "./utils";
 const buttonRedClass = 'p-2 mx-1 bg-red-500 hover:bg-red-700 text-white rounded-md';
 const buttonGreenClass = 'p-2 mx-1 bg-green-500 hover:bg-green-700 text-white rounded-md';
 
-const DeleteSourceBtn = ({parent, item, apiUpdate, baseUrl}) => {
-    // update parent to exclude item. the item still stays in the DB.
+const DeleteSourceBtn = ({parent, source, apiUpdate, baseUrl}) => {
+    // update parent to exclude source. the source still stays in the DB.
     const {UI} = useContext(DatasetsContext);
     const {DeleteModal} = UI;
     const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -27,8 +27,8 @@ const DeleteSourceBtn = ({parent, item, apiUpdate, baseUrl}) => {
             }
         }
         const data = cloneDeep(parent);
-        data.sources = data.sources.filter(s => s.id !== item.id);
-        console.log('parent', config, data, item)
+        data.sources = data.sources.filter(s => s.id !== source.id);
+        console.log('parent', config, data, source)
 
         await apiUpdate({data, config});
         // navigate(baseUrl)
@@ -56,18 +56,18 @@ const DeleteSourceBtn = ({parent, item, apiUpdate, baseUrl}) => {
     )
 }
 
-const AddViewBtn = ({item, format, apiLoad, apiUpdate}) => {
-    // update parent to exclude item. the item still stays in the DB.
+const AddViewBtn = ({source, format, apiLoad, apiUpdate}) => {
+    // update parent to exclude source. the source still stays in the DB.
     const {UI} = useContext(DatasetsContext);
     const {Modal} = UI;
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [name, setName] = useState('');
     const navigate = useNavigate();
-    const defaultViewName = `version ${(item?.views?.length || 0) + 1}`;
+    const defaultViewName = `version ${(source?.views?.length || 0) + 1}`;
 
     const addView = async () => {
         const config = {format}
-        const data = cloneDeep(item);
+        const data = cloneDeep(source);
         data.views = [...(data.views || []), {name: name || defaultViewName}];
 
         const res = await apiUpdate({data, config});
@@ -77,7 +77,7 @@ const AddViewBtn = ({item, format, apiLoad, apiUpdate}) => {
     }
     return (
         <>
-            <button disabled={!item.id} className={buttonGreenClass} onClick={() => setShowDeleteModal(true)}>Add Version</button>
+            <button disabled={!source.id} className={buttonGreenClass} onClick={() => setShowDeleteModal(true)}>Add Version</button>
 
             <Modal open={showDeleteModal} setOpen={(v) => setShowDeleteModal(v)}>
                 <input key={'view-name'} placeholder={defaultViewName} value={name} onChange={e => setName(e.target.value)}/>
@@ -99,8 +99,8 @@ const AddExternalVersionBtn = ({source}) => {
     const {Modal, Button} = UI;
     const [showModal, setShowModal] = useState(false);
     const srcType = (source?.categories || [])[0]?.[0];
-    const CreatePage = datasets.find(d => d.name === srcType)?.pages?.sourceCreate?.component;
-    console.log('????', srcType, datasets.find(d => d.name === srcType))
+    const CreatePage = (datasets[source?.type] || datasets[srcType])?.sourceCreate?.component;
+    console.log('????', srcType, source)
     return (
         <>
             <Button onClick={() => setShowModal(true)}>Add Version</Button>
@@ -116,29 +116,13 @@ const AddExternalVersionBtn = ({source}) => {
         </>
     )
 }
-const Admin = ({
-                   status,
-                   apiUpdate,
-                   apiLoad,
-                   attributes = {},
-                   dataItems,
-                   format,
-                   item,
-                   setItem,
-                   updateAttribute,
-                   params,
-                   submit,
-                   manageTemplates = false,
-                   ...r
-               }) => {
-    const {pgEnv, id} = params;
-    const isDms = pgEnv === 'internal';
-    const {app, API_HOST, baseUrl, pageBaseUrl, user, parent, UI, falcor, datasets} = React.useContext(DatasetsContext) || {};
+const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params, isDms }) => {
+    const {id} = params;
+    const {app, API_HOST, baseUrl, pageBaseUrl, user, parent, UI, falcor, datasets, pgEnv} = React.useContext(DatasetsContext) || {};
     const {theme} = React.useContext(ThemeContext) || {};
     const {AuthAPI, ...restAuth} = React.useContext(AuthContext) || {};
     const [users, setUsers] = React.useState([]);
     const [groups, setGroups] = React.useState([]);
-    const [source, setSource] = React.useState(isDms ? item : {});
     const {Select, Input, Button} = UI;
     console.log(datasets, source) // if external source, find sourceCreate from this and render its component for add version
 
@@ -156,14 +140,6 @@ const Admin = ({
         load();
     }, []);
 
-    useEffect(() => {
-        // if(isDms) // use item
-        if((!isDms || (isDms && !Object.entries(item).length)) && id && pgEnv){
-            // fetch source data
-            getSourceData({pgEnv, falcor, source_id: id, setSource});
-        }
-    }, [isDms, item.config])
-
     console.log('users?', source, format)
 
     if(!user || !user.token) return <></>
@@ -171,14 +147,6 @@ const Admin = ({
     // todo add setAuth feature for internal and external sources.
     // use statistics column. make a route to update sources.
     return (
-        <SourcesLayout fullWidth={false} baseUrl={baseUrl} pageBaseUrl={pageBaseUrl} isListAll={false}
-                       hideBreadcrumbs={false}
-                       form={{name: source.name || source.doc_type, href: format.url_slug}}
-                       page={{name: 'Admin', href: `${pageBaseUrl}/${pgEnv}/${params.id}/admin`}}
-                       pgEnv={pgEnv}
-                       sourceType={isDms ? 'internal' : source.type}
-                       id={params.id} //page id to use for navigation
-        >
             <div className={`${theme?.page?.wrapper1} max-w-7xl mx-auto`}>
                 <div className={'w-full p-2 bg-white flex gap-12'}>
                     <div className={'flex flex-col grow'}>
@@ -194,7 +162,7 @@ const Admin = ({
                                                 [e.target.value]: "1",
                                             },
                                         };
-                                        updateSourceData({data: ({auth: newAuth}), attrKey: 'statistics', isDms, apiUpdate, setSource, item, format, source, pgEnv, falcor, id})
+                                        updateSourceData({data: ({auth: newAuth}), attrKey: 'statistics', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id})
                                     }}
                             />
 
@@ -215,7 +183,7 @@ const Admin = ({
                                                         [userId]: e.target.value,
                                                     },
                                                 };
-                                                updateSourceData({data: ({auth: newAuth}), attrKey: 'statistics', isDms, apiUpdate, setSource, item, format, source, pgEnv, falcor, id})
+                                                updateSourceData({data: ({auth: newAuth}), attrKey: 'statistics', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id})
                                             }} />
                                             <Button className={'w-fit'}
                                                     onClick={() => {
@@ -225,7 +193,7 @@ const Admin = ({
 
                                                         delete newAuth.users[userId];
 
-                                                        updateSourceData({data: ({auth: newAuth}), attrKey: 'statistics', isDms, apiUpdate, setSource, item, format, source, pgEnv, falcor, id})
+                                                        updateSourceData({data: ({auth: newAuth}), attrKey: 'statistics', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id})
                                                     }}>remove</Button>
                                         </div>)
                                 }
@@ -244,7 +212,7 @@ const Admin = ({
                                                 [e.target.value]: "1",
                                             },
                                         };
-                                        updateSourceData({data: ({auth: newAuth}), attrKey: 'statistics', isDms, apiUpdate, setSource, item, format, source, pgEnv, falcor, id})
+                                        updateSourceData({data: ({auth: newAuth}), attrKey: 'statistics', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id})
                                     }}
                             />
 
@@ -265,7 +233,7 @@ const Admin = ({
                                                         [groupName]: e.target.value,
                                                     },
                                                 };
-                                                updateSourceData({data: ({auth: newAuth}), attrKey: 'statistics', isDms, apiUpdate, setSource, item, format, source, pgEnv, falcor, id})
+                                                updateSourceData({data: ({auth: newAuth}), attrKey: 'statistics', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id})
                                             }} />
                                             <Button className={'w-fit'}
                                                 onClick={() => {
@@ -275,7 +243,7 @@ const Admin = ({
 
                                                     delete newAuth.groups[groupName];
 
-                                                    updateSourceData({data: ({auth: newAuth}), attrKey: 'statistics', isDms, apiUpdate, setSource, item, format, source, pgEnv, falcor, id})
+                                                    updateSourceData({data: ({auth: newAuth}), attrKey: 'statistics', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id})
                                             }}>remove</Button>
                                         </div>)
                                 }
@@ -284,13 +252,13 @@ const Admin = ({
                     </div>
 
                     <div className={'flex flex-col gap-4 shadow-lg rounded-md place-content-center p-4'}>
-                        <Button><Link to={`${baseUrl}/source/${pgEnv}/${id}/metadata`}>Advanced Metadata</Link></Button>
+                        <Button><Link to={`${pageBaseUrl}/${id}/metadata`}>Advanced Metadata</Link></Button>
                         {
                             isDms ? (
                                 <>
-                                    <AddViewBtn item={item} format={format} apiLoad={apiLoad} apiUpdate={apiUpdate}/>
-                                    {/*<ClearDataBtn app={app} type={item.doc_type} apiLoad={apiLoad} apiUpdate={apiUpdate}/>*/}
-                                    <DeleteSourceBtn parent={parent} item={item} apiUpdate={apiUpdate} baseUrl={baseUrl}/>
+                                    <AddViewBtn source={source} format={format} apiLoad={apiLoad} apiUpdate={apiUpdate}/>
+                                    {/*<ClearDataBtn app={app} type={source.doc_type} apiLoad={apiLoad} apiUpdate={apiUpdate}/>*/}
+                                    <DeleteSourceBtn parent={parent} source={source} apiUpdate={apiUpdate} baseUrl={baseUrl}/>
                                 </>
                             ) : (
                                 <>
@@ -303,8 +271,6 @@ const Admin = ({
                     </div>
                 </div>
             </div>
-        </SourcesLayout>
-
     )
 }
 

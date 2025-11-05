@@ -2,7 +2,7 @@ import React, {useMemo, useState, useEffect, useRef, useContext} from 'react'
 import {useParams, useLocation} from "react-router"
 import {get, isEqual} from "lodash-es";
 import {Link, useSearchParams} from "react-router";
-import SourcesLayout from "./layout";
+import SourcesLayout from "../../pages/layout";
 import {DatasetsContext} from "../../context";
 import {Modal} from "../../ui";
 import { cloneDeep } from "lodash-es";
@@ -75,7 +75,7 @@ const SourceThumb = ({ source={}, format }) => {
     return (
         <div className="w-full p-4 bg-white hover:bg-blue-50 border shadow flex">
             <div>
-                <Link to={`source/${isDms ? 'internal' : source?.env}/${source_id}`} className="text-xl font-medium w-full block">
+                <Link to={`${isDms ? 'internal_source' : 'source'}/${source_id}`} className="text-xl font-medium w-full block">
                     <span>{source?.name || source?.doc_type}</span> <span className={'text-sm text-gray-900 italic'}>{icon}</span>
                 </Link>
                 <div>
@@ -86,7 +86,7 @@ const SourceThumb = ({ source={}, format }) => {
                         )))
                     }
                 </div>
-                <Link to={`source/${isDms ? 'internal' : source?.env}/${source_id}`} className="py-2 block">
+                <Link to={`${isDms ? 'internal_source' : 'source'}/${source_id}`} className="py-2 block">
 
                     <Lexical value={source?.description}/>
                 </Link>
@@ -168,7 +168,7 @@ export default function ({attributes, item, dataItems, apiLoad, apiUpdate, updat
             viewAttributes: ['version', '_modified_timestamp']
         },
         // we only show current pattern's sources. copy over sources, views from forms to access here.
-        [`${format?.app}+${siteType}`]: {
+        [`${format?.app}+${format?.type}`]: {
             label: 'managed',
             isDms: true,
             // {doc_type}-{view_id} is used as type to fetch data items for dms views.

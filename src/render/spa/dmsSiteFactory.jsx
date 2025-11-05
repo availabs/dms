@@ -138,7 +138,8 @@ function pattern2routes (siteData, props) {
                     useFalcor,
                     API_HOST,
                     damaBaseUrl,
-                    datasets
+                    datasets,
+                    datasetPatterns: patterns.filter(p => ['forms', 'datasets'].includes(p.pattern_type))
                 });
                 return ({...dmsPageFactory({
                   dmsConfig: configObj,
@@ -183,7 +184,7 @@ export function DmsSite (config) {
         PROJECT_NAME,
         damaBaseUrl,
         routes = [],
-        datasets = []
+        datasets = {}
     } = config
     //-----------
     // to do:
