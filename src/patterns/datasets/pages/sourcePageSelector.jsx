@@ -11,7 +11,7 @@ import Metadata from "./dataTypes/default/metadata"
 import Validate from "./dataTypes/default/validate"
 import Version from "./dataTypes/default/version"
 import Map from "./dataTypes/default/map";
-
+const fixedPages = ['overview', 'table', 'admin', 'metadata']
 const defaultPages = {
     overview: Overview,
     table: Table,
@@ -55,13 +55,16 @@ export default function ({ apiLoad, apiUpdate, format, item, params, isDms }) {
     const sourceType = source?.categories?.[0]?.[0]; // source identifier. this is how the source is named in the script. this used to be type.
     const sourceDataType = source?.type; // csv / gis / analysis
     const sourcePages = datasets[sourceType] || datasets[sourceDataType] || {};
-    const sourcePagesNavItems = (Object.values(sourcePages) || []).map(p => ({
-        name: p.name,
-        href: (p.path || p.href || '').replace('/', ''),
-        cdn: p.cdn // condition fn with arguments ({isDms, sourceType}) to control visibility in nav
-    }));
+    const sourcePagesNavItems =
+        (Object.values(sourcePages) || [])
+            .map(p => ({
+                name: p.name,
+                href: (p.path || p.href || '').replace('/', ''),
+                cdn: p.cdn // condition fn with arguments ({isDms, sourceType}) to control visibility in nav
+            }))
+            .filter(p => !fixedPages.includes(p.href));
 
-    const Page = sourcePages[page]?.component || defaultPages[page] || Overview;
+    const Page = fixedPages.includes(page) ? defaultPages[page] : (sourcePages[page]?.component || defaultPages[page] || Overview);
     return  (<SourcesLayout fullWidth={false} baseUrl={baseUrl} pageBaseUrl={pageBaseUrl} isListAll={false} hideBreadcrumbs={false}
                            form={{name: source?.name || source?.doc_type, href: format.url_slug}}
                            page={{name: page, href: `${pageBaseUrl}/${params.id}${page ? `/${page}` : ''}${view_id ? `/${view_id}` : ``}`}}
