@@ -11,6 +11,8 @@ import ErrorPage from "./pages/dataTypes/default/error";
 import DefaultMenu from "./components/menu";
 import DatasetsListComponent from "./components/DatasetsListComponent"
 import SourcePageSelector from "./pages/sourcePageSelector";
+import Tasks from "./pages/dataTypes/default/Tasks/";
+import TaskPage from "./pages/dataTypes/default/Tasks/TaskPage";
 
 // for instances without auth turned on can edit
 
@@ -42,6 +44,7 @@ const adminConfig = ({
     authPermissions,
     logo,
     pattern,
+    pgEnv,
     themes={ default: {} },
 }) => {
 
@@ -101,10 +104,10 @@ const adminConfig = ({
                 type: (props) => {
                   const { user, falcor, ...rest} = props
                   const {Layout} = UI;
-                  console.log('rest', siteType)
                   return (
                       <DatasetsContext.Provider value={{
                           UI,
+                          pgEnv,
                           baseUrl: `${baseUrl}`, damaBaseUrl,
                           falcor,
                           user,
@@ -114,7 +117,7 @@ const adminConfig = ({
                           Menu: () => <>{Menu || <DefaultMenu theme={theme} UI={UI}/>}</>,
                           isUserAuthed: (reqPermissions, customAuthPermissions) => isUserAuthed({user, authPermissions: customAuthPermissions || authPermissions, reqPermissions}),
                       }}>
-                          <ThemeContext.Provider value={{theme}}>
+                          <ThemeContext.Provider value={{theme, UI}}>
                                       <Layout navItems={[]} Menu={() => <DefaultMenu theme={theme} UI={UI}/>}>
                                           {props.children}
                                       </Layout>
@@ -135,6 +138,16 @@ const adminConfig = ({
                     {
                         type: props => <DatasetsListComponent {...props} />,
                         path: "",
+                        action: "edit"
+                    },
+                    {
+                        type: props => <Tasks {...props} />,
+                        path: "tasks",
+                        action: "edit"
+                    },
+                    {
+                        type: props => <TaskPage {...props} />,
+                        path: "task/:etl_context_id",
                         action: "edit"
                     }
                 ]

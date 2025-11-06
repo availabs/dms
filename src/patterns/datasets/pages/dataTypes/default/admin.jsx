@@ -2,10 +2,10 @@ import React, {useContext, useEffect, useState} from "react";
 import { DatasetsContext } from "../../../context";
 import { ThemeContext } from "../../../../../ui/useTheme";
 import { AuthContext } from "../../../../auth/context"
-import SourcesLayout from "../../layout";
 import { cloneDeep } from "lodash-es";
 import {useNavigate, Link} from "react-router";
-import {getSourceData, updateSourceData, parseIfJson} from "./utils";
+import {updateSourceData, parseIfJson} from "./utils";
+import TaskList from "./Tasks/TaskList";
 const buttonRedClass = 'p-2 mx-1 bg-red-500 hover:bg-red-700 text-white rounded-md';
 const buttonGreenClass = 'p-2 mx-1 bg-green-500 hover:bg-green-700 text-white rounded-md';
 
@@ -28,7 +28,6 @@ const DeleteSourceBtn = ({parent, source, apiUpdate, baseUrl}) => {
         }
         const data = cloneDeep(parent);
         data.sources = data.sources.filter(s => s.id !== source.id);
-        console.log('parent', config, data, source)
 
         await apiUpdate({data, config});
         // navigate(baseUrl)
@@ -71,7 +70,6 @@ const AddViewBtn = ({source, format, apiLoad, apiUpdate}) => {
         data.views = [...(data.views || []), {name: name || defaultViewName}];
 
         const res = await apiUpdate({data, config});
-        console.log('res', res)
         // navigate(baseUrl)
         // window.location.assign(baseUrl);
     }
@@ -100,7 +98,7 @@ const AddExternalVersionBtn = ({source}) => {
     const [showModal, setShowModal] = useState(false);
     const srcType = (source?.categories || [])[0]?.[0];
     const CreatePage = (datasets[source?.type] || datasets[srcType])?.sourceCreate?.component;
-    console.log('????', srcType, source)
+
     return (
         <>
             <Button onClick={() => setShowModal(true)}>Add Version</Button>
@@ -124,7 +122,6 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params, isDms })
     const [users, setUsers] = React.useState([]);
     const [groups, setGroups] = React.useState([]);
     const {Select, Input, Button} = UI;
-    console.log(datasets, source) // if external source, find sourceCreate from this and render its component for add version
 
     useEffect(() => {
         async function load () {
@@ -140,17 +137,15 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params, isDms })
         load();
     }, []);
 
-    console.log('users?', source, format)
-
     if(!user || !user.token) return <></>
 
     // todo add setAuth feature for internal and external sources.
     // use statistics column. make a route to update sources.
     return (
-            <div className={`${theme?.page?.wrapper1} max-w-7xl mx-auto`}>
-                <div className={'w-full p-2 bg-white flex gap-12'}>
-                    <div className={'flex flex-col grow'}>
-                        <div className={'shadow-md rounded-md place-content-center p-4'}>
+            <div className={`${theme?.page?.wrapper1} p-2`}>
+                <div className={'flex gap-12'}>
+                    <div className={'w-3/4'}>
+                        <div className={'shadow-md rounded-md place-content-center p-4 w-full'}>
                             <label className={'text-xl text-gray-900 font-semibold'}>User Access Controls</label>
                             <Select className={'w-1/2'}
                                     options={[{label: 'Add user access', value: undefined}, ...users.map(u => ({label: u.email, value: u.id}))]}
@@ -200,7 +195,7 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params, isDms })
                             </div>
                         </div>
 
-                        <div className={'shadow-lg rounded-md place-content-center p-4'}>
+                        <div className={'shadow-lg rounded-md place-content-center p-4 w-full'}>
                             <label className={'text-xl text-gray-900 font-semibold'}>Group Access Controls</label>
                             <Select className={'w-1/2'}
                                     options={[{label: 'Add group access', value: undefined}, ...groups.map(u => ({label: u.name, value: u.name}))]}
@@ -236,40 +231,49 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params, isDms })
                                                 updateSourceData({data: ({auth: newAuth}), attrKey: 'statistics', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id})
                                             }} />
                                             <Button className={'w-fit'}
-                                                onClick={() => {
-                                                    const newAuth = {
-                                                        ...parseIfJson(source?.statistics, {})?.auth,
-                                                    };
+                                                    onClick={() => {
+                                                        const newAuth = {
+                                                            ...parseIfJson(source?.statistics, {})?.auth,
+                                                        };
 
-                                                    delete newAuth.groups[groupName];
+                                                        delete newAuth.groups[groupName];
 
-                                                    updateSourceData({data: ({auth: newAuth}), attrKey: 'statistics', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id})
-                                            }}>remove</Button>
+                                                        updateSourceData({data: ({auth: newAuth}), attrKey: 'statistics', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id})
+                                                    }}>remove</Button>
                                         </div>)
                                 }
                             </div>
                         </div>
                     </div>
 
-                    <div className={'flex flex-col gap-4 shadow-lg rounded-md place-content-center p-4'}>
-                        <Button><Link to={`${pageBaseUrl}/${id}/metadata`}>Advanced Metadata</Link></Button>
-                        {
-                            isDms ? (
-                                <>
-                                    <AddViewBtn source={source} format={format} apiLoad={apiLoad} apiUpdate={apiUpdate}/>
-                                    {/*<ClearDataBtn app={app} type={source.doc_type} apiLoad={apiLoad} apiUpdate={apiUpdate}/>*/}
-                                    <DeleteSourceBtn parent={parent} source={source} apiUpdate={apiUpdate} baseUrl={baseUrl}/>
-                                </>
-                            ) : (
-                                <>
-                                    <AddExternalVersionBtn source={source} />
-                                    <Button>Delete</Button>
-                                </>
-                            )
-                        }
+                    <div className={'w-1/4'}>
+                        <div className={'flex flex-col gap-4 shadow-lg rounded-md place-content-center p-4'}>
+                            <Button><Link to={`${pageBaseUrl}/${id}/metadata`}>Advanced Metadata</Link></Button>
+                            {
+                                isDms ? (
+                                    <>
+                                        <AddViewBtn source={source} format={format} apiLoad={apiLoad} apiUpdate={apiUpdate}/>
+                                        {/*<ClearDataBtn app={app} type={source.doc_type} apiLoad={apiLoad} apiUpdate={apiUpdate}/>*/}
+                                        <DeleteSourceBtn parent={parent} source={source} apiUpdate={apiUpdate} baseUrl={baseUrl}/>
+                                    </>
+                                ) : (
+                                    <>
+                                        <AddExternalVersionBtn source={source} />
+                                        <Button>Delete</Button>
+                                    </>
+                                )
+                            }
 
+                        </div>
                     </div>
                 </div>
+                {
+                    isDms ? null : (
+                        <div className={'w-full pt-12'}>
+                            <TaskList sourceId={source.source_id} />
+                        </div>
+                    )
+                }
             </div>
     )
 }
