@@ -13,6 +13,8 @@ import DatasetsListComponent from "./components/DatasetsListComponent"
 import SourcePageSelector from "./pages/sourcePageSelector";
 import Tasks from "./pages/dataTypes/default/Tasks/";
 import TaskPage from "./pages/dataTypes/default/Tasks/TaskPage";
+import csv_dataset from "./pages/dataTypes/csv_dataset";
+import gis_dataset from "./pages/dataTypes/gis_dataset";
 
 // for instances without auth turned on can edit
 
@@ -174,7 +176,7 @@ const externalSourceConfig = ({
     pgEnv,
     themes={ default: {} },
     checkAuth = () => {},
-    datasets
+    datasets = {}
 }) => {
     let theme = merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern?.theme_name] || themes.mny_datasets));
 
@@ -246,7 +248,7 @@ const externalSourceConfig = ({
                           parent: pattern,
                           Menu: () => <>{Menu || <DefaultMenu theme={theme} UI={UI}/>}</>, API_HOST,
                           falcor,
-                          datasets,
+                          datasets: {csv_dataset, gis_dataset, ...datasets},
                           authPermissions,
                           isUserAuthed: (reqPermissions, customAuthPermissions) => isUserAuthed({user, authPermissions: customAuthPermissions || authPermissions, reqPermissions}),
                       }}>

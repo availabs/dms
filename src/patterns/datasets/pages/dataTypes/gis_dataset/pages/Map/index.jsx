@@ -10,11 +10,10 @@ import Symbology from './symbology/index'
 import { AvlMap, ThemeProvider} from "~/modules/avl-map-2/src"
 import mapTheme from './map-theme'
 
-import { DamaContext } from "~/pages/DataManager/store"
+import { DatasetsContext } from "../../../../../context";
 //import config from "~/config.json"
 import { DAMA_HOST } from "~/config"
-import ckmeans from "../../../../utils/ckmeans";
-import {Protocol, PMTiles} from '../../../../utils/pmtiles/index.ts'
+import {Protocol, PMTiles} from '../../../default/Map/utils/pmtiles/index.ts'
 
 // import {google_streets_style} from '~/config.json'
 
@@ -43,7 +42,7 @@ const TILEHOST = getTilehost(DAMA_HOST)
 const ViewSelector = ({views}) => {
   const { viewId, sourceId, page } = useParams()
   const navigate = useNavigate()
-  const {baseUrl} = React.useContext(DamaContext)
+  const {baseUrl} = React.useContext(DatasetsContext)
 
   return (
     <div className='flex'>
@@ -73,7 +72,7 @@ const MapPage = ({source,views, HoverComp, showViewSelector=true, displayPinnedG
   const urlVariable = searchParams.get("variable")
 
   const { viewId } = useParams();
-  const { pgEnv, baseUrl, user } = React.useContext(DamaContext);
+  const { pgEnv, baseUrl, user } = React.useContext(DatasetsContext);
   //const { falcor } = useFalcor()
   const [ editing, setEditing ] = React.useState(null)
   //const [ activeVar, setActiveVar] = React.useState(null)
@@ -262,7 +261,7 @@ const Map = ({ layers, layer, tempSymbology, setTempSymbology, source,  mapStyle
     setMounted(true);
     return () => setMounted(false);
   }, []);
-  const {falcor} = React.useContext(DamaContext)
+  const {falcor} = React.useContext(DatasetsContext)
   const [layerData, setLayerData] = React.useState([])
   // const  currentLayerIds = React.useMemo(() => {
   //   return layers.filter(d => d).map(d => d.activeViewId)
@@ -365,7 +364,7 @@ const Map = ({ layers, layer, tempSymbology, setTempSymbology, source,  mapStyle
 
 const Edit = ({startValue, attr, viewId, parentData, cancel=()=>{}}) => {
   const [value, setValue] = useState('')
-  const { pgEnv, baseUrl, falcor } = React.useContext(DamaContext);
+  const { pgEnv, baseUrl, falcor } = React.useContext(DatasetsContext);
   const inputEl = useRef(null);
 
   useEffect(() => {

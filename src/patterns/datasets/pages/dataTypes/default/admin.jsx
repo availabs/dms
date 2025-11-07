@@ -96,8 +96,11 @@ const AddExternalVersionBtn = ({source}) => {
     const {UI, datasets} = useContext(DatasetsContext);
     const {Modal, Button} = UI;
     const [showModal, setShowModal] = useState(false);
-    const srcType = (source?.categories || [])[0]?.[0];
-    const CreatePage = (datasets[source?.type] || datasets[srcType])?.sourceCreate?.component;
+
+    const sourceType = source?.categories?.[0]?.[0]; // source identifier. this is how the source is named in the script. this used to be type.
+    const sourceDataType = source?.type; // csv / gis / analysis
+    const sourcePages = datasets[sourceType] || datasets[sourceDataType] || {};
+    const CreatePage = sourcePages?.sourceCreate?.component;
 
     return (
         <>
@@ -258,7 +261,7 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params, isDms })
                                     </>
                                 ) : (
                                     <>
-                                        <AddExternalVersionBtn source={source} />
+                                        <AddExternalVersionBtn source={source} datasets={datasets} />
                                         <Button>Delete</Button>
                                     </>
                                 )

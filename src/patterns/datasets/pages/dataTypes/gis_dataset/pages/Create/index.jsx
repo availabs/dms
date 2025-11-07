@@ -1,7 +1,7 @@
 import React, { useReducer, useEffect } from "react";
 import { useNavigate } from "react-router";
 
-import { DamaContext } from "~/pages/DataManager/store"
+import { DatasetsContext } from "../../../../../context";
 import { DAMA_HOST } from "~/config";
 import { reducer } from "./components/reducer";
 
@@ -24,7 +24,7 @@ export default function UploadGisDataset({
 }) {
   // console.log('tippecanoeOptions', tippecanoeOptions)
   const { name: damaSourceName, source_id: sourceId, type, uploadedFile, gisUploadId, analysisContextId } = source;
-  const { pgEnv, baseUrl, falcor, user:ctxUser } = React.useContext(DamaContext);
+  const { pgEnv, baseUrl, falcor, user:ctxUser } = React.useContext(DatasetsContext);
   const navigate = useNavigate()
   const [state, dispatch] = useReducer(reducer, {
     damaSourceId: sourceId,

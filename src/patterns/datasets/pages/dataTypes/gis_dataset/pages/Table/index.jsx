@@ -4,7 +4,7 @@ import {  Table } from '~/modules/avl-components/src'
 import get from 'lodash/get'
 import { useParams, useNavigate, useSearchParams } from 'react-router'
 
-import { DamaContext } from "~/pages/DataManager/store";
+import { DatasetsContext } from "../../../../../context";
 // import { SymbologyControls } from '~/pages/DataManager/components/SymbologyControls'
 
 const ViewSelector = ({views}) => {
@@ -12,7 +12,7 @@ const ViewSelector = ({views}) => {
   const [searchParams] = useSearchParams();
   const variable = searchParams.get("variable")
   const navigate = useNavigate()
-  const { baseUrl  } = React.useContext(DamaContext)
+  const { baseUrl  } = React.useContext(DatasetsContext)
 
   const activeViewId = variable && !viewId ? variable : viewId;//TODO ryan this  could ahve some breaking changes elsewhere
 
@@ -67,7 +67,7 @@ const TablePage = ({
     _setFilters(prev => ({ ...prev, ...filters }));
   }, []);
 
-  const { pgEnv, falcor, falcorCache, user  } = React.useContext(DamaContext)
+  const { pgEnv, falcor, falcorCache, user  } = React.useContext(DatasetsContext)
 
   const activeView = React.useMemo(() => {
     return get(

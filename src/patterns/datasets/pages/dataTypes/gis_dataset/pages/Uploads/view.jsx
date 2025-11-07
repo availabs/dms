@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo } from "react";
 import { get } from "lodash/get";
-import { DamaContext } from "~/pages/DataManager/store";
+import { DatasetsContext } from "../../../../../context";
 
 export default function Upload({ ctxId }) {
-  const { pgEnv, falcor, falcorCache } = React.useContext(DamaContext);
+  const { pgEnv, falcor, falcorCache } = React.useContext(DatasetsContext);
 
   useEffect(() => {
     async function getCtxById() {

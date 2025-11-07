@@ -2,12 +2,12 @@ import React, {useEffect, useMemo,} from 'react'
 import get from 'lodash/get'
 import isEqual from 'lodash/isEqual'
 import cloneDeep from 'lodash/cloneDeep'
-import { getColorRange } from '../../../../../../utils/color-ranges'
-import ckmeans from '../../../../../../utils/ckmeans'
+import { getColorRange } from '../../../../../default/Map/utils/color-ranges'
+import ckmeans from '../../../../../default/Map/utils/ckmeans'
 import * as d3scale from "d3-scale"
 import {  ColorInput, useFalcor } from "~/modules/avl-components/src"
 
-import { DamaContext } from "~/pages/DataManager/store"
+import { DatasetsContext } from "../../../../../../../context";
 
 
 const SimpleColorControl = ({symbologySlice,updateSlice}) => {
@@ -42,7 +42,7 @@ const ThresholdScaleColorControl = ({
  activeViewId
 }) => {
   const {falcor, falcorCache} = useFalcor();
-  const { pgEnv } = React.useContext(DamaContext)
+  const { pgEnv } = React.useContext(DatasetsContext)
  
   useEffect(() =>  {
     if(symbologySlice.type !== 'scale-threshold'){

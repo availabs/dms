@@ -21,22 +21,22 @@ import {
   getScale,
   useClickOutside
 } from "~/modules/avl-map-2/src";
-import ckmeans from "../../../../utils/ckmeans";
-import { getColorRange } from "../../../../utils/color-ranges";
+import ckmeans from "../../../default/Map/utils/ckmeans";
+import { getColorRange } from "../../../default/Map/utils/color-ranges";
 import * as d3scale from "d3-scale";
 import {
   extent as d3extent,
   range as d3range
 } from "d3-array"
 
-import { DamaContext } from "~/pages/DataManager/store";
+import { DatasetsContext } from "../../../../../context";
 
 const PIN_OUTLINE_LAYER_SUFFIX = 'pin_outline'
 const NO_FILTER_LAYER_SUFFIX = 'static'
 
 const HoverComp = ({ data, layer }) => {
   const { attributes, activeViewId, filters } = layer;
-  const { pgEnv, falcor, falcorCache } = React.useContext(DamaContext);
+  const { pgEnv, falcor, falcorCache } = React.useContext(DatasetsContext);
   const id = React.useMemo(() => get(data, "[0]", null), [data]);
 
   let getAttributes = (typeof attributes?.[0] === 'string' ?
@@ -214,7 +214,7 @@ const GISDatasetRenderComponent = props => {
   const [legend, setLegend] = React.useState(null);
   const [layerData, setLayerData] = React.useState(null);
 
-  const { pgEnv, falcor, falcorCache, ...rest } = React.useContext(DamaContext);
+  const { pgEnv, falcor, falcorCache, ...rest } = React.useContext(DatasetsContext);
 
   const createLegend = React.useCallback((settings = {}) => {
 

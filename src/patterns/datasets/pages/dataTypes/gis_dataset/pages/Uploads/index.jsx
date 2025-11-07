@@ -4,13 +4,13 @@ import { get } from "lodash/get";
 import {  } from "~/modules/avl-components/src";
 // import { withAuth } from "~/modules/avl-components/src";
 
-import { DamaContext } from "~/pages/DataManager/store";
+import { DatasetsContext } from "../../../../../context";
 
 import ListUploads from "./list";
 import Upload from "./view";
 
 const UploadsPage = ({ source }) => {
-  const { pgEnv, falcor, falcorCache, user } = React.useContext(DamaContext);
+  const { pgEnv, falcor, falcorCache, user } = React.useContext(DatasetsContext);
   const { viewId, page } = useParams();
 
   let { source_id: sourceId } = source || {};
