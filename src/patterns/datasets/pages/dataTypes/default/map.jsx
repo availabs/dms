@@ -18,5 +18,5 @@ export default function Table ({source, params}) {
         }
     }, [source.views]);
 
-    return !params.view_id || params.view_id === 'undefined' ? 'Please select a version' : <Map source={source} views={source.views} />
+    return !params.view_id || params.view_id === 'undefined' ? 'Please select a version' : <Map params={params} source={source} views={source.views} />
 }

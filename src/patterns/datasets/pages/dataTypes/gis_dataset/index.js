@@ -6,16 +6,16 @@ import Table from "./pages/Table";
 // import { getAttributes } from 'pages/DataManager/components/attributes'
 
 const GisDatasetConfig = {
-  map: {
-    name: "Map",
-    path: "/map",
-    component: MapPage,
-  },
-  table: {
-    name: "Table",
-    path: "/table",
-    component: Table,
-  },
+  // map: {
+  //   name: "Map",
+  //   path: "/map",
+  //   component: MapPage,
+  // },
+  // table: {
+  //   name: "Table",
+  //   path: "/table",
+  //   component: Table,
+  // },
   // This key is used to filter in src/pages/DataManager/Source/create.js
   sourceCreate: {
     name: "Create",

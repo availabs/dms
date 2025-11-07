@@ -67,11 +67,11 @@ const ViewSelector = ({views}) => {
 }
 
 
-const MapPage = ({source,views, HoverComp, showViewSelector=true, displayPinnedGeomBorder=false, mapStyles }) => {
+const MapPage = ({params, source,views, HoverComp, showViewSelector=true, displayPinnedGeomBorder=false, mapStyles }) => {
   const [searchParams] = useSearchParams();
   const urlVariable = searchParams.get("variable")
 
-  const { viewId } = useParams();
+  const {view_id: viewId } = params;
   const { pgEnv, baseUrl, user } = React.useContext(DatasetsContext);
   //const { falcor } = useFalcor()
   const [ editing, setEditing ] = React.useState(null)
@@ -183,9 +183,6 @@ const MapPage = ({source,views, HoverComp, showViewSelector=true, displayPinnedG
 
   return (
     <div>
-      <div className='flex'>
-        {showViewSelector ? <ViewSelector views={views} /> : ''}
-      </div>
       <div className='w-full h-[900px]'>
         <Map
           key={ viewId }
