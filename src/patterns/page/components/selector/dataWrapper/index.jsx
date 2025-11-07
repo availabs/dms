@@ -4,7 +4,7 @@ import writeXlsxFile from 'write-excel-file';
 import { isEqual } from "lodash-es";
 import {CMSContext, ComponentContext} from "../../../context";
 import { convertOldState } from "./utils/convertOldState";
-import {useHandleClickOutside, getData} from "./utils/utils";
+import {useHandleClickOutside, getData, isCalculatedCol} from "./utils/utils";
 import { Attribution } from "./components/Attribution";
 import {Pagination} from "./components/Pagination";
 
@@ -31,7 +31,9 @@ const triggerDownload = async ({state, apiLoad, loadAllColumns, setLoading}) => 
             columns: [
                 ...state.columns,
                 ...state.sourceInfo.columns.filter(originalColumn => !state.columns.find(c => c.name === originalColumn.name))
-            ].map(c => ({...c, show: true}))
+            ]
+                .filter(c => !isCalculatedCol(c))
+                .map(c => ({...c, show: true}))
         } : state;
     const {data} = await getData({
         state: tmpState,

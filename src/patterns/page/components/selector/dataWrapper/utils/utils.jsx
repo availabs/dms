@@ -79,7 +79,7 @@ const columnRenameRegex = /\s+as\s+/i;
 const splitColNameOnAS = (name) => name.split(columnRenameRegex); // split on as/AS/aS/As and spaces surrounding it
 
 // takes in column, and returns if it's a calculated column
-const isCalculatedCol = ({ display, type, origin }) => {
+export const isCalculatedCol = ({ display, type, origin }) => {
   return (
     display === "calculated" ||
     type === "calculated" ||
