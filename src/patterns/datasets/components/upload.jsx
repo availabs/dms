@@ -119,6 +119,10 @@ const publish = async ({userId, email, gisUploadId, layerName, app, type, dmsSer
         });
 
     const publishFinalEvent = await res.json();
+
+    if(publishFinalEvent.err){
+        throw new Error(`Error while publishing: ${publishFinalEvent.err}`)
+    }
     setPublishing(false);
     setPublishStatus(true);
 }
@@ -234,7 +238,7 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate,
                                 <>
                                     <p className="mb-2 text-sm text-gray-500 ">
                                         <span className="font-semibold">Click to upload</span> or drag and drop</p>
-                                    <p className="text-xs text-gray-500">a zipped Excel</p>
+                                    <p className="text-xs text-gray-500">a zipped CSV or Excel</p>
                                 </>
                             )
                         }
