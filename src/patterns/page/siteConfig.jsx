@@ -130,7 +130,7 @@ const pagesConfig = ({
         type: ({children, falcor, user, ...props}) => {
           // console.log('pages siteConfig - ', user )
           // console.log('page siteConfig - UI', UI )
-          console.log('pass themes', themes, 'pattern',pattern)
+          // console.log('pass themes', themes, 'pattern',pattern)
 
           return (
               <CMSContext.Provider value={{

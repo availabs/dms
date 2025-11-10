@@ -84,7 +84,6 @@ function pattern2routes (siteData, props) {
     //console.log('patterns2routes',dbThemes)
 
     themes = themes?.default ? { ...themes, ...dbThemes } : { ...themes, ...dbThemes, default: {} }
-    console.log('themes', themes)
 
     let dmsConfigUpdated = cloneDeep(dmsConfig);
     dmsConfigUpdated.registerFormats = updateRegisteredFormats(dmsConfigUpdated.registerFormats, dmsConfig.app)
@@ -214,9 +213,9 @@ export function DmsSite (config) {
     useEffect(() => {
         let isStale = false;
         async function load () {
-            console.log('loading site data')
+            // console.log('loading site data')
             setLoading(true)
-            console.time('dmsSiteFactory')
+            // console.time('dmsSiteFactory')
             const dynamicRoutes = await dmsSiteFactory({
                 dmsConfig,//adminConfig
                 adminPath,
@@ -230,7 +229,7 @@ export function DmsSite (config) {
                 datasets,
                 //theme
             });
-            console.timeEnd('dmsSiteFactory')
+            // console.timeEnd('dmsSiteFactory')
             //console.log('dynamicRoutes ', dynamicRoutes)
             if(!isStale) {
                 setDynamicRoutes(dynamicRoutes);
