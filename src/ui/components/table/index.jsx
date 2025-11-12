@@ -263,7 +263,6 @@ export default function ({
     }, [triggerSelectionDelete])
     // ============================================ Trigger delete end =================================================
 
-
     return (
         <div className={`${theme?.table?.tableContainer} ${!paginationActive && theme?.table?.tableContainerNoPagination}`} ref={gridRef}>
             <div className={theme?.table?.tableContainer1}
@@ -372,29 +371,42 @@ export default function ({
                         <div
                             className={`grid bg-white divide-x divide-y ${isDragging ? `select-none` : ``} sticky bottom-0 z-[1]`}
                             style={{
-                                gridTemplateColumns: `${numColSize}px ${visibleAttrsWithoutOpenOut.map(v => v.size ? `${v.size}px` : `${defaultColumnSize}px`).join(' ')} ${gutterColSize}px`,
-                                gridColumn: `span ${visibleAttrsWithoutOpenOut.length + 2} / ${visibleAttrsWithoutOpenOut.length + 2}`
+                                gridTemplateColumns: `${numColSize}px 20px ${visibleAttrsWithoutOpenOut.map((v, i) => v.size ? `${i === 0 ? (+v.size - 20) : v.size}px` : `${i === 0 ? (defaultNumColSize - 20) : defaultColumnSize}px`).join(' ')} ${gutterColSize}px`,
+                                gridColumn: `span ${visibleAttrsWithoutOpenOut.length + 3} / ${visibleAttrsWithoutOpenOut.length + 3}`
                             }}                    >
                             <div className={'flex justify-between sticky left-0 z-[1]'} style={{width: numColSize}}>
                                 <div key={'#'} className={`w-full font-semibold border bg-gray-50 text-gray-500`}>
-                                    *
+
                                 </div>
+                            </div>
+
+                            <div className={'bg-white flex flex-row h-fit justify-evenly opacity-50 hover:opacity-100 border-0'}
+                                 style={{width: '20px'}}>
+                                <button
+                                    className={'w-fit p-0.5 bg-blue-300 hover:bg-blue-500 text-white rounded-lg'}
+                                    onClick={e => {
+                                        addItem()
+                                    }}>
+                                    <Icon icon={'CirclePlus'} className={'text-white'} height={20} width={20}/>
+                                </button>
                             </div>
                             {
                                 visibleAttrsWithoutOpenOut
                                     .map((attribute, attrI) => {
                                         const Comp = DataTypes[attribute?.type || 'text']?.EditComp || <div></div>;
+                                        const size = attrI === 0 ? (+attribute.size || defaultNumColSize) - 20 : (+attribute.size || defaultNumColSize)
                                         return (
                                             <div
                                                 key={`add-new-${attrI}`}
                                                 className={`flex border`}
-                                                style={{width: attribute.size}}
+                                                style={{width: size}}
                                             >
                                                 <Comp
                                                     key={`${attribute.name}`}
                                                     menuPosition={'top'}
                                                     className={'p-1 bg-white hover:bg-blue-50 w-full h-full'}
                                                     {...attribute}
+                                                    size={size}
                                                     value={newItem[attribute.name]}
                                                     placeholder={'+ add new'}
                                                     onChange={e => setNewItem({...newItem, [attribute.name]: e})}
@@ -417,16 +429,6 @@ export default function ({
                                         )
                                     })
                             }
-                            <div className={'absolute bg-white flex flex-row h-fit justify-evenly'}
-                                 style={{width: numColSize}}>
-                                <button
-                                    className={'w-fit p-0.5 bg-blue-300 hover:bg-blue-500 text-white rounded-lg'}
-                                    onClick={e => {
-                                        addItem()
-                                    }}>
-                                    <Icon icon={'SquarePlus'} className={'text-white'} height={20} width={20}/>
-                                </button>
-                            </div>
                         </div> : null
                 }
                 {/***********************(((***************** Add New Row End ********************************************/}
