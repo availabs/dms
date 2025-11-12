@@ -46,6 +46,7 @@ const adminConfig = ({
     authPermissions,
     logo,
     pattern,
+    datasets,
     pgEnv,
     themes={ default: {} },
 }) => {
@@ -116,6 +117,7 @@ const adminConfig = ({
                           theme, app, type, siteType,
                           parent: pattern, API_HOST,
                           authPermissions,
+                          datasets: {csv_dataset, gis_dataset, ...datasets},
                           Menu: () => <>{Menu || <DefaultMenu theme={theme} UI={UI}/>}</>,
                           isUserAuthed: (reqPermissions, customAuthPermissions) => isUserAuthed({user, authPermissions: customAuthPermissions || authPermissions, reqPermissions}),
                       }}>
