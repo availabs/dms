@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link } from "react-router";
 
-import { AdminContext } from '../../siteConfig'
+import { AdminContext } from '../../context'
 
 import { get } from "lodash-es";;
 

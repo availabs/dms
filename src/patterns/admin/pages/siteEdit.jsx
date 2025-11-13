@@ -1,6 +1,6 @@
 import React from 'react'
 import { InputComp , ButtonPrimary} from '../ui'
-import {AdminContext} from "../siteConfig";
+import {AdminContext} from "../context";
 import { Link, useLocation } from 'react-router'
 import { AuthContext } from '../../auth/context';
 

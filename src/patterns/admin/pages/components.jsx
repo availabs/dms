@@ -6,7 +6,7 @@ import {useNavigate} from 'react-router';
 import { merge, cloneDeep, get, set } from "lodash-es";
 
 import {ThemeContext} from "../../../ui/useTheme";
-import {AdminContext} from "../siteConfig";
+import {AdminContext} from "../context";
 
 //import themeEditorConfig from './themeEditorConfig';
 

@@ -108,6 +108,18 @@ function pattern2routes (siteData, props) {
             authWrapper,
             ErrorBoundary: RootErrorBoundary
         }),
+        dmsPageFactory({
+            dmsConfig: {
+                ...patternTypes.admin[1]({...dmsConfigUpdated, themes}),
+                siteType: dmsConfigUpdated.type,
+                API_HOST,
+                PROJECT_NAME,
+                theme: themes['default'],
+                pgEnvs
+            },
+            authWrapper,
+            ErrorBoundary: RootErrorBoundary
+        }),
         // patterns
         ...patterns
           .filter(pattern => (
