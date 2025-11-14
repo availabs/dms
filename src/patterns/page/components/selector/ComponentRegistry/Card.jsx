@@ -58,9 +58,73 @@ const Card = ({
                  formatFunctions={formatFunctions}
     />
 }
+const handleCopy = async (obj) => {
+    try {
+        const text = JSON.stringify(obj, null, 2);
+
+        // modern async clipboard API
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(text);
+        } else {
+            throw new Error('Error copying format')
+        }
+    } catch (err) {
+        console.error("Failed to copy:", err);
+    }
+};
+
+const handlePaste = async (attribute, setAttribute) => {
+    try {
+        if(navigator.clipboard && navigator.clipboard.readText){
+            const obj = await navigator.clipboard.readText();
+            const parsedObj = JSON.parse(obj);
+            const {
+                justify='',
+                formatFn='',
+                headerFontStyle='',
+                valueFontStyle='',
+                hideHeader= false,
+                hideValue= false,
+                wrapText = false,
+                bgColor='',
+                cardSpan=''
+            } = parsedObj;
+
+            const newAttribute = {
+                ...attribute,
+                justify, formatFn, headerFontStyle, valueFontStyle, hideHeader, hideValue, bgColor, cardSpan, wrapText
+            }
+
+            return setAttribute(newAttribute)
+
+        }else{
+            throw new Error('Error pasting format')
+        }
+    }catch (e){
+        console.error("Failed to paste:", e)
+    }
+}
 
 const inHeader = [
     // settings from in header dropdown are stored in the columns array per column.
+    {type: ({attribute, setAttribute}) => {
+        const {UI} = useContext(CMSContext);
+        const {Button} = UI;
+        const {
+            justify, formatFn, headerFontStyle, valueFontStyle, hideHeader, hideValue, bgColor, cardSpan, wrapText
+        } = attribute;
+        const objToCopy = {justify, formatFn, headerFontStyle, valueFontStyle, hideHeader, hideValue, bgColor, cardSpan, wrapText}
+
+
+            return (
+                <div className={'flex'}>
+                    <Button onClick={() => handleCopy(objToCopy)}>copy format</Button>
+                    <Button onClick={() => handlePaste(attribute, setAttribute)}>paste format</Button>
+                </div>
+            )
+        },
+        label: 'format controls', key: '', displayCdn: ({isEdit}) => isEdit},
+
     {type: 'toggle', label: 'Allow Edit', key: 'allowEditInView', displayCdn: ({isEdit}) => isEdit},
 
     {type: 'select', label: 'Sort', key: 'sort',

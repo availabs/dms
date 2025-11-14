@@ -60,6 +60,8 @@ const pagesConfig = ({
   authPermissions,
   themes = { default: {} },
   pattern,
+  datasetPatterns,
+  site,
   pgEnv,
   API_HOST
 }) => {
@@ -122,8 +124,9 @@ const pagesConfig = ({
     children: [
       {
         type: ({children, falcor, user, ...props}) => {
-          console.log('pass themes', themes, 'pattern',pattern)
-
+          // console.log('pages siteConfig - ', user )
+          // console.log('page siteConfig - UI', UI )
+          // console.log('pass themes', themes, 'pattern',pattern)
           return (
               <CMSContext.Provider value={{
                 app, type, siteType,
@@ -132,7 +135,7 @@ const pagesConfig = ({
                 pgEnv, damaBaseUrl,
                 user,
                 falcor,
-                patternFilters,
+                patternFilters, datasetPatterns,
                 authPermissions,
                 UI,
                 isUserAuthed: (reqPermissions, customAuthPermissions) => isUserAuthed({user, authPermissions: customAuthPermissions || authPermissions, reqPermissions}),

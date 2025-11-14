@@ -71,6 +71,31 @@ export const updateSourceData = ({data, attrKey, isDms, apiUpdate, setSource, fo
         })
 }
 
+export const updateVersionData = ({data, attrKey, isDms, apiUpdate, setView, format, source, view, pgEnv, falcor, id}) => {
+        if(isDms && (!format?.app || !source?.type)) {
+            throw new Error("Update Error. Source invalid.")
+        }
+
+        falcor.set({
+            paths: [
+                ['uda', isDms ? `${format.app}+${source.type}` : pgEnv, 'views', 'byId', id, attrKey]
+            ],
+            jsonGraph: {
+                uda: {
+                    [isDms ? `${format.app}+${source.type}` : pgEnv]: {
+                        views: {
+                            byId: {
+                                [id]: {[attrKey]: attrKey === 'description' || attrKey === 'categories'  || attrKey === 'statistics' ? JSON.stringify(data) : data}
+                            }
+                        }
+                    }
+                }
+            }
+        }).then(d => {
+            setView({...view, [attrKey]: data})
+        })
+}
+
 // parse JSON strings, else return original value or default value
 export const parseIfJson = (value, defaultValue) => {
     try {

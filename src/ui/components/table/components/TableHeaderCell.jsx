@@ -24,7 +24,11 @@ export default function TableHeaderCell({isEdit, attribute, columns, display, co
         // update requested key
         const idx = columns.findIndex(column => getColIdName(column) === colIdName);
         if (idx !== -1) {
-            draft.columns[idx][key] = value;
+            if(key){
+                draft.columns[idx][key] = value;
+            }else{
+                draft.columns[idx] = {...(draft.columns[idx] || {}), ...(value || {})}
+            }
         }
 
         if(onChange){
@@ -139,7 +143,13 @@ export default function TableHeaderCell({isEdit, attribute, columns, display, co
                                                                 onChange={e => updateColumns(key, e.target.value, onChange, dataFetch)}
                                                             />
                                                         </div> :
-                                                        typeof type === 'function' ? type({value: attribute[key], setValue: newValue => updateColumns(key, newValue, onChange, dataFetch)}) :
+                                                        typeof type === 'function' ?
+                                                            type({
+                                                                value: attribute[key],
+                                                                setValue: newValue => updateColumns(key, newValue, onChange, dataFetch),
+                                                                attribute,
+                                                                setAttribute: newValue => updateColumns(undefined, newValue, onChange, dataFetch)
+                                                            }) :
                                                             `${type} not available`
                                         )
                                 }

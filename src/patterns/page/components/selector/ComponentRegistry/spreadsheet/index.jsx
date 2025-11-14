@@ -69,9 +69,57 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
                   gridRef={gridRef}
                   theme={theme} paginationActive={paginationActive}
                   updateItem={updateItem} removeItem={removeItem}
+                  newItem={newItem} setNewItem={setNewItem} addItem={addItem}
                   numColSize={numColSize} gutterColSize={gutterColSize} frozenColClass={frozenColClass} frozenCols={frozenCols}
                   isActive={isActive}
     />
+}
+
+const handleCopy = async (obj) => {
+    try {
+        const text = JSON.stringify(obj, null, 2);
+
+        // modern async clipboard API
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(text);
+        } else {
+            throw new Error('Error copying format')
+        }
+    } catch (err) {
+        console.error("Failed to copy:", err);
+    }
+};
+
+const handlePaste = async (attribute, setAttribute) => {
+    try {
+        if(navigator.clipboard && navigator.clipboard.readText){
+            const obj = await navigator.clipboard.readText();
+            const parsedObj = JSON.parse(obj);
+            const {
+                justify='',
+                formatFn='',
+                headerFontStyle='',
+                valueFontStyle='',
+                hideHeader= false,
+                hideValue= false,
+                wrapText = false,
+                bgColor='',
+                cardSpan=''
+            } = parsedObj;
+
+            const newAttribute = {
+                ...attribute,
+                justify, formatFn, headerFontStyle, valueFontStyle, hideHeader, hideValue, bgColor, cardSpan, wrapText
+            }
+
+            return setAttribute(newAttribute)
+
+        }else{
+            throw new Error('Error pasting format')
+        }
+    }catch (e){
+        console.error("Failed to paste:", e)
+    }
 }
 
 export default {
@@ -108,6 +156,17 @@ export default {
             // settings from more dropdown are stored in state.display
             {type: 'toggle', label: 'Attribution', key: 'showAttribution'},
             {type: 'toggle', label: 'Allow Edit', key: 'allowEditInView'},
+            {type: 'toggle', label: 'Allow Add New', key: 'allowAdddNew'},
+            {type: 'select', label: 'Add New Behaviour', key: 'addNewBehaviour', displayCdn: ({display}) => display.allowAdddNew,
+                options: [
+                    {label: 'Please select', value: ''},
+                    {label: 'Append Entry', value: 'append'},
+                    {label: 'Clear Form', value: 'clear'},
+                    {label: 'Navigate', value: 'navigate'},
+                ]
+            },
+            {type: 'input', inputType: 'text', label: 'Navigate to', key: 'navigateUrlOnAdd',
+                displayCdn: ({display}) => display.allowAdddNew && display.addNewBehaviour === 'navigate'},
             {type: 'toggle', label: 'Use Page Filters', key: 'usePageFilters'},
             {type: 'toggle', label: 'Show Total', key: 'showTotal'},
             {type: 'toggle', label: 'Striped', key: 'striped'},
@@ -122,6 +181,23 @@ export default {
         ],
         inHeader: [
             // settings from in header dropdown are stores in the columns array per column.
+            {type: ({attribute, setAttribute}) => {
+                    const {UI} = useContext(CMSContext);
+                    const {Button} = UI;
+                    const {
+                        justify, formatFn, headerFontStyle, valueFontStyle, hideHeader, hideValue, bgColor, cardSpan, wrapText
+                    } = attribute;
+                    const objToCopy = {justify, formatFn, headerFontStyle, valueFontStyle, hideHeader, hideValue, bgColor, cardSpan, wrapText}
+
+
+                    return (
+                        <div className={'flex'}>
+                            <Button onClick={() => handleCopy(objToCopy)}>copy format</Button>
+                            <Button onClick={() => handlePaste(attribute, setAttribute)}>paste format</Button>
+                        </div>
+                    )
+                },
+                label: 'format controls', key: '', displayCdn: ({isEdit}) => isEdit},
             {type: 'select', label: 'Sort', key: 'sort', dataFetch: true,
                 options: [
                     {label: 'Not Sorted', value: ''}, {label: 'A->Z', value: 'asc nulls last'}, {label: 'Z->A', value: 'desc nulls last'}

@@ -13,8 +13,8 @@ const FilterSettings = ({label, type, value, stateValue, onChange}) => {
   const [tmpValue, setTmpValue] = useState(typeof value === 'string' ? JSON.parse(value) : (value || []));
 
   const updateFilters = (idx, key, valueToUpdate) => {
-    setTmpValue(value.map((v, i) => i === idx ? {...v, [key]: valueToUpdate} : v))
-    onChange(value.map((v, i) => i === idx ? {...v, [key]: valueToUpdate} : v));
+    setTmpValue(tmpValue.map((v, i) => i === idx ? {...v, [key]: valueToUpdate} : v))
+    onChange(tmpValue.map((v, i) => i === idx ? {...v, [key]: valueToUpdate} : v));
   }
 
   const customTheme = {
@@ -44,8 +44,8 @@ const FilterSettings = ({label, type, value, stateValue, onChange}) => {
                       },
                       {type: 'Button', children: 'remove',
                           onClick: () => {
-                              onChange(value.filter((_, idx) => i !== idx));
-                              setTmpValue(value.filter((_, idx) => i !== idx))
+                              onChange(tmpValue.filter((_, idx) => i !== idx));
+                              setTmpValue(tmpValue.filter((_, idx) => i !== idx))
                           }
                       }
                   ]}
@@ -71,8 +71,8 @@ const FilterSettings = ({label, type, value, stateValue, onChange}) => {
                     {type: 'Button', children: 'add',
                         onClick: () => {
                             const id = uuidv4();
-                            onChange([...value, {id, ...newFilter}]);
-                            setTmpValue([...value, {id, ...newFilter}])
+                            onChange([...tmpValue, {id, ...newFilter}]);
+                            setTmpValue([...tmpValue, {id, ...newFilter}])
                             setNewFilter({});
                         }
                     }

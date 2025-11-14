@@ -1,6 +1,6 @@
 import React, {useContext} from "react"
 import {Link, useLocation} from 'react-router'
-import { AdminContext } from '../siteConfig'
+import { AdminContext } from '../context'
 import { ThemeContext } from "../../../ui/useTheme";
 
 // import {NavItem, NavMenu, NavMenuItem, NavMenuSeparator, withAuth} from 'components/avl-components/src'

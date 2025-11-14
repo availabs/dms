@@ -209,8 +209,9 @@ export const discardChanges = async (user,item, apiUpdate) => {
   }
 
   newItem.draft_sections = item.sections.map(s => {
-      delete s.id;
-      return s;
+      const sectionCopy = cloneDeep(s);
+      delete sectionCopy.id;
+      return sectionCopy;
   });
   newItem.draft_section_groups = newItem.section_groups;
   apiUpdate({data:newItem})

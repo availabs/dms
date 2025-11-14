@@ -51,6 +51,7 @@ const LinkComp = ({attribute, columns, newItem, removeItem, value, Comp}) => {
                 ['value', 'rawValue'].includes(attribute.searchParams) ? encodeURIComponent(valueFormattedForSearchParams) : ``;
 
         const url = `${location || valueFormattedForDisplay}${searchParams}`;
+        // todo make this conditional for isLinkExternal, and render Link if not.
         return (props) => <a {...props} href={url} {...isLinkExternal && {target:"_blank"}} >{linkText || valueFormattedForDisplay}</a>
     }
 

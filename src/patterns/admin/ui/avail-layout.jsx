@@ -1,6 +1,6 @@
 import React from "react";
 //import { useTheme} from "~/modules/avl-components/src/index.js";
-import { AdminContext } from '../siteConfig'
+import { AdminContext } from '../context'
 
 import TopNav from './nav/Top'
 import SideNav from './nav/Side'

@@ -7,15 +7,14 @@ import datasetsFormat, {source} from "./datasets.format";
 import { ThemeContext } from "../../ui/useTheme";
 import defaultTheme from "../../ui/defaultTheme";
 import UI from "../../ui"
-import ErrorPage from "./pages/error";
+import ErrorPage from "./pages/dataTypes/default/error";
 import DefaultMenu from "./components/menu";
 import DatasetsListComponent from "./components/DatasetsListComponent"
-import Overview from "./pages/overview"
-import Table from "./pages/table"
-import Admin from "./pages/admin"
-import Upload from "./pages/upload"
-import Metadata from "./pages/metadata"
-import Validate from "./pages/validate"
+import SourcePageSelector from "./pages/sourcePageSelector";
+import Tasks from "./pages/dataTypes/default/Tasks/";
+import TaskPage from "./pages/dataTypes/default/Tasks/TaskPage";
+import csv_dataset from "./pages/dataTypes/csv_dataset";
+import gis_dataset from "./pages/dataTypes/gis_dataset";
 
 // for instances without auth turned on can edit
 
@@ -47,6 +46,8 @@ const adminConfig = ({
     authPermissions,
     logo,
     pattern,
+    datasets,
+    pgEnv,
     themes={ default: {} },
 }) => {
 
@@ -106,20 +107,21 @@ const adminConfig = ({
                 type: (props) => {
                   const { user, falcor, ...rest} = props
                   const {Layout} = UI;
-                  console.log('rest', siteType)
                   return (
                       <DatasetsContext.Provider value={{
                           UI,
+                          pgEnv,
                           baseUrl: `${baseUrl}`, damaBaseUrl,
                           falcor,
                           user,
                           theme, app, type, siteType,
                           parent: pattern, API_HOST,
                           authPermissions,
+                          datasets: {csv_dataset, gis_dataset, ...datasets},
                           Menu: () => <>{Menu || <DefaultMenu theme={theme} UI={UI}/>}</>,
                           isUserAuthed: (reqPermissions, customAuthPermissions) => isUserAuthed({user, authPermissions: customAuthPermissions || authPermissions, reqPermissions}),
                       }}>
-                          <ThemeContext.Provider value={{theme}}>
+                          <ThemeContext.Provider value={{theme, UI}}>
                                       <Layout navItems={[]} Menu={() => <DefaultMenu theme={theme} UI={UI}/>}>
                                           {props.children}
                                       </Layout>
@@ -141,6 +143,16 @@ const adminConfig = ({
                         type: props => <DatasetsListComponent {...props} />,
                         path: "",
                         action: "edit"
+                    },
+                    {
+                        type: props => <Tasks {...props} />,
+                        path: "tasks",
+                        action: "edit"
+                    },
+                    {
+                        type: props => <TaskPage {...props} />,
+                        path: "task/:etl_context_id",
+                        action: "edit"
                     }
                 ]
             }
@@ -149,7 +161,7 @@ const adminConfig = ({
 }
 
 
-const sourceConfig = ({
+const externalSourceConfig = ({
     app,
     type,
     siteType,
@@ -165,7 +177,8 @@ const sourceConfig = ({
     pattern,
     pgEnv,
     themes={ default: {} },
-    checkAuth = () => {}
+    checkAuth = () => {},
+    datasets = {}
 }) => {
     let theme = merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern?.theme_name] || themes.mny_datasets));
 
@@ -237,11 +250,14 @@ const sourceConfig = ({
                           parent: pattern,
                           Menu: () => <>{Menu || <DefaultMenu theme={theme} UI={UI}/>}</>, API_HOST,
                           falcor,
+                          datasets: {csv_dataset, gis_dataset, ...datasets},
                           authPermissions,
                           isUserAuthed: (reqPermissions, customAuthPermissions) => isUserAuthed({user, authPermissions: customAuthPermissions || authPermissions, reqPermissions}),
                       }}>
                           <ThemeContext.Provider value={{theme, UI}}>
-                                      {children}
+                                      <Layout navItems={[]} Menu={() => <DefaultMenu theme={theme} UI={UI}/>}>
+                                          {children}
+                                      </Layout>
                           </ThemeContext.Provider>
                       </DatasetsContext.Provider>
                   )
@@ -257,88 +273,142 @@ const sourceConfig = ({
                 authLevel: 5,
                 children: [
                     {
-                        type: Overview,
+                        type: SourcePageSelector,
                         filter: {
                             stopFullDataLoad: true,
                             fromIndex: () => 0,
                             toIndex: () => 0,
                         },
                         action: 'edit',
-                        path: `:pgEnv/:id`
-                    },
-                    {
-                        type: Metadata,
-                        filter: {
-                            stopFullDataLoad: true,
-                            fromIndex: () => 0,
-                            toIndex: () => 0,
-                        },
-                        action: 'edit',
-                        path: `:pgEnv/:id/metadata`
-                    },
-                    {
-                        type: Admin,
-                        filter: {
-                            stopFullDataLoad: true,
-                            fromIndex: () => 0,
-                            toIndex: () => 0,
-                        },
-                        reqPermissions: ['source-admin'],
-                        action: 'edit',
-                        path: `:pgEnv/:id/admin`
-                    },
-                    // ============================= version dependent pages begin =====================================
-                    {
-                        type: Table,
-                        filter: {
-                            stopFullDataLoad: true,
-                            fromIndex: () => 0,
-                            toIndex: () => 0,
-                        },
-                        action: 'edit',
-                        path: `:pgEnv/:id/table/:view_id?`
-                    },
-                    {
-                        type: () => <> Map Page </>,
-                        filter: {
-                            stopFullDataLoad: true,
-                            fromIndex: () => 0,
-                            toIndex: () => 0,
-                        },
-                        action: 'edit',
-                        path: `:pgEnv/:id/map/:view_id?`
-                    },
-                    {
-                        type: Upload,
-                        filter: {
-                            stopFullDataLoad: true,
-                            fromIndex: () => 0,
-                            toIndex: () => 0,
-                        },
-                        action: 'edit',
-                        path: `:pgEnv/:id/upload/:view_id?`
-                    },
-                    {
-                        type: Validate,
-                        filter: {
-                            stopFullDataLoad: true,
-                            fromIndex: () => 0,
-                            toIndex: () => 0,
-                        },
-                        action: 'edit',
-                        path: `:pgEnv/:id/validate/:view_id?`
-                    },
-                    {
-                        type: props => <div>version page</div>,
-                        filter: {
-                            stopFullDataLoad: true,
-                            fromIndex: () => 0,
-                            toIndex: () => 0,
-                        },
-                        action: 'edit',
-                        path: `:id/view/:view_id?`
+                        path: `:id/:page?/:view_id?` // default pgEnv set in pattern.
                     }
-                    // ============================== version dependent pages end ======================================
+                ]
+            }
+        ]
+    }
+}
+
+const internalSourceConfig = ({
+    app,
+    type,
+    siteType,
+    adminPath,
+    title,
+    baseUrl,
+    damaBaseUrl,
+    Menu,
+    API_HOST='https://graph.availabs.org',
+    authPermissions,
+    columns,
+    logo,
+    pattern,
+    pgEnv,
+    themes={ default: {} },
+    checkAuth = () => {},
+    datasets
+}) => {
+    let theme = merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern?.theme_name] || themes.mny_datasets));
+
+    baseUrl = baseUrl === '/' ? '' : baseUrl
+    const defaultLogo = (
+        <Link to={baseUrl || '/'} className='h-12 flex px-4 items-center'>
+            <div className='rounded-full h-8 w-8 bg-blue-500 border-2 border-blue-300 hover:bg-blue-600' />
+        </Link>
+    )
+
+    if(!theme.navOptions.logo) {
+        theme.navOptions.logo = logo ? logo : defaultLogo
+    }
+    theme.navOptions.sideNav = {
+        "size": "compact",
+        "search": "none",
+        "logo": "top", "menu": "top",
+        "nav": "main",
+        "dropdown": "top"
+    }
+
+    theme.navOptions.topNav = {
+        "size": "none",
+        "dropdown": "right",
+        "search": "right",
+        "logo": "left",
+        "position": "fixed",
+        "nav": "main"
+    }
+
+    const patternFormat = cloneDeep(source);
+    const newType = `${type}|source`;
+    patternFormat.app = app
+    patternFormat.type = newType
+    patternFormat.registerFormats = updateRegisteredFormats(patternFormat.registerFormats, app, newType) // update app for all the children formats. this works, but dms stops providing attributes to patternList
+    patternFormat.attributes = updateAttributes(patternFormat.attributes, app, newType) // update app for all the children formats. this works, but dms stops providing attributes to patternList
+
+    // console.log('formsAdminConfig', patternFormat)
+    return {
+        siteType,
+        format: patternFormat,
+        baseUrl: `${baseUrl}/internal_source`,
+        API_HOST,
+        errorElement: () => {
+            return (
+                <DatasetsContext.Provider value={{
+                    UI,
+                    baseUrl: `${baseUrl}`, damaBaseUrl,
+                    theme, app, type,
+                    parent: pattern, Menu, API_HOST
+                }}>
+                    <ErrorPage />
+                </DatasetsContext.Provider>
+            )
+        },
+        children: [
+            {
+                type: ({user, falcor, children}) => {
+                  const {Layout} = UI;
+                  return (
+                      <DatasetsContext.Provider value={{
+                          UI,
+                          baseUrl: `${baseUrl}`,
+                          pageBaseUrl: `${baseUrl}/internal_source`,
+                          damaBaseUrl,
+                          user,
+                          pgEnv,
+                          theme, app, type, siteType,
+                          parent: pattern,
+                          Menu: () => <>{Menu || <DefaultMenu theme={theme} UI={UI}/>}</>, API_HOST,
+                          falcor,
+                          datasets,
+                          authPermissions,
+                          isUserAuthed: (reqPermissions, customAuthPermissions) => isUserAuthed({user, authPermissions: customAuthPermissions || authPermissions, reqPermissions}),
+                      }}>
+                          <ThemeContext.Provider value={{theme, UI}}>
+                                      <Layout navItems={[]} Menu={() => <DefaultMenu theme={theme} UI={UI}/>}>
+                                          {children}
+                                      </Layout>
+                          </ThemeContext.Provider>
+                      </DatasetsContext.Provider>
+                  )
+                },
+                authPermissions,
+                action: "list",
+                filter: {
+                    stopFullDataLoad: true,
+                    fromIndex: () => 0,
+                    toIndex: () => 0,
+                },
+                path: "/*",
+                authLevel: 5,
+                children: [
+                    {
+                        type: props => <SourcePageSelector {...props} isDms={true} />,
+                        filter: {
+                            stopFullDataLoad: true,
+                            fromIndex: () => 0,
+                            toIndex: () => 0,
+                        },
+                        action: 'edit',
+                        path: `:id/:page?/:view_id?`
+                    }
                 ]
             }
         ]
@@ -348,7 +418,8 @@ const sourceConfig = ({
 
 export default [
     adminConfig,
-    sourceConfig
+    externalSourceConfig,
+    internalSourceConfig
 
 ];
 

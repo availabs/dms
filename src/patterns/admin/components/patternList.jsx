@@ -1,7 +1,7 @@
 import React, {useContext, useRef, useState} from 'react'
 import {Link} from 'react-router'
 import {v4 as uuidv4} from "uuid";
-import {AdminContext} from "../siteConfig";
+import {AdminContext} from "../context";
 
 const parseIfJSON = strValue => {
     if (typeof strValue !== 'string' && Array.isArray(strValue)) return strValue;
@@ -136,7 +136,7 @@ function PatternEdit({
 	 format,
 	 ...rest
 }) {
-	const {app, API_HOST, UI} = useContext(AdminContext);
+	const {app, API_HOST, UI, baseUrl} = useContext(AdminContext);
 	const {Table, Input, Button, Modal} = UI;
 	const gridRef = useRef(null);
 	const [search, setSearch] = useState('');
@@ -151,7 +151,8 @@ function PatternEdit({
 		{name: 'base_url', display_name: 'Base URL', show: true, type: 'text'},
 		{name: 'updated_at', display_name: 'Updated', show: true, type: 'text', formatFn: 'date'},
 		{name: 'manage_url', display_name: 'Manage', show: true, type: 'text', isLink: true, linkText: 'manage'},
-		{name: 'edit', display_name: 'Edit', show: true, type: 'ui', Comp: (d) => {
+		{name: 'edit_url', display_name: 'Edit', show: true, type: 'text', isLink: true, linkText: 'edit'},
+        {name: 'edit', display_name: 'Edit', show: true, type: 'ui', Comp: (d) => {
 			return <Button onClick={() => setEditingItem(d.row)}>Edit</Button>
 			}},
 	]
@@ -183,7 +184,12 @@ function PatternEdit({
 	}
 
 	const data = value
-		.map(v => ({...v, name: v.name || v.doc_type, manage_url: `${v.base_url === '/' ? '' : v.base_url}/manage/design`}))
+		.map(v => ({
+            ...v,
+            name: v.name || v.doc_type,
+            manage_url: `${v.base_url === '/' ? '' : v.base_url}/manage`,
+            edit_url: `${baseUrl}/manage_pattern/${v.id}`,
+        }))
 		.filter(v => !search || v.name.toLowerCase().includes(search.toLowerCase()));
 	const authExists = data.some(d => d.pattern_type === 'auth')
 

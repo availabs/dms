@@ -2,7 +2,7 @@ import React, {useMemo, useState, useEffect, useRef, useContext} from 'react'
 import {useParams, useLocation} from "react-router"
 import {get, isEqual} from "lodash-es";
 import {Link, useSearchParams} from "react-router";
-import SourcesLayout from "./layout";
+import SourcesLayout from "../../pages/layout";
 import {DatasetsContext} from "../../context";
 import {Modal} from "../../ui";
 import { cloneDeep } from "lodash-es";
@@ -75,7 +75,7 @@ const SourceThumb = ({ source={}, format }) => {
     return (
         <div className="w-full p-4 bg-white hover:bg-blue-50 border shadow flex">
             <div>
-                <Link to={`source/${isDms ? 'internal' : source?.env}/${source_id}`} className="text-xl font-medium w-full block">
+                <Link to={`${isDms ? 'internal_source' : 'source'}/${source_id}`} className="text-xl font-medium w-full block">
                     <span>{source?.name || source?.doc_type}</span> <span className={'text-sm text-gray-900 italic'}>{icon}</span>
                 </Link>
                 <div>
@@ -86,7 +86,7 @@ const SourceThumb = ({ source={}, format }) => {
                         )))
                     }
                 </div>
-                <Link to={`source/${isDms ? 'internal' : source?.env}/${source_id}`} className="py-2 block">
+                <Link to={`${isDms ? 'internal_source' : 'source'}/${source_id}`} className="py-2 block">
 
                     <Lexical value={source?.description}/>
                 </Link>
@@ -97,8 +97,9 @@ const SourceThumb = ({ source={}, format }) => {
     );
 };
 
-const RenderAddPattern = ({isAdding, setIsAdding, updateData, sources=[], setSources, submit, type}) => {
+const RenderAddPattern = ({isAdding, setIsAdding, updateData, sources=[], type, datasets}) => {
     const [data, setData] = useState({name: ''});
+    const ExternalComp = datasets[data?.type]?.sourceCreate?.component;
     return (
         <Modal open={isAdding} setOpen={setIsAdding} className={'w-full p-4 bg-white hover:bg-blue-50 border shadow flex items-center'}>
             <select className={'w-full p-1 rounded-md border bg-white'}
@@ -111,6 +112,8 @@ const RenderAddPattern = ({isAdding, setIsAdding, updateData, sources=[], setSou
                             // delete clone.id; remove on btn click since it's used to ID in select.
                             clone.name = `${clone.name} copy (${numMatchingDocTypes+1})`
                             setData(clone)
+                        }else if(datasets[e.target.value]){
+                            setData({...data, type: e.target.value})
                         }else{
                             setData({name: ''})
                         }
@@ -119,37 +122,44 @@ const RenderAddPattern = ({isAdding, setIsAdding, updateData, sources=[], setSou
                 {
                     (sources || []).filter(s => s.doc_type).map(source => <option key={source.id} value={source.id}>{source.name} ({source.doc_type})</option> )
                 }
+                {
+                    Object.keys(datasets).map(source => (<option key={source} value={source}>{source}</option>))
+                }
             </select>
-
             <input className={'p-1 mx-1 text-sm font-light w-full block'}
                    key={'new-form-name'}
                    value={data.name}
                    placeholder={'Name'}
                    onChange={e => setData({...data, name: e.target.value})}
             />
-
-            <button className={'p-1 mx-1 bg-blue-300 hover:bg-blue-500 text-white'}
-                    disabled={!data.name}
-                    onClick={async () => {
-                        const clonedData = cloneDeep(data);
-                        delete clonedData.id;
-                        delete clonedData.views;
-                        clonedData.doc_type = uuidv4();
-                        await updateData({sources: [...(sources || []).filter(s => s.type === `${type}|source`), clonedData]})
-                        window.location.reload()
-                    }}
-            >add</button>
-            <button className={'p-1 mx-1 bg-red-300 hover:bg-red-500 text-white'}
-                    onClick={() => {
-                        setData({name: ''})
-                        setIsAdding(false)
-                    }}
-            >cancel</button>
+            {
+                !datasets[data?.type] ? (
+                    <>
+                        <button className={'p-1 mx-1 bg-blue-300 hover:bg-blue-500 text-white'}
+                                disabled={!data.name}
+                                onClick={async () => {
+                                    const clonedData = cloneDeep(data);
+                                    delete clonedData.id;
+                                    delete clonedData.views;
+                                    clonedData.doc_type = uuidv4();
+                                    await updateData({sources: [...(sources || []).filter(s => s.type === `${type}|source`), clonedData]})
+                                    window.location.reload()
+                                }}
+                        >add</button>
+                        <button className={'p-1 mx-1 bg-red-300 hover:bg-red-500 text-white'}
+                                onClick={() => {
+                                    setData({name: ''})
+                                    setIsAdding(false)
+                                }}
+                        >cancel</button>
+                    </>
+                ) : <ExternalComp context={DatasetsContext} source={data} />
+            }
         </Modal>
     )
 }
 export default function ({attributes, item, dataItems, apiLoad, apiUpdate, updateAttribute, format, submit, ...r}) {
-    const {baseUrl, user, parent, falcor, siteType, type} = useContext(DatasetsContext);
+    const {baseUrl, user, parent, falcor, siteType, type, datasets} = useContext(DatasetsContext);
     const [sources, setSources] = useState([]);
     const [layerSearch, setLayerSearch] = useState("");
     const {...rest } = useParams();
@@ -168,7 +178,7 @@ export default function ({attributes, item, dataItems, apiLoad, apiUpdate, updat
             viewAttributes: ['version', '_modified_timestamp']
         },
         // we only show current pattern's sources. copy over sources, views from forms to access here.
-        [`${format?.app}+${siteType}`]: {
+        [`${format?.app}+${format?.type}`]: {
             label: 'managed',
             isDms: true,
             // {doc_type}-{view_id} is used as type to fetch data items for dms views.
@@ -263,7 +273,7 @@ export default function ({attributes, item, dataItems, apiLoad, apiUpdate, updat
                     }
                 </div>
                 <div className={'w-3/4 flex flex-col space-y-1.5 ml-1.5 max-h-[80dvh] overflow-auto scrollbar-sm'}>
-                    <RenderAddPattern sources={sources} setSources={setSources} updateData={updateData} isAdding={isAdding} setIsAdding={setIsAdding} submit={submit} type={type}/>
+                    <RenderAddPattern sources={sources} setSources={setSources} datasets={datasets} updateData={updateData} isAdding={isAdding} setIsAdding={setIsAdding} submit={submit} type={type}/>
                     {
                         (sources || [])
                             .filter(source => {

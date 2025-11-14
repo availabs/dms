@@ -66,7 +66,9 @@ function pattern2routes (siteData, props) {
         themes = { default: {} },
         pgEnvs = ['hazmit_dama'],
         API_HOST = 'https://graph.availabs.org',
-        damaBaseUrl
+        damaBaseUrl,
+        PROJECT_NAME,
+        datasets
     } = props
 
     const patterns = siteData.reduce((acc, curr) => [...acc, ...(curr?.patterns || [])], []) || [];
@@ -82,7 +84,6 @@ function pattern2routes (siteData, props) {
     //console.log('patterns2routes',dbThemes)
 
     themes = themes?.default ? { ...themes, ...dbThemes } : { ...themes, ...dbThemes, default: {} }
-    console.log('themes', themes)
 
     let dmsConfigUpdated = cloneDeep(dmsConfig);
     dmsConfigUpdated.registerFormats = updateRegisteredFormats(dmsConfigUpdated.registerFormats, dmsConfig.app)
@@ -100,6 +101,19 @@ function pattern2routes (siteData, props) {
                 siteType: dmsConfigUpdated.type,
                 baseUrl: adminPath,
                 API_HOST,
+                PROJECT_NAME,
+                theme: themes['default'],
+                pgEnvs
+            },
+            authWrapper,
+            ErrorBoundary: RootErrorBoundary
+        }),
+        dmsPageFactory({
+            dmsConfig: {
+                ...patternTypes.admin[1]({...dmsConfigUpdated, themes}),
+                siteType: dmsConfigUpdated.type,
+                API_HOST,
+                PROJECT_NAME,
                 theme: themes['default'],
                 pgEnvs
             },
@@ -134,7 +148,9 @@ function pattern2routes (siteData, props) {
                     themes,
                     useFalcor,
                     API_HOST,
-                    damaBaseUrl
+                    damaBaseUrl,
+                    datasets,
+                    datasetPatterns: patterns.filter(p => ['forms', 'datasets'].includes(p.pattern_type))
                 });
                 return ({...dmsPageFactory({
                   dmsConfig: configObj,
@@ -178,7 +194,8 @@ export function DmsSite (config) {
         AUTH_HOST= 'https://graph.availabs.org',
         damaBaseUrl,
         PROJECT_NAME,
-        routes = []
+        routes = [],
+        datasets = {}
     } = config
     //-----------
     // to do:
@@ -199,7 +216,8 @@ export function DmsSite (config) {
                 authWrapper,
                 pgEnvs,
                 damaBaseUrl,
-                PROJECT_NAME: CurrentProjectName
+                PROJECT_NAME: CurrentProjectName,
+                datasets
                 //theme
             })
             : []
@@ -208,9 +226,9 @@ export function DmsSite (config) {
     useEffect(() => {
         let isStale = false;
         async function load () {
-            console.log('loading site data')
+            // console.log('loading site data')
             setLoading(true)
-            console.time('dmsSiteFactory')
+            // console.time('dmsSiteFactory')
             const dynamicRoutes = await dmsSiteFactory({
                 dmsConfig,//adminConfig
                 adminPath,
@@ -220,9 +238,11 @@ export function DmsSite (config) {
                 authWrapper,
                 pgEnvs,
                 damaBaseUrl,
+                PROJECT_NAME: CurrentProjectName,
+                datasets,
                 //theme
             });
-            console.timeEnd('dmsSiteFactory')
+            // console.timeEnd('dmsSiteFactory')
             //console.log('dynamicRoutes ', dynamicRoutes)
             if(!isStale) {
                 setDynamicRoutes(dynamicRoutes);

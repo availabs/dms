@@ -1,7 +1,7 @@
 import React, {useEffect} from "react";
 import { useMatch, useNavigate, Link } from "react-router";
 
-import { AdminContext } from '../../siteConfig'
+import { AdminContext } from '../../context'
 
 function Icon ({ icon, className }) {
 	return (

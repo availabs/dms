@@ -62,11 +62,19 @@ export default function Lexicals ({value, onChange, bgColor, editable=false, id,
 
 function UpdateEditor({ value, onChange, bgColor, theme, editable }) {
     const isFirstRender = React.useRef(true);
+    const lastValue = React.useRef();
     const [editor] = useLexicalComposerContext();
 
     React.useEffect(() => {
-        if (!isFirstRender.current) return;
-        isFirstRender.current = false;
+        if(editable){
+            // avoid re-rendering on value change while editing
+            if (!isFirstRender.current) return;
+            isFirstRender.current = false;
+        }else{
+            // need to re-render if value changes
+            if (lastValue.current === value) return;
+            lastValue.current = value;
+        }
 
         if (!value) {
             // fallback: empty paragraph

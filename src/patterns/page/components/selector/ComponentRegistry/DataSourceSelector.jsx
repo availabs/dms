@@ -69,7 +69,7 @@ export default function DataSourceSelector ({
   formatFromProps,
   sourceTypes=['external', 'internal'], // lists Externally Sourced and Internally Sourced Datasets.
 }) {
-    const {app, type, siteType, falcor, pgEnv} = useContext(CMSContext);
+    const {app, type, siteType, falcor, pgEnv, datasetPatterns} = useContext(CMSContext);
     const { format } = useContext(PageContext)
     const {state, setState, apiLoad} = useContext(ComponentContext);
     const [sources, setSources] = useState([]);
@@ -89,15 +89,19 @@ export default function DataSourceSelector ({
                 viewAttributes: ['version', '_modified_timestamp']
             }
         },
-        ...(sourceTypes.includes('internal') && siteType) && {
-            [`${app}+${siteType}`]: {
-                label: 'managed',
-                isDms: true,
-                // {doc_type}-{view_id} is used as type to fetch data items for dms views.
-                // for invalid entries, it should be {doc_type}-{view_id}-invalid-entry.
-                srcAttributes: ['app', 'name', 'doc_type', 'config', 'default_columns'],
-                viewAttributes: ['name', 'updated_at']
-            }
+        ...(sourceTypes.includes('internal') && datasetPatterns?.length) && {
+            ...datasetPatterns.reduce((acc, pattern) => {
+                acc[`${app}+${pattern.doc_type}`] = {
+                    label: 'managed',
+                    isDms: true,
+                    // {doc_type}-{view_id} is used as type to fetch data items for dms views.
+                    // for invalid entries, it should be {doc_type}-{view_id}-invalid-entry.
+                    srcAttributes: ['app', 'name', 'doc_type', 'config', 'default_columns'],
+                    viewAttributes: ['name', 'updated_at']
+                }
+
+                return acc;
+            }, {})
         }
     };
 
