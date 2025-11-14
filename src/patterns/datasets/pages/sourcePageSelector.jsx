@@ -53,7 +53,7 @@ export default function ({ apiLoad, apiUpdate, format, item, params, isDms }) {
                 cdn: p.cdn // condition fn with arguments ({isDms, sourceType}) to control visibility in nav
             }))
             .filter(p => p.href && !fixedPages.includes(p.href));
-    console.log('???', datasets)
+
     const Page = fixedPages.includes(page) ? defaultPages[page] : (sourcePages[page]?.component || defaultPages[page] || Overview);
 
     return  (<SourcesLayout fullWidth={false} baseUrl={baseUrl} pageBaseUrl={pageBaseUrl} isListAll={false} hideBreadcrumbs={false}
