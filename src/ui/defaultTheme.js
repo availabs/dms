@@ -26,7 +26,6 @@ import icons from './icons'
 import pagesTheme from "../patterns/page/defaultTheme"
 
 
-
 // =====================================================================================================
 // ======================================== todo: move these to UI
 // =====================================================================================================
@@ -36,28 +35,29 @@ import {
 import {
     filterTheme
 } from "../patterns/page/components/selector/dataWrapper/components/filters/RenderFilters";
+import { registerLayoutWidget } from './components/Layout';
 // ======================================================================================================
 
-const navOptions = {
-    "logo": "",
-    "sideNav": {
-        "size": "none",
-        "search": "none",
-        "logo": "none",
-        "dropdown": "none",
-        "fixedMargin": "lg:ml-44",
-        "position": "fixed",
-        "nav": "none"
-    },
-    "topNav": {
-        "size": "compact",
-        "dropdown": "right",
-        "search": "right",
-        "logo": "left",
-        "position": "sticky",
-        "nav": "main"
-    }
-}
+// const navOptions = {
+//     "logo": "",
+//     "sideNav": {
+//         "size": "none",
+//         "search": "none",
+//         "logo": "none",
+//         "dropdown": "none",
+//         "fixedMargin": "lg:ml-44",
+//         "position": "fixed",
+//         "nav": "none"
+//     },
+//     "topNav": {
+//         "size": "compact",
+//         "dropdown": "right",
+//         "search": "right",
+//         "logo": "left",
+//         "position": "sticky",
+//         "nav": "main"
+//     }
+// }
 
 const components = {
     pages: pagesTheme,
@@ -191,7 +191,7 @@ const theme = {
             pageWrapper2: 'grow p-6 lg:rounded-lg lg:bg-white lg:p-10 lg:shadow-xs lg:ring-1 lg:ring-zinc-950/5 dark:lg:bg-zinc-900 dark:lg:ring-white/10'
         }
     },
-    navOptions,
+    //navOptions,
     ...components,
     "Icons":icons,
     docs,

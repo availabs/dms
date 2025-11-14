@@ -33,10 +33,11 @@ export const Item = ({to, icon,children}) => (
 
 
 export default ({title, children}) => {
-    const { user, baseUrl } = React.useContext(CMSContext)
-    const { theme, UI } = React.useContext(ThemeContext)
-    const { Dropdown } = UI;
-    const location = useLocation();
+  const { user, baseUrl } = React.useContext(CMSContext) || { user: { email: 'testuser@availabs.org', authed: true, authlevel: 1,  groups:['AVAIL']} }
+  // console.log('Menu CMS Context', user)
+  const { theme, UI } = React.useContext(ThemeContext) || {}
+  const { Dropdown } = UI;
+  const location = useLocation();
     let authMenuItems = theme?.navOptions?.authMenu?.navItems || [
             {
                 name: 'Datasets',

@@ -22,11 +22,11 @@ const SimpleItem = forwardRef(({item}, ref) => (
       <div className='px-2'><Icon icon={item?.icon || 'Blank'} className='size-5'/></div>
       <div className=''>{item?.name}</div>
     </div>
- 
+
 ))
 
 const SubMenuItem = forwardRef(({item}, ref) => (
-  
+
     <div
       onClick={item.onClick}
       className="cursor-pointer flex items-center rounded-lg py-2 text-sm text-gray-700 data-[focus]:bg-gray-100 data-[focus]:text-gray-900 data-[focus]:outline-none hover:bg-gray-100"
@@ -40,11 +40,11 @@ const SubMenuItem = forwardRef(({item}, ref) => (
         </div>
       </MenuComp>
     </div>
-  
+
 ))
 
 // const InputItem = forwardRef(({item}, ref) => (
- 
+
 //     <div
 //       onClick={item.onClick}
 //       className="cursor-pointer flex items-center rounded-lg py-2 text-sm text-gray-700 data-[focus]:bg-gray-100 data-[focus]:text-gray-900 data-[focus]:outline-none"
@@ -53,7 +53,7 @@ const SubMenuItem = forwardRef(({item}, ref) => (
 //       <div className='flex-1'>{item.name}</div>
 //       <div className='w-20'><Input {...item.inputProps} /></div>
 //     </div>
- 
+
 // ))
 
 
@@ -71,7 +71,7 @@ export const docs = {
 }
 export default function MenuComp ({ children, items=defaultItems, zIndex=40, origin='right-0' }) {
   const [open, setOpen] = React.useState(false)
-    const { theme: themeFromContext = {} } = React.useContext(ThemeContext);
+  const { theme: themeFromContext = {} } = React.useContext(ThemeContext);
   const theme = {...themeFromContext, menu: {...menuTheme, ...(themeFromContext.menu || {})}};
 
   return (
@@ -81,21 +81,19 @@ export default function MenuComp ({ children, items=defaultItems, zIndex=40, ori
           {children}
         </div>
         <div
-
             className={!open ? `hidden pointer-events-none` : `${theme.menu.menuItems} ${origin} ${zIndex}`}
-            
         >
           <div className="py-1">
             {
               items
                 .filter(d => d)
-                .map((item, i) => {   
+                .map((item, i) => {
                     const ItemComp = ItemTypes?.[item?.type] || ItemTypes['simple']
                     return  <ItemComp  key={i} item={item} />
                 })
             }
           </div>
-        
+
         </div>
     </div>
   )

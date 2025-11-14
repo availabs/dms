@@ -1,8 +1,11 @@
 const topNavTheme = {
-      fixed: 'mt-12',
+      "layoutContainer1": `h-[50px] -mb-1`,
+      "layoutContainer2": `fixed w-full z-20 mt-12 `,
       topnavWrapper: `w-full h-[50px] flex items-center pr-1`,
-      topnavContent: `flex items-center w-full h-full bg-white lg:bg-zinc-100 dark:bg-zinc-900 dark:lg:bg-zinc-950`,
+      topnavContent: `flex items-center w-full h-full bg-white lg:bg-zinc-100 dark:bg-zinc-900 dark:lg:bg-zinc-950 justify-between`,
       topnavMenu: `hidden  lg:flex items-center flex-1  h-full overflow-x-auto overflow-y-hidden scrollbar-sm`,
+      topmenuRightNavContainer: "hidden md:flex h-full items-center",
+      topnavMobileContainer: "bg-slate-50",
       menuItemWrapper: 'flex',
       menuIconTop: `text-blue-400 mr-3 text-lg group-hover:text-blue-500`,
       menuIconTopActive : `text-blue-500 mr-3 text-lg group-hover:text-blue-500`,
@@ -20,8 +23,7 @@ const topNavTheme = {
           focus:outline-none focus:text-gray-800 focus:bg-gray-50 focus:border-gray-300
           transition cursor-pointer
         `,
-      topmenuRightNavContainer: "hidden md:flex h-full items-center",
-      topnavMobileContainer: "bg-slate-50",
+
 
       mobileButton:`md:hidden bg-slate-100 inline-flex items-center justify-center pt-[12px] px-2 hover:text-blue-400  text-gray-400 hover:bg-gray-100 `,
       indicatorIcon: 'fal fa-angle-down pl-2 pt-1',

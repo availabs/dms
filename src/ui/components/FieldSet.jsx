@@ -2,6 +2,7 @@ import React from 'react'
 import { Field, Fieldset, Label, Description } from '@headlessui/react'
 import Select from './Select'
 import Listbox from './Listbox'
+import List from './List'
 import Switch from './Switch'
 import Button from './Button'
 import Input, { ConfirmInput, Textarea } from './Input'
@@ -14,6 +15,7 @@ const componentRegistry = {
     ConfirmInput,
     Textarea,
     Select,
+    List,
     Listbox,
     Switch,
     Button,

@@ -37,7 +37,7 @@ function PageView ({item, dataItems, attributes, apiLoad, apiUpdate, reqPermissi
     }
 
 
-
+    console.log('dataitems',dataItems)
     const menuItems = React.useMemo(() => {
         let items = dataItemsNav(dataItems,baseUrl,false)
         return items

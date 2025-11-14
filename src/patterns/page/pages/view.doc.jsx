@@ -10,6 +10,7 @@ const pageViewDoc = {
         "id": "1437075",
         "index": "0",
         "title": "Layout",
+        "icon": "Settings",
         "parent": null,
         "history": [
             {
@@ -165,7 +166,6 @@ const pageViewDoc = {
         "app": "avail",
         "type": "8b636b33-04f4-4500-b88a-06bb5612b6a2",
         "description": null,
-        "icon": null,
         "navOptions": null,
         "hide_in_nav": null,
         "updated_at": "2025-08-29 19:57:43.569796+00",
@@ -179,6 +179,7 @@ const pageViewDoc = {
             "id": "1437075",
             "index": "0",
             "title": "Layout",
+            "icon": "Settings",
             "parent": null,
             "history": [
                 {
@@ -312,7 +313,6 @@ const pageViewDoc = {
             "app": "avail",
             "type": "8b636b33-04f4-4500-b88a-06bb5612b6a2",
             "description": null,
-            "icon": null,
             "navOptions": null,
             "hide_in_nav": null,
             "updated_at": "2025-08-29 19:27:43.785753+00",

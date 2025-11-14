@@ -1,5 +1,4 @@
 import React from "react";
-import { Link } from "react-router";
 import { merge, cloneDeep } from "lodash-es";
 import {
   parseIfJSON,
@@ -8,7 +7,7 @@ import {
 } from "./pages/_utils";
 
 import UI from "../../ui";
-import { ThemeContext } from "../../ui/useTheme.js";
+import { ThemeContext, RegisterLayoutWidget } from "../../ui/useTheme.js";
 
 // pages
 import PageView from "./pages/view";
@@ -29,7 +28,12 @@ import DefaultMenu from "./components/menu";
 
 import defaultTheme from "../../ui/defaultTheme";
 import ErrorPage from "./pages/error";
-
+// ------------
+RegisterLayoutWidget('UserMenu', DefaultMenu)
+// ------------
+// -------------------------------------
+// should move to dms-manager
+// ------------------------------------
 const isUserAuthed = ({user={}, reqPermissions=[], authPermissions=[]}) => {
     if(!user?.authed) return false;
     if(!Object.keys(authPermissions).length) return true;
@@ -49,16 +53,13 @@ const isUserAuthed = ({user={}, reqPermissions=[], authPermissions=[]}) => {
 }
 
 const pagesConfig = ({
-  app = "dms-site",
-  type = "docs-page",
+  app, type,
   siteType,
-  rightMenu = <DefaultMenu />,
   baseUrl = "/",
   damaBaseUrl,
   authPermissions,
   themes = { default: {} },
   pattern,
-  site,
   pgEnv,
   API_HOST
 }) => {
@@ -67,13 +68,8 @@ const pagesConfig = ({
     cloneDeep(themes[pattern?.theme?.settings?.theme?.theme] || themes.default),
     cloneDeep(pattern?.theme) || {},
   );
-  // console.log('pageConfig', pattern.doc_type, pattern.id, themes[pattern?.theme?.settings?.theme?.theme], pattern?.theme, pattern)
-  // baseUrl = baseUrl[0] === '/' ? baseUrl.slice(1) : baseUrl
-  baseUrl = baseUrl === "/" ? "" : baseUrl;
-  rightMenu = theme.rightMenu || rightMenu
-  // console.log('testing', theme.navOptions)
-  // console.log('page siteConfig app,type', `"${app}","${type}"`)
 
+  baseUrl = baseUrl === "/" ? "" : baseUrl;
 
   const format = cloneDeep(cmsFormat);
   format.app = app;
@@ -85,8 +81,7 @@ const pagesConfig = ({
         .find(f => f.type.includes('cms-section'))
         .attributes.push(...pattern.additionalSectionAttributes)
   }
-    //siteType = siteType || type
-  //console.log('foramat after update', app, type, format)
+
 
   // ---------------------------------------------
   // for instances without auth turned on, default user can edit
@@ -127,8 +122,6 @@ const pagesConfig = ({
     children: [
       {
         type: ({children, falcor, user, ...props}) => {
-          // console.log('pages siteConfig - ', user )
-          // console.log('page siteConfig - UI', UI )
           console.log('pass themes', themes, 'pattern',pattern)
 
           return (
@@ -228,7 +221,6 @@ const pagesManagerConfig = ({
   API_HOST,
     user
 }) => {
-  //console.log('hola', themes)
   let theme = merge(
     cloneDeep(defaultTheme),
     cloneDeep(
@@ -237,28 +229,15 @@ const pagesManagerConfig = ({
     pattern?.theme || {},
   );
 
-  // console.log('pageConfig', theme, themes[pattern?.theme?.settings?.theme?.theme], pattern?.theme )
-  // baseUrl = baseUrl[0] === '/' ? baseUrl.slice(1) : baseUrl
   baseUrl = baseUrl === "/" ? "" : baseUrl;
 
-  theme.navOptions.sideNav.size = "compact";
-  theme.navOptions.sideNav.nav = "main";
-  theme.navOptions.topNav.nav = "none";
-
-  // console.log('testing', theme.navOptions)
 
   const format = cloneDeep(cmsFormat);
   format.app = app;
   format.type = type;
   updateRegisteredFormats(format.registerFormats, app, type);
   updateAttributes(format.attributes, app, type);
-  //console.log('foramat after update', app, type, format)
 
-  // console.log('pgEnv siteConfig', app, type, pgEnv)
-  // for instances without auth turned on, default user can edit
-  // should move this to dmsFactory default authWrapper
-
-  // const rightMenuWithSearch = rightMenu; // for live site
   return {
     siteType,
     format: format,

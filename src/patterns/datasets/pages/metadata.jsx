@@ -2,7 +2,7 @@ import React, {useEffect} from "react";
 import { DatasetsContext } from '../context'
 import SourcesLayout from "../components/DatasetsListComponent/layout";
 import MetadataComp from "../components/MetadataComp";
-import {getSourceData, updateSourceData} from "~/modules/dms/src/patterns/datasets/pages/utils";
+import {getSourceData, updateSourceData} from "./utils";
 
 export default function ManageForm ({
     status,

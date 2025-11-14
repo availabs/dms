@@ -10,8 +10,20 @@ import {ThemeContext} from '../useTheme'
 
 const NOOP = () => { return {} }
 
+export const HorizontalMenu = ({menuItems}) => {
+  return menuItems.map((page, i) => (
+    <TopNavItem
+      key={i}
+      to={page.path}
+      icon={page.icon}
+      subMenuActivate={subMenuActivate}
+      subMenus={get(page, "subMenus", [])}
+      navItem={page}
+    />
+  ))
+}
 
-export const MobileMenu = ({ open, toggle, menuItems = [], rightMenu = null,themeOptions={}}) => {
+export const MobileMenu = ({ open, toggle, menuItems = [], rightMenu = null}) => {
   //const { theme: fullTheme  } = React.useContext(CMSContext) || {}
     const { theme: fullTheme } = React.useContext(ThemeContext);
   const theme = (fullTheme?.['topnav'] || {} ) //(themeOptions);
@@ -30,11 +42,10 @@ export const MobileMenu = ({ open, toggle, menuItems = [], rightMenu = null,them
             type="top"
             to={page.path}
             icon={page.icon}
-            themeOptions={themeOptions}
             subMenus={get(page, "subMenus", [])}
             navItem={page}
           />
-           
+
         ))}
       </div>
       <div className="">{rightMenu}</div>
@@ -46,50 +57,43 @@ export const DesktopMenu = ({
   open,
   toggle,
   menuItems = [],
+  mainMenu = null,
   rightMenu = null,
   leftMenu = null,
-  subMenuActivate,
-  themeOptions={}
+  subMenuActivate
 }) => {
+  mainMenu ? mainMenu : <HorizontalMenu menuItems={menuItems} />
   //const { theme: fullTheme  } = React.useContext(CMSContext) || {}
     const { theme: fullTheme } = React.useContext(ThemeContext);
   const theme = (fullTheme?.['topnav'] || {} ) //(themeOptions);
   return (
-    <div className={`${theme?.topnavWrapper}`}>
-      <div className={`${theme?.topnavContent} justify-between`}>
-        <div>{leftMenu}</div>
-        <div className={`${theme?.topnavMenu}`}>
-          {menuItems.map((page, i) => (
-            <NavItem
-              key={i}
-              type="top"
-              to={page.path}
-              icon={page.icon}
-              subMenuActivate={subMenuActivate}
-              themeOptions={themeOptions}
-              subMenus={get(page, "subMenus", [])}
-              navItem={page}
-            />
-          ))}
-        </div>
-
-        <div className="flex items-center justify-center h-full">
-          <div className={`${theme?.topmenuRightNavContainer}`}>{rightMenu}</div>
-
-          {/*<!-- Mobile menu button -->*/}
-          <button
-            type="button"
-            className={`${theme?.mobileButton}`}
-            onClick={() => toggle(!open)}
-          >
-            <span className="sr-only">Open main menu</span>
-            <div className={`flex justify-center items-center text-2xl`}>
-              <Icon icon = {!open ? theme?.menuOpenIcon : theme?.menuCloseIcon} />
-              
+    <div className={`${theme?.layoutContainer1}`}>
+			<div className={`${theme?.layoutContainer2}`}>
+        <div className={`${theme?.topnavWrapper}`}>
+          <div className={`${theme?.topnavContent}`}>
+            <div>{leftMenu}</div>
+            <div className={`${theme?.topnavMenu}`}>
+              {mainMenu}
             </div>
-          </button>
+
+            <div className="flex items-center justify-center h-full">
+              <div className={`${theme?.topmenuRightNavContainer}`}>{rightMenu}</div>
+
+              {/*<!-- Mobile menu button -->*/}
+              <button
+                type="button"
+                className={`${theme?.mobileButton}`}
+                onClick={() => toggle(!open)}
+              >
+                <span className="sr-only">Open main menu</span>
+                <div className={`flex justify-center items-center text-2xl`}>
+                  <Icon icon = {!open ? theme?.menuOpenIcon : theme?.menuCloseIcon} />
+                </div>
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
+			</div>
     </div>
   );
 };
@@ -108,28 +112,24 @@ const TopNav = ({ ...props }) => {
 export default TopNav;
 
 
-const NavItem = ({
+const TopNavItem = ({
   navItem,
   parent,
   depth = 0,
   maxDepth = 1,
-  children,
   icon,
   to,
   onClick,
   className = null,
-  type = "side",
   active = false,
   subMenus = [],
-  themeOptions,
   subMenuActivate = 'onHover',
   subMenuOpen = false
 }) => {
   // console.log('renderMenu')
   //const { theme: fullTheme  } = React.useContext(CMSContext) || {}
-    const { theme: fullTheme } = React.useContext(ThemeContext);
-  const theme = (fullTheme?.[type === 'side' ? 'sidenav' : 'topnav'] || {}) //(themeOptions);
-
+  const { theme: fullTheme } = React.useContext(ThemeContext);
+  const theme = (fullTheme?.topnav || {})
   const navigate = useNavigate();
   const To = React.useMemo(() => {
     if (!Array.isArray(to)) {
@@ -172,11 +172,11 @@ const NavItem = ({
 
   return (
       <div className={
-        parent?.description ? 
+        parent?.description ?
         (theme?.menuItemWrapper1Parent?.[depth] || theme?.menuItemWrapper1Parent) :
         (theme?.menuItemWrapper1?.[depth] || theme?.menuItemWrapper1) }
         onMouseOutCapture={() => {
-          setHovering(false); 
+          setHovering(false);
           setShowSubMenu(false)
         }}
         onMouseMove={() => {
@@ -184,10 +184,10 @@ const NavItem = ({
           setShowSubMenu(true);
         }}
       >
-        
+
         <div
           className={`${className ? className : navClass}`}
-          
+
           onClick={(e) => {
             e.stopPropagation();
             if (onClick) return onClick(To[0]);
@@ -200,7 +200,7 @@ const NavItem = ({
                 <Icon
                   icon={icon}
                   className={
-                    type === "side" ? 
+                    type === "side" ?
                       (isActive ? theme?.menuIconSideActive : theme?.menuIconSide)
                       : (isActive ? theme?.menuIconTopActive : theme?.menuIconTop)
 
@@ -234,10 +234,10 @@ const NavItem = ({
                 {
                   depth < maxDepth && subMenus.length ? <Icon icon={theme?.indicatorIcon || 'ArrowDown'} className={theme?.indicatorIconWrapper} /> : null
                 }
-                
+
               </div>
             </div>
-            
+
             { depth < maxDepth && subMenus.length ?
                 <SubMenu
                   parent={navItem}
@@ -247,7 +247,6 @@ const NavItem = ({
                   active={routeMatch}
                   hovering={hovering}
                   subMenus={subMenus}
-                  type={type}
                   className={className}
                   maxDepth={maxDepth}
                 /> : ''
@@ -258,26 +257,26 @@ const NavItem = ({
   );
 };
 
-const SubMenu = ({ parent, depth, showSubMenu, subMenus, type, hovering, subMenuActivate, active, maxDepth }) => {
+const SubMenu = ({ parent, depth, showSubMenu, subMenus, hovering, subMenuActivate, active, maxDepth }) => {
     const { theme: fullTheme } = React.useContext(ThemeContext);
   //const { theme: fullTheme  } = React.useContext(CMSContext)
-  const theme = (fullTheme?.[type === 'side' ? 'sidenav' : 'topnav'] || {}) //(themeOptions);
-  
+  const theme = (fullTheme?.topnav || {}) //(themeOptions);
+
   // if(depth === 0) {
   //  console.log('submenu parent',parent)
   // }
-  
+
   if (!showSubMenu) {
     return <></>;
   }
 
   return (
     <div
-      className={   
-        theme?.subMenuWrapper1?.[depth] || theme?.subMenuWrapper1 
+      className={
+        theme?.subMenuWrapper1?.[depth] || theme?.subMenuWrapper1
       }
     >
-      
+
       <div
         className={`${ theme?.subMenuWrapper2?.[depth]} || ${theme?.subMenuWrapper2}`}
       >
@@ -303,8 +302,7 @@ const SubMenu = ({ parent, depth, showSubMenu, subMenus, type, hovering, subMenu
               depth={depth+1}
               key={i}
               to={sm.path}
-              icon={sm.icon} 
-              type={type} 
+              icon={sm.icon}
               className={sm.className}
               onClick={sm.onClick}
               subMenus={sm.subMenus}
@@ -314,7 +312,6 @@ const SubMenu = ({ parent, depth, showSubMenu, subMenus, type, hovering, subMenu
           ))}
         </div>
       </div>
-      
     </div>
   );
 };
