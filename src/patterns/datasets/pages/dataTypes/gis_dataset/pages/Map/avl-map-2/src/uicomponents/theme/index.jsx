@@ -1,13 +1,17 @@
+export * from "./utils"
+export * from "./compositions"
 
-import {
-  composeTheme,
-  makeProxy,
-  $compositions
-} from "../avl-map-2/src"
+import React from "react"
 
-const MapThemeBase = {
+import { composeTheme, makeProxy } from "./utils"
+import { $compositions } from "./compositions"
+
+const LightBase = {
   bgInput: "bg-white",
   bgInputHover: "hover:bg-white",
+
+  bgLegend: "bg-gray-300",
+  bgLegendHover: "hover:bg-gray-300",
 
   bgContrast: "bg-gray-800",
   bgContrastHover: "hover:bg-gray-800",
@@ -17,21 +21,21 @@ const MapThemeBase = {
 
   text: "text-gray-800 disabled:text-gray-400 placeholder:text-gray-400",
   textDisabled: "text-gray-400 disabled:text-gray-400 placeholder:text-gray-400",
-  bg: "bg-white",
+  bg: "bg-gray-100",
   border: "border-gray-800",
   outline: "outline-gray-800",
 
   textButton: "text-gray-400 disabled:text-gray-400 placeholder:text-gray-400",
   bgButton: "bg-gray-400",
   bgButtonHover: "hover:bg-gray-400",
-  borderButton: "shadow",
+  borderButton: "border-gray-400",
   outlineButton: "outline-gray-400",
 
-  textInfo: "text-teal-400 disabled:text-teal-400 placeholder:text-teal-400",
-  bgInfo: "bg-teal-400",
-  bgInfoHover: "hover:bg-teal-400",
-  borderInfo: "border-teal-400",
-  outlineInfo: "outline-teal-400",
+  textInfo: "text-blue-400 disabled:text-blue-400 placeholder:text-blue-400",
+  bgInfo: "bg-blue-400",
+  bgInfoHover: "hover:bg-blue-400",
+  borderInfo: "border-blue-400",
+  outlineInfo: "outline-blue-400",
 
   textSuccess: "text-green-400 disabled:text-green-400 placeholder:text-green-400",
   bgSuccess: "bg-green-400",
@@ -65,9 +69,9 @@ const MapThemeBase = {
   paddingBase: "py-1 px-2",
   paddingLarge: "py-2 px-4",
 
-  bgAccent1: "bg-white",
-  bgAccent2: "bg-white",
-  bgAccent3: "bg-white",
+  bgAccent1: "bg-gray-200",
+  bgAccent2: "bg-gray-300",
+  bgAccent3: "bg-gray-400",
   bgAccent4: "bg-gray-500",
 
   bgAccent1Hover: "hover:bg-gray-200",
@@ -89,7 +93,27 @@ const MapThemeBase = {
   $compositions
 };
 
-const composed = composeTheme(MapThemeBase);
-const MapTheme = makeProxy(composed);
+const ComposedLightTheme = composeTheme(LightBase);
+export const LightTheme = makeProxy(ComposedLightTheme);
 
-export default MapTheme;
+const ThemeContext = React.createContext(LightTheme);
+export const useTheme = () => React.useContext(ThemeContext);
+
+export const ThemeProvider = ({ theme, children }) => {
+  return (
+    <ThemeContext.Provider value={ theme }>
+      { children }
+    </ThemeContext.Provider>
+  )
+}
+export const ThemeUpdater = ({ themeUpdate, children }) => {
+  const theme = useTheme();
+  const UpdatedTheme = React.useMemo(() => {
+    return { ...theme, ...themeUpdate };
+  }, [theme, themeUpdate]);
+  return (
+    <ThemeContext.Provider value={ UpdatedTheme }>
+      { children }
+    </ThemeContext.Provider>
+  )
+}

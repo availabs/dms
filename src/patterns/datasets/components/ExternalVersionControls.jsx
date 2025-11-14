@@ -1,8 +1,7 @@
-import {Link, useParams} from "react-router";
+import {Link} from "react-router";
 import React, {useContext, useEffect, useMemo, useState} from "react";
 import {DatasetsContext} from "../context";
 import {get} from "lodash-es";
-import { DAMA_HOST } from '~/config'
 
 const isCalculatedCol = (attr={}) => {
     return attr.display === 'calculated' || attr.type === 'calculated' || attr.origin === 'calculated-column';
@@ -179,7 +178,7 @@ const DownloadModalCheckboxGroup = ({
 };
 
 export default function ExternalVersionControls({isDms, source, view, sourceId, viewId}) {
-    const { pgEnv, baseUrl, user, falcor, falcorCache, UI } = useContext(DatasetsContext);
+    const { pgEnv, baseUrl, user, falcor, falcorCache, UI, DAMA_HOST } = useContext(DatasetsContext);
     const {Button, Modal} = UI;
 
     const [modalState, setModalState] = useState(INITIAL_MODAL_STATE);

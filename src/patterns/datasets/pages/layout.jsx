@@ -3,14 +3,9 @@ import {Link, useNavigate} from 'react-router'
 import {DatasetsContext} from "../context";
 
 const Alert = () => <div>A</div>
-const Database =  () => <div>D</div>
 
 const navPages = [
   {name: 'Overview', href: ``, viewDependentPage: false},
-  {name: 'Table', href: `table`, viewDependentPage: true},
-  {name: 'Map', href: `map`, viewDependentPage: true, cdn: ({isDms, sourceType}) => !isDms && sourceType === 'gis_dataset'},
-  {name: 'Upload', href: `upload`, viewDependentPage: true, cdn: ({isDms}) => isDms},
-    {name: 'Validate', href: `validate`, viewDependentPage: true, cdn: ({isDms}) => isDms},
     {name: 'Admin', href: `admin`, viewDependentPage: false},
 ]
 
