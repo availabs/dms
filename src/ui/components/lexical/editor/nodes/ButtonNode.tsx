@@ -22,7 +22,7 @@ import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext
 import {DecoratorNode} from 'lexical';
 
 import * as React from 'react';
-import {Link} from 'react-router'
+import {Link, useLocation} from 'react-router'
 import {InsertButtonDialog} from "../plugins/ButtonPlugin";
 import useModal from "../hooks/useModal";
 
@@ -34,10 +34,12 @@ const BUTTON_STYLES = {
   whiteSmall: 'w-fit h-fit cursor-pointer uppercase border boder-[#E0EBF0] bg-white hover:bg-[#E0EBF0] text-[#37576B] font-[700] leading-[14.62px] rounded-full text-[12px] text-center pt-[9px] pb-[7px] px-[12px]',  
 }
 
-function ButtonComponent({nodeKey, linkText, path, style}) {
+function ButtonComponent({nodeKey, linkText, path, keepSearchParams, style}) {
   const isEditable = useLexicalEditable();
   const [editor] = useLexicalComposerContext();
   const [modal, showModal] = useModal();
+  const location = useLocation();
+  const linkPath = keepSearchParams ? `${path}${location.search}` : path;
   // type ShowModal = ReturnType<typeof useModal>[1];
 
   return (
@@ -48,7 +50,7 @@ function ButtonComponent({nodeKey, linkText, path, style}) {
                 onClick={(e) => {
                   e.preventDefault();
                   showModal('Insert Button', (onClose) => (
-                      <InsertButtonDialog activeEditor={editor} onClose={onClose} initialValues={{linkText, path, style, nodeKey}}/>
+                      <InsertButtonDialog activeEditor={editor} onClose={onClose} initialValues={{linkText, keepSearchParams, path, style, nodeKey}}/>
                   ))
                 }}
             >
@@ -57,7 +59,7 @@ function ButtonComponent({nodeKey, linkText, path, style}) {
         ) : (
             <Link
                 className={`${BUTTON_STYLES[style] || BUTTON_STYLES['primary']}`}
-                to={path}
+                to={linkPath}
             >
               {linkText || 'submit'}
             </Link>
@@ -69,6 +71,7 @@ function ButtonComponent({nodeKey, linkText, path, style}) {
 }
 export interface ButtonPayload {
     linkText: string;
+    keepSearchParams: boolean;
     path: string;
     style?: string;
 }
@@ -76,6 +79,7 @@ export interface ButtonPayload {
 export type SerializedButtonNode = Spread<
   {
     linkText: string;
+    keepSearchParams: boolean;
     path: string;
     style: string;
   },
@@ -98,6 +102,7 @@ function convertButtonElement(
 
 export class ButtonNode extends DecoratorNode {
   __linkText: string;
+  __keepSearchParams: boolean;
   __path: string;
   __style: string;
 
@@ -106,11 +111,11 @@ export class ButtonNode extends DecoratorNode {
   }
 
   static clone(node: ButtonNode): ButtonNode {
-    return new ButtonNode(node.__linkText, node.__path, node.__style, node.__key);
+    return new ButtonNode(node.__linkText, node.__keepSearchParams, node.__path, node.__style, node.__key);
   }
 
   static importJSON(serializedNode): ButtonNode {
-    const node = $createButtonNode({linkText: serializedNode.linkText, path:serializedNode.path, style:serializedNode.style});
+    const node = $createButtonNode({linkText: serializedNode.linkText, keepSearchParams: serializedNode.keepSearchParams, path:serializedNode.path, style:serializedNode.style});
 
     return node;
   }
@@ -121,14 +126,16 @@ export class ButtonNode extends DecoratorNode {
       type: 'button',
       version: 1,
       linkText: this.__linkText,
+      keepSearchParams: this.__keepSearchParams,
       path: this.__path,
       style: this.__style
     };
   }
 
-  constructor(linkText: string, path?: string, style?: string, key?: NodeKey) {
+  constructor(linkText: string, keepSearchParams: boolean, path?: string, style?: string, key?: NodeKey) {
     super(key);
     this.__linkText = linkText;
+    this.__keepSearchParams = keepSearchParams;
     this.__path = path;
     this.__style = style;
   }
@@ -176,6 +183,7 @@ export class ButtonNode extends DecoratorNode {
         format={this.__format}
         nodeKey={this.getKey()}
         linkText={this.__linkText}
+        keepSearchParams={this.__keepSearchParams}
         path={this.__path}
         style={this.__style}
       />
@@ -188,8 +196,8 @@ export class ButtonNode extends DecoratorNode {
 }
 
 export function $createButtonNode(payload): ButtonNode {
-  const {linkText,path,style} = payload
-  return new ButtonNode(linkText,path,style);
+  const {linkText, keepSearchParams, path, style} = payload
+  return new ButtonNode(linkText, keepSearchParams, path, style);
 }
 
 export function $isButtonNode(
