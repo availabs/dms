@@ -276,7 +276,7 @@ const patternConfig = ({
                 children: [
                     {
                         type: PatternPageSelector,
-                        path: ":pattern_id/:page?",
+                        path: ":id/:page?",
                         action: "edit"
                     },
                 ]

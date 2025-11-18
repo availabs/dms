@@ -8,7 +8,7 @@ import {PatternPermissionsEditor} from "../components/PatternPermissionsEditor";
 export default ({params, item, format, apiUpdate, attributes}) => {
     const {baseUrl, UI, user} = React.useContext(AdminContext);
     const [tmpItem, setTmpItem] = React.useState(item);
-    const {pattern_id, page='overview'} = params;
+    const {id, page='overview'} = params;
     const {Button} = UI;
     const attrs = {
         overview: ['pattern_type', 'name', 'subdomain', 'base_url'],
@@ -26,7 +26,7 @@ export default ({params, item, format, apiUpdate, attributes}) => {
     }
     console.log('value', item)
     return (
-        <AdminLayout id={pattern_id}
+        <AdminLayout id={id}
                      page={{name: page}}
                      baseUrl={baseUrl}
                      pattern={item}
