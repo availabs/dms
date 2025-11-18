@@ -80,16 +80,7 @@ export default function ColumnControls({context, cms_context}) {
     useHandleClickOutside(menuRef, menuBtnId, () => setIsOpen(false));
 
     const columnsToRender =
-        (sourceInfo?.columns || [])
-            .reduce((acc, attribute) => {
-                const match = columns.filter(c => c.name === attribute.name);
-                return [...acc, ...(match.length ? match : [attribute])];
-            }, []) // map to current settings
-            // .sort((a,b) => {
-            //     const orderA = columns.findIndex(column => column.name === a.name);
-            //     const orderB = columns.findIndex(column => column.name === b.name);
-            //     return orderA - orderB;
-            // })
+        [...columns, ...(sourceInfo.columns || []).filter(c => !columns.map(c => c.name).includes(c.name))]
             .filter(attribute => (
                 !search ||
                 getColumnLabel(attribute).toLowerCase().includes(search.toLowerCase()))
@@ -115,7 +106,7 @@ export default function ColumnControls({context, cms_context}) {
     };
 
     const drop = (e) => {
-        const copyListItems = cloneDeep(sourceInfo.columns);
+        const copyListItems = cloneDeep(columns);
         const dragItemContent = copyListItems[dragItem.current];
         copyListItems.splice(dragItem.current, 1);
         copyListItems.splice(dragOverItem.current, 0, dragItemContent);
@@ -123,9 +114,9 @@ export default function ColumnControls({context, cms_context}) {
         dragOverItem.current = null;
         setState(draft => {
             // map original columns to columns with settings, and then filter out extra columns.
-            // todo: handle duplicate columns
-            draft.columns = copyListItems.map(originalColumn => columns.find(colWithSettings => colWithSettings.name === originalColumn.name)).filter(c => c);
-            draft.sourceInfo.columns = copyListItems;
+            const names = copyListItems.map(c => c.name);
+            draft.columns = copyListItems //.map(originalColumn => columns.find(colWithSettings => colWithSettings.name === originalColumn.name)).filter(c => c);
+            draft.sourceInfo.columns = [...copyListItems, ...draft.sourceInfo.columns.filter(c => !names.includes(c.name))];
         })
     };
     // ================================================== drag utils end ===============================================

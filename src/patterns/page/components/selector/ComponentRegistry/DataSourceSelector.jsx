@@ -9,7 +9,6 @@ const range = (start, end) => Array.from({length: (end + 1 - start)}, (v, k) => 
 // get forms, and their sources
 const getSources = async ({envs, falcor, apiLoad}) => {
     if(!envs || !Object.keys(envs)) return [];
-    console.log('get sources', envs)
     const lenRes = await falcor.get(['uda', Object.keys(envs), 'sources', 'length']);
 
     const sources = await Promise.all(
@@ -107,7 +106,6 @@ export default function DataSourceSelector ({
 
     useEffect(() => {
         let isStale = false;
-        console.log('get sources', envs)
         getSources({envs, falcor, apiLoad}).then(data => {
             if(isStale) return;
             setSources((data || []));
