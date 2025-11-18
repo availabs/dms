@@ -22,38 +22,51 @@ export default function LinkPlugin(): JSX.Element {
             editor.registerCommand(
                 TOGGLE_LINK_COMMAND,
                 (payload) => {
-                    if (!payload || !payload.url) return false;
                     const { url, target = '_self' } = payload;
 
                     editor.update(() => {
                         const selection = $getSelection();
+                        const nodes = selection.getNodes();
                         if (!$isRangeSelection(selection)) return;
 
                         const selectedText = selection.getTextContent();
+                        if (!payload || !payload.url) {
+                            for (const node of nodes) {
+                                let parent = node.getParent();
 
-                        // Try to update existing link nodes
-                        const nodes = selection.getNodes();
-
-                        for (const node of nodes) {
-                            const parent = node.getParent();
-                            if ($isLinkNode(parent)) {
-                                parent.setURL(url);
-                                parent.setTarget(target);
-                                return;
+                                if ($isLinkNode(parent)) {
+                                    parent.insertAfter(node);
+                                    parent.remove();
+                                } else if ($isLinkNode(node)) {
+                                    node.remove();
+                                    selection.insertText(node.getTextContent());
+                                }
                             }
-                            if ($isLinkNode(node)) {
-                                node.setURL(url);
-                                node.setTarget(target);
-                                return;
+
+                            return;
+                        }else{
+                            // Create a new link node with the selected text inside
+                            const linkNode = $createLinkNode(url, { target });
+                            linkNode.append($createTextNode(selectedText));
+
+                            // Replace selection with the new link node
+                            selection.insertNodes([linkNode]);
+
+                            // Try to update existing link nodes
+                            for (const node of nodes) {
+                                const parent = node.getParent();
+                                if ($isLinkNode(parent)) {
+                                    parent.setURL(url);
+                                    parent.setTarget(target);
+                                    return;
+                                }
+                                if ($isLinkNode(node)) {
+                                    node.setURL(url);
+                                    node.setTarget(target);
+                                    return;
+                                }
                             }
                         }
-
-                        // Create a new link node with the selected text inside
-                        const linkNode = $createLinkNode(url, { target });
-                        linkNode.append($createTextNode(selectedText));
-
-                        // Replace selection with the new link node
-                        selection.insertNodes([linkNode]);
                     });
 
                     return true;
