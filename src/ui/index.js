@@ -29,7 +29,8 @@ import Table from "./components/table";
 import Card from "./components/Card";
 import Graph from "./components/graph";
 import Listbox from "./components/Listbox";
-import ColumnTypes from "./columnTypes/index.jsx"
+import Permissions from "./components/Permissions";
+import ColumnTypes from "./columnTypes/index.jsx";
 
 //console.log('UI start - columnTpces', columnTypes)
 const UI = {
@@ -51,6 +52,7 @@ const UI = {
 	Label,
 	Popover,
 	Pill,
+    Permissions,
 
 	// --- Forms
 	FieldSet,
