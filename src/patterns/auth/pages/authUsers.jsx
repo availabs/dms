@@ -33,7 +33,7 @@ const InputControl = ({show, value, onChange, placeHolder}) => {
     );
 };
 
-function AddUserModal({ open, setOpen, onAdd, loading }) {
+function AddUserModal({ open, setOpen, onAdd, loading, status }) {
     const { UI } = React.useContext(ThemeContext);
     const { Modal, Input, Button } = UI;
     const [email, setEmail] = useState("");
@@ -48,7 +48,7 @@ function AddUserModal({ open, setOpen, onAdd, loading }) {
                     placeHolder="Enter user email"
                 />
                 <Button onClick={() => onAdd(email)}>
-                    {loading ? "Adding" : "Add"}
+                    {loading ? "Adding" : status || "Add"}
                 </Button>
             </div>
         </Modal>
@@ -71,16 +71,30 @@ export default function UsersAdmin() {
     const gridRef = useRef(null);
     const { Modal, Table, Button } = UI;
 
+    const loadUsers = async () => {
+        const uRes = await callAuthServer(`${AUTH_HOST}/users/byProject`, {
+            token: user.token,
+            project: PROJECT_NAME
+        });
+        if (!uRes.error) setUsers((uRes.users || []).filter(u => u.email !== user.email));
+    };
+
     const handleAddUser = async (email) => {
         setLoadingAdd(true);
-        await callAuthServer(`${AUTH_HOST}/signup/assign/group`, {
+        const res = await callAuthServer(`${AUTH_HOST}/signup/assign/group`, {
             token: user.token,
             email,
             url: window?.location?.host,
             project: PROJECT_NAME
         });
-        setLoadingAdd(false);
-        setAddingNew(false);
+
+        if(!res.error){
+            await loadUsers();
+            setLoadingAdd(false);
+            setAddingNew(false);
+        }else{
+            setStatus(res.error)
+        }
     };
 
     /* ---------------------- Load Data (parallel) ---------------------- */
@@ -262,6 +276,7 @@ export default function UsersAdmin() {
                 setOpen={setAddingNew}
                 onAdd={handleAddUser}
                 loading={loadingAdd}
+                status={status}
             />
 
             {/* Reset password modal */}
