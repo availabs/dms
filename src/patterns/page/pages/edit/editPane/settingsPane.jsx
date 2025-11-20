@@ -105,7 +105,6 @@ function DebouncedInput({value, onChange, Input, ...rest}) {
 
 function SettingsPane () {
   const { theme } = React.useContext(ThemeContext);
-  console.log('them icons', theme.Icons)
   const { UI, baseUrl, user  } = React.useContext(CMSContext) || {}
   const { item, pageState, dataItems, apiUpdate } =  React.useContext(PageContext) || {}
   const { Button, Menu, FieldSet, Icon, Input } = UI;
