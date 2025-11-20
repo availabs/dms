@@ -149,7 +149,7 @@ function SettingsPane () {
             label: 'Hide in Nav',
             value: item.hide_in_nav || '',
             options: [
-              {label: 'Show', value: ''}, 
+              {label: 'Show', value: ''},
               {label: 'Hide', value: 'hide'}
             ],
             onChange:(e) => {
@@ -161,7 +161,7 @@ function SettingsPane () {
             label: 'Cover Page',
             value: item.is_cover_page || '',
             options: [
-              {label: 'No', value: ''}, 
+              {label: 'No', value: ''},
               {label: 'Yes', value: 'yes'}
             ],
             onChange:(e) => {
@@ -173,10 +173,10 @@ function SettingsPane () {
             label: 'Show Content Sidebar',
             value: item.sidebar || '',
             options: [
-                  {label: 'None', value: ''}, 
+                  {label: 'None', value: ''},
                   {label: 'Left', value: 'left'},
                   {label: 'Right', value: 'right'},
-                  
+
             ],
             onChange:(e) => {
               togglePageSetting(item, 'sidebar', e.target.value,  apiUpdate)
@@ -187,9 +187,9 @@ function SettingsPane () {
             label: 'Show SideNav',
             value: item?.navOptions?.sideNav?.size || '',
             options: [
-                  {label: 'Show', value: 'compact'}, 
+                  {label: 'Show', value: 'compact'},
                   {label: 'Hide', value: 'none'}
-                  
+
             ],
             onChange:(e) => {
               togglePageSetting(item, 'navOptions.sideNav.size', e.target.value,  apiUpdate)
@@ -221,7 +221,7 @@ function SettingsPane () {
             onChange:(e) => {
               //console.log('update icon thing', e)
               togglePageSetting(item, 'icon', e,  apiUpdate)
-            
+
             }
           },
           {
@@ -245,7 +245,7 @@ function SettingsPane () {
           ...themeSettings
         ]} />
       </div>
-    </div>          
+    </div>
   )
 }
 
@@ -255,7 +255,7 @@ export const togglePageSetting = async (item,type, value='', apiUpdate) => {
   const newItem = {id: item.id}
   set(newItem, type, value)
   console.log('update', type, newItem)
- 
+
   // console.log('item', newItem, value)
   let sectionType = 'draft_sections';
   if(type === 'header' && !item?.[sectionType]?.filter(d => d.is_header)?.[0]) {
@@ -269,8 +269,8 @@ export const togglePageSetting = async (item,type, value='', apiUpdate) => {
         "element-data": {}
       }
     })
-   
-  } 
+
+  }
 
   apiUpdate({data:newItem})
 }
@@ -308,6 +308,3 @@ export function PublishButton () {
   //   </div>
   // )
 }
-
-
-

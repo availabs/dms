@@ -6,7 +6,7 @@ import GISDatasetLayer from './Layer2'
 import { AvlMap, ThemeProvider} from "./avl-map-2/src"
 import mapTheme from './map-theme'
 import { DatasetsContext } from "../../../../../context"
-import {Protocol, PMTiles} from './utils/pmtiles'
+import {Protocol, PMTiles} from './utils/pmtiles/index.ts'
 
 const PIN_OUTLINE_LAYER_SUFFIX = '_pin_outline'
 
@@ -97,7 +97,7 @@ const MapPage = ({params, source,views, HoverComp, displayPinnedGeomBorder=false
 
 
       if(sources?.[0]?.source?.tiles?.[0] && !sources[0].source.tiles[0].includes('?') ) {
-        
+
         sources[0].source.tiles[0] = sources[0].source.tiles[0] + '?cols=ogc_fid'
       }
 
