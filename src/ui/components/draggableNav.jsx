@@ -178,7 +178,7 @@ function DraggableNav({
 
         const dataItemsHash = updatedDataItemsFlat;
 
-        // seems useless as nestable updates index and parent
+        // seems useless as nestable updates index and parent. this basically flattens the tree
         const updates = updateNav(tree, '', dataItemsHash);
 
         // compute newItems to produce slugs
