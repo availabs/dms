@@ -174,11 +174,12 @@ const RenderNestable = ({ parent, items: itemsProp, matches, onChange, dataItems
         // console.log('di', dataItems[dragState.dragItem].title, dataItems[dragState.dragItem].parent)
         return (
             <div key={`${item.id}-${idx}-placeholder`}
-                 className={'w-full h-[70px] bg-blue-300'}
+                 className={'p-2'}
                  onDragEnter={e => dragEnter(e, item, idx)}
                  onDragOver={e => e.preventDefault()}
                  onDrop={e => onDrop({e, moveType, idx})}
             >
+                <div className={'w-full h-[40px] bg-blue-300 rounded-md border border-dashed'} />
                 {/*{JSON.stringify({*/}
                 {/*    moveType,*/}
                 {/*    dragItemParent: dataItems[dragState.dragItem]?.parent,*/}
@@ -239,6 +240,11 @@ const RenderNestable = ({ parent, items: itemsProp, matches, onChange, dataItems
 
 export default function NestableInHouse({ dataItems: dataItemsInit, matches, ...props }) {
     const [dataItems, setDataItems] = useImmer(dataItemsInit);
+
+    useEffect(() => {
+        if(!isEqual(dataItemsInit, dataItems)) setDataItems(dataItemsInit);
+    }, [dataItemsInit]);
+
     const itemsTree = useMemo(() => buildTree(dataItems, matches, []), [dataItems]);
     const [dragState, setDragState] = useImmer({
         isDragging: false,
