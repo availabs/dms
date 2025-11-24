@@ -21,7 +21,9 @@ const getParentSlug = (item, dataItems) => {
     if (!item.parent) {
         return ''
     }
-    let parent = dataItems.filter(d => d.id === item.parent)[0]
+    let parent = dataItems.find(d => d.id === item.parent)
+    if(!parent) return `/`;
+
     return `${parent.url_slug}/`
 }
 
@@ -174,16 +176,12 @@ function DraggableNav({
         // Immediately update local copy used to render
         setLocalData(Object.values(updatedDataItemsFlat));
 
-        // Here `updateNav` expects the nested "tree" and current hash to diff against
-        // Use the *previous* dataItemsProp or updatedDataItemsFlat depending on your intended diff.
-        const dataItemsHash = (dataItemsProp || []).reduce((out, curr) => {
-            out[curr.id] = curr;
-            return out;
-        }, {});
+        const dataItemsHash = updatedDataItemsFlat;
 
+        // seems useless as nestable updates index and parent
         const updates = updateNav(tree, '', dataItemsHash);
 
-        // compute newItems to produce slugs (same logic you had)
+        // compute newItems to produce slugs
         const newItems = [
             ...updates,
             ...dataItemsProp.filter(d => !updates.map(i => i.id).includes(d.id))
@@ -202,7 +200,7 @@ function DraggableNav({
     }, [apiUpdate, dataItemsProp]);
 
     const findParents = (localData, id) => {
-        let parent = localData.filter(d => +d.id === +id)?.[0]?.parent
+        let parent = localData.find(d => +d.id === +id)?.parent
         if (!parent) {
             return [id]
         }
@@ -214,20 +212,6 @@ function DraggableNav({
     let matchId = matchRoutes(matchItems, {pathname: pathname.replace(baseUrl, '').replace('edit/', '')})?.[0]?.route?.id || -1
     let matches = findParents(localData, matchId)
 
-    // use localData to compute items and dataItemsObj for Nestable
-    const items = (localData || dataItemsProp)
-        .sort((a, b) => a.index - b.index)
-        .filter(d => !d.parent)
-        .map((d) => ({
-            id: d.id,
-            index: d.index,
-            title: d.title,
-            url_slug: d.url_slug,
-            parent: d.parent,
-            isExpanded: d.isExpanded || matches.includes(d.id) || false,
-            children: getChildNav(d, (localData || dataItemsProp), baseUrl, edit, matches)
-        }));
-
     const dataItemsObj = (localData || dataItemsProp).reduce((out, curr) => {
         out[curr.id] = { ...curr, children: getChildNav(curr, (localData || dataItemsProp), baseUrl, edit, matches) };
         return out;
@@ -237,7 +221,6 @@ function DraggableNav({
         <div className={theme?.nestable?.container}>
             <div className={theme?.nestable?.navListContainer}>
                 <Nestable
-                    items={items}
                     dataItems={dataItemsObj}
                     matches={matches}
                     onChange={onDragEnd}
@@ -308,6 +291,7 @@ function updateNav(items, parentId = '', dataItemsHash) {
         if(!orig) return [];
         const update = {id: orig.id, index: orig.index, title: orig.title, url_slug: orig.url_slug}//
         if (orig.index !== i || orig.parent !== parentId) {
+            // seems useless as nestable now takes care of this
             update.index = i
             update.parent = parentId
             updates.push(update)
@@ -331,7 +315,6 @@ function getChildNav(item, dataItems, baseUrl, edit = true, matches=[]) {
             index: d.index,
             title: d.title,
             url_slug: d.url_slug,
-            isExpanded: matches.includes(d.id) || d.isExpanded,
             parent: d.parent,
             children: getChildNav(d, dataItems, baseUrl, edit, matches)
         }

@@ -14,7 +14,6 @@ const buildTree = (dataItems, matches=[], items=[]) => {
                     title: d.title,
                     url_slug: d.url_slug,
                     parent: d.parent,
-                    isExpanded: typeof d.isExpanded === 'boolean' ? d.isExpanded : matches.includes(d.id),
                     children: d.children?.length ? buildTree(dataItems, matches, d.children.map(c => c.id)) : []
                 }
             })
@@ -23,11 +22,10 @@ const buildTree = (dataItems, matches=[], items=[]) => {
         return []
     }
 }
-const RenderNestable = ({ parent, items: itemsProp, matches, onChange, dataItems, setDataItems, renderItem, dragState, setDragState }) => {
-    const items = itemsProp;
-    // const items = !itemsProp ? Object.values(dataItems).filter(i => i.parent === parent) : itemsProp
-
-
+const RenderNestable = ({ parent, items, onChange, dataItems, setDataItems, renderItem, dragState, setDragState, expanded, setExpanded }) => {
+    // =================================================================================================================
+    // ========================================= drag - drop utils begin ===============================================
+    // =================================================================================================================
     const onDrop = ({e, moveType, idx, parent}) => {
         // moveTypes:
         // inset at index: splice, change index. happens in the same parent.
@@ -71,12 +69,8 @@ const RenderNestable = ({ parent, items: itemsProp, matches, onChange, dataItems
                 updatedDateItems[item.parent].children = childrenToUpdate;
             }
 
-            setDataItems(draft => {
-                for (const k in updatedDateItems) {
-                    draft[k] = updatedDateItems[k];
-                }
-            });
-            onChange?.(buildTree(updatedDateItems, matches, []), updatedDateItems);
+            setDataItems(updatedDateItems);
+            onChange?.(buildTree(updatedDateItems, expanded, []), updatedDateItems);
 
         }else if (moveType === 'INSERT_AS_CHILD'){
             // update parent and idx
@@ -123,7 +117,7 @@ const RenderNestable = ({ parent, items: itemsProp, matches, onChange, dataItems
                     draft[k] = updatedDateItems[k];
                 }
             });
-            const newTree = buildTree(updatedDateItems, matches, []);
+            const newTree = buildTree(updatedDateItems, expanded, []);
             onChange?.(newTree, updatedDateItems);
         }
 
@@ -152,6 +146,7 @@ const RenderNestable = ({ parent, items: itemsProp, matches, onChange, dataItems
             draft.dragOverIdx = idx;
         })
     };
+    // ========================================= drag - drop utils end =================================================
 
     const RenderPlaceHolder = ({idx, item}) => {
         // idx: index being dragged upon; item: item being dragged upon
@@ -202,34 +197,39 @@ const RenderNestable = ({ parent, items: itemsProp, matches, onChange, dataItems
                 onDragEnter={e => dragEnter(e, item, idx)}
                 onDragOver={e => {
                     e.preventDefault()
-                    //todo change color
                 }}
                 onDrop={e => onDrop({e, moveType: 'INSERT_AS_CHILD', parent: item.id})}
             >
                 {renderItem({
                     item,
-                    isExpanded: dataItems[item.id].isExpanded,
+                    isExpanded: expanded.includes(item.id),
                     handleCollapseIconClick: () => {
-                        setDataItems(draft => {
-                            if (!draft[item.id]) return;
-                            draft[item.id].isExpanded = !draft[item.id].isExpanded;
-                        });
+                        setExpanded(draft => {
+                            const index = draft.indexOf(item.id);
+
+                            if (index !== -1) {
+                                draft.splice(index, 1);
+                            } else {
+                                draft.push(item.id);
+                            }
+                        })
                     }
                 })}
             </div>
             {
-                (matches.includes(item.id) || dataItems[item.id].isExpanded) && item.children?.length > 0 && (
+                (expanded.includes(item.id) || expanded.includes(item.id)) && dataItems[item.id].children?.length > 0 && (
                     <div className="ml-4 border-l">
                         <RenderNestable
                             parent={item.id}
-                            matches={matches}
-                            items={buildTree(dataItems, matches, item.children.map(c => c.id))}
+                            items={buildTree(dataItems, expanded, dataItems[item.id].children.map(c => c.id))}
                             dataItems={dataItems}
                             setDataItems={setDataItems}
                             renderItem={renderItem}
                             onChange={onChange}
                             dragState={dragState}
                             setDragState={setDragState}
+                            expanded={expanded}
+                            setExpanded={setExpanded}
                         />
                     </div>
                 )}
@@ -240,12 +240,7 @@ const RenderNestable = ({ parent, items: itemsProp, matches, onChange, dataItems
 
 export default function NestableInHouse({ dataItems: dataItemsInit, matches, ...props }) {
     const [dataItems, setDataItems] = useImmer(dataItemsInit);
-
-    useEffect(() => {
-        if(!isEqual(dataItemsInit, dataItems)) setDataItems(dataItemsInit);
-    }, [dataItemsInit]);
-
-    const itemsTree = useMemo(() => buildTree(dataItems, matches, []), [dataItems]);
+    const [expanded, setExpanded] = useImmer(matches);
     const [dragState, setDragState] = useImmer({
         isDragging: false,
         dragOverParent: null,
@@ -253,12 +248,21 @@ export default function NestableInHouse({ dataItems: dataItemsInit, matches, ...
         dragItem: null
     })
 
+    useEffect(() => {
+        if(!isEqual(dataItemsInit, dataItems)) {
+            setDataItems(dataItemsInit)
+        }
+    }, [dataItemsInit]);
+
+    const itemsTree = useMemo(() => buildTree(dataItems, matches, []), [dataItems]);
+
     return <RenderNestable
         items={itemsTree}
         dataItems={dataItems}
         setDataItems={setDataItems}
-        matches={matches}
         dragState={dragState}
         setDragState={setDragState}
+        expanded={expanded}
+        setExpanded={setExpanded}
         {...props} />;
 }
