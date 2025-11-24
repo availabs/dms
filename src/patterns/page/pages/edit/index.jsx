@@ -136,7 +136,8 @@ function PageEdit ({format, item, dataItems, updateAttribute, attributes, apiLoa
 			updateAttribute,
 			editPane, setEditPane,
 			format,
-			busy
+			busy,
+            baseUrl
 		}}>
 			<>
 				<PageControls />

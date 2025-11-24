@@ -24,7 +24,7 @@ export default ({params, item, format, apiUpdate, attributes}) => {
     const updateData = () => {
         apiUpdate({data: tmpItem, config: {format}})
     }
-    console.log('value', item)
+
     return (
         <AdminLayout id={id}
                      page={{name: page}}
@@ -39,6 +39,9 @@ export default ({params, item, format, apiUpdate, attributes}) => {
                     }
                     if(attrKey === 'authPermissions'){
                         EditComp = PatternPermissionsEditor
+                    }
+                    if(attrKey === 'pattern_type'){
+                        EditComp = ViewComp
                     }
                     return (
                         <EditComp
