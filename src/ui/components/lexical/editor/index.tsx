@@ -39,7 +39,8 @@ export default function Lexicals ({value, onChange, bgColor, editable=false, id,
         editable: editable,
         readOnly: !editable,
         onError: (error) => {
-            throw error;
+            // throw error;
+            console.error('Error in Rich text:', error)
         },
         theme: lexicalTheme,
     };
