@@ -282,7 +282,7 @@ function FloatingLinkEditor({
             tabIndex={0}
             onMouseDown={(event) => event.preventDefault()}
             onClick={() => {
-              editor.dispatchCommand(TOGGLE_LINK_COMMAND, null);
+              editor.dispatchCommand(TOGGLE_LINK_COMMAND, {});
             }}
           />
         </div>

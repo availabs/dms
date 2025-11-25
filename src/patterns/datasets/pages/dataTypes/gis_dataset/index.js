@@ -1,18 +1,28 @@
-// import MapPage from "./pages/Map";
 import CreatePage from "./pages/Create";
-// import Table from "./pages/Table";
-// import Uploads from "./pages/Uploads";
-
-// import { getAttributes } from 'pages/DataManager/components/attributes'
+import Map from "./pages/Map";
+import Table from "./pages/table";
+import Metadata from "./pages/metadata"
 
 const GisDatasetConfig = {
-
-  sourceCreate: {
-    name: "Create",
-    component: CreatePage,
-  },
-
-
+    table: {
+        name: "Table",
+        path: "/table",
+        component: Table,
+    },
+    metadata: {
+        name: "Metadata",
+        path: "/metadata",
+        component: Metadata,
+    },
+    map: {
+        name: "Map",
+        path: "/map",
+        component: Map,
+    },
+    sourceCreate: {
+        name: "Create",
+        component: CreatePage,
+    },
 };
 
 export default GisDatasetConfig;

@@ -8,7 +8,7 @@ import {ThemeContext} from "../../../../../ui/useTheme";
 
 
 function PagesPane () {
-  const { item, dataItems, apiUpdate } =  React.useContext(PageContext) || {};
+  const { item, dataItems, apiUpdate, baseUrl } =  React.useContext(PageContext) || {};
   const { isUserAuthed, user} = React.useContext(CMSContext);
   const { UI } = React.useContext(ThemeContext)
   const {DraggableNav} = UI;
@@ -31,6 +31,7 @@ function PagesPane () {
           item={item}
           dataItems={dataItems}
           apiUpdate={apiUpdate}
+          baseUrl={baseUrl}
           renderAddItemButton={isUserAuthed(['create-page'])}
           NavComp={(props) => DraggableNavItem({...props, duplicatePage})}
         />

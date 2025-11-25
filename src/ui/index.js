@@ -23,13 +23,15 @@ import Dialog from "./components/Dialog";
 import Dropdown from "./components/Dropdown";
 import Modal from "./components/Modal";
 import {DeleteModal} from "./components/DeleteModal";
-import DraggableNav from "./components/nestable/draggableNav";
+import DraggableNav from "./components/draggableNav";
+import DraggableNavOld from "./components/nestable/draggableNav";
 import Pagination from "./components/Pagination";
 import Table from "./components/table";
 import Card from "./components/Card";
 import Graph from "./components/graph";
 import Listbox from "./components/Listbox";
-import ColumnTypes from "./columnTypes/index.jsx"
+import Permissions from "./components/Permissions";
+import ColumnTypes from "./columnTypes/index.jsx";
 
 //console.log('UI start - columnTpces', columnTypes)
 const UI = {
@@ -43,6 +45,7 @@ const UI = {
 	TopNav,
   // Nestable,
 	DraggableNav,
+	DraggableNavOld,
 	// --- Utilities
 	Icon,
 	Button,
@@ -51,6 +54,7 @@ const UI = {
 	Label,
 	Popover,
 	Pill,
+    Permissions,
 
 	// --- Forms
 	FieldSet,

@@ -41,6 +41,7 @@ export function InsertButtonDialog({
   onClose: () => void;
   initialValues?: {
     linkText: string;
+    keepSearchParams: boolean;
     path: string;
     style: string;
     nodeKey?: string;
@@ -48,6 +49,7 @@ export function InsertButtonDialog({
 }): JSX.Element {
   const hasModifier = useRef(false);
   const [linkText, setLinkText] = useState(initialValues?.linkText || 'submit');
+  const [keepSearchParams, setKeepSearchParams] = useState(initialValues?.keepSearchParams || false);
   const [path, setPath] = useState(initialValues?.path || '#');
   const [style, setStyle] = useState(initialValues?.style || 'primary');
 
@@ -63,10 +65,10 @@ export function InsertButtonDialog({
   }, [activeEditor]);
 
   const handleOnClick = () => {
-    const payload = {linkText, path, style};
+    const payload = {linkText, keepSearchParams, path, style};
     activeEditor.update(() => {
       if (initialValues?.nodeKey) {
-        const newNode = $createButtonNode({linkText, path, style});
+        const newNode = $createButtonNode({linkText, keepSearchParams, path, style});
         const oldNode = $getNodeByKey(initialValues.nodeKey);
         if ($isButtonNode(oldNode)) {
           oldNode.replace(newNode);
@@ -120,6 +122,13 @@ export function InsertButtonDialog({
 
       </Select>
 
+        <Select id={'keep-search-params-select'}
+                label={'Keep Search Params'}
+                value={keepSearchParams.toString()}
+                onChange={e => setKeepSearchParams(e === 'false' ? false : true)}>
+            <option key={'false'} value={'false'}>Discard Search Params</option>
+            <option key={'true'} value={'true'}>Keep Search Params</option>
+        </Select>
       <DialogActions>
         <Button
           data-test-id="create-button-node"

@@ -15,6 +15,7 @@ import Tasks from "./pages/dataTypes/default/Tasks/";
 import TaskPage from "./pages/dataTypes/default/Tasks/TaskPage";
 import csv_dataset from "./pages/dataTypes/csv_dataset";
 import gis_dataset from "./pages/dataTypes/gis_dataset";
+import internal_dataset from "./pages/dataTypes/internal";
 
 // for instances without auth turned on can edit
 
@@ -43,6 +44,7 @@ const adminConfig = ({
     damaBaseUrl,
     Menu,
     API_HOST='https://graph.availabs.org',
+    DAMA_HOST='https://graph.availabs.org',
     authPermissions,
     logo,
     pattern,
@@ -91,9 +93,9 @@ const adminConfig = ({
                           falcor,
                           user,
                           theme, app, type, siteType,
-                          parent: pattern, API_HOST,
+                          parent: pattern, API_HOST, DAMA_HOST,
                           authPermissions,
-                          datasets: {csv_dataset, gis_dataset, ...datasets},
+                          datasets: {csv_dataset, gis_dataset, internal_dataset, ...datasets},
                           Menu: () => <>{Menu || <DefaultMenu theme={theme} UI={UI}/>}</>,
                           isUserAuthed: (reqPermissions, customAuthPermissions) => isUserAuthed({user, authPermissions: customAuthPermissions || authPermissions, reqPermissions}),
                       }}>
@@ -147,6 +149,7 @@ const externalSourceConfig = ({
     damaBaseUrl,
     Menu,
     API_HOST='https://graph.availabs.org',
+    DAMA_HOST='https://graph.availabs.org',
     authPermissions,
     columns,
     logo,
@@ -199,9 +202,9 @@ const externalSourceConfig = ({
                           pgEnv,
                           theme, app, type, siteType,
                           parent: pattern,
-                          Menu: () => <>{Menu || <DefaultMenu theme={theme} UI={UI}/>}</>, API_HOST,
+                          Menu: () => <>{Menu || <DefaultMenu theme={theme} UI={UI}/>}</>, API_HOST, DAMA_HOST,
                           falcor,
-                          datasets: {csv_dataset, gis_dataset, ...datasets},
+                          datasets: {csv_dataset, gis_dataset, internal_dataset, ...datasets},
                           authPermissions,
                           isUserAuthed: (reqPermissions, customAuthPermissions) => isUserAuthed({user, authPermissions: customAuthPermissions || authPermissions, reqPermissions}),
                       }}>
@@ -249,6 +252,7 @@ const internalSourceConfig = ({
     damaBaseUrl,
     Menu,
     API_HOST='https://graph.availabs.org',
+    DAMA_HOST='https://graph.availabs.org',
     authPermissions,
     columns,
     logo,
@@ -302,9 +306,9 @@ const internalSourceConfig = ({
                           pgEnv,
                           theme, app, type, siteType,
                           parent: pattern,
-                          Menu: () => <>{Menu || <DefaultMenu theme={theme} UI={UI}/>}</>, API_HOST,
+                          Menu: () => <>{Menu || <DefaultMenu theme={theme} UI={UI}/>}</>, API_HOST, DAMA_HOST,
                           falcor,
-                          datasets,
+                          datasets: {csv_dataset, gis_dataset, internal_dataset, ...datasets},
                           authPermissions,
                           isUserAuthed: (reqPermissions, customAuthPermissions) => isUserAuthed({user, authPermissions: customAuthPermissions || authPermissions, reqPermissions}),
                       }}>

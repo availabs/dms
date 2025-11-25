@@ -3,7 +3,7 @@ import {
   composeTheme,
   makeProxy,
   $compositions
-} from "~/modules/avl-map-2/src"
+} from "../avl-map-2/src"
 
 const MapThemeBase = {
   bgInput: "bg-white",

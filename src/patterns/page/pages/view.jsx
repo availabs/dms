@@ -110,7 +110,7 @@ function PageView ({item, dataItems, attributes, apiLoad, apiUpdate, reqPermissi
 
   return (
       <PageContext.Provider
-        value={{ item, pageState, setPageState, updatePageStateFilters, dataItems, apiLoad, apiUpdate, format, busy }}
+        value={{ item, pageState, setPageState, updatePageStateFilters, dataItems, apiLoad, apiUpdate, format, busy, baseUrl }}
       >
         <Layout
             navItems={menuItems}

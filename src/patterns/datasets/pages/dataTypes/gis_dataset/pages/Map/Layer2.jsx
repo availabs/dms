@@ -1,28 +1,22 @@
 import React from "react";
-import { Legend } from "~/modules/avl-components/src";
 import get from "lodash/get";
 import set from "lodash/set";
 import isEqual from "lodash/isEqual";
-import cloneDeep from "lodash/cloneDeep"
 
 import {
+    Legend,
   AvlLayer,
-  // Legend,
-  ActionButton,
   MultiLevelSelect,
-  // ColorRangesByType,
   ColorRanges,
   ColorBar,
-  // ColorCategory,
   Input,
   Button,
   useTheme,
-  ThemeUpdater,
   getScale,
   useClickOutside
-} from "~/modules/avl-map-2/src";
-import ckmeans from "../../../default/Map/utils/ckmeans";
-import { getColorRange } from "../../../default/Map/utils/color-ranges";
+} from "./avl-map-2/src";
+import ckmeans from "./utils/ckmeans";
+import { getColorRange } from "./utils/color-ranges";
 import * as d3scale from "d3-scale";
 import {
   extent as d3extent,

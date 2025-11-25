@@ -15,7 +15,7 @@ import {labelTheme} from "./components/Label";
 import {selectTheme} from "./components/Select";
 import {listboxTheme} from "./components/Listbox";
 import {tableTheme} from "./components/table";
-import {nestableTheme} from "./components/nestable/draggableNav"
+import {nestableTheme} from "./components/draggableNav"
 import {dataCardTheme} from "./components/Card";
 import {graphTheme} from "./components/graph";
 import {logoTheme} from "./components/Logo";

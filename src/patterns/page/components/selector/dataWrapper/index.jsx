@@ -32,19 +32,21 @@ const triggerDownload = async ({state, apiLoad, loadAllColumns, setLoading}) => 
                 ...state.columns,
                 ...state.sourceInfo.columns.filter(originalColumn => !state.columns.find(c => c.name === originalColumn.name))
             ]
-                .filter(c => !isCalculatedCol(c))
-                .map(c => ({...c, show: true}))
+                .map(c => ({...c, show: !isCalculatedCol(c)}))
         } : state;
+
     const {data} = await getData({
         state: tmpState,
         apiLoad, fullDataLoad: true});
 
-    const schema = tmpState.columns.map(({name, display_name, customName}) => ({
-        column: customName || display_name || name,
-        // type: String,
-        value: data => data?.[name],
-        // ...name === 'url' && {'hyperlink': data => data?.[name]}
-    }));
+    const schema = tmpState.columns
+        .filter(({show}) => show)
+        .map(({name, display_name, customName}) => ({
+            column: customName || display_name || name,
+            // type: String,
+            value: data => data?.[name],
+            // ...name === 'url' && {'hyperlink': data => data?.[name]}
+        }));
 
     const filterStr = Object.keys(state.dataRequest?.filter || {}).length ? JSON.stringify(state.dataRequest.filter) : '';
     const fileName = `${state.sourceInfo.view_name} - ${filterStr} - ${getCurrDate()}`;
