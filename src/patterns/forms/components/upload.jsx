@@ -119,6 +119,10 @@ const publish = async ({userId, email, gisUploadId, layerName, app, type, dmsSer
         });
 
     const publishFinalEvent = await res.json();
+
+    if(publishFinalEvent.err){
+        throw new Error(`Error while publishing: ${publishFinalEvent.err}`)
+    }
     setPublishing(false);
     setPublishStatus(true);
 }
@@ -197,57 +201,57 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate,
         </div>
     }
     return !gisUploadId ?
-    // file uploader UI
-    (
-        <div className={'w-full h-[300px]'}>
+        // file uploader UI
+        (
+            <div className={'w-full h-[300px]'}>
 
-            <div className="flex items-center justify-center w-full"
-                 onDragOver={preventDefaults}
-                 onDragEnter={preventDefaults}
-                 onDragLeave={preventDefaults}
-                 onDrop={e => {
-                     preventDefaults(e);
-                     if(!e.dataTransfer.files[0]) return;
-                     return uploadGisDataset({
-                         file: e.dataTransfer.files[0],
-                         user,
-                         etlContextId,
-                         damaServerPath,
-                         setGisUploadId,
-                         setLoading,
-                         setLayers,
-                         setLayerName,
-                         pgEnv, falcor
-                     })
-                 }}
-            >
-                <label htmlFor="dropzone-file"
-                       className="flex flex-col items-center justify-center w-full h-96 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-white hover:bg-gray-50">
-                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                        <svg className="w-8 h-8 mb-4 text-gray-500 " aria-hidden="true"
-                             xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
-                            <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                                  d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
-                        </svg>
-                        {
-                            loading ? <p className="text-xs text-gray-500 ">Uploading...</p> : (
-                                <>
-                                    <p className="mb-2 text-sm text-gray-500 ">
-                                        <span className="font-semibold">Click to upload</span> or drag and drop</p>
-                                    <p className="text-xs text-gray-500">a zipped Excel</p>
-                                </>
-                            )
-                        }
-                    </div>
-                    <input disabled={loading} id="dropzone-file" type="file" className="hidden"
-                           onChange={(e) =>
-                        uploadGisDataset({file: e.target.files[0], user, pgEnv, falcor, etlContextId, damaServerPath, setGisUploadId, setLoading, setLayers, setLayerName})}/>
-                </label>
+                <div className="flex items-center justify-center w-full"
+                     onDragOver={preventDefaults}
+                     onDragEnter={preventDefaults}
+                     onDragLeave={preventDefaults}
+                     onDrop={e => {
+                         preventDefaults(e);
+                         if(!e.dataTransfer.files[0]) return;
+                         return uploadGisDataset({
+                             file: e.dataTransfer.files[0],
+                             user,
+                             etlContextId,
+                             damaServerPath,
+                             setGisUploadId,
+                             setLoading,
+                             setLayers,
+                             setLayerName,
+                             pgEnv, falcor
+                         })
+                     }}
+                >
+                    <label htmlFor="dropzone-file"
+                           className="flex flex-col items-center justify-center w-full h-96 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-white hover:bg-gray-50">
+                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                            <svg className="w-8 h-8 mb-4 text-gray-500 " aria-hidden="true"
+                                 xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
+                                <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                                      d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
+                            </svg>
+                            {
+                                loading ? <p className="text-xs text-gray-500 ">Uploading...</p> : (
+                                    <>
+                                        <p className="mb-2 text-sm text-gray-500 ">
+                                            <span className="font-semibold">Click to upload</span> or drag and drop</p>
+                                        <p className="text-xs text-gray-500">a zipped CSV or Excel</p>
+                                    </>
+                                )
+                            }
+                        </div>
+                        <input disabled={loading} id="dropzone-file" type="file" className="hidden"
+                               onChange={(e) =>
+                                   uploadGisDataset({file: e.target.files[0], user, pgEnv, falcor, etlContextId, damaServerPath, setGisUploadId, setLoading, setLayers, setLayerName})}/>
+                    </label>
+                </div>
+
+
             </div>
-
-
-        </div>
-    ) :
+        ) :
         // post upload UI
         // after a file has been uploaded to the server, make required selection. then publish.
         (
