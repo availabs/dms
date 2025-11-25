@@ -46,6 +46,7 @@ function nav2Level(items, level=1, path, navTitle='') {
 			output = [{name: matches?.[0]?.route?.name, className: navTitle},...output]
 		}
 	}
+  console.log('nav2Level', output)
 	return output || items
 }
 
@@ -63,12 +64,16 @@ const Layout = ({
 	const { theme: defaultTheme = {layout: layoutTheme} } = React.useContext(ThemeContext);
 	const { sideNav={}, topNav={}, activeStyle } = cloneDeep(defaultTheme?.layout.options) || {}
 	const theme = merge(cloneDeep(defaultTheme?.layout?.styles?.[activeStyle || 0] || defaultTheme), cloneDeep(pageTheme))
-	//console.log('Theme', theme, sideNav, activeStyle)
-	const navs = {
-	  "main": (nav2Level(navItems, sideNav.depth, pathname, theme?.navTitle) || []).filter(page => !page.hideInNav),
-		"secondary": secondNav
-	}
+	console.log('Theme', theme, sideNav, activeStyle)
+  const navs = (nav) => {
+    console.log('layout navs', nav, nav.navDepth)
+    return {
+      "main": (nav2Level(navItems, +nav.navDepth , pathname, nav?.navTitle) || []).filter(page => !page.hideInNav),
+      "secondary": secondNav
+    }
+  }
 
+	console.log('Layout', topNav, navs[topNav?.nav])
   return (
     <div className={theme?.outerWrapper}>
       { headerChildren }
@@ -76,8 +81,9 @@ const Layout = ({
   			<div className={theme?.wrapper2} >
   				{ topNav.size !== 'none' && (
             <TopNav
+              activeStyle={ topNav?.activeStyle }
               leftMenu={getMenu(topNav?.leftMenu)}
-              menuItems={ navs[topNav?.nav] || [] }
+              menuItems={ navs(topNav)?.[topNav?.nav] || [] }
 							rightMenu={getMenu(topNav?.rightMenu)}
 						/>
   				)}
@@ -86,7 +92,7 @@ const Layout = ({
 							<SideNav
                 activeStyle={ sideNav?.activeStyle }
 								topMenu={getMenu(sideNav?.topMenu)}
-                menuItems={ navs[sideNav?.nav] || []}
+                menuItems={ navs(sideNav)?.[sideNav?.nav] || []}
 								bottomMenu={getMenu(sideNav?.bottomMenu)}
 							/>
    				  )}

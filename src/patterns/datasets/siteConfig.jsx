@@ -53,31 +53,7 @@ const adminConfig = ({
 
     let theme = merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern?.theme_name] || themes.mny_datasets))
     baseUrl = baseUrl === '/' ? '' : baseUrl
-    const defaultLogo = (
-        <Link to={baseUrl || '/'} className='h-12 flex px-4 items-center'>
-            <div className='rounded-full h-8 w-8 bg-blue-500 border-2 border-blue-300 hover:bg-blue-600' />
-        </Link>
-    )
 
-    if(!theme.navOptions.logo) {
-        theme.navOptions.logo = logo ? logo : defaultLogo
-    }
-    theme.navOptions.sideNav = {
-        "size": "compact",
-        "search": "none",
-        "logo": "top", "menu": "top",
-        "nav": "main",
-        "dropdown": "top"
-    }
-
-    theme.navOptions.topNav = {
-        "size": "none",
-        "dropdown": "right",
-        "search": "right",
-        "logo": "left",
-        "position": "fixed",
-        "nav": "main"
-    }
 
     const patternFormat = cloneDeep(datasetsFormat);
     patternFormat.app = app
@@ -183,31 +159,6 @@ const externalSourceConfig = ({
     let theme = merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern?.theme_name] || themes.mny_datasets));
 
     baseUrl = baseUrl === '/' ? '' : baseUrl
-    const defaultLogo = (
-        <Link to={baseUrl || '/'} className='h-12 flex px-4 items-center'>
-            <div className='rounded-full h-8 w-8 bg-blue-500 border-2 border-blue-300 hover:bg-blue-600' />
-        </Link>
-    )
-
-    if(!theme.navOptions.logo) {
-        theme.navOptions.logo = logo ? logo : defaultLogo
-    }
-    theme.navOptions.sideNav = {
-        "size": "compact",
-        "search": "none",
-        "logo": "top", "menu": "top",
-        "nav": "main",
-        "dropdown": "top"
-    }
-
-    theme.navOptions.topNav = {
-        "size": "none",
-        "dropdown": "right",
-        "search": "right",
-        "logo": "left",
-        "position": "fixed",
-        "nav": "main"
-    }
 
     const patternFormat = cloneDeep(source);
     const newType = `${type}|source`;
@@ -310,31 +261,7 @@ const internalSourceConfig = ({
     let theme = merge(cloneDeep(defaultTheme), cloneDeep(themes[pattern?.theme_name] || themes.mny_datasets));
 
     baseUrl = baseUrl === '/' ? '' : baseUrl
-    const defaultLogo = (
-        <Link to={baseUrl || '/'} className='h-12 flex px-4 items-center'>
-            <div className='rounded-full h-8 w-8 bg-blue-500 border-2 border-blue-300 hover:bg-blue-600' />
-        </Link>
-    )
 
-    if(!theme.navOptions.logo) {
-        theme.navOptions.logo = logo ? logo : defaultLogo
-    }
-    theme.navOptions.sideNav = {
-        "size": "compact",
-        "search": "none",
-        "logo": "top", "menu": "top",
-        "nav": "main",
-        "dropdown": "top"
-    }
-
-    theme.navOptions.topNav = {
-        "size": "none",
-        "dropdown": "right",
-        "search": "right",
-        "logo": "left",
-        "position": "fixed",
-        "nav": "main"
-    }
 
     const patternFormat = cloneDeep(source);
     const newType = `${type}|source`;

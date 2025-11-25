@@ -211,14 +211,15 @@ export default  {
         "size": "compact",
         "nav": "main",
         "activeStyle": null,
-        "topMenu": [{type: 'Logo'}],
-        "bottomMenu": [{type: "UserMenu"}]
+        "topMenu": [],
+        "bottomMenu": []
     },
     "topNav": {
       "size": "none",
       "nav": "none",
-      "leftMenu": [{ type: "Logo" }],
-      "rightMenu": [{ type: "Search" }, { type: "UserMenu" }]
+      "activeStyle": null,
+      "leftMenu": [],
+      "rightMenu": []
     }
   },
   "styles": [{
@@ -230,7 +231,7 @@ export default  {
     "wrapper2": 'flex-1 flex items-start flex-col items-stretch max-w-full min-h-screen',
     "wrapper3": 'flex flex-1',
     "childWrapper": 'flex-1 h-full',
-    "navTitle": `flex-1 text-[24px] font-['Oswald'] font-[500] leading-[24px] text-[#2D3E4C] py-3 px-4 uppercase`
+
   }]
 }
 

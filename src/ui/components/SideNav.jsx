@@ -91,7 +91,7 @@ const DesktopSidebar = ({
 	//const { theme: fullTheme  } = React.useContext(CMSContext) || {}
 	const { theme: fullTheme } = React.useContext(ThemeContext);
 	const theme = getComponentTheme(fullTheme, 'sidenav',activeStyle)
-	console.log('test 123', theme, fullTheme['sidenav'])
+	// console.log('test 123', theme, fullTheme['sidenav'])
 	//const theme = (fullTheme?.['sidenav'] || {})//(themeOptions);
   mainMenu = mainMenu ? mainMenu : <VerticalMenu menuItems={menuItems} activeStyle={activeStyle} />
 

@@ -66,9 +66,10 @@ const pagesConfig = ({
   API_HOST
 }) => {
   let theme = merge(
-    cloneDeep(defaultTheme),
-    cloneDeep(themes[pattern?.theme?.settings?.theme?.theme] || themes.default),
-    cloneDeep(pattern?.theme) || {},
+    {},
+    defaultTheme,
+    (themes[pattern?.theme?.settings?.theme?.theme] || themes.default),
+    (pattern?.theme || {})
   );
 
   baseUrl = baseUrl === "/" ? "" : baseUrl;
@@ -126,7 +127,12 @@ const pagesConfig = ({
         type: ({children, falcor, user, ...props}) => {
           // console.log('pages siteConfig - ', user )
           // console.log('page siteConfig - UI', UI )
-          // console.log('pass themes', themes, 'pattern',pattern)
+          console.log(
+            'siteconfig Themes', themes,
+            '\n pattern', pattern,
+            '\n chosen theme', themes[pattern?.theme?.settings?.theme?.theme],
+            '\n output theme', theme
+          )
           return (
               <CMSContext.Provider value={{
                 app, type, siteType,

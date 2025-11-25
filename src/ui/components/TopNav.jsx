@@ -5,22 +5,23 @@ import { SideNavItem } from './SideNav'
 import Icon from './Icon'
 import {ThemeContext} from '../useTheme'
 
-
-
-
 const NOOP = () => { return {} }
 
-export const HorizontalMenu = ({menuItems}) => {
-  return menuItems.map((page, i) => (
-    <TopNavItem
-      key={i}
-      to={page.path}
-      icon={page.icon}
-      subMenuActivate={subMenuActivate}
-      subMenus={get(page, "subMenus", [])}
-      navItem={page}
-    />
-  ))
+export const HorizontalMenu = ({menuItems, subMenuActivate}) => {
+  return menuItems.map((item, i) => {
+    return (
+      <div key={i} className={item.sectionClass}>
+        <TopNavItem
+          key={i}
+          to={item.path}
+          icon={item.icon}
+          subMenuActivate={subMenuActivate}
+          subMenus={get(item, "subMenus", [])}
+          navItem={item}
+        />
+      </div>
+    )
+  })
 }
 
 export const MobileMenu = ({ open, toggle, menuItems = [], rightMenu = null}) => {
@@ -62,10 +63,12 @@ export const DesktopMenu = ({
   leftMenu = null,
   subMenuActivate
 }) => {
-  mainMenu ? mainMenu : <HorizontalMenu menuItems={menuItems} />
+
   //const { theme: fullTheme  } = React.useContext(CMSContext) || {}
-    const { theme: fullTheme } = React.useContext(ThemeContext);
+  const { theme: fullTheme } = React.useContext(ThemeContext);
   const theme = (fullTheme?.['topnav'] || {} ) //(themeOptions);
+  mainMenu = mainMenu ? mainMenu : <HorizontalMenu menuItems={menuItems} subMenuActivate={subMenuActivate} />
+  console.log('TopNav', mainMenu, menuItems)
   return (
     <div className={`${theme?.layoutContainer1}`}>
 			<div className={`${theme?.layoutContainer2}`}>
@@ -152,9 +155,8 @@ const TopNavItem = ({
 
   const routeMatch = Boolean(useMatch({ path: `${subTos[0]}/*` || '', end: true }));
 
-  const linkClasses = type === "side" ? theme?.navitemSide : theme?.navitemTop;
-  const activeClasses =
-    type === "side" ? theme?.navitemSideActive : theme?.navitemTopActive;
+  const linkClasses = theme?.navitemSide
+  const activeClasses = theme?.navitemTopActive;
 
   const isActive = routeMatch || active
   const navClass = isActive ? activeClasses : linkClasses;
@@ -199,12 +201,7 @@ const TopNavItem = ({
               {!icon ? null : (
                 <Icon
                   icon={icon}
-                  className={
-                    type === "side" ?
-                      (isActive ? theme?.menuIconSideActive : theme?.menuIconSide)
-                      : (isActive ? theme?.menuIconTopActive : theme?.menuIconTop)
-
-                  }
+                  className={(isActive ? theme?.menuIconTopActive : theme?.menuIconTop)}
                 />
               )}
               <div>
@@ -297,7 +294,7 @@ const SubMenu = ({ parent, depth, showSubMenu, subMenus, hovering, subMenuActiva
         )}
         <div className={parent?.description ? theme.subMenuItemsWrapperParent : theme.subMenuItemsWrapper}>
           {subMenus.map((sm, i) => (
-            <NavItem
+            <TopNavItem
               parent={parent}
               depth={depth+1}
               key={i}
