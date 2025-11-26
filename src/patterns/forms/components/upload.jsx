@@ -121,10 +121,12 @@ const publish = async ({userId, email, gisUploadId, layerName, app, type, dmsSer
     const publishFinalEvent = await res.json();
 
     if(publishFinalEvent.err){
+        setPublishStatus('Error! There was a problem uploading the file.')
         throw new Error(`Error while publishing: ${publishFinalEvent.err}`)
+    }else{
+        setPublishing(false);
+        setPublishStatus('The Sheet has been Processed. Please validate your records.')
     }
-    setPublishing(false);
-    setPublishStatus(true);
 }
 const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate,
                   parent, // form/source item. used to update meta about the source
@@ -197,7 +199,7 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate,
     if(!view_id) return 'No version selected.'
     if(publishStatus){
         return <div className={'flex items-center justify-center w-full h-[150px] border rounded-md'}>
-            The Sheet has been Processed. Please validate your records.
+            {publishStatus}
         </div>
     }
     return !gisUploadId ?
