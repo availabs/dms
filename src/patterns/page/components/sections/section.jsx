@@ -46,7 +46,19 @@ export function SectionEdit({
                 value?.helpText ?
                     [{text: value?.['helpText']}] :
                     [];
-    const sectionMenuItems = getSectionMenuItems({isEdit, value, moveItem, TitleEditComp, LevelComp, updateAttribute, Switch, showDeleteModal, setShowDeleteModal, theme})
+    const sectionMenuItems = getSectionMenuItems({
+        isEdit,
+        value,
+        moveItem,
+        TitleEditComp,
+        LevelComp,
+        updateAttribute,
+        Switch,
+        showDeleteModal,
+        setShowDeleteModal,
+        theme,
+        attributes
+    })
 
     return (
         <div className={``}>
@@ -285,7 +297,20 @@ export function SectionView({
 
     if (!value?.element?.['element-type'] && !value?.element?.['element-data']) return null;
 
-    const sectionMenuItems = getSectionMenuItems({isEdit, onEdit, value, moveItem, TitleEditComp, LevelComp, updateAttribute, Switch, showDeleteModal, setShowDeleteModal, theme})
+    const sectionMenuItems = getSectionMenuItems({
+        isEdit,
+        onEdit,
+        value,
+        moveItem,
+        TitleEditComp,
+        LevelComp,
+        updateAttribute,
+        Switch,
+        showDeleteModal,
+        setShowDeleteModal,
+        theme,
+        attributes
+    })
 
     return (
         <div className={``} style={{pageBreakInside: "avoid"}}>
@@ -323,7 +348,7 @@ export function SectionView({
                 <div
                     className={`flex w-full min-h-[50px] items-center pb-2 ${
                         value?.['title'] ? '' : ''
-                            // 'absolute -top-6 -left-2 pointer-events-none'
+                        // 'absolute -top-6 -left-2 pointer-events-none'
                     }`}>
 
                     <div id={`#${value?.title?.replace(/ /g, '_')}`}
@@ -418,14 +443,26 @@ export function SectionView({
 // Supporting Functions & components
 //----------------------------------------------
 
-const getSectionMenuItems = ({isEdit, onEdit, value, moveItem, TitleEditComp, LevelComp, updateAttribute, Switch, showDeleteModal, setShowDeleteModal, theme}) => (
+const getSectionMenuItems = ({
+                                 isEdit,
+                                 onEdit,
+                                 value,
+                                 moveItem,
+                                 TitleEditComp,
+                                 LevelComp,
+                                 updateAttribute,
+                                 Switch,
+                                 showDeleteModal, setShowDeleteModal,
+                                 theme,
+                                 attributes
+                             }) => (
     [
         {icon: 'PencilSquare', name: 'Edit', onClick: onEdit, cdn: () => !isEdit},
         {icon: 'Copy', name: 'Copy Section', onClick: () => handleCopy(value)},
         {type: 'separator'},
-        {icon: 'ChevronUpSquare', name: 'Move Up', onClick: () => moveItem(i, -1)},
-        {icon: 'ChevronDownSquare', name: 'Move Down', onClick: () => moveItem(i, 1)},
-        {type: 'separator'},
+        {icon: 'ChevronUpSquare', name: 'Move Up', onClick: () => moveItem(i, -1), cdn: () => !isEdit},
+        {icon: 'ChevronDownSquare', name: 'Move Down', onClick: () => moveItem(i, 1), cdn: () => !isEdit},
+        {type: 'separator', cdn: () => !isEdit},
         {
             icon: '',
             name: 'Display',
