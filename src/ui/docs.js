@@ -21,6 +21,7 @@ import {docs as Dropdown} from "./components/Dropdown";
 import {docs as DeleteModal} from "./components/DeleteModal";
 import {docs as Pagination} from "./components/Pagination";
 import {docs as DraggableNav} from "./components/draggableNav";
+import {docs as NavigableMenu} from "./components/navigableMenu";
 import pageViewDoc from "../patterns/page/pages/view.doc";
 
 const output = {
@@ -49,6 +50,7 @@ const output = {
     // // Nestable,
     DraggableNav,
     Pagination,
+    NavigableMenu
 }
 
 export default output

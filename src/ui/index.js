@@ -31,9 +31,10 @@ import Card from "./components/Card";
 import Graph from "./components/graph";
 import Listbox from "./components/Listbox";
 import Permissions from "./components/Permissions";
+import NavigableMenu from "./components/navigableMenu";
+import Popup from "./components/Popup";
 import ColumnTypes from "./columnTypes/index.jsx";
 
-//console.log('UI start - columnTpces', columnTypes)
 const UI = {
 	// --- Layout
 	Layout,
@@ -41,6 +42,7 @@ const UI = {
 	SideNavContainer,
 	// --- Navigation
 	Menu,
+    NavigableMenu,
 	SideNav,
 	TopNav,
   // Nestable,
@@ -55,6 +57,7 @@ const UI = {
 	Popover,
 	Pill,
     Permissions,
+    Popup,
 
 	// --- Forms
 	FieldSet,

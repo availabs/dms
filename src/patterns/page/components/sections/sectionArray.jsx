@@ -243,6 +243,7 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
                                     onSave={save}
                                     onCancel={cancel}
                                     onRemove={remove}
+                                    moveItem={moveItem}
                                     attributes={attr?.attributes}
                                     size={size}
                                     i={i}
