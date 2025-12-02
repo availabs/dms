@@ -6,6 +6,7 @@ import {CMSContext} from '../../context'
 import Selector from "../selector";
 import {convert} from './convertToSpreadSheet'
 import {ThemeContext} from "../../../../ui/useTheme";
+import {AuthContext} from "../../../auth/context";
 
 export function SectionEdit({
                                 value,
@@ -27,7 +28,9 @@ export function SectionEdit({
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     let sectionTitleCondition = value?.['title']
     const {theme, UI} = React.useContext(ThemeContext);
-    const {Popup, Button, Icon, Switch, Listbox, NavigableMenu} = UI
+    const {Popup, Button, Icon, Switch, Listbox, NavigableMenu, Permissions} = UI
+    const {AuthAPI} = React.useContext(AuthContext) || {};
+    const {user} = React.useContext(CMSContext) || {};
 
     const updateAttribute = (k, v) => {
         if (!isEqual(value, {...value, [k]: v})) {
@@ -56,6 +59,7 @@ export function SectionEdit({
         Switch,
         showDeleteModal,
         setShowDeleteModal,
+        Permissions, AuthAPI, user,
         theme,
         attributes
     })
@@ -247,11 +251,14 @@ export function SectionView({
     const isEdit = false; // should come from props
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const {theme = {}, UI} = React.useContext(ThemeContext);
-    const {Popup, Icon, NavigableMenu, Switch} = UI;
+    const {Popup, Icon, NavigableMenu, Switch, Permissions} = UI;
+    const {AuthAPI} = React.useContext(AuthContext) || {};
+    const {user} = React.useContext(CMSContext) || {};
 
     const updateAttribute = (k, v) => {
-        if (!isEqual(value, {...value, [k]: v})) {
-            onChange(i, {...value, [k]: v})
+        const newV = {...value, [k]: v}
+        if (!isEqual(value, newV)) {
+            onChange(i, newV)
         }
     }
 
@@ -306,6 +313,7 @@ export function SectionView({
         LevelComp,
         updateAttribute,
         Switch,
+        Permissions, AuthAPI, user,
         showDeleteModal,
         setShowDeleteModal,
         theme,
@@ -453,6 +461,7 @@ const getSectionMenuItems = ({
                                  updateAttribute,
                                  Switch,
                                  showDeleteModal, setShowDeleteModal,
+    Permissions, AuthAPI, user,
                                  theme,
                                  attributes
                              }) => (
@@ -643,6 +652,28 @@ const getSectionMenuItems = ({
                         },
                     ],
                 },
+            ]
+        },
+        {
+            icon: 'AccessControl', name: 'Permissions',
+            items: [
+                {
+                    name: 'Permissions Comp',
+                    type: () => (
+                        <Permissions
+                            value={value?.['authPermissions']}
+                            onChange={v => updateAttribute('authPermissions', v)}
+                            user={user}
+                            getUsers={AuthAPI.getUsers}
+                            getGroups={AuthAPI.getGroups}
+                            permissionDomain={[
+                                {label: 'Edit Page', value: 'edit'},
+                                {label: 'Delete Page', value: 'delete'},
+                            ]}
+                            defaultPermission={['edit']}
+                        />
+                    )
+                }
             ]
         },
         {type: 'separator'},

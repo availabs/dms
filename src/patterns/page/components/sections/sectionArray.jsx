@@ -77,6 +77,14 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
         }
     }, [value]);
 
+    React.useEffect(() => {
+        const id = setTimeout(() => {
+            onChange(values);
+        }, 300);
+
+        return () => clearTimeout(id);
+    }, [values]);
+    
     const [edit, setEdit] = React.useState({
         index: -1,
         value: '',
@@ -94,7 +102,7 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
         const cloneValue = cloneDeep(value || [])
         cloneValue[i] = v
         setValues([...cloneValue, ''])
-        /* await */ onChange(cloneValue)
+        // /* await */ onChange(cloneValue)
     }
 
     const save = /* async */ () => {
