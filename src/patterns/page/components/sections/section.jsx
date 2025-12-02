@@ -192,6 +192,7 @@ export function SectionEdit({
                                    title={'Section Settings'}
                                    btnVisibleOnGroupHover={false}
                                    defaultOpen={true}
+                                   preferredPosition={"right"}
                     />
                 </div>
             </div>
@@ -345,6 +346,7 @@ export function SectionView({
                             <NavigableMenu config={sectionMenuItems}
                                            title={'Section Settings'}
                                            btnVisibleOnGroupHover={true}
+                                           preferredPosition={"right"}
                             />
                         )}
                     </div>

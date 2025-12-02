@@ -159,7 +159,7 @@ const flattenConfig = (config, parent) => {
 }
 
 // @params btnVisibleOnGroupHover: hides button until group is hovered. parent needs to have group class.
-export default function ({config, title, btnVisibleOnGroupHover, defaultOpen}) {
+export default function ({config, title, btnVisibleOnGroupHover, defaultOpen, preferredPosition}) {
     const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
     const theme = {...themeFromContext, navigableMenu: {...navigableMenuTheme, ...(themeFromContext.navigableMenu || {})}};
     const [configStateFlat, setConfigStateFlat] = useImmer(flattenConfig(config));
@@ -174,7 +174,11 @@ export default function ({config, title, btnVisibleOnGroupHover, defaultOpen}) {
                     <Button type={'plain'} className={`${theme.navigableMenu?.button} ${btnVisibleOnGroupHover ? `hidden group-hover:flex` : ``}`}>
                         <Icon className={theme.navigableMenu?.iconWrapper} icon={theme.navigableMenu?.icon}/>
                     </Button>
-                } btnVisibleOnGroupHover={btnVisibleOnGroupHover} defaultOpen={defaultOpen}>
+                }
+                       btnVisibleOnGroupHover={btnVisibleOnGroupHover}
+                       defaultOpen={defaultOpen}
+                       preferredPosition={preferredPosition}
+                >
                     {
                         ({open, setOpen}) => (
                             <Menu config={configStateFlat} title={title} open={open} setOpen={setOpen}/>
