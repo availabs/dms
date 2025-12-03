@@ -11,6 +11,7 @@ const GisDatasetConfig = {
     metadata: {
         name: "Metadata",
         path: "/metadata",
+        cdn: () => false, // hide from nav
         component: Metadata,
     },
     sourceCreate: {
