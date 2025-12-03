@@ -31,6 +31,8 @@ export const FormsContext = React.createContext(undefined);
 // for instances without auth turned on can edit
 
 const isUserAuthed = ({user={}, reqPermissions=[], authPermissions={}}) => {
+    if(!reqPermissions?.length) return true; // if there are no required permissions
+
     if(!user?.authed) return false;
 
     const authedGroups = authPermissions.groups || {};
@@ -51,7 +53,7 @@ const isUserAuthed = ({user={}, reqPermissions=[], authPermissions={}}) => {
                 }, [])
         ]
 
-    return !reqPermissions?.length || userAuthPermissions.some(permission => permission === '*' || reqPermissions.includes(permission))
+    return userAuthPermissions.some(permission => permission === '*' || reqPermissions.includes(permission))
 }
 
 const formsAdminConfig = ({

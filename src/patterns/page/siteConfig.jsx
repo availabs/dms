@@ -31,6 +31,8 @@ import defaultTheme from "../../ui/defaultTheme";
 import ErrorPage from "./pages/error";
 
 const isUserAuthed = ({user={}, reqPermissions=[], authPermissions={}}) => {
+    if(!reqPermissions?.length) return true; // if there are no required permissions
+
     if(!user?.authed) return false;
 
     const authedGroups = authPermissions.groups || {};
@@ -51,7 +53,7 @@ const isUserAuthed = ({user={}, reqPermissions=[], authPermissions={}}) => {
                 }, [])
         ]
 
-    return !reqPermissions?.length || userAuthPermissions.some(permission => permission === '*' || reqPermissions.includes(permission))
+    return userAuthPermissions.some(permission => permission === '*' || reqPermissions.includes(permission))
 }
 
 const pagesConfig = ({
@@ -215,7 +217,7 @@ const pagesConfig = ({
             path: "/*",
             action: "view",
               authPermissions,
-              reqPermissions: ['view-page']
+              // reqPermissions: ['view-page']
           },
         ],
       },
