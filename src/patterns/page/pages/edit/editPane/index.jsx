@@ -27,34 +27,42 @@ const panes = [
       {
         icon: 'AccessControl',
         Component: PermissionsPane,
-          reqPermissions: ['set-page-auth']
+          reqPermissions: ['edit-page-permissions']
       }
     ]
 
 export function EditPane () {
   const { UI } = React.useContext(ThemeContext) || {};
+    const { Icon } = UI;
 
-  const {item, dataItems, apiUpdate, editPane, setEditPane } =  React.useContext(PageContext) || {}
-  const hasChanges = item.published === 'draft' || item.has_changes
-  const { Icon } = UI;
+  const {item, pageState, editPane, setEditPane } =  React.useContext(PageContext) || {}
+    const hasChanges = item.published === 'draft' || item.has_changes
 
+    const { isUserAuthed } = React.useContext(CMSContext) || {};
+    const reqPermissions = ['edit-page-params', 'edit-page-permissions']
+    const pageAuthPermissions = pageState?.authPermissions && typeof pageState.authPermissions === 'string' ? JSON.parse(pageState.authPermissions) : [];
+    const userHasEditPageAccess = isUserAuthed(reqPermissions, pageAuthPermissions)
 
 
   return (
     <div className='fixed bottom-[12px] left-0 right-0 z-50 pointer-events-none'>
       <div className='flex items-cemter p-1 justify-between bg-neutral-900 w-[500px] mx-auto rounded-[12px] shadow pointer-events-auto'>
-        {panes.map((pane,i) => (
-          <div
-            key={pane?.icon || i}
-          className='flex items-cemter  px-2 py-2 cursor-pointer rounded-[12px] hover:bg-slate-700 group'
-          onClick={() => setEditPane({...editPane,index:i, open: !editPane.openX})}
-          >
-            <Icon
-              icon={pane?.icon}
-              className='size-6 group-hover:text-blue-500 text-slate-400'
-            />
-          </div>
-        ))}
+        {userHasEditPageAccess ?
+            panes
+                .filter(pane => !pane.reqPermissions || isUserAuthed(pane.reqPermissions, pageAuthPermissions))
+                .map((pane,i) => (
+                <div
+                    key={pane?.icon || i}
+                    className='flex items-cemter  px-2 py-2 cursor-pointer rounded-[12px] hover:bg-slate-700 group'
+                    onClick={() => setEditPane({...editPane,index:i, open: !editPane.openX})}
+                >
+                    <Icon
+                        icon={pane?.icon}
+                        className='size-6 group-hover:text-blue-500 text-slate-400'
+                    />
+                  </div>
+            )) : null
+        }
 
 
         <div className='h-9 mt-0.5 w-[1px] mx-1  bg-slate-600' />

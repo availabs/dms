@@ -21,7 +21,7 @@ function PageView ({item, dataItems, attributes, apiLoad, apiUpdate, reqPermissi
     const { search } = useLocation()
     const pdfRef = useRef(); // To capture the section of the page to be converted to PDF
     const {theme: fullTheme, UI} = useContext(ThemeContext);
-    const { Menu, baseUrl, patternFilters=[], isUserAuthed } = React.useContext(CMSContext) || {};
+    const { Menu, baseUrl, patternFilters=[], isUserAuthed, authPermissions } = React.useContext(CMSContext) || {};
     const [pageState, setPageState] = useImmer({
       ...item,
       filters: mergeFilters(item?.filters, patternFilters)
@@ -29,10 +29,9 @@ function PageView ({item, dataItems, attributes, apiLoad, apiUpdate, reqPermissi
     const {Layout} = UI;
     let theme = merge(cloneDeep(fullTheme), item?.theme || {})
 
-    if(pageState?.authPermissions &&
-      typeof pageState.authPermissions === 'string' &&
-      !isUserAuthed(reqPermissions, JSON.parse(pageState.authPermissions))
-    ) {
+    if( !isUserAuthed(reqPermissions || []) ||
+        (pageState?.authPermissions && !isUserAuthed(reqPermissions, pageState.authPermissions))
+    ){
         return <div>You do not have permission to view this page. <Link to={baseUrl}>Click here to visit Home</Link></div>
     }
 

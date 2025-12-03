@@ -44,7 +44,20 @@ export const pattern = {
       key: "authPermissions",
       type: "json",
       required: false,
-      default: {},
+      default: [],
+        permissionDomain: [
+            // some defaults to take care of in implementation:
+            // if you create, you get view and edit
+            // each page created gets created with default permissions (if set in pattern), and assign full access (*) to the user who created it
+            {label: '*', value: '*'},
+            {label: 'View Page', value: 'view-page'},
+            {label: 'Create Page', value: 'create-page'},
+            {label: 'Edit Page', value: 'edit-page'},
+            {label: 'Edit Page Layout', value: 'edit-page-layout'},
+            {label: 'Edit Page Params', value: 'edit-page-params'},
+            {label: 'Edit Page Permissions', value: 'edit-page-permissions'},
+            {label: 'Publish Page', value: 'publish-page'},
+        ]
     },
     { key: 'config',
       placeholder: 'please select a type',

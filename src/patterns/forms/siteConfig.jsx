@@ -30,20 +30,27 @@ import ErrorPage from "./pages/error";
 export const FormsContext = React.createContext(undefined);
 // for instances without auth turned on can edit
 
-const isUserAuthed = ({user={}, reqPermissions=[], authPermissions=[]}) => {
+const isUserAuthed = ({user={}, reqPermissions=[], authPermissions={}}) => {
     if(!user?.authed) return false;
-    if(!Object.keys(authPermissions).length) return true;
+
+    const authedGroups = authPermissions.groups || {};
+    const authedUsers = authPermissions.users || {};
+    if(!Object.keys(authedGroups).length && !Object.keys(authedUsers).length) return true;
 
     const userAuthPermissions =
-        (user.groups || [])
-            .filter(group => authPermissions[group])
-            .reduce((acc, group) => {
-                const groupPermissions = Array.isArray(authPermissions[group]) ? authPermissions[group] : [authPermissions[group]];
-                if(groupPermissions?.length){
-                    acc.push(...groupPermissions)
-                }
-                return acc;
-            }, [])
+        [
+            ...(authedUsers[user?.id] || []),
+            ...(user.groups || [])
+                .filter(group => authedGroups[group])
+                .reduce((acc, group) => {
+                    const groupPermissions = Array.isArray(authedGroups[group]) ? authedGroups[group] : [authedGroups[group]];
+                    if(groupPermissions?.length){
+                        acc.push(...groupPermissions)
+                    }
+                    return acc;
+                }, [])
+        ]
+
     return !reqPermissions?.length || userAuthPermissions.some(permission => permission === '*' || reqPermissions.includes(permission))
 }
 

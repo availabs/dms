@@ -2,7 +2,7 @@ import React, {useContext, useRef, useState} from "react"
 import {isEqual} from "lodash-es"
 import {Combobox} from '@headlessui/react'
 import {Link} from "react-router";
-import {CMSContext} from '../../context'
+import {CMSContext, PageContext} from '../../context'
 import Selector from "../selector";
 import {convert} from './convertToSpreadSheet'
 import {ThemeContext} from "../../../../ui/useTheme";
@@ -30,7 +30,10 @@ export function SectionEdit({
     const {theme, UI} = React.useContext(ThemeContext);
     const {Popup, Button, Icon, Switch, Listbox, NavigableMenu, Permissions} = UI
     const {AuthAPI} = React.useContext(AuthContext) || {};
-    const {user} = React.useContext(CMSContext) || {};
+    const {user, isUserAuthed} = React.useContext(CMSContext) || {};
+    const {pageState} = useContext(PageContext);
+    const pageAuthPermissions = pageState?.authPermissions && typeof pageState.authPermissions === 'string' ? JSON.parse(pageState.authPermissions) : [];
+    const sectionAuthPermissions = value?.authPermissions && typeof value.authPermissions === 'string' ? JSON.parse(value?.authPermissions) : [];
 
     const updateAttribute = (k, v) => {
         if (!isEqual(value, {...value, [k]: v})) {
@@ -50,7 +53,7 @@ export function SectionEdit({
                     [{text: value?.['helpText']}] :
                     [];
     const sectionMenuItems = getSectionMenuItems({
-        isEdit,
+        i, isEdit,
         value,
         moveItem,
         TitleEditComp,
@@ -60,6 +63,7 @@ export function SectionEdit({
         showDeleteModal,
         setShowDeleteModal,
         Permissions, AuthAPI, user,
+        isUserAuthed, pageAuthPermissions, sectionAuthPermissions,
         theme,
         attributes
     })
@@ -254,7 +258,10 @@ export function SectionView({
     const {theme = {}, UI} = React.useContext(ThemeContext);
     const {Popup, Icon, NavigableMenu, Switch, Permissions} = UI;
     const {AuthAPI} = React.useContext(AuthContext) || {};
-    const {user} = React.useContext(CMSContext) || {};
+    const {user, isUserAuthed} = React.useContext(CMSContext) || {};
+    const {pageState} = useContext(PageContext);
+    const pageAuthPermissions = pageState?.authPermissions && typeof pageState.authPermissions === 'string' ? JSON.parse(pageState.authPermissions) : [];
+    const sectionAuthPermissions = value?.authPermissions && typeof value.authPermissions === 'string' ? JSON.parse(value?.authPermissions) : [];
 
     const updateAttribute = (k, v) => {
         const newV = {...value, [k]: v}
@@ -306,7 +313,7 @@ export function SectionView({
     if (!value?.element?.['element-type'] && !value?.element?.['element-data']) return null;
 
     const sectionMenuItems = getSectionMenuItems({
-        isEdit,
+        i, isEdit,
         onEdit,
         value,
         moveItem,
@@ -315,6 +322,7 @@ export function SectionView({
         updateAttribute,
         Switch,
         Permissions, AuthAPI, user,
+        isUserAuthed, pageAuthPermissions, sectionAuthPermissions,
         showDeleteModal,
         setShowDeleteModal,
         theme,
@@ -463,17 +471,19 @@ const getSectionMenuItems = ({
                                  updateAttribute,
                                  Switch,
                                  showDeleteModal, setShowDeleteModal,
-    Permissions, AuthAPI, user,
+    Permissions, AuthAPI, user, isUserAuthed, pageAuthPermissions, sectionAuthPermissions,
                                  theme,
-                                 attributes
+                                 attributes, i
                              }) => (
     [
-        {icon: 'PencilSquare', name: 'Edit', onClick: onEdit, cdn: () => !isEdit},
+        {icon: 'PencilSquare', name: 'Edit', onClick: onEdit, cdn: () => !isEdit && isUserAuthed(['edit-section'], sectionAuthPermissions)},
         {icon: 'Copy', name: 'Copy Section', onClick: () => handleCopy(value)},
         {type: 'separator'},
-        {icon: 'ChevronUpSquare', name: 'Move Up', onClick: () => moveItem(i, -1), cdn: () => !isEdit},
-        {icon: 'ChevronDownSquare', name: 'Move Down', onClick: () => moveItem(i, 1), cdn: () => !isEdit},
-        {type: 'separator', cdn: () => !isEdit},
+
+        {icon: 'ChevronUpSquare', name: 'Move Up', onClick: () => moveItem(i, -1), cdn: () => !isEdit && isUserAuthed(['edit-page-layout'], pageAuthPermissions)},
+        {icon: 'ChevronDownSquare', name: 'Move Down', onClick: () => moveItem(i, 1), cdn: () => !isEdit && isUserAuthed(['edit-page-layout'], pageAuthPermissions)},
+        {type: 'separator', cdn: () => !isEdit && isUserAuthed(['edit-page-layout'], pageAuthPermissions)},
+
         {
             icon: '',
             name: 'Display',
@@ -658,6 +668,7 @@ const getSectionMenuItems = ({
         },
         {
             icon: 'AccessControl', name: 'Permissions',
+            cdn: () => isUserAuthed(['edit-section-permissions'], sectionAuthPermissions),
             items: [
                 {
                     name: 'Permissions Comp',
@@ -668,18 +679,17 @@ const getSectionMenuItems = ({
                             user={user}
                             getUsers={AuthAPI.getUsers}
                             getGroups={AuthAPI.getGroups}
-                            permissionDomain={[
-                                {label: 'Edit Page', value: 'edit'},
-                                {label: 'Delete Page', value: 'delete'},
-                            ]}
-                            defaultPermission={['edit']}
+                            permissionDomain={attributes?.authPermissions?.permissionDomain}
+                            defaultPermission={attributes?.authPermissions?.defaultPermission}
                         />
                     )
                 }
             ]
         },
         {type: 'separator'},
-        {icon: 'TrashCan', name: 'Delete', onClick: () => setShowDeleteModal(!showDeleteModal)}
+        {icon: 'TrashCan', name: 'Delete', onClick: () => setShowDeleteModal(!showDeleteModal),
+            cdn: () => isUserAuthed(['edit-section'], sectionAuthPermissions)
+        }
     ].filter(item => !item.cdn || item.cdn())
 )
 

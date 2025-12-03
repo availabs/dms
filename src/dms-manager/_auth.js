@@ -16,27 +16,33 @@ export const defaultCheck = ( checkAuth, {user}, activeConfig, navigate ,path) =
 }
 
 export const defaultCheckAuth = ( props, navigate, path ) => {
-  const {user = {}, reqPermissions, authPermissions} = props
+  const {user = {}, reqPermissions, authPermissions = {}} = props
 
   const userAuthed = user?.authed || false
 
+    const authedGroups = authPermissions.groups || {};
+    const authedUsers = authPermissions.users || {};
+    
   const userAuthPermissions =
-      (user.groups || [])
-          .filter(group => authPermissions[group])
-          .reduce((acc, group) => {
-            const groupPermissions = Array.isArray(authPermissions[group]) ? authPermissions[group] : [authPermissions[group]];
-            if(groupPermissions?.length){
-              acc.push(...groupPermissions)
-            }
-            return acc;
-            }, [])
+      [
+          ...(authedUsers[user?.id] || []),
+          ...(user.groups || [])
+              .filter(group => authedGroups[group])
+              .reduce((acc, group) => {
+                  const groupPermissions = Array.isArray(authedGroups[group]) ? authedGroups[group] : [authedGroups[group]];
+                  if(groupPermissions?.length){
+                      acc.push(...groupPermissions)
+                  }
+                  return acc;
+              }, [])
+      ]
 
   const sendToLogin = !userAuthed && // user is not authed
       reqPermissions?.length // there are required permissions to access this pattern at siteconfig level
       // Object.keys(authPermissions).length; // pattern defines SOME auth; if not, allow access.
   const sendToHome =
       reqPermissions?.length && // there are requires permissions to access this pattern in siteconfig
-      Object.keys(authPermissions).length && // pattern defines SOME auth; if not, allow access.
+      (Object.keys(authedGroups).length || Object.keys(authedUsers).length) && // pattern defines SOME auth; if not, allow access.
       !userAuthPermissions.some(permission => permission === '*' || reqPermissions.includes(permission));
   //----------------------------------------
   // if page requires auth
