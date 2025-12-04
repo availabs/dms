@@ -12,7 +12,7 @@ export const navigableMenuTheme = {
     button: 'px-1 py-0.5',
     icon: 'Menu',
     iconWrapper: 'size-4',
-    menuWrapper: 'bg-white border min-w-[250px] min-h-[150px] rounded-md shadow-md',
+    menuWrapper: 'bg-white border w-64 min-h-[150px] rounded-md shadow-md',
 
     menuCloseIcon: 'XMark',
     menuCloseIconWrapper: 'hover:cursor-pointer size-4',
