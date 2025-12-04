@@ -6,6 +6,8 @@ import Icon from "../Icon";
 import Input from "../Input";
 import Popup from "../Popup";
 import {isEqual} from "lodash-es";
+import { v4 as uuidv4 } from 'uuid';
+
 
 // import this in defaultTheme after theme changes are pushed
 export const navigableMenuTheme = {
@@ -66,7 +68,7 @@ const MenuItem = ({menuItem, setActiveParent}) => {
     return (
         <div key={menuItem.name}
              className={`${theme.navigableMenu?.menuItem} ${theme.navigableMenu?.menuItemHover}`}
-             onClick={hasChildren ? () => setActiveParent(menuItem.name) : menuItem.onClick}
+             onClick={hasChildren ? () => setActiveParent(menuItem.id) : menuItem.onClick}
         >
             <div className={theme.navigableMenu?.menuItemIconLabelWrapper}>
                 <Icon className={theme.navigableMenu?.menuItemIconWrapper} icon={menuItem.icon} />
@@ -117,7 +119,7 @@ const Menu = ({config, title, open, setOpen}) => {
                                 </Button>
                             ) : null
                         }
-                        <label className={'font-semibold text-gray-900'}>{activeParent ? activeParent : title}</label>
+                        <label className={'font-semibold text-gray-900'}>{config[activeParent]?.name ? config[activeParent]?.name : title}</label>
                     </div>
                     <Button type={'plain'}
                             className={'w-fit'}
@@ -145,10 +147,11 @@ const flattenConfig = (config, parent) => {
 
     config.forEach((item, idx) => {
         const itemName = item.name || `${parent}_${idx}`;
-        flatConfig[itemName] = {...item, name: itemName, parent, idx};
+        const id = uuidv4();
+        flatConfig[id] = {...item, name: itemName, parent, idx, id};
 
         if(item.items){
-            const obj = flattenConfig(item.items, itemName);
+            const obj = flattenConfig(item.items, id);
             Object.entries(obj).forEach(([key, val]) => {
                 flatConfig[key] = val
             })
