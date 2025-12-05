@@ -88,9 +88,6 @@ export default function ColumnControls({context, cms_context}) {
     if(columns.some(column => column.type === 'formula')){
         columnsToRender.push(...columns.filter(column => column.type === 'formula'))
     }
-    if(columns.some(column => column.systemCol)){
-        columnsToRender.splice(0, 0, columns.find(column => column.systemCol))
-    }
     // ================================================== drag utils start =============================================
     const dragStart = (e, position) => {
         dragItem.current = position;

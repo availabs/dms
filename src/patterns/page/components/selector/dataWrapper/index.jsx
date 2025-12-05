@@ -697,8 +697,8 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
             })
             const dataToUpdateDB = state.columns.filter(c => !(c.serverFn && c.joinKey) && c.editable !== false)
                 .reduce((acc, col) => {
-                    acc[col.name] = d[col.name];
-                    return {...acc, [col.name]: d[col.name]};
+                    acc[col.name] = d[col.name]?.originalValue || d[col.name];
+                    return acc;
                 }, {id: d.id})
             return apiUpdate({data: {...dataToUpdateDB, [attribute.name]: value},  config: {format: state.sourceInfo}})
         }else{
@@ -706,8 +706,8 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
             const dataToUpdateDB = dataToUpdateState.map(row => {
                 return state.columns.filter(c => !(c.serverFn && c.joinKey) && c.editable !== false)
                     .reduce((acc, col) => {
-                        acc[col.name] = row[col.name];
-                        return {...acc, [col.name]: row[col.name]};
+                        acc[col.name] = row[col.name]?.originalValue || row[col.name];
+                        return acc;
                     }, {id: row.id})
             })
             const tmpData = [...state.data];

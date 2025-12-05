@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect, useMemo, useRef, useState} from "react";
+import React, {useEffect, useMemo, useRef, useState} from "react";
 import {useImmer} from "use-immer";
 import {ThemeContext} from "../../useTheme";
 import Button from "../Button";
@@ -147,13 +147,14 @@ const flattenConfig = (config, parent) => {
 
     config.forEach((item, idx) => {
         const itemName = item.name || `${parent}_${idx}`;
-        const id = uuidv4();
-        flatConfig[id] = {...item, name: itemName, parent, idx, id};
+        const itemId = flatConfig[item.id || itemName] ? uuidv4() : (item.id || itemName); // itemId needs to be uniq
+        flatConfig[itemId] = {...item, name: itemName, parent, idx, id: itemId};
 
         if(item.items){
-            const obj = flattenConfig(item.items, id);
+            const obj = flattenConfig(item.items, itemId);
             Object.entries(obj).forEach(([key, val]) => {
-                flatConfig[key] = val
+                const itemKey = flatConfig[key] ? uuidv4() : key;
+                flatConfig[itemKey] = val
             })
         }
     })
