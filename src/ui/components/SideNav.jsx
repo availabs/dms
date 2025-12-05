@@ -2,29 +2,12 @@ import React, { useState } from "react";
 import { useMatch, useNavigate, Link } from "react-router";
 import Icon from './Icon'
 import { MobileMenu } from './TopNav'
-import {ThemeContext, getComponentTheme} from '../useTheme'
+import { ThemeContext, getComponentTheme } from '../useTheme'
 // import menu from "../../patterns/datasets/components/menu";
 
 const NOOP = () => { return {} }
 
-export const VerticalMenu = ({ menuItems = [], activeStyle }) => {
-  const theme = getComponentTheme(React.useContext(ThemeContext),'layout', activeStyle)
-  return menuItems.map((item, i) => (
-		<div key={i} className={item.sectionClass}>
-  		<SideNavItem
-  			key={i}
-  			to={item.path}
-  			navItem={item}
-  			icon={item.icon}
-  			className={item.className}
-  			onClick={item.onClick}
-        activeStyle={activeStyle}
-  			subMenuActivate={theme?.sideNav?.subMenuActivate}
-  			subMenus={item?.subMenus || []}
-  		/>
-		</div>
-	))
-}
+
 
 const MobileSidebar = ({
    open,
@@ -36,7 +19,7 @@ const MobileSidebar = ({
 }) => {
 	const { theme: fullTheme } = React.useContext(ThemeContext);
 	const theme = getComponentTheme(fullTheme, 'sidenav')
-	console.log('test 123', theme, fullTheme['sidenav'])
+	// console.log('test 123', theme, fullTheme['sidenav'])
   mainMenu = mainMenu ? mainMenu : <VerticalMenu menuItems={ menuItems } />
 	// theme = props.theme || theme;
 
@@ -59,7 +42,7 @@ const MobileSidebar = ({
 						</div>
 						<div
 							className={`flex-1 h-0 pt-2 pb-4 overflow-y-auto overflow-x-hidden flex`}
-						>
+						>subMenuWrappers
 							<div>{topMenu}</div>
 							<nav className="flex-1">
 							  {mainMenu}
@@ -87,13 +70,10 @@ const DesktopSidebar = ({
 	subMenuActivate='onClick',
 	subMenuStyle,
 	...props }) => {
-	//let theme = useTheme()['sidenav'](themeOptions);
-	//const { theme: fullTheme  } = React.useContext(CMSContext) || {}
 	const { theme: fullTheme } = React.useContext(ThemeContext);
 	const theme = getComponentTheme(fullTheme, 'sidenav',activeStyle)
 	// console.log('test 123', theme, fullTheme['sidenav'])
-	//const theme = (fullTheme?.['sidenav'] || {})//(themeOptions);
-  mainMenu = mainMenu ? mainMenu : <VerticalMenu menuItems={menuItems} activeStyle={activeStyle} />
+	mainMenu = mainMenu ? mainMenu : <VerticalMenu menuItems={menuItems} activeStyle={activeStyle} />
 
 	return (
 		<>
@@ -152,12 +132,26 @@ export default function SideNav (props) {
 	);
 };
 
+export const VerticalMenu = ({ menuItems = [], activeStyle }) => {
+  const theme = getComponentTheme(React.useContext(ThemeContext),'layout', activeStyle)
+  return menuItems.map((item, i) => (
+		<div key={i} className={item.sectionClass}>
+  		<SideNavItem
+  			key={i}
+  			navItem={item}
+  			className={item.className}
+  			onClick={item.onClick}
+        activeStyle={activeStyle}
+  			subMenuActivate={theme?.sideNav?.subMenuActivate}
+  			subMenus={item?.subMenus || []}
+  		/>
+		</div>
+	))
+}
+
 export const SideNavItem = ({
 	depth = 0,
 	navItem,
-	icon,
-	to,
-	onClick,
 	className = null,
 	active = false,
 	subMenus = [],
@@ -171,11 +165,11 @@ export const SideNavItem = ({
 	const navigate = useNavigate();
 
 	const To = React.useMemo(() => {
-		if (!Array.isArray(to)) {
-			return [to];
+		if (!Array.isArray(navItem?.path)) {
+			return [navItem?.path];
 		}
-		return to;
-	}, [to]);
+		return navItem.path;
+	}, [navItem?.path]);
 
 	const subTos = React.useMemo(() => {
 		const subs = subMenus.reduce((a, c) => {
@@ -206,36 +200,34 @@ export const SideNavItem = ({
 			<div className={theme?.subMenuParentWrapper}
 				 onMouseOutCapture={() =>
 					 (subMenuActivate === 'onHover' && setHovering(true) && setShowSubMenu(false))
-
 				 }
 				 onMouseMove={() =>
 					 (subMenuActivate === 'onHover' && setHovering(true) && setShowSubMenu(true))
 				 }
 			>
-
 				<div
-					className={`${className ? className : navClass}`}
+					className={`${navClass}`}
 				>
 					<div className={theme?.[`menuItemWrapper_level_${depth+1}`] || theme?.menuItemWrapper}>
 						<div className='flex-1 flex items-center' >
-							{!icon ? null : (
+							{!navItem.icon ? null : (
 								<Icon
-									icon={icon}
+									icon={navItem.icon}
 									className={ isActive ? theme?.menuIconSideActive : theme?.menuIconSide }
 								/>
 							)}
-							{onClick ?
+							{navItem?.onClick ?
               (<div className={`${theme?.navItemContent} ${theme?.[`navItemContent_level_${depth+1}`]}`}
 									onClick={(e) => {
 										e.stopPropagation();
-										if (onClick) return onClick(To[0]);
+										if (navItem?.onClick) return navItem.onClick(To[0]);
 										if (To[0]) navigate(To[0]);
 									}}
 								>
 									{navItem?.name}
 								</div>) :
 								(<Link to={To[0]}
-									className={`${theme?.navItemContent} ${theme?.[`navItemContent_level_${depth+1}`]}`}
+									className={`${className ? className : theme?.navItemContent} ${theme?.[`navItemContent_level_${depth+1}`]}`}
 								>
 									{navItem?.name}
 								</Link>)
@@ -281,24 +273,21 @@ export const SideNavItem = ({
 	);
 };
 
-const SubMenu = ({ depth, showSubMenu, subMenus, type='side', hovering, subMenuActivate, active, activeStyle }) => {
-	// const { theme: fullTheme  } = React.useContext(CMSContext)
-	// const theme = (fullTheme?.['sidenav'] || {})
-	const { theme: fullTheme } = React.useContext(ThemeContext);
-	const theme = getComponentTheme(fullTheme, 'sidenav', activeStyle)
+const SubMenu = ({ depth, showSubMenu, subMenus, type = 'side', hovering, subMenuActivate, active, activeStyle }) => {
+  // const { theme: fullTheme  } = React.useContext(CMSContext)
+  // const theme = (fullTheme?.['sidenav'] || {})
+  const { theme: fullTheme } = React.useContext(ThemeContext);
+  const theme = getComponentTheme(fullTheme, 'sidenav', activeStyle)
 
-	const inactiveHoveing = !active && subMenuActivate !== 'onHover' && hovering;
-	if ((!showSubMenu || !subMenus.length) && !(inactiveHoveing)) {
-		return null;
-	}
+  const inactiveHoveing = !active && subMenuActivate !== 'onHover' && hovering;
+  if ((!showSubMenu || !subMenus.length) && !(inactiveHoveing)) {
+    return null;
+  }
 
-	// console.log('subMenu theme', i, type, theme?.subMenuWrappers?.[i], theme)
+  // console.log('subMenu theme', i, type, theme?.subMenuWrappers?.[i], theme)
 
-	return (
-		<div
-			className={ (theme?.subMenuWrappers?.[depth] || theme?.subMenuWrapper) }
-		>
-
+  return (
+    <div className={theme?.[`subMenuWrapper_${depth+1}`]}>
 			<div
 				className={`
 							${inactiveHoveing && theme?.subMenuWrapperInactiveFlyoutDirection}

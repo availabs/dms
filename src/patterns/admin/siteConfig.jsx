@@ -10,7 +10,7 @@ import {ThemeContext} from '../../ui/useTheme'
 import defaultTheme from '../../ui/defaultTheme'
 import DefaultMenu from "./components/menu";
 import {AdminContext} from "./context";
-import PatternPageSelector from "./pages/patternPageSelector";
+import PatternEditor from "./pages/patternEditor";
 
 const adminConfig = ({
   app = "default-app",
@@ -41,62 +41,11 @@ const adminConfig = ({
         type,
         format: format,
         baseUrl,
-        errorElement: (props) => {
-            const {Layout} = UI;
-            return (
-                <AdminContext.Provider value={{baseUrl, user: props.user || {}, app, type, API_HOST, UI}}>
-                    <ThemeContext.Provider value={{theme, UI}}>
-                        <Layout navItems={[]}>
-                            <div className={theme?.admin?.page?.pageWrapper}>
-                                <div className={theme?.admin?.page?.pageWrapper2}>
-                                    <div className={'mx-auto max-w-fit pt-[120px] text-lg'}>
-                                        Unable to complete your request at the moment. Please try again later.
-                                    </div>
-                                </div>
-                            </div>
-                        </Layout>
-                    </ThemeContext.Provider>
-                </AdminContext.Provider>
-            )
-        },
         children: [
             {
                 type: (props) => {
                     const {Layout} = UI;
-                    const menuItems = [
-                        {
-                            name: 'Sites',
-                            path: `${baseUrl}`
-                        },
-                        {
-                            name: 'Datasets',
-                            path: `${baseUrl}/datasets`
-                        },
-                        {
-                            name: 'Themes',
-                            path: `${baseUrl}/themes`
-                        },
-                        {
-                            name: 'Team',
-                            path: `${baseUrl}/team`
-                        }
-                    ]
-
-                    if (props?.user?.authed) {
-                        menuItems.push({
-                            name: 'Auth',
-                            subMenus: [
-                                {
-                                    name: 'Users',
-                                    path: `${authPath}/manage/users`
-                                },
-                                {
-                                    name: 'Groups',
-                                    path: `${authPath}/manage/groups`
-                                }
-                            ]
-                        })
-                    }
+                    const menuItems = getMenuItems(baseUrl, authPath, props.user)
                     return (
                         <AdminContext.Provider value={{baseUrl, authPath, user: props.user, app, type, API_HOST, UI}}>
                             <ThemeContext.Provider value={{theme, UI}}>
@@ -150,7 +99,25 @@ const adminConfig = ({
                     // after theme list page, create a components list page.
                 ]
             }
-        ]
+        ],
+        errorElement: (props) => {
+            const {Layout} = UI;
+            return (
+                <AdminContext.Provider value={{baseUrl, user: props.user || {}, app, type, API_HOST, UI}}>
+                    <ThemeContext.Provider value={{theme, UI}}>
+                        <Layout navItems={[]}>
+                            <div className={theme?.admin?.page?.pageWrapper}>
+                                <div className={theme?.admin?.page?.pageWrapper2}>
+                                    <div className={'mx-auto max-w-fit pt-[120px] text-lg'}>
+                                        Unable to complete your request at the moment. Please try again later.
+                                    </div>
+                                </div>
+                            </div>
+                        </Layout>
+                    </ThemeContext.Provider>
+                </AdminContext.Provider>
+            )
+        }
     }
 }
 
@@ -189,62 +156,11 @@ const patternConfig = ({
         type,
         format: format,
         baseUrl,
-        errorElement: (props) => {
-            const {Layout} = UI;
-            return (
-                <AdminContext.Provider value={{baseUrl, user: props.user || {}, app, type, API_HOST, UI}}>
-                    <ThemeContext.Provider value={{theme, UI}}>
-                        <Layout navItems={[]}>
-                            <div className={theme?.admin?.page?.pageWrapper}>
-                                <div className={theme?.admin?.page?.pageWrapper2}>
-                                    <div className={'mx-auto max-w-fit pt-[120px] text-lg'}>
-                                        Unable to complete your request at the moment. Please try again later.
-                                    </div>
-                                </div>
-                            </div>
-                        </Layout>
-                    </ThemeContext.Provider>
-                </AdminContext.Provider>
-            )
-        },
         children: [
             {
                 type: (props) => {
                     const {Layout} = UI;
-                    const menuItems = [
-                        {
-                            name: 'Sites',
-                            path: `${baseUrl}`
-                        },
-                        {
-                            name: 'Datasets',
-                            path: `${baseUrl}/datasets`
-                        },
-                        {
-                            name: 'Themes',
-                            path: `${baseUrl}/themes`
-                        },
-                        {
-                            name: 'Team',
-                            path: `${baseUrl}/team`
-                        }
-                    ]
-
-                    if (props?.user?.authed) {
-                        menuItems.push({
-                            name: 'Auth',
-                            subMenus: [
-                                {
-                                    name: 'Users',
-                                    path: `${authPath}/manage/users`
-                                },
-                                {
-                                    name: 'Groups',
-                                    path: `${authPath}/manage/groups`
-                                }
-                            ]
-                        })
-                    }
+                    const menuItems = getMenuItems(parentBaseUrl, props.user)
 
                     return (
                         <AdminContext.Provider value={{baseUrl, parentBaseUrl, authPath, user: props.user, app, type, API_HOST, UI}}>
@@ -268,13 +184,31 @@ const patternConfig = ({
                 path: "/*",
                 children: [
                     {
-                        type: PatternPageSelector,
+                        type: PatternEditor,
                         path: ":id/:page?",
                         action: "edit"
                     },
                 ]
             }
-        ]
+        ],
+        errorElement: (props) => {
+            const {Layout} = UI;
+            return (
+                <AdminContext.Provider value={{baseUrl, user: props.user || {}, app, type, API_HOST, UI}}>
+                    <ThemeContext.Provider value={{theme, UI}}>
+                        <Layout navItems={[]}>
+                            <div className={theme?.admin?.page?.pageWrapper}>
+                                <div className={theme?.admin?.page?.pageWrapper2}>
+                                    <div className={'mx-auto max-w-fit pt-[120px] text-lg'}>
+                                        Unable to complete your request at the moment. Please try again later.
+                                    </div>
+                                </div>
+                            </div>
+                        </Layout>
+                    </ThemeContext.Provider>
+                </AdminContext.Provider>
+            )
+        }
     }
 }
 
@@ -302,4 +236,42 @@ export const updateAttributes = (attributes, app) => {
         //console.log('attr', attributes)
     }
     return attributes;
+}
+
+const getMenuItems = (baseUrl, authPath, user) => {
+  let menuItems = [
+      {
+          name: 'Sites',
+          path: `${baseUrl}`
+      },
+      {
+          name: 'Datasets',
+          path: `${baseUrl}/datasets`
+      },
+      {
+          name: 'Themes',
+          path: `${baseUrl}/themes`
+      },
+      {
+          name: 'Team',
+          path: `${baseUrl}/team`
+      }
+  ]
+
+  if (user?.authed) {
+      menuItems.push({
+          name: 'Auth',
+          subMenus: [
+              {
+                  name: 'Users',
+                  path: `${authPath}/manage/users`
+              },
+              {
+                  name: 'Groups',
+                  path: `${authPath}/manage/groups`
+              }
+          ]
+      })
+  }
+  return menuItems
 }

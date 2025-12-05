@@ -1,5 +1,5 @@
 import React, {useContext, useState} from "react";
-import {AdminContext} from "../context";
+import {AdminContext} from "../../../context";
 
 const parseIfJSON = strValue => {
     if (typeof strValue !== 'string' && Array.isArray(strValue)) return strValue;
@@ -11,7 +11,7 @@ const parseIfJSON = strValue => {
     }
 }
 
-export const PatternFilterEditor = ({value=[], onChange, ...rest}) => {
+export const PatternThemeEditor = ({value=[], onChange, ...rest}) => {
     const {UI} = useContext(AdminContext);
     const [tmpValue, setTmpValue] = useState(parseIfJSON(value));
     const [newFilter, setNewFilter] = useState({});

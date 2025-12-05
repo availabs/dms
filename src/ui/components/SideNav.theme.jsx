@@ -5,7 +5,7 @@ const sideNavTheme = {
   "styles": [
     {
       layoutContainer1: 'border-r lg:mr-42',
-      layoutContainer2: 'fixed inset-y-0 left-0 w-64 max-lg:hidden',
+      layoutContainer2: 'fixed inset-y-0 left-0 w-42 max-lg:hidden',
       logoWrapper: "w-42 bg-neutral-100 text-slate-800",
       sidenavWrapper: "flex flex-col w-42 h-full z-20",
       menuItemWrapper: "flex flex-col",
@@ -33,7 +33,9 @@ const sideNavTheme = {
       transition-all cursor-pointer`,
       indicatorIcon: "ArrowRight",
       indicatorIconOpen: "ArrowDown",
-      subMenuWrapper: "pl-2 w-full",
+      subMenuWrapper_1: "pl-2 w-full",
+      subMenuWrapper_2: "",
+      subMenuWrapper_3: "",
       subMenuOuterWrapper: '',
       subMenuParentWrapper: "flex flex-col w-full",
       bottomMenuWrapper: 'border-t',

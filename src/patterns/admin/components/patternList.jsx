@@ -152,9 +152,9 @@ function PatternEdit({
 		{name: 'updated_at', display_name: 'Updated', show: true, type: 'text', formatFn: 'date'},
 		{name: 'manage_url', display_name: 'Manage', show: true, type: 'text', isLink: true, linkText: 'manage'},
 		{name: 'edit_url', display_name: 'Edit', show: true, type: 'text', isLink: true, linkText: 'edit'},
-        {name: 'edit', display_name: 'Edit', show: true, type: 'ui', Comp: (d) => {
+    {name: 'edit', display_name: 'Edit', show: true, type: 'ui', Comp: (d) => {
 			return <Button onClick={() => setEditingItem(d.row)}>Edit</Button>
-			}},
+		}},
 	]
 
 	const dmsServerPath = `${API_HOST}/dama-admin`;

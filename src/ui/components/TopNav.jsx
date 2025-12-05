@@ -3,52 +3,45 @@ import { get } from "lodash-es";
 import { useMatch, useNavigate, Link } from "react-router";
 import { SideNavItem } from './SideNav'
 import Icon from './Icon'
-import {ThemeContext} from '../useTheme'
+import { ThemeContext, getComponentTheme } from '../useTheme'
 
 const NOOP = () => { return {} }
 
-export const HorizontalMenu = ({menuItems, subMenuActivate}) => {
-  return menuItems.map((item, i) => {
-    return (
-      <div key={i} className={item.sectionClass}>
-        <TopNavItem
-          key={i}
-          to={item.path}
-          icon={item.icon}
-          subMenuActivate={subMenuActivate}
-          subMenus={get(item, "subMenus", [])}
-          navItem={item}
-        />
-      </div>
-    )
-  })
-}
+const TopNav = ({ ...props }) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <nav>
+      <DesktopMenu open={open} toggle={setOpen} {...props} />
+      <MobileMenu open={open} {...props} />
+    </nav>
+  );
+};
 
-export const MobileMenu = ({ open, toggle, menuItems = [], rightMenu = null}) => {
+export default TopNav;
+
+export const MobileMenu = ({ open, toggle, menuItems = [], rightMenu = null, activeStyle}) => {
   //const { theme: fullTheme  } = React.useContext(CMSContext) || {}
-    const { theme: fullTheme } = React.useContext(ThemeContext);
-  const theme = (fullTheme?.['topnav'] || {} ) //(themeOptions);
+  const { theme: fullTheme } = React.useContext(ThemeContext);
+  const theme = getComponentTheme(fullTheme, 'sidenav',activeStyle)
 
   return (
     <div
-      className={`${open ? "md:hidden" : "hidden"} ${
-        theme?.topnavMobileContainer
-      }`}
+      className={`
+        ${open ? "md:hidden" : "hidden"}
+        ${theme?.topnavMobileContainer}`
+      }
       id="mobile-menu"
     >
-      <div className="">
-        {menuItems.map((page, i) => (
-          <SideNavItem
-            key={i}
-            type="top"
-            to={page.path}
-            icon={page.icon}
-            subMenus={get(page, "subMenus", [])}
-            navItem={page}
-          />
-
-        ))}
-      </div>
+      {menuItems.map((page, i) => (
+        <SideNavItem
+          key={i}
+          type="top"
+          to={page.path}
+          icon={page.icon}
+          subMenus={get(page, "subMenus", [])}
+          navItem={page}
+        />
+      ))}
       <div className="">{rightMenu}</div>
     </div>
   );
@@ -61,14 +54,15 @@ export const DesktopMenu = ({
   mainMenu = null,
   rightMenu = null,
   leftMenu = null,
-  subMenuActivate
+  subMenuActivate,
+  activeStyle
 }) => {
 
-  //const { theme: fullTheme  } = React.useContext(CMSContext) || {}
+  // const { theme: fullTheme  } = React.useContext(CMSContext) || {}
   const { theme: fullTheme } = React.useContext(ThemeContext);
-  const theme = (fullTheme?.['topnav'] || {} ) //(themeOptions);
-  mainMenu = mainMenu ? mainMenu : <HorizontalMenu menuItems={menuItems} subMenuActivate={subMenuActivate} />
-  console.log('TopNav', mainMenu, menuItems)
+  const theme = getComponentTheme(fullTheme, 'topnav', activeStyle)
+  mainMenu = mainMenu ? mainMenu : <HorizontalMenu menuItems={menuItems} subMenuActivate={subMenuActivate} activeStyle={activeStyle} />
+  // console.log('TopNav', mainMenu, menuItems)
   return (
     <div className={`${theme?.layoutContainer1}`}>
 			<div className={`${theme?.layoutContainer2}`}>
@@ -80,7 +74,9 @@ export const DesktopMenu = ({
             </div>
 
             <div className="flex items-center justify-center h-full">
-              <div className={`${theme?.topmenuRightNavContainer}`}>{rightMenu}</div>
+              <div className={`${theme?.topmenuRightNavContainer}`}>
+                {rightMenu}
+              </div>
 
               {/*<!-- Mobile menu button -->*/}
               <button
@@ -101,45 +97,43 @@ export const DesktopMenu = ({
   );
 };
 
-const TopNav = ({ ...props }) => {
-  const [open, setOpen] = useState(false);
-  return (
-    <nav>
-      <DesktopMenu open={open} toggle={setOpen} {...props} />
-      <MobileMenu open={open} {...props} />
-    </nav>
-  );
-};
-
-
-export default TopNav;
-
+export const HorizontalMenu = ({menuItems, subMenuActivate, activeStyle}) => {
+  return menuItems.map((item, i) => {
+    return (
+      <div key={i} className={item.sectionClass}>
+        <TopNavItem
+          key={i}
+          navItem={item}
+          subMenuActivate={subMenuActivate}
+          subMenus={get(item, "subMenus", [])}
+          activeStyle={ activeStyle }
+        />
+      </div>
+    )
+  })
+}
 
 const TopNavItem = ({
   navItem,
   parent,
   depth = 0,
   maxDepth = 1,
-  icon,
-  to,
-  onClick,
   className = null,
   active = false,
   subMenus = [],
   subMenuActivate = 'onHover',
-  subMenuOpen = false
+  subMenuOpen = false,
+  activeStyle
 }) => {
-  // console.log('renderMenu')
-  //const { theme: fullTheme  } = React.useContext(CMSContext) || {}
   const { theme: fullTheme } = React.useContext(ThemeContext);
-  const theme = (fullTheme?.topnav || {})
+  const theme = getComponentTheme(fullTheme, 'topnav', activeStyle);
   const navigate = useNavigate();
   const To = React.useMemo(() => {
-    if (!Array.isArray(to)) {
-      return [to];
+    if (!Array.isArray(navItem.path)) {
+      return [navItem.path];
     }
-    return to;
-  }, [to]);
+    return navItem.path;
+  }, [navItem.path]);
 
   const subTos = React.useMemo(() => {
     const subs = subMenus.reduce((a, c) => {
@@ -155,7 +149,7 @@ const TopNavItem = ({
 
   const routeMatch = Boolean(useMatch({ path: `${subTos[0]}/*` || '', end: true }));
 
-  const linkClasses = theme?.navitemSide
+  const linkClasses = theme?.navitemTop
   const activeClasses = theme?.navitemTopActive;
 
   const isActive = routeMatch || active
@@ -167,16 +161,12 @@ const TopNavItem = ({
   const [hovering, setHovering] = React.useState(false);
 
   React.useEffect(() => {
-         setShowSubMenu(routeMatch && subMenuActivate === 'onActive');
+    setShowSubMenu(routeMatch && subMenuActivate === 'onActive');
   }, [routeMatch]);
 
-  // console.log('item', theme, theme?.menuItemWrapper1?.[depth])
 
   return (
-      <div className={
-        parent?.description ?
-        (theme?.menuItemWrapper1Parent?.[depth] || theme?.menuItemWrapper1Parent) :
-        (theme?.menuItemWrapper1?.[depth] || theme?.menuItemWrapper1) }
+      <div className={ theme?.[`menuItemWrapper_level_${depth+1}`] || theme?.menuItemWrapper }
         onMouseOutCapture={() => {
           setHovering(false);
           setShowSubMenu(false)
@@ -187,35 +177,33 @@ const TopNavItem = ({
         }}
       >
 
-        <div
-          className={`${className ? className : navClass}`}
-
+        <div  className={`${className ? className : navClass}`}
           onClick={(e) => {
             e.stopPropagation();
-            if (onClick) return onClick(To[0]);
+            if (navItem?.onClick) return onClick(To[0]);
             if (To[0]) navigate(To[0]);
           }}
         >
-          <div className={theme.menuItemWrapper2?.[depth] || theme?.menuItemWrapper2}>
-            <div className='flex-1 flex items-center gap-[2px]' >
-              {!icon ? null : (
+          {/* -- Nav Item Contents */ }
+          <div className='flex-1 flex items-center gap-[2px]' >
+              {!navItem?.icon ? null : (
                 <Icon
-                  icon={icon}
+                  icon={navItem?.icon}
                   className={(isActive ? theme?.menuIconTopActive : theme?.menuIconTop)}
                 />
               )}
               <div>
                 {navItem?.description ? (
                   <>
-                    <div  className={''}>
+                    <div className={''}>
                       {navItem?.name}
                     </div>
-                    <div className={theme?.navItemDescription?.[depth] || theme?.navItemDescription}>
+                    <div className={ theme?.[`navItemDescription_level_${depth+1}`] }>
                       {navItem?.description}
                     </div>
                   </>
                 ) : (
-                  <div  className={theme?.navItemContent?.[depth] || theme?.navItemContent?.[0]}>
+                  <div  className={theme?.[`navItemContent_level_${depth+1}`] || theme?.navItemContent}>
                     {navItem?.name}
                   </div>
                 )}
@@ -223,13 +211,16 @@ const TopNavItem = ({
               <div
                 onClick={() => {
                   if (subMenuActivate === 'onClick') {
-                    // localStorage.setItem(`${to}_toggled`, `${!showSubMenu}`);
                     setShowSubMenu(!showSubMenu);
                   }
                 }}
               >
                 {
-                  depth < maxDepth && subMenus.length ? <Icon icon={theme?.indicatorIcon || 'ArrowDown'} className={theme?.indicatorIconWrapper} /> : null
+                  (depth < maxDepth && subMenus.length) &&
+                    <Icon
+                      icon={theme?.indicatorIcon || 'ArrowDown'}
+                      className={theme?.indicatorIconWrapper}
+                    />
                 }
 
               </div>
@@ -246,18 +237,25 @@ const TopNavItem = ({
                   subMenus={subMenus}
                   className={className}
                   maxDepth={maxDepth}
+                  activeStyle={ activeStyle}
                 /> : ''
               }
-          </div>
         </div>
       </div>
   );
 };
 
-const SubMenu = ({ parent, depth, showSubMenu, subMenus, hovering, subMenuActivate, active, maxDepth }) => {
-    const { theme: fullTheme } = React.useContext(ThemeContext);
-  //const { theme: fullTheme  } = React.useContext(CMSContext)
-  const theme = (fullTheme?.topnav || {}) //(themeOptions);
+const SubMenu = ({
+  parent,
+  depth,
+  showSubMenu,
+  subMenus,
+  hovering, subMenuActivate, active,
+  maxDepth,
+  activeStyle
+}) => {
+  const { theme: fullTheme } = React.useContext(ThemeContext);
+  const theme = getComponentTheme(fullTheme, 'topnav', activeStyle)
 
   // if(depth === 0) {
   //  console.log('submenu parent',parent)
@@ -269,13 +267,11 @@ const SubMenu = ({ parent, depth, showSubMenu, subMenus, hovering, subMenuActiva
 
   return (
     <div
-      className={
-        theme?.subMenuWrapper1?.[depth] || theme?.subMenuWrapper1
-      }
+      className={theme?.[`subMenuWrapper_level_${depth+1}`] || theme?.subMenuWrapper}
     >
 
       <div
-        className={`${ theme?.subMenuWrapper2?.[depth]} || ${theme?.subMenuWrapper2}`}
+        className={theme?.[`subMenuWrapper_level_${depth+1}`] || theme?.subMenuWrapper2 }
       >
         {parent?.description && (
           <div className={theme?.subMenuParentContent}>
@@ -305,6 +301,7 @@ const SubMenu = ({ parent, depth, showSubMenu, subMenus, hovering, subMenuActiva
               subMenus={sm.subMenus}
               navItem={sm}
               maxDepth={maxDepth}
+              activeStyle={ activeStyle }
             />
           ))}
         </div>

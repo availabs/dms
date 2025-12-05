@@ -65,6 +65,7 @@
     "@turf/helpers": "^7.2.0",
     "colorbrewer": "^1.5.9",
     "d3-array": "^3.2.4",
+    "fuse.js": "^7.1.0",
     "immutability-helper": "^3.1.1",
     "katex": "^0.16.10",
     "lexical": "0.25.0",

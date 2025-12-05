@@ -73,7 +73,7 @@ const Layout = ({
     }
   }
 
-	console.log('Layout', topNav, navs[topNav?.nav])
+	// console.log('Layout', topNav, navs[topNav?.nav])
   return (
     <div className={theme?.outerWrapper}>
       { headerChildren }

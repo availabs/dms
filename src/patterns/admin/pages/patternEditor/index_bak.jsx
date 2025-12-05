@@ -1,9 +1,12 @@
 import React, {useEffect} from "react"
-import {AdminContext} from "../context";
-import AdminLayout from "./layout";
+import {AdminContext} from "../../context";
+import AdminLayout from "./layout;
 import {isEqual} from "lodash-es";
-import {PatternFilterEditor} from "../components/PatternFilterEditor";
-import {PatternPermissionsEditor} from "../components/PatternPermissionsEditor";
+import { PatternSettingsEditor } from "./default/settings";
+import { PatternThemeEditor } from "./default/themeEditor";
+import {PatternFilterEditor} from "./default/filterEditor";
+import {PatternPermissionsEditor} from "./default/permissionsEditor";
+
 
 export default ({params, item, format, apiUpdate, attributes}) => {
     const {baseUrl, UI, user} = React.useContext(AdminContext);
@@ -26,10 +29,11 @@ export default ({params, item, format, apiUpdate, attributes}) => {
     }
 
     return (
-        <AdminLayout id={id}
-                     page={{name: page}}
-                     baseUrl={baseUrl}
-                     pattern={item}
+        <AdminLayout
+          id={id}
+          page={{name: page}}
+          baseUrl={baseUrl}
+          pattern={item}
         >
             {
                 (attrs[page] || []).map((attrKey, i) => {

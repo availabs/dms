@@ -1,6 +1,6 @@
 import React from "react";
-import {AuthContext} from "../../auth/context";
-import {AdminContext} from "../context";
+import {AuthContext} from "../../../../auth/context";
+import {AdminContext} from "../../../context";
 
 export const PatternPermissionsEditor = ({
      value={},
