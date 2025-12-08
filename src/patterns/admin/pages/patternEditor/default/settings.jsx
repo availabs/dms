@@ -2,6 +2,7 @@ import React, {useContext, useState} from "react";
 import { useImmer } from "use-immer";
 import { isEqual } from "lodash-es";
 import { AdminContext } from "../../../context";
+import { ThemeContext } from "../../../../../ui/useTheme";
 
 
 const customTheme = {
@@ -9,13 +10,15 @@ const customTheme = {
 }
 
 export const PatternSettingsEditor = ({ value = {}, onChange, ...rest}) => {
-  const {UI} = useContext(AdminContext);
+  const { apiUpdate} = useContext(AdminContext);
+  const { UI } = useContext(ThemeContext)
   const { FieldSet } = UI;
   const [tmpValue, setTmpValue] = useImmer(value);
-  //console.log('tmpValue', tmpValue, )
-    // const [newFilter, setNewFilter] = useState({});
-    // const {FieldSet, Button} = UI;
 
+  // React.useEffect(() => {
+  //   console.log('value has changed, update');
+  //   if(!isEqual(value, tmpValue)) setTmpValue(value);
+  // }, [value]);
 
     return (
       <div className={'flex flex-col gap-1 p-4 border rounded-md'}>
@@ -75,10 +78,7 @@ export const PatternSettingsEditor = ({ value = {}, onChange, ...rest}) => {
 
                     disabled: isEqual(tmpValue,value),
 
-                    value: tmpValue.base_url,
-                    // onChange: e => setTmpValue(draft => {
-                    //   draft.base_url = e.target.value
-                    // }),
+                    onClick: () => apiUpdate({data:tmpValue}),
                     customTheme: { field: 'pb-2 col-span-1 flex justify-end' }
                   },
 

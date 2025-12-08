@@ -44,10 +44,11 @@ const adminConfig = ({
         children: [
             {
                 type: (props) => {
+                    const {user, apiUpdate} = props
                     const {Layout} = UI;
                     const menuItems = getMenuItems(baseUrl, authPath, props.user)
                     return (
-                        <AdminContext.Provider value={{baseUrl, authPath, user: props.user, app, type, API_HOST, UI}}>
+                        <AdminContext.Provider value={{ baseUrl, authPath, user, apiUpdate, app, type, API_HOST, UI}}>
                             <ThemeContext.Provider value={{theme, UI}}>
                                 <div className={theme?.page?.container}>
                                     <Layout navItems={menuItems} Menu={() => <>{rightMenu}</>}>
@@ -160,10 +161,11 @@ const patternConfig = ({
             {
                 type: (props) => {
                     const {Layout} = UI;
+                    const {user, apiUpdate} = props
                     const menuItems = getMenuItems(parentBaseUrl, props.user)
 
                     return (
-                        <AdminContext.Provider value={{baseUrl, parentBaseUrl, authPath, user: props.user, app, type, API_HOST, UI}}>
+                        <AdminContext.Provider value={{baseUrl, parentBaseUrl, authPath, user, apiUpdate, app, type, API_HOST, UI}}>
                             <ThemeContext.Provider value={{theme, UI}}>
                                 <div className={theme?.page?.container}>
                                     <Layout navItems={menuItems} Menu={() => <>{rightMenu}</>}>
