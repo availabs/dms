@@ -1,35 +1,34 @@
 import React, {useEffect} from 'react'
-import {set} from 'lodash-es'
+import {isEqual, set} from 'lodash-es'
 import {PageContext, CMSContext} from '../../../context'
 import {ThemeContext} from "../../../../../ui/useTheme";
 import {AuthContext} from "../../../../auth/context";
 
 function PermissionsPane() {
     const {theme} = React.useContext(ThemeContext);
-    const {UI, user} = React.useContext(CMSContext) || {}
-    const {item, apiUpdate} = React.useContext(PageContext) || {}
+    const {UI, user, isUserAuthed} = React.useContext(CMSContext) || {}
+    const {item, apiUpdate, format, pageState} = React.useContext(PageContext) || {}
     const {AuthAPI} = React.useContext(AuthContext) || {};
     const [authPermissions, setAuthPermissions] = React.useState(item.authPermissions || '');
     const {Permissions} = UI;
-    const permissionDomain = [
-        {label: 'Edit Page', value: 'edit'},
-        {label: 'Delete Page', value: 'delete'},
-    ]
-    const defaultPermission = ['view'];
+    const {permissionDomain, defaultPermission} = (format?.attributes || []).find(a => a.key === 'authPermissions') || {};
+
+    const reqPermissions = ['edit-page-permissions']
+    const userHasEditPermissionsAccess =
+        pageState?.authPermissions && typeof pageState.authPermissions === 'string' ? isUserAuthed(reqPermissions, JSON.parse(pageState.authPermissions)) :
+            isUserAuthed(reqPermissions || [])
 
     useEffect(() => {
-        let isStale = false;
-
-        setTimeout(() => {
-            if (!isStale) {
-                return togglePageSetting(item, 'authPermissions', authPermissions, apiUpdate)
+        const id = setTimeout(() => {
+            if (!isEqual(authPermissions, item.authPermissions)) {
+                togglePageSetting(item, 'authPermissions', authPermissions, apiUpdate)
             }
         }, 300);
 
-        return () => {
-            isStale = true;
-        }
+        return () => clearTimeout(id);
     }, [authPermissions]);
+
+    if(!userHasEditPermissionsAccess) return null;
 
     return (
         <div className="flex h-full flex-col">

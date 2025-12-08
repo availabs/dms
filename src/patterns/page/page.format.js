@@ -61,6 +61,18 @@ export const cmsSection = {
       type: "text",
       required: false
     },
+      {
+          key: "authPermissions",
+          type: "json",
+          required: false,
+          default: [],
+          permissionDomain: [
+              {label: '*', value: '*'},
+              {label: 'Edit Section', value: 'edit-section'},
+              {label: 'Edit Section Permissions ', value: 'edit-section-permissions'},
+          ],
+          defaultPermission: ['*']
+      },
     {
       key: "size",
       type: "text"
@@ -158,6 +170,25 @@ const cmsPageFormat = {
           joinWithChar: ",", // if undefined, an array is returned
           serverFn: "recurse_extract_data",
           keepOriginal: false,
+      },
+      {
+          key: "authPermissions",
+          type: "json",
+          required: false,
+          default: [],
+          permissionDomain: [
+              // some defaults to take care of in implementation:
+              // if you create, you get view and edit
+              // each page created gets created with default permissions (if set in pattern), and assign full access (*) to the user who created it
+              {label: '*', value: '*'},
+              {label: 'View Page', value: 'view-page'},
+              {label: 'Create Page', value: 'create-page'},
+              {label: 'Edit Page', value: 'edit-page'},
+              {label: 'Edit Page Layout', value: 'edit-page-layout'},
+              {label: 'Edit Page Params', value: 'edit-page-params'},
+              {label: 'Edit Page Permissions', value: 'edit-page-permissions'},
+              {label: 'Publish Page', value: 'publish-page'},
+          ]
       },
     {
       key: 'url_slug',

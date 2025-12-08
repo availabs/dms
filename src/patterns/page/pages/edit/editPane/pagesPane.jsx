@@ -8,10 +8,12 @@ import {ThemeContext} from "../../../../../ui/useTheme";
 
 
 function PagesPane () {
-  const { item, dataItems, apiUpdate, baseUrl } =  React.useContext(PageContext) || {};
+  const { item, dataItems, apiUpdate, baseUrl, pageState } =  React.useContext(PageContext) || {};
   const { isUserAuthed, user} = React.useContext(CMSContext);
   const { UI } = React.useContext(ThemeContext)
-  const {DraggableNav} = UI;
+    const pageAuthPermissions = pageState?.authPermissions && typeof pageState.authPermissions === 'string' ? JSON.parse(pageState.authPermissions) : [];
+
+    const {DraggableNav} = UI;
     const duplicatePage = (itemId) => {
         if (!itemId || !dataItems?.length) return;
 
@@ -32,7 +34,7 @@ function PagesPane () {
           dataItems={dataItems}
           apiUpdate={apiUpdate}
           baseUrl={baseUrl}
-          renderAddItemButton={isUserAuthed(['create-page'])}
+          renderAddItemButton={isUserAuthed(['create-page'], pageAuthPermissions)}
           NavComp={(props) => DraggableNavItem({...props, duplicatePage})}
         />
       </div>
@@ -293,7 +295,7 @@ export function PublishButton () {
   const { UI } = React.useContext(ThemeContext)
   const {Button} = UI;
 
-  if(!isUserAuthed(['publish-changes'])) return <div className={'w-full flex items-center h-[40px] text-white'}>user not authorised to publish.</div>
+  if(!isUserAuthed(['publish-page'])) return <div className={'w-full flex items-center h-[40px] text-white'}>user not authorised to publish.</div>
   return (
     <div className='w-full flex justify-center h-[40px]'>
       { hasChanges && (

@@ -18,7 +18,7 @@ function PageEdit ({format, item, dataItems, updateAttribute, attributes, apiLoa
 	const { pathname = '/edit', search } = useLocation();
 
 	const { theme: fullTheme, UI } = React.useContext(ThemeContext);
-	const {  Menu, baseUrl, user, authPermissions, patternFilters=[], isUserAuthed } = React.useContext(CMSContext) || {};
+	const {  Menu, baseUrl, user, patternFilters=[], isUserAuthed } = React.useContext(CMSContext) || {};
 
 	const [ pageState, setPageState ] = useImmer({ ...item, filters: mergeFilters(item.filters, patternFilters) });
 	const [ editPane, setEditPane ] = React.useState({ open: false, index: 1, showGrid: false });
@@ -119,12 +119,12 @@ function PageEdit ({format, item, dataItems, updateAttribute, attributes, apiLoa
 
 	if(!item) return <div>page does not exist.</div>;
 
-	if( !isUserAuthed(['update-page']) ||
+	if( !isUserAuthed(reqPermissions || []) ||
         (pageState?.authPermissions && typeof pageState.authPermissions === 'string' && !isUserAuthed(reqPermissions, JSON.parse(pageState.authPermissions)))
     ){
-        // throw Error('404')
 		return <div>You do not have permission to view this page. <Link to={baseUrl}>Click here to visit Home</Link></div>
 	}
+
 	return (
 		<PageContext.Provider value={{
 			item,

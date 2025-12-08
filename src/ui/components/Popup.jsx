@@ -30,7 +30,7 @@ export default function Popup({
                                   padding = 8,
                                   portalContainer = document.body,
                                   btnVisibleOnGroupHover, // adds a hide class if not open. assumes the button to have group-hover
-                                  defaultOpen = false
+                                  defaultOpen = false, preferredPosition="bottom"
                               }) {
     const [open, setOpen] = useState(defaultOpen);
     const buttonRef = useRef(null);
@@ -83,7 +83,7 @@ export default function Popup({
         let placement = null;
 
         // try to find a side that fully fits
-        const order = ["bottom", "top", "right", "left"];
+        const order = [preferredPosition, "bottom", "top", "right", "left"];
         placement = order.find(side => canFit[side]);
 
         // if none fits -> pick side with maximum space
@@ -106,12 +106,12 @@ export default function Popup({
                 break;
 
             case "left":
-                top = rect.top + rect.height / 2 - ph / 2;
+                top = rect.top;
                 left = rect.left - pw - offset;
                 break;
 
             case "right":
-                top = rect.top + rect.height / 2 - ph / 2;
+                top = rect.top;
                 left = rect.right + offset;
                 break;
         }

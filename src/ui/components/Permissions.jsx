@@ -2,6 +2,7 @@ import React, {useEffect, useState} from "react";
 import Select from "./Select";
 import Button from "./Button";
 import ColumnTypes from "../columnTypes"
+import {cloneDeep} from "lodash-es";
 
 const parseIfJSON = strValue => {
     try {
@@ -12,9 +13,21 @@ const parseIfJSON = strValue => {
 }
 
 const defaultPermissionsDomain = [
+    {label: '*', value: '*'},
     {label: 'create', value: 'create'},
     {label: 'update', value: 'update'},
 ]
+
+const permissionsTheme = {
+    componentWrapper: '',
+    selectWrapper: 'shadow-md rounded-md place-content-center p-4 w-full',
+    selectLabel: 'text-xl text-gray-900 font-semibold',
+    select: 'w-1/2',
+    valueWrapper: 'flex flex-col gap-4 p-2 hover:bg-gray-100 rounded-md',
+    valueSubWrapper: 'flex flex-wrap',
+    title: 'font-semibold',
+    removeBtn: 'w-fit'
+}
 
 export default function ({
                              value, user, getUsers, getGroups, onChange,
@@ -39,15 +52,18 @@ export default function ({
         load();
     }, []);
 
-    const permissionsTheme = {
-        componentWrapper: '',
-        selectWrapper: 'shadow-md rounded-md place-content-center p-4 w-full',
-        selectLabel: 'text-xl text-gray-900 font-semibold',
-        select: 'w-1/2',
-        valueWrapper: 'flex flex-col gap-4 p-2 hover:bg-gray-100 rounded-md',
-        valueSubWrapper: 'flex flex-wrap',
-        title: 'font-semibold',
-        removeBtn: 'w-fit'
+    const applyChanges = value => {
+        // if current user or one of its groups isn't included in newAuth, add current user with * permission
+        const newAuth = Object.assign({users: {}, groups: {}}, cloneDeep(value));
+        const isEmptyAuth = !Object.keys(newAuth.users).length && !Object.keys(newAuth.groups).length
+        const currentUserHasPermissions = Array.isArray(newAuth.users[user.id]) && newAuth.users[user.id].length;
+        const currentUserGroupHasPermissions = user.groups.some(g => Array.isArray(newAuth.groups[g]) && newAuth.groups[g].length);
+
+        if(!isEmptyAuth && !currentUserHasPermissions && !currentUserGroupHasPermissions){
+            newAuth.users[user.id] = ['*'];
+        }
+        setTmpValue(newAuth)
+        onChange(JSON.stringify(newAuth))
     }
     return (
         <div className={permissionsTheme.componentWrapper}>
@@ -66,8 +82,7 @@ export default function ({
                                     [e.target.value]: defaultPermission || [],
                                 },
                             };
-                            setTmpValue(newAuth)
-                            onChange(JSON.stringify(newAuth))
+                            applyChanges(newAuth)
                         }}
                 />
 
@@ -90,8 +105,7 @@ export default function ({
                                                     [userId]: e
                                                 },
                                             };
-                                            setTmpValue(newAuth)
-                                            onChange(JSON.stringify(newAuth))
+                                            applyChanges(newAuth)
                                         }}/>
 
                                     <Button className={permissionsTheme.removeBtn}
@@ -102,8 +116,7 @@ export default function ({
 
                                                 delete newAuth.users[userId];
 
-                                                setTmpValue(newAuth)
-                                                onChange(JSON.stringify(newAuth))
+                                                applyChanges(newAuth)
                                             }}>remove</Button>
                                 </div>)
                             )
@@ -127,8 +140,7 @@ export default function ({
                                 },
                             };
 
-                            setTmpValue(newAuth)
-                            onChange(JSON.stringify(newAuth))
+                            applyChanges(newAuth)
                         }}
                 />
 
@@ -151,8 +163,7 @@ export default function ({
                                                     },
                                                 };
 
-                                                setTmpValue(newAuth)
-                                                onChange(JSON.stringify(newAuth))
+                                                applyChanges(newAuth)
                                             }}/>
                                         <Button className={permissionsTheme.removeBtn}
                                                 onClick={() => {
@@ -162,8 +173,7 @@ export default function ({
 
                                                     delete newAuth.groups[groupName];
 
-                                                    setTmpValue(newAuth)
-                                                    onChange(JSON.stringify(newAuth))
+                                                    applyChanges(newAuth)
                                                 }}>remove</Button>
                                     </div>
                                 )

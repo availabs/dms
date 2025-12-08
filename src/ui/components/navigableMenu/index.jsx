@@ -6,13 +6,15 @@ import Icon from "../Icon";
 import Input from "../Input";
 import Popup from "../Popup";
 import {isEqual} from "lodash-es";
+import { v4 as uuidv4 } from 'uuid';
+
 
 // import this in defaultTheme after theme changes are pushed
 export const navigableMenuTheme = {
     button: 'px-1 py-0.5',
     icon: 'Menu',
     iconWrapper: 'size-4',
-    menuWrapper: 'bg-white border min-w-[250px] min-h-[150px] rounded-md shadow-md',
+    menuWrapper: 'bg-white border w-64 min-h-[150px] rounded-md shadow-md',
 
     menuCloseIcon: 'XMark',
     menuCloseIconWrapper: 'hover:cursor-pointer size-4',
@@ -66,7 +68,7 @@ const MenuItem = ({menuItem, setActiveParent}) => {
     return (
         <div key={menuItem.name}
              className={`${theme.navigableMenu?.menuItem} ${theme.navigableMenu?.menuItemHover}`}
-             onClick={hasChildren ? () => setActiveParent(menuItem.name) : menuItem.onClick}
+             onClick={hasChildren ? () => setActiveParent(menuItem.id) : menuItem.onClick}
         >
             <div className={theme.navigableMenu?.menuItemIconLabelWrapper}>
                 <Icon className={theme.navigableMenu?.menuItemIconWrapper} icon={menuItem.icon} />
@@ -117,7 +119,7 @@ const Menu = ({config, title, open, setOpen}) => {
                                 </Button>
                             ) : null
                         }
-                        <label className={'font-semibold text-gray-900'}>{activeParent ? activeParent : title}</label>
+                        <label className={'font-semibold text-gray-900'}>{config[activeParent]?.name ? config[activeParent]?.name : title}</label>
                     </div>
                     <Button type={'plain'}
                             className={'w-fit'}
@@ -145,10 +147,11 @@ const flattenConfig = (config, parent) => {
 
     config.forEach((item, idx) => {
         const itemName = item.name || `${parent}_${idx}`;
-        flatConfig[itemName] = {...item, name: itemName, parent, idx};
+        const id = uuidv4();
+        flatConfig[id] = {...item, name: itemName, parent, idx, id};
 
         if(item.items){
-            const obj = flattenConfig(item.items, itemName);
+            const obj = flattenConfig(item.items, id);
             Object.entries(obj).forEach(([key, val]) => {
                 flatConfig[key] = val
             })
@@ -159,7 +162,7 @@ const flattenConfig = (config, parent) => {
 }
 
 // @params btnVisibleOnGroupHover: hides button until group is hovered. parent needs to have group class.
-export default function ({config, title, btnVisibleOnGroupHover, defaultOpen}) {
+export default function ({config, title, btnVisibleOnGroupHover, defaultOpen, preferredPosition}) {
     const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
     const theme = {...themeFromContext, navigableMenu: {...navigableMenuTheme, ...(themeFromContext.navigableMenu || {})}};
     const [configStateFlat, setConfigStateFlat] = useImmer(flattenConfig(config));
@@ -174,7 +177,11 @@ export default function ({config, title, btnVisibleOnGroupHover, defaultOpen}) {
                     <Button type={'plain'} className={`${theme.navigableMenu?.button} ${btnVisibleOnGroupHover ? `hidden group-hover:flex` : ``}`}>
                         <Icon className={theme.navigableMenu?.iconWrapper} icon={theme.navigableMenu?.icon}/>
                     </Button>
-                } btnVisibleOnGroupHover={btnVisibleOnGroupHover} defaultOpen={defaultOpen}>
+                }
+                       btnVisibleOnGroupHover={btnVisibleOnGroupHover}
+                       defaultOpen={defaultOpen}
+                       preferredPosition={preferredPosition}
+                >
                     {
                         ({open, setOpen}) => (
                             <Menu config={configStateFlat} title={title} open={open} setOpen={setOpen}/>

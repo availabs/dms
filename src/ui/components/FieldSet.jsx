@@ -9,6 +9,7 @@ import Input, { ConfirmInput, Textarea } from './Input'
 
 import {ThemeContext} from '../useTheme';
 
+const Spacer = ({ children, ...props }) => <div >{children}</div>;
 
 const componentRegistry = {
     Input,
@@ -19,6 +20,7 @@ const componentRegistry = {
     Listbox,
     Switch,
     Button,
+    Spacer
 }
 
 export const fieldTheme = {

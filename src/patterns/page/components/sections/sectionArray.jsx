@@ -79,7 +79,7 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
 
     React.useEffect(() => {
         const id = setTimeout(() => {
-            onChange(values);
+            if(!isEqual(values, value)) onChange(values);
         }, 300);
 
         return () => clearTimeout(id);

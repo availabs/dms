@@ -17,12 +17,17 @@ export const docs = [
   {type: 'active', children: 'Button', doc_name: 'Active Button'},
   {type: 'inactive', children: 'Button', doc_name: 'Inactive Button'},
 ]
-export default function ButtonComp ({ children, disabled, onClick=()=>{}, type='default', padding, rounded, className, ...props}) {
+export default function ButtonComp ({ children, disabled, onClick=()=>{}, type='default', buttonType='default', padding, rounded, className, ...props}) {
   const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
   const theme = {...themeFromContext, button: {...buttonTheme, ...(themeFromContext.button || {})}};
 
   return (
-    <Button disabled={disabled} className={`${className} ${theme?.button?.[type] || theme?.button?.default} ${padding || theme?.button?.padding} ${rounded || theme?.button?.rounded}` } onClick={onClick} {...props}>
+    <Button
+      disabled={disabled}
+      className={`${className} ${theme?.button?.[buttonType ] || theme?.button?.default} ${padding || theme?.button?.padding} ${rounded || theme?.button?.rounded} disabled:bg-gray-200` }
+      onClick={onClick}
+      {...props}
+    >
       {children}
     </Button>
   )

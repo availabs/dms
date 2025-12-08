@@ -7,10 +7,15 @@ import { PageContext, CMSContext } from '../../../context'
 import {ThemeContext} from "../../../../../ui/useTheme";
 
 const FilterSettings = ({label, type, value, stateValue, onChange}) => {
-  const {UI} = useContext(CMSContext);
+  const {UI, isUserAuthed} = useContext(CMSContext);
+  const {pageState} = useContext(PageContext)
   const {Input, FieldSet, Switch, Button} = UI;
   const [newFilter, setNewFilter] = useState({});
   const [tmpValue, setTmpValue] = useState(typeof value === 'string' ? JSON.parse(value) : (value || []));
+
+    const reqPermissions = ['edit-page-params']
+    const pageAuthPermissions = pageState?.authPermissions && typeof pageState.authPermissions === 'string' ? JSON.parse(pageState.authPermissions) : [];
+    const userHasEditPageParamsAccess = isUserAuthed(reqPermissions, pageAuthPermissions)
 
   const updateFilters = (idx, key, valueToUpdate) => {
     setTmpValue(tmpValue.map((v, i) => i === idx ? {...v, [key]: valueToUpdate} : v))
@@ -20,6 +25,7 @@ const FilterSettings = ({label, type, value, stateValue, onChange}) => {
   const customTheme = {
       field: 'pb-2 flex flex-col'
   }
+  if(!userHasEditPageParamsAccess) return null
   return (
       <div className={'flex flex-col gap-1'}>
         {
@@ -105,9 +111,10 @@ function DebouncedInput({value, onChange, Input, ...rest}) {
 
 function SettingsPane () {
   const { theme } = React.useContext(ThemeContext);
-  const { UI, baseUrl, user  } = React.useContext(CMSContext) || {}
+  const { UI, baseUrl, user, isUserAuthed  } = React.useContext(CMSContext) || {}
   const { item, pageState, dataItems, apiUpdate } =  React.useContext(PageContext) || {}
   const { Button, Menu, FieldSet, Icon, Input } = UI;
+    const pageAuthPermissions = pageState?.authPermissions && typeof pageState.authPermissions === 'string' ? JSON.parse(pageState.authPermissions) : [];
 
   const themeSettings = React.useMemo(() => {
     return (theme?.pageOptions?.settingsPane || [])
@@ -236,6 +243,7 @@ function SettingsPane () {
           {
             type: FilterSettings,
             label: 'Filters',
+              reqPermissions: ['edit-page-params'],
             value: item?.filters || [],
             stateValue: pageState?.filters || [],
             onChange:(e) => {
@@ -243,7 +251,8 @@ function SettingsPane () {
             }
           },
           ...themeSettings
-        ]} />
+        ].filter(f => !f.reqPermissions || isUserAuthed(f.reqPermissions, pageAuthPermissions))
+        } />
       </div>
     </div>
   )
