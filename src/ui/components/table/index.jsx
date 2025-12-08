@@ -81,7 +81,7 @@ export const docs = {
         }
     ]
 }
-const updateItemsOnPaste = ({pastedContent, index, attrI, data, visibleAttributes, updateItem, selection}) => {
+const updateItemsOnPaste = ({pastedContent, index, attrI, data, visibleAttributes, updateItem, allowEdit, selection}) => {
     const paste = pastedContent?.split('\n').filter(row => row.length).map(row => row.split('\t'));
     if(!paste) return;
 
@@ -102,7 +102,7 @@ const updateItemsOnPaste = ({pastedContent, index, attrI, data, visibleAttribute
     const rowsToPaste = [...new Array(paste.length).keys()].map(i => index + i).filter(i => i < data.length)
 
     const columnsToPaste = [...new Array(paste[0].length).keys()]
-        .map(i => visibleAttributes[attrI + i]?.allowEditInView ? visibleAttributes[attrI + i]?.name : undefined)
+        .map(i => visibleAttributes[attrI + i]?.allowEditInView || allowEdit ? visibleAttributes[attrI + i]?.name : undefined)
         .filter(i => i);
     const itemsToUpdate = rowsToPaste.map((row, rowI) => {
         let rowData = {...data[row]};
@@ -131,6 +131,7 @@ const updateItemsOnPaste = ({pastedContent, index, attrI, data, visibleAttribute
         }
         return rowData;
     });
+    console.log('items to paste', itemsToUpdate)
     updateItem(undefined, undefined, itemsToUpdate);
 }
 export default function ({
@@ -184,7 +185,7 @@ export default function ({
         if(!allowEdit || !columns.some(c => c.allowEditInView)) return;
         // first cell of selection
         let {index, attrI} = typeof selection[0] === 'number' ? {index: selection[0], attrI: undefined} : selection[0];
-        updateItemsOnPaste({pastedContent, e, index, attrI, data, visibleAttributes, selection, updateItem})
+        updateItemsOnPaste({pastedContent, e, index, attrI, data, visibleAttributes, allowEdit, selection, updateItem})
     }, windowFake, isActive);
 
     useCopy(() => {
