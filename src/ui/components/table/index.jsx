@@ -182,7 +182,7 @@ export default function ({
     // =========================================== copy/paste begin ====================================================
     // =================================================================================================================
     usePaste((pastedContent, e) => {
-        if(!allowEdit || !columns.some(c => c.allowEditInView)) return;
+        if(!allowEdit && !columns.some(c => c.allowEditInView)) return;
         // first cell of selection
         let {index, attrI} = typeof selection[0] === 'number' ? {index: selection[0], attrI: undefined} : selection[0];
         updateItemsOnPaste({pastedContent, e, index, attrI, data, visibleAttributes, allowEdit, selection, updateItem})
@@ -302,9 +302,18 @@ export default function ({
                 if (selectionCols.length) {
                     // partial selection
                     updateItem(undefined, undefined, selectionRows.map(row => ({...row, ...selectionCols.reduce((acc, curr) => ({...acc, [curr]: ''}), {})})))
-                }else{
+                } else{
                     // full row selection
-                    updateItem(undefined, undefined, selectionRows.map(row => ({...row, ...visibleAttributes.filter(c => (allowEdit || c.allowEditInView)).reduce((acc, curr) => ({...acc, [curr]: ''}), {})})))
+                    // this script can be reached by selecting only non deletable columns and pressing delete
+                    const deletableCols = visibleAttributes.filter(c => (allowEdit || c.allowEditInView));
+                    const allNonDeletableColsSelected = selection.every(s => !allowEdit && !visibleAttributes[s.attrI]?.allowEditInView);
+
+                    if(deletableCols.length && !allNonDeletableColsSelected){
+                        // find other ways user can trigger a full row deletion accidentally before allowing it.
+                        // since column numbers are not shown, this feature should not be triggered.
+                        // safest option is to set another trigger for full row deletion on click, instead of trying to identify it.
+                        // updateItem(undefined, undefined, selectionRows.map(row => ({...row, ...deletableCols.reduce((acc, curr) => ({...acc, [curr.name]: ''}), {})})))
+                    }
                 }
             }
         }
