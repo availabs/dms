@@ -7,6 +7,7 @@ import Selector from "../selector";
 import {convert} from './convertToSpreadSheet'
 import {ThemeContext} from "../../../../ui/useTheme";
 import {AuthContext} from "../../../auth/context";
+import { v4 as uuidv4 } from 'uuid';
 
 export function SectionEdit({
                                 value,
@@ -586,6 +587,7 @@ const getSectionMenuItems = ({
                     }).map((name, i) => {
                         return {
                             'icon': name == (value?.['size'] || '1') ? 'CircleCheck' : 'Blank',
+                            id: uuidv4(), // to prevent duplicate entries
                             'name': name,
                             'onClick': () => {
                                 console.log('colspan Item name click', name)
@@ -603,6 +605,7 @@ const getSectionMenuItems = ({
                     }).map((name, i) => {
                         return {
                             'icon': name == (value?.['rowspan'] || '1') ? 'CircleCheck' : 'Blank',
+                            id: uuidv4(),
                             'name': name,
                             'onClick': () => {
                                 updateAttribute('rowspan', name);
@@ -880,5 +883,15 @@ let handleCopy = (value) => {
         return;
     }
     //--------------------------------------
+    // if (elementType === 'Spreadsheet'){
+    //     const valueToCopy = {...value};
+    //     const elementData = JSON.parse(valueToCopy?.element?.['element-data'])
+    //     console.log(elementData)
+    //     if(elementData?.data){
+    //         valueToCopy.element = {...valueToCopy.element, 'element-data': JSON.stringify({...elementData, data: []})}
+    //     }
+    //     navigator.clipboard.writeText(JSON.stringify(valueToCopy));
+    //     return;
+    // }
     navigator.clipboard.writeText(JSON.stringify(value))
 }

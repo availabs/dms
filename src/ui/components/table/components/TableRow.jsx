@@ -1,5 +1,6 @@
-import React, {useMemo, useState} from "react";
+import React, {useMemo, useState, useCallback} from "react";
 import {numColSize as numColSizeDf, gutterColSize as gutterColSizeDf, } from "../../../../patterns/page/components/selector/ComponentRegistry/spreadsheet/constants"
+import {handleMouseUp, handleMouseMove, handleMouseDown} from "../utils/mouse"
 import {TableCell} from "./TableCell";
 import Icon from "../../Icon"
 
@@ -46,52 +47,70 @@ const getEdge = ({ startI, endI, startCol, endCol }, i, attrI) => {
 };
 
 export const TableRow = ({
-  frozenCols, theme, columns, display,
-  i, d,
-  allowEdit, isDragging, isSelecting, editing, setEditing, loading,
-  selection, setSelection, selectionRange, triggerSelectionDelete,
-  handleMouseDown, handleMouseMove, handleMouseUp,
-  setIsDragging, startCellCol, startCellRow,
-  updateItem, removeItem, defaultColumnSize, isTotalRow
+    frozenCols, theme, columns, display,
+    i, d,
+    allowEdit, isDragging, isSelecting, editing, setEditing, loading,
+    selection, setSelection, selectionRange, triggerSelectionDelete,
+    setIsDragging, startCellCol, startCellRow,
+    updateItem, removeItem, defaultColumnSize, isTotalRow
 }) => {
     const [showOpenOut, setShowOpenOut] = useState(false);
 
     const visibleAttributes = useMemo(() => columns.filter(({show}) => show), [columns]);
-    const visibleAttrsWithoutOpenOut = visibleAttributes.filter(({openOut, actionType}) => !openOut || actionType);
+    const visibleAttrsWithoutOpenOut = useMemo(() => visibleAttributes.filter(({ openOut, actionType }) => !openOut || actionType), [visibleAttributes]);
     const visibleAttrsWithoutOpenOutsLen = visibleAttrsWithoutOpenOut.length;
-    const openOutAttributes = visibleAttributes.filter(({openOut}) => openOut);
+    const openOutAttributes = useMemo(() => visibleAttributes.filter(({ openOut }) => openOut), [visibleAttributes]);
     const numColSize = display.showGutters ? numColSizeDf : 0
     const gutterColSize = display.showGutters ? gutterColSizeDf : 0
 
+    const onClickRowNum = useCallback(
+        (e) => {
+            if (!setSelection || !display.showGutters) return;
+
+            if (e.ctrlKey) {
+                setSelection(
+                    selection.includes(i)
+                        ? selection.filter((v) => v !== i)
+                        : [...selection, i]
+                );
+            } else {
+                setSelection([i]);
+            }
+        },
+        [i, selection, setSelection, display.showGutters]
+    );
+
+    const gridTemplateColumns = useMemo(
+        () =>
+            `${numColSize}px ${visibleAttrsWithoutOpenOut
+                .map((v) => (v.size ? `${v.size}px` : `${defaultColumnSize}px`))
+                .join(" ")} ${gutterColSize}px`,
+        [numColSize, gutterColSize, visibleAttrsWithoutOpenOut, defaultColumnSize]
+    );
+
+    const rowIsSelected = useMemo(
+        () => selection?.some((s) => (s.index ?? s) === i),
+        [selection, i]
+    );
+
     return (
         <>
-            <div 
+            <div
                 key={`data-${i}`}
                 className={`${d.totalRow ? `sticky bottom-0 z-[1]` : ``} grid
                              ${isDragging ? `select-none` : ``} 
                             ${display.striped ? `odd:bg-gray-50` : ``} ${d.totalRow ? `bg-gray-100` : ``}`
-                            }
+                }
                 style={{
-                    gridTemplateColumns: `${numColSize}px ${visibleAttrsWithoutOpenOut.map(v => v.size ? `${v.size}px` : `${defaultColumnSize}px`).join(' ')} ${gutterColSize}px`,
+                    gridTemplateColumns,
                     gridColumn: `span ${visibleAttrsWithoutOpenOut.length + 2} / ${visibleAttrsWithoutOpenOut.length + 2}`
                 }}
             >
                 <div key={'#'}
                      className={` flex text-xs items-center justify-center cursor-pointer sticky left-0 z-[1]
-                             ${selection?.find(s => (s.index !== undefined ? s.index : s) === i) ? 'bg-blue-100 text-gray-900' : 'bg-gray-50 text-gray-500'}`}
+                             ${rowIsSelected ? 'bg-blue-100 text-gray-900' : 'bg-gray-50 text-gray-500'}`}
                      style={{width: numColSize}}
-                     onClick={e => {
-                         // single click = replace selection
-                         // click and mouse move = add to selection
-                         // ctrl + click add
-                         if(!setSelection) return;
-
-                         if (e.ctrlKey) {
-                             setSelection(selection.includes(i) ? selection.filter(v => v !== i) : [...selection, i])
-                         } else {
-                             setSelection([i])
-                         }
-                     }}
+                     onClick={onClickRowNum}
                      onMouseDown={e => setSelection && setIsDragging && handleMouseDown({
                          e,
                          index: i,
@@ -160,10 +179,15 @@ export const TableRow = ({
                             })}
                             onMouseUp={e => setIsDragging && handleMouseUp({setIsDragging})}
                             onClick={() => {
-                                setSelection && setSelection([{index: i, attrI}]);
+                                setSelection &&
+                                selection?.length === 1 &&
+                                selection?.[0]?.index !== i && selection?.[0]?.attrI !== attrI &&
+                                setSelection([{index: i, attrI}]);
+                                setEditing && (editing?.index !== i || editing?.attrI !== attrI) && setEditing({});
+                            }}
+                            onDoubleClick={() => {
                                 setEditing && (allowEdit || attribute.allowEditInView) && setEditing({index: i, attrI});
                             }}
-                            onDoubleClick={() => {}}
                             allowEdit={allowEdit || attribute.allowEditInView}
                         />)}
 
@@ -210,33 +234,33 @@ export const TableRow = ({
                                     let value = d[attribute.normalName] || d[attribute.name]
                                     return Array.isArray(value) ? value.length : value;
                                 }
-                               return true;
+                                return true;
                             })
                             .map((attribute, openOutAttrI) => {
-                            const attrI = visibleAttrsWithoutOpenOutsLen + 1 + openOutAttrI;
-                            return (
-                                <div key={`data-open-out-${i}`}
-                                     className={''} >
-                                    <TableCell
-                                        isTotalCell={isTotalRow}
-                                        columns={columns}
-                                        display={display}
-                                        theme={theme}
-                                        editing={editing?.index === i && editing?.attrI === attrI}
-                                        key={`cell-${i}-${attrI}`}
-                                        attribute={attribute}
-                                        openOut={true}
-                                        loading={loading}
-                                        updateItem={updateItem}
-                                        removeItem={removeItem}
+                                const attrI = visibleAttrsWithoutOpenOutsLen + 1 + openOutAttrI;
+                                return (
+                                    <div key={`data-open-out-${i}`}
+                                         className={''} >
+                                        <TableCell
+                                            isTotalCell={isTotalRow}
+                                            columns={columns}
+                                            display={display}
+                                            theme={theme}
+                                            editing={editing?.index === i && editing?.attrI === attrI}
+                                            key={`cell-${i}-${attrI}`}
+                                            attribute={attribute}
+                                            openOut={true}
+                                            loading={loading}
+                                            updateItem={updateItem}
+                                            removeItem={removeItem}
 
-                                        i={i}
-                                        item={d}
-                                        allowEdit={allowEdit || attribute.allowEditInView}
-                                    />
-                                </div>
-                            )
-                        })}
+                                            i={i}
+                                            item={d}
+                                            allowEdit={allowEdit || attribute.allowEditInView}
+                                        />
+                                    </div>
+                                )
+                            })}
                     </div>
                 </div> : null
             }

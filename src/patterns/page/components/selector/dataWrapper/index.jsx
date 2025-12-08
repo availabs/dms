@@ -361,8 +361,8 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
             })
             const dataToUpdateDB = state.columns.filter(c => !(c.serverFn && c.joinKey) && c.editable !== false)
                 .reduce((acc, col) => {
-                    acc[col.name] = d[col.name];
-                    return {...acc, [col.name]: d[col.name]};
+                    acc[col.name] = d[col.name]?.originalValue || d[col.name];
+                    return acc;
                 }, {id: d.id})
             return apiUpdate({data: {...dataToUpdateDB, [attribute.name]: value},  config: {format: state.sourceInfo}})
         }else{
@@ -370,17 +370,20 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
             const dataToUpdateDB = dataToUpdateState.map(row => {
                 return state.columns.filter(c => !(c.serverFn && c.joinKey) && c.editable !== false)
                     .reduce((acc, col) => {
-                        acc[col.name] = row[col.name];
-                        return {...acc, [col.name]: row[col.name]};
+                        acc[col.name] = row[col.name]?.originalValue || row[col.name];
+                        return acc;
                     }, {id: row.id})
             })
-            const tmpData = [...state.data];
-            dataToUpdateState.map(dtu => {
-                const i = state.data.findIndex(dI => dI.id === dtu.id);
-                tmpData[i] = dtu;
-            });
+
             setState(draft => {
-                draft.data = tmpData
+                dataToUpdateState.forEach(dtu => {
+                    const i = draft.data.findIndex(dI => dI.id === dtu.id);
+                    if(i === -1) return;
+
+                    Object.keys(dtu).forEach(col => {
+                        draft.data[i][col] = dtu[col];
+                    })
+                });
             });
 
             return Promise.all(dataToUpdateDB.map(dtu => apiUpdate({data: dtu, config: {format: state.sourceInfo}})));
@@ -597,7 +600,7 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
         return () => {
             isStale = true;
         }
-    }, [state?.display?.loadMoreId, state?.display?.totalLength, /*state?.data?.length, */state?.display?.usePagination, isValidState]);
+    }, [state?.display?.loadMoreId, state?.display?.totalLength, state?.data?.length, state?.display?.usePagination, isValidState]);
 
     // =========================================== get input data ======================================================
     useEffect(() => {
@@ -697,8 +700,8 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
             })
             const dataToUpdateDB = state.columns.filter(c => !(c.serverFn && c.joinKey) && c.editable !== false)
                 .reduce((acc, col) => {
-                    acc[col.name] = d[col.name];
-                    return {...acc, [col.name]: d[col.name]};
+                    acc[col.name] = d[col.name]?.originalValue || d[col.name];
+                    return acc;
                 }, {id: d.id})
             return apiUpdate({data: {...dataToUpdateDB, [attribute.name]: value},  config: {format: state.sourceInfo}})
         }else{
@@ -706,17 +709,20 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
             const dataToUpdateDB = dataToUpdateState.map(row => {
                 return state.columns.filter(c => !(c.serverFn && c.joinKey) && c.editable !== false)
                     .reduce((acc, col) => {
-                        acc[col.name] = row[col.name];
-                        return {...acc, [col.name]: row[col.name]};
+                        acc[col.name] = row[col.name]?.originalValue || row[col.name];
+                        return acc;
                     }, {id: row.id})
             })
-            const tmpData = [...state.data];
-            dataToUpdateState.map(dtu => {
-                const i = state.data.findIndex(dI => dI.id === dtu.id);
-                tmpData[i] = dtu;
-            });
+
             setState(draft => {
-                draft.data = tmpData
+                dataToUpdateState.forEach(dtu => {
+                    const i = draft.data.findIndex(dI => dI.id === dtu.id);
+                    if(i === -1) return;
+
+                    Object.keys(dtu).forEach(col => {
+                        draft.data[i][col] = dtu[col];
+                    })
+                });
             });
 
             return Promise.all(dataToUpdateDB.map(dtu => apiUpdate({data: dtu, config: {format: state.sourceInfo}})));
@@ -747,7 +753,8 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
     const removeItem = item => {
         if(!state.sourceInfo?.isDms || !apiUpdate || groupByColumnsLength) return;
         setState(draft => {
-            draft.data = draft.data.filter(d => d.id !== item.id);
+            const idx = draft.data.findIndex(d => d.id === item.id);
+            if (idx !== -1) draft.data.splice(idx, 1);
         })
         return apiUpdate({data: item, config: {format: state.sourceInfo}, requestType: 'delete'})
     }

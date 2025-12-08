@@ -83,6 +83,7 @@ export default function Editor(props): JSX.Element {
         showActionBar,
         placeholderText = '',
         editable = true,
+        hideControls,
         bgColor,
         isCard,
         tableCellBackgroundColor= true,
@@ -123,7 +124,7 @@ export default function Editor(props): JSX.Element {
 
     return (
         <>
-            {isRichText && editable && <ToolbarPlugin/>}
+            {isRichText && editable && !hideControls && <ToolbarPlugin/>}
             <div
                 className={`
                     ${editable ? `${theme.editorContainer}` || `editor-container` : `${theme.editorViewContainer}` || `view-container`}

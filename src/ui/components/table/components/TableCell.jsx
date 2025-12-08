@@ -1,5 +1,4 @@
-import React, {useEffect, useState} from "react";
-import {Link} from "react-router";
+import React, {useEffect, useRef, useState} from "react";
 import {isEqual} from "lodash-es";
 import Icon from "../../Icon";
 import DataTypes from "../../../columnTypes";
@@ -87,6 +86,7 @@ export const TableCell = ({
     onClick, onDoubleClick, onMouseDown, onMouseMove, onMouseUp
 }) => {
     //const { theme = {table: tableTheme}} =  = React.useContext(ThemeContext) || {}
+    const cellRef = useRef(null);
     const [newItem, setNewItem] = useState(item);
     const rawValue = newItem[attribute.normalName] || newItem[attribute.name]
     // const Comp = DataTypes[attribute.type]?.[isSelecting ? 'ViewComp' : 'EditComp'];
@@ -141,6 +141,16 @@ export const TableCell = ({
         };
     }, [rawValue]);
 
+    React.useEffect(() => {
+        const el = cellRef.current;
+        if (isSelected && el) {
+            el.scrollIntoView({
+                block: "nearest",
+                inline: "nearest"
+            });
+        }
+    }, [isSelected]);
+
     const isValid = ['multiselect', 'select', 'radio'].includes(attribute.type) || attribute.required === 'yes' ? validate({
         value: typeof rawValue === 'object' && rawValue?.hasOwnProperty('originalValue') ? rawValue.originalValue :
             typeof rawValue === 'object' && rawValue?.hasOwnProperty('value') ? rawValue.value :
@@ -170,7 +180,7 @@ export const TableCell = ({
                                     isSelected ? 'bg-blue-50 hover:bg-blue-100' : 'bg-white bg-blue-50';
 
     return (
-        <div
+        <div ref={cellRef}
             className={attribute.openOut || openOutTitle ? `` : `
                 ${theme?.table.cell} 
                 ${isFrozen ? theme?.table?.cellFrozenCol : ''} 
@@ -230,6 +240,7 @@ export const TableCell = ({
                   value={typeof value === "object" && value?.hasOwnProperty('originalValue') ? value?.value : value}
                   row={newItem}
                   onChange={e => isTotalRow ? null : setNewItem({...newItem, [attribute.name]: e})}
+                  hideControls={compType === 'lexical'}
             />
         </div>
     )

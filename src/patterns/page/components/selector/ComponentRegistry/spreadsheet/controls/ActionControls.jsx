@@ -1,5 +1,4 @@
-import React, {useRef, useState, useEffect, useContext, useCallback} from "react";
-import {useHandleClickOutside} from "../../shared/utils";
+import React, {useState, useContext, useCallback} from "react";
 import {CMSContext, ComponentContext} from '../../../../../context'
 
 const Icons = []
@@ -9,7 +8,7 @@ const RenderIconSelector = ({onClick, icon}) => {
     const { Icon } = UI;
     const [open, setOpen] = useState(false);
     const [search, setSearch] = useState('');
-    const Value = () => <span>icon</span>; //icon ? Icons[icon] :
+
     return (
         <div className="p-1 bg-white border rounded-md">
             <button
@@ -239,14 +238,9 @@ export default function ActionControls({context}) {
     // attach search params
     const {state:{columns}, setState} = useContext(context || ComponentContext);
     const {UI} = useContext(CMSContext) || {UI: {Icon: () => <></>}};
-    const {Icon} = UI;
-    const menuRef = useRef(null);
+    const {Icon, Button, Popup} = UI;
     const [search, setSearch] = useState();
-    const [isOpen, setIsOpen] = useState(false);
-    const menuBtnId = 'menu-btn-action-controls'
     const actionColumns = columns.filter(column => column.actionType); //two types of actions.
-
-    useHandleClickOutside(menuRef, menuBtnId, () => setIsOpen(false));
 
     // takes in one action, adds or updates it.
     const updateAction = useCallback((action={}) => {
@@ -280,35 +274,35 @@ export default function ActionControls({context}) {
 
     return (
         <div className="relative inline-block text-left">
-            <div>
-                <div id={menuBtnId}
-                    className={`inline-flex w-full justify-center items-center rounded-md px-1.5 py-1 text-sm font-regular 
+            <Popup button={<Button type={'rounded'}
+                                className={`inline-flex w-full justify-center items-center rounded-md px-1.5 py-1 text-sm font-regular 
                     text-gray-900 shadow-sm ring-1 ring-inset ${actionColumns.length ? `ring-blue-300` : `ring-gray-300`} 
-                    ${isOpen ? `bg-gray-50` : `bg-white hover:bg-gray-50`} cursor-pointer`}
-                    onClick={e => setIsOpen(!isOpen)}>
-                    Action <Icon icon={'ArrowDown'} id={menuBtnId} height={18} width={18} className={'mt-1'}/>
-                </div>
-            </div>
+                    bg-white hover:bg-gray-50 cursor-pointer`}>
+                Action <Icon icon={'ArrowDown'} height={18} width={18} className={'mt-1'}/>
+            </Button>}>
+                {
+                    ({open, setOpen}) => (
+                        <div className={`${open ? 'visible transition ease-in duration-200' : 'hidden transition ease-in duration-200'} w-72 origin-top-left divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 transition focus:outline-none`}
+                        >
+                            <input key={'search'}
+                                   className={'px-3 py-1 w-full rounded-md'}
+                                   placeholder={'search...'}
+                                   onChange={e => setSearch(e.target.value)}/>
+                            <RenderAddAction ket={'add-action'} actions={actionColumns} addAction={addAction} />
+                            <div key={'actions'} className="py-1 max-h-[500px] overflow-auto scrollbar-sm">
+                                {
+                                    actionColumns
+                                        .filter(a => a && (!search || (a.name).toLowerCase().includes(search.toLowerCase())))
+                                        .map((action, i) => (
+                                            <RenderAction key={i} action={action} actions={actionColumns} updateAction={updateAction} deleteAction={deleteAction} />
+                                        ))
+                                }
 
-            <div ref={menuRef}
-                className={`${isOpen ? 'visible transition ease-in duration-200' : 'hidden transition ease-in duration-200'} absolute left-0 z-10 w-72 origin-top-left divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 transition focus:outline-none`}
-            >
-                <input key={'search'}
-                       className={'px-3 py-1 w-full rounded-md'}
-                       placeholder={'search...'}
-                       onChange={e => setSearch(e.target.value)}/>
-                <RenderAddAction ket={'add-action'} actions={actionColumns} addAction={addAction} />
-                <div key={'actions'} className="py-1 max-h-[500px] overflow-auto scrollbar-sm">
-                    {
-                        actionColumns
-                            .filter(a => a && (!search || (a.name).toLowerCase().includes(search.toLowerCase())))
-                            .map((action, i) => (
-                                <RenderAction key={i} action={action} actions={actionColumns} updateAction={updateAction} deleteAction={deleteAction} />
-                            ))
-                    }
-
-                </div>
-            </div>
+                            </div>
+                        </div>
+                    )
+                }
+            </Popup>
         </div>
     )
 }

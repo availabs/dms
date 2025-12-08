@@ -203,6 +203,7 @@ const EditComp = ({
               {...attribute}
             options={options}
             meta={optionsMeta}
+            hideControls={attribute.type==='lexical'}
         />
     </div>
 }

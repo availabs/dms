@@ -1,13 +1,11 @@
-import React, {useCallback, useContext, useEffect, useMemo, useRef, useState} from "react";
+import React, {useCallback, useContext, useRef, useState} from "react";
 import {cloneDeep} from "lodash-es";
-
-import {useHandleClickOutside} from "../../ComponentRegistry/shared/utils";
 import {isCalculatedCol} from "./filters/utils";
 import {getColumnLabel, isEqualColumns} from "../utils/utils";
 
 import AddFormulaColumn from "./AddFormulaColumn";
 import DataSourceSelector from "../../ComponentRegistry/DataSourceSelector";
-import { ComponentContext, CMSContext } from "../../../../context";
+import { ComponentContext } from "../../../../context";
 import { ThemeContext } from "../../../../../../ui/useTheme";
 
 
@@ -36,32 +34,32 @@ const gridClasses = {
     6: {
         gridClass: 'grid grid-cols-6',
         gridTemplateColumns: '10rem 5rem 5rem 5rem 5rem 3rem',
-        width: '33rem',
+        width: '40rem',
     },
     7: {
         gridClass: 'grid grid-cols-7',
         gridTemplateColumns: '10rem 5rem 5rem 5rem 5rem 5rem 3rem',
-        width: '38rem',
+        width: '45rem',
     },
     8: {
         gridClass: 'grid grid-cols-8',
         gridTemplateColumns: '10rem 5rem 5rem 5rem 5rem 5rem 5rem 3rem',
-        width: '43rem',
+        width: '49rem',
     },
     9: {
         gridClass: 'grid grid-cols-9',
         gridTemplateColumns: '10rem 5rem 5rem 5rem 5rem 5rem 5rem 5rem 3rem',
-        width: '48rem',
+        width: '55rem',
     },
     10: {
         gridClass: 'grid grid-cols-10',
         gridTemplateColumns: '10rem 5rem 5rem 5rem 5rem 5rem 5rem 5rem 5rem 3rem',
-        width: '53rem',
+        width: '59rem',
     },
     11: {
         gridClass: 'grid grid-cols-11',
         gridTemplateColumns: '10rem 5rem 5rem 5rem 5rem 5rem 5rem 5rem 5rem 5rem 3rem',
-        width: '58rem',
+        width: '60rem',
     },
 };
 
@@ -70,14 +68,10 @@ export default function ColumnControls({context, cms_context}) {
     const {state: {columns=[], sourceInfo, display}, setState, controls= {}} = useContext(context || ComponentContext);
     const { UI } = React.useContext(ThemeContext) || {UI: {Icon: () => <></>, Pill: () => <></>, Switch: () => <></>}}
     if(!controls.columns?.length) return;
-    const { Icon, Switch, Pill } = UI;
+    const { Icon, Switch, Pill, Button, Popup } = UI;
     const dragItem = useRef();
     const dragOverItem = useRef();
-    const menuRef = useRef(null);
     const [search, setSearch] = useState();
-    const [isOpen, setIsOpen] = useState(false);
-    const menuBtnId = 'menu-btn-column-controls'; // used to control isOpen on menu-btm click;
-    useHandleClickOutside(menuRef, menuBtnId, () => setIsOpen(false));
 
     const columnsToRender =
         [...columns, ...(sourceInfo.columns || []).filter(c => !columns.map(c => c.name).includes(c.name))]
@@ -87,9 +81,6 @@ export default function ColumnControls({context, cms_context}) {
             )
     if(columns.some(column => column.type === 'formula')){
         columnsToRender.push(...columns.filter(column => column.type === 'formula'))
-    }
-    if(columns.some(column => column.systemCol)){
-        columnsToRender.splice(0, 0, columns.find(column => column.systemCol))
     }
     // ================================================== drag utils start =============================================
     const dragStart = (e, position) => {
@@ -244,84 +235,28 @@ export default function ColumnControls({context, cms_context}) {
     const isEveryColVisible = (sourceInfo.columns || []).map(({name}) => columns.find(column => column.name === name)).every(column => column?.show);
     const isSystemIDColOn = columns.find(c => c.systemCol && c.name === 'id');
     return (
-        <div className="relative inline-block text-left">
-            <button id={menuBtnId}
-                 className={`inline-flex w-full justify-center items-center rounded-md px-1.5 py-1 text-sm font-regular
+        <div className="inline-block text-left">
+            <Popup button={<Button type={'rounded'}
+                                   className={`inline-flex w-full justify-center items-center rounded-md px-1.5 py-1 text-sm font-regular
                  text-gray-900 shadow-sm ring-1 ring-inset ${columns?.length ? `ring-blue-300` : `ring-gray-300`}
-                 ${isOpen ? `bg-gray-50` : `bg-white hover:bg-gray-50`} cursor-pointer`}
-                 onClick={() => {
-                     setIsOpen(!isOpen);
-                     setSearch(undefined);
-                 }}>
-                Columns <Icon icon='ArrowDown' id={menuBtnId} height={18} width={18} className={'mt-1'}/>
-            </button>
-            <div ref={menuRef}
-                 role="menu"
-                 className={`${isOpen ? 'visible transition ease-in duration-200' : 'hidden transition ease-in duration-200'} absolute left-0 z-10 w-[${width}] origin-top-left divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 transition focus:outline-none`}
+                  bg-white hover:bg-gray-50 cursor-pointer`}
+                                   onClick={() => {
+                                       setSearch(undefined);
+                                   }}>
+                Columns <Icon icon='ArrowDown' height={18} width={18} className={'mt-1'}/>
+            </Button>}
             >
-                {display.hideDatasourceSelector ? null : <DataSourceSelector />}
-
-                <div className="py-1 select-none">
-                    <div key={'header'}
-                         className="flex items-center px-2 py-1 text-xs text-gray-700 hover:bg-gray-100 hover:text-gray-900"
-                    >
-                        <div className={'h-4 w-4 m-1 text-gray-800'}>
-                            <svg data-v-4e778f45=""
-                                 className="nc-icon cursor-move !h-3.75 text-gray-600 mr-1"
-                                 viewBox="0 0 24 24" width="1.2em" height="1.2em">
-                                <path fill="currentColor"
-                                      d="M8.5 7a1.5 1.5 0 1 0 0-3a1.5 1.5 0 0 0 0 3m0 6.5a1.5 1.5 0 1 0 0-3a1.5 1.5 0 0 0 0 3m1.5 5a1.5 1.5 0 1 1-3 0a1.5 1.5 0 0 1 3 0M15.5 7a1.5 1.5 0 1 0 0-3a1.5 1.5 0 0 0 0 3m1.5 5a1.5 1.5 0 1 1-3 0a1.5 1.5 0 0 1 3 0m-1.5 8a1.5 1.5 0 1 0 0-3a1.5 1.5 0 0 0 0 3"></path>
-                            </svg>
-                        </div>
-
-                        <div className={`${gridClass} gap-0.5 m-1 w-full`}
-                             style={{gridTemplateColumns}}
+                {
+                    ({open, setOpen}) => (
+                        <div
+                             role="menu"
+                             className={`${open ? 'visible transition ease-in duration-50' : 'hidden transition ease-in duration-50'} w-[${width}]  left-0 origin-top-left divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 transition focus:outline-none`}
                         >
-                            <div className={'flex flex-col items-center md:flex-row place-self-stretch'}>
-                                <span className={'px-2'}>Column</span>
-                                <input className={'px-4 py-1 w-full text-xs rounded-md'} placeholder={'search...'}
-                                       onChange={e => {
-                                           setSearch(e.target.value)
-                                       }}/>
-                            </div>
-                            {
-                                controls.columns.map(control => <div key={control.label} className={`${control.type === 'toggle' ? 'justify-self-stretch' : 'px-1 w-fit rounded-md text-center'} flex items-center`}>{control.label}</div>)
-                            }
-                            <div className={'justify-self-stretch flex items-center'}>Reset</div>
-                        </div>
-                    </div>
-                </div>
+                            {display.hideDatasourceSelector ? null : <DataSourceSelector />}
 
-                <div className="py-1 select-none">
-                    <div key={'global-controls'} className="flex items-center px-2 py-1">
-                        <Icon className={"text-slate-400 w-[24px] h-[24px]"} icon={'GlobalEditing'} />
-
-                        <div className={`flex gap-1 m-1 w-full`}>
-                            {
-                                controls.columns.find(({key}) => key === 'show') ?
-                                    <Pill text={isEveryColVisible ? 'Hide all' : 'Show all'} color={'blue'} onClick={() => toggleGlobalVisibility(!isEveryColVisible)}/> : null
-                            }
-                            <AddFormulaColumn columns={columnsToRender} addFormulaColumn={addFormulaColumn} cms_context={cms_context}/>
-                            <Pill text={isSystemIDColOn ? 'Hide ID column' : 'Show ID column'} color={'blue'} onClick={() => toggleIdFilter()}/>
-                            <Pill text={'Reset all'} color={'orange'} onClick={() => resetAllColumns()}/>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="py-1 max-h-[500px] overflow-auto scrollbar-sm">
-                    {
-                        columnsToRender
-                            .map((attribute, i) => (
-                                <div
-                                    key={`${attribute.name}-${i}`}
-                                    className={`flex items-center px-2 py-1 text-xs text-gray-700 ${isCalculatedCol(attribute.name, columnsToRender) ? `bg-gray-50` : ``} hover:bg-gray-100 hover:text-gray-900`}
-                                    onDragStart={(e) => dragStart(e, i)}
-                                    onDragEnter={(e) => dragEnter(e, i)}
-
-                                    onDragOver={dragOver}
-
-                                    onDragEnd={drop}
-                                    draggable={attribute.show}
+                            <div className="py-1 select-none">
+                                <div key={'header'}
+                                     className="flex items-center px-2 py-1 text-xs text-gray-700 hover:bg-gray-100 hover:text-gray-900"
                                 >
                                     <div className={'h-4 w-4 m-1 text-gray-800'}>
                                         <svg data-v-4e778f45=""
@@ -335,64 +270,125 @@ export default function ColumnControls({context, cms_context}) {
                                     <div className={`${gridClass} gap-0.5 m-1 w-full`}
                                          style={{gridTemplateColumns}}
                                     >
-                                        <input key={`${attribute.name}-${attribute.copyNum}`} className={'place-self-stretch'}
-                                               value={getColumnLabel(attribute)}
-                                               onChange={e => updateColumns(attribute, 'customName', e.target.value)}
-                                        />
+                                        <div className={'flex flex-col items-center md:flex-row place-self-stretch'}>
+                                            <span className={'px-2'}>Column</span>
+                                            <input className={'px-4 py-1 w-full text-xs rounded-md'} placeholder={'search...'}
+                                                   onChange={e => {
+                                                       setSearch(e.target.value)
+                                                   }}/>
+                                        </div>
                                         {
-                                            controls.columns.map((control, i) => {
-                                                const isDisabled = typeof control.disabled === 'function' ? control.disabled({attribute}) : control.disabled;
-                                                return (
-                                                    <div key={`${control.key}-${i}`}>
-                                                        {
-                                                            control.type === 'select' ?
-                                                                <select
-                                                                    key={attribute[control.key]}
-                                                                    className={`px-0.5 appearance-none w-fit rounded-md ${attribute[control.key] ? `bg-blue-500/15 text-blue-700 hover:bg-blue-500/25` : `bg-gray-100`} h-fit text-center cursor-pointer`}
-                                                                    value={attribute[control.key]}
-                                                                    disabled={isDisabled}
-                                                                    onChange={e => updateColumns(attribute, control.key, e.target.value, control.onChange)}
-                                                                >
-                                                                    {
-                                                                        control.options.map(({label, value}) => <option
-                                                                            key={value} value={value}>{label}</option>)
-                                                                    }
-                                                                </select> :
-                                                                control.type === 'toggle' ?
-                                                                    <div key={attribute[control.key]}
-                                                                         className={'justify-self-stretch'}>
-                                                                        <Switch
-                                                                            size={'small'}
-                                                                            key={attribute[control.key]}
-                                                                            id={attribute[control.key]}
-                                                                            enabled={!!attribute[control.key]}
-                                                                            setEnabled={(value) => isDisabled ? null :
-                                                                                updateColumns(attribute, control.key, value && control.trueValue ? control.trueValue : value, control.onChange)}
-                                                                        />
-                                                                    </div> :
-                                                                    typeof control.type === 'function' ?
-                                                                        control.type({
-                                                                            attribute,
-                                                                            value: attribute[control.key],
-                                                                            setValue: newValue => updateColumns(attribute, control.key, newValue, control.onChange),
-                                                                            setState
-                                                                        }) :
-                                                                        `${control.type} not available`
-                                                        }
-                                                    </div>
-                                                )
-                                            })
+                                            controls.columns.map(control => <div key={control.label} className={`${control.type === 'toggle' ? 'justify-self-stretch' : 'px-1 w-fit rounded-md text-center'} flex items-center`}>{control.label}</div>)
                                         }
-
-                                        <button key={'restore-btn'} className={'w-fit place-self-end'} onClick={() => resetColumn(attribute)}>
-                                            <Icon icon='TrashCan' className={'text-orange-500 hover:text-orange-700 size-4'} />
-                                        </button>
+                                        <div className={'justify-self-stretch flex items-center'}>Reset</div>
                                     </div>
                                 </div>
-                            ))
-                    }
-                </div>
-            </div>
+                            </div>
+
+                            <div className="py-1 select-none">
+                                <div key={'global-controls'} className="flex items-center px-2 py-1">
+                                    <Icon className={"text-slate-400 w-[24px] h-[24px]"} icon={'GlobalEditing'} />
+
+                                    <div className={`flex gap-1 m-1 w-full`}>
+                                        {
+                                            controls.columns.find(({key}) => key === 'show') ?
+                                                <Pill text={isEveryColVisible ? 'Hide all' : 'Show all'} color={'blue'} onClick={() => toggleGlobalVisibility(!isEveryColVisible)}/> : null
+                                        }
+                                        <AddFormulaColumn columns={columnsToRender} addFormulaColumn={addFormulaColumn} cms_context={cms_context}/>
+                                        <Pill text={isSystemIDColOn ? 'Hide ID column' : 'Show ID column'} color={'blue'} onClick={() => toggleIdFilter()}/>
+                                        <Pill text={'Reset all'} color={'orange'} onClick={() => resetAllColumns()}/>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="py-1 max-h-[500px] overflow-auto scrollbar-sm">
+                                {
+                                    columnsToRender
+                                        .map((attribute, i) => (
+                                            <div
+                                                key={`${attribute.name}-${i}`}
+                                                className={`flex items-center px-2 py-1 text-xs text-gray-700 ${isCalculatedCol(attribute.name, columnsToRender) ? `bg-gray-50` : ``} hover:bg-gray-100 hover:text-gray-900`}
+                                                onDragStart={(e) => dragStart(e, i)}
+                                                onDragEnter={(e) => dragEnter(e, i)}
+
+                                                onDragOver={dragOver}
+
+                                                onDragEnd={drop}
+                                                draggable={attribute.show}
+                                            >
+                                                <div className={'h-4 w-4 m-1 text-gray-800'}>
+                                                    <svg data-v-4e778f45=""
+                                                         className="nc-icon cursor-move !h-3.75 text-gray-600 mr-1"
+                                                         viewBox="0 0 24 24" width="1.2em" height="1.2em">
+                                                        <path fill="currentColor"
+                                                              d="M8.5 7a1.5 1.5 0 1 0 0-3a1.5 1.5 0 0 0 0 3m0 6.5a1.5 1.5 0 1 0 0-3a1.5 1.5 0 0 0 0 3m1.5 5a1.5 1.5 0 1 1-3 0a1.5 1.5 0 0 1 3 0M15.5 7a1.5 1.5 0 1 0 0-3a1.5 1.5 0 0 0 0 3m1.5 5a1.5 1.5 0 1 1-3 0a1.5 1.5 0 0 1 3 0m-1.5 8a1.5 1.5 0 1 0 0-3a1.5 1.5 0 0 0 0 3"></path>
+                                                    </svg>
+                                                </div>
+
+                                                <div className={`${gridClass} gap-0.5 m-1 w-full`}
+                                                     style={{gridTemplateColumns}}
+                                                >
+                                                    <input key={`${attribute.name}-${attribute.copyNum}`} className={'place-self-stretch'}
+                                                           value={getColumnLabel(attribute)}
+                                                           onChange={e => updateColumns(attribute, 'customName', e.target.value)}
+                                                    />
+                                                    {
+                                                        controls.columns.map((control, i) => {
+                                                            const isDisabled = typeof control.disabled === 'function' ? control.disabled({attribute}) : control.disabled;
+                                                            return (
+                                                                <div key={`${control.key}-${i}`}>
+                                                                    {
+                                                                        control.type === 'select' ?
+                                                                            <select
+                                                                                key={attribute[control.key]}
+                                                                                className={`px-0.5 appearance-none w-fit rounded-md ${attribute[control.key] ? `bg-blue-500/15 text-blue-700 hover:bg-blue-500/25` : `bg-gray-100`} h-fit text-center cursor-pointer`}
+                                                                                value={attribute[control.key]}
+                                                                                disabled={isDisabled}
+                                                                                onChange={e => updateColumns(attribute, control.key, e.target.value, control.onChange)}
+                                                                            >
+                                                                                {
+                                                                                    control.options.map(({label, value}) => <option
+                                                                                        key={value} value={value}>{label}</option>)
+                                                                                }
+                                                                            </select> :
+                                                                            control.type === 'toggle' ?
+                                                                                <div key={attribute[control.key]}
+                                                                                     className={'justify-self-stretch'}>
+                                                                                    <Switch
+                                                                                        size={'small'}
+                                                                                        key={attribute[control.key]}
+                                                                                        id={attribute[control.key]}
+                                                                                        enabled={!!attribute[control.key]}
+                                                                                        setEnabled={(value) => isDisabled ? null :
+                                                                                            updateColumns(attribute, control.key, value && control.trueValue ? control.trueValue : value, control.onChange)}
+                                                                                    />
+                                                                                </div> :
+                                                                                typeof control.type === 'function' ?
+                                                                                    control.type({
+                                                                                        attribute,
+                                                                                        value: attribute[control.key],
+                                                                                        setValue: newValue => updateColumns(attribute, control.key, newValue, control.onChange),
+                                                                                        setState
+                                                                                    }) :
+                                                                                    `${control.type} not available`
+                                                                    }
+                                                                </div>
+                                                            )
+                                                        })
+                                                    }
+
+                                                    <button key={'restore-btn'} className={'w-fit place-self-end'} onClick={() => resetColumn(attribute)}>
+                                                        <Icon icon='TrashCan' className={'text-orange-500 hover:text-orange-700 size-4'} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))
+                                }
+                            </div>
+                        </div>
+                    )
+                }
+            </Popup>
         </div>
     )
 }

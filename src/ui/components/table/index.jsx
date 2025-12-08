@@ -6,7 +6,7 @@ import {handleMouseDown, handleMouseMove, handleMouseUp} from "./utils/mouse";
 import TableHeaderCell from "./components/TableHeaderCell";
 import {TableRow} from "./components/TableRow";
 import {useCopy, usePaste, getLocation} from "./utils/hooks";
-import {isEqualColumns} from "./utils";
+import {isEqualColumns, parseIfJson} from "./utils";
 import {handleKeyDown} from "./utils/keyboard";
 
 const defaultNumColSize = 0;
@@ -81,20 +81,57 @@ export const docs = {
         }
     ]
 }
-const updateItemsOnPaste = ({pastedContent, e, index, attrI, data, visibleAttributes, updateItem}) => {
+const updateItemsOnPaste = ({pastedContent, index, attrI, data, visibleAttributes, updateItem, allowEdit, selection}) => {
     const paste = pastedContent?.split('\n').filter(row => row.length).map(row => row.split('\t'));
     if(!paste) return;
 
-    const rowsToPaste = [...new Array(paste.length).keys()].map(i => index + i).filter(i => i < data.length)
-    const columnsToPaste = [...new Array(paste[0].length).keys()]
-        .map(i => visibleAttributes[attrI + i]?.allowEditInView ? visibleAttributes[attrI + i]?.name : undefined)
-        .filter(i => i);
-    const itemsToUpdate = rowsToPaste.map((row, rowI) => (
-        {
-            ...data[row],
-            ...columnsToPaste.reduce((acc, col, colI) => ({...acc, [col]: paste[rowI][colI]}), {})
+    const rows = [...new Set(selection.map(s => s?.index !== undefined ? s.index : s))].sort((a, b) => a - b);
+    if(rows.length > paste.length){
+        // repeat rows
+        const extraRowsInSelection = rows.length - paste.length;
+        const repeatCount = (extraRowsInSelection - ( extraRowsInSelection % paste.length )) / paste.length;
+        const repeatArray = [];
+
+        for (let i = 0; i < repeatCount; i++) {
+            repeatArray.push(...paste);
         }
-    ));
+
+        paste.push(...repeatArray)
+    }
+
+    const rowsToPaste = [...new Array(paste.length).keys()].map(i => index + i).filter(i => i < data.length)
+
+    const columnsToPaste = [...new Array(paste[0].length).keys()]
+        .map(i => visibleAttributes[attrI + i]?.allowEditInView || allowEdit ? visibleAttributes[attrI + i]?.name : undefined)
+        .filter(i => i);
+    const itemsToUpdate = rowsToPaste.map((row, rowI) => {
+        let rowData = {...data[row]};
+
+        for(let colI = 0; colI < columnsToPaste.length; colI++){
+            const col = columnsToPaste[colI];
+            const attr = visibleAttributes[attrI + colI];
+            const val = paste[rowI][colI];
+            let finalValue = val;
+
+            if(val === '<InvalidValue>'){
+                if (['select', 'multiselect'].includes(attr?.type)) {
+                    finalValue = [];
+                } else if (attr?.type === 'lexical') {
+                    finalValue = '';
+                } else {
+                    finalValue = '';
+                }
+            }
+
+            if(attr?.type === 'lexical' && finalValue){
+                finalValue = parseIfJson(finalValue)
+            }
+
+            rowData[col] = finalValue
+        }
+        return rowData;
+    });
+    console.log('items to paste', itemsToUpdate)
     updateItem(undefined, undefined, itemsToUpdate);
 }
 export default function ({
@@ -106,7 +143,15 @@ export default function ({
     addItem, newItem={}, setNewItem,
 }) {
     const { theme: themeFromContext = {table: tableTheme}} = React.useContext(ThemeContext) || {};
-    const theme = {...themeFromContext, table: {...tableTheme, ...(themeFromContext.table || {}), ...customTheme}};
+    const theme = useMemo(() => ({
+        ...themeFromContext,
+        table: {
+            ...tableTheme,
+            ...(themeFromContext.table || {}),
+            ...customTheme
+        }
+    }), [themeFromContext, customTheme]);
+
     const [defaultColumnSize, setDefaultColumnSize] = React.useState(defColSize);
     const visibleAttrsWithoutOpenOut = useMemo(() => columns.filter(({show, openOut}) => show && !openOut), [columns]);
     const visibleAttributes = useMemo(() => columns.filter(({show}) => show), [columns]);
@@ -138,11 +183,9 @@ export default function ({
     // =================================================================================================================
     usePaste((pastedContent, e) => {
         if(!allowEdit || !columns.some(c => c.allowEditInView)) return;
-
         // first cell of selection
         let {index, attrI} = typeof selection[0] === 'number' ? {index: selection[0], attrI: undefined} : selection[0];
-
-        updateItemsOnPaste({pastedContent, e, index, attrI, data, visibleAttributes, updateItem})
+        updateItemsOnPaste({pastedContent, e, index, attrI, data, visibleAttributes, allowEdit, selection, updateItem})
     }, windowFake, isActive);
 
     useCopy(() => {
@@ -156,7 +199,11 @@ export default function ({
                 .reduce((acc, s) => {
                     const {index, attrI} = getLocation(s);
                     const currColName = visibleAttributes[attrI]?.name;
-                    const currData = data[index][currColName];
+                    const isLexical = visibleAttributes[attrI]?.type === 'lexical';
+                    let currData = data[index][currColName]?.originalValue || data[index][currColName] || '<InvalidValue>';
+                    if(isLexical && typeof currData === 'object'){
+                        currData = JSON.stringify(currData)
+                    }
                     acc[index] = acc[index] ? `${acc[index]}\t${currData}` : currData; // join cells of a row
                     return acc;
                 }, {})).join('\n') // join rows
@@ -205,7 +252,7 @@ export default function ({
     // =================================================================================================================
 
     useEffect(() =>  {
-        if(!isActive) {
+        if(!isActive && selection?.length) {
             setSelection([])
         }
     }, [isActive]);
@@ -262,6 +309,9 @@ export default function ({
         deleteFn()
     }, [triggerSelectionDelete])
     // ============================================ Trigger delete end =================================================
+
+    const rows = useMemo(() => data.filter(d => !d.totalRow), [data]);
+    const totalRow = useMemo(() => data.filter(d => (display.showTotal || columns.some(c => c.showTotal)) && d.totalRow), [data, display.showTotal, columns])
 
     return (
         <div className={`${theme?.table?.tableContainer} ${!paginationActive && theme?.table?.tableContainerNoPagination}`} ref={gridRef}>
@@ -328,16 +378,22 @@ export default function ({
 
 
                 {/****************************************** Rows begin **********************************************/}
-                {data.filter(d => !d.totalRow)
+                {rows
                     .map((d, i) => (
-                        <TableRow key={i} {...{
-                            i, d,  isEdit, frozenCols, theme, columns, display,
-                            allowEdit, isDragging, isSelecting, editing, setEditing, loading:false,
-                            selection, setSelection, selectionRange, triggerSelectionDelete,
-                            handleMouseDown, handleMouseMove, handleMouseUp,
-                            setIsDragging, startCellCol, startCellRow,
-                            updateItem, removeItem, defaultColumnSize
-                        }} />
+                        <TableRow key={i}
+                                  i={i} d={d} isEdit={isEdit}
+                                  frozenCols={frozenCols}
+                                  theme={theme}
+                                  columns={columns} display={display}
+                                  allowEdit={allowEdit}
+                                  isDragging={isDragging} isSelecting={isSelecting} editing={editing}
+                                  setEditing={setEditing}
+                                  loading={false} selection={selection} setSelection={setSelection} selectionRange={selectionRange}
+                                  triggerSelectionDelete={triggerSelectionDelete}
+                                  setIsDragging={setIsDragging}
+                                  startCellCol={startCellCol} startCellRow={startCellRow}
+                                  updateItem={updateItem} removeItem={removeItem} defaultColumnSize={defaultColumnSize}
+                         />
                     ))}
                 <div id={display?.loadMoreId} className={`${paginationActive ? 'hidden' : ''} min-h-2 w-full text-center`}>
                     {loading ? 'loading...' : ''}
@@ -349,18 +405,23 @@ export default function ({
 
 
                 {/*/!****************************************** Total Row ***********************************************!/*/}
-                {data
-                    .filter(d => (display.showTotal || columns.some(c => c.showTotal)) && d.totalRow)
+                {totalRow
                     .map((d, i) => (
-                        <TableRow key={i} {...{
-                            i, d,  isEdit, frozenCols, theme, columns, display,
-                            allowEdit, isDragging, isSelecting, editing, setEditing, loading:false,
-                            selection, setSelection, selectionRange, triggerSelectionDelete,
-                            handleMouseDown, handleMouseMove, handleMouseUp,
-                            setIsDragging, startCellCol, startCellRow,
-                            updateItem, removeItem, defaultColumnSize,
-                            isTotalRow: true
-                        }} />
+                        <TableRow key={i}
+                                  i={i} d={d} isEdit={isEdit}
+                                  frozenCols={frozenCols}
+                                  theme={theme}
+                                  columns={columns} display={display}
+                                  allowEdit={allowEdit}
+                                  isDragging={isDragging} isSelecting={isSelecting} editing={editing}
+                                  setEditing={setEditing}
+                                  loading={false} selection={selection} setSelection={setSelection} selectionRange={selectionRange}
+                                  triggerSelectionDelete={triggerSelectionDelete}
+                                  setIsDragging={setIsDragging}
+                                  startCellCol={startCellCol} startCellRow={startCellRow}
+                                  updateItem={updateItem} removeItem={removeItem} defaultColumnSize={defaultColumnSize}
+                                  isTotalRow={true}
+                        />
                     ))}
                 {/*/!****************************************** Rows end ************************************************!/*/}
 
