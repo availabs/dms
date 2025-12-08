@@ -1,5 +1,4 @@
 import React, {useEffect, useState} from "react";
-import {Link} from "react-router";
 import {isEqual} from "lodash-es";
 import Icon from "../../Icon";
 import DataTypes from "../../../columnTypes";

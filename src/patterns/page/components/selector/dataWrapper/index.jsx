@@ -600,7 +600,7 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
         return () => {
             isStale = true;
         }
-    }, [state?.display?.loadMoreId, state?.display?.totalLength, /*state?.data?.length, */state?.display?.usePagination, isValidState]);
+    }, [state?.display?.loadMoreId, state?.display?.totalLength, state?.data?.length, state?.display?.usePagination, isValidState]);
 
     // =========================================== get input data ======================================================
     useEffect(() => {
@@ -753,7 +753,8 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
     const removeItem = item => {
         if(!state.sourceInfo?.isDms || !apiUpdate || groupByColumnsLength) return;
         setState(draft => {
-            draft.data = draft.data.filter(d => d.id !== item.id);
+            const idx = draft.data.findIndex(d => d.id === item.id);
+            if (idx !== -1) draft.data.splice(idx, 1);
         })
         return apiUpdate({data: item, config: {format: state.sourceInfo}, requestType: 'delete'})
     }

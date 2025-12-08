@@ -72,7 +72,7 @@ export default function TableHeaderCell({isEdit, attribute, columns, display, co
                 {
                     controls.header?.displayFn ? controls.header.displayFn(attribute) :
                         (
-                            <span key={`${colIdName}-name`} className={'truncate select-none'}
+                            <span key={`${colIdName}-name`} className={`truncate select-none ${attribute.wrapHeader ? `whitespace-pre-wrap` : ``}`}
                                   title={attribute.customName || attribute.display_name || colIdName}>
                                 {attribute.customName || attribute.display_name || colIdName}
                             </span>
