@@ -77,6 +77,7 @@ export const handleKeyDown = ({
     } else if (e.key === 'Escape' && !isEditing){
         setSelection([])
     } else if (e.key.includes('Arrow') && !isEditing){
+        e.preventDefault();
         let {index, attrI} = typeof selection[selection.length - 1] === 'number' ?
             { index: selection[selection.length - 1], attrI: undefined } :
             selection[selection.length - 1];

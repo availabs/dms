@@ -27,7 +27,7 @@ function isLexicalJSON(str) {
     }
 }
 
-export default function Lexicals ({value, onChange, bgColor, editable=false, id, theme}) {
+export default function Lexicals ({value, hideControls, onChange, bgColor, editable=false, id, theme}) {
   
   const lexicalTheme = merge(cloneDeep(PlaygroundEditorTheme), cloneDeep(theme?.lexical || {}), {tableScrollableWrapper: 'overflow-auto'})
   // console.log(PlaygroundEditorTheme, theme?.lexical, lexicalTheme)
@@ -51,6 +51,7 @@ export default function Lexicals ({value, onChange, bgColor, editable=false, id,
       <div className={`${lexicalTheme.editorShell}`}>
         <UpdateEditor
           value={value}
+          hideControls={hideControls}
           onChange={onChange}
           bgColor={bgColor}
           editable={editable}
@@ -61,7 +62,7 @@ export default function Lexicals ({value, onChange, bgColor, editable=false, id,
   );
 }
 
-function UpdateEditor({ value, onChange, bgColor, theme, editable }) {
+function UpdateEditor({ value, hideControls, onChange, bgColor, theme, editable }) {
     const isFirstRender = React.useRef(true);
     const lastValue = React.useRef();
     const [editor] = useLexicalComposerContext();
@@ -109,7 +110,7 @@ function UpdateEditor({ value, onChange, bgColor, theme, editable }) {
 
     return (
         <>
-            <Editor theme={theme} editable={editable} bgColor={bgColor} />
+            <Editor theme={theme} editable={editable} hideControls={hideControls} bgColor={bgColor} />
             <OnChangePlugin onChange={onChange} />
         </>
     );
