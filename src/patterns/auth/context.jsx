@@ -3,7 +3,7 @@ import { getAPI } from "./api";
 
 const defaultUserState = () => ({
   token: null,
-  groups: [],
+  groups: ['public'],
   authLevel: -1,
   authed: false,
   attempts: 0,

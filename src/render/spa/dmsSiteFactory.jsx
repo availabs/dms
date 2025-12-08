@@ -134,6 +134,12 @@ function pattern2routes (siteData, props) {
             //console.log('register pattern', pattern.id, pattern.subdomain, `/${pattern.base_url?.replace(/^\/|\/$/g, '')}`)
             acc.push(
               ...c.map(config => {
+                  const authPermissions = JSON.parse(pattern?.authPermissions || "{}");
+                  if(!authPermissions?.groups?.public){
+                      // default public permissions. overridden by set permissions
+                      authPermissions.groups ??= {};
+                      authPermissions.groups.public ??= ['view-page'];
+                  }
                 const configObj = config({
                     app: dmsConfigUpdated?.format?.app || dmsConfigUpdated.app,
                     // type: pattern.doc_type,
@@ -144,7 +150,7 @@ function pattern2routes (siteData, props) {
                     format: pattern?.config,
                     pattern: pattern,
                     pattern_type: pattern?.pattern_type,
-                    authPermissions: JSON.parse(pattern?.authPermissions || "{}"),
+                    authPermissions,
                     pgEnv:pgEnvs?.[0] || '',
                     themes,
                     useFalcor,

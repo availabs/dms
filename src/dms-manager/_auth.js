@@ -38,7 +38,7 @@ export const defaultCheckAuth = ( props, navigate, path ) => {
       ]
 
   const sendToLogin = !userAuthed && // user is not authed
-      reqPermissions?.length // there are required permissions to access this pattern at siteconfig level
+      reqPermissions?.length && !reqPermissions.every(p => userAuthPermissions.includes(p)) // there are required permissions to access this pattern at siteconfig level
       // Object.keys(authPermissions).length; // pattern defines SOME auth; if not, allow access.
   const sendToHome =
       reqPermissions?.length && // there are requires permissions to access this pattern in siteconfig
