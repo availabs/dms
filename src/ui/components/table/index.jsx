@@ -6,7 +6,7 @@ import {handleMouseDown, handleMouseMove, handleMouseUp} from "./utils/mouse";
 import TableHeaderCell from "./components/TableHeaderCell";
 import {TableRow} from "./components/TableRow";
 import {useCopy, usePaste, getLocation} from "./utils/hooks";
-import {isEqualColumns} from "./utils";
+import {isEqualColumns, parseIfJson} from "./utils";
 import {handleKeyDown} from "./utils/keyboard";
 
 const defaultNumColSize = 0;
@@ -104,19 +104,33 @@ const updateItemsOnPaste = ({pastedContent, index, attrI, data, visibleAttribute
     const columnsToPaste = [...new Array(paste[0].length).keys()]
         .map(i => visibleAttributes[attrI + i]?.allowEditInView ? visibleAttributes[attrI + i]?.name : undefined)
         .filter(i => i);
-    const itemsToUpdate = rowsToPaste.map((row, rowI) => (
-        {
-            ...data[row],
-            ...columnsToPaste.reduce((acc, col, colI) => ({
-                ...acc,
-                [col]:
-                    paste[rowI][colI] === '<InvalidValue>' && ['select', 'multiselect'].includes(visibleAttributes[attrI + colI]?.type) ? [] :
-                        paste[rowI][colI] === '<InvalidValue>' && ['lexical'].includes(visibleAttributes[attrI + colI]?.type) ? '' :
-                            paste[rowI][colI] === '<InvalidValue>' ? '' :
-                            paste[rowI][colI]
-            }), {})
+    const itemsToUpdate = rowsToPaste.map((row, rowI) => {
+        let rowData = {...data[row]};
+
+        for(let colI = 0; colI < columnsToPaste.length; colI++){
+            const col = columnsToPaste[colI];
+            const attr = visibleAttributes[attrI + colI];
+            const val = paste[rowI][colI];
+            let finalValue = val;
+
+            if(val === '<InvalidValue>'){
+                if (['select', 'multiselect'].includes(attr?.type)) {
+                    finalValue = [];
+                } else if (attr?.type === 'lexical') {
+                    finalValue = '';
+                } else {
+                    finalValue = '';
+                }
+            }
+
+            if(attr?.type === 'lexical' && finalValue){
+                finalValue = parseIfJson(finalValue)
+            }
+
+            rowData[col] = finalValue
         }
-    ));
+        return rowData;
+    });
     updateItem(undefined, undefined, itemsToUpdate);
 }
 export default function ({
@@ -184,7 +198,11 @@ export default function ({
                 .reduce((acc, s) => {
                     const {index, attrI} = getLocation(s);
                     const currColName = visibleAttributes[attrI]?.name;
-                    const currData = data[index][currColName]?.originalValue || data[index][currColName] || '<InvalidValue>';
+                    const isLexical = visibleAttributes[attrI]?.type === 'lexical';
+                    let currData = data[index][currColName]?.originalValue || data[index][currColName] || '<InvalidValue>';
+                    if(isLexical && typeof currData === 'object'){
+                        currData = JSON.stringify(currData)
+                    }
                     acc[index] = acc[index] ? `${acc[index]}\t${currData}` : currData; // join cells of a row
                     return acc;
                 }, {})).join('\n') // join rows
