@@ -293,21 +293,24 @@ export default function ({
     useEffect(() => {
         async function deleteFn() {
             if (triggerSelectionDelete && (allowEdit || columns.some(c => c.allowEditInView))) {
-                const selectionRows = data.filter((d, i) => selection.find(s => (s.index || s) === i))
-                const selectionCols = visibleAttributes.filter((c, i) => c.allowEditInView && selection.map(s => s.attrI).includes(i)).map(c => c.name)
+                const selectionRows = data.filter((d, i) => selection.some(s => (s.index ?? s) === i))
+                const selectionCols =
+                    visibleAttributes
+                        .filter((c, i) => (allowEdit || c.allowEditInView) && selection.map(s => s.attrI).includes(i))
+                        .map(c => c.name)
 
                 if (selectionCols.length) {
                     // partial selection
                     updateItem(undefined, undefined, selectionRows.map(row => ({...row, ...selectionCols.reduce((acc, curr) => ({...acc, [curr]: ''}), {})})))
                 }else{
                     // full row selection
-                    updateItem(undefined, undefined, selectionRows.map(row => ({...row, ...visibleAttributes.filter(c => c.allowEditInView).reduce((acc, curr) => ({...acc, [curr]: ''}), {})})))
+                    updateItem(undefined, undefined, selectionRows.map(row => ({...row, ...visibleAttributes.filter(c => (allowEdit || c.allowEditInView)).reduce((acc, curr) => ({...acc, [curr]: ''}), {})})))
                 }
             }
         }
 
         deleteFn()
-    }, [triggerSelectionDelete])
+    }, [triggerSelectionDelete, allowEdit])
     // ============================================ Trigger delete end =================================================
 
     const rows = useMemo(() => data.filter(d => !d.totalRow), [data]);
