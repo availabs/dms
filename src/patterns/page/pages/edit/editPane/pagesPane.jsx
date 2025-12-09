@@ -11,8 +11,8 @@ function PagesPane () {
   const { item, dataItems, apiUpdate, baseUrl, pageState } =  React.useContext(PageContext) || {};
   const { isUserAuthed, user} = React.useContext(CMSContext);
   const { UI } = React.useContext(ThemeContext)
-    const pageAuthPermissions = pageState?.authPermissions && typeof pageState.authPermissions === 'string' ? JSON.parse(pageState.authPermissions) : [];
-
+    const pageAuthPermissions = pageState?.authPermissions && typeof pageState.authPermissions === 'string' ? JSON.parse(pageState.authPermissions) :
+        pageState?.authPermissions && typeof pageState.authPermissions === 'object' ? pageState.authPermissions : [];
     const {DraggableNav} = UI;
     const duplicatePage = (itemId) => {
         if (!itemId || !dataItems?.length) return;

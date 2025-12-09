@@ -170,6 +170,7 @@ const pagesConfig = ({
           attributes: [
             "title",
             "index",
+            "authPermissions",
             "url_slug",
             "parent",
             "published",

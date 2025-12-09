@@ -14,7 +14,7 @@ import SearchButton from '../components/search'
 import { PageContext, CMSContext } from '../context';
 import { ThemeContext } from "../../../ui/useTheme";
 
-function PageView ({item, dataItems, attributes, apiLoad, apiUpdate, reqPermissions, format,busy}) {
+function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdate, reqPermissions, format,busy}) {
 
     const navigate = useNavigate()
     const [searchParams] = useSearchParams();
@@ -22,6 +22,8 @@ function PageView ({item, dataItems, attributes, apiLoad, apiUpdate, reqPermissi
     const pdfRef = useRef(); // To capture the section of the page to be converted to PDF
     const {theme: fullTheme, UI} = useContext(ThemeContext);
     const { Menu, baseUrl, patternFilters=[], isUserAuthed, authPermissions } = React.useContext(CMSContext) || {};
+    const dataItems = allDataItems.filter(d => !d.authPermissions || isUserAuthed(reqPermissions, d.authPermissions));
+
     const [pageState, setPageState] = useImmer({
       ...item,
       filters: mergeFilters(item?.filters, patternFilters)

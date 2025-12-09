@@ -57,7 +57,7 @@ export default function ({
         const newAuth = Object.assign({users: {}, groups: {}}, cloneDeep(value));
         const isEmptyAuth = !Object.keys(newAuth.users).length && !Object.keys(newAuth.groups).length
         const currentUserHasPermissions = Array.isArray(newAuth.users[user.id]) && newAuth.users[user.id].length;
-        const currentUserGroupHasPermissions = user.groups.some(g => Array.isArray(newAuth.groups[g]) && newAuth.groups[g].length);
+        const currentUserGroupHasPermissions = user.groups.some(g => g!== 'public' && Array.isArray(newAuth.groups[g]) && newAuth.groups[g].length);
 
         if(!isEmptyAuth && !currentUserHasPermissions && !currentUserGroupHasPermissions){
             newAuth.users[user.id] = ['*'];

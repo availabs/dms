@@ -14,7 +14,8 @@ const FilterSettings = ({label, type, value, stateValue, onChange}) => {
   const [tmpValue, setTmpValue] = useState(typeof value === 'string' ? JSON.parse(value) : (value || []));
 
     const reqPermissions = ['edit-page-params']
-    const pageAuthPermissions = pageState?.authPermissions && typeof pageState.authPermissions === 'string' ? JSON.parse(pageState.authPermissions) : [];
+    const pageAuthPermissions = pageState?.authPermissions && typeof pageState.authPermissions === 'string' ? JSON.parse(pageState.authPermissions) :
+        pageState?.authPermissions && typeof pageState.authPermissions === 'object' ? pageState.authPermissions : [];
     const userHasEditPageParamsAccess = isUserAuthed(reqPermissions, pageAuthPermissions)
 
   const updateFilters = (idx, key, valueToUpdate) => {
@@ -114,8 +115,8 @@ function SettingsPane () {
   const { UI, baseUrl, user, isUserAuthed  } = React.useContext(CMSContext) || {}
   const { item, pageState, dataItems, apiUpdate } =  React.useContext(PageContext) || {}
   const { Button, Menu, FieldSet, Icon, Input } = UI;
-    const pageAuthPermissions = pageState?.authPermissions && typeof pageState.authPermissions === 'string' ? JSON.parse(pageState.authPermissions) : [];
-
+    const pageAuthPermissions = pageState?.authPermissions && typeof pageState.authPermissions === 'string' ? JSON.parse(pageState.authPermissions) :
+        pageState?.authPermissions && typeof pageState.authPermissions === 'object' ? pageState.authPermissions : [];
   const themeSettings = React.useMemo(() => {
     return (theme?.pageOptions?.settingsPane || [])
       .map(setting => {
