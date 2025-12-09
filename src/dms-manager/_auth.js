@@ -42,7 +42,7 @@ export const defaultCheckAuth = ( props, navigate, path ) => {
       // Object.keys(authPermissions).length; // pattern defines SOME auth; if not, allow access.
   const sendToHome =
       reqPermissions?.length && // there are requires permissions to access this pattern in siteconfig
-      (Object.keys(authedGroups).length || Object.keys(authedUsers).length) && // pattern defines SOME auth; if not, allow access.
+      (Object.keys(authedGroups).filter(g => g !== 'public').length || Object.keys(authedUsers).length) && // pattern defines SOME auth; if not, allow access.
       !userAuthPermissions.some(permission => permission === '*' || reqPermissions.includes(permission));
   //----------------------------------------
   // if page requires auth
