@@ -149,6 +149,8 @@ export default function AppearanceControls({context}) {
 
                     <ToggleControl title={'Legend'} value={display.legend?.show}
                                    setValue={value => updateDisplayValue('legend', 'show', value)}/>
+                    <ToggleControl title={'Hide if No Data'} value={display.hideIfNull}
+                                   setValue={value => updateDisplayValue(null, 'hideIfNull', value)}/>
 
                     <ToggleControl title={'Tooltip'} value={display.tooltip?.show}
                                    setValue={value => updateDisplayValue('tooltip', 'show', value)}/>
