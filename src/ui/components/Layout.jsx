@@ -46,7 +46,7 @@ function nav2Level(items, level=1, path, navTitle='') {
 			output = [{name: matches?.[0]?.route?.name, className: navTitle},...output]
 		}
 	}
-  console.log('nav2Level', output)
+  // console.log('nav2Level', output)
 	return output || items
 }
 
@@ -64,9 +64,9 @@ const Layout = ({
 	const { theme: defaultTheme = {layout: layoutTheme} } = React.useContext(ThemeContext);
 	const { sideNav={}, topNav={}, activeStyle } = cloneDeep(defaultTheme?.layout.options) || {}
 	const theme = merge(cloneDeep(defaultTheme?.layout?.styles?.[activeStyle || 0] || defaultTheme), cloneDeep(pageTheme))
-	console.log('Theme', theme, sideNav, activeStyle)
+	// console.log('Theme', theme, sideNav, activeStyle)
   const navs = (nav) => {
-    console.log('layout navs', nav, nav.navDepth)
+    // console.log('layout navs', nav, nav.navDepth)
     return {
       "main": (nav2Level(navItems, +nav.navDepth , pathname, nav?.navTitle) || []).filter(page => !page.hideInNav),
       "secondary": secondNav

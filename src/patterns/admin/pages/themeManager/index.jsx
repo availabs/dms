@@ -1,6 +1,6 @@
 import React, {useContext, useRef, useState} from 'react'
-import {AdminContext} from "../context";
-import { ThemeContext } from '../../../ui/useTheme';
+import {AdminContext} from "../../context";
+import { ThemeContext } from '../../../../ui/useTheme';
 import { Link, useLocation } from 'react-router'
 import {v4 as uuidv4} from "uuid";
 
@@ -23,6 +23,9 @@ function ThemeList ({
 	const gridRef = useRef(null);
 	const {Modal, Input, Button, Table} = UI;
 
+	console.log('Hello Themes', item, dataItems)
+
+
 
 	const attrToAddNew = ['name', 'theme'];
 	const columns = [
@@ -33,7 +36,7 @@ function ThemeList ({
 				return <Button onClick={() => setEditingItem(d.row)}>Edit</Button>
 			}},
 	]
-	const data = (item.themes || [])
+	const data = (dataItems || [])
 		.map(v => ({...v, manage_url: `${baseUrl}/theme/${v.id}`}))
 		.filter(v => !search || v.name.toLowerCase().includes(search.toLowerCase()));
 

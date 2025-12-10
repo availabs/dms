@@ -72,7 +72,7 @@ function pattern2routes (siteData, props) {
         datasets
     } = props
 
-    const patterns = siteData.reduce((acc, curr) => [...acc, ...(curr?.patterns || [])], []) || [];
+
     let SUBDOMAIN = getSubdomain(window.location.host)
     // for weird double subdomain tld
     SUBDOMAIN = SUBDOMAIN === 'hazardmitigation' ? '' : SUBDOMAIN
@@ -90,37 +90,23 @@ function pattern2routes (siteData, props) {
     dmsConfigUpdated.registerFormats = updateRegisteredFormats(dmsConfigUpdated.registerFormats, dmsConfig.app)
     dmsConfigUpdated.attributes = updateAttributes(dmsConfigUpdated.attributes, dmsConfig.app)
 
+    // console.log('dmsConfigUpdated', dmsConfigUpdated)
+    let AdminPattern = {
+      app: dmsConfigUpdated?.format?.app || dmsConfigUpdated.app,
+      type: dmsConfigUpdated.type,
+      doc_type: dmsConfigUpdated.type,
+      siteType: dmsConfigUpdated.type,
+      base_url: adminPath,
+      //format: pattern?.config,
+      pattern: {},
+      pattern_type: 'admin',
+      subdomain: "*",
+      authPermissions: "{}",
+      theme: themes['default'],
+    }
+    const patterns = [AdminPattern,...(siteData.reduce((acc, curr) => [...acc, ...(curr?.patterns || [])], []) || [])];
 
     return [
-
-        //--------------------------------
-        // Register Admin Pattern -- pattern manager
-        // -------------------------------
-        dmsPageFactory({
-            dmsConfig: {
-                ...dmsConfigUpdated,
-                siteType: dmsConfigUpdated.type,
-                baseUrl: adminPath,
-                API_HOST,
-                PROJECT_NAME,
-                theme: themes['default'],
-                pgEnvs
-            },
-            authWrapper,
-            ErrorBoundary: RootErrorBoundary
-        }),
-        dmsPageFactory({
-            dmsConfig: {
-                ...patternTypes.admin[1]({...dmsConfigUpdated, themes}),
-                siteType: dmsConfigUpdated.type,
-                API_HOST,
-                PROJECT_NAME,
-                theme: themes['default'],
-                pgEnvs
-            },
-            authWrapper,
-            ErrorBoundary: RootErrorBoundary
-        }),
         // patterns
         ...patterns
           .filter(pattern => (
@@ -150,6 +136,7 @@ function pattern2routes (siteData, props) {
                     useFalcor,
                     API_HOST,
                     DAMA_HOST,
+                    PROJECT_NAME,
                     damaBaseUrl,
                     datasets,
                     datasetPatterns: patterns.filter(p => ['forms', 'datasets'].includes(p.pattern_type))

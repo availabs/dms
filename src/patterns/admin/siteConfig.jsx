@@ -1,23 +1,29 @@
 import React from 'react'
-import {useLocation} from 'react-router'
+// import {useLocation} from 'react-router'
 import {cloneDeep, merge} from "lodash-es"
+
+import {ThemeContext} from '../../ui/useTheme'
+import {AdminContext} from "./context";
+import UI from "../../ui"
+import defaultTheme from '../../ui/defaultTheme'
+
+import ErrorPage from './components/errorPage.jsx'
+import DefaultMenu from "./components/menu";
+
+import adminFormat, {pattern, themeFormat} from "./admin.format.js"
+
 import SiteEdit from "./pages/siteEdit"
 import ThemeList from "./pages/themes"
 import ComponentList from "./pages/components"
-import adminFormat, {pattern} from "./admin.format.js"
-import UI from "../../ui"
-import {ThemeContext} from '../../ui/useTheme'
-import defaultTheme from '../../ui/defaultTheme'
-import DefaultMenu from "./components/menu";
-import {AdminContext} from "./context";
 import PatternEditor from "./pages/patternEditor";
+import ThemeManager from './pages/themeManager/index.jsx'
 
 const adminConfig = ({
   app = "default-app",
   type = "default-page",
   API_HOST = 'https://graph.availabs.org',
   baseUrl = '/',
-  authPath = '/dms_auth',
+  authPath = '/auth',
   themes = {},
 }) => {
     const format = cloneDeep(adminFormat)
@@ -102,22 +108,7 @@ const adminConfig = ({
             }
         ],
         errorElement: (props) => {
-            const {Layout} = UI;
-            return (
-                <AdminContext.Provider value={{baseUrl, user: props.user || {}, app, type, API_HOST, UI}}>
-                    <ThemeContext.Provider value={{theme, UI}}>
-                        <Layout navItems={[]}>
-                            <div className={theme?.admin?.page?.pageWrapper}>
-                                <div className={theme?.admin?.page?.pageWrapper2}>
-                                    <div className={'mx-auto max-w-fit pt-[120px] text-lg'}>
-                                        Unable to complete your request at the moment. Please try again later.
-                                    </div>
-                                </div>
-                            </div>
-                        </Layout>
-                    </ThemeContext.Provider>
-                </AdminContext.Provider>
-            )
+            return <ThemeContext.Provider value={{theme, UI}}><ErrorPage /></ThemeContext.Provider>
         }
     }
 }
@@ -194,27 +185,90 @@ const patternConfig = ({
             }
         ],
         errorElement: (props) => {
-            const {Layout} = UI;
-            return (
-                <AdminContext.Provider value={{baseUrl, user: props.user || {}, app, type, API_HOST, UI}}>
-                    <ThemeContext.Provider value={{theme, UI}}>
-                        <Layout navItems={[]}>
-                            <div className={theme?.admin?.page?.pageWrapper}>
-                                <div className={theme?.admin?.page?.pageWrapper2}>
-                                    <div className={'mx-auto max-w-fit pt-[120px] text-lg'}>
-                                        Unable to complete your request at the moment. Please try again later.
-                                    </div>
-                                </div>
-                            </div>
-                        </Layout>
-                    </ThemeContext.Provider>
-                </AdminContext.Provider>
-            )
+            return <ThemeContext.Provider value={{theme, UI}}><ErrorPage /></ThemeContext.Provider>
         }
     }
 }
 
-export default [adminConfig, patternConfig]
+const themeConfig = ({
+  app = "default-app",
+  type = "default-page",
+  API_HOST = 'https://graph.availabs.org',
+
+  baseUrl = '/',
+  authPath = '/dms_auth',
+  themes = {},
+  rightMenu = <DefaultMenu/>,
+}) => {
+    const format = cloneDeep(themeFormat)
+    format.app = app
+    format.type = 'theme'
+    const parentBaseUrl = baseUrl === '/' ? '' : baseUrl;
+
+    baseUrl = `${parentBaseUrl}/themes2`
+
+    //console.log('defaultTheme', theme)
+    let theme = merge(
+        cloneDeep(defaultTheme),
+        cloneDeep(themes.mny_admin)
+    );
+    theme.navOptions = theme?.admin?.navOptions || theme?.navOptions
+    theme.navOptions.sideNav.dropdown = 'top'
+    // ----------------------
+    // update app for all the children formats
+    format.registerFormats = updateRegisteredFormats(format.registerFormats, app)
+    format.attributes = updateAttributes(format.attributes, app)
+    // ----------------------
+
+    return {
+        app,
+        type,
+        format: format,
+        baseUrl,
+        children: [
+            {
+                type: (props) => {
+                    const {Layout} = UI;
+                    const {user, apiUpdate} = props
+                    const menuItems = getMenuItems(parentBaseUrl, props.user)
+
+                    return (
+                        <AdminContext.Provider value={{baseUrl, parentBaseUrl, authPath, user, apiUpdate, app, type, API_HOST, UI}}>
+                            <ThemeContext.Provider value={{theme, UI}}>
+                                <div className={theme?.page?.container}>
+                                    <Layout navItems={menuItems} Menu={() => <>{rightMenu}</>}>
+                                        <div className={`${theme?.sectionGroup?.content?.wrapper1}`}>
+                                            <div className={theme?.sectionGroup?.content?.wrapper2}>
+                                                <div className={`${theme?.sectionGroup?.content?.wrapper3}`}>
+                                                    {props.children}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </Layout>
+                                </div>
+                            </ThemeContext.Provider>
+                        </AdminContext.Provider>
+                    )
+                },
+                action: 'list',
+                path: "/*",
+                children: [
+                    {
+                      type: ThemeManager,
+                      action: 'view',
+                      path: "",
+                    },
+                ]
+            }
+        ],
+        errorElement: (props) => {
+            return <ThemeContext.Provider value={{theme, UI}}><ErrorPage /></ThemeContext.Provider>
+        }
+    }
+}
+
+
+export default [adminConfig, patternConfig, themeConfig]
 
 
 export const updateRegisteredFormats = (registerFormats, app) => {

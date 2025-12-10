@@ -31,7 +31,7 @@ export function SectionEdit({
     const {theme, UI} = React.useContext(ThemeContext);
     const {Popup, Button, Icon, Switch, Listbox, NavigableMenu, Permissions} = UI
     const {AuthAPI} = React.useContext(AuthContext) || {};
-    const {user, isUserAuthed} = React.useContext(CMSContext) || {};
+  const { user, isUserAuthed = () => {} } = React.useContext(CMSContext) || {};
     const {pageState} = useContext(PageContext);
     const pageAuthPermissions = pageState?.authPermissions && typeof pageState.authPermissions === 'string' ? JSON.parse(pageState.authPermissions) : [];
     const sectionAuthPermissions = value?.authPermissions && typeof value.authPermissions === 'string' ? JSON.parse(value?.authPermissions) : [];
@@ -259,7 +259,7 @@ export function SectionView({
     const {theme = {}, UI} = React.useContext(ThemeContext);
     const {Popup, Icon, NavigableMenu, Switch, Permissions} = UI;
     const {AuthAPI} = React.useContext(AuthContext) || {};
-    const {user, isUserAuthed} = React.useContext(CMSContext) || {};
+    const {user, isUserAuthed = () => {} } = React.useContext(CMSContext) || {};
     const {pageState} = useContext(PageContext);
     const pageAuthPermissions = pageState?.authPermissions && typeof pageState.authPermissions === 'string' ? JSON.parse(pageState.authPermissions) : [];
     const sectionAuthPermissions = value?.authPermissions && typeof value.authPermissions === 'string' ? JSON.parse(value?.authPermissions) : [];
