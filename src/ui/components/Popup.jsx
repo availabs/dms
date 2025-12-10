@@ -102,7 +102,7 @@ export default function Popup({
 
             case "bottom":
                 top = rect.bottom + offset;
-                left = rect.left + rect.width - (pw / 4);
+                left = rect.left; // rect.left + rect.width - (pw / 4);
                 break;
 
             case "left":
