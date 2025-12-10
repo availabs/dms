@@ -85,7 +85,7 @@ const RenderNestable = ({ parent, items, onChange, dataItems, setDataItems, rend
                     .filter(i => !newParent.id ? !i.parent : i.parent === newParent.id)
                     .sort((a,b) => +a.index - +b.index)
 
-            if(idx > childrenToUpdate.length - 1){
+            if(idx > childrenToUpdate.length - 1 || idx === undefined){
                 childrenToUpdate.push({...item, parent: newParent.id});
             }else{
                 childrenToUpdate.splice(+idx, 0, {...item, parent: newParent.id})
@@ -165,9 +165,10 @@ const RenderNestable = ({ parent, items, onChange, dataItems, setDataItems, rend
         const dropParent = item.parent;
 
         const isMovingBetweenParents = dataItems[dragState.dragItem]?.parent !== dropParent;
-        const moveType = isMovingBetweenParents ? 'INSERT_AS_CHILD' : 'MOVE';
+        const moveType = 'INSERT_AS_CHILD';
+        // const moveType = isMovingBetweenParents ? 'INSERT_AS_CHILD' : 'MOVE';
 
-        onDrop({ e, moveType, idx: dropIdx, parent: dropParent });
+        onDrop({ e, moveType, idx: undefined, parent: item.id });
     };
 
     // drop into the empty space after the list (last position)
