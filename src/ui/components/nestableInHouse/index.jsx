@@ -125,6 +125,7 @@ const RenderNestable = ({ parent, items, onChange, dataItems, setDataItems, rend
             draft.isDragging = false;
             draft.dragOverParent = null;
             draft.dragOverIdx = null;
+            draft.dragOverItem = null;
             draft.dragItem = null
         })
     };
@@ -143,12 +144,13 @@ const RenderNestable = ({ parent, items, onChange, dataItems, setDataItems, rend
         e.preventDefault();
         const rect = e.currentTarget.getBoundingClientRect();
         const offset = e.clientY - rect.top;
-        const isBefore = offset < rect.height / 2;
+        const isBefore = offset < rect.height / 4;
         const dropIdx = isBefore ? idx : idx + 1;
 
         setDragState(draft => {
             draft.dragOverParent = item.parent;
             draft.dragOverIdx = dropIdx;
+            draft.dragOverItem = item.id;
         });
     };
 
@@ -198,6 +200,9 @@ const RenderNestable = ({ parent, items, onChange, dataItems, setDataItems, rend
                     className="p-2"
                     onDragOver={e => {
                         e.preventDefault();   // REQUIRED
+                        setDragState(draft => {
+                            draft.dragOverItem = null;
+                        })
                     }}
                     onDrop={e => {
                         const isMovingBetweenParents =
@@ -207,7 +212,7 @@ const RenderNestable = ({ parent, items, onChange, dataItems, setDataItems, rend
                         onDrop({ e, moveType, idx, parent: slotParent });
                     }}
                 >
-                    <div className="w-full h-[40px] bg-blue-300 rounded-md border border-dashed" />
+                    <div className={`w-full ${dragState.dragOverItem ? `h-[10px]` : `h-[40px] bg-blue-300 border border-dashed`} rounded-md`} />
                 </div>
             );
         }
@@ -228,6 +233,7 @@ const RenderNestable = ({ parent, items, onChange, dataItems, setDataItems, rend
 
                     {/* wrapper that detects top/bottom half and accepts drop */}
                     <div
+                        className={dragState.dragOverItem === item.id ? 'bg-blue-300 border border-dashed rounded-md' : ``}
                         draggable
                         onDragStart={e => dragStart(e, item)}
                         onDragOver={e => handleDragOver(e, item, idx)}
@@ -316,6 +322,7 @@ export default function NestableInHouse({ dataItems: dataItemsInit, matches, ...
         isDragging: false,
         dragOverParent: null,
         dragOverIdx: null,
+        dragOverItem: null, // used to highlight INSERT_AS_CHILD
         dragItem: null
     })
 
