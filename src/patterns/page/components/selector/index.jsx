@@ -161,7 +161,7 @@ function EditComp(props) {
     )
 }
 
-function ViewComp({value, isActive, ...rest}) {
+function ViewComp({value, isActive, hideSection, setHideSection, ...rest}) {
     //console.log('selector', value)
     const { theme } = React.useContext(ThemeContext);
     const { pageState, editPane, apiLoad, apiUpdate, format, ...r  } =  React.useContext(PageContext) || {}
@@ -179,7 +179,13 @@ function ViewComp({value, isActive, ...rest}) {
     // let DataComp = !component ?
     //     defaultComp : component.ViewComp;
     
-
+    useEffect(() => {
+        if(state?.display?.hideSection && !hideSection){
+            setHideSection(true)
+        } else if(!state?.display?.hideSection && hideSection){
+            setHideSection(false)
+        }
+    }, [state?.display?.hideSection])
     return (
         <ComponentContext.Provider value={{state, setState, apiLoad, controls: component?.controls, isActive}}>
             <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={false} defaultOpen={true}/>

@@ -12,13 +12,14 @@ import SectionGroup from '../../components/sections/sectionGroup'
 import SearchButton from '../../components/search'
 import PageControls from './editPane'
 
-function PageEdit ({format, item, dataItems, updateAttribute, attributes, apiLoad, apiUpdate, reqPermissions, busy}) {
+function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attributes, apiLoad, apiUpdate, reqPermissions, busy}) {
 	const navigate = useNavigate();
 	const [searchParams] = useSearchParams();
 	const { pathname = '/edit', search } = useLocation();
 
 	const { theme: fullTheme, UI } = React.useContext(ThemeContext);
 	const {  Menu, baseUrl, user, patternFilters=[], isUserAuthed } = React.useContext(CMSContext) || {};
+    const dataItems = allDataItems.filter(d => !d.authPermissions || isUserAuthed(reqPermissions, d.authPermissions));
 
 	const [ pageState, setPageState ] = useImmer({ ...item, filters: mergeFilters(item.filters, patternFilters) });
 	const [ editPane, setEditPane ] = React.useState({ open: false, index: 1, showGrid: false });
@@ -34,9 +35,9 @@ function PageEdit ({format, item, dataItems, updateAttribute, attributes, apiLoa
 
 	// console.log('-----------render edit----------------', item.draft_sections.length, item.draft_section_groups.length)
 
-	const level = item?.index == '999' || theme?.navOptions?.topNav?.nav !== 'main' ? 1 : detectNavLevel(dataItems, baseUrl);
-	const inPageNav = getInPageNav(item, theme);
-	const sectionAttr = attributes?.['sections']?.attributes || {}
+	// const level = item?.index == '999' || theme?.navOptions?.topNav?.nav !== 'main' ? 1 : detectNavLevel(dataItems, baseUrl);
+	// const inPageNav = getInPageNav(item, theme);
+	// const sectionAttr = attributes?.['sections']?.attributes || {}
 
 	React.useEffect(() => {
 		if(!item?.url_slug) {
@@ -119,9 +120,9 @@ function PageEdit ({format, item, dataItems, updateAttribute, attributes, apiLoa
 
 	if(!item) return <div>page does not exist.</div>;
 
-	if( !isUserAuthed(reqPermissions || []) ||
-        (pageState?.authPermissions && typeof pageState.authPermissions === 'string' && !isUserAuthed(reqPermissions, JSON.parse(pageState.authPermissions)))
-    ){
+    const pageAuthPermissions = pageState?.authPermissions && typeof pageState.authPermissions === 'string' ? JSON.parse(pageState.authPermissions) :
+        pageState?.authPermissions && typeof pageState.authPermissions === 'object' ? pageState.authPermissions : [];
+	if( !isUserAuthed(reqPermissions) || !isUserAuthed(reqPermissions, pageAuthPermissions) ){
 		return <div>You do not have permission to view this page. <Link to={baseUrl}>Click here to visit Home</Link></div>
 	}
 

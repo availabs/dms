@@ -14,9 +14,9 @@ function PermissionsPane() {
     const {permissionDomain, defaultPermission} = (format?.attributes || []).find(a => a.key === 'authPermissions') || {};
 
     const reqPermissions = ['edit-page-permissions']
-    const userHasEditPermissionsAccess =
-        pageState?.authPermissions && typeof pageState.authPermissions === 'string' ? isUserAuthed(reqPermissions, JSON.parse(pageState.authPermissions)) :
-            isUserAuthed(reqPermissions || [])
+    const pageAuthPermissions = pageState?.authPermissions && typeof pageState.authPermissions === 'string' ? JSON.parse(pageState.authPermissions) :
+        pageState?.authPermissions && typeof pageState.authPermissions === 'object' ? pageState.authPermissions : [];
+    const userHasEditPermissionsAccess = isUserAuthed(reqPermissions, pageAuthPermissions)
 
     useEffect(() => {
         const id = setTimeout(() => {

@@ -3,7 +3,7 @@ import {AuthContext} from "../../../../auth/context";
 import {AdminContext} from "../../../context";
 
 export const PatternPermissionsEditor = ({
-     value={},
+     value="{}",
      onChange,
      permissionDomain,
      defaultPermission=[]
@@ -12,9 +12,16 @@ export const PatternPermissionsEditor = ({
     const {user, UI} = React.useContext(AdminContext);
     const {Permissions} = UI;
 
+    const authPermissions = JSON.parse(value || "{}");
+    if(!authPermissions?.groups?.public){
+        // default public permissions. overridden by set permissions
+        authPermissions.groups ??= {};
+        authPermissions.groups.public ??= ['view-page'];
+    }
+
     return (
         <Permissions
-            value={value}
+            value={authPermissions}
             user={user}
             getUsers={AuthAPI.getUsers}
             getGroups={AuthAPI.getGroups}

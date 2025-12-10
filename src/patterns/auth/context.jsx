@@ -3,7 +3,7 @@ import { getAPI } from "./api";
 
 const defaultUserState = () => ({
   token: null,
-  groups: [],
+  groups: ['public'],
   authLevel: -1,
   authed: false,
   attempts: 0,
@@ -37,6 +37,13 @@ export const authProvider = (Component, config) => {
       async function load() {
         const user = await AuthAPI.getUser();
         setUser(user || defaultUserState());
+          // const userWithPublicGroup = user || defaultUserState();
+          //
+          // if(!userWithPublicGroup.groups?.includes('public')){
+          //     userWithPublicGroup.groups.push('public')
+          // }
+          //
+          // setUser(userWithPublicGroup);
       }
       load();
     }, []);

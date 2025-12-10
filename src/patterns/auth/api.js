@@ -68,7 +68,7 @@ export const getAPI = ({AUTH_HOST, PROJECT_NAME}) => {
             console.log('Auth Error:', res.error);
           }
           else {
-            return { ...res.user, authed: true, isAuthenticating: false }
+            return { ...res.user, groups: [...(res.user.groups || []), 'public'], authed: true, isAuthenticating: false }
           }
         })
         .catch(error => {
@@ -93,10 +93,14 @@ export const getAPI = ({AUTH_HOST, PROJECT_NAME}) => {
         });
     },
     getGroups: async ({ user = {} }) => {
-      return callAuthServer(`${AUTH_HOST}/groups/byproject`, {
+      const groups = await callAuthServer(`${AUTH_HOST}/groups/byproject`, {
         token: user?.token,
         project: PROJECT_NAME
       })
+        if(!groups.groups.some(g => g.name === 'public')){
+            groups.groups = [{name: 'public'}, ...groups.groups];
+        }
+        return groups;
     },
     getUsers: async ({ user = {} }) => {
       return callAuthServer(`${AUTH_HOST}/users/byProject`, {

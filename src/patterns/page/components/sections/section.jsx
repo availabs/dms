@@ -256,6 +256,7 @@ export function SectionView({
                             }) {
     const isEdit = false; // should come from props
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [hideSection, setHideSection] = useState(false);
     const {theme = {}, UI} = React.useContext(ThemeContext);
     const {Popup, Icon, NavigableMenu, Switch, Permissions} = UI;
     const {AuthAPI} = React.useContext(AuthContext) || {};
@@ -307,9 +308,11 @@ export function SectionView({
                 apiUpdate={apiUpdate}
                 pageFormat={format}
                 isActive={isActive}
+                hideSection={hideSection}
+                setHideSection={setHideSection}
             />
         )
-    }, [value, isActive]);
+    }, [value, isActive, hideSection]);
 
     if (!value?.element?.['element-type'] && !value?.element?.['element-data']) return null;
 
@@ -331,7 +334,7 @@ export function SectionView({
     })
 
     return (
-        <div className={``} style={{pageBreakInside: "avoid"}}>
+        <div className={!edit && hideSection ? `hidden` : ``} style={{pageBreakInside: "avoid"}}>
             <DeleteModal
                 title={`Delete Section ${value?.title || ''} ${value?.id}`} open={showDeleteModal}
                 prompt={`Are you sure you want to delete this section? All of the section data will be permanently removed

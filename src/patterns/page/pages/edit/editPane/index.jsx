@@ -40,7 +40,8 @@ export function EditPane () {
 
     const { isUserAuthed } = React.useContext(CMSContext) || {};
     const reqPermissions = ['edit-page-params', 'edit-page-permissions']
-    const pageAuthPermissions = pageState?.authPermissions && typeof pageState.authPermissions === 'string' ? JSON.parse(pageState.authPermissions) : [];
+    const pageAuthPermissions = pageState?.authPermissions && typeof pageState.authPermissions === 'string' ? JSON.parse(pageState.authPermissions) :
+        pageState?.authPermissions && typeof pageState.authPermissions === 'object' ? pageState.authPermissions : [];
     const userHasEditPageAccess = isUserAuthed(reqPermissions, pageAuthPermissions)
 
 

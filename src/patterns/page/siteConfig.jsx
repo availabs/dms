@@ -37,10 +37,13 @@ RegisterLayoutWidget('UserMenu', DefaultMenu)
 
 const isUserAuthed = ({user={}, reqPermissions=[], authPermissions={}}) => {
     if(!reqPermissions?.length) return true; // if there are no required permissions
-    if(!user?.authed) return false;
-
-    const authedGroups = authPermissions.groups || {};
+    // if(!user?.authed) return false; public group makes this useless
+    const authedGroups = authPermissions.groups || {}; // will always have public group
     const authedUsers = authPermissions.users || {};
+
+    // if user is logged in, and auth has not been setup (except public group) return true
+    if(user.authed && !Object.keys(authedGroups).filter(g => g !== 'public').length && !Object.keys(authedUsers).length) return true;
+
     if(!Object.keys(authedGroups).length && !Object.keys(authedUsers).length) return true;
 
     const userAuthPermissions =
@@ -173,6 +176,7 @@ const pagesConfig = ({
           attributes: [
             "title",
             "index",
+            "authPermissions",
             "url_slug",
             "parent",
             "published",
@@ -218,7 +222,7 @@ const pagesConfig = ({
             path: "/*",
             action: "view",
               authPermissions,
-              // reqPermissions: ['view-page']
+              reqPermissions: ['view-page']
           },
         ],
       },

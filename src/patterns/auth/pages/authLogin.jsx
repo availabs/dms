@@ -60,8 +60,7 @@ export default (props) => {
                                     if (window.localStorage) {
                                         window.localStorage.setItem('userToken', res?.user?.token);
                                     }
-                                    console.log('got user', res.user)
-                                    setUser({...res.user, isAuthenticating: false, authed: true})
+                                    setUser({ ...res.user, groups: [...(res.user.groups || []), 'public'], authed: true, isAuthenticating: false })
                                     navigate(location?.state?.from || defaultRedirectUrl);
                                 }
                             })
