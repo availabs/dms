@@ -52,7 +52,7 @@ export const pattern = {
             {label: '*', value: '*'},
             {label: 'View Page', value: 'view-page'},
             {label: 'Create Page', value: 'create-page'},
-            {label: 'Edit Page', value: 'edit-page'},
+            {label: 'Edit Page Content', value: 'edit-page'},
             {label: 'Edit Page Layout', value: 'edit-page-layout'},
             {label: 'Edit Page Params', value: 'edit-page-params'},
             {label: 'Edit Page Permissions', value: 'edit-page-permissions'},

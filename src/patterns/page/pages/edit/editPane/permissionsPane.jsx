@@ -3,19 +3,19 @@ import {isEqual, set} from 'lodash-es'
 import {PageContext, CMSContext} from '../../../context'
 import {ThemeContext} from "../../../../../ui/useTheme";
 import {AuthContext} from "../../../../auth/context";
+import {getPageAuthPermissions} from "../../_utils";
 
 function PermissionsPane() {
     const {theme} = React.useContext(ThemeContext);
     const {UI, user, isUserAuthed} = React.useContext(CMSContext) || {}
     const {item, apiUpdate, format, pageState} = React.useContext(PageContext) || {}
     const {AuthAPI} = React.useContext(AuthContext) || {};
-    const [authPermissions, setAuthPermissions] = React.useState(item.authPermissions || '');
+    const [authPermissions, setAuthPermissions] = React.useState(item.authPermissions);
     const {Permissions} = UI;
     const {permissionDomain, defaultPermission} = (format?.attributes || []).find(a => a.key === 'authPermissions') || {};
 
     const reqPermissions = ['edit-page-permissions']
-    const pageAuthPermissions = pageState?.authPermissions && typeof pageState.authPermissions === 'string' ? JSON.parse(pageState.authPermissions) :
-        pageState?.authPermissions && typeof pageState.authPermissions === 'object' ? pageState.authPermissions : [];
+    const pageAuthPermissions = getPageAuthPermissions(pageState?.authPermissions);
     const userHasEditPermissionsAccess = isUserAuthed(reqPermissions, pageAuthPermissions)
 
     useEffect(() => {

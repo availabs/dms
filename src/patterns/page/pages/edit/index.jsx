@@ -5,8 +5,8 @@ import {useImmer} from "use-immer";
 import { ThemeContext } from "../../../../ui/useTheme";
 import { CMSContext, PageContext } from '../../context'
 import {
-	sectionsEditBackill, dataItemsNav, mergeFilters, detectNavLevel, getInPageNav,
-	convertToUrlParams, updatePageStateFiltersOnSearchParamChange, initNavigateUsingSearchParams
+    sectionsEditBackill, dataItemsNav, mergeFilters, detectNavLevel, getInPageNav,
+    convertToUrlParams, updatePageStateFiltersOnSearchParamChange, initNavigateUsingSearchParams, getPageAuthPermissions
 } from '../_utils'
 import SectionGroup from '../../components/sections/sectionGroup'
 import SearchButton from '../../components/search'
@@ -120,8 +120,7 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
 
 	if(!item) return <div>page does not exist.</div>;
 
-    const pageAuthPermissions = pageState?.authPermissions && typeof pageState.authPermissions === 'string' ? JSON.parse(pageState.authPermissions) :
-        pageState?.authPermissions && typeof pageState.authPermissions === 'object' ? pageState.authPermissions : [];
+    const pageAuthPermissions = getPageAuthPermissions(pageState?.authPermissions);
 	if( !isUserAuthed(reqPermissions) || !isUserAuthed(reqPermissions, pageAuthPermissions) ){
 		return <div>You do not have permission to view this page. <Link to={baseUrl}>Click here to visit Home</Link></div>
 	}

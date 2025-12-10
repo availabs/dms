@@ -822,5 +822,6 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
 
 export default {
     EditComp: Edit,
-    ViewComp: View
+    ViewComp: View,
+    getData
 }

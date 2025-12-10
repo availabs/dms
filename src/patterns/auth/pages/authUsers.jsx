@@ -76,7 +76,7 @@ export default function UsersAdmin() {
             token: user.token,
             project: PROJECT_NAME
         });
-        if (!uRes.error) setUsers((uRes.users || []).filter(u => u.email !== user.email));
+        if (!uRes.error) setUsers((uRes.users || []));
     };
 
     const handleAddUser = async (email) => {
@@ -118,7 +118,7 @@ export default function UsersAdmin() {
             ]);
 
             if (!gRes.error) setGroups(gRes.groups || []);
-            if (!uRes.error) setUsers((uRes.users || []).filter(u => u.email !== user.email));
+            if (!uRes.error) setUsers((uRes.users || []));
             if (!rRes.error) setRequests(rRes.requests || []);
         };
 
