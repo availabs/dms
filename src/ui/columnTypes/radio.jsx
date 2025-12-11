@@ -9,7 +9,7 @@ const theme = {
     }
 }
 
-const Edit = ({value = '', onChange, options = [], inline}) => {
+const Edit = ({value = '', onChange, options = [], inline=true}) => {
     // options: ['1', 's', 't'] || [{label: '1', value: '1'}, {label: 's', value: '2'}, {label: 't', value: '3'}]
     
     const isInvalidValue = value && !options.find(o => (o.value || o) === value);

@@ -8,6 +8,7 @@ import {TableRow} from "./components/TableRow";
 import {useCopy, usePaste, getLocation} from "./utils/hooks";
 import {isEqualColumns, parseIfJson} from "./utils";
 import {handleKeyDown} from "./utils/keyboard";
+import {cloneDeep} from "lodash-es";
 
 const defaultNumColSize = 0;
 const defaultGutterColSize = 0;
@@ -440,7 +441,7 @@ export default function ({
                 {/********************************************* out of scroll ********************************************/}
                 {/***********************(((***************** Add New Row Begin ******************************************/}
                 {
-                    display.allowAdddNew?
+                    display.allowAdddNew ?
                         <div
                             className={`grid bg-white divide-x divide-y ${isDragging ? `select-none` : ``} sticky bottom-0 z-[1]`}
                             style={{
@@ -466,12 +467,19 @@ export default function ({
                             {
                                 visibleAttrsWithoutOpenOut
                                     .map((attribute, attrI) => {
-                                        const Comp = DataTypes[attribute?.type || 'text']?.EditComp || <div></div>;
+                                        const Comp = DataTypes[attribute?.type || 'text']?.EditComp || (() => <div></div>);
                                         const size = attrI === 0 ? (+attribute.size || defaultNumColSize) - 20 : (+attribute.size || defaultNumColSize)
+                                        let lexicalTheme = cloneDeep(theme || {});
+                                        if(attribute.type === 'lexical'){
+                                            if(!lexicalTheme.lexical) lexicalTheme.lexical = {}
+                                            lexicalTheme.lexical.editorScroller = "border-0 flex relative outline-0 z-0bh resize-y";
+                                            lexicalTheme.lexical.editorShell = "w-full h-full font-['Proxima_Nova'] font-[400] text-[1rem] text-slate-700 leading-[22.4px]";
+                                            lexicalTheme.lexical.editorContainer = "relative block rounded-[10px]";
+                                        }
                                         return (
                                             <div
                                                 key={`add-new-${attrI}`}
-                                                className={`flex border`}
+                                                className={`flex border p-1 bg-white hover:bg-blue-50 w-full h-full'`}
                                                 style={{width: size}}
                                             >
                                                 <Comp
@@ -497,6 +505,8 @@ export default function ({
                                                         setNewItem({...newItem, ...tmpNewItem})
 
                                                     }}
+                                                    hideControls={attribute.type === 'lexical'}
+                                                    theme={attribute.type === 'lexical' ? lexicalTheme : undefined}
                                                 />
                                             </div>
                                         )
