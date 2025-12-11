@@ -5,19 +5,11 @@ import {useNavigate} from 'react-router';
 
 import { merge, cloneDeep, get, set } from "lodash-es";
 
-import {ThemeContext} from "../../../ui/useTheme";
-import {AdminContext} from "../context";
-
+import {ThemeContext} from "../../../../ui/useTheme";
+import {AdminContext} from "../../context";
+import { parseIfJSON } from '../../../page/pages/_utils';
 //import themeEditorConfig from './themeEditorConfig';
 
-const parseIfJson = (value) => {
-	try {
-		if(typeof value === 'object' && value !== null) return value;
-		return JSON.parse(value)
-	} catch (e){
-		return {}
-	}
-}
 
 const DefaultComp = () => <div>Component not registered.</div>
 const ComponentRenderer = ({Component=DefaultComp, props}) => <Component {...props} />;
@@ -100,7 +92,7 @@ function ComponentList ({
 
 	const {theme_id, component, ...restparams} = params;
 	const themeObj = useMemo(() => (item.themes || []).find(t => t.id === theme_id), [item.themes, theme_id])
-	const [currentTheme, setCurrentTheme] = useImmer( merge(cloneDeep(theme),parseIfJson(themeObj?.theme)));
+	const [currentTheme, setCurrentTheme] = useImmer( merge(cloneDeep(theme),parseIfJSON(themeObj?.theme)));
 	const themeSettings = React.useMemo(() => currentTheme?.settings(currentTheme), [currentTheme])
   const [currentThemeSetting, setCurrentThemeSetting ] = React.useState(Object.keys(themeSettings)[0])
 
@@ -113,7 +105,7 @@ function ComponentList ({
 	useEffect(() => {
 	  // runs when a new theme Obj is loaded from db
 	  // merge the default base theme with the base theme
-	  const newTheme =  merge(cloneDeep(theme),parseIfJson(themeObj?.theme))
+	  const newTheme =  merge(cloneDeep(theme),parseIfJSON(themeObj?.theme))
 		setCurrentTheme(newTheme)
 	}, [themeObj]);
 
@@ -175,7 +167,7 @@ function ComponentList ({
       		</div>
  					<div className={'w-full flex gap-0.5 justify-end'}>
 						<Button className={'w-fit'} onClick={() => onSubmit(currentTheme)}>Save</Button>
-						<Button className={'w-fit'} onClick={() => setCurrentTheme(merge(cloneDeep(theme),parseIfJson(themeObj?.theme)))}>Reset</Button>
+						<Button className={'w-fit'} onClick={() => setCurrentTheme(merge(cloneDeep(theme),parseIfJSON(themeObj?.theme)))}>Reset</Button>
  					</div>
   				<div className='h-[calc(100vh_-_11rem)] overflow-auto w-full scrollbar-sm p-2 '>
             { currentThemeSetting }

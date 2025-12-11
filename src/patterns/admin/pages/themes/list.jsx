@@ -1,6 +1,6 @@
 import React, {useContext, useRef, useState} from 'react'
-import {AdminContext} from "../context";
-import { ThemeContext } from '../../../ui/useTheme';
+import {AdminContext} from "../../context";
+import { ThemeContext } from '../../../../ui/useTheme';
 import { Link, useLocation } from 'react-router'
 import {v4 as uuidv4} from "uuid";
 

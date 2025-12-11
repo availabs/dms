@@ -1,12 +1,12 @@
 import React from 'react'
-import { InputComp , ButtonPrimary} from '../ui'
 import {AdminContext} from "../context";
-import { Link, useLocation } from 'react-router'
+// import { Link, useLocation } from 'react-router'
 import { AuthContext } from '../../auth/context';
+import { ThemeContext } from '../../../ui/useTheme';
 
 
-function NewSite ({app, user, AUTH_HOST, apiUpdate}) {
-	const { UI } = React.useContext(AdminContext);
+export default function NewSite ({app, user, AUTH_HOST, apiUpdate}) {
+	const { UI } = React.useContext(ThemeContext);
 	const { AuthAPI, PROJECT_NAME } = React.useContext(AuthContext)
 	const {Input, Button} = UI;
 	const [newUser, setNewUser] = React.useState({email: '', password: '', verify: ''});
@@ -97,82 +97,21 @@ function NewSite ({app, user, AUTH_HOST, apiUpdate}) {
 	)
 }
 
+function InputComp({label, value, placeholder="", onChange, type='text', Comp}) {
+  return (
+      <div className="w-full [&>[data-slot=label]+[data-slot=control]]:mt-3 [&>[data-slot=label]+[data-slot=description]]:mt-1 [&>[data-slot=description]+[data-slot=control]]:mt-3 [&>[data-slot=control]+[data-slot=description]]:mt-3 [&>[data-slot=control]+[data-slot=error]]:mt-3 [&>[data-slot=label]]:font-medium" data-headlessui-state="">
+         {label && <label data-slot="label" className="select-none text-base/6 text-zinc-950 data-[disabled]:opacity-50 sm:text-sm/">{label}</label>}
+         <span data-slot="control" className="relative block w-full before:absolute before:inset-px before:rounded-[calc(theme(borderRadius.lg)-1px)] before:bg-white before:shadow dark:before:hidden after:pointer-events-none after:absolute after:inset-0 after:rounded-lg after:ring-inset after:ring-transparent sm:after:focus-within:ring-2 sm:after:focus-within:ring-blue-500 has-[[data-disabled]]:opacity-50 before:has-[[data-disabled]]:bg-zinc-950/5 before:has-[[data-disabled]]:shadow-none before:has-[[data-invalid]]:shadow-red-500/10">
+          <Comp
+              type={type}
+            value={value}
+            placeholder={placeholder}
+            onChange={onChange}
+            className="relative shadow block w-full appearance-none rounded-lg px-[calc(theme(spacing[3.5])-1px)] py-[calc(theme(spacing[2.5])-1px)] sm:px-[calc(theme(spacing[3])-1px)] sm:py-[calc(theme(spacing[1.5])-1px)] text-base/6 text-zinc-950 placeholder:text-zinc-500 sm:text-sm/ border border-zinc-950/10 data-[hover]:border-zinc-950/20 dark:border-white/10 dark:data-[hover]:border-white/20 bg-transparent dark:bg-white/5 focus:outline-none data-[invalid]:border-red-500 data-[invalid]:data-[hover]:border-red-500 data-[invalid]:dark:border-red-500 data-[invalid]:data-[hover]:dark:border-red-500 data-[disabled]:border-zinc-950/20 dark:data-[hover]:data-[disabled]:border-white/15 data-[disabled]:dark:border-white/15 data-[disabled]:dark:bg-white/[2.5%]"
+            data-autofocus=""
+          />
+         </span>
+      </div>
 
-function SiteEdit ({
-   item={},
-   dataItems,
-   attributes,
-   updateAttribute,
-   status,
-   apiUpdate,
-   format,
-	...props
-}) {
-
-	const { baseUrl, authPath, theme, app, user, AUTH_HOST } = React.useContext(AdminContext) || {}
-	const location = useLocation()
-  const updateData = (data, attrKey) => {
-		console.log('admin pattern - siteEdit - updateData', attrKey, data, format)
-		apiUpdate({data: {...item, ...{[attrKey]: data}}, config: {format}})
-	}
-
-	if(!item.id && dataItems?.length > 0) {
-		item = dataItems[0]
-	}
-
-	if(!item.id) return <NewSite app={app} user={user} AUTH_HOST={AUTH_HOST} apiUpdate={apiUpdate} />// (<Layout></Layout>)()
-	//if(!user?.authed) return <div>To access this page, you need to: <Link to={`${authPath}/login`} state={{ from: location.pathname }}>login</Link></div>
-
-	const menuItems = [
-		{
-			name: <div className=''>Dashboard</div>,
-			className:''
-		},
-		{
-			name:'manage sites',
-			className: 'px-6 pb-1 pt-4 uppercase text-xs text-blue-400'
-		},
-	]
-
-	item.patterns.forEach(p =>{
-		menuItems.push({
-			name: (
-				<div className='w-full flex-1 flex items-center'>
-					<Link to={`${p.base_url === '/' ? '' : p.base_url}/manage`} className='flex-1'>{p.doc_type}</Link>
-					{/*<div className='px-2'>x</div>
-					<div className='px-2'>y</div>*/}
-				</div>
-			)
-		})
-	})
-
-
-	return (
-		<>
-			{Object.keys(attributes)
-				.filter(attr => !['site_name', 'themes'].includes(attr))
-				.map((attrKey, i) => {
-					let EditComp = attributes[attrKey].EditComp
-					//console.log('what', attributes[attrKey])
-					return (
-						<div key={`${attrKey}-${i}`}>
-							<EditComp
-								key={`${attrKey}-${i}`}
-								value={item?.[attrKey]}
-								onChange={(v) => updateAttribute(attrKey, v)}
-								onSubmit={data => {
-									//console.log('updateData', data,attrKey)
-									updateData(data, attrKey)
-								}}
-								format={format}
-								attributes={attributes[attrKey].attributes}
-							/>
-						</div>
-					)
-				})
-			}
-		</>
-	)
+  )
 }
-
-export default SiteEdit

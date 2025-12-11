@@ -1,6 +1,7 @@
 import React from 'react';
 import {Link} from 'react-router'
 import {AdminContext} from "../../context";
+import { ThemeContext } from '../../../../ui/useTheme';
 
 import { PatternSettingsEditor } from "./default/settings";
 import { PatternThemeEditor } from "./default/themeEditor";
@@ -33,12 +34,12 @@ const navPages = [
 ]
 
 const PatternEditor = ({params, item, format, apiUpdate}) => {
-  const { baseUrl, parentBaseUrl, UI } = React.useContext(AdminContext);
+  const { baseUrl, parentBaseUrl } = React.useContext(AdminContext);
   const [tmpItem, setTmpItem] = React.useState(item);
   const {id, page='overview'} = params;
   const PageComp = navPages.filter(d => d.path === page)?.[0]?.component || navPages[0].component
     return (
-      <div className={`h-full flex flex-col max-w-7xl mx-auto`}>
+      <div className={`h-full flex flex-col w-full`}>
         <Breadcrumbs baseUrl={baseUrl} parentBaseUrl={parentBaseUrl} pattern={item} page={page}/>
           <div className={'w-full flex justify-between'}>
             <Nav

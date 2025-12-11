@@ -6,15 +6,18 @@ import PagesPane, { PublishButton } from './pagesPane'
 import HistoryPane from './historyPane'
 import SectionGroupsPane from './sectionGroupsPane'
 import PermissionsPane from "./permissionsPane";
+import {getPageAuthPermissions} from "../../../pages/_utils";
 
 const panes = [
       {
         icon: 'Settings',
-        Component: SettingsPane
+        Component: SettingsPane,
+          reqPermissions: ['edit-page']
       },
       {
         icon: 'Sections',
-        Component: SectionGroupsPane
+        Component: SectionGroupsPane,
+          reqPermissions: ['edit-page']
       },
       {
         icon: 'Pages',
@@ -39,9 +42,8 @@ export function EditPane () {
     const hasChanges = item.published === 'draft' || item.has_changes
 
     const { isUserAuthed } = React.useContext(CMSContext) || {};
-    const reqPermissions = ['edit-page-params', 'edit-page-permissions']
-    const pageAuthPermissions = pageState?.authPermissions && typeof pageState.authPermissions === 'string' ? JSON.parse(pageState.authPermissions) :
-        pageState?.authPermissions && typeof pageState.authPermissions === 'object' ? pageState.authPermissions : [];
+    const reqPermissions = ['edit-page', 'edit-page-params', 'edit-page-permissions']
+    const pageAuthPermissions = getPageAuthPermissions(pageState?.authPermissions);
     const userHasEditPageAccess = isUserAuthed(reqPermissions, pageAuthPermissions)
 
 
@@ -96,11 +98,9 @@ function LoadingDisplay () {
 export function EditDrawer() {
     const { UI } = React.useContext(ThemeContext) || {};
     const {Icon, Tabs, Drawer} = UI;
-    const { item={}, dataItems=[], apiUpdate,  editPane, setEditPane } =  React.useContext(PageContext) || {}
-  // console.log('editPane', editPane)
-  const [ editState, setEditState ] = React.useState({
-      deleteId: -1
-  })
+    const { isUserAuthed } = React.useContext(CMSContext) || {};
+    const { pageState, item={}, dataItems=[], apiUpdate,  editPane, setEditPane } =  React.useContext(PageContext) || {}
+    const pageAuthPermissions = getPageAuthPermissions(pageState?.authPermissions);
 
   const hasChanges = item.published === 'draft' || item.has_changes
   return (
@@ -115,7 +115,9 @@ export function EditDrawer() {
         selectedIndex = {editPane.index}
         setSelectedIndex = {v => setEditPane({...editPane, index: v})}
         tabs={
-          panes.map(pane => {
+          panes
+              .filter(pane => !pane.reqPermissions || isUserAuthed(pane.reqPermissions, pageAuthPermissions))
+              .map(pane => {
             return {
               name: <Icon
                 icon={pane.icon}

@@ -137,18 +137,18 @@ const manageAuthConfig = ({
             name: 'Sites',
             path: `${adminPath}`
         },
-        {
-            name: 'Datasets',
-            path: `${adminPath}/datasets`
-        },
+        // {
+        //     name: 'Datasets',
+        //     path: `${adminPath}/datasets`
+        // },
         {
             name: 'Themes',
             path: `${adminPath}/themes`
         },
-        {
-            name: 'Team',
-            path:`${adminPath}/team`
-        },
+        // {
+        //     name: 'Team',
+        //     path:`${adminPath}/team`
+        // },
         {
             name: 'Auth',
             subMenus: [

@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from "react";
+import React, {useEffect, useState, useImperativeHandle} from "react";
 
 import { get, isEqual } from "lodash-es";
 import { v4 as uuidv4 } from "uuid";
@@ -161,7 +161,7 @@ function EditComp(props) {
     )
 }
 
-function ViewComp({value, isActive, hideSection, setHideSection, ...rest}) {
+function ViewComp({value, isActive, hideSection, setHideSection, refreshDataBtnRef, ...rest}) {
     //console.log('selector', value)
     const { theme } = React.useContext(ThemeContext);
     const { pageState, editPane, apiLoad, apiUpdate, format, ...r  } =  React.useContext(PageContext) || {}
@@ -186,6 +186,27 @@ function ViewComp({value, isActive, hideSection, setHideSection, ...rest}) {
             setHideSection(false)
         }
     }, [state?.display?.hideSection])
+
+    async function refresh() {
+        const getData = (component.useDataSource ? DataWrapper : component)?.getData;
+        if (!getData) return;
+
+        const { length, data } = await getData({
+            state,
+            apiLoad,
+            keepOriginalValues: component.keepOriginalValues,
+            fullDataLoad: component.fullDataLoad,
+            debugCall: true
+        });
+
+        console.log("new data", length, data);
+    }
+
+    // expose refresh() to parent
+    useImperativeHandle(refreshDataBtnRef, () => ({
+        refresh: refresh
+    }));
+
     return (
         <ComponentContext.Provider value={{state, setState, apiLoad, controls: component?.controls, isActive}}>
             <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={false} defaultOpen={true}/>

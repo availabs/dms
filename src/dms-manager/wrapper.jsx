@@ -52,9 +52,6 @@ export default function EditWrapper({ Component, format, options, params, user, 
 		}
 	},[data,params])
 
-	
-
-
 	const updateAttribute = (attr, value, multi) => {
 		if(multi) {
 			setItem({...item, ...multi})
@@ -69,7 +66,7 @@ export default function EditWrapper({ Component, format, options, params, user, 
 
 	const apiUpdate = async ({data, config = {format}, requestType='', newPath=`${pathname}${search}`}) => {
 		setBusy((prevState) => { return {...prevState, updating: prevState.updating+1 }})
-		console.log('apiUpdate - arguements', data, config,requestType, newPath)
+		//console.log('apiUpdate - arguements', data, config,requestType, newPath)
 		let resData = null
 		if(mode === 'ssr'){
 			let res =  await fetch(`/dms_api`, { method:"POST", body: json2DmsForm(data,requestType,config,newPath) })
@@ -77,7 +74,7 @@ export default function EditWrapper({ Component, format, options, params, user, 
   	} else {
 			resData = await dmsDataEditor(falcor, config, data, requestType);
 		}
-		console.log('apiUpdate - response', resData)
+		//console.log('apiUpdate - response', resData)
 		navigate(newPath || `${pathname}${search}`) //submit with null target doesn't carry search
 		//submit(null, {action: newPath })
 		setBusy((prevState) => { return {...prevState, updating: prevState.updating-1 }})
@@ -103,7 +100,7 @@ export default function EditWrapper({ Component, format, options, params, user, 
 	//console.log('edit wrapper render', data, item)
 
 	return React.useMemo(() => (
-		<EditComponent 
+		<EditComponent
 			{...props}
 			format={format}
 			attributes={attributes}
@@ -121,8 +118,8 @@ export default function EditWrapper({ Component, format, options, params, user, 
 			updateAttribute={updateAttribute}
 			falcor={falcor}
 			// setItem={setItem}
-			// --status={status}		
-			
+		  // --status={status}
+
 		/>
 	),[data,item])
-} 
+}

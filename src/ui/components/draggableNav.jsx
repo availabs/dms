@@ -166,9 +166,10 @@ function DraggableNav({
 
     const [localData, setLocalData] = React.useState(dataItemsProp);
 
-    React.useEffect(() => {
-        setLocalData(dataItemsProp);
-    }, [dataItemsProp]);
+    // React.useEffect(() => {
+    // causes glitch
+    //     setLocalData(dataItemsProp);
+    // }, [dataItemsProp]);
 
 
     const onDragEnd = React.useCallback(async (tree, updatedDataItemsFlat) => {

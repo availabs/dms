@@ -12,11 +12,11 @@ import DefaultMenu from "./components/menu";
 
 import adminFormat, {pattern, themeFormat} from "./admin.format.js"
 
-import SiteEdit from "./pages/siteEdit"
-import ThemeList from "./pages/themes"
-import ComponentList from "./pages/components"
+import SiteEdit from "./pages/editSite"
+import ThemeList from "./pages/themes/list"
+import ThemeEdit from "./pages/themes/edit"
 import PatternEditor from "./pages/patternEditor";
-import ThemeManager from './pages/themeManager/index.jsx'
+//import ThemeManager from './pages/themeManager/index.jsx'
 
 const adminConfig = ({
   app = "default-app",
@@ -56,17 +56,15 @@ const adminConfig = ({
                     return (
                         <AdminContext.Provider value={{ baseUrl, authPath, user, apiUpdate, app, type, API_HOST, UI}}>
                             <ThemeContext.Provider value={{theme, UI}}>
-                                <div className={theme?.page?.container}>
-                                    <Layout navItems={menuItems} Menu={() => <>{rightMenu}</>}>
-                                        <div className={`${theme?.sectionGroup?.content?.wrapper1}`}>
-                                            <div className={theme?.sectionGroup?.content?.wrapper2}>
-                                                <div className={`${theme?.sectionGroup?.content?.wrapper3}`}>
-                                                    {props.children}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </Layout>
+                              <Layout navItems={menuItems} Menu={() => <>{rightMenu}</>}>
+                                <div className={`h-full flex flex-1 p-1.5`}>
+                                  <div className={'flex flex-1 w-full flex-col border shadow-md bg-white rounded-lg relative text-md font-light leading-7 p-4 h-full min-h-[calc(100vh_-_102px)]'}>
+                                    <div className={`h-full flex flex-col max-w-7xl `}>
+                                        {props.children}
+                                    </div>
+                                  </div>
                                 </div>
+                              </Layout>
                             </ThemeContext.Provider>
                         </AdminContext.Provider>
                     )
@@ -86,19 +84,13 @@ const adminConfig = ({
                         action: "edit"
                     },
                     {
-                        type: props => <ComponentList {...props} />,
+                        type: props => <ThemeEdit {...props} />,
                         path: "theme/:theme_id/:component?",
                         action: "edit"
                     },
                     {
                         type: (props) => (<div>Datasets</div>),
                         path: "datasets",
-                        action: "edit"
-
-                    },
-                    {
-                        type: (props) => (<div>Team</div>),
-                        path: "team",
                         action: "edit"
 
                     },
@@ -119,7 +111,7 @@ const patternConfig = ({
   API_HOST = 'https://graph.availabs.org',
 
   baseUrl = '/',
-  authPath = '/dms_auth',
+  authPath = '/auth',
   themes = {},
   rightMenu = <DefaultMenu/>,
 }) => {
@@ -160,9 +152,9 @@ const patternConfig = ({
                             <ThemeContext.Provider value={{theme, UI}}>
                                 <div className={theme?.page?.container}>
                                     <Layout navItems={menuItems} Menu={() => <>{rightMenu}</>}>
-                                        <div className={`${theme?.sectionGroup?.content?.wrapper1}`}>
-                                            <div className={theme?.sectionGroup?.content?.wrapper2}>
-                                                <div className={`${theme?.sectionGroup?.content?.wrapper3}`}>
+                                      <div className={`h-full flex flex-1 p-1.5 `}>
+                                        <div className={'flex flex-1 w-full flex-col  shadow-md bg-white rounded-lg relative text-md font-light leading-7 p-4 h-full min-h-[calc(100vh_-_102px)]'}>
+                                          <div className={`h-full flex flex-col w-full max-w-7xl`}>
                                                     {props.children}
                                                 </div>
                                             </div>
@@ -190,85 +182,8 @@ const patternConfig = ({
     }
 }
 
-const themeConfig = ({
-  app = "default-app",
-  type = "default-page",
-  API_HOST = 'https://graph.availabs.org',
 
-  baseUrl = '/',
-  authPath = '/dms_auth',
-  themes = {},
-  rightMenu = <DefaultMenu/>,
-}) => {
-    const format = cloneDeep(themeFormat)
-    format.app = app
-    format.type = 'theme'
-    const parentBaseUrl = baseUrl === '/' ? '' : baseUrl;
-
-    baseUrl = `${parentBaseUrl}/themes2`
-
-    //console.log('defaultTheme', theme)
-    let theme = merge(
-        cloneDeep(defaultTheme),
-        cloneDeep(themes.mny_admin)
-    );
-    theme.navOptions = theme?.admin?.navOptions || theme?.navOptions
-    theme.navOptions.sideNav.dropdown = 'top'
-    // ----------------------
-    // update app for all the children formats
-    format.registerFormats = updateRegisteredFormats(format.registerFormats, app)
-    format.attributes = updateAttributes(format.attributes, app)
-    // ----------------------
-
-    return {
-        app,
-        type,
-        format: format,
-        baseUrl,
-        children: [
-            {
-                type: (props) => {
-                    const {Layout} = UI;
-                    const {user, apiUpdate} = props
-                    const menuItems = getMenuItems(parentBaseUrl, props.user)
-
-                    return (
-                        <AdminContext.Provider value={{baseUrl, parentBaseUrl, authPath, user, apiUpdate, app, type, API_HOST, UI}}>
-                            <ThemeContext.Provider value={{theme, UI}}>
-                                <div className={theme?.page?.container}>
-                                    <Layout navItems={menuItems} Menu={() => <>{rightMenu}</>}>
-                                        <div className={`${theme?.sectionGroup?.content?.wrapper1}`}>
-                                            <div className={theme?.sectionGroup?.content?.wrapper2}>
-                                                <div className={`${theme?.sectionGroup?.content?.wrapper3}`}>
-                                                    {props.children}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </Layout>
-                                </div>
-                            </ThemeContext.Provider>
-                        </AdminContext.Provider>
-                    )
-                },
-                action: 'list',
-                path: "/*",
-                children: [
-                    {
-                      type: ThemeManager,
-                      action: 'view',
-                      path: "",
-                    },
-                ]
-            }
-        ],
-        errorElement: (props) => {
-            return <ThemeContext.Provider value={{theme, UI}}><ErrorPage /></ThemeContext.Provider>
-        }
-    }
-}
-
-
-export default [adminConfig, patternConfig, themeConfig]
+export default [adminConfig, patternConfig]
 
 
 export const updateRegisteredFormats = (registerFormats, app) => {
@@ -300,18 +215,14 @@ const getMenuItems = (baseUrl, authPath, user) => {
           name: 'Sites',
           path: `${baseUrl}`
       },
-      {
-          name: 'Datasets',
-          path: `${baseUrl}/datasets`
-      },
+      // {
+      //     name: 'Datasets',
+      //     path: `${baseUrl}/datasets`
+      // },
       {
           name: 'Themes',
           path: `${baseUrl}/themes`
       },
-      {
-          name: 'Team',
-          path: `${baseUrl}/team`
-      }
   ]
 
   if (user?.authed) {

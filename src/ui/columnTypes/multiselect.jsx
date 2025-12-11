@@ -1,4 +1,5 @@
-import React, {useEffect, useRef, useState} from "react"
+import React, {useState} from "react"
+import Popup from "../components/Popup";
 
 const ArrowDown = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={24} height={24} stroke="currentColor" fill={"none"} {...props}>
@@ -14,7 +15,7 @@ const theme = {
         input: 'w-full px-2 py-1 border rounded-lg focus:outline-none',
         tokenWrapper: 'w-fit flex m-0.5 px-2 py-1 mx-1 bg-[#C5D7E0] text-[#37576B] hover:bg-[#E0EBF0] rounded-md transition ease-in',
         removeIcon: 'fa fa-xmark px-1 text-xs text-red-500 hover:text-red-600 self-center cursor-pointer transition ease-in',
-        menuWrapper: 'absolute p-2 bg-white w-full max-h-[150px] overflow-auto scrollbar-sm shadow-lg z-10 rounded-lg',
+        menuWrapper: 'w-full p-2 bg-white w-full max-h-[150px] overflow-auto scrollbar-sm shadow-lg z-10 rounded-lg',
         menuItem: 'px-2 py-1 text-sm hover:bg-blue-300 hover:cursor-pointer transition ease-in rounded-md',
         smartMenuWrapper: 'w-full h-full flex flex-wrap',
         smartMenuItem: 'w-fit px-1 py-0.5 m-1 bg-blue-100 hover:bg-blue-300 hover:cursor-pointer transition ease-in border rounded-lg text-xs',
@@ -50,7 +51,6 @@ const RenderMenu = ({
     loading,
     options=[],
     meta,
-    isSearching,
     setIsSearching,
     placeholder,
     setSearchKeyword,
@@ -64,14 +64,14 @@ const RenderMenu = ({
     const selectAllOption = {label: 'Select All', value: 'select-all'};
     const removeAllOption = {label: 'Remove All', value: 'remove-all'};
     return (
-        <div className={`${isSearching ? `block` : `hidden`} ${theme?.multiselect?.menuWrapper}`}>
+        <div className={theme?.multiselect?.menuWrapper}>
             <input
                 autoFocus
                 key={'input'}
                 placeholder={placeholder || 'search...'}
                 className={theme?.multiselect?.input}
+                value={searchKeyword}
                 onChange={e => setSearchKeyword(e.target.value)}
-                onFocus={() => setIsSearching(true)}
             />
             <div className={theme.multiselect.smartMenuWrapper}>
                 {
@@ -105,7 +105,7 @@ const RenderMenu = ({
                             className={theme?.multiselect?.menuItem}
                             onClick={e => {
                                 onChange(singleSelectOnly ? (o?.value || o) : [...value, o].map(o => o?.value || o));
-                                setIsSearching(false);
+                                singleSelectOnly && setIsSearching(false);
                             }}>
                             {meta?.[o.label || o] || o.label || o}
                         </div>)
@@ -114,57 +114,21 @@ const RenderMenu = ({
     )
 }
 
-function useComponentVisible(initial) {
-    const [isSearching, setIsSearching] = useState(initial);
-    const ref = useRef(null);
-
-    const handleHideDropdown = (event) => {
-        if (event.key === "Escape" || event.key === "Tab") {
-            setIsSearching(false);
-        }
-    };
-
-    const handleClickOutside = event => {
-        if (ref.current && !ref.current.contains(event.target)) {
-            setIsSearching(false);
-        }
-    };
-
-    useEffect(() => {
-        document.addEventListener("keydown", handleHideDropdown, true);
-        document.addEventListener("click", handleClickOutside, true);
-        return () => {
-            document.removeEventListener("keydown", handleHideDropdown, true);
-            document.removeEventListener("click", handleClickOutside, true);
-        };
-    });
-
-    return { ref, isSearching, setIsSearching };
-}
 
 
-const Edit = ({value = [], loading, onChange, className,placeholder, options = [], meta, displayInvalidMsg=false, menuPosition='bottom', singleSelectOnly=false}) => {
+const Edit = ({value = [], loading, onChange, className,placeholder, options = [], meta, displayInvalidMsg=false, singleSelectOnly=false}) => {
     // options: ['1', 's', 't'] || [{label: '1', value: '1'}, {label: 's', value: '2'}, {label: 't', value: '3'}]
     const [searchKeyword, setSearchKeyword] = useState('');
     const typeSafeValue = (Array.isArray(value) ? value : [value]).map(v => (options || []).find(o => looselyEqual((o?.value || o), (v?.value || v))) || v);
 
-    const {
-        ref,
-        isSearching,
-        setIsSearching
-    } = useComponentVisible(false);
-
     const invalidValues = typeSafeValue.filter(v => v && (v.value || v) && !(options || [])?.some(o => (o.value || o) === (v.value || v)));
 
     return (
-        <div ref={ref} className={`${theme?.multiselect?.mainWrapper} ${menuPosition === 'top' ? 'flex flex-col flex-col-reverse' : ''} ${loading ? 'cursor-wait' : ''}`}>
+        <div className={`${theme?.multiselect?.mainWrapper} ${loading ? 'cursor-wait' : ''}`}>
             {
                 invalidValues.length && displayInvalidMsg ? <div>Invalid Values: {JSON.stringify(invalidValues)}</div> : null
             }
-            <div className={className || (theme?.multiselect?.inputWrapper)} onClick={() => {
-                setIsSearching(!isSearching)
-                // console.log('ms?', ref.current.top)
-            }}>
+            <Popup button={<div className={className || (theme?.multiselect?.inputWrapper)}>
                 {
                     typeSafeValue
                         .filter(d => d)
@@ -175,28 +139,34 @@ const Edit = ({value = [], loading, onChange, className,placeholder, options = [
                                 meta={meta}
                                 value={typeSafeValue}
                                 onChange={onChange}
-                                isSearching={isSearching}
-                                setIsSearching={setIsSearching}
+                                // isSearching={isSearching}
+                                // setIsSearching={setIsSearching}
                                 theme={theme}
                             />)
                 }
                 <ArrowDown className={`ml-auto self-center font-bold ${typeSafeValue?.length ? `-mt-4` : ``}`} width={16} height={16}/>
-            </div>
-
-            <RenderMenu
-                loading={loading}
-                isSearching={isSearching}
-                setIsSearching={setIsSearching}
-                placeholder={placeholder}
-                setSearchKeyword={setSearchKeyword}
-                searchKeyword={searchKeyword}
-                value={typeSafeValue}
-                onChange={onChange}
-                options={options}
-                meta={meta}
-                singleSelectOnly={singleSelectOnly}
-                theme={theme}
-            />
+            </div>}
+                   offset={0}
+            >
+                {
+                    ({open, setOpen}) => (
+                        <RenderMenu
+                            loading={loading}
+                            isSearching={open}
+                            setIsSearching={setOpen}
+                            placeholder={placeholder}
+                            setSearchKeyword={setSearchKeyword}
+                            searchKeyword={searchKeyword}
+                            value={typeSafeValue}
+                            onChange={onChange}
+                            options={options}
+                            meta={meta}
+                            singleSelectOnly={singleSelectOnly}
+                            theme={theme}
+                        />
+                    )
+                }
+            </Popup>
         </div>
     )
 }

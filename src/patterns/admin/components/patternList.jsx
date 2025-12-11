@@ -2,6 +2,7 @@ import React, {useContext, useRef, useState} from 'react'
 import {Link} from 'react-router'
 import {v4 as uuidv4} from "uuid";
 import {AdminContext} from "../context";
+import { ThemeContext } from '../../../ui/useTheme';
 
 const parseIfJSON = strValue => {
     if (typeof strValue !== 'string' && Array.isArray(strValue)) return strValue;
@@ -14,7 +15,7 @@ const parseIfJSON = strValue => {
 }
 
 const RenderFilters = ({value=[], onChange, ...rest}) => {
-    const {UI} = useContext(AdminContext);
+    const {UI} = useContext(ThemeContext);
     const [tmpValue, setTmpValue] = useState(parseIfJSON(value));
     const [newFilter, setNewFilter] = useState({});
     const {FieldSet, Button} = UI;
@@ -136,7 +137,8 @@ function PatternEdit({
 	 format,
 	 ...rest
 }) {
-	const {app, API_HOST, UI, baseUrl} = useContext(AdminContext);
+	const {app, API_HOST, baseUrl} = useContext(AdminContext);
+	const {UI} = useContext(ThemeContext)
 	const {Table, Input, Button, Modal} = UI;
 	const gridRef = useRef(null);
 	const [search, setSearch] = useState('');

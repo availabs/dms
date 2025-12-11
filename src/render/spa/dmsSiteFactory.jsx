@@ -62,6 +62,7 @@ function pattern2routes (siteData, props) {
     let {
         dmsConfig,
         adminPath = '/list',
+        authPath,
         authWrapper = withAuth,
         themes = { default: {} },
         pgEnvs = ['hazmit_dama'],
@@ -107,6 +108,38 @@ function pattern2routes (siteData, props) {
     const patterns = [AdminPattern,...(siteData.reduce((acc, curr) => [...acc, ...(curr?.patterns || [])], []) || [])];
 
     return [
+        //--------------------------------
+        // Register Admin Pattern -- pattern manager
+        // -------------------------------
+        dmsPageFactory({
+            dmsConfig: {
+                ...dmsConfigUpdated,
+                siteType: dmsConfigUpdated.type,
+                baseUrl: adminPath,
+                API_HOST,
+                PROJECT_NAME,
+                theme: themes['default'],
+                pgEnvs
+            },
+            authWrapper,
+            ErrorBoundary: RootErrorBoundary
+        }),
+        dmsPageFactory({
+            dmsConfig: {
+                ...patternTypes.admin[1]({
+                    ...dmsConfigUpdated,
+                    authPath,
+                    themes
+                }),
+                siteType: dmsConfigUpdated.type,
+                API_HOST,
+                PROJECT_NAME,
+                theme: themes['default'],
+                pgEnvs
+            },
+            authWrapper,
+            ErrorBoundary: RootErrorBoundary
+        }),
         // patterns
         ...patterns
           .filter(pattern => (
@@ -181,6 +214,7 @@ export function DmsSite (config) {
         dmsConfig,
         defaultData,
         adminPath = '/list',
+        authPath,
         authWrapper = withAuth,
         themes = { default: {} },
         falcor,
@@ -206,6 +240,7 @@ export function DmsSite (config) {
             pattern2routes(defaultData, {
                 dmsConfig,
                 adminPath,
+                authPath,
                 themes,
                 falcor,
                 API_HOST,
@@ -229,6 +264,7 @@ export function DmsSite (config) {
             const dynamicRoutes = await dmsSiteFactory({
                 dmsConfig,//adminConfig
                 adminPath,
+                authPath,
                 themes,
                 falcor,
                 API_HOST,

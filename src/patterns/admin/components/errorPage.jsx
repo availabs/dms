@@ -1,7 +1,9 @@
 import React from 'react';
-import UI from "../../../ui";
+
+import { ThemeContext } from '../../../ui/useTheme';
 
 const ErrorPage = (props) => {
+    const {UI, theme} = React.useContext(ThemeContext)
     const {Layout} = UI;
     return (
       <Layout navItems={[]}>
