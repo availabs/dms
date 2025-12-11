@@ -270,7 +270,7 @@ export default {
                 const {Icon} = UI;
                 const selectWrapperClass = 'group px-2 w-full flex items-center cursor-pointer hover:bg-gray-100'
                 const selectLabelClass = 'w-fit font-regular text-gray-500 cursor-default'
-                const selectClasses = 'w-full rounded-md bg-white group-hover:bg-gray-100 cursor-pointer'
+                const selectClasses = 'w-full min-w-[10px] rounded-md bg-white group-hover:bg-gray-100 cursor-pointer'
 
                 if(!display.columnSelection) return <></>
 
@@ -306,8 +306,9 @@ export default {
                                     .map(({type, inputType, label, key, options}) =>
                                         type === 'select' ?
                                             <div key={`${key}`} className={selectWrapperClass}>
-                                                <label className={selectLabelClass}>{label}</label>
+                                                <label className={selectLabelClass} htmlFor={key}>{label}</label>
                                                 <select
+                                                    id={key}
                                                     className={selectClasses}
                                                     value={selectionValues[key]}
                                                     onChange={e => updateColumns(key, e.target.value)}
@@ -328,8 +329,9 @@ export default {
                                                 </div> :
                                                 type === 'input' ?
                                                     <div className={selectWrapperClass}>
-                                                        <label className={selectLabelClass}>{label}</label>
+                                                        <label className={selectLabelClass} htmlFor={key}>{label}</label>
                                                         <input
+                                                            id={key}
                                                             className={selectClasses}
                                                             type={inputType}
                                                             value={selectionValues[key]}
