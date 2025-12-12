@@ -3,24 +3,13 @@ import { createBrowserRouter, RouterProvider, useRouteError } from "react-router
 import { falcorGraph, useFalcor } from "@availabs/avl-falcor"
 import { cloneDeep } from "lodash-es"
 
-
 import { dmsDataLoader, dmsPageFactory } from '../../'
 
 import patternTypes from '../../patterns'
 import { updateAttributes, updateRegisteredFormats } from "../../patterns/admin/siteConfig";
 
 import { withAuth, authProvider } from '../../patterns/auth/context';
-
-
-
-const parseIfJSON = (text, fallback={}) => {
-    try {
-        if(typeof text !== 'string' || !text) return fallback;
-        return JSON.parse(text)
-    }catch (e){
-        return fallback;
-    }
-}
+import { parseIfJSON } from '../../patterns/page/pages/_utils';
 
 const getSubdomain = (host) => {
     // ---
@@ -78,7 +67,7 @@ function pattern2routes (siteData, props) {
     // for weird double subdomain tld
     SUBDOMAIN = SUBDOMAIN === 'hazardmitigation' ? '' : SUBDOMAIN
 
-    const dbThemes = (siteData?.[0]?.themes || [])
+    const dbThemes = (siteData?.[0]?.theme_refs || [])
       .reduce((out,theme) => {
           out[theme.name] = parseIfJSON(theme.theme)
           return out
@@ -86,6 +75,7 @@ function pattern2routes (siteData, props) {
     //console.log('patterns2routes',dbThemes)
 
     themes = themes?.default ? { ...themes, ...dbThemes } : { ...themes, ...dbThemes, default: {} }
+    console.log('themes', themes)
 
     let dmsConfigUpdated = cloneDeep(dmsConfig);
     dmsConfigUpdated.registerFormats = updateRegisteredFormats(dmsConfigUpdated.registerFormats, dmsConfig.app)

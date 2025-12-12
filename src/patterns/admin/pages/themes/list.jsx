@@ -21,29 +21,56 @@ function ThemeList ({
 	const [editingItem, setEditingItem] = useState();
 	const [search, setSearch] = useState('');
 	const gridRef = useRef(null);
-	const {Modal, Input, Button, Table} = UI;
+	const {Modal, Input, Button, Table, Icon} = UI;
 
 
 	const attrToAddNew = ['name', 'theme'];
 	const columns = [
 		{name: 'name', display_name: 'Theme name', show: true, type: 'text'},
-		{name: 'manage_url', display_name: 'Manage', show: true, type: 'text', isLink: true, linkText: 'manage'},
-		{name: 'edit', display_name: 'Edit', show: true, type: 'ui',
-			Comp: (d) => {
-				return <Button onClick={() => setEditingItem(d.row)}>Edit</Button>
-			}},
+
+    {
+      name: 'edit', display_name: 'Edit', show: true, type: 'ui',
+      Comp: (d) => (
+        <div className='flex items-center justify-center w-full h-full py-1'>
+          <Link to={d?.row?.manage_url || ''} className='flex items-center px-2 py-1 text-sm text-slate-700 bg-slate-200 rounded-full'>
+            <Icon icon='PencilEditSquare' className='size-5' /><span className='pl-1'>Edit</span>
+          </Link>
+          <div
+            onClick={async () => {
+              setEditingItem(d.row)
+              // const theme_id = uuidv4();
+								// const newValue = [...item.theme_refs, {...editingItem, theme_id}]
+								// onSubmit(newValue);
+								// setEditingItem(undefined)
+						}}
+            className='flex mx-1 items-center px-2 py-1 text-sm text-slate-700 bg-slate-200 rounded-full cursor-pointer'>
+            <Icon icon='' className='size-5' /><span className='pl-1'>Settings</span>
+          </div>
+          {/* <div
+            onClick={async () => {
+								const theme_id = uuidv4();
+								const newValue = [...item.theme_refs, {...editingItem, theme_id}]
+								onSubmit(newValue);
+								setEditingItem(undefined)
+						}}
+            className='flex mx-1 items-center px-2 py-1 text-sm text-slate-700 bg-red-200 rounded-full cursor-pointer'>
+            <Icon icon='' className='size-5' /><span className='pl-1'>Delete</span>
+          </div>*/}
+        </div>
+      ),
+    }
 	]
-	const data = (item.themes || [])
-		.map(v => ({...v, manage_url: `${baseUrl}/theme/${v.id}`}))
+	const data = (item.theme_refs || [])
+		.map(v => ({...v, manage_url: `${baseUrl}/theme/${v.theme_id}`}))
 		.filter(v => !search || v.name.toLowerCase().includes(search.toLowerCase()));
 
 	const onSubmit = (value) => {
-		apiUpdate({data: {...item, ...{themes: value}}, config: {format}})
-		updateAttribute('themes', value)
+		apiUpdate({data: {...item, ...{theme_refs: value}} })
+		updateAttribute('themes_ref', value)
 	}
 
 	const addNewValue = (valueToAdd) => {
-		const value = item.themes || [];
+		const value = item.theme_refs || [];
 		const newValue = [...value, valueToAdd];
 		onSubmit(newValue);
 		setNewItem({});
@@ -57,12 +84,13 @@ function ThemeList ({
 	// render a list of themes. render an add new form
 	return (
 		<div className={'flex flex-col w-full'}>
-			<div className={'w-full flex justify-between border-b-2 border-blue-400'}>
+			<div className={'w-full items-center flex justify-between border-b-2 border-blue-400 pb-2'}>
 				<div className={'text-2xl font-semibold text-gray-700'}>Themes</div>
+				<Button className={'shrink-0'} onClick={() => setAddingNew(true)}> Add theme </Button>
 			</div>
 			<div className={'w-full flex'}>
 				<Input type={'text'} value={search} onChange={e => setSearch(e.target.value)} placeHolder={'Filter themes'} />
-				<Button className={'shrink-0'} onClick={() => setAddingNew(true)}> Add theme </Button>
+
 				{/*<Button className={'shrink-0'} onClick={() => onSubmit([])}> Clear themes </Button>*/}
 			</div>
 			<Table columns={columns}
@@ -90,7 +118,7 @@ function ThemeList ({
 					<div className={'w-full flex items-center justify-start'}>
 						<button
 							className={'bg-blue-100 hover:bg-blue-300 text-sm text-blue-800 px-2 py-0.5 m-1 rounded-lg w-fit h-fit'}
-							onClick={() => addNewValue({...newItem, id: uuidv4()})}
+							onClick={() => addNewValue({...newItem, theme_id: uuidv4()})}
 						>
 							Add
 						</button>
@@ -119,7 +147,7 @@ function ThemeList ({
 							type={'plain'}
 							title={'save item'}
 							onClick={() => {
-								const newValue = item.themes.map(v => v.id === editingItem.id ? editingItem : v);
+								const newValue = item.theme_refs.map(v => v.theme_id === editingItem.theme_id ? editingItem : v);
 								onSubmit(newValue)
 								setEditingItem(undefined)
 							}}
@@ -143,8 +171,8 @@ function ThemeList ({
 							type={'plain'}
 							title={'duplicate item'}
 							onClick={async () => {
-								const id = uuidv4();
-								const newValue = [...item.themes, {...editingItem, id}]
+								const theme_id = uuidv4();
+								const newValue = [...item.theme_refs, {...editingItem, theme_id}]
 								onSubmit(newValue);
 								setEditingItem(undefined)
 							}}
@@ -155,7 +183,7 @@ function ThemeList ({
 							type={'plain'}
 							title={'remove item'}
 							onClick={() => {
-								const newData = item.themes.filter((v, i) => v.id !== editingItem.id);
+								const newData = item.theme_refs.filter((v, i) => v.theme_id !== editingItem.theme_id);
 								onSubmit(newData)
 								setEditingItem(undefined)
 							}}
@@ -164,6 +192,10 @@ function ThemeList ({
 					</div>
 				</div>
 			</Modal>
+			{/* Themes
+      <pre>{JSON.stringify(item.themes, null,3)}</pre>
+      Themes_ref
+      <pre>{JSON.stringify(item.theme_refs, null,3)}</pre>*/}
 		</div>
 	)
 }

@@ -63,6 +63,7 @@ function PatternList({
 }) {
 	const {app, API_HOST, baseUrl} = React.useContext(AdminContext);
 	const {UI} = React.useContext(ThemeContext)
+	const location = useLocation()
 	const {Table, Input, Button, Modal, Icon} = UI;
 	const gridRef = React.useRef(null);
 	const [search, setSearch] = React.useState('');
@@ -71,16 +72,28 @@ function PatternList({
 	const [editingItem, setEditingItem] = React.useState(undefined);
 	const [isDuplicating, setIsDuplicating] = React.useState(false);
 	const attrToAddNew = ['pattern_type', 'name', 'subdomain', 'base_url', 'filters', 'authPermissions'];
+	//console.log('test 123', location)
 	const columns = [
 		{name: 'name', display_name: 'Name', show: true, type: 'text'},
-		{name: 'base_url', display_name: 'Base URL', show: true, type: 'text'},
+		{name: 'base_url', display_name: 'Base URL', show: true, type: 'ui',
+      Comp: (d) => {
+        return (
+          <Link
+            to={`http${window.location.host.includes('localhost') ? '' : 's'}://${(d.row.subdomain === '*' || !d.row.subdomain ) ? '' : `${d.row.subdomain}.`}${window.location.host.split('.')[1] || window.location.host.split('.')[0]}${d.row.base_url}`}
+            className='flex items-center p-2 w-full h-full py-1 font-[400] text-[14px]  leading-[18px] text-slate-600'
+          >
+            {d?.row?.base_url}
+          </Link>
+        )
+      }
+		},
 		{name: 'subdomain', display_name: 'Subdomain', show: true, type: 'text'},
 		// {name: 'updated_at', display_name: 'Updated', show: true, type: 'text', formatFn: 'date'},
 		{name: 'edit', display_name: 'Edit', show: true, type: 'ui',
       Comp: (d) => {
         return (
           <div className='flex items-center justify-center w-full h-full py-1'>
-            <Link to={d?.row?.edit_url || ''} div className='flex items-center px-2 py-1 text-sm text-slate-700 bg-slate-200 rounded-full'>
+            <Link to={d?.row?.edit_url || ''} div className='flex  items-center px-2 py-1 text-sm text-slate-700 bg-slate-200 rounded-full'>
               <Icon icon='PencilEditSquare' className='size-5'/><span className='pl-1'>Edit</span>
             </Link>
           </div>
@@ -127,7 +140,7 @@ function PatternList({
 
 	return (
 			<div className={'flex flex-1 flex-col w-full overflow-auto'}>
-				<div className={'w-full flex justify-between border-b-2 border-blue-400 py-2'}>
+				<div className={'w-full flex items-center justify-between border-b-2 border-blue-400 pb-2'}>
 					<div className={'text-2xl font-semibold text-gray-700'}>Sites</div>
 					<Button className={'shrink-0'} onClick={() => setAddingNew(true)}> Add site </Button>
 				</div>

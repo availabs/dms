@@ -8,7 +8,7 @@ import { merge, cloneDeep, get, set } from "lodash-es";
 import {ThemeContext} from "../../../../ui/useTheme";
 import {AdminContext} from "../../context";
 import { parseIfJSON } from '../../../page/pages/_utils';
-//import themeEditorConfig from './themeEditorConfig';
+
 
 
 const DefaultComp = () => <div>Component not registered.</div>
@@ -91,7 +91,7 @@ function ComponentList ({
 	const { Select, Button } = UI;
 
 	const {theme_id, component, ...restparams} = params;
-	const themeObj = useMemo(() => (item.themes || []).find(t => t.id === theme_id), [item.themes, theme_id])
+	const themeObj = useMemo(() => (item.theme_refs || []).find(t => t.theme_id === theme_id), [item.theme_refs, theme_id])
 	const [currentTheme, setCurrentTheme] = useImmer( merge(cloneDeep(theme),parseIfJSON(themeObj?.theme)));
 	const themeSettings = React.useMemo(() => currentTheme?.settings(currentTheme), [currentTheme])
   const [currentThemeSetting, setCurrentThemeSetting ] = React.useState(Object.keys(themeSettings)[0])
@@ -115,8 +115,8 @@ function ComponentList ({
 	}, [compFromProps])
 
 	const onSubmit = (updateCurrentTheme) => {
-		const value = item.themes.map(t => t.id === theme_id ? {...t, theme: JSON.stringify(updateCurrentTheme)} : t);
-		apiUpdate({data: {...item, themes: value}, config: {format}})
+		const value = item.theme_refs.map(t => t.theme_id === theme_id ? {...t, theme: JSON.stringify(updateCurrentTheme)} : t);
+		apiUpdate({data: {...item, theme_refs: value}, config: {format}})
 		updateAttribute('themes', value)
 	}
 
@@ -124,11 +124,12 @@ function ComponentList ({
 		item = dataItems[0]
 	}
 
+	// console.log('testing',themeSettings, currentThemeSetting, themeSettings?.[currentThemeSetting])
 	return (
 		<div className={'flex flex-col p-4 w-full divide-y-2'}>
 			<div className={'w-full flex justify-between border-b-2 border-blue-400'}>
 				<div className='flex'>
-				  <div className={'text-2xl font-semibold text-gray-700'}>Components</div>
+          <div className={'text-2xl font-semibold text-gray-700'}>{themeObj?.name}</div>
 					<div className='px-4'>
 						<Select
   					  value={currentComponent}
@@ -172,7 +173,7 @@ function ComponentList ({
   				<div className='h-[calc(100vh_-_11rem)] overflow-auto w-full scrollbar-sm p-2 '>
             { currentThemeSetting }
             {
-              (themeSettings[currentThemeSetting] || [])
+              (themeSettings?.[currentThemeSetting] || [])
                 .map(conf => <ControlRenderer
                   config={conf}
                   state={currentTheme}

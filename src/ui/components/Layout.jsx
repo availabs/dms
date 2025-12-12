@@ -1,14 +1,14 @@
 import React from "react";
 import { merge, cloneDeep } from "lodash-es"
 
-import { matchRoutes, useLocation } from 'react-router'
-import { ThemeContext } from '../useTheme.js'
-import layoutTheme from './Layout.theme'
+import { matchRoutes, useLocation } from 'react-router';
+import { ThemeContext } from '../useTheme.js';
+import layoutTheme from './Layout.theme';
 
 //--- Components and Widgets ------
 import TopNav, { HorizontalMenu } from './TopNav';
 import SideNav, { VerticalMenu } from './SideNav';
-import Logo from './Logo'
+import Logo from './Logo';
 const NoComp = () => <div className='h-12'/>
 
 //--------------

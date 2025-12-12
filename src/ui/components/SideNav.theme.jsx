@@ -4,7 +4,8 @@ const sideNavTheme = {
   },
   "styles": [
     {
-      layoutContainer1: 'border-r lg:mr-42',
+      name: 'default',
+      layoutContainer1: 'lg:mr-42',
       layoutContainer2: 'fixed inset-y-0 left-0 w-42 max-lg:hidden',
       logoWrapper: "w-42 bg-neutral-100 text-slate-800",
       sidenavWrapper: "flex flex-col w-42 h-full z-20",
@@ -13,14 +14,6 @@ const sideNavTheme = {
       menuItemWrapper_level_2: '',
       menuItemWrapper_level_3: '',
       menuItemWrapper_level_4: '',
-      menuIconSide: "group w-6 mr-2 text-blue-500  group-hover:text-blue-800",
-      menuIconSideActive: "group w-6 mr-2 text-blue-500  group-hover:text-blue-800",
-      itemsWrapper: "pt-12 flex-1 ",
-      navItemContent: "transition-transform duration-300 ease-in-out",
-      navItemContent_level_1:'',
-      navItemContent_level_2:'',
-      navItemContent_level_3:'',
-      navItemContent_level_4:'',
       navitemSide: `
       group  flex flex-col
       group flex px-3 py-1.5 text-[14px] font-light hover:bg-blue-50 text-slate-700 mx-2  undefined
@@ -31,6 +24,15 @@ const sideNavTheme = {
       px-3 py-1.5 text-[14px] font-light hover:bg-blue-50 text-slate-700  mx-2
         focus:outline-none focus:text-gray-800 focus:bg-gray-50 focus:border-gray-300
       transition-all cursor-pointer`,
+      menuIconSide: "group w-6 mr-2 text-blue-500  group-hover:text-blue-800",
+      menuIconSideActive: "group w-6 mr-2 text-blue-500  group-hover:text-blue-800",
+      itemsWrapper: "pt-12 flex-1 ",
+      navItemContent: "transition-transform duration-300 ease-in-out",
+      navItemContent_level_1:'',
+      navItemContent_level_2:'',
+      navItemContent_level_3:'',
+      navItemContent_level_4:'',
+
       indicatorIcon: "ArrowRight",
       indicatorIconOpen: "ArrowDown",
       subMenuWrapper_1: "pl-2 w-full",
@@ -38,7 +40,7 @@ const sideNavTheme = {
       subMenuWrapper_3: "",
       subMenuOuterWrapper: '',
       subMenuParentWrapper: "flex flex-col w-full",
-      bottomMenuWrapper: 'border-t',
+      bottomMenuWrapper: '',
       topnavWrapper: `w-full h-[50px] flex items-center pr-1`,
       topnavContent: `flex items-center w-full h-full bg-white lg:bg-zinc-100 dark:bg-zinc-900 dark:lg:bg-zinc-950 justify-between`,
       topnavMenu: `hidden  lg:flex items-center flex-1  h-full overflow-x-auto overflow-y-hidden scrollbar-sm`,

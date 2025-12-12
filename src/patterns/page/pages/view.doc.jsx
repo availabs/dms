@@ -6,6 +6,7 @@ const pageViewDoc = {
   title: 'Page - View',
   component: PageView,
   props: {
+    user: { groups: ['AVAIL'], authed: 'true'},
     item:{
         "id": "1437075",
         "index": "0",

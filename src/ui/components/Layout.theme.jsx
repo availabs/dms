@@ -208,11 +208,11 @@ export default  {
   "options": {
     "activeStyle": 0,
     "sideNav": {
-        "size": "compact",
-        "nav": "main",
-        "activeStyle": null,
-        "topMenu": [],
-        "bottomMenu": []
+      "size": "compact",
+      "nav": "main",
+      "activeStyle": null,
+      "topMenu": [{ type: 'Logo' }],
+      "bottomMenu": [{type: 'UserMenu'}]
     },
     "topNav": {
       "size": "none",

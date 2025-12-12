@@ -14,9 +14,19 @@ import adminFormat, {pattern, themeFormat} from "./admin.format.js"
 
 import SiteEdit from "./pages/editSite"
 import ThemeList from "./pages/themes/list"
-import ThemeEdit from "./pages/themes/edit"
+import ThemeEdit from "./pages/themes/editTheme"
 import PatternEditor from "./pages/patternEditor";
 //import ThemeManager from './pages/themeManager/index.jsx'
+
+const SectionGroup = ({children, maxWidth='max-w-7xl', padding='p-4', ...props}) => (
+  <div className={`h-full flex flex-1 p-1.5 `}>
+    <div className={`flex flex-1 w-full flex-col shadow-md bg-white rounded-lg relative text-md font-light leading-7 ${padding} h-full min-h-[calc(100vh_-_102px)]`}>
+      <div className={`h-full flex flex-col w-full ${maxWidth}`}>
+        {children}
+      </div>
+    </div>
+  </div>
+)
 
 const adminConfig = ({
   app = "default-app",
@@ -57,13 +67,7 @@ const adminConfig = ({
                         <AdminContext.Provider value={{ baseUrl, authPath, user, apiUpdate, app, type, API_HOST, UI}}>
                             <ThemeContext.Provider value={{theme, UI}}>
                               <Layout navItems={menuItems} Menu={() => <>{rightMenu}</>}>
-                                <div className={`h-full flex flex-1 p-1.5`}>
-                                  <div className={'flex flex-1 w-full flex-col border shadow-md bg-white rounded-lg relative text-md font-light leading-7 p-4 h-full min-h-[calc(100vh_-_102px)]'}>
-                                    <div className={`h-full flex flex-col max-w-7xl `}>
-                                        {props.children}
-                                    </div>
-                                  </div>
-                                </div>
+                                  {props.children}
                               </Layout>
                             </ThemeContext.Provider>
                         </AdminContext.Provider>
@@ -73,26 +77,21 @@ const adminConfig = ({
                 path: "/*",
                 children: [
                     {
-                        type: (props) => <SiteEdit {...props} />,
-                        path: "",
-                        action: "edit"
-
+                      type: (props) => (
+                        <SectionGroup>
+                          <SiteEdit {...props} />
+                        </SectionGroup>
+                      ),
+                      path: "",
                     },
                     {
-                        type: props => <ThemeList {...props} />,
-                        path: "themes",
-                        action: "edit"
+                      type: props => <SectionGroup><ThemeList {...props} /></SectionGroup>,
+                      path: "themes",
                     },
                     {
-                        type: props => <ThemeEdit {...props} />,
+                        type: props => <SectionGroup maxWidth='w-full' padding='p-0'><ThemeEdit {...props} /></SectionGroup>,
                         path: "theme/:theme_id/:component?",
                         action: "edit"
-                    },
-                    {
-                        type: (props) => (<div>Datasets</div>),
-                        path: "datasets",
-                        action: "edit"
-
                     },
                     // add a themes list page. a user can send themes object to DMSSite, and new themes from that object need to bbe saved to db.
                     // after theme list page, create a components list page.
@@ -150,17 +149,11 @@ const patternConfig = ({
                     return (
                         <AdminContext.Provider value={{baseUrl, parentBaseUrl, authPath, user, apiUpdate, app, type, API_HOST, UI}}>
                             <ThemeContext.Provider value={{theme, UI}}>
-                                <div className={theme?.page?.container}>
-                                    <Layout navItems={menuItems} Menu={() => <>{rightMenu}</>}>
-                                      <div className={`h-full flex flex-1 p-1.5 `}>
-                                        <div className={'flex flex-1 w-full flex-col  shadow-md bg-white rounded-lg relative text-md font-light leading-7 p-4 h-full min-h-[calc(100vh_-_102px)]'}>
-                                          <div className={`h-full flex flex-col w-full max-w-7xl`}>
-                                                    {props.children}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </Layout>
-                                </div>
+                                <Layout navItems={menuItems} Menu={() => <>{rightMenu}</>}>
+                                  <SectionGroup>
+                                    {props.children}
+                                  </SectionGroup>
+                                </Layout>
                             </ThemeContext.Provider>
                         </AdminContext.Provider>
                     )

@@ -21,7 +21,7 @@ function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdat
     const { search } = useLocation()
     const pdfRef = useRef(); // To capture the section of the page to be converted to PDF
     const {theme: fullTheme, UI} = useContext(ThemeContext);
-    const { Menu, baseUrl, patternFilters = [], isUserAuthed = () => {}, authPermissions } = React.useContext(CMSContext) || {};
+    const { Menu, baseUrl, patternFilters = [], isUserAuthed = () => true, authPermissions } = React.useContext(CMSContext) || {};
     const dataItems = allDataItems.filter(d => !d.authPermissions || isUserAuthed(reqPermissions, d.authPermissions));
 
     const [pageState, setPageState] = useImmer({
@@ -38,7 +38,7 @@ function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdat
     }
 
 
-    console.log('dataitems',dataItems)
+
     const menuItems = React.useMemo(() => {
         let items = dataItemsNav(dataItems,baseUrl,false)
         return items

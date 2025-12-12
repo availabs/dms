@@ -10,9 +10,11 @@ const UserMenu = ({user}) => {
     const {UI} = useContext(ThemeContext)
     const {Icon} = UI;
     return (
-        <div className={`h-[47px] w-[47px] border border-[#E0EBF0] rounded-full place-items-center content-center`}>
-            <Icon icon={'User'} className='size-6 fill-[#37576b]' />
+      <div className="w-full border-fuchsia-800 border-2">
+        <div className={`h-[47px] w-[47px]  border-[#E0EBF0] rounded-full place-items-center content-center`}>
+            <Icon icon={'User'} className='size-6 fill-[#37576b]' /> Hola
         </div>
+      </div>
     )
 }
 

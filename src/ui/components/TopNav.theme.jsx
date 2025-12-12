@@ -1,7 +1,10 @@
 const topNavTheme = {
-    //
-    "layoutContainer1": `h-[50px] -mb-1`,
-    "layoutContainer2": `fixed w-full z-20 mt-12 `,
+  "options": {
+    "activeStyle": 0
+  },
+  "styles": [{
+    "layoutContainer1": `h-[50px]`,
+    "layoutContainer2": `w-full z-20 `,
     "topnavWrapper": `w-full h-[50px] flex items-center pr-1`,
     "topnavContent": `flex items-center w-full h-full bg-white lg:bg-zinc-100 dark:bg-zinc-900 dark:lg:bg-zinc-950 justify-between`,
     "topnavMenu": `hidden  lg:flex items-center flex-1  h-full overflow-x-auto overflow-y-hidden scrollbar-sm`,
@@ -28,7 +31,7 @@ const topNavTheme = {
       `,
     navItemContent_level_1: "",
     navItemContent_level_2: "uppercase font-[Oswald] text-[14px] flex items-center p-1",
-    navItemDescription_level_1:"hidden",
+    navItemDescription_level_1: "hidden",
     navItemDescription_level_2: `text-[16px] font-['Proxima_Nova'] font-[400] text-[#37576B] text-wrap`,
     indicatorIconWrapper: "size-3",
     indicatorIcon: "ArrowDown",
@@ -41,23 +44,81 @@ const topNavTheme = {
     subMenuWrapperInactiveFlyout: `absolute left-0 right-0  mt-8 normal-case bg-white shadow-lg z-10 p-2`,
     subMenuWrapperInactiveFlyoutBelow: ` absolute ml-40 normal-case bg-white shadow-lg z-10 p-2`,
     subMenuWrapperInactiveFlyoutDirection: 'grid grid-cols-4',
-
-  }
+  }]
+}
 
 export default topNavTheme
 
-export const topNavsettings =  [{
-    label: "Top Nav",
+export const topNavsettings =  (theme) => [
+  {
+    label: "Topnav Styles",
     type: 'inline',
-    controls: Object.keys(topNavTheme)
+    controls: [
+      {
+        label: 'Style',
+        type: 'Select',
+        options: (theme?.topnav?.styles || [{}])
+          .map((k, i) => ({ label: k?.name || i, value: i })),
+        path: `topnav.options.activeStyle`,
+      },
+      {
+        label: 'Add Style',
+        type: 'Button',
+        children: <div>Add Style</div>,
+        onClick: (e, setState) => {
+          setState(draft => {
+            draft.topnav.styles.push({ ...draft.topnav.styles[0], name: 'new style', })
+            //draft.sidenav.options.activeStyle = draft.sidenav.styles.length
+          })
+          //console.log('add style', e)
+        }
+        //path: `sidenav.styles[${activeStyle}].outerWrapper`,
+      },
+      {
+        label: 'Remove Style',
+        type: 'Button',
+        children: <div>Remove Style</div>,
+        //disabled:
+        onClick: (e, setState) => {
+          setState(draft => {
+            if (draft.topnav.styles.length > 1) {
+              draft.topnav.styles.splice(theme.topnav.options.activeStyle, 1)
+              draft.topnav.options.activeStyle = 0
+            }
+          })
+        }
+        //path: `sidenav.styles[${activeStyle}].outerWrapper`,
+      },
+    ]
+  },
+  {
+    label: "Side Nav",
+    type: 'inline',
+    controls: [
+      ...Object.keys(theme?.topnav?.styles?.[theme?.topnav?.options?.activeStyle || 0] )
         .map(k => {
           return {
             label: k,
             type: 'Textarea',
-            path: `sidenav.${k}`
+            path: `topnav.styles[${theme?.topnav?.options?.activeStyle}].${k}`
           }
         })
-}]
+    ]
+  }
+]
+
+// export const topNavsettings =  [{
+//     label: "Top Nav",
+//     type: 'inline',
+//     controls: Object.keys(topNavTheme)
+//         .map(k => {
+//           return {
+//             label: k,
+//             type: 'Textarea',
+//             path: `sidenav.${k}`
+//           }
+//         })
+// }]
 
 // export default {
 //       fixed: 'mt-8',

@@ -5,7 +5,15 @@ export const themeFormat = {
   type: 'theme',
   attributes: [
     {
-      key: "theme_data",
+      key: "name",
+      type: "text"
+    },
+    {
+      key: "theme_id",
+      type: "text"
+    },
+    {
+      key: "theme",
       type: "json",
       default: {}
     }

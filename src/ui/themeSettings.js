@@ -14,7 +14,7 @@ export default (theme) => {
   return {
     layout: layoutSettings(theme),
     sidenav: sideNavsettings(theme),
-    topnav: topNavsettings,
+    topnav: topNavsettings(theme),
     logo: logoSettings,
     ...pagesThemeSettings(theme)
   }
