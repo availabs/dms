@@ -24,7 +24,6 @@ export function SectionEdit({
                                 apiLoad,
                                 apiUpdate,
                                 format,
-                                isActive
                             }) {
     const isEdit = true;
     const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -181,7 +180,7 @@ export function SectionEdit({
                                     apiLoad={apiLoad}
                                     apiUpdate={apiUpdate}
                                     pageFormat={format}
-                                    isActive={isActive}
+                                    isActive={value?.element?.['element-type'] === 'Spreadsheet'}
                                 />
                             </Popup>)
                     }
@@ -232,7 +231,7 @@ export function SectionEdit({
                     apiLoad={apiLoad}
                     apiUpdate={apiUpdate}
                     pageFormat={format}
-                    isActive={isActive}
+                    isActive={value?.element?.['element-type'] === 'Spreadsheet'}
                 />
             </div>
         </div>
