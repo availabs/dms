@@ -1,4 +1,4 @@
-import React, {useEffect, useRef, useState} from "react"
+import React, {memo, useEffect, useRef, useState} from "react"
 
 const ArrowDown = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={24} height={24} stroke="currentColor" fill={"none"} {...props}>
@@ -201,7 +201,7 @@ const Edit = ({value = [], loading, onChange, className,placeholder, options = [
     )
 }
 
-const View = ({className, value, options = [], meta}) => {
+const View = memo(function View ({className, value, options = [], meta}){
 
     if (!value) return <div className={theme?.multiselect?.mainWrapper} />
 
@@ -214,7 +214,7 @@ const View = ({className, value, options = [], meta}) => {
             </div>
         </div>
     )
-}
+})
 
 export default {
     "EditComp": Edit,

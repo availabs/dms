@@ -1,4 +1,4 @@
-import React from "react"
+import React, {useMemo} from "react"
 import Editor from "./editor"
 
 function parseValue(value) {
@@ -38,19 +38,27 @@ const Edit = ({value, onChange, theme,  ...rest}) => {
     )
 }
 
+const noop = () => {};
 
-const View = ({value, theme,  ...rest}) => {
-    // console.log('lexical type view', parseValue(value))
+const View = React.memo(({
+                             value, bgColor, id, theme
+                              }) => {
+    const parsedValue = useMemo(
+        () => parseValue(value),
+        [value]
+    );
+
     return (
-      <Editor
-        value={parseValue(value)}
-        editable={false}
-        theme={theme}
-        {...rest}
-          onChange={() => {}}
-      />
-    )
-}
+        <Editor
+            value={parsedValue}
+            editable={false}
+            theme={theme}
+            onChange={noop}
+            bgColor={bgColor}
+            id={id}
+        />
+    );
+});
 
 export default {
     "EditComp": Edit,
