@@ -192,10 +192,11 @@ function ViewComp({value, isActive, hideSection, setHideSection, refreshDataBtnR
         }
     }, [state?.display?.hideSection])
 
-    async function refresh() {
+    async function refresh({isRefreshingData, setIsRefreshingData}) {
         const getData = (component.useDataSource ? DataWrapper : component)?.getData;
         if (!getData) return;
 
+        setIsRefreshingData(true);
         const { length, data } = await getData({
             state,
             apiLoad,
@@ -204,6 +205,7 @@ function ViewComp({value, isActive, hideSection, setHideSection, refreshDataBtnR
             // debugCall: true
         });
         updateAttribute('element-data', JSON.stringify({...state, data}));
+        setIsRefreshingData(false)
     }
 
     // expose refresh() to parent

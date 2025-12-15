@@ -257,6 +257,7 @@ export function SectionView({
     const isEdit = false; // should come from props
     const refreshDataBtnRef = useRef(null);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [isRefreshingData, setIsRefreshingData] = useState(false);
     const [hideSection, setHideSection] = useState(false);
     const {theme = {}, UI} = React.useContext(ThemeContext);
     const {Popup, Icon, NavigableMenu, Switch, Permissions} = UI;
@@ -321,7 +322,7 @@ export function SectionView({
 
     const sectionMenuItems = getSectionMenuItems({
         i, isEdit,
-        onEdit, refreshDataBtnRef,
+        onEdit, refreshDataBtnRef, isRefreshingData, setIsRefreshingData,
         value,
         moveItem,
         TitleEditComp,
@@ -481,13 +482,12 @@ const getSectionMenuItems = ({
     Permissions, AuthAPI, user, isUserAuthed, pageAuthPermissions, sectionAuthPermissions,
                                  theme,
                                  attributes, i,
-                                 refreshDataBtnRef
+                                 refreshDataBtnRef, isRefreshingData, setIsRefreshingData
                              }) => (
     [
         {icon: 'PencilSquare', name: 'Edit', onClick: onEdit, cdn: () => !isEdit && isUserAuthed(['edit-section'], sectionAuthPermissions)},
-        {icon: 'Refresh', name: 'Refresh Data', onClick: () => {
-            console.log('clicked!', refreshDataBtnRef.current)
-                refreshDataBtnRef.current?.refresh()
+        {icon: 'Refresh', name: isRefreshingData ? 'Refreshing Data' : 'Refresh Data', onClick: () => {
+                refreshDataBtnRef.current?.refresh({isRefreshingData, setIsRefreshingData})
             },
             cdn: () => !isEdit && isUserAuthed(['edit-section'], sectionAuthPermissions)},
         {icon: 'Copy', name: 'Copy Section', onClick: () => handleCopy(value)},
