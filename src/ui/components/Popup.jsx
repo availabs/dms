@@ -24,14 +24,14 @@ export const useHandleClickOutside = (menuRef, buttonRef, onClose) => {
 };
 
 export default function Popup({
-                                  button,
-                                  children,
-                                  offset = 8,
-                                  padding = 8,
-                                  portalContainer = document.body,
-                                  btnVisibleOnGroupHover, // adds a hide class if not open. assumes the button to have group-hover
-                                  defaultOpen = false, preferredPosition="bottom"
-                              }) {
+    button,
+    children,
+    offset = 8,
+    padding = 8,
+    portalContainer = document.body,
+    btnVisibleOnGroupHover, // adds a hide class if not open. assumes the button to have group-hover
+    defaultOpen = false, preferredPosition="bottom"
+}) {
     const [open, setOpen] = useState(defaultOpen);
     const buttonRef = useRef(null);
     const popupRef = useRef(null);
@@ -97,8 +97,13 @@ export default function Popup({
         switch (placement) {
             case "top":
                 top = rect.top - ph - offset;
-                left = rect.left + rect.width - (pw / 4);
+                left = rect.left; //+ rect.width - (pw / 4);
                 break;
+
+            case "top-left":
+              top = rect.top - ph - offset;
+              left = rect.left ;
+              break;
 
             case "bottom":
                 top = rect.bottom + offset;

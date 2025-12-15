@@ -66,7 +66,6 @@ const Layout = ({
 	const theme = merge(cloneDeep(defaultTheme?.layout?.styles?.[activeStyle || 0] || defaultTheme), cloneDeep(pageTheme))
 	// console.log('Theme', theme, sideNav, activeStyle)
   const navs = (nav) => {
-    // console.log('layout navs', nav, nav.navDepth)
     return {
       "main": (nav2Level(navItems, +nav.navDepth , pathname, nav?.navTitle) || []).filter(page => !page.hideInNav),
       "secondary": secondNav
@@ -102,7 +101,7 @@ const Layout = ({
   				</div>
   			</div>
   		</div>
-      {footerChildren}
+      { footerChildren }
     </div>
 	);
 };

@@ -17,16 +17,14 @@ export const sectionGroupTheme = {
     default: {
       wrapper1: 'w-full h-full flex-1 flex flex-row pt-2', // inside page header, wraps sidebar
       wrapper2: 'flex flex-1 w-full  flex-col  shadow-md bg-white rounded-lg relative text-md font-light leading-7 p-4 h-full min-h-[200px]', // content wrapepr
-      iconWrapper: 'z-5 absolute right-[10px] top-[5px]',
-      icon: 'text-slate-400 hover:text-blue-500',
+      sideNavContainer1: 'hidden',
+      sideNavContainer2: 'hidden',
     },
     content: {
       wrapper1: 'w-full h-full flex-1 flex flex-row p-2', // inside page header, wraps sidebar
       wrapper2: 'flex flex-1 w-full  flex-col  shadow-md bg-white rounded-lg relative text-md font-light leading-7 p-4 h-full min-h-[calc(100vh_-_102px)]', // content wrapepr
-      iconWrapper: 'z-5 absolute right-[10px] top-[5px]',
-      icon: 'text-slate-400 hover:text-blue-500',
-      viewIcon: 'ViewPage',
-      editIcon: 'EditPage',
+      sideNavContainer1: 'hidden',
+      sideNavContainer2: 'hidden',
     },
     header: {
       wrapper1: 'w-full h-full flex-1 flex flex-row', // inside page header, wraps sidebar
@@ -41,7 +39,7 @@ export const sectionGroupTheme = {
 
 export default function SectionGroup ({group, attributes, edit}) {
   const { theme,  UI } = React.useContext(ThemeContext);
-  const { baseUrl, user, isUserAuthed } = React.useContext(CMSContext) || {};
+  const { user } = React.useContext(CMSContext) || {};
   const location = useLocation();
 
   const { apiUpdate, format, item, updateAttribute } = React.useContext(PageContext) || {viewIcon: 'ViewPage', editIcon: 'EditPage'};
@@ -52,53 +50,33 @@ export default function SectionGroup ({group, attributes, edit}) {
   const sectionFormat = format?.registerFormats.find(d => d?.type?.includes('|cms-section'))
   const sectionAttributes =  attributes?.['sections']?.attributes
   const SectionArrayComp = React.useMemo(() => {
-      return edit ?  
-        ( attributes?.['sections']?.EditComp || SectionArray?.EditComp ) :  
+      return edit ?
+        ( attributes?.['sections']?.EditComp || SectionArray?.EditComp ) :
         ( attributes?.['sections'].ViewComp || SectionArray?.ViewComp )
   }, [])
 
   return (
-
-      <div className={`${sectionTheme?.wrapper1}`}>
-        {item?.sidebar && group.name === 'default' && (
-          <div className={`${theme?.pages?.sectionGroup?.sideNavContainer1} ${item?.sidebar === 'left' ? '': 'order-2'}`}>
-            <div className={theme?.pages?.sectionGroup?.sideNavContainer2}>
-              <div className={theme?.pages?.sectionGroup?.sideNavContainer3}>
-                <SideNav {...inPageNav} />
-              </div>
+    <div className={`${sectionTheme?.wrapper1}`}>
+      {item?.sidebar && group.name === 'default' && (
+        <div className={`${theme?.pages?.sectionGroup?.sideNavContainer1} ${item?.sidebar === 'left' ? '': 'order-2'}`}>
+          <div className={theme?.pages?.sectionGroup?.sideNavContainer2}>
+            <div className={theme?.pages?.sectionGroup?.sideNavContainer3}>
+              <SideNav {...inPageNav} />
             </div>
           </div>
-        )}
-        <div className={sectionTheme?.wrapper2}>
-          <div className={sectionTheme?.wrapper3}>
-            {(
-                group.name === 'default' &&
-                user?.authed &&
-                isUserAuthed([
-                    'create-page',
-                    'edit-page',
-                    'edit-page-layout',
-                    'edit-page-params',
-                    'edit-page-permissions',
-                    'publish-page'
-                ])
-            ) && (
-              <Link className={`${sectionTheme?.iconWrapper}`} to={`${baseUrl}/${edit ? '' : 'edit/'}${item?.url_slug || ''}${location.search}`}>
-                {/*have to use rr to get query paramswindow.location.search*/}
-                <Icon icon={edit ? sectionTheme?.viewIcon : sectionTheme?.editIcon} className={sectionTheme?.icon} />
-
-              </Link>
-            )}
-            <SectionArrayComp
-              group={group}
-              value={item?.[edit ? 'draft_sections' : 'sections'] || [] }
-              attr={sectionAttributes}
-              onChange={(update, action ) => updateSections({update, action, item, user, apiUpdate, updateAttribute})}
-            />
-          </div>
+        </div>
+      )}
+      <div className={sectionTheme?.wrapper2}>
+        <div className={sectionTheme?.wrapper3}>
+          <SectionArrayComp
+            group={group}
+            value={item?.[edit ? 'draft_sections' : 'sections'] || [] }
+            attr={sectionAttributes}
+            onChange={(update, action ) => updateSections({update, action, item, user, apiUpdate, updateAttribute})}
+          />
         </div>
       </div>
-
+    </div>
   )
 }
 

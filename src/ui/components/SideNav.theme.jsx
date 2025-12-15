@@ -32,7 +32,6 @@ const sideNavTheme = {
       navItemContent_level_2:'',
       navItemContent_level_3:'',
       navItemContent_level_4:'',
-
       indicatorIcon: "ArrowRight",
       indicatorIconOpen: "ArrowDown",
       subMenuWrapper_1: "pl-2 w-full",

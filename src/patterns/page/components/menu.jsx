@@ -1,94 +1,132 @@
 import React, {useContext} from "react"
 import {Link, useLocation} from 'react-router'
 import { CMSContext } from '../context'
+import { AuthContext } from "../../auth/context";
 import { ThemeContext } from "../../../ui/useTheme";
+import NavigableMenu from "../../../ui/components/navigableMenu";
 
 // import {NavItem, NavMenu, NavMenuItem, NavMenuSeparator, withAuth} from 'components/avl-components/src'
 // import user from "@availabs/ams/dist/reducers/user";
 
-const UserMenu = ({user}) => {
-    const {UI} = useContext(ThemeContext)
+const userMenuTheme = {
+  userMenuContainer: 'flex w-full items-center justify-center rounded-xl @container',
+  iconWrapper: 'size-9 flex items-center justify-center',
+  icon: 'text-slate-400 hover:text-blue-500 size-7',
+  viewIcon: 'ViewPage',
+  editIcon: 'EditPage',
+}
+
+const UserMenu = ({}) => {
+    const { UI } = useContext(ThemeContext)
+    const { user} = useContext(AuthContext)
     const {Icon} = UI;
     return (
-      <div className="w-full border-fuchsia-800 border-2">
-        <div className={`h-[47px] w-[47px]  border-[#E0EBF0] rounded-full place-items-center content-center`}>
-            <Icon icon={'User'} className='size-6 fill-[#37576b]' /> Hola
+      <div className="flex w-full items-center justify-center rounded-xl @container">
+        <div className="flex p-2  justify-center">
+          <div className={`size-8  border-[#E0EBF0] rounded-lg place-items-center content-center `}>
+              <Icon icon={'User'} className='size-6 fill-[#37576b]' />
+          </div>
+        </div>
+        <div className="flex-1 p-2  @max-[150px]:hidden">
+          <div className='text-xs font-thin tracking-tighter text-left'>{user.email ? user.email : ''}</div>
+          <div className='text-xs font-medium -mt-1 tracking-widest text-left'>{user?.groups?.[0] ? user.groups[0] : ''}</div>
         </div>
       </div>
     )
 }
 
-export const Item = ({to, icon,children}) => (
-    (
-        <Link to={ to } >
-            <div className='px-6 py-1 hover:bg-slate-100'>
-                <div className='hover:translate-x-2 transition duration-100 ease-out hover:ease-in'>
-                    <i className={`${icon} `} />
-                    <span className='pl-2'>
-                        {children}
-                    </span>
-                </div>
-            </div>
-        </Link>
-    )
-)
+const EditControl = () => {
+  const { theme, UI } = useContext(ThemeContext)
+  const { user } = useContext(AuthContext) || {}
+  const { isUserAuthed = () => false,  baseUrl='/'  } = useContext(CMSContext) || {}
+  const location = useLocation()
+  const { Icon } = UI
+  const menuTheme = theme?.page?.menu ||  userMenuTheme
+  const edit = React.useMemo(() => {
+    console.log('hola',location)
+    return location.pathname.split('/')?.[1] === 'edit'
+  },[location])
 
+  const urlpath = edit ? location?.pathname.replace('/edit','') : location?.pathname
+    return <>
+      {(
+        user?.authed &&
+        isUserAuthed([
+            'create-page',
+            'edit-page',
+            'edit-page-layout',
+            'edit-page-params',
+            'edit-page-permissions',
+            'publish-page'
+        ])
+      ) && (
+        <div className="flex justify-center items-center @max-[60px]:order-first">
+          <Link className={`${menuTheme?.iconWrapper}`} to={`${baseUrl}${edit ? '' : '/edit'}${urlpath}${location.search}`}>
+            {/*have to use rr to get query paramswindow.location.search*/}
+            <Icon icon={edit ? menuTheme?.viewIcon : menuTheme?.editIcon} className={menuTheme?.icon} />
+          </Link>
+        </div>
+      )}
+    </>
+}
 
 export default ({title, children}) => {
-  const { user, baseUrl } = React.useContext(CMSContext) || { user: { email: 'testuser@availabs.org', authed: true, authlevel: 1,  groups:['AVAIL']} }
+  const { user } = React.useContext(AuthContext) || {}
+  const { baseUrl = ''} = React.useContext(CMSContext) || {}
   // console.log('Menu CMS Context', user)
   const { theme, UI } = React.useContext(ThemeContext) || {}
-  const { Dropdown } = UI;
+  const {  NavigableMenu, Icon } = UI;
   const location = useLocation();
-    let authMenuItems = theme?.navOptions?.authMenu?.navItems || [
-            {
-                name: 'Datasets',
-                icon: 'fad fa-sign-out-alt pb-2 pr-1',
-                path: '/datasets'
-            },
-            {
-                name: 'Manager',
-                icon: 'fad fa-sign-out-alt pb-2 pr-1',
-                path: `${baseUrl}/manage`
-            },
-        ]
+  let authMenuItems = theme?.navOptions?.authMenu?.navItems || [
+    {
+        name: 'Datasets',
+        icon: 'fad fa-sign-out-alt pb-2 pr-1',
+        path: '/datasets',
+        type: 'link'
+    },
+    {
+        name: 'Manager',
+        icon: 'fad fa-sign-out-alt pb-2 pr-1',
+        path: `${baseUrl}/list`,
+        type: 'link'
+    }
+  ]
 
     return (
-        <>
+      <>
 
-            {!user?.authed ?
-                <Link className={`flex items-center px-8 text-lg font-bold h-12 text-slate-500`} to="/auth/login" state={{from: location?.pathname}}>Login</Link> :
-                <Dropdown control={<div className={'px-1'}><UserMenu user={user}/></div>} className={``} >
-                    <div className='p-1 bg-white rounded-md z-30 shadow-md'>
-
-                        <div className='py-2'>
-                            <div className='text-md font-thin tracking-tighter text-left'>{user.email ? user.email : ''}</div>
-                            <div className='text-xs font-medium -mt-1 tracking-widest text-left'>{user?.groups?.[0] ? user.groups[0] : ''}</div>
-                            {authMenuItems
-                                .map((item,i) => {
-                                return <div key={i}>
-                                    {(
-                                        <Item to={item.path} icon={item.icon}>
-                                            {item.name}
-                                        </Item>
-                                    )}
-                                </div>
-
-                            })}
-
-                        </div>
-                        {!user.fake && (
-                            <div className='py-1 border-t border-slate-200'>
-
-                                <Item to='/auth/logout' icon={'fad fa-sign-out-alt pb-2 pr-1'}>
-                                    Logout
-                                </Item>
-                            </div>
-                        )}
-
+          {!user?.authed ?
+            <div className="border-2 flex items-center justify-center py-2">
+              <Link
+                className={`flex items-center `}
+                to="/auth/login"
+                state={{ from: location?.pathname }}>
+                  <div className={`size-8 border rounded-lg place-items-center content-center `}>
+                    <Icon icon={'login'} className='size-6 fill-[#37576b] hover:fill-slate-500' />
+                  </div>
+              </Link>
+            </div>:
+            (
+              <div className="@container w-full">
+                <div className="flex p-1  items-center @max-[60px]:flex-col">
+                  <NavigableMenu
+                    config={[
+                      { type: () =>  <UserMenu /> },
+                      ...authMenuItems,
+                      { type: 'separator'},
+                      { name: 'Logout', path: '/auth/logout', type: 'link' },
+                    ]}
+                    showTitle={false}
+                  >
+                    <div className='border-1 border-slate-200 flex-1 w-full rounded-xl shadow'>
+                      <UserMenu />
                     </div>
-                </Dropdown>
-            }
-        </>
+                  </NavigableMenu>
+                  <EditControl />
+                </div>
+              </div>
+            )
+          }
+      </>
     )
 }

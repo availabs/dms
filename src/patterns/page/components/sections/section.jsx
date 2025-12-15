@@ -11,49 +11,53 @@ import { v4 as uuidv4 } from 'uuid';
 import {getPageAuthPermissions} from "../../pages/_utils";
 
 export function SectionEdit({
-                                value,
-                                i,
-                                onChange,
-                                attributes,
-                                size,
-                                onCancel,
-                                onSave,
-                                onRemove,
-                                moveItem,
-                                siteType,
-                                apiLoad,
-                                apiUpdate,
-                                format,
-                                isActive
-                            }) {
-    const isEdit = true;
-    const [showDeleteModal, setShowDeleteModal] = useState(false);
-    let sectionTitleCondition = value?.['title']
-    const {theme, UI} = React.useContext(ThemeContext);
-    const {Popup, Button, Icon, Switch, Listbox, NavigableMenu, Permissions} = UI
-    const {AuthAPI} = React.useContext(AuthContext) || {};
+  value,
+  i,
+  onChange,
+  attributes,
+  size,
+  onCancel,
+  onSave,
+  onRemove,
+  moveItem,
+  siteType,
+  apiLoad,
+  apiUpdate,
+  format,
+  isActive
+}) {
+  const { AuthAPI } = React.useContext(AuthContext) || {};
+  const {theme, UI} = React.useContext(ThemeContext);
   const { user, isUserAuthed = () => {} } = React.useContext(CMSContext) || {};
-    const {pageState} = useContext(PageContext);
-    const pageAuthPermissions = getPageAuthPermissions(pageState?.authPermissions);
-    const sectionAuthPermissions = value?.authPermissions && typeof value.authPermissions === 'string' ? JSON.parse(value?.authPermissions) : undefined;
+  const {Popup, Button, Icon, Switch, Listbox, NavigableMenu, Permissions} = UI
 
-    const updateAttribute = (k, v) => {
-        if (!isEqual(value, {...value, [k]: v})) {
-            onChange({...value, [k]: v})
-        }
-    }
+  const isEdit = true;
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  let sectionTitleCondition = value?.['title']
 
-    let TitleEditComp = attributes?.title?.EditComp
-    let LevelComp = attributes?.level?.EditComp
-    let HelpComp = attributes?.helpText?.EditComp
-    const helpTextArray =
-        Array.isArray(value?.['helpText']) ?
-            value?.['helpText'] :
-            value?.['helpText']?.text ?
-                [value?.['helpText']] :
-                value?.helpText ?
-                    [{text: value?.['helpText']}] :
-                    [];
+  const {pageState} = useContext(PageContext);
+  const pageAuthPermissions = getPageAuthPermissions(pageState?.authPermissions);
+  const sectionAuthPermissions = value?.authPermissions && typeof value.authPermissions === 'string' ? JSON.parse(value?.authPermissions) : undefined;
+
+  const updateAttribute = (k, v) => {
+      if (!isEqual(value, {...value, [k]: v})) {
+          onChange({...value, [k]: v})
+      }
+  }
+
+  let TitleEditComp = attributes?.title?.EditComp
+  let LevelComp = attributes?.level?.EditComp
+  let HelpComp = attributes?.helpText?.EditComp
+  // what??
+  const helpTextArray =
+      Array.isArray(value?.['helpText']) ?
+          value?.['helpText'] :
+          value?.['helpText']?.text ?
+              [value?.['helpText']] :
+              value?.helpText ?
+                  [{text: value?.['helpText']}] :
+                  [];
+
     const sectionMenuItems = getSectionMenuItems({
         i, isEdit,
         value,
@@ -240,21 +244,21 @@ export function SectionEdit({
 }
 
 export function SectionView({
-                                value,
-                                i,
-                                attributes,
-                                edit,
-                                onEdit,
-                                onChange,
-                                onRemove,
-                                moveItem,
-                                addAbove,
-                                siteType,
-                                apiLoad,
-                                apiUpdate,
-                                format,
-                                isActive
-                            }) {
+  value,
+  i,
+  attributes,
+  edit,
+  onEdit,
+  onChange,
+  onRemove,
+  moveItem,
+  addAbove,
+  siteType,
+  apiLoad,
+  apiUpdate,
+  format,
+  isActive
+}) {
     const isEdit = false; // should come from props
     const refreshDataBtnRef = useRef(null);
     const [showDeleteModal, setShowDeleteModal] = useState(false);

@@ -1,5 +1,7 @@
 import React, {useEffect, useMemo, useRef, useState} from "react";
-import {useImmer} from "use-immer";
+import { useImmer } from "use-immer";
+import { Link } from 'react-router'
+
 import {ThemeContext} from "../../useTheme";
 import Button from "../Button";
 import Icon from "../Icon";
@@ -8,21 +10,26 @@ import Popup from "../Popup";
 import {isEqual} from "lodash-es";
 import { v4 as uuidv4 } from 'uuid';
 
+const defaultItems = [
+  { name: 'Save and schedule', onClick: '#' },
+  { name: 'Save and publish', onClick: '#' },
+  { name: 'Export PDF', onClick: '#' },
+]
 
 // import this in defaultTheme after theme changes are pushed
 export const navigableMenuTheme = {
     button: 'px-1 py-0.5',
     icon: 'Menu',
     iconWrapper: 'size-4',
-    menuWrapper: 'bg-white border w-64 min-h-[150px] rounded-md shadow-md',
+    menuWrapper: 'bg-white border w-64 p-1 min-h-[75px] rounded-md shadow-md',
 
     menuCloseIcon: 'XMark',
     menuCloseIconWrapper: 'hover:cursor-pointer size-4',
 
-    menuItem: 'flex items-center justify-between px-2 py-1 rounded-md',
+    menuItem: 'group flex items-center justify-between px-2 py-1 rounded-md text-sm text-slate-800',
     menuItemHover: 'hover:bg-blue-300',
     menuItemIconLabelWrapper: 'flex flex-grow items-center gap-1',
-    menuItemIconWrapper: '',
+    menuItemIconWrapper: 'size-5 stroke-slate-500 group-hover:stroke-slate-800',
     menuItemLabel: '',
     subMenuIcon: 'ArrowRight',
 
@@ -33,8 +40,20 @@ export const navigableMenuTheme = {
     separator: 'w-full border-b'
 }
 
+
+
 const Comps = {
-    input: Input,
+  input : Input,
+  link : ({ menuItem }) => {
+    const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
+    const theme = { ...themeFromContext, navigableMenu: { ...navigableMenuTheme, ...(themeFromContext.navigableMenu || {}) } };
+    return (
+      <Link className={`${theme.navigableMenu?.menuItemIconLabelWrapper}`} to={menuItem.path}>
+        <Icon className={theme.navigableMenu?.menuItemIconWrapper} icon={menuItem?.icon || 'Blank'} />
+        <label className={theme.navigableMenu?.menuItemLabel + 'cursor-pointer' }>{menuItem.name}</label>
+      </Link>
+    )
+  }
 }
 const MenuItem = ({menuItem, setActiveParent}) => {
     const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
@@ -49,8 +68,8 @@ const MenuItem = ({menuItem, setActiveParent}) => {
     if(Comps[menuItem.type]) {
         const Comp = Comps[menuItem.type];
         return (
-            <div key={menuItem.name} className={theme.navigableMenu?.menuItem}>
-                <Comp {...menuItem} type={menuItem.inputType} />
+            <div key={menuItem.name} className={`${theme.navigableMenu?.menuItem}  ${theme.navigableMenu?.menuItemHover}`}>
+              <Comp {...menuItem} menuItem={menuItem} type={menuItem.inputType} />
             </div>
         )
     }
@@ -71,7 +90,7 @@ const MenuItem = ({menuItem, setActiveParent}) => {
              onClick={hasChildren ? () => setActiveParent(menuItem.id) : menuItem.onClick}
         >
             <div className={theme.navigableMenu?.menuItemIconLabelWrapper}>
-                <Icon className={theme.navigableMenu?.menuItemIconWrapper} icon={menuItem.icon} />
+                <Icon className={theme.navigableMenu?.menuItemIconWrapper} icon={menuItem?.icon} />
                 <label className={theme.navigableMenu?.menuItemLabel}>{menuItem.name}</label>
             </div>
 
@@ -89,7 +108,7 @@ const MenuItem = ({menuItem, setActiveParent}) => {
 }
 
 
-const Menu = ({config, title, open, setOpen}) => {
+const Menu = ({config, title, showTitle=true, open, setOpen}) => {
     const menuRef = useRef();
     const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
     const theme = {...themeFromContext, navigableMenu: {...navigableMenuTheme, ...(themeFromContext.navigableMenu || {})}};
@@ -104,7 +123,7 @@ const Menu = ({config, title, open, setOpen}) => {
 
     return (
         <div className={theme.navigableMenu.menuWrapper} ref={menuRef}>
-            {
+            { showTitle &&
                 <div className={'flex px-2 py-1 justify-between'}>
                     <div className={'flex gap-2 items-center w-full'}>
                         {
@@ -163,7 +182,7 @@ const flattenConfig = (config, parent) => {
 }
 
 // @params btnVisibleOnGroupHover: hides button until group is hovered. parent needs to have group class.
-export default function ({config, title, btnVisibleOnGroupHover, defaultOpen, preferredPosition}) {
+export default function ({config=defaultItems, title, showTitle, btnVisibleOnGroupHover, defaultOpen, preferredPosition, children}) {
     const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
     const theme = {...themeFromContext, navigableMenu: {...navigableMenuTheme, ...(themeFromContext.navigableMenu || {})}};
     const [configStateFlat, setConfigStateFlat] = useImmer(flattenConfig(config));
@@ -173,21 +192,30 @@ export default function ({config, title, btnVisibleOnGroupHover, defaultOpen, pr
         if(!isEqual(configStateFlat, newConfigStateFlat)) setConfigStateFlat(newConfigStateFlat);
     }, [config]);
 
-    return (
-                <Popup button={
-                    <Button type={'plain'} className={`${theme.navigableMenu?.button} ${btnVisibleOnGroupHover ? `hidden group-hover:flex` : ``}`}>
-                        <Icon className={theme.navigableMenu?.iconWrapper} icon={theme.navigableMenu?.icon}/>
-                    </Button>
-                }
-                       btnVisibleOnGroupHover={btnVisibleOnGroupHover}
-                       defaultOpen={defaultOpen}
-                       preferredPosition={preferredPosition}
-                >
-                    {
-                        ({open, setOpen}) => (
-                            <Menu config={configStateFlat} title={title} open={open} setOpen={setOpen}/>
-                        )
-                    }
-                </Popup>
+    const popUpButton = children ? children : (
+      <Button type={'plain'} className={`${theme.navigableMenu?.button} ${btnVisibleOnGroupHover ? `hidden group-hover:flex` : ``}`}>
+          <Icon className={theme.navigableMenu?.iconWrapper} icon={theme.navigableMenu?.icon}/>
+      </Button>
     )
+
+  return (
+    <Popup
+      button={popUpButton}
+      btnVisibleOnGroupHover={btnVisibleOnGroupHover}
+      defaultOpen={defaultOpen}
+      preferredPosition={preferredPosition}
+    >
+      {
+        ({open, setOpen}) => (
+            <Menu
+              config={configStateFlat}
+              title={title}
+              showTitle={showTitle}
+              open={open}
+              setOpen={setOpen}
+            />
+        )
+      }
+    </Popup>
+  )
 }
