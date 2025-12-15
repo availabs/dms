@@ -1,8 +1,8 @@
 //import RenderSwitch from "./Switch";
 import React from "react";
-import { CMSContext } from "../../../../context";
+import { ThemeContext } from "../../../../../../ui/useTheme";
 export const ToggleControl = ({value, setValue, title, className}) => {
-    const { UI } = React.useContext(CMSContext) || {UI: { Switch: () => <></> }};
+    const { UI } = React.useContext(ThemeContext) || {UI: { Switch: () => <></> }};
     const {Switch} = UI;
     return setValue ? (
         <div>

@@ -136,7 +136,7 @@ const formsAdminConfig = ({
                           authPermissions,
                           isUserAuthed: (reqPermissions, customAuthPermissions) => isUserAuthed({user, authPermissions: customAuthPermissions || authPermissions, reqPermissions}),
                       }}>
-                          <ThemeContext.Provider value={{theme}}>
+                          <ThemeContext.Provider value={{theme, UI}}>
                                   <Layout navItems={[]} Menu={Menu}>
                                       {props.children}
                                   </Layout>

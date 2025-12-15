@@ -1,10 +1,11 @@
 import React, {useState, useContext, useCallback} from "react";
 import {CMSContext, ComponentContext} from '../../../../../context'
+import {ThemeContext} from "../../../../../../../ui/useTheme";
 
 const Icons = []
 
 const RenderIconSelector = ({onClick, icon}) => {
-    const { UI } = React.useContext(CMSContext) || {UI: {Icon: () => <></>}}
+    const { UI } = React.useContext(ThemeContext) || {UI: {Icon: () => <></>}}
     const { Icon } = UI;
     const [open, setOpen] = useState(false);
     const [search, setSearch] = useState('');
@@ -49,7 +50,7 @@ const RenderIconSelector = ({onClick, icon}) => {
     )
 }
 const RenderAction = ({actions, updateAction, deleteAction, action = {}}) => {
-    const { UI } = React.useContext(CMSContext) || {UI: {Icon: () => <></>}}
+    const { UI } = React.useContext(ThemeContext) || {UI: {Icon: () => <></>}}
     const { Icon } = UI;
     const [isEditing, setIsEditing] = useState(false);
     const [newAction, setNewAction] = useState(action);
@@ -237,7 +238,7 @@ export default function ActionControls({context}) {
     // display: edit only, view only, both
     // attach search params
     const {state:{columns}, setState} = useContext(context || ComponentContext);
-    const {UI} = useContext(CMSContext) || {UI: {Icon: () => <></>}};
+    const {UI} = useContext(ThemeContext) || {UI: {}};
     const {Icon, Button, Popup} = UI;
     const [search, setSearch] = useState();
     const actionColumns = columns.filter(column => column.actionType); //two types of actions.
