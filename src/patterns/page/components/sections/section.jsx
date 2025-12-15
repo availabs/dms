@@ -304,6 +304,7 @@ export function SectionView({
         return (
             <Selector.ViewComp
                 value={value?.['element']}
+                onChange={(v) => updateAttribute('element', v)}
                 siteType={siteType}
                 apiLoad={apiLoad}
                 apiUpdate={apiUpdate}
@@ -488,7 +489,7 @@ const getSectionMenuItems = ({
             console.log('clicked!', refreshDataBtnRef.current)
                 refreshDataBtnRef.current?.refresh()
             },
-            cdn: () => false && !isEdit && isUserAuthed(['edit-section'], sectionAuthPermissions)},
+            cdn: () => !isEdit && isUserAuthed(['edit-section'], sectionAuthPermissions)},
         {icon: 'Copy', name: 'Copy Section', onClick: () => handleCopy(value)},
         {type: 'separator'},
 

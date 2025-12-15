@@ -161,7 +161,7 @@ function EditComp(props) {
     )
 }
 
-function ViewComp({value, isActive, hideSection, setHideSection, refreshDataBtnRef, ...rest}) {
+function ViewComp({value, isActive, hideSection, setHideSection, refreshDataBtnRef, onChange, ...rest}) {
     //console.log('selector', value)
     const { theme } = React.useContext(ThemeContext);
     const { pageState, editPane, apiLoad, apiUpdate, format, ...r  } =  React.useContext(PageContext) || {}
@@ -170,6 +170,11 @@ function ViewComp({value, isActive, hideSection, setHideSection, refreshDataBtnR
     const component = RegisteredComponents[get(value, "element-type", "lexical")];
     const [state, setState] = useImmer(convertOldState(value?.['element-data'] || '', initialState(component?.defaultState)));
 
+    const updateAttribute = (k, v) => {
+        if (!isEqual(value, {...value, [k]: v})) {
+            onChange({...value, [k]: v})
+        }
+    }
 
     let DataComp =
         !component ? defaultComp :
@@ -196,10 +201,9 @@ function ViewComp({value, isActive, hideSection, setHideSection, refreshDataBtnR
             apiLoad,
             keepOriginalValues: component.keepOriginalValues,
             fullDataLoad: component.fullDataLoad,
-            debugCall: true
+            // debugCall: true
         });
-
-        console.log("new data", length, data);
+        updateAttribute('element-data', JSON.stringify({...state, data}));
     }
 
     // expose refresh() to parent
