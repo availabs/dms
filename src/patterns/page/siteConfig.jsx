@@ -8,7 +8,7 @@ import {
 
 import UI from "../../ui";
 import { ThemeContext, RegisterLayoutWidget } from "../../ui/useTheme.js";
-
+import SearchButton from "./components/search/index.jsx";
 // pages
 import PageView from "./pages/view";
 import PageEdit from "./pages/edit";
@@ -30,6 +30,7 @@ import defaultTheme from "../../ui/defaultTheme";
 import ErrorPage from "./pages/error";
 // ------------
 RegisterLayoutWidget('UserMenu', DefaultMenu)
+RegisterLayoutWidget('SearchButton', SearchButton)
 // ------------
 // -------------------------------------
 // should move to dms-manager

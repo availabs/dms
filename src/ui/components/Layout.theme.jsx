@@ -43,6 +43,9 @@ export const layoutSettings = (theme) => {
       Label: "",
       type: "List",
       valueMap: (d) => d.type,
+      onClick: (e, setState) => {
+        console.log('list remove click',e)
+      },
       path: `layout.options.topNav.rightMenu`
 
     }
@@ -72,25 +75,48 @@ export const layoutSettings = (theme) => {
     {
       label: "Side Nav - Top Menu",
       type: "Listbox",
-      options: [
-        {
-          label: 'Annotation Card',
-          value: 'Annotation'
-        },
-        {
-          label: 'HandWritten Card',
-          value: 'Handwritten'
-        },
-      ],
+      options: theme?.layout?.options?.widgets || [],
       onChange:(e, setState) => {
-        console.log('lisbox on Change', e)
+        setState(draft => {
+          draft.layout.options.sideNav.topMenu.push({ type: e })
+        })
       }
     },
     {
       Label: "",
       type: "List",
       valueMap: (d) => d.type,
-      path: `layout.options.topNav.rightMenu`
+      onClick: (e, setState) => {
+        setState(draft => {
+          draft.layout.options.sideNav.topMenu.splice(e.index, 1)
+        })
+      },
+      path: `layout.options.sideNav.topMenu`
+
+    },
+    {
+      label: "Side Nav - Bottom Menu",
+      type: "Listbox",
+      options: theme?.layout?.options?.widgets || [],
+      onChange:(e, setState) => {
+        //console.log('lisbox on Change', )
+        setState(draft => {
+          console.log('change listbox', draft, e)
+          draft.layout.options.sideNav.bottomMenu.push({ type: e })
+        })
+      }
+    },
+    {
+      Label: "",
+      type: "List",
+      valueMap: (d) => d.type,
+      onClick: (e, setState) => {
+        setState(draft => {
+          console.log('list remove click',e)
+          draft.layout.options.sideNav.bottomMenu.splice(e.index, 1)
+        })
+      },
+      path: `layout.options.sideNav.bottomMenu`
 
     }
   ]
@@ -220,7 +246,22 @@ export default  {
       "activeStyle": null,
       "leftMenu": [],
       "rightMenu": []
-    }
+    },
+    "widgets":[
+      {
+        label: 'Logo',
+        value: 'Logo'
+      },
+      {
+        label: 'User Menu',
+        value: 'UserMenu'
+      },
+      {
+        label: 'Search Button',
+        value: 'SearchButton'
+      }
+    ]
+
   },
   "styles": [{
     "outerWrapper": 'bg-slate-100',

@@ -28,7 +28,7 @@ export const listboxTheme = {
   listboxButton: 'relative block w-full rounded-lg bg-white/5 py-1.5 pr-8 pl-3 text-left text-sm/6 text-white focus:outline-none data-[focus]:outline-2 data-[focus]:-outline-offset-2 data-[focus]:outline-white/25'
 }
 
-export function List({ className, valueMap = (d) => d, autoFocus, value, onChange, ...props }) {
+export function List({ className, valueMap = (d) => d, autoFocus, value, onChange, onClick, ...props }) {
   const listOptions =  value
     .map(valueMap)
     .map((opt,i) => {
@@ -51,7 +51,7 @@ export function List({ className, valueMap = (d) => d, autoFocus, value, onChang
       >
 
         <span className={[className,  'col-start-1'].join(' ')}>{opt.label || opt}</span>
-        <span className='col-start-3'>x</span>
+        <span className='col-start-3' onClick={() => onClick({ value: opt, index: i })}>x</span>
       </div>
     )
   })
