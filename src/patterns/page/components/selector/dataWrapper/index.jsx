@@ -796,7 +796,7 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
                     <div className={'w-full flex items-center place-content-end'}>
                         {loading ?  <Icon id={'loading'}
                                           icon={'LoadingHourGlass'}
-                                          className={`text-slate-400 hover:text-blue-500 size-4 transition ease-in-out duration-200`} /> : null}
+                                          className={`absolute text-slate-400 hover:text-blue-500 size-4 transition ease-in-out duration-200`} /> : null}
                         <RenderDownload state={state} apiLoad={apiLoad} cms_context={cms_context}/>
                     </div>
                     <Comp isEdit={isEdit}
