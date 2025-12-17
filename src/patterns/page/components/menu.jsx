@@ -43,7 +43,6 @@ const EditControl = () => {
   const { Icon } = UI
   const menuTheme = theme?.page?.menu ||  userMenuTheme
   const edit = React.useMemo(() => {
-    console.log('hola',location)
     return location.pathname.split('/')?.[1] === 'edit'
   },[location])
 

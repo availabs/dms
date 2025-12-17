@@ -64,7 +64,7 @@ const adminConfig = ({
                     const {Layout} = UI;
                     const menuItems = getMenuItems(baseUrl, authPath, props.user)
                     return (
-                        <AdminContext.Provider value={{ baseUrl, authPath, user, apiUpdate, app, type, API_HOST, UI}}>
+                        <AdminContext.Provider value={{ baseUrl, authPath, user, apiUpdate, app, type, themes, API_HOST, UI}}>
                             <ThemeContext.Provider value={{theme, UI}}>
                               <Layout navItems={menuItems} Menu={() => <>{rightMenu}</>}>
                                   {props.children}
@@ -150,7 +150,7 @@ const patternConfig = ({
                         <AdminContext.Provider value={{baseUrl, parentBaseUrl, authPath, user, apiUpdate, app, type, API_HOST, UI}}>
                             <ThemeContext.Provider value={{theme, UI}}>
                                 <Layout navItems={menuItems} Menu={() => <>{rightMenu}</>}>
-                                  <SectionGroup>
+                                  <SectionGroup maxWidth={ ''}>
                                     {props.children}
                                   </SectionGroup>
                                 </Layout>

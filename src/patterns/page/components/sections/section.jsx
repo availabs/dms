@@ -3,41 +3,39 @@ import {isEqual} from "lodash-es"
 import {Combobox} from '@headlessui/react'
 import {Link} from "react-router";
 import {CMSContext, PageContext} from '../../context'
-import Selector from "../selector";
-import {convert} from './convertToSpreadSheet'
 import {ThemeContext} from "../../../../ui/useTheme";
 import {AuthContext} from "../../../auth/context";
+import Selector from "../selector";
+import {convert} from './convertToSpreadSheet'
+
 import { v4 as uuidv4 } from 'uuid';
 import {getPageAuthPermissions} from "../../pages/_utils";
 
 export function SectionEdit({
-  value,
-  i,
-  onChange,
-  attributes,
-  size,
-  onCancel,
-  onSave,
-  onRemove,
-  moveItem,
-  siteType,
-  apiLoad,
-  apiUpdate,
-  format,
-  isActive
+    value,
+    i,
+    onChange,
+    attributes,
+    size,
+    onCancel,
+    onSave,
+    onRemove,
+    moveItem,
+    siteType,
+    apiLoad,
+    apiUpdate,
+    format,
 }) {
-  const { AuthAPI } = React.useContext(AuthContext) || {};
-  const {theme, UI} = React.useContext(ThemeContext);
-  const { user, isUserAuthed = () => {} } = React.useContext(CMSContext) || {};
-  const {Popup, Button, Icon, Switch, Listbox, NavigableMenu, Permissions} = UI
-
-  const isEdit = true;
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  let sectionTitleCondition = value?.['title']
-
-  const {pageState} = useContext(PageContext);
-  const pageAuthPermissions = getPageAuthPermissions(pageState?.authPermissions);
-  const sectionAuthPermissions = value?.authPermissions && typeof value.authPermissions === 'string' ? JSON.parse(value?.authPermissions) : undefined;
+    const isEdit = true;
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    let sectionTitleCondition = value?.['title']
+    const {theme, UI} = React.useContext(ThemeContext);
+    const {Popup, Button, Icon, Switch, Listbox, NavigableMenu, Permissions} = UI
+    const {AuthAPI} = React.useContext(AuthContext) || {};
+    const {user, isUserAuthed} = React.useContext(CMSContext) || {};
+    const {pageState} = useContext(PageContext);
+    const pageAuthPermissions = getPageAuthPermissions(pageState?.authPermissions);
+    const sectionAuthPermissions = value?.authPermissions && typeof value.authPermissions === 'string' ? JSON.parse(value?.authPermissions) : undefined;
 
   const updateAttribute = (k, v) => {
       if (!isEqual(value, {...value, [k]: v})) {
@@ -185,7 +183,7 @@ export function SectionEdit({
                                     apiLoad={apiLoad}
                                     apiUpdate={apiUpdate}
                                     pageFormat={format}
-                                    isActive={isActive}
+                                    isActive={value?.element?.['element-type'] === 'Spreadsheet'}
                                 />
                             </Popup>)
                     }
@@ -236,7 +234,7 @@ export function SectionEdit({
                     apiLoad={apiLoad}
                     apiUpdate={apiUpdate}
                     pageFormat={format}
-                    isActive={isActive}
+                    isActive={value?.element?.['element-type'] === 'Spreadsheet'}
                 />
             </div>
         </div>
@@ -262,6 +260,7 @@ export function SectionView({
     const isEdit = false; // should come from props
     const refreshDataBtnRef = useRef(null);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [isRefreshingData, setIsRefreshingData] = useState(false);
     const [hideSection, setHideSection] = useState(false);
     const {theme = {}, UI} = React.useContext(ThemeContext);
     const {Popup, Icon, NavigableMenu, Switch, Permissions} = UI;
@@ -309,6 +308,7 @@ export function SectionView({
         return (
             <Selector.ViewComp
                 value={value?.['element']}
+                onChange={(v) => updateAttribute('element', v)}
                 siteType={siteType}
                 apiLoad={apiLoad}
                 apiUpdate={apiUpdate}
@@ -325,7 +325,7 @@ export function SectionView({
 
     const sectionMenuItems = getSectionMenuItems({
         i, isEdit,
-        onEdit, refreshDataBtnRef,
+        onEdit, refreshDataBtnRef, isRefreshingData, setIsRefreshingData,
         value,
         moveItem,
         TitleEditComp,
@@ -485,15 +485,14 @@ const getSectionMenuItems = ({
     Permissions, AuthAPI, user, isUserAuthed, pageAuthPermissions, sectionAuthPermissions,
                                  theme,
                                  attributes, i,
-                                 refreshDataBtnRef
+                                 refreshDataBtnRef, isRefreshingData, setIsRefreshingData
                              }) => (
     [
         {icon: 'PencilSquare', name: 'Edit', onClick: onEdit, cdn: () => !isEdit && isUserAuthed(['edit-section'], sectionAuthPermissions)},
-        {icon: 'Refresh', name: 'Refresh Data', onClick: () => {
-            console.log('clicked!', refreshDataBtnRef.current)
-                refreshDataBtnRef.current?.refresh()
+        {icon: 'Refresh', name: isRefreshingData ? 'Refreshing Data' : 'Refresh Data', onClick: () => {
+                refreshDataBtnRef.current?.refresh({isRefreshingData, setIsRefreshingData})
             },
-            cdn: () => false && !isEdit && isUserAuthed(['edit-section'], sectionAuthPermissions)},
+            cdn: () => !isEdit && isUserAuthed(['edit-section'], sectionAuthPermissions)},
         {icon: 'Copy', name: 'Copy Section', onClick: () => handleCopy(value)},
         {type: 'separator'},
 

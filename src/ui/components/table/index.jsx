@@ -1,21 +1,24 @@
-import React, {useEffect, useMemo, useRef, useState} from "react";
+import React, {createContext, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import { ThemeContext } from '../../useTheme';
 import DataTypes from "../../columnTypes"
 import Icon from "../Icon";
-import {handleMouseDown, handleMouseMove, handleMouseUp} from "./utils/mouse";
+import {handleMouseUp} from "./utils/mouse";
 import TableHeaderCell from "./components/TableHeaderCell";
 import {TableRow} from "./components/TableRow";
 import {useCopy, usePaste, getLocation} from "./utils/hooks";
 import {isEqualColumns, parseIfJson} from "./utils";
 import {handleKeyDown} from "./utils/keyboard";
 import {cloneDeep} from "lodash-es";
+import {structure} from "dbf";
 
 const defaultNumColSize = 0;
 const defaultGutterColSize = 0;
 const defColSize = 250;
 const minColSize = 150;
 
-const windowFake = typeof window === "undefined" ? {} : window
+const windowFake = typeof window === "undefined" ? {} : window;
+export const TableCellContext = createContext({});
+export const TableStructureContext = createContext({});
 
 export const tableTheme = {
     tableContainer: 'flex flex-col overflow-x-auto',
@@ -132,7 +135,7 @@ const updateItemsOnPaste = ({pastedContent, index, attrI, data, visibleAttribute
         }
         return rowData;
     });
-    console.log('items to paste', itemsToUpdate)
+
     updateItem(undefined, undefined, itemsToUpdate);
 }
 export default function ({
@@ -144,27 +147,60 @@ export default function ({
     addItem, newItem={}, setNewItem,
 }) {
     const { theme: themeFromContext = {table: tableTheme}} = React.useContext(ThemeContext) || {};
-    const theme = useMemo(() => ({
-        ...themeFromContext,
-        table: {
-            ...tableTheme,
-            ...(themeFromContext.table || {}),
-            ...customTheme
-        }
-    }), [themeFromContext, customTheme]);
-
+    const theme = useMemo(() => {
+        return ({
+            ...themeFromContext,
+            table: {
+                ...tableTheme,
+                ...(themeFromContext.table || {}),
+                ...customTheme
+            }
+        })
+    }, [themeFromContext, customTheme]);
     const [defaultColumnSize, setDefaultColumnSize] = React.useState(defColSize);
-    const visibleAttrsWithoutOpenOut = useMemo(() => columns.filter(({show, openOut}) => show && !openOut), [columns]);
-    const visibleAttributes = useMemo(() => columns.filter(({show}) => show), [columns]);
+
+    const structureValues = useMemo(() => {
+        const visibleAttributes = columns.filter(c => c.show);
+        const visibleAttrsWithoutOpenOut = visibleAttributes.filter(c => !c.openOut || c.actionType);
+        const openOutAttributes = visibleAttributes.filter(c => c.openOut);
+
+        const columnSizes = visibleAttrsWithoutOpenOut.map(
+            v => (v.size ? v.size : defaultColumnSize)
+        );
+
+        return {
+            visibleAttributes,
+            visibleAttrsWithoutOpenOut,
+            columnSizes,
+            visibleAttrsWithoutOpenOutLength: visibleAttrsWithoutOpenOut.length,
+            openOutAttributes,
+            showGutters: display.showGutters,
+            striped: display.striped,
+            hideIfNullOpenouts: display.hideIfNullOpenouts,
+            gridTemplateColumns: `${numColSize}px ${
+                visibleAttrsWithoutOpenOut
+                .map(c => `${c.size ?? defaultColumnSize}px`)
+                .join(' ')
+        } ${gutterColSize}px`,
+        };
+    }, [columns, defaultColumnSize]);
+    const {
+        visibleAttributes,
+        visibleAttrsWithoutOpenOut,
+        visibleAttrsWithoutOpenOutLength,
+        openOutAttributes,
+        columnSizes
+    } = structureValues;
 
     // =================================================================================================================
     // ======================================= selection variables begin ===============================================
     // =================================================================================================================
     const [isSelecting, setIsSelecting] = useState(false);
     const [editing, setEditing] = useState({}); // {index, attrI}
-    const [selection, setSelection] = useState([]);
-    const [triggerSelectionDelete, setTriggerSelectionDelete] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
+    const [selection, setSelection] = useState([]);
+
+    const [triggerSelectionDelete, setTriggerSelectionDelete] = useState(false);
     const startCellRow = useRef(null);
     const startCellCol = useRef(null);
     const selectionRange = useMemo(() => {
@@ -323,8 +359,50 @@ export default function ({
     }, [triggerSelectionDelete, allowEdit])
     // ============================================ Trigger delete end =================================================
 
-    const rows = useMemo(() => data.filter(d => !d.totalRow), [data]);
-    const totalRow = useMemo(() => data.filter(d => (display.showTotal || columns.some(c => c.showTotal)) && d.totalRow), [data, display.showTotal, columns])
+    const onClickRowNum = useCallback(
+        (e, i) => {
+            if (!setSelection || !display.showGutters) return;
+
+            if (e.ctrlKey) {
+                setSelection(selection =>
+                    selection.includes(i)
+                        ? selection.filter((v) => v !== i)
+                        : [...selection, i]
+                );
+            } else {
+                setSelection([i]);
+            }
+        },
+        [setSelection, display.showGutters]
+    );
+    // const isRowSelected = useCallback(
+    //     (i) => selection?.some((s) => (s.index ?? s) === i),
+    //     [selection]
+    // );
+
+    const showTotal = display.showTotal || columns.some(c => c.showTotal);
+    const { rows, totalRow } = useMemo(() => {
+        const rows = [];
+        const totalRow = [];
+
+        for (const d of data) {
+            if(!d.totalRow) rows.push(d);
+            if(d.totalRow && showTotal) totalRow.push(d)
+        }
+
+        return { rows, totalRow };
+    }, [data]);
+
+
+    // trying to reduce re-renders of tableRow
+    const openOutContainerWrapperClass = useMemo(() => theme?.table?.openOutContainerWrapper, [theme?.table?.openOutContainerWrapper]);
+    const openOutContainerClass = useMemo(() => theme?.table?.openOutContainer, [theme?.table?.openOutContainer]);
+    const gridTemplateColumns = useMemo(() => {
+        return `${numColSize}px ${columnSizes
+            .map(s => `${s}px`)
+            .join(' ')} ${gutterColSize}px`;
+    }, [numColSize, gutterColSize, columnSizes]);
+
 
     return (
         <div className={`${theme?.table?.tableContainer} ${!paginationActive && theme?.table?.tableContainerNoPagination}`} ref={gridRef}>
@@ -336,8 +414,8 @@ export default function ({
                     className={theme?.table?.headerContainer}
                     style={{
                         zIndex: 5,
-                        gridTemplateColumns: `${numColSize}px ${visibleAttrsWithoutOpenOut.map(v => v.size ? `${v.size}px` : `${defaultColumnSize}px`).join(' ')} ${gutterColSize}px`,
-                        gridColumn: `span ${visibleAttrsWithoutOpenOut.length + 2} / ${visibleAttrsWithoutOpenOut.length + 2}`
+                        gridTemplateColumns: gridTemplateColumns,
+                        gridColumn: `span ${visibleAttrsWithoutOpenOutLength + 2} / ${visibleAttrsWithoutOpenOutLength + 2}`
                     }}
                 >
                     {/*********************** header left gutter *******************/}
@@ -390,131 +468,130 @@ export default function ({
                 {/****************************************** Header end **********************************************/}
 
 
-                {/****************************************** Rows begin **********************************************/}
-                {rows
-                    .map((d, i) => (
-                        <TableRow key={i}
-                                  i={i} d={d} isEdit={isEdit}
-                                  frozenCols={frozenCols}
-                                  theme={theme}
-                                  columns={columns} display={display}
-                                  allowEdit={allowEdit}
-                                  isDragging={isDragging} isSelecting={isSelecting} editing={editing}
-                                  setEditing={setEditing}
-                                  loading={false} selection={selection} setSelection={setSelection} selectionRange={selectionRange}
-                                  triggerSelectionDelete={triggerSelectionDelete}
-                                  setIsDragging={setIsDragging}
-                                  startCellCol={startCellCol} startCellRow={startCellRow}
-                                  updateItem={updateItem} removeItem={removeItem} defaultColumnSize={defaultColumnSize}
-                         />
-                    ))}
-                <div id={display?.loadMoreId} className={`${paginationActive ? 'hidden' : ''} min-h-2 w-full text-center`}>
-                    {loading ? 'loading...' : ''}
-                </div>
+                <TableStructureContext.Provider value={structureValues}>
+                    <TableCellContext.Provider value={{
+                        frozenCols, allowEdit, editing, setEditing, isDragging, isSelecting,
+                        setSelection, setIsDragging, startCellCol, startCellRow, selection, selectionRange,
+                        updateItem, removeItem, theme, columns, display
+                    }}>
+                        {/****************************************** Rows begin **********************************************/}
+                        {rows
+                            .map((d, i) => (
+                                <TableRow key={i}
+                                          index={i} rowData={d}
+                                          defaultColumnSize={defaultColumnSize}
+                                          openOutContainerClass={openOutContainerClass}
+                                          openOutContainerWrapperClass={openOutContainerWrapperClass}
+                                          visibleAttrsWithoutOpenOut={visibleAttrsWithoutOpenOut}
+                                          visibleAttrsWithoutOpenOutLen={visibleAttrsWithoutOpenOutLength}
+                                          openOutAttributes={openOutAttributes}
+                                    // isRowSelected={display.showGutters && isRowSelected(i)} only used to set bg for gutters
+                                />
+                            ))}
+                        <div id={display?.loadMoreId} className={`${paginationActive ? 'hidden' : ''} min-h-2 w-full text-center`}>
+                            {loading ? 'loading...' : ''}
+                        </div>
 
 
-                {/*/!****************************************** Gutter Row **********************************************!/*/}
-                {/*<RenderGutter {...{allowEdit, c, visibleAttributes, isDragging, colSizes, attributes}} />*/}
+                        {/*/!****************************************** Gutter Row **********************************************!/*/}
+                        {/*<RenderGutter {...{allowEdit, c, visibleAttributes, isDragging, colSizes, attributes}} />*/}
 
 
-                {/*/!****************************************** Total Row ***********************************************!/*/}
-                {totalRow
-                    .map((d, i) => (
-                        <TableRow key={i}
-                                  i={i} d={d} isEdit={isEdit}
-                                  frozenCols={frozenCols}
-                                  theme={theme}
-                                  columns={columns} display={display}
-                                  allowEdit={allowEdit}
-                                  isDragging={isDragging} isSelecting={isSelecting} editing={editing}
-                                  setEditing={setEditing}
-                                  loading={false} selection={selection} setSelection={setSelection} selectionRange={selectionRange}
-                                  triggerSelectionDelete={triggerSelectionDelete}
-                                  setIsDragging={setIsDragging}
-                                  startCellCol={startCellCol} startCellRow={startCellRow}
-                                  updateItem={updateItem} removeItem={removeItem} defaultColumnSize={defaultColumnSize}
-                                  isTotalRow={true}
-                        />
-                    ))}
-                {/*/!****************************************** Rows end ************************************************!/*/}
+                        {/*/!****************************************** Total Row ***********************************************!/*/}
+                        {totalRow
+                            .map((d, i) => (
+                                <TableRow key={i}
+                                          index={i} rowData={d}
+                                          defaultColumnSize={defaultColumnSize}
+                                          openOutContainerClass={openOutContainerClass}
+                                          openOutContainerWrapperClass={openOutContainerWrapperClass}
+                                          visibleAttrsWithoutOpenOut={visibleAttrsWithoutOpenOut}
+                                          visibleAttrsWithoutOpenOutLen={visibleAttrsWithoutOpenOutLength}
+                                          openOutAttributes={openOutAttributes}
+                                          isTotalRow={true}
+                                />
+                            ))}
+                        {/*/!****************************************** Rows end ************************************************!/*/}
 
-                {/********************************************* out of scroll ********************************************/}
-                {/***********************(((***************** Add New Row Begin ******************************************/}
-                {
-                    display.allowAdddNew ?
-                        <div
-                            className={`grid bg-white divide-x divide-y ${isDragging ? `select-none` : ``} sticky bottom-0 z-[1]`}
-                            style={{
-                                gridTemplateColumns: `${numColSize}px 20px ${visibleAttrsWithoutOpenOut.map((v, i) => v.size ? `${i === 0 ? (+v.size - 20) : v.size}px` : `${i === 0 ? (defaultNumColSize - 20) : defaultColumnSize}px`).join(' ')} ${gutterColSize}px`,
-                                gridColumn: `span ${visibleAttrsWithoutOpenOut.length + 3} / ${visibleAttrsWithoutOpenOut.length + 3}`
-                            }}                    >
-                            <div className={'flex justify-between sticky left-0 z-[1]'} style={{width: numColSize}}>
-                                <div key={'#'} className={`w-full font-semibold border bg-gray-50 text-gray-500`}>
+                        {/********************************************* out of scroll ********************************************/}
+                        {/***********************(((***************** Add New Row Begin ******************************************/}
+                        {
+                            display.allowAdddNew ?
+                                <div
+                                    className={`grid bg-white divide-x divide-y ${isDragging ? `select-none` : ``} sticky bottom-0 z-[1]`}
+                                    style={{
+                                        gridTemplateColumns: `${numColSize}px 20px ${visibleAttrsWithoutOpenOut.map((v, i) => v.size ? `${i === 0 ? (+v.size - 20) : v.size}px` : `${i === 0 ? (defaultNumColSize - 20) : defaultColumnSize}px`).join(' ')} ${gutterColSize}px`,
+                                        gridColumn: `span ${visibleAttrsWithoutOpenOutLength + 3} / ${visibleAttrsWithoutOpenOutLength + 3}`
+                                    }}                    >
+                                    <div className={'flex justify-between sticky left-0 z-[1]'} style={{width: numColSize}}>
+                                        <div key={'#'} className={`w-full font-semibold border bg-gray-50 text-gray-500`}>
 
-                                </div>
-                            </div>
+                                        </div>
+                                    </div>
 
-                            <div className={'bg-white flex flex-row h-fit justify-evenly opacity-50 hover:opacity-100 border-0'}
-                                 style={{width: '20px'}}>
-                                <button
-                                    className={'w-fit p-0.5 bg-blue-300 hover:bg-blue-500 text-white rounded-lg'}
-                                    onClick={e => {
-                                        addItem()
-                                    }}>
-                                    <Icon icon={'CirclePlus'} className={'text-white'} height={20} width={20}/>
-                                </button>
-                            </div>
-                            {
-                                visibleAttrsWithoutOpenOut
-                                    .map((attribute, attrI) => {
-                                        const Comp = DataTypes[attribute?.type || 'text']?.EditComp || (() => <div></div>);
-                                        const size = attrI === 0 ? (+attribute.size || defaultNumColSize) - 20 : (+attribute.size || defaultNumColSize)
-                                        let lexicalTheme = cloneDeep(theme || {});
-                                        if(attribute.type === 'lexical'){
-                                            if(!lexicalTheme.lexical) lexicalTheme.lexical = {}
-                                            lexicalTheme.lexical.editorScroller = "border-0 flex relative outline-0 z-0bh resize-y";
-                                            lexicalTheme.lexical.editorShell = "w-full h-full font-['Proxima_Nova'] font-[400] text-[1rem] text-slate-700 leading-[22.4px]";
-                                            lexicalTheme.lexical.editorContainer = "relative block rounded-[10px]";
-                                        }
-                                        return (
-                                            <div
-                                                key={`add-new-${attrI}`}
-                                                className={`flex border p-1 bg-white hover:bg-blue-50 w-full h-full'`}
-                                                style={{width: size}}
-                                            >
-                                                <Comp
-                                                    key={`${attribute.name}`}
-                                                    menuPosition={'top'}
-                                                    className={'p-1 bg-white hover:bg-blue-50 w-full h-full'}
-                                                    {...attribute}
-                                                    size={size}
-                                                    value={newItem[attribute.name]}
-                                                    placeholder={'+ add new'}
-                                                    onChange={e => setNewItem({...newItem, [attribute.name]: e})}
-                                                    onPaste={e => {
-                                                        e.preventDefault();
-                                                        e.stopPropagation();
+                                    <div className={'bg-white flex flex-row h-fit justify-evenly opacity-50 hover:opacity-100 border-0'}
+                                         style={{width: '20px'}}>
+                                        <button
+                                            className={'w-fit p-0.5 bg-blue-300 hover:bg-blue-500 text-white rounded-lg'}
+                                            onClick={e => {
+                                                addItem()
+                                            }}>
+                                            <Icon icon={'CirclePlus'} className={'text-white'} height={20} width={20}/>
+                                        </button>
+                                    </div>
+                                    {
+                                        visibleAttrsWithoutOpenOut
+                                            .map((attribute, attrI) => {
+                                                const Comp = DataTypes[attribute?.type || 'text']?.EditComp || (() => <div></div>);
+                                                const size = attrI === 0 ? (+attribute.size || defaultNumColSize) - 20 : (+attribute.size || defaultNumColSize)
+                                                let lexicalTheme = cloneDeep(theme || {});
+                                                if(attribute.type === 'lexical'){
+                                                    if(!lexicalTheme.lexical) lexicalTheme.lexical = {}
+                                                    lexicalTheme.lexical.editorScroller = "border-0 flex relative outline-0 z-0bh resize-y";
+                                                    lexicalTheme.lexical.editorShell = "w-full h-full font-['Proxima_Nova'] font-[400] text-[1rem] text-slate-700 leading-[22.4px]";
+                                                    lexicalTheme.lexical.editorContainer = "relative block rounded-[10px]";
+                                                }
+                                                return (
+                                                    <div
+                                                        key={`add-new-${attrI}`}
+                                                        className={`flex border p-1 bg-white hover:bg-blue-50 w-full h-full'`}
+                                                        style={{width: size}}
+                                                    >
+                                                        <Comp
+                                                            key={`${attribute.name}`}
+                                                            menuPosition={'top'}
+                                                            className={'p-1 bg-white hover:bg-blue-50 w-full h-full'}
+                                                            {...attribute}
+                                                            size={size}
+                                                            value={newItem[attribute.name]}
+                                                            placeholder={'+ add new'}
+                                                            onChange={e => setNewItem({...newItem, [attribute.name]: e})}
+                                                            onPaste={e => {
+                                                                e.preventDefault();
+                                                                e.stopPropagation();
 
-                                                        const paste =
-                                                            (e.clipboardData || window.clipboardData).getData("text")?.split('\n').map(row => row.split('\t'));
-                                                        const pastedColumns = [...new Array(paste[0].length).keys()].map(i => visibleAttributes[attrI + i]).filter(i => i);
-                                                        const tmpNewItem = pastedColumns.reduce((acc, c, i) => ({
-                                                            ...acc,
-                                                            [c]: paste[0][i]
-                                                        }), {})
-                                                        setNewItem({...newItem, ...tmpNewItem})
+                                                                const paste =
+                                                                    (e.clipboardData || window.clipboardData).getData("text")?.split('\n').map(row => row.split('\t'));
+                                                                const pastedColumns = [...new Array(paste[0].length).keys()].map(i => visibleAttributes[attrI + i]).filter(i => i);
+                                                                const tmpNewItem = pastedColumns.reduce((acc, c, i) => ({
+                                                                    ...acc,
+                                                                    [c]: paste[0][i]
+                                                                }), {})
+                                                                setNewItem({...newItem, ...tmpNewItem})
 
-                                                    }}
-                                                    hideControls={attribute.type === 'lexical'}
-                                                    theme={attribute.type === 'lexical' ? lexicalTheme : undefined}
-                                                />
-                                            </div>
-                                        )
-                                    })
-                            }
-                        </div> : null
-                }
-                {/***********************(((***************** Add New Row End ********************************************/}
+                                                            }}
+                                                            hideControls={attribute.type === 'lexical'}
+                                                            theme={attribute.type === 'lexical' ? lexicalTheme : undefined}
+                                                        />
+                                                    </div>
+                                                )
+                                            })
+                                    }
+                                </div> : null
+                        }
+                        {/***********************(((***************** Add New Row End ********************************************/}
+                    </TableCellContext.Provider>
+                </TableStructureContext.Provider>
             </div>
         </div>
     )

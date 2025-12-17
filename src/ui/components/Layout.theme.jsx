@@ -23,20 +23,15 @@ export const layoutSettings = (theme) => {
       path: `layout.options.topNav.activeStyle`,
     },
     {
-      label: "Top Nav - Right Menu",
+      label: "Top Nav - Left Menu",
       type: "Listbox",
-      options: [
-        {
-          label: 'Annotation Card',
-          value: 'Annotation'
-        },
-        {
-          label: 'HandWritten Card',
-          value: 'Handwritten'
-        },
-      ],
+      options: theme?.layout?.options?.widgets || [],
       onChange:(e, setState) => {
-        console.log('lisbox on Change', e)
+        //console.log('lisbox on Change', )
+        setState(draft => {
+          draft.layout.options.topNav.leftMenu = draft?.layout?.options?.topNav.leftMenu || []
+          draft?.layout?.options?.topNav?.leftMenu .push({ type: e })
+        })
       }
     },
     {
@@ -44,10 +39,36 @@ export const layoutSettings = (theme) => {
       type: "List",
       valueMap: (d) => d.type,
       onClick: (e, setState) => {
-        console.log('list remove click',e)
+        setState(draft => {
+          draft.layout.options.topNav.leftMenu.splice(e.index, 1)
+        })
+      },
+      path: `layout.options.topNav.leftMenu`
+
+    },
+    {
+      label: "Top Nav - Right Menu",
+      type: "Listbox",
+      options: theme?.layout?.options?.widgets || [],
+      onChange:(e, setState) => {
+        //console.log('lisbox on Change', )
+        setState(draft => {
+
+          draft.layout.options.topNav.rightMenu = draft?.layout?.options?.topNav.rightMenu || []
+          draft?.layout?.options?.topNav?.rightMenu .push({ type: e })
+        })
+      }
+    },
+    {
+      Label: "",
+      type: "List",
+      valueMap: (d) => d.type,
+      onClick: (e, setState) => {
+        setState(draft => {
+          draft.layout.options.topNav.rightMenu.splice(e.index, 1)
+        })
       },
       path: `layout.options.topNav.rightMenu`
-
     }
   ]
 
@@ -78,7 +99,8 @@ export const layoutSettings = (theme) => {
       options: theme?.layout?.options?.widgets || [],
       onChange:(e, setState) => {
         setState(draft => {
-          draft.layout.options.sideNav.topMenu.push({ type: e })
+          draft.layout.options.sideNav.topMenu = draft?.layout?.options?.sideNav?.topMenu || []
+          draft?.layout?.options?.sideNav?.topMenu .push({ type: e })
         })
       }
     },
@@ -101,8 +123,8 @@ export const layoutSettings = (theme) => {
       onChange:(e, setState) => {
         //console.log('lisbox on Change', )
         setState(draft => {
-          console.log('change listbox', draft, e)
-          draft.layout.options.sideNav.bottomMenu.push({ type: e })
+          draft.layout.options.sideNav.bottomMenu = draft?.layout?.options?.sideNav?.bottomMenu || []
+          draft?.layout?.options?.sideNav?.bottomMenu .push({ type: e })
         })
       }
     },

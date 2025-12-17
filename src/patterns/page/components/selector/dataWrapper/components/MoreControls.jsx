@@ -1,11 +1,12 @@
 import React, {useContext, useCallback} from "react";
 import {ToggleControl} from "./ToggleControl";
 import {InputControl} from "./InputControl";
-import {ComponentContext, CMSContext} from "../../../../context";
+import {ComponentContext} from "../../../../context";
+import {ThemeContext} from "../../../../../../ui/useTheme"
 
 export default function MoreControls({context}) {
     const {state: {display}, setState, controls} = useContext(context || ComponentContext);
-    const { UI } = React.useContext(CMSContext) || {UI: {Icon: () => <></>}};
+    const { UI } = React.useContext(ThemeContext) || {UI: {Icon: () => <></>}};
     if(!controls.more?.length) return;
 
     const { Icon, Button, Popup } = UI;

@@ -218,8 +218,12 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
                             `}
                             style={{paddingTop: v?.offset }}
                             onClick={() => {
-                                if (active !== v?.id) {
+                                if(active === v.id) return;
+
+                                if (v?.element?.['element-type'] === 'Spreadsheet' && active !== v?.id) {
                                     setActive(v.id);
+                                }else if(v.id){
+                                    setActive(undefined)
                                 }
                             }}
                         >
@@ -259,7 +263,6 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
                                     apiLoad={apiLoad}
                                     apiUpdate={apiUpdate}
                                     format={format}
-                                    isActive={active === v?.id}
                                 />
                                 : ''
                             }
@@ -281,7 +284,7 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
                                     apiLoad={apiLoad}
                                     apiUpdate={apiUpdate}
                                     format={format}
-                                    isActive={active === v?.id}
+                                    isActive={v?.element?.['element-type'] === 'Spreadsheet' ? active === v?.id : undefined}
                                 /> : v?.status?.length > 1 ? <div>Error</div> : ''}
 
                             {/* add new section at end  */}
@@ -341,8 +344,11 @@ const View = ({value, attr, group, siteType}) => {
                                 `}
                                 style={{ paddingTop: v?.offset }}
                                  onClick={() => {
-                                     if (active !== v?.id) {
+                                     if(active === v.id) return;
+                                     if (v?.element?.['element-type'] === 'Spreadsheet' && active !== v?.id) {
                                          setActive(v.id);
+                                     }else if(v.id){
+                                         setActive(undefined)
                                      }
                                  }}
                             >
@@ -356,7 +362,7 @@ const View = ({value, attr, group, siteType}) => {
                                     apiLoad={apiLoad}
                                     apiUpdate={apiUpdate}
                                     format={format}
-                                    isActive={active === v?.id}
+                                    isActive={v?.element?.['element-type'] === 'Spreadsheet' ? active === v?.id : undefined}
                                 />
                             </div>
                         )

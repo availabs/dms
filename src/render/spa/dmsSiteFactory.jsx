@@ -94,6 +94,7 @@ function pattern2routes (siteData, props) {
       subdomain: "*",
       authPermissions: "{}",
       theme: themes['default'],
+      themes
     }
     const patterns = [AdminPattern,...(siteData.reduce((acc, curr) => [...acc, ...(curr?.patterns || [])], []) || [])];
 
@@ -101,35 +102,35 @@ function pattern2routes (siteData, props) {
         //--------------------------------
         // Register Admin Pattern -- pattern manager
         // -------------------------------
-        dmsPageFactory({
-            dmsConfig: {
-                ...dmsConfigUpdated,
-                siteType: dmsConfigUpdated.type,
-                baseUrl: adminPath,
-                API_HOST,
-                PROJECT_NAME,
-                theme: themes['default'],
-                pgEnvs
-            },
-            authWrapper,
-            ErrorBoundary: RootErrorBoundary
-        }),
-        dmsPageFactory({
-            dmsConfig: {
-                ...patternTypes.admin[1]({
-                    ...dmsConfigUpdated,
-                    authPath,
-                    themes
-                }),
-                siteType: dmsConfigUpdated.type,
-                API_HOST,
-                PROJECT_NAME,
-                theme: themes['default'],
-                pgEnvs
-            },
-            authWrapper,
-            ErrorBoundary: RootErrorBoundary
-        }),
+        // dmsPageFactory({
+        //     dmsConfig: {
+        //         ...dmsConfigUpdated,
+        //         siteType: dmsConfigUpdated.type,
+        //         baseUrl: adminPath,
+        //         API_HOST,
+        //         PROJECT_NAME,
+        //         theme: themes['default'],
+        //         pgEnvs
+        //     },
+        //     authWrapper,
+        //     ErrorBoundary: RootErrorBoundary
+        // }),
+        // dmsPageFactory({
+        //     dmsConfig: {
+        //         ...patternTypes.admin[1]({
+        //             ...dmsConfigUpdated,
+        //             authPath,
+        //             themes
+        //         }),
+        //         siteType: dmsConfigUpdated.type,
+        //         API_HOST,
+        //         PROJECT_NAME,
+        //         theme: themes['default'],
+        //         pgEnvs
+        //     },
+        //     authWrapper,
+        //     ErrorBoundary: RootErrorBoundary
+        // }),
         // patterns
         ...patterns
           .filter(pattern => (
