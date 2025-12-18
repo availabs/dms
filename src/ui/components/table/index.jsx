@@ -1,15 +1,17 @@
-import React, {createContext, useCallback, useEffect, useMemo, useRef, useState} from "react";
+import React, {createContext, memo, useCallback, useEffect, useMemo, useRef, useState} from "react";
+import { Virtuoso } from 'react-virtuoso';
 import { ThemeContext } from '../../useTheme';
 import DataTypes from "../../columnTypes"
 import Icon from "../Icon";
 import {handleMouseUp} from "./utils/mouse";
 import TableHeaderCell from "./components/TableHeaderCell";
 import {TableRow} from "./components/TableRow";
+import {Header} from "./components/TableHeader";
+import {VirtualList} from "./components/Virtual";
 import {useCopy, usePaste, getLocation} from "./utils/hooks";
 import {isEqualColumns, parseIfJson} from "./utils";
 import {handleKeyDown} from "./utils/keyboard";
 import {cloneDeep} from "lodash-es";
-import {structure} from "dbf";
 
 const defaultNumColSize = 0;
 const defaultGutterColSize = 0;
@@ -144,7 +146,7 @@ export default function ({
     updateItem, removeItem, loading, isEdit,
     numColSize=defaultNumColSize, gutterColSize=defaultGutterColSize, frozenColClass, frozenCols=[],
     columns=[], data=[], display={}, controls={}, setState, isActive, customTheme={},
-    addItem, newItem={}, setNewItem,
+    addItem, newItem={}, setNewItem, infiniteScrollFetchData, currentPage
 }) {
     const { theme: themeFromContext = {table: tableTheme}} = React.useContext(ThemeContext) || {};
     const theme = useMemo(() => {
@@ -213,6 +215,7 @@ export default function ({
             endCol: cols[cols.length - 1]
         }
     }, [selection]);
+    const selectedCols = useMemo(() => selection.map(s => s.attrI), [selection]);
     // ======================================== selection variables end ================================================
 
     // =================================================================================================================
@@ -403,69 +406,50 @@ export default function ({
             .join(' ')} ${gutterColSize}px`;
     }, [numColSize, gutterColSize, columnSizes]);
 
+    const DEFAULT_ROW_HEIGHT = 40;
+    const maxHeight = window.innerHeight * 0.8; // 80vh
+    const totalHeight = (rows.length * DEFAULT_ROW_HEIGHT) + 60; // + header
+    const containerHeight = Math.min(Math.max(totalHeight, DEFAULT_ROW_HEIGHT), maxHeight);
+
+    const itemContent = useCallback(
+        (index) => (
+            <TableRow
+                index={index}
+                rowData={rows[index]}
+            />
+        ),
+        [rows]
+    );
+
+    const components = useMemo(() => ({
+        Footer: () => <div>loading...</div>,
+        Header: () => (
+            <Header tableTheme={theme?.table}
+                    gridTemplateColumns={gridTemplateColumns}
+                    visibleAttrsWithoutOpenOut={visibleAttrsWithoutOpenOut}
+                    visibleAttrsWithoutOpenOutLength={visibleAttrsWithoutOpenOutLength}
+                    numColSize={numColSize}
+                    frozenCols={frozenCols}
+                    frozenColClass={frozenColClass}
+                    selectedCols={selectedCols}
+                    isEdit={isEdit}
+                    columns={columns}
+                    display={display}
+                    controls={controls}
+                    setState={setState}
+                    colResizer={colResizer}
+            />
+        )
+    }), [
+        theme?.table, gridTemplateColumns, visibleAttrsWithoutOpenOut, visibleAttrsWithoutOpenOutLength,
+        numColSize, frozenCols, frozenColClass, selectedCols,
+        isEdit, columns, display, controls, setState, colResizer
+    ]);
 
     return (
         <div className={`${theme?.table?.tableContainer} ${!paginationActive && theme?.table?.tableContainerNoPagination}`} ref={gridRef}>
             <div className={theme?.table?.tableContainer1}
                  onMouseLeave={e => handleMouseUp({setIsDragging})}>
-
-                {/****************************************** Header begin ********************************************/}
-                <div
-                    className={theme?.table?.headerContainer}
-                    style={{
-                        zIndex: 5,
-                        gridTemplateColumns: gridTemplateColumns,
-                        gridColumn: `span ${visibleAttrsWithoutOpenOutLength + 2} / ${visibleAttrsWithoutOpenOutLength + 2}`
-                    }}
-                >
-                    {/*********************** header left gutter *******************/}
-                    <div className={'flex justify-between sticky left-0 z-[1]'} style={{width: numColSize}}>
-                        <div key={'#'} className={`w-full ${theme?.table?.thContainerBg} ${frozenColClass}`} />
-                    </div>
-                    {/******************************************&*******************/}
-
-                    {visibleAttrsWithoutOpenOut
-                        .map((attribute, i) => (
-                                <div
-                                    key={i}
-                                    className={`${theme?.table?.thead} ${frozenCols?.includes(i) ? theme?.table?.theadfrozen : ''}`}
-                                    style={{width: attribute.size}}
-                                >
-
-                                    <div key={`controls-${i}`}
-                                         className={`
-                                        ${theme?.table?.thContainer}
-                                        ${selection?.find(s => s.attrI === i) ?
-                                             theme?.table?.thContainerBgSelected : theme?.table?.thContainerBg
-                                         }`
-                                         }
-                                    >
-                                        <TableHeaderCell attribute={attribute} isEdit={isEdit} columns={columns} display={display} controls={controls} setState={setState} />
-                                    </div>
-
-                                    <div
-                                        key={`resizer-${i}`}
-                                        className={colResizer ? "z-5 -ml-2 w-[1px] hover:w-[2px] bg-gray-200 hover:bg-gray-400" : 'hidden'}
-                                        style={{
-                                            height: '100%',
-                                            cursor: 'col-resize',
-                                            position: 'relative',
-                                            right: 0,
-                                            top: 0
-                                        }}
-                                        onMouseDown={colResizer ? colResizer(attribute) : () => {}}
-                                    />
-
-                                </div>
-                            )
-                        )}
-
-                    {/***********gutter column cell*/}
-                    <div key={'##'}
-                         className={`${theme?.table?.thContainerBg} z-[1] flex shrink-0 justify-between`}
-                    > {` `}</div>
-                </div>
-                {/****************************************** Header end **********************************************/}
 
 
                 <TableStructureContext.Provider value={structureValues}>
@@ -475,7 +459,48 @@ export default function ({
                         updateItem, removeItem, theme, columns, display
                     }}>
                         {/****************************************** Rows begin **********************************************/}
-                        {rows
+                        <VirtualList
+                            items={rows}
+                            itemCount={rows.length}
+                            itemHeight={30}
+                            increaseViewportBy={{ top: 300, bottom: 300 }}
+                            endReached={() => {
+                                if(display.usePagination) return;
+                                infiniteScrollFetchData( currentPage + 1)
+                            }}
+                            renderItem={itemContent}
+                            components={components}
+                        />
+
+                        {/*<Virtuoso*/}
+                        {/*    increaseViewportBy={300}*/}
+                        {/*    // overscan={200}*/}
+                        {/*    minOverscanItemCount={10}*/}
+                        {/*    style={{ height: '70vh' }}*/}
+                        {/*    totalCount={rows.length}*/}
+                        {/*    components={components}*/}
+                        {/*    fixedHeaderContent={() => <div>header</div>}*/}
+                        {/*    itemContent={itemContent}*/}
+                        {/*    // context={} // todo use this to pass props to tableRow. remove structure context use. see if this improves performance*/}
+                        {/*    // topItemCount={1}*/}
+                        {/*    endReached={() => {*/}
+                        {/*        infiniteScrollFetchData( currentPage + 1)*/}
+                        {/*    }}*/}
+                        {/*/>*/}
+                        {/*    <Grid*/}
+                        {/*        // rowProps={{rows, defaultColumnSize, openOutContainerClass, openOutContainerWrapperClass, visibleAttrsWithoutOpenOut, visibleAttrsWithoutOpenOutLength, openOutAttributes}}*/}
+                        {/*        //   rowComponent={TableRow}*/}
+                        {/*        rowCount={rows.length}*/}
+                        {/*        rowHeight={30}*/}
+                        {/*        cellComponent={TableCell}*/}
+                        {/*        cellProps={{*/}
+                        {/*            rows,*/}
+                        {/*            visibleAttributes*/}
+                        {/*        }}*/}
+                        {/*        columnCount={visibleAttrsWithoutOpenOut.length}*/}
+                        {/*        columnWidth={index => columnSizes[index]}*/}
+                        {/*    />*/}
+                        {/*{rows
                             .map((d, i) => (
                                 <TableRow key={i}
                                           index={i} rowData={d}
@@ -487,7 +512,7 @@ export default function ({
                                           openOutAttributes={openOutAttributes}
                                     // isRowSelected={display.showGutters && isRowSelected(i)} only used to set bg for gutters
                                 />
-                            ))}
+                            ))}*/}
                         <div id={display?.loadMoreId} className={`${paginationActive ? 'hidden' : ''} min-h-2 w-full text-center`}>
                             {loading ? 'loading...' : ''}
                         </div>

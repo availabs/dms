@@ -126,9 +126,16 @@ const getEdge = (
 export const TableCell = memo(function TableCell ({
                                                          isTotalCell,
                                                          showOpenOutCaret, showOpenOut, setShowOpenOut,
-                                                         attribute, openOutTitle,
-                                                         index, attrI, item
+                                                         // visibleAttributes, openOutTitle, rows,
+                                                         // rowIndex, columnIndex, style,
+
+                                                      attribute, openOutTitle,
+                                                      index, attrI, item, style
                                                      }) {
+    // const index = rowIndex
+    // const attrI=columnIndex;
+    // const item = rows[index]
+    // const attribute = visibleAttributes[attrI]
     const loading = false;
     //const { theme = {table: tableTheme}} =  = React.useContext(ThemeContext) || {}
     const {frozenCols, allowEdit: allowEditComp, editing, setEditing, isDragging, isSelecting,
@@ -487,7 +494,7 @@ export const TableCell = memo(function TableCell ({
     return (
         <div ref={cellRef}
              className={cellClassName}
-             style={cellStyle}
+             style={style || cellStyle}
              {...cellEvents}
         >
             {showOpenOutCaret ?

@@ -15,7 +15,8 @@ import Table, {tableTheme} from "../../../../../../ui/components/table";
 const frozenCols = [0,1] // testing
 const frozenColClass = '' // testing
 
-export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addItem, newItem, setNewItem, loading, allowEdit}) => {
+export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addItem, newItem, setNewItem, loading, allowEdit,
+                                currentPage, infiniteScrollFetchData}) => {
     const { theme = { table: tableTheme } } = React.useContext(ThemeContext) || {}
     const { UI } = React.useContext(cms_context || CMSContext) || {UI: {Icon: () => <></>}}
     const {Table} = UI;
@@ -71,6 +72,8 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
                   updateItem={updateItem} removeItem={removeItem}
                   newItem={newItem} setNewItem={setNewItem} addItem={addItem}
                   numColSize={numColSize} gutterColSize={gutterColSize} frozenColClass={frozenColClass} frozenCols={frozenCols}
+                  currentPage={currentPage}
+                  infiniteScrollFetchData={infiniteScrollFetchData}
                   isActive={isActive}
     />
 }
@@ -177,10 +180,10 @@ export default {
             {type: 'select', label: 'Filter Relation', key: 'filterRelation',
                 options: [{label: 'and', value: 'and'}, {label: 'or', value: 'or'}]
             },
-            {type: 'input', inputType: 'number', label: 'Page Size', key: 'pageSize', displayCdn: ({display}) => display.usePagination === true},
+            {type: 'input', inputType: 'number', label: 'Page Size', key: 'pageSize'},
         ],
         inHeader: [
-            // settings from in header dropdown are stores in the columns array per column.
+            // settings from in header dropdown are stored in the columns array per column.
             {type: ({attribute, setAttribute}) => {
                     const {UI} = useContext(CMSContext);
                     const {Button} = UI;
@@ -198,6 +201,9 @@ export default {
                     )
                 },
                 label: 'format controls', key: '', displayCdn: ({isEdit}) => isEdit},
+            {
+                type: 'input', placeHolder: 'search...', key: 'localFilter'
+            },
             {type: 'select', label: 'Sort', key: 'sort', dataFetch: true,
                 options: [
                     {label: 'Not Sorted', value: ''}, {label: 'A->Z', value: 'asc nulls last'}, {label: 'Z->A', value: 'desc nulls last'}

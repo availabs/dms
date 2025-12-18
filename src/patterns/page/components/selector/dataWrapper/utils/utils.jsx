@@ -1,9 +1,7 @@
 import { useCallback, useEffect } from "react";
 import { getData as getFilterData } from "../components/filters/utils";
-import { isEqual, uniq } from "lodash-es";
-//import {Icon} from "../../../../index";
+import { isEqual } from "lodash-es";
 
-const Icon = () => <div />;
 const operationToExpressionMap = {
   filter: "IN",
   exclude: "NOT IN",
@@ -110,14 +108,33 @@ const parseIfJson = (value) => {
   }
 };
 
-const cleanValue = (value) =>
-    typeof value === "boolean" ? JSON.stringify(value)
-        : Array.isArray(value) ? value // this will be calculated column only.
-            : typeof value === "object" && value?.value && value?.originalValue ? value // meta column with original and meta value
-                : typeof value === "object" && value?.value ? cleanValue(value.value)
-                    : typeof value === "object" && !value?.value ? undefined
-                        : typeof value === "string" ? parseIfJson(value)
-                            : parseIfJson(value);
+const cleanValue = (value) => {
+    let valueType = typeof value;
+
+    if (valueType === "boolean") {
+        return JSON.stringify(value);
+    }
+
+    if (Array.isArray(value)) {
+        return value; // calculated column only
+    }
+
+    if (valueType === "object" && value !== null) {
+        if (value?.value && value?.originalValue) {
+            return value; // meta column with original and meta value
+        } else if (value?.value) {
+            return cleanValue(value.value);
+        } else {
+            return undefined;
+        }
+    }
+
+    if (valueType === "string") {
+        return parseIfJson(value);
+    }
+
+    return parseIfJson(value);
+}
 
 export const applyFn = (col = {}, isDms = false) => {
   // apply fns if: column is not calculated column or it is calculated, and does not have function in name
@@ -213,9 +230,11 @@ export const getData = async ({
   fullDataLoad,
   keepOriginalValues,
   currentPage = 0,
-    debugCall
+    debugCall,
+    debugTime
 }) => {
-  const {
+    debugTime && console.time('getData fn')
+    const {
     groupBy = [],
     orderBy = {},
     filter = {},
@@ -227,34 +246,38 @@ export const getData = async ({
     serverFn = {},
     ...restOfDataRequestOptions
   } = state.dataRequest || {};
-
   const debug = debugCall || false;
   debug && console.log("=======getDAta called===========");
   // get columns with all settings and info about them.
+    debugTime && console.time('columnsWithSettings')
+    const isDms = state.sourceInfo.isDms;
+    const sourceColumnsByName = new Map(
+        state.sourceInfo.columns.map(col => [col.name, col]),
+    );
+    const duplicatedColumnNames = new Set(
+        state.columns
+            .filter(col => col.isDuplicate)
+            .map(col => col.name),
+    );
   const columnsWithSettings = state.columns
     .filter(({ actionType, type }) => !actionType && type !== "formula")
     .map((column) => {
-      const fullColumn = {
-        ...(state.sourceInfo.columns.find(
-          (originalColumn) => originalColumn.name === column.name,
-        ) || {}),
-        ...column,
-      };
-      const isCalculatedColumn = isCalculatedCol(column);
-      const isCopiedColumn =
-        !column.isDuplicate &&
-        state.columns.some(
-          ({ name, isDuplicate }) => name === column.name && isDuplicate,
+        const originalColumn = sourceColumnsByName.get(column.name);
+        const fullColumn = {...(originalColumn ?? {}), ...column};
+
+        const isCalculatedColumn = isCalculatedCol(column);
+        const isCopiedColumn = !column.isDuplicate && duplicatedColumnNames.has(column.name);
+        const reqName = getColAccessor(fullColumn, isDms);
+        const refName = attributeAccessorStr(
+            column.name,
+            isDms,
+            isCalculatedColumn,
+            column.systemCol,
         );
-      const reqName = getColAccessor(fullColumn, state.sourceInfo.isDms);
-      const refName = attributeAccessorStr(
-        column.name,
-        state.sourceInfo.isDms,
-        isCalculatedColumn,
-        column.systemCol,
-      );
-      const [colNameBeforeAS, colNameAfterAS] = splitColNameOnAS(column.name);
-      const totalName = `SUM(CASE WHEN (${refName})::text ~ '^-?\\d+(\\.\\d+)?$' THEN (${refName})::numeric ELSE NULL END ) as ${colNameAfterAS || colNameBeforeAS}_total`;
+        const [colNameBeforeAS, colNameAfterAS] = splitColNameOnAS(column.name);
+
+        const totalAlias = colNameAfterAS || colNameBeforeAS;
+      const totalName = `SUM(CASE WHEN (${refName})::text ~ '^-?\\d+(\\.\\d+)?$' THEN (${refName})::numeric ELSE NULL END ) as ${totalAlias}_total`;
       return {
         ...fullColumn,
         isCalculatedColumn, // currently this cached value is used to determine key of order by column. for calculated columns idx is used to avoid sql errors.
@@ -264,7 +287,13 @@ export const getData = async ({
         totalName, // used to make total row calls.
       };
     });
-  const columnsToFetch = columnsWithSettings.filter(
+    const columnsWithSettingsByName = new Map(
+        columnsWithSettings.map(col => [col.name, col]),
+    );
+    const getFullColumnFromColumnsWithSettings = (name) => columnsWithSettingsByName.get(name);
+
+    debugTime && console.timeEnd('columnsWithSettings')
+    const columnsToFetch = columnsWithSettings.filter(
     (column) => column.show && !column.isDuplicate && column.type !== "formula",
   );
   // collect variables used in formula columns, and add them to fetch list
@@ -279,7 +308,7 @@ export const getData = async ({
       return acc;
     }, []);
   if (formulaVariableColumns.length) {
-    columnsToFetch.push(formulaVariableColumns);
+    columnsToFetch.push(...formulaVariableColumns);
   }
 
   // add normal columns to the list of columns to fetch
@@ -287,7 +316,7 @@ export const getData = async ({
     const normalColumns = [];
     const valueColumnName =
       state.columns.find((col) => col.valueColumn)?.name || "value";
-    const fullColumn = getFullColumn(valueColumnName, columnsWithSettings);
+    const fullColumn = getFullColumnFromColumnsWithSettings(valueColumnName);
     const valueColumn = fullColumn?.refName || "value";
     normalFilter.forEach(({ column, values, operation, fn }, i) => {
       const fullColumn = state.columns.find(
@@ -326,15 +355,13 @@ export const getData = async ({
       (col) => !(exclude[col]?.length === 1 && exclude[col][0] === "null"),
     ),
   ];
-  for (const columnName of uniq(filterAndExcludeColumns)) {
-    const { name, display, meta, refName, type } = getFullColumn(
-      columnName,
-      columnsWithSettings,
-    );
+  debugTime && console.time('filterAndExcludeColumns')
+  for (const columnName of new Set(filterAndExcludeColumns)) {
+    const { name, display, meta, refName, type } = getFullColumnFromColumnsWithSettings(columnName);
     const fullColumn = { name, display, meta, refName, type };
     const reqName = getColAccessor(
       { ...fullColumn, fn: undefined },
-      state.sourceInfo.isDms,
+      isDms,
     );
 
     const selectedValues = (filter[columnName] || exclude[columnName] || [])
@@ -345,6 +372,7 @@ export const getData = async ({
     if (!selectedValues.length) continue;
 
     if (type === "multiselect" /* || type === 'calculated'*/) {
+        // todo await inside loop; change to promise.all?
       const options = await getFilterData({
         reqName,
         refName,
@@ -378,52 +406,46 @@ export const getData = async ({
       }
     }
   }
+    debugTime && console.timeEnd('filterAndExcludeColumns')
 
   // should this be saved in state directly?
+    debugTime && console.time('build options')
   const options = {
     keepOriginalValues,
     filterRelation,
     serverFn,
     groupBy: groupBy.map(
-      (columnName) => getFullColumn(columnName, columnsWithSettings)?.refName,
+      (columnName) => getFullColumnFromColumnsWithSettings(columnName)?.refName,
     ),
     orderBy: Object.keys(orderBy)
       .filter((columnName) =>
         columnsToFetch.find((ctf) => ctf.name === columnName),
       ) // take out any sort from non-visible column
       .reduce((acc, columnName) => {
-        const idx = columnsToFetch.findIndex((a) => a.name === columnName) + 1; // +1 for postgres index
-        const { refName, reqName, isCalculatedColumn } = getFullColumn(
-          columnName,
-          columnsToFetch,
-        );
+        const { reqName } = getFullColumnFromColumnsWithSettings(columnName);
         const [reqNameWithoutAS] = splitColNameOnAS(reqName);
-
-        // return {...acc, [isCalculatedColumn ? idx : reqNameWithoutAS]: orderBy[columnName] }
-        return { ...acc, [reqNameWithoutAS]: orderBy[columnName] };
+        acc[reqNameWithoutAS] = orderBy[columnName];
+          return acc;
       }, {}),
     filter: Object.keys(filter).reduce((acc, columnName) => {
-      const { refName, type } = getFullColumn(columnName, columnsWithSettings);
-      const valueSets = multiselectValueSets[columnName]
-        ? multiselectValueSets[columnName].filter(
-            (d) => d === "null" || d.length,
-          )
-        : filter[columnName] || [];
-      if (!valueSets?.length) return acc;
-      return { ...acc, [refName]: valueSets };
+      const { refName, type } = getFullColumnFromColumnsWithSettings(columnName);
+      const valueSets = multiselectValueSets[columnName] ?
+          multiselectValueSets[columnName].filter((d) => d === "null" || d.length) :
+          filter[columnName] || [];
+
+        if(valueSets.length){
+            acc[refName] = valueSets
+        }
+      return acc;
     }, {}),
     exclude: Object.keys(exclude).reduce((acc, columnName) => {
       const currValues = exclude[columnName] || [];
-      const finalValues =
-        currValues?.length === 1 && currValues[0] === "null"
-          ? currValues
-          : multiselectValueSets[columnName]
-            ? multiselectValueSets[columnName].filter((d) => d.length)
-            : currValues;
-      return {
-        ...acc,
-        [getFullColumn(columnName, columnsWithSettings)?.refName]: finalValues,
-      };
+
+      acc[getFullColumnFromColumnsWithSettings(columnName)?.refName] =
+          currValues?.length === 1 && currValues[0] === "null" ? currValues :
+              multiselectValueSets[columnName] ? multiselectValueSets[columnName].filter((d) => d.length) :
+                  currValues;
+      return acc;
     }, {}),
     normalFilter,
     meta,
@@ -437,10 +459,7 @@ export const getData = async ({
         );
 
         columnsForOperation.forEach((columnName) => {
-          const { refName, reqName, fn, filters, ...restCol } = getFullColumn(
-            columnName,
-            columnsWithSettings,
-          );
+          const { refName, reqName, fn, filters, ...restCol } = getFullColumnFromColumnsWithSettings(columnName);
           const reqNameWithoutAS = splitColNameOnAS(reqName)[0];
           const currOperationValues =
             filterOperation === "like"
@@ -462,7 +481,7 @@ export const getData = async ({
                   ? reqNameWithoutAS
                   : applyFn(
                       { ...restCol, fn: filterFn },
-                      state.sourceInfo.isDms,
+                      isDms,
                     ),
               )[0]
             : refName;
@@ -489,7 +508,7 @@ export const getData = async ({
     //     const columnsForOperation = Object.keys(restOfDataRequestOptions[filterOperation]);
     //     acc[filterOperation] =
     //         columnsForOperation.reduce((acc, columnName) => {
-    //             const {refName, reqName, fn} = getFullColumn(columnName, columnsWithSettings);
+    //             const {refName, reqName, fn} = getFullColumnFromColumnsWithSettings(columnName);
     //             const reqNameWithoutAS = splitColNameOnAS(reqName)[0];
     //             // if grouping by and fn is applied, use fn name.
     //             const columnNameToFilterBy = refName;
@@ -506,7 +525,7 @@ export const getData = async ({
     //         const columnsForOperation = Object.keys(restOfDataRequestOptions[filterOperation]);
     //
     //         const conditions = columnsForOperation.map((columnName) => {
-    //                 const {reqName, fn, filters, ...restCol} = getFullColumn(columnName, columnsWithSettings);
+    //                 const {reqName, fn, filters, ...restCol} = getFullColumnFromColumnsWithSettings(columnName);
     //                 // assuming one filter per column:
     //                 const fullFilter = filters[0];
     //                 const filterFn = fullFilter?.fn;
@@ -516,7 +535,7 @@ export const getData = async ({
     //                 const reqNameWithFn = fn ? reqNameWithoutAS :
     //                     applyFn(
     //                         {...restCol, fn: filterFn},
-    //                         state.sourceInfo.isDms);
+    //                         isDms);
     //                 const reqNameWithFnWithoutAS = splitColNameOnAS(reqNameWithFn)[0];
     //                 // if grouping by and fn is applied, use fn name.
     //                 const currOperationValues = restOfDataRequestOptions[filterOperation][columnName];
@@ -530,7 +549,8 @@ export const getData = async ({
     //     }, [])
     // }
   };
-  debug &&
+    debugTime && console.timeEnd('build options')
+    debug &&
     console.log(
       "debug getdata: options for spreadsheet getData",
       options,
@@ -540,14 +560,17 @@ export const getData = async ({
   // ========================================== check for proper indices begin =======================================
   // =================================================================================================================
   // not grouping by, and all visible columns have fn applied
+    debugTime && console.time('check indices')
   const isRequestingSingleRow =
     !options.groupBy.length &&
     columnsToFetch.filter((col) => col.fn).length === columnsToFetch.length;
   let length;
   try {
-    length = isRequestingSingleRow
+      debugTime && console.time('length')
+      length = isRequestingSingleRow
       ? 1
       : await getLength({ options, state, apiLoad });
+      debugTime && console.timeEnd('length')
   } catch (e) {
     console.error("Error:", e);
     return {
@@ -581,12 +604,14 @@ export const getData = async ({
       state.display.pageSize,
       length,
     );
-  // ========================================== check for proper indices end =========================================
+    debugTime && console.timeEnd('check indices')
+    // ========================================== check for proper indices end =========================================
 
   // =================================================================================================================
   // ======================================= check for attributes to fetch begin =====================================
   // =================================================================================================================
-  const fnColumnsExists = columnsToFetch.some((column) => column.fn); // if fns exist, can't pull ids automatically.
+    debugTime && console.time('check columns')
+    const fnColumnsExists = columnsToFetch.some((column) => column.fn); // if fns exist, can't pull ids automatically.
 
   if (!columnsToFetch.length) {
     debug &&
@@ -596,7 +621,7 @@ export const getData = async ({
       );
     return { length, data: [] };
   }
-  if (state.sourceInfo.isDms && !options.groupBy.length && !fnColumnsExists) {
+  if (isDms && !options.groupBy.length && !fnColumnsExists) {
     columnsToFetch.push({ name: "id", reqName: "id" });
     options.orderBy.id = Object.values(options.orderBy || {})?.[0] || "asc";
   } else {
@@ -604,23 +629,26 @@ export const getData = async ({
     if (idx !== -1) columnsToFetch.splice(idx, 1);
     delete options.orderBy.id;
   }
-  // ======================================= check for attributes to fetch end =======================================
+    debugTime && console.timeEnd('check columns')
+    // ======================================= check for attributes to fetch end =======================================
 
   // =================================================================================================================
   // ========================================= check for invalid state begin =========================================
   // =================================================================================================================
-
+    debugTime && console.time('check invalid')
   // invalid state: while NOT grouping by, there are some columns with fn applied. either all of them need fn, or none.
-  const nonGroupedColumnsLength = columnsWithSettings.filter(
-    (va) => va.show && !va.group,
-  ).length;
-  const visibleColumnsLength = columnsWithSettings.filter(
-    (va) => va.show,
-  ).length;
-  const groupedColumnsLength = columnsWithSettings.filter(
-    (va) => va.group,
-  ).length;
-  const fnColumnsLength = columnsWithSettings.filter((va) => va.fn).length;
+    let visibleColumnsLength = 0;
+    let groupedColumnsLength = 0;
+    let fnColumnsLength = 0;
+    let nonGroupedColumnsLength = 0;
+
+    for (const col of columnsWithSettings) {
+        if (col.show) visibleColumnsLength++;
+        if (col.group) groupedColumnsLength++;
+        if (col.fn) fnColumnsLength++;
+        if (col.show && !col.group) nonGroupedColumnsLength++;
+    }
+
   // no column is grouped by, and fns don't equal visible columns (using length but maybe more nuanced matching can be used)
   const noGroupSomeFnCondition =
     visibleColumnsLength > 1 &&
@@ -651,7 +679,8 @@ export const getData = async ({
         : "";
     return { length, data: [], invalidState: invalidStateText };
   }
-  // ========================================== check for invalid state end ==========================================
+    debugTime && console.timeEnd('check invalid')
+    // ========================================== check for invalid state end ==========================================
 
   const children = [
     {
@@ -680,6 +709,7 @@ export const getData = async ({
       toIndex,
     );
   try {
+      debugTime && console.time('apiLoad')
     data = await apiLoad(
       {
         format: state.sourceInfo,
@@ -687,6 +717,7 @@ export const getData = async ({
       },
       "/",
     );
+      debugTime && console.timeEnd('apiLoad')
   } catch (e) {
     if (process.env.NODE_ENV === "development") console.error(e);
     return {
@@ -750,33 +781,34 @@ export const getData = async ({
   //     }) , {}))
   //
   //     )
+    debugTime && console.time('post-processing')
+    const formulaColumns = state.columns.filter(
+        ({ type }) => type === "formula"
+    );
+    const dataToReturn = data.map((row) => {
+        const isTotalRow = row.totalRow;
+        const rowWithData = { totalRow: isTotalRow };
+
+        for (const column of columnsToFetch) {
+            const key = isTotalRow ? column.totalName : column.reqName;
+            rowWithData[column.name] = cleanValue(row[key]);
+        }
+
+        // Apply formulas
+        if (formulaColumns.length) {
+            for (const { name, formula } of formulaColumns) {
+                rowWithData[name] = evaluateAST(formula, rowWithData);
+            }
+        }
+
+        return rowWithData;
+    });
+
+    debugTime && console.timeEnd('post-processing')
+    debugTime && console.timeEnd('getData fn')
   return {
     length,
-    data: data.map((row) => {
-      const rowWithData = columnsToFetch.reduce(
-        (acc, column) => ({
-          ...acc,
-          totalRow: row.totalRow,
-          // return data with columns' original names
-          [column.name]: cleanValue(
-            row[row.totalRow ? column.totalName : column.reqName],
-          ),
-        }),
-        {},
-      );
-
-      const formulaColumns = state.columns.filter(
-        ({ type }) => type === "formula",
-      );
-
-      if (formulaColumns.length) {
-        formulaColumns.forEach(({ name, formula }) => {
-          rowWithData[name] = evaluateAST(formula, rowWithData);
-        });
-      }
-
-      return rowWithData;
-    }),
+    data: dataToReturn
   };
 };
 

@@ -8,7 +8,6 @@ import {useHandleClickOutside, getData, isCalculatedCol} from "./utils/utils";
 import { Attribution } from "./components/Attribution";
 import {Pagination} from "./components/Pagination";
 
-
 const getCurrDate = () => {
     const options = {
         year: "numeric",
@@ -444,7 +443,7 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
     )
 }
 
-const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest}) => {
+const View = ({cms_context, value, size, apiUpdate, component}) => {
     const isEdit = false;
     const navigate = useNavigate();
     const {UI, pgEnv, baseUrl} = useContext(cms_context || CMSContext) || {UI: {Icon: () => <></>}};
@@ -456,7 +455,7 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
     const [currentPage, setCurrentPage] = useState(0);
     const groupByColumnsLength = useMemo(() => state?.columns?.filter(({group}) => group).length, [state?.columns]);
     const showChangeFormatModal = !state?.sourceInfo?.columns;
-    const isValidState = state?.dataRequest; // new state structure
+    const isValidState = Boolean(state?.dataRequest); // new state structure
     const Comp = useMemo(() => state.display.hideSection ? () => <></> : component.ViewComp, [component, state.display.hideSection]);
     // const useCache = state.display.useCache //=== false ? false : true; // false: loads data on load. can be expensive. useCache can be undefined for older components.
     const setReadyToLoad = useCallback(() => setState(draft => {draft.display.readyToLoad = true}), [setState]);
@@ -467,6 +466,35 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
         setState(newState)
     }, [value]);
 
+    const localFilters = useMemo(() =>
+            state.columns.filter(c => c.localFilter)
+                .reduce((acc, c) => ({...acc, [c.name || c.normalName]: c.localFilter}), {}),
+        [state.columns]);
+    const localFilterColumns = useMemo(() => Object.keys(localFilters), [localFilters]);
+    const hasLocalFilters = localFilterColumns.length;
+    const getFilteredData = useCallback(({currentPage}) => {
+        if(!hasLocalFilters) return;
+
+        const filteredData = (state.fullData || state.data).filter((row, rowI) => {
+            const rowFilter = Object.keys(localFilters).every(col => {
+                if(!row[col]) return false;
+                return row[col].toString().toLowerCase().includes(localFilters[col].toLowerCase())
+            })
+            return rowFilter
+        })
+
+        const fromIndex= currentPage * state.display.pageSize;
+        const toIndex = Math.min(
+            filteredData.length,
+            currentPage * state.display.pageSize + state.display.pageSize,
+        ) - 1;
+
+        setState(draft => {
+            draft.data = filteredData.filter((_, i) => i >= fromIndex && i <= toIndex);
+            draft.display.totalLength = filteredData.length;
+        })
+
+    }, [localFilters, hasLocalFilters, currentPage, setState])
     // ====================================== data fetch triggers begin ================================================
     // filters, sort, page change, draft.readyToFetch
     // builds an object with filter, exclude, gt, gte, lt, lte, like as keys. columnName: [values] as values
@@ -532,16 +560,11 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
     useEffect(() => {
         if(!isValidState || (!state.display.readyToLoad && !state.display.allowEditInView)) return;
         // only run when controls or source/view change
-        let isStale = false;
         async function load() {
             setLoading(true)
             const newCurrentPage = 0; // for all the deps here, it's okay to fetch from page 1.
 
             const {length, data} = await getData({state, apiLoad, fullDataLoad: component.fullDataLoad, keepOriginalValues: component.keepOriginalValues});
-            if(isStale) {
-                setLoading(false);
-                return;
-            }
 
             setState(draft => {
                 draft.data = data;
@@ -551,56 +574,63 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
             setLoading(false)
         }
 
-        load()
-        return () => {
-            isStale = true;
-        };
+        const timeoutId = setTimeout(() => load(), 300);
+        return () => clearTimeout(timeoutId);
     }, [state?.dataRequest, isValidState, state.display.readyToLoad, state.display.allowEditInView]);
 
     // useGetDataOnPageChange
     const onPageChange = async (currentPage) => {
         if(!isValidState || !component.useGetDataOnPageChange /*|| (!state.display.readyToLoad && !state.display.allowEditInView)*/) return;
         // only run when page changes
-        setLoading(true)
-        const {length, data} = await getData({state, currentPage, apiLoad, keepOriginalValues: component.keepOriginalValues});
+        if(hasLocalFilters){
+            setCurrentPage(currentPage)
+            getFilteredData({currentPage})
+        }else{
+            const hasMore = (currentPage * state.display.pageSize + state.display.pageSize) < state.display.totalLength;
+            if(!hasMore) return;
 
-        setCurrentPage(currentPage)
-        setState(draft => {
-            // on page change append data unless using pagination
-            draft.data =  state.display.usePagination ? data : [...draft.data.filter(r => !r.totalRow), ...data];
-            draft.display.totalLength = length;
-        })
-        setLoading(false)
+            console.log('loading', hasMore)
+            setLoading(true)
+            const {length, data} = await getData({state, currentPage, apiLoad, keepOriginalValues: component.keepOriginalValues});
+
+            setCurrentPage(currentPage)
+            setState(draft => {
+                // on page change append data unless using pagination
+                draft.data =  state.display.usePagination ? data : [...draft.data.filter(r => !r.totalRow), ...data];
+                draft.display.totalLength = length;
+            })
+            setLoading(false)
+        }
     }
 
-    // useInfiniteScroll
-    useEffect(() => {
-        let isStale = false;
-        if(!isValidState || !component.useInfiniteScroll) return;
-        // observer that sets current page on scroll. no data fetching should happen here
-        const observer = new IntersectionObserver(
-            async (entries) => {
-                const hasMore = (currentPage * state.display.pageSize + state.display.pageSize) < state.display.totalLength;
-                if (state.data.length && entries[0].isIntersecting && hasMore && !isStale) {
-                    setCurrentPage(prevPage => prevPage+1)
-                    await onPageChange(currentPage+1);
-                }
-            },
-            { threshold: 0 }
-        );
-
-        const target = document.querySelector(`#${state.display.loadMoreId}`);
-        if (target && !state.display.usePagination) observer.observe(target);
-        // unobserve if using pagination
-        if (target && state.display.usePagination) observer.unobserve(target);
-
-        // return () => {
-        //     if (target) observer.unobserve(target);
-        // };
-        return () => {
-            isStale = true;
-        }
-    }, [state?.display?.loadMoreId, state?.display?.totalLength, state?.data?.length, state?.display?.usePagination, isValidState]);
+    // // useInfiniteScroll
+    // useEffect(() => {
+    //     let isStale = false;
+    //     if(!isValidState || !component.useInfiniteScroll) return;
+    //     // observer that sets current page on scroll. no data fetching should happen here
+    //     const observer = new IntersectionObserver(
+    //         async (entries) => {
+    //             const hasMore = (currentPage * state.display.pageSize + state.display.pageSize) < state.display.totalLength;
+    //             if (state.data.length && entries[0].isIntersecting && hasMore && !isStale) {
+    //                 setCurrentPage(prevPage => prevPage+1)
+    //                 await onPageChange(currentPage+1);
+    //             }
+    //         },
+    //         { threshold: 0 }
+    //     );
+    //
+    //     const target = document.querySelector(`#${state.display.loadMoreId}`);
+    //     if (target && !state.display.usePagination) observer.observe(target);
+    //     // unobserve if using pagination
+    //     if (target && state.display.usePagination) observer.unobserve(target);
+    //
+    //     // return () => {
+    //     //     if (target) observer.unobserve(target);
+    //     // };
+    //     return () => {
+    //         isStale = true;
+    //     }
+    // }, [state?.display?.loadMoreId, state?.display?.totalLength, state?.data?.length, state?.display?.usePagination, isValidState]);
 
     // =========================================== get input data ======================================================
     useEffect(() => {
@@ -688,8 +718,13 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
     // ========================================= get input data end ======================================================
     // =========================================== get data end ========================================================
 
+    useEffect(() => {
+        if(!hasLocalFilters) return;
+        getFilteredData({currentPage});
+    }, [localFilters, hasLocalFilters, currentPage])
     // =========================================== util fns begin ======================================================
-    const updateItem = (value, attribute, d) => {
+    const editableColumns = useMemo(() => state.columns.filter(c => !(c.serverFn && c.joinKey) && c.editable !== false), [state.columns])
+    const updateItem = useCallback((value, attribute, d) => {
         if(!state.sourceInfo?.isDms || !apiUpdate || groupByColumnsLength) return;
         if(attribute?.name){
             setState(draft => {
@@ -698,8 +733,7 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
                     draft.data[idx] = {...(draft.data[idx] || {}), ...d, [attribute.name]: value}
                 }
             })
-            const dataToUpdateDB = state.columns.filter(c => !(c.serverFn && c.joinKey) && c.editable !== false)
-                .reduce((acc, col) => {
+            const dataToUpdateDB = editableColumns.reduce((acc, col) => {
                     acc[col.name] = d[col.name]?.originalValue || d[col.name];
                     return acc;
                 }, {id: d.id})
@@ -707,8 +741,7 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
         }else{
             const dataToUpdateState = Array.isArray(d) ? d : [d];
             const dataToUpdateDB = dataToUpdateState.map(row => {
-                return state.columns.filter(c => !(c.serverFn && c.joinKey) && c.editable !== false)
-                    .reduce((acc, col) => {
+                return editableColumns.reduce((acc, col) => {
                         acc[col.name] = row[col.name]?.originalValue || row[col.name];
                         return acc;
                     }, {id: row.id})
@@ -727,9 +760,9 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
 
             return Promise.all(dataToUpdateDB.map(dtu => apiUpdate({data: dtu, config: {format: state.sourceInfo}})));
         }
-    }
+    }, [state.sourceInfo?.isDms, editableColumns, groupByColumnsLength, setState, apiUpdate])
 
-    const addItem = async () => {
+    const addItem = useCallback(async () => {
         if(!state.sourceInfo?.isDms || !apiUpdate || groupByColumnsLength) return;
         const {allowAdddNew, addNewBehaviour, navigateUrlOnAdd} = state.display;
         const config = {format: {...state.sourceInfo, type: `${state.sourceInfo.type}-${state.sourceInfo.view_id}`}}
@@ -748,16 +781,17 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
             setNewItem({})
             return res;
         }
-    }
+    }, [state.sourceInfo, apiUpdate, setState, groupByColumnsLength, state.display, newItem, baseUrl])
 
-    const removeItem = item => {
-        if(!state.sourceInfo?.isDms || !apiUpdate || groupByColumnsLength) return;
+    const removeItem = useCallback(item => {
+        if (!state.sourceInfo?.isDms || !apiUpdate || groupByColumnsLength) return;
         setState(draft => {
             const idx = draft.data.findIndex(d => d.id === item.id);
             if (idx !== -1) draft.data.splice(idx, 1);
-        })
-        return apiUpdate({data: item, config: {format: state.sourceInfo}, requestType: 'delete'})
-    }
+        });
+
+        return apiUpdate({data: item, config: { format: state.sourceInfo }, requestType: "delete"});
+    }, [state.sourceInfo, apiUpdate, groupByColumnsLength, setState]);
     // =========================================== util fns end ========================================================
     if(showChangeFormatModal || !isValidState) return <div className={'p-1 text-center'}>Form data not available.</div>;
     // component.name === 'Spreadsheet' && console.log('dw?', state)
@@ -784,6 +818,15 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
             })
         }
     }, [state.data, state.display.hideIfNull])
+
+    const componentProps = useMemo(() => {
+        return ['Spreadsheet', 'Card'].includes(component.name) ? {
+            newItem, setNewItem,
+            updateItem, removeItem, addItem,
+            currentPage, infiniteScrollFetchData: onPageChange,
+            allowEdit
+        } : {}
+    }, [component.name, allowEdit, newItem, setNewItem, updateItem, removeItem, addItem, currentPage, onPageChange])
     return (
             <div className={'w-full h-full'}>
                 <div className={'w-full'}>
@@ -801,12 +844,7 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
                     </div>
                     <Comp isEdit={isEdit}
                           cms_context={cms_context}
-                          {...['Spreadsheet', 'Card'].includes(component.name) && {
-                              newItem, setNewItem,
-                              updateItem, removeItem, addItem,
-                              currentPage, loading, isEdit,
-                              allowEdit
-                          }}
+                          {...componentProps}
                     />
                     <div>
                         {/*Pagination*/}
