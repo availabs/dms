@@ -1,135 +1,264 @@
-import React, { useRef, useState, useLayoutEffect, useCallback } from "react";
+import React, {
+    useRef,
+    useState,
+    useLayoutEffect,
+    useCallback, useEffect,
+} from "react";
 
-// MeasuredRow: measures its height and reports back
-function MeasuredRow({ index, onMeasure, children }) {
+function MeasuredRow({
+                         row,
+                         onMeasureRow,
+                         children,
+                     }) {
     const ref = useRef(null);
 
     useLayoutEffect(() => {
         if (!ref.current) return;
         const ro = new ResizeObserver(([entry]) => {
-            onMeasure(index, entry.contentRect.height);
+            onMeasureRow(entry.contentRect.height);
         });
         ro.observe(ref.current);
         return () => ro.disconnect();
-    }, [index, onMeasure]);
+    }, [row, onMeasureRow]);
 
     return <div ref={ref}>{children}</div>;
 }
 
-// VirtualList component
 export function VirtualList({
-                                items,
+                                rowCount,
+                                columnCount,
+                                columnSizes,
+                                estimatedRowHeight = 40,
+                                estimatedColumnWidth = 120,
+                                increaseViewportBy = {
+                                    top: 0,
+                                    bottom: 0,
+                                    left: 0,
+                                    right: 0,
+                                },
                                 renderItem,
-                                estimatedItemHeight = 50,
-                                increaseViewportBy = { top: 0, bottom: 0 },
-                                endReached, components
+                                components,
+                                endReached
                             }) {
     const containerRef = useRef(null);
-    const [visibleRange, setVisibleRange] = useState({ start: 0, end: 10 });
-    const heightsRef = useRef([]); // cached heights
+    const isFetchingRef = useRef(false);
+    const rowHeights = useRef([]);
 
-    const getHeight = useCallback(
-        (index) => heightsRef.current[index] ?? estimatedItemHeight,
-        [estimatedItemHeight]
-    );
+    const initialEndCol = Math.min(columnCount - 1, 10);
+    const initialEndRow = Math.min(rowCount - 1, 10);
 
-    const getTotalHeight = useCallback(() => {
-        return heightsRef.current.reduce((sum, h) => sum + h, 0) +
-            (items.length - heightsRef.current.length) * estimatedItemHeight;
-    }, [items.length, estimatedItemHeight]);
+    const [rows, setRows] = useState({ start: 0, end: initialEndRow });
+    const [cols, setCols] = useState({ start: 0, end: initialEndCol });
+
+
+    const getRowHeight = (i) =>
+        rowHeights.current[i] ?? estimatedRowHeight;
+
+    const getColWidth = (i) => columnSizes[i] ?? estimatedColumnWidth;
+
+    const getTotalHeight = () =>
+        Array.from({ length: rowCount }).reduce(
+            (s, _, i) => s + getRowHeight(i),
+            0
+        );
 
     const calculateRange = useCallback(() => {
-        const container = containerRef.current;
-        if (!container) return;
+        const el = containerRef.current;
+        if (!el) return;
+        const clientW = el.clientWidth || (estimatedColumnWidth * 5);
+        const { scrollTop, scrollLeft, clientHeight, clientWidth } = el;
 
-        const scrollTop = container.scrollTop;
-        const viewportHeight = container.clientHeight;
-
-        // Find start index
-        let sum = 0;
-        let start = 0;
-        while (start < items.length && sum + getHeight(start) < scrollTop - increaseViewportBy.top) {
-            sum += getHeight(start);
-            start++;
+        // ROWS
+        let y = 0;
+        let startRow = 0;
+        while (
+            startRow < rowCount &&
+            y + getRowHeight(startRow) <
+            scrollTop - increaseViewportBy.top
+            ) {
+            y += getRowHeight(startRow++);
         }
 
-        // Find end index
-        let end = start;
-        let visibleSum = sum;
-        while (end < items.length && visibleSum < scrollTop + viewportHeight + increaseViewportBy.bottom) {
-            visibleSum += getHeight(end);
-            end++;
+        let endRow = startRow;
+        let y2 = y;
+        while (
+            endRow < rowCount &&
+            y2 <
+            scrollTop +
+            clientHeight +
+            increaseViewportBy.bottom
+            ) {
+            y2 += getRowHeight(endRow++);
         }
 
-        setVisibleRange({ start, end: end - 1 });
+        // COLS
+        // COLS
+        let x = 0;
+        let startCol = 0;
+        while (
+            startCol < columnCount &&
+            x + getColWidth(startCol) < scrollLeft - increaseViewportBy.left
+            ) {
+            x += getColWidth(startCol);
+            startCol++;
+        }
+
+        let endCol = startCol;
+        let x2 = x;
+
+        while (
+            endCol < columnCount &&
+            x2 < scrollLeft + clientW + increaseViewportBy.right
+            ) {
+            x2 += getColWidth(endCol);
+            endCol++;
+        }
+
+// ensure at least one column
+        if (endCol <= startCol) endCol = Math.min(startCol + 1, columnCount);
+
+
+        setRows({ start: startRow, end: Math.min(Math.max(endRow - 1, startRow), rowCount - 1) });
+        setCols({ start: startCol, end: Math.min(Math.max(endCol - 1, startCol), columnCount - 1) });
 
         // endReached callback
         if (
-            endReached &&
-            scrollTop + viewportHeight >= getTotalHeight() - increaseViewportBy.bottom
+            endReached && !isFetchingRef.current &&
+            scrollTop + clientHeight >= getTotalHeight() - increaseViewportBy.bottom
         ) {
+            isFetchingRef.current = true;
+            console.log('end reached')
             endReached();
         }
-    }, [items.length, getHeight, increaseViewportBy, getTotalHeight, endReached]);
 
-    const handleMeasure = useCallback(
-        (index, height) => {
-            if (heightsRef.current[index] === height) return;
-            heightsRef.current[index] = height;
+    }, [
+        rowCount,
+        columnCount,
+        increaseViewportBy,
+    ]);
+
+    useEffect(() => {
+        isFetchingRef.current = false;
+    }, [rowCount]);
+
+
+    const onMeasure = useCallback(
+        (row, _col, height) => {
+            if (rowHeights.current[row] !== height) {
+                rowHeights.current[row] = height;
+            }
             calculateRange();
         },
         [calculateRange]
     );
 
     useLayoutEffect(() => {
-        calculateRange();
-    }, [items.length, calculateRange]);
+        const el = containerRef.current;
+        if (!el) return;
 
-    // Compute padding
-    // const paddingTop = heightsRef.current
-    //     .slice(0, visibleRange.start)
-    //     .reduce((sum, h) => sum + h, 0);
-    // const paddingBottom = getTotalHeight() -
-    //     paddingTop -
-    //     heightsRef.current
-    //         .slice(visibleRange.start, visibleRange.end + 1)
-    //         .reduce((sum, h) => sum + h, 0);
-    const paddingTop = Array.from({ length: visibleRange.start }).reduce(
-        (sum, _, i) => sum + (heightsRef.current[i] ?? estimatedItemHeight),
+        // Only run if container has measurable size
+        const runCalculate = () => {
+            if (el.clientHeight && el.clientWidth) {
+                calculateRange();
+            }
+        }
+
+        runCalculate(); // first attempt
+        const ro = new ResizeObserver(runCalculate);
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, [rowCount, columnCount, columnSizes, calculateRange]);
+
+
+    useLayoutEffect(() => {
+        const el = containerRef.current;
+        if (!el) return;
+
+        const ro = new ResizeObserver(() => {
+            calculateRange();
+        });
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, []);
+
+    const paddingTop = Array.from({ length: rows.start }).reduce(
+        (s, _, i) => s + getRowHeight(i),
         0
     );
 
-    const paddingBottom = Array.from({ length: items.length - visibleRange.end - 1 }).reduce(
-        (sum, _, i) => sum + (heightsRef.current[visibleRange.end + 1 + i] ?? estimatedItemHeight),
+    const paddingBottom =
+        getTotalHeight() -
+        paddingTop -
+        Array.from(
+            { length: rows.end - rows.start + 1 },
+            (_, i) => getRowHeight(rows.start + i)
+        ).reduce((a, b) => a + b, 0);
+
+    const getTotalWidth = () =>
+        Array.from({ length: columnCount }).reduce(
+            (s, _, i) => s + getColWidth(i),
+            0
+        );
+
+    const paddingLeft = Array.from({ length: cols.start }).reduce(
+        (s, _, i) => s + getColWidth(i),
         0
     );
 
-
+    const paddingRight =
+        getTotalWidth() -
+        paddingLeft -
+        Array.from(
+            { length: cols.end - cols.start + 1 },
+            (_, i) => getColWidth(cols.start + i)
+        ).reduce((a, b) => a + b, 0);
 
     return (
         <div
             ref={containerRef}
             onScroll={calculateRange}
-            style={{ overflow: "auto", height: "100%" }}
+            style={{
+                overflow: "auto",
+                height: "100%",
+                width: "100%",
+            }}
         >
-            {components?.Header?.()}
-            <div style={{ paddingTop, paddingBottom }}>
+
+            <div
+                style={{
+                    paddingTop,
+                    paddingBottom,
+                    paddingLeft,
+                    paddingRight
+                }}
+            >
+                {components?.Header?.({start: cols.start, end: cols.end})}
+
                 {Array.from(
-                    { length: visibleRange.end - visibleRange.start + 1 },
-                    (_, i) => {
-                        const index = visibleRange.start + i;
+                    { length: rows.end - rows.start + 1 },
+                    (_, r) => {
+                        const rowIndex = rows.start + r;
                         return (
                             <MeasuredRow
-                                key={index}
-                                index={index}
-                                onMeasure={handleMeasure}
+                                key={rowIndex}
+                                row={rowIndex}
+                                onMeasureRow={(height) =>
+                                    onMeasure(rowIndex, null, height)
+                                }
                             >
-                                {renderItem(index)}
+                                {renderItem(
+                                    rowIndex,
+                                    cols.start,
+                                    cols.end
+                                )}
                             </MeasuredRow>
                         );
                     }
                 )}
-                {components?.footer?.()}
+
+                {components?.bottomFrozen?.({start: cols.start, end: cols.end})}
+
+                {components?.Footer?.()}
             </div>
         </div>
     );

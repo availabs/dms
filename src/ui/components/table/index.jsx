@@ -179,11 +179,6 @@ export default function ({
             showGutters: display.showGutters,
             striped: display.striped,
             hideIfNullOpenouts: display.hideIfNullOpenouts,
-            gridTemplateColumns: `${numColSize}px ${
-                visibleAttrsWithoutOpenOut
-                .map(c => `${c.size ?? defaultColumnSize}px`)
-                .join(' ')
-        } ${gutterColSize}px`,
         };
     }, [columns, defaultColumnSize]);
     const {
@@ -386,11 +381,11 @@ export default function ({
     const showTotal = display.showTotal || columns.some(c => c.showTotal);
     const { rows, totalRow } = useMemo(() => {
         const rows = [];
-        const totalRow = [];
+        let totalRow = {};
 
         for (const d of data) {
             if(!d.totalRow) rows.push(d);
-            if(d.totalRow && showTotal) totalRow.push(d)
+            if(d.totalRow && showTotal) totalRow = d;
         }
 
         return { rows, totalRow };
@@ -400,11 +395,6 @@ export default function ({
     // trying to reduce re-renders of tableRow
     const openOutContainerWrapperClass = useMemo(() => theme?.table?.openOutContainerWrapper, [theme?.table?.openOutContainerWrapper]);
     const openOutContainerClass = useMemo(() => theme?.table?.openOutContainer, [theme?.table?.openOutContainer]);
-    const gridTemplateColumns = useMemo(() => {
-        return `${numColSize}px ${columnSizes
-            .map(s => `${s}px`)
-            .join(' ')} ${gutterColSize}px`;
-    }, [numColSize, gutterColSize, columnSizes]);
 
     const DEFAULT_ROW_HEIGHT = 40;
     const maxHeight = window.innerHeight * 0.8; // 80vh
@@ -412,22 +402,21 @@ export default function ({
     const containerHeight = Math.min(Math.max(totalHeight, DEFAULT_ROW_HEIGHT), maxHeight);
 
     const itemContent = useCallback(
-        (index) => (
+        (index, startCol, endCol) => (
             <TableRow
                 index={index}
                 rowData={rows[index]}
+                startCol={startCol}
+                endCol={endCol}
             />
         ),
         [rows]
     );
 
     const components = useMemo(() => ({
-        Footer: () => <div>loading...</div>,
-        Header: () => (
+        Header: ({start, end}) => (
             <Header tableTheme={theme?.table}
-                    gridTemplateColumns={gridTemplateColumns}
                     visibleAttrsWithoutOpenOut={visibleAttrsWithoutOpenOut}
-                    visibleAttrsWithoutOpenOutLength={visibleAttrsWithoutOpenOutLength}
                     numColSize={numColSize}
                     frozenCols={frozenCols}
                     frozenColClass={frozenColClass}
@@ -438,12 +427,25 @@ export default function ({
                     controls={controls}
                     setState={setState}
                     colResizer={colResizer}
+                    start={start}
+                    end={end}
+                    gutterColSize={gutterColSize}
             />
-        )
+        ),
+        Footer: () => paginationActive ? null : <div>loading...</div>,
+        bottomFrozen: ({start, end}) => display.showTotal ? (
+            <TableRow key={'total-row'}
+                      index={'total-row'}
+                      rowData={totalRow}
+                      startCol={start}
+                      endCol={end}
+                      isTotalRow={true}
+            />
+        ) : null
     }), [
-        theme?.table, gridTemplateColumns, visibleAttrsWithoutOpenOut, visibleAttrsWithoutOpenOutLength,
+        theme?.table, visibleAttrsWithoutOpenOut,
         numColSize, frozenCols, frozenColClass, selectedCols,
-        isEdit, columns, display, controls, setState, colResizer
+        isEdit, columns, display, controls, setState, colResizer, gutterColSize, display.showTotal, totalRow
     ]);
 
     return (
@@ -460,82 +462,24 @@ export default function ({
                     }}>
                         {/****************************************** Rows begin **********************************************/}
                         <VirtualList
-                            items={rows}
-                            itemCount={rows.length}
-                            itemHeight={30}
-                            increaseViewportBy={{ top: 300, bottom: 300 }}
+                            rowCount={rows.length}
+                            columnCount={visibleAttrsWithoutOpenOutLength}
+                            columnSizes={columnSizes}
+                            increaseViewportBy={{ top: 300, bottom: 300, left: 100, right: 100 }}
                             endReached={() => {
                                 if(display.usePagination) return;
-                                infiniteScrollFetchData( currentPage + 1)
+                                infiniteScrollFetchData( currentPage + 1 )
                             }}
                             renderItem={itemContent}
                             components={components}
                         />
-
-                        {/*<Virtuoso*/}
-                        {/*    increaseViewportBy={300}*/}
-                        {/*    // overscan={200}*/}
-                        {/*    minOverscanItemCount={10}*/}
-                        {/*    style={{ height: '70vh' }}*/}
-                        {/*    totalCount={rows.length}*/}
-                        {/*    components={components}*/}
-                        {/*    fixedHeaderContent={() => <div>header</div>}*/}
-                        {/*    itemContent={itemContent}*/}
-                        {/*    // context={} // todo use this to pass props to tableRow. remove structure context use. see if this improves performance*/}
-                        {/*    // topItemCount={1}*/}
-                        {/*    endReached={() => {*/}
-                        {/*        infiniteScrollFetchData( currentPage + 1)*/}
-                        {/*    }}*/}
-                        {/*/>*/}
-                        {/*    <Grid*/}
-                        {/*        // rowProps={{rows, defaultColumnSize, openOutContainerClass, openOutContainerWrapperClass, visibleAttrsWithoutOpenOut, visibleAttrsWithoutOpenOutLength, openOutAttributes}}*/}
-                        {/*        //   rowComponent={TableRow}*/}
-                        {/*        rowCount={rows.length}*/}
-                        {/*        rowHeight={30}*/}
-                        {/*        cellComponent={TableCell}*/}
-                        {/*        cellProps={{*/}
-                        {/*            rows,*/}
-                        {/*            visibleAttributes*/}
-                        {/*        }}*/}
-                        {/*        columnCount={visibleAttrsWithoutOpenOut.length}*/}
-                        {/*        columnWidth={index => columnSizes[index]}*/}
-                        {/*    />*/}
-                        {/*{rows
-                            .map((d, i) => (
-                                <TableRow key={i}
-                                          index={i} rowData={d}
-                                          defaultColumnSize={defaultColumnSize}
-                                          openOutContainerClass={openOutContainerClass}
-                                          openOutContainerWrapperClass={openOutContainerWrapperClass}
-                                          visibleAttrsWithoutOpenOut={visibleAttrsWithoutOpenOut}
-                                          visibleAttrsWithoutOpenOutLen={visibleAttrsWithoutOpenOutLength}
-                                          openOutAttributes={openOutAttributes}
-                                    // isRowSelected={display.showGutters && isRowSelected(i)} only used to set bg for gutters
-                                />
-                            ))}*/}
-                        <div id={display?.loadMoreId} className={`${paginationActive ? 'hidden' : ''} min-h-2 w-full text-center`}>
-                            {loading ? 'loading...' : ''}
-                        </div>
-
 
                         {/*/!****************************************** Gutter Row **********************************************!/*/}
                         {/*<RenderGutter {...{allowEdit, c, visibleAttributes, isDragging, colSizes, attributes}} />*/}
 
 
                         {/*/!****************************************** Total Row ***********************************************!/*/}
-                        {totalRow
-                            .map((d, i) => (
-                                <TableRow key={i}
-                                          index={i} rowData={d}
-                                          defaultColumnSize={defaultColumnSize}
-                                          openOutContainerClass={openOutContainerClass}
-                                          openOutContainerWrapperClass={openOutContainerWrapperClass}
-                                          visibleAttrsWithoutOpenOut={visibleAttrsWithoutOpenOut}
-                                          visibleAttrsWithoutOpenOutLen={visibleAttrsWithoutOpenOutLength}
-                                          openOutAttributes={openOutAttributes}
-                                          isTotalRow={true}
-                                />
-                            ))}
+
                         {/*/!****************************************** Rows end ************************************************!/*/}
 
                         {/********************************************* out of scroll ********************************************/}

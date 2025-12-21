@@ -1,11 +1,29 @@
 import TableHeaderCell from "./TableHeaderCell";
-import React, {memo} from "react";
+import React, {memo, useMemo} from "react";
 
 export const Header = memo(function Header ({
-                                                tableTheme, gridTemplateColumns, visibleAttrsWithoutOpenOut, visibleAttrsWithoutOpenOutLength,
+                                                tableTheme, visibleAttrsWithoutOpenOut,
                                                 numColSize, frozenCols, frozenColClass, selectedCols,
-                                            isEdit, columns, display, controls, setState, colResizer
+                                            isEdit, columns, display, controls, setState, colResizer, start, end, gutterColSize
                                             }) {
+
+    const attrsToRender = visibleAttrsWithoutOpenOut
+        .slice(start, end + 1);
+
+    const slicedGridTemplateColumns = useMemo(() => {
+        const cols = attrsToRender
+            .map(c => `${c.size}px`)
+            .join(" ");
+
+        return `${numColSize}px ${cols} ${gutterColSize}px`;
+    }, [
+        start,
+        end,
+        attrsToRender,
+        numColSize,
+        gutterColSize
+    ]);
+
     return (
         <>
             {/****************************************** Header begin ********************************************/}
@@ -13,8 +31,8 @@ export const Header = memo(function Header ({
                 className={`${tableTheme.headerContainer} top-0 sticky z-[100]`}
                 style={{
                     zIndex: 5,
-                    gridTemplateColumns: gridTemplateColumns,
-                    gridColumn: `span ${visibleAttrsWithoutOpenOutLength + 2} / ${visibleAttrsWithoutOpenOutLength + 2}`
+                    gridTemplateColumns: slicedGridTemplateColumns,
+                    gridColumn: `span ${attrsToRender.length + 2} / ${attrsToRender.length + 2}`
                 }}
             >
                 {/*********************** header left gutter *******************/}
@@ -23,7 +41,7 @@ export const Header = memo(function Header ({
                 </div>
                 {/******************************************&*******************/}
 
-                {visibleAttrsWithoutOpenOut
+                {attrsToRender
                     .map((attribute, i) => (
                             <div
                                 key={i}
