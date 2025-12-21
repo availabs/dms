@@ -5,12 +5,10 @@ import Icon from "../../Icon"
 import {TableStructureContext} from "../index";
 
 export const TableRow = memo(function TableRow ({
-                                                    index,
-    rowData={},
-                                                    // rows,
+                                                    index, rowData={},
                                                     isRowSelected, // used only to set bg for row num
                                                     isTotalRow,
-                                                    openOutContainerWrapperClass, openOutContainerClass, style,
+                                                    openOutContainerWrapperClass, openOutContainerClass,
                                                     startCol, endCol
                                                 }) {
     // const rowData = rows[index];
@@ -62,7 +60,7 @@ export const TableRow = memo(function TableRow ({
                 ${rowData.totalRow ? `sticky bottom-0 z-[1]` : ``} ${isDragging ? `select-none` : ``} 
                 ${striped ? `odd:bg-gray-50` : ``} ${rowData.totalRow ? `bg-gray-100` : ``}`
                 }
-                style={style || {
+                style={{
                     gridTemplateColumns: slicedGridTemplateColumns,
                     gridColumn: `span ${attrsToRender.length + 2} / ${attrsToRender.length + 2}`
                 }}

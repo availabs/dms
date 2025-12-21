@@ -140,6 +140,108 @@ const updateItemsOnPaste = ({pastedContent, index, attrI, data, visibleAttribute
 
     updateItem(undefined, undefined, itemsToUpdate);
 }
+
+const AddNew = ({allowAdddNew,
+                    numColSize, gutterColSize, defaultColumnSize,
+                    isDragging, visibleAttrsWithoutOpenOut, startCol, endCol,
+    newItem, setNewItem, theme, addItem
+}) => {
+    if(!allowAdddNew) return null;
+
+    const attrsToRender = visibleAttrsWithoutOpenOut
+        .slice(startCol, endCol + 1);
+
+    const slicedGridTemplateColumns = useMemo(() => {
+        const cols = attrsToRender
+            .map((v, i) => v.size ?
+                `${i === 0 ? (+v.size - 20) : v.size}px` :
+                `${i === 0 ? (defaultNumColSize - 20) : defaultColumnSize}px`)
+            .join(' ')
+
+        return `${numColSize}px 20px ${cols} ${gutterColSize}px`;
+    }, [
+        startCol,
+        endCol,
+        visibleAttrsWithoutOpenOut,
+        numColSize,
+        gutterColSize
+    ]);
+
+    return (
+        <div
+            className={`grid bg-white divide-x divide-y ${isDragging ? `select-none` : ``} sticky bottom-0 z-[1]`}
+            style={{
+                gridTemplateColumns: slicedGridTemplateColumns,
+                gridColumn: `span ${attrsToRender.length + 3} / ${attrsToRender.length + 3}`
+            }}
+        >
+            <div className={'flex justify-between sticky left-0 z-[1]'} style={{width: numColSize}}>
+                <div key={'#'} className={`w-full font-semibold border bg-gray-50 text-gray-500`}>
+
+                </div>
+            </div>
+
+            <div className={'bg-white flex flex-row h-fit justify-evenly opacity-50 hover:opacity-100 border-0'}
+                 style={{width: '20px'}}>
+                <button
+                    className={'w-fit p-0.5 bg-blue-300 hover:bg-blue-500 text-white rounded-lg'}
+                    onClick={e => {
+                        addItem()
+                    }}>
+                    <Icon icon={'CirclePlus'} className={'text-white'} height={20} width={20}/>
+                </button>
+            </div>
+            {
+                attrsToRender
+                    .map((attribute, attrI) => {
+                        const Comp = DataTypes[attribute?.type || 'text']?.EditComp || (() => <div></div>);
+                        const size = attrI === 0 ? (+attribute.size || defaultNumColSize) - 20 : (+attribute.size || defaultNumColSize)
+                        let lexicalTheme = cloneDeep(theme || {});
+                        if(attribute.type === 'lexical'){
+                            if(!lexicalTheme.lexical) lexicalTheme.lexical = {}
+                            lexicalTheme.lexical.editorScroller = "border-0 flex relative outline-0 z-0bh resize-y";
+                            lexicalTheme.lexical.editorShell = "w-full h-full font-['Proxima_Nova'] font-[400] text-[1rem] text-slate-700 leading-[22.4px]";
+                            lexicalTheme.lexical.editorContainer = "relative block rounded-[10px]";
+                        }
+                        return (
+                            <div
+                                key={`add-new-${attrI}`}
+                                className={`flex border p-1 bg-white hover:bg-blue-50 w-full h-full'`}
+                                style={{width: size}}
+                            >
+                                <Comp
+                                    key={`${attribute.name}`}
+                                    menuPosition={'top'}
+                                    className={'p-1 bg-white hover:bg-blue-50 w-full h-full'}
+                                    {...attribute}
+                                    size={size}
+                                    value={newItem[attribute.name]}
+                                    placeholder={'+ add new'}
+                                    onChange={e => setNewItem({...newItem, [attribute.name]: e})}
+                                    onPaste={e => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+
+                                        const paste =
+                                            (e.clipboardData || window.clipboardData).getData("text")?.split('\n').map(row => row.split('\t'));
+                                        const pastedColumns = [...new Array(paste[0].length).keys()].map(i => attrsToRender[attrI + i]).filter(i => i);
+                                        const tmpNewItem = pastedColumns.reduce((acc, c, i) => ({
+                                            ...acc,
+                                            [c]: paste[0][i]
+                                        }), {})
+                                        setNewItem({...newItem, ...tmpNewItem})
+
+                                    }}
+                                    hideControls={attribute.type === 'lexical'}
+                                    theme={attribute.type === 'lexical' ? lexicalTheme : undefined}
+                                />
+                            </div>
+                        )
+                    })
+            }
+        </div>
+    )
+}
 export default function ({
     paginationActive, gridRef,
     allowEdit,
@@ -391,15 +493,9 @@ export default function ({
         return { rows, totalRow };
     }, [data]);
 
-
     // trying to reduce re-renders of tableRow
     const openOutContainerWrapperClass = useMemo(() => theme?.table?.openOutContainerWrapper, [theme?.table?.openOutContainerWrapper]);
     const openOutContainerClass = useMemo(() => theme?.table?.openOutContainer, [theme?.table?.openOutContainer]);
-
-    const DEFAULT_ROW_HEIGHT = 40;
-    const maxHeight = window.innerHeight * 0.8; // 80vh
-    const totalHeight = (rows.length * DEFAULT_ROW_HEIGHT) + 60; // + header
-    const containerHeight = Math.min(Math.max(totalHeight, DEFAULT_ROW_HEIGHT), maxHeight);
 
     const itemContent = useCallback(
         (index, startCol, endCol) => (
@@ -432,20 +528,36 @@ export default function ({
                     gutterColSize={gutterColSize}
             />
         ),
-        Footer: () => paginationActive ? null : <div>loading...</div>,
-        bottomFrozen: ({start, end}) => display.showTotal ? (
-            <TableRow key={'total-row'}
-                      index={'total-row'}
-                      rowData={totalRow}
-                      startCol={start}
-                      endCol={end}
-                      isTotalRow={true}
-            />
-        ) : null
+        Footer: () => paginationActive || rows.length === display.totalLength ? null : <div>loading...</div>,
+        bottomFrozen: ({start, end}) => (
+            <>
+                {
+                    display.showTotal ? (
+                        <TableRow key={'total-row'}
+                                  index={'total-row'}
+                                  rowData={totalRow}
+                                  startCol={start}
+                                  endCol={end}
+                                  isTotalRow={true}
+                                  openOutContainerWrapperClass={openOutContainerWrapperClass}
+                                  openOutContainerClass={openOutContainerClass}
+                        />
+                    ) : null
+                }
+                <AddNew startCol={start} endCol={end} numColSize={numColSize} gutterColSize={gutterColSize}
+                        visibleAttrsWithoutOpenOut={visibleAttrsWithoutOpenOut}
+                        allowAdddNew={display.allowAdddNew}
+                        newItem={newItem} setNewItem={setNewItem} isDragging={isDragging} theme={theme}
+                        addItem={addItem}
+                />
+            </>
+        )
     }), [
         theme?.table, visibleAttrsWithoutOpenOut,
         numColSize, frozenCols, frozenColClass, selectedCols,
-        isEdit, columns, display, controls, setState, colResizer, gutterColSize, display.showTotal, totalRow
+        isEdit, columns, display, controls, setState, colResizer, gutterColSize, display.showTotal, totalRow,
+        openOutContainerWrapperClass, openOutContainerClass,
+        display.allowAdddNew, isDragging, theme
     ]);
 
     return (
@@ -460,7 +572,6 @@ export default function ({
                         setSelection, setIsDragging, startCellCol, startCellRow, selection, selectionRange,
                         updateItem, removeItem, theme, columns, display
                     }}>
-                        {/****************************************** Rows begin **********************************************/}
                         <VirtualList
                             rowCount={rows.length}
                             columnCount={visibleAttrsWithoutOpenOutLength}
@@ -473,92 +584,6 @@ export default function ({
                             renderItem={itemContent}
                             components={components}
                         />
-
-                        {/*/!****************************************** Gutter Row **********************************************!/*/}
-                        {/*<RenderGutter {...{allowEdit, c, visibleAttributes, isDragging, colSizes, attributes}} />*/}
-
-
-                        {/*/!****************************************** Total Row ***********************************************!/*/}
-
-                        {/*/!****************************************** Rows end ************************************************!/*/}
-
-                        {/********************************************* out of scroll ********************************************/}
-                        {/***********************(((***************** Add New Row Begin ******************************************/}
-                        {
-                            display.allowAdddNew ?
-                                <div
-                                    className={`grid bg-white divide-x divide-y ${isDragging ? `select-none` : ``} sticky bottom-0 z-[1]`}
-                                    style={{
-                                        gridTemplateColumns: `${numColSize}px 20px ${visibleAttrsWithoutOpenOut.map((v, i) => v.size ? `${i === 0 ? (+v.size - 20) : v.size}px` : `${i === 0 ? (defaultNumColSize - 20) : defaultColumnSize}px`).join(' ')} ${gutterColSize}px`,
-                                        gridColumn: `span ${visibleAttrsWithoutOpenOutLength + 3} / ${visibleAttrsWithoutOpenOutLength + 3}`
-                                    }}                    >
-                                    <div className={'flex justify-between sticky left-0 z-[1]'} style={{width: numColSize}}>
-                                        <div key={'#'} className={`w-full font-semibold border bg-gray-50 text-gray-500`}>
-
-                                        </div>
-                                    </div>
-
-                                    <div className={'bg-white flex flex-row h-fit justify-evenly opacity-50 hover:opacity-100 border-0'}
-                                         style={{width: '20px'}}>
-                                        <button
-                                            className={'w-fit p-0.5 bg-blue-300 hover:bg-blue-500 text-white rounded-lg'}
-                                            onClick={e => {
-                                                addItem()
-                                            }}>
-                                            <Icon icon={'CirclePlus'} className={'text-white'} height={20} width={20}/>
-                                        </button>
-                                    </div>
-                                    {
-                                        visibleAttrsWithoutOpenOut
-                                            .map((attribute, attrI) => {
-                                                const Comp = DataTypes[attribute?.type || 'text']?.EditComp || (() => <div></div>);
-                                                const size = attrI === 0 ? (+attribute.size || defaultNumColSize) - 20 : (+attribute.size || defaultNumColSize)
-                                                let lexicalTheme = cloneDeep(theme || {});
-                                                if(attribute.type === 'lexical'){
-                                                    if(!lexicalTheme.lexical) lexicalTheme.lexical = {}
-                                                    lexicalTheme.lexical.editorScroller = "border-0 flex relative outline-0 z-0bh resize-y";
-                                                    lexicalTheme.lexical.editorShell = "w-full h-full font-['Proxima_Nova'] font-[400] text-[1rem] text-slate-700 leading-[22.4px]";
-                                                    lexicalTheme.lexical.editorContainer = "relative block rounded-[10px]";
-                                                }
-                                                return (
-                                                    <div
-                                                        key={`add-new-${attrI}`}
-                                                        className={`flex border p-1 bg-white hover:bg-blue-50 w-full h-full'`}
-                                                        style={{width: size}}
-                                                    >
-                                                        <Comp
-                                                            key={`${attribute.name}`}
-                                                            menuPosition={'top'}
-                                                            className={'p-1 bg-white hover:bg-blue-50 w-full h-full'}
-                                                            {...attribute}
-                                                            size={size}
-                                                            value={newItem[attribute.name]}
-                                                            placeholder={'+ add new'}
-                                                            onChange={e => setNewItem({...newItem, [attribute.name]: e})}
-                                                            onPaste={e => {
-                                                                e.preventDefault();
-                                                                e.stopPropagation();
-
-                                                                const paste =
-                                                                    (e.clipboardData || window.clipboardData).getData("text")?.split('\n').map(row => row.split('\t'));
-                                                                const pastedColumns = [...new Array(paste[0].length).keys()].map(i => visibleAttributes[attrI + i]).filter(i => i);
-                                                                const tmpNewItem = pastedColumns.reduce((acc, c, i) => ({
-                                                                    ...acc,
-                                                                    [c]: paste[0][i]
-                                                                }), {})
-                                                                setNewItem({...newItem, ...tmpNewItem})
-
-                                                            }}
-                                                            hideControls={attribute.type === 'lexical'}
-                                                            theme={attribute.type === 'lexical' ? lexicalTheme : undefined}
-                                                        />
-                                                    </div>
-                                                )
-                                            })
-                                    }
-                                </div> : null
-                        }
-                        {/***********************(((***************** Add New Row End ********************************************/}
                     </TableCellContext.Provider>
                 </TableStructureContext.Provider>
             </div>

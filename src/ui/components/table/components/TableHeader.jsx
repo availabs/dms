@@ -28,7 +28,7 @@ export const Header = memo(function Header ({
         <>
             {/****************************************** Header begin ********************************************/}
             <div
-                className={`${tableTheme.headerContainer} top-0 sticky z-[100]`}
+                className={tableTheme.headerContainer}
                 style={{
                     zIndex: 5,
                     gridTemplateColumns: slicedGridTemplateColumns,

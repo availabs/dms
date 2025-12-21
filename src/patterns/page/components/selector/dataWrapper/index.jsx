@@ -412,6 +412,15 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
     }
     // =========================================== util fns end ========================================================
 
+    const componentProps = useMemo(() => {
+        return ['Spreadsheet', 'Card'].includes(component.name) ? {
+            newItem, setNewItem,
+            updateItem, removeItem, addItem,
+            currentPage, infiniteScrollFetchData: onPageChange,
+            allowEdit: state.sourceInfo?.isDms && !groupByColumnsLength
+        } : {}
+    }, [component.name, newItem, setNewItem, updateItem, removeItem, addItem, currentPage, onPageChange])
+
     return (
             <div className={'w-full h-full'}>
                 <div className={'w-full flex items-center place-content-end'}>
@@ -424,12 +433,7 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
                 </div>
                 <Comp isEdit={isEdit}
                       cms_context={cms_context}
-                  {...['Spreadsheet', 'Card'].includes(component.name) && {
-                      newItem, setNewItem,
-                      updateItem, removeItem, addItem,
-                      currentPage, loading, isEdit,
-                      allowEdit: state.sourceInfo?.isDms && !groupByColumnsLength
-                  }}
+                  {...componentProps}
                 />
                 <div>
                     {/*Pagination*/}

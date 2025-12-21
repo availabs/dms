@@ -130,7 +130,7 @@ export const TableCell = memo(function TableCell ({
                                                          // rowIndex, columnIndex, style,
 
                                                       attribute, openOutTitle,
-                                                      index, attrI, item, style
+                                                      index, attrI, item,
                                                      }) {
     // const index = rowIndex
     // const attrI=columnIndex;
@@ -494,7 +494,7 @@ export const TableCell = memo(function TableCell ({
     return (
         <div ref={cellRef}
              className={cellClassName}
-             style={style || cellStyle}
+             style={cellStyle}
              {...cellEvents}
         >
             {showOpenOutCaret ?

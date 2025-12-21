@@ -223,6 +223,13 @@ export function VirtualList({
                 width: "100%",
             }}
         >
+            <div className={'top-0 sticky z-[5]'} style={{
+                paddingLeft,
+                paddingRight
+            }}>
+                {components?.Header?.({start: cols.start, end: cols.end})}
+
+            </div>
 
             <div
                 style={{
@@ -232,7 +239,6 @@ export function VirtualList({
                     paddingRight
                 }}
             >
-                {components?.Header?.({start: cols.start, end: cols.end})}
 
                 {Array.from(
                     { length: rows.end - rows.start + 1 },
@@ -256,9 +262,16 @@ export function VirtualList({
                     }
                 )}
 
-                {components?.bottomFrozen?.({start: cols.start, end: cols.end})}
+
 
                 {components?.Footer?.()}
+            </div>
+
+            <div className={'bottom-0 sticky z-[5]'} style={{
+                paddingLeft,
+                paddingRight
+            }}>
+                {components?.bottomFrozen?.({start: cols.start, end: cols.end})}
             </div>
         </div>
     );
