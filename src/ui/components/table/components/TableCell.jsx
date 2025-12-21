@@ -124,13 +124,10 @@ const getEdge = (
     return '';
 };
 export const TableCell = memo(function TableCell ({
-                                                         isTotalCell,
-                                                         showOpenOutCaret, showOpenOut, setShowOpenOut,
-                                                         // visibleAttributes, openOutTitle, rows,
-                                                         // rowIndex, columnIndex, style,
+                                                      index, attrI, item, isTotalCell,
+                                                      showOpenOutCaret, setShowOpenOut,
+                                                      attribute, openOutTitle
 
-                                                      attribute, openOutTitle,
-                                                      index, attrI, item,
                                                      }) {
     // const index = rowIndex
     // const attrI=columnIndex;

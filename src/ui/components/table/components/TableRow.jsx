@@ -9,7 +9,7 @@ export const TableRow = memo(function TableRow ({
                                                     isRowSelected, // used only to set bg for row num
                                                     isTotalRow,
                                                     openOutContainerWrapperClass, openOutContainerClass,
-                                                    startCol, endCol
+                                                    startCol, endCol, rowRef
                                                 }) {
     // const rowData = rows[index];
     const {
@@ -19,7 +19,6 @@ export const TableRow = memo(function TableRow ({
         showGutters,
         striped,
         hideIfNullOpenouts,
-        gridTemplateColumns
     } = useContext(TableStructureContext);
     const [showOpenOut, setShowOpenOut] = useState(false);
     const numColSize = showGutters ? numColSizeDf : 0;
@@ -54,6 +53,7 @@ export const TableRow = memo(function TableRow ({
     return (
         <>
             <div
+                ref={rowRef}
                 key={`data-${index}`}
                 className={
                     `grid 

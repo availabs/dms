@@ -1,10 +1,8 @@
-import React, {createContext, memo, useCallback, useEffect, useMemo, useRef, useState} from "react";
-import { Virtuoso } from 'react-virtuoso';
+import React, {createContext, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import { ThemeContext } from '../../useTheme';
 import DataTypes from "../../columnTypes"
 import Icon from "../Icon";
 import {handleMouseUp} from "./utils/mouse";
-import TableHeaderCell from "./components/TableHeaderCell";
 import {TableRow} from "./components/TableRow";
 import {Header} from "./components/TableHeader";
 import {VirtualList} from "./components/Virtual";
@@ -498,15 +496,18 @@ export default function ({
     const openOutContainerClass = useMemo(() => theme?.table?.openOutContainer, [theme?.table?.openOutContainer]);
 
     const itemContent = useCallback(
-        (index, startCol, endCol) => (
+        (index, startCol, endCol, ref) => (
             <TableRow
+                rowRef={ref}
                 index={index}
                 rowData={rows[index]}
                 startCol={startCol}
                 endCol={endCol}
+                openOutContainerWrapperClass={openOutContainerWrapperClass}
+                openOutContainerClass={openOutContainerClass}
             />
         ),
-        [rows]
+        [rows, openOutContainerWrapperClass, openOutContainerClass]
     );
 
     const components = useMemo(() => ({
@@ -564,8 +565,6 @@ export default function ({
         <div className={`${theme?.table?.tableContainer} ${!paginationActive && theme?.table?.tableContainerNoPagination}`} ref={gridRef}>
             <div className={theme?.table?.tableContainer1}
                  onMouseLeave={e => handleMouseUp({setIsDragging})}>
-
-
                 <TableStructureContext.Provider value={structureValues}>
                     <TableCellContext.Provider value={{
                         frozenCols, allowEdit, editing, setEditing, isDragging, isSelecting,

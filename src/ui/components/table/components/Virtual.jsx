@@ -8,7 +8,7 @@ import React, {
 function MeasuredRow({
                          row,
                          onMeasureRow,
-                         children,
+                         renderItem, cols
                      }) {
     const ref = useRef(null);
 
@@ -21,7 +21,12 @@ function MeasuredRow({
         return () => ro.disconnect();
     }, [row, onMeasureRow]);
 
-    return <div ref={ref}>{children}</div>;
+    return renderItem(
+        row,
+        cols.start,
+        cols.end,
+        ref
+    )
 }
 
 export function VirtualList({
@@ -216,6 +221,7 @@ export function VirtualList({
     return (
         <div
             ref={containerRef}
+            // className={`relative`}
             onScroll={calculateRange}
             style={{
                 overflow: "auto",
@@ -251,13 +257,9 @@ export function VirtualList({
                                 onMeasureRow={(height) =>
                                     onMeasure(rowIndex, null, height)
                                 }
-                            >
-                                {renderItem(
-                                    rowIndex,
-                                    cols.start,
-                                    cols.end
-                                )}
-                            </MeasuredRow>
+                                renderItem={renderItem}
+                                cols={cols}
+                            />
                         );
                     }
                 )}
