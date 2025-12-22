@@ -234,6 +234,20 @@ export function SectionEdit({
                     isActive={value?.element?.['element-type'] === 'Spreadsheet'}
                 />
             </div>
+            <DeleteModal
+                title={`Delete Section ${value?.title || ''} ${value?.id}`} open={showDeleteModal}
+                prompt={`Are you sure you want to delete this section? All of the section data will be permanently removed
+                            from our servers forever. This action cannot be undone.`}
+                setOpen={(v) => setShowDeleteModal(v)}
+                onDelete={() => {
+                    async function deleteItem() {
+                        await onRemove(i)
+                        setShowDeleteModal(false)
+                    }
+
+                    deleteItem()
+                }}
+            />
         </div>
     )
 }

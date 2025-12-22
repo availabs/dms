@@ -111,6 +111,37 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
     const [currentPage, setCurrentPage] = useState(0);
     const isValidState = Boolean(state?.dataRequest);
     const Comp = useMemo(() => component.EditComp, [component]);
+
+    const localFilters = useMemo(() =>
+            state.columns.filter(c => c.localFilter)
+                .reduce((acc, c) => ({...acc, [c.name || c.normalName]: c.localFilter}), {}),
+        [state.columns]);
+    const localFilterColumns = useMemo(() => Object.keys(localFilters), [localFilters]);
+    const hasLocalFilters = localFilterColumns.length;
+    const getFilteredData = useCallback(({currentPage}) => {
+        if(!hasLocalFilters) return;
+
+        const filteredData = (state.fullData || state.data).filter((row, rowI) => {
+            const rowFilter = Object.keys(localFilters).every(col => {
+                if(!row[col]) return false;
+                return row[col].toString().toLowerCase().includes(localFilters[col].toLowerCase())
+            })
+            return rowFilter
+        })
+
+        const fromIndex= currentPage * state.display.pageSize;
+        const toIndex = Math.min(
+            filteredData.length,
+            currentPage * state.display.pageSize + state.display.pageSize,
+        ) - 1;
+
+        setState(draft => {
+            draft.data = filteredData.filter((_, i) => i >= fromIndex && i <= toIndex);
+            draft.display.totalLength = filteredData.length;
+        })
+
+    }, [localFilters, hasLocalFilters, currentPage, setState])
+
     // ========================================= init comp begin =======================================================
     // useSetDataRequest
     useEffect(() => {
@@ -196,7 +227,7 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
             setLoading(false)
         }
 
-        load()
+        hasLocalFilters ? getFilteredData({currentPage}) : load()
         return () => {
             isStale = true;
         };
@@ -205,23 +236,32 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
         state.sourceInfo.source_id,
         state.sourceInfo.view_id,
         state.display.pageSize,
-        isValidState]);
+        isValidState,
+        localFilters]);
 
-    // useGetDataOnPageChange
+// useGetDataOnPageChange
     const onPageChange = async (currentPage) => {
         if(!isValidState || !component.useGetDataOnPageChange) return;
         // only run when page changes
-        setLoading(true)
-        setCurrentPage(currentPage)
-        const {length, data} = await getData({state, currentPage, apiLoad, keepOriginalValues: component.keepOriginalValues});
-        setState(draft => {
-            // on page change append data unless using pagination
-            draft.data =  state.display.usePagination ? data : [...draft.data.filter(r => !r.totalRow), ...data];
-            draft.display.totalLength = length;
-        })
-        setLoading(false)
-    }
+        if(hasLocalFilters){
+            setCurrentPage(currentPage)
+            getFilteredData({currentPage})
+        }else{
+            const hasMore = (currentPage * state.display.pageSize + state.display.pageSize) < state.display.totalLength;
+            if(!hasMore) return;
 
+            setLoading(true)
+            const {length, data} = await getData({state, currentPage, apiLoad, keepOriginalValues: component.keepOriginalValues});
+
+            setCurrentPage(currentPage)
+            setState(draft => {
+                // on page change append data unless using pagination
+                draft.data =  state.display.usePagination ? data : [...draft.data.filter(r => !r.totalRow), ...data];
+                draft.display.totalLength = length;
+            })
+            setLoading(false)
+        }
+    }
     // useInfiniteScroll
     useEffect(() => {
         let isStale = false;
@@ -578,9 +618,9 @@ const View = ({cms_context, value, size, apiUpdate, component}) => {
             setLoading(false)
         }
 
-        const timeoutId = setTimeout(() => load(), 300);
+        const timeoutId = setTimeout(() => hasLocalFilters ? getFilteredData({currentPage}) : load(), 300);
         return () => clearTimeout(timeoutId);
-    }, [state?.dataRequest, isValidState, state.display.readyToLoad, state.display.allowEditInView]);
+    }, [state?.dataRequest, isValidState, state.display.readyToLoad, state.display.allowEditInView, localFilters]);
 
     // useGetDataOnPageChange
     const onPageChange = async (currentPage) => {
@@ -593,7 +633,6 @@ const View = ({cms_context, value, size, apiUpdate, component}) => {
             const hasMore = (currentPage * state.display.pageSize + state.display.pageSize) < state.display.totalLength;
             if(!hasMore) return;
 
-            console.log('loading', hasMore)
             setLoading(true)
             const {length, data} = await getData({state, currentPage, apiLoad, keepOriginalValues: component.keepOriginalValues});
 
@@ -606,35 +645,6 @@ const View = ({cms_context, value, size, apiUpdate, component}) => {
             setLoading(false)
         }
     }
-
-    // // useInfiniteScroll
-    // useEffect(() => {
-    //     let isStale = false;
-    //     if(!isValidState || !component.useInfiniteScroll) return;
-    //     // observer that sets current page on scroll. no data fetching should happen here
-    //     const observer = new IntersectionObserver(
-    //         async (entries) => {
-    //             const hasMore = (currentPage * state.display.pageSize + state.display.pageSize) < state.display.totalLength;
-    //             if (state.data.length && entries[0].isIntersecting && hasMore && !isStale) {
-    //                 setCurrentPage(prevPage => prevPage+1)
-    //                 await onPageChange(currentPage+1);
-    //             }
-    //         },
-    //         { threshold: 0 }
-    //     );
-    //
-    //     const target = document.querySelector(`#${state.display.loadMoreId}`);
-    //     if (target && !state.display.usePagination) observer.observe(target);
-    //     // unobserve if using pagination
-    //     if (target && state.display.usePagination) observer.unobserve(target);
-    //
-    //     // return () => {
-    //     //     if (target) observer.unobserve(target);
-    //     // };
-    //     return () => {
-    //         isStale = true;
-    //     }
-    // }, [state?.display?.loadMoreId, state?.display?.totalLength, state?.data?.length, state?.display?.usePagination, isValidState]);
 
     // =========================================== get input data ======================================================
     useEffect(() => {
@@ -722,10 +732,6 @@ const View = ({cms_context, value, size, apiUpdate, component}) => {
     // ========================================= get input data end ======================================================
     // =========================================== get data end ========================================================
 
-    useEffect(() => {
-        if(!hasLocalFilters) return;
-        getFilteredData({currentPage});
-    }, [localFilters, hasLocalFilters, currentPage])
     // =========================================== util fns begin ======================================================
     const editableColumns = useMemo(() => state.columns.filter(c => !(c.serverFn && c.joinKey) && c.editable !== false), [state.columns])
     const updateItem = useCallback((value, attribute, d) => {

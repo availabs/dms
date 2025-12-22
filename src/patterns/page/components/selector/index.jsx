@@ -110,8 +110,9 @@ function EditComp(props) {
 
                         } else if(e){
                             const component = (RegisteredComponents[e]);
-                            onChange({...value, 'element-type': e, 'element-data': initialState(component.defaultState)})
-                            setState(initialState(component.defaultState))
+                            const defaultState = e === 'lexical' ? undefined : initialState(component.defaultState);
+                            onChange({...value, 'element-type': e, 'element-data': defaultState})
+                            setState(defaultState)
                         }
                     }}
                     filters={[

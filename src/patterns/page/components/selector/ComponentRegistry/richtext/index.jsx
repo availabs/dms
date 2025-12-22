@@ -109,7 +109,7 @@ const Edit = ({value, onChange}) => {
     const emptyTextBlock = {text: '', size: '4xl', color: '000000'};
     const [bgColor, setBgColor] = useState(cachedData?.bgColor || 'rgba(0,0,0,0)');
     const [isCard, setIsCard] = useState(cachedData?.isCard || '');
-    const [text, setText] = useState(cachedData?.text || value);
+    const [text, setText] = useState(cachedData?.text || (value?.root ? value : ''));
 
     useEffect(() => {
 
@@ -203,8 +203,7 @@ const View = ({value}) => {
     const isCard = data?.isCard
 
     //console.log('richtext view ', isCard, data)
-
-    if(!dataOrValue ||
+    if(!dataOrValue || !dataOrValue?.root ||
         (dataOrValue?.root?.children?.length === 1 && dataOrValue?.root?.children?.[0]?.children?.length === 0) ||
         (dataOrValue?.root?.children?.length === 0)
     ) return <div className='h-6' />;

@@ -72,7 +72,7 @@ export default function SectionGroup ({group, attributes, edit}) {
         <div className={sectionTheme?.wrapper2}>
           <div className={sectionTheme?.wrapper3}>
             {(
-                group.name === 'default' &&
+                (group.name === 'default' || group.position === 'content') &&
                 user?.authed &&
                 isUserAuthed([
                     'create-page',

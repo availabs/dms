@@ -308,6 +308,13 @@ export const TableCell = memo(function TableCell ({
     }, [isSelected]);
 
     const isValid = useMemo(() => {
+        if(
+            ['multiselect', 'select'].includes(attribute.type) &&
+            attribute.mapped_options // don't validate vlaues for attributes that refer another source (dropdowns)
+        ) {
+            return true;
+        }
+
         if (
             !['multiselect', 'select', 'radio'].includes(attribute.type) &&
             attribute.required !== 'yes'
