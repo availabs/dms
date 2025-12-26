@@ -2,11 +2,12 @@ import React, {useState, useEffect, useMemo, useRef, useCallback, useContext} fr
 import {useNavigate} from "react-router";
 import writeXlsxFile from 'write-excel-file';
 import { isEqual } from "lodash-es";
-import {CMSContext, ComponentContext} from "../../../context";
+import { CMSContext, ComponentContext } from "../../../context";
+import { ThemeContext } from '../../../../../ui/useTheme';
 import { convertOldState } from "./utils/convertOldState";
 import {useHandleClickOutside, getData, isCalculatedCol} from "./utils/utils";
 import { Attribution } from "./components/Attribution";
-import {Pagination} from "./components/Pagination";
+import { Pagination } from "./components/Pagination";
 
 
 const getCurrDate = () => {
@@ -61,7 +62,7 @@ const RenderDownload = ({state, apiLoad, cms_context}) => {
     // two options:
     // 1. download visible columns: add primary column if set
     // 2. download all columns: unavailable for grouped mode
-    const {UI} = useContext(cms_context || CMSContext) || {UI: {Icon: () => <></>}};
+    const {UI} = useContext(ThemeContext);
     const {Icon} = UI;
     const [open, setOpen] = React.useState(false);
     const [loading, setLoading] = React.useState(false);
@@ -104,7 +105,8 @@ const RenderDownload = ({state, apiLoad, cms_context}) => {
 
 const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, hideSourceSelector}) => {
     const isEdit = Boolean(onChange);
-    const {UI} = useContext(cms_context || CMSContext) || {UI: {Icon: () => <></>}};;
+    const { UI } = useContext(ThemeContext)
+    //const {UI} = useContext(cms_context || CMSContext) || {UI: {Icon: () => <></>}};;
     const {Icon} = UI;
     const {state, setState, apiLoad} = useContext(ComponentContext);
     const [loading, setLoading] = useState(false);
@@ -155,8 +157,8 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
                 ...acc,
                 [name]: {keepOriginal, joinKey, valueKey, joinWithChar, serverFn}
             }), {}),
-            meta: state.columns.filter(column => column.show && 
-                                                 ['meta-variable', 'geoid-variable', 'meta'].includes(column.display) && 
+            meta: state.columns.filter(column => column.show &&
+                                                 ['meta-variable', 'geoid-variable', 'meta'].includes(column.display) &&
                                                  column.meta_lookup)
                                .reduce((acc, column) => ({...acc, [column.name]: column.meta_lookup}), {})
         }
@@ -447,7 +449,8 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
 const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest}) => {
     const isEdit = false;
     const navigate = useNavigate();
-    const {UI, pgEnv, baseUrl} = useContext(cms_context || CMSContext) || {UI: {Icon: () => <></>}};
+    const {pgEnv, baseUrl} = useContext(cms_context || CMSContext) ;
+    const { UI } = useContext(ThemeContext)
     const {Icon} = UI;
     const {state, setState, apiLoad} = useContext(ComponentContext);
 
@@ -788,7 +791,7 @@ const View = ({cms_context, value, onChange, size, apiUpdate, component, ...rest
             <div className={'w-full h-full'}>
                 <div className={'w-full'}>
                     {/*
-                        --this causes page jitter (contents moving up and down), 
+                        --this causes page jitter (contents moving up and down),
                         -- if we want a loading indicator, its probably by component
                         -- and it needs to be absolutely positioned
                         <span className={'text-xs'}>{loading ? 'loading...' : state.display.invalidState ? state.display.invalidState : null}</span>

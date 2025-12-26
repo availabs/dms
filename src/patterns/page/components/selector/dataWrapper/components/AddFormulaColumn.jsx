@@ -3,6 +3,7 @@ import { getColumnLabel } from "../utils/utils";
 import { useImmer } from "use-immer";
 import { v4 as uuidv4 } from 'uuid';
 import { CMSContext } from "../../../../context";
+import { ThemeContext } from "../../../../../../ui/useTheme";
 
 const validateAST = (node) => {
     if (node.type === 'operation') {
@@ -35,7 +36,7 @@ const grouping = [
 ];
 
 const Modal = ({ open, setOpen, columns, addFormulaColumn, cms_context }) => {
-    const {UI} = useContext(cms_context || CMSContext) || {UI: {Icon: () => <></>}};
+  const { UI } = useContext(ThemeContext);
     const {Icon} = UI;
     if (!open) return null;
     const [state, setState] = useImmer({

@@ -1,3 +1,4 @@
+import { set } from "lodash-es"
 
 export const layoutSettings = (theme) => {
   const activeStyle=theme?.layout?.options?.activeStyle
@@ -54,7 +55,7 @@ export const layoutSettings = (theme) => {
         //console.log('lisbox on Change', )
         setState(draft => {
 
-          draft.layout.options.topNav.rightMenu = draft?.layout?.options?.topNav.rightMenu || []
+          set(draft,'layout.options.topNav.rightMenu', draft?.layout?.options?.topNav.rightMenu || [])
           draft?.layout?.options?.topNav?.rightMenu .push({ type: e })
         })
       }
@@ -99,8 +100,9 @@ export const layoutSettings = (theme) => {
       options: theme?.layout?.options?.widgets || [],
       onChange:(e, setState) => {
         setState(draft => {
-          draft.layout.options.sideNav.topMenu = draft?.layout?.options?.sideNav?.topMenu || []
-          draft?.layout?.options?.sideNav?.topMenu .push({ type: e })
+          //draft.layout.options.sideNav.topMenu = draft?.layout?.options?.sideNav?.topMenu || []
+          set(draft,'layout.options.sideNav.topMenu', draft?.layout?.options?.sideNav.topMenu || [])
+          draft.layout.options.sideNav.topMenu.push({ type: e })
         })
       }
     },
@@ -259,8 +261,8 @@ export default  {
       "size": "compact",
       "nav": "main",
       "activeStyle": null,
-      "topMenu": [{ type: 'Logo' }],
-      "bottomMenu": [{type: 'UserMenu'}]
+      "topMenu": [],
+      "bottomMenu": []
     },
     "topNav": {
       "size": "none",

@@ -30,13 +30,16 @@ const permissionsTheme = {
 }
 
 export default function ({
-                             value, user, getUsers, getGroups, onChange,
-                             permissionDomain = defaultPermissionsDomain,
-                             defaultPermission = []
-                         }) {
+    value, user, getUsers, getGroups, onChange,
+    permissionDomain = defaultPermissionsDomain,
+    defaultPermission = []
+}) {
     const [users, setUsers] = React.useState([]);
     const [groups, setGroups] = React.useState([]);
     const [tmpValue, setTmpValue] = useState(parseIfJSON(value));
+
+    //useEffect(() => setTmpValue(parseIfJSON(value)),[value])
+    console.log('UI - Permissions value', tmpValue)
 
     useEffect(() => {
         async function load() {

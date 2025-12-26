@@ -33,10 +33,11 @@ const navPages = [
   }
 ]
 
-const PatternEditor = ({params, item, format, apiUpdate}) => {
+const PatternEditor = ({params, item, format, attributes, apiUpdate}) => {
   const { baseUrl, parentBaseUrl } = React.useContext(AdminContext);
   const [tmpItem, setTmpItem] = React.useState(item);
   const {id, page='overview'} = params;
+  console.log( 'patternEditor', attributes)
   const PageComp = navPages.filter(d => d.path === page)?.[0]?.component || navPages[0].component
     return (
       <div className={`h-full flex flex-col w-full`}>
@@ -53,6 +54,7 @@ const PatternEditor = ({params, item, format, apiUpdate}) => {
             <PageComp
               value={tmpItem}
               onChange={(d) => d}
+              attributes={attributes}
             />
           </div>
       </div>

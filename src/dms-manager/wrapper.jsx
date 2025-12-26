@@ -1,24 +1,13 @@
 import React, {useEffect} from 'react'
 import { useLoaderData, useActionData,useSubmit, useLocation, useNavigate } from "react-router";
-import { getAttributes,filterParams } from './_utils'
+import { getAttributes,filterParams, json2DmsForm } from './_utils'
 import { dmsDataEditor, dmsDataLoader } from '../index'
 import { isEqual } from "lodash-es"
-//import { useImmer } from "use-immer";
+
 
 import { get } from "lodash-es"
 
-const json2DmsForm = (data,requestType='update',config, path) => {
-  let out = new FormData()
-  out.append('data', JSON.stringify(data))
-  out.append('requestType', requestType)
-  if(config) {
-  	out.append('dmsConfig', JSON.stringify(config))
-  }
-  if(path) {
-  	out.append('path', path)
-  }
-  return out
-}
+
 
 export default function EditWrapper({ Component, format, options, params, user, falcor, mode, reqPermissions, ...props}) {
 

@@ -2,14 +2,14 @@
 import React, {Fragment, useContext, useState} from 'react'
 import { cloneDeep, set, get, isEqual } from 'lodash-es'
 import { updateTitle } from '../editFunctions'
-import { v4 as uuidv4 } from 'uuid';
 import { PageContext, CMSContext } from '../../../context'
-import {ThemeContext} from "../../../../../ui/useTheme";
-import {getPageAuthPermissions} from "../../../pages/_utils";
+import { ThemeContext } from "../../../../../ui/useTheme";
+import { getPageAuthPermissions } from "../../../pages/_utils";
 
 const FilterSettings = ({label, type, value, stateValue, onChange}) => {
-  const {UI, isUserAuthed} = useContext(CMSContext);
-  const {pageState} = useContext(PageContext)
+  const { isUserAuthed } = useContext(CMSContext);
+  const { pageState } = useContext(PageContext)
+  const { UI } = useContext(ThemeContext)
   const {Input, FieldSet, Switch, Button} = UI;
   const [newFilter, setNewFilter] = useState({});
   const [tmpValue, setTmpValue] = useState(typeof value === 'string' ? JSON.parse(value) : (value || []));
@@ -77,7 +77,7 @@ const FilterSettings = ({label, type, value, stateValue, onChange}) => {
                     },
                     {type: 'Button', children: 'add',
                         onClick: () => {
-                            const id = uuidv4();
+                            const id = crypto.randomUUID();
                             onChange([...tmpValue, {id, ...newFilter}]);
                             setTmpValue([...tmpValue, {id, ...newFilter}])
                             setNewFilter({});
@@ -111,8 +111,8 @@ function DebouncedInput({value, onChange, Input, ...rest}) {
 }
 
 function SettingsPane () {
-  const { theme } = React.useContext(ThemeContext);
-  const { UI, baseUrl, user, isUserAuthed  } = React.useContext(CMSContext) || {}
+  const { theme, UI } = React.useContext(ThemeContext);
+  const { baseUrl, user, isUserAuthed  } = React.useContext(CMSContext) || {}
   const { item, pageState, dataItems, apiUpdate } =  React.useContext(PageContext) || {}
   const { Button, Menu, FieldSet, Icon, Input } = UI;
     const pageAuthPermissions = getPageAuthPermissions(pageState?.authPermissions);
@@ -192,14 +192,29 @@ function SettingsPane () {
           {
             type:'Select',
             label: 'Show SideNav',
-            value: item?.navOptions?.sideNav?.size || '',
+            value: theme?.layout?.options?.sideNav?.size || '',
             options: [
                   {label: 'Show', value: 'compact'},
                   {label: 'Hide', value: 'none'}
 
             ],
             onChange:(e) => {
-              togglePageSetting(item, 'navOptions.sideNav.size', e.target.value,  apiUpdate)
+              console.log('toggle sidenave', )
+              togglePageSetting(item, 'theme.layout.options.sideNav.size', e.target.value,  apiUpdate)
+            }
+          },
+          {
+            type:'Select',
+            label: 'Sidenav Style',
+            value: item?.theme?.layout?.options?.sideNav?.activeStyle || '',
+            options: [
+              { label: 'default', value: "" },
+              ...(theme?.topNav?.styles || [{}])
+                .map((k, i) => ({ label: k?.name || i, value: i })),
+            ],
+            onChange:(e) => {
+              console.log('toggle active style')
+              togglePageSetting(item, 'theme.layout.options.sideNav.activeStyle', e.target.value,  apiUpdate)
             }
           },
           {
@@ -263,7 +278,7 @@ export default SettingsPane
 export const togglePageSetting = async (item,type, value='', apiUpdate) => {
   const newItem = {id: item.id}
   set(newItem, type, value)
-  console.log('update', type, newItem)
+  //console.log('update', type, newItem)
 
   // console.log('item', newItem, value)
   let sectionType = 'draft_sections';
@@ -284,36 +299,36 @@ export const togglePageSetting = async (item,type, value='', apiUpdate) => {
   apiUpdate({data:newItem})
 }
 
-export function PublishButton () {
-  // const {item, apiUpdate } =  React.useContext(PageContext) || {}
-  // const hasChanges = item.published === 'draft' || item.has_changes
-  // const { user, UI } = React.useContext(CMSContext) || {};
-  // const {Icon, Button} = UI;
-  //
-  // return (
-  //   <div className='w-full flex justify-center h-[40px]'>
-  //     <Button
-  //         padding={'pl-2 flex items-center h-[40px]'}
-  //         disabled={!hasChanges}
-  //         rounded={hasChanges ? 'rounded-l-lg' : 'rounded-lg'}
-  //         type={hasChanges ? 'active' : 'inactive'}
-  //         // onClick={() => publish(user,item, apiUpdate)}
-  //     >
-  //       <span className='text-nowrap'> {hasChanges ? `Publish` : `No Changes`} </span>
-  //
-  //     </Button>
-  //     {hasChanges && (
-  //       <Menu
-  //         items={[{
-  //           name: (<span className='text-red-400'>Discard Changes</span>),
-  //           // onClick: () =>  discardChanges(user,item, apiUpdate)}
-  //         ]}
-  //       >
-  //         <Button padding={'py-1 w-[35px] h-[40px]'} rounded={'rounded-r-lg'} type={hasChanges ? 'active' : 'inactive'}>
-  //           <Icon icon={'CaretDown'} className='size-[28px]' />
-  //         </Button>
-  //       </Menu>
-  //     )}
-  //   </div>
-  // )
-}
+// export function PublishButton () {
+//   // const {item, apiUpdate } =  React.useContext(PageContext) || {}
+//   // const hasChanges = item.published === 'draft' || item.has_changes
+//   // const { user, UI } = React.useContext(CMSContext) || {};
+//   // const {Icon, Button} = UI;
+//   //
+//   // return (
+//   //   <div className='w-full flex justify-center h-[40px]'>
+//   //     <Button
+//   //         padding={'pl-2 flex items-center h-[40px]'}
+//   //         disabled={!hasChanges}
+//   //         rounded={hasChanges ? 'rounded-l-lg' : 'rounded-lg'}
+//   //         type={hasChanges ? 'active' : 'inactive'}
+//   //         // onClick={() => publish(user,item, apiUpdate)}
+//   //     >
+//   //       <span className='text-nowrap'> {hasChanges ? `Publish` : `No Changes`} </span>
+//   //
+//   //     </Button>
+//   //     {hasChanges && (
+//   //       <Menu
+//   //         items={[{
+//   //           name: (<span className='text-red-400'>Discard Changes</span>),
+//   //           // onClick: () =>  discardChanges(user,item, apiUpdate)}
+//   //         ]}
+//   //       >
+//   //         <Button padding={'py-1 w-[35px] h-[40px]'} rounded={'rounded-r-lg'} type={hasChanges ? 'active' : 'inactive'}>
+//   //           <Icon icon={'CaretDown'} className='size-[28px]' />
+//   //         </Button>
+//   //       </Menu>
+//   //     )}
+//   //   </div>
+//   // )
+// }

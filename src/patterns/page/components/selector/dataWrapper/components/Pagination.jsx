@@ -1,9 +1,10 @@
 import React, {useContext, useEffect} from "react";
 import {CMSContext, ComponentContext} from "../../../../context";
+import { ThemeContext  } from "../../../../../../ui/useTheme";
 
 export const Pagination = ({currentPage, setCurrentPage, showPagination, setReadyToLoad}) => {
     const { state } = useContext(ComponentContext);
-    const {UI} = useContext(CMSContext) || {UI: {Pagination: () => <></>}};
+    const {UI} = useContext(ThemeContext)
     const {Pagination} = UI;
     if(!state.columns.filter(column => column.show).length || !showPagination) return;
 

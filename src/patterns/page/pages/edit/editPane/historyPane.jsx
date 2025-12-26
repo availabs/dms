@@ -1,6 +1,6 @@
 import React, {Fragment, useContext, useState} from 'react'
 
-
+import { ThemeContext } from '../../../../../ui/useTheme'
 import { CMSContext,PageContext } from '../../../context'
 import {timeAgo} from '../../_utils'
 import { updateHistory } from '../editFunctions'
@@ -24,7 +24,7 @@ function EditHistory () {
       <div className="relative flex-1 px-4 sm:px-6 w-full max-h-[calc(100vh_-_135px)] overflow-y-auto">
         <HistoryList history={item?.history || []} onChange={value => updateHistory(item, value, user, apiUpdate)}/>
       </div>
-    </div>          
+    </div>
   )
 }
 
@@ -37,7 +37,7 @@ function classNames(...classes) {
 }
 
 function HistoryList({history, onChange}) {
-    const {UI} = useContext(CMSContext);
+    const {UI} = useContext(ThemeContext);
     const {Icon} = UI;
   const [comment, setComment] = useState('');
   return (
@@ -109,5 +109,3 @@ function HistoryList({history, onChange}) {
     </>
   )
  }
-
-

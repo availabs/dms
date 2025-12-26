@@ -6,63 +6,33 @@ import {
   updateAttributes,
 } from "./pages/_utils";
 
+// components
+import cmsFormat from "./page.format.js";
+import { CMSContext } from "./context";
+import { isUserAuthed } from "./auth.js";
 import UI from "../../ui";
-import { ThemeContext, RegisterLayoutWidget } from "../../ui/useTheme.js";
+import { ThemeContext, RegisterLayoutWidget, getPatternTheme } from "../../ui/useTheme.js";
 import SearchButton from "./components/search/index.jsx";
+import DefaultMenu from "./components/menu";
+
 // pages
 import PageView from "./pages/view";
 import PageEdit from "./pages/edit";
+import ErrorPage from "./pages/error";
 
 // Manager
-import ManageLayout from "./pages/manager/layout";
-import Dashboard from "./pages/manager";
-import PageManager from "./pages/manager/pages";
-import DesignEditor from "./pages/manager/design";
-import FormatManager from "./pages/manager/formatManager";
+// import ManageLayout from "./pages/manager/layout";
+// import Dashboard from "./pages/manager";
+// import PageManager from "./pages/manager/pages";
+// import DesignEditor from "./pages/manager/design";
+// import FormatManager from "./pages/manager/formatManager";
 
-import cmsFormat from "./page.format.js";
-import { CMSContext } from "./context";
-import DefaultMenu from "./components/menu";
-
-// import { SearchPage } from "./components/search/SearchPage";
-
-import defaultTheme from "../../ui/defaultTheme";
-import ErrorPage from "./pages/error";
 // ------------
 RegisterLayoutWidget('UserMenu', DefaultMenu)
 RegisterLayoutWidget('SearchButton', SearchButton)
 // ------------
-// -------------------------------------
-// should move to dms-manager
-// ------------------------------------
 
-const isUserAuthed = ({user={}, reqPermissions=[], authPermissions={}}) => {
-    if(!reqPermissions?.length) return true; // if there are no required permissions
-    // if(!user?.authed) return false; public group makes this useless
-    const authedGroups = authPermissions.groups || {}; // will always have public group
-    const authedUsers = authPermissions.users || {};
 
-    // if user is logged in, and auth has not been setup (except public group) return true
-    if(user.authed && !Object.keys(authedGroups).filter(g => g !== 'public').length && !Object.keys(authedUsers).length) return true;
-
-    if(!Object.keys(authedGroups).length && !Object.keys(authedUsers).length) return true;
-
-    const userAuthPermissions =
-        [
-            ...(authedUsers[user?.id] || []),
-            ...(user.groups || [])
-                .filter(group => authedGroups[group])
-                .reduce((acc, group) => {
-                    const groupPermissions = Array.isArray(authedGroups[group]) ? authedGroups[group] : [authedGroups[group]];
-                    if(groupPermissions?.length){
-                        acc.push(...groupPermissions)
-                    }
-                    return acc;
-                }, [])
-        ]
-
-    return userAuthPermissions.some(permission => permission === '*' || reqPermissions.includes(permission))
-}
 
 const pagesConfig = ({
   app, type,
@@ -77,15 +47,13 @@ const pagesConfig = ({
   pgEnv,
   API_HOST
 }) => {
-  let theme = merge(
-    {},
-    defaultTheme,
-    (themes[pattern?.theme?.settings?.theme?.theme] || themes.default),
-    (pattern?.theme || {})
-  );
-
+  const theme = getPatternTheme(themes, pattern)
+  //---------------------------------------------------------------------
+  // Update format and attributes for things to work correctly
+  // This should probable be moved to DMS Manager
+  // Or at least re-thought so it doesn't need to be in all site configs
+  // --------------------------------------------------------------------
   baseUrl = baseUrl === "/" ? "" : baseUrl;
-
   const format = cloneDeep(cmsFormat);
   format.app = app;
   format.type = type;
@@ -96,12 +64,7 @@ const pagesConfig = ({
         .find(f => f.type.includes('cms-section'))
         .attributes.push(...pattern.additionalSectionAttributes)
   }
-
-
-  // ---------------------------------------------
-  // for instances without auth turned on, default user can edit
-  // should move this to dmsFactory default authWrapper
-  // ---------------------------------------------
+  //----------End Format Initialization ----------------------------------
 
   const patternFilters = parseIfJSON(pattern?.filters, []);
   // const rightMenuWithSearch = rightMenu; // for live site
@@ -110,64 +73,32 @@ const pagesConfig = ({
     format: format,
     baseUrl,
     API_HOST,
-    errorElement: () => {
-      // console.log('hola', user, defaultUser, user || defaultUser)
-
-      return (
-        <CMSContext.Provider
-          value={{
-            app,
-            type,
-            siteType,
-            UI,
-            API_HOST,
-            baseUrl,
-            pgEnv,
-            damaBaseUrl,
-            patternFilters,
-            Menu: () => <>{rightMenu}</>,
-          }}
-        >
-          <ThemeContext.Provider value={{ theme, UI }}>
-            <ErrorPage />
-          </ThemeContext.Provider>
-        </CMSContext.Provider>
-      );
-    },
     children: [
       {
         type: ({children, falcor, user, ...props}) => {
-          // console.log('pages siteConfig - ', user )
-          // console.log('page siteConfig - UI', UI )
-          console.log(
-            'siteconfig Themes', themes,
-            '\n pattern', pattern,
-            '\n chosen theme', themes[pattern?.theme?.settings?.theme?.theme],
-            '\n output theme', theme
-          )
           return (
-              <CMSContext.Provider value={{
-                app, type, siteType,
-                API_HOST,
-                baseUrl,
-                pgEnv, damaBaseUrl,
-                user,
-                falcor,
-                patternFilters, datasetPatterns,
-                authPermissions,
-                UI,
-                isUserAuthed: (reqPermissions, customAuthPermissions) => isUserAuthed({user, authPermissions: customAuthPermissions || authPermissions, reqPermissions}),
-                Menu: () => <>{rightMenu}</>
-              }}>
-                <ThemeContext.Provider value={{theme, UI}}>
-                  {children}
-                </ThemeContext.Provider>
-              </CMSContext.Provider>
+            <CMSContext.Provider value={{
+              app, type, siteType,
+              API_HOST,
+              baseUrl,
+              pgEnv, damaBaseUrl,
+              user,
+              falcor,
+              patternFilters, datasetPatterns,
+              authPermissions,
+              isUserAuthed: (reqPermissions, customAuthPermissions) => {
+                return isUserAuthed({ user, authPermissions: customAuthPermissions || authPermissions, reqPermissions })
+              }
+            }}>
+              <ThemeContext.Provider value={{theme, UI}}>
+                {children}
+              </ThemeContext.Provider>
+            </CMSContext.Provider>
           )
         },
-        authPermissions, // passed down from dmsSiteFactory. these are saved authorisations in patterns.
         action: "list",
         path: "/*",
+        authPermissions, // passed down from dmsSiteFactory. these are saved authorisations in patterns.
         filter: {
           options: JSON.stringify({
             filter: {
@@ -175,16 +106,8 @@ const pagesConfig = ({
             },
           }),
           attributes: [
-            "title",
-            "index",
-            "authPermissions",
-            "url_slug",
-            "parent",
-            "published",
-            "description",
-            "icon",
-            "navOptions",
-            "hide_in_nav",
+            "title", "index", "authPermissions", "url_slug","parent",
+            "published", "description", "icon", "navOptions", "hide_in_nav",
           ],
         },
         children: [
@@ -204,139 +127,28 @@ const pagesConfig = ({
           },
           {
             type: (props) => <PageView {...props} />,
+            path: "/*",
             filter: {
               attributes: [
-                  'title',
-                  'index',
-                  'filters',
-                  'authPermissions',
-                  'url_slug',
-                  'parent',
-                  'published',
-                  'hide_in_nav',
-                  'sections',
-                  'section_groups',
-                  'sidebar',
-                  'navOptions',
-                  'theme']
+                  'title','index','filters','authPermissions','url_slug','parent','published',
+                  'hide_in_nav','sections',  'section_groups',  'sidebar',  'navOptions','theme'
+              ]
             },
-            path: "/*",
-            action: "view",
-              authPermissions,
-              reqPermissions: ['view-page']
+            action: 'view',
+            authPermissions,
+            reqPermissions: ['view-page']
           },
         ],
       },
     ],
+    errorElement: () => {
+      return (
+        <ThemeContext.Provider value={{ theme, UI }}>
+          <ErrorPage />
+        </ThemeContext.Provider>
+      );
+    },
   };
 };
 
-const pagesManagerConfig = ({
-  app = "dms-site",
-  type = "docs-page",
-  siteType,
-  rightMenu = <DefaultMenu />,
-  baseUrl = "/",
-  damaBaseUrl,
-  logo, // deprecated
-  authPermissions,
-  themes = { default: {} },
-  pattern,
-  site,
-  pgEnv,
-  API_HOST,
-    user
-}) => {
-  let theme = merge(
-    cloneDeep(defaultTheme),
-    cloneDeep(
-      themes[pattern?.theme?.settings?.manager_theme_2?.theme] || themes.default,
-    ),
-    pattern?.theme || {},
-  );
-
-  baseUrl = baseUrl === "/" ? "" : baseUrl;
-
-
-  const format = cloneDeep(cmsFormat);
-  format.app = app;
-  format.type = type;
-  updateRegisteredFormats(format.registerFormats, app, type);
-  updateAttributes(format.attributes, app, type);
-
-  return {
-    siteType,
-    format: format,
-    baseUrl: `${baseUrl}/manage`,
-    API_HOST,
-    children: [
-      {
-        type: ({children, falcor, ...props}) => {
-          return (
-            <CMSContext.Provider
-              value={{
-                UI,
-                API_HOST,
-                baseUrl,
-                damaBaseUrl,
-                user,
-                falcor,
-                pgEnv,
-                app,
-                type,
-                siteType,
-                Menu: () => <>{rightMenu}</>,
-              }}
-            >
-              <ThemeContext.Provider value={{ theme, UI }}>
-                <ManageLayout {...props}>{children}</ManageLayout>
-              </ThemeContext.Provider>
-            </CMSContext.Provider>
-          );
-        },
-        authPermissions,
-        action: "list",
-        path: "/*",
-        filter: {
-          options: JSON.stringify({
-            filter: {
-              "data->>'hide_in_nav'": ["null"],
-            },
-          }),
-          attributes: [
-            "title",
-            "index",
-            "url_slug",
-            "parent",
-            "published",
-            "hide_in_nav",
-          ],
-        },
-        children: [
-          {
-            type: Dashboard,
-            path: "",
-            action: "edit",
-          },
-          {
-            type: (props) => <DesignEditor themes={themes} {...props} />,
-            path: "design",
-            action: "edit",
-          },
-            {
-            type: (props) => <FormatManager themes={themes} {...props} />,
-            path: "format",
-            action: "edit",
-          },
-          {
-            type: PageManager,
-            path: "pages",
-            action: "edit",
-          },
-        ],
-      },
-    ],
-  };
-};
-
-export default [pagesConfig, pagesManagerConfig];
+export default [pagesConfig];

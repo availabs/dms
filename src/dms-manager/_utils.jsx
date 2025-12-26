@@ -30,7 +30,7 @@ export function configMatcher (config, path ) {
 }
 
 export function getActiveConfig (config=[], path='/', depth = 0) {
-	
+
 	let configs = cloneDeep(configMatcher(config,path, depth))
 
 	let childConfigs = configs
@@ -41,7 +41,7 @@ export function getActiveConfig (config=[], path='/', depth = 0) {
 			}
 			return out
 		},[])
-		
+
     //console.log(childConfigs)
 
 	return [...configs,...childConfigs]
@@ -50,12 +50,30 @@ export function getActiveConfig (config=[], path='/', depth = 0) {
 
 
 export function validFormat(format) {
-	return format && 
-		format.attributes && 
+	return format &&
+		format.attributes &&
 		format.attributes.length > 0
 }
 
+export function json2DmsForm (data,requestType='update',config, path) {
+  let out = new FormData()
+  out.append('data', JSON.stringify(data))
+  out.append('requestType', requestType)
+  if(config) {
+  	out.append('dmsConfig', JSON.stringify(config))
+  }
+  if(path) {
+  	out.append('path', path)
+  }
+  return out
+}
 
+// export const json2DmsForm = (data,requestType='update') => {
+//   let out = new FormData()
+//   out.append('data', JSON.stringify(data))
+//   out.append('requestType', requestType)
+//   return out
+// }
 
 /*
 export function enhanceFormat(format) {
@@ -73,8 +91,8 @@ export function enhanceFormat(format) {
 export function filterParams (data, params,format) {
 	// filter data that has params
 	// in params objects
-	
-	// let one attribute match wildcard * 
+
+	// let one attribute match wildcard *
 	let wildKey = format?.attributes?.reduce((out,attr) => {
 		if(attr.matchWildcard){
 			out = attr.key
@@ -83,7 +101,7 @@ export function filterParams (data, params,format) {
 	},'') || ''
 
 	//console.log('filterParams', data, params, wildKey)
-	
+
 	let filter = false
 	Object.keys(params).forEach(k => {
 		if(data[k] == params[k] || (Boolean(data[wildKey]) && data[wildKey] === params['*'])) {
@@ -96,16 +114,11 @@ export function filterParams (data, params,format) {
 	if(params['id'] == data['id']) {
 		return true
 	}
-	
+
 	return filter
 }
 
-export const json2DmsForm = (data,requestType='update') => {
-  let out = new FormData()
-  out.append('data', JSON.stringify(data))
-  out.append('requestType', requestType)
-  return out
-}
+
 
 export const updateRegisteredFormats = (registerFormats, app, type) => {
 	if (Array.isArray(registerFormats)) {
@@ -123,7 +136,7 @@ export const updateRegisteredFormats = (registerFormats, app, type) => {
 	}
 	return registerFormats;
   };
-  
+
 export const updateAttributes = (attributes, app, type) => {
 	if (Array.isArray(attributes)) {
 	  attributes = attributes.map((attr) => {
@@ -140,14 +153,14 @@ export const updateAttributes = (attributes, app, type) => {
 
 export function getAttributes (format, options={}, mode='') {
 	//console.log('getAttributes', format, options)
-	
+
 	const formats = processFormat(format)
 	const accessor = options?.accessor || 'key'
 	// const attributeFilter = get(options, 'attributes', [])
 	// console.log('getAttributes', format.attributes)
 	const attributes = format.attributes
 		//.filter(attr => attributeFilter.length === 0 || attributeFilter.includes(attr.key))
-		.filter(attr => mode !== 'edit' || 
+		.filter(attr => mode !== 'edit' ||
 				(typeof attr.editable === 'undefined' ||
 				!attr.editable === false)
 		)
@@ -166,10 +179,10 @@ export function getAttributes (format, options={}, mode='') {
 	const attributeKeys = Object.keys(attributes)
 
 	//console.log('attributeKeys', attributes)
-		
+
 	Object.keys(attributes)
 		.filter(attributeKey => attributeKeys.includes(attributeKey))
-		.forEach(attributeKey => {		
+		.forEach(attributeKey => {
 			attributes[attributeKey].ViewComp = getViewComp(
 				get(attributes, `${attributeKey}`, {})
 			)

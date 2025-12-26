@@ -4,6 +4,7 @@ import { CMSContext } from '../context'
 import { AuthContext } from "../../auth/context";
 import { ThemeContext } from "../../../ui/useTheme";
 import NavigableMenu from "../../../ui/components/navigableMenu";
+import { auth } from "@availabs/ams/dist/api/auth";
 
 // import {NavItem, NavMenu, NavMenuItem, NavMenuSeparator, withAuth} from 'components/avl-components/src'
 // import user from "@availabs/ams/dist/reducers/user";
@@ -21,7 +22,7 @@ const UserMenu = ({}) => {
     const { user} = useContext(AuthContext)
     const {Icon} = UI;
     return (
-      <div className="flex w-full items-center justify-center rounded-xl @container">
+      <div className="flex w-full items-center justify-center rounded-xl min-w-[60px] @container">
         <div className="flex p-2  justify-center">
           <div className={`size-8  border-[#E0EBF0] rounded-lg place-items-center content-center `}>
               <Icon icon={'User'} className='size-6 fill-[#37576b]' />
@@ -59,7 +60,7 @@ const EditControl = () => {
             'publish-page'
         ])
       ) && (
-        <div className="flex justify-center items-center @max-[60px]:order-first">
+        <div className="flex justify-center items-center order-first p-2">
           <Link className={`${menuTheme?.iconWrapper}`} to={`${baseUrl}${edit ? '' : '/edit'}${urlpath}${location.search}`}>
             {/*have to use rr to get query paramswindow.location.search*/}
             <Icon icon={edit ? menuTheme?.viewIcon : menuTheme?.editIcon} className={menuTheme?.icon} />
@@ -90,42 +91,47 @@ export default ({title, children}) => {
         type: 'link'
     }
   ]
+  authMenuItems.forEach(item => {
+    if(item?.path){
+      item.type = 'link'
+    }
+  })
 
-    return (
-      <>
-
-          {!user?.authed ?
-            <div className="border-2 flex items-center justify-center py-2">
-              <Link
-                className={`flex items-center `}
-                to="/auth/login"
-                state={{ from: location?.pathname }}>
-                  <div className={`size-8 border rounded-lg place-items-center content-center `}>
-                    <Icon icon={'login'} className='size-6 fill-[#37576b] hover:fill-slate-500' />
-                  </div>
-              </Link>
-            </div>:
-            (
-              <div className="@container w-full">
-                <div className="flex p-1  items-center @max-[60px]:flex-col">
-                  <NavigableMenu
-                    config={[
-                      { type: () =>  <UserMenu /> },
-                      ...authMenuItems,
-                      { type: 'separator'},
-                      { name: 'Logout', path: '/auth/logout', type: 'link' },
-                    ]}
-                    showTitle={false}
-                  >
-                    <div className='border-1 border-slate-200 flex-1 w-full rounded-xl shadow'>
-                      <UserMenu />
-                    </div>
-                  </NavigableMenu>
-                  <EditControl />
-                </div>
+  //console.log('authMenuItems', authMenuItems)
+  return (
+    <>
+      {!user?.authed ?
+        <div className="flex items-center justify-center py-2">
+          <Link
+            className={`flex items-center `}
+            to="/auth/login"
+            state={{ from: location?.pathname }}>
+              <div className={`size-8 rounded-lg place-items-center content-center `}>
+                <Icon icon={'Login'} className='size-6 fill-[#37576b] hover:fill-slate-500' />
               </div>
-            )
-          }
-      </>
-    )
+          </Link>
+        </div> :
+        (
+          <div className="@container w-full">
+            <div className="flex p-1  items-center">
+              <NavigableMenu
+                config={[
+                  { type: () =>  <UserMenu /> },
+                  ...authMenuItems,
+                  { type: 'separator'},
+                  { name: 'Logout', path: '/auth/logout', type: 'link' },
+                ]}
+                showTitle={false}
+              >
+                <div className='border-1 border-slate-200 flex-1 w-full rounded-xl shadow'>
+                  <UserMenu />
+                </div>
+              </NavigableMenu>
+              <EditControl />
+            </div>
+          </div>
+        )
+      }
+    </>
+  )
 }

@@ -26,6 +26,8 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
 
 	const { Layout } = UI;
 	const theme = merge(cloneDeep(fullTheme), item?.theme || {});
+	console.log('edit theme merge', fullTheme.layout, item.theme, theme.layout)
+
 	const menuItems = React.useMemo(() => dataItemsNav(dataItems,baseUrl,true), [dataItems]);
 
 	const menuItemsSecondNav = React.useMemo(() => {
@@ -137,22 +139,19 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
 			editPane, setEditPane,
 			format,
 			busy,
-            baseUrl
+      baseUrl
 		}}>
-			<>
+			<ThemeContext.Provider value={{theme, UI}}>
 				<PageControls />
 				<Layout
               navItems={menuItems}
               secondNav={menuItemsSecondNav}
-              pageTheme={{navOptions: item.navOptions || {}}}
-              Menu={Menu}
-              SearchButton={SearchButton}
               headerChildren={React.useMemo(() => getSectionGroups('top'),[item?.draft_section_groups])}
               footerChildren={React.useMemo(() => getSectionGroups('bottom'),[item?.draft_section_groups])}
           >
             {React.useMemo(() => getSectionGroups('content'),[item?.draft_section_groups])}
         </Layout>
-			</>
+			</ThemeContext.Provider>
 		</PageContext.Provider>
 	)
 }

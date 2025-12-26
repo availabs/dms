@@ -1,12 +1,13 @@
 import React, {useContext} from "react";
 import {CMSContext, ComponentContext} from "../../../../context";
+import { ThemeContext } from "../../../../../../ui/useTheme";
 import {duplicateControl} from "../shared/utils";
 import {getColorRange} from "../../../../../../ui/components/graph/GraphComponent";
 import AppearanceControls from "./controls/AppearanceControls";
 
 const Graph = ({isEdit}) => {
     const {state, setState, controls={}} = useContext(ComponentContext);
-    const {UI} = useContext(CMSContext);
+    const {UI} = useContext(ThemeContext);
     const {Graph} = UI;
 
     return <Graph {...state} setState={setState} controls={controls} isEdit={isEdit} />

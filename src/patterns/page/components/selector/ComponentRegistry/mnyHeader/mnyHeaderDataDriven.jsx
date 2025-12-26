@@ -1,11 +1,12 @@
 import React, {useContext, useMemo, useState} from 'react';
 import {Link} from "react-router";
 import {CMSContext, PageContext, ComponentContext} from "../../../../context";
+import { ThemeContext } from '../../../../../../ui/useTheme';
 import {overlayImageOptions, insetImageOptions} from "./consts";
 import {SearchPallet} from "../../../search";
 
 const Breadcrumbs = ({ chain, show }) => {
-    const {UI} = useContext(CMSContext);
+    const {UI} = useContext(ThemeContext);
     const {Icon} = UI;
 
     if(!show) return null;
@@ -24,7 +25,7 @@ const Breadcrumbs = ({ chain, show }) => {
 };
 
 const SearchButton = ({app, type, show}) => {
-    const {UI} = useContext(CMSContext);
+    const {UI} = useContext(ThemeContext);
     const {Icon, Label} = UI;
     const [open, setOpen] = useState(false);
     const [searchStr, setSearchStr] = useState('');

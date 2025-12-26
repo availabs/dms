@@ -6,7 +6,7 @@ import { ThemeContext } from "../../../../../ui/useTheme";
 
 
 const customTheme = {
-    field: 'pb-2 flex flex-col col-span-3'
+    field: 'pb-2 flex flex-col col-span-9'
 }
 
 export const PatternSettingsEditor = ({ value = {}, onChange, ...rest}) => {
@@ -21,10 +21,10 @@ export const PatternSettingsEditor = ({ value = {}, onChange, ...rest}) => {
   // }, [value]);
 
     return (
-      <div className={'flex flex-col gap-1 p-4 border rounded-md'}>
+      <div className={'flex flex-col gap-1 p-4 border rounded-md max-w-5xl'}>
         <span className='font-semibold text-lg'>Page Settings</span>
           <FieldSet
-              className={'grid grid-cols-3 gap-1 border rounded p-4'}
+              className={'grid grid-cols-12 gap-1 border rounded p-4'}
               components={[
                   {
                     label: 'Name',
@@ -59,7 +59,12 @@ export const PatternSettingsEditor = ({ value = {}, onChange, ...rest}) => {
                   {
                     //label: 'Base Url',
                     type: 'Spacer',
-                    customTheme: { field: 'bg-white ' }
+                    customTheme: { field: 'bg-white col-span-3 ' }
+                  },
+                  {
+                    //label: 'Base Url',
+                    type: 'Spacer',
+                    customTheme: { field: 'bg-white col-span-7 ' }
                   },
                   {
                     //label: 'Base Url',

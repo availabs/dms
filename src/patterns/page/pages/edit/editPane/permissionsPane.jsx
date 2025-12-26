@@ -6,8 +6,8 @@ import {AuthContext} from "../../../../auth/context";
 import {getPageAuthPermissions} from "../../_utils";
 
 function PermissionsPane() {
-    const {theme} = React.useContext(ThemeContext);
-    const {UI, user, isUserAuthed} = React.useContext(CMSContext) || {}
+    const { UI } = React.useContext(ThemeContext);
+    const { user, isUserAuthed} = React.useContext(CMSContext) || {}
     const {item, apiUpdate, format, pageState} = React.useContext(PageContext) || {}
     const {AuthAPI} = React.useContext(AuthContext) || {};
     const [authPermissions, setAuthPermissions] = React.useState(item.authPermissions);
@@ -60,9 +60,6 @@ export default PermissionsPane
 export const togglePageSetting = async (item, type, value = '', apiUpdate) => {
     const newItem = {id: item.id}
     set(newItem, type, value)
-    console.log('update', type, newItem)
+    //console.log('update', type, newItem)
     apiUpdate({data: newItem})
 }
-
-
-

@@ -5,9 +5,8 @@ import { CMSContext,PageContext } from '../../../context'
 import {ThemeContext} from "../../../../../ui/useTheme";
 
 function SectionGroupControl ({group}) {
-    const { theme } = React.useContext(ThemeContext) || {};
+  const { UI, theme } = React.useContext(ThemeContext) || {};
   const { item, apiUpdate } =  React.useContext(PageContext) || {}
-    const {UI} = React.useContext(CMSContext);
   const {Menu, Icon} = UI;
   const updateAttribute = (attr, value) => {
     let newSections = cloneDeep(item.draft_section_groups)
@@ -29,10 +28,10 @@ function SectionGroupControl ({group}) {
     //console.log('section group', group.name, item.id)
     apiUpdate({data: newItem})
   }
-  
+
   const sectionMenuItems = [
       //{ icon: 'PencilSquare', name: 'Edit', onClick: onEdit },
-      
+
       // { type: 'seperator'},
       // { icon: 'ChevronUpSquare', name: 'Move Up', onClick: () => {} },
       // { icon: 'ChevronDownSquare', name: 'Move Down', onClick: () =>  {} },
@@ -76,12 +75,12 @@ function SectionGroupControl ({group}) {
     <div className='border p-4 flex justify-between items-center'>
       <div>{group?.displayName || group?.name}</div>
       <div>
-        <Menu items={sectionMenuItems}> 
+        <Menu items={sectionMenuItems}>
             <div  className='p-1 hover:bg-slate-100/75 rounded-lg'>
                 <Icon icon="Menu" className='text-slate-500 hover:text-slate-900 size-6'/>
             </div>
         </Menu>
-      </div>                   
+      </div>
     </div>
   )
 }
@@ -137,7 +136,7 @@ export default function SectionGroupsPane () {
             label: 'Show Header',
             value: item.header || '',
             options: [
-              {label: 'None', value: 'none'}, 
+              {label: 'None', value: 'none'},
                   {label: 'Above', value: 'above'},
                   {label: 'Below', value: 'below'},
                   {label: 'In page', value: 'inpage'}
@@ -146,10 +145,10 @@ export default function SectionGroupsPane () {
               togglePageSetting(item, 'header', e.target.value,  apiUpdate)
             }
           },
-          
+
         ]} />*/}
       </div>
-    </div>          
+    </div>
   )
 }
 
@@ -159,7 +158,7 @@ export const togglePageSetting = async (item,type, value='', apiUpdate) => {
   const newItem = {id: item.id}
   set(newItem, type, value)
   //console.log('update', type, newItem)
- 
+
   // console.log('item', newItem, value)
   let sectionType = 'draft_sections';
   if(type === 'header' && !item?.[sectionType]?.filter(d => d.is_header)?.[0]) {
@@ -173,11 +172,8 @@ export const togglePageSetting = async (item,type, value='', apiUpdate) => {
         "element-data": {}
       }
     })
-   
-  } 
+
+  }
 
   apiUpdate({data:newItem})
 }
-
-
-

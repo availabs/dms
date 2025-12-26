@@ -1,12 +1,11 @@
 import React, {useContext, useEffect, useMemo, useState} from 'react'
 import Frame from 'react-frame-component'
 import { useImmer } from 'use-immer';
-import {useNavigate} from 'react-router';
-
+import { useNavigate } from 'react-router';
 import { merge, cloneDeep, get, set } from "lodash-es";
 
-import {ThemeContext} from "../../../../../ui/useTheme";
-import {AdminContext} from "../../../context";
+import { ThemeContext } from "../../../../../ui/useTheme";
+import { AdminContext } from "../../../context";
 import { parseIfJSON } from '../../../../page/pages/_utils';
 import defaultTheme from '../../../../../ui/defaultTheme'
 
@@ -36,7 +35,6 @@ const compOptions = [
 	{ label: 'Table', value: 'Table' },
 	{ label: 'Tabs', value: 'Tabs' },
 	{ label: 'TopNav', value: 'TopNav' },
-
 	{ label: 'DeleteModal', value: 'DeleteModal' },
 	{ label: 'Dialog', value: 'Dialog' },
 	{ label: 'Modal', value: 'Modal' },
@@ -74,6 +72,7 @@ function ControlRenderer({ config, state, setState }) {
 
 export function PatternThemeEditor ({
    item={},
+   value,
    dataItems,
    attributes,
    updateAttribute,
@@ -88,19 +87,43 @@ export function PatternThemeEditor ({
 	const { baseUrl, user, apiUpdate} = React.useContext(AdminContext) || {};
 	const { Select, Button } = UI;
 
-	//const {theme_id, component, ...restparams} = params;
-	//const themeObj = useMemo(() => (item.theme_refs || []).find(t => t.theme_id === theme_id), [item.theme_refs, theme_id])
-  const [patternTheme, setPatternTheme] = useImmer(parseIfJSON(item.theme) || {})
-	let selectedTheme = patternTheme?.settings?.theme ||'default'
-	const currentTheme = useMemo(() =>
+	// console.log('Pattern themeEditor themes',themes)
+	const [baseTheme,setBaseTheme] = React.useState(
 	  merge(
 			cloneDeep(defaultTheme),
-      cloneDeep(themes?.[selectedTheme] || {}),
-			patternTheme
+      cloneDeep(themes?.[value?.theme?.selectedTheme ||'default'] || {}),
 		)
-	,[patternTheme]);
-	console.log('currentTheme', currentTheme)
-	const themeSettings = React.useMemo(() => currentTheme?.settings(currentTheme), [currentTheme])
+	)
+
+	//const {theme_id, component, ...restparams} = params;
+	//const themeObj = useMemo(() => (item.theme_refs || []).find(t => t.theme_id === theme_id), [item.theme_refs, theme_id])
+
+  // ----------------
+  if(value?.theme?.settings) {
+	  delete value.theme.settings
+	}
+  if(!value?.theme?.layout?.options) {
+    set(value, 'theme.layout.options', cloneDeep(baseTheme?.layout?.options))
+  }
+  let inputTheme = value?.theme || {}
+  // ----------------
+  const [patternTheme, setPatternTheme] = useImmer(inputTheme)
+  //let selectedTheme =  useMemo(() => , [patternTheme.selectedTheme])
+
+	const currentTheme = useMemo(() =>{
+	  	let newBaseTheme = cloneDeep(baseTheme)
+	    delete  newBaseTheme?.layout?.options
+  	  return merge(
+        newBaseTheme,
+  			cloneDeep(patternTheme)
+  		)
+	}
+	,[baseTheme, patternTheme]);
+	//console.log('currentTheme', currentTheme)
+  const themeSettings = React.useMemo(() => {
+    // console.log('updateSettings',currentTheme?.settings(currentTheme), currentTheme)
+    return currentTheme?.settings(currentTheme)
+  }, [currentTheme])
   const [currentThemeSetting, setCurrentThemeSetting ] = React.useState(Object.keys(themeSettings)[0])
 
   //change display docs
@@ -108,22 +131,21 @@ export function PatternThemeEditor ({
 	const [currentComponent, setCurrentComponent] = useState('PageView')
   const [currentComponentPropsIdx, setCurrentComponentPropsIdx] = useState(0);
 
-  // useEffect(() => console.log('theme Change',currentTheme),[currentTheme])
-	// useEffect(() => {
-	//   // runs when a new theme Obj is loaded from db
-	//   // merge the default base theme with the base theme
-	//   // const newTheme =  merge(cloneDeep(theme),parseIfJSON(themeObj?.theme))
-	// 	setPatternTheme(parseIfJSON(item.theme))
-	// }, [item]);
-
-	// useEffect(() => {
-	// 	// console.log('settting comp', compFromProps)
-	// 	setCurrentComponent(compFromProps || 'PageView')
-	// }, [compFromProps])
+  useEffect(() => {
+    const newBase = merge(
+      cloneDeep(defaultTheme),
+      cloneDeep(themes?.[patternTheme.selectedTheme ||'default'] || {}),
+    )
+    setBaseTheme(newBase)
+    setPatternTheme((draft) => {
+      set(draft, 'layout.options', cloneDeep(newBase?.layout?.options))
+    })
+  },[patternTheme.selectedTheme])
 
 	const onSubmit = (updateCurrentTheme) => {
 		//const value = item.theme_refs.map(t => t.theme_id === theme_id ? {...t, theme: JSON.stringify(updateCurrentTheme)} : t);
-		const newValue = {id: item.id, theme: patternTheme}
+		const newValue = {id: value.id, theme: patternTheme}
+		//console.log('submitting', newValue)
     apiUpdate({ data: newValue })
 		//updateAttribute('themes', value)
 	}
@@ -137,7 +159,19 @@ export function PatternThemeEditor ({
 		<div className={'flex flex-col p-4 w-full divide-y-2'}>
 			<div className={'w-full flex justify-between border-b-2 border-blue-400'}>
 				<div className='flex'>
-          <div className={'text-2xl font-semibold text-gray-700'}>{selectedTheme}</div>
+          <div className={'text-2xl font-semibold text-gray-700'}>
+            <Select
+              value={patternTheme?.selectedTheme || 'default'}
+              onChange={
+                e => {
+                  setPatternTheme(draft => {
+                    draft.selectedTheme = e.target.value
+                  })
+                }
+              }
+              options={Object.keys(themes).map(d => { return { label: d, value: d } })}
+            />
+            </div>
 					<div className='px-4'>
 						<Select
   					  value={currentComponent}
@@ -166,7 +200,8 @@ export function PatternThemeEditor ({
 			<div className={'flex flex-col sm:flex-row divide-x relative'}>
 				<div className={'w-[250px] order-2 overflow-hidden'}>
     		  <div className={'pb-2'}>
-   					<Select value={currentThemeSetting}
+   					<Select
+              value={currentThemeSetting}
               onChange={e => {
   						  setCurrentThemeSetting(e.target.value)
     						//navigate(`${baseUrl}/${path.replace(':theme_id', theme_id).replace(':component?', e.target.value.toLowerCase())}`)
@@ -179,7 +214,8 @@ export function PatternThemeEditor ({
       		</div>
  					<div className={'w-full flex gap-0.5 justify-end'}>
 						<Button className={'w-fit'} onClick={() => onSubmit(currentTheme)}>Save</Button>
-						<Button className={'w-fit'} onClick={() => setPatternTheme(parseIfJSON(item?.theme))}>Reset</Button>
+						<Button className={'w-fit'} onClick={() => setPatternTheme(parseIfJSON(inputTheme))}>Reset</Button>
+            <Button className={'w-fit'} onClick={() => setPatternTheme({layout:{options: baseTheme?.layout?.options}})}>Full Reset</Button>
  					</div>
   				<div className='h-[calc(100vh_-_11rem)] overflow-auto w-full scrollbar-sm p-2 '>
             { currentThemeSetting }
@@ -219,9 +255,15 @@ export function PatternThemeEditor ({
 					>
   					<ThemeContext.Provider value={{theme: currentTheme, UI}}>
   						<ComponentRenderer
-  						  Component={defaultTheme?.docs?.[currentComponent]?.component || UI[currentComponent]}
+  						  Component={
+                  defaultTheme?.docs?.[currentComponent]?.component ||
+                  UI[currentComponent]
+                }
    							props={
-                  defaultTheme?.docs?.[currentComponent][currentComponentPropsIdx] || defaultTheme?.docs?.[currentComponent]?.props || defaultTheme?.docs?.[currentComponent] }
+                  defaultTheme?.docs?.[currentComponent][currentComponentPropsIdx] ||
+                  defaultTheme?.docs?.[currentComponent]?.props ||
+                  defaultTheme?.docs?.[currentComponent]
+                }
   						/>
   					</ThemeContext.Provider>
 					</Frame>

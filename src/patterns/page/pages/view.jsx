@@ -37,8 +37,6 @@ function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdat
         return <div>You do not have permission to view this page. <Link to={baseUrl}>Click here to visit Home</Link></div>
     }
 
-
-
     const menuItems = React.useMemo(() => {
         let items = dataItemsNav(dataItems,baseUrl,false)
         return items
@@ -97,33 +95,32 @@ function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdat
     }
 
   const getSectionGroups =  ( sectionName ) => {
-      return (item?.section_groups || [])
-          .filter((g,i) => g.position === sectionName)
-          .sort((a,b) => a?.index - b?.index)
-          .map((group,i) => (
-              <SectionGroup
-                  key={group?.name || i}
-                  group={group}
-                  attributes={attributes}
-              />
-          ))
+    return (item?.section_groups || [])
+      .filter((g,i) => g.position === sectionName)
+      .sort((a,b) => a?.index - b?.index)
+      .map((group,i) => (
+          <SectionGroup
+              key={group?.name || i}
+              group={group}
+              attributes={attributes}
+          />
+      ))
   }
 
   return (
       <PageContext.Provider
         value={{ item, pageState, setPageState, updatePageStateFilters, dataItems, apiLoad, apiUpdate, format, busy, baseUrl }}
       >
-        <Layout
-            navItems={menuItems}
-            secondNav={menuItemsSecondNav}
-            pageTheme={{navOptions: item.navOptions || {}}}
-            Menu={Menu}
-            SearchButton={SearchButton}
-            headerChildren={getSectionGroups('top')}
-            footerChildren={getSectionGroups('bottom')}
-        >
-            {getSectionGroups('content')}
-        </Layout>
+        <ThemeContext.Provider value={{theme, UI}}>
+          <Layout
+              navItems={menuItems}
+              secondNav={menuItemsSecondNav}
+              headerChildren={getSectionGroups('top')}
+              footerChildren={getSectionGroups('bottom')}
+          >
+              {getSectionGroups('content')}
+          </Layout>
+        </ThemeContext.Provider>
       </PageContext.Provider>
 
   )

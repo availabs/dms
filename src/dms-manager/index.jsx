@@ -1,5 +1,5 @@
 import React from 'react'
-import { configMatcher, getActiveConfig, validFormat } from './_utils'
+import { configMatcher, getActiveConfig } from './_utils'
 import { defaultCheck, defaultCheckAuth } from './_auth'
 import Wrapper from './wrapper.jsx'
 

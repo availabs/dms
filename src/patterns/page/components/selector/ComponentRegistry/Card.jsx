@@ -1,5 +1,6 @@
 import React, {useContext} from "react";
 import {CMSContext, ComponentContext} from "../../../context";
+import { ThemeContext } from "../../../../../ui/useTheme";
 import {duplicateControl} from "./shared/utils";
 import {formatFunctions} from "../dataWrapper/utils/utils";
 import ColorControls from "./shared/ColorControls";
@@ -49,7 +50,7 @@ const Card = ({
                   newItem, setNewItem,
                   allowEdit // is data edit allowed
               }) => {
-    const {UI} = useContext(CMSContext);
+    const {UI} = useContext(ThemeContext);
     const {Card} = UI;
     const {state, setState, controls={}} = useContext(ComponentContext);
 

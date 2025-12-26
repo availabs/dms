@@ -75,7 +75,7 @@ function pattern2routes (siteData, props) {
     //console.log('patterns2routes',dbThemes)
 
     themes = themes?.default ? { ...themes, ...dbThemes } : { ...themes, ...dbThemes, default: {} }
-    console.log('themes', themes)
+    console.log('dmsSiteFactory themes', themes)
 
     let dmsConfigUpdated = cloneDeep(dmsConfig);
     dmsConfigUpdated.registerFormats = updateRegisteredFormats(dmsConfigUpdated.registerFormats, dmsConfig.app)

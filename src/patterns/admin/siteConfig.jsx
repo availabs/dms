@@ -28,6 +28,9 @@ const SectionGroup = ({children, maxWidth='max-w-7xl', padding='p-4', ...props})
   </div>
 )
 
+
+
+
 const adminConfig = ({
   app = "default-app",
   type = "default-page",
@@ -44,7 +47,17 @@ const adminConfig = ({
     //console.log('defaultTheme', theme)
     let theme = merge(
         cloneDeep(defaultTheme),
-        cloneDeep(themes.mny_admin)
+        {
+          "layout": {
+            "options": {
+              "sideNav": {
+                "topMenu": [{"type": "Logo"}],
+                "bottomMenu": [{"type": "UserMenu" }]
+              }
+            }
+          }
+        }
+        // cloneDeep(themes.mny_admin)
     );
 
     // ----------------------
@@ -64,8 +77,8 @@ const adminConfig = ({
                     const {Layout} = UI;
                     const menuItems = getMenuItems(baseUrl, authPath, props.user)
                     return (
-                        <AdminContext.Provider value={{ baseUrl, authPath, user, apiUpdate, app, type, themes, API_HOST, UI}}>
-                            <ThemeContext.Provider value={{theme, UI}}>
+                        <AdminContext.Provider value={{ baseUrl, authPath, user, apiUpdate, app, type,  API_HOST, UI}}>
+                            <ThemeContext.Provider value={{theme, themes, UI}}>
                               <Layout navItems={menuItems} Menu={() => <>{rightMenu}</>}>
                                   {props.children}
                               </Layout>
@@ -108,7 +121,6 @@ const patternConfig = ({
   app = "default-app",
   type = "default-page",
   API_HOST = 'https://graph.availabs.org',
-
   baseUrl = '/',
   authPath = '/auth',
   themes = {},
@@ -121,10 +133,20 @@ const patternConfig = ({
 
     baseUrl = `${parentBaseUrl}/manage_pattern`
 
-    //console.log('defaultTheme', theme)
+    //console.log('admin PatternConfig', themes)
     let theme = merge(
         cloneDeep(defaultTheme),
-        cloneDeep(themes.mny_admin)
+        //cloneDeep(themes.mny_admin),
+        {
+          "layout": {
+            "options": {
+              "sideNav": {
+                "topMenu": [{"type": "Logo"}],
+                "bottomMenu": [{"type": "UserMenu" }]
+              }
+            }
+          }
+        }
     );
     theme.navOptions = theme?.admin?.navOptions || theme?.navOptions
     theme.navOptions.sideNav.dropdown = 'top'
@@ -147,8 +169,8 @@ const patternConfig = ({
                     const menuItems = getMenuItems(parentBaseUrl, props.user)
 
                     return (
-                        <AdminContext.Provider value={{baseUrl, parentBaseUrl, authPath, user, apiUpdate, app, type, API_HOST, UI}}>
-                            <ThemeContext.Provider value={{theme, UI}}>
+                        <AdminContext.Provider value={{baseUrl, parentBaseUrl,themes, authPath, user, apiUpdate, app, type, API_HOST, UI}}>
+                            <ThemeContext.Provider value={{theme,themes, UI}}>
                                 <Layout navItems={menuItems} Menu={() => <>{rightMenu}</>}>
                                   <SectionGroup maxWidth={ ''}>
                                     {props.children}
@@ -170,7 +192,11 @@ const patternConfig = ({
             }
         ],
         errorElement: (props) => {
-            return <ThemeContext.Provider value={{theme, UI}}><ErrorPage /></ThemeContext.Provider>
+            return (
+              <ThemeContext.Provider value={{theme, UI}}>
+                <ErrorPage />
+              </ThemeContext.Provider>
+            )
         }
     }
 }
