@@ -116,8 +116,8 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
             state.columns.filter(c => c.localFilter)
                 .reduce((acc, c) => ({...acc, [c.name || c.normalName]: c.localFilter}), {}),
         [state.columns]);
-    const localFilterColumns = useMemo(() => Object.keys(localFilters), [localFilters]);
-    const hasLocalFilters = localFilterColumns.length;
+    const localFilterColumns = useMemo(() => Object.keys(localFilters).filter(k => localFilters[k]?.length), [localFilters]);
+    const hasLocalFilters = Boolean(localFilterColumns.length);
     const getFilteredData = useCallback(({currentPage}) => {
         if(!hasLocalFilters) return;
 
@@ -136,7 +136,7 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
         ) - 1;
 
         setState(draft => {
-            draft.data = filteredData.filter((_, i) => i >= fromIndex && i <= toIndex);
+            draft.localFilteredData = filteredData.filter((_, i) => i >= fromIndex && i <= toIndex);
             draft.display.totalLength = filteredData.length;
         })
 
@@ -220,6 +220,7 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
             }
             setState(draft => {
                 draft.data = data;
+                draft.localFilteredData = undefined;
                 draft.display.totalLength = length;
                 draft.display.invalidState = invalidState;
             })
@@ -514,8 +515,8 @@ const View = ({cms_context, value, size, apiUpdate, component}) => {
             state.columns.filter(c => c.localFilter)
                 .reduce((acc, c) => ({...acc, [c.name || c.normalName]: c.localFilter}), {}),
         [state.columns]);
-    const localFilterColumns = useMemo(() => Object.keys(localFilters), [localFilters]);
-    const hasLocalFilters = localFilterColumns.length;
+    const localFilterColumns = useMemo(() => Object.keys(localFilters).filter(k => localFilters[k]?.length), [localFilters]);
+    const hasLocalFilters = Boolean(localFilterColumns.length);
     const getFilteredData = useCallback(({currentPage}) => {
         if(!hasLocalFilters) return;
 
@@ -534,7 +535,7 @@ const View = ({cms_context, value, size, apiUpdate, component}) => {
         ) - 1;
 
         setState(draft => {
-            draft.data = filteredData.filter((_, i) => i >= fromIndex && i <= toIndex);
+            draft.localFilteredData = filteredData.filter((_, i) => i >= fromIndex && i <= toIndex);
             draft.display.totalLength = filteredData.length;
         })
 
@@ -602,7 +603,14 @@ const View = ({cms_context, value, size, apiUpdate, component}) => {
 
     // uweGetDataOnSettingsChange
     useEffect(() => {
-        if(!isValidState || (!state.display.readyToLoad && !state.display.allowEditInView)) return;
+        if(!hasLocalFilters && state.localFilteredData?.length) {
+            // reset localFilteredData on localFilter reset
+            setState(draft => {
+                draft.localFilteredData = undefined;
+            })
+        }
+
+        if(!isValidState || (!hasLocalFilters && !state.display.readyToLoad && !state.display.allowEditInView)) return;
         // only run when controls or source/view change
         async function load() {
             setLoading(true)
@@ -612,6 +620,7 @@ const View = ({cms_context, value, size, apiUpdate, component}) => {
 
             setState(draft => {
                 draft.data = data;
+                draft.localFilteredData = undefined;
                 draft.display.totalLength = length;
             })
             setCurrentPage(newCurrentPage);
@@ -620,7 +629,7 @@ const View = ({cms_context, value, size, apiUpdate, component}) => {
 
         const timeoutId = setTimeout(() => hasLocalFilters ? getFilteredData({currentPage}) : load(), 300);
         return () => clearTimeout(timeoutId);
-    }, [state?.dataRequest, isValidState, state.display.readyToLoad, state.display.allowEditInView, localFilters]);
+    }, [state?.dataRequest, isValidState, state.display.readyToLoad, state.display.allowEditInView, hasLocalFilters, localFilters]);
 
     // useGetDataOnPageChange
     const onPageChange = async (currentPage) => {

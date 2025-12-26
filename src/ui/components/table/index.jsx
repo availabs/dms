@@ -243,11 +243,13 @@ const AddNew = ({allowAdddNew,
 export default function ({
     paginationActive, gridRef,
     allowEdit,
-    updateItem, removeItem, loading, isEdit,
+    updateItem, removeItem, isEdit,
     numColSize=defaultNumColSize, gutterColSize=defaultGutterColSize, frozenColClass, frozenCols=[],
-    columns=[], data=[], display={}, controls={}, setState, isActive, customTheme={},
+    columns=[], data: unFilteredData=[], localFilteredData, display={}, controls={}, setState, isActive, customTheme={},
     addItem, newItem={}, setNewItem, infiniteScrollFetchData, currentPage
 }) {
+    const data = localFilteredData || unFilteredData;
+
     const { theme: themeFromContext = {table: tableTheme}} = React.useContext(ThemeContext) || {};
     const theme = useMemo(() => {
         return ({
@@ -509,6 +511,22 @@ export default function ({
         ),
         [rows, openOutContainerWrapperClass, openOutContainerClass]
     );
+    const localFilterData = useMemo(() => {
+        const dataToReturn = {};
+
+        const columns = visibleAttrsWithoutOpenOut
+            .filter(attribute => ['select', 'multiselect', 'radio'].includes(attribute.type))
+            .map(attribute => attribute.name);
+
+        unFilteredData.forEach(row => {
+            columns.forEach(column => {
+                const value = Array.isArray(row[column])  ? row[column] : [row[column]];
+                value.forEach(v => dataToReturn[column] = (dataToReturn[column] ?? new Set([])).add(v))
+            })
+        })
+
+        return dataToReturn;
+    }, [unFilteredData]);
 
     const components = useMemo(() => ({
         Header: ({start, end}) => (
@@ -527,6 +545,7 @@ export default function ({
                     start={start}
                     end={end}
                     gutterColSize={gutterColSize}
+                    localFilterData={localFilterData}
             />
         ),
         Footer: () => paginationActive || rows.length === display.totalLength ? null : <div>loading...</div>,
@@ -558,7 +577,7 @@ export default function ({
         numColSize, frozenCols, frozenColClass, selectedCols,
         isEdit, columns, display, controls, setState, colResizer, gutterColSize, display.showTotal, totalRow,
         openOutContainerWrapperClass, openOutContainerClass,
-        display.allowAdddNew, isDragging, theme
+        display.allowAdddNew, isDragging, theme, localFilterData
     ]);
 
     return (

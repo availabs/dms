@@ -4,7 +4,8 @@ import React, {memo, useMemo} from "react";
 export const Header = memo(function Header ({
                                                 tableTheme, visibleAttrsWithoutOpenOut,
                                                 numColSize, frozenCols, frozenColClass, selectedCols,
-                                            isEdit, columns, display, controls, setState, colResizer, start, end, gutterColSize
+                                            isEdit, columns, display, controls, setState, colResizer, start, end, gutterColSize,
+                                                localFilterData
                                             }) {
 
     const attrsToRender = visibleAttrsWithoutOpenOut
@@ -54,7 +55,14 @@ export const Header = memo(function Header ({
                                         ${tableTheme.thContainer}
                                         ${selectedCols.includes(i) ? tableTheme.thContainerBgSelected : tableTheme.thContainerBg}`}
                                 >
-                                    <TableHeaderCell attribute={attribute} isEdit={isEdit} columns={columns} display={display} controls={controls} setState={setState} />
+                                    <TableHeaderCell attribute={attribute}
+                                                     isEdit={isEdit}
+                                                     columns={columns}
+                                                     display={display}
+                                                     controls={controls}
+                                                     setState={setState}
+                                                     localFilterData={localFilterData}
+                                    />
                                 </div>
 
                                 <div

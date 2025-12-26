@@ -1,4 +1,4 @@
-import React, {memo, useCallback, useEffect, useRef, useState} from "react";
+import React, {memo, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import Icon from "../../Icon";
 import Switch from "../../Switch";
 import Popup from "../../Popup";
@@ -49,8 +49,42 @@ const InputControl = ({updateColumns, inputType, value='', attributeKey, onChang
         />
     )
 }
+
+
+const FilterControl = ({updateColumns, type, value='', attributeKey, onChange, dataFetch, localFilterData}) => {
+    const [tmpValue, setTmpValue] = useState(value);
+
+    useEffect(() => {
+        const timeOutId = setTimeout(() => {
+            if(value !== tmpValue) updateColumns(attributeKey, tmpValue, onChange, dataFetch)
+        }, 300);
+
+        return () => clearTimeout(timeOutId);
+    }, [tmpValue]);
+
+    const options = useMemo(() =>
+        ['select', 'multiselect', 'radio'].includes(type) && localFilterData ?
+            Array.from(localFilterData) :
+            undefined,
+        [type, localFilterData]);
+
+    return ['select', 'multiselect', 'radio'].includes(type) ?
+        <select className={'p-0.5 w-full rounded-md'} value={value} onChange={e => setTmpValue(e.target.value)}>
+            <option>filter</option>
+            {
+                options.map(d => <option key={d} value={d}>{d}</option>)
+            }
+        </select> : (
+        <input
+            className={selectClasses}
+            type={'text'}
+            value={tmpValue}
+            onChange={e => setTmpValue(e.target.value)}
+        />
+    )
+}
 // in header menu for each column
-export default memo(function TableHeaderCell({isEdit, attribute, columns, display, controls, setState=Noop}) {
+export default memo(function TableHeaderCell({isEdit, attribute, columns, localFilterData, display, controls, setState=Noop}) {
     const [open, setOpen] = useState(false);
     const colIdName = getColIdName(attribute);
 
@@ -58,6 +92,7 @@ export default memo(function TableHeaderCell({isEdit, attribute, columns, displa
     const updateColumns = useCallback((key, value, onChange, dataFetch) => setState(draft => {
         // update requested key
         const idx = columns.findIndex(column => getColIdName(column) === colIdName);
+        console.log('idx', idx, key, value)
         if (idx !== -1) {
             if(key){
                 draft.columns[idx][key] = value;
@@ -172,6 +207,18 @@ export default memo(function TableHeaderCell({isEdit, attribute, columns, displa
                                                                     <label className={selectLabelClass}>{label}</label>
                                                                     <InputControl
                                                                         inputType={inputType}
+                                                                        value={attribute[key]}
+                                                                        updateColumns={updateColumns}
+                                                                        attributeKey={key}
+                                                                        dataFetch={dataFetch}
+                                                                    />
+                                                                </div> :
+                                                                type === 'filter' ?
+                                                                <div className={selectWrapperClass}>
+                                                                    <label className={selectLabelClass}>{label}</label>
+                                                                    <FilterControl
+                                                                        type={attribute.type}
+                                                                        localFilterData={localFilterData?.[attribute.name]}
                                                                         value={attribute[key]}
                                                                         updateColumns={updateColumns}
                                                                         attributeKey={key}
