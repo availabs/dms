@@ -14,7 +14,10 @@ export const Pagination = ({currentPage, setCurrentPage, showPagination, setRead
     }, [state.display.usePagination, state.display.readyToLoad, setReadyToLoad]);
 
     return <Pagination
-        {...(state.display || {})}
+        totalLength={state.display.totalLength}
+        filteredLength={state.display.filteredLength}
+        pageSize={state.display.pageSize}
+        usePagination={state.display.usePagination}
         currentPage={currentPage}
         setCurrentPage={(i) => {
             setCurrentPage && setCurrentPage(i)

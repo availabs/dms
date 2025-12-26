@@ -486,7 +486,7 @@ export default function ({
     //     [selection]
     // );
 
-    const showTotal = display.showTotal || columns.some(c => c.showTotal);
+    const showTotal = (display.showTotal || columns.some(c => c.showTotal)) && !localFilteredData?.length;
     const { rows, totalRow } = useMemo(() => {
         const rows = [];
         let totalRow = {};
@@ -497,7 +497,7 @@ export default function ({
         }
 
         return { rows, totalRow };
-    }, [data]);
+    }, [data, showTotal]);
 
     // trying to reduce re-renders of tableRow
     const openOutContainerWrapperClass = useMemo(() => theme?.table?.openOutContainerWrapper, [theme?.table?.openOutContainerWrapper]);
@@ -566,7 +566,7 @@ export default function ({
         bottomFrozen: ({start, end}) => (
             <>
                 {
-                    display.showTotal ? (
+                    showTotal ? (
                         <TableRow key={'total-row'}
                                   index={'total-row'}
                                   rowData={totalRow}
@@ -589,9 +589,9 @@ export default function ({
     }), [
         theme?.table, visibleAttrsWithoutOpenOut,
         numColSize, frozenCols, frozenColClass, selectedCols,
-        isEdit, columns, display, controls, setState, colResizer, gutterColSize, display.showTotal, totalRow,
+        isEdit, columns, display, controls, setState, colResizer, gutterColSize, showTotal, totalRow,
         openOutContainerWrapperClass, openOutContainerClass,
-        display.allowAdddNew, isDragging, theme, localFilterData
+        display.allowAdddNew, isDragging, theme, localFilterData, paginationActive
     ]);
 
     return (

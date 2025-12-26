@@ -154,7 +154,7 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
 
         setState(draft => {
             draft.localFilteredData = filteredData.filter((_, i) => i >= fromIndex && i <= toIndex);
-            draft.display.totalLength = filteredData.length;
+            draft.display.filteredLength = filteredData.length;
         })
 
     }, [localFilters, hasLocalFilters, currentPage, setState])
@@ -238,6 +238,7 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
             setState(draft => {
                 draft.data = data;
                 draft.localFilteredData = undefined;
+                draft.display.filteredLength = undefined;
                 draft.display.totalLength = length;
                 draft.display.invalidState = invalidState;
             })
@@ -570,7 +571,7 @@ const View = ({cms_context, value, size, apiUpdate, component}) => {
 
         setState(draft => {
             draft.localFilteredData = filteredData.filter((_, i) => i >= fromIndex && i <= toIndex);
-            draft.display.totalLength = filteredData.length;
+            draft.display.filteredLength = filteredData.length;
         })
 
     }, [localFilters, hasLocalFilters, currentPage, setState])
@@ -641,6 +642,7 @@ const View = ({cms_context, value, size, apiUpdate, component}) => {
             // reset localFilteredData on localFilter reset
             setState(draft => {
                 draft.localFilteredData = undefined;
+                draft.display.filteredLength = undefined;
             })
         }
 
@@ -655,6 +657,7 @@ const View = ({cms_context, value, size, apiUpdate, component}) => {
             setState(draft => {
                 draft.data = data;
                 draft.localFilteredData = undefined;
+                draft.display.filteredLength = undefined;
                 draft.display.totalLength = length;
             })
             setCurrentPage(newCurrentPage);
