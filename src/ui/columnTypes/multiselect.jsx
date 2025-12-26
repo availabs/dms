@@ -20,6 +20,7 @@ const theme = {
         tokenWrapper: 'w-fit flex m-0.5 px-2 py-1 mx-1 bg-[#C5D7E0] text-[#37576B] hover:bg-[#E0EBF0] rounded-md transition ease-in',
         removeIcon: 'fa fa-xmark px-1 text-xs text-red-500 hover:text-red-600 self-center cursor-pointer transition ease-in',
         menuWrapper: 'absolute p-2 bg-white min-w-[100px] w-full max-h-[150px] overflow-auto scrollbar-sm shadow-lg z-10 rounded-lg',
+        alwaysOpenMenuWrapper: 'absolute p-2 bg-white min-w-[100px] w-full max-h-[300px] overflow-auto scrollbar-sm z-20 rounded-lg',
         menuItem: 'flex gap-0.5 px-2 py-1 text-sm hover:bg-blue-300 hover:cursor-pointer transition ease-in rounded-md',
         smartMenuWrapper: 'w-full h-full flex flex-wrap',
         smartMenuItem: 'w-fit px-1 py-0.5 m-1 bg-blue-100 hover:bg-blue-300 hover:cursor-pointer transition ease-in border rounded-lg text-xs',
@@ -66,13 +67,14 @@ const RenderMenu = ({
     onChange,
     singleSelectOnly,
     displayDetailedValues,
+    keepMenuOpen,
     theme
 }) => {
     const mappedValue = value.filter(v => v).map(v => v.value || v);
     const selectAllOption = {label: 'Select All', value: 'select-all'};
     const removeAllOption = {label: 'Remove All', value: 'remove-all'};
     return (
-        <div className={`${isSearching ? `block` : `hidden`} ${theme?.multiselect?.menuWrapper}`}>
+        <div className={`${isSearching || keepMenuOpen ? `block` : `hidden`} ${keepMenuOpen ? theme?.multiselect?.alwaysOpenMenuWrapper : theme?.multiselect?.menuWrapper}`}>
             <input
                 autoFocus
                 key={'input'}
@@ -98,7 +100,7 @@ const RenderMenu = ({
                                             o.value === 'remove-all' ? [] :
                                                 [...value, o].map(v => v?.value || v)
                                     );
-                                    setIsSearching(false);
+                                    !keepMenuOpen && setIsSearching(false);
                                 }}>
                                 {o.label || o}
                             </div>)
@@ -123,11 +125,11 @@ const RenderMenu = ({
                                             isOptionSelected ? mappedValue.filter(v => (v?.value || v) !== (o?.value || o)) :
                                             [...value, o].map(o => o?.value || o)
                                     onChange(newValue);
-                                    singleSelectOnly && setIsSearching(false);
+                                    singleSelectOnly && !keepMenuOpen && setIsSearching(false);
                                 }}>
                                 {
                                     !displayDetailedValues && isOptionSelected ?
-                                        <CircleCheck className={theme?.selectedValueIcon || 'size-4'} /> : null
+                                        <CircleCheck className={theme?.multiselect?.selectedValueIcon || 'size-4'} /> : null
                                 }
                                 {meta?.[o.label || o] || o.label || o}
                             </div>
@@ -171,7 +173,8 @@ const Edit = ({value = [], loading, onChange, className,placeholder, options = [
                   displayInvalidMsg=false,
                   menuPosition='bottom',
                   singleSelectOnly=false,
-                  displayDetailedValues=true
+                  displayDetailedValues=true,
+                  keepMenuOpen=false
 }) => {
     // options: ['1', 's', 't'] || [{label: '1', value: '1'}, {label: 's', value: '2'}, {label: 't', value: '3'}]
     const [searchKeyword, setSearchKeyword] = useState('');
@@ -229,6 +232,7 @@ const Edit = ({value = [], loading, onChange, className,placeholder, options = [
                 meta={meta}
                 singleSelectOnly={singleSelectOnly}
                 displayDetailedValues={displayDetailedValues}
+                keepMenuOpen={keepMenuOpen}
                 theme={theme}
             />
         </div>

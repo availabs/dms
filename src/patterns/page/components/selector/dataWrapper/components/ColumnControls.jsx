@@ -13,38 +13,38 @@ import { ThemeContext } from "../../../../../../ui/useTheme";
 const gridClasses = {
     2: {
         gridClass: 'grid grid-cols-2',
-        gridTemplateColumns: '10rem 3rem',
-        width: '13rem',
+        gridTemplateColumns: '47rem 3rem',
+        width: '50rem',
     },
     3: {
         gridClass: 'grid grid-cols-3',
-        gridTemplateColumns: '10rem 5rem 3rem',
-        width: '18rem',
+        gridTemplateColumns: '42rem 5rem 3rem',
+        width: '50rem',
     },
     4: {
         gridClass: 'grid grid-cols-4',
-        gridTemplateColumns: '10rem 5rem 5rem 3rem',
-        width: '23rem',
+        gridTemplateColumns: '37rem 5rem 5rem 3rem',
+        width: '50rem',
     },
     5: {
         gridClass: 'grid grid-cols-5',
-        gridTemplateColumns: '10rem 5rem 5rem 5rem 3rem',
-        width: '28rem',
+        gridTemplateColumns: '32rem 5rem 5rem 5rem 3rem',
+        width: '50rem',
     },
     6: {
         gridClass: 'grid grid-cols-6',
-        gridTemplateColumns: '10rem 5rem 5rem 5rem 5rem 3rem',
-        width: '40rem',
+        gridTemplateColumns: '27rem 5rem 5rem 5rem 5rem 3rem',
+        width: '50rem',
     },
     7: {
         gridClass: 'grid grid-cols-7',
-        gridTemplateColumns: '10rem 5rem 5rem 5rem 5rem 5rem 3rem',
-        width: '45rem',
+        gridTemplateColumns: '22rem 5rem 5rem 5rem 5rem 5rem 3rem',
+        width: '50rem',
     },
     8: {
         gridClass: 'grid grid-cols-8',
-        gridTemplateColumns: '10rem 5rem 5rem 5rem 5rem 5rem 5rem 3rem',
-        width: '49rem',
+        gridTemplateColumns: '17rem 5rem 5rem 5rem 5rem 5rem 5rem 3rem',
+        width: '50rem',
     },
     9: {
         gridClass: 'grid grid-cols-9',

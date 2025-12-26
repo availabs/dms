@@ -228,6 +228,22 @@ export const RenderFilterValueSelector = ({
                                         </div> : null
                                 }
 
+                                <select
+                                    className={`cursor-pointer ${theme.filters.settingPill}`}
+                                    value={filter.display}
+                                    disabled={!isEdit}
+                                    onChange={e => updateFilter({
+                                        key: 'display',
+                                        value: e.target.value,
+                                        filterColumn,
+                                        filter,
+                                        setState
+                                    })}
+                                >
+                                    <option key="" value="">compact</option>
+                                    <option key="expanded" value="expanded">expanded</option>
+                                </select>
+
                                 {
                                     isStaleFilter ? <button className={theme.filters.settingPill} onClick={() => resetColumn(filterColumn, setState, state.sourceInfo.columns)}>Reset Stale Column</button> : null
                                 }
@@ -235,49 +251,49 @@ export const RenderFilterValueSelector = ({
                         ) : null
                     }
 
-                    {
-                            <Comp
-                                key={`filter-${filterColumn.name}-${filter.type}`}
-                                className={theme.filters.input}
-                                loading={loading}
-                                value={value}
-                                placeholder={filter.operation === 'like' ? 'search...' : 'Please enter a number...'}
-                                options={['filter', 'exclude'].includes(filter.operation) ? (options || []) : undefined}
-                                singleSelectOnly={['filter', 'exclude'].includes(filter.operation) ? !filter.isMulti : undefined}
-                                type={['filter', 'exclude'].includes(filter.operation) ? undefined : filter.operation === 'like' ? 'text' : 'number'}
-                                displayInvalidMsg={false}
-                                onWheel={e => e.target.blur()}
-                                onChange={e => {
-                                    let newValues =
-                                        ['filter', 'exclude'].includes(filter.operation) ?
-                                            (Array.isArray(e) ? e : ([e] || [])).map(filterItem => filterItem?.value || filterItem) :
-                                            filterColumn.type === 'number' && e ? [+e] : [e];
+                    <Comp
+                        key={`filter-${filterColumn.name}-${filter.type}`}
+                        className={theme.filters.input}
+                        loading={loading}
+                        value={value}
+                        placeholder={filter.operation === 'like' ? 'search...' : 'Please enter a number...'}
+                        options={['filter', 'exclude'].includes(filter.operation) ? (options || []) : undefined}
+                        singleSelectOnly={['filter', 'exclude'].includes(filter.operation) ? !filter.isMulti : undefined}
+                        displayDetailedValues={filter.display !== 'expanded'}
+                        keepMenuOpen={filter.display === 'expanded'}
+                        type={['filter', 'exclude'].includes(filter.operation) ? undefined : filter.operation === 'like' ? 'text' : 'number'}
+                        displayInvalidMsg={false}
+                        onWheel={e => e.target.blur()}
+                        onChange={e => {
+                            let newValues =
+                                ['filter', 'exclude'].includes(filter.operation) ?
+                                    (Array.isArray(e) ? e : ([e] || [])).map(filterItem => filterItem?.value || filterItem) :
+                                    filterColumn.type === 'number' && e ? [+e] : [e];
 
-                                    if(filter.usePageFilters) {
-                                        const newFilters =  Object.keys(filterWithSearchParamKeys).filter(col => {
-                                            if((filter.searchParamKey || filterColumn.name) === col) return false;
+                            if(filter.usePageFilters) {
+                                const newFilters =  Object.keys(filterWithSearchParamKeys).filter(col => {
+                                    if((filter.searchParamKey || filterColumn.name) === col) return false;
 
-                                            const currValue = filterWithSearchParamKeys[col];
-                                            return currValue?.length;
-                                        }).reduce((acc, col) => {
-                                            acc[col] = filterWithSearchParamKeys[col];
-                                            return acc;
-                                        }, {})
+                                    const currValue = filterWithSearchParamKeys[col];
+                                    return currValue?.length;
+                                }).reduce((acc, col) => {
+                                    acc[col] = filterWithSearchParamKeys[col];
+                                    return acc;
+                                }, {})
 
-                                        if(newValues.length){
-                                            newFilters[filter.searchParamKey || filterColumn.name] = newValues;
-                                        }
+                                if(newValues.length){
+                                    newFilters[filter.searchParamKey || filterColumn.name] = newValues;
+                                }
 
-                                        const newPageFilters = Object.keys(newFilters).map(searchKey => ({searchKey, values: newFilters[searchKey]}))
+                                const newPageFilters = Object.keys(newFilters).map(searchKey => ({searchKey, values: newFilters[searchKey]}))
 
-                                        updatePageStateFilters(newPageFilters, {[filter.searchParamKey || filterColumn.name]: !newValues.length})
-                                        updateFilter({key: 'values', value: newValues, filterColumn, filter, setState})
-                                    }else {
-                                        updateFilter({key: 'values', value: newValues, filterColumn, filter, setState})
-                                    }
-                                }}
-                            />
-                    }
+                                updatePageStateFilters(newPageFilters, {[filter.searchParamKey || filterColumn.name]: !newValues.length})
+                                updateFilter({key: 'values', value: newValues, filterColumn, filter, setState})
+                            }else {
+                                updateFilter({key: 'values', value: newValues, filterColumn, filter, setState})
+                            }
+                        }}
+                    />
                 </div>
             )
         })
