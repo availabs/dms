@@ -21,6 +21,7 @@ const theme = {
         removeIcon: 'fa fa-xmark px-1 text-xs text-red-500 hover:text-red-600 self-center cursor-pointer transition ease-in',
         menuWrapper: 'absolute p-2 bg-white min-w-[100px] w-full max-h-[150px] overflow-auto scrollbar-sm shadow-lg z-10 rounded-lg',
         alwaysOpenMenuWrapper: 'absolute p-2 bg-white min-w-[100px] w-full max-h-[300px] overflow-auto scrollbar-sm z-20 rounded-lg',
+        tabularMenuWrapper: 'flex flex-row flex-wrap p-2 bg-white min-w-[100px] w-full overflow-auto scrollbar-sm z-20 rounded-lg',
         menuItem: 'flex gap-0.5 px-2 py-1 text-sm hover:bg-blue-300 hover:cursor-pointer transition ease-in rounded-md',
         smartMenuWrapper: 'w-full h-full flex flex-wrap',
         smartMenuItem: 'w-fit px-1 py-0.5 m-1 bg-blue-100 hover:bg-blue-300 hover:cursor-pointer transition ease-in border rounded-lg text-xs',
@@ -68,45 +69,52 @@ const RenderMenu = ({
     singleSelectOnly,
     displayDetailedValues,
     keepMenuOpen,
+    tabular,
     theme
 }) => {
     const mappedValue = value.filter(v => v).map(v => v.value || v);
     const selectAllOption = {label: 'Select All', value: 'select-all'};
     const removeAllOption = {label: 'Remove All', value: 'remove-all'};
     return (
-        <div className={`${isSearching || keepMenuOpen ? `block` : `hidden`} ${keepMenuOpen ? theme?.multiselect?.alwaysOpenMenuWrapper : theme?.multiselect?.menuWrapper}`}>
-            <input
-                autoFocus
-                key={'input'}
-                placeholder={placeholder || 'search...'}
-                className={theme?.multiselect?.input}
-                onChange={e => setSearchKeyword(e.target.value)}
-                onFocus={() => setIsSearching(true)}
-            />
-            <div className={theme.multiselect.smartMenuWrapper}>
-                {
-                    [selectAllOption, removeAllOption]
-                        .filter(o =>
-                            singleSelectOnly ? false :
-                            o.value === 'select-all' ? value.length !== options?.length :
-                                o.value === 'remove-all' ? value.length : true)
-                        .map((o, i) =>
-                            <div
-                                key={`smart-option-${i}`}
-                                className={theme?.multiselect?.smartMenuItem}
-                                onClick={e => {
-                                    onChange(
-                                        o.value === 'select-all' ? (options || []).map(o => o?.value || o) :
-                                            o.value === 'remove-all' ? [] :
-                                                [...value, o].map(v => v?.value || v)
-                                    );
-                                    !keepMenuOpen && setIsSearching(false);
-                                }}>
-                                {o.label || o}
-                            </div>)
-                }
-            </div>
-            { loading ? <div className={theme?.multiselect?.menuItem}>loading...</div> :
+        <div className={`${isSearching || keepMenuOpen || tabular ? `block` : `hidden`} ${loading ? 'cursor-wait' : ''} ${tabular ? theme?.multiselect?.tabularMenuWrapper : keepMenuOpen ? theme?.multiselect?.alwaysOpenMenuWrapper : theme?.multiselect?.menuWrapper}`}>
+            {
+                tabular ? null :
+                    <input
+                        autoFocus
+                        key={'input'}
+                        placeholder={placeholder || 'search...'}
+                        className={theme?.multiselect?.input}
+                        onChange={e => setSearchKeyword(e.target.value)}
+                        onFocus={() => setIsSearching(true)}
+                    />
+            }
+            {
+                tabular ? null :
+                    <div className={theme.multiselect.smartMenuWrapper}>
+                        {
+                            [selectAllOption, removeAllOption]
+                                .filter(o =>
+                                    singleSelectOnly ? false :
+                                        o.value === 'select-all' ? value.length !== options?.length :
+                                            o.value === 'remove-all' ? value.length : true)
+                                .map((o, i) =>
+                                    <div
+                                        key={`smart-option-${i}`}
+                                        className={theme?.multiselect?.smartMenuItem}
+                                        onClick={e => {
+                                            onChange(
+                                                o.value === 'select-all' ? (options || []).map(o => o?.value || o) :
+                                                    o.value === 'remove-all' ? [] :
+                                                        [...value, o].map(v => v?.value || v)
+                                            );
+                                            !keepMenuOpen && setIsSearching(false);
+                                        }}>
+                                        {o.label || o}
+                                    </div>)
+                        }
+                    </div>
+            }
+            {
                 (options || [])
                     .filter(o =>
                         (displayDetailedValues ? !mappedValue.includes(o.value || o) : true) && // if not showing selected values in bar, show them in options
@@ -174,7 +182,8 @@ const Edit = ({value = [], loading, onChange, className,placeholder, options = [
                   menuPosition='bottom',
                   singleSelectOnly=false,
                   displayDetailedValues=true,
-                  keepMenuOpen=false
+                  keepMenuOpen=false,
+                  tabular=false
 }) => {
     // options: ['1', 's', 't'] || [{label: '1', value: '1'}, {label: 's', value: '2'}, {label: 't', value: '3'}]
     const [searchKeyword, setSearchKeyword] = useState('');
@@ -193,31 +202,35 @@ const Edit = ({value = [], loading, onChange, className,placeholder, options = [
             {
                 invalidValues.length && displayInvalidMsg ? <div>Invalid Values: {JSON.stringify(invalidValues)}</div> : null
             }
-            <div className={className || (theme?.multiselect?.inputWrapper)} onClick={() => {
-                setIsSearching(!isSearching)
-                // console.log('ms?', ref.current.top)
-            }}>
-                {
-                    displayDetailedValues ?
-                    typeSafeValue
-                        .filter(d => d)
-                        .map((v, i) =>
-                            <RenderToken
-                                key={i}
-                                token={v}
-                                meta={meta}
-                                value={typeSafeValue}
-                                onChange={onChange}
-                                isSearching={isSearching}
-                                setIsSearching={setIsSearching}
-                                theme={theme}
-                            />) :
-                        <div className={theme?.multiselect?.statusWrapper}>
-                            {typeSafeValue.length} selected
-                        </div>
-                }
-                <ArrowDown className={`ml-auto self-center font-bold ${typeSafeValue?.length || !displayDetailedValues ? `-mt-4` : ``}`} width={16} height={16}/>
-            </div>
+
+            {
+                tabular ? null :
+                    <div className={className || (theme?.multiselect?.inputWrapper)} onClick={() => {
+                        setIsSearching(!isSearching)
+                        // console.log('ms?', ref.current.top)
+                    }}>
+                        {
+                            displayDetailedValues ?
+                                typeSafeValue
+                                    .filter(d => d)
+                                    .map((v, i) =>
+                                        <RenderToken
+                                            key={i}
+                                            token={v}
+                                            meta={meta}
+                                            value={typeSafeValue}
+                                            onChange={onChange}
+                                            isSearching={isSearching}
+                                            setIsSearching={setIsSearching}
+                                            theme={theme}
+                                        />) :
+                                <div className={theme?.multiselect?.statusWrapper}>
+                                    {typeSafeValue.length} selected
+                                </div>
+                        }
+                        <ArrowDown className={`ml-auto self-center font-bold ${typeSafeValue?.length || !displayDetailedValues ? `-mt-4` : ``}`} width={16} height={16}/>
+                    </div>
+            }
 
             <RenderMenu
                 loading={loading}
@@ -233,6 +246,7 @@ const Edit = ({value = [], loading, onChange, className,placeholder, options = [
                 singleSelectOnly={singleSelectOnly}
                 displayDetailedValues={displayDetailedValues}
                 keepMenuOpen={keepMenuOpen}
+                tabular={tabular}
                 theme={theme}
             />
         </div>

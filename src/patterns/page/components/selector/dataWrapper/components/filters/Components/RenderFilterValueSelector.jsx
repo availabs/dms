@@ -242,6 +242,7 @@ export const RenderFilterValueSelector = ({
                                 >
                                     <option key="" value="">compact</option>
                                     <option key="expanded" value="expanded">expanded</option>
+                                    <option key="tabular" value="tabular">tabular</option>
                                 </select>
 
                                 {
@@ -259,8 +260,9 @@ export const RenderFilterValueSelector = ({
                         placeholder={filter.operation === 'like' ? 'search...' : 'Please enter a number...'}
                         options={['filter', 'exclude'].includes(filter.operation) ? (options || []) : undefined}
                         singleSelectOnly={['filter', 'exclude'].includes(filter.operation) ? !filter.isMulti : undefined}
-                        displayDetailedValues={filter.display !== 'expanded'}
+                        displayDetailedValues={!filter.display}
                         keepMenuOpen={filter.display === 'expanded'}
+                        tabular={filter.display === 'tabular'}
                         type={['filter', 'exclude'].includes(filter.operation) ? undefined : filter.operation === 'like' ? 'text' : 'number'}
                         displayInvalidMsg={false}
                         onWheel={e => e.target.blur()}
