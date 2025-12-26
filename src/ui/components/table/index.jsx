@@ -240,6 +240,12 @@ const AddNew = ({allowAdddNew,
         </div>
     )
 }
+const getKey = v => {
+    if (v && typeof v === 'object') {
+        return v.originalValue ?? v.value;
+    }
+    return v;
+};
 export default function ({
     paginationActive, gridRef,
     allowEdit,
@@ -520,13 +526,21 @@ export default function ({
 
         unFilteredData.forEach(row => {
             columns.forEach(column => {
-                const value = Array.isArray(row[column])  ? row[column] : [row[column]];
-                value.forEach(v => dataToReturn[column] = (dataToReturn[column] ?? new Set([])).add(v))
+                const values = Array.isArray(row[column])  ? row[column] : [row[column]];
+
+                values.forEach(v => {
+                    if (v == null) return;
+                    const key = getKey(v);
+
+                    if (!dataToReturn[column]) { dataToReturn[column] = new Map(); }
+
+                    dataToReturn[column].set(key, v); // uniq by value or originalValue
+                });
             })
         })
 
         return dataToReturn;
-    }, [unFilteredData]);
+    }, [unFilteredData, visibleAttrsWithoutOpenOut]);
 
     const components = useMemo(() => ({
         Header: ({start, end}) => (

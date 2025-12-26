@@ -62,17 +62,16 @@ const FilterControl = ({updateColumns, type, value='', attributeKey, onChange, d
         return () => clearTimeout(timeOutId);
     }, [tmpValue]);
 
-    const options = useMemo(() =>
-        ['select', 'multiselect', 'radio'].includes(type) && localFilterData ?
-            Array.from(localFilterData) :
-            undefined,
-        [type, localFilterData]);
+    const options = useMemo(() => {
+        if(!['select', 'multiselect', 'radio'].includes(type)) return undefined;
+        return Array.from(localFilterData.values())
+        }, [type, localFilterData]);
 
     return ['select', 'multiselect', 'radio'].includes(type) ?
         <select className={'p-0.5 w-full rounded-md'} value={value} onChange={e => setTmpValue(e.target.value)}>
             <option>filter</option>
             {
-                options.map(d => <option key={d} value={d}>{d}</option>)
+                options.map(d => <option key={d?.originalValue || d} value={d?.originalValue || d}>{d?.value || d}</option>)
             }
         </select> : (
         <input

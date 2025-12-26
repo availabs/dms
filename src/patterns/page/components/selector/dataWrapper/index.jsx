@@ -114,19 +114,36 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
 
     const localFilters = useMemo(() =>
             state.columns.filter(c => c.localFilter)
-                .reduce((acc, c) => ({...acc, [c.name || c.normalName]: c.localFilter}), {}),
+                .reduce((acc, c) => ({...acc, [c.normalName || c.name]: c.localFilter}), {}),
         [state.columns]);
     const localFilterColumns = useMemo(() => Object.keys(localFilters).filter(k => localFilters[k]?.length), [localFilters]);
     const hasLocalFilters = Boolean(localFilterColumns.length);
     const getFilteredData = useCallback(({currentPage}) => {
         if(!hasLocalFilters) return;
 
+        const textSearchCols =
+            Object.keys(localFilters)
+                .filter(col => !['select', 'multiselect', 'radio'].includes(state.columns.find(c => (c.normalName || c.name) === col)?.type))
+
         const filteredData = (state.fullData || state.data).filter((row, rowI) => {
-            const rowFilter = Object.keys(localFilters).every(col => {
+            return Object.keys(localFilters).every(col => {
                 if(!row[col]) return false;
-                return row[col].toString().toLowerCase().includes(localFilters[col].toLowerCase())
+                // check for arrays and objs {value, originalValue}
+                const isTextSearch = textSearchCols.includes(col);
+                const rowValue = Array.isArray(row[col]) ? row[col] : [row[col]];
+                const filterValue = !isTextSearch && !Array.isArray(localFilters[col]) ? [localFilters[col]] : localFilters[col];
+                return rowValue.some(v => {
+                    const v1 = (
+                        v && typeof v === "object" && v.originalValue ? v.originalValue :
+                            v && typeof v === "object" && v.value ? v.value :
+                                v
+                    );
+
+                    return isTextSearch ?
+                        v1.toString().toLowerCase().includes(filterValue.toLowerCase()) :
+                        filterValue.some(fv => fv === v1)
+                })
             })
-            return rowFilter
         })
 
         const fromIndex= currentPage * state.display.pageSize;
@@ -513,19 +530,36 @@ const View = ({cms_context, value, size, apiUpdate, component}) => {
 
     const localFilters = useMemo(() =>
             state.columns.filter(c => c.localFilter)
-                .reduce((acc, c) => ({...acc, [c.name || c.normalName]: c.localFilter}), {}),
+                .reduce((acc, c) => ({...acc, [c.normalName || c.name]: c.localFilter}), {}),
         [state.columns]);
     const localFilterColumns = useMemo(() => Object.keys(localFilters).filter(k => localFilters[k]?.length), [localFilters]);
     const hasLocalFilters = Boolean(localFilterColumns.length);
     const getFilteredData = useCallback(({currentPage}) => {
         if(!hasLocalFilters) return;
 
+        const textSearchCols =
+            Object.keys(localFilters)
+                .filter(col => !['select', 'multiselect', 'radio'].includes(state.columns.find(c => (c.normalName || c.name) === col)?.type))
+
         const filteredData = (state.fullData || state.data).filter((row, rowI) => {
-            const rowFilter = Object.keys(localFilters).every(col => {
+            return Object.keys(localFilters).every(col => {
                 if(!row[col]) return false;
-                return row[col].toString().toLowerCase().includes(localFilters[col].toLowerCase())
+                // check for arrays and objs {value, originalValue}
+                const isTextSearch = textSearchCols.includes(col);
+                const rowValue = Array.isArray(row[col]) ? row[col] : [row[col]];
+                const filterValue = !isTextSearch && !Array.isArray(localFilters[col]) ? [localFilters[col]] : localFilters[col];
+                return rowValue.some(v => {
+                    const v1 = (
+                        v && typeof v === "object" && v.originalValue ? v.originalValue :
+                            v && typeof v === "object" && v.value ? v.value :
+                                v
+                    );
+
+                      return isTextSearch ?
+                          v1.toString().toLowerCase().includes(filterValue.toLowerCase()) :
+                          filterValue.some(fv => fv === v1)
+                })
             })
-            return rowFilter
         })
 
         const fromIndex= currentPage * state.display.pageSize;
