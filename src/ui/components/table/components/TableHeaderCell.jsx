@@ -2,10 +2,12 @@ import React, {memo, useCallback, useEffect, useMemo, useRef, useState} from "re
 import Icon from "../../Icon";
 import Switch from "../../Switch";
 import Popup from "../../Popup";
+import Multiselect from "../../../columnTypes/multiselect"
 
 const selectWrapperClass = 'group px-2 py-1 w-full flex items-center cursor-pointer hover:bg-gray-100'
 const selectLabelClass = 'w-fit font-regular text-gray-500 cursor-default'
 const selectClasses = 'w-full rounded-md bg-white group-hover:bg-gray-100 cursor-pointer'
+const inputClasses = 'p-0.5 w-full rounded-md bg-white group-hover:bg-gray-100 cursor-pointer'
 
 const getColIdName = col => col.normalName || col.name;
 const Noop = () => {};
@@ -42,7 +44,7 @@ const InputControl = ({updateColumns, inputType, value='', attributeKey, onChang
 
     return (
         <input
-            className={selectClasses}
+            className={inputClasses}
             type={inputType}
             value={tmpValue}
             onChange={e => setTmpValue(e.target.value)}
@@ -51,7 +53,7 @@ const InputControl = ({updateColumns, inputType, value='', attributeKey, onChang
 }
 
 
-const FilterControl = ({updateColumns, type, value='', attributeKey, onChange, dataFetch, localFilterData}) => {
+const FilterControl = ({updateColumns, type, value, attributeKey, onChange, dataFetch, localFilterData}) => {
     const [tmpValue, setTmpValue] = useState(value);
 
     useEffect(() => {
@@ -63,19 +65,20 @@ const FilterControl = ({updateColumns, type, value='', attributeKey, onChange, d
     }, [tmpValue]);
 
     const options = useMemo(() => {
-        if(!['select', 'multiselect', 'radio'].includes(type)) return undefined;
-        return Array.from(localFilterData.values())
+        if(!['select', 'multiselect', 'radio'].includes(type) || !localFilterData) return undefined;
+        return Array.from(localFilterData.values()).map(v => ({label: v.value || v, value: v.originalValue || v}))
         }, [type, localFilterData]);
 
     return ['select', 'multiselect', 'radio'].includes(type) ?
-        <select className={'p-0.5 w-full rounded-md'} value={value} onChange={e => setTmpValue(e.target.value)}>
-            <option>filter</option>
-            {
-                options.map(d => <option key={d?.originalValue || d} value={d?.originalValue || d}>{d?.value || d}</option>)
-            }
-        </select> : (
+        <Multiselect.EditComp className={'p-0.5 w-full rounded-md'}
+                              value={value}
+                              options={options}
+                              onChange={setTmpValue}
+                              singleSelectOnly={false}
+                              displayDetailedValues={false}
+        /> : (
         <input
-            className={selectClasses}
+            className={inputClasses}
             type={'text'}
             value={tmpValue}
             onChange={e => setTmpValue(e.target.value)}
