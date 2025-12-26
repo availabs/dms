@@ -20,7 +20,7 @@ const theme = {
         tokenWrapper: 'w-fit flex m-0.5 px-2 py-1 mx-1 bg-[#C5D7E0] text-[#37576B] hover:bg-[#E0EBF0] rounded-md transition ease-in',
         removeIcon: 'fa fa-xmark px-1 text-xs text-red-500 hover:text-red-600 self-center cursor-pointer transition ease-in',
         menuWrapper: 'absolute p-2 bg-white min-w-[100px] w-full max-h-[150px] overflow-auto scrollbar-sm shadow-lg z-10 rounded-lg',
-        alwaysOpenMenuWrapper: 'absolute p-2 bg-white min-w-[100px] w-full max-h-[300px] overflow-auto scrollbar-sm z-20 rounded-lg',
+        alwaysOpenMenuWrapper: 'p-2 bg-white min-w-[100px] w-full max-h-[300px] overflow-auto scrollbar-sm z-20 rounded-lg',
         tabularMenuWrapper: 'flex flex-row flex-wrap p-2 bg-white min-w-[100px] w-full overflow-auto scrollbar-sm z-20 rounded-lg',
         menuItem: 'flex gap-0.5 px-2 py-1 text-sm hover:bg-blue-300 hover:cursor-pointer transition ease-in rounded-md',
         smartMenuWrapper: 'w-full h-full flex flex-wrap',
