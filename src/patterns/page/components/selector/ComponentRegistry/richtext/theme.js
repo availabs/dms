@@ -546,7 +546,7 @@ const theme = {
     iconMinusGray: 'w-5 h-5 bg-[url("./icon-minus-gray.svg")]', // .icon-minus-gray
   },
   draggableBlockMenu: {
-    base: "rounded-md p-0.5 cursor-grab opacity-0 absolute -left-0 top-0 will-change-transform hover:bg-gray-200", // .draggable-block-menu
+    base: "rounded-md p-0.5 cursor-grab opacity-0 absolute -left-5 top-0 will-change-transform hover:bg-gray-200", // .draggable-block-menu
     icon: "w-4 h-4 opacity-30 bg-[url(/images/icons/draggable-block-menu.svg)]", // .draggable-block-menu .icon
     active: "cursor-grabbing", // .draggable-block-menu:active
   },

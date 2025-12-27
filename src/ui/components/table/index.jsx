@@ -3,13 +3,13 @@ import { ThemeContext } from '../../useTheme';
 import DataTypes from "../../columnTypes"
 import Icon from "../Icon";
 import {handleMouseUp} from "./utils/mouse";
-import TableHeaderCell from "./components/TableHeaderCell";
 import {TableRow} from "./components/TableRow";
+import {Header} from "./components/TableHeader";
+import {VirtualList} from "./components/Virtual";
 import {useCopy, usePaste, getLocation} from "./utils/hooks";
 import {isEqualColumns, parseIfJson} from "./utils";
 import {handleKeyDown} from "./utils/keyboard";
 import {cloneDeep} from "lodash-es";
-import {structure} from "dbf";
 
 const defaultNumColSize = 0;
 const defaultGutterColSize = 0;
@@ -138,13 +138,116 @@ const updateItemsOnPaste = ({pastedContent, index, attrI, data, visibleAttribute
 
     updateItem(undefined, undefined, itemsToUpdate);
 }
+
+const AddNew = ({allowAdddNew,
+                    numColSize, gutterColSize, defaultColumnSize,
+                    isDragging, visibleAttrsWithoutOpenOut, startCol, endCol,
+    newItem, setNewItem, theme, addItem
+}) => {
+    if(!allowAdddNew) return null;
+
+    const attrsToRender = visibleAttrsWithoutOpenOut
+        .slice(startCol, endCol + 1);
+
+    const slicedGridTemplateColumns = useMemo(() => {
+        const cols = attrsToRender
+            .map((v, i) => v.size ?
+                `${i === 0 ? (+v.size - 20) : v.size}px` :
+                `${i === 0 ? (defaultNumColSize - 20) : defaultColumnSize}px`)
+            .join(' ')
+
+
+        return `${numColSize}px 20px ${cols} ${gutterColSize}px`;
+    }, [
+        startCol,
+        endCol,
+        visibleAttrsWithoutOpenOut,
+        numColSize,
+        gutterColSize
+    ]);
+
+    return (
+        <div
+            className={`grid bg-white divide-x divide-y ${isDragging ? `select-none` : ``} sticky bottom-0 z-[1]`}
+            style={{
+                gridTemplateColumns: slicedGridTemplateColumns,
+                gridColumn: `span ${attrsToRender.length + 3} / ${attrsToRender.length + 3}`
+            }}
+        >
+            <div className={'flex justify-between sticky left-0 z-[1]'} style={{width: numColSize}}>
+                <div key={'#'} className={`w-full font-semibold border bg-gray-50 text-gray-500`}>
+
+                </div>
+            </div>
+
+            <div className={'bg-white flex flex-row h-fit justify-evenly opacity-50 hover:opacity-100 border-0'}
+                 style={{width: '20px'}}>
+                <button
+                    className={'w-fit p-0.5 bg-blue-300 hover:bg-blue-500 text-white rounded-lg'}
+                    onClick={e => {
+                        addItem()
+                    }}>
+                    <Icon icon={'CirclePlus'} className={'text-white'} height={20} width={20}/>
+                </button>
+            </div>
+            {
+                attrsToRender
+                    .map((attribute, attrI) => {
+                        const Comp = DataTypes[attribute?.type || 'text']?.EditComp || (() => <div></div>);
+                        const size = attrI === 0 ? (+attribute.size || defaultNumColSize) - 20 : (+attribute.size || defaultNumColSize)
+                        let lexicalTheme = cloneDeep(theme || {});
+                        if(attribute.type === 'lexical'){
+                            if(!lexicalTheme.lexical) lexicalTheme.lexical = {}
+                            lexicalTheme.lexical.editorScroller = "border-0 flex relative outline-0 z-0bh resize-y";
+                            lexicalTheme.lexical.editorShell = "w-full h-full font-['Proxima_Nova'] font-[400] text-[1rem] text-slate-700 leading-[22.4px]";
+                            lexicalTheme.lexical.editorContainer = "relative block rounded-[10px]";
+                        }
+                        return (
+                            <div
+                                key={`add-new-${attrI}`}
+                                className={`flex border p-1 bg-white hover:bg-blue-50 w-full h-full'`}
+                                style={{width: size}}
+                            >
+                                <Comp
+                                    key={`${attribute.name}`}
+                                    menuPosition={'top'}
+                                    className={'p-1 bg-white hover:bg-blue-50 w-full h-full'}
+                                    {...attribute}
+                                    size={size}
+                                    value={newItem[attribute.name]}
+                                    placeholder={'+ add new'}
+                                    onChange={e => setNewItem({...newItem, [attribute.name]: e})}
+                                    onPaste={e => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+
+                                        const paste =
+                                            (e.clipboardData || window.clipboardData).getData("text")?.split('\n').map(row => row.split('\t'));
+                                        const pastedColumns = [...new Array(paste[0].length).keys()].map(i => attrsToRender[attrI + i]).filter(i => i);
+                                        const tmpNewItem = pastedColumns.reduce((acc, c, i) => ({
+                                            ...acc,
+                                            [c]: paste[0][i]
+                                        }), {})
+                                        setNewItem({...newItem, ...tmpNewItem})
+
+                                    }}
+                                    hideControls={attribute.type === 'lexical'}
+                                    theme={attribute.type === 'lexical' ? lexicalTheme : undefined}
+                                />
+                            </div>
+                        )
+                    })
+            }
+        </div>
+    )
+}
 export default function ({
     paginationActive, gridRef,
     allowEdit,
     updateItem, removeItem, loading, isEdit,
     numColSize=defaultNumColSize, gutterColSize=defaultGutterColSize, frozenColClass, frozenCols=[],
     columns=[], data=[], display={}, controls={}, setState, isActive, customTheme={},
-    addItem, newItem={}, setNewItem,
+    addItem, newItem={}, setNewItem, infiniteScrollFetchData, currentPage
 }) {
     const { theme: themeFromContext = {table: tableTheme}} = React.useContext(ThemeContext) || {};
     const theme = useMemo(() => {
@@ -157,6 +260,7 @@ export default function ({
             }
         })
     }, [themeFromContext, customTheme]);
+    //console.log('TABLE theme', theme)
     const [defaultColumnSize, setDefaultColumnSize] = React.useState(defColSize);
 
     const structureValues = useMemo(() => {
@@ -165,9 +269,15 @@ export default function ({
         const openOutAttributes = visibleAttributes.filter(c => c.openOut);
 
         const columnSizes = visibleAttrsWithoutOpenOut.map(
-            v => (v.size ? v.size : defaultColumnSize)
+          v => {
+            if( !v.size ){
+              v.size = (v?.size ? v.size : defaultColumnSize)
+            }
+            return v.size
+          }
         );
 
+        console.log('columnsSizes', columnSizes, visibleAttrsWithoutOpenOut)
         return {
             visibleAttributes,
             visibleAttrsWithoutOpenOut,
@@ -177,11 +287,6 @@ export default function ({
             showGutters: display.showGutters,
             striped: display.striped,
             hideIfNullOpenouts: display.hideIfNullOpenouts,
-            gridTemplateColumns: `${numColSize}px ${
-                visibleAttrsWithoutOpenOut
-                .map(c => `${c.size ?? defaultColumnSize}px`)
-                .join(' ')
-        } ${gutterColSize}px`,
         };
     }, [columns, defaultColumnSize]);
     const {
@@ -213,6 +318,7 @@ export default function ({
             endCol: cols[cols.length - 1]
         }
     }, [selection]);
+    const selectedCols = useMemo(() => selection.map(s => s.attrI), [selection]);
     // ======================================== selection variables end ================================================
 
     // =================================================================================================================
@@ -383,213 +489,108 @@ export default function ({
     const showTotal = display.showTotal || columns.some(c => c.showTotal);
     const { rows, totalRow } = useMemo(() => {
         const rows = [];
-        const totalRow = [];
+        let totalRow = {};
 
         for (const d of data) {
             if(!d.totalRow) rows.push(d);
-            if(d.totalRow && showTotal) totalRow.push(d)
+            if(d.totalRow && showTotal) totalRow = d;
         }
 
         return { rows, totalRow };
     }, [data]);
 
-
     // trying to reduce re-renders of tableRow
     const openOutContainerWrapperClass = useMemo(() => theme?.table?.openOutContainerWrapper, [theme?.table?.openOutContainerWrapper]);
     const openOutContainerClass = useMemo(() => theme?.table?.openOutContainer, [theme?.table?.openOutContainer]);
-    const gridTemplateColumns = useMemo(() => {
-        return `${numColSize}px ${columnSizes
-            .map(s => `${s}px`)
-            .join(' ')} ${gutterColSize}px`;
-    }, [numColSize, gutterColSize, columnSizes]);
 
+    const itemContent = useCallback(
+        (index, startCol, endCol, ref) => (
+            <TableRow
+                rowRef={ref}
+                index={index}
+                rowData={rows[index]}
+                startCol={startCol}
+                endCol={endCol}
+                openOutContainerWrapperClass={openOutContainerWrapperClass}
+                openOutContainerClass={openOutContainerClass}
+            />
+        ),
+        [rows, openOutContainerWrapperClass, openOutContainerClass]
+    );
+
+    const components = useMemo(() => ({
+        Header: ({start, end}) => (
+            <Header tableTheme={theme?.table}
+                    visibleAttrsWithoutOpenOut={visibleAttrsWithoutOpenOut}
+                    numColSize={numColSize}
+                    frozenCols={frozenCols}
+                    frozenColClass={frozenColClass}
+                    selectedCols={selectedCols}
+                    isEdit={isEdit}
+                    columns={columns}
+                    display={display}
+                    controls={controls}
+                    setState={setState}
+                    colResizer={colResizer}
+                    start={start}
+                    end={end}
+                    gutterColSize={gutterColSize}
+            />
+        ),
+        Footer: () => paginationActive || rows.length === display.totalLength || !infiniteScrollFetchData ? null : <div>loading...</div>,
+        bottomFrozen: ({start, end}) => (
+            <>
+                {
+                    display.showTotal ? (
+                        <TableRow key={'total-row'}
+                                  index={'total-row'}
+                                  rowData={totalRow}
+                                  startCol={start}
+                                  endCol={end}
+                                  isTotalRow={true}
+                                  openOutContainerWrapperClass={openOutContainerWrapperClass}
+                                  openOutContainerClass={openOutContainerClass}
+                        />
+                    ) : null
+                }
+                <AddNew startCol={start} endCol={end} numColSize={numColSize} gutterColSize={gutterColSize}
+                        visibleAttrsWithoutOpenOut={visibleAttrsWithoutOpenOut}
+                        allowAdddNew={display.allowAdddNew}
+                        newItem={newItem} setNewItem={setNewItem} isDragging={isDragging} theme={theme}
+                        addItem={addItem}
+                />
+            </>
+        )
+    }), [
+        theme?.table, visibleAttrsWithoutOpenOut,
+        numColSize, frozenCols, frozenColClass, selectedCols,
+        isEdit, columns, display, controls, setState, colResizer, gutterColSize, display.showTotal, totalRow,
+        openOutContainerWrapperClass, openOutContainerClass,
+        display.allowAdddNew, isDragging, theme
+    ]);
 
     return (
         <div className={`${theme?.table?.tableContainer} ${!paginationActive && theme?.table?.tableContainerNoPagination}`} ref={gridRef}>
             <div className={theme?.table?.tableContainer1}
                  onMouseLeave={e => handleMouseUp({setIsDragging})}>
-
-                {/****************************************** Header begin ********************************************/}
-                <div
-                    className={theme?.table?.headerContainer}
-                    style={{
-                        zIndex: 5,
-                        gridTemplateColumns: gridTemplateColumns,
-                        gridColumn: `span ${visibleAttrsWithoutOpenOutLength + 2} / ${visibleAttrsWithoutOpenOutLength + 2}`
-                    }}
-                >
-                    {/*********************** header left gutter *******************/}
-                    <div className={'flex justify-between sticky left-0 z-[1]'} style={{width: numColSize}}>
-                        <div key={'#'} className={`w-full ${theme?.table?.thContainerBg} ${frozenColClass}`} />
-                    </div>
-                    {/******************************************&*******************/}
-
-                    {visibleAttrsWithoutOpenOut
-                        .map((attribute, i) => (
-                                <div
-                                    key={i}
-                                    className={`${theme?.table?.thead} ${frozenCols?.includes(i) ? theme?.table?.theadfrozen : ''}`}
-                                    style={{width: attribute.size}}
-                                >
-
-                                    <div key={`controls-${i}`}
-                                         className={`
-                                        ${theme?.table?.thContainer}
-                                        ${selection?.find(s => s.attrI === i) ?
-                                             theme?.table?.thContainerBgSelected : theme?.table?.thContainerBg
-                                         }`
-                                         }
-                                    >
-                                        <TableHeaderCell attribute={attribute} isEdit={isEdit} columns={columns} display={display} controls={controls} setState={setState} />
-                                    </div>
-
-                                    <div
-                                        key={`resizer-${i}`}
-                                        className={colResizer ? "z-5 -ml-2 w-[1px] hover:w-[2px] bg-gray-200 hover:bg-gray-400" : 'hidden'}
-                                        style={{
-                                            height: '100%',
-                                            cursor: 'col-resize',
-                                            position: 'relative',
-                                            right: 0,
-                                            top: 0
-                                        }}
-                                        onMouseDown={colResizer ? colResizer(attribute) : () => {}}
-                                    />
-
-                                </div>
-                            )
-                        )}
-
-                    {/***********gutter column cell*/}
-                    <div key={'##'}
-                         className={`${theme?.table?.thContainerBg} z-[1] flex shrink-0 justify-between`}
-                    > {` `}</div>
-                </div>
-                {/****************************************** Header end **********************************************/}
-
-
                 <TableStructureContext.Provider value={structureValues}>
                     <TableCellContext.Provider value={{
                         frozenCols, allowEdit, editing, setEditing, isDragging, isSelecting,
                         setSelection, setIsDragging, startCellCol, startCellRow, selection, selectionRange,
                         updateItem, removeItem, theme, columns, display
                     }}>
-                        {/****************************************** Rows begin **********************************************/}
-                        {rows
-                            .map((d, i) => (
-                                <TableRow key={i}
-                                          index={i} rowData={d}
-                                          defaultColumnSize={defaultColumnSize}
-                                          openOutContainerClass={openOutContainerClass}
-                                          openOutContainerWrapperClass={openOutContainerWrapperClass}
-                                          visibleAttrsWithoutOpenOut={visibleAttrsWithoutOpenOut}
-                                          visibleAttrsWithoutOpenOutLen={visibleAttrsWithoutOpenOutLength}
-                                          openOutAttributes={openOutAttributes}
-                                    // isRowSelected={display.showGutters && isRowSelected(i)} only used to set bg for gutters
-                                />
-                            ))}
-                        <div id={display?.loadMoreId} className={`${paginationActive ? 'hidden' : ''} min-h-2 w-full text-center`}>
-                            {loading ? 'loading...' : ''}
-                        </div>
-
-
-                        {/*/!****************************************** Gutter Row **********************************************!/*/}
-                        {/*<RenderGutter {...{allowEdit, c, visibleAttributes, isDragging, colSizes, attributes}} />*/}
-
-
-                        {/*/!****************************************** Total Row ***********************************************!/*/}
-                        {totalRow
-                            .map((d, i) => (
-                                <TableRow key={i}
-                                          index={i} rowData={d}
-                                          defaultColumnSize={defaultColumnSize}
-                                          openOutContainerClass={openOutContainerClass}
-                                          openOutContainerWrapperClass={openOutContainerWrapperClass}
-                                          visibleAttrsWithoutOpenOut={visibleAttrsWithoutOpenOut}
-                                          visibleAttrsWithoutOpenOutLen={visibleAttrsWithoutOpenOutLength}
-                                          openOutAttributes={openOutAttributes}
-                                          isTotalRow={true}
-                                />
-                            ))}
-                        {/*/!****************************************** Rows end ************************************************!/*/}
-
-                        {/********************************************* out of scroll ********************************************/}
-                        {/***********************(((***************** Add New Row Begin ******************************************/}
-                        {
-                            display.allowAdddNew ?
-                                <div
-                                    className={`grid bg-white divide-x divide-y ${isDragging ? `select-none` : ``} sticky bottom-0 z-[1]`}
-                                    style={{
-                                        gridTemplateColumns: `${numColSize}px 20px ${visibleAttrsWithoutOpenOut.map((v, i) => v.size ? `${i === 0 ? (+v.size - 20) : v.size}px` : `${i === 0 ? (defaultNumColSize - 20) : defaultColumnSize}px`).join(' ')} ${gutterColSize}px`,
-                                        gridColumn: `span ${visibleAttrsWithoutOpenOutLength + 3} / ${visibleAttrsWithoutOpenOutLength + 3}`
-                                    }}                    >
-                                    <div className={'flex justify-between sticky left-0 z-[1]'} style={{width: numColSize}}>
-                                        <div key={'#'} className={`w-full font-semibold border bg-gray-50 text-gray-500`}>
-
-                                        </div>
-                                    </div>
-
-                                    <div className={'bg-white flex flex-row h-fit justify-evenly opacity-50 hover:opacity-100 border-0'}
-                                         style={{width: '20px'}}>
-                                        <button
-                                            className={'w-fit p-0.5 bg-blue-300 hover:bg-blue-500 text-white rounded-lg'}
-                                            onClick={e => {
-                                                addItem()
-                                            }}>
-                                            <Icon icon={'CirclePlus'} className={'text-white'} height={20} width={20}/>
-                                        </button>
-                                    </div>
-                                    {
-                                        visibleAttrsWithoutOpenOut
-                                            .map((attribute, attrI) => {
-                                                const Comp = DataTypes[attribute?.type || 'text']?.EditComp || (() => <div></div>);
-                                                const size = attrI === 0 ? (+attribute.size || defaultNumColSize) - 20 : (+attribute.size || defaultNumColSize)
-                                                let lexicalTheme = cloneDeep(theme || {});
-                                                if(attribute.type === 'lexical'){
-                                                    if(!lexicalTheme.lexical) lexicalTheme.lexical = {}
-                                                    lexicalTheme.lexical.editorScroller = "border-0 flex relative outline-0 z-0bh resize-y";
-                                                    lexicalTheme.lexical.editorShell = "w-full h-full font-['Proxima_Nova'] font-[400] text-[1rem] text-slate-700 leading-[22.4px]";
-                                                    lexicalTheme.lexical.editorContainer = "relative block rounded-[10px]";
-                                                }
-                                                return (
-                                                    <div
-                                                        key={`add-new-${attrI}`}
-                                                        className={`flex border p-1 bg-white hover:bg-blue-50 w-full h-full'`}
-                                                        style={{width: size}}
-                                                    >
-                                                        <Comp
-                                                            key={`${attribute.name}`}
-                                                            menuPosition={'top'}
-                                                            className={'p-1 bg-white hover:bg-blue-50 w-full h-full'}
-                                                            {...attribute}
-                                                            size={size}
-                                                            value={newItem[attribute.name]}
-                                                            placeholder={'+ add new'}
-                                                            onChange={e => setNewItem({...newItem, [attribute.name]: e})}
-                                                            onPaste={e => {
-                                                                e.preventDefault();
-                                                                e.stopPropagation();
-
-                                                                const paste =
-                                                                    (e.clipboardData || window.clipboardData).getData("text")?.split('\n').map(row => row.split('\t'));
-                                                                const pastedColumns = [...new Array(paste[0].length).keys()].map(i => visibleAttributes[attrI + i]).filter(i => i);
-                                                                const tmpNewItem = pastedColumns.reduce((acc, c, i) => ({
-                                                                    ...acc,
-                                                                    [c]: paste[0][i]
-                                                                }), {})
-                                                                setNewItem({...newItem, ...tmpNewItem})
-
-                                                            }}
-                                                            hideControls={attribute.type === 'lexical'}
-                                                            theme={attribute.type === 'lexical' ? lexicalTheme : undefined}
-                                                        />
-                                                    </div>
-                                                )
-                                            })
-                                    }
-                                </div> : null
-                        }
-                        {/***********************(((***************** Add New Row End ********************************************/}
+                        <VirtualList
+                            rowCount={rows.length}
+                            columnCount={visibleAttrsWithoutOpenOutLength}
+                            columnSizes={columnSizes}
+                            increaseViewportBy={{ top: 300, bottom: 300, left: 100, right: 100 }}
+                            endReached={() => {
+                                if(display.usePagination) return;
+                                infiniteScrollFetchData && infiniteScrollFetchData( currentPage + 1 )
+                            }}
+                            renderItem={itemContent}
+                            components={components}
+                        />
                     </TableCellContext.Provider>
                 </TableStructureContext.Provider>
             </div>

@@ -7,9 +7,14 @@ export const RegisterLayoutWidget = (name,widget) => registerLayoutWidget(name,w
 export const ThemeContext = React.createContext(defaultTheme);
 
 export const getPatternTheme = (themes, pattern) => {
+  let patternSelection = (
+    pattern?.theme?.selectedTheme || //current Theme Setting
+    pattern?.settings?.theme?.theme || //old Theme setting pre v0.
+    'default'
+  )
   let baseTheme = merge(
 		cloneDeep(defaultTheme),
-    cloneDeep(themes?.[pattern?.theme?.selectedTheme ||'default'] || {}),
+    cloneDeep(themes?.[patternSelection] || {}),
 	)
   if(!pattern?.theme?.layout?.options) {
     set(pattern, 'theme.layout.options', cloneDeep(baseTheme?.layout?.options))

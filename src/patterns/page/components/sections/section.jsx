@@ -237,6 +237,20 @@ export function SectionEdit({
                     isActive={value?.element?.['element-type'] === 'Spreadsheet'}
                 />
             </div>
+            <DeleteModal
+                title={`Delete Section ${value?.title || ''} ${value?.id}`} open={showDeleteModal}
+                prompt={`Are you sure you want to delete this section? All of the section data will be permanently removed
+                            from our servers forever. This action cannot be undone.`}
+                setOpen={(v) => setShowDeleteModal(v)}
+                onDelete={() => {
+                    async function deleteItem() {
+                        await onRemove(i)
+                        setShowDeleteModal(false)
+                    }
+
+                    deleteItem()
+                }}
+            />
         </div>
     )
 }
@@ -491,6 +505,11 @@ const getSectionMenuItems = ({
         {icon: 'PencilSquare', name: 'Edit', onClick: onEdit, cdn: () => !isEdit && isUserAuthed(['edit-section'], sectionAuthPermissions)},
         {icon: 'Refresh', name: isRefreshingData ? 'Refreshing Data' : 'Refresh Data', onClick: () => {
                 refreshDataBtnRef.current?.refresh({isRefreshingData, setIsRefreshingData})
+            },
+            cdn: () => !isEdit && isUserAuthed(['edit-section'], sectionAuthPermissions)},
+
+        {icon: 'Refresh', name: isRefreshingData ? 'Caching Data' : 'Cache Data', onClick: () => {
+                refreshDataBtnRef.current?.refresh({isRefreshingData, setIsRefreshingData, fullDataLoad: true})
             },
             cdn: () => !isEdit && isUserAuthed(['edit-section'], sectionAuthPermissions)},
         {icon: 'Copy', name: 'Copy Section', onClick: () => handleCopy(value)},

@@ -1,4 +1,4 @@
-import React, {useCallback, useRef, useState} from "react";
+import React, {memo, useCallback, useEffect, useRef, useState} from "react";
 import Icon from "../../Icon";
 import Switch from "../../Switch";
 import Popup from "../../Popup";
@@ -29,12 +29,30 @@ const ToggleControl = ({value, setValue, title, className}) => {
     ) : null;
 }
 
+const InputControl = ({updateColumns, inputType, value='', attributeKey, onChange, dataFetch}) => {
+    const [tmpValue, setTmpValue] = useState(value);
+
+    useEffect(() => {
+        const timeOutId = setTimeout(() => {
+            if(value !== tmpValue) updateColumns(attributeKey, tmpValue, onChange, dataFetch)
+        }, 300);
+
+        return () => clearTimeout(timeOutId);
+    }, [tmpValue]);
+
+    return (
+        <input
+            className={selectClasses}
+            type={inputType}
+            value={tmpValue}
+            onChange={e => setTmpValue(e.target.value)}
+        />
+    )
+}
 // in header menu for each column
-export default function TableHeaderCell({isEdit, attribute, columns, display, controls, setState=Noop}) {
-    const menuRef = useRef(null);
+export default memo(function TableHeaderCell({isEdit, attribute, columns, display, controls, setState=Noop}) {
     const [open, setOpen] = useState(false);
     const colIdName = getColIdName(attribute);
-    const menuBtnId = `menu-btn-${colIdName}-in-header-column-controls`; // used to control open on menu-btm click;
 
     // updates column if present, else adds it with the change the user made.
     const updateColumns = useCallback((key, value, onChange, dataFetch) => setState(draft => {
@@ -70,8 +88,7 @@ export default function TableHeaderCell({isEdit, attribute, columns, display, co
     return (
         <div key={colIdName} className="relative w-full">
             <Popup button={
-                <div id={menuBtnId}
-                     key={'menu-btn'}
+                <div key={'menu-btn'}
                      className={`group inline-flex items-center w-full justify-between gap-x-1.5 rounded-md cursor-pointer ${display.columnSelection?.includes(colIdName) ? `bg-gray-300` : ``}`}
                      onClick={e => {
                          if(e.ctrlKey){
@@ -96,7 +113,7 @@ export default function TableHeaderCell({isEdit, attribute, columns, display, co
                             </span>
                             )
                     }
-                    <div id={menuBtnId} className={'flex items-center'}>
+                    <div className={'flex items-center'}>
                         {/*/!*<InfoCircle width={16} height={16} className={'text-gray-500'} />*!/ needs a lexical modal*/}
                         {
                             attribute.group ? <Icon icon={'Group'} key={`group-${colIdName}`} className={iconClass} {...iconSizes} /> :
@@ -108,7 +125,6 @@ export default function TableHeaderCell({isEdit, attribute, columns, display, co
                         }
 
                         <Icon icon={'ArrowDown'} key={`arrow-down-${colIdName}`}
-                              id={menuBtnId}
                               className={'text-gray-400 group-hover:text-gray-600 transition ease-in-out duration-200 print:hidden'}/>
                     </div>
                 </div>
@@ -116,8 +132,7 @@ export default function TableHeaderCell({isEdit, attribute, columns, display, co
                 {
                     ({open, setOpen}) =>
                         controls?.inHeader?.length ? (
-                            <div ref={menuRef}
-                                 key={'menu'}
+                            <div key={'menu'}
                                  className={`min-w-[180px]
                  ${open ? 'visible transition ease-in duration-200' : 'hidden transition ease-in duration-200'} 
                  z-[10] divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 transition`}
@@ -155,11 +170,12 @@ export default function TableHeaderCell({isEdit, attribute, columns, display, co
                                                             type === 'input' ?
                                                                 <div className={selectWrapperClass}>
                                                                     <label className={selectLabelClass}>{label}</label>
-                                                                    <input
-                                                                        className={selectClasses}
-                                                                        type={inputType}
+                                                                    <InputControl
+                                                                        inputType={inputType}
                                                                         value={attribute[key]}
-                                                                        onChange={e => updateColumns(key, e.target.value, onChange, dataFetch)}
+                                                                        updateColumns={updateColumns}
+                                                                        attributeKey={key}
+                                                                        dataFetch={dataFetch}
                                                                     />
                                                                 </div> :
                                                                 typeof type === 'function' ?
@@ -180,4 +196,4 @@ export default function TableHeaderCell({isEdit, attribute, columns, display, co
             </Popup>
         </div>
     )
-}
+})

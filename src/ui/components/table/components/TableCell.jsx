@@ -124,11 +124,15 @@ const getEdge = (
     return '';
 };
 export const TableCell = memo(function TableCell ({
-                                                         isTotalCell,
-                                                         showOpenOutCaret, showOpenOut, setShowOpenOut,
-                                                         attribute, openOutTitle,
-                                                         index, attrI, item
+                                                      index, attrI, item, isTotalCell,
+                                                      showOpenOutCaret, setShowOpenOut,
+                                                      attribute, openOutTitle
+
                                                      }) {
+    // const index = rowIndex
+    // const attrI=columnIndex;
+    // const item = rows[index]
+    // const attribute = visibleAttributes[attrI]
     const loading = false;
     //const { theme = {table: tableTheme}} =  = React.useContext(ThemeContext) || {}
     const {frozenCols, allowEdit: allowEditComp, editing, setEditing, isDragging, isSelecting,
@@ -304,6 +308,13 @@ export const TableCell = memo(function TableCell ({
     }, [isSelected]);
 
     const isValid = useMemo(() => {
+        if(
+            ['multiselect', 'select'].includes(attribute.type) &&
+            attribute.mapped_options // don't validate vlaues for attributes that refer another source (dropdowns)
+        ) {
+            return true;
+        }
+
         if (
             !['multiselect', 'select', 'radio'].includes(attribute.type) &&
             attribute.required !== 'yes'

@@ -10,14 +10,15 @@ import {CMSContext, ComponentContext} from '../../../../context'
 import {ThemeContext} from "../../../../../../ui/useTheme"
 import {isEqualColumns} from "../../dataWrapper/utils/utils";
 import {duplicateControl} from "../shared/utils";
-import Table, {tableTheme} from "../../../../../../ui/components/table";
+import {tableTheme} from "../../../../../../ui/components/table";
 
 const frozenCols = [0,1] // testing
 const frozenColClass = '' // testing
 
-export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addItem, newItem, setNewItem, loading, allowEdit}) => {
+export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addItem, newItem, setNewItem, loading, allowEdit,
+                                currentPage, infiniteScrollFetchData}) => {
     const { UI, theme = { table: tableTheme } } = React.useContext(ThemeContext) || {}
-    const {Table} = UI;
+    const { Table } = UI;
     const {state:{columns, sourceInfo, display, data}, setState, controls={}, isActive} = useContext(ComponentContext);
     const gridRef = useRef(null);
 
@@ -61,7 +62,7 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
     }, [visibleAttributesLen, visibleAttrsWithoutOpenOutLen, openOutAttributesLen, sourceInfo.columns]);
     // ============================================ auto resize end ====================================================
 
-
+    //console.log('render table')
     if(!visibleAttributes.length) return <div className={'p-2'}>No columns selected.</div>;
     return <Table columns={columns} data={data} display={display} controls={controls} setState={setState}
                   allowEdit={allowEdit} isEdit={isEdit} loading={loading}
@@ -70,6 +71,8 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
                   updateItem={updateItem} removeItem={removeItem}
                   newItem={newItem} setNewItem={setNewItem} addItem={addItem}
                   numColSize={numColSize} gutterColSize={gutterColSize} frozenColClass={frozenColClass} frozenCols={frozenCols}
+                  currentPage={currentPage}
+                  infiniteScrollFetchData={infiniteScrollFetchData}
                   isActive={isActive}
     />
 }
@@ -176,10 +179,10 @@ export default {
             {type: 'select', label: 'Filter Relation', key: 'filterRelation',
                 options: [{label: 'and', value: 'and'}, {label: 'or', value: 'or'}]
             },
-            {type: 'input', inputType: 'number', label: 'Page Size', key: 'pageSize', displayCdn: ({display}) => display.usePagination === true},
+            {type: 'input', inputType: 'number', label: 'Page Size', key: 'pageSize'},
         ],
         inHeader: [
-            // settings from in header dropdown are stores in the columns array per column.
+            // settings from in header dropdown are stored in the columns array per column.
             {type: ({attribute, setAttribute}) => {
                     const {UI} = useContext(CMSContext);
                     const {Button} = UI;
@@ -197,6 +200,9 @@ export default {
                     )
                 },
                 label: 'format controls', key: '', displayCdn: ({isEdit}) => isEdit},
+            {
+                type: 'input', placeHolder: 'search...', key: 'localFilter'
+            },
             {type: 'select', label: 'Sort', key: 'sort', dataFetch: true,
                 options: [
                     {label: 'Not Sorted', value: ''}, {label: 'A->Z', value: 'asc nulls last'}, {label: 'Z->A', value: 'desc nulls last'}

@@ -147,10 +147,11 @@ function PatternList({
 				<div className={'w-full flex'}>
 					<Input type={'text'} value={search} onChange={e => setSearch(e.target.value)} placeholder={'Filter sites'} />
 				</div>
-				<Table columns={columns}
-					   data={data}
-					   isEdit={false}
-					   gridRef={gridRef}
+				<Table
+				  columns={columns}
+					data={data}
+					isEdit={false}
+					gridRef={gridRef}
 				/>
 
 				<Modal open={addingNew} setOpen={setAddingNew}>

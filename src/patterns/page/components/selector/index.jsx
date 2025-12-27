@@ -110,8 +110,9 @@ function EditComp(props) {
 
                         } else if(e){
                             const component = (RegisteredComponents[e]);
-                            onChange({...value, 'element-type': e, 'element-data': initialState(component.defaultState)})
-                            setState(initialState(component.defaultState))
+                            const defaultState = e === 'lexical' ? undefined : initialState(component.defaultState);
+                            onChange({...value, 'element-type': e, 'element-data': defaultState})
+                            setState(defaultState)
                         }
                     }}
                     filters={[
@@ -192,19 +193,20 @@ function ViewComp({value, isActive, hideSection, setHideSection, refreshDataBtnR
         }
     }, [state?.display?.hideSection])
 
-    async function refresh({isRefreshingData, setIsRefreshingData}) {
+    async function refresh({isRefreshingData, setIsRefreshingData, fullDataLoad}) {
         const getData = (component.useDataSource ? DataWrapper : component)?.getData;
         if (!getData) return;
-
+        // console.time('fetching data')
         setIsRefreshingData(true);
         const { length, data } = await getData({
             state,
             apiLoad,
             keepOriginalValues: component.keepOriginalValues,
-            fullDataLoad: component.fullDataLoad,
+            fullDataLoad: component.fullDataLoad || fullDataLoad,
             // debugCall: true
         });
-        updateAttribute('element-data', JSON.stringify({...state, data}));
+        // console.timeEnd('fetching data')
+        updateAttribute('element-data', JSON.stringify({...state, [fullDataLoad ? 'fullData' : 'data'] : data}));
         setIsRefreshingData(false)
     }
 

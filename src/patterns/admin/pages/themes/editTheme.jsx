@@ -2,6 +2,7 @@ import React, {useContext, useEffect, useMemo, useState} from 'react'
 import Frame from 'react-frame-component'
 import { useImmer } from 'use-immer';
 import {useNavigate} from 'react-router';
+import defaultTheme from '../../../../ui/defaultTheme'
 
 import { merge, cloneDeep, get, set } from "lodash-es";
 
@@ -86,13 +87,14 @@ function ComponentList ({
 
   // themes is an array of {name, theme, id}
 	const navigate = useNavigate();
-	const { theme, UI } = useContext(ThemeContext);
+	const { UI } = useContext(ThemeContext);
 	const { baseUrl, user } = React.useContext(AdminContext) || {};
 	const { Select, Button } = UI;
+	const theme = defaultTheme
 
 	const {theme_id, component, ...restparams} = params;
 	const themeObj = useMemo(() => (item.theme_refs || []).find(t => t.theme_id === theme_id), [item.theme_refs, theme_id])
-	const [currentTheme, setCurrentTheme] = useImmer( merge(cloneDeep(theme),parseIfJSON(themeObj?.theme)));
+	const [currentTheme, setCurrentTheme] = useImmer( merge(cloneDeep(defaultTheme),parseIfJSON(themeObj?.theme)));
 	const themeSettings = React.useMemo(() => currentTheme?.settings(currentTheme), [currentTheme])
   const [currentThemeSetting, setCurrentThemeSetting ] = React.useState(Object.keys(themeSettings)[0])
 

@@ -100,7 +100,7 @@ export function PatternThemeEditor ({
 
   // ----------------
   if(value?.theme?.settings) {
-	  delete value.theme.settings
+	 delete value.theme.settings
 	}
   if(!value?.theme?.layout?.options) {
     set(value, 'theme.layout.options', cloneDeep(baseTheme?.layout?.options))

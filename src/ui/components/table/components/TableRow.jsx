@@ -5,11 +5,13 @@ import Icon from "../../Icon"
 import {TableStructureContext} from "../index";
 
 export const TableRow = memo(function TableRow ({
-                                                    index, rowData,
+                                                    index, rowData={},
                                                     isRowSelected, // used only to set bg for row num
                                                     isTotalRow,
                                                     openOutContainerWrapperClass, openOutContainerClass,
+                                                    startCol, endCol, rowRef
                                                 }) {
+    // const rowData = rows[index];
     const {
         visibleAttrsWithoutOpenOut,
         visibleAttrsWithoutOpenOutLength,
@@ -17,7 +19,6 @@ export const TableRow = memo(function TableRow ({
         showGutters,
         striped,
         hideIfNullOpenouts,
-        gridTemplateColumns
     } = useContext(TableStructureContext);
     const [showOpenOut, setShowOpenOut] = useState(false);
     const numColSize = showGutters ? numColSizeDf : 0;
@@ -31,20 +32,37 @@ export const TableRow = memo(function TableRow ({
     //     [numColSize, gutterColSize, visibleAttrsWithoutOpenOut, defaultColumnSize]
     // );
 
+    const attrsToRender = visibleAttrsWithoutOpenOut
+        .slice(startCol, endCol + 1);
+
+    const slicedGridTemplateColumns = useMemo(() => {
+        const cols = attrsToRender
+            .map(c => `${c.size}px`)
+            .join(" ");
+
+        return `${numColSize}px ${cols} ${gutterColSize}px`;
+    }, [
+        startCol,
+        endCol,
+        visibleAttrsWithoutOpenOut,
+        numColSize,
+        gutterColSize
+    ]);
     const isDragging = false;
 
     return (
         <>
             <div
+                ref={rowRef}
                 key={`data-${index}`}
                 className={
-                    `grid 
-                ${rowData.totalRow ? `sticky bottom-0 z-[1]` : ``} ${isDragging ? `select-none` : ``} 
+                    `grid
+                ${rowData.totalRow ? `sticky bottom-0 z-[1]` : ``} ${isDragging ? `select-none` : ``}
                 ${striped ? `odd:bg-gray-50` : ``} ${rowData.totalRow ? `bg-gray-100` : ``}`
                 }
                 style={{
-                    gridTemplateColumns,
-                    gridColumn: `span ${visibleAttrsWithoutOpenOut.length + 2} / ${visibleAttrsWithoutOpenOut.length + 2}`
+                    gridTemplateColumns: slicedGridTemplateColumns,
+                    gridColumn: `span ${attrsToRender.length + 2} / ${attrsToRender.length + 2}`
                 }}
             >
                 <div key={'#'}
@@ -73,9 +91,10 @@ export const TableRow = memo(function TableRow ({
                 >
                     {showGutters && (rowData.totalRow ? 'T' : index + 1)}
                 </div>
-                {visibleAttrsWithoutOpenOut
-                    .map((attribute, attrI) =>
-                        <TableCell
+                {attrsToRender
+                    .map((attribute, i) => {
+                        const attrI = startCol + i;
+                        return <TableCell
                             key={`cell-${index}-${attrI}`}
                             index={index} attrI={attrI}
                             item={rowData}
@@ -84,7 +103,8 @@ export const TableRow = memo(function TableRow ({
                             showOpenOutCaret={openOutAttributes.length && attrI === 0}
                             showOpenOut={showOpenOut} setShowOpenOut={setShowOpenOut}
                             attribute={attribute}
-                        />)}
+                        />
+                    })}
 
                 <div className={'flex items-center border'}>
                     <div key={'##'}
