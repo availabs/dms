@@ -10,7 +10,6 @@ import {
     updatePageStateFiltersOnSearchParamChange
 } from './_utils'
 import SectionGroup from '../components/sections/sectionGroup'
-import SearchButton from '../components/search'
 import { PageContext, CMSContext } from '../context';
 import { ThemeContext } from "../../../ui/useTheme";
 
@@ -47,14 +46,14 @@ function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdat
         return items
     }, [theme?.navOptions?.secondaryNav?.navItems])
 
-    React.useEffect(() => {
-        // -------------------------------------------------------------------
-        // -- This on load effect backfills pages created before sectionGroups
-        // -- This should be deleted by JUNE 1 2025
-        // -------------------------------------------------------------------
-        //sectionsBackill(item,baseUrl,apiUpdate)
+    // React.useEffect(() => {
+    //     // -------------------------------------------------------------------
+    //     // -- This on load effect backfills pages created before sectionGroups
+    //     // -- This should be deleted by JUNE 1 2025
+    //     // -------------------------------------------------------------------
+    //     //sectionsBackill(item,baseUrl,apiUpdate)
 
-    },[])
+    // },[])
 
     useEffect(() => {
         updatePageStateFiltersOnSearchParamChange({searchParams, item, patternFilters, setPageState})

@@ -29,7 +29,7 @@ import ErrorPage from "./pages/error";
 
 // ------------
 RegisterLayoutWidget('UserMenu', DefaultMenu)
-RegisterLayoutWidget('SearchButton', SearchButton)
+RegisterLayoutWidget('Search', SearchButton)
 // ------------
 
 

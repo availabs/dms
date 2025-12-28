@@ -3,6 +3,7 @@ import settings from './themeSettings'
 import sideNavTheme from "./components/SideNav.theme";
 import topNavTheme from "./components/TopNav.theme";
 import layoutTheme  from './components/Layout.theme'
+import { layoutGroupTheme } from './components/LayoutGroup';
 import {tabsTheme} from "./components/Tabs";
 import {buttonTheme} from "./components/Button";
 import {menuTheme} from "./components/Menu";
@@ -68,12 +69,7 @@ const components = {
         "base": "p-2 w-full font-sans font-medium text-md bg-transparent",
         "default": ""
     },
-    "levelClasses": {
-        "1": " pt-2 pb-1 uppercase text-sm text-blue-400 hover:underline cursor-pointer border-r-2 mr-4",
-        "2": "pl-2 pt-2 pb-1 uppercase text-sm text-slate-400 hover:underline cursor-pointer border-r-2 mr-4",
-        "3": "pl-4 pt-2 pb-1 text-sm text-slate-400 hover:underline cursor-pointer border-r-2 mr-4",
-        "4": "pl-6 pt-2 pb-1 text-sm text-slate-400 hover:underline cursor-pointer border-r-2 mr-4"
-    },
+
     "sectionArray": {
         "container": "w-full grid grid-cols-6 ",
         "gridSize": 6,
@@ -143,6 +139,7 @@ const components = {
         }
     },
     layout: layoutTheme,
+    layoutGroup: layoutGroupTheme,
     nestable: nestableTheme,
     sidenav: sideNavTheme,
     topnav: topNavTheme,

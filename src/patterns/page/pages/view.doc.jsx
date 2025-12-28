@@ -152,7 +152,7 @@ const pageViewDoc = {
             {
                 "name": "default",
                 "index": 0,
-                "theme": "content",
+                "theme": "default",
                 "position": "content"
             }
         ],

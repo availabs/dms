@@ -1,5 +1,6 @@
 import React from "react";
 import Layout from './components/Layout';
+import LayoutGroup from './components/LayoutGroup'
 import SideNav from './components/SideNav';
 import Logo from './components/Logo';
 import SideNavContainer from "./components/SideNavContainer";
@@ -38,13 +39,15 @@ import ColumnTypes from "./columnTypes/index.jsx";
 const UI = {
 	// --- Layout
 	Layout,
+	LayoutGroup,
+	SideNav,
+	TopNav,
 	Logo,
 	SideNavContainer,
 	// --- Navigation
 	Menu,
     NavigableMenu,
-	SideNav,
-	TopNav,
+
   // Nestable,
 	DraggableNav,
 	DraggableNavOld,
@@ -56,8 +59,8 @@ const UI = {
 	Label,
 	Popover,
 	Pill,
-    Permissions,
-    Popup,
+  Permissions,
+  Popup,
 
 	// --- Forms
 	FieldSet,

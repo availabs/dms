@@ -8,7 +8,7 @@ const topNavTheme = {
     "topnavWrapper": `w-full h-[50px] flex items-center pr-1`,
     "topnavContent": `flex items-center w-full h-full bg-white lg:bg-zinc-100 dark:bg-zinc-900 dark:lg:bg-zinc-950 justify-between`,
     "topnavMenu": `hidden  lg:flex items-center flex-1  h-full overflow-x-auto overflow-y-hidden scrollbar-sm`,
-    "topmenuRightNavContainer": "hidden md:flex h-full items-center",
+    "topmenuRightNavContainer": "hidden min-w-[120px] md:flex h-full items-center",
     "topnavMobileContainer": "bg-slate-50",
     "mobileButton": 'md:hidden bg-slate-100 inline-flex items-center justify-center pt-[12px] px-2 hover:text-blue-400  text-gray-400 hover:bg-gray-100 ',
     "menuOpenIcon": `BarsMenu`,
