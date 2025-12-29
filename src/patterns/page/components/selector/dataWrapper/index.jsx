@@ -113,7 +113,7 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
     const Comp = useMemo(() => component.EditComp, [component]);
 
     const localFilters = useMemo(() =>
-            state.columns.filter(c => c.localFilter)
+            state.columns.filter(c => c.localFilter?.length)
                 .reduce((acc, c) => ({...acc, [c.normalName || c.name]: c.localFilter}), {}),
         [state.columns]);
     const localFilterColumns = useMemo(() => Object.keys(localFilters).filter(k => localFilters[k]?.length), [localFilters]);
@@ -153,7 +153,7 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
         ) - 1;
 
         setState(draft => {
-            draft.localFilteredData = filteredData.filter((_, i) => i >= fromIndex && i <= toIndex);
+            draft.localFilteredData = filteredData.length < fromIndex ? filteredData : filteredData.filter((_, i) => i >= fromIndex && i <= toIndex);
             draft.display.filteredLength = filteredData.length;
         })
 
@@ -530,7 +530,7 @@ const View = ({cms_context, value, size, apiUpdate, component}) => {
     }, [value]);
 
     const localFilters = useMemo(() =>
-            state.columns.filter(c => c.localFilter)
+            state.columns.filter(c => c.localFilter?.length)
                 .reduce((acc, c) => ({...acc, [c.normalName || c.name]: c.localFilter}), {}),
         [state.columns]);
     const localFilterColumns = useMemo(() => Object.keys(localFilters).filter(k => localFilters[k]?.length), [localFilters]);
@@ -570,7 +570,7 @@ const View = ({cms_context, value, size, apiUpdate, component}) => {
         ) - 1;
 
         setState(draft => {
-            draft.localFilteredData = filteredData.filter((_, i) => i >= fromIndex && i <= toIndex);
+            draft.localFilteredData = filteredData.length < fromIndex ? filteredData : filteredData.filter((_, i) => i >= fromIndex && i <= toIndex);
             draft.display.filteredLength = filteredData.length;
         })
 
