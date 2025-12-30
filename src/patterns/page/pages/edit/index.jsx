@@ -26,7 +26,7 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
 
 	const { Layout } = UI;
 	const theme = merge(cloneDeep(fullTheme), item?.theme || {});
-	console.log('edit theme merge', fullTheme.layout, item.theme, theme.layout)
+	// console.log('edit theme merge', fullTheme.layout, item.theme, theme.layout)
 
 	const menuItems = React.useMemo(() => dataItemsNav(dataItems,baseUrl,true), [dataItems]);
 

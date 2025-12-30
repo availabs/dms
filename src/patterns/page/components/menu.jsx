@@ -23,8 +23,8 @@ const UserMenu = ({}) => {
     const {Icon} = UI;
     return (
       <div className="flex w-full items-center justify-center rounded-xl min-w-[60px] @container">
-        <div className="flex p-2  justify-center">
-          <div className={`size-8  border-[#E0EBF0] rounded-lg place-items-center content-center `}>
+        <div className="flex p-2  justify-center items-center">
+          <div className={`size-8 border-2 border-[#E0EBF0] rounded-full place-items-center content-center `}>
               <Icon icon={'User'} className='size-6 fill-[#37576b]' />
           </div>
         </div>
@@ -123,7 +123,7 @@ export default ({title, children}) => {
                 ]}
                 showTitle={false}
               >
-                <div className='border-1 border-slate-200 flex-1 w-full rounded-xl shadow'>
+                <div className='flex items-center flex-1 w-full'>
                   <UserMenu />
                 </div>
               </NavigableMenu>

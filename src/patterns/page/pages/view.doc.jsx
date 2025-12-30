@@ -152,7 +152,7 @@ const pageViewDoc = {
             {
                 "name": "default",
                 "index": 0,
-                "theme": "default",
+                "theme": "content",
                 "position": "content"
             }
         ],
@@ -297,7 +297,7 @@ const pageViewDoc = {
             ],
             "section_groups": [
                 {
-                    "name": "default",
+                    "name": "content",
                     "index": 0,
                     "theme": "content",
                     "position": "content"

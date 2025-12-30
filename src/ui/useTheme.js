@@ -28,7 +28,8 @@ export const getPatternTheme = (themes, pattern) => {
 
 export const getComponentTheme = (theme, compType, activeStyle) => {
   const componentTheme = get(theme, compType, {})
+  const finalActiveStyle = activeStyle || activeStyle === 0 ?  activeStyle : componentTheme.options?.activeStyle || 0
   return componentTheme?.styles ?
-    componentTheme.styles[activeStyle || componentTheme.options?.activeStyle || 0] :
+    componentTheme.styles[finalActiveStyle] :
     componentTheme || {}
 }

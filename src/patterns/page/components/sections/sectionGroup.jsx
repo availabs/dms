@@ -2,9 +2,9 @@ import React from 'react'
 import { Link, useLocation } from 'react-router'
 import { cloneDeep } from 'lodash-es'
 
+import { ThemeContext } from "../../../../ui/useTheme";
 import { PageContext, CMSContext } from '../../context'
 import { getInPageNav } from '../../pages/_utils'
-import { ThemeContext } from "../../../../ui/useTheme";
 
 import SectionArray from './sectionArray'
 
@@ -30,8 +30,6 @@ export default function SectionGroup ({group, attributes, edit}) {
         ( attributes?.['sections']?.EditComp || SectionArray?.EditComp ) :
         ( attributes?.['sections'].ViewComp || SectionArray?.ViewComp )
   }, [])
-
-  console.log('Page View activeStyle', activeStyle)
 
   return (
     <LayoutGroup

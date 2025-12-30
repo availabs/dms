@@ -1,4 +1,5 @@
 import {layoutSettings} from './components/Layout.theme'
+import { layoutGroupSettings } from './components/LayoutGroup'
 import {sideNavsettings} from './components/SideNav.theme'
 import {topNavsettings} from './components/TopNav.theme'
 import { logoSettings } from './components/Logo'
@@ -13,6 +14,7 @@ export default (theme) => {
   // console.log('hola page settings', pageSettings)
   return {
     layout: layoutSettings(theme),
+    layoutGroup: layoutGroupSettings(theme),
     sidenav: sideNavsettings(theme),
     topnav: topNavsettings(theme),
     logo: logoSettings,

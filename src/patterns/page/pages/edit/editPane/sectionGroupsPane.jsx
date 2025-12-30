@@ -54,7 +54,7 @@ function SectionGroupControl ({group}) {
       { icon: 'Theme', name: 'Theme',
         type: 'menu',
         value: group?.['theme'] || 'default',
-        items: Object.keys(theme?.sectionGroup || theme?.pages?.sectionGroup?.group || {})
+        items: theme.layoutGroup.styles.map(d => d.name)
             .map((name,i) => {
                 return {
                     'icon': name == (group?.['theme'] || 'None') ? 'CircleCheck' : 'Blank',

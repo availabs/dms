@@ -105,6 +105,7 @@ export function PatternThemeEditor ({
   if(!value?.theme?.layout?.options) {
     set(value, 'theme.layout.options', cloneDeep(baseTheme?.layout?.options))
   }
+  console.log('Pattern Theme Editor', value)
   let inputTheme = value?.theme || {}
   // ----------------
   const [patternTheme, setPatternTheme] = useImmer(inputTheme)
@@ -119,7 +120,7 @@ export function PatternThemeEditor ({
   		)
 	}
 	,[baseTheme, patternTheme]);
-	//console.log('currentTheme', currentTheme)
+	//console.log('currentTheme', currentTheme, 	cloneDeep(patternTheme))
   const themeSettings = React.useMemo(() => {
     // console.log('updateSettings',currentTheme?.settings(currentTheme), currentTheme)
     return currentTheme?.settings(currentTheme)
@@ -137,9 +138,11 @@ export function PatternThemeEditor ({
       cloneDeep(themes?.[patternTheme.selectedTheme ||'default'] || {}),
     )
     setBaseTheme(newBase)
-    setPatternTheme((draft) => {
-      set(draft, 'layout.options', cloneDeep(newBase?.layout?.options))
-    })
+    //console.log('updating base theme')
+    // This reset the
+    // setPatternTheme((draft) => {
+    //   set(draft, 'layout.options', cloneDeep(newBase?.layout?.options))
+    // })
   },[patternTheme.selectedTheme])
 
 	const onSubmit = (updateCurrentTheme) => {
@@ -177,7 +180,6 @@ export function PatternThemeEditor ({
   					  value={currentComponent}
   						onChange={e => {
     						  setCurrentComponent(e.target.value)
-      						//navigate(`${baseUrl}/${path.replace(':theme_id', theme_id).replace(':component?', e.target.value.toLowerCase())}`)
     				  }}
      			    options={compOptions}
        	    />
