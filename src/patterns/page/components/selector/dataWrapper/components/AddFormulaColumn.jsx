@@ -2,7 +2,6 @@ import React, {useContext, useState} from "react";
 import { getColumnLabel } from "../utils/utils";
 import { useImmer } from "use-immer";
 import { v4 as uuidv4 } from 'uuid';
-import { CMSContext } from "../../../../context";
 import { ThemeContext } from "../../../../../../ui/useTheme";
 
 const validateAST = (node) => {
@@ -187,7 +186,7 @@ const Modal = ({ open, setOpen, columns, addFormulaColumn, cms_context }) => {
 
 const AddFormulaColumn = ({columns=[], addFormulaColumn, cms_context}) => {
     const [open, setOpen] = useState(false);
-    const {UI} = useContext(cms_context || CMSContext) || {UI: {Pill: () => <></>}};
+    const {UI} = useContext(ThemeContext);
     const {Pill} = UI;
     return (
         <>

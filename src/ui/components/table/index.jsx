@@ -272,20 +272,12 @@ export default function ({
     const [defaultColumnSize, setDefaultColumnSize] = React.useState(defColSize);
 
     const structureValues = useMemo(() => {
-        const visibleAttributes = columns.filter(c => c.show);
+        const visibleAttributes = columns.filter(c => c.show).map(c => ({...c, size: c.size || defaultColumnSize}));
         const visibleAttrsWithoutOpenOut = visibleAttributes.filter(c => !c.openOut || c.actionType);
         const openOutAttributes = visibleAttributes.filter(c => c.openOut);
 
-        const columnSizes = visibleAttrsWithoutOpenOut.map(
-          v => {
-            if( !v.size ){
-              v.size = (v?.size ? v.size : defaultColumnSize)
-            }
-            return v.size
-          }
-        );
+        const columnSizes = visibleAttrsWithoutOpenOut.map(v => v.size);
 
-        console.log('columnsSizes', columnSizes, visibleAttrsWithoutOpenOut)
         return {
             visibleAttributes,
             visibleAttrsWithoutOpenOut,

@@ -237,9 +237,7 @@ export default function ColumnControls({context, cms_context}) {
     return (
         <div className="inline-block text-left">
             <Popup button={<Button type={'rounded'}
-                                   className={`inline-flex w-full justify-center items-center rounded-md px-1.5 py-1 text-sm font-regular
-                 text-gray-900 shadow-sm ring-1 ring-inset ${columns?.length ? `ring-blue-300` : `ring-gray-300`}
-                  bg-white hover:bg-gray-50 cursor-pointer`}
+                                   className={`w-full justify-center items-center rounded-md px-1.5 py-1 text-sm font-regular cursor-pointer`}
                                    onClick={() => {
                                        setSearch(undefined);
                                    }}>

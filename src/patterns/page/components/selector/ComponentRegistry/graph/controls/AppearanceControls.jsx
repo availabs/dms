@@ -1,11 +1,12 @@
 import React, {useState, useContext, useCallback} from "react";
 import {ToggleControl} from "../../../dataWrapper/components/ToggleControl";
 import {InputControl} from "../../../dataWrapper/components/InputControl";
-import {CMSContext, ComponentContext} from "../../../../../context";
+import {ComponentContext} from "../../../../../context";
+import {ThemeContext} from "../../../../../../../ui/useTheme";
 
 const DomainEditor = ({value, setValue, display}) => {
     const [newTick, setNewTick] = useState('');
-    const {UI} = useContext(CMSContext);
+    const {UI} = useContext(ThemeContext);
     const {Icon} = UI;
 
     return display.useCustomXDomain ? (
@@ -39,7 +40,7 @@ const DomainEditor = ({value, setValue, display}) => {
 }
 export default function AppearanceControls({context}) {
     const {state: {display}, setState} = useContext(context || ComponentContext);
-    const {UI} = useContext(CMSContext);
+    const {UI} = useContext(ThemeContext);
     const {Icon, Popup} = UI;
 
     const updateDisplayValue = useCallback((parentKey, key, value) => {

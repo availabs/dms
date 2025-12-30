@@ -1,7 +1,7 @@
 import React, {useCallback, useContext, useEffect} from "react";
 import {getColumnLabel, isEqualColumns} from "../../dataWrapper/utils/utils";
 import {cloneDeep} from "lodash-es";
-import {CMSContext} from "../../../../context";
+import {ThemeContext} from "../../../../../../ui/useTheme";
 
 export const useHandleClickOutside = (menuRef, menuBtnId, onClose) => {
     const handleClickOutside = useCallback(
@@ -28,7 +28,7 @@ export const useHandleClickOutside = (menuRef, menuBtnId, onClose) => {
 export const duplicateControl = {
     label: 'duplicate',
     type: ({attribute, setState}) => {
-        const {UI} = useContext(CMSContext);
+        const {UI} = useContext(ThemeContext);
         const {Icon} = UI;
         const duplicate = () => {
             setState(draft => {
