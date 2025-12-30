@@ -6,7 +6,7 @@ import {
     numColSize as numColSizeDf
 } from "./constants"
 import ActionControls from "./controls/ActionControls";
-import {CMSContext, ComponentContext} from '../../../../context'
+import {ComponentContext} from '../../../../context'
 import {ThemeContext} from "../../../../../../ui/useTheme"
 import {isEqualColumns} from "../../dataWrapper/utils/utils";
 import {duplicateControl} from "../shared/utils";
@@ -184,7 +184,7 @@ export default {
         inHeader: [
             // settings from in header dropdown are stored in the columns array per column.
             {type: ({attribute, setAttribute}) => {
-                    const {UI} = useContext(CMSContext);
+                    const {UI} = useContext(ThemeContext);
                     const {Button} = UI;
                     const {
                         justify, formatFn, headerFontStyle, valueFontStyle, hideHeader, hideValue, bgColor, cardSpan, wrapText

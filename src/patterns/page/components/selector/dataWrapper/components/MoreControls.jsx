@@ -30,8 +30,10 @@ export default function MoreControls({context}) {
     return (
         <div className="relative inline-block text-left">
             <Popup button={
-                <Button type={'rounded'}
-                        className={`inline-flex w-full justify-center items-center rounded-md px-1.5 py-1 text-sm font-regular text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 bg-white hover:bg-gray-50 cursor-pointer`}>
+                <Button type={'transparent'}
+                        className={`inline-flex w-full justify-center items-center rounded-md px-1.5 py-1 text-sm font-regular
+                        ring-1 ring-inset ring-gray-300
+                 text-gray-900 shadow-sm bg-white hover:bg-gray-50 cursor-pointer`}>
                 More <Icon icon='ArrowDown' height={18} width={18} className={'mt-1'}/>
                 </Button>}
             >

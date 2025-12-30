@@ -187,12 +187,12 @@ export function SectionEdit({
                                 />
                             </Popup>)
                     }
-                    <Button type='plain' padding='p-0' onClick={onSave}>
+                    <Button buttonType='transparent' padding='p-0' onClick={onSave}>
                         <Icon icon={'FloppyDisk'}
                               className='text-slate-400 hover:text-blue-500 size-6'/>
                     </Button>
                     {/*cancel*/}
-                    <Button type='plain' padding='p-0' onClick={onCancel}>
+                    <Button buttonType='transparent' padding='p-0' onClick={onCancel}>
                         <Icon icon={'CancelCircle'}
                               className='text-slate-400 hover:text-red-500 size-6'/>
                     </Button>
