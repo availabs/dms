@@ -95,6 +95,11 @@ export const layoutSettings = (theme) => {
       path: `layout.options.sideNav.nav`,
     },
     {
+      label: 'SideNav Menu Depth',
+      type: 'Input',
+      path: `layout.options.sideNav.navDepth`,
+    },
+    {
       label: "Side Nav - Top Menu",
       type: "Listbox",
       options: theme?.layout?.options?.widgets || [],
@@ -173,6 +178,7 @@ export const layoutSettings = (theme) => {
         ...(theme.layout.options.sideNav.size !== 'none' ? sideNavOptions : []),
       ]
     },
+
     {
       label: "Layout Styles",
       type: "inline",

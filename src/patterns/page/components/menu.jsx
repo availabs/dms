@@ -44,10 +44,11 @@ const EditControl = () => {
   const { Icon } = UI
   const menuTheme = theme?.page?.menu ||  userMenuTheme
   const edit = React.useMemo(() => {
-    return location.pathname.split('/')?.[1] === 'edit'
+    return location.pathname.replace(`${baseUrl}`,'').split('/')?.[1] === 'edit'
   },[location])
 
-  const urlpath = edit ? location?.pathname.replace('/edit','') : location?.pathname
+  const urlpath = edit ? location?.pathname.replace(`${baseUrl}/edit`,'') : location?.pathname.replace(`${baseUrl}`,'')
+  console.log('test', edit,urlpath,location?.pathname, baseUrl)
     return <>
       {(
         user?.authed &&

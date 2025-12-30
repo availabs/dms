@@ -2,7 +2,7 @@ import React, {useContext, useRef, useState} from 'react'
 import {AdminContext} from "../../context";
 import { ThemeContext } from '../../../../ui/useTheme';
 import { Link, useLocation } from 'react-router'
-import {v4 as uuidv4} from "uuid";
+import { cloneDeep } from 'lodash-es';
 
 function ThemeList ({
    item={},
@@ -36,26 +36,11 @@ function ThemeList ({
             <Icon icon='PencilEditSquare' className='size-5' /><span className='pl-1'>Edit</span>
           </Link>
           <div
-            onClick={async () => {
-              setEditingItem(d.row)
-              // const theme_id = uuidv4();
-								// const newValue = [...item.theme_refs, {...editingItem, theme_id}]
-								// onSubmit(newValue);
-								// setEditingItem(undefined)
-						}}
+            onClick={async () => { setEditingItem(d.row)}}
             className='flex mx-1 items-center px-2 py-1 text-sm text-slate-700 bg-slate-200 rounded-full cursor-pointer'>
             <Icon icon='' className='size-5' /><span className='pl-1'>Settings</span>
           </div>
-          {/* <div
-            onClick={async () => {
-								const theme_id = uuidv4();
-								const newValue = [...item.theme_refs, {...editingItem, theme_id}]
-								onSubmit(newValue);
-								setEditingItem(undefined)
-						}}
-            className='flex mx-1 items-center px-2 py-1 text-sm text-slate-700 bg-red-200 rounded-full cursor-pointer'>
-            <Icon icon='' className='size-5' /><span className='pl-1'>Delete</span>
-          </div>*/}
+
         </div>
       ),
     }
@@ -118,7 +103,7 @@ function ThemeList ({
 					<div className={'w-full flex items-center justify-start'}>
 						<button
 							className={'bg-blue-100 hover:bg-blue-300 text-sm text-blue-800 px-2 py-0.5 m-1 rounded-lg w-fit h-fit'}
-							onClick={() => addNewValue({...newItem, theme_id: uuidv4()})}
+							onClick={() => addNewValue({...newItem, theme_id: crypto.randomUUID()})}
 						>
 							Add
 						</button>
@@ -171,8 +156,11 @@ function ThemeList ({
 							type={'plain'}
 							title={'duplicate item'}
 							onClick={async () => {
-								const theme_id = uuidv4();
-								const newValue = [...item.theme_refs, {...editingItem, theme_id}]
+								const theme_id = crypto.randomUUID();
+								const duplicate_theme = cloneDeep(editingItem)
+								delete duplicate_theme.id
+								duplicate_theme.name = duplicate_theme.name + ' dup'
+								const newValue = [...item.theme_refs, {...duplicate_theme, theme_id}]
 								onSubmit(newValue);
 								setEditingItem(undefined)
 							}}
