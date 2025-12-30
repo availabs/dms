@@ -199,7 +199,7 @@ function SettingsPane () {
 
             ],
             onChange:(e) => {
-              console.log('toggle sidenave', )
+              console.log('toggle sidenave', e.target.value)
               togglePageSetting(item, 'theme.layout.options.sideNav.size', e.target.value,  apiUpdate)
             }
           },

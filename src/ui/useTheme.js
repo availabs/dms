@@ -9,9 +9,10 @@ export const ThemeContext = React.createContext(defaultTheme);
 export const getPatternTheme = (themes, pattern) => {
   let patternSelection = (
     pattern?.theme?.selectedTheme || //current Theme Setting
-    pattern?.settings?.theme?.theme || //old Theme setting pre v0.
+    pattern?.theme?.settings?.theme?.theme || //old Theme setting pre v0.
     'default'
   )
+  //console.log('useTheme - getPtternTheme', pattern)
   let baseTheme = merge(
 		cloneDeep(defaultTheme),
     cloneDeep(themes?.[patternSelection] || {}),

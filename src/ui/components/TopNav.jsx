@@ -216,11 +216,11 @@ const TopNavItem = ({
                 }}
               >
                 {
-                  (depth < maxDepth && subMenus.length) &&
+                  (depth < maxDepth && subMenus.length) ?
                     <Icon
                       icon={theme?.indicatorIcon || 'ArrowDown'}
                       className={theme?.indicatorIconWrapper}
-                    />
+                    /> : ""
                 }
 
               </div>
