@@ -241,14 +241,22 @@ const AddNew = ({allowAdddNew,
         </div>
     )
 }
+const getKey = v => {
+    if (v && typeof v === 'object') {
+        return v.originalValue ?? v.value;
+    }
+    return v;
+};
 export default function ({
     paginationActive, gridRef,
     allowEdit,
-    updateItem, removeItem, loading, isEdit,
+    updateItem, removeItem, isEdit,
     numColSize=defaultNumColSize, gutterColSize=defaultGutterColSize, frozenColClass, frozenCols=[],
-    columns=[], data=[], display={}, controls={}, setState, isActive, customTheme={},
+    columns=[], data: unFilteredData=[], localFilteredData, display={}, controls={}, setState, isActive, customTheme={},
     addItem, newItem={}, setNewItem, infiniteScrollFetchData, currentPage
 }) {
+    const data = localFilteredData || unFilteredData;
+
     const { theme: themeFromContext = {table: tableTheme}} = React.useContext(ThemeContext) || {};
     const theme = useMemo(() => {
         return ({
@@ -486,7 +494,7 @@ export default function ({
     //     [selection]
     // );
 
-    const showTotal = display.showTotal || columns.some(c => c.showTotal);
+    const showTotal = (display.showTotal || columns.some(c => c.showTotal)) && !localFilteredData?.length;
     const { rows, totalRow } = useMemo(() => {
         const rows = [];
         let totalRow = {};
@@ -497,7 +505,7 @@ export default function ({
         }
 
         return { rows, totalRow };
-    }, [data]);
+    }, [data, showTotal]);
 
     // trying to reduce re-renders of tableRow
     const openOutContainerWrapperClass = useMemo(() => theme?.table?.openOutContainerWrapper, [theme?.table?.openOutContainerWrapper]);
@@ -517,6 +525,30 @@ export default function ({
         ),
         [rows, openOutContainerWrapperClass, openOutContainerClass]
     );
+    const localFilterData = useMemo(() => {
+        const dataToReturn = {};
+
+        const columns = visibleAttrsWithoutOpenOut
+            .filter(attribute => ['select', 'multiselect', 'radio'].includes(attribute.type))
+            .map(attribute => attribute.name);
+
+        unFilteredData.forEach(row => {
+            columns.forEach(column => {
+                const values = Array.isArray(row[column])  ? row[column] : [row[column]];
+
+                values.forEach(v => {
+                    if (v == null) return;
+                    const key = getKey(v);
+
+                    if (!dataToReturn[column]) { dataToReturn[column] = new Map(); }
+
+                    dataToReturn[column].set(key, v); // uniq by value or originalValue
+                });
+            })
+        })
+
+        return dataToReturn;
+    }, [unFilteredData, visibleAttrsWithoutOpenOut]);
 
     const components = useMemo(() => ({
         Header: ({start, end}) => (
@@ -535,13 +567,14 @@ export default function ({
                     start={start}
                     end={end}
                     gutterColSize={gutterColSize}
+                    localFilterData={localFilterData}
             />
         ),
         Footer: () => paginationActive || rows.length === display.totalLength || !infiniteScrollFetchData ? null : <div>loading...</div>,
         bottomFrozen: ({start, end}) => (
             <>
                 {
-                    display.showTotal ? (
+                    showTotal ? (
                         <TableRow key={'total-row'}
                                   index={'total-row'}
                                   rowData={totalRow}
@@ -564,9 +597,9 @@ export default function ({
     }), [
         theme?.table, visibleAttrsWithoutOpenOut,
         numColSize, frozenCols, frozenColClass, selectedCols,
-        isEdit, columns, display, controls, setState, colResizer, gutterColSize, display.showTotal, totalRow,
+        isEdit, columns, display, controls, setState, colResizer, gutterColSize, showTotal, totalRow,
         openOutContainerWrapperClass, openOutContainerClass,
-        display.allowAdddNew, isDragging, theme
+        display.allowAdddNew, isDragging, theme, localFilterData, paginationActive
     ]);
 
     return (

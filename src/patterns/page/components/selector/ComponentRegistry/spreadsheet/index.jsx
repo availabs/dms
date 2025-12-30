@@ -18,8 +18,8 @@ const frozenColClass = '' // testing
 export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addItem, newItem, setNewItem, loading, allowEdit,
                                 currentPage, infiniteScrollFetchData}) => {
     const { UI, theme = { table: tableTheme } } = React.useContext(ThemeContext) || {}
-    const { Table } = UI;
-    const {state:{columns, sourceInfo, display, data}, setState, controls={}, isActive} = useContext(ComponentContext);
+    const {Table} = UI;
+    const {state:{columns, sourceInfo, display, data, localFilteredData}, setState, controls={}, isActive} = useContext(ComponentContext);
     const gridRef = useRef(null);
 
     const visibleAttributes = useMemo(() => columns.filter(({show}) => show), [columns]);
@@ -64,7 +64,7 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
 
     //console.log('render table')
     if(!visibleAttributes.length) return <div className={'p-2'}>No columns selected.</div>;
-    return <Table columns={columns} data={data} display={display} controls={controls} setState={setState}
+    return <Table columns={columns} data={data} localFilteredData={localFilteredData} display={display} controls={controls} setState={setState}
                   allowEdit={allowEdit} isEdit={isEdit} loading={loading}
                   gridRef={gridRef}
                   theme={theme} paginationActive={paginationActive}
@@ -201,7 +201,7 @@ export default {
                 },
                 label: 'format controls', key: '', displayCdn: ({isEdit}) => isEdit},
             {
-                type: 'input', placeHolder: 'search...', key: 'localFilter'
+                type: 'filter', label: 'filter', placeHolder: 'search...', key: 'localFilter'
             },
             {type: 'select', label: 'Sort', key: 'sort', dataFetch: true,
                 options: [
@@ -217,8 +217,8 @@ export default {
             {type: 'select', label: 'Format', key: 'formatFn',
                 options: [
                     {label: 'No Format Applied', value: ' '},
-                    {label: 'Comma Seperated', value: 'comma'},
-                    {label: 'Comma Seperated ($)', value: 'comma_dollar'},
+                    {label: 'Comma Separated', value: 'comma'},
+                    {label: 'Comma Separated ($)', value: 'comma_dollar'},
                     {label: 'Abbreviated', value: 'abbreviate'},
                     {label: 'Abbreviated ($)', value: 'abbreviate_dollar'},
                     {label: 'Date', value: 'date'},

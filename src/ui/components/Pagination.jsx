@@ -11,15 +11,14 @@ export const docs = {
     setCurrentPage: () => {}
 }
 
-export default function ({totalLength, pageSize, usePagination,
-                             currentPage,
-    setCurrentPage
+export default function ({totalLength, filteredLength, pageSize, usePagination,
+                             currentPage, setCurrentPage
                          }) {
     const { theme: themeFromProps  = {} } = React.useContext(ThemeContext) || {};
     const theme = {...themeFromProps, table: {...tableTheme, ...(themeFromProps.table || {})}};
-
+    const length = filteredLength || totalLength
     const rangeSize = 5;
-    const totalPages=Math.ceil(totalLength / pageSize);
+    const totalPages=Math.ceil(length / pageSize);
     const halfRange = Math.floor(rangeSize / 2);
 
     // Determine the start and end of the range
@@ -46,7 +45,7 @@ export default function ({totalLength, pageSize, usePagination,
                     <>
                         <div className={theme?.table?.paginationInfoContainer}>
                             <div className={theme?.table?.paginationPagesInfo}> Page {currentPage+1} of {totalPages} </div>
-                            <div className={theme?.table?.paginationRowsInfo}> Rows {(currentPage * pageSize)+1} to {Math.min(+totalLength,(currentPage * pageSize) + pageSize)} of {totalLength}</div>
+                            <div className={theme?.table?.paginationRowsInfo}> Rows {(currentPage * pageSize)+1} to {Math.min(+length,(currentPage * pageSize) + pageSize)} of {length}</div>
                         </div>
                         <div className={theme?.table?.paginationControlsContainer}>
                             {/*<div className={'cursor-pointer text-gray-500 hover:text-gray-800'}
@@ -67,7 +66,7 @@ export default function ({totalLength, pageSize, usePagination,
                     </>
                 ) : showPaginationStats ? (
                     <div className={'text-xs italic'}>
-                        showing {totalLength} rows
+                        showing {length} rows
                     </div>
                 ) : null
             }
