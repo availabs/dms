@@ -8,7 +8,8 @@ export const buttonTheme = {
   active: 'cursor-pointer px-4 inline-flex  justify-center cursor-pointer text-sm font-semibold  bg-blue-600 text-white hover:bg-blue-500 shadow-lg border border-b-4 border-blue-800 hover:border-blue-700 active:border-b-2 active:mb-[2px] active:shadow-none',
   inactive: 'inline-flex  px-4 justify-center cursor-not-allowed text-sm font-semibold bg-slate-300 text-white shadow border border-slate-400 border-b-4',
   rounded: 'rounded-lg',
-  padding: 'px-[calc(theme(spacing[3.5])-1px)] py-[calc(theme(spacing[2.5])-1px)] sm:px-[calc(theme(spacing.3)-1px)] sm:py-[calc(theme(spacing[1.5])-1px)]'
+  padding: 'px-[calc(theme(spacing[3.5])-1px)] py-[calc(theme(spacing[2.5])-1px)] sm:px-[calc(theme(spacing.3)-1px)] sm:py-[calc(theme(spacing[1.5])-1px)]',
+  transparent: 'hover:bg-gray-100 rounded-lg'
 }
 
 export const docs = [
@@ -17,14 +18,16 @@ export const docs = [
   {type: 'active', children: 'Button', doc_name: 'Active Button'},
   {type: 'inactive', children: 'Button', doc_name: 'Inactive Button'},
 ]
-export default function ButtonComp ({ children, disabled, onClick=()=>{}, type='default', buttonType='default', padding, rounded, className, ...props}) {
+
+// buttonType = type. in some configs, type is reserved for component type, but here to pick theme, they're the same
+export default function ButtonComp ({ children, disabled, onClick=()=>{}, type='default', buttonType, padding, rounded, className, ...props}) {
   const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
   const theme = {...themeFromContext, button: {...buttonTheme, ...(themeFromContext.button || {})}};
 
   return (
     <Button
       disabled={disabled}
-      className={`${className} ${theme?.button?.[buttonType ] || theme?.button?.default} ${padding || theme?.button?.padding} ${rounded || theme?.button?.rounded} disabled:bg-gray-200` }
+      className={`${className} ${theme?.button?.[buttonType ] || theme?.button?.[type] || theme?.button?.default} ${padding || theme?.button?.padding} ${rounded || theme?.button?.rounded} disabled:bg-gray-200` }
       onClick={onClick}
       {...props}
     >
