@@ -15,13 +15,13 @@ function SiteEdit ({
    status,
    apiUpdate,
    format,
-	...props
+	...propsNewSite
 }) {
 
 	const { baseUrl, authPath, theme, app, user, AUTH_HOST } = React.useContext(AdminContext) || {}
 	const location = useLocation()
   const updateData = (data, attrKey) => {
-		console.log('admin pattern - siteEdit - updateData', attrKey, data, format)
+		//console.log('admin pattern - siteEdit - updateData', attrKey, data, format)
 		apiUpdate({data: {...item, ...{[attrKey]: data}}, config: {format}})
 	}
 
@@ -42,8 +42,9 @@ function SiteEdit ({
 	return (
 	  <PatternList
       value={item?.['patterns']}
-			format={format}
-			attributes={attributes['patterns'].attributes}
+      format={format}
+      attributes={attributes['patterns'].attributes}
+      onSubmit={(v) => updateData(v, 'patterns')}
 		/>
 	)
 }
@@ -56,7 +57,7 @@ function PatternList({
 	 attributes={},
 	 status,
 	 onSubmit,
-	 onChange,
+  onChange = () => { },
 	 value = [],
 	 format,
 	 ...rest
@@ -87,7 +88,7 @@ function PatternList({
         )
       }
 		},
-		{name: 'subdomain', display_name: 'Subdomain', show: true, type: 'text'},
+		{name: 'subdomain', displasetNewItemy_name: 'Subdomain', show: true, type: 'text'},
 		// {name: 'updated_at', display_name: 'Updated', show: true, type: 'text', formatFn: 'date'},
 		{name: 'edit', display_name: 'Edit', show: true, type: 'ui',
       Comp: (d) => {
@@ -105,8 +106,8 @@ function PatternList({
 
 	const dmsServerPath = `${API_HOST}/dama-admin`;
 
-	const addNewValue = (item) => {
-		const newData = [...value, item || newItem];
+	const addNewValue = (pattern) => {
+		const newData = [...value, pattern || newItem];
 		onChange(newData)
 		onSubmit(newData)
 		setNewItem({app: format?.app})
@@ -185,7 +186,7 @@ function PatternList({
                                 type={'plain'}
                                 title={'Add Site'}
 								className={'bg-blue-100 hover:bg-blue-300 text-sm text-blue-800 px-2 py-0.5 m-1 rounded-lg w-fit h-fit'}
-								onClick={() => addNewValue({...newItem, doc_type: uuidv4()})}
+								onClick={() => addNewValue({...newItem, doc_type: crypto.randomUUID()})}
 							>
 								add
 							</Button>

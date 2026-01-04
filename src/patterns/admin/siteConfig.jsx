@@ -96,6 +96,7 @@ const adminConfig = ({
                         </SectionGroup>
                       ),
                       path: "",
+                      action: "edit"
                     },
                     {
                       type: props => <SectionGroup><ThemeList {...props} /></SectionGroup>,

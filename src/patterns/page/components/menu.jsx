@@ -48,7 +48,7 @@ const EditControl = () => {
   },[location])
 
   const urlpath = edit ? location?.pathname.replace(`${baseUrl}/edit`,'') : location?.pathname.replace(`${baseUrl}`,'')
-  console.log('test', edit,urlpath,location?.pathname, baseUrl)
+  //console.log('test', edit,urlpath,location?.pathname, baseUrl)
     return <>
       {(
         user?.authed &&

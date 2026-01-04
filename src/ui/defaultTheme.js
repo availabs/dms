@@ -39,29 +39,11 @@ import {
 import { registerLayoutWidget } from './components/Layout';
 // ======================================================================================================
 
-// const navOptions = {
-//     "logo": "",
-//     "sideNav": {
-//         "size": "none",
-//         "search": "none",
-//         "logo": "none",
-//         "dropdown": "none",
-//         "fixedMargin": "lg:ml-44",
-//         "position": "fixed",
-//         "nav": "none"
-//     },
-//     "topNav": {
-//         "size": "compact",
-//         "dropdown": "right",
-//         "search": "right",
-//         "logo": "left",
-//         "position": "sticky",
-//         "nav": "main"
-//     }
-// }
 
 const components = {
     pages: pagesTheme,
+    "compatibility": "border-[#191919] pt-[41px]",
+
     "heading": {
         "1": "text-blue-500 font-bold text-xl tracking-wider py-1 pl-1",
         "2": "text-lg tracking-wider",
@@ -69,7 +51,6 @@ const components = {
         "base": "p-2 w-full font-sans font-medium text-md bg-transparent",
         "default": ""
     },
-
     "sectionArray": {
         "container": "w-full grid grid-cols-6 ",
         "gridSize": 6,

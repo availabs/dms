@@ -7,13 +7,19 @@ import { ThemeContext, getComponentTheme } from '../useTheme'
 
 const NOOP = () => { return {} }
 
-const TopNav = ({ ...props }) => {
+const TopNav = ({ activeStyle, ...props }) => {
   const [open, setOpen] = useState(false);
+  const { theme: fullTheme } = React.useContext(ThemeContext);
+  const theme = getComponentTheme(fullTheme, 'topnav', activeStyle)
   return (
-    <nav>
-      <DesktopMenu open={open} toggle={setOpen} {...props} />
-      <MobileMenu open={open} {...props} />
-    </nav>
+  <div className={`${theme?.layoutContainer1}`}>
+		<div className={`${theme?.layoutContainer2}`}>
+      <nav>
+        <DesktopMenu open={open} toggle={setOpen} {...props} />
+        <MobileMenu open={open} {...props} />
+      </nav>
+		</div>
+  </div>
   );
 };
 
@@ -22,13 +28,13 @@ export default TopNav;
 export const MobileMenu = ({ open, toggle, menuItems = [], rightMenu = null, activeStyle}) => {
   //const { theme: fullTheme  } = React.useContext(CMSContext) || {}
   const { theme: fullTheme } = React.useContext(ThemeContext);
-  const theme = getComponentTheme(fullTheme, 'sidenav',activeStyle)
+  const theme = getComponentTheme(fullTheme, 'topnav',activeStyle)
 
   return (
     <div
       className={`
         ${open ? "md:hidden" : "hidden"}
-        ${theme?.topnavMobileContainer}`
+        ${theme?.mobileNavContainer}`
       }
       id="mobile-menu"
     >
@@ -57,42 +63,33 @@ export const DesktopMenu = ({
   subMenuActivate,
   activeStyle
 }) => {
-
-  // const { theme: fullTheme  } = React.useContext(CMSContext) || {}
   const { theme: fullTheme } = React.useContext(ThemeContext);
   const theme = getComponentTheme(fullTheme, 'topnav', activeStyle)
-  mainMenu = mainMenu ? mainMenu : <HorizontalMenu menuItems={menuItems} subMenuActivate={subMenuActivate} activeStyle={activeStyle} />
+  mainMenu = mainMenu ?
+    mainMenu :
+    (
+      <HorizontalMenu
+        menuItems={menuItems}
+        subMenuActivate={subMenuActivate}
+        activeStyle={activeStyle}
+      />
+    )
   // console.log('TopNav', mainMenu, menuItems)
   return (
-    <div className={`${theme?.layoutContainer1}`}>
-			<div className={`${theme?.layoutContainer2}`}>
-        <div className={`${theme?.topnavWrapper}`}>
-          <div className={`${theme?.topnavContent}`}>
-            <div>{leftMenu}</div>
-            <div className={`${theme?.topnavMenu}`}>
-              {mainMenu}
+    <div className={`${theme?.topnavWrapper}`}>
+      <div className={`${theme?.topnavContent}`}>
+        <div className={`${theme?.leftMenuContainer}`}>{leftMenu}</div>
+        <div className={`${theme?.centerMenuContainer}`}>{mainMenu}</div>
+        <div className={`${theme?.rightMenuContainer}`}>{rightMenu}</div>
+        <div className={`${theme?.mobileButtonContainer}`}>
+          <button className={`${theme?.mobileButton}`} onClick={() => toggle(!open)}>
+            <span className="sr-only">Open main menu</span>
+            <div className={`flex justify-center items-center text-2xl`}>
+              <Icon icon = {!open ? theme?.menuOpenIcon : theme?.menuCloseIcon} />
             </div>
-
-            <div className="flex items-center justify-center h-full">
-              <div className={`${theme?.topmenuRightNavContainer}`}>
-                {rightMenu}
-              </div>
-
-              {/*<!-- Mobile menu button -->*/}
-              <button
-                type="button"
-                className={`${theme?.mobileButton}`}
-                onClick={() => toggle(!open)}
-              >
-                <span className="sr-only">Open main menu</span>
-                <div className={`flex justify-center items-center text-2xl`}>
-                  <Icon icon = {!open ? theme?.menuOpenIcon : theme?.menuCloseIcon} />
-                </div>
-              </button>
-            </div>
-          </div>
+          </button>
         </div>
-			</div>
+      </div>
     </div>
   );
 };
@@ -149,8 +146,8 @@ const TopNavItem = ({
 
   const routeMatch = Boolean(useMatch({ path: `${subTos[0]}/*` || '', end: true }));
 
-  const linkClasses = theme?.navitemTop
-  const activeClasses = theme?.navitemTopActive;
+  const linkClasses = theme?.navitem
+  const activeClasses = theme?.navitemActive;
 
   const isActive = routeMatch || active
   const navClass = isActive ? activeClasses : linkClasses;
@@ -166,7 +163,7 @@ const TopNavItem = ({
 
 
   return (
-      <div className={ theme?.[`menuItemWrapper_level_${depth+1}`] || theme?.menuItemWrapper }
+      <div className={ theme?.[`navitemWrapper_level_${depth+1}`] || theme?.navitemWrapper }
         onMouseOutCapture={() => {
           setHovering(false);
           setShowSubMenu(false)
@@ -185,11 +182,11 @@ const TopNavItem = ({
           }}
         >
           {/* -- Nav Item Contents */ }
-          <div className='flex-1 flex items-center gap-[2px]' >
+          <div className={theme?.navitemContent} >
               {!navItem?.icon ? null : (
                 <Icon
                   icon={navItem?.icon}
-                  className={(isActive ? theme?.menuIconTopActive : theme?.menuIconTop)}
+                  className={(isActive ? theme?.navIconActive : theme?.navIcon)}
                 />
               )}
               <div>
@@ -198,12 +195,12 @@ const TopNavItem = ({
                     <div className={''}>
                       {navItem?.name}
                     </div>
-                    <div className={ theme?.[`navItemDescription_level_${depth+1}`] }>
+                    <div className={ theme?.[`navitemDescription_level_${depth+1}`] || theme?.navitemDescription }>
                       {navItem?.description}
                     </div>
                   </>
                 ) : (
-                  <div  className={theme?.[`navItemContent_level_${depth+1}`] || theme?.navItemContent}>
+                  <div  className={theme?.[`navitemName_level_${depth+1}`] || theme?.navitemName}>
                     {navItem?.name}
                   </div>
                 )}
@@ -266,13 +263,8 @@ const SubMenu = ({
   }
 
   return (
-    <div
-      className={theme?.[`subMenuWrapper_level_${depth+1}`] || theme?.subMenuWrapper}
-    >
-
-      <div
-        className={theme?.[`subMenuWrapper_level_${depth+1}`] || theme?.subMenuWrapper2 }
-      >
+    <div className={theme?.[`subMenuWrapper_level_${depth+1}`] || theme?.subMenuWrapper}>
+      <div className={theme?.[`subMenuWrapper2_level_${depth+1}`] || theme?.subMenuWrapper2 }>
         {parent?.description && (
           <div className={theme?.subMenuParentContent}>
             <div className={theme?.subMenuParentName}>

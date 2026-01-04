@@ -183,7 +183,8 @@ function ThemeList ({
 			{/* Themes
       <pre>{JSON.stringify(item.themes, null,3)}</pre>
       Themes_ref
-      <pre>{JSON.stringify(item.theme_refs, null,3)}</pre>*/}
+      <pre>{JSON.stringify(item.theme_refs, null,3)}</pre>
+      */}
 		</div>
 	)
 }

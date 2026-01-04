@@ -38,8 +38,8 @@ export default function ({
     const [groups, setGroups] = React.useState([]);
     const [tmpValue, setTmpValue] = useState(parseIfJSON(value));
 
-    //useEffect(() => setTmpValue(parseIfJSON(value)),[value])
-    console.log('UI - Permissions value', tmpValue)
+    // useEffect(() => setTmpValue(parseIfJSON(value)),[value])
+    // console.log('UI - Permissions value', tmpValue)
 
     useEffect(() => {
         async function load() {
