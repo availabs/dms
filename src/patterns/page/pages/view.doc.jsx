@@ -66,21 +66,21 @@ const pageViewDoc = {
         "id": "1437076",
         "index": "0",
         "title": "Home",
-        "icon": "",
+        "icon": "Home",
         "url_slug": "home",
       },
       {
         "id": "1437077",
         "index": "1",
         "title": "Projects",
-        "icon": "",
+        "icon": "Page",
         "url_slug": "projects",
       },
       {
         "id": "1437079",
         "index": "0",
         "title": "Project One",
-        "icon": "",
+        "icon": "Data",
         "url_slug": "project_one",
         parent: "1437077"
       },
@@ -88,7 +88,7 @@ const pageViewDoc = {
         "id": "1437080",
         "index": "1",
         "title": "Project two",
-        "icon": "",
+        "icon": "Data",
         "url_slug": "project_two",
         parent: "1437077"
       },

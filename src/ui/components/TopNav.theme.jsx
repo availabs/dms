@@ -21,7 +21,6 @@ const topNavTheme = {
 
     // Menu Item Styles
     "navitemWrapper": '',
-    "navitemContent": 'flex',
     // menuItemWrapper_level_2:"",
     "navitem": `
         w-fit group font-display whitespace-nowrapmenuItemWrapper

@@ -4,7 +4,6 @@ import { CMSContext } from '../context'
 import { AuthContext } from "../../auth/context";
 import { ThemeContext } from "../../../ui/useTheme";
 import NavigableMenu from "../../../ui/components/navigableMenu";
-import { auth } from "@availabs/ams/dist/api/auth";
 
 // import {NavItem, NavMenu, NavMenuItem, NavMenuSeparator, withAuth} from 'components/avl-components/src'
 // import user from "@availabs/ams/dist/reducers/user";

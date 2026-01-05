@@ -6,8 +6,8 @@ import get from "lodash/get"
 
 import { LayerRenderComponent } from "./avl-layer"
 
-import LayerSidebar from "./components/LayerSidebar"
-import InfoBoxSidebar from "./components/InfoBoxSidebar"
+// import LayerSidebar from "./components/LayerSidebar"
+// import InfoBoxSidebar from "./components/InfoBoxSidebar"
 
 import {
   HoverComponent,
@@ -56,12 +56,12 @@ const DefaultMapOptions = {
 };
 
 const DefaultLeftSidebar = {
-  Component: LayerSidebar,
+  Component: () => <div/>, //LayerSidebar,
   startOpen: true,
   Panels: ["LayersPanel", "StylesPanel", "LegendPanel"]
 }
 const DefaultRightSidebar = {
-  Component: InfoBoxSidebar
+  Component: () => <div/>,
 }
 
 export const ActionButton = ({ children, onClick }) => {
@@ -167,7 +167,7 @@ const Navigationcontrols = ({ showLayerSelect, mapStyles, styleIndex, MapActions
 
   const theme = useTheme();
 
-  
+
 
 
 
@@ -199,7 +199,7 @@ const Navigationcontrols = ({ showLayerSelect, mapStyles, styleIndex, MapActions
             ${ theme.textHighlightHover }
           ` }/>
       </div>
-      
+
       <div onClick={ zoomIn } className='hover:bg-slate-100/50 h-10 w-10 flex items-center justify-center rounded'>
         <span className={ `
             fa fa-plus fa-fw py-1 w-8  flex items-center  justify-center
@@ -212,7 +212,7 @@ const Navigationcontrols = ({ showLayerSelect, mapStyles, styleIndex, MapActions
           className={ `
             w-8 py-1
             flex justify-center
-            items-center 
+            items-center
             text-slate-600
             ${ theme.textHighlightHover }
           ` }
@@ -221,7 +221,7 @@ const Navigationcontrols = ({ showLayerSelect, mapStyles, styleIndex, MapActions
             style={ { transform: `rotate(${ bearing-45}deg)` } }/>
         </div>
       </div>
-      
+
     </div>
   )
 }
@@ -468,7 +468,7 @@ const Reducer = (state, action) => {
       const pinnedIdsToRemove = [];
       state.pinnedHoverComps.forEach(phc => {
         if (phc.id !== payload.id) { return }
-      
+
         const dataId = phc.HoverComps[0].data[0]
         pinnedIdsToRemove.push(dataId);
       })

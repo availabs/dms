@@ -2,10 +2,11 @@ import React, {useEffect} from 'react'
 import { useLoaderData, useActionData,useSubmit, useLocation, useNavigate } from "react-router";
 import { getAttributes,filterParams, json2DmsForm } from './_utils'
 import { dmsDataEditor, dmsDataLoader } from '../index'
-import { isEqual } from "lodash-es"
+import { useImmer } from 'use-immer';
+import { isEqual, merge } from "lodash-es"
 
 
-import { get } from "lodash-es"
+//import { get } from "lodash-es"
 
 
 
@@ -27,7 +28,7 @@ export default function EditWrapper({ Component, format, options, params, user, 
 	// useEffect(()=> console.log('status change', status), [status])
 
 
-	const [item, setItem] = React.useState(
+	const [item, setItem] = useImmer(
 		defaultSort(data).filter(d => filterParams(d,params,format))[0]
 		|| (data[0] || {})
 	)
@@ -56,6 +57,9 @@ export default function EditWrapper({ Component, format, options, params, user, 
 	const apiUpdate = async ({data, config = {format}, requestType='', newPath=`${pathname}${search}`}) => {
 		setBusy((prevState) => { return {...prevState, updating: prevState.updating+1 }})
 		//console.log('apiUpdate - arguements', data, config,requestType, newPath)
+
+		// console.log('apiUpdate', data, item)
+
 		let resData = null
 		if(mode === 'ssr'){
 			let res =  await fetch(`/dms_api`, { method:"POST", body: json2DmsForm(data,requestType,config,newPath) })
@@ -67,6 +71,11 @@ export default function EditWrapper({ Component, format, options, params, user, 
 		navigate(newPath || `${pathname}${search}`) //submit with null target doesn't carry search
 		//submit(null, {action: newPath })
 		setBusy((prevState) => { return {...prevState, updating: prevState.updating-1 }})
+
+		// -- testing on update set item
+		// -- this adds updateAttribute call to apiUpdate
+		if(data.id === item.id) { setItem(draft => { merge(draft,data) })}
+
 		if(!data.id) return resData; // return id if apiUpdate was used to create an entry.
 		if(data.app !== app || data.type !== type) return; // if apiUpdate was used to manually update something, don't refresh.
 	}

@@ -209,7 +209,7 @@ function SettingsPane () {
             value: item?.theme?.layout?.options?.sideNav?.activeStyle || '',
             options: [
               { label: 'default', value: "" },
-              ...(theme?.topNav?.styles || [{}])
+              ...(theme?.sidenav?.styles || [{}])
                 .map((k, i) => ({ label: k?.name || i, value: i })),
             ],
             onChange:(e) => {
