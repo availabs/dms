@@ -1,5 +1,5 @@
 import React, {useContext} from "react";
-import {CMSContext, ComponentContext} from "../../../context";
+import { ComponentContext } from "../../../context";
 import { ThemeContext } from "../../../../../ui/useTheme";
 import {duplicateControl} from "./shared/utils";
 import {formatFunctions} from "../dataWrapper/utils/utils";
@@ -109,7 +109,7 @@ const handlePaste = async (attribute, setAttribute) => {
 const inHeader = [
     // settings from in header dropdown are stored in the columns array per column.
     {type: ({attribute, setAttribute}) => {
-        const {UI} = useContext(CMSContext);
+        const {UI} = useContext(ThemeContext);
         const {Button} = UI;
         const {
             justify, formatFn, headerFontStyle, valueFontStyle, hideHeader, hideValue, bgColor, cardSpan, wrapText
@@ -267,7 +267,7 @@ export default {
         inHeader,
         appearance: {Comp: ({context}) => {
                 const {state: {display, columns}, setState} = useContext(context || ComponentContext);
-                const {UI} = useContext(CMSContext);
+                const {UI} = useContext(ThemeContext);
                 const {Icon} = UI;
                 const selectWrapperClass = 'group px-2 w-full flex items-center cursor-pointer hover:bg-gray-100'
                 const selectLabelClass = 'w-fit font-regular text-gray-500 cursor-default'
