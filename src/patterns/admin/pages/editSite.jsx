@@ -1,4 +1,5 @@
 import React from 'react'
+import {v4 as uuidv4} from "uuid";
 import {AdminContext} from "../context";
 // import { AuthContext } from '../../auth/context';
 import { ThemeContext } from '../../../ui/useTheme';
@@ -42,9 +43,12 @@ function SiteEdit ({
 	return (
 	  <PatternList
       value={item?.['patterns']}
-      format={format}
-      attributes={attributes['patterns'].attributes}
-      onSubmit={(v) => updateData(v, 'patterns')}
+			format={format}
+			attributes={attributes['patterns'].attributes}
+	  onChange={(v) => updateAttribute('patterns', v)}
+	  onSubmit={data => {
+		  updateData(data, 'patterns')
+	  }}
 		/>
 	)
 }
@@ -57,7 +61,7 @@ function PatternList({
 	 attributes={},
 	 status,
 	 onSubmit,
-  onChange = () => { },
+	 onChange,
 	 value = [],
 	 format,
 	 ...rest
@@ -88,7 +92,7 @@ function PatternList({
         )
       }
 		},
-		{name: 'subdomain', displasetNewItemy_name: 'Subdomain', show: true, type: 'text'},
+		{name: 'subdomain', display_name: 'Subdomain', show: true, type: 'text'},
 		// {name: 'updated_at', display_name: 'Updated', show: true, type: 'text', formatFn: 'date'},
 		{name: 'edit', display_name: 'Edit', show: true, type: 'ui',
       Comp: (d) => {

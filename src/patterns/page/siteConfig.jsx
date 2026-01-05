@@ -19,6 +19,7 @@ import DefaultMenu from "./components/menu";
 import PageView from "./pages/view";
 import PageEdit from "./pages/edit";
 import ErrorPage from "./pages/error";
+import FormatManager from "./pages/manager/formatManager"
 
 // Manager
 // import ManageLayout from "./pages/manager/layout";
@@ -72,6 +73,7 @@ const pagesConfig = ({
   return {
     siteType,
     format: format,
+    pages: [{path: 'edit_pattern', name: 'Format Manager', component: FormatManager}],
     baseUrl,
     API_HOST,
     children: [

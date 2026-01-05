@@ -7,6 +7,8 @@ import { PatternSettingsEditor } from "./default/settings";
 import { PatternThemeEditor } from "./default/themeEditor";
 import { PatternFilterEditor } from "./default/filterEditor";
 import { PatternPermissionsEditor } from "./default/permissionsEditor";
+//todo change this to come from page pattern
+import FormatManager from "~/modules/dms/src/patterns/page/pages/manager/formatManager";
 
 const Alert = () => <div>A</div>
 
@@ -33,18 +35,19 @@ const navPages = [
   }
 ]
 
-const PatternEditor = ({params, item, format, attributes, apiUpdate}) => {
+const PatternEditor = ({params, item, format, attributes, apiUpdate, ...rest}) => {
   const { baseUrl, parentBaseUrl } = React.useContext(AdminContext);
   const [tmpItem, setTmpItem] = React.useState(item);
   const {id, page='overview'} = params;
-  console.log( 'patternEditor', attributes)
-  const PageComp = navPages.filter(d => d.path === page)?.[0]?.component || navPages[0].component
+
+  const pages = [...navPages, ...(item.pages || []), ...(item.pattern_type === 'page' ? [{path: 'edit_pattern', name: 'Format Manager', component: FormatManager}] : [])];
+  const PageComp = pages.find(d => d.path === page)?.component || pages[0].component
     return (
       <div className={`h-full flex flex-col w-full`}>
         <Breadcrumbs baseUrl={baseUrl} parentBaseUrl={parentBaseUrl} pattern={item} page={page}/>
           <div className={'w-full flex justify-between'}>
             <Nav
-              navPages={navPages}
+              navPages={pages}
               page={page}
               baseUrl={baseUrl}
               id={id}
@@ -52,9 +55,12 @@ const PatternEditor = ({params, item, format, attributes, apiUpdate}) => {
           </div>
           <div className='flex-1 flex flex-col bg-white'>
             <PageComp
+                app={item.app}
+                type={item.type}
               value={tmpItem}
               onChange={(d) => d}
               attributes={attributes}
+                apiUpdate={apiUpdate}
             />
           </div>
       </div>

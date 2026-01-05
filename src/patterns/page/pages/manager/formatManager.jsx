@@ -13,7 +13,6 @@ function MenuItemsEditor({onSave, onCancel, items}) {
 
   return (
     <div>
-      (
           <div>
 
             <div className='w-full'>
@@ -33,15 +32,14 @@ function MenuItemsEditor({onSave, onCancel, items}) {
   )
 }
 
-function FormatManager ({item, dataItems, attributes, apiLoad, apiUpdate, format, logo, rightMenu,themes, ...props}) {
+function FormatManager ({apiUpdate, app, type, value}) {
     const { theme, UI } = React.useContext(ThemeContext);
     const {Layout, SideNavContainer, Icon} = UI;
-  const [ additionalSectionAttributes, setAdditionalSectionAttributes ] = React.useState([])
-  const [ pattern, setPattern ] = React.useState({})
+  const [ additionalSectionAttributes, setAdditionalSectionAttributes ] = React.useState(value.additionalSectionAttributes || [])
 
   const PatternFormat = {
-    app: format.app,
-    type: "pattern",
+    app,
+    type, // pattern
     attributes: [
       { key: "format",
         type: "json",
@@ -49,40 +47,19 @@ function FormatManager ({item, dataItems, attributes, apiLoad, apiUpdate, format
     ]
   }
 
-  React.useEffect(() => {
-      const loadData = async () => {
-        const {app, type} = format
-        let data = await apiLoad({
-            children: [{
-                action: "list",
-                path: "/*",
-                filter: {
-                  options: JSON.stringify({ filter: { "data->>'doc_type'": [format.type] }}),
-                }
-            }],
-            format: PatternFormat
-        })
-        // console.log('got data', data, format.type)
-        setAdditionalSectionAttributes( cloneDeep(data?.[0]?.additionalSectionAttributes || []))
-        setPattern( cloneDeep( {theme: {},...data?.[0]} || {}))
-      }
-      loadData()
-  },[])
-
   function saveAttributes () {
-    let update =  apiUpdate({data:{id: pattern.id, additionalSectionAttributes}, config:{format:PatternFormat}})
-    setPattern({...pattern, additionalSectionAttributes})
+    apiUpdate({data:{id: value.id, additionalSectionAttributes}, config:{format:PatternFormat}})
   }
 
   return (
       <div className='flex h-full flex-col'>
           <div>
               section attributes
-              <MenuItemsEditor items={additionalSectionAttributes} onSave={setAdditionalSectionAttributes} onCancel={() => setAdditionalSectionAttributes(pattern.additionalSectionAttributes)} />
+              <MenuItemsEditor items={additionalSectionAttributes} onSave={setAdditionalSectionAttributes} onCancel={() => setAdditionalSectionAttributes(value.additionalSectionAttributes)} />
           </div>
           <button
               onClick={saveAttributes}
-              disabled={isEqual(pattern.additionalSectionAttributes, additionalSectionAttributes)}
+              disabled={isEqual(value.additionalSectionAttributes, additionalSectionAttributes)}
               className='bg-blue-500 disabled:bg-slate-300  disabled:border-slate-400  rounded px-3 border border-blue-400 shadow  py-1 text-white cursor-pointer mx-2'
           >
               Save
