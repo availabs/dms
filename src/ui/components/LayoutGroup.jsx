@@ -1,16 +1,16 @@
 import React from 'react'
 import { ThemeContext, getComponentTheme } from "../useTheme";
 
-export default function LayoutGroup ({children, outerChildren, activeStyle=0}) {
-  const { theme: fullTheme } = React.useContext(ThemeContext);
+export default function LayoutGroup ({children, outerChildren, activeStyle}) {
+  const { theme } = React.useContext(ThemeContext);
  // console.log('LayoutGroup', activeStyle)
-  const theme = getComponentTheme(fullTheme, 'layoutGroup', activeStyle);
+  const layoutGrouptheme = getComponentTheme(theme, 'layoutGroup', activeStyle);
 
   return (
-    <div className={`${theme?.wrapper1}`}>
+    <div className={`${layoutGrouptheme?.wrapper1}`}>
       {outerChildren}
-      <div className={theme?.wrapper2}>
-        <div className={theme?.wrapper3}>
+      <div className={layoutGrouptheme?.wrapper2}>
+        <div className={layoutGrouptheme?.wrapper3}>
           {children}
         </div>
       </div>

@@ -3,6 +3,7 @@ import { layoutGroupSettings } from './components/LayoutGroup'
 import {sideNavsettings} from './components/SideNav.theme'
 import {topNavsettings} from './components/TopNav.theme'
 import { logoSettings } from './components/Logo'
+import { buttonSettings } from './components/Button'
 
 // -----------------
 // Pattern Settings
@@ -18,6 +19,8 @@ export default (theme) => {
     sidenav: sideNavsettings(theme),
     topnav: topNavsettings(theme),
     logo: logoSettings,
-    ...pagesThemeSettings(theme)
+    button: buttonSettings(theme),
+    ...pagesThemeSettings(theme),
+
   }
 }
