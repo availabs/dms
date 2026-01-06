@@ -119,10 +119,7 @@ export const RenderFilters = ({
 
     useEffect(() => {
         // fetch filter data
-        let isStale = false;
         async function load() {
-            if(isStale) return;
-
             setLoading(true);
             const fetchedFilterData = await Promise.all(
                 [...Object.keys(filters), ...normalFilters?.map(f => f.column)]
@@ -202,10 +199,7 @@ export const RenderFilters = ({
                         })
 
                         // console.log('fo data?', columnName, data)
-                        if (isStale) {
-                            setLoading(false)
-                            return;
-                        }
+
                         // not adding options from meta to allow options to filter down wrt other filter values
                         const metaOptions = [] //(state.columns || []).find(({name}) => name === columnName)?.options;
                         const formattedAttrStr = getFormattedAttributeStr(columnName);
@@ -236,12 +230,8 @@ export const RenderFilters = ({
                         }
                     }));
 
-            if (isStale) {
-                setLoading(false);
-                return
-            }
             debug && console.log('debug filters: filter data use effect', fetchedFilterData)
-            if(!isStale && !isEqual(fetchedFilterData, filterOptions)){
+            if(!isEqual(fetchedFilterData, filterOptions)){
                 setFilterOptions(fetchedFilterData)
                 setLoading(false);
             }else{
@@ -249,9 +239,9 @@ export const RenderFilters = ({
             }
         }
 
-        load()
+        const timeoutId = setTimeout( () => load(), 300);
         return () => {
-            isStale = true;
+            clearTimeout(timeoutId)
             setLoading(false);
         }
     }, [filterColumnsToTrack, filterValuesToTrack]);
