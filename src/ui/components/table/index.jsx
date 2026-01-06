@@ -27,7 +27,7 @@ export const tableTheme = {
     headerContainer: 'sticky top-0 grid',
     thead: 'flex justify-between',
     theadfrozen: '',
-    thContainer: 'w-full font-semibold px-3 py-1 content-center text-sm font-semibold text-gray-600 border',
+    thContainer: 'w-full font-semibold px-3 py-1 content-center text-sm font-semibold text-gray-600',
     thContainerBgSelected: 'bg-blue-100 text-gray-900',
     thContainerBg: 'bg-gray-50 text-gray-500',
     cell: 'relative flex items-center min-h-[35px]  border border-slate-50',
@@ -145,6 +145,7 @@ const AddNew = ({allowAdddNew,
     newItem, setNewItem, theme, addItem
 }) => {
     if(!allowAdddNew) return null;
+    const addNewButtonWidth = 20;
 
     const attrsToRender = visibleAttrsWithoutOpenOut
         .slice(startCol, endCol + 1);
@@ -152,12 +153,12 @@ const AddNew = ({allowAdddNew,
     const slicedGridTemplateColumns = useMemo(() => {
         const cols = attrsToRender
             .map((v, i) => v.size ?
-                `${i === 0 ? (+v.size - 20) : v.size}px` :
-                `${i === 0 ? (defaultNumColSize - 20) : defaultColumnSize}px`)
+                `${i === 0 ? (+v.size - addNewButtonWidth) : v.size}px` :
+                `${i === 0 ? (defaultNumColSize - addNewButtonWidth) : defaultColumnSize}px`)
             .join(' ')
 
 
-        return `${numColSize}px 20px ${cols} ${gutterColSize}px`;
+        return `${numColSize}px ${addNewButtonWidth}px ${cols} ${gutterColSize}px`;
     }, [
         startCol,
         endCol,
@@ -168,26 +169,26 @@ const AddNew = ({allowAdddNew,
 
     return (
         <div
-            className={`grid bg-white divide-x divide-y ${isDragging ? `select-none` : ``} sticky bottom-0 z-[1]`}
+            className={`grid bg-white divide-x divide-y border-slate-50 ${isDragging ? `select-none` : ``} sticky bottom-0 z-[3]`}
             style={{
                 gridTemplateColumns: slicedGridTemplateColumns,
                 gridColumn: `span ${attrsToRender.length + 3} / ${attrsToRender.length + 3}`
             }}
         >
-            <div className={'flex justify-between sticky left-0 z-[1]'} style={{width: numColSize}}>
-                <div key={'#'} className={`w-full font-semibold border bg-gray-50 text-gray-500`}>
+            <div className={'flex justify-between sticky left-0 z-[3]'} style={{width: numColSize}}>
+                <div key={'#'} className={`w-full font-semibold border border-slate-50 bg-gray-50 text-gray-500`}>
 
                 </div>
             </div>
 
-            <div className={'bg-white flex flex-row h-fit justify-evenly opacity-50 hover:opacity-100 border-0'}
-                 style={{width: '20px'}}>
+            <div className={'bg-white flex flex-row h-full justify-evenly items-center border-slate-50'}
+                 style={{width: `${addNewButtonWidth}px`}}>
                 <button
-                    className={'w-fit p-0.5 bg-blue-300 hover:bg-blue-500 text-white rounded-lg'}
+                    className={'w-fit h-fit bg-blue-300 hover:bg-blue-500 text-white rounded-lg'}
                     onClick={e => {
                         addItem()
                     }}>
-                    <Icon icon={'CirclePlus'} className={'text-white'} height={20} width={20}/>
+                    <Icon icon={'CirclePlus'} className={'text-white'} height={addNewButtonWidth} width={addNewButtonWidth}/>
                 </button>
             </div>
             {
@@ -205,7 +206,7 @@ const AddNew = ({allowAdddNew,
                         return (
                             <div
                                 key={`add-new-${attrI}`}
-                                className={`flex border p-1 bg-white hover:bg-blue-50 w-full h-full'`}
+                                className={`flex border border-slate-50 p-1 bg-white hover:bg-blue-50 w-full h-full'`}
                                 style={{width: size}}
                             >
                                 <Comp

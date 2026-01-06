@@ -193,7 +193,12 @@ function ViewComp({value, isActive, hideSection, setHideSection, refreshDataBtnR
         }
     }, [state?.display?.hideSection])
 
-    async function refresh({isRefreshingData, setIsRefreshingData, fullDataLoad}) {
+    async function refresh({isRefreshingData, setIsRefreshingData, fullDataLoad, clearCache}) {
+        if(clearCache) {
+            updateAttribute('element-data', JSON.stringify({...state, ['fullData'] : undefined}));
+            return;
+        }
+
         const getData = (component.useDataSource ? DataWrapper : component)?.getData;
         if (!getData) return;
         // console.time('fetching data')

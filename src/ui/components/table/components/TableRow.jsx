@@ -58,7 +58,7 @@ export const TableRow = memo(function TableRow ({
                 className={
                     `grid
                 ${rowData.totalRow ? `sticky bottom-0 z-[1]` : ``} ${isDragging ? `select-none` : ``}
-                ${striped ? `odd:bg-gray-50` : ``} ${rowData.totalRow ? `bg-gray-100` : ``}`
+                ${striped ? `odd:bg-gray-50` : ``} ${rowData.totalRow ? `bg-gray-100` : ``} ${isTotalRow ? `z-[3]` : ``}`
                 }
                 style={{
                     gridTemplateColumns: slicedGridTemplateColumns,

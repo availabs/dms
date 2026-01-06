@@ -512,6 +512,10 @@ const getSectionMenuItems = ({
                 refreshDataBtnRef.current?.refresh({isRefreshingData, setIsRefreshingData, fullDataLoad: true})
             },
             cdn: () => !isEdit && isUserAuthed(['edit-section'], sectionAuthPermissions)},
+        {icon: 'Refresh', name: isRefreshingData ? 'Clearing Cache' : 'Clear Cache', onClick: () => {
+                refreshDataBtnRef.current?.refresh({clearCache: true})
+            },
+            cdn: () => !isEdit && isUserAuthed(['edit-section'], sectionAuthPermissions)},
         {icon: 'Copy', name: 'Copy Section', onClick: () => handleCopy(value)},
         {type: 'separator'},
 
