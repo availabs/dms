@@ -218,9 +218,9 @@ export function PatternThemeEditor ({
    					/>
       		</div>
  					<div className={'w-full flex gap-0.5 justify-end'}>
-						<Button className={'w-fit'} onClick={() => onSubmit(currentTheme)}>Save</Button>
-						<Button className={'w-fit'} onClick={() => setPatternTheme(parseIfJSON(inputTheme))}>Reset</Button>
-            <Button className={'w-fit'} onClick={() => setPatternTheme({layout:{options: baseTheme?.layout?.options}})}>Full Reset</Button>
+						<Button onClick={() => onSubmit(currentTheme)}>Save</Button>
+						<Button onClick={() => setPatternTheme(parseIfJSON(inputTheme))}>Reset</Button>
+            <Button onClick={() => setPatternTheme({layout:{options: baseTheme?.layout?.options}})}>Full Reset</Button>
  					</div>
   				<div className='h-[calc(100vh_-_11rem)] overflow-auto w-full scrollbar-sm p-2 '>
             { currentThemeSetting }
