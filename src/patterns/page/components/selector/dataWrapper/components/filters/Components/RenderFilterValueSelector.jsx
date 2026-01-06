@@ -272,8 +272,10 @@ export const RenderFilterValueSelector = ({
                                     filterColumn.type === 'number' && e ? [+e] : [e];
 
                             if(filter.usePageFilters) {
+                                const currentFilterSearchKey = filter.searchParamKey || filterColumn.name;
+
                                 const newFilters =  Object.keys(filterWithSearchParamKeys).filter(col => {
-                                    if((filter.searchParamKey || filterColumn.name) === col) return false;
+                                    if(currentFilterSearchKey === col) return false;
 
                                     const currValue = filterWithSearchParamKeys[col];
                                     return currValue?.length;
@@ -283,12 +285,12 @@ export const RenderFilterValueSelector = ({
                                 }, {})
 
                                 if(newValues.length){
-                                    newFilters[filter.searchParamKey || filterColumn.name] = newValues;
+                                    newFilters[currentFilterSearchKey] = newValues;
                                 }
 
                                 const newPageFilters = Object.keys(newFilters).map(searchKey => ({searchKey, values: newFilters[searchKey]}))
 
-                                updatePageStateFilters(newPageFilters, {[filter.searchParamKey || filterColumn.name]: !newValues.length})
+                                updatePageStateFilters(newPageFilters, {[currentFilterSearchKey]: !newValues.length})
                                 updateFilter({key: 'values', value: newValues, filterColumn, filter, setState})
                             }else {
                                 updateFilter({key: 'values', value: newValues, filterColumn, filter, setState})

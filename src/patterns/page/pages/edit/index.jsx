@@ -84,12 +84,20 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
 				return matchingFilter && !matchingFilter.useSearchParams
 			})
 		// set non navigable filters
-		if(nonSearchParamFilters?.length){
+		const searchKeysToRemove = Object.keys(removeFilter).filter(searchKey => removeFilter[searchKey])
+		if(nonSearchParamFilters?.length || searchKeysToRemove?.length){
 			setPageState(page => {
 				nonSearchParamFilters.forEach(f => {
 					const idx = page.filters.findIndex(({searchKey}) => searchKey === f.searchKey);
 					if(idx >= 0) {
 						page.filters[idx].values = f.values;
+					}
+				})
+
+				searchKeysToRemove.forEach(sk => {
+					const idx = page.filters.findIndex(({searchKey}) => searchKey === sk);
+					if(idx >= 0) {
+						page.filters[idx].values = [];
 					}
 				})
 			})
