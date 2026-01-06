@@ -1,5 +1,6 @@
 import React, {useContext, useMemo, useState} from "react";
 import {CMSContext} from "../../../../../context";
+import { ThemeContext  } from "../../../../../../../ui/useTheme";
 const defaultColorOptions = [
  "#FFFFFF",
     "#F3F8F9", // #2D3E4C
@@ -8,7 +9,7 @@ const defaultColorOptions = [
 //     #6D96AE - dashed border
 ];
 export const ColorPickerComp = ({title, className, color, colors, setColor}) => {
-    const {UI} = useContext(CMSContext);
+    const {UI} = useContext(ThemeContext);
     const {ColorPicker} = UI;
     const [open, setOpen] = useState(false);
     const colorOptions = useMemo(() => colors || defaultColorOptions, [colors]);
@@ -33,4 +34,3 @@ export const ColorPickerComp = ({title, className, color, colors, setColor}) => 
         </div>
     )
 }
-
