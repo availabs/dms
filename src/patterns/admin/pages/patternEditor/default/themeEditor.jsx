@@ -99,14 +99,17 @@ export function PatternThemeEditor ({
 	//const themeObj = useMemo(() => (item.theme_refs || []).find(t => t.theme_id === theme_id), [item.theme_refs, theme_id])
 
   // ----------------
-  if(value?.theme?.settings) {
-	 delete value.theme.settings
+
+
+  //console.log('Pattern Theme Editor', value)
+  let inputTheme = cloneDeep(value?.theme) || {}
+  if(inputTheme?.settings) {
+    //console.log('delete theme.settings of', value)
+	  delete inputTheme.settings
 	}
-  if(!value?.theme?.layout?.options) {
-    set(value, 'theme.layout.options', cloneDeep(baseTheme?.layout?.options))
+  if(!inputTheme.layout?.options) {
+    set(inputTheme, 'layout.options', cloneDeep(baseTheme?.layout?.options))
   }
-  console.log('Pattern Theme Editor', value)
-  let inputTheme = value?.theme || {}
   // ----------------
   const [patternTheme, setPatternTheme] = useImmer(inputTheme)
   //let selectedTheme =  useMemo(() => , [patternTheme.selectedTheme])
@@ -259,9 +262,11 @@ export function PatternThemeEditor ({
   						<ComponentRenderer
   						  Component={
                   defaultTheme?.docs?.[currentComponent]?.component ||
+                   defaultTheme?.docs?.[currentComponent]?.[currentComponentPropsIdx]?.component ||
                   UI[currentComponent]
                 }
    							props={
+                  defaultTheme?.docs?.[currentComponent][currentComponentPropsIdx]?.props ||
                   defaultTheme?.docs?.[currentComponent][currentComponentPropsIdx] ||
                   defaultTheme?.docs?.[currentComponent]?.props ||
                   defaultTheme?.docs?.[currentComponent]

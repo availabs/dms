@@ -7,8 +7,8 @@ import { PatternSettingsEditor } from "./default/settings";
 import { PatternThemeEditor } from "./default/themeEditor";
 import { PatternFilterEditor } from "./default/filterEditor";
 import { PatternPermissionsEditor } from "./default/permissionsEditor";
-//todo change this to come from page pattern
-import FormatManager from "~/modules/dms/src/patterns/page/pages/manager/formatManager";
+// probably want to change this to register function for non default pages
+import FormatManager from '../../../page/pages/manager/formatManager';
 
 const Alert = () => <div>A</div>
 
@@ -87,7 +87,7 @@ const Nav = ({baseUrl, navPages, page, id}) =>  (
               {/* {page.warn && p.name === page.name ? <Alert /> : ''}*/}
             </div>
           </Link>))
-      }
+    }
     </nav>
 )
 const Breadcrumbs = ({baseUrl, parentBaseUrl, pattern, page}) => {
