@@ -8,7 +8,6 @@ import Icon from "../Icon";
 import Input from "../Input";
 import Popup from "../Popup";
 import {isEqual} from "lodash-es";
-import { v4 as uuidv4 } from 'uuid';
 
 const defaultItems = [
   { name: 'Save and schedule', onClick: '#' },
@@ -166,13 +165,13 @@ const flattenConfig = (config, parent) => {
 
     config.forEach((item, idx) => {
         const itemName = item.name || `${parent}_${idx}`;
-        const itemId = flatConfig[item.id || itemName] ? uuidv4() : (item.id || itemName); // itemId needs to be uniq
+        const itemId = flatConfig[item.id || itemName] ? crypto.randomUUID() : (item.id || itemName); // itemId needs to be uniq
         flatConfig[itemId] = {...item, name: itemName, parent, idx, id: itemId};
 
         if(item.items){
             const obj = flattenConfig(item.items, itemId);
             Object.entries(obj).forEach(([key, val]) => {
-                const itemKey = flatConfig[key] ? uuidv4() : key;
+                const itemKey = flatConfig[key] ? crypto.randomUUID() : key;
                 flatConfig[itemKey] = val
             })
         }

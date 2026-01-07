@@ -250,7 +250,7 @@ export function PatternThemeEditor ({
                     <style>
                     @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400..700&family=Grape+Nuts&family=Oswald:wght@200..700&family=Rock+Salt&family=Shadows+Into+Light+Two&display=swap');
                     </style>
-
+                    <link href="/fonts/proxima-nova/stylesheet.css" rel="stylesheet">
                 </head>
                 <body>
                   <div id="root" class=""></div>
@@ -277,7 +277,7 @@ export function PatternThemeEditor ({
 				</div>
 
 			</div>
-      <pre>{JSON.stringify(patternTheme, null, 3)}</pre>
+      <pre className='rounded bg-slate-100 max-w-7xl my-2 overflow-x-scroll'>{JSON.stringify(patternTheme, null, 3)}</pre>
 		</div>
 	)
 }

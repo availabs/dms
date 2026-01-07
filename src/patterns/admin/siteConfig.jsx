@@ -51,15 +51,17 @@ const adminConfig = ({
           "layout": {
             "options": {
               "sideNav": {
+                "size": "compact",
+                "nav": "main",
                 "topMenu": [{"type": "Logo"}],
                 "bottomMenu": [{"type": "UserMenu" }]
               }
             }
           }
         }
-        // cloneDeep(themes.mny_admin)
     );
 
+    console.log('auth siteconfig theme', theme)
     // ----------------------
     // update app for all the children formats
     format.registerFormats = updateRegisteredFormats(format.registerFormats, app)
@@ -137,11 +139,12 @@ const patternConfig = ({
     //console.log('admin PatternConfig', themes)
     let theme = merge(
         cloneDeep(defaultTheme),
-        //cloneDeep(themes.mny_admin),
         {
           "layout": {
             "options": {
               "sideNav": {
+                "size": "compact",
+                "nav": "main",
                 "topMenu": [{"type": "Logo"}],
                 "bottomMenu": [{"type": "UserMenu" }]
               }

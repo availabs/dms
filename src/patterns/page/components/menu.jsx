@@ -60,7 +60,7 @@ const EditControl = () => {
             'publish-page'
         ])
       ) && (
-        <div className="flex justify-center items-center order-first p-2">
+        <div className="flex justify-center items-center p-2">
           <Link className={`${menuTheme?.iconWrapper}`} to={`${baseUrl}${edit ? '' : '/edit'}${urlpath}${location.search}`}>
             {/*have to use rr to get query paramswindow.location.search*/}
             <Icon icon={edit ? menuTheme?.viewIcon : menuTheme?.editIcon} className={menuTheme?.icon} />
