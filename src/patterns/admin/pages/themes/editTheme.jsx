@@ -211,7 +211,12 @@ function ComponentList ({
   					<ThemeContext.Provider value={{theme: currentTheme, UI}}>
   						<ComponentRenderer
   						  Component={theme?.docs?.[currentComponent]?.component || UI[currentComponent]}
-  							props={theme?.docs?.[currentComponent][currentComponentPropsIdx] || theme?.docs?.[currentComponent]?.props || theme?.docs?.[currentComponent] }
+   							props={
+                  defaultTheme?.docs?.[currentComponent][currentComponentPropsIdx]?.props ||
+                  defaultTheme?.docs?.[currentComponent][currentComponentPropsIdx] ||
+                  defaultTheme?.docs?.[currentComponent]?.props ||
+                  defaultTheme?.docs?.[currentComponent]
+                }
   						/>
   					</ThemeContext.Provider>
 					</Frame>
