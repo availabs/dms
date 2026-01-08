@@ -268,7 +268,7 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
             setCurrentPage(currentPage)
             getFilteredData({currentPage})
         }else{
-            const hasMore = (currentPage * state.display.pageSize + state.display.pageSize) < state.display.totalLength;
+            const hasMore = (currentPage * state.display.pageSize + state.display.pageSize) <= state.display.totalLength;
             if(!hasMore) return;
 
             setLoading(true)
@@ -291,7 +291,7 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
         // observer that sets current page on scroll. no data fetching should happen here
         const observer = new IntersectionObserver(
             async (entries) => {
-                const hasMore = (currentPage * state.display.pageSize + state.display.pageSize) < state.display.totalLength;
+                const hasMore = (currentPage * state.display.pageSize + state.display.pageSize) <= state.display.totalLength;
                 if (state.data.length && entries[0].isIntersecting && hasMore && !isStale) {
                     setCurrentPage(prevPage => prevPage+1)
                     await onPageChange(currentPage + 1)
@@ -679,7 +679,7 @@ const View = ({cms_context, value, size, apiUpdate, component}) => {
             setCurrentPage(currentPage)
             getFilteredData({currentPage})
         }else{
-            const hasMore = (currentPage * state.display.pageSize + state.display.pageSize) < state.display.totalLength;
+            const hasMore = (currentPage * state.display.pageSize + state.display.pageSize) <= state.display.totalLength;
             if(!hasMore) return;
 
             setLoading(true)
