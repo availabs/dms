@@ -179,68 +179,71 @@ export function PatternThemeEditor({
         item = dataItems[0]
     }
 
-	// console.log('testing',themeSettings, currentThemeSetting, themeSettings?.[currentThemeSetting])
-	return (
-		<div className={'flex flex-col p-4 w-full divide-y-2'}>
-			<div className={'w-full flex justify-between border-b-2 border-blue-400'}>
-				<div className='flex'>
-          <div className={'text-2xl font-semibold text-gray-700'}>
-            <Select
-              value={patternTheme?.selectedTheme || 'default'}
-              onChange={
-                e => {
-                  setPatternTheme(draft => {
-                    draft.selectedTheme = e.target.value
-                  })
-                }
-              }
-              options={Object.keys(themes).map(d => { return { label: d, value: d } })}
-            />
+    // console.log('testing',themeSettings, currentThemeSetting, themeSettings?.[currentThemeSetting])
+    return (
+        <div className={'flex flex-col p-4 w-full divide-y-2'}>
+            <div className={'w-full flex justify-between border-b-2 border-blue-400'}>
+                <div className='flex'>
+                    <div className={'text-2xl font-semibold text-gray-700'}>
+                        <Select
+                            value={patternTheme?.selectedTheme || 'default'}
+                            onChange={
+                                e => {
+                                    setPatternTheme(draft => {
+                                        draft.selectedTheme = e.target.value
+                                    })
+                                }
+                            }
+                            options={Object.keys(themes).map(d => {
+                                return {label: d, value: d}
+                            })}
+                        />
+                    </div>
+                    <div className='px-4'>
+                        <Select
+                            value={currentComponent}
+                            onChange={e => {
+                                setCurrentComponent(e.target.value)
+                            }}
+                            options={compOptions}
+                        />
+                    </div>
+                    <div>
+                        <Select value={currentComponentPropsIdx}
+                                onChange={e => setCurrentComponentPropsIdx(e.target.value)}
+                                options={
+                                    (Array.isArray(defaultTheme?.docs?.[currentComponent]) ?
+                                            defaultTheme?.docs?.[currentComponent] :
+                                            [defaultTheme?.docs?.[currentComponent]]
+                                    )
+                                        .map((o, i) => ({label: o?.doc_name || `Example ${i + 1}`, value: i}))
+                                }
+                        />
+                    </div>
+                </div>
+                <button onClick={() => navigate(-1)}>back</button>
             </div>
-					<div className='px-4'>
-						<Select
-  					  value={currentComponent}
-  						onChange={e => {
-    						  setCurrentComponent(e.target.value)
-    				  }}
-     			    options={compOptions}
-       	    />
-					</div>
-					<div>
-			      <Select value={currentComponentPropsIdx}
-     					onChange={e => setCurrentComponentPropsIdx(e.target.value)}
-     					options={
-      						(Array.isArray(defaultTheme?.docs?.[currentComponent]) ?
-                    defaultTheme?.docs?.[currentComponent] :
-                    [defaultTheme?.docs?.[currentComponent]]
-                  )
-     							.map((o, i) => ({label: o?.doc_name || `Example ${i + 1}`, value: i}))
-     					}
-   					/>
-					</div>
-				</div>
-				<button onClick={() => navigate(-1)}>back</button>
-			</div>
-			<div className={'flex flex-col sm:flex-row divide-x relative'}>
-				<div className={'w-[250px] order-2 overflow-hidden'}>
-    		  <div className={'pb-2'}>
-   					<Select
-              value={currentThemeSetting}
-              onChange={e => {
-  						  setCurrentThemeSetting(e.target.value)
-    						//navigate(`${baseUrl}/${path.replace(':theme_id', theme_id).replace(':component?', e.target.value.toLowerCase())}`)
- 					    }}
- 							options={
-                Object.keys(themeSettings)
-                  .map(k => ({label:k, value:k}))
-              }
-   					/>
-      		</div>
- 					<div className={'w-full flex gap-0.5 justify-end'}>
-						<Button onClick={() => onSubmit(currentTheme)}>Save</Button>
-						<Button onClick={() => setPatternTheme(parseIfJSON(inputTheme))}>Reset</Button>
-                        <Button onClick={() => setPatternTheme({layout:{options: baseTheme?.layout?.options}})}>Full Reset</Button>
- 					</div>
+            <div className={'flex flex-col sm:flex-row divide-x relative'}>
+                <div className={'w-[250px] order-2 overflow-hidden'}>
+                    <div className={'pb-2'}>
+                        <Select
+                            value={currentThemeSetting}
+                            onChange={e => {
+                                setCurrentThemeSetting(e.target.value)
+                                //navigate(`${baseUrl}/${path.replace(':theme_id', theme_id).replace(':component?', e.target.value.toLowerCase())}`)
+                            }}
+                            options={
+                                Object.keys(themeSettings)
+                                    .map(k => ({label: k, value: k}))
+                            }
+                        />
+                    </div>
+                    <div className={'w-full flex gap-0.5 justify-end'}>
+                        <Button onClick={() => onSubmit(currentTheme)}>Save</Button>
+                        <Button onClick={() => setPatternTheme(parseIfJSON(inputTheme))}>Reset</Button>
+                        <Button onClick={() => setPatternTheme({layout: {options: baseTheme?.layout?.options}})}>Full
+                            Reset</Button>
+                    </div>
                     <div className='h-[calc(100vh_-_11rem)] overflow-auto w-full scrollbar-sm p-2 '>
                         {
                             (themeSettings?.[currentThemeSetting] || [])
@@ -251,34 +254,35 @@ export function PatternThemeEditor({
                                 />)
                         }
                     </div>
-				</div>
-				<div className={'flex-1 h-[calc(100vh_-_6rem)]'}>
-					<Frame
-						className='w-full h-[calc(100vh_-_6rem)] border-1'
-						initialContent={initialFramContent}
-					>
-  					<ThemeContext.Provider value={{theme: currentTheme, UI}}>
-  						<ComponentRenderer
-  						  Component={
-                                 defaultTheme?.docs?.[currentComponent]?.component ||
-                                 defaultTheme?.docs?.[currentComponent]?.[currentComponentPropsIdx]?.component ||
-                                 UI[currentComponent]
-                          }
-                          props={
-                                  defaultTheme?.docs?.[currentComponent][currentComponentPropsIdx]?.props ||
-                                  defaultTheme?.docs?.[currentComponent][currentComponentPropsIdx] ||
-                                  defaultTheme?.docs?.[currentComponent]?.props ||
-                                  defaultTheme?.docs?.[currentComponent]
+                </div>
+                <div className={'flex-1 h-[calc(100vh_-_6rem)]'}>
+                    <Frame
+                        className='w-full h-[calc(100vh_-_6rem)] border-1'
+                        initialContent={initialFramContent}
+                    >
+                        <ThemeContext.Provider value={{theme: currentTheme, UI}}>
+                            <ComponentRenderer
+                                Component={
+                                    defaultTheme?.docs?.[currentComponent]?.component ||
+                                    defaultTheme?.docs?.[currentComponent]?.[currentComponentPropsIdx]?.component ||
+                                    UI[currentComponent]
                                 }
-  						/>
-  					</ThemeContext.Provider>
-					</Frame>
-				</div>
+                                props={
+                                    defaultTheme?.docs?.[currentComponent][currentComponentPropsIdx]?.props ||
+                                    defaultTheme?.docs?.[currentComponent][currentComponentPropsIdx] ||
+                                    defaultTheme?.docs?.[currentComponent]?.props ||
+                                    defaultTheme?.docs?.[currentComponent]
+                                }
+                            />
+                        </ThemeContext.Provider>
+                    </Frame>
+                </div>
 
-			</div>
-            <pre className='rounded bg-slate-100 max-w-7xl my-2 overflow-x-scroll'>{JSON.stringify(patternTheme, null, 3)}</pre>
-		</div>
-	)
+            </div>
+            <pre
+                className='rounded bg-slate-100 max-w-7xl my-2 overflow-x-scroll'>{JSON.stringify(patternTheme, null, 3)}</pre>
+        </div>
+    )
 }
 
 export default PatternThemeEditor
