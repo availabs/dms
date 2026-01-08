@@ -187,14 +187,14 @@ export function SectionEdit({
                                 />
                             </Popup>)
                     }
-                    <Button buttonType='transparent' padding='p-0' onClick={onSave}>
+                    <Button activeStyle={1} onClick={onSave}>
                         <Icon icon={'FloppyDisk'}
-                              className='text-slate-400 hover:text-blue-500 size-6'/>
+                              className='hover:text-blue-500 size-6'/>
                     </Button>
                     {/*cancel*/}
-                    <Button buttonType='transparent' padding='p-0' onClick={onCancel}>
+                    <Button activeStyle={1} onClick={onCancel}>
                         <Icon icon={'CancelCircle'}
-                              className='text-slate-400 hover:text-red-500 size-6'/>
+                              className=' hover:text-red-500 size-6'/>
                     </Button>
                     <NavigableMenu config={sectionMenuItems}
                                    title={'Section Settings'}
@@ -516,7 +516,16 @@ const getSectionMenuItems = ({
                 refreshDataBtnRef.current?.refresh({clearCache: true})
             },
             cdn: () => !isEdit && isUserAuthed(['edit-section'], sectionAuthPermissions)},
-        {icon: 'Copy', name: 'Copy Section', onClick: () => handleCopy(value)},
+        {icon: 'Copy', name: 'Copy Section', onClick: (e) => {
+                handleCopy(value)
+
+                const el = e.currentTarget;
+                el.style.color = 'green';
+
+                setTimeout(() => {
+                    el.style.color = '';
+                }, 2000);
+            }},
         {type: 'separator'},
 
         {icon: 'ChevronUpSquare', name: 'Move Up', onClick: () => moveItem(i, -1), cdn: () => !isEdit && isUserAuthed(['edit-page-layout'], pageAuthPermissions)},

@@ -511,7 +511,7 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
 const View = ({cms_context, value, size, apiUpdate, component}) => {
     const isEdit = false;
     const navigate = useNavigate();
-    const {pgEnv, baseUrl} = useContext(cms_context || CMSContext) ;
+    const {pgEnv, baseUrl} = useContext(cms_context || CMSContext) || {};
     const { UI } = useContext(ThemeContext)
     const {Icon} = UI;
     const {state, setState, apiLoad} = useContext(ComponentContext);
