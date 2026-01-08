@@ -1,6 +1,6 @@
 import React, {useEffect} from "react"
 import {AdminContext} from "../../context";
-import AdminLayout from "./layout;
+import AdminLayout from "./layout";
 import {isEqual} from "lodash-es";
 import { PatternSettingsEditor } from "./default/settings";
 import { PatternThemeEditor } from "./default/themeEditor";

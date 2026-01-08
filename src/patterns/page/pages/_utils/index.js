@@ -157,14 +157,14 @@ export const sectionsEditBackill = (item, baseUrl, apiUpdate, search) => {
                 {name: 'default', position: 'content', index: 0, theme: 'content'}
             ]
             if(item?.header && item?.header !== 'none' ) {
-                newItem.draft_section_groups.push( 
+                newItem.draft_section_groups.push(
                     {name: 'header', position: 'top', index: 0, theme: 'header', full_width: 'show'}
                 )
             }
             newItem.draft_sections = cloneDeep(item.draft_sections || [])
 
             if(item?.footer && item?.footer !== 'none' ) {
-          newItem.draft_section_groups.push( 
+          newItem.draft_section_groups.push(
             {name: 'footer', position: 'bottom', index: 99, theme: 'clearCentered', full_width: 'show'}
           )
           if(!item.draft_sections.filter(d => d.is_footer)?.[0]){
@@ -203,12 +203,12 @@ export const sectionsBackill = (item, baseUrl, apiUpdate) => {
         newItem.sections = cloneDeep(item?.sections || [])
 
         if(item?.header && item?.header !== 'none' ) {
-          newItem.section_groups.push( 
+          newItem.section_groups.push(
             {name: 'header', position: 'top', index: 0, theme: 'header', full_width: 'show'}
           )
         }
         if(item?.footer && item?.footer !== 'none' ) {
-          newItem.section_groups.push( 
+          newItem.section_groups.push(
             {name: 'footer', position: 'bottom', index: 99, theme: 'clearCentered', full_width: 'show'}
           )
           if(!item.sections.filter(d => d.is_footers)?.[0]){
@@ -224,7 +224,7 @@ export const sectionsBackill = (item, baseUrl, apiUpdate) => {
             })
           }
         }
-        
+
         newItem.sections?.forEach((section,i) => {
           if(section.is_header) {
             section.group = 'header'
@@ -249,7 +249,7 @@ export function getInPageNav(item, theme) {
     const currentDI = item
 
     //console.log('test 123', theme)
-   
+
     const menuItems = (Array.isArray(currentDI?.sections) ? currentDI.sections : []).reduce((acc, {title, element, level: levelFromProp, ...props}) => {
         if(!element) return acc;
         const level = Array.isArray(levelFromProp) ? levelFromProp[0] : levelFromProp;
@@ -284,7 +284,7 @@ export function getInPageNav(item, theme) {
                         }
                     ] : []
 
-                
+
                 return [...acc, ...heading]
             }, []) : []
 
@@ -458,7 +458,7 @@ export const updatePageStateFiltersOnSearchParamChange = ({searchParams, item, p
     }, {});
 
     // If searchParams have changed, they should take priority and update the state
-    if (Object.keys(urlFilters).length || true) {
+    //if (Object.keys(urlFilters).length ) { // || true // was eslint issue
         const existingFilters = mergeFilters(item.filters, patternFilters);
         const newFilters = (existingFilters || []).map(filter => {
             if(filter.useSearchParams && urlFilters[filter.searchKey]){
@@ -474,7 +474,7 @@ export const updatePageStateFiltersOnSearchParamChange = ({searchParams, item, p
                 page.filters = newFilters
             })
         }
-    }
+    //}
 }
 
 export const initNavigateUsingSearchParams = ({pageState, search, navigate, baseUrl, item, isView}) => {

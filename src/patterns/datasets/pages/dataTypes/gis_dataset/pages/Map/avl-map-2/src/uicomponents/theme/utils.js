@@ -33,7 +33,7 @@ export const composeTheme = theme => {
 		composedTheme[key] = classNames.map(c => {
 			const match = atRegex.exec(c);
 			if (match) {
-				const [, key] = match;
+				const [o, key] = match;
 				return o.replace(`@${ key }`, composedTheme[key]);
 			}
 			return c;

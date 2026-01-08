@@ -1,5 +1,5 @@
 import { falcorGraph } from '@availabs/avl-falcor'
-let falcor
+// let falcor
 // declare global {
 //   var __falcor
 // }
@@ -11,6 +11,6 @@ let falcor
 //   global.__falcor = falcorGraph('https://graph.availabs.org');
 // }
 //console.log('init falcor')
-falcor =  falcorGraph('https://graph.availabs.org');
+const falcor =  falcorGraph('https://graph.availabs.org');
 
 export { falcor };

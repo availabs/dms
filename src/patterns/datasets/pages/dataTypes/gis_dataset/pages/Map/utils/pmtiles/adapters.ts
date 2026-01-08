@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 declare const L: any;
 declare const window: any;
 declare const document: any;
@@ -163,7 +164,7 @@ export class Protocol {
 
       const controller = new AbortController();
       const signal = controller.signal;
-      let cancel = () => {
+      const cancel = () => {
         controller.abort();
       };
 

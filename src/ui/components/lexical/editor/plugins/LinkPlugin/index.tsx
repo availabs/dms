@@ -32,7 +32,7 @@ export default function LinkPlugin(): JSX.Element {
                         const selectedText = selection.getTextContent();
                         if (!payload || !payload.url) {
                             for (const node of nodes) {
-                                let parent = node.getParent();
+                                const parent = node.getParent();
 
                                 if ($isLinkNode(parent)) {
                                     parent.insertAfter(node);

@@ -1,9 +1,7 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { decompressSync } from "fflate";
 import v2 from "./v2";
 export * from "./adapters";
-
-
-
 
 export interface BufferPosition {
   buf: Uint8Array;
@@ -135,8 +133,8 @@ async function defaultDecompress(
     if (typeof (globalThis as any).DecompressionStream == "undefined") {
       return decompressSync(new Uint8Array(buf));
     } else {
-      let stream = new Response(buf).body!;
-      let result: ReadableStream<Uint8Array> = stream.pipeThrough(
+      const stream = new Response(buf).body!;
+      const result: ReadableStream<Uint8Array> = stream.pipeThrough(
         new (globalThis as any).DecompressionStream("gzip")
       );
       return new Response(result).arrayBuffer();
