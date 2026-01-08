@@ -17,12 +17,12 @@ import getDmsConfig, { adminSite , parseJson } from './dms_utils.js'
 // ----------------------------------------------------
 const authWrapper = Component => Component
 
-let {
+const {
   API_HOST = 'https://graph.availabs.org',
   baseUrl = ""
 } = {}
 const clientFalcor = falcorGraph(API_HOST)
-let env = typeof document === "undefined" ? "server" : "client";
+const env = typeof document === "undefined" ? "server" : "client";
 
 
 
@@ -65,7 +65,7 @@ export const loader = async({ request, params }) => {
   if(!dmsConfig)  return {}
 
 
-  let data =  await dmsDataLoader(falcor, dmsConfig, `/${params['*'] || ''}`)
+  const data =  await dmsDataLoader(falcor, dmsConfig, `/${params['*'] || ''}`)
 
 
   return {
@@ -101,13 +101,13 @@ export function HydrateFallback() {
 }
 
 export const clientLoader = async({ request, params }) => {
-  var body = new FormData();
+  const body = new FormData();
   body.append("path",  `/${params['*'] || ''}`)
   body.append("requestType",  "data")
   //console.log('loader config', dmsConfig)
   console.time('loader data')
-  let res =  await fetch(`/dms_api`, { method:"POST", body })
-  let data = await res.json()
+  const res =  await fetch(`/dms_api`, { method:"POST", body })
+  const data = await res.json()
   console.timeEnd('loader data')
 
   return data
@@ -121,11 +121,11 @@ export const clientAction = async ({ request, params }) => {
   form.append('path', params['*'])
   //return {}
   console.time('clientAction  data')
-  let res =  await fetch(`/dms_api`, {
+  const res =  await fetch(`/dms_api`, {
       method:"POST",
       body: form
   })
-  let data = await res.json()
+  const data = await res.json()
   console.timeEnd('clientAction  data')
 
   return data
@@ -137,7 +137,7 @@ export const clientAction = async ({ request, params }) => {
 export default function DMS({ loaderData }) {
   //console.log('dms render props', props)
   const params = useParams();
-  let path = React.useMemo(() => `/${params['*'] || ''}`,[params])
+  const path = React.useMemo(() => `/${params['*'] || ''}`,[params])
   const { host, data, patterns, themes } = loaderData
   const dmsConfig = React.useMemo(() => getDmsConfig(host, path, patterns, themes), [path,host])
 

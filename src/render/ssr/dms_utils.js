@@ -84,6 +84,7 @@ const getSubdomain = (host) => {
     // only works with single depth subdomains
     // ---
     //console.log('host', host,  host.split('.'));
+    // eslint-disable-next-line no-undef
     if (process.env.NODE_ENV === "development") {
         return host && host.split('.').length >= 2 ?
             host.split('.')[0].toLowerCase() :

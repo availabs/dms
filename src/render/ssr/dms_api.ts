@@ -24,7 +24,7 @@ import getDmsConfig, { adminSite, parseJson } from './dms_utils.js'
 // ----------------------------------------------------
 const authWrapper = Component => Component
 
-let {
+const {
   API_HOST = 'https://graph.availabs.org',
   baseUrl = ""
 } = {}
@@ -61,7 +61,7 @@ export const loader = async({ request, params }) => {
     themes
   )
 
-  let data =  await dmsDataLoader(falcor, dmsConfig, `/${params['*'] || ''}`)
+  const data =  await dmsDataLoader(falcor, dmsConfig, `/${params['*'] || ''}`)
   console.log('dms_api - loader - data', data)
   console.timeEnd('loader data')
 
@@ -91,8 +91,8 @@ export const action = async ({ request, params }) => {
   )
 
 
-  let requestType = form.get("requestType")
-  let customConfig = form.get('dmsConfig')
+  const requestType = form.get("requestType")
+  const customConfig = form.get('dmsConfig')
   console.log('dms_api - action - request', form.get("path"), 'type', requestType, JSON.parse(customConfig))
   if(requestType === 'data') {
     const config = customConfig ? JSON.parse(customConfig) : dmsConfig

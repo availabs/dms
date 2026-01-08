@@ -1,16 +1,14 @@
 import React, {useContext, useEffect, useMemo, useState} from 'react'
 import Frame from 'react-frame-component'
 import { useImmer } from 'use-immer';
-import {useNavigate} from 'react-router';
+import { useNavigate } from 'react-router';
 import defaultTheme from '../../../../ui/defaultTheme'
 
 import { merge, cloneDeep, get, set } from "lodash-es";
 
-import {ThemeContext} from "../../../../ui/useTheme";
-import {AdminContext} from "../../context";
+import { ThemeContext } from "../../../../ui/useTheme";
+import { AdminContext } from "../../context";
 import { parseIfJSON } from '../../../page/pages/_utils';
-
-
 
 const DefaultComp = () => <div>Component not registered.</div>
 const ComponentRenderer = ({Component=DefaultComp, props}) => <Component {...props} />;
@@ -37,13 +35,10 @@ const compOptions = [
 	{ label: 'Table', value: 'Table' },
 	{ label: 'Tabs', value: 'Tabs' },
 	{ label: 'TopNav', value: 'TopNav' },
-
 	{ label: 'DeleteModal', value: 'DeleteModal' },
 	{ label: 'Dialog', value: 'Dialog' },
 	{ label: 'Modal', value: 'Modal' },
 ];
-
-
 
 
 function ControlRenderer({ config, state, setState }) {
@@ -200,7 +195,7 @@ function ComponentList ({
                     <style>
                     @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400..700&family=Grape+Nuts&family=Oswald:wght@200..700&family=Rock+Salt&family=Shadows+Into+Light+Two&display=swap');
                     </style>
-
+                    <link href="/fonts/proxima-nova/stylesheet.css" rel="stylesheet">
                 </head>
                 <body>
                   <div id="root" class=""></div>
@@ -210,13 +205,21 @@ function ComponentList ({
 					>
   					<ThemeContext.Provider value={{theme: currentTheme, UI}}>
   						<ComponentRenderer
-  						  Component={theme?.docs?.[currentComponent]?.component || UI[currentComponent]}
-  							props={theme?.docs?.[currentComponent][currentComponentPropsIdx] || theme?.docs?.[currentComponent]?.props || theme?.docs?.[currentComponent] }
+  						  Component={
+                  theme?.docs?.[currentComponent]?.[currentComponentPropsIdx]?.component ||
+                  theme?.docs?.[currentComponent]?.component ||
+                  UI[currentComponent]
+                }
+   							props={
+                  defaultTheme?.docs?.[currentComponent][currentComponentPropsIdx]?.props ||
+                  defaultTheme?.docs?.[currentComponent][currentComponentPropsIdx] ||
+                  defaultTheme?.docs?.[currentComponent]?.props ||
+                  defaultTheme?.docs?.[currentComponent]
+                }
   						/>
   					</ThemeContext.Provider>
 					</Frame>
 				</div>
-
 			</div>
 		</div>
 	)

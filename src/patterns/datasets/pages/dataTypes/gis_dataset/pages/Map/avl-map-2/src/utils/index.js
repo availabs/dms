@@ -47,7 +47,7 @@ export const useSetSize = (ref, callback = null) => {
 }
 
 export const capitalize = string => {
-  return string.split("\s+")
+  return string.split("s+")
     .map(word =>
       word.split("")
         .map((letter, i) => i === 0 ? letter.toUpperCase() : letter)
