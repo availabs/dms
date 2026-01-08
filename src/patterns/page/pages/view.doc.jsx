@@ -3,8 +3,8 @@ import PageView from './view'
 
 const pageViewDoc = [
     {
-        title: 'Buttons Page',
-        doc_name: 'Buttons Page',
+        title: 'Cards Page',
+        doc_name: 'Cards Page',
         component: PageView,
         props: {
             "item": {
