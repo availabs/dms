@@ -1,6 +1,6 @@
 import React from "react";
 import { useImmer } from "use-immer";
-import { isEqual, set } from "lodash-es";
+import { isEqual, set, cloneDeep } from "lodash-es";
 
 import { AuthContext } from "../../../../auth/context";
 import { AdminContext } from "../../../context";
@@ -13,23 +13,22 @@ export const PatternPermissionsEditor = ({
      attributes,
      defaultPermission=[]
 }) => {
-  if (!value.authPermissions?.groups?.public) {
-
-      set(value,'authPermissions.groups.public', ['view-page']);
-
+  let inputValue = cloneDeep(parseIfJSON(value))
+  if (!inputValue.authPermissions?.groups?.public) {
+      set(inputValue,'authPermissions.groups.public', ['view-page']);
   }
   const {AuthAPI} = React.useContext(AuthContext) || {};
   const { UI} = React.useContext(ThemeContext)
   const { user, apiUpdate } = React.useContext(AdminContext) || {};
   const {Permissions, FieldSet} = UI;
-  const [tmpValue, setTmpValue] = useImmer(parseIfJSON(value));
+  const [tmpValue, setTmpValue] = React.useState(parseIfJSON(inputValue));
   const permissionDomain = attributes?.authPermissions?.permissionDomain
   //
 
 
 
 
-  console.log('authPermissions', tmpValue?.authPermissions, permissionDomain)
+
   return (
     <div className="max-w-5xl">
     <Permissions

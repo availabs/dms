@@ -4,13 +4,13 @@ const topNavTheme = {
   },
   "styles": [{
     //layout
-    "layoutContainer1": `h-[50px]`,
-    "layoutContainer2": `w-full z-20 `,
+    "layoutContainer1": `sticky top-0  z-50`,
+    "layoutContainer2": `w-full `,
     //wrappers
     "topnavWrapper": `w-full h-[50px] flex items-center pr-1`,
     "topnavContent": `flex items-center w-full h-full bg-white lg:bg-zinc-100 dark:bg-zinc-900 dark:lg:bg-zinc-950 justify-between`,
     // menu containers
-    "leftMenuContainer": "",
+    "leftMenuContainer": "min-w-42",
     "centerMenuContainer": `hidden  lg:flex items-center flex-1  h-full overflow-x-auto overflow-y-hidden scrollbar-sm`,
     "rightMenuContainer": "hidden min-w-[120px] md:flex h-full items-center",
     "mobileNavContainer": "",
