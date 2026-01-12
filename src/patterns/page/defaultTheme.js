@@ -1,6 +1,9 @@
-import {sectionGroupTheme} from './components/sections/sectionGroup'
+import { sectionGroupTheme } from './components/sections/sectionGroup'
+import { sectionTheme } from './components/sections/section.theme'
+
 export default {
-    sectionGroup: sectionGroupTheme
+    sectionGroup: sectionGroupTheme,
+    section: sectionTheme
 }
 
 export const pagesThemeSettings = (theme) => {
