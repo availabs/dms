@@ -199,19 +199,19 @@ const Edit = ({attributes, item, dataItems, apiLoad, apiUpdate, updateAttribute,
 
     const categories = [...new Set(
         (sources || [])
-            .filter(source => {
-                return isListAll || (
-                    // we're not listing all sources
-                    !isListAll &&
-                    !(Array.isArray(source?.categories) ? source?.categories : [source?.categories])?.find(cat =>
-                        // find if current category $cat includes any of filtered categories
-                        filteredCategories.find(filteredCategory => cat.includes(filteredCategory))))
-            })
+            // .filter(source => {
+            //     return isListAll || (
+            //         !(Array.isArray(source?.categories) ? source?.categories : [source?.categories])?.find(cat =>
+            //             // find if current category $cat includes any of filtered categories
+            //             filteredCategories.find(filteredCategory => cat.includes(filteredCategory))))
+            // })
             .reduce((acc, s) => [...acc, ...((Array.isArray(s?.categories) ? s?.categories : [s?.categories])?.map(s1 => s1?.[0]) || [])], []))].sort()
 
 
       const categoriesCount = categories.reduce((acc, cat) => {
-        acc[cat] = (sources || []).filter(p => p?.categories).filter(pattern => {
+        acc[cat] = (sources || [])
+          .filter(p => p?.categories)
+          .filter(pattern => {
             return (Array.isArray(pattern?.categories) ? pattern?.categories : [pattern?.categories])
                 ?.find(category => category.includes(cat))
         })?.length
@@ -269,14 +269,14 @@ const Edit = ({attributes, item, dataItems, apiLoad, apiUpdate, updateAttribute,
                     <RenderAddPattern sources={sources} setSources={setSources} updateData={updateData} isAdding={isAdding} setIsAdding={setIsAdding} submit={submit}/>
                     {
                         (sources || [])
-                            .filter(source => {
-                                return isListAll || (
-                                    // we're not listing all sources
-                                    !isListAll &&
-                                    !(Array.isArray(source?.categories) ? source?.categories : [source?.categories])?.find(cat =>
-                                        // find if current category $cat includes any of filtered categories
-                                        filteredCategories.find(filteredCategory => cat.includes(filteredCategory))))
-                            })
+                            // .filter(source => {
+                            //     return isListAll || (
+                            //         // we're not listing all sources
+                            //         !isListAll &&
+                            //         !(Array.isArray(source?.categories) ? source?.categories : [source?.categories])?.find(cat =>
+                            //             // find if current category $cat includes any of filtered categories
+                            //             filteredCategories.find(filteredCategory => cat.includes(filteredCategory))))
+                            // })
                             .filter(source => {
                                 let output = true;
                                 if (cat1) {
