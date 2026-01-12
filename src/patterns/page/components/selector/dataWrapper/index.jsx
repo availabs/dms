@@ -44,7 +44,8 @@ const triggerDownload = async ({state, apiLoad, loadAllColumns, setLoading}) => 
         .map(({name, display_name, customName}) => ({
             column: customName || display_name || name,
             // type: String,
-            value: data => data?.[name],
+            // value: data => data?.[name],
+            value: data => !Array.isArray(data?.[name]) && typeof data?.[name] === 'object' ? JSON.stringify(data?.[name]) : data?.[name],
             // ...name === 'url' && {'hyperlink': data => data?.[name]}
         }));
 
