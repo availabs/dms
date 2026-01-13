@@ -75,7 +75,7 @@ function pattern2routes (siteData, props) {
     //console.log('patterns2routes',dbThemes)
 
     themes = themes?.default ? { ...themes, ...dbThemes } : { ...themes, ...dbThemes, default: {} }
-    console.log('dmsSiteFactory themes', themes)
+    //console.log('dmsSiteFactory themes', themes)
 
     let dmsConfigUpdated = cloneDeep(dmsConfig);
     dmsConfigUpdated.registerFormats = updateRegisteredFormats(dmsConfigUpdated.registerFormats, dmsConfig.app)
@@ -144,7 +144,8 @@ function pattern2routes (siteData, props) {
             //console.log('register pattern', pattern.id, pattern.subdomain, `/${pattern.base_url?.replace(/^\/|\/$/g, '')}`)
             acc.push(
               ...c.map(config => {
-                  const authPermissions = JSON.parse(pattern?.authPermissions || "{}");
+                  //console.log('dmsSiteFactory authPermissions', pattern?.authPermissions)
+                  const authPermissions = parseIfJSON(pattern?.authPermissions || "{}");
                   if(!authPermissions?.groups?.public){
                       // default public permissions. overridden by set permissions
                       authPermissions.groups ??= {};

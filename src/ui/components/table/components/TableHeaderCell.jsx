@@ -52,6 +52,26 @@ const InputControl = ({updateColumns, inputType, value='', attributeKey, onChang
     )
 }
 
+const TextAreaControl = ({updateColumns, value='', attributeKey, onChange, dataFetch}) => {
+    const [tmpValue, setTmpValue] = useState(value);
+
+    useEffect(() => {
+        const timeOutId = setTimeout(() => {
+            if(value !== tmpValue) updateColumns(attributeKey, tmpValue, onChange, dataFetch)
+        }, 300);
+
+        return () => clearTimeout(timeOutId);
+    }, [tmpValue]);
+
+    return (
+        <textarea
+            className={inputClasses}
+            value={tmpValue}
+            onChange={e => setTmpValue(e.target.value)}
+        />
+    )
+}
+
 
 const FilterControl = ({updateColumns, type, value, attributeKey, onChange, dataFetch, localFilterData}) => {
     const [tmpValue, setTmpValue] = useState(value);
@@ -209,6 +229,16 @@ export default memo(function TableHeaderCell({isEdit, attribute, columns, localF
                                                                     <label className={selectLabelClass}>{label}</label>
                                                                     <InputControl
                                                                         inputType={inputType}
+                                                                        value={attribute[key]}
+                                                                        updateColumns={updateColumns}
+                                                                        attributeKey={key}
+                                                                        dataFetch={dataFetch}
+                                                                    />
+                                                                </div> :
+                                                                type === 'textarea' ?
+                                                                <div className={selectWrapperClass}>
+                                                                    <label className={selectLabelClass}>{label}</label>
+                                                                    <TextAreaControl
                                                                         value={attribute[key]}
                                                                         updateColumns={updateColumns}
                                                                         attributeKey={key}

@@ -22,7 +22,7 @@ const buildTree = (dataItems, matches=[], items=[]) => {
         return []
     }
 }
-const RenderNestable = ({ parent, items, onChange, dataItems, setDataItems, renderItem, dragState, setDragState, expanded, setExpanded }) => {
+const RenderNestable = ({ parent, items, onChange, dataItems, setDataItems, renderItem, dragState, setDragState, expanded, setExpanded, canDrag, canAcceptChildren }) => {
     // =================================================================================================================
     // ========================================= drag - drop utils begin ===============================================
     // =================================================================================================================
@@ -160,13 +160,44 @@ const RenderNestable = ({ parent, items, onChange, dataItems, setDataItems, rend
         e.preventDefault();
         e.stopPropagation();
 
+        const draggedItem = dataItems[dragState.dragItem];
+
+        // Check if this item can accept children
+        if (canAcceptChildren && !canAcceptChildren(dataItems[item.id])) {
+            // Item cannot accept children, treat as reorder within same parent instead
+            const dropParent = item.parent;
+            const isMovingBetweenParents = draggedItem?.parent !== dropParent;
+            const moveType = isMovingBetweenParents ? 'INSERT_AS_CHILD' : 'MOVE';
+
+            const rect = e.currentTarget.getBoundingClientRect();
+            const offset = e.clientY - rect.top;
+            const isBefore = offset < rect.height / 2;
+            const dropIdx = isBefore ? idx : idx + 1;
+
+            onDrop({ e, moveType, idx: dropIdx, parent: dropParent });
+            return;
+        }
+
+        // If dropping onto a parent that the item is already a child of, do nothing
+        // (prevents issues when dropping onto section headers)
+        if (draggedItem?.parent === item.id) {
+            setDragState(draft => {
+                draft.isDragging = false;
+                draft.dragOverParent = null;
+                draft.dragOverIdx = null;
+                draft.dragOverItem = null;
+                draft.dragItem = null;
+            });
+            return;
+        }
+
         const rect = e.currentTarget.getBoundingClientRect();
         const offset = e.clientY - rect.top;
         const isBefore = offset < rect.height / 2;
         const dropIdx = isBefore ? idx : idx + 1;
         const dropParent = item.parent;
 
-        const isMovingBetweenParents = dataItems[dragState.dragItem]?.parent !== dropParent;
+        const isMovingBetweenParents = draggedItem?.parent !== dropParent;
         const moveType = 'INSERT_AS_CHILD';
         // const moveType = isMovingBetweenParents ? 'INSERT_AS_CHILD' : 'MOVE';
 
@@ -233,9 +264,15 @@ const RenderNestable = ({ parent, items, onChange, dataItems, setDataItems, rend
 
                     {/* wrapper that detects top/bottom half and accepts drop */}
                     <div
-                        className={dragState.dragOverItem === item.id ? 'bg-blue-300 border border-dashed rounded-md' : ``}
-                        draggable
-                        onDragStart={e => dragStart(e, item)}
+                        className={dragState.dragOverItem === item.id && (!canAcceptChildren || canAcceptChildren(dataItems[item.id])) ? 'bg-blue-300 border border-dashed rounded-md' : ``}
+                        draggable={!canDrag || canDrag(dataItems[item.id])}
+                        onDragStart={e => {
+                            if (canDrag && !canDrag(dataItems[item.id])) {
+                                e.preventDefault();
+                                return;
+                            }
+                            dragStart(e, item);
+                        }}
                         onDragOver={e => handleDragOver(e, item, idx)}
                         onDrop={e => handleDropOnItemWrapper(e, item, idx)}
                     >
@@ -275,6 +312,8 @@ const RenderNestable = ({ parent, items, onChange, dataItems, setDataItems, rend
                                     setDragState={setDragState}
                                     expanded={expanded}
                                     setExpanded={setExpanded}
+                                    canDrag={canDrag}
+                                    canAcceptChildren={canAcceptChildren}
                                 />
                             </div>
                         )}
@@ -315,7 +354,7 @@ const RenderNestable = ({ parent, items, onChange, dataItems, setDataItems, rend
     );
 };
 
-export default function NestableInHouse({ dataItems: dataItemsInit, matches, ...props }) {
+export default function NestableInHouse({ dataItems: dataItemsInit, matches, canDrag, canAcceptChildren, ...props }) {
     const [dataItems, setDataItems] = useImmer(dataItemsInit);
     const [expanded, setExpanded] = useImmer(matches);
     const [dragState, setDragState] = useImmer({
@@ -342,5 +381,7 @@ export default function NestableInHouse({ dataItems: dataItemsInit, matches, ...
         setDragState={setDragState}
         expanded={expanded}
         setExpanded={setExpanded}
+        canDrag={canDrag}
+        canAcceptChildren={canAcceptChildren}
         {...props} />;
 }

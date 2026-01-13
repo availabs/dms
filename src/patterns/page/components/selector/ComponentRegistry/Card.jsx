@@ -54,7 +54,7 @@ const Card = ({
     const {Card} = UI;
     const {state, setState, controls={}} = useContext(ComponentContext);
 
-    return <Card {...state} setState={setState} controls={controls}
+    return <Card columns={state.columns} data={state.data} display={state.display} sourceInfo={state.sourceInfo} setState={setState} controls={controls}
                  isEdit={isEdit} updateItem={updateItem} addItem={addItem} newItem={newItem} setNewItem={setNewItem} allowEdit={allowEdit}
                  formatFunctions={formatFunctions}
     />
@@ -126,6 +126,7 @@ const inHeader = [
         },
         label: 'format controls', key: '', displayCdn: ({isEdit}) => isEdit},
 
+    {type: 'textarea', label: 'Description', key: 'description', displayCdn: ({isEdit}) => isEdit},
     {type: 'toggle', label: 'Allow Edit', key: 'allowEditInView', displayCdn: ({isEdit}) => isEdit},
 
     {type: 'select', label: 'Sort', key: 'sort',

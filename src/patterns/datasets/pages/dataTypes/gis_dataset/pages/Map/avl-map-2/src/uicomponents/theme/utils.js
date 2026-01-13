@@ -1,5 +1,7 @@
 const compose = (className, theme) => {
-	return className.split(/\s+/).map(className => {
+	console.log('className', className)
+	if(!className.split) return
+  return (className || '').split(/\s+/).map(className => {
 		const [base, ...rest] = className.split(/(?<!^)(?=[A-Z])/);
 
 		if (!(theme.$compositions && theme.$compositions[base])) {

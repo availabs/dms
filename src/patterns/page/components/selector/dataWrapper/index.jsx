@@ -44,7 +44,8 @@ const triggerDownload = async ({state, apiLoad, loadAllColumns, setLoading}) => 
         .map(({name, display_name, customName}) => ({
             column: customName || display_name || name,
             // type: String,
-            value: data => data?.[name],
+            // value: data => data?.[name],
+            value: data => !Array.isArray(data?.[name]) && typeof data?.[name] === 'object' ? JSON.stringify(data?.[name]) : data?.[name],
             // ...name === 'url' && {'hyperlink': data => data?.[name]}
         }));
 
@@ -268,7 +269,7 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
             setCurrentPage(currentPage)
             getFilteredData({currentPage})
         }else{
-            const hasMore = (currentPage * state.display.pageSize + state.display.pageSize) < state.display.totalLength;
+            const hasMore = (currentPage * state.display.pageSize + state.display.pageSize) <= state.display.totalLength;
             if(!hasMore) return;
 
             setLoading(true)
@@ -291,7 +292,7 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
         // observer that sets current page on scroll. no data fetching should happen here
         const observer = new IntersectionObserver(
             async (entries) => {
-                const hasMore = (currentPage * state.display.pageSize + state.display.pageSize) < state.display.totalLength;
+                const hasMore = (currentPage * state.display.pageSize + state.display.pageSize) <= state.display.totalLength;
                 if (state.data.length && entries[0].isIntersecting && hasMore && !isStale) {
                     setCurrentPage(prevPage => prevPage+1)
                     await onPageChange(currentPage + 1)
@@ -511,7 +512,7 @@ const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, h
 const View = ({cms_context, value, size, apiUpdate, component}) => {
     const isEdit = false;
     const navigate = useNavigate();
-    const {pgEnv, baseUrl} = useContext(cms_context || CMSContext) ;
+    const {pgEnv, baseUrl} = useContext(cms_context || CMSContext) || {};
     const { UI } = useContext(ThemeContext)
     const {Icon} = UI;
     const {state, setState, apiLoad} = useContext(ComponentContext);
@@ -679,7 +680,7 @@ const View = ({cms_context, value, size, apiUpdate, component}) => {
             setCurrentPage(currentPage)
             getFilteredData({currentPage})
         }else{
-            const hasMore = (currentPage * state.display.pageSize + state.display.pageSize) < state.display.totalLength;
+            const hasMore = (currentPage * state.display.pageSize + state.display.pageSize) <= state.display.totalLength;
             if(!hasMore) return;
 
             setLoading(true)

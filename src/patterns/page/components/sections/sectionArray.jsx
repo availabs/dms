@@ -1,69 +1,23 @@
 import React, {Fragment, useState, useLayoutEffect, useRef, useEffect} from "react";
 import { useLocation } from 'react-router';
 import { isEqual, cloneDeep, set } from "lodash-es";
-import { v4 as uuidv4 } from 'uuid';
 
+import { ThemeContext, getComponentTheme } from "../../../../ui/useTheme";
 import { CMSContext, PageContext } from '../../context'
+
 import { SectionEdit, SectionView } from './section'
-import {ThemeContext} from "../../../../ui/useTheme";
-
-const isJson = (str)  => {
-    try {
-        JSON.parse(str);
-    } catch (e) {
-        return false;
-    }
-    return true;
-}
-
-export const sectionArrayTheme = {
-    container: 'w-full grid grid-cols-6 ', //gap-1 md:gap-[12px]
-    gridSize: 6,
-    layouts: {
-        centered: 'max-w-[1020px] mx-auto',
-        fullwidth: ''
-    },
-    sectionEditWrapper: 'relative group',
-    sectionEditHover: 'absolute inset-0 group-hover:border border-blue-300 border-dashed pointer-events-none z-10',
-    sectionViewWrapper: 'relative group',
-    sectionPadding: 'p-4',
-    gridviewGrid: 'z-0 bg-slate-50 h-full',
-    gridviewItem: 'border-x bg-white border-slate-100/75 border-dashed h-full p-[6px]',
-    defaultOffset: 16,
-    sizes: {
-        "1/3": { className: 'col-span-6 md:col-span-2', iconSize: 33 },
-        "1/2": { className: 'col-span-6 md:col-span-3', iconSize: 50 },
-        "2/3": { className: 'col-span-6 md:col-span-4', iconSize: 66 },
-        "1":   { className: 'col-span-6 md:col-span-6', iconSize: 100 },
-    },
-    rowspans: {
-        "1" : { className: '' },
-        "2" : { className: 'md:row-span-2'},
-        "3" : { className: 'md:row-span-3'},
-        "4" : { className: 'md:row-span-4'},
-        "5" : { className: 'md:row-span-5'},
-        "6" : { className: 'md:row-span-6'},
-        "7" : { className: 'md:row-span-7'},
-        "8" : { className: 'md:row-span-8'},
-    },
-    border: {
-        none: '',
-        full: 'border border-[#E0EBF0] rounded-lg',
-        openLeft: 'border border-[#E0EBF0] border-l-transparent rounded-r-lg',
-        openRight: 'border border-[#E0EBF0] border-r-transparent rounded-l-lg',
-        openTop: 'border border-[#E0EBF0] border-t-transparent rounded-b-lg',
-        openBottom: 'border border-[#E0EBF0] border-b-transparent rounded-t-lg',
-        borderX: 'border border-[#E0EBF0] border-y-transparent'
-    }
-}
+import { isJson } from './section_utils'
+import { sectionArrayTheme } from './sectionArray.theme'
 
 const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
 
-    const [ values, setValues ] = useState([]);
-    const [active, setActive] = useState(); // to handle multiple spreadsheet components on a page in conjunction with arrow/selection/copy controls
     const { baseUrl, user } = React.useContext(CMSContext) || {}
-    const { theme = { sectionArray: sectionArrayTheme}, UI } = React.useContext(ThemeContext) || {}
     const { editPane, apiLoad, apiUpdate, format, item  } =  React.useContext(PageContext) || {}
+    const { theme:fullTheme = { sectionArray: sectionArrayTheme}, UI } = React.useContext(ThemeContext) || {}
+    const theme = getComponentTheme(fullTheme, 'pages.sectionArray')
+    const [ values, setValues ] = useState([]);
+    const [ active, setActive ] = useState(); // to handle multiple spreadsheet components on a page in conjunction with arrow/selection/copy controls
+
     const { Icon } = UI;
 
     React.useEffect(() => {
@@ -81,10 +35,9 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
         const id = setTimeout(() => {
             if(!isEqual(values, value)) onChange(values);
         }, 300);
-
         return () => clearTimeout(id);
     }, [values]);
-    
+
     const [edit, setEdit] = React.useState({
         index: -1,
         value: '',
@@ -108,7 +61,7 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
     const save = /* async */ () => {
 
         let cloneValue = cloneDeep(value || [])
-        const trackingId = uuidv4();
+        const trackingId = crypto.randomUUID();
         let action = ''
         // edit.value.has_changes = true
         if(edit.type === 'update') {
@@ -173,36 +126,38 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
     //console.log('test 123', values, group)
 
     return (
-        <div className='relative'>
+        <div className={theme?.wrapper}>
         { editPane?.showGrid && (
-            <div className='absolute inset-0 pointer-events-none  '>
+            <div className={theme?.gridOverlay}>
                 <div className={`
-                        ${theme?.sectionArray?.container}
-                        ${theme?.sectionArray?.gridviewGrid}
-                        ${theme?.sectionArray?.layouts[group?.full_width === 'show' ? 'fullwidth' : 'centered']}
+                        ${theme?.container}
+                        ${theme?.gridviewGrid}
+                        ${theme?.layouts[group?.full_width === 'show' ? 'fullwidth' : 'centered']}
                     `}
                 >
-                    {[...Array(theme?.sectionArray?.gridSize).keys()].map(d => <div className={theme?.sectionArray?.gridviewItem}  />)}
+                    {[...Array(theme?.gridSize).keys()].map(d => <div className={theme?.gridviewItem}  />)}
                 </div>
             </div>
         )}
             <div className={`
-                ${theme?.sectionArray?.container}
-                ${theme?.sectionArray?.layouts?.[group?.full_width === 'show' ? 'fullwidth' : 'centered']}
+                ${theme?.container}
+                ${theme?.layouts?.[group?.full_width === 'show' ? 'fullwidth' : 'centered']}
             `}>
 
                 {[...values,{}]
+                    //.filter(v => v.group === group.name || !v.group && group?.name === 'default')
                     .map((v,i) => {
-                    //only render sections in this group
-                    // return <div className='p-4 w-full'>{v.id}</div>
+                    // only render sections in this group
+                    // but must render fragments for all to maintain indexes.
                     if(!(v.group === group.name || (!v.group && group?.name === 'default')) && i !== edit.index) {
+                        //console.log('fragment',group.name, v.group)
                         return <React.Fragment key={i}></React.Fragment>
                     }
 
                     const size = (edit.index === i ? edit?.value?.size : v?.size) || "1";
                     const rowspan = (edit.index === i ? edit?.value?.rowspan : v?.rowspan) || "1";
-                    const colspanClass = (theme?.sectionArray?.sizes?.[size] || theme?.sectionArray?.sizes?.["1"])?.className;
-                    const rowspanClass = (theme?.sectionArray?.rowspans?.[rowspan] || theme?.sectionArray?.rowspans?.["1"])?.className
+                    const colspanClass = (theme?.sizes?.[size] || theme?.sizes?.["1"])?.className;
+                    const rowspanClass = (theme?.rowspans?.[rowspan] || theme?.rowspans?.["1"])?.className
 
                     // console.log('section', v, v.error)
                     return (
@@ -210,10 +165,10 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
                             key={i}
                             id={v?.id}
                             className={`
-                                ${v?.padding ?  v.padding : theme?.sectionArray?.sectionPadding}
-                                ${theme?.sectionArray?.sectionEditWrapper}
+                                ${v?.padding ?  v.padding : theme?.sectionPadding}
+                                ${theme?.sectionEditWrapper}
                                 ${colspanClass} ${rowspanClass}
-                                ${theme?.sectionArray?.border?.[v?.border || 'none']}
+                                ${theme?.border?.[v?.border || 'none']}
 
                             `}
                             style={{paddingTop: v?.offset }}
@@ -227,22 +182,17 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
                                 }
                             }}
                         >
-                            <div className={theme?.sectionArray?.sectionEditHover} />
+                            <div className={theme?.sectionEditHover} />
                             {/* add to top */}
                             {
                                 edit?.index === -1 && <div
                                     onClick={() => setEditIndex(Math.max(i, 0))}
-                                    className={`
-                                        cursor-pointer py-0.5 text-sm text-blue-200 hover:text-blue-400 truncate w-full
-                                        hover:bg-blue-50/75 -ml-4 hidden group-hover:flex absolute -top-5
-                                    `}>
-                                    <div className='flex-1' />
-                                    <div className='flex items-center'>
-
-                                        <div><Icon icon='InsertSection' className='size-6'/></div>
-
+                                    className={theme?.addSectionButton}>
+                                    <div className={theme?.spacer} />
+                                    <div className={theme?.addSectionIconWrapper}>
+                                        <div><Icon icon='InsertSection' className={theme?.addSectionIcon}/></div>
                                     </div>
-                                    <div className='flex-1' />
+                                    <div className={theme?.spacer} />
                                 </div>
                              }
 
@@ -294,7 +244,7 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
                 })
             }
             {
-                edit?.index === -1 && <AddSectionButton onClick={() => setEditIndex(Math.max(values.length, 0))}/>
+                edit?.index === -1 ? <AddSectionButton onClick={() => setEditIndex(Math.max(values.length, 0))}/> : ''
             }
 
             <ScrollToHashElement />
@@ -305,9 +255,10 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
 
 const View = ({value, attr, group, siteType}) => {
     if (!value || !value.map) { return '' }
-    const { theme = {sectionArray: sectionArrayTheme} } = React.useContext(ThemeContext);
     const { apiLoad, apiUpdate, format  } =  React.useContext(PageContext) || {}
     const [active, setActive] = useState();
+    const { theme:fullTheme = {sectionArray: sectionArrayTheme} } = React.useContext(ThemeContext);
+    const theme = getComponentTheme(fullTheme,'pages.sectionArray')
 
     const hideSectionCondition = section => {
         //console.log('hideSectionCondition', section?.element?.['element-data'] || '{}')
@@ -320,8 +271,8 @@ const View = ({value, attr, group, siteType}) => {
     return (
         <div
             className={`
-                ${theme?.sectionArray?.container}
-                ${theme?.sectionArray?.layouts?.[group?.full_width === 'show' ? 'fullwidth' : 'centered']}
+                ${theme?.container}
+                ${theme?.layouts?.[group?.full_width === 'show' ? 'fullwidth' : 'centered']}
             `}
         >
             {
@@ -331,16 +282,16 @@ const View = ({value, attr, group, siteType}) => {
                     .map((v, i) => {
                         const size = v?.size || "1";
                         const rowspan = v?.rowspan || "1";
-                        const colspanClass = (theme?.sectionArray?.sizes?.[size] || theme?.sectionArray?.sizes?.["1"])?.className;
-                        const rowspanClass = (theme?.sectionArray?.rowspans?.[rowspan] || theme?.sectionArray?.rowspans?.["1"])?.className;
+                        const colspanClass = (theme?.sizes?.[size] || theme?.sizes?.["1"])?.className;
+                        const rowspanClass = (theme?.rowspans?.[rowspan] || theme?.rowspans?.["1"])?.className;
 
                         return (
                             <div id={v?.id} key={i}
                                 className={`
-                                    ${v?.is_header ? '' : v?.padding ?  v.padding : theme?.sectionArray?.sectionPadding}
-                                    ${theme?.sectionArray?.sectionViewWrapper}
+                                    ${v?.is_header ? '' : v?.padding ?  v.padding : theme?.sectionPadding}
+                                    ${theme?.sectionViewWrapper}
                                     ${colspanClass} ${rowspanClass}
-                                    ${theme?.sectionArray?.border?.[v?.border || 'none']}
+                                    ${theme?.border?.[v?.border || 'none']}
                                 `}
                                 style={{ paddingTop: v?.offset }}
                                  onClick={() => {
@@ -397,10 +348,6 @@ const ScrollToHashElement = () => {
                 let position = element.getBoundingClientRect();
                 setTimeout(function () {
                     window.scrollTo(position.x, position.y - 170);
-                    // element.scrollIntoView({
-                    //     behavior: "smooth",
-                    //     block: "center",
-                    // });
                 }, 100);
             }
         }
@@ -410,32 +357,27 @@ const ScrollToHashElement = () => {
 };
 
 const AddSectionButton = ({onClick}) => {
-    const { theme = {}, UI} = React.useContext(ThemeContext);
+    const { theme:fullTheme = {}, UI} = React.useContext(ThemeContext);
+    const theme = getComponentTheme(fullTheme, 'pages.sectionArray')
     const {Icon} = UI;
     return (
         <div
             className={`
-                ${theme?.sectionArray?.sectionPadding}
-                ${theme?.sectionArray?.sectionEditWrapper}
-                ${theme?.sectionArray?.sizes?.["1"]?.className}
-                ${theme?.sectionArray?.rowspans?.["1"]?.className}
-                ${theme?.sectionArray?.border?.['none']}
+                ${theme?.sectionPadding}
+                ${theme?.sectionEditWrapper}
+                ${theme?.sizes?.["1"]?.className}
+                ${theme?.rowspans?.["1"]?.className}
             `}
         >
-            <div className={theme?.sectionArray?.sectionEditHover} />
+            <div className={theme?.sectionEditHover} />
                 <div
                     onClick={onClick}
-                    className={`
-                        cursor-pointer py-0.5 text-sm text-blue-200 hover:text-blue-400 truncate w-full
-                        hover:bg-blue-50/75 -ml-4 hidden group-hover:flex absolute -top-5
-                    `}>
-                    <div className='flex-1' />
-                    <div className='flex items-center'>
-
-                        <div><Icon icon='InsertSection' className='size-6'/></div>
-
+                    className={theme?.addSectionButton}>
+                    <div className={theme?.spacer} />
+                    <div className={theme?.addSectionIconWrapper}>
+                        <div><Icon icon='InsertSection' className={theme?.addSectionIcon}/></div>
                     </div>
-                    <div className='flex-1' />
+                    <div className={theme?.spacer} />
                 </div>
         </div>
     )

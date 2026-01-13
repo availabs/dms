@@ -297,10 +297,10 @@ export default  {
     "outerWrapper": 'bg-slate-100',
     "wrapper": `
       relative isolate flex min-h-svh w-full max-lg:flex-col
-      bg-white lg:bg-zinc-100 dark:bg-zinc-900 dark:lg:bg-zinc-950 overflow-hidden
+      bg-white lg:bg-zinc-100 dark:bg-zinc-900 dark:lg:bg-zinc-950
     `,
     "wrapper2": 'flex-1 flex items-start flex-col items-stretch max-w-full min-h-screen',
-    "wrapper3": 'flex flex-1',
+    "wrapper3": 'flex flex-1 items-start',
     "childWrapper": 'flex-1 h-full'
   }]
 }

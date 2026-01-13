@@ -25,15 +25,15 @@ export const layoutGroupTheme = {
   styles: [
      {
       name: "content",
-      wrapper1: 'w-full h-full flex-1 flex flex-row p-2', // inside page header, wraps sidebar
-      wrapper2: 'flex flex-1 w-full  flex-col  shadow-md bg-white rounded-lg relative text-md font-light leading-7 p-4 h-full min-h-[200px]', // content wrapepr
-      wrapepr3: ''
+      wrapper1: 'w-full flex-1 flex flex-row p-2 border-2 border-dashed', // inside page header, wraps sidebar
+      wrapper2: 'flex flex-1 w-full  flex-col  shadow-md bg-white rounded-lg relative text-md font-light leading-7 p-4 min-h-[200px]', // content wrapper
+      wrapper3: ''
     },
     {
       name: "header",
-      wrapper1: 'w-full h-full flex-1 flex flex-row', // inside page header, wraps sidebar
-      wrapper2: 'flex flex-1 w-full  flex-col  relative min-h-[200px]', // content wrapepr
-      wrapepr3: ''
+      wrapper1: 'w-full flex-1 flex flex-row', // inside page header, wraps sidebar
+      wrapper2: 'flex flex-1 w-full  flex-col  relative min-h-[200px]', // content wrapper
+      wrapper3: ''
     }
   ]
 }

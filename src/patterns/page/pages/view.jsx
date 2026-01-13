@@ -15,7 +15,7 @@ import { ThemeContext } from "../../../ui/useTheme";
 
 function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdate, reqPermissions, format,busy}) {
 
-  console.log('create doc', { item, dataItems: allDataItems })
+    //console.log('create doc', { item, dataItems: allDataItems })
     const navigate = useNavigate()
     const [searchParams] = useSearchParams();
     const { search } = useLocation()

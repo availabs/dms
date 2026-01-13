@@ -19,7 +19,6 @@ import {
 import { useSetSize } from "./utils"
 import { useTheme } from "./uicomponents"
 
-import defaultMapIcon from "./utils/default-map.png"
 
 let idCounter = 0;
 const getNewId = () => `avl-thing-${ ++idCounter }`;
@@ -178,7 +177,7 @@ const Navigationcontrols = ({ showLayerSelect, mapStyles, styleIndex, MapActions
     >
       { (showLayerSelect && (mapStyles && mapStyles.length > 1)) && (
         <div className='hover:bg-slate-100/50 h-10 w-10 flex items-center justify-center rounded relative'>
-          <div className='border border-slate-400 rounded shadow' onClick={() => showStyleSelect(!styleSelect)}><img className='w-8 h-8 rounded border' src={defaultMapIcon} /></div>
+          <div className='border border-slate-400 rounded shadow' onClick={() => showStyleSelect(!styleSelect)}><div className='w-8 h-8 rounded border bg-slate-400'  /></div>
           <div className={`w-36 bg-slate-100 absolute bottom-10 right-0 rounded ${styleSelect ? '' : 'hidden'}`}>
             {mapStyles.map((style,i) => (<div key={i} className='flex items-center p-1 hover:bg-blue-100' onClick={() => {
               showStyleSelect(false);
