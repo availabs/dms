@@ -267,7 +267,6 @@ export default function UsersAdmin() {
                     }
                 }}
                 controls={usersTableControls}
-                customTheme={customTableTheme}
             />
 
             {/* Add user modal */}

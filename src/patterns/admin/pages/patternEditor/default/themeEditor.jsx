@@ -147,7 +147,7 @@ export function PatternThemeEditor({
         // console.log('updateSettings',currentTheme?.settings(currentTheme), currentTheme)
         return currentTheme?.settings(currentTheme)
     }, [currentTheme])
-    const [currentThemeSetting, setCurrentThemeSetting] = React.useState(Object.keys(themeSettings)[0])
+    const [currentThemeSetting, setCurrentThemeSetting] = React.useState('table' || Object.keys(themeSettings)[0])
 
     //change display docs
     //const compFromProps = useMemo(() => compOptions.find(c => c.value.toLowerCase() === component?.toLowerCase())?.value, [component]);

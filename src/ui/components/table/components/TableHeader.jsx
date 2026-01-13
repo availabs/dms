@@ -2,28 +2,18 @@ import TableHeaderCell from "./TableHeaderCell";
 import React, {memo, useMemo} from "react";
 
 export const Header = memo(function Header ({
-                                                tableTheme, visibleAttrsWithoutOpenOut,
-                                                numColSize, frozenCols, frozenColClass, selectedCols,
-                                            isEdit, columns, display, controls, setState, colResizer, start, end, gutterColSize,
-                                                localFilterData
-                                            }) {
+    tableTheme, visibleAttrsWithoutOpenOut,
+    numColSize, frozenCols, frozenColClass, selectedCols,
+    isEdit, columns, display, controls, setState, colResizer, start, end,
+    localFilterData
+}) {
 
-    const attrsToRender = visibleAttrsWithoutOpenOut
-        .slice(start, end + 1);
+    const attrsToRender = visibleAttrsWithoutOpenOut.slice(start, end + 1);
 
     const slicedGridTemplateColumns = useMemo(() => {
-        const cols = attrsToRender
-            .map(c => `${c.size}px`)
-            .join(" ");
-
-        return `${numColSize}px ${cols} ${gutterColSize}px`;
-    }, [
-        start,
-        end,
-        attrsToRender,
-        numColSize,
-        gutterColSize
-    ]);
+        const cols = attrsToRender.map(c => `${c.size}px`).join(" ");
+        return `${numColSize}px ${cols}`;
+    }, [ start, end, attrsToRender, numColSize ]);
 
     return (
         <>
@@ -37,7 +27,7 @@ export const Header = memo(function Header ({
                 }}
             >
                 {/*********************** header left gutter *******************/}
-                <div className={'flex justify-between sticky left-0 z-[1]'} style={{width: numColSize}}>
+                <div className={tableTheme.headerLeftGutter} style={{width: numColSize}}>
                     <div key={'#'} className={`w-full ${tableTheme.thContainerBg} ${frozenColClass}`} />
                 </div>
                 {/******************************************&*******************/}
@@ -46,14 +36,14 @@ export const Header = memo(function Header ({
                     .map((attribute, i) => (
                             <div
                                 key={i}
-                                className={`${tableTheme.thead} ${frozenCols?.includes(i) ? tableTheme.theadfrozen : ''}`}
+                                className={`${tableTheme.headerWrapper} ${frozenCols?.includes(i) ? tableTheme.headerWrapperFrozen : ''}`}
                                 style={{width: attribute.size}}
                             >
 
                                 <div key={`controls-${i}`}
                                      className={`
-                                        ${tableTheme.thContainer}
-                                        ${selectedCols.includes(i) ? tableTheme.thContainerBgSelected : tableTheme.thContainerBg}`}
+                                        ${tableTheme.headerCellContainer}
+                                        ${selectedCols.includes(i) ? tableTheme.headerCellContainerBgSelected : tableTheme.headerCellContainerBg}`}
                                 >
                                     <TableHeaderCell attribute={attribute}
                                                      isEdit={isEdit}
@@ -67,25 +57,13 @@ export const Header = memo(function Header ({
 
                                 <div
                                     key={`resizer-${i}`}
-                                    className={colResizer ? "z-5 -ml-2 w-[1px] hover:w-[2px] bg-gray-200 hover:bg-gray-400" : 'hidden'}
-                                    style={{
-                                        height: '100%',
-                                        cursor: 'col-resize',
-                                        position: 'relative',
-                                        right: 0,
-                                        top: 0
-                                    }}
+                                    className={colResizer ? tableTheme.colResizer : 'hidden'}
+                                    style={{ height: '100%', cursor: 'col-resize', position: 'relative', right: 0, top: 0 }}
                                     onMouseDown={colResizer ? colResizer(attribute) : () => {}}
                                 />
-
                             </div>
                         )
                     )}
-
-                {/***********gutter column cell*/}
-                <div key={'##'}
-                     className={`${tableTheme.thContainerBg} z-[1] flex shrink-0 justify-between`}
-                > {` `}</div>
             </div>
             {/****************************************** Header end **********************************************/}
         </>

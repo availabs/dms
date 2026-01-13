@@ -548,7 +548,7 @@ const View = ({cms_context, value, size, apiUpdate, component}) => {
 
         const filteredData = (state.fullData || state.data).filter((row, rowI) => {
             return Object.keys(localFilters).every(col => {
-                if(!row[col]) return false;
+                // if(!row[col]) return false; doesn't work for blank values.
                 // check for arrays and objs {value, originalValue}
                 const isTextSearch = textSearchCols.includes(col);
                 const rowValue = Array.isArray(row[col]) ? row[col] : [row[col]];
@@ -560,6 +560,7 @@ const View = ({cms_context, value, size, apiUpdate, component}) => {
                                 v
                     );
 
+                    console.log('isText', isTextSearch, v1, filterValue)
                       return isTextSearch ?
                           v1.toString().toLowerCase().includes(filterValue.toLowerCase()) :
                           filterValue.some(fv => fv === v1)

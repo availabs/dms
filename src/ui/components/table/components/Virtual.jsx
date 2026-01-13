@@ -1,9 +1,9 @@
-import React, {
-    useRef,
-    useState,
-    useLayoutEffect,
-    useCallback, useEffect,
-} from "react";
+import React, { useRef, useState, useLayoutEffect, useCallback, useEffect } from "react";
+
+const theme = {
+    header: 'top-0 sticky z-[5]',
+    bottom: 'bottom-0 sticky z-[5]'
+}
 
 function MeasuredRow({
                          row,
@@ -21,30 +21,20 @@ function MeasuredRow({
         return () => ro.disconnect();
     }, [row, onMeasureRow]);
 
-    return renderItem(
-        row,
-        cols.start,
-        cols.end,
-        ref
-    )
+    return renderItem(row, cols.start, cols.end, ref)
 }
 
 export function VirtualList({
-                                rowCount,
-                                columnCount,
-                                columnSizes,
-                                estimatedRowHeight = 40,
-                                estimatedColumnWidth = 120,
-                                increaseViewportBy = {
-                                    top: 0,
-                                    bottom: 0,
-                                    left: 0,
-                                    right: 0,
-                                },
-                                renderItem,
-                                components,
-                                endReached
-                            }) {
+    rowCount,
+    columnCount,
+    columnSizes,
+    estimatedRowHeight = 40,
+    estimatedColumnWidth = 120,
+    increaseViewportBy = { top: 0, bottom: 0, left: 0, right: 0 },
+    renderItem,
+    components,
+    endReached
+}) {
     const containerRef = useRef(null);
     const isFetchingRef = useRef(false);
     const rowHeights = useRef([]);
@@ -60,12 +50,6 @@ export function VirtualList({
         rowHeights.current[i] ?? estimatedRowHeight;
 
     const getColWidth = (i) => columnSizes[i] ?? estimatedColumnWidth;
-
-    const getTotalHeight = () =>
-        Array.from({ length: rowCount }).reduce(
-            (s, _, i) => s + getRowHeight(i),
-            0
-        );
 
     const calculateRange = useCallback(() => {
         const el = containerRef.current;
@@ -97,7 +81,6 @@ export function VirtualList({
         }
 
         // COLS
-        // COLS
         let x = 0;
         let startCol = 0;
         while (
@@ -119,7 +102,7 @@ export function VirtualList({
             endCol++;
         }
 
-// ensure at least one column
+        // ensure at least one column
         if (endCol <= startCol) endCol = Math.min(startCol + 1, columnCount);
 
 
@@ -132,7 +115,6 @@ export function VirtualList({
             scrollTop + clientHeight >= getTotalHeight() - increaseViewportBy.bottom
         ) {
             isFetchingRef.current = true;
-            // console.log('end reached')
             endReached();
         }
 
@@ -186,10 +168,10 @@ export function VirtualList({
         return () => ro.disconnect();
     }, []);
 
-    const paddingTop = Array.from({ length: rows.start }).reduce(
-        (s, _, i) => s + getRowHeight(i),
-        0
-    );
+    const getTotalHeight = () => Array.from({ length: rowCount }).reduce((s, _, i) => s + getRowHeight(i), 0);
+    const getTotalWidth = () => Array.from({ length: columnCount }).reduce((s, _, i) => s + getColWidth(i), 0);
+
+    const paddingTop = Array.from({ length: rows.start }).reduce((s, _, i) => s + getRowHeight(i), 0);
 
     const paddingBottom =
         getTotalHeight() -
@@ -199,16 +181,7 @@ export function VirtualList({
             (_, i) => getRowHeight(rows.start + i)
         ).reduce((a, b) => a + b, 0);
 
-    const getTotalWidth = () =>
-        Array.from({ length: columnCount }).reduce(
-            (s, _, i) => s + getColWidth(i),
-            0
-        );
-
-    const paddingLeft = Array.from({ length: cols.start }).reduce(
-        (s, _, i) => s + getColWidth(i),
-        0
-    );
+    const paddingLeft = Array.from({ length: cols.start }).reduce((s, _, i) => s + getColWidth(i), 0);
 
     const paddingRight =
         getTotalWidth() -
@@ -221,34 +194,17 @@ export function VirtualList({
     return (
         <div
             ref={containerRef}
-            // className={`relative`}
             onScroll={calculateRange}
-            style={{
-                overflow: "auto",
-                height: "100%",
-                width: "100%",
-            }}
+            style={{ overflow: "auto", height: "100%", width: "100%" }}
         >
-            <div className={'top-0 sticky z-[5]'} style={{
-                paddingLeft,
-                paddingRight
-            }}>
+            <div className={theme.header} style={{ paddingLeft, paddingRight }}>
                 {components?.Header?.({start: cols.start, end: cols.end})}
-
             </div>
 
             <div
-                style={{
-                    paddingTop,
-                    paddingBottom,
-                    paddingLeft,
-                    paddingRight
-                }}
+                style={{ paddingTop, paddingBottom, paddingLeft, paddingRight }}
             >
-
-                {Array.from(
-                    { length: rows.end - rows.start + 1 },
-                    (_, r) => {
+                {Array.from({ length: rows.end - rows.start + 1 }, (_, r) => {
                         const rowIndex = rows.start + r;
                         return (
                             <MeasuredRow
@@ -264,15 +220,10 @@ export function VirtualList({
                     }
                 )}
 
-
-
                 {components?.Footer?.()}
             </div>
 
-            <div className={'bottom-0 sticky z-[5]'} style={{
-                paddingLeft,
-                paddingRight
-            }}>
+            <div className={theme.bottom} style={{ paddingLeft, paddingRight }}>
                 {components?.bottomFrozen?.({start: cols.start, end: cols.end})}
             </div>
         </div>

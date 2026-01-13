@@ -24,7 +24,7 @@ export default function RenderSwitch({ enabled=false, setEnabled, label, disable
     const translateClasses = {
         true: {
             xs: 'translate-x-3.5',
-            small: 'translate-x-4',
+            small: 'translate-x-3/4',
             medium: 'translate-x-6'
         },
         false: {

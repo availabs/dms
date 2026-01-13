@@ -3,35 +3,23 @@ import Icon from "../../Icon";
 import Switch from "../../Switch";
 import Popup from "../../Popup";
 import Multiselect from "../../../columnTypes/multiselect"
-
-const selectWrapperClass = 'group px-2 py-1 w-full flex items-center cursor-pointer hover:bg-gray-100'
-const selectLabelClass = 'w-fit font-regular text-gray-500 cursor-default'
-const selectClasses = 'w-full rounded-md bg-white group-hover:bg-gray-100 cursor-pointer'
-const inputClasses = 'p-0.5 w-full rounded-md bg-white group-hover:bg-gray-100 cursor-pointer'
+import {getComponentTheme, ThemeContext} from "~/modules/dms/src/ui/useTheme";
 
 const getColIdName = col => col.normalName || col.name;
 const Noop = () => {};
-const ToggleControl = ({value, setValue, title, className}) => {
-    return setValue ? (
-        <div>
-            <div
-                className={className || `inline-flex w-full justify-center items-center rounded-md px-1.5 py-1 text-sm font-regular 
-                text-gray-900 bg-white hover:bg-gray-50 cursor-pointer`}
-                onClick={() => setValue(!value)}
-            >
-                <span className={'flex-1 select-none mr-1'}>{title}</span>
-                <Switch
-                    size={'small'}
-                    enabled={value}
-                    setEnabled={() => {
-                    }}
-                />
-            </div>
-        </div>
-    ) : null;
+const ToggleControl = ({value, setValue}) => {
+    if (!setValue) return null;
+
+    return (
+        <Switch
+            size={'small'}
+            enabled={value}
+            setEnabled={setValue}
+        />
+    )
 }
 
-const InputControl = ({updateColumns, inputType, value='', attributeKey, onChange, dataFetch}) => {
+const InputControl = ({updateColumns, inputType, value='', attributeKey, onChange, dataFetch, className}) => {
     const [tmpValue, setTmpValue] = useState(value);
 
     useEffect(() => {
@@ -44,7 +32,7 @@ const InputControl = ({updateColumns, inputType, value='', attributeKey, onChang
 
     return (
         <input
-            className={inputClasses}
+            className={className}
             type={inputType}
             value={tmpValue}
             onChange={e => setTmpValue(e.target.value)}
@@ -52,7 +40,7 @@ const InputControl = ({updateColumns, inputType, value='', attributeKey, onChang
     )
 }
 
-const TextAreaControl = ({updateColumns, value='', attributeKey, onChange, dataFetch}) => {
+const TextAreaControl = ({updateColumns, value='', attributeKey, onChange, dataFetch, className}) => {
     const [tmpValue, setTmpValue] = useState(value);
 
     useEffect(() => {
@@ -65,7 +53,7 @@ const TextAreaControl = ({updateColumns, value='', attributeKey, onChange, dataF
 
     return (
         <textarea
-            className={inputClasses}
+            className={className}
             value={tmpValue}
             onChange={e => setTmpValue(e.target.value)}
         />
@@ -73,7 +61,7 @@ const TextAreaControl = ({updateColumns, value='', attributeKey, onChange, dataF
 }
 
 
-const FilterControl = ({updateColumns, type, value, attributeKey, onChange, dataFetch, localFilterData}) => {
+const FilterControl = ({updateColumns, type, value, attributeKey, onChange, dataFetch, localFilterData, className}) => {
     const [tmpValue, setTmpValue] = useState(value);
 
     useEffect(() => {
@@ -86,11 +74,11 @@ const FilterControl = ({updateColumns, type, value, attributeKey, onChange, data
 
     const options = useMemo(() => {
         if(!['select', 'multiselect', 'radio'].includes(type) || !localFilterData) return undefined;
-        return Array.from(localFilterData.values()).map(v => ({label: v.value || v, value: v.originalValue || v}))
+        return Array.from(localFilterData.values()).map(v => ({label: v.value ?? v, value: v.originalValue ?? v}))
         }, [type, localFilterData]);
 
     return ['select', 'multiselect', 'radio'].includes(type) ?
-        <Multiselect.EditComp className={'p-0.5 w-full rounded-md'}
+        <Multiselect.EditComp className={className}
                               value={value}
                               options={options}
                               onChange={setTmpValue}
@@ -98,7 +86,7 @@ const FilterControl = ({updateColumns, type, value, attributeKey, onChange, data
                               displayDetailedValues={false}
         /> : (
         <input
-            className={inputClasses}
+            className={className}
             type={'text'}
             value={tmpValue}
             onChange={e => setTmpValue(e.target.value)}
@@ -106,7 +94,10 @@ const FilterControl = ({updateColumns, type, value, attributeKey, onChange, data
     )
 }
 // in header menu for each column
-export default memo(function TableHeaderCell({isEdit, attribute, columns, localFilterData, display, controls, setState=Noop}) {
+export default memo(function TableHeaderCell({isEdit, attribute, columns, localFilterData, display, controls, activeStyle, setState=Noop}) {
+    const { theme: themeFromContext = {table: {}}} = React.useContext(ThemeContext) || {};
+    const theme = getComponentTheme(themeFromContext,'table', activeStyle);
+
     const [open, setOpen] = useState(false);
     const colIdName = getColIdName(attribute);
 
@@ -114,7 +105,7 @@ export default memo(function TableHeaderCell({isEdit, attribute, columns, localF
     const updateColumns = useCallback((key, value, onChange, dataFetch) => setState(draft => {
         // update requested key
         const idx = columns.findIndex(column => getColIdName(column) === colIdName);
-        console.log('idx', idx, key, value)
+
         if (idx !== -1) {
             if(key){
                 draft.columns[idx][key] = value;
@@ -133,20 +124,19 @@ export default memo(function TableHeaderCell({isEdit, attribute, columns, localF
 
     }), [columns, attribute]);
 
-    const iconClass = 'text-gray-400';
     const iconSizes = {width: 14 , height: 14}
     const fnIcons = {
-        count: <Icon icon={'TallyMark'} key={'count-icon'} className={iconClass} {...iconSizes} />,
-        list: <Icon icon={'LeftToRightListBullet'} key={'list-icon'} className={iconClass} {...iconSizes} />,
-        sum: <Icon icon={'Sum'} key={'sum-icon'} className={iconClass} {...iconSizes} />,
-        avg: <Icon icon={'Avg'} key={'sum-icon'} className={iconClass} {...iconSizes} />,
+        count: <Icon icon={theme.headerCellCountIcon} key={'count-icon'} className={theme.headerCellFnIconClass} {...iconSizes} />,
+        list: <Icon icon={theme.headerCellListIcon} key={'list-icon'} className={theme.headerCellFnIconClass} {...iconSizes} />,
+        sum: <Icon icon={theme.headerCellSumIcon} key={'sum-icon'} className={theme.headerCellFnIconClass} {...iconSizes} />,
+        avg: <Icon icon={theme.headerCellAvgIcon} key={'sum-icon'} className={theme.headerCellFnIconClass} {...iconSizes} />,
     }
 
     return (
-        <div key={colIdName} className="relative w-full">
+        <div key={colIdName} className={theme.headerCellWrapper}>
             <Popup button={
                 <div key={'menu-btn'}
-                     className={`group inline-flex items-center w-full justify-between gap-x-1.5 rounded-md cursor-pointer ${display.columnSelection?.includes(colIdName) ? `bg-gray-300` : ``}`}
+                     className={`${theme.headerCellBtn} ${display.columnSelection?.includes(colIdName) ? theme.headerCellBtnActive : ``}`}
                      onClick={e => {
                          if(e.ctrlKey){
                              setState(draft => {
@@ -164,25 +154,22 @@ export default memo(function TableHeaderCell({isEdit, attribute, columns, localF
                     {
                         controls.header?.displayFn ? controls.header.displayFn(attribute) :
                             (
-                                <span key={`${colIdName}-name`} className={`truncate select-none ${attribute.wrapHeader ? `whitespace-pre-wrap` : ``}`}
+                                <span key={`${colIdName}-name`} className={`${theme.headerCellLabel} ${attribute.wrapHeader ? theme.wrapText : ``}`}
                                       title={attribute.customName || attribute.display_name || colIdName}>
                                 {attribute.customName || attribute.display_name || colIdName}
                             </span>
                             )
                     }
-                    <div className={'flex items-center'}>
-                        {/*/!*<InfoCircle width={16} height={16} className={'text-gray-500'} />*!/ needs a lexical modal*/}
+                    <div className={theme.headerCellIconWrapper}>
                         {
-                            attribute.group ? <Icon icon={'Group'} key={`group-${colIdName}`} className={iconClass} {...iconSizes} /> :
+                            attribute.group ? <Icon icon={theme.headerCellGroupIcon} key={`group-${colIdName}`} className={theme.headerCellFnIconClass} {...iconSizes} /> :
                                 attribute.fn ? fnIcons[attribute.fn] || attribute.fn : null
                         }
                         {
-                            attribute.sort === 'asc nulls last' ? <Icon icon={'SortAsc'} key={'sort-asc-icon'} className={iconClass} {...iconSizes} /> :
-                                attribute.sort === 'desc nulls last' ? <Icon icon={'SortDesc'} key={'sort-desc-icon'} className={iconClass} {...iconSizes} /> : null
+                            attribute.sort === 'asc nulls last' ? <Icon icon={theme.headerCellSortAscIcon} key={'sort-asc-icon'} className={theme.headerCellFnIconClass} {...iconSizes} /> :
+                                attribute.sort === 'desc nulls last' ? <Icon icon={theme.headerCellSortDescIcon} key={'sort-desc-icon'} className={theme.headerCellFnIconClass} {...iconSizes} /> : null
                         }
-
-                        <Icon icon={'ArrowDown'} key={`arrow-down-${colIdName}`}
-                              className={'text-gray-400 group-hover:text-gray-600 transition ease-in-out duration-200 print:hidden'}/>
+                        <Icon icon={theme.headerCellMenuIcon} key={`arrow-down-${colIdName}`} className={theme.headerCellMenuIconClass}/>
                     </div>
                 </div>
             }>
@@ -190,85 +177,71 @@ export default memo(function TableHeaderCell({isEdit, attribute, columns, localF
                     ({open, setOpen}) =>
                         controls?.inHeader?.length ? (
                             <div key={'menu'}
-                                 className={`min-w-[180px]
-                 ${open ? 'visible transition ease-in duration-200' : 'hidden transition ease-in duration-200'} 
-                 z-[10] divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 transition`}
+                                 className={`${open ? 'visible' : 'hidden'} ${theme.headerCellMenu}`}
                             >
-                                <div className="py-0.5 min-w-fit max-h-[500px] overflow-auto scrollbar-sm">
-                                    <div className="flex flex-col gap-0.5 items-center px-1 py-1 text-xs text-gray-600 font-regular">
-                                        {
-                                            controls.inHeader
-                                                .filter(({displayCdn}) =>
-                                                    typeof displayCdn === 'function' ? displayCdn({attribute, display, isEdit}) :
-                                                        typeof displayCdn === 'boolean' ? displayCdn : true)
-                                                .map(({type, inputType, label, key, dataFetch, options, onChange}) =>
-                                                    type === 'select' ?
-                                                        <div key={`${colIdName}-${key}`} className={selectWrapperClass}>
-                                                            <label className={selectLabelClass}>{label}</label>
-                                                            <select
-                                                                className={selectClasses}
-                                                                value={attribute[key]}
-                                                                onChange={e => updateColumns(key, e.target.value, onChange, dataFetch)}
-                                                            >
-                                                                {
-                                                                    options.map(({label, value}) => <option key={value} value={value}>{label}</option>)
-                                                                }
-                                                            </select>
-                                                        </div> :
-                                                        type === 'toggle' ?
-                                                            <div className={'px-2 py-1 w-full rounded-md bg-white hover:bg-gray-100 cursor-pointer'}>
+                                {
+                                    controls.inHeader
+                                        .filter(({displayCdn}) =>
+                                            typeof displayCdn === 'function' ? displayCdn({attribute, display, isEdit}) :
+                                                typeof displayCdn === 'boolean' ? displayCdn : true)
+                                        .map(({type, inputType, label, key, dataFetch, options, onChange}) =>
+                                            typeof type === 'function' ?
+                                                type({
+                                                    value: attribute[key],
+                                                    setValue: newValue => updateColumns(key, newValue, onChange, dataFetch),
+                                                    attribute,
+                                                    setAttribute: newValue => updateColumns(undefined, newValue, onChange, dataFetch)
+                                                }) :
+                                                    <div key={`${colIdName}-${key}`} className={theme.headerCellControlWrapper}>
+                                                        <label className={theme.headerCellControlLabel}>{label}</label>
+                                                        {
+                                                            type === 'toggle' ?
                                                                 <ToggleControl
-                                                                    className={`inline-flex w-full justify-center items-center rounded-md cursor-pointer ${selectLabelClass}`}
+                                                                    className={theme.headerCellControl}
                                                                     title={label}
                                                                     value={attribute[key]}
                                                                     setValue={e => updateColumns(key, e, onChange, dataFetch)}
-                                                                />
-                                                            </div> :
-                                                            type === 'input' ?
-                                                                <div className={selectWrapperClass}>
-                                                                    <label className={selectLabelClass}>{label}</label>
+                                                                /> :
+                                                            type === 'select' ?
+                                                                <select
+                                                                    className={theme.headerCellControl}
+                                                                    value={attribute[key]}
+                                                                    onChange={e => updateColumns(key, e.target.value, onChange, dataFetch)}
+                                                                >
+                                                                    { options.map(({label, value}) => <option key={value} value={value}>{label}</option>) }
+                                                                </select> :
+                                                                type === 'input' ?
                                                                     <InputControl
+                                                                        className={theme.headerCellControl}
                                                                         inputType={inputType}
                                                                         value={attribute[key]}
                                                                         updateColumns={updateColumns}
                                                                         attributeKey={key}
                                                                         dataFetch={dataFetch}
-                                                                    />
-                                                                </div> :
-                                                                type === 'textarea' ?
-                                                                <div className={selectWrapperClass}>
-                                                                    <label className={selectLabelClass}>{label}</label>
-                                                                    <TextAreaControl
-                                                                        value={attribute[key]}
-                                                                        updateColumns={updateColumns}
-                                                                        attributeKey={key}
-                                                                        dataFetch={dataFetch}
-                                                                    />
-                                                                </div> :
-                                                                type === 'filter' ?
-                                                                <div className={selectWrapperClass}>
-                                                                    <label className={selectLabelClass}>{label}</label>
-                                                                    <FilterControl
-                                                                        type={attribute.type}
-                                                                        localFilterData={localFilterData?.[attribute.name]}
-                                                                        value={attribute[key]}
-                                                                        updateColumns={updateColumns}
-                                                                        attributeKey={key}
-                                                                        dataFetch={dataFetch}
-                                                                    />
-                                                                </div> :
-                                                                typeof type === 'function' ?
-                                                                    type({
-                                                                        value: attribute[key],
-                                                                        setValue: newValue => updateColumns(key, newValue, onChange, dataFetch),
-                                                                        attribute,
-                                                                        setAttribute: newValue => updateColumns(undefined, newValue, onChange, dataFetch)
-                                                                    }) :
-                                                                    `${type} not available`
-                                                )
-                                        }
-                                    </div>
-                                </div>
+                                                                    /> :
+                                                                    type === 'textarea' ?
+                                                                        <TextAreaControl
+                                                                            className={theme.headerCellControl}
+                                                                            value={attribute[key]}
+                                                                            updateColumns={updateColumns}
+                                                                            attributeKey={key}
+                                                                            dataFetch={dataFetch}
+                                                                        /> :
+                                                                        type === 'filter' ?
+                                                                            <FilterControl
+                                                                                className={theme.headerCellControl}
+                                                                                type={attribute.type}
+                                                                                localFilterData={localFilterData?.[attribute.name]}
+                                                                                value={attribute[key]}
+                                                                                updateColumns={updateColumns}
+                                                                                attributeKey={key}
+                                                                                dataFetch={dataFetch}
+                                                                            /> :
+                                                                            `${type} not available`
+                                                        }
+                                                    </div>
+                                        )
+                                }
                             </div>
                         ) : null
                 }
