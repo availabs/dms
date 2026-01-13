@@ -1,5 +1,5 @@
 import { sectionGroupTheme } from './components/sections/sectionGroup'
-import { sectionArrayTheme } from './components/sections/sectionArray'
+import { sectionArrayTheme } from './components/sections/sectionArray.theme'
 import { sectionTheme } from './components/sections/section.theme'
 
 export default {
