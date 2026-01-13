@@ -31,6 +31,7 @@ export default function SectionGroup ({group, attributes, edit}) {
         ( attributes?.['sections'].ViewComp || SectionArray?.ViewComp )
   }, [])
 
+  console.log('sectionGroup', group)
   return (
     <LayoutGroup
       activeStyle={ activeStyle }

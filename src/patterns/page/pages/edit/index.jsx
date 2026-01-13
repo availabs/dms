@@ -114,6 +114,7 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
 		}
 	}
 
+
 	const getSectionGroups =  ( sectionName ) => {
 		return (item?.draft_section_groups || [])
 			.filter((g,i) => g.position === sectionName)
@@ -127,6 +128,7 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
 				/>
 			))
 	}
+	console.log('edit section groups, ', item?.draft_section_groups, getSectionGroups('content'))
 
 	if(!item) return <div>page does not exist.</div>;
 

@@ -150,6 +150,7 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
                     // only render sections in this group
                     // but must render fragments for all to maintain indexes.
                     if(!(v.group === group.name || (!v.group && group?.name === 'default')) && i !== edit.index) {
+                        //console.log('fragment',group.name, v.group)
                         return <React.Fragment key={i}></React.Fragment>
                     }
 
@@ -243,7 +244,7 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
                 })
             }
             {
-                edit?.index === -1 && <AddSectionButton onClick={() => setEditIndex(Math.max(values.length, 0))}/>
+                edit?.index === -1 ? <AddSectionButton onClick={() => setEditIndex(Math.max(values.length, 0))}/> : ''
             }
 
             <ScrollToHashElement />
