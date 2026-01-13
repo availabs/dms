@@ -243,7 +243,7 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
                 })
             }
             {
-                // edit?.index === -1 && <AddSectionButton onClick={() => setEditIndex(Math.max(values.length, 0))}/>
+                edit?.index === -1 && <AddSectionButton onClick={() => setEditIndex(Math.max(values.length, 0))}/>
             }
 
             <ScrollToHashElement />

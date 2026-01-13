@@ -25,7 +25,7 @@ import Dropdown from "./components/Dropdown";
 import Modal from "./components/Modal";
 import {DeleteModal} from "./components/DeleteModal";
 import DraggableNav from "./components/draggableNav";
-import DraggableNavOld from "./components/nestable/draggableNav";
+//import DraggableNavOld from "./components/nestable/draggableNav";
 import Pagination from "./components/Pagination";
 import Table from "./components/table";
 import Card from "./components/Card";
@@ -50,7 +50,7 @@ const UI = {
 
   // Nestable,
 	DraggableNav,
-	DraggableNavOld,
+	//DraggableNavOld,
 	// --- Utilities
 	Icon,
 	Button,

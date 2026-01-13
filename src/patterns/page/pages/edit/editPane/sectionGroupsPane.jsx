@@ -1,13 +1,13 @@
 import React from 'react'
 import { cloneDeep, set } from 'lodash-es'
-import { v4 as uuidv4 } from 'uuid';
+
 import { CMSContext,PageContext } from '../../../context'
 import {ThemeContext} from "../../../../../ui/useTheme";
 
 function SectionGroupControl ({group}) {
   const { UI, theme } = React.useContext(ThemeContext) || {};
   const { item, apiUpdate } =  React.useContext(PageContext) || {}
-  const {Menu, Icon} = UI;
+  const { NavigableMenu } = UI;
   const updateAttribute = (attr, value) => {
     let newSections = cloneDeep(item.draft_section_groups)
     const updateIndex = newSections.findIndex(d => d.name === group.name)
@@ -25,61 +25,45 @@ function SectionGroupControl ({group}) {
       draft_section_groups: cloneDeep(item?.draft_section_groups || [])
         .filter(d => d.name !== group.name)
     }
-    //console.log('section group', group.name, item.id)
     apiUpdate({data: newItem})
   }
 
-  const sectionMenuItems = [
-      //{ icon: 'PencilSquare', name: 'Edit', onClick: onEdit },
-
-      // { type: 'seperator'},
-      // { icon: 'ChevronUpSquare', name: 'Move Up', onClick: () => {} },
-      // { icon: 'ChevronDownSquare', name: 'Move Down', onClick: () =>  {} },
-      { type: 'seperator'},
-      { icon: 'Width', name: 'Full Width',
-        type: 'menu',
+  const menuConfig = [
+      {
+        icon: 'Width',
+        name: 'Full Width',
         value: group?.['full_width'] || 'off',
-        items: ['off', 'show']
-            .map((name,i) => {
-                return {
-                    'icon': name == (group?.['full_width'] || 'off') ? 'CircleCheck' : 'Blank',
-                    'name': name,
-                    'onClick': () => {
-                        //console.log('colspan Item name click', name)
-                       updateAttribute('full_width', name);
-                    }
-                }
-            })
+        showValue: true,
+        items: ['off', 'show'].map((name) => ({
+          icon: name === (group?.['full_width'] || 'off') ? 'CircleCheck' : 'Blank',
+          name: name,
+          onClick: () => updateAttribute('full_width', name)
+        }))
       },
-      { icon: 'Theme', name: 'Theme',
-        type: 'menu',
+      {
+        icon: 'Theme',
+        name: 'Theme',
         value: group?.['theme'] || 'default',
-        items: theme.layoutGroup.styles.map(d => d.name)
-            .map((name,i) => {
-                return {
-                    'icon': name == (group?.['theme'] || 'None') ? 'CircleCheck' : 'Blank',
-                    'name': name,
-                    'onClick': () => {
-                        //console.log('colspan Item name click', name)
-                       updateAttribute('theme', name);
-                    }
-                }
-            })
+        showValue: true,
+        items: (theme?.layoutGroup?.styles || []).map(d => d.name).map((name) => ({
+          icon: name === (group?.['theme'] || 'default') ? 'CircleCheck' : 'Blank',
+          name: name,
+          onClick: () => updateAttribute('theme', name)
+        }))
       },
-      { type: 'seperator'},
-      { icon: 'TrashCan', name: 'Delete', onClick: () => deleteGroup() } //setShowDeleteModal(!showDeleteModal)
-    ]
-
+      { type: 'separator' },
+      { icon: 'TrashCan', name: 'Delete', onClick: deleteGroup }
+  ]
 
   return (
     <div className='border p-4 flex justify-between items-center'>
       <div>{group?.displayName || group?.name}</div>
       <div>
-        <Menu items={sectionMenuItems}>
-            <div  className='p-1 hover:bg-slate-100/75 rounded-lg'>
-                <Icon icon="Menu" className='text-slate-500 hover:text-slate-900 size-6'/>
-            </div>
-        </Menu>
+        <NavigableMenu
+          config={menuConfig}
+          title={'Group Settings'}
+          preferredPosition={'left'}
+        />
       </div>
     </div>
   )
@@ -94,7 +78,7 @@ export default function SectionGroupsPane () {
       id: item.id,
       draft_section_groups: [
         ...item.draft_section_groups,
-        {name: uuidv4(), displayName: `Group ${item.draft_section_groups.length+1}`, position: target, theme: 'default'}
+        {name: crypto.randomUUID(), displayName: `Group ${item.draft_section_groups.length+1}`, position: target, theme: 'default'}
       ]
     }
     apiUpdate({data:newItem})
