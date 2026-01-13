@@ -10,8 +10,10 @@ import { isJson } from './section_utils'
 
 
 export const sectionArrayTheme = {
-    container: 'w-full grid grid-cols-6 ', //gap-1 md:gap-[12px]
-    gridSize: 6,
+    wrapper: 'relative',
+    gridOverlay: 'absolute inset-0 pointer-events-none',
+    container: 'w-full grid grid-cols-12 ', //gap-1 md:gap-[12px]
+    gridSize: 12,
     layouts: {
         centered: 'max-w-[1020px] mx-auto',
         fullwidth: ''
@@ -23,6 +25,10 @@ export const sectionArrayTheme = {
     gridviewGrid: 'z-0 bg-slate-50 h-full',
     gridviewItem: 'border-x bg-white border-slate-100/75 border-dashed h-full p-[6px]',
     defaultOffset: 16,
+    addSectionButton: 'cursor-pointer py-0.5 text-sm text-blue-200 hover:text-blue-400 truncate w-full hover:bg-blue-50/75 -ml-4 hidden group-hover:flex absolute -top-5',
+    spacer: 'flex-1',
+    addSectionIconWrapper: 'flex items-center',
+    addSectionIcon: 'size-6',
     sizes: {
         "1/3": { className: 'col-span-6 md:col-span-2', iconSize: 33 },
         "1/2": { className: 'col-span-6 md:col-span-3', iconSize: 50 },
@@ -167,9 +173,9 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
     //console.log('test 123', values, group)
 
     return (
-        <div className='relative'>
+        <div className={theme?.wrapper}>
         { editPane?.showGrid && (
-            <div className='absolute inset-0 pointer-events-none  '>
+            <div className={theme?.gridOverlay}>
                 <div className={`
                         ${theme?.container}
                         ${theme?.gridviewGrid}
@@ -226,17 +232,12 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
                             {
                                 edit?.index === -1 && <div
                                     onClick={() => setEditIndex(Math.max(i, 0))}
-                                    className={`
-                                        cursor-pointer py-0.5 text-sm text-blue-200 hover:text-blue-400 truncate w-full
-                                        hover:bg-blue-50/75 -ml-4 hidden group-hover:flex absolute -top-5
-                                    `}>
-                                    <div className='flex-1' />
-                                    <div className='flex items-center'>
-
-                                        <div><Icon icon='InsertSection' className='size-6'/></div>
-
+                                    className={theme?.addSectionButton}>
+                                    <div className={theme?.spacer} />
+                                    <div className={theme?.addSectionIconWrapper}>
+                                        <div><Icon icon='InsertSection' className={theme?.addSectionIcon}/></div>
                                     </div>
-                                    <div className='flex-1' />
+                                    <div className={theme?.spacer} />
                                 </div>
                              }
 
@@ -421,17 +422,12 @@ const AddSectionButton = ({onClick}) => {
             <div className={theme?.sectionEditHover} />
                 <div
                     onClick={onClick}
-                    className={`
-                        cursor-pointer py-0.5 text-sm text-blue-200 hover:text-blue-400 truncate w-full
-                        hover:bg-blue-50/75 -ml-4 hidden group-hover:flex absolute -top-5
-                    `}>
-                    <div className='flex-1' />
-                    <div className='flex items-center'>
-
-                        <div><Icon icon='InsertSection' className='size-6'/></div>
-
+                    className={theme?.addSectionButton}>
+                    <div className={theme?.spacer} />
+                    <div className={theme?.addSectionIconWrapper}>
+                        <div><Icon icon='InsertSection' className={theme?.addSectionIcon}/></div>
                     </div>
-                    <div className='flex-1' />
+                    <div className={theme?.spacer} />
                 </div>
         </div>
     )
