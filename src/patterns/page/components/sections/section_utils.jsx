@@ -156,7 +156,7 @@ export function HelpTextEditPopups({
 }
 
 export function TagComponent({value, placeholder, onChange, edit = false}) {
-    const {UI} = useContext(CMSContext);
+    const {UI} = useContext(ThemeContext);
     const {Icon, Label} = UI;
     const arrayValue = Array.isArray(value) ? value : (value?.split(',')?.filter(v => v?.length) || [])
     const [newTag, setNewTag] = useState('');

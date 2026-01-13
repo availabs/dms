@@ -4,6 +4,18 @@ import { merge, cloneDeep } from "lodash-es"
 import { matchRoutes, useLocation } from 'react-router';
 import { ThemeContext } from '../useTheme.js';
 import layoutTheme from './Layout.theme';
+/*
+  // Example
+  <Layout
+      navItems={menuItems}
+      secondNav={menuItemsSecondNav}
+      headerChildren={getSectionGroups('top')}
+      footerChildren={getSectionGroups('bottom')}
+  >
+      {getSectionGroups('content')}
+  </Layout>
+*/
+
 
 //--- Components and Widgets ------
 import TopNav, { HorizontalMenu } from './TopNav';
@@ -55,15 +67,13 @@ const Layout = ({
 	headerChildren,
 	footerChildren,
 	navItems=[],
-	secondNav,
-	pageTheme,
-	yPadding = '0px'
+	secondNav
 }) => {
 
 	const { pathname } = useLocation();
 	const { theme: defaultTheme = {layout: layoutTheme} } = React.useContext(ThemeContext);
 	const { sideNav={}, topNav={}, activeStyle } = cloneDeep(defaultTheme?.layout.options) || {}
-	const theme = merge(cloneDeep(defaultTheme?.layout?.styles?.[activeStyle || 0] || defaultTheme), cloneDeep(pageTheme))
+	const theme = merge(cloneDeep(defaultTheme?.layout?.styles?.[activeStyle || 0] || defaultTheme))
 	// console.log('Theme', theme, sideNav, activeStyle)
   const navs = (nav) => {
     return {
