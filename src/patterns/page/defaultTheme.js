@@ -1,8 +1,10 @@
 import { sectionGroupTheme } from './components/sections/sectionGroup'
+import { sectionArrayTheme } from './components/sections/sectionArray'
 import { sectionTheme } from './components/sections/section.theme'
 
 export default {
     sectionGroup: sectionGroupTheme,
+    sectionArray: sectionArrayTheme,
     section: sectionTheme
 }
 

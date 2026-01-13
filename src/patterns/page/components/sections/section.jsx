@@ -18,8 +18,6 @@ import {
     ViewSectionHeader
 } from './section_utils'
 
-
-
 export function SectionEdit({
     value,
     i,
@@ -281,9 +279,13 @@ export function SectionView({
             </div>
 
             <DeleteModal
-                title={`Delete Section ${value?.title || ''} ${value?.id}`} open={showDeleteModal}
-                prompt={`Are you sure you want to delete this section? All of the section data will be permanently removed
-                            from our servers forever. This action cannot be undone.`}
+                title={`Delete Section ${value?.title || ''} ${value?.id}`}
+                prompt={`
+                  Are you sure you want to delete this section?
+                  All of the section data will be permanently removed
+                  from our servers forever. This action cannot be undone.
+                `}
+                open={showDeleteModal}
                 setOpen={(v) => setShowDeleteModal(v)}
                 onDelete={() => {
                     async function deleteItem() {
