@@ -1,5 +1,5 @@
 import React, {memo, useContext, useMemo, useState} from "react";
-import {numColSize as numColSizeDf } from "../../../../patterns/page/components/selector/ComponentRegistry/spreadsheet/constants"
+import {numColSize as numColSizeDf } from "../../../../patterns/page/components/sections/components/ComponentRegistry/spreadsheet/constants"
 import {TableCell} from "./TableCell";
 import Icon from "../../Icon"
 import {TableStructureContext} from "../index";

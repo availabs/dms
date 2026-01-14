@@ -2,7 +2,7 @@ import React, {useContext, useEffect, useRef, useState, memo, useMemo, useCallba
 import {isEqual} from "lodash-es";
 import Icon from "../../Icon";
 import DataTypes from "../../../columnTypes";
-import {formatFunctions} from "../../../../patterns/page/components/selector/dataWrapper/utils/utils";
+import {formatFunctions} from "../../../../patterns/page/components/sections/components/dataWrapper/utils/utils";
 import { RenderAction } from "./RenderActions";
 import {TableCellContext} from "../index";
 import {handleMouseDown, handleMouseMove, handleMouseUp} from "../utils/mouse";

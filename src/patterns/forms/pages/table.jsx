@@ -1,17 +1,17 @@
 import React, {useCallback, useContext, useEffect, useState} from "react";
 import { FormsContext } from '../siteConfig'
 import SourcesLayout from "../components/patternListComponent/layout";
-import Spreadsheet from "../../page/components/selector/ComponentRegistry/spreadsheet";
+import Spreadsheet from "../../page/components/sections/components/ComponentRegistry/spreadsheet";
 import {useNavigate} from "react-router";
-import DataWrapper from "../../page/components/selector/dataWrapper";
+import DataWrapper from "../../page/components/sections/components/dataWrapper";
 import {cloneDeep, uniqBy} from "lodash-es";
 
 import {ComponentContext} from "../../page/context";
 import {useImmer} from "use-immer";
 import {
     RenderFilters
-} from "../../page/components/selector/dataWrapper/components/filters/RenderFilters";
-import { Controls } from "../../page/components/selector/dataWrapper/components/Controls";
+} from "../../page/components/sections/components/dataWrapper/components/filters/RenderFilters";
+import { Controls } from "../../page/components/sections/components/dataWrapper/components/Controls";
 import {ThemeContext} from "../../../ui/useTheme";
 const TableView = ({apiUpdate, apiLoad, format, item, params}) => {
     const { baseUrl, pageBaseUrl, user, isUserAuthed } = useContext(FormsContext) || {};

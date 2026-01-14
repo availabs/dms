@@ -32,10 +32,10 @@ import pagesTheme from "../patterns/page/defaultTheme"
 // =====================================================================================================
 import {
     attributionTheme
-} from "../patterns/page/components/selector/dataWrapper/components/Attribution";
+} from "../patterns/page/components/sections/components/dataWrapper/components/Attribution";
 import {
     filterTheme
-} from "../patterns/page/components/selector/dataWrapper/components/filters/RenderFilters";
+} from "../patterns/page/components/sections/components/dataWrapper/components/filters/RenderFilters";
 import { registerLayoutWidget } from './components/Layout';
 // ======================================================================================================
 

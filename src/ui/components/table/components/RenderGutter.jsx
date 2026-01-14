@@ -1,5 +1,5 @@
 import React from "react";
-import {actionsColSize, numColSize, gutterColSize} from "../../../../patterns/page/components/selector/ComponentRegistry/spreadsheet/constants"
+import {actionsColSize, numColSize, gutterColSize} from "../../../../patterns/page/components/sections/components/ComponentRegistry/spreadsheet/constants"
 
 export const RenderGutter = ({allowEdit, c, visibleAttributes, isDragging, colSizes, attributes}) => (
     <div

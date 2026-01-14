@@ -14,9 +14,8 @@ import {json2DmsForm, getUrlSlug, toSnakeCase, parseJSON} from '../../_utils'
 //import EditPagesNav  from './editPages'
 //import EditHistory from './editHistory'
 
-import { RegisteredComponents } from '../../../components/selector'
-
 import { CMSContext } from '../../../context'
+import {RegisteredComponents} from "../../../components/sections/section";
 
 
 const theme = {

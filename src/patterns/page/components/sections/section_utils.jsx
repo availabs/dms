@@ -3,7 +3,7 @@ import {Combobox} from '@headlessui/react'
 import {CMSContext} from '../../context'
 import {ThemeContext} from "../../../../ui/useTheme";
 import {convert} from './convertToSpreadSheet'
-import { v4 as uuidv4 } from 'uuid';
+import {RegisteredComponents} from "./section";
 
 export function ViewSectionHeader({
     value,

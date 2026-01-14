@@ -1,7 +1,7 @@
 import React from "react"
 
 import uniq from "lodash/uniq"
-import {formatFunctions} from "../../../patterns/page/components/selector/dataWrapper/utils/utils";
+import {formatFunctions} from "../../../patterns/page/components/sections/components/dataWrapper/utils/utils";
 
 
 const fnum = (number, currency = false) => `${currency ? '$ ' : ''} ${isNaN(number) ? 0 : parseInt(number).toLocaleString()}`;

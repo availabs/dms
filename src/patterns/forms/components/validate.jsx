@@ -3,21 +3,21 @@ import {useNavigate, useSearchParams} from 'react-router'
 import {
     applyFn,
     attributeAccessorStr, isJson
-} from "../../page/components/selector/dataWrapper/utils/utils";
+} from "../../page/components/sections/components/dataWrapper/utils/utils";
 import {cloneDeep, isEqual, uniq, uniqBy} from "lodash-es";
 import {ComponentContext} from "../../page/context"
 import {useImmer} from "use-immer";
 import {
     getData as getFilterData
-} from "../../page/components/selector/dataWrapper/components/filters/utils";
-import Spreadsheet from "../../page/components/selector/ComponentRegistry/spreadsheet";
+} from "../../page/components/sections/components/dataWrapper/components/filters/utils";
+import Spreadsheet from "../../page/components/sections/components/ComponentRegistry/spreadsheet";
 import {Filter, FilterRemove} from "../ui/icons";
 import SourcesLayout from "../../forms/components/patternListComponent/layout";
-import {Controls} from "../../page/components/selector/dataWrapper/components/Controls";
+import {Controls} from "../../page/components/sections/components/dataWrapper/components/Controls";
 import {
     RenderFilters
-} from "../../page/components/selector/dataWrapper/components/filters/RenderFilters";
-import DataWrapper from "../../page/components/selector/dataWrapper";
+} from "../../page/components/sections/components/dataWrapper/components/filters/RenderFilters";
+import DataWrapper from "../../page/components/sections/components/dataWrapper";
 
 
 const getErrorValueSql = (fullName, shortName, options, required, type) => {

@@ -2,7 +2,8 @@ import {parseJSON} from "../../../_utils";
 import React from "react";
 import { get } from "lodash-es"
 import TemplateSelector from "./TemplateSelector";
-import { RegisteredComponents } from '../../../../components/selector'
+
+import {RegisteredComponents} from "../../../../components/sections/section";
 
 export const SectionThumb =({section,source,sectionControl={},updateSectionControl}) => {
 

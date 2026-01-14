@@ -1,9 +1,9 @@
 //import { Promise } from "bluebird";
 import { parseJSON } from '../../../_utils'
-import { RegisteredComponents } from '../../../../components/selector'
 import {dmsDataEditor, dmsDataLoader} from '../../../../../../index'
 import { cloneDeep } from "lodash-es"
 import {getConfig} from "../pages";
+import {RegisteredComponents} from "../../../../components/sections/section";
 
 
 

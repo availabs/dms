@@ -1,22 +1,19 @@
 import React, {useContext, useRef, useState} from "react"
 import {isEqual} from "lodash-es"
-import {Link} from "react-router";
 
 import {CMSContext, PageContext} from '../../context'
-import {ThemeContext, getComponentTheme} from "../../../../ui/useTheme";
+import {getComponentTheme, ThemeContext} from "../../../../ui/useTheme";
 import {AuthContext} from "../../../auth/context";
 
-import { getPageAuthPermissions } from "../../pages/_utils";
-import Selector from "../selector";
-import { getSectionMenuItems } from './sectionMenu'
-import {
-    TagComponent,
-    handlePaste,
-    DeleteModal,
-    HelpTextEditPopups,
-    getHelpTextArray,
-    ViewSectionHeader
-} from './section_utils'
+import {getPageAuthPermissions} from "../../pages/_utils";
+import Selector from "./components";
+import {getSectionMenuItems} from './sectionMenu'
+import {DeleteModal, getHelpTextArray, handlePaste, HelpTextEditPopups, ViewSectionHeader} from './section_utils'
+import ComponentRegistry from "./components/ComponentRegistry";
+export let RegisteredComponents = ComponentRegistry;
+export const registerComponents = (comps = {}) => {
+    RegisteredComponents = {...RegisteredComponents, ...comps}
+}
 
 export function SectionEdit({
     value,

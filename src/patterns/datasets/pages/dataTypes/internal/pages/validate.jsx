@@ -1,6 +1,6 @@
 import React, {useContext, useEffect} from "react";
 import { DatasetsContext } from '../../../../context'
-import Spreadsheet from "../../../../../page/components/selector/ComponentRegistry/spreadsheet";
+import Spreadsheet from "../../../../../page/components/sections/components/ComponentRegistry/spreadsheet";
 import {useNavigate} from "react-router";
 import {cloneDeep} from "lodash-es";
 import {ThemeContext} from "../../../../../../ui/useTheme";
