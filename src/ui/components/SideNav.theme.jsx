@@ -13,7 +13,7 @@ const sideNavTheme = {
       // Main sidebar wrapper
       sidenavWrapper: "flex flex-col w-64 h-full bg-zinc-100 dark:bg-zinc-900",
       // Menu structure
-      menuItemWrapper: "flex flex-col gap-0.5",
+      menuItemWrapper: "flex flex-1 flex-col gap-0.5",
       menuItemWrapper_level_1: '',
       menuItemWrapper_level_2: 'ml-4 border-l border-zinc-200 dark:border-zinc-800',
       menuItemWrapper_level_3: 'ml-4 border-l border-zinc-200 dark:border-zinc-800',
