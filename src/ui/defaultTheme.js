@@ -32,7 +32,7 @@ import pagesTheme from "../patterns/page/defaultTheme"
 // =====================================================================================================
 import {
     attributionTheme
-} from "../patterns/page/components/selector/ComponentRegistry/shared/Attribution";
+} from "../patterns/page/components/selector/dataWrapper/components/Attribution";
 import {
     filterTheme
 } from "../patterns/page/components/selector/dataWrapper/components/filters/RenderFilters";

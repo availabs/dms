@@ -1,9 +1,9 @@
 import React, {useContext} from "react";
 import { ComponentContext } from "../../../context";
 import { ThemeContext } from "../../../../../ui/useTheme";
-import {duplicateControl} from "./shared/utils";
+import {duplicateControl} from "./sharedControls/duplicateControl";
 import {formatFunctions} from "../dataWrapper/utils/utils";
-import ColorControls from "./shared/ColorControls";
+import ColorControls from "./sharedControls/ColorControls";
 import {ToggleControl} from "../dataWrapper/components/ToggleControl";
 
 const fontStyleOptions = [

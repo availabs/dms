@@ -103,10 +103,10 @@ const RenderDownload = ({state, apiLoad, cms_context}) => {
 }
 
 
-const Edit = ({cms_context, value, onChange, pageFormat, apiUpdate, component, hideSourceSelector}) => {
+const Edit = ({cms_context, value, onChange, apiUpdate, component}) => {
     const isEdit = Boolean(onChange);
     const { UI } = useContext(ThemeContext)
-    //const {UI} = useContext(cms_context || CMSContext) || {UI: {Icon: () => <></>}};;
+    const {pgEnv} = useContext(cms_context || CMSContext);
     const {Icon} = UI;
     const {state, setState, apiLoad} = useContext(ComponentContext);
     const [loading, setLoading] = useState(false);

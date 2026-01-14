@@ -1,7 +1,7 @@
 import React, {useContext} from "react";
-import {CMSContext, ComponentContext} from "../../../../context";
+import {ComponentContext} from "../../../../context";
 import { ThemeContext } from "../../../../../../ui/useTheme";
-import {duplicateControl} from "../shared/utils";
+import {duplicateControl} from "../sharedControls/duplicateControl";
 import {getColorRange} from "../../../../../../ui/components/graph/GraphComponent";
 import AppearanceControls from "./controls/AppearanceControls";
 

@@ -43,7 +43,7 @@ export default function ({ apiLoad, apiUpdate, format, item, params, isDms }) {
 
     const sourceType = isDms ? 'internal_dataset' : source?.categories?.[0]?.[0]; // source identifier. this is how the source is named in the script. this used to be type.
     const sourceDataType = isDms ? 'internal_dataset' : source?.type; // csv / gis / internal
-    const sourcePages = datasets[sourceType] || datasets[sourceDataType] || {};
+    const sourcePages = {...(datasets[sourceType] || {}), ...(datasets[sourceDataType] || {})};
 
     const sourcePagesNavItems =
         (Object.values(sourcePages) || [])

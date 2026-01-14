@@ -65,7 +65,7 @@ const initialState = defaultState => {
 }
 
 function EditComp(props) {
-    const {value, onChange, size, handlePaste, pageformat, isActive, ...rest} = props;
+    const {value, onChange, size, handlePaste, isActive, ...rest} = props;
     const component = (RegisteredComponents[get(value, "element-type", "lexical")] || RegisteredComponents['lexical']);
     const { pageState, editPane, apiLoad, apiUpdate, format, ...r  } =  React.useContext(PageContext) || {};
     const [state, setState] = useImmer(convertOldState(value?.['element-data'] || '', initialState(component.defaultState)));
@@ -137,10 +137,7 @@ function EditComp(props) {
                 />
             </div>
             <ComponentContext.Provider value={{
-                state, setState, apiLoad,
-                compType: component?.name?.toLowerCase(), // should be deprecated
-                controls: component?.controls,
-                app: pageformat?.app,
+                state, setState, apiLoad, controls: component?.controls,
                 isActive
             }}>
                 {/* controls with datasource selector */}
@@ -193,7 +190,7 @@ function ViewComp({value, isActive, hideSection, setHideSection, refreshDataBtnR
         }
     }, [state?.display?.hideSection])
 
-    async function refresh({isRefreshingData, setIsRefreshingData, fullDataLoad, clearCache}) {
+    async function refresh({setIsRefreshingData, fullDataLoad, clearCache}) {
         if(clearCache) {
             updateAttribute('element-data', JSON.stringify({...state, ['fullData'] : undefined}));
             return;
@@ -242,5 +239,5 @@ export default Selector
 
 export const registerComponents = (comps = {}) => {
     RegisteredComponents = {...RegisteredComponents, ...comps}
-} 
+}
 

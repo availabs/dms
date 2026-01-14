@@ -4,7 +4,7 @@ import {CMSContext, ComponentContext} from "../../../../context";
 import {ThemeContext} from "../../../../../../ui/useTheme";
 
 export const attributionTheme = {
-    wrapper: 'w-full p-1 flex gap-1 text-xs text-gray-900',
+    wrapper: 'w-full p-1 pt-[16px] flex gap-1 text-xs text-gray-900',
     label: '',
     link: ''
 }
@@ -12,12 +12,12 @@ export const attributionTheme = {
 export const Attribution = () => {
     const { damaBaseUrl } = React.useContext(CMSContext) || {}
     const { theme = { attribution: attributionTheme } } = React.useContext(ThemeContext) || {}
-    const {state:{sourceInfo: {isDms, source_id, name, view_id, view_name, updated_at}}, compType} = useContext(ComponentContext);
+    const {state:{sourceInfo: {isDms, source_id, name, view_name, updated_at}}} = useContext(ComponentContext);
     const dateOptions = {year: "numeric", month: "long", day: "numeric", hour: "numeric", minute: "numeric"};
     const updatedTimeString = updated_at ? new Date(updated_at).toLocaleString(undefined, dateOptions) : null;
 
     return (
-        <div className={`${theme.attribution.wrapper} ${compType === 'graph' ? `pt-[0px]` : `pt-[16px]`}`}>
+        <div className={`${theme.attribution.wrapper}`}>
             <span className={theme.attribution.label}>Attribution:</span>
             <Link
                 className={theme.attribution.link}

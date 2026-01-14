@@ -1,29 +1,7 @@
-import React, {useCallback, useContext, useEffect} from "react";
+import React, {useContext} from "react";
 import {getColumnLabel, isEqualColumns} from "../../dataWrapper/utils/utils";
 import {cloneDeep} from "lodash-es";
 import {ThemeContext} from "../../../../../../ui/useTheme";
-
-export const useHandleClickOutside = (menuRef, menuBtnId, onClose) => {
-    const handleClickOutside = useCallback(
-        (e) => {
-            if (
-                menuRef.current &&
-                !menuRef.current.contains(e.target) &&
-                e.target.id !== menuBtnId
-            ) {
-                onClose();
-            }
-        },
-        [menuRef, menuBtnId, onClose]
-    );
-
-    useEffect(() => {
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
-    }, [handleClickOutside]);
-};
 
 export const duplicateControl = {
     label: 'duplicate',
