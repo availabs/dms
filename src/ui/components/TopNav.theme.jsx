@@ -15,7 +15,7 @@ const topNavTheme = {
     // menu containers
     "leftMenuContainer": "flex items-center",
     "centerMenuContainer": `hidden lg:flex items-center flex-1 h-full overflow-visible gap-1 px-4`,
-    "rightMenuContainer": "hidden md:flex h-full items-center gap-2",
+    "rightMenuContainer": "hidden md:flex h-full items-center gap-2 min-w-[250px]",
     "mobileNavContainer": "px-4 py-2 bg-zinc-100 dark:bg-zinc-900",
     // mobile button
     "mobileButton": 'lg:hidden inline-flex items-center justify-center p-2 rounded-md text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-zinc-800 transition-colors',

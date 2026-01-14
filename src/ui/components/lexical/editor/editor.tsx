@@ -18,7 +18,6 @@ import {HorizontalRulePlugin} from '@lexical/react/LexicalHorizontalRulePlugin';
 import {ListPlugin} from '@lexical/react/LexicalListPlugin';
 import {PlainTextPlugin} from '@lexical/react/LexicalPlainTextPlugin';
 import {RichTextPlugin} from '@lexical/react/LexicalRichTextPlugin';
-import {TabIndentationPlugin} from '@lexical/react/LexicalTabIndentationPlugin';
 import {TablePlugin} from '@lexical/react/LexicalTablePlugin';
 import * as React from 'react';
 import {useEffect, useState} from 'react';
@@ -49,10 +48,11 @@ import ListMaxIndentLevelPlugin from './plugins/ListMaxIndentLevelPlugin';
 import {MaxLengthPlugin} from './plugins/MaxLengthPlugin';
 import SpeechToTextPlugin from './plugins/SpeechToTextPlugin';
 import TabFocusPlugin from './plugins/TabFocusPlugin';
-import TableCellActionMenuPlugin from './plugins/TableActionMenuPlugin';
+import {TabIndentationPlugin} from '@lexical/react/LexicalTabIndentationPlugin';
+// import TableCellActionMenuPlugin from './plugins/TableActionMenuPlugin';
 import TableCellResizer from './plugins/TableCellResizer';
 import TableHoverActionsPlugin from './plugins/TableHoverActionsPlugin';
-import TableOfContentsPlugin from './plugins/TableOfContentsPlugin';
+//import TableOfContentsPlugin from './plugins/TableOfContentsPlugin';
 import {TablePlugin as NewTablePlugin} from './plugins/TablePlugin';
 import ToolbarPlugin from './plugins/ToolbarPlugin';
 import TreeViewPlugin from './plugins/TreeViewPlugin';
@@ -223,7 +223,7 @@ export default function Editor(props): JSX.Element {
                     />
                 )}
                 {isAutocomplete && <AutocompletePlugin/>}
-                <div>{showTableOfContents && <TableOfContentsPlugin/>}</div>
+
                 {showActionBar && <ActionsPlugin isRichText={isRichText}/>}
             </div>
             {showTreeView && <TreeViewPlugin/>}

@@ -11,9 +11,9 @@ const sideNavTheme = {
       // Logo area
       logoWrapper: "flex items-center h-14 px-4 border-b border-zinc-200 dark:border-zinc-800",
       // Main sidebar wrapper
-      sidenavWrapper: "flex flex-col w-64 h-full bg-zinc-100 dark:bg-zinc-900",
+      sidenavWrapper: "flex flex-col w-64 h-full bg-zinc-100 dark:bg-zinc-900 pt-14",
       // Menu structure
-      menuItemWrapper: "flex flex-1 flex-col gap-0.5",
+      menuItemWrapper: "flex flex-1 flex-col gap-0.5 ",
       menuItemWrapper_level_1: '',
       menuItemWrapper_level_2: 'ml-4 border-l border-zinc-200 dark:border-zinc-800',
       menuItemWrapper_level_3: 'ml-4 border-l border-zinc-200 dark:border-zinc-800',
