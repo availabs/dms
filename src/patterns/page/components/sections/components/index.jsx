@@ -1,12 +1,7 @@
 import React, {useEffect, useImperativeHandle, useState} from "react";
-import {useImmer} from "use-immer";
-import {get, isEqual} from "lodash-es";
-import {v4 as uuidv4} from "uuid";
-
+import {isEqual} from "lodash-es";
 import DataWrapper from "./dataWrapper";
 import {Controls} from "./dataWrapper/components/Controls";
-
-import {convertOldState} from "./dataWrapper/utils/convertOldState";
 import {RenderFilters} from "./dataWrapper/components/filters/RenderFilters";
 import FilterableSearch from "./FilterableSearch";
 
@@ -23,50 +18,8 @@ const icons = {
     'lexical': 'fa-thin fa-text'
 }
 
-const initialState = defaultState => {
-    if(defaultState && Object.keys(defaultState).length) return defaultState;
-
-    return {
-        // user controlled part
-        columns: [
-            //     visible columns or Actions
-            //     {name, display_name, custom_name,
-            //      justify, width, fn,
-            //      groupBy: t/f, orderBy: t/f, excludeNull: t/f, openOut: t/f,
-            //      formatFn, fontSize, hideHeader, cardSpan,
-            //      isLink: t/f, linkText: ‘’, linkLocation: ‘’, actionName, actionType, icon,
-            //      }
-        ],
-        display: {
-            usePageFilters: false,
-            usePagination: true,
-            pageSize: 5,
-            totalLength: 0,
-            showGutters: false,
-            transform: '', // transform fn to be applied
-            loadMoreId:`id${uuidv4()}`,
-            showAttribution: true,
-        },
-        // wrapper controlled part
-        dataRequest: {},
-        data: [],
-        sourceInfo: {
-            columns: [],
-            // pgEnv,
-            // source_id
-            // view_id
-            // version,
-            // doc_type, type -- should be the same
-        }
-    }
-}
-
-function EditComp(props) {
-    const {value, onChange, size, handlePaste, isActive, ...rest} = props;
-    const component = (RegisteredComponents[get(value, "element-type", "lexical")] || RegisteredComponents['lexical']);
-    const { pageState, editPane, apiLoad, apiUpdate, format, ...r  } =  React.useContext(PageContext) || {};
-    const [state, setState] = useImmer(convertOldState(value?.['element-data'] || '', initialState(component.defaultState)));
-    const [key, setKey] = useState(); // only used for pasting richtext component
+function EditComp({value, onChange, handlePaste, component, siteType, pageFormat}) {
+    const [key, setKey] = useState(); // only used for pasting lexical component
 
     const updateAttribute = (k, v) => {
         if (!isEqual(value, {...value, [k]: v})) {
@@ -115,7 +68,7 @@ function EditComp(props) {
                             icon: 'fa-thin fa-paste',
                             label: 'Paste',
                             value: 'paste',
-                            onClick: e => handlePaste(e, setKey, setState)
+                            onClick: e => handlePaste(e, setKey)
                         },
                         ...[...new Set(
                             Object.keys(RegisteredComponents)
@@ -131,34 +84,25 @@ function EditComp(props) {
                     ]}
                 />
             </div>
-            <ComponentContext.Provider value={{state, setState, apiLoad, controls: component?.controls, isActive}}>
+
                 {/* controls with datasource selector */}
                 <Controls />
-                <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={true} defaultOpen={true} />
+                <RenderFilters isEdit={true} defaultOpen={true} />
                 <DataComp
                     key={key || ''}
                     value={value?.['element-data'] || ''}
-                    state={state}
-                    setState={setState}
                     onChange={v => updateAttribute('element-data', v)}
-                    size={size}
                     component={component?.useDataSource ? component : undefined}
-                    apiLoad={apiLoad}
-                    {...rest}
+                    siteType={siteType}
+                    pageFormat={pageFormat}
                 />
-            </ComponentContext.Provider>
         </div>
     )
 }
 
-function ViewComp({value, isActive, hideSection, setHideSection, refreshDataBtnRef, onChange, ...rest}) {
-    //console.log('selector', value)
-    const { theme } = React.useContext(ThemeContext);
-    const { pageState, editPane, apiLoad, apiUpdate, format, ...r  } =  React.useContext(PageContext) || {}
+function ViewComp({value, onChange, siteType, pageFormat, refreshDataBtnRef, component}) {
+    const { apiLoad } =  React.useContext(PageContext) || {}
     const defaultComp = () => <div> Component {value["element-type"]} Not Registered </div>;
-
-    const component = RegisteredComponents[get(value, "element-type", "lexical")];
-    const [state, setState] = useImmer(convertOldState(value?.['element-data'] || '', initialState(component?.defaultState)));
 
     const updateAttribute = (k, v) => {
         if (!isEqual(value, {...value, [k]: v})) {
@@ -171,16 +115,7 @@ function ViewComp({value, isActive, hideSection, setHideSection, refreshDataBtnR
             component.useDataSource ? DataWrapper.ViewComp :
                 component.ViewComp;
 
-    // let DataComp = !component ?
-    //     defaultComp : component.ViewComp;
-    
-    useEffect(() => {
-        if(state?.display?.hideSection && !hideSection){
-            setHideSection(true)
-        } else if(!state?.display?.hideSection && hideSection){
-            setHideSection(false)
-        }
-    }, [state?.display?.hideSection])
+
 
     async function refresh({setIsRefreshingData, fullDataLoad, clearCache}) {
         if(clearCache) {
@@ -192,7 +127,7 @@ function ViewComp({value, isActive, hideSection, setHideSection, refreshDataBtnR
         if (!getData) return;
         // console.time('fetching data')
         setIsRefreshingData(true);
-        const { length, data } = await getData({
+        const { data } = await getData({
             state,
             apiLoad,
             keepOriginalValues: component.keepOriginalValues,
@@ -210,22 +145,21 @@ function ViewComp({value, isActive, hideSection, setHideSection, refreshDataBtnR
     }));
 
     return (
-        <ComponentContext.Provider value={{state, setState, apiLoad, controls: component?.controls, isActive}}>
-            <RenderFilters state={state} setState={setState} apiLoad={apiLoad} isEdit={false} defaultOpen={true}/>
+        <>
+            <RenderFilters isEdit={false} defaultOpen={true}/>
             <DataComp value={value?.['element-data'] || ''}
-                      state={state} setState={setState}
-                      theme={theme} {...rest}
                       component={component?.useDataSource ? component : undefined}
-                      apiLoad={apiLoad}
+                      siteType={siteType}
+                      pageFormat={pageFormat}
             />
-        </ComponentContext.Provider>
+        </>
     )
 }
 
-const Selector = {
+const Component = {
     EditComp,
     ViewComp
 }
 
-export default Selector
+export default Component
 

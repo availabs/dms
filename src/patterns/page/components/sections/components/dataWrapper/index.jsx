@@ -103,12 +103,12 @@ const RenderDownload = ({state, apiLoad, cms_context}) => {
 }
 
 
-const Edit = ({cms_context, value, onChange, apiUpdate, component}) => {
+const Edit = ({cms_context, value, onChange, component}) => {
     const isEdit = Boolean(onChange);
     const { UI } = useContext(ThemeContext)
     const {pgEnv} = useContext(cms_context || CMSContext);
     const {Icon} = UI;
-    const {state, setState, apiLoad} = useContext(ComponentContext);
+    const {state, setState, apiLoad, apiUpdate} = useContext(ComponentContext);
     const [loading, setLoading] = useState(false);
     const [newItem, setNewItem] = useState({})
     const [currentPage, setCurrentPage] = useState(0);
@@ -509,13 +509,13 @@ const Edit = ({cms_context, value, onChange, apiUpdate, component}) => {
     )
 }
 
-const View = ({cms_context, value, size, apiUpdate, component}) => {
+const View = ({cms_context, value, component}) => {
     const isEdit = false;
     const navigate = useNavigate();
     const {pgEnv, baseUrl} = useContext(cms_context || CMSContext) || {};
     const { UI } = useContext(ThemeContext)
     const {Icon} = UI;
-    const {state, setState, apiLoad} = useContext(ComponentContext);
+    const {state, setState, apiLoad, apiUpdate} = useContext(ComponentContext);
 
     const [newItem, setNewItem] = useState({})
     const [loading, setLoading] = useState(false);

@@ -15,7 +15,7 @@ const defaultState = {
     }
 }
 
-const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, renderCard}) => {
+const Edit = ({onChange}) => {
     const isEdit = Boolean(onChange);
     const {state, setState} = useContext(ComponentContext);
 
@@ -33,8 +33,8 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, renderCard}) => 
     )
 }
 
-const View = ({value, onChange, size, apiLoad, apiUpdate, renderCard, ...rest}) => {
-    const {state, setState} = useContext(ComponentContext);
+const View = ({value}) => {
+    const {state, setState, apiLoad, apiUpdate} = useContext(ComponentContext);
     const {API_HOST, user, falcor, pgEnv} = useContext(CMSContext);
 
     useEffect(() => {

@@ -4,6 +4,7 @@ import {cloneDeep, get} from "lodash-es";
 import writeXlsxFile from 'write-excel-file';
 import {dmsDataEditor} from "../../../../../api";
 import {CMSContext} from "../../../context";
+import {ThemeContext} from "../../../../../ui/useTheme";
 import RenderSwitch from "../../../../../ui/components/Switch";
 import FilterableSearch from "./FilterableSearch";
 import {RegisteredComponents} from "../section";
@@ -84,7 +85,7 @@ const getViews = async ({envs, source, falcor}) => {
 }
 
 const DownloadExcel = ({ sections, pattern, fileName='sections' }) => {
-    const {UI} = useContext(CMSContext);
+    const {UI} = useContext(ThemeContext);
     const {Icon} = UI;
 
     const handleDownload = async () => {
@@ -332,7 +333,7 @@ const updateSections = async ({sections, newView, falcor, user, setUpdating}) =>
 }
 
 const Edit = ({value, onChange}) => {
-    const {app, siteType, baseUrl, falcor, falcorCache, pgEnv, user, ...rest} = useContext(CMSContext) || {}
+    const {app, siteType, falcor, pgEnv, user} = useContext(CMSContext) || {}
     const cachedData = parseIfJson(value) || {};
     const [loading, setLoading] = useState(false);
     const [patterns, setPatterns] = useState([]);

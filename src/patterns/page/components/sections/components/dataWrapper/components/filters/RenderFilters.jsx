@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { isEqual, uniqBy } from "lodash-es"
-import { PageContext } from "../../../../../../context";
+import { PageContext, ComponentContext } from "../../../../../../context";
 import { attributeAccessorStr, isJson } from "../../utils/utils";
 import {
     getData,
@@ -36,12 +36,8 @@ const gridClasses = {
     4: 'grid-cols-4',
     5: 'grid-cols-5',
 }
-export const RenderFilters = ({
-    isEdit,
-    state = { columns: [], sourceInfo: {} }, setState,
-    apiLoad, defaultOpen = true, showNavigate = false,
-    cms_context
-}) => {
+export const RenderFilters = ({ isEdit, defaultOpen = true }) => {
+    const {state, setState, apiLoad} = React.useContext(ComponentContext) || {};
     const { theme: themeFromContext = {}, UI } = React.useContext(ThemeContext) || {};
     const theme = {...themeFromContext, filters: {...filterTheme, ...(themeFromContext.filter || {})}}
     const { Icon } = UI;
@@ -68,12 +64,11 @@ export const RenderFilters = ({
             }
             return acc;
         }, {}),
-        [filters, showNavigate]);
+        [filters]);
 
     useEffect(() => {
-        // todo move this logic to page level.
-        // this component simply accepts page filters if available (just like it USED TO do for searchparams.
-        // and updates the page filters if a filter using 'search(page)params' changes. this change to page params is temporary.
+        // this component simply accepts page filters if available,
+        // and updates the page filters if a filter using 'search(page)params' changes.
         // the relationship to search params shifts to page params at this level. and page is the only place search params are synced
 
         // ======================== filter preference:
@@ -302,7 +297,6 @@ export const RenderFilters = ({
                                                        filterWithSearchParamKeys={filterWithSearchParamKeys}
                                                        delimiter={filterValueDelimiter}
                                                        columns={state.columns}
-                                                       cms_context={cms_context}
                             />
                         </div>
                     </div>

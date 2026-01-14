@@ -14,7 +14,7 @@ const defaultState = {
     }
 }
 
-const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, renderCard}) => {
+const Edit = ({onChange}) => {
     const isEdit = Boolean(onChange);
     const {state, setState} = useContext(ComponentContext);
 
@@ -32,9 +32,9 @@ const Edit = ({value, onChange, pageFormat, apiLoad, apiUpdate, renderCard}) => 
     )
 }
 
-const View = ({value, onChange, size, apiLoad, apiUpdate, renderCard, ...rest}) => {
-    const {state, setState} = useContext(ComponentContext);
-    const {API_HOST, user, falcor, pgEnv} = useContext(CMSContext);
+const View = ({value, onChange, renderCard, ...rest}) => {
+    const {state, setState, apiLoad, apiUpdate} = useContext(ComponentContext);
+    const {API_HOST, user, falcor} = useContext(CMSContext);
 
     useEffect(() => {
         setState(isJson(value) ? JSON.parse(value) : defaultState)

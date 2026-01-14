@@ -18,7 +18,7 @@ export default function SectionGroup ({group, attributes, edit}) {
   const { theme,  UI } = React.useContext(ThemeContext);
   const { user } = React.useContext(CMSContext) || {};
 
-  const { apiUpdate, item, updateAttribute } = React.useContext(PageContext) || {viewIcon: 'ViewPage', editIcon: 'EditPage'};
+  const { apiUpdate, item, updateAttribute } = React.useContext(PageContext);
   const { SideNav, LayoutGroup } = UI;
 
   const inPageNav = getInPageNav(item,theme)

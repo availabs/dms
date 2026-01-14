@@ -7,7 +7,7 @@ import {CMSContext, ComponentContext, PageContext} from "../../../../context";
 const range = (start, end) => Array.from({length: (end + 1 - start)}, (v, k) => k + start);
 
 // get forms, and their sources
-const getSources = async ({envs, falcor, apiLoad}) => {
+const getSources = async ({envs, falcor}) => {
     if(!envs || !Object.keys(envs)) return [];
     const lenRes = await falcor.get(['uda', Object.keys(envs), 'sources', 'length']);
 

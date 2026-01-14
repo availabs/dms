@@ -92,24 +92,20 @@ const TableView = ({apiUpdate, apiLoad, format, item, params}) => {
                                 null
                         }
                         <ComponentContext.Provider value={{
-                            state: value, setState: setValue, apiLoad,
-                            compType: SpreadSheetCompWithControls.name.toLowerCase(), // should be deprecated
+                            state: value, setState: setValue, apiLoad, apiUpdate,
                             controls: SpreadSheetCompWithControls.controls,
-                            app: item.app,
                             isActive: true
                         }}>
 
                             <Controls context={ComponentContext} cms_context={FormsContext}/>
-                            <RenderFilters state={value} setState={setValue} apiLoad={apiLoad} isEdit={true} defaultOpen={true} cms_context={FormsContext}/>
+                            <RenderFilters isEdit={true} defaultOpen={true} />
 
                             <DataWrapper.EditComp
                                 cms_context={FormsContext}
                                 component={SpreadSheetCompWithControls}
                                 key={'table-page-spreadsheet'}
-                                // onChange={(stringValue) => {setValue(JSON.parse(stringValue))}}
                                 size={1}
                                 hideSourceSelector={true}
-                                apiUpdate={apiUpdate}
                                 theme={theme}
                             />
                         </ComponentContext.Provider>

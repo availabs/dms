@@ -9,10 +9,8 @@ import { SectionEdit, SectionView } from './section'
 import { isJson } from './section_utils'
 import { sectionArrayTheme } from './sectionArray.theme'
 
-const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
-
-    const { baseUrl, user } = React.useContext(CMSContext) || {}
-    const { editPane, apiLoad, apiUpdate, format, item  } =  React.useContext(PageContext) || {}
+const Edit = ({ value, onChange, attr, group, siteType }) => {
+    const { editPane, format, item  } =  React.useContext(PageContext) || {}
     const { theme:fullTheme = { sectionArray: sectionArrayTheme}, UI } = React.useContext(ThemeContext) || {}
     const theme = getComponentTheme(fullTheme, 'pages.sectionArray')
     const [ values, setValues ] = useState([]);
@@ -200,19 +198,16 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
                             {edit.index === i
                                 ? <SectionEdit
                                     // key={v.id} having key introduces bugs while adding a new section
+                                    i={i}
                                     value={edit.value}
+                                    attributes={attr?.attributes}
+                                    siteType={siteType}
+                                    format={format}
                                     onChange={setEditValue}
                                     onSave={save}
                                     onCancel={cancel}
                                     onRemove={remove}
                                     moveItem={moveItem}
-                                    attributes={attr?.attributes}
-                                    size={size}
-                                    i={i}
-                                    siteType={siteType}
-                                    apiLoad={apiLoad}
-                                    apiUpdate={apiUpdate}
-                                    format={format}
                                 />
                                 : ''
                             }
@@ -221,20 +216,18 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
                             { v !== '' && !(edit.index === i && edit.type === 'update') ?
                                 <SectionView
                                     key={v.id} // to prevent value glitch while removing sections
-                                    value={v}
                                     i={i}
-                                    moveItem={moveItem}
+                                    value={v}
                                     attributes={attr?.attributes}
-                                    edit={true}
-                                    onEdit={ edit.index === -1 ? (e) => update(i)  : null }
-                                    onRemove={remove}
-                                    onChange={ saveIndex }
-                                    addAbove={() => setEditIndex(i)}
                                     siteType={siteType}
-                                    apiLoad={apiLoad}
-                                    apiUpdate={apiUpdate}
                                     format={format}
                                     isActive={v?.element?.['element-type'] === 'Spreadsheet' ? active === v?.id : undefined}
+                                    editPageMode={true}
+                                    moveItem={moveItem}
+                                    onRemove={remove}
+                                    onChange={ saveIndex }
+                                    // addAbove={() => setEditIndex(i)}
+                                    onEdit={ edit.index === -1 ? (e) => update(i)  : null }
                                 /> : v?.status?.length > 1 ? <div>Error</div> : ''}
 
                             {/* add new section at end  */}
@@ -255,7 +248,7 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
 
 const View = ({value, attr, group, siteType}) => {
     if (!value || !value.map) { return '' }
-    const { apiLoad, apiUpdate, format  } =  React.useContext(PageContext) || {}
+    const { format  } =  React.useContext(PageContext) || {}
     const [active, setActive] = useState();
     const { theme:fullTheme = {sectionArray: sectionArrayTheme} } = React.useContext(ThemeContext);
     const theme = getComponentTheme(fullTheme,'pages.sectionArray')
@@ -305,13 +298,11 @@ const View = ({value, attr, group, siteType}) => {
                             >
 
                                 <SectionView
-                                    attributes={attr?.attributes}
                                     key={v?.id || i}
                                     i={i}
                                     value={v}
+                                    attributes={attr?.attributes}
                                     siteType={siteType}
-                                    apiLoad={apiLoad}
-                                    apiUpdate={apiUpdate}
                                     format={format}
                                     isActive={v?.element?.['element-type'] === 'Spreadsheet' ? active === v?.id : undefined}
                                 />

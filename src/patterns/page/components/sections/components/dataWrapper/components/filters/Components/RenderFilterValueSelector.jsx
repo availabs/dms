@@ -56,7 +56,7 @@ const RenderSearchKeySelector = ({filter, pageState, onChange}) => {
 }
 
 export const RenderFilterValueSelector = ({
-                                              loading, isEdit, filterColumn, filterOptions=[], state, setState, filterWithSearchParamKeys, columns, cms_context
+                                              loading, isEdit, filterColumn, filterOptions=[], state, setState, filterWithSearchParamKeys, columns
                                           }) => {
     const { pageState, updatePageStateFilters } =  React.useContext(PageContext) || {}; // page to extract page filters
     const { theme: themeFromContext = {}, UI} = React.useContext(ThemeContext) || {};

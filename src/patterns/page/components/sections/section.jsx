@@ -1,44 +1,35 @@
-import React, {useContext, useRef, useState} from "react"
-import {isEqual} from "lodash-es"
+import React, {useContext, useEffect, useRef, useState} from "react"
+import {get, isEqual} from "lodash-es"
 
-import {CMSContext, PageContext} from '../../context'
 import {getComponentTheme, ThemeContext} from "../../../../ui/useTheme";
 import {AuthContext} from "../../../auth/context";
-
+import {CMSContext, PageContext, ComponentContext} from '../../context'
 import {getPageAuthPermissions} from "../../pages/_utils";
-import Selector from "./components";
 import {getSectionMenuItems} from './sectionMenu'
-import {DeleteModal, getHelpTextArray, handlePaste, HelpTextEditPopups, ViewSectionHeader} from './section_utils'
+import {DeleteModal, getHelpTextArray, handlePaste, HelpTextEditPopups, ViewSectionHeader, initialState} from './section_utils'
+import Component from "./components";
 import ComponentRegistry from "./components/ComponentRegistry";
+import {useImmer} from "use-immer";
+import {convertOldState} from "./components/dataWrapper/utils/convertOldState";
 export let RegisteredComponents = ComponentRegistry;
+
 export const registerComponents = (comps = {}) => {
     RegisteredComponents = {...RegisteredComponents, ...comps}
 }
 
-export function SectionEdit({
-    value,
-    i,
-    onChange,
-    attributes,
-    size,
-    onCancel,
-    onSave,
-    onRemove,
-    moveItem,
-    siteType,
-    apiLoad,
-    apiUpdate,
-    format,
-}) {
+export function SectionEdit({ i, value, attributes, siteType, format, onChange, onRemove, moveItem, onCancel, onSave }) {
     const isEdit = true;
-    const [showDeleteModal, setShowDeleteModal] = useState(false);
-    let sectionTitleCondition = value?.['title']
-    const {theme: fullTheme, UI} = React.useContext(ThemeContext);
-    const theme = getComponentTheme(fullTheme, 'pages.section')
-    const {Popup, Button, Icon, Switch, Listbox, NavigableMenu, Permissions} = UI
     const {AuthAPI} = React.useContext(AuthContext) || {};
     const {user, isUserAuthed} = React.useContext(CMSContext) || {};
-    const {pageState} = useContext(PageContext);
+    const { pageState, apiLoad, apiUpdate } = useContext(PageContext);
+    const {theme: fullTheme, UI} = React.useContext(ThemeContext);
+
+    const component = (RegisteredComponents[get(value, ["element", "element-type"], "lexical")] || RegisteredComponents['lexical']);
+    const [state, setState] = useImmer(convertOldState(value?.['element']?.['element-data'] || '', initialState(component.defaultState)));
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+    const theme = getComponentTheme(fullTheme, 'pages.section')
+    const {Button, Icon, Switch, NavigableMenu, Permissions} = UI
     const pageAuthPermissions = getPageAuthPermissions(pageState?.authPermissions);
     const sectionAuthPermissions = value?.authPermissions && typeof value.authPermissions === 'string' ? JSON.parse(value?.authPermissions) : undefined;
 
@@ -48,9 +39,9 @@ export function SectionEdit({
       }
   }
 
-  let TitleEditComp = attributes?.title?.EditComp
-  let LevelComp = attributes?.level?.EditComp
-  let HelpComp = attributes?.helpText?.EditComp
+  const TitleEditComp = attributes?.title?.EditComp
+  const LevelComp = attributes?.level?.EditComp
+  const HelpComp = attributes?.helpText?.EditComp
   const helpTextArray = getHelpTextArray(value)
 
 
@@ -88,88 +79,75 @@ export function SectionEdit({
       }
     ]
 
+    {/* apiLoad and apiUpdate are passed in ComponentContext as components won't always be in pages pattern. */}
     return (
-      <div className={theme.wrapper}>
-          {/* -------------------top line buttons ----------------------*/}
-          <div className={theme.topBar}>
-            <div className={theme.topBarSpacer}/>
-            <div className={theme.topBarButtonsEdit}>
-              <HelpTextEditPopups
-                  helpTextArray={helpTextArray}
-                  updateAttribute={updateAttribute}
-                  HelpComp={HelpComp}
-              />
-              {editIcons.map(icon =>  (
-                <Button activeStyle={1} onClick={icon.onClick} altText={icon.name}>
-                  <Icon icon={icon.icon} className={theme.editIcon}/>
-                </Button>
-              ))}
-              <NavigableMenu
-                config={sectionMenuItems}
-                title={'Section Settings'}
-                btnVisibleOnGroupHover={false}
-                defaultOpen={true}
-                preferredPosition={"right"}
-              />
-            </div>
-          </div>
-          {/* ------------------- Main Content ----------------------*/}
-          <div className={theme.contentWrapper}>
-            <Selector.EditComp
-              value={value?.['element']}
-              onChange={(v) => updateAttribute('element', v)}
-              handlePaste={(e, setKey, setState) => handlePaste(e, setKey, setState, value, onChange)}
-              size={size}
-              siteType={siteType}
-              apiLoad={apiLoad}
-              apiUpdate={apiUpdate}
-              pageFormat={format}
-              isActive={value?.element?.['element-type'] === 'Spreadsheet'}
-            />
-          </div>
-          {/* ------------------- Delete Modal ----------------------*/}
-          <DeleteModal
-              title={`Delete Section ${value?.title || ''} ${value?.id}`} open={showDeleteModal}
-              prompt={`Are you sure you want to delete this section? All of the section data will be permanently removed
+        <ComponentContext.Provider value={{state, setState, apiLoad, apiUpdate, controls: component?.controls, isActive: value?.element?.['element-type'] === 'Spreadsheet'}}>
+            <div className={theme.wrapper}>
+                {/* -------------------top line buttons ----------------------*/}
+                <div className={theme.topBar}>
+                    <div className={theme.topBarSpacer}/>
+                    <div className={theme.topBarButtonsEdit}>
+                        <HelpTextEditPopups
+                            helpTextArray={helpTextArray}
+                            updateAttribute={updateAttribute}
+                            HelpComp={HelpComp}
+                        />
+                        {editIcons.map(icon =>  (
+                            <Button activeStyle={1} onClick={icon.onClick} altText={icon.name}>
+                                <Icon icon={icon.icon} className={theme.editIcon}/>
+                            </Button>
+                        ))}
+                        <NavigableMenu
+                            config={sectionMenuItems}
+                            title={'Section Settings'}
+                            btnVisibleOnGroupHover={false}
+                            defaultOpen={true}
+                            preferredPosition={"right"}
+                        />
+                    </div>
+                </div>
+                {/* ------------------- Main Content ----------------------*/}
+                <div className={theme.contentWrapper}>
+                    <Component.EditComp
+                        value={value?.['element']}
+                        onChange={(v) => updateAttribute('element', v)}
+                        handlePaste={(e, setKey) => handlePaste(e, setKey, setState, value, onChange)}
+                        component={component}
+                        siteType={siteType}
+                        pageFormat={format}
+                    />
+                </div>
+                {/* ------------------- Delete Modal ----------------------*/}
+                <DeleteModal
+                    title={`Delete Section ${value?.title || ''} ${value?.id}`} open={showDeleteModal}
+                    prompt={`Are you sure you want to delete this section? All of the section data will be permanently removed
                           from our servers forever. This action cannot be undone.`}
-              setOpen={(v) => setShowDeleteModal(v)}
-              onDelete={() => {
-                  async function deleteItem() {
-                      await onRemove(i)
-                      setShowDeleteModal(false)
-                  }
+                    setOpen={(v) => setShowDeleteModal(v)}
+                    onDelete={() => {
+                        async function deleteItem() {
+                            await onRemove(i)
+                            setShowDeleteModal(false)
+                        }
 
-                  deleteItem()
-              }}
-          />
-      </div>
+                        deleteItem()
+                    }}
+                />
+            </div>
+        </ComponentContext.Provider>
     )
 }
 
-export function SectionView({
-  value,
-  i,
-  attributes,
-  edit,
-  onEdit,
-  onChange,
-  onRemove,
-  moveItem,
-  addAbove,
-  siteType,
-  apiLoad,
-  apiUpdate,
-  format,
-  isActive
-}) {
+export function SectionView({ i, value, attributes, siteType, format, isActive, editPageMode, onChange, onRemove, moveItem, onEdit }) {
     const {AuthAPI} = React.useContext(AuthContext) || {};
     const {user, isUserAuthed = () => {} } = React.useContext(CMSContext) || {};
     const {theme: fullTheme, UI} = React.useContext(ThemeContext);
-    const { pageState } = useContext(PageContext);
+    const { pageState, apiLoad, apiUpdate } = useContext(PageContext);
 
-    const {Popup, Icon, NavigableMenu, Switch, Permissions} = UI;
+    const {NavigableMenu, Switch, Permissions} = UI;
     const theme = getComponentTheme(fullTheme, 'pages.section');
 
+    const component = RegisteredComponents[get(value, ["element", "element-type"], "lexical")];
+    const [state, setState] = useImmer(convertOldState(value?.element?.['element-data'] || '', initialState(component?.defaultState)));
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [isRefreshingData, setIsRefreshingData] = useState(false);
     const [hideSection, setHideSection] = useState(false);
@@ -179,21 +157,18 @@ export function SectionView({
     const pageAuthPermissions = getPageAuthPermissions(pageState?.authPermissions);
     const sectionAuthPermissions = value?.authPermissions && typeof value.authPermissions === 'string' ? JSON.parse(value?.authPermissions) : undefined;
 
-
-
-    const hideDebug = true
-    let TitleComp = attributes?.title?.ViewComp || (() => <div>Title component not found.</div>)
-    let TitleEditComp = attributes?.title?.EditComp
-    let LevelComp = attributes?.level?.EditComp
-    let HelpComp = attributes?.helpText?.ViewComp
+    const TitleComp = attributes?.title?.ViewComp || (() => <div>Title component not found.</div>)
+    const TitleEditComp = attributes?.title?.EditComp
+    const LevelComp = attributes?.level?.EditComp
+    const HelpComp = attributes?.helpText?.ViewComp
     const helpTextArray = getHelpTextArray(value)
     const helpTextCondition = helpTextArray.some(({text}) => text && !(
         (text?.root?.children?.length === 1 && text?.root?.children?.[0]?.children?.length === 0) ||
         (text?.root?.children?.length === 0)
     ))
 
-    let showHeader = value?.['title'] || value?.['tags'] || helpTextCondition
-    let showEditIcons = edit && typeof onEdit === 'function'
+    const showHeader = value?.['title'] || value?.['tags'] || helpTextCondition
+    const showEditIcons = editPageMode && typeof onEdit === 'function'
 
     const updateAttribute = (k, v) => {
         const newV = {...value, [k]: v}
@@ -204,20 +179,26 @@ export function SectionView({
 
     const element = React.useMemo(() => {
         return (
-            <Selector.ViewComp
+            <Component.ViewComp
                 value={value?.['element']}
                 onChange={(v) => updateAttribute('element', v)}
                 siteType={siteType}
-                apiLoad={apiLoad}
-                apiUpdate={apiUpdate}
                 pageFormat={format}
-                isActive={isActive}
-                hideSection={hideSection}
-                setHideSection={setHideSection}
                 refreshDataBtnRef={refreshDataBtnRef}
+                component={component}
             />
         )
-    }, [value, isActive, hideSection, refreshDataBtnRef]);
+    }, [value, hideSection, refreshDataBtnRef, component]);
+
+
+    useEffect(() => {
+        if(state?.display?.hideSection && !hideSection){
+            setHideSection(true)
+        } else if(!state?.display?.hideSection && hideSection){
+            setHideSection(false)
+        }
+    }, [state?.display?.hideSection])
+
 
     if (!value?.element?.['element-type'] && !value?.element?.['element-data']) return null;
 
@@ -239,59 +220,61 @@ export function SectionView({
     })
 
     return (
-        <div className={!edit && hideSection ? theme.wrapperHidden : theme.wrapper} style={{pageBreakInside: "avoid"}}>
+        <ComponentContext.Provider value={{state, setState, apiLoad, apiUpdate, controls: component?.controls, isActive}}>
+            <div className={editPageMode && hideSection ? theme.wrapperHidden : theme.wrapper} style={{pageBreakInside: "avoid"}}>
 
-            {/* -------------------top line buttons ----------------------*/}
-            <div className={theme.topBar}>
-                <div className={theme.topBarSpacer}/>
-                <div className={theme.topBarButtonsView}>
-                  <div className={theme.menuPosition}>
-                        {(showEditIcons) && (
-                            <NavigableMenu
-                              config={sectionMenuItems}
-                              title={'Section Settings'}
-                              btnVisibleOnGroupHover={true}
-                              preferredPosition={"right"}
-                            />
-                        )}
+                {/* -------------------top line buttons ----------------------*/}
+                <div className={theme.topBar}>
+                    <div className={theme.topBarSpacer}/>
+                    <div className={theme.topBarButtonsView}>
+                        <div className={theme.menuPosition}>
+                            {(showEditIcons) && (
+                                <NavigableMenu
+                                    config={sectionMenuItems}
+                                    title={'Section Settings'}
+                                    btnVisibleOnGroupHover={true}
+                                    preferredPosition={"right"}
+                                />
+                            )}
+                        </div>
                     </div>
                 </div>
-            </div>
-            {/* -------------------END top line buttons ----------------------*/}
-            {/* -------------------Section Header ----------------------*/}
-            {showHeader ? (
-              <ViewSectionHeader
-                value={value}
-                TitleComp={TitleComp}
-                updateAttribute={updateAttribute}
-                helpTextArray={helpTextArray}
-                HelpComp={HelpComp}
-              />
-            ) : ''
-            }
-            {/* -------------------END Section Header ----------------------*/}
+                {/* -------------------END top line buttons ----------------------*/}
+                {/* -------------------Section Header ----------------------*/}
+                {showHeader ? (
+                    <ViewSectionHeader
+                        value={value}
+                        TitleComp={TitleComp}
+                        updateAttribute={updateAttribute}
+                        helpTextArray={helpTextArray}
+                        HelpComp={HelpComp}
+                    />
+                ) : ''
+                }
+                {/* -------------------END Section Header ----------------------*/}
 
-            <div className={theme.contentWrapper}>
-                {element}
-            </div>
+                <div className={theme.contentWrapper}>
+                    {element}
+                </div>
 
-            <DeleteModal
-                title={`Delete Section ${value?.title || ''} ${value?.id}`}
-                prompt={`
+                <DeleteModal
+                    title={`Delete Section ${value?.title || ''} ${value?.id}`}
+                    prompt={`
                   Are you sure you want to delete this section?
                   All of the section data will be permanently removed
                   from our servers forever. This action cannot be undone.
                 `}
-                open={showDeleteModal}
-                setOpen={(v) => setShowDeleteModal(v)}
-                onDelete={() => {
-                    async function deleteItem() {
-                        await onRemove(i)
-                        setShowDeleteModal(false)
-                    }
-                    deleteItem()
-                }}
-            />
-        </div>
+                    open={showDeleteModal}
+                    setOpen={(v) => setShowDeleteModal(v)}
+                    onDelete={() => {
+                        async function deleteItem() {
+                            await onRemove(i)
+                            setShowDeleteModal(false)
+                        }
+                        deleteItem()
+                    }}
+                />
+            </div>
+        </ComponentContext.Provider>
     )
 }

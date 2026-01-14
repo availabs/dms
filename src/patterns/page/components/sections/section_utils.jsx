@@ -3,7 +3,7 @@ import {Combobox} from '@headlessui/react'
 import {CMSContext} from '../../context'
 import {ThemeContext} from "../../../../ui/useTheme";
 import {convert} from './convertToSpreadSheet'
-import {RegisteredComponents} from "./section";
+import {v4 as uuidv4} from "uuid";
 
 export function ViewSectionHeader({
     value,
@@ -351,4 +351,42 @@ export const handleCopy = (value) => {
     }
 
     navigator.clipboard.writeText(JSON.stringify(value))
+}
+
+export const initialState = defaultState => {
+    if(defaultState && Object.keys(defaultState).length) return defaultState;
+
+    return {
+        // user controlled part
+        columns: [
+            //     visible columns or Actions
+            //     {name, display_name, custom_name,
+            //      justify, width, fn,
+            //      groupBy: t/f, orderBy: t/f, excludeNull: t/f, openOut: t/f,
+            //      formatFn, fontSize, hideHeader, cardSpan,
+            //      isLink: t/f, linkText: ‘’, linkLocation: ‘’, actionName, actionType, icon,
+            //      }
+        ],
+        display: {
+            usePageFilters: false,
+            usePagination: true,
+            pageSize: 5,
+            totalLength: 0,
+            showGutters: false,
+            transform: '', // transform fn to be applied
+            loadMoreId:`id${uuidv4()}`,
+            showAttribution: true,
+        },
+        // wrapper controlled part
+        dataRequest: {},
+        data: [],
+        sourceInfo: {
+            columns: [],
+            // pgEnv,
+            // source_id
+            // view_id
+            // version,
+            // doc_type, type -- should be the same
+        }
+    }
 }

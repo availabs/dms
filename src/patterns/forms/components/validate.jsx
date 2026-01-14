@@ -560,13 +560,11 @@ const Edit = ({
                     {
                         !columns.find(col => data[`${col.shortName}_error`]) || loading ? null :
                             <ComponentContext.Provider value={{
-                                state: value, setState: setValue, apiLoad,
-                                compType: SpreadSheetCompWithControls.name.toLowerCase(), // should be deprecated
+                                state: value, setState: setValue, apiLoad, apiUpdate,
                                 controls: SpreadSheetCompWithControls.controls,
-                                app
                             }}>
                                 <Controls context={ComponentContext} cms_context={cms_context}/>
-                                <RenderFilters state={value} setState={setValue} apiLoad={apiLoad} isEdit={true} defaultOpen={true} cms_context={cms_context} />
+                                <RenderFilters isEdit={true} defaultOpen={true} />
                                 <DataWrapper.EditComp
                                     cms_context={cms_context}
                                     component={SpreadSheetCompWithControls}
@@ -574,8 +572,6 @@ const Edit = ({
                                     value={value}
                                     hideSourceSelector={true}
                                     size={1}
-                                    apiUpdate={apiUpdate}
-                                    // onChange={() => {console.log('on change called')}}
                                 />
                             </ComponentContext.Provider>
                     }
