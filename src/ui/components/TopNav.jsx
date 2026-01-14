@@ -95,6 +95,9 @@ export const DesktopMenu = ({
 };
 
 export const HorizontalMenu = ({menuItems, subMenuActivate, activeStyle}) => {
+  const { theme: fullTheme } = React.useContext(ThemeContext);
+  const maxDepth = fullTheme?.topnav?.options?.maxDepth ?? 1;
+
   return menuItems.map((item, i) => {
     return (
       <div key={i} className={item.sectionClass}>
@@ -104,6 +107,7 @@ export const HorizontalMenu = ({menuItems, subMenuActivate, activeStyle}) => {
           subMenuActivate={subMenuActivate}
           subMenus={get(item, "subMenus", [])}
           activeStyle={ activeStyle }
+          maxDepth={maxDepth}
         />
       </div>
     )

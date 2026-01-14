@@ -209,7 +209,7 @@ export const SideNavItem = ({
 					className={`${navClass}`}
 				>
 					<div className={theme?.[`menuItemWrapper_level_${depth+1}`] || theme?.menuItemWrapper}>
-						<div className='flex-1 flex items-center' >
+						<div className='flex-1 flex items-center justify-between' >
 							{!navItem.icon ? null : (
 								<Icon
 									icon={navItem.icon}

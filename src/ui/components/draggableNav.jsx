@@ -166,10 +166,20 @@ function DraggableNav({
 
     const [localData, setLocalData] = React.useState(dataItemsProp);
 
-    // React.useEffect(() => {
-    // causes glitch
-    //     setLocalData(dataItemsProp);
-    // }, [dataItemsProp]);
+    // Sync localData when items are added or removed (different set of IDs)
+    // but not when just reordering (same IDs, different order) to avoid drag glitch
+    React.useEffect(() => {
+        const localIds = new Set(localData.map(d => d.id));
+        const propIds = new Set(dataItemsProp.map(d => d.id));
+
+        // Check if the sets of IDs are different (item added or removed)
+        const idsChanged = localIds.size !== propIds.size ||
+            [...propIds].some(id => !localIds.has(id));
+
+        if (idsChanged) {
+            setLocalData(dataItemsProp);
+        }
+    }, [dataItemsProp]);
 
 
     const onDragEnd = React.useCallback(async (tree, updatedDataItemsFlat) => {

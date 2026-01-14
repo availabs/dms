@@ -224,7 +224,7 @@ export function DmsSite (config) {
     // could save sites to localstorage cache clear on load.
     //-----------
     let CurrentProjectName = PROJECT_NAME ? PROJECT_NAME : dmsConfig.app
-    console.log('current Project name', CurrentProjectName)
+    // console.log('current Project name', CurrentProjectName)
     const [loading, setLoading] = useState(false);
 
     const [dynamicRoutes, setDynamicRoutes] = useState(

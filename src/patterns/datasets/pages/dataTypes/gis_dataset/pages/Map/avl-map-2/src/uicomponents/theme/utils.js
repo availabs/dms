@@ -1,5 +1,5 @@
 const compose = (className, theme) => {
-	console.log('className', className)
+	//console.log('className', className)
 	if(!className.split) return
   return (className || '').split(/\s+/).map(className => {
 		const [base, ...rest] = className.split(/(?<!^)(?=[A-Z])/);
