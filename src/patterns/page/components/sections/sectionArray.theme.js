@@ -7,8 +7,8 @@ export const sectionArrayTheme = {
       name: '',
       wrapper: 'relative',
       gridOverlay: 'absolute inset-0 pointer-events-none',
-      container: 'w-full grid grid-cols-12 ', //gap-1 md:gap-[12px]
-      gridSize: 12,
+      container: 'w-full grid grid-cols-6 ', //gap-1 md:gap-[12px]
+      gridSize: 6,
       layouts: {
           centered: 'max-w-[1020px] mx-auto',
           fullwidth: ''
@@ -25,18 +25,10 @@ export const sectionArrayTheme = {
       addSectionIconWrapper: 'flex items-center',
       addSectionIcon: 'size-6',
       sizes: {
-          "1col": { className: 'col-span-12 md:col-span-1', iconSize: 33 },
-          "2col": { className: 'col-span-12 md:col-span-2', iconSize: 50 },
-          "3col": { className: 'col-span-12 md:col-span-3', iconSize: 66 },
-          "4col": { className: 'col-span-12 md:col-span-4', iconSize: 100 },
-          "5col": { className: 'col-span-12 md:col-span-5', iconSize: 100 },
-          "6col": { className: 'col-span-12 md:col-span-6', iconSize: 33 },
-          "7col": { className: 'col-span-12 md:col-span-7', iconSize: 50 },
-          "8col": { className: 'col-span-12 md:col-span-8', iconSize: 66 },
-          "9col": { className: 'col-span-12 md:col-span-9', iconSize: 100 },
-          "10col": { className: 'col-span-12 md:col-span-10', iconSize: 100 },
-          "11col": { className: 'col-span-12 md:col-span-11', iconSize: 100 },
-          "12col":   { className: 'col-span-12 md:col-span-12', iconSize: 100 },
+          "1/3": { className: 'col-span-12 md:col-span-2', iconSize: 33 },
+          "1/2": { className: 'col-span-12 md:col-span-3', iconSize: 50 },
+          "2/3": { className: 'col-span-12 md:col-span-4', iconSize: 66 },
+          "1":   { className: 'col-span-12 md:col-span-6', iconSize: 100 },
       },
       rowspans: {
           "1" : { className: '' },
