@@ -61,7 +61,7 @@ const adminConfig = ({
         }
     );
 
-    console.log('auth siteconfig theme', theme)
+    //console.log('admin siteconfig theme', theme)
     // ----------------------
     // update app for all the children formats
     format.registerFormats = updateRegisteredFormats(format.registerFormats, app)

@@ -128,7 +128,6 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
 				/>
 			))
 	}
-	console.log('edit section groups, ', item?.draft_section_groups, getSectionGroups('content'))
 
 	if(!item) return <div>page does not exist.</div>;
 

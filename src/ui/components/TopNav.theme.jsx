@@ -1,58 +1,71 @@
+
 const topNavTheme = {
   "options": {
-    "activeStyle": 0
+    "activeStyle": 0,
+    "maxDepth": 2
   },
   "styles": [{
+    "name": "catalyst",
     //layout
-    "layoutContainer1": `sticky top-0  z-50`,
-    "layoutContainer2": `w-full `,
+    "layoutContainer1": `sticky top-0 z-50`,
+    "layoutContainer2": `w-full`,
     //wrappers
-    "topnavWrapper": `w-full h-[50px] flex items-center pr-1`,
-    "topnavContent": `flex items-center w-full h-full bg-white lg:bg-zinc-100 dark:bg-zinc-900 dark:lg:bg-zinc-950 justify-between`,
+    "topnavWrapper": `w-full h-14 flex items-center px-4 lg:px-6`,
+    "topnavContent": `flex items-center w-full h-full bg-zinc-100 dark:bg-zinc-900 justify-between rounded-lg`,
     // menu containers
-    "leftMenuContainer": "min-w-42",
-    "centerMenuContainer": `hidden  lg:flex items-center flex-1  h-full overflow-x-auto overflow-y-hidden scrollbar-sm`,
-    "rightMenuContainer": "hidden min-w-[120px] md:flex h-full items-center",
-    "mobileNavContainer": "",
+    "leftMenuContainer": "flex items-center",
+    "centerMenuContainer": `hidden lg:flex items-center flex-1 h-full overflow-visible gap-1 px-4`,
+    "rightMenuContainer": "hidden md:flex h-full items-center gap-2",
+    "mobileNavContainer": "px-4 py-2 bg-zinc-100 dark:bg-zinc-900",
     // mobile button
-    "mobileButton": 'md:hidden inline-flex items-center justify-center  px-2 hover:text-blue-400  text-gray-400 hover:bg-gray-100 ',
+    "mobileButton": 'lg:hidden inline-flex items-center justify-center p-2 rounded-md text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-zinc-800 transition-colors',
     "menuOpenIcon": `Menu`,
     "menuCloseIcon": `XMark`,
 
     // Menu Item Styles
-    "navitemWrapper": '',
-    // menuItemWrapper_level_2:"",
+    "navitemWrapper": 'relative',
+    "navitemWrapper_level_2": 'relative',
+    "navitemWrapper_level_3": '',
     "navitem": `
-        w-fit group font-display whitespace-nowrapmenuItemWrapper
-        flex tracking-widest items-center font-[Oswald] font-medium text-slate-700 text-[11px] px-2 h-12
-        focus:outline-none focus:text-gray-800 focus:bg-gray-50 focus:border-gray-300
-        transition cursor-pointer
+        px-3 py-2 rounded-lg
+        text-sm font-medium text-zinc-600 dark:text-zinc-400
+        hover:bg-zinc-200 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-white
+        transition-colors cursor-pointer
+        flex items-center gap-1.5
     `,
-    "navitemActive":
-      ` w-fit group font-display whitespace-nowrap
-        flex tracking-widest items-center font-[Oswald] font-medium text-slate-700 text-[11px] px-2 h-12 text-blue
-        focus:outline-none focus:text-gray-800 focus:bg-gray-50 focus:border-gray-300
-        transition cursor-pointer
-      `,
-    "navIcon":"",
-    "navIconActive": "",
-    "navitemContent": "flex-1 flex items-center gap-[2px]",
+    "navitemActive": `
+        px-3 py-2 rounded-lg
+        text-sm font-medium text-zinc-900 dark:text-white
+        bg-zinc-200 dark:bg-zinc-800
+        cursor-pointer
+        flex items-center gap-1.5
+    `,
+    "navIcon": "size-4 text-zinc-500 dark:text-zinc-400",
+    "navIconActive": "size-4 text-zinc-900 dark:text-white",
+    "navitemContent": "flex items-center gap-1.5",
     "navitemName": "",
-    "navitemName_level_2": "uppercase font-[Oswald] text-[14px] flex items-center p-1",
+    "navitemName_level_2": "w-full text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white py-2 px-3 rounded-md transition-colors flex items-center justify-between gap-2",
+    "navitemName_level_3": "w-full text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white py-2 px-3 rounded-md transition-colors",
     "navitemDescription": "hidden",
-    "navitemDescription_level_2": `text-[16px] font-['Proxima_Nova'] font-[400] text-[#37576B] text-wrap`,
+    "navitemDescription_level_2": `text-xs text-zinc-500 dark:text-zinc-400 mt-0.5`,
+    "navitemDescription_level_3": `text-xs text-zinc-500 dark:text-zinc-400 mt-0.5`,
 
-    "indicatorIconWrapper": "size-3",
-    "indicatorIcon": "ArrowDown",
-    "indicatorIconOpen": "ArrowDown",
-    "subMenuWrapper": `hidden`, //`absolute bg-white `,
-    "subMenuWrapper2": "",
-    subMenuParentWrapper: 'hidden', //,`flex flex-row  max-w-[1400px] mx-auto`,
-    subMenuWrapperChild: `divide-x overflow-x-auto max-w-[1400px] mx-auto`,
-    subMenuWrapperTop: 'hidden',//`absolute top-full left-0 border-y border-gray-200 w-full bg-white normal-case`,
-    subMenuWrapperInactiveFlyout: `absolute left-0 right-0  mt-8 normal-case bg-white shadow-lg z-10 p-2`,
-    subMenuWrapperInactiveFlyoutBelow: ` absolute ml-40 normal-case bg-white shadow-lg z-10 p-2`,
-    subMenuWrapperInactiveFlyoutDirection: 'grid grid-cols-4',
+    "indicatorIconWrapper": "size-4 text-zinc-400",
+    "indicatorIcon": "ChevronDown",
+    "indicatorIconOpen": "ChevronDown",
+    // Level 1 submenu (dropdown below top nav item)
+    "subMenuWrapper": `absolute top-full left-0 mt-2 z-50`,
+    "subMenuWrapper2": "bg-white dark:bg-zinc-900 rounded-xl shadow-lg ring-1 ring-zinc-950/5 dark:ring-white/10 py-1 min-w-[200px]",
+    // Level 2 submenu (flyout to the right of level 2 item)
+    "subMenuWrapper_level_2": `absolute left-full top-0 ml-2 z-50`,
+    "subMenuWrapper2_level_2": "bg-white dark:bg-zinc-900 rounded-xl shadow-lg ring-1 ring-zinc-950/5 dark:ring-white/10 py-1 min-w-[200px]",
+    "subMenuItemsWrapper": "flex flex-col",
+    "subMenuItemsWrapperParent": "flex flex-col",
+    subMenuParentWrapper: 'hidden',
+    subMenuParentContent: 'px-3 py-2 border-b border-zinc-100 dark:border-zinc-800 mb-1',
+    subMenuParentName: 'text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide',
+    subMenuParentDesc: 'text-xs text-zinc-400 dark:text-zinc-500 mt-0.5',
+    subMenuParentLink: 'text-xs text-zinc-900 dark:text-white hover:underline mt-1 inline-block',
   }]
 }
 
@@ -120,6 +133,17 @@ export const topNavsettings =  (theme) => [
         options: (theme?.topnav?.styles || [{}])
           .map((k, i) => ({ label: k?.name || i, value: i })),
         path: `topnav.options.activeStyle`,
+      },
+      {
+        label: 'Max Depth',
+        type: 'Select',
+        options: [
+          { label: '1 (No submenus)', value: 0 },
+          { label: '2 (One level)', value: 1 },
+          { label: '3 (Two levels)', value: 2 },
+          { label: '4 (Three levels)', value: 3 },
+        ],
+        path: `topnav.options.maxDepth`,
       },
       {
         label: 'Add Style',
