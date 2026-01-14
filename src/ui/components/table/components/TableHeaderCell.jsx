@@ -3,7 +3,7 @@ import Icon from "../../Icon";
 import Switch from "../../Switch";
 import Popup from "../../Popup";
 import Multiselect from "../../../columnTypes/multiselect"
-import {getComponentTheme, ThemeContext} from "~/modules/dms/src/ui/useTheme";
+import {getComponentTheme, ThemeContext} from "../../../../ui/useTheme";
 
 const getColIdName = col => col.normalName || col.name;
 const Noop = () => {};
