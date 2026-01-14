@@ -1,5 +1,5 @@
 import React from 'react'
-import { handleCopy } from "./section_utils"
+import {handleCopy, handlePaste} from "./section_utils"
 
 export const getSectionMenuItems = ({
       isEdit,
@@ -14,7 +14,7 @@ export const getSectionMenuItems = ({
       Permissions, AuthAPI, user, isUserAuthed, pageAuthPermissions, sectionAuthPermissions,
       theme,
       attributes, i,
-      refreshDataBtnRef, isRefreshingData, setIsRefreshingData
+      refreshDataBtnRef, isRefreshingData, setIsRefreshingData, RegisteredComponents={}, setState, updateElementType, onChange, setKey
   }) => (
     [
         {icon: 'PencilSquare', name: 'Edit', onClick: onEdit, cdn: () => !isEdit && isUserAuthed(['edit-section'], sectionAuthPermissions)},
@@ -41,12 +41,24 @@ export const getSectionMenuItems = ({
                     el.style.color = '';
                 }, 2000);
             }},
+        {icon: 'Paste', name: 'Paste Section', onClick: e => handlePaste(e, setKey, setState, value, onChange),
+            cdn: () => isEdit && isUserAuthed(['edit-section'], sectionAuthPermissions)},
         {type: 'separator'},
 
         {icon: 'ChevronUpSquare', name: 'Move Up', onClick: () => moveItem(i, -1), cdn: () => !isEdit && isUserAuthed(['edit-page-layout'], pageAuthPermissions)},
         {icon: 'ChevronDownSquare', name: 'Move Down', onClick: () => moveItem(i, 1), cdn: () => !isEdit && isUserAuthed(['edit-page-layout'], pageAuthPermissions)},
         {type: 'separator', cdn: () => !isEdit && isUserAuthed(['edit-page-layout'], pageAuthPermissions)},
-
+        {icon: '', name: 'Component',
+            items: Object.keys(RegisteredComponents)
+                .filter(k => !RegisteredComponents[k].hideInSelector)
+                .map(k => (
+                    {
+                        icon: '', name: RegisteredComponents[k].name || k,
+                        onClick: () => updateElementType(k)
+                    }
+                )),
+            cdn: () => isUserAuthed(['edit-section'], sectionAuthPermissions)
+        },
         {
             icon: '',
             name: 'Display',

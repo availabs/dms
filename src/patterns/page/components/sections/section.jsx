@@ -27,6 +27,7 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
     const component = (RegisteredComponents[get(value, ["element", "element-type"], "lexical")] || RegisteredComponents['lexical']);
     const [state, setState] = useImmer(convertOldState(value?.['element']?.['element-data'] || '', initialState(component.defaultState)));
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [key, setKey] = useState(); // used to update lexical on paste
 
     const theme = getComponentTheme(fullTheme, 'pages.section')
     const {Button, Icon, Switch, NavigableMenu, Permissions} = UI
@@ -38,6 +39,12 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
           onChange({...value, [k]: v})
       }
   }
+    const updateElementType = (v, k='element-type') => {
+        const newV = {...value.element, [k]: v}
+        if(!isEqual(value.element, newV)){
+            updateAttribute('element', newV)
+        }
+    }
 
   const TitleEditComp = attributes?.title?.EditComp
   const LevelComp = attributes?.level?.EditComp
@@ -51,14 +58,18 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
       moveItem,
       TitleEditComp,
       LevelComp,
-      updateAttribute,
+      updateAttribute, updateElementType,
       Switch,
       showDeleteModal,
       setShowDeleteModal,
       Permissions, AuthAPI, user,
       isUserAuthed, pageAuthPermissions, sectionAuthPermissions,
       theme: fullTheme,
-      attributes
+      attributes,
+      RegisteredComponents,
+      setState,
+      onChange,
+      setKey
   })
 
     const editIcons = [
@@ -111,10 +122,10 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
                     <Component.EditComp
                         value={value?.['element']}
                         onChange={(v) => updateAttribute('element', v)}
-                        handlePaste={(e, setKey) => handlePaste(e, setKey, setState, value, onChange)}
                         component={component}
                         siteType={siteType}
                         pageFormat={format}
+                        compKey={key}
                     />
                 </div>
                 {/* ------------------- Delete Modal ----------------------*/}
@@ -176,6 +187,12 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
             onChange(i, newV)
         }
     }
+    const updateElementType = (v, k='element-type') => {
+        const newV = {...value.element, [k]: v}
+        if(!isEqual(value.element, newV)){
+            updateAttribute('element', newV)
+        }
+    }
 
     const element = React.useMemo(() => {
         return (
@@ -188,7 +205,7 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
                 component={component}
             />
         )
-    }, [value, hideSection, refreshDataBtnRef, component]);
+    }, [value, hideSection, refreshDataBtnRef, component, value?.element?.['element-type']]);
 
 
     useEffect(() => {
@@ -210,13 +227,16 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
         TitleEditComp,
         LevelComp,
         updateAttribute,
+        updateElementType,
         Switch,
         Permissions, AuthAPI, user,
         isUserAuthed, pageAuthPermissions, sectionAuthPermissions,
         showDeleteModal,
         setShowDeleteModal,
         theme:fullTheme,
-        attributes
+        attributes,
+        RegisteredComponents,
+        onChange, setState
     })
 
     return (

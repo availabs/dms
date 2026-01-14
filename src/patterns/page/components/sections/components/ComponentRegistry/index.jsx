@@ -17,16 +17,16 @@ import PDFGenerator from "./ExportPdf";
 // //import Item from "./item";
 const ComponentRegistry = {
     lexical,
-    "Header: Default Header": Header,
-    "Header: MNY Data": MnyHeaderDataDriven,
-    "Footer: MNY Footer": MNYFooter,
     Card,
     Spreadsheet,
     Graph,
     Filter: FilterComponent,
+    "Header: Default Header": Header,
+    "Header: MNY Data": MnyHeaderDataDriven,
+    "Footer: MNY Footer": MNYFooter,
+    PDFGenerator,
     Upload: UploadComponent,
     Validate: ValidateComponent,
-    PDFGenerator,
     "Table: Components Index": ComponentsIndexTable,
     Item: {
         name: 'Item',
