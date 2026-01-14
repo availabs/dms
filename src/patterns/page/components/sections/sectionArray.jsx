@@ -13,13 +13,14 @@ const Edit = ({ value, onChange, attr, group, siteType, ...rest }) => {
 
     const { baseUrl, user } = React.useContext(CMSContext) || {}
     const { editPane, apiLoad, apiUpdate, format, item  } =  React.useContext(PageContext) || {}
-    const { theme:fullTheme = { sectionArray: sectionArrayTheme}, UI } = React.useContext(ThemeContext) || {}
+    const { theme:fullTheme , UI } = React.useContext(ThemeContext) || {}
     const theme = getComponentTheme(fullTheme, 'pages.sectionArray')
     const [ values, setValues ] = useState([]);
     const [ active, setActive ] = useState(); // to handle multiple spreadsheet components on a page in conjunction with arrow/selection/copy controls
 
     const { Icon } = UI;
 
+    console.log('SectionArray Theme', theme, fullTheme)
     React.useEffect(() => {
         //------------------------------------------
         // update value edit clone on receiving data

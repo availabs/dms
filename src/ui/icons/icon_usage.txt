@@ -1,0 +1,270 @@
+================================================================================
+                           DMS ICON USAGE REPORT
+================================================================================
+
+This document lists all icons used across the DMS patterns and UI folders.
+Icons are used via the <Icon icon="iconName" /> component.
+The icon repository is defined in: dms/src/ui/icons.jsx
+
+================================================================================
+                         ICONS USED IN PATTERNS
+================================================================================
+
+--------------------------------------------------------------------------------
+patterns/admin/
+--------------------------------------------------------------------------------
+Icon Name            | File
+---------------------|----------------------------------------------------------
+PencilEditSquare     | pages/themes/list.jsx, pages/editSite.jsx
+Database             | pages/patternEditor/index.jsx
+User                 | components/menu.jsx
+
+--------------------------------------------------------------------------------
+patterns/auth/
+--------------------------------------------------------------------------------
+Icon Name            | File
+---------------------|----------------------------------------------------------
+User                 | components/menu.jsx
+
+--------------------------------------------------------------------------------
+patterns/page/
+--------------------------------------------------------------------------------
+Icon Name            | File
+---------------------|----------------------------------------------------------
+InsertSection        | components/sections/sectionArray.jsx (alias: SquarePlus)
+GripVertical         | pages/edit/editPane/sectionGroupsPane.jsx [MISSING]
+Grid                 | pages/edit/editPane/index.jsx [MISSING]
+Width                | pages/edit/editPane/sectionGroupsPane.jsx [MISSING]
+Theme                | pages/edit/editPane/sectionGroupsPane.jsx [MISSING]
+TrashCan             | sectionGroupsPane.jsx, sectionMenu.jsx, section_utils.jsx, dataWrapper
+Settings             | pages/edit/editPane/index.jsx
+Sections             | pages/edit/editPane/index.jsx
+Pages                | pages/edit/editPane/index.jsx
+History              | pages/edit/editPane/index.jsx
+AccessControl        | pages/edit/editPane/index.jsx, sectionMenu.jsx
+SquarePlus           | components/sections/section.jsx
+CancelCircle         | components/sections/section.jsx
+FloppyDisk           | components/sections/section.jsx
+ArrowDown            | multiple files (dataWrapper, design.jsx, pagesPane.jsx, etc.)
+ArrowUp              | multiple files (design.jsx, pages.jsx)
+ArrowRight           | multiple files (pages.jsx, search, mnyHeaderDataDriven.jsx)
+ArrowLeft            | pages/manager/pages.jsx
+PencilSquare         | sectionMenu.jsx
+Refresh              | sectionMenu.jsx [MISSING]
+Copy                 | sectionMenu.jsx, shared/utils.jsx
+ChevronUpSquare      | sectionMenu.jsx
+ChevronDownSquare    | sectionMenu.jsx
+Column               | sectionMenu.jsx [MISSING]
+Row                  | sectionMenu.jsx [MISSING]
+Padding              | sectionMenu.jsx [MISSING]
+Border               | sectionMenu.jsx [MISSING]
+User                 | components/menu.jsx
+Login                | components/menu.jsx [MISSING]
+Tags                 | section_utils.jsx
+RemoveCircle         | section_utils.jsx, design.jsx
+PencilIcon           | design.jsx
+Download             | componentsIndexTable.jsx
+DraftPage            | pages/manager/pages.jsx, search/index.jsx
+Pill                 | pages/manager/pages.jsx [MISSING]
+EllipsisVertical     | pagesPane.jsx
+Search               | search/index.jsx
+Page                 | search/SearchPage.jsx
+Section              | search/index.jsx, SearchPage.jsx
+XMark                | dataWrapper/AddFormulaColumn.jsx
+Filter               | dataWrapper/RenderFilters.jsx
+CirclePlus           | graph/controls/AppearanceControls.jsx
+TouchInteraction     | spreadsheet/controls/ActionControls.jsx [MISSING]
+
+--------------------------------------------------------------------------------
+patterns/forms/
+--------------------------------------------------------------------------------
+Icon Name            | File
+---------------------|----------------------------------------------------------
+Database             | patternListComponent/layout.jsx
+XMark                | validate.jsx
+
+--------------------------------------------------------------------------------
+patterns/datasets/
+--------------------------------------------------------------------------------
+Icon Name            | File
+---------------------|----------------------------------------------------------
+User                 | components/menu.jsx
+Database             | pages/layout.jsx, TasksBreadcrumb.jsx
+PencilIcon           | pages/manage/design.jsx
+RemoveCircle         | pages/manage/design.jsx
+ArrowUp              | pages/manage/design.jsx
+ArrowDown            | pages/manage/design.jsx
+Alert                | MetadataComp/index.jsx, RenderAddField.jsx [MISSING]
+Add                  | MetadataComp/RenderAddField.jsx
+CheckCircleIcon      | ExternalVersionControls.jsx [MISSING]
+XCircleIcon          | ExternalVersionControls.jsx [MISSING]
+XMark                | ValidateComp.jsx
+
+================================================================================
+                           ICONS USED IN UI/
+================================================================================
+
+Icon Name            | File
+---------------------|----------------------------------------------------------
+ArrowRight           | components/Menu.jsx
+Menu                 | navigableMenu/index.jsx
+ArrowLeft            | navigableMenu/index.jsx
+XMark                | Drawer.jsx
+Blank                | Menu.jsx (default fallback)
+CirclePlus           | table/index.jsx
+TallyMark            | table/components/TableHeaderCell.jsx
+LeftToRightListBullet| table/components/TableHeaderCell.jsx
+Sum                  | table/components/TableHeaderCell.jsx
+Avg                  | table/components/TableHeaderCell.jsx
+Group                | table/components/TableHeaderCell.jsx
+SortAsc              | table/components/TableHeaderCell.jsx
+SortDesc             | table/components/TableHeaderCell.jsx
+ArrowDown            | table/components/TableHeaderCell.jsx
+InfoCircle           | table/components/TableCell.jsx
+
+================================================================================
+                    MISSING ICONS (Used but NOT defined)
+================================================================================
+
+These icons are referenced in code but are NOT defined in icons.jsx.
+They will likely fall back to the Default icon or cause rendering issues.
+
+Icon Name            | Used In
+---------------------|----------------------------------------------------------
+Refresh              | page/components/sections/sectionMenu.jsx
+Column               | page/components/sections/sectionMenu.jsx
+Row                  | page/components/sections/sectionMenu.jsx
+Padding              | page/components/sections/sectionMenu.jsx
+Border               | page/components/sections/sectionMenu.jsx
+Login                | page/components/menu.jsx
+Pill                 | page/pages/manager/pages.jsx
+TouchInteraction     | page/selector/ComponentRegistry/spreadsheet/controls/ActionControls.jsx
+Alert                | datasets/components/MetadataComp/index.jsx, RenderAddField.jsx
+CheckCircleIcon      | datasets/components/ExternalVersionControls.jsx
+XCircleIcon          | datasets/components/ExternalVersionControls.jsx
+GripVertical         | page/pages/edit/editPane/sectionGroupsPane.jsx
+Grid                 | page/pages/edit/editPane/index.jsx
+Width                | page/pages/edit/editPane/sectionGroupsPane.jsx
+Theme                | page/pages/edit/editPane/sectionGroupsPane.jsx
+
+================================================================================
+                     ICONS DEFINED IN icons.jsx
+================================================================================
+
+The following icons are exported from the Icons object in icons.jsx:
+
+Required/Core Icons:
+- Default
+- Settings
+- Pages
+- Page
+- History
+- InsertSection (alias for SquarePlus)
+- Menu (alias for MenuIcon)
+- Blank
+- ViewPage (alias for ViewIcon)
+- EditPage (alias for PencilEditSquare)
+- Sections
+- CaretDown
+- CaretUp
+
+Action Icons:
+- PencilEditSquare
+- ViewIcon
+- PencilIcon
+- CirclePlus
+- SquarePlus
+- WrenchIcon
+- SlidersIcon
+- MenuIcon
+- ClockIcon
+- InfoCircle
+- TrashCan
+- CircleCheck
+- RemoveCircle
+- CancelCircle
+- FloppyDisk
+- CirclePlusDot
+- PencilSquare
+
+Navigation Icons:
+- ArrowDownSquare
+- ArrowUpSquare
+- ChevronDownSquare
+- ChevronUpSquare
+- ArrowUp
+- ArrowDown
+- ArrowRight
+- ArrowLeft
+
+UI Icons:
+- InfoSquare
+- MoreSquare
+- UserCircle
+- User
+- Tags
+- Copy
+- PDF
+- Printer
+- XMark
+- AdjustmentsHorizontal
+- LinkSquare
+- DraftPage
+- EllipsisVertical
+- Filter
+- LoadingHourGlass
+- Download
+- Search
+
+Data/Table Icons:
+- TallyMark
+- LeftToRightListBullet
+- Sum
+- Avg
+- Group
+- SortAsc
+- SortDesc
+
+Math Icons:
+- Brackets
+- Divide
+- Multiplication
+- Minus
+
+Special Icons:
+- GlobalEditing
+- Database
+- AccessControl
+- MenuDots
+- CaretDownSolid
+- CaretUpSolid
+- Plus
+- Eye
+- EyeClosed
+
+Shape Icons:
+- Fill
+- Circle
+- Line
+
+Hazard/Weather Icons (lowercase):
+- riverine
+- snowflake
+- tsunami
+- coastal
+- drought
+- hurricane
+- earthquake
+- coldwave
+- heatwave
+- hail
+- snowstorm
+- ice
+- lightning
+- tornado
+- fire
+- wind
+- landslide
+- volcano
+
+================================================================================

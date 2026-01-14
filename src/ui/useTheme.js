@@ -12,12 +12,19 @@ export const getPatternTheme = (themes, pattern) => {
     pattern?.theme?.settings?.theme?.theme || //old Theme setting pre v0.
     'default'
   )
-  //console.log('useTheme - getPtternTheme', pattern)
+
   let baseTheme = merge(
 		cloneDeep(defaultTheme),
     cloneDeep(themes?.[patternSelection] || {}),
-	)
-  if(!pattern?.theme?.layout?.options) {
+  )
+
+  // console.log(
+  //   'useTheme - getPtternTheme', patternSelection,
+  //   'selected', themes?.[patternSelection].pages.sectionArray,
+  //   'base', baseTheme.pages.sectionArray,
+  //   'default', defaultTheme.pages.sectionArray
+  // )
+  if (!pattern?.theme?.layout?.options) {
     set(pattern, 'theme.layout.options', cloneDeep(baseTheme?.layout?.options))
   }
   delete  baseTheme?.layout?.options
