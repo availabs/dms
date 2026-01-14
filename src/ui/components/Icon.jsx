@@ -17,5 +17,4 @@ export default function ({icon = 'Default', className, ...props}) {
 
     let Icon = theme?.Icons?.[icon] || icons[icon] || DefaultIcon
     return  <Icon className={className || theme?.icon?.icon} {...props}/>
-
 }

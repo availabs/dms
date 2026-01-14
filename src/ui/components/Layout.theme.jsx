@@ -301,7 +301,7 @@ export default  {
     `,
     "wrapper2": 'flex-1 flex items-start flex-col items-stretch max-w-full min-h-screen',
     "wrapper3": 'flex flex-1 items-start',
-    "childWrapper": 'flex-1 flex h-full'
+    "childWrapper": 'flex-1 flex flex-col h-full'
   }]
 }
 
