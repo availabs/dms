@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { PageContext, CMSContext } from '../../../context';
 import { selectablePDF2 } from '../../saveAsPDF/PrintWell/selectablePDF';
+import { ThemeContext } from "../../../../../ui/useTheme";
 
 function pdfExport({ }) {
   const [pdfPages, setPdfPages] = useState([]);
@@ -14,7 +15,8 @@ function pdfExport({ }) {
   const [includeInTOC, setIncludeInTOC] = useState(false);
   const [selectedCoverPage, setSelectCoverPage] = useState(null);
 
-  const { UI, app, API_HOST, siteType } = React.useContext(CMSContext) || {};
+  const { UI } = React.useContext(ThemeContext)
+  const { app, API_HOST, siteType } = React.useContext(CMSContext) || {};
   const { apiLoad, format } = React.useContext(PageContext) || {};
   const { Icon, Button, Select } = UI || {};
 
@@ -290,7 +292,7 @@ function pdfExport({ }) {
           <li key={node.id}>
             <div
               onClick={() => toggleSelect(node.id)}
-              className={`flex items-center justify-between px-2 py-1 rounded-md cursor-pointer transition-colors duration-150 
+              className={`flex items-center justify-between px-2 py-1 rounded-md cursor-pointer transition-colors duration-150
               ${isSelected ? "bg-blue-300 hover:bg-blue-400 text-blue-800" : "hover:bg-blue-200"}`}
             >
               <span>{node.name}</span>

@@ -185,7 +185,7 @@ export function SectionView({
 
 
     const hideDebug = true
-    let TitleComp = attributes?.title?.ViewComp
+    let TitleComp = attributes?.title?.ViewComp || (() => <div>Title component not found.</div>)
     let TitleEditComp = attributes?.title?.EditComp
     let LevelComp = attributes?.level?.EditComp
     let HelpComp = attributes?.helpText?.ViewComp

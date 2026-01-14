@@ -30,7 +30,11 @@ const Edit = ({value = '', onChange, className, placeholder, ...rest}) => {
 const View = ({value, className, ...rest}) => {
     // const {theme: themeFromContext={}} = React.useContext(ThemeContext) || {};
     // const theme = {...themeFromContext, text: {...textTheme, ...(themeFromContext.text || {})}}
-    if (!value) return false
+    if (!value) return (
+        <div
+            className={ className || (theme?.text?.view)}
+        ></div>
+    )
 
     return (
         <div

@@ -1,36 +1,22 @@
 import React, {memo, useContext, useMemo, useState} from "react";
-import {numColSize as numColSizeDf, gutterColSize as gutterColSizeDf, } from "../../../../patterns/page/components/selector/ComponentRegistry/spreadsheet/constants"
+import {numColSize as numColSizeDf } from "../../../../patterns/page/components/selector/ComponentRegistry/spreadsheet/constants"
 import {TableCell} from "./TableCell";
 import Icon from "../../Icon"
 import {TableStructureContext} from "../index";
 
 export const TableRow = memo(function TableRow ({
-                                                    index, rowData={},
-                                                    isRowSelected, // used only to set bg for row num
-                                                    isTotalRow,
-                                                    openOutContainerWrapperClass, openOutContainerClass,
-                                                    startCol, endCol, rowRef
-                                                }) {
+    index, rowData={},
+    isRowSelected, // used only to set bg for row num
+    isTotalRow,
+    startCol, endCol, rowRef, theme
+}) {
     // const rowData = rows[index];
     const {
-        visibleAttrsWithoutOpenOut,
-        visibleAttrsWithoutOpenOutLength,
-        openOutAttributes,
-        showGutters,
-        striped,
-        hideIfNullOpenouts,
+        visibleAttrsWithoutOpenOut, visibleAttrsWithoutOpenOutLength,
+        openOutAttributes, showGutters, striped, hideIfNullOpenouts,
     } = useContext(TableStructureContext);
     const [showOpenOut, setShowOpenOut] = useState(false);
     const numColSize = showGutters ? numColSizeDf : 0;
-    const gutterColSize = showGutters ? gutterColSizeDf : 0;
-
-    // const gridTemplateColumns = useMemo(
-    //     () =>
-    //         `${numColSize}px ${visibleAttrsWithoutOpenOut
-    //             .map((v) => (v.size ? `${v.size}px` : `${defaultColumnSize}px`))
-    //             .join(" ")} ${gutterColSize}px`,
-    //     [numColSize, gutterColSize, visibleAttrsWithoutOpenOut, defaultColumnSize]
-    // );
 
     const attrsToRender = visibleAttrsWithoutOpenOut
         .slice(startCol, endCol + 1);
@@ -40,34 +26,30 @@ export const TableRow = memo(function TableRow ({
             .map(c => `${c.size}px`)
             .join(" ");
 
-        return `${numColSize}px ${cols} ${gutterColSize}px`;
+        return `${numColSize}px ${cols}`;
     }, [
         startCol,
         endCol,
         visibleAttrsWithoutOpenOut,
-        numColSize,
-        gutterColSize
+        numColSize
     ]);
     const isDragging = false;
+    const rowClass = `${isTotalRow ? theme.totalRow : ``} ${isDragging ? `select-none` : ``} ${striped ? theme.stripedRow : ``}`;
 
     return (
         <>
             <div
                 ref={rowRef}
                 key={`data-${index}`}
-                className={
-                    `grid
-                ${rowData.totalRow ? `sticky bottom-0 z-[1]` : ``} ${isDragging ? `select-none` : ``}
-                ${striped ? `odd:bg-gray-50` : ``} ${rowData.totalRow ? `bg-gray-100` : ``} ${isTotalRow ? `z-[3]` : ``}`
-                }
+                className={rowClass}
                 style={{
+                    display: 'grid',
                     gridTemplateColumns: slicedGridTemplateColumns,
                     gridColumn: `span ${attrsToRender.length + 2} / ${attrsToRender.length + 2}`
                 }}
             >
                 <div key={'#'}
-                     className={` flex text-xs items-center justify-center cursor-pointer sticky left-0 z-[1]
-                             ${isRowSelected ? 'bg-blue-100 text-gray-900' : 'bg-gray-50 text-gray-500'}`}
+                     className={`${theme.gutterCellWrapper} ${isRowSelected ? theme.gutterCellWrapperSelected : theme.gutterCellWrapperNotSelected}`}
                      style={{width: numColSize}}
                     // onClick={onClickRowNum}
                     // onMouseDown={e => setSelection && setIsDragging && handleMouseDown({
@@ -89,7 +71,7 @@ export const TableRow = memo(function TableRow ({
                     // })}
                     // onMouseUp={e => setIsDragging && handleMouseUp({setIsDragging})}
                 >
-                    {showGutters && (rowData.totalRow ? 'T' : index + 1)}
+                    {showGutters && (isTotalRow ? 'T' : index + 1)}
                 </div>
                 {attrsToRender
                     .map((attribute, i) => {
@@ -105,26 +87,18 @@ export const TableRow = memo(function TableRow ({
                             attribute={attribute}
                         />
                     })}
-
-                <div className={'flex items-center border'}>
-                    <div key={'##'}
-                         className={`bg-gray-50 h-full flex shrink-0 justify-between`}
-                         style={{width: numColSize}}
-                    > {` `}</div>
-                </div>
             </div>
 
             {/********************************************************************************************************/}
             {/************************************************ open out row ******************************************/}
             {/********************************************************************************************************/}
             { showOpenOut ?
-                <div className={openOutContainerWrapperClass} style={{backgroundColor: '#00000066'}} onClick={() => setShowOpenOut(false)}>
-                    <div className={openOutContainerClass} onClick={e => e.stopPropagation()}>
-                        <div className={'w-full flex justify-end'}>
-                            <div className={'w-fit h-fit p-[8px] text-[#37576B] border border-[#E0EBF0] rounded-full cursor-pointer'}
-                                 onClick={() => setShowOpenOut(false)}
-                            >
-                                <Icon icon={'XMark'} height={16} width={16}/>
+                <div className={theme.openOutContainerWrapper} style={{backgroundColor: theme.openOutContainerWrapperBgColor}} onClick={() => setShowOpenOut(false)}>
+                    <div className={theme.openOutContainer} onClick={e => e.stopPropagation()}>
+
+                        <div className={theme.openOutCloseIconContainer}>
+                            <div className={theme.openOutCloseIconWrapper} onClick={() => setShowOpenOut(false)}>
+                                <Icon icon={theme.openOutCloseIcon} height={16} width={16}/>
                             </div>
                         </div>
 

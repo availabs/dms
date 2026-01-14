@@ -5,6 +5,7 @@ import {topNavsettings} from './components/TopNav.theme'
 import { logoSettings } from './components/Logo'
 import { buttonSettings } from './components/Button'
 import { cardSettings } from "./components/Card";
+import { tableSettings } from "./components/table";
 
 // -----------------
 // Pattern Settings
@@ -22,6 +23,7 @@ export default (theme) => {
     logo: logoSettings,
     button: buttonSettings(theme),
     card: cardSettings(theme),
+    table: tableSettings(theme),
     ...pagesThemeSettings(theme),
 
   }

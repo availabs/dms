@@ -1,4 +1,5 @@
 import React from 'react'
+import { handleCopy } from "./section_utils"
 
 export const getSectionMenuItems = ({
       isEdit,

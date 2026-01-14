@@ -48,7 +48,7 @@ const RenderToken = ({token, value, onChange, theme, isSearching, setIsSearching
             {
                 onChange && <div
                     className={theme?.multiselect?.removeIcon}
-                    onClick={e => onChange(value.filter(v => (v.value || v) !== (token.value || token)).map(v => v?.value || v))}
+                    onClick={e => onChange(value.filter(v => (v.value ?? v) !== (token.value ?? token)).map(v => v?.value ?? v))}
                 > </div>
             }
         </div>
@@ -103,9 +103,9 @@ const RenderMenu = ({
                                         className={theme?.multiselect?.smartMenuItem}
                                         onClick={e => {
                                             onChange(
-                                                o.value === 'select-all' ? (options || []).map(o => o?.value || o) :
+                                                o.value === 'select-all' ? (options || []).map(o => o?.value ?? o) :
                                                     o.value === 'remove-all' ? [] :
-                                                        [...value, o].map(v => v?.value || v)
+                                                        [...value, o].map(v => v?.value ?? v)
                                             );
                                             !keepMenuOpen && setIsSearching(false);
                                         }}>
@@ -129,9 +129,9 @@ const RenderMenu = ({
                                 onClick={e => {
                                     // newValue should return .value if available instead of full options mapped obj
                                     const newValue =
-                                        singleSelectOnly ? (o?.value || o) :
-                                            isOptionSelected ? mappedValue.filter(v => (v?.value || v) !== (o?.value || o)) :
-                                            [...value, o].map(o => o?.value || o)
+                                        singleSelectOnly ? (o?.value ?? o) :
+                                            isOptionSelected ? mappedValue.filter(v => (v?.value ?? v) !== (o?.value ?? o)) :
+                                            [...value, o].map(o => o?.value ?? o)
                                     onChange(newValue);
                                     singleSelectOnly && !keepMenuOpen && setIsSearching(false);
                                 }}>
@@ -139,7 +139,7 @@ const RenderMenu = ({
                                     !displayDetailedValues && isOptionSelected ?
                                         <CircleCheck className={theme?.multiselect?.selectedValueIcon || 'size-4'} /> : null
                                 }
-                                {meta?.[o.label || o] || o.label || o}
+                                {meta?.[o.label || o] ?? o.label ?? o}
                             </div>
                         )
                     })

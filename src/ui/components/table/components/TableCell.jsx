@@ -7,6 +7,12 @@ import { RenderAction } from "./RenderActions";
 import {TableCellContext} from "../index";
 import {handleMouseDown, handleMouseMove, handleMouseUp} from "../utils/mouse";
 
+const justifyClass = {
+    left: 'justify-start',
+    right: 'justify-end',
+    center: 'justify-center'
+}
+
 const parseIfJson = strValue => {
     if (typeof strValue === 'object') return strValue;
 
@@ -18,7 +24,6 @@ const parseIfJson = strValue => {
 }
 
 const DisplayCalculatedCell = ({value, className}) => <div className={className}>{typeof value === 'object' ? JSON.stringify(value) : value}</div>
-const LoadingComp = ({className}) => <div className={className}>loading...</div>
 
 const LinkComp = ({attribute, columns, newItem, removeItem, value}) => {
     const {actionType, location, linkText, isLink, isLinkExternal, useId} = attribute;
@@ -59,11 +64,9 @@ const LinkComp = ({attribute, columns, newItem, removeItem, value}) => {
     if(actionType){
         return (props) => <RenderAction {...props} action={attribute} newItem={newItem} removeItem={removeItem} columns={columns} />
     }
-
-    // return Comp;
 }
 
-const validate = ({value, required, options, name}) => {
+const validate = ({value, required, options}) => {
     const requiredValidation = !required || (required && value && value !== '')
     const optionsValidation = !options || !options?.length || (
         Array.isArray(options) && !value && !required ? true : // blank value with not required condition
@@ -75,9 +78,9 @@ const validate = ({value, required, options, name}) => {
                     value.reduce((acc, v) => acc && options.map(o => o.value || o).includes(v?.value || v), true) :
                     false
     );
-    // if (!(requiredValidation && optionsValidation)) console.log('----', name, requiredValidation, optionsValidation, options, value)
     return requiredValidation && optionsValidation;
 }
+
 const getEdge = (
     { startI, endI, startCol, endCol }, // selection
     index, // row index
@@ -123,26 +126,22 @@ const getEdge = (
 
     return '';
 };
-export const TableCell = memo(function TableCell ({
-                                                      index, attrI, item, isTotalCell,
-                                                      showOpenOutCaret, setShowOpenOut,
-                                                      attribute, openOutTitle
 
-                                                     }) {
-    // const index = rowIndex
-    // const attrI=columnIndex;
-    // const item = rows[index]
-    // const attribute = visibleAttributes[attrI]
-    const loading = false;
-    //const { theme = {table: tableTheme}} =  = React.useContext(ThemeContext) || {}
-    const {frozenCols, allowEdit: allowEditComp, editing, setEditing, isDragging, isSelecting,
+export const TableCell = memo(function TableCell ({
+    index, attrI, item, isTotalCell,
+    showOpenOutCaret, setShowOpenOut,
+    attribute, openOutTitle
+}) {
+    const {
+        frozenCols, allowEdit: allowEditComp, editing, setEditing, isDragging, isSelecting,
         setSelection, setIsDragging, startCellCol, startCellRow, selection, selectionRange,
         updateItem, removeItem, columns, display, theme
+    } = useContext(TableCellContext);
 
-    } = useContext(TableCellContext)
     // =================================================================================================================
     // ============================================ Cell Properties begin ==============================================
     // =================================================================================================================
+    const cellRef = useRef(null);
     const isFrozen = frozenCols?.includes(attrI)
     const allowEdit = allowEditComp || attribute.allowEditInView;
 
@@ -158,13 +157,9 @@ export const TableCell = memo(function TableCell ({
         (e) => {
             if (setSelection && setIsDragging) {
                 handleMouseDown({
-                    e,
-                    index,
-                    attrI,
-                    setSelection,
-                    setIsDragging,
-                    startCellCol,
-                    startCellRow,
+                    e, index, attrI,
+                    setSelection, setIsDragging,
+                    startCellCol, startCellRow,
                     selection
                 });
             }
@@ -176,13 +171,8 @@ export const TableCell = memo(function TableCell ({
         (e) => {
             if (setSelection) {
                 handleMouseMove({
-                    e,
-                    index,
-                    attrI,
-                    isDragging,
-                    startCellCol,
-                    startCellRow,
-                    setSelection
+                    e, index, attrI, isDragging,
+                    startCellCol, startCellRow, setSelection
                 });
             }
         },
@@ -228,15 +218,24 @@ export const TableCell = memo(function TableCell ({
         });
     }, [allowEdit, attribute.allowEditInView, index, attrI]);
 
+    const onChange = useCallback(
+        (e) => {
+            if (isTotalCell) return;
+            setNewItem(prev => ({
+                ...prev,
+                [attribute.name]: e
+            }));
+        },
+        [isTotalCell, attribute.name]
+    );
+
     // =================================================================================================================
     // ============================================= Cell Properties end ===============================================
     // =================================================================================================================
 
-    const cellRef = useRef(null);
     const [newItem, setNewItem] = useState(item);
     const rawValue = useMemo(() => newItem[attribute.normalName] || newItem[attribute.name], [newItem, attribute.name, attribute.normalName]);
 
-    // const Comp = DataTypes[attribute.type]?.[isSelecting ? 'ViewComp' : 'EditComp'];
     const renderTextBox = attribute.type === 'text' && isCellEditing && allowEdit;
     const compType = attribute.type === 'calculated' && Array.isArray(rawValue) ? 'multiselect' : attribute.type;
     const compMode = attribute.type === 'calculated' && Array.isArray(rawValue) ? 'ViewComp' :
@@ -251,13 +250,10 @@ export const TableCell = memo(function TableCell ({
         [compType, compMode, renderTextBox, attribute, newItem, rawValue]);
 
     const value = isTotalCell && !(attribute.showTotal || display.showTotal) ? null :
-        compMode === 'EditComp' ? rawValue : attribute.formatFn && formatFunctions[attribute.formatFn.toLowerCase()] ? formatFunctions[attribute.formatFn.toLowerCase()](rawValue, attribute.isDollar) : rawValue
-    const justifyClass = {
-        left: 'justify-start',
-        right: 'justify-end',
-        center: 'justify-center'
-    }
-    const formatClass = attribute.formatFn === 'title' ? 'capitalize' : '';
+        compMode === 'EditComp' ? rawValue : // edit mode should always show raw value
+            attribute.formatFn && formatFunctions[attribute.formatFn.toLowerCase()] ?
+                formatFunctions[attribute.formatFn.toLowerCase()](rawValue, attribute.isDollar) :
+                rawValue;
 
     const selectionColor = '#2100f8'
     const selectionEdgeClassNames = {
@@ -297,7 +293,7 @@ export const TableCell = memo(function TableCell ({
         }
     }, [rawValue]);
 
-    React.useEffect(() => {
+    useEffect(() => {
         const el = cellRef.current;
         if (isSelected && el) {
             el.scrollIntoView({
@@ -308,17 +304,13 @@ export const TableCell = memo(function TableCell ({
     }, [isSelected]);
 
     const isValid = useMemo(() => {
-        if(
-            ['multiselect', 'select'].includes(attribute.type) &&
-            attribute.mapped_options // don't validate vlaues for attributes that refer another source (dropdowns)
+        if( ['multiselect', 'select'].includes(attribute.type) &&
+            attribute.mapped_options // don't validate values for attributes that refer another source (dropdowns)
         ) {
             return true;
         }
 
-        if (
-            !['multiselect', 'select', 'radio'].includes(attribute.type) &&
-            attribute.required !== 'yes'
-        ) {
+        if ( !['multiselect', 'select', 'radio'].includes(attribute.type) && attribute.required !== 'yes' ) {
             return true;
         }
 
@@ -336,6 +328,7 @@ export const TableCell = memo(function TableCell ({
         });
     }, [
         attribute.type,
+        attribute.mapped_options,
         attribute.required,
         attribute.options,
         rawValue
@@ -370,23 +363,16 @@ export const TableCell = memo(function TableCell ({
         }
     }, [attribute.meta_lookup])
 
-    const isTotalRow = newItem.totalRow;
     const bgColor = useMemo(() =>
-        openOutTitle || attribute.openOut ? `` : !isValid ? `bg-red-50 hover:bg-red-100` : isTotalRow ? `bg-gray-100` :
-            display.striped && index % 2 !== 0 ? 'bg-gray-50 hover:bg-gray-100' :
-                isSelected ? 'bg-blue-50 hover:bg-blue-100' : 'bg-white bg-blue-50',
-        [openOutTitle, attribute.openOut, isValid, isTotalRow, display.striped, index, isSelected]);
-
-    const onChange = useCallback(
-        (e) => {
-            if (isTotalRow) return;
-            setNewItem(prev => ({
-                ...prev,
-                [attribute.name]: e
-            }));
-        },
-        [isTotalRow, attribute.name]
-    );
+            openOutTitle || attribute.openOut ? `` : // open outs are out of grid, we don't paint them
+                isTotalCell ? theme.totalCell :
+                    !isValid ? theme.cellInvalid : // invalid cells might want an indicator
+                        isSelected ? theme.cellBgSelected : // selected cells color differently
+                            display.striped && index % 2 === 0 ? theme.cellBgOdd : // if striped
+                                display.striped ? theme.cellBgEven :
+                                    theme.cellBg, // fallback
+        [openOutTitle, attribute.openOut, isTotalCell, isValid, isSelected, display.striped, index,
+            theme.cellInvalid, theme.totalCell, theme.cellBgSelected, theme.cellBgOdd, theme.cellBgEven]);
 
     const compStyle = useMemo(
         () => (renderTextBox ? { borderColor: selectionColor } : undefined),
@@ -394,78 +380,31 @@ export const TableCell = memo(function TableCell ({
     );
 
     const compClassName = useMemo(() => {
-        return `
-    ${
-            openOutTitle
-                ? theme?.table?.openOutTitle
-                : attribute.openOut
-                    ? theme?.table?.openOutValue
-                    : theme?.table?.cellInner
-        }
-    ${justifyClass[attribute.justify]}
-    ${bgColor}
-    ${!openOutTitle ? 'p-0.5' : ''}
-    ${formatClass}
-    ${attribute.wrapText || renderTextBox ? 'whitespace-pre-wrap' : ''}
-    ${renderTextBox ? 'absolute border focus:outline-none min-w-[180px] min-h-[50px] z-[10]' : ''}
-  `;
+        return `${ openOutTitle ? theme?.openOutTitle : attribute.openOut ? theme?.openOutValue : theme?.cellInner }
+                ${justifyClass[attribute.justify] || ''} ${bgColor} ${attribute.formatFn === 'title' ? 'capitalize' : ''} 
+                ${attribute.wrapText ? theme.wrapText : ''}
+                ${renderTextBox ? theme.cellEditableTextBox : ''}`;
     }, [
-        openOutTitle,
-        attribute.openOut,
-        attribute.justify,
-        attribute.wrapText,
-        renderTextBox,
-        theme,
-        bgColor,
-        formatClass
+        attribute.openOut, attribute.justify, attribute.wrapText, attribute.formatFn,
+        openOutTitle, renderTextBox, theme, bgColor
     ]);
 
     const cellClassName = useMemo(() => {
         if (attribute.openOut || openOutTitle) return '';
-
-        return `
-    ${theme?.table.cell}
-    ${isFrozen ? theme?.table?.cellFrozenCol : ''}
-    ${isSelecting || isDragging ? 'select-none' : ''}
-    ${
-            !isValid
-                ? bgColor
-                : isSelected
-                    ? theme?.table.cellBgSelected
-                    : theme?.table.cellBg
-        }
-  `;
-    }, [
-        attribute.openOut,
-        openOutTitle,
-        theme?.table.cell, theme?.table?.cellFrozenCol, theme?.table.cellBgSelected, theme?.table.cellBg,
-        isFrozen,
-        isSelecting,
-        isDragging,
-        isValid,
-        isSelected,
-        bgColor
-    ]);
+        return `${theme.cell} ${bgColor} ${isSelecting || isDragging ? 'select-none' : ''}`;
+    }, [ attribute.openOut, openOutTitle, theme.cell, bgColor, isSelecting, isDragging ]);
 
     const cellStyle = useMemo(() => {
         if (attribute.openOut || openOutTitle) return undefined;
 
         return {
-            ...(attribute.size && { width: attribute.size }),
-            ...(isSelected &&
-                !renderTextBox && {
+            width: attribute.size,
+            ...(isSelected && !renderTextBox && {
                     borderWidth: '1px',
                     ...selectionEdgeClassNames[edge]
                 })
         };
-    }, [
-        attribute.openOut,
-        openOutTitle,
-        attribute.size,
-        isSelected,
-        renderTextBox,
-        edge
-    ]);
+    }, [ attribute.openOut, openOutTitle, attribute.size, isSelected, renderTextBox, edge ]);
 
     const disableCellEvents = attribute.isLink || attribute.actionType;
     const cellEvents = useMemo(
@@ -502,17 +441,17 @@ export const TableCell = memo(function TableCell ({
              {...cellEvents}
         >
             {showOpenOutCaret ?
-                <div className={'px-2 cursor-pointer'}
+                <div className={theme.openOutIconWrapper}
                      onClick={toggleOpenOut}
                 >
-                    <Icon icon={'InfoCircle'} className={'bg-transparent text-gray-500 group-hover:text-gray-600'}
+                    <Icon icon={'InfoCircle'}
                           title={'Hide Open Out'}
                           width={18} height={18}
                     />
                 </div> : null}
 
             {attribute.openOut ?
-                <span className={theme?.table?.openOutHeader}>
+                <span className={theme?.openOutHeader}>
                     {attribute.customName || attribute.display_name || attribute.name}
                 </span> : null}
 

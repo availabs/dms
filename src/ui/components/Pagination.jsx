@@ -1,6 +1,6 @@
 import React from "react";
 import {tableTheme} from "./table";
-import {ThemeContext} from "../useTheme";
+import {getComponentTheme, ThemeContext} from "../useTheme";
 
 export const docs = {
     themeKey: 'table',
@@ -12,10 +12,12 @@ export const docs = {
 }
 
 export default function ({totalLength, filteredLength, pageSize, usePagination,
-                             currentPage, setCurrentPage
+                             currentPage, setCurrentPage, activeStyle
                          }) {
-    const { theme: themeFromProps  = {} } = React.useContext(ThemeContext) || {};
-    const theme = {...themeFromProps, table: {...tableTheme, ...(themeFromProps.table || {})}};
+    const { theme: themeFromContext  = {} } = React.useContext(ThemeContext) || {};
+    // const theme = {...themeFromContext, table: {...tableTheme, ...(themeFromContext.table || {})}};
+    const theme = getComponentTheme(themeFromContext,'table', activeStyle);
+    
     const length = filteredLength || totalLength
     const rangeSize = 5;
     const totalPages=Math.ceil(length / pageSize);
@@ -39,28 +41,28 @@ export default function ({totalLength, filteredLength, pageSize, usePagination,
     const showPaginationStats = false;
     if(paginationRange.length === 1 || (!usePagination && !showPaginationStats) ) return null;
     return (
-        <div className={theme?.table?.paginationContainer}>
+        <div className={theme?.paginationContainer}>
             {
                 usePagination ? paginationRange.length === 1 ? null : (
                     <>
-                        <div className={theme?.table?.paginationInfoContainer}>
-                            <div className={theme?.table?.paginationPagesInfo}> Page {currentPage+1} of {totalPages} </div>
-                            <div className={theme?.table?.paginationRowsInfo}> Rows {(currentPage * pageSize)+1} to {Math.min(+length,(currentPage * pageSize) + pageSize)} of {length}</div>
+                        <div className={theme?.paginationInfoContainer}>
+                            <div className={theme?.paginationPagesInfo}> Page {currentPage+1} of {totalPages} </div>
+                            <div className={theme?.paginationRowsInfo}> Rows {(currentPage * pageSize)+1} to {Math.min(+length,(currentPage * pageSize) + pageSize)} of {length}</div>
                         </div>
-                        <div className={theme?.table?.paginationControlsContainer}>
+                        <div className={theme?.paginationControlsContainer}>
                             {/*<div className={'cursor-pointer text-gray-500 hover:text-gray-800'}
                                  onClick={() => setCurrentPage(currentPage > 0 ? currentPage - 1 : currentPage)}>{`<< prev`}</div>*/}
 
                             {
                                 paginationRange.map(i => (
                                     <div key={i}
-                                         className={`${theme?.table?.pageRangeItem}  ${currentPage === i ? theme?.table?.pageRangeItemActive : theme?.table?.pageRangeItemInactive} `}
+                                         className={`${theme?.pageRangeItem}  ${currentPage === i ? theme?.pageRangeItemActive : theme?.pageRangeItemInactive} `}
                                          onClick={() => setCurrentPage(i)}
                                     >{i + 1}</div>
                                 ))
                             }
 
-                            <div className={`${theme?.table?.pageRangeItem} ${theme?.table?.pageRangeItemInactive}`}
+                            <div className={`${theme?.pageRangeItem} ${theme?.pageRangeItemInactive}`}
                                  onClick={() => setCurrentPage(currentPage < totalPages - 1  ? currentPage + 1 : currentPage)}>{`next >`}</div>
                         </div>
                     </>
