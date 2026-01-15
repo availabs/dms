@@ -1,29 +1,32 @@
 import React, {Fragment, useEffect, useContext, useState} from "react";
 import {Dialog, DialogPanel, Input, Transition} from '@headlessui/react'
 import {dmsDataLoader} from "../../../../api";
-import { ThemeContext } from "../../../../ui/useTheme";
+import { ThemeContext, getComponentTheme } from "../../../../ui/useTheme";
 import {CMSContext} from "../../context";
 import {boldMatchingText, getScore, searchTypeMapping} from "./SearchPage";
+import { searchButtonTheme, searchPalletTheme } from "./theme";
 
-export default function SearchButton ({app, type}) {
+export default function SearchButton ({app, type, activeStyle}) {
     const [open, setOpen] = useState(false)
-    const { UI } = useContext(ThemeContext);
+    const { theme: fullTheme = { pages: { searchButton: searchButtonTheme } }, UI } = useContext(ThemeContext);
+    const theme = getComponentTheme(fullTheme, 'pages.searchButton', activeStyle);
     const { Icon } = UI;
+
     return (
         <>
             <button
-                className={`
-                bg-white flex justify-between items-center
-                h-[48px] w-[217px] py-[8px] pr-[8px] pl-[24px]
-                border border-[#E0EBF0] rounded-[1000px]
-                shadow-sm transition ease-in
-                `}
+                className={theme?.button}
                 onClick={() => setOpen(true)}
             >
-                <span className={'uppercase text-[#2D3E4C] font-medium text-[12px] leading-[14.62px] tracking-none'}>Search</span>
+                <span className={theme?.buttonText}>Search</span>
 
-                <div className={'bg-[#37576B] p-[10px] rounded-full'}>
-                    <Icon icon={'Search'} height={12} width={12} className={'text-white'}/>
+                <div className={theme?.iconWrapper}>
+                    <Icon
+                        icon={theme?.icon}
+                        height={theme?.iconSize}
+                        width={theme?.iconSize}
+                        className={theme?.iconClass}
+                    />
                 </div>
             </button>
             <SearchPallet open={open} setOpen={setOpen} app={app} type={type}/>
@@ -35,11 +38,11 @@ function classNames(...classes) {
     return classes.filter(Boolean).join(' ')
 }
 
-const RenderSuggestions = ({individualTags, query, setQuery}) => individualTags
+const RenderSuggestions = ({individualTags, query, setQuery, theme}) => individualTags
     .filter(tag => (!query?.length || tag.toLowerCase().includes(query.toLowerCase())))
     .length > 0 ? (
-    <div className="flex items-center max-h-96 transform-gpu scroll-py-3 overflow-y-auto p-3">
-        <span className={'text-xs italic'}>suggestions: </span>
+    <div className={theme?.suggestionsWrapper}>
+        <span className={theme?.suggestionsLabel}>suggestions: </span>
         {individualTags
             .filter(tag => (!query?.length || tag.toLowerCase().includes(query.toLowerCase())))
             .filter((tag, i) => i <= 5)
@@ -47,16 +50,11 @@ const RenderSuggestions = ({individualTags, query, setQuery}) => individualTags
                 <div
                     key={tag}
                     onClick={() => setQuery(tag)}
-                    className={'flex cursor-pointer select-none hover:bg-gray-100  rounded-xl p-1'}
+                    className={theme?.suggestionItem}
                 >
                     <div>
-                        <i className="text-xs text-red-400 fa fa-tag"/>
-                        <span
-                            className={classNames(
-                                'ml-2 text-sm font-medium',
-                                focus ? 'text-gray-900' : 'text-gray-700'
-                            )}
-                        > {tag} </span>
+                        <i className={theme?.suggestionTagIcon}/>
+                        <span className={theme?.suggestionTagText}> {tag} </span>
                     </div>
                 </div>
             ))}
@@ -64,31 +62,34 @@ const RenderSuggestions = ({individualTags, query, setQuery}) => individualTags
 ) : null;
 
 const RenderItems = ({items, query, theme, Icon}) => Object.keys(items).length ? (
-    <div
-        className={theme.resultsWrapper}>
+    <div className={theme?.resultsWrapper}>
         {Object.keys(items)
             .sort((a, b) => items[b].score - items[a].score)
             .map((page_id) => (
                 <div
                     key={page_id}
-                    className={'select-none pt-[12px]'}
+                    className={theme?.resultItemOuter}
                 >
                     <div
                         key={page_id}
-                        className={theme.resultItemWrapper}
+                        className={theme?.resultItemWrapper}
                     >
                         {/*page title*/}
                         <div
-                            className={`group w-full flex items-center text-xl font-medium text-gray-700 hover:text-gray-700 cursor-pointer`}
+                            className={theme?.pageResultWrapper}
                             onClick={e => {
                                 window.location = `${items[page_id].url}`
                             }}>
-                            <Icon icon={'DraftPage'} width={15} height={21}/>
-                            <div className={theme.pageTitle}>{boldMatchingText(items[page_id].page_title || page_id, query)}</div>
-                            <Icon icon={'ArrowRight'} className={'h-6 w-6 ml-2 text-transparent group-hover:text-gray-900'}/>
+                            <Icon
+                                icon={theme?.pageIcon}
+                                width={theme?.pageIconWidth}
+                                height={theme?.pageIconHeight}
+                            />
+                            <div className={theme?.pageTitle}>{boldMatchingText(items[page_id].page_title || page_id, query)}</div>
+                            <Icon icon={theme?.pageArrowIcon} className={theme?.pageArrowClass}/>
                         </div>
 
-                        <div className={theme.sectionsWrapper}>
+                        <div className={theme?.sectionsWrapper}>
                             {/*sections*/}
                             {(items[page_id].sections || [])
                                 .filter(({section_title, tags}) => {
@@ -97,30 +98,37 @@ const RenderItems = ({items, query, theme, Icon}) => Object.keys(items).length ?
                                         (section_title && section_title.toLowerCase().includes(query.toLowerCase()))
                                 })
                                 .map(({
-                                                                      section_id,
-                                                                      section_title,
-                                                                      tags = '',
-                                                                      score
-                                                                  }) => (
-                                <div className={'w-full cursor-pointer group'}
-                                     onClick={() => window.location = `${items[page_id].url}#${section_id}`}>
+                                          section_id,
+                                          section_title,
+                                          tags = '',
+                                          score
+                                      }) => (
+                                <div
+                                    key={section_id}
+                                    className={theme?.sectionItemWrapper}
+                                    onClick={() => window.location = `${items[page_id].url}#${section_id}`}
+                                >
                                     {/*section title*/}
-                                    <div
-                                        className={'w-full flex items-center text-md font-medium text-gray-700 hover:text-gray-700'}>
-                                        <Icon icon={'Section'} width={18} height={18} />
-                                        <div className={theme.sectionTitle}>{boldMatchingText(section_title || section_id, query)}</div>
-                                        <Icon icon={'ArrowRight'}
-                                            className={'h-6 w-6 ml-2 text-transparent group-hover:text-gray-900'}/>
-
+                                    <div className={theme?.sectionTitleWrapper}>
+                                        <Icon
+                                            icon={theme?.sectionIcon}
+                                            width={theme?.sectionIconWidth}
+                                            height={theme?.sectionIconHeight}
+                                        />
+                                        <div className={theme?.sectionTitle}>{boldMatchingText(section_title || section_id, query)}</div>
+                                        <Icon icon={theme?.pageArrowIcon} className={theme?.sectionArrowClass}/>
                                     </div>
                                     {/*tags*/}
-                                    <div className={'w-full ml-8'}>
+                                    <div className={theme?.tagsWrapper}>
                                         {
                                             tags?.split(',').filter(t => t && t.length).map(tag => (
-                                                <span className={`tracking-wide p-1 text-xs text-white font-semibold rounded-md border
-                                                ${tag.toLowerCase() === query.toLowerCase() ? 'border-1 border-red-600 bg-red-400' : 'bg-red-300'}`}>
+                                                <span
+                                                    key={tag}
+                                                    className={`${theme?.tag} ${tag.toLowerCase() === query.toLowerCase() ? theme?.tagMatch : theme?.tagNoMatch}`}
+                                                >
                                                     {boldMatchingText(tag, query)}
-                                                </span>))
+                                                </span>
+                                            ))
                                         }
                                     </div>
                                 </div>
@@ -132,27 +140,25 @@ const RenderItems = ({items, query, theme, Icon}) => Object.keys(items).length ?
     </div>
 ) : null;
 
-const RenderStatus = ({loading, query, itemsLen}) =>
+const RenderStatus = ({loading, query, itemsLen, theme}) =>
     loading ? (
-            <div className="p-2 mx-auto w-1/4 h-full flex items-center justify-middle">
-                <i className="px-2 fa fa-loader text-gray-400"/>
-                <p className="font-semibold text-gray-900">Loading...</p>
+            <div className={theme?.loadingWrapper}>
+                <i className={theme?.loadingIcon}/>
+                <p className={theme?.loadingText}>Loading...</p>
             </div>
         ) :
         query && query !== '' && itemsLen === 0 && (
-            <div className="px-6 py-14 text-center text-sm sm:px-14">
-                <i
-                    className="fa fa-exclamation mx-auto h-6 w-6 text-gray-400"
-                />
-                <p className="mt-4 font-semibold text-gray-900">No results found</p>
-                <p className="mt-2 text-gray-500">No components found for this search term.
-                    Please try again.</p>
+            <div className={theme?.noResultsWrapper}>
+                <i className={theme?.noResultsIcon}/>
+                <p className={theme?.noResultsTitle}>No results found</p>
+                <p className={theme?.noResultsText}>No components found for this search term. Please try again.</p>
             </div>
         );
 
-export const SearchPallet = ({open, setOpen, app: appFromProps, type: typeFromProps, searchStr}) => {
+export const SearchPallet = ({open, setOpen, app: appFromProps, type: typeFromProps, searchStr, activeStyle}) => {
     const {baseUrl, falcor, app=appFromProps, type=typeFromProps} = useContext(CMSContext) || {};
-    const { UI } = useContext(ThemeContext);
+    const { theme: fullTheme = { pages: { searchPallet: searchPalletTheme } }, UI } = useContext(ThemeContext);
+    const theme = getComponentTheme(fullTheme, 'pages.searchPallet', activeStyle);
     const {Icon} = UI;
     const [query, setQuery] = useState();
     const [tmpQuery, setTmpQuery] = useState(searchStr);
@@ -162,19 +168,11 @@ export const SearchPallet = ({open, setOpen, app: appFromProps, type: typeFromPr
     const [data, setData] = useState({});
     const [items, setItems] = useState({});
     const searchType = 'tags'; // the query has been updated to search by page title, section title, and tags.
-    const theme = {
-        dialoguePanel: `relative max-w-3xl sm:w-[637px] max-h-3/4 sm:h-[700px] p-[16px] flex flex-col gap-[8px] overflow-hidden rounded-[12px] bg-[#F3F8F9] transition-all`,
-        input: `px-0.5 flex-1 font-[Proxima Nova] font-normal text-[16px] text-[#2D3E4C] leading-[140%] bg-transparent focus:ring-0 sm:text-sm rounded-full ring-0 outline-none`,
-        searchIcon: `text-[#2D3E4C]`,
-        resultsWrapper: `bg-white rounded-[12px] px-[12px] py-[24px] flex flex-col gap-[8px] divide-y divide-[#E0EBF0] max-h-[500px] transform-gpu scroll-py-3 overflow-x-hidden overflow-y-auto scrollbar-sm`,
-        resultItemWrapper: `flex flex-col gap-[12px] pb-[12px] w-full select-none rounded-[12px] transition ease-in`,
-        pageTitle: `pl-2 font-[Oswald] font-medium text-[16px] leading-[100%] uppercase text-[#2D3E4C]`,
-        sectionTitle: `pl-1 font-[Proxima Nova] font-normal text-[16px] leading-[140%] tracking-normal`,
-        sectionsWrapper: `ml-3 pl-4 flex flex-col gap-[12px]`
-    }
+
     useEffect(() => {
         setTmpQuery(searchStr)
     }, [searchStr])
+
     useEffect(() => {
         // Debounce logic: only update `query` after a delay when `tmpQuery` changes
         const handler = setTimeout(() => {
@@ -274,10 +272,10 @@ export const SearchPallet = ({open, setOpen, app: appFromProps, type: typeFromPr
                     leaveFrom="opacity-100"
                     leaveTo="opacity-0"
                 >
-                    <div className="fixed inset-0 bg-black bg-opacity-[60%] transition-opacity"/>
+                    <div className={theme?.backdrop}/>
                 </Transition.Child>
 
-                <div className="fixed inset-0 z-20 w-screen overflow-y-auto p-4 sm:p-6 md:p-20 flex items-center place-content-center">
+                <div className={theme?.dialogContainer}>
                     <Transition.Child
                         as={Fragment}
                         enter="ease-out duration-300"
@@ -287,34 +285,27 @@ export const SearchPallet = ({open, setOpen, app: appFromProps, type: typeFromPr
                         leaveFrom="opacity-100 scale-100"
                         leaveTo="opacity-0 scale-95"
                     >
-                        <DialogPanel
-                            className={theme.dialoguePanel}>
-                                <div className="w-full flex items-center relative px-[24px] py-[16px] bg-white w-full rounded-full border border-[#E0EBF0]">
-                                    <Input
-                                        autoFocus
-                                        className={theme.input}
-                                        placeholder="Search..."
-                                        value={tmpQuery}
-                                        onChange={(event) =>{
-                                            // const match = tags.find(tag => tag.toLowerCase() === event.target.value.toLowerCase());
-                                            setTmpQuery(event.target.value)
-                                        }}
-                                    />
-                                    <div className={'p-0.5'}>
-                                        <Icon icon={'Search'} />
-                                    </div>
-                                    {/*<Link*/}
-                                    {/*    className={'fa-light fa-arrow-up-right-from-square h-5 w-5 text-gray-400'}*/}
-                                    {/*    title={'Open Search Page'}*/}
-                                    {/* to={'search'}/>*/}
+                        <DialogPanel className={theme?.dialogPanel}>
+                            <div className={theme?.inputWrapper}>
+                                <Input
+                                    autoFocus
+                                    className={theme?.input}
+                                    placeholder="Search..."
+                                    value={tmpQuery}
+                                    onChange={(event) =>{
+                                        setTmpQuery(event.target.value)
+                                    }}
+                                />
+                                <div className={theme?.searchIconWrapper}>
+                                    <Icon icon={theme?.searchIcon} className={theme?.searchIconClass} />
                                 </div>
+                            </div>
 
-                                {/*<RenderSuggestions tags={tags} individualTags={individualTags} query={tmpQuery} setQuery={setTmpQuery} />*/}
+                            {/*<RenderSuggestions tags={tags} individualTags={individualTags} query={tmpQuery} setQuery={setTmpQuery} theme={theme} />*/}
 
-                                <RenderItems key={'search-items'} items={items} query={query} theme={theme} Icon={Icon}/>
+                            <RenderItems key={'search-items'} items={items} query={query} theme={theme} Icon={Icon}/>
 
-                                <RenderStatus key={'search-suggestions'} query={query} loading={loading} itemsLen={Object.keys(items).length} theme={theme}/>
-                            {/*</Combobox>*/}
+                            <RenderStatus key={'search-suggestions'} query={query} loading={loading} itemsLen={Object.keys(items).length} theme={theme}/>
                         </DialogPanel>
                     </Transition.Child>
                 </div>

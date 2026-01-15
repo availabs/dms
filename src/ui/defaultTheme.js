@@ -20,6 +20,7 @@ import {nestableTheme} from "./components/draggableNav"
 import {dataCardTheme} from "./components/Card";
 import {graphTheme} from "./components/graph";
 import {logoTheme} from "./components/Logo";
+import navigableMenuTheme from "./components/navigableMenu/theme";
 import icons from './icons'
 // =========================================
 // Pattern Themes, maybe move registration of these to DMS Site ??
@@ -144,6 +145,7 @@ const components = {
     attribution: attributionTheme,
     filters: filterTheme,
     graph: graphTheme,
+    navigableMenu: navigableMenuTheme,
 }
 const theme = {
     admin: {

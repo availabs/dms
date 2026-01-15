@@ -39,6 +39,7 @@ const iconList = [
   { icon: "FloppyDisk" },
   { icon: "CirclePlusDot" },
   { icon: "PencilSquare" },
+  { icon: "Login" },
 
   // Navigation Icons
   { icon: "ArrowDownSquare" },
