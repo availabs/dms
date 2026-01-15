@@ -12,8 +12,8 @@ import { CMSContext } from "./context";
 import { isUserAuthed } from "./auth.js";
 import UI from "../../ui";
 import { ThemeContext, RegisterLayoutWidget, getPatternTheme } from "../../ui/useTheme.js";
-import SearchButton from "./components/search/index.jsx";
-import DefaultMenu from "./components/menu";
+import SearchButton from "./components/search/index";
+import DefaultMenu from "./components/userMenu";
 
 // pages
 import PageView from "./pages/view";

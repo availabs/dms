@@ -2,34 +2,28 @@ import React, {useContext} from "react"
 import {Link, useLocation} from 'react-router'
 import { CMSContext } from '../context'
 import { AuthContext } from "../../auth/context";
-import { ThemeContext } from "../../../ui/useTheme";
-import NavigableMenu from "../../../ui/components/navigableMenu";
+import { ThemeContext, getComponentTheme } from "../../../ui/useTheme";
+import {userMenuTheme} from './userMenu.theme'
 
 // import {NavItem, NavMenu, NavMenuItem, NavMenuSeparator, withAuth} from 'components/avl-components/src'
 // import user from "@availabs/ams/dist/reducers/user";
 
-const userMenuTheme = {
-  userMenuContainer: 'flex w-full items-center justify-center rounded-xl @container',
-  iconWrapper: 'size-9 flex items-center justify-center',
-  icon: 'text-slate-400 hover:text-blue-500 size-7',
-  viewIcon: 'ViewPage',
-  editIcon: 'EditPage',
-}
-
 const UserMenu = ({}) => {
-    const { UI } = useContext(ThemeContext)
-    const { user} = useContext(AuthContext)
-    const {Icon} = UI;
+    const { theme, UI } = useContext(ThemeContext)
+    const { user } = useContext(AuthContext)
+    const { Icon } = UI;
+    const menuTheme = getComponentTheme(theme, 'pages.userMenu') || userMenuTheme.styles[0]
+
     return (
-      <div className="flex w-full items-center justify-center rounded-xl min-w-[60px] @container">
-        <div className="flex p-2  justify-center items-center">
-          <div className={`size-8 border-2 border-[#E0EBF0] rounded-full place-items-center content-center `}>
-              <Icon icon={'User'} className='size-6 fill-[#37576b]' />
+      <div className={menuTheme.userMenuContainer}>
+        <div className={menuTheme.avatarWrapper}>
+          <div className={menuTheme.avatar}>
+              <Icon icon={'User'} className={menuTheme.avatarIcon} />
           </div>
         </div>
-        <div className="flex-1 p-2  @max-[150px]:hidden">
-          <div className='text-xs font-thin tracking-tighter text-left'>{user.email ? user.email : ''}</div>
-          <div className='text-xs font-medium -mt-1 tracking-widest text-left'>{user?.groups?.[0] ? user.groups[0] : ''}</div>
+        <div className={menuTheme.infoWrapper}>
+          <div className={menuTheme.emailText}>{user.email ? user.email : ''}</div>
+          <div className={menuTheme.groupText}>{user?.groups?.[0] ? user.groups[0] : ''}</div>
         </div>
       </div>
     )
@@ -41,7 +35,7 @@ const EditControl = () => {
   const { isUserAuthed = () => false,  baseUrl='/'  } = useContext(CMSContext) || {}
   const location = useLocation()
   const { Icon } = UI
-  const menuTheme = theme?.page?.menu ||  userMenuTheme
+  const menuTheme = getComponentTheme(theme, 'pages.userMenu') || userMenuTheme.styles[0]
   const edit = React.useMemo(() => {
     return location.pathname.replace(`${baseUrl}`,'').split('/')?.[1] === 'edit'
   },[location])
@@ -60,10 +54,10 @@ const EditControl = () => {
             'publish-page'
         ])
       ) && (
-        <div className="flex justify-center items-center p-2">
-          <Link className={`${menuTheme?.iconWrapper}`} to={`${baseUrl}${edit ? '' : '/edit'}${urlpath}${location.search}`}>
+        <div className={menuTheme.editControlWrapper}>
+          <Link className={menuTheme.iconWrapper} to={`${baseUrl}${edit ? '' : '/edit'}${urlpath}${location.search}`}>
             {/*have to use rr to get query paramswindow.location.search*/}
-            <Icon icon={edit ? menuTheme?.viewIcon : menuTheme?.editIcon} className={menuTheme?.icon} />
+            <Icon icon={edit ? menuTheme.viewIcon : menuTheme.editIcon} className={menuTheme.icon} />
           </Link>
         </div>
       )}
@@ -75,8 +69,10 @@ export default ({title, children}) => {
   const { baseUrl = ''} = React.useContext(CMSContext) || {}
   // console.log('Menu CMS Context', user)
   const { theme, UI } = React.useContext(ThemeContext) || {}
-  const {  NavigableMenu, Icon } = UI;
+  const { NavigableMenu, Icon } = UI;
   const location = useLocation();
+  const menuTheme = getComponentTheme(theme, 'pages.userMenu') || userMenuTheme.styles[0]
+
   let authMenuItems = theme?.navOptions?.authMenu?.navItems || [
     {
         name: 'Datasets',
@@ -101,19 +97,19 @@ export default ({title, children}) => {
   return (
     <>
       {!user?.authed ?
-        <div className="flex items-center justify-center py-2">
+        <div className={menuTheme.loginWrapper}>
           <Link
-            className={`flex items-center `}
+            className={menuTheme.loginLink}
             to="/auth/login"
             state={{ from: location?.pathname }}>
-              <div className={`size-8 rounded-lg place-items-center content-center `}>
-                <Icon icon={'Login'} className='size-6 fill-[#37576b] hover:fill-slate-500' />
+              <div className={menuTheme.loginIconWrapper}>
+                <Icon icon={'Login'} className={menuTheme.loginIcon} />
               </div>
           </Link>
         </div> :
         (
-          <div className="@container w-full">
-            <div className="flex p-1  items-center">
+          <div className={menuTheme.authContainer}>
+            <div className={menuTheme.authWrapper}>
               <NavigableMenu
                 config={[
                   { type: () =>  <UserMenu /> },
@@ -123,7 +119,7 @@ export default ({title, children}) => {
                 ]}
                 showTitle={false}
               >
-                <div className='flex items-center flex-1 w-full'>
+                <div className={menuTheme.userMenuWrapper}>
                   <UserMenu />
                 </div>
               </NavigableMenu>

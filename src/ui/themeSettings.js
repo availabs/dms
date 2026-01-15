@@ -6,6 +6,7 @@ import { logoSettings } from './components/Logo'
 import { buttonSettings } from './components/Button'
 import { cardSettings } from "./components/Card";
 import { tableSettings } from "./components/table";
+import { navigableMenuSettings } from "./components/navigableMenu/theme";
 
 // -----------------
 // Pattern Settings
@@ -24,6 +25,7 @@ export default (theme) => {
     button: buttonSettings(theme),
     card: cardSettings(theme),
     table: tableSettings(theme),
+    navigableMenu: navigableMenuSettings(theme),
     ...pagesThemeSettings(theme),
 
   }

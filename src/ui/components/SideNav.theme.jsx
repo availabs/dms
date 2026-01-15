@@ -32,6 +32,12 @@ const sideNavTheme = {
       // Icons
       menuIconSide: "size-5 text-zinc-500 dark:text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-white transition-colors",
       menuIconSideActive: "size-5 text-zinc-900 dark:text-white",
+      // Forced icon (displayed when navItem has no icon)
+      forcedIcon: "",
+      forcedIcon_level_1: "",
+      forcedIcon_level_2: "",
+      forcedIcon_level_3: "",
+      forcedIcon_level_4: "",
       // Items container
       itemsWrapper: "flex-1 overflow-y-auto px-2 py-4",
       // Nav item content
@@ -50,6 +56,7 @@ const sideNavTheme = {
       subMenuWrapper_3: "mt-1 space-y-0.5",
       subMenuOuterWrapper: '',
       subMenuParentWrapper: "flex flex-col",
+      subMenuTitle: 'hidden',
       // Bottom section (user menu, etc.)
       bottomMenuWrapper: 'mt-auto border-t border-zinc-200 dark:border-zinc-800 p-4',
       // Section divider
