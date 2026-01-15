@@ -1,37 +1,37 @@
 import React from 'react'
-import {handleCopy, handlePaste} from "./section_utils"
+import {handleCopy, handlePaste, TagComponent} from "./section_utils"
 
-export const getSectionMenuItems = ({
-      isEdit,
-      onEdit,
-      value,
-      moveItem,
-      TitleEditComp,
-      LevelComp,
-      updateAttribute,
-      Switch,
-      showDeleteModal, setShowDeleteModal,
-      Permissions, AuthAPI, user, isUserAuthed, pageAuthPermissions, sectionAuthPermissions,
-      theme,
-      attributes, i,
-      refreshDataBtnRef, isRefreshingData, setIsRefreshingData, RegisteredComponents={}, setState, updateElementType, onChange, setKey
-  }) => (
-    [
-        {icon: 'PencilSquare', name: 'Edit', onClick: onEdit, cdn: () => !isEdit && isUserAuthed(['edit-section'], sectionAuthPermissions)},
-        {icon: 'Refresh', name: isRefreshingData ? 'Refreshing Data' : 'Refresh Data', onClick: () => {
-                refreshDataBtnRef.current?.refresh({isRefreshingData, setIsRefreshingData})
-            },
-            cdn: () => !isEdit && isUserAuthed(['edit-section'], sectionAuthPermissions)},
+export const getSectionMenuItems = ({ state, actions, auth, ui }) => {
+    const { isEdit, value, attributes, i, theme, showDeleteModal } = state
+    const { onEdit, moveItem, updateAttribute, updateElementType, onChange, setKey, setState, setShowDeleteModal } = actions
+    const { user, isUserAuthed, pageAuthPermissions, sectionAuthPermissions, Permissions, AuthAPI } = auth
+    const { Switch, TitleEditComp, LevelComp, refreshDataBtnRef, isRefreshingData, setIsRefreshingData, RegisteredComponents = {} } = ui
 
-        {icon: 'Refresh', name: isRefreshingData ? 'Caching Data' : 'Cache Data', onClick: () => {
-                refreshDataBtnRef.current?.refresh({isRefreshingData, setIsRefreshingData, fullDataLoad: true})
-            },
-            cdn: () => !isEdit && isUserAuthed(['edit-section'], sectionAuthPermissions)},
-        {icon: 'Refresh', name: isRefreshingData ? 'Clearing Cache' : 'Clear Cache', onClick: () => {
-                refreshDataBtnRef.current?.refresh({clearCache: true})
-            },
-            cdn: () => !isEdit && isUserAuthed(['edit-section'], sectionAuthPermissions)},
-        {icon: 'Copy', name: 'Copy Section', onClick: (e) => {
+    const canEditSection = isUserAuthed(['edit-section'], sectionAuthPermissions);
+    const canEditPageLayout = isUserAuthed(['edit-page-layout'], pageAuthPermissions);
+    const canEditSectionPermissions = isUserAuthed(['edit-section-permissions'], sectionAuthPermissions);
+
+    // =================================================================================================================
+    // ======================================== menu item groups begin =================================================
+    // =================================================================================================================
+    const editCopyPaste = [
+        {
+            icon: 'PencilSquare', name: 'Edit', cdn: () => !isEdit && canEditSection, onClick: onEdit
+        },
+        {
+            icon: 'Refresh', name: isRefreshingData ? 'Refreshing Data' : 'Refresh Data', cdn: () => !isEdit && canEditSection,
+            onClick: () => refreshDataBtnRef.current?.refresh({isRefreshingData, setIsRefreshingData})
+        },
+        {
+            icon: 'Refresh', name: isRefreshingData ? 'Caching Data' : 'Cache Data', cdn: () => !isEdit && canEditSection,
+            onClick: () => refreshDataBtnRef.current?.refresh({isRefreshingData, setIsRefreshingData, fullDataLoad: true})
+        },
+        {
+            icon: 'Refresh', name: isRefreshingData ? 'Clearing Cache' : 'Clear Cache', cdn: () => !isEdit && canEditSection,
+            onClick: () => refreshDataBtnRef.current?.refresh({clearCache: true})
+        },
+        {
+            icon: 'Copy', name: 'Copy Section', onClick: (e) => {
                 handleCopy(value)
 
                 const el = e.currentTarget;
@@ -40,87 +40,85 @@ export const getSectionMenuItems = ({
                 setTimeout(() => {
                     el.style.color = '';
                 }, 2000);
-            }},
-        {icon: 'Paste', name: 'Paste Section', onClick: e => handlePaste(e, setKey, setState, value, onChange),
-            cdn: () => isEdit && isUserAuthed(['edit-section'], sectionAuthPermissions)},
-        {type: 'separator'},
+            }
+        },
+        {
+            icon: 'Paste', name: 'Paste Section', cdn: () => isEdit && canEditSection, onClick: e => handlePaste(e, setKey, setState, value, onChange)
+        },
+    ]
 
-        {icon: 'ChevronUpSquare', name: 'Move Up', onClick: () => moveItem(i, -1), cdn: () => !isEdit && isUserAuthed(['edit-page-layout'], pageAuthPermissions)},
-        {icon: 'ChevronDownSquare', name: 'Move Down', onClick: () => moveItem(i, 1), cdn: () => !isEdit && isUserAuthed(['edit-page-layout'], pageAuthPermissions)},
-        {type: 'separator', cdn: () => !isEdit && isUserAuthed(['edit-page-layout'], pageAuthPermissions)},
-        {icon: '', name: 'Component',
+    const moveItems = [
+        {
+            icon: 'ChevronUpSquare', name: 'Move Up', cdn: () => !isEdit && canEditPageLayout, onClick: () => moveItem(i, -1)
+        },
+        {
+            icon: 'ChevronDownSquare', name: 'Move Down', cdn: () => !isEdit && canEditPageLayout, onClick: () => moveItem(i, 1)
+        },
+    ]
+    const component = [
+        {
+            name: 'Component', cdn: () => canEditSection,
             items: Object.keys(RegisteredComponents)
                 .filter(k => !RegisteredComponents[k].hideInSelector)
                 .map(k => (
                     {
-                        icon: '', name: RegisteredComponents[k].name || k,
+                        icon: k === (value?.element?.['element-type'] || 'lexical') ? 'CircleCheck' : 'Blank',
+                        name: RegisteredComponents[k].name || k,
                         onClick: () => updateElementType(k)
                     }
                 )),
-            cdn: () => isUserAuthed(['edit-section'], sectionAuthPermissions)
         },
+    ]
+    const display = [
         {
-            icon: '',
             name: 'Display',
             items: [
                 {
-                    icon: '', name: 'Title',
+                    name: 'Title',
                     items: [
                         {
-                            icon: '', name: '',
-                            type: () => {
-                                return (
-                                    <TitleEditComp
-                                        className={`${theme?.heading?.base} ${theme?.heading[value?.['level']] || theme?.heading['default']}`}
-                                        placeholder={'Section Title'}
-                                        value={value?.['title'] || ''}
-                                        onChange={(v) => updateAttribute('title', v)}
-                                    />
-                                )
-                            }
+                            name: '',
+                            type: () => <TitleEditComp
+                                className={`${theme?.heading?.base} ${theme?.heading[value?.['level']] || theme?.heading['default']}`}
+                                placeholder={'Section Title'}
+                                value={value?.['title'] || ''}
+                                onChange={(v) => updateAttribute('title', v)}
+                            />
                         }
                     ]
                 },
                 {
-                    icon: '', name: 'Level',
+                    name: 'Level',
                     items: [
                         {
-                            icon: '', name: '',
-                            type: () => {
-                                return (
-                                    <LevelComp
-                                        className='p-2 w-full bg-transparent'
-                                        value={value?.['level']}
-                                        placeholder={'level'}
-                                        options={attributes?.level?.options}
-                                        onChange={(v) => updateAttribute('level', v)}
-                                    />
-                                )
-                            }
+                            name: '',
+                            type: () => <LevelComp
+                                className='p-2 w-full bg-transparent'
+                                value={value?.['level']}
+                                placeholder={'level'}
+                                options={attributes?.level?.options}
+                                onChange={(v) => updateAttribute('level', v)}
+                            />
                         }
                     ]
                 },
                 {
-                    icon: '', name: 'Tags',
+                    name: 'Tags',
                     items: [
                         {
-                            icon: '', name: '',
-                            type: () => {
-                                return (
-                                    <TagComponent
-                                        edit={true}
-                                        className='p-2 flex-0'
-                                        value={value?.['tags']}
-                                        placeholder={'Add Tag...'}
-                                        onChange={(v) => updateAttribute('tags', v)}
-                                    />
-                                )
-                            }
+                            name: '',
+                            type: () => <TagComponent
+                                edit={true}
+                                className='p-2 flex-0'
+                                value={value?.['tags']}
+                                placeholder={'Add Tag...'}
+                                onChange={(v) => updateAttribute('tags', v)}
+                            />
                         }
                     ]
                 },
                 {
-                    icon: '', name: 'Info Comp',
+                    name: 'Info Comp',
                     type: () => (
                         <div className={'self-start w-full flex justify-between pl-2'}>
                             <label>Info Component</label>
@@ -133,7 +131,7 @@ export const getSectionMenuItems = ({
                     )
                 },
                 {
-                    icon: '', name: 'Hide Comp',
+                    name: 'Hide Comp',
                     type: () => (
                         <div className={'self-start w-full flex justify-between pl-2'}>
                             <label>Hide Component</label>
@@ -147,38 +145,34 @@ export const getSectionMenuItems = ({
                 }
             ]
         },
+    ]
+
+    const layout = [
         {
             name: 'Layout',
             items: [
                 {
-                    icon: 'Column', name: 'Width',
-                    value: value?.['size'] || 1,
-                    showValue: true,
+                    icon: 'Column', name: 'Width', value: value?.['size'] || 1, showValue: true,
                     items: Object.keys(theme?.sectionArray?.sizes || {}).sort((a, b) => {
                         let first = +theme?.sectionArray?.sizes?.[a].iconSize || 100
                         let second = +theme?.sectionArray?.sizes?.[b].iconSize || 100
                         return first - second
                     }).map((name, i) => {
                         return {
-                            'icon': name == (value?.['size'] || '1') ? 'CircleCheck' : 'Blank',
+                            icon: name === (value?.['size'] || '1') ? 'CircleCheck' : 'Blank',
                             id: crypto.randomUUID(), // to prevent duplicate entries
                             'name': name,
-                            'onClick': () => {
-                                console.log('colspan Item name click', name)
-                                updateAttribute('size', name);
-                            }
+                            'onClick': () => updateAttribute('size', name)
                         }
                     })
                 },
                 {
-                    icon: 'Row', name: 'Rowspan',
-                    value: value?.['rowspan'] || 1,
-                    showValue: true,
+                    icon: 'Row', name: 'Rowspan', value: value?.['rowspan'] || 1, showValue: true,
                     items: Object.keys(theme?.sectionArray?.rowspans || {}).sort((a, b) => {
                         return +a - +b
                     }).map((name, i) => {
                         return {
-                            'icon': name == (value?.['rowspan'] || '1') ? 'CircleCheck' : 'Blank',
+                            icon: name === (value?.['rowspan'] || '1') ? 'CircleCheck' : 'Blank',
                             id: crypto.randomUUID(),
                             'name': name,
                             'onClick': () => {
@@ -188,9 +182,7 @@ export const getSectionMenuItems = ({
                     })
                 },
                 {
-                    icon: 'Padding', name: 'Offset',
-                    value: value?.['offset'] || 16,
-                    showValue: true,
+                    icon: 'Padding', name: 'Offset', value: value?.['offset'] || 16, showValue: true,
                     items: [
                         {
                             type: 'input',
@@ -202,26 +194,21 @@ export const getSectionMenuItems = ({
                     ],
                 },
                 {
-                    icon: 'Padding', name: 'padding',
-                    value: value?.['padding'] || theme?.sectionArray?.sectionPadding,
+                    icon: 'Padding', name: 'padding', value: value?.['padding'] || theme?.sectionArray?.sectionPadding,
                     showValue: true,
                     items: ['p-0', 'p-1', 'p-2', theme?.sectionArray?.sectionPadding].map((v, i) => {
                         return {
-                            'icon': v == (value?.['padding'] || '1') ? 'CircleCheck' : 'Blank',
+                            icon: v === (value?.['padding'] || theme?.sectionArray?.sectionPadding) ? 'CircleCheck' : 'Blank',
                             'name': `${v}`,
-                            'onClick': () => {
-                                console.log('padding Item name click', v)
-                                updateAttribute('padding', v);
-                            }
+                            'onClick': () => updateAttribute('padding', v)
                         }
                     }),
                 },
                 {
-                    icon: 'Border', name: 'Border',
-                    value: value?.['border'] || 1,
+                    icon: 'Border', name: 'Border', value: value?.['border'] || 1,
                     items: [
                         {
-                            icon: '', name: 'border', type: () => {
+                            name: 'border', type: () => {
                                 return (
                                     <div className={'flex flex-wrap gap-1'}>
                                         {
@@ -229,7 +216,7 @@ export const getSectionMenuItems = ({
                                                 .map((name, i) => {
                                                     return (
                                                         <div
-                                                            className={`px-4 py-2 rounded-md ${name == (value?.['border'] || 'None') ? `bg-blue-300` : ``} hover:bg-blue-100`}
+                                                            className={`px-4 py-2 rounded-md ${name === (value?.['border'] || 'None') ? `bg-blue-300` : ``} hover:bg-blue-100`}
                                                             onClick={() => updateAttribute('border', name)}>
                                                             {name}
                                                         </div>)
@@ -243,9 +230,11 @@ export const getSectionMenuItems = ({
                 },
             ]
         },
+    ]
+
+    const permissions = [
         {
-            icon: 'AccessControl', name: 'Permissions',
-            cdn: () => isUserAuthed(['edit-section-permissions'], sectionAuthPermissions),
+            icon: 'AccessControl', name: 'Permissions', cdn: () => canEditSectionPermissions,
             items: [
                 {
                     name: 'Permissions Comp',
@@ -263,9 +252,30 @@ export const getSectionMenuItems = ({
                 }
             ]
         },
-        {type: 'separator'},
-        {icon: 'TrashCan', name: 'Delete', onClick: () => setShowDeleteModal(!showDeleteModal),
-            cdn: () => isUserAuthed(['edit-section'], sectionAuthPermissions)
+    ]
+
+    const remove = [
+        {
+            icon: 'TrashCan', name: 'Delete',  cdn: () => canEditSection, onClick: () => setShowDeleteModal(!showDeleteModal)
         }
-    ].filter(item => !item.cdn || item.cdn())
-)
+    ]
+
+    // =================================================================================================================
+    // ========================================= menu item groups end == ===============================================
+    // =================================================================================================================
+
+    return (
+        [
+            ...editCopyPaste,
+            {type: 'separator'},
+            ...moveItems,
+            {type: 'separator', cdn: () => !isEdit && canEditPageLayout},
+            ...component,
+            ...display,
+            ...layout,
+            ...permissions,
+            {type: 'separator'},
+            ...remove
+        ].filter(item => !item.cdn || item.cdn())
+    )
+}

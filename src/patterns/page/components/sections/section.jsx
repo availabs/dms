@@ -53,23 +53,10 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
 
 
   const sectionMenuItems = getSectionMenuItems({
-      i, isEdit,
-      value,
-      moveItem,
-      TitleEditComp,
-      LevelComp,
-      updateAttribute, updateElementType,
-      Switch,
-      showDeleteModal,
-      setShowDeleteModal,
-      Permissions, AuthAPI, user,
-      isUserAuthed, pageAuthPermissions, sectionAuthPermissions,
-      theme: fullTheme,
-      attributes,
-      RegisteredComponents,
-      setState,
-      onChange,
-      setKey
+      state: { isEdit, value, attributes, i, theme: fullTheme, showDeleteModal },
+      actions: { moveItem, updateAttribute, updateElementType, onChange, setKey, setState, setShowDeleteModal },
+      auth: { user, isUserAuthed, pageAuthPermissions, sectionAuthPermissions, Permissions, AuthAPI },
+      ui:  { Switch, TitleEditComp, LevelComp, RegisteredComponents }
   })
 
     const editIcons = [
@@ -220,23 +207,10 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
     if (!value?.element?.['element-type'] && !value?.element?.['element-data']) return null;
 
     const sectionMenuItems = getSectionMenuItems({
-        i, isEdit,
-        onEdit, refreshDataBtnRef, isRefreshingData, setIsRefreshingData,
-        value,
-        moveItem,
-        TitleEditComp,
-        LevelComp,
-        updateAttribute,
-        updateElementType,
-        Switch,
-        Permissions, AuthAPI, user,
-        isUserAuthed, pageAuthPermissions, sectionAuthPermissions,
-        showDeleteModal,
-        setShowDeleteModal,
-        theme:fullTheme,
-        attributes,
-        RegisteredComponents,
-        onChange, setState
+        state: { isEdit, value, attributes, i, theme: fullTheme, showDeleteModal },
+        actions: { onEdit, moveItem, updateAttribute, updateElementType, onChange, setState, setShowDeleteModal },
+        auth: { user, isUserAuthed, pageAuthPermissions, sectionAuthPermissions, Permissions, AuthAPI },
+        ui:  { Switch, TitleEditComp, LevelComp, refreshDataBtnRef, isRefreshingData, setIsRefreshingData, RegisteredComponents },
     })
 
     return (
