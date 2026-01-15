@@ -57,7 +57,8 @@ export const getSectionMenuItems = ({ state, actions, auth, ui }) => {
     ]
     const component = [
         {
-            name: 'Component', cdn: () => canEditSection, value: (value?.element?.['element-type'] === 'lexical' ? 'Rich Text' : value?.element?.['element-type']) || 'Rich Text', showValue: true,
+            name: 'Component', cdn: () => canEditSection, value: (value?.element?.['element-type'] === 'lexical' ? 'Rich Text' : value?.element?.['element-type']) || 'Rich Text',
+            showValue: true, showSearch: true,
             items: Object.keys(RegisteredComponents)
                 .filter(k => !RegisteredComponents[k].hideInSelector)
                 .map(k => (

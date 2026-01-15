@@ -88,11 +88,13 @@ const Menu = ({config, title, showTitle=true, open, setOpen, activeStyle}) => {
   const { theme: fullTheme = { navigableMenu: defaultTheme } } = React.useContext(ThemeContext) || {};
   const theme = getComponentTheme(fullTheme, 'navigableMenu', activeStyle);
   const [activeParent, setActiveParent] = useState(undefined);
+  const [search, setSearch] = useState('');
 
   const prevParent = useMemo(() => {
     if(!activeParent) return undefined;
     return config[activeParent]?.parent;
   }, [activeParent]);
+  const showSearch = config[activeParent]?.showSearch;
 
   if(!open) return null;
 
@@ -126,8 +128,11 @@ const Menu = ({config, title, showTitle=true, open, setOpen, activeStyle}) => {
         </div>
       }
       {
+        showSearch && <Input placeHolder={'search...'} value={search} onChange={e => setSearch(e.target.value)} />
+      }
+      {
         Object.values(config)
-          .filter(c => !activeParent ? !c.parent : c.parent === activeParent)
+          .filter(c => (!activeParent ? !c.parent : c.parent === activeParent) && (!search || c.name.toLowerCase().includes(search.toLowerCase())))
           .map(menuItem => <MenuItem key={menuItem.name} menuItem={menuItem} setActiveParent={setActiveParent} activeStyle={activeStyle} />)
       }
     </div>
