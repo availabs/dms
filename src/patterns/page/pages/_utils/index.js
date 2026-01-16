@@ -490,6 +490,6 @@ export const initNavigateUsingSearchParams = ({pageState, search, navigate, base
     }
 }
 
-export const getPageAuthPermissions = pageState =>
-    pageState?.authPermissions && typeof pageState.authPermissions === 'string' ? JSON.parse(pageState.authPermissions) :
-    pageState?.authPermissions && typeof pageState.authPermissions === 'object' ? pageState.authPermissions : undefined;
+export const getPageAuthPermissions = authPermissions =>
+    authPermissions && typeof authPermissions === 'string' ? JSON.parse(authPermissions) :
+    authPermissions && typeof authPermissions === 'object' ? authPermissions : undefined;
