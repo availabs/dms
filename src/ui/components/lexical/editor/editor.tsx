@@ -12,7 +12,7 @@ import {CheckListPlugin} from '@lexical/react/LexicalCheckListPlugin';
 import {ClearEditorPlugin} from '@lexical/react/LexicalClearEditorPlugin';
 
 // import {CollaborationPlugin} from '@lexical/react/LexicalCollaborationPlugin';
-import LexicalErrorBoundary from '@lexical/react/LexicalErrorBoundary';
+import {LexicalErrorBoundary} from '@lexical/react/LexicalErrorBoundary';
 import {HistoryPlugin} from '@lexical/react/LexicalHistoryPlugin';
 import {HorizontalRulePlugin} from '@lexical/react/LexicalHorizontalRulePlugin';
 import {ListPlugin} from '@lexical/react/LexicalListPlugin';

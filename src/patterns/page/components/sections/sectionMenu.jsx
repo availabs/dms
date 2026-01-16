@@ -1,5 +1,6 @@
 import React from 'react'
 import {handleCopy, handlePaste, TagComponent} from "./section_utils"
+import { getComponentTheme } from "../../../../ui/useTheme";
 
 export const getSectionMenuItems = ({ state, actions, auth, ui }) => {
     const { isEdit, value, attributes, i, theme, showDeleteModal } = state
@@ -154,9 +155,11 @@ export const getSectionMenuItems = ({ state, actions, auth, ui }) => {
             items: [
                 {
                     icon: 'Column', name: 'Width', value: value?.['size'] || 1, showValue: true,
-                    items: Object.keys(theme?.sectionArray?.sizes || {}).sort((a, b) => {
-                        let first = +theme?.sectionArray?.sizes?.[a].iconSize || 100
-                        let second = +theme?.sectionArray?.sizes?.[b].iconSize || 100
+                    items: Object.keys(getComponentTheme(theme, 'pages.sectionArray').sizes || {})
+                      .sort((a, b) => {
+                        const sizes = getComponentTheme(theme, 'pages.sectionArray').sizes
+                        let first = +sizes[a].iconSize || 100
+                        let second = +sizes[b].iconSize || 100
                         return first - second
                     }).map((name, i) => {
                         return {
