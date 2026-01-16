@@ -2,15 +2,17 @@ import React from 'react'
 import {handleCopy, handlePaste, TagComponent} from "./section_utils"
 import { getComponentTheme } from "../../../../ui/useTheme";
 
-export const getSectionMenuItems = ({ state, actions, auth, ui }) => {
+export const getSectionMenuItems = ({ state, actions, auth, ui, dataSource={} }) => {
     const { isEdit, value, attributes, i, theme, showDeleteModal } = state
     const { onEdit, moveItem, updateAttribute, updateElementType, onChange, setKey, setState, setShowDeleteModal } = actions
     const { user, isUserAuthed, pageAuthPermissions, sectionAuthPermissions, Permissions, AuthAPI } = auth
     const { Switch, TitleEditComp, LevelComp, refreshDataBtnRef, isRefreshingData, setIsRefreshingData, RegisteredComponents = {} } = ui
+    const { activeSource, activeView, sources, views, onSourceChange, onViewChange } = dataSource;
 
     const canEditSection = isUserAuthed(['edit-section'], sectionAuthPermissions);
     const canEditPageLayout = isUserAuthed(['edit-page-layout'], pageAuthPermissions);
     const canEditSectionPermissions = isUserAuthed(['edit-section-permissions'], sectionAuthPermissions);
+    const currentComponent = RegisteredComponents[value?.element?.['element-type'] || 'lexical'];
 
     // =================================================================================================================
     // ======================================== menu item groups begin =================================================
@@ -58,19 +60,43 @@ export const getSectionMenuItems = ({ state, actions, auth, ui }) => {
     ]
     const component = [
         {
-            name: 'Component', cdn: () => canEditSection, value: (value?.element?.['element-type'] === 'lexical' ? 'Rich Text' : value?.element?.['element-type']) || 'Rich Text',
+            name: 'Component', cdn: () => canEditSection, value: currentComponent.name,
             showValue: true, showSearch: true,
             items: Object.keys(RegisteredComponents)
                 .filter(k => !RegisteredComponents[k].hideInSelector)
                 .map(k => (
                     {
-                        icon: k === (value?.element?.['element-type'] || 'lexical') ? 'CircleCheck' : 'Blank',
+                        icon: RegisteredComponents[k].name === currentComponent.name ? 'CircleCheck' : 'Blank',
                         name: RegisteredComponents[k].name || k,
                         onClick: () => updateElementType(k)
                     }
                 )),
         },
     ]
+
+    const dataset = [
+        {
+            name: 'Dataset', icon: 'Database',
+            cdn: () => isEdit && currentComponent?.useDataSource && canEditSection,
+            items: [
+                {name: 'Source', icon: 'Database', showSearch: true,
+                    items: sources.map(({key, label}) => ({
+                        icon: key === activeSource ? 'CircleCheck' : 'Blank',
+                        id: crypto.randomUUID(),
+                        name: label,
+                        onClick: () => onSourceChange(key)
+                    }))},
+                {name: 'Version', icon: 'Database', showSearch: true,
+                    items: views.map(({key, label}) => ({
+                        icon: key === activeView ? 'CircleCheck' : 'Blank',
+                        id: crypto.randomUUID(),
+                        name: label,
+                        onClick: () => onViewChange(key)
+                    }))},
+            ]
+        }
+    ]
+
     const display = [
         {
             name: 'Display',
@@ -275,6 +301,7 @@ export const getSectionMenuItems = ({ state, actions, auth, ui }) => {
             ...moveItems,
             {type: 'separator', cdn: () => !isEdit && canEditPageLayout},
             ...component,
+            ...dataset,
             ...display,
             ...layout,
             ...permissions,

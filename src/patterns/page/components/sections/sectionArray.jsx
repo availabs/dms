@@ -13,7 +13,7 @@ const Edit = ({ value, onChange, attr, group, siteType }) => {
     const { editPane, format, item  } =  React.useContext(PageContext) || {}
     const { theme:fullTheme = { sectionArray: sectionArrayTheme}, UI } = React.useContext(ThemeContext) || {}
     const theme = getComponentTheme(fullTheme, 'pages.sectionArray')
-    const [ values, setValues ] = useState([]);
+    const [ values, setValues ] = useState(value);
     const [ active, setActive ] = useState(); // to handle multiple spreadsheet components on a page in conjunction with arrow/selection/copy controls
 
     const { Icon } = UI;

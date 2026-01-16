@@ -11,7 +11,7 @@ const navigableMenuTheme = {
     "iconWrapper": "size-4",
 
     // Menu container
-    "menuWrapper": "bg-white border w-64 p-1 min-h-[75px] rounded-md shadow-md",
+    "menuWrapper": "bg-white border w-80 p-1 min-h-[75px] rounded-md shadow-md",
 
     // Menu header
     "menuHeaderWrapper": "flex px-2 py-1 justify-between",
@@ -25,6 +25,7 @@ const navigableMenuTheme = {
     "menuCloseIconWrapper": "hover:cursor-pointer size-4",
 
     // Menu items
+    "menuItemsWrapper": "max-h-[80vh] overflow-y-auto scrollbar-sm",
     "menuItem": "group flex items-center justify-between px-2 py-1 rounded-md text-sm text-slate-800",
     "menuItemHover": "hover:bg-blue-300",
     "menuItemIconLabelWrapper": "flex flex-grow items-center gap-1",

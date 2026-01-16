@@ -4,7 +4,6 @@ import {isCalculatedCol} from "./filters/utils";
 import {getColumnLabel, isEqualColumns} from "../utils/utils";
 
 import AddFormulaColumn from "./AddFormulaColumn";
-import DataSourceSelector from "../../ComponentRegistry/DataSourceSelector";
 import { ComponentContext } from "../../../../../context";
 import { ThemeContext } from "../../../../../../../ui/useTheme";
 
@@ -252,8 +251,6 @@ export default function ColumnControls({context, cms_context}) {
                              role="menu"
                              className={`${open ? 'visible transition ease-in duration-50' : 'hidden transition ease-in duration-50'} w-[${width}]  left-0 origin-top-left divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 transition focus:outline-none`}
                         >
-                            {display.hideDatasourceSelector ? null : <DataSourceSelector />}
-
                             <div className="py-1 select-none">
                                 <div key={'header'}
                                      className="flex items-center px-2 py-1 text-xs text-gray-700 hover:bg-gray-100 hover:text-gray-900"

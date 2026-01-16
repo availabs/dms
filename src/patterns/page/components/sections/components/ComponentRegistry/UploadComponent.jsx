@@ -1,5 +1,4 @@
 import React, {useEffect, useContext} from 'react'
-import DataSourceSelector from "./DataSourceSelector";
 import {isJson} from "../dataWrapper/utils/utils";
 import Upload from "../../../../../forms/components/upload";
 import { CMSContext, ComponentContext } from "../../../../context";
@@ -27,9 +26,7 @@ const Edit = ({onChange}) => {
     // =========================================== saving settings end =================================================
 
     return (
-        <div className={'w-full h-full min-h-[50px]'}>
-            <DataSourceSelector sourceTypes={['internal']} />
-        </div>
+        <div className={'w-full h-full min-h-[50px]'}>Please select target dataset.</div>
     )
 }
 
@@ -74,6 +71,7 @@ export default {
     "name": 'Upload',
     "type": 'upload',
     defaultState,
+    useDataSource: true,
     "variables": [],
     "EditComp": Edit,
     "ViewComp": View
