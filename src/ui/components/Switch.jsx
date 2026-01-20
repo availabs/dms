@@ -23,14 +23,14 @@ export default function RenderSwitch({ enabled=false, setEnabled, label, disable
 
     const translateClasses = {
         true: {
-            xs: 'translate-x-3.5',
+            xs: 'translate-x-3/4',
             small: 'translate-x-3/4',
-            medium: 'translate-x-6'
+            medium: 'translate-x-3/4'
         },
         false: {
             xs: 'translate-x-0.5',
             small: 'translate-x-0.5',
-            medium: 'translate-x-1'
+            medium: 'translate-x-0.5'
         },
     }
 

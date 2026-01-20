@@ -752,6 +752,7 @@ export default function ({
                     start={start}
                     end={end}
                     localFilterData={localFilterData}
+                    activeStyle={activeStyle}
             />
         ),
         Footer: () => paginationActive || rows.length === display.totalLength || !infiniteScrollFetchData ? null : <div>loading...</div>,

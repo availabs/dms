@@ -5,7 +5,7 @@ export const Header = memo(function Header ({
     tableTheme, visibleAttrsWithoutOpenOut,
     numColSize, frozenCols, frozenColClass, selectedCols,
     isEdit, columns, display, controls, setState, colResizer, start, end,
-    localFilterData
+    localFilterData, activeStyle
 }) {
 
     const attrsToRender = visibleAttrsWithoutOpenOut.slice(start, end + 1);
@@ -52,6 +52,7 @@ export const Header = memo(function Header ({
                                                      controls={controls}
                                                      setState={setState}
                                                      localFilterData={localFilterData}
+                                                     activeStyle={activeStyle}
                                     />
                                 </div>
 

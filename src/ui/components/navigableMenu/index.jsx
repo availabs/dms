@@ -6,6 +6,8 @@ import { ThemeContext, getComponentTheme } from "../../useTheme";
 import Button from "../Button";
 import Icon from "../Icon";
 import Input from "../Input";
+import columnTypes from "../../columnTypes";
+import Switch from "../Switch";
 import Popup from "../Popup";
 import {isEqual} from "lodash-es";
 import defaultTheme from "./theme";
@@ -18,6 +20,8 @@ const defaultItems = [
 
 const Comps = {
   input : Input,
+  select: columnTypes.select.EditComp,
+  toggle: Switch,
   link : ({ menuItem, activeStyle }) => {
     const { theme: fullTheme = { navigableMenu: defaultTheme } } = React.useContext(ThemeContext) || {};
     const theme = getComponentTheme(fullTheme, 'navigableMenu', activeStyle);
@@ -44,7 +48,11 @@ const MenuItem = ({menuItem, setActiveParent, activeStyle}) => {
     const Comp = Comps[menuItem.type];
     return (
       <div key={menuItem.name} className={`${theme?.menuItem} ${theme?.menuItemHover}`}>
-        <Comp {...menuItem} menuItem={menuItem} type={menuItem.inputType} activeStyle={activeStyle} />
+        <div className={theme?.menuItemIconLabelWrapper}>
+          <Icon className={theme?.menuItemIconWrapper} icon={menuItem?.icon} />
+          <label className={theme?.menuItemLabel}>{menuItem.name}</label>
+        </div>
+          <Comp {...menuItem} menuItem={menuItem} type={menuItem.inputType} activeStyle={activeStyle} />
       </div>
     )
   }
@@ -66,7 +74,7 @@ const MenuItem = ({menuItem, setActiveParent, activeStyle}) => {
     >
       <div className={theme?.menuItemIconLabelWrapper}>
         <Icon className={theme?.menuItemIconWrapper} icon={menuItem?.icon} />
-        <label className={theme?.menuItemLabel}>{menuItem.name}</label>
+        <div className={theme?.menuItemLabel}>{menuItem.name}</div>
       </div>
 
       <div className={theme?.valueSubmenuIconWrapper}>
@@ -124,7 +132,7 @@ const Menu = ({config, title, showTitle=true, open, setOpen, activeStyle}) => {
                 </Button>
               ) : null
             }
-            <label className={theme?.menuTitle}>{config[activeParent]?.name ? config[activeParent]?.name : title}</label>
+            <div className={theme?.menuTitle}>{config[activeParent]?.name ? config[activeParent]?.name : title}</div>
           </div>
           <Button type={'plain'}
                   className={theme?.closeButton}

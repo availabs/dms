@@ -78,10 +78,11 @@ export default function ({
                             value: u.id
                         }))]}
                         onChange={e => {
+                            const clonedValue = cloneDeep(tmpValue);
                             const newAuth = {
-                                ...tmpValue,
+                                ...clonedValue,
                                 users: {
-                                    ...(tmpValue?.users || {}),
+                                    ...(clonedValue?.users || {}),
                                     [e.target.value]: defaultPermission || [],
                                 },
                             };
@@ -101,10 +102,11 @@ export default function ({
                                         multiple={true}
                                         options={permissionDomain}
                                         onChange={e => {
+                                            const clonedValue = cloneDeep(tmpValue);
                                             const newAuth = {
-                                                ...tmpValue,
+                                                ...clonedValue,
                                                 users: {
-                                                    ...(tmpValue?.users || {}),
+                                                    ...(clonedValue?.users || {}),
                                                     [userId]: e
                                                 },
                                             };
@@ -113,9 +115,7 @@ export default function ({
 
                                     <Button className={permissionsTheme.removeBtn}
                                             onClick={() => {
-                                                const newAuth = {
-                                                    ...tmpValue,
-                                                };
+                                                const newAuth = cloneDeep(tmpValue);
 
                                                 delete newAuth.users[userId];
 
@@ -135,10 +135,11 @@ export default function ({
                             value: u.name
                         }))]}
                         onChange={e => {
+                            const clonedValue = cloneDeep(tmpValue);
                             const newAuth = {
-                                ...tmpValue,
+                                ...clonedValue,
                                 groups: {
-                                    ...(tmpValue?.groups || {}),
+                                    ...(clonedValue?.groups || {}),
                                     [e.target.value]: defaultPermission || [],
                                 },
                             };
@@ -158,10 +159,11 @@ export default function ({
                                             multiple={true}
                                             options={permissionDomain}
                                             onChange={e => {
+                                                const clonedValue = cloneDeep(tmpValue)
                                                 const newAuth = {
-                                                    ...tmpValue,
+                                                    ...clonedValue,
                                                     groups: {
-                                                        ...(tmpValue?.groups || {}),
+                                                        ...(clonedValue?.groups || {}),
                                                         [groupName]: e
                                                     },
                                                 };
@@ -170,9 +172,7 @@ export default function ({
                                             }}/>
                                         <Button className={permissionsTheme.removeBtn}
                                                 onClick={() => {
-                                                    const newAuth = {
-                                                        ...tmpValue,
-                                                    };
+                                                    const newAuth = cloneDeep(tmpValue);
 
                                                     delete newAuth.groups[groupName];
 
