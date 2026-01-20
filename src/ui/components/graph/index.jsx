@@ -111,7 +111,7 @@ export const docs = [
 ]
 
 export default function ({
-    isEdit, columns=[], data=[], display={}, controls={}, setState=() => {}, isActive
+    isEdit, columns=[], data=[], display={}, controls={}, setState=() => {}, isActive, activeStyle
 }) {
     const { theme: themeFromContext = {graph: graphTheme}} = React.useContext(ThemeContext) || {};
     const theme = {...themeFromContext, graph: {...graphTheme, ...(themeFromContext.graph || {})}};
@@ -187,6 +187,7 @@ export default function ({
                                 attribute={attribute}
                                 columns={columns}
                                 display={display} controls={controls} setState={setState}
+                                activeStyle={activeStyle}
                             />
                         </div>)}
                 </div> : null

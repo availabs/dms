@@ -210,6 +210,7 @@ export default {
     useInfiniteScroll: false,
     showPagination: true,
     keepOriginalValues: true,
+    themeKey: 'dataCard',
     controls: {
         columns: [
             // settings from columns dropdown are stored in state.columns array, per column

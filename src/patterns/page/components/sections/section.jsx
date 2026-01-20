@@ -82,7 +82,8 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
 
     {/* apiLoad and apiUpdate are passed in ComponentContext as components won't always be in pages pattern. */}
     return (
-        <ComponentContext.Provider value={{state, setState, apiLoad, apiUpdate, controls: component?.controls, isActive: value?.element?.['element-type'] === 'Spreadsheet'}}>
+        <ComponentContext.Provider value={{state, setState, apiLoad, apiUpdate, controls: component?.controls,
+            isActive: value?.element?.['element-type'] === 'Spreadsheet', activeStyle: value?.activeStyle}}>
             <div className={theme.wrapper}>
                 {/* -------------------top line buttons ----------------------*/}
                 <div className={theme.topBar}>
@@ -219,7 +220,7 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
     })
 
     return (
-        <ComponentContext.Provider value={{state, setState, apiLoad, apiUpdate, controls: component?.controls, isActive}}>
+        <ComponentContext.Provider value={{state, setState, apiLoad, apiUpdate, controls: component?.controls, isActive, activeStyle: value?.activeStyle}}>
             <div className={editPageMode && hideSection ? theme.wrapperHidden : theme.wrapper} style={{pageBreakInside: "avoid"}}>
 
                 {/* -------------------top line buttons ----------------------*/}

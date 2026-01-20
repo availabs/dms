@@ -648,6 +648,7 @@ export default function ({
                                         attribute={attribute}
                                         columns={columns}
                                         display={display} controls={controls} setState={setState}
+                                        activeStyle={activeStyle}
                                     />
                                 </div>
                             ))

@@ -18,7 +18,7 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
                                 currentPage, infiniteScrollFetchData}) => {
     const { UI, theme = { table: tableTheme } } = React.useContext(ThemeContext) || {}
     const {Table} = UI;
-    const {state:{columns, sourceInfo, display, data, localFilteredData}, setState, controls={}, isActive} = useContext(ComponentContext);
+    const {state:{columns, sourceInfo, display, data, localFilteredData}, setState, controls={}, isActive, activeStyle} = useContext(ComponentContext);
     const gridRef = useRef(null);
 
     const visibleAttributes = useMemo(() => columns.filter(({show}) => show), [columns]);
@@ -72,7 +72,7 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
                   numColSize={numColSize} gutterColSize={gutterColSize} frozenColClass={frozenColClass} frozenCols={frozenCols}
                   currentPage={currentPage}
                   infiniteScrollFetchData={infiniteScrollFetchData}
-                  isActive={isActive}
+                  isActive={isActive} activeStyle={activeStyle}
     />
 }
 
@@ -131,6 +131,7 @@ export default {
     useInfiniteScroll: true,
     showPagination: true,
     keepOriginalValues: true,
+    themeKey: 'table',
     controls: {
         columns: [
             // settings from columns dropdown are stored in state.columns array, per column

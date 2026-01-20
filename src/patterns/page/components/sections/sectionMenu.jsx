@@ -15,6 +15,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
     const canEditPageLayout = isUserAuthed(['edit-page-layout'], pageAuthPermissions);
     const canEditSectionPermissions = isUserAuthed(['edit-section-permissions'], sectionAuthPermissions);
     const currentComponent = RegisteredComponents[value?.element?.['element-type'] || 'lexical'];
+    const currentComponentStyle = theme[currentComponent.themeKey || currentComponent.name];
 
     // =================================================================================================================
     // ======================================== menu item groups begin =================================================
@@ -360,10 +361,22 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
         },
     ]
 
+    const styles = currentComponentStyle?.styles || [];
+    const activeStyle = value?.activeStyle || currentComponentStyle?.options?.activeStyle;
+    const activeStyleName = styles[activeStyle]?.name || activeStyle;
+
     const layout = [
         {
             name: 'Layout',
             items: [
+                {
+                    name: 'Style', value: activeStyleName, showValue: true,
+                    items: styles.map((style, idx) => ({
+                        icon: idx === activeStyle ? 'CircleCheck' : '',
+                        name: style.name || idx,
+                        onClick: () => updateAttribute('activeStyle', idx)
+                    }))
+                },
                 {
                     icon: 'Column', name: 'Width', value: value?.['size'] || 1, showValue: true,
                     items: Object.keys(getComponentTheme(theme, 'pages.sectionArray').sizes || {})
