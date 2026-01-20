@@ -123,7 +123,7 @@ export function useDataSource({ state, setState, sourceTypes = ["external", "int
                     }, {}),
                 }),
         }),
-        [app, datasetPatterns.length, pgEnv, sourceTypes]
+        [app, datasetPatterns?.length, pgEnv, sourceTypes]
     );
 
     // =================================================================================================================
