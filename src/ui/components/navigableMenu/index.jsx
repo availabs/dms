@@ -60,7 +60,7 @@ const MenuItem = ({menuItem, setActiveParent, activeStyle}) => {
   const hasChildren = menuItem?.items?.length;
 
   return (
-    <div key={menuItem.name}
+    <div key={menuItem.id}
          className={`${theme?.menuItem} ${theme?.menuItemHover}`}
          onClick={hasChildren ? () => setActiveParent(menuItem.id) : menuItem.onClick}
     >
@@ -97,6 +97,12 @@ const Menu = ({config, title, showTitle=true, open, setOpen, activeStyle}) => {
   const showSearch = config[activeParent]?.showSearch;
 
   if(!open) return null;
+  const menuItems = useMemo(() =>
+      Object.values(config)
+          .filter(c =>
+              (!activeParent ? !c.parent : c.parent === activeParent) &&
+              c.name.toLowerCase().includes(search.toLowerCase())
+          ), [config, activeParent, search]);
 
   return (
     <div className={theme?.menuWrapper} ref={menuRef}>
@@ -107,7 +113,10 @@ const Menu = ({config, title, showTitle=true, open, setOpen, activeStyle}) => {
               activeParent ? (
                 <Button type={'plain'}
                         className={theme?.backButton}
-                        onClick={() => setActiveParent(prevParent)}
+                        onClick={() => {
+                          setActiveParent(prevParent)
+                          setSearch('')
+                        }}
                 >
                   <Icon icon={theme?.backIcon}
                         className={theme?.backIconWrapper}
@@ -130,11 +139,11 @@ const Menu = ({config, title, showTitle=true, open, setOpen, activeStyle}) => {
       {
         showSearch && <Input placeHolder={'search...'} value={search} onChange={e => setSearch(e.target.value)} />
       }
-      {
-        Object.values(config)
-          .filter(c => (!activeParent ? !c.parent : c.parent === activeParent) && (!search || c.name.toLowerCase().includes(search.toLowerCase())))
-          .map(menuItem => <MenuItem key={menuItem.name} menuItem={menuItem} setActiveParent={setActiveParent} activeStyle={activeStyle} />)
-      }
+      <div className={theme?.menuItemsWrapper}>
+        {
+          menuItems.map(menuItem => <MenuItem key={menuItem.id} menuItem={menuItem} setActiveParent={setActiveParent} activeStyle={activeStyle} />)
+        }
+      </div>
     </div>
   )
 }

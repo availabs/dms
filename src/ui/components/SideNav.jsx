@@ -290,7 +290,7 @@ const SubMenu = ({ depth, showSubMenu, subMenus, parent, activeStyle }) => {
     return null;
   }
 
-  console.log('subMenu theme', subMenus, theme)
+  // console.log('subMenu theme', subMenus, theme)
 
   return (
     <div className={theme?.[`subMenuWrapper_${depth+1}`]}>

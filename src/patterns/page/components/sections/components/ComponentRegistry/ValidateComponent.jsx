@@ -1,5 +1,4 @@
 import React, {useEffect, useContext} from 'react'
-import DataSourceSelector from "./DataSourceSelector";
 import {isJson} from "../dataWrapper/utils/utils";
 import Validate from "../../../../../forms/components/validate";
 import { CMSContext, ComponentContext } from "../../../../context";
@@ -26,9 +25,7 @@ const Edit = ({onChange}) => {
     // =========================================== saving settings end =================================================
 
     return (
-        <div className={'w-full h-full min-h-[50px]'}>
-            <DataSourceSelector sourceTypes={['internal']} />
-        </div>
+        <div className={'w-full h-full min-h-[50px]'}>Please select a dataset to validate.</div>
     )
 }
 
@@ -75,6 +72,7 @@ export default {
     "name": 'Validate',
     "type": 'Validate',
     defaultState,
+    useDataSource: true,
     "variables": [],
     "EditComp": Edit,
     "ViewComp": View

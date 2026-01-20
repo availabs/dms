@@ -7,6 +7,7 @@ import {CMSContext, PageContext, ComponentContext} from '../../context'
 import {getPageAuthPermissions} from "../../pages/_utils";
 import {getSectionMenuItems} from './sectionMenu'
 import {DeleteModal, getHelpTextArray, handlePaste, HelpTextEditPopups, ViewSectionHeader, initialState} from './section_utils'
+import {useDataSource} from "./useDataSource";
 import Component from "./components";
 import ComponentRegistry from "./components/ComponentRegistry";
 import {useImmer} from "use-immer";
@@ -28,6 +29,7 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
     const [state, setState] = useImmer(convertOldState(value?.['element']?.['element-data'] || '', initialState(component.defaultState)));
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [key, setKey] = useState(); // used to update lexical on paste
+    const {  activeSource, activeView, sources, views, onSourceChange, onViewChange } = useDataSource({state, setState});
 
     const theme = getComponentTheme(fullTheme, 'pages.section')
     const {Button, Icon, Switch, NavigableMenu, Permissions} = UI
@@ -56,7 +58,8 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
       state: { isEdit, value, attributes, i, theme: fullTheme, showDeleteModal },
       actions: { moveItem, updateAttribute, updateElementType, onChange, setKey, setState, setShowDeleteModal },
       auth: { user, isUserAuthed, pageAuthPermissions, sectionAuthPermissions, Permissions, AuthAPI },
-      ui:  { Switch, TitleEditComp, LevelComp, RegisteredComponents }
+      ui:  { Switch, TitleEditComp, LevelComp, RegisteredComponents },
+      dataSource: {  activeSource, activeView, sources, views, onSourceChange, onViewChange }
   })
 
     const editIcons = [
@@ -149,6 +152,7 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [isRefreshingData, setIsRefreshingData] = useState(false);
     const [hideSection, setHideSection] = useState(false);
+    const { activeSource, activeView, sources, views, onSourceChange, onViewChange } = useDataSource({state, setState});
 
     const isEdit = false; // should come from props
     const refreshDataBtnRef = useRef(null);
@@ -211,6 +215,7 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
         actions: { onEdit, moveItem, updateAttribute, updateElementType, onChange, setState, setShowDeleteModal },
         auth: { user, isUserAuthed, pageAuthPermissions, sectionAuthPermissions, Permissions, AuthAPI },
         ui:  { Switch, TitleEditComp, LevelComp, refreshDataBtnRef, isRefreshingData, setIsRefreshingData, RegisteredComponents },
+        dataSource: {  activeSource, activeView, sources, views, onSourceChange, onViewChange }
     })
 
     return (

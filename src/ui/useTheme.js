@@ -30,7 +30,7 @@ export const getPatternTheme = (themes, pattern) => {
   delete  baseTheme?.layout?.options
   return merge(
     baseTheme,
-    cloneDeep(pattern.theme)
+    cloneDeep(pattern?.theme) || {}
   );
 }
 
