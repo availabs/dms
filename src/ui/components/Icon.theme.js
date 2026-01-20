@@ -1,4 +1,5 @@
 export default {
     iconWrapper: '',
-    icon: 'size-6'
+    icon: 'size-6 fill-none'
+
 }

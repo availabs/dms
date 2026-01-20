@@ -158,7 +158,7 @@ export const SideNavItem = ({
 }) => {
   const { theme: fullTheme } = React.useContext(ThemeContext);
   const theme = getComponentTheme(fullTheme, 'sidenav', activeStyle)
-  const subMenuActivate = theme.subMenuActivate || 'onClick'
+  const subMenuActivate = theme?.subMenuActivate || 'onClick'
   //console.log('sidenavItem', theme)
 	const navigate = useNavigate();
 
@@ -215,7 +215,10 @@ export const SideNavItem = ({
 						{ !icon ? null : (
 								<Icon
 									icon={icon}
-									className={ isActive ? theme?.menuIconSideActive : theme?.menuIconSide }
+									className={ isActive
+										? (theme?.[`menuIconSideActive_level_${depth+1}`] || theme?.menuIconSideActive)
+										: (theme?.[`menuIconSide_level_${depth+1}`] || theme?.menuIconSide)
+									}
 								/>
               )
             }

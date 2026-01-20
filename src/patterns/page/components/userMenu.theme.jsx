@@ -8,7 +8,7 @@ export const userMenuTheme = {
       // UserMenu component
       userMenuContainer: 'flex w-full items-center justify-center rounded-xl min-w-[60px] @container',
       avatarWrapper: 'flex p-2 justify-center items-center',
-      avatar: 'size-8 border-2 border-[#E0EBF0] rounded-full place-items-center content-center',
+      avatar: 'size-8 border border-[#E0EBF0] rounded-full place-items-center content-center hover:bg-slate-400',
       avatarIcon: 'size-6 fill-[#37576b]',
       infoWrapper: 'flex-1 p-2 @max-[150px]:hidden',
       emailText: 'text-xs font-thin tracking-tighter text-left',
@@ -24,8 +24,8 @@ export const userMenuTheme = {
       // Login/Auth section
       loginWrapper: 'flex items-center justify-center py-2',
       loginLink: 'flex items-center',
-      loginIconWrapper: 'size-8 rounded-lg place-items-center content-center',
-      loginIcon: 'size-6 fill-[#37576b] hover:fill-slate-500',
+      loginIconWrapper: 'size-8 place-items-center content-center border border-[#E0EBF0] rounded-full hover:bg-slate-400',
+      loginIcon: 'size-6 stroke-slate-500 text-slate-500',
       authContainer: '@container w-full',
       authWrapper: 'flex p-1 items-center',
       userMenuWrapper: 'flex items-center flex-1 w-full',
