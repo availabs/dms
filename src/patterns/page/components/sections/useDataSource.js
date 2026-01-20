@@ -78,8 +78,8 @@ const getViews = async ({ envs, sourceId, srcEnv, falcor }) => {
 };
 
 export function useDataSource({ state, setState, sourceTypes = ["external", "internal"] }) {
-    const { app, type, falcor, pgEnv, datasetPatterns } = useContext(CMSContext);
-    const { format } = useContext(PageContext);
+  const { app, type, falcor, pgEnv, datasetPatterns } = useContext(CMSContext) || {};
+  const { format } = useContext(PageContext) || {};
 
     const [sources, setSources] = useState([]);
     const [views, setViews] = useState([]);
@@ -89,7 +89,7 @@ export function useDataSource({ state, setState, sourceTypes = ["external", "int
     const sectionColumns = useMemo(
         () =>
             (
-                (format.registerFormats || []).find((f) =>
+                (format?.registerFormats || []).find((f) =>
                     f.type.includes("cms-section")
                 )?.attributes || []
             ).map((a) => ({ ...a, name: a.name || a.key })),
@@ -97,7 +97,7 @@ export function useDataSource({ state, setState, sourceTypes = ["external", "int
     );
 
     const pageColumns = useMemo(
-        () => format.attributes.map((a) => ({ ...a, name: a.name || a.key })),
+        () => (format?.attributes || []).map((a) => ({ ...a, name: a.name || a.key })),
         [format]
     );
 
@@ -123,7 +123,7 @@ export function useDataSource({ state, setState, sourceTypes = ["external", "int
                     }, {}),
                 }),
         }),
-        [app, datasetPatterns.length, pgEnv, sourceTypes]
+        [app, datasetPatterns?.length, pgEnv, sourceTypes]
     );
 
     // =================================================================================================================

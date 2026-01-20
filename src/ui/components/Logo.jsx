@@ -1,6 +1,7 @@
 import React from 'react'
-import { ThemeContext } from '../useTheme.js'
+import { ThemeContext, getComponentTheme} from '../useTheme.js'
 import { Link } from 'react-router'
+import theme from '../../../../themes/wcdb/wcdb_theme.js'
 
 export const logoTheme = {
   logoWrapper: 'h-12 flex px-4 items-center',
@@ -32,17 +33,18 @@ export const docs = [
 
 export default function LogoComp (props) {
   const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
-  const theme = {...themeFromContext, logo: {...logoTheme, ...(themeFromContext.logo || {})}};
+
+  const theme = getComponentTheme(themeFromContext, 'logo', props.activeStyle)//{...themeFromContext, logo: {...logoTheme, ...(themeFromContext.logo || {})}};
 
   return (
-    <Link to={theme?.logo?.linkPath} className={theme?.logo?.logoWrapper}>
-      {theme?.logo?.img ?
-        <div className={theme?.logo?.imgWrapper}>
-          <img className={theme?.logo?.imgClass} src={theme?.logo?.img} />
+    <Link to={theme?.linkPath} className={theme?.logoWrapper}>
+      {theme?.img ?
+        <div className={theme?.imgWrapper}>
+          <img className={theme?.imgClass} src={theme?.img} />
         </div> :
-        <div className={theme.logo.logoAltImg} />
+        <div className={theme?.logoAltImg} />
       }
-      {theme?.logo?.title && <div className={theme.logo.titleWrapper}>{theme.logo.title}</div> }
+      {theme?.title && <div className={theme?.titleWrapper}>{theme?.title}</div> }
     </Link>
   )
 }
