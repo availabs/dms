@@ -29,10 +29,10 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
     const [state, setState] = useImmer(convertOldState(value?.['element']?.['element-data'] || '', initialState(component.defaultState)));
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [key, setKey] = useState(); // used to update lexical on paste
-    const {  activeSource, activeView, sources, views, onSourceChange, onViewChange } = useDataSource({state, setState});
+    const { activeSource, activeView, sources, views, onSourceChange, onViewChange } = useDataSource({state, setState});
 
     const theme = getComponentTheme(fullTheme, 'pages.section')
-    const {Button, Icon, Switch, NavigableMenu, Permissions} = UI
+    const {Button, Icon, Switch, NavigableMenu, Permissions, Pill} = UI
     const pageAuthPermissions = getPageAuthPermissions(pageState?.authPermissions);
     const sectionAuthPermissions = value?.authPermissions && typeof value.authPermissions === 'string' ? JSON.parse(value?.authPermissions) : undefined;
 
@@ -55,10 +55,10 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
 
 
   const sectionMenuItems = getSectionMenuItems({
-      state: { isEdit, value, attributes, i, theme: fullTheme, showDeleteModal },
+      sectionState: { isEdit, value, attributes, i, showDeleteModal, state },
       actions: { moveItem, updateAttribute, updateElementType, onChange, setKey, setState, setShowDeleteModal },
       auth: { user, isUserAuthed, pageAuthPermissions, sectionAuthPermissions, Permissions, AuthAPI },
-      ui:  { Switch, TitleEditComp, LevelComp, RegisteredComponents },
+      ui:  { Switch, Pill, TitleEditComp, LevelComp, theme: fullTheme, RegisteredComponents },
       dataSource: {  activeSource, activeView, sources, views, onSourceChange, onViewChange }
   })
 
@@ -144,7 +144,7 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
     const {theme: fullTheme, UI} = React.useContext(ThemeContext);
     const { pageState, apiLoad, apiUpdate } = useContext(PageContext);
 
-    const {NavigableMenu, Switch, Permissions} = UI;
+    const {NavigableMenu, Switch, Pill, Permissions} = UI;
     const theme = getComponentTheme(fullTheme, 'pages.section');
 
     const component = RegisteredComponents[get(value, ["element", "element-type"], "lexical")];
@@ -211,10 +211,10 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
     if (!value?.element?.['element-type'] && !value?.element?.['element-data']) return null;
 
     const sectionMenuItems = getSectionMenuItems({
-        state: { isEdit, value, attributes, i, theme: fullTheme, showDeleteModal },
+        sectionState: { isEdit, value, attributes, i, showDeleteModal, state },
         actions: { onEdit, moveItem, updateAttribute, updateElementType, onChange, setState, setShowDeleteModal },
         auth: { user, isUserAuthed, pageAuthPermissions, sectionAuthPermissions, Permissions, AuthAPI },
-        ui:  { Switch, TitleEditComp, LevelComp, refreshDataBtnRef, isRefreshingData, setIsRefreshingData, RegisteredComponents },
+        ui:  { Switch, Pill, TitleEditComp, LevelComp, refreshDataBtnRef, isRefreshingData, setIsRefreshingData, theme: fullTheme, RegisteredComponents },
         dataSource: {  activeSource, activeView, sources, views, onSourceChange, onViewChange }
     })
 

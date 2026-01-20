@@ -9,7 +9,6 @@ import ActionControls from "./controls/ActionControls";
 import {ComponentContext} from '../../../../../context'
 import {ThemeContext} from "../../../../../../../ui/useTheme"
 import {isEqualColumns} from "../../dataWrapper/utils/utils";
-import {duplicateControl} from "../sharedControls/duplicateControl";
 import {tableTheme} from "../../../../../../../ui/components/table";
 
 const frozenCols = [0,1] // testing
@@ -151,7 +150,6 @@ export default {
                         column.valueColumn = value ? column.name === attribute.name : value;
                     })
                 }},
-            duplicateControl,
         ],
         actions: {Comp: ActionControls},
         more: [

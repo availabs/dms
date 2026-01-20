@@ -1,7 +1,6 @@
 import React, {useContext} from "react";
 import {ComponentContext} from "../../../../../context";
 import { ThemeContext } from "../../../../../../../ui/useTheme";
-import {duplicateControl} from "../sharedControls/duplicateControl";
 import {getColorRange} from "../../../../../../../ui/components/graph/GraphComponent";
 import AppearanceControls from "./controls/AppearanceControls";
 
@@ -124,7 +123,6 @@ export default {
                 }},
 
             {type: 'toggle', label: 'Filter', key: 'filters', trueValue: [{type: 'internal', operation: 'filter', values: []}]},
-            duplicateControl
         ],
         appearance: {Comp: AppearanceControls},
         inHeader: [

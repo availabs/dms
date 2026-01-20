@@ -1,7 +1,6 @@
 import React, {useContext} from "react";
 import { ComponentContext } from "../../../../context";
 import { ThemeContext } from "../../../../../../ui/useTheme";
-import {duplicateControl} from "./sharedControls/duplicateControl";
 import {formatFunctions} from "../dataWrapper/utils/utils";
 import ColorControls from "./sharedControls/ColorControls";
 import {ToggleControl} from "../dataWrapper/components/ToggleControl";
@@ -225,7 +224,6 @@ export default {
             {type: 'toggle', label: 'show', key: 'show'},
             {type: 'toggle', label: 'Filter', key: 'filters', trueValue: [{type: 'internal', operation: 'filter', values: []}]},
             {type: 'toggle', label: 'Group', key: 'group'},
-            duplicateControl
         ],
         more: [
             // settings from more dropdown are stored in state.display

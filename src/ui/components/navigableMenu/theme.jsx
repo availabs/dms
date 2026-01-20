@@ -26,10 +26,10 @@ const navigableMenuTheme = {
 
     // Menu items
     "menuItemsWrapper": "max-h-[80vh] overflow-y-auto scrollbar-sm",
-    "menuItem": "group flex items-center justify-between px-2 py-1 rounded-md text-sm text-slate-800",
+    "menuItem": "group flex gap-1 items-center justify-between px-2 py-1 rounded-md text-sm text-slate-800",
     "menuItemHover": "hover:bg-blue-300",
-    "menuItemIconLabelWrapper": "flex flex-grow items-center gap-1",
-    "menuItemIconWrapper": "size-5 stroke-slate-500 group-hover:stroke-slate-800",
+    "menuItemIconLabelWrapper": "flex flex-1 items-center gap-1",
+    "menuItemIconWrapper": "min-w-5 size-5 stroke-slate-500 group-hover:stroke-slate-800",
     "menuItemLabel": "",
     "menuItemLabelLink": "cursor-pointer",
 
