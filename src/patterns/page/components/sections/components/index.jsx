@@ -61,6 +61,8 @@ function ViewComp({value, onChange, siteType, pageFormat, refreshDataBtnRef, com
             return;
         }
 
+        //console.log('refresh component', component)
+
         const getData = (component.useDataSource ? DataWrapper : component)?.getData;
         if (!getData) return;
         // console.time('fetching data')
@@ -100,4 +102,3 @@ const Component = {
 }
 
 export default Component
-

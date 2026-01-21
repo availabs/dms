@@ -354,7 +354,7 @@ const AddSectionButton = ({onClick}) => {
     return (
         <div
             className={`
-                ${theme?.sectionPadding}
+                p-[1px]
                 ${theme?.sectionEditWrapper}
                 ${theme?.sizes?.["1"]?.className}
                 ${theme?.rowspans?.["1"]?.className}

@@ -15,7 +15,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
     const canEditPageLayout = isUserAuthed(['edit-page-layout'], pageAuthPermissions);
     const canEditSectionPermissions = isUserAuthed(['edit-section-permissions'], sectionAuthPermissions);
     const currentComponent = RegisteredComponents[value?.element?.['element-type'] || 'lexical'];
-    const currentComponentStyle = theme[currentComponent.themeKey || currentComponent.name];
+    const currentComponentStyle = theme[currentComponent?.themeKey || currentComponent?.name];
 
     // =================================================================================================================
     // ======================================== menu item groups begin =================================================
@@ -52,13 +52,13 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
 
     const component = [
         {
-            name: 'Component', cdn: () => canEditSection, value: currentComponent.name,
+            name: 'Component', cdn: () => canEditSection, value: currentComponent?.name,
             showValue: true, showSearch: true,
             items: Object.keys(RegisteredComponents)
                 .filter(k => !RegisteredComponents[k].hideInSelector)
                 .map(k => (
                     {
-                        icon: RegisteredComponents[k].name === currentComponent.name ? 'CircleCheck' : 'Blank',
+                        icon: RegisteredComponents[k].name === currentComponent?.name ? 'CircleCheck' : 'Blank',
                         name: RegisteredComponents[k].name || k,
                         onClick: () => updateElementType(k)
                     }
@@ -101,9 +101,9 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
         }
     ]
     const columnsToRender =
-        [...state.columns, ...(state.sourceInfo.columns || []).filter(c => !state.columns.map(c => c.name).includes(c.name))]
-    if(state.columns.some(column => column.type === 'formula')){
-        columnsToRender.push(...state.columns.filter(column => column.type === 'formula'))
+      [...(state?.columns || []), ...(state?.sourceInfo?.columns || []).filter(c => !(state?.columns || []).map(c => c.name).includes(c.name))]
+    if((state?.columns || []).some(column => column.type === 'formula')){
+        columnsToRender.push(...(state?.columns || []).filter(column => column.type === 'formula'))
     }
     // updates column if present, else adds it with the change the user made.
     const updateColumns = (originalAttribute, key, value, onChange) => {
@@ -234,8 +234,12 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
             })
         }
     }), [state.columns]);
-    const isEveryColVisible = (state.sourceInfo.columns || []).map(({name}) => state.columns.find(column => column.name === name)).every(column => column?.show);
-    const isSystemIDColOn = state.columns.find(c => c.systemCol && c.name === 'id');
+  const isEveryColVisible = (state?.sourceInfo?.columns || [])
+      .map(({ name }) => (state?.columns || [])
+      .find(column => column.name === name))
+      .every(column => column?.show);
+  const isSystemIDColOn = (state?.columns || [])
+      .find(c => c.systemCol && c.name === 'id');
     const columns = [
         {
             name: 'Columns', cdn: () => isEdit && currentComponent?.useDataSource && canEditSection,
