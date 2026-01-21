@@ -48,11 +48,14 @@ const MenuItem = ({menuItem, setActiveParent, activeStyle}) => {
     const Comp = Comps[menuItem.type];
     return (
       <div key={menuItem.name} className={`${theme?.menuItem} ${theme?.menuItemHover}`}>
-        <div className={theme?.menuItemIconLabelWrapper}>
-          <Icon className={theme?.menuItemIconWrapper} icon={menuItem?.icon} />
-          <label className={theme?.menuItemLabel}>{menuItem.name}</label>
-        </div>
-          <Comp {...menuItem} menuItem={menuItem} type={menuItem.inputType} activeStyle={activeStyle} />
+        {menuItem.showLabel ? (
+            <div className={theme?.menuItemIconLabelWrapper}>
+              <Icon className={theme?.menuItemIconWrapper} icon={menuItem?.icon} />
+              <label className={theme?.menuItemLabel}>{menuItem.name}</label>
+            </div>
+        ) : null}
+
+        <Comp {...menuItem} menuItem={menuItem} type={menuItem.inputType} activeStyle={activeStyle} />
       </div>
     )
   }
