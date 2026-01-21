@@ -92,7 +92,7 @@ const RenderAction = ({actions, updateAction, deleteAction, action = {}}) => {
 
                         <div className={'my-0.5 flex w-full justify-end'}>
                             {
-                                newAction.type === 'url' ?
+                                newAction.actionType === 'url' ?
                                     <input className={'px-1 border w-full rounded-md'}
                                            placeholder={'url'}
                                            value={newAction.url || ''}
