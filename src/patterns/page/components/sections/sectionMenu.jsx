@@ -143,6 +143,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                                         value: column[control.key],
                                         disabled: isDisabled,
                                         options: control.options,
+                                        showLabel: true,
 
                                         // for toggles
                                         enabled: control.type === 'toggle' ? !!column[control.key] : undefined,
@@ -179,6 +180,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                         name: label,
                         value: state.display[key],
                         options: options,
+                        showLabel: true,
 
                         // for toggles
                         enabled: type === 'toggle' ? !!state.display[key] : undefined,
