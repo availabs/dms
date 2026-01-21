@@ -84,7 +84,7 @@ export const layoutGroupSettings =  (theme) => [
     label: "LayoutGroup",
     type: 'inline',
     controls: [
-      ...Object.keys(theme?.layoutGroup?.styles?.[theme?.layoutGroup?.options?.activeStyle || 0] )
+      ...Object.keys(theme?.layoutGroup?.styles?.[theme?.layoutGroup?.options?.activeStyle || 0] || {})
         .map(k => {
           return {
             label: k,
