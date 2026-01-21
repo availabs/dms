@@ -1,4 +1,4 @@
-import React, {useEffect, useMemo, useRef, useState} from "react";
+import React, {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import { useImmer } from "use-immer";
 import { Link } from 'react-router'
 
@@ -115,6 +115,11 @@ const Menu = ({config, title, showTitle=true, open, setOpen, activeStyle}) => {
               c.name.toLowerCase().includes(search.toLowerCase())
           ), [config, activeParent, search]);
 
+  const changeParent = useCallback((parent) => {
+    setActiveParent(parent);
+    setSearch('')
+  }, [])
+
   return (
     <div className={theme?.menuWrapper} ref={menuRef}>
       { showTitle &&
@@ -124,10 +129,7 @@ const Menu = ({config, title, showTitle=true, open, setOpen, activeStyle}) => {
               activeParent ? (
                 <Button type={'plain'}
                         className={theme?.backButton}
-                        onClick={() => {
-                          setActiveParent(prevParent)
-                          setSearch('')
-                        }}
+                        onClick={() => changeParent(prevParent)}
                 >
                   <Icon icon={theme?.backIcon}
                         className={theme?.backIconWrapper}
@@ -152,7 +154,7 @@ const Menu = ({config, title, showTitle=true, open, setOpen, activeStyle}) => {
       }
       <div className={theme?.menuItemsWrapper}>
         {
-          menuItems.map(menuItem => <MenuItem key={menuItem.id} menuItem={menuItem} setActiveParent={setActiveParent} activeStyle={activeStyle} />)
+          menuItems.map(menuItem => <MenuItem key={menuItem.id} menuItem={menuItem} setActiveParent={changeParent} activeStyle={activeStyle} />)
         }
       </div>
     </div>

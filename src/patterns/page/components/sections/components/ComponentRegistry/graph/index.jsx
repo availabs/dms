@@ -124,7 +124,7 @@ export default {
 
             {type: 'toggle', label: 'Filter', key: 'filters', trueValue: [{type: 'internal', operation: 'filter', values: []}]},
         ],
-        appearance: {Comp: AppearanceControls},
+        appearance: {name: 'Appearance', type: AppearanceControls},
         inHeader: [
             {type: 'select', label: 'Sort', key: 'sort',
                 options: [

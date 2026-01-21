@@ -170,7 +170,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
 
     const more = [
         {
-            name: 'More', cdn: () => isEdit && currentComponent?.useDataSource && canEditSection,
+            name: 'More', cdn: () => isEdit && currentComponent?.useDataSource && canEditSection && currentComponent.controls?.more?.length,
             showSearch: true,
             items: (currentComponent.controls?.more || [])
                 .filter(({displayCdn}) =>
@@ -201,6 +201,16 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
 
         },
     ]
+
+    const other =
+        Object.keys(currentComponent.controls || {})
+            .filter(controlGroup => !['columns', 'more', 'inHeader'].includes(controlGroup) && isEdit && canEditSection)
+            .map(controlGroup => ({
+                name: currentComponent.controls[controlGroup].name || controlGroup,
+                items: [
+                    {name: 'component', type: currentComponent.controls[controlGroup].type}
+                ]
+            }))
 
     const display = [
         {
@@ -421,6 +431,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
             ...dataset,
             ...columns,
             ...more,
+            ...other,
             ...display,
             ...layout,
             ...permissions,

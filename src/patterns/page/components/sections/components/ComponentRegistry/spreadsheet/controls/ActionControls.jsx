@@ -228,7 +228,7 @@ const RenderAddAction = ({addAction}) => {
 
 // linkCol: {isLink, linkText, linkAddress}
 // action: {name, actionType: delete/url, icon, display: edit/view/both}
-export default function ActionControls({context}) {
+export default function ActionControls({context, isInMenu=false}) {
     // each action has:
     // name: used as title, fallback if no icon is selected. only needed if it's not data column.
     // name: if action is related to a column, use its name. oterwise empty
@@ -239,7 +239,7 @@ export default function ActionControls({context}) {
     // attach search params
     const {state:{columns}, setState} = useContext(context || ComponentContext);
     const {UI} = useContext(ThemeContext) || {UI: {}};
-    const {Icon, Button, Popup} = UI;
+    const {Icon, Button, Popup, Input} = UI;
     const [search, setSearch] = useState();
     const actionColumns = columns.filter(column => column.actionType); //two types of actions.
 
@@ -272,6 +272,28 @@ export default function ActionControls({context}) {
             draft.columns.push(action)
         })
     }, [columns])
+
+    if(isInMenu){
+        return (
+            <div className={`visible transition ease-in duration-200 w-72 origin-top-left divide-y divide-gray-100 rounded-md bg-white`}
+            >
+                <Input key={'search'}
+                       placeHolder={'search...'}
+                       onChange={e => setSearch(e.target.value)} />
+                <RenderAddAction ket={'add-action'} actions={actionColumns} addAction={addAction} />
+                <div key={'actions'} className="py-1 max-h-[500px] overflow-auto scrollbar-sm">
+                    {
+                        actionColumns
+                            .filter(a => a && (!search || (a.name).toLowerCase().includes(search.toLowerCase())))
+                            .map((action, i) => (
+                                <RenderAction key={i} action={action} actions={actionColumns} updateAction={updateAction} deleteAction={deleteAction} />
+                            ))
+                    }
+
+                </div>
+            </div>
+        )
+    }
 
     return (
         <div className="relative inline-block text-left">

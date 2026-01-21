@@ -153,7 +153,7 @@ export default {
                     })
                 }},
         ],
-        actions: {Comp: ActionControls},
+        actions: {name: 'Actions', Comp: ActionControls, type: () => ActionControls({isInMenu: true})},
         more: [
             // settings from more dropdown are stored in state.display
             {type: 'toggle', label: 'Attribution', key: 'showAttribution'},
