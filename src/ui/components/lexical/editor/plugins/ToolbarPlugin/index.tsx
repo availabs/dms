@@ -585,7 +585,8 @@ export default function ToolbarPlugin({
       setIsSubscript(selection.hasFormat('subscript'));
       setIsSuperscript(selection.hasFormat('superscript'));
       setIsCode(selection.hasFormat('code'));
-      setIsRTL($isParentElementRTL(selection));
+      setIsRTL(false); // bugs out
+      // setIsRTL($isParentElementRTL(selection));
 
       // Update links
       const node = getSelectedNode(selection);
