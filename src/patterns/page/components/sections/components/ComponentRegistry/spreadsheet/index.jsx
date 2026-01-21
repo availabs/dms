@@ -18,7 +18,7 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
                                 currentPage, infiniteScrollFetchData}) => {
     const { UI, theme = { table: tableTheme } } = React.useContext(ThemeContext) || {}
     const {Table} = UI;
-    const {state:{columns, sourceInfo, display, data, localFilteredData}, setState, controls={}, isActive, activeStyle} = useContext(ComponentContext);
+    const {state:{columns, sourceInfo, display, data, localFilteredData, fullData}, setState, controls={}, isActive, activeStyle} = useContext(ComponentContext);
     const gridRef = useRef(null);
 
     const visibleAttributes = useMemo(() => columns.filter(({show}) => show), [columns]);
@@ -63,7 +63,8 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
 
     //console.log('render table')
     if(!visibleAttributes.length) return <div className={'p-2'}>No columns selected.</div>;
-    return <Table columns={columns} data={data} localFilteredData={localFilteredData} display={display} controls={controls} setState={setState}
+    return <Table columns={columns} data={data} localFilteredData={localFilteredData} fullData={fullData}
+                  display={display} controls={controls} setState={setState}
                   allowEdit={allowEdit} isEdit={isEdit} loading={loading}
                   gridRef={gridRef}
                   theme={theme} paginationActive={paginationActive}

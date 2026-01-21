@@ -443,7 +443,7 @@ export default function ({
     allowEdit,
     updateItem, removeItem, isEdit,
     numColSize=defaultNumColSize, frozenColClass, frozenCols=[],
-    columns=[], data: unFilteredData=[], localFilteredData, display={}, controls={}, setState, isActive,
+    columns=[], data: unFilteredData=[], localFilteredData, fullData, display={}, controls={}, setState, isActive,
     addItem, newItem={}, setNewItem, infiniteScrollFetchData, currentPage, activeStyle
 }) {
     const data = localFilteredData || unFilteredData;
@@ -717,7 +717,7 @@ export default function ({
             .filter(attribute => ['select', 'multiselect', 'radio'].includes(attribute.type))
             .map(attribute => attribute.name);
 
-        unFilteredData.forEach(row => {
+        (fullData || unFilteredData).forEach(row => {
             columns.forEach(column => {
                 const values = Array.isArray(row[column])  ? row[column] : [row[column]];
 
@@ -733,7 +733,7 @@ export default function ({
         })
 
         return dataToReturn;
-    }, [unFilteredData, visibleAttrsWithoutOpenOut]);
+    }, [fullData, unFilteredData, visibleAttrsWithoutOpenOut]);
 
     const components = useMemo(() => ({
         Header: ({start, end}) => (

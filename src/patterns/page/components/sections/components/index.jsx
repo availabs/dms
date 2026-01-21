@@ -3,7 +3,7 @@ import {isEqual} from "lodash-es";
 import DataWrapper from "./dataWrapper";
 import {Controls} from "./dataWrapper/components/Controls";
 import {RenderFilters} from "./dataWrapper/components/filters/RenderFilters";
-import {PageContext} from '../../../context'
+import {PageContext, ComponentContext} from '../../../context'
 
 function EditComp({value, onChange, compKey, component, siteType, pageFormat}) {
 
@@ -40,6 +40,7 @@ function EditComp({value, onChange, compKey, component, siteType, pageFormat}) {
 
 function ViewComp({value, onChange, siteType, pageFormat, refreshDataBtnRef, component}) {
     const { apiLoad } =  React.useContext(PageContext) || {}
+    const { state } = React.useContext(ComponentContext);
     const defaultComp = () => <div> Component {value["element-type"]} Not Registered </div>;
 
     const updateAttribute = (k, v) => {
