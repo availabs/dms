@@ -1,6 +1,10 @@
 import React from 'react'
 import { handleCopy, handlePaste, TagComponent } from "./section_utils"
-import {getColumnLabel, updateColumns, resetColumn, resetAllColumns, duplicate, toggleIdFilter, toggleGlobalVisibility} from "./controls_utils";
+import {
+    getColumnLabel, updateColumns, resetColumn,
+    resetAllColumns, duplicate, toggleIdFilter,
+    toggleGlobalVisibility, updateDisplayValue
+} from "./controls_utils";
 import { getComponentTheme } from "../../../../ui/useTheme";
 
 // todo move filters here
@@ -132,7 +136,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                         {
                             name: getColumnLabel(column), icon: column.show ? 'Eye' : '',
                             items: [
-                                ...currentComponent.controls.columns.map(control => {
+                                ...(currentComponent.controls?.columns || []).map(control => {
                                     const isDisabled = typeof control.disabled === 'function' ? control.disabled({attribute: column}) : control.disabled;
                                     return ({
                                         name: control.label,
@@ -160,6 +164,39 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                         }
                     ))
             ]
+        },
+    ]
+
+    const more = [
+        {
+            name: 'More', cdn: () => isEdit && currentComponent?.useDataSource && canEditSection,
+            showSearch: true,
+            items: (currentComponent.controls?.more || [])
+                .filter(({displayCdn}) =>
+                    typeof displayCdn === 'function' ? displayCdn({display: state.display}) :
+                        typeof displayCdn === 'boolean' ? displayCdn : true)
+                    .map(({type, inputType, label, key, options, onChange, ...rest}) => ({
+                        name: label,
+                        value: state.display[key],
+                        options: options,
+
+                        // for toggles
+                        enabled: type === 'toggle' ? !!state.display[key] : undefined,
+                        setEnabled: type === 'toggle' ? (value) => updateDisplayValue(key, value, onChange, setState) : undefined,
+
+                        onChange:
+                            !['toggle', 'function'].includes(type) ?
+                                e => updateDisplayValue(key,
+                                    inputType === 'number' ?
+                                        +(e?.target?.value ?? e) :
+                                        (e?.target?.value ?? e),
+                                    onChange, setState) : undefined,
+                        type: typeof type === 'function' ? () =>
+                                type({value: state.display[key], setValue: newValue => updateDisplayValue(key, newValue, onChange, setState)})
+                            : type,
+                        inputType
+                        }))
+
         },
     ]
 
@@ -381,6 +418,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
             ...component,
             ...dataset,
             ...columns,
+            ...more,
             ...display,
             ...layout,
             ...permissions,

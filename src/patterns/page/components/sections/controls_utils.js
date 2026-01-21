@@ -1,4 +1,5 @@
 import {cloneDeep} from "lodash-es";
+import {useCallback} from "react";
 
 export const getColumnLabel = (column) =>
     column.customName || column.display_name || column.name;
@@ -136,3 +137,18 @@ export const addFormulaColumn = (column, setState) => setState(draft => {
         })
     }
 })
+export const updateDisplayValue = (key, value, onChange, setState) => {
+    setState(draft => {
+        draft.display[key] = value;
+
+        if(key === 'allowEditInView' && value){
+            draft.columns.forEach(column => {
+                column.allowEditInView = true;
+            })
+        }
+
+        if(onChange) {
+            onChange({key, value, state: draft})
+        }
+    })
+}
