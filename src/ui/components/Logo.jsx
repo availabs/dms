@@ -1,7 +1,6 @@
 import React from 'react'
 import { ThemeContext, getComponentTheme} from '../useTheme.js'
 import { Link } from 'react-router'
-import theme from '../../../../themes/wcdb/wcdb_theme.js'
 
 export const logoTheme = {
   logoWrapper: 'h-12 flex px-4 items-center',
