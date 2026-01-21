@@ -16,16 +16,16 @@ export default function RenderSwitch({ enabled=false, setEnabled, label, disable
     }
 
     const sizeClassesDot = {
-        xs: 'h-1.5 w-1.5 p-1',
-        small: 'h-3.5 w-3.5 p-1',
+        xs: 'h-1.5 w-1.5',
+        small: 'h-3 w-3',
         medium: 'h-4 w-4'
     }
 
     const translateClasses = {
         true: {
-            xs: 'translate-x-3/4',
-            small: 'translate-x-3/4',
-            medium: 'translate-x-3/4'
+            xs: 'translate-x-4',
+            small: 'translate-x-4.5',
+            medium: 'translate-x-6.5'
         },
         false: {
             xs: 'translate-x-0.5',
