@@ -8,6 +8,7 @@ import { convertOldState } from "./utils/convertOldState";
 import {useHandleClickOutside, getData, isCalculatedCol} from "./utils/utils";
 import { Attribution } from "./components/Attribution";
 import { Pagination } from "./components/Pagination";
+import { getExternalEnv } from "../../../../pages/_utils/datasources";
 
 const getCurrDate = () => {
     const options = {
@@ -106,7 +107,8 @@ const RenderDownload = ({state, apiLoad, cms_context}) => {
 const Edit = ({cms_context, value, onChange, component}) => {
     const isEdit = Boolean(onChange);
     const { UI } = useContext(ThemeContext)
-    const {pgEnv} = useContext(cms_context || CMSContext);
+    const {datasources} = useContext(cms_context || CMSContext);
+    const pgEnv = getExternalEnv(datasources);
     const {Icon} = UI;
     const {state, setState, apiLoad, apiUpdate} = useContext(ComponentContext);
     const [loading, setLoading] = useState(false);
@@ -512,7 +514,8 @@ const Edit = ({cms_context, value, onChange, component}) => {
 const View = ({cms_context, value, component}) => {
     const isEdit = false;
     const navigate = useNavigate();
-    const {pgEnv, baseUrl} = useContext(cms_context || CMSContext) || {};
+    const {datasources, baseUrl} = useContext(cms_context || CMSContext) || {};
+    const pgEnv = getExternalEnv(datasources);
     const { UI } = useContext(ThemeContext)
     const {Icon} = UI;
     const {state, setState, apiLoad, apiUpdate} = useContext(ComponentContext);

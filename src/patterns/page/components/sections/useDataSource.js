@@ -78,7 +78,7 @@ const getViews = async ({ envs, sourceId, srcEnv, falcor }) => {
 };
 
 export function useDataSource({ state, setState, sourceTypes = ["external", "internal"] }) {
-  const { app, type, falcor, pgEnv, datasetPatterns } = useContext(CMSContext) || {};
+  const { app, type, falcor, datasources } = useContext(CMSContext) || {};
   const { format } = useContext(PageContext) || {};
 
     const [sources, setSources] = useState([]);
@@ -102,28 +102,23 @@ export function useDataSource({ state, setState, sourceTypes = ["external", "int
     );
 
     const envs = useMemo(
-        () => ({
-            ...(sourceTypes.includes("external") && {
-                [pgEnv]: {
-                    label: "external",
-                    srcAttributes: ["name", "metadata"],
-                    viewAttributes: ["version", "_modified_timestamp"],
-                },
-            }),
-            ...(sourceTypes.includes("internal") &&
-                datasetPatterns?.length && {
-                    ...datasetPatterns.reduce((acc, pattern) => {
-                        acc[`${app}+${pattern.doc_type}`] = {
-                            label: "managed",
-                            isDms: true,
-                            srcAttributes: ["app", "name", "doc_type", "config", "default_columns"],
-                            viewAttributes: ["name", "updated_at"],
-                        };
-                        return acc;
-                    }, {}),
-                }),
-        }),
-        [app, datasetPatterns?.length, pgEnv, sourceTypes]
+        () => {
+            if (!datasources?.length) return {};
+
+            return datasources
+                .filter(ds => sourceTypes.includes(ds.type))
+                .reduce((acc, ds) => {
+                    acc[ds.env] = {
+                        label: ds.label,
+                        isDms: ds.isDms || false,
+                        baseUrl: ds.baseUrl,
+                        srcAttributes: ds.srcAttributes,
+                        viewAttributes: ds.viewAttributes,
+                    };
+                    return acc;
+                }, {});
+        },
+        [datasources, sourceTypes]
     );
 
     // =================================================================================================================
@@ -138,8 +133,10 @@ export function useDataSource({ state, setState, sourceTypes = ["external", "int
                 const existing = data.find((d) => +d.source_id === +sourceId);
 
                 if (existing && !isEqual(existing.columns, state.sourceInfo?.columns)) {
+                    // Include baseUrl from envs when updating sourceInfo
+                    const baseUrl = envs[existing.srcEnv]?.baseUrl || '';
                     setState((draft) => {
-                        draft.sourceInfo = { ...draft.sourceInfo, ...existing };
+                        draft.sourceInfo = { ...draft.sourceInfo, ...existing, baseUrl };
                     });
                 }
             })
@@ -181,6 +178,9 @@ export function useDataSource({ state, setState, sourceTypes = ["external", "int
                         ? "sections"
                         : "pages";
 
+                    // Get baseUrl for internal sources
+                    const internalBaseUrl = datasources?.find(ds => ds.type === 'internal')?.baseUrl || '/forms';
+
                     draft.sourceInfo = {
                         isDms: true,
                         app,
@@ -200,14 +200,17 @@ export function useDataSource({ state, setState, sourceTypes = ["external", "int
                                 )}|cms-section`,
                         view_id: "",
                         source_id: sourceId,
+                        baseUrl: internalBaseUrl,
                     };
                 } else if (match) {
                     const { doc_type, ...rest } = match;
-                    draft.sourceInfo = { ...rest, type: doc_type };
+                    // Get baseUrl from the matched source's environment
+                    const baseUrl = envs[match.srcEnv]?.baseUrl || '';
+                    draft.sourceInfo = { ...rest, type: doc_type, baseUrl };
                 }
             });
         },
-        [sources, app, type, pageColumns, sectionColumns, setState]
+        [sources, app, type, pageColumns, sectionColumns, setState, datasources, envs]
     );
 
     const onViewChange = useCallback(

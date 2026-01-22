@@ -6,8 +6,11 @@ import { get } from "lodash-es";;
 import { CMSContext } from '../../../../context'
 import TemplateSelector from "./TemplateSelector";
 import {generatePages} from "./generatePages";
+import { getExternalEnv } from '../../../../pages/_utils/datasources'
+
 const ViewInfo = ({submit, item, onChange, loadingStatus, apiLoad, setLoadingStatus=() => {}}) => {
-    const { falcor, falcorCache, pgEnv, app, type } = React.useContext(CMSContext);
+    const { falcor, falcorCache, datasources, app, type } = React.useContext(CMSContext);
+    const pgEnv = getExternalEnv(datasources);
     const [generatedPages, setGeneratedPages] = useState([]);
     const [showAdditionalOptions, setShowAdditionalOptions] = useState(false);
     const [urlSuffixCol, setUrlSuffixCol] = useState(item?.data_controls?.urlSuffixCol || 'geoid');

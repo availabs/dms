@@ -77,18 +77,6 @@ const adminConfig = ({
         format: patternFormat,
         baseUrl: `${baseUrl}`,
         API_HOST,
-        errorElement: () => {
-            return (
-                <DatasetsContext.Provider value={{
-                    UI,
-                    baseUrl: `${baseUrl}`, damaBaseUrl,
-                    theme, app, type,
-                    parent: pattern, Menu, API_HOST
-                }}>
-                    <ErrorPage />
-                </DatasetsContext.Provider>
-            )
-        },
         children: [
             {
                 type: (props) => {
@@ -143,7 +131,21 @@ const adminConfig = ({
                     }
                 ]
             }
-        ]
+      ],
+      errorElement: () => {
+          return (
+              <DatasetsContext.Provider value={{
+                  UI,
+                  baseUrl: `${baseUrl}`,
+                  damaBaseUrl,
+                  theme,
+                  app, type,
+                  parent: pattern, Menu, API_HOST
+              }}>
+                  <ErrorPage />
+              </DatasetsContext.Provider>
+          )
+      },
     }
 }
 

@@ -39,13 +39,11 @@ const pagesConfig = ({
   app, type,
   siteType,
   baseUrl = "/",
-  damaBaseUrl,
   authPermissions,
   themes = { default: {} },
   pattern,
-  datasetPatterns,
+  datasources,
   site,
-  pgEnv,
   API_HOST
 }) => {
   const theme = getPatternTheme(themes, pattern)
@@ -81,13 +79,14 @@ const pagesConfig = ({
         type: ({children, falcor, user, ...props}) => {
           return (
             <CMSContext.Provider value={{
-              app, type, siteType,
+              app, type,
+              siteType,
               API_HOST,
               baseUrl,
-              pgEnv, damaBaseUrl,
+              datasources,
               user,
               falcor,
-              patternFilters, datasetPatterns,
+              patternFilters,
               authPermissions,
               isUserAuthed: (reqPermissions, customAuthPermissions) => {
                 return isUserAuthed({ user, authPermissions: customAuthPermissions || authPermissions, reqPermissions })

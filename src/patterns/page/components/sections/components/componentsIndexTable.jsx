@@ -333,7 +333,7 @@ const updateSections = async ({sections, newView, falcor, user, setUpdating}) =>
 }
 
 const Edit = ({value, onChange}) => {
-    const {app, siteType, falcor, pgEnv, user} = useContext(CMSContext) || {}
+    const {app, siteType, falcor, datasources, user} = useContext(CMSContext) || {}
     const cachedData = parseIfJson(value) || {};
     const [loading, setLoading] = useState(false);
     const [patterns, setPatterns] = useState([]);
@@ -349,19 +349,19 @@ const Edit = ({value, onChange}) => {
     const [updating, setUpdating] = useState(false);
 
     // ============================================ data load begin ====================================================
-    const envs = useMemo(() => ({
-        [pgEnv]: {
-            label: 'external',
-            srcAttributes: ['name', 'metadata'],
-            viewAttributes: ['version']
-        },
-        [`${app}+${siteType}`]: {
-            label: 'managed',
-            isDms: true,
-            srcAttributes: ['app', 'name', 'doc_type', 'config'],
-            viewAttributes: ['name']
-        }
-    }), [pgEnv, app, siteType]);
+    const envs = useMemo(() => {
+        if (!datasources?.length) return {};
+
+        return datasources.reduce((acc, ds) => {
+            acc[ds.env] = {
+                label: ds.label,
+                isDms: ds.isDms || false,
+                srcAttributes: ds.srcAttributes,
+                viewAttributes: ds.viewAttributes,
+            };
+            return acc;
+        }, {});
+    }, [datasources]);
 
     useEffect(() => {
         setLoading(true)

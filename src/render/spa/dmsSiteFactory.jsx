@@ -75,7 +75,7 @@ function pattern2routes (siteData, props) {
     //console.log('patterns2routes',dbThemes)
 
     themes = themes?.default ? { ...themes, ...dbThemes } : { ...themes, ...dbThemes, default: {} }
-    //console.log('dmsSiteFactory themes', themes)
+    console.log('dmsSiteFactory themes', themes)
 
     let dmsConfigUpdated = cloneDeep(dmsConfig);
     dmsConfigUpdated.registerFormats = updateRegisteredFormats(dmsConfigUpdated.registerFormats, dmsConfig.app)
@@ -96,42 +96,42 @@ function pattern2routes (siteData, props) {
       theme: themes['default'],
       themes
     }
-    const patterns = [AdminPattern,...(siteData.reduce((acc, curr) => [...acc, ...(curr?.patterns || [])], []) || [])];
+  const patterns = [
+    AdminPattern,
+    ...(siteData
+      .reduce((acc, curr) => [...acc, ...(curr?.patterns || [])], [])
+      || [])
+  ];
+
+    // Build datasetPatterns once (for backwards compatibility with other patterns)
+    const datasetPatterns = patterns.filter(p => ['forms', 'datasets'].includes(p.pattern_type));
+
+    // Build unified datasources array for page pattern
+    const app = dmsConfigUpdated?.format?.app || dmsConfigUpdated.app;
+    const datasources = [
+      // External sources from pgEnvs (with damaBaseUrl)
+      ...(pgEnvs || []).map(env => ({
+        type: 'external',
+        env,
+        baseUrl: damaBaseUrl || '',
+        label: 'external',
+        srcAttributes: ['name', 'metadata'],
+        viewAttributes: ['version', '_modified_timestamp'],
+      })),
+      // Internal sources from datasetPatterns
+      ...datasetPatterns.map(dsPattern => ({
+        type: 'internal',
+        env: `${app}+${dsPattern.doc_type}`,
+        baseUrl: '/forms',
+        label: 'managed',
+        isDms: true,
+        srcAttributes: ['app', 'name', 'doc_type', 'config', 'default_columns'],
+        viewAttributes: ['name', 'updated_at'],
+        pattern: dsPattern,
+      }))
+    ];
 
     return [
-        //--------------------------------
-        // Register Admin Pattern -- pattern manager
-        // -------------------------------
-        // dmsPageFactory({
-        //     dmsConfig: {
-        //         ...dmsConfigUpdated,
-        //         siteType: dmsConfigUpdated.type,
-        //         baseUrl: adminPath,
-        //         API_HOST,
-        //         PROJECT_NAME,
-        //         theme: themes['default'],
-        //         pgEnvs
-        //     },
-        //     authWrapper,
-        //     ErrorBoundary: RootErrorBoundary
-        // }),
-        // dmsPageFactory({
-        //     dmsConfig: {
-        //         ...patternTypes.admin[1]({
-        //             ...dmsConfigUpdated,
-        //             authPath,
-        //             themes
-        //         }),
-        //         siteType: dmsConfigUpdated.type,
-        //         API_HOST,
-        //         PROJECT_NAME,
-        //         theme: themes['default'],
-        //         pgEnvs
-        //     },
-        //     authWrapper,
-        //     ErrorBoundary: RootErrorBoundary
-        // }),
-        // patterns
         ...patterns
           .filter(pattern => (
               pattern?.pattern_type &&
@@ -162,15 +162,18 @@ function pattern2routes (siteData, props) {
                     pattern: pattern,
                     pattern_type: pattern?.pattern_type,
                     authPermissions,
-                    pgEnv:pgEnvs?.[0] || '',
+                    // NEW: Add datasources for page pattern
+                    datasources,
+                    // KEEP: Old variables for other patterns (admin, auth, forms, datasets)
+                    pgEnv: pgEnvs?.[0] || '',
+                    damaBaseUrl,
+                    datasetPatterns,
                     themes,
                     useFalcor,
                     API_HOST,
                     DAMA_HOST,
                     PROJECT_NAME,
-                    damaBaseUrl,
                     datasets,
-                    datasetPatterns: patterns.filter(p => ['forms', 'datasets'].includes(p.pattern_type))
                 });
                 return ({...dmsPageFactory({
                   dmsConfig: configObj,

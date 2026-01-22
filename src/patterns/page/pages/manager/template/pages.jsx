@@ -5,7 +5,8 @@ import {DeleteModal} from "./list";
 import Table from "../../../../forms/components/Table"
 import {getNestedValue} from "../../_utils";
 import { CMSContext } from "../../../context";
-import { get } from "lodash-es";;
+import { get } from "lodash-es";
+import { getExternalEnv } from "../../_utils/datasources";
 
 export const locationNameMap = {
     'docs-play': 'Playground',
@@ -114,7 +115,8 @@ const getMetaName = (id_column, id, data) => id_column === 'geoid' ?
     data?.[findNameCol(data)] || id
 const TemplatePages = ({item, params, logo, rightMenu}) => {
     const [pageSize, setPageSize] = useState(100);
-    const { baseUrl, falcor, falcorCache, pgEnv, theme, app, type} = React.useContext(CMSContext)
+    const { baseUrl, falcor, falcorCache, datasources, theme, app, type} = React.useContext(CMSContext)
+    const pgEnv = getExternalEnv(datasources);
     const {id} = params;
     const view_id = item.data_controls?.view?.view_id;
     const id_column = item.data_controls?.id_column?.name;

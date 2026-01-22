@@ -1,6 +1,6 @@
 import React, {useContext} from "react";
 import {Link} from "react-router";
-import {CMSContext, ComponentContext} from "../../../../../context";
+import {ComponentContext} from "../../../../../context";
 import {ThemeContext} from "../../../../../../../ui/useTheme";
 
 export const attributionTheme = {
@@ -10,9 +10,9 @@ export const attributionTheme = {
 }
 
 export const Attribution = () => {
-    const { damaBaseUrl } = React.useContext(CMSContext) || {}
     const { theme = { attribution: attributionTheme } } = React.useContext(ThemeContext) || {}
-    const {state:{sourceInfo: {isDms, source_id, name, view_name, updated_at}}} = useContext(ComponentContext);
+    // baseUrl is now included in sourceInfo by useDataSource.js
+    const {state:{sourceInfo: {source_id, name, view_name, updated_at, baseUrl}}} = useContext(ComponentContext);
     const dateOptions = {year: "numeric", month: "long", day: "numeric", hour: "numeric", minute: "numeric"};
     const updatedTimeString = updated_at ? new Date(updated_at).toLocaleString(undefined, dateOptions) : null;
 
@@ -21,7 +21,7 @@ export const Attribution = () => {
             <span className={theme.attribution.label}>Attribution:</span>
             <Link
                 className={theme.attribution.link}
-                to={`${isDms ? `/forms` : damaBaseUrl}/source/${source_id}`}>
+                to={`${baseUrl || ''}/source/${source_id}`}>
                 {/*to={`/${isDms ? `forms` : damaBaseUrl}/source/${source_id}/${isDms ? `view` : `versions`}/${view_id}`}>*/}
                 {name} ({view_name}) {updatedTimeString ? `(${updatedTimeString})` : null}
             </Link>

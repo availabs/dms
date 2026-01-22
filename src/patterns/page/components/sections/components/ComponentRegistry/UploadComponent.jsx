@@ -2,6 +2,8 @@ import React, {useEffect, useContext} from 'react'
 import {isJson} from "../dataWrapper/utils/utils";
 import Upload from "../../../../../forms/components/upload";
 import { CMSContext, ComponentContext } from "../../../../context";
+import { getExternalEnv } from "../../../../pages/_utils/datasources";
+
 const UploadComponentContext = React.createContext({});
 
 const defaultState = {
@@ -32,7 +34,8 @@ const Edit = ({onChange}) => {
 
 const View = ({value}) => {
     const {state, setState, apiLoad, apiUpdate} = useContext(ComponentContext);
-    const {API_HOST, user, falcor, pgEnv} = useContext(CMSContext);
+    const {API_HOST, user, falcor, datasources} = useContext(CMSContext);
+    const pgEnv = getExternalEnv(datasources);
 
     useEffect(() => {
         setState(isJson(value) ? JSON.parse(value) : defaultState)
