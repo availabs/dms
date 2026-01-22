@@ -439,8 +439,8 @@ const RenderItem = memo(function RenderItem ({
 
                         const formatClass = attr.formatFn === 'title' ? 'capitalize' : '';
                         const isValueFormatted = isImg || Boolean(formatFunctions[attr.formatFn]);
-                        const headerTextJustifyClass = justifyClass[attr.justify || 'center']?.header || justifyClass[attr.justify || 'center'];
-                        const valueTextJustifyClass = justifyClass[attr.justify || 'center']?.value || justifyClass[attr.justify || 'center'];
+                        const headerTextJustifyClass = justifyClass[attr.justify || 'left']?.header || justifyClass[attr.justify || 'left'];
+                        const valueTextJustifyClass = justifyClass[attr.justify || 'left']?.value || justifyClass[attr.justify || 'left'];
                         let valueFormattedForSearchParams, valueFormattedForDisplay, valueFormattedForEdit, searchParams, url;
 
                         valueFormattedForDisplay = normalizeValue(value);
