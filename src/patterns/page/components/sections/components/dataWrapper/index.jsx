@@ -174,11 +174,14 @@ const Edit = ({cms_context, value, onChange, component}) => {
             const isNormalisedColumn = state.columns.filter(col => col.name === column.name && col.filters?.length).length > 1;
 
             (column.filters || [])
-                .filter(({values}) => Array.isArray(values) && values.every(v => typeof v === 'string' ? v.length : typeof v !== 'object'))
-                .forEach(({type, operation, values, fn}) => {
+                .filter(({values}) => Array.isArray(values) && values.every(v => typeof v !== 'object'))
+                .forEach(({operation, values, fn}) => {
                     // here, operation is filter, exclude, >, >=, <, <=.
                     // normal columns only support filter.
-                    if(isNormalisedColumn){
+                    if(operation === 'like' && !(values.length && values.every(v => v.length))){
+                        // like operator should not remove nulls if no value is set
+                        acc[operation] = {}
+                    } if(isNormalisedColumn){
                         (acc.normalFilter ??= []).push({ column: column.name, values, operation, fn });
                     }else{
                         acc[operation] = {...acc[operation] || {}, [column.name]: values};
@@ -587,11 +590,14 @@ const View = ({cms_context, value, component}) => {
         const isNormalisedColumn = state.columns.filter(col => col.name === column.name && col.filters?.length).length > 1;
 
         (column.filters || [])
-            .filter(({values}) => Array.isArray(values) && values.every(v => /*typeof v === 'string' ? v.length :*/ typeof v !== 'object'))
-            .forEach(({type, operation, values, fn}) => {
+            .filter(({values}) => Array.isArray(values) && values.every(v => typeof v !== 'object'))
+            .forEach(({operation, values, fn}) => {
                 // here, operation is filter, exclude, >, >=, <, <=.
                 // normal columns only support filter.
-                if(isNormalisedColumn){
+                if(operation === 'like' && !(values.length && values.every(v => v.length))){
+                    // like operator should not remove nulls if no value is set
+                    acc[operation] = {}
+                } else if(isNormalisedColumn){
                     (acc.normalFilter ??= []).push({ column: column.name, values, operation, fn });
                 }else{
                     acc[operation] = {...acc[operation] || {}, [column.name]: values};

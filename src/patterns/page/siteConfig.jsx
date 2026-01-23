@@ -49,7 +49,6 @@ const pagesConfig = ({
   API_HOST
 }) => {
   const theme = getPatternTheme(themes, pattern)
-  console.log('page siteconfig: theme', theme)
   //---------------------------------------------------------------------
   // Update format and attributes for things to work correctly
   // This should probable be moved to DMS Manager
