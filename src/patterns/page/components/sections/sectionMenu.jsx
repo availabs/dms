@@ -3,7 +3,7 @@ import { handleCopy, handlePaste, TagComponent } from "./section_utils"
 import {
     getColumnLabel, updateColumns, resetColumn,
     resetAllColumns, duplicate, toggleIdFilter,
-    toggleGlobalVisibility, updateDisplayValue, addFormulaColumn
+    toggleGlobalVisibility, updateDisplayValue, addFormulaColumn, isEqualColumns
 } from "./controls_utils";
 import { getComponentTheme } from "../../../../ui/useTheme";
 import AddFormulaColumn from "./AddFormulaColumn";
@@ -128,7 +128,11 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
     const columns = [
         {
             name: 'Columns', cdn: () => isEdit && currentComponent?.useDataSource && canEditSection,
-            showSearch: true, canReorder: true, onReorder: () => {},
+            showSearch: true, canReorder: true, onReorder: (updatedColumns) => {
+                setState(draft => {
+                    draft.columns = updatedColumns.map(c => draft.columns.find(draftCol => isEqualColumns(draftCol, c.column))).filter(c => c);
+                })
+            },
             items: [
                 {icon: 'GlobalEditing', name: 'Global Controls',
                     type: () => <>
@@ -142,6 +146,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                     .map(column => (
                         {
                             name: getColumnLabel(column), icon: column.show ? 'Eye' : '',
+                            column, // to match back to state after reordering
                             items: [
                                 ...(currentComponent.controls?.columns || []).map(control => {
                                     const isDisabled = typeof control.disabled === 'function' ? control.disabled({attribute: column}) : control.disabled;
