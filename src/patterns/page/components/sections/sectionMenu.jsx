@@ -3,9 +3,10 @@ import { handleCopy, handlePaste, TagComponent } from "./section_utils"
 import {
     getColumnLabel, updateColumns, resetColumn,
     resetAllColumns, duplicate, toggleIdFilter,
-    toggleGlobalVisibility, updateDisplayValue
+    toggleGlobalVisibility, updateDisplayValue, addFormulaColumn
 } from "./controls_utils";
 import { getComponentTheme } from "../../../../ui/useTheme";
+import AddFormulaColumn from "./AddFormulaColumn";
 
 // todo move filters here
 export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSource={}, ...rest }) => {
@@ -127,13 +128,14 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
     const columns = [
         {
             name: 'Columns', cdn: () => isEdit && currentComponent?.useDataSource && canEditSection,
-            showSearch: true,
+            showSearch: true, canReorder: true, onReorder: () => {},
             items: [
                 {icon: 'GlobalEditing', name: 'Global Controls',
                     type: () => <>
                         <Pill text={listAllColumns ? 'List Used' : 'List All'} color={'blue'} onClick={() => setListAllColumns(!listAllColumns)}/>
                         <Pill text={isEveryColVisible ? 'Hide all' : 'Show all'} color={'blue'} onClick={() => toggleGlobalVisibility(!isEveryColVisible, setState)}/>
                         <Pill text={isSystemIDColOn ? 'Hide ID column' : 'Use ID column'} color={'blue'} onClick={() => toggleIdFilter(setState)}/>
+                        <AddFormulaColumn columns={columnsToRender} addFormulaColumn={col => addFormulaColumn(col, setState)}/>
                         <Pill text={'Reset all'} color={'orange'} onClick={() => resetAllColumns(setState)}/>
                     </>},
                 ...columnsToRender
