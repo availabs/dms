@@ -192,7 +192,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
         },
     ]
 
-    const groupControl = currentComponent.controls?.columns?.find(c => c.key === 'group');
+    const groupControl = currentComponent.controls?.columns?.find(c => c.key === 'group') || {};
     const hasGroupControl = Boolean(groupControl);
     const group = [
         {
