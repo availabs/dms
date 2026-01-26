@@ -136,16 +136,17 @@ export default {
     controls: {
         columns: [
             // settings from columns dropdown are stored in state.columns array, per column
+            {type: 'toggle', label: 'show', key: 'show'},
+            {type: 'toggle', label: 'Filter', key: 'filters',
+                trueValue: [{type: 'internal', operation: 'filter', values: []}]},
+            {type: 'toggle', label: 'Group', key: 'group'},
             {type: 'select', label: 'Fn', key: 'fn',
                 options: [
                     {label: 'fn', value: ' '}, {label: 'list', value: 'list'}, {label: 'sum', value: 'sum'}, {label: 'count', value: 'count'}, {label: 'avg', value: 'avg'}
                 ]},
-            {type: 'toggle', label: 'show', key: 'show'},
             {type: 'toggle', label: 'Exclude N/A', key: 'excludeNA'},
             {type: 'toggle', label: 'Open Out', key: 'openOut'},
-            {type: 'toggle', label: 'Filter', key: 'filters',
-                trueValue: [{type: 'internal', operation: 'filter', values: []}]},
-            {type: 'toggle', label: 'Group', key: 'group'},
+
             {type: 'toggle', label: 'Value column', key: 'valueColumn', onChange: ({key, value, attribute, state, columnIdx}) => {
                     if(attribute.yAxis || attribute.categorize) return;
                     state.columns.forEach(column => {

@@ -13,7 +13,7 @@ const CircleCheck = ({className='size-6', ...props}) => (
 const theme = {
     multiselect: {
         view: 'w-full h-full',
-        mainWrapper: 'w-full h-full',
+        mainWrapper: 'w-full h-full relative',
         inputWrapper: 'flex px-2 py-1 w-full text-sm font-light border focus:border-blue-300 rounded-md bg-white hover:bg-blue-100 transition ease-in',
         input: 'w-full px-2 py-1 border rounded-lg focus:outline-none',
         statusWrapper: 'flex items-center p-0.5',
@@ -90,7 +90,7 @@ const RenderMenu = ({
             }
             {
                 tabular ? null :
-                    <div className={theme.multiselect.smartMenuWrapper}>
+                    <div className={theme?.multiselect?.smartMenuWrapper}>
                         {
                             [selectAllOption, removeAllOption]
                                 .filter(o =>
