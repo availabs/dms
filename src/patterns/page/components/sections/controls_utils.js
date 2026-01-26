@@ -20,8 +20,10 @@ export const updateColumns = (originalAttribute, key, value, onChange, setState)
         if (idx === -1) {
             draft.columns.push({ ...originalAttribute, [key]: value });
             idx = draft.columns.length - 1; // new index
-        } else {
+        } else if(key){
             draft.columns[idx][key] = value;
+        }else{
+            draft.columns[idx] = {...(draft.columns[idx] || {}), ...(value || {})}
         }
         // ======================= default behaviour end ==================================
 

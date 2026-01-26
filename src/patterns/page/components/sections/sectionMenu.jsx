@@ -143,12 +143,23 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                         <Pill text={'Reset all'} color={'orange'} onClick={() => resetAllColumns(setState)}/>
                     </>},
                 ...columnsToRender
-                    .map(column => (
+                    .map((column, i) => (
                         {
+                            id: `${column.name}_${i}`,
                             name: getColumnLabel(column), icon: column.show ? 'Eye' : '',
                             column, // to match back to state after reordering
                             items: [
-                                ...(currentComponent.controls?.columns || []).map(control => {
+                                {icon: 'PencilSquare', // fucks up
+                                    name: 'Name',
+                                    type: 'input',
+                                    showLabel: true,
+                                    value: getColumnLabel(column),
+                                    onChange: e => updateColumns(column, 'customName', e.target.value, undefined, setState)
+                                },
+                                ...[
+                                    ...(currentComponent.controls?.columns || []),
+                                    ...(currentComponent.controls?.inHeader || [])
+                                ].map(control => {
                                     const isDisabled = typeof control.disabled === 'function' ? control.disabled({attribute: column}) : control.disabled;
                                     return ({
                                         name: control.label,
@@ -165,6 +176,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                                         onChange: !['toggle', 'function'].includes(control.type) ? e => updateColumns(column, control.key, e, control.onChange, setState) : undefined,
                                         type: typeof control.type === 'function' ? () => control.type({
                                             attribute: column,
+                                            setAttribute: newValue => updateColumns(column, undefined, newValue, control.onChange, setState),
                                             value: column[control.key],
                                             setValue: newValue => updateColumns(column, control.key, newValue, control.onChange, setState),
                                             setState
