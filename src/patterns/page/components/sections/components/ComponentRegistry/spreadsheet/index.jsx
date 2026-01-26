@@ -23,9 +23,7 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
 
     const visibleAttributes = useMemo(() => columns.filter(({show}) => show), [columns]);
     const visibleAttributesLen = useMemo(() => columns.filter(({show}) => show).length, [columns]);
-    const openOutAttributes = useMemo(() => columns.filter(({openOut}) => openOut), [columns]);
-    const openOutAttributesLen = useMemo(() => columns.filter(({openOut}) => openOut).length, [columns]);
-    const visibleAttrsWithoutOpenOut = useMemo(() => columns.filter(({show, openOut}) => show && !openOut), [columns]);
+    const visibleAttrsWithoutOpenOut = useMemo(() => columns.filter(({show, openOut, actionType}) => show && !openOut && !actionType), [columns]);
     const visibleAttrsWithoutOpenOutLen = useMemo(() => columns.filter(({show, openOut}) => show && !openOut).length, [columns]);
     const actionColumns = useMemo(() => columns.filter(({actionType}) => actionType), [columns]);
 
@@ -58,7 +56,7 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
                 })
             });
         }
-    }, [visibleAttributesLen, visibleAttrsWithoutOpenOutLen, openOutAttributesLen, sourceInfo.columns]);
+    }, [visibleAttributesLen, visibleAttrsWithoutOpenOutLen, sourceInfo.columns]);
     // ============================================ auto resize end ====================================================
 
     //console.log('render table')

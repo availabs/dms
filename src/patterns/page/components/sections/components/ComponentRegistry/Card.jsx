@@ -143,8 +143,8 @@ const inHeader = [
     {type: 'select', label: 'Format', key: 'formatFn', isBatchUpdatable: true,
         options: [
             {label: 'No Format Applied', value: ' '},
-            {label: 'Comma Seperated', value: 'comma'},
-            {label: 'Comma Seperated ($)', value: 'comma_dollar'},
+            {label: 'Comma Separated', value: 'comma'},
+            {label: 'Comma Separated ($)', value: 'comma_dollar'},
             {label: 'Abbreviated', value: 'abbreviate'},
             {label: 'Abbreviated ($)', value: 'abbreviate_dollar'},
             {label: 'Date', value: 'date'},
