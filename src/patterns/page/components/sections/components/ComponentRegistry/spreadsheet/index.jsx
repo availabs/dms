@@ -23,7 +23,7 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
 
     const visibleAttributes = useMemo(() => columns.filter(({show}) => show), [columns]);
     const visibleAttributesLen = useMemo(() => columns.filter(({show}) => show).length, [columns]);
-    const visibleAttrsWithoutOpenOut = useMemo(() => columns.filter(({show, openOut, actionType}) => show && !openOut && !actionType), [columns]);
+    const visibleAttrsWithoutOpenOut = useMemo(() => columns.filter(({show, openOut}) => show && !openOut), [columns]);
     const visibleAttrsWithoutOpenOutLen = useMemo(() => columns.filter(({show, openOut}) => show && !openOut).length, [columns]);
     const actionColumns = useMemo(() => columns.filter(({actionType}) => actionType), [columns]);
 
@@ -35,7 +35,7 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
     // =========================================== auto resize begin ===================================================
     // =================================================================================================================
     useEffect(() => {
-        if(!gridRef.current) return;
+        if(!gridRef.current || !display.autoResize) return;
 
         const columnsWithSizeLength = visibleAttrsWithoutOpenOut.filter(({size}) => size).length;
         const gridWidth = gridRef.current.offsetWidth - numColSize - gutterColSize - (allowEdit ? actionColumns.length * actionsColSize : 0);
@@ -56,7 +56,7 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
                 })
             });
         }
-    }, [visibleAttributesLen, visibleAttrsWithoutOpenOutLen, sourceInfo.columns]);
+    }, [visibleAttributesLen, visibleAttrsWithoutOpenOutLen, sourceInfo.columns, display.autoResize]);
     // ============================================ auto resize end ====================================================
 
     //console.log('render table')
@@ -174,6 +174,7 @@ export default {
             {type: 'toggle', label: 'Allow Download', key: 'allowDownload'},
             {type: 'toggle', label: 'Always Fetch Data', key: 'readyToLoad'},
             {type: 'toggle', label: 'Use Pagination', key: 'usePagination'},
+            {type: 'toggle', label: 'Auto Resize Columns', key: 'autoResize'},
             {type: 'toggle', label: 'Hide Null Open out columns', key: 'hideIfNullOpenouts'},
             {type: 'select', label: 'Filter Relation', key: 'filterRelation',
                 options: [{label: 'and', value: 'and'}, {label: 'or', value: 'or'}]
