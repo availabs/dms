@@ -110,7 +110,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
     ...(state?.sourceInfo?.columns || [])
       .filter(c => !(state?.columns || [])
       .map(c => c.name).includes(c.name))
-  ] : [...state.columns];
+  ] : [...(state?.columns || [])];
 
     const allColumns = [
         ...(state?.columns || []),
@@ -121,7 +121,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
 
     const isEveryColVisible = (state?.sourceInfo?.columns || [])
         .map(({ name }) => (state?.columns || [])
-        .find(column => column.name === name))
+        .find(column => column?.name === name))
         .every(column => column?.show);
     const isSystemIDColOn = (state?.columns || [])
         .find(c => c.systemCol && c.name === 'id');
