@@ -14,7 +14,7 @@ const isJson = (str)  => {
 
 const cardTypes = {
     'Inline Guidance': {
-       contentEditable: 'border-2 border-dashed border-[#e7ae48] p-2 rounded-lg relative [tab-size:1] outline-none ',
+       contentEditable: 'border-3 border-dashed border-[#e7ae48] p-2 rounded-lg relative [tab-size:1] outline-none ',
     },
     'Dark': {
         contentEditable: 'border-none relative [tab-size:1] outline-none ',
