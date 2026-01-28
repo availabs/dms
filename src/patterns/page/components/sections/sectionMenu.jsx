@@ -3,10 +3,12 @@ import { handleCopy, handlePaste, TagComponent } from "./section_utils"
 import {
     getColumnLabel, updateColumns, resetColumn,
     resetAllColumns, duplicate, toggleIdFilter,
-    toggleGlobalVisibility, updateDisplayValue, addFormulaColumn, isEqualColumns
+    toggleGlobalVisibility, updateDisplayValue, addFormulaColumn, isEqualColumns, addCalculatedColumn
 } from "./controls_utils";
 import { getComponentTheme } from "../../../../ui/useTheme";
 import AddFormulaColumn from "./AddFormulaColumn";
+import AddCalculatedColumn from "./AddCalculatedColumn";
+
 
 // todo move filters here
 export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSource={}, ...rest }) => {
@@ -140,6 +142,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                         <Pill text={isEveryColVisible ? 'Hide all' : 'Show all'} color={'blue'} onClick={() => toggleGlobalVisibility(!isEveryColVisible, setState)}/>
                         <Pill text={isSystemIDColOn ? 'Hide ID column' : 'Use ID column'} color={'blue'} onClick={() => toggleIdFilter(setState)}/>
                         <AddFormulaColumn columns={columnsToRender} addFormulaColumn={col => addFormulaColumn(col, setState)}/>
+                        <AddCalculatedColumn columns={columnsToRender} addCalculatedColumn={col => addCalculatedColumn(col, setState)}/>
                         <Pill text={'Reset all'} color={'orange'} onClick={() => resetAllColumns(setState)}/>
                     </>},
                 ...columnsToRender
