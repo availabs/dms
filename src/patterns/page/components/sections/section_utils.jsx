@@ -76,10 +76,11 @@ export function HelpTextEditPopups({
     HelpComp
 }) {
     const { UI, theme } = React.useContext(ThemeContext)
-    const { Popup, Icon, Listbox } = UI
+    const { Popup, Icon, ColumnTypes } = UI
+    const Select = ColumnTypes?.select?.EditComp || (() => {});
     return (
         <>
-            {helpTextArray.map(({text, icon = 'InfoSquare', visibility = ''}, i) => (
+            {helpTextArray.map(({text, icon = 'InfoSquare', visibility = ' '}, i) => (
                 <Popup
                     key={i}
                     button={
@@ -100,7 +101,7 @@ export function HelpTextEditPopups({
                                       setOpen(false)
                                   }
                                   }/>
-                            <Listbox value={icon}
+                            <Select value={icon}
                                      onChange={(v) => updateAttribute('helpText', helpTextArray.map((t, ii) => i === ii ? {
                                          text,
                                          icon: v,
@@ -111,17 +112,7 @@ export function HelpTextEditPopups({
                                          ...Object.keys(theme.Icons)
                                              .map((iconName) => {
                                                  return {
-                                                     label: (
-                                                         <div className='flex'>
-                                                             <div className='px-2'>
-                                                                 <Icon icon={iconName}
-                                                                       className='size-6'/>
-                                                             </div>
-                                                             <div>
-                                                                 {iconName}
-                                                             </div>
-                                                         </div>
-                                                     ),
+                                                     label: iconName,
                                                      value: iconName
                                                  }
                                              }),
@@ -129,14 +120,14 @@ export function HelpTextEditPopups({
                                      ]}
                             />
 
-                            <Listbox value={visibility}
+                            <Select value={visibility}
                                      onChange={(v) => updateAttribute('helpText', helpTextArray.map((t, ii) => i === ii ? {
                                          text,
                                          icon,
                                          visibility: v
                                      } : t))}
                                      options={[
-                                         {label: 'Visibility: view, edit', value: ''},
+                                         {label: 'Visibility: view, edit', value: ' '},
                                          {label: 'Visibility: edit', value: 'edit'},
                                      ]}
                             />
@@ -315,14 +306,16 @@ export function DeleteModal({title, prompt, item = {}, open, setOpen, onDelete})
     )
 }
 
-export const getHelpTextArray = (value) => {
-  return Array.isArray(value?.['helpText']) ?
+export const getHelpTextArray = (value, isEdit) => {
+  const helpText = Array.isArray(value?.['helpText']) ?
       value?.['helpText'] :
       value?.['helpText']?.text ?
           [value?.['helpText']] :
           value?.helpText ?
               [{text: value?.['helpText']}] :
               [];
+
+  return isEdit ? helpText : helpText.filter(({visibility}) => visibility !== 'edit')
 }
 
 export const isJson = (str) => {
