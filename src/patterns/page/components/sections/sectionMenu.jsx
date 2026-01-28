@@ -137,14 +137,18 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
             },
             items: [
                 {icon: 'GlobalEditing', name: 'Global Controls',
-                    type: () => <>
-                        <Pill text={listAllColumns ? 'List Used' : 'List All'} color={'blue'} onClick={() => setListAllColumns(!listAllColumns)}/>
-                        <Pill text={isEveryColVisible ? 'Hide all' : 'Show all'} color={'blue'} onClick={() => toggleGlobalVisibility(!isEveryColVisible, setState)}/>
-                        <Pill text={isSystemIDColOn ? 'Hide ID column' : 'Use ID column'} color={'blue'} onClick={() => toggleIdFilter(setState)}/>
-                        <AddFormulaColumn columns={columnsToRender} addFormulaColumn={col => addFormulaColumn(col, setState)}/>
-                        <AddCalculatedColumn columns={columnsToRender} addCalculatedColumn={col => addCalculatedColumn(col, setState)}/>
-                        <Pill text={'Reset all'} color={'orange'} onClick={() => resetAllColumns(setState)}/>
-                    </>},
+                    type: () => <div className={'flex flex-col gap-1'}>
+                        <div className={'flex flex-wrap gap-1'}>
+                            <Pill text={isSystemIDColOn ? 'Hide ID' : 'Use ID'} color={'blue'} onClick={() => toggleIdFilter(setState)}/>
+                            <AddFormulaColumn columns={columnsToRender} addFormulaColumn={col => addFormulaColumn(col, setState)}/>
+                            <AddCalculatedColumn columns={columnsToRender} addCalculatedColumn={col => addCalculatedColumn(col, setState)}/>
+                        </div>
+                        <div className={'flex flex-wrap gap-1'}>
+                            <Pill text={listAllColumns ? 'List Used' : 'List All'} color={'blue'} onClick={() => setListAllColumns(!listAllColumns)}/>
+                            <Pill text={isEveryColVisible ? 'Hide all' : 'Show all'} color={'blue'} onClick={() => toggleGlobalVisibility(!isEveryColVisible, setState)}/>
+                            <Pill text={'Reset all'} color={'orange'} onClick={() => resetAllColumns(setState)}/>
+                        </div>
+                    </div>},
                 ...columnsToRender
                     .map((column, i) => (
                         {

@@ -56,7 +56,7 @@ const AddCalculatedColumn = ({columns=[], addCalculatedColumn}) => {
     const {Pill} = UI;
     return (
         <>
-            <Pill text={'+ Calculated column'} color={'blue'} onClick={() => setOpen(true)}/>
+            <Pill text={'+ Calculated'} color={'blue'} onClick={() => setOpen(true)}/>
             <Modal open={open} setOpen={setOpen} columns={columns} addCalculatedColumn={addCalculatedColumn}/>
         </>
     )
