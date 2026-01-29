@@ -4,7 +4,7 @@ import {CMSContext} from '../context';
 import {ThemeContext} from "../../../ui/useTheme";
 
 function ErrorPage({}) {
-    const {theme: fullTheme, UI} = useContext(ThemeContext);
+    const {theme: fullTheme, UI} = useContext(ThemeContext) || {};
     const {Layout} = UI;
     let theme = merge(cloneDeep(fullTheme), {})
     const sectionTheme = theme?.sectionGroup?.['default'] || {};
