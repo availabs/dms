@@ -27,10 +27,15 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
     // =================================================================================================================
     const editCopyPaste = [
         {
-            icon: 'PencilSquare', name: 'Edit', cdn: () => !isEdit && canEditSection, onClick: onEdit
+            icon: 'PencilSquare',
+            name: 'Edit',
+            cdn: () => !isEdit && canEditSection,
+            onClick: onEdit
         },
         {
-            icon: 'Copy', name: 'Copy Section', onClick: (e) => {
+            icon: 'Copy',
+            name: 'Copy Section',
+            onClick: (e) => {
                 handleCopy(value)
 
                 const el = e.currentTarget;
@@ -42,16 +47,24 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
             }
         },
         {
-            icon: 'Paste', name: 'Paste Section', cdn: () => isEdit && canEditSection, onClick: e => handlePaste(e, setKey, setState, value, onChange)
+            icon: 'Paste',
+            name: 'Paste Section',
+            cdn: () => isEdit && canEditSection,
+            onClick: e => handlePaste(e, setKey, setState, value, onChange)
         },
     ]
 
     const moveItems = [
         {
-            icon: 'ChevronUpSquare', name: 'Move Up', cdn: () => !isEdit && canEditPageLayout, onClick: () => moveItem(i, -1)
+            icon: 'ChevronUpSquare',
+            name: 'Move Up', cdn: () => !isEdit && canEditPageLayout,
+            onClick: () => moveItem(i, -1)
         },
         {
-            icon: 'ChevronDownSquare', name: 'Move Down', cdn: () => !isEdit && canEditPageLayout, onClick: () => moveItem(i, 1)
+            icon: 'ChevronDownSquare',
+            name: 'Move Down',
+            cdn: () => !isEdit && canEditPageLayout,
+            onClick: () => moveItem(i, 1)
         },
     ]
 
