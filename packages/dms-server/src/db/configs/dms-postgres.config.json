@@ -1,0 +1,8 @@
+{
+  "host": "mercury.availabs.org",
+  "port": 5435,
+  "user": "postgres",
+  "password": "1234",
+  "database": "dms",
+  "type": "auth"
+}
