@@ -41,6 +41,9 @@ export const convertOldState = (state, initialState) => {
             }
             return column
         })
+        if(![true, false].includes(oldState?.display?.preventDuplicateFetch)) {
+            oldState.display.preventDuplicateFetch = true;
+        }
         // if(oldState?.display?.allowEditInView || oldState.columns.find(c => Array.isArray(c.filters) && c.filters?.find(f => f.usePageFilters))) oldState.data = [];
         // if(oldState.display.useCache === undefined) oldState.display.useCache = true;
         return oldState; // return already valid state.}
