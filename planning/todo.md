@@ -24,6 +24,10 @@
 
 - [x] Fix nav2Level baseUrl bug and move to page pattern
 
+### patterns/mapeditor
+
+- [ ] Convert MapEditor from datamanagerclient into standalone DMS pattern (symbology CRUD via DMS instead of DAMA)
+
 ### patterns/datasets
 
 ### patterns/forms
