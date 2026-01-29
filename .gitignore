@@ -1,2 +1,10 @@
 node_modules
 dist
+
+# SQLite database files
+**/data/*.sqlite
+**/data/*.sqlite-wal
+**/data/*.sqlite-shm
+
+# Request log files
+**/logs/*.jsonl

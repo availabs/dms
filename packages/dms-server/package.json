@@ -1,0 +1,49 @@
+{
+  "name": "@availabs/dms-server",
+  "version": "0.1.0",
+  "description": "AVAIL Data Management System - Server API",
+  "main": "src/index.js",
+  "private": false,
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "test": "node tests/test-sqlite.js && node tests/test-controller.js && node tests/test-graph.js && node tests/test-workflow.js",
+    "test:sqlite": "node tests/test-sqlite.js",
+    "test:controller": "node tests/test-controller.js",
+    "test:graph": "node tests/test-graph.js",
+    "test:workflow": "node tests/test-workflow.js"
+  },
+  "imports": {
+    "#db/*.js": "./src/db/*.js",
+    "#db/adapters/*.js": "./src/db/adapters/*.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/availabs/dms.git",
+    "directory": "packages/dms-server"
+  },
+  "author": "AVAIL",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/availabs/dms/issues"
+  },
+  "homepage": "https://github.com/availabs/dms#readme",
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.6.0",
+    "compression": "^1.8.1",
+    "express": "^4.21.0",
+    "falcor-json-graph": "^3.0.1",
+    "falcor-path-syntax": "0.2.4",
+    "falcor-path-utils": "~0.5.0",
+    "lodash": "^4.17.21",
+    "pg": "^8.17.2",
+    "rxjs": "~5.1.1",
+    "symbol-observable": "^1.0.4"
+  },
+  "optionalDependencies": {
+    "pg": "^8.17.2"
+  }
+}

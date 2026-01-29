@@ -1,0 +1,89 @@
+{
+  "name": "@availabs/dms",
+  "version": "0.1.8",
+  "description": "AVAIL Data Management System - Client",
+  "main": "dist/index.js",
+  "private": false,
+  "scripts": {
+    "test": "node test.js",
+    "build": "npx eslint src && babel src -d dist --extensions '.ts,.tsx,.js,.jsx'",
+    "publish-it": "npm run build && npm publish --access public",
+    "watch": "nodemon --exec npm run build"
+  },
+  "nodemonConfig": {
+    "ignore": [
+      "dist/*",
+      ".git"
+    ],
+    "ext": "js, jsx"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/availabs/dms.git",
+    "directory": "packages/dms"
+  },
+  "author": "AVAIL",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/availabs/dms/issues"
+  },
+  "homepage": "https://github.com/availabs/dms#readme",
+  "devDependencies": {
+    "@babel/cli": "^7.26.4",
+    "@babel/core": "^7.26.9",
+    "@babel/preset-env": "^7.24.4",
+    "@babel/preset-flow": "^7.25.9",
+    "@babel/preset-react": "^7.26.3",
+    "@babel/preset-typescript": "^7.26.0",
+    "@eslint/js": "^9.0.0",
+    "babel-preset-minify": "^0.5.2",
+    "eslint": "^8.57.0",
+    "eslint-plugin-react": "^7.34.1",
+    "globals": "^15.0.0",
+    "typescript": "^5.8.2",
+    "typescript-eslint": "^8.26.0"
+  },
+  "dependencies": {
+    "@availabs/avl-falcor": "^0.0.5",
+    "@headlessui/react": "^2.2.0",
+    "@lexical/clipboard": "0.39.0",
+    "@lexical/code": "0.39.0",
+    "@lexical/file": "0.39.0",
+    "@lexical/hashtag": "0.39.0",
+    "@lexical/link": "0.39.0",
+    "@lexical/list": "0.39.0",
+    "@lexical/mark": "0.39.0",
+    "@lexical/overflow": "0.39.0",
+    "@lexical/plain-text": "0.39.0",
+    "@lexical/react": "0.39.0",
+    "@lexical/rich-text": "0.39.0",
+    "@lexical/selection": "0.39.0",
+    "@lexical/table": "0.39.0",
+    "@lexical/utils": "0.39.0",
+    "@observablehq/plot": "^0.6.17",
+    "@popperjs/core": "^2.11.8",
+    "@turf/bbox": "^7.2.0",
+    "@turf/helpers": "^7.2.0",
+    "colorbrewer": "^1.5.9",
+    "d3-array": "^3.2.4",
+    "fflate": "^0.8.2",
+    "fuse.js": "^7.1.0",
+    "immer": "^11.1.3",
+    "immutability-helper": "^3.1.1",
+    "katex": "^0.16.10",
+    "lexical": "0.39.0",
+    "lodash-es": "^4.17.21",
+    "maplibre-gl": "^5.15.0",
+    "match-sorter": "^6.3.4",
+    "react": "^19.1.0",
+    "react-bootstrap-typeahead": "^6.3.2",
+    "react-csv": "^2.2.2",
+    "react-frame-component": "^5.2.7",
+    "react-popper": "^2.3.0",
+    "react-router": "^7.5.3",
+    "react-table": "^7.8.0",
+    "use-immer": "^0.11.0",
+    "uuid": "^11.0.3",
+    "write-excel-file": "^2.0.10"
+  }
+}
