@@ -59,7 +59,7 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
   const TitleEditComp = attributes?.title?.EditComp
   const LevelComp = attributes?.level?.EditComp
   const HelpComp = attributes?.helpText?.EditComp
-  const helpTextArray = getHelpTextArray(value)
+  const helpTextArray = getHelpTextArray(value, true)
 
 
   const sectionMenuItems = getSectionMenuItems({
@@ -172,7 +172,7 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
     const TitleEditComp = attributes?.title?.EditComp
     const LevelComp = attributes?.level?.EditComp
     const HelpComp = attributes?.helpText?.ViewComp
-    const helpTextArray = getHelpTextArray(value)
+    const helpTextArray = getHelpTextArray(value, false);
     const helpTextCondition = helpTextArray.some(({text}) => text && !(
         (text?.root?.children?.length === 1 && text?.root?.children?.[0]?.children?.length === 0) ||
         (text?.root?.children?.length === 0)
