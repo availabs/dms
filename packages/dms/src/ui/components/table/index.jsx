@@ -13,7 +13,7 @@ import {cloneDeep} from "lodash-es";
 
 const defaultNumColSize = 0;
 const defColSize = 250;
-const minColSize = 150;
+const minColSize = 50;
 
 const windowFake = typeof window === "undefined" ? {} : window;
 export const TableCellContext = createContext({});
@@ -470,7 +470,7 @@ export default function ({
             striped: display.striped,
             hideIfNullOpenouts: display.hideIfNullOpenouts,
         };
-    }, [columns, defaultColumnSize]);
+    }, [columns, defaultColumnSize, display]);
     const {
         visibleAttributes,
         visibleAttrsWithoutOpenOut,

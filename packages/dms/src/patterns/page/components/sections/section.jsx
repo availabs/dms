@@ -27,8 +27,16 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
 
     const component = (RegisteredComponents[get(value, ["element", "element-type"], "lexical")] || RegisteredComponents['lexical']);
     const [state, setState] = useImmer(convertOldState(value?.['element']?.['element-data'] || '', initialState(component.defaultState)));
-    const [showDeleteModal, setShowDeleteModal] = useState(false);
-    const [key, setKey] = useState(); // used to update lexical on paste
+    const [sectionState, setSectionState] = useImmer({
+        showDeleteModal: false,
+        key: undefined,
+        listAllColumns: false
+    });
+    const {showDeleteModal, key, listAllColumns} = sectionState;
+    const setShowDeleteModal = value => setSectionState(draft => {draft.showDeleteModal = value});
+    const setListAllColumns = value => setSectionState(draft => {draft.listAllColumns = value});
+    const setKey = value => setSectionState(draft => { draft.key = value });
+
     const { activeSource, activeView, sources, views, onSourceChange, onViewChange } = useDataSource({state, setState});
 
     const theme = getComponentTheme(fullTheme, 'pages.section')
@@ -51,12 +59,12 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
   const TitleEditComp = attributes?.title?.EditComp
   const LevelComp = attributes?.level?.EditComp
   const HelpComp = attributes?.helpText?.EditComp
-  const helpTextArray = getHelpTextArray(value)
+  const helpTextArray = getHelpTextArray(value, true)
 
 
   const sectionMenuItems = getSectionMenuItems({
-      sectionState: { isEdit, value, attributes, i, showDeleteModal, state },
-      actions: { moveItem, updateAttribute, updateElementType, onChange, setKey, setState, setShowDeleteModal },
+      sectionState: { isEdit, value, attributes, i, showDeleteModal, listAllColumns, state },
+      actions: { moveItem, updateAttribute, updateElementType, onChange, setKey, setState, setShowDeleteModal, setListAllColumns },
       auth: { user, isUserAuthed, pageAuthPermissions, sectionAuthPermissions, Permissions, AuthAPI },
       ui:  { Switch, Pill, TitleEditComp, LevelComp, theme: fullTheme, RegisteredComponents },
       dataSource: {  activeSource, activeView, sources, views, onSourceChange, onViewChange }
@@ -164,7 +172,7 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
     const TitleEditComp = attributes?.title?.EditComp
     const LevelComp = attributes?.level?.EditComp
     const HelpComp = attributes?.helpText?.ViewComp
-    const helpTextArray = getHelpTextArray(value)
+    const helpTextArray = getHelpTextArray(value, false);
     const helpTextCondition = helpTextArray.some(({text}) => text && !(
         (text?.root?.children?.length === 1 && text?.root?.children?.[0]?.children?.length === 0) ||
         (text?.root?.children?.length === 0)

@@ -13,6 +13,9 @@ const isJson = (str)  => {
 }
 
 const cardTypes = {
+    'Inline Guidance': {
+       contentEditable: 'border-3 border-dashed border-[#e7ae48] px-6 py-4 rounded-lg relative [tab-size:1] outline-none ',
+    },
     'Dark': {
         contentEditable: 'border-none relative [tab-size:1] outline-none ',
         editorScroller: "min-h-[150px] border-0 flex relative outline-0 z-0bh resize-y", //'editor-scroller'
@@ -129,6 +132,10 @@ const Edit = ({value, onChange}) => {
                               {
                                 label: 'Default Text',
                                 value: ''
+                              },
+                              {
+                                label: 'Inline Guidance',
+                                value: 'Inline Guidance'
                               },
                               {
                                 label: 'Dark Text',

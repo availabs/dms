@@ -3,14 +3,17 @@ import { handleCopy, handlePaste, TagComponent } from "./section_utils"
 import {
     getColumnLabel, updateColumns, resetColumn,
     resetAllColumns, duplicate, toggleIdFilter,
-    toggleGlobalVisibility, updateDisplayValue
+    toggleGlobalVisibility, updateDisplayValue, addFormulaColumn, isEqualColumns, addCalculatedColumn
 } from "./controls_utils";
 import { getComponentTheme } from "../../../../ui/useTheme";
+import AddFormulaColumn from "./AddFormulaColumn";
+import AddCalculatedColumn from "./AddCalculatedColumn";
+
 
 // todo move filters here
 export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSource={}, ...rest }) => {
-    const { isEdit, value, attributes, i, showDeleteModal, state } = sectionState
-    const { onEdit, moveItem, updateAttribute, updateElementType, onChange, setKey, setState, setShowDeleteModal } = actions
+    const { isEdit, value, attributes, i, showDeleteModal, listAllColumns, state } = sectionState
+    const { onEdit, moveItem, updateAttribute, updateElementType, onChange, setKey, setState, setShowDeleteModal, setListAllColumns } = actions
     const { user, isUserAuthed, pageAuthPermissions, sectionAuthPermissions, Permissions, AuthAPI } = auth
     const { Switch, Pill, TitleEditComp, LevelComp, refreshDataBtnRef, isRefreshingData, setIsRefreshingData, theme, RegisteredComponents = {} } = ui
     const { activeSource, activeView, sources, views, onSourceChange, onViewChange } = dataSource;
@@ -104,39 +107,66 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
             ].filter(item => item.cdn())
         }
     ]
-  const columnsToRender = [
+  const columnsToRender = listAllColumns ? [
     ...(state?.columns || []),
     ...(state?.sourceInfo?.columns || [])
       .filter(c => !(state?.columns || [])
       .map(c => c.name).includes(c.name))
-  ]
-  if ((state?.columns || []).some(column => column.type === 'formula')) {
-     columnsToRender.push(...(state?.columns || []).filter(column => column.type === 'formula'))
-  }
+  ] : [...(state?.columns || [])];
+
+    const allColumns = [
+        ...(state?.columns || []),
+        ...(state?.sourceInfo?.columns || [])
+            .filter(c => !(state?.columns || [])
+                .map(c => c.name).includes(c.name))
+    ];
 
     const isEveryColVisible = (state?.sourceInfo?.columns || [])
         .map(({ name }) => (state?.columns || [])
-        .find(column => column.name === name))
+        .find(column => column?.name === name))
         .every(column => column?.show);
     const isSystemIDColOn = (state?.columns || [])
         .find(c => c.systemCol && c.name === 'id');
     const columns = [
         {
             name: 'Columns', cdn: () => isEdit && currentComponent?.useDataSource && canEditSection,
-            showSearch: true,
+            showSearch: true, canReorder: true, onReorder: (updatedColumns) => {
+                setState(draft => {
+                    draft.columns = updatedColumns.map(c => draft.columns.find(draftCol => isEqualColumns(draftCol, c.column))).filter(c => c);
+                })
+            },
             items: [
                 {icon: 'GlobalEditing', name: 'Global Controls',
-                    type: () => <>
-                        <Pill text={isEveryColVisible ? 'Hide all' : 'Show all'} color={'blue'} onClick={() => toggleGlobalVisibility(!isEveryColVisible, setState)}/>
-                        <Pill text={isSystemIDColOn ? 'Hide ID column' : 'Show ID column'} color={'blue'} onClick={() => toggleIdFilter(setState)}/>
-                        <Pill text={'Reset all'} color={'orange'} onClick={() => resetAllColumns(setState)}/>
-                    </>},
+                    type: () => <div className={'flex flex-col gap-1'}>
+                        <div className={'flex flex-wrap gap-1'}>
+                            <Pill text={isSystemIDColOn ? 'Hide ID' : 'Use ID'} color={'blue'} onClick={() => toggleIdFilter(setState)}/>
+                            <AddFormulaColumn columns={columnsToRender} addFormulaColumn={col => addFormulaColumn(col, setState)}/>
+                            <AddCalculatedColumn columns={columnsToRender} addCalculatedColumn={col => addCalculatedColumn(col, setState)}/>
+                        </div>
+                        <div className={'flex flex-wrap gap-1'}>
+                            <Pill text={listAllColumns ? 'List Used' : 'List All'} color={'blue'} onClick={() => setListAllColumns(!listAllColumns)}/>
+                            <Pill text={isEveryColVisible ? 'Hide all' : 'Show all'} color={'blue'} onClick={() => toggleGlobalVisibility(!isEveryColVisible, setState)}/>
+                            <Pill text={'Reset all'} color={'orange'} onClick={() => resetAllColumns(setState)}/>
+                        </div>
+                    </div>},
                 ...columnsToRender
-                    .map(column => (
+                    .map((column, i) => (
                         {
+                            id: `${column.name}_${i}`,
                             name: getColumnLabel(column), icon: column.show ? 'Eye' : '',
+                            column, // to match back to state after reordering
                             items: [
-                                ...(currentComponent.controls?.columns || []).map(control => {
+                                {icon: 'PencilSquare', // fucks up
+                                    name: 'Name',
+                                    type: 'input',
+                                    showLabel: true,
+                                    value: getColumnLabel(column),
+                                    onChange: e => updateColumns(column, 'customName', e.target.value, undefined, setState)
+                                },
+                                ...[
+                                    ...(currentComponent.controls?.columns || []),
+                                    ...(currentComponent.controls?.inHeader || [])
+                                ].map(control => {
                                     const isDisabled = typeof control.disabled === 'function' ? control.disabled({attribute: column}) : control.disabled;
                                     return ({
                                         name: control.label,
@@ -153,6 +183,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                                         onChange: !['toggle', 'function'].includes(control.type) ? e => updateColumns(column, control.key, e, control.onChange, setState) : undefined,
                                         type: typeof control.type === 'function' ? () => control.type({
                                             attribute: column,
+                                            setAttribute: newValue => updateColumns(column, undefined, newValue, control.onChange, setState),
                                             value: column[control.key],
                                             setValue: newValue => updateColumns(column, control.key, newValue, control.onChange, setState),
                                             setState
@@ -165,6 +196,29 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                         }
                     ))
             ]
+        },
+    ]
+
+    const groupControl = currentComponent.controls?.columns?.find(c => c.key === 'group') || {};
+    const hasGroupControl = Boolean(groupControl);
+    const group = [
+        {
+            name: 'Group', cdn: () => isEdit && currentComponent?.useDataSource && canEditSection && hasGroupControl,
+            showSearch: true,
+            items:
+                allColumns
+                    .map(column => (
+                        {
+                            name: getColumnLabel(column), icon: column.show ? 'Eye' : '',
+                            showLabel: true,
+                            type: groupControl.type,
+                            value: groupControl[groupControl.key],
+                            enabled: groupControl.type === 'toggle' ? !!column[groupControl.key] : undefined,
+                            setEnabled: groupControl.type === 'toggle' ? (value) =>
+                                updateColumns(column, groupControl.key, value && groupControl.trueValue ? groupControl.trueValue : value, groupControl.onChange, setState) : undefined,
+                        }
+                    ))
+
         },
     ]
 
@@ -430,6 +484,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
             ...component,
             ...dataset,
             ...columns,
+            ...group,
             ...more,
             ...other,
             ...display,

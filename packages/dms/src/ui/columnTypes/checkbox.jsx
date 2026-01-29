@@ -28,8 +28,8 @@ const Edit = ({value = '', onChange, className, placeholder, trueValue=true, ...
     )
 }
 
-const View = ({value, className, trueValue=true, ...rest}) => {
-    if (!value) return false
+const View = ({value, className, trueValue=true, onChange, ...rest}) => {
+    // if (!value) return false
 
     return (
         <div
@@ -40,8 +40,10 @@ const View = ({value, className, trueValue=true, ...rest}) => {
                 type={'checkbox'}
                 className={ className || (theme?.text?.input || 'w-full border p-2')}
                 checked={value === trueValue}
-                disabled={false}
-            />        </div>
+                disabled={true}
+                onChange={() => {}}
+            />
+        </div>
     )
 }
 

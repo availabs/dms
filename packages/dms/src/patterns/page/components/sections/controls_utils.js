@@ -7,7 +7,13 @@ export const isEqualColumns = (column1, column2) =>
     column1?.name === column2?.name &&
     column1?.isDuplicate === column2.isDuplicate &&
     column1?.copyNum === column2?.copyNum;
-
+export const isCalculatedCol = ({ display, type, origin }) => {
+    return (
+        display === "calculated" ||
+        type === "calculated" ||
+        origin === "calculated-column"
+    );
+};
 // updates column if present, else adds it with the change the user made.
 export const updateColumns = (originalAttribute, key, value, onChange, setState) => {
     setState(draft => {
@@ -20,8 +26,10 @@ export const updateColumns = (originalAttribute, key, value, onChange, setState)
         if (idx === -1) {
             draft.columns.push({ ...originalAttribute, [key]: value });
             idx = draft.columns.length - 1; // new index
-        } else {
+        } else if(key){
             draft.columns[idx][key] = value;
+        }else{
+            draft.columns[idx] = {...(draft.columns[idx] || {}), ...(value || {})}
         }
         // ======================= default behaviour end ==================================
 
@@ -135,6 +143,12 @@ export const addFormulaColumn = (column, setState) => setState(draft => {
                 draft.columns[idx].fn = draft.columns[idx].defaultFn?.toLowerCase() || 'list';
             }
         })
+    }
+})
+
+export const addCalculatedColumn = (column, setState) => setState(draft => {
+    if(column.name && isCalculatedCol(column)){
+        draft.columns.push(column)
     }
 })
 export const updateDisplayValue = (key, value, onChange, setState) => {

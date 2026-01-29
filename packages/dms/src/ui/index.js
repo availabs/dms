@@ -34,6 +34,7 @@ import Graph from "./components/graph";
 import Listbox from "./components/Listbox";
 import Permissions from "./components/Permissions";
 import NavigableMenu from "./components/navigableMenu";
+import DraggableList from "./components/DraggableList";
 import Popup from "./components/Popup";
 import ColumnTypes from "./columnTypes/index.jsx";
 
@@ -50,6 +51,7 @@ const UI = {
     NavigableMenu,
 	DraggableNav,
 	DraggableMenu,
+	DraggableList,
 
 	// --- Utilities
 	Icon,

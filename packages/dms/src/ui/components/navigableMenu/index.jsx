@@ -1,15 +1,16 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import { useImmer } from "use-immer";
+import {isEqual} from "lodash-es";
 import { Link } from 'react-router'
 
 import { ThemeContext, getComponentTheme } from "../../useTheme";
+import DraggableList from "../DraggableList";
 import Button from "../Button";
 import Icon from "../Icon";
 import Input from "../Input";
 import columnTypes from "../../columnTypes";
 import Switch from "../Switch";
 import Popup from "../Popup";
-import {isEqual} from "lodash-es";
 import defaultTheme from "./theme";
 
 const defaultItems = [
@@ -154,6 +155,12 @@ const Menu = ({config, title, showTitle=true, open, setOpen, activeStyle}) => {
       }
       <div className={theme?.menuItemsWrapper}>
         {
+          config[activeParent]?.canReorder ?
+              <DraggableList
+                  dataItems={menuItems}
+                  onChange={value => config[activeParent].onReorder?.(value)}
+                  renderItem={({item: menuItem}) => <MenuItem key={menuItem.id} menuItem={menuItem} setActiveParent={changeParent} activeStyle={activeStyle} /> }
+              /> :
           menuItems.map(menuItem => <MenuItem key={menuItem.id} menuItem={menuItem} setActiveParent={changeParent} activeStyle={activeStyle} />)
         }
       </div>

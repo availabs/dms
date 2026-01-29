@@ -23,8 +23,6 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
 
     const visibleAttributes = useMemo(() => columns.filter(({show}) => show), [columns]);
     const visibleAttributesLen = useMemo(() => columns.filter(({show}) => show).length, [columns]);
-    const openOutAttributes = useMemo(() => columns.filter(({openOut}) => openOut), [columns]);
-    const openOutAttributesLen = useMemo(() => columns.filter(({openOut}) => openOut).length, [columns]);
     const visibleAttrsWithoutOpenOut = useMemo(() => columns.filter(({show, openOut}) => show && !openOut), [columns]);
     const visibleAttrsWithoutOpenOutLen = useMemo(() => columns.filter(({show, openOut}) => show && !openOut).length, [columns]);
     const actionColumns = useMemo(() => columns.filter(({actionType}) => actionType), [columns]);
@@ -37,7 +35,7 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
     // =========================================== auto resize begin ===================================================
     // =================================================================================================================
     useEffect(() => {
-        if(!gridRef.current) return;
+        if(!gridRef.current || !display.autoResize) return;
 
         const columnsWithSizeLength = visibleAttrsWithoutOpenOut.filter(({size}) => size).length;
         const gridWidth = gridRef.current.offsetWidth - numColSize - gutterColSize - (allowEdit ? actionColumns.length * actionsColSize : 0);
@@ -58,7 +56,7 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
                 })
             });
         }
-    }, [visibleAttributesLen, visibleAttrsWithoutOpenOutLen, openOutAttributesLen, sourceInfo.columns]);
+    }, [visibleAttributesLen, visibleAttrsWithoutOpenOutLen, sourceInfo.columns, display.autoResize]);
     // ============================================ auto resize end ====================================================
 
     //console.log('render table')
@@ -136,16 +134,17 @@ export default {
     controls: {
         columns: [
             // settings from columns dropdown are stored in state.columns array, per column
+            {type: 'toggle', label: 'show', key: 'show'},
+            {type: 'toggle', label: 'Filter', key: 'filters',
+                trueValue: [{type: 'internal', operation: 'filter', values: []}]},
+            {type: 'toggle', label: 'Group', key: 'group'},
             {type: 'select', label: 'Fn', key: 'fn',
                 options: [
                     {label: 'fn', value: ' '}, {label: 'list', value: 'list'}, {label: 'sum', value: 'sum'}, {label: 'count', value: 'count'}, {label: 'avg', value: 'avg'}
                 ]},
-            {type: 'toggle', label: 'show', key: 'show'},
             {type: 'toggle', label: 'Exclude N/A', key: 'excludeNA'},
             {type: 'toggle', label: 'Open Out', key: 'openOut'},
-            {type: 'toggle', label: 'Filter', key: 'filters',
-                trueValue: [{type: 'internal', operation: 'filter', values: []}]},
-            {type: 'toggle', label: 'Group', key: 'group'},
+
             {type: 'toggle', label: 'Value column', key: 'valueColumn', onChange: ({key, value, attribute, state, columnIdx}) => {
                     if(attribute.yAxis || attribute.categorize) return;
                     state.columns.forEach(column => {
@@ -175,6 +174,7 @@ export default {
             {type: 'toggle', label: 'Allow Download', key: 'allowDownload'},
             {type: 'toggle', label: 'Always Fetch Data', key: 'readyToLoad'},
             {type: 'toggle', label: 'Use Pagination', key: 'usePagination'},
+            {type: 'toggle', label: 'Auto Resize Columns', key: 'autoResize'},
             {type: 'toggle', label: 'Hide Null Open out columns', key: 'hideIfNullOpenouts'},
             {type: 'select', label: 'Filter Relation', key: 'filterRelation',
                 options: [{label: 'and', value: 'and'}, {label: 'or', value: 'or'}]

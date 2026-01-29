@@ -143,8 +143,8 @@ const inHeader = [
     {type: 'select', label: 'Format', key: 'formatFn', isBatchUpdatable: true,
         options: [
             {label: 'No Format Applied', value: ' '},
-            {label: 'Comma Seperated', value: 'comma'},
-            {label: 'Comma Seperated ($)', value: 'comma_dollar'},
+            {label: 'Comma Separated', value: 'comma'},
+            {label: 'Comma Separated ($)', value: 'comma_dollar'},
             {label: 'Abbreviated', value: 'abbreviate'},
             {label: 'Abbreviated ($)', value: 'abbreviate_dollar'},
             {label: 'Date', value: 'date'},
@@ -214,6 +214,9 @@ export default {
     controls: {
         columns: [
             // settings from columns dropdown are stored in state.columns array, per column
+            {type: 'toggle', label: 'show', key: 'show'},
+            {type: 'toggle', label: 'Filter', key: 'filters', trueValue: [{type: 'internal', operation: 'filter', values: []}]},
+            {type: 'toggle', label: 'Group', key: 'group'},
             {type: 'select', label: 'Fn', key: 'fn',
                 options: [
                     {label: 'fn', value: ' '}, {label: 'list', value: 'list'}, {label: 'sum', value: 'sum'}, {label: 'count', value: 'count'}, {label: 'avg', value: 'avg'}
@@ -222,9 +225,6 @@ export default {
                 options: [
                     {label: 'include n/a', value: false}, {label: 'exclude n/a', value: true}
                 ]},
-            {type: 'toggle', label: 'show', key: 'show'},
-            {type: 'toggle', label: 'Filter', key: 'filters', trueValue: [{type: 'internal', operation: 'filter', values: []}]},
-            {type: 'toggle', label: 'Group', key: 'group'},
         ],
         more: [
             // settings from more dropdown are stored in state.display
