@@ -5,7 +5,7 @@ import {useImmer} from "use-immer";
 import { ThemeContext, mergeTheme } from "../../../../ui/useTheme";
 import { CMSContext, PageContext } from '../../context'
 import {
-    sectionsEditBackill, dataItemsNav, mergeFilters, detectNavLevel, getInPageNav,
+    sectionsEditBackill, dataItemsNav, nav2Level, mergeFilters, detectNavLevel, getInPageNav,
     convertToUrlParams, updatePageStateFiltersOnSearchParamChange, initNavigateUsingSearchParams, getPageAuthPermissions
 } from '../_utils'
 import SectionGroup from '../../components/sections/sectionGroup'
@@ -34,6 +34,10 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
 		let items = dataItemsNav(theme?.navOptions?.secondaryNav?.navItems || [],baseUrl,true)
 		return items
 	}, [theme?.navOptions?.secondaryNav?.navItems])
+
+	const resolveNav = React.useCallback((navDepth, navTitle) => {
+		return nav2Level(menuItems, navDepth, pathname, baseUrl, navTitle)
+	}, [menuItems, pathname, baseUrl])
 
 	// console.log('-----------render edit----------------', item.draft_sections.length, item.draft_section_groups.length)
 
@@ -154,6 +158,7 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
 				<PageControls />
 				<Layout
               navItems={menuItems}
+              resolveNav={resolveNav}
               secondNav={menuItemsSecondNav}
               headerChildren={React.useMemo(() => getSectionGroups('top'),[item?.draft_section_groups])}
               footerChildren={React.useMemo(() => getSectionGroups('bottom'),[item?.draft_section_groups])}

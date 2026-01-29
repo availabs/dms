@@ -4,6 +4,7 @@ import { cloneDeep } from "lodash-es"
 import { useImmer } from "use-immer";
 import {
     dataItemsNav,
+    nav2Level,
     convertToUrlParams,
     mergeFilters,
     initNavigateUsingSearchParams,
@@ -18,7 +19,7 @@ function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdat
     //console.log('create doc', { item, dataItems: allDataItems })
     const navigate = useNavigate()
     const [searchParams] = useSearchParams();
-    const { search } = useLocation()
+    const { search, pathname } = useLocation()
     const pdfRef = useRef(); // To capture the section of the page to be converted to PDF
     const {theme: fullTheme, UI} = useContext(ThemeContext);
     const { Menu, baseUrl, patternFilters = [], isUserAuthed = () => true, authPermissions } = React.useContext(CMSContext) || {};
@@ -46,6 +47,10 @@ function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdat
         let items = dataItemsNav(theme?.navOptions?.secondaryNav?.navItems || [],baseUrl,false)
         return items
     }, [theme?.navOptions?.secondaryNav?.navItems])
+
+    const resolveNav = React.useCallback((navDepth, navTitle) => {
+        return nav2Level(menuItems, navDepth, pathname, baseUrl, navTitle)
+    }, [menuItems, pathname, baseUrl])
 
     // React.useEffect(() => {
     //     // -------------------------------------------------------------------
@@ -122,6 +127,7 @@ function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdat
         <ThemeContext.Provider value={{theme, UI}}>
           <Layout
               navItems={menuItems}
+              resolveNav={resolveNav}
               secondNav={menuItemsSecondNav}
               headerChildren={getSectionGroups('top')}
               footerChildren={getSectionGroups('bottom')}

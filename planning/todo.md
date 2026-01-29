@@ -15,10 +15,13 @@
 ## ui
 
 - [x] Fix theme merge for array fields (replace instead of deep merge)
+- [ ] Move widgets to top-level theme (out of layout.options)
 
 ## patterns
 
 ### patterns/page
+
+- [ ] Fix nav2Level baseUrl bug and move to page pattern
 
 ### patterns/datasets
 
