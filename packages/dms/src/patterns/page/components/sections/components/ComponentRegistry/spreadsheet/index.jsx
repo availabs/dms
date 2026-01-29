@@ -172,6 +172,7 @@ export default {
             {type: 'toggle', label: 'Show Total', key: 'showTotal'},
             {type: 'toggle', label: 'Striped', key: 'striped'},
             {type: 'toggle', label: 'Allow Download', key: 'allowDownload'},
+            {type: 'toggle', label: 'Prevent Duplicate Fetch', key: 'preventDuplicateFetch'},
             {type: 'toggle', label: 'Always Fetch Data', key: 'readyToLoad'},
             {type: 'toggle', label: 'Use Pagination', key: 'usePagination'},
             {type: 'toggle', label: 'Auto Resize Columns', key: 'autoResize'},

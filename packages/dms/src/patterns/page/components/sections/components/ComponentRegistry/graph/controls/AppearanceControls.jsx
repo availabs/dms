@@ -142,6 +142,8 @@ export default function AppearanceControls({context}) {
                            setValue={value => updateDisplayValue(null, 'showScaleFilter', value)}/>
             <InputControl title={'Height'} type={'number'} value={display.height}
                           setValue={value => updateDisplayValue(null, 'height', +value)}/>
+            <ToggleControl title={'Prevent Duplicate Fetch'} value={display.preventDuplicateFetch}
+                           setValue={value => updateDisplayValue(null, 'preventDuplicateFetch', value)}/>
             <ToggleControl title={'Always Fetch Data'} value={display.readyToLoad}
                            setValue={value => updateDisplayValue(null, 'readyToLoad', value)}/>
             <ToggleControl title={'Dark Mode'} value={display.darkMode}
