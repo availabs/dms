@@ -17,28 +17,18 @@ import layoutTheme from './Layout.theme';
 
 
 //--- Components and Widgets ------
-import TopNav, { HorizontalMenu } from './TopNav';
-import SideNav, { VerticalMenu } from './SideNav';
-import Logo from './Logo';
-const NoComp = () => <div className='h-12'/>
+import TopNav from './TopNav';
+import SideNav from './SideNav';
 
 //--------------
 // Widgets
 // -------------
-const LayoutWidgets = {
-  NoComp,
-	HorizontalMenu,
-	VerticalMenu,
-	Logo,
+const NoComp = () => <div className='h-12'/>
+const getMenu = (menu = [], widgets = {}) => {
+   return <>{(menu).map((widget, i) => getWidget(widget, i, widgets))}</>
 }
-export const registerLayoutWidget = (name,widget) => {
-  LayoutWidgets[name] = widget
-}
-const getMenu = (menu = []) => {
-   return <>{(menu).map((widget,i) => getWidget(widget,i))}</>
-}
-const getWidget = ({ type, options = {} },index) => {
-   let Comp = LayoutWidgets?.[type] || LayoutWidgets['NoComp']
+const getWidget = ({ type, options = {} }, index, widgets = {}) => {
+   let Comp = widgets?.[type]?.component || NoComp
    return <Comp key={index} {...options} />
 }
 //-------------------------------------------------
@@ -55,6 +45,7 @@ const Layout = ({
 	const { theme: defaultTheme = {layout: layoutTheme} } = React.useContext(ThemeContext);
 	const { sideNav={}, topNav={}, activeStyle } = cloneDeep(defaultTheme?.layout.options) || {}
 	const theme = merge(cloneDeep(defaultTheme?.layout?.styles?.[activeStyle || 0] || defaultTheme))
+	const widgets = defaultTheme?.widgets || {}
 	// console.log('Theme', theme, sideNav, activeStyle)
   const navs = (nav) => {
     return {
@@ -75,18 +66,18 @@ const Layout = ({
   				{ topNav.size !== 'none' && (
             <TopNav
               activeStyle={ topNav?.activeStyle }
-              leftMenu={getMenu(topNav?.leftMenu)}
+              leftMenu={getMenu(topNav?.leftMenu, widgets)}
               menuItems={ navs(topNav)?.[topNav?.nav] || [] }
-							rightMenu={getMenu(topNav?.rightMenu)}
+							rightMenu={getMenu(topNav?.rightMenu, widgets)}
 						/>
   				)}
   				<div className={`${theme?.wrapper3}`}>
   					{ sideNav.size !== 'none' && (
 							<SideNav
                 activeStyle={ sideNav?.activeStyle }
-								topMenu={getMenu(sideNav?.topMenu)}
+								topMenu={getMenu(sideNav?.topMenu, widgets)}
                 menuItems={ navs(sideNav)?.[sideNav?.nav] || []}
-								bottomMenu={getMenu(sideNav?.bottomMenu)}
+								bottomMenu={getMenu(sideNav?.bottomMenu, widgets)}
 							/>
    				  )}
             <div className={`${theme?.childWrapper}`}>

@@ -1,9 +1,8 @@
 import React from "react"
 import defaultTheme from "./defaultTheme"
-import { registerLayoutWidget } from './components/Layout'
 import { get, set, merge, cloneDeep, has, isPlainObject } from 'lodash-es'
+export { registerWidget } from './widgets'
 
-export const RegisterLayoutWidget = (name,widget) => registerLayoutWidget(name,widget)
 export const ThemeContext = React.createContext(defaultTheme);
 
 /**

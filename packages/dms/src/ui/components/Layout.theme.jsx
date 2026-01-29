@@ -1,5 +1,10 @@
 import { set } from "lodash-es"
 
+const widgetOptions = (widgets = {}) =>
+  Object.entries(widgets)
+    .filter(([_, w]) => !w.internal)
+    .map(([key, w]) => ({ label: w.label || key, value: key }))
+
 export const layoutSettings = (theme) => {
   const activeStyle=theme?.layout?.options?.activeStyle
   const topNavOptions = [
@@ -26,7 +31,7 @@ export const layoutSettings = (theme) => {
     {
       label: "Top Nav - Left Menu",
       type: "Listbox",
-      options: theme?.layout?.options?.widgets || [],
+      options: widgetOptions(theme?.widgets),
       onChange:(e, setState) => {
         //console.log('lisbox on Change', )
         setState(draft => {
@@ -50,7 +55,7 @@ export const layoutSettings = (theme) => {
     {
       label: "Top Nav - Right Menu",
       type: "Listbox",
-      options: theme?.layout?.options?.widgets || [],
+      options: widgetOptions(theme?.widgets),
       onChange:(e, setState) => {
         //console.log('lisbox on Change', )
         setState(draft => {
@@ -102,7 +107,7 @@ export const layoutSettings = (theme) => {
     {
       label: "Side Nav - Top Menu",
       type: "Listbox",
-      options: theme?.layout?.options?.widgets || [],
+      options: widgetOptions(theme?.widgets),
       onChange:(e, setState) => {
         setState(draft => {
           //draft.layout.options.sideNav.topMenu = draft?.layout?.options?.sideNav?.topMenu || []
@@ -126,7 +131,7 @@ export const layoutSettings = (theme) => {
     {
       label: "Side Nav - Bottom Menu",
       type: "Listbox",
-      options: theme?.layout?.options?.widgets || [],
+      options: widgetOptions(theme?.widgets),
       onChange:(e, setState) => {
         //console.log('lisbox on Change', )
         setState(draft => {
@@ -263,7 +268,6 @@ export const layoutSettings = (theme) => {
 export default  {
   "options": {
     "activeStyle": 0,
-    "_replace": ["widgets"],
     "sideNav": {
       "size": "compact",
       "nav": "main",
@@ -280,21 +284,6 @@ export default  {
       "leftMenu": [],
       "rightMenu": []
     },
-    "widgets":[
-      {
-        label: 'Logo',
-        value: 'Logo'
-      },
-      {
-        label: 'User Menu',
-        value: 'UserMenu'
-      },
-      {
-        label: 'Search Button',
-        value: 'SearchButton'
-      }
-    ]
-
   },
   "styles": [{
     "outerWrapper": 'bg-slate-100',

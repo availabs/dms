@@ -8,11 +8,11 @@ import {userMenuTheme} from './userMenu.theme'
 // import {NavItem, NavMenu, NavMenuItem, NavMenuSeparator, withAuth} from 'components/avl-components/src'
 // import user from "@availabs/ams/dist/reducers/user";
 
-const UserMenu = ({}) => {
+const UserMenu = ({activeStyle}) => {
     const { theme, UI } = useContext(ThemeContext)
     const { user } = useContext(AuthContext)
     const { Icon } = UI;
-    const menuTheme = getComponentTheme(theme, 'pages.userMenu') || userMenuTheme.styles[0]
+    const menuTheme = getComponentTheme(theme, 'pages.userMenu', activeStyle) || userMenuTheme.styles[0]
 
     return (
       <div className={menuTheme.userMenuContainer}>
@@ -29,13 +29,13 @@ const UserMenu = ({}) => {
     )
 }
 
-const EditControl = () => {
+const EditControl = ({activeStyle}) => {
   const { theme, UI } = useContext(ThemeContext)
   const { user } = useContext(AuthContext) || {}
   const { isUserAuthed = () => false,  baseUrl='/'  } = useContext(CMSContext) || {}
   const location = useLocation()
   const { Icon } = UI
-  const menuTheme = getComponentTheme(theme, 'pages.userMenu') || userMenuTheme.styles[0]
+  const menuTheme = getComponentTheme(theme, 'pages.userMenu', activeStyle) || userMenuTheme.styles[0]
   const edit = React.useMemo(() => {
     return location.pathname.replace(`${baseUrl}`,'').split('/')?.[1] === 'edit'
   },[location])
@@ -64,14 +64,13 @@ const EditControl = () => {
     </>
 }
 
-export default ({title, children}) => {
+export default ({title, children, activeStyle, navigableMenuActiveStyle}) => {
   const { user } = React.useContext(AuthContext) || {}
   const { baseUrl = ''} = React.useContext(CMSContext) || {}
-  // console.log('Menu CMS Context', user)
   const { theme, UI } = React.useContext(ThemeContext) || {}
   const { NavigableMenu, Icon } = UI;
   const location = useLocation();
-  const menuTheme = getComponentTheme(theme, 'pages.userMenu') || userMenuTheme.styles[0]
+  const menuTheme = getComponentTheme(theme, 'pages.userMenu', activeStyle) || userMenuTheme.styles[0]
 
   let authMenuItems = theme?.navOptions?.authMenu?.navItems || [
     {
@@ -97,33 +96,32 @@ export default ({title, children}) => {
   return (
     <>
       {!user?.authed ?
-        <div className={menuTheme.loginWrapper}>
-          <Link
-            className={menuTheme.loginLink}
-            to="/auth/login"
-            state={{ from: location?.pathname }}>
-              <div className={menuTheme.loginIconWrapper}>
-                <Icon icon={'Login'} className={menuTheme.loginIcon} />
-              </div>
-          </Link>
-        </div> :
+        <Link
+          className={`${menuTheme.loginWrapper} ${menuTheme.loginLink}`}
+          to="/auth/login"
+          state={{ from: location?.pathname }}>
+            <Icon icon={'Login'} className={menuTheme.loginIcon} />
+            <span className={menuTheme.loginText || 'hidden'}>Login</span>
+        </Link> :
         (
           <div className={menuTheme.authContainer}>
             <div className={menuTheme.authWrapper}>
               <NavigableMenu
                 config={[
-                  { type: () =>  <UserMenu /> },
+
                   ...authMenuItems,
                   { type: 'separator'},
                   { name: 'Logout', path: '/auth/logout', type: 'link' },
+                  { type: () =>  <UserMenu activeStyle={activeStyle} /> },
                 ]}
                 showTitle={false}
+                activeStyle={navigableMenuActiveStyle}
               >
                 <div className={menuTheme.userMenuWrapper}>
-                  <UserMenu />
+                  <UserMenu activeStyle={activeStyle} />
                 </div>
               </NavigableMenu>
-              <EditControl />
+              <EditControl activeStyle={activeStyle} />
             </div>
           </div>
         )
