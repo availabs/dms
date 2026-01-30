@@ -11,7 +11,8 @@ import cmsFormat from "./page.format.js";
 import { CMSContext } from "./context";
 import { isUserAuthed } from "./auth.js";
 import UI from "../../ui";
-import { ThemeContext, RegisterLayoutWidget, getPatternTheme } from "../../ui/useTheme.js";
+import { ThemeContext, getPatternTheme } from "../../ui/useTheme.js";
+import { registerWidget } from "../../ui/widgets";
 import SearchButton from "./components/search/index";
 import DefaultMenu from "./components/userMenu";
 
@@ -21,19 +22,9 @@ import PageEdit from "./pages/edit";
 import ErrorPage from "./pages/error";
 import FormatManager from "./pages/manager/formatManager"
 
-// Manager
-// import ManageLayout from "./pages/manager/layout";
-// import Dashboard from "./pages/manager";
-// import PageManager from "./pages/manager/pages";
-// import DesignEditor from "./pages/manager/design";
-// import FormatManager from "./pages/manager/formatManager";
-
-// ------------
-RegisterLayoutWidget('UserMenu', DefaultMenu)
-RegisterLayoutWidget('Search', SearchButton)
-// ------------
-
-
+// Register page pattern widgets
+registerWidget('UserMenu', { label: 'User Menu', component: DefaultMenu })
+registerWidget('SearchButton', { label: 'Search Button', component: SearchButton })
 
 const pagesConfig = ({
   app, type,

@@ -6,7 +6,7 @@ export const userMenuTheme = {
     {
       name: 'default',
       // UserMenu component
-      userMenuContainer: 'flex w-full items-center justify-center rounded-xl min-w-[60px] @container',
+      userMenuContainer: 'flex flex-1 w-full items-center justify-center rounded-xl min-w-[60px] @container',
       avatarWrapper: 'flex p-2 justify-center items-center',
       avatar: 'size-8 border border-[#E0EBF0] rounded-full place-items-center content-center hover:bg-slate-400',
       avatarIcon: 'size-6 fill-[#37576b]',
@@ -26,6 +26,7 @@ export const userMenuTheme = {
       loginLink: 'flex items-center',
       loginIconWrapper: 'size-8 place-items-center content-center border border-[#E0EBF0] rounded-full hover:bg-slate-400',
       loginIcon: 'size-6 stroke-slate-500 text-slate-500',
+      loginText: 'hidden',
       authContainer: '@container w-full',
       authWrapper: 'flex p-1 items-center',
       userMenuWrapper: 'flex items-center flex-1 w-full',
@@ -56,6 +57,7 @@ const themeClasses = {
     "loginLink",
     "loginIconWrapper",
     "loginIcon",
+    "loginText",
     "authContainer",
     "authWrapper",
     "userMenuWrapper",

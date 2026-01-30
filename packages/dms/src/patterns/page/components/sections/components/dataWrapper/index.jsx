@@ -202,7 +202,7 @@ const Edit = ({cms_context, value, onChange, component}) => {
         const newDataReq = {
             // visibleColumns: state.columns.filter(column => column.show),
             ...filterOptions,
-            filterRelation: state.display?.filterRelation,
+            ...state.display?.filterRelation && {filterRelation: state.display.filterRelation},
             groupBy: state.columns.filter(column => column.group).map(column => column.name),
             orderBy: state.columns.filter(column => column.sort).reduce((acc, column) => ({...acc, [column.name]: column.sort}), {}),
             fn: state.columns.filter(column => column.show && column.fn).reduce((acc, column) => ({...acc, [column.name]: column.fn}), {}),
@@ -234,15 +234,13 @@ const Edit = ({cms_context, value, onChange, component}) => {
         // calls getdata using data request object
         if(!isValidState) return;
         // only run when controls or source/view change
-        let isStale = false;
         async function load() {
+            if(state.display.preventDuplicateFetch && isEqual(state.dataRequest, state.lastDataRequest)) return;
+
             setLoading(true)
             const newCurrentPage = 0; // for all the deps here, it's okay to fetch from page 1.
             const {length, data, invalidState} = await getData({state, apiLoad, fullDataLoad: component.fullDataLoad, keepOriginalValues: component.keepOriginalValues});
-            if(isStale) {
-                setLoading(false);
-                return;
-            }
+
             setState(draft => {
                 draft.data = data;
                 draft.localFilteredData = undefined;
@@ -250,14 +248,12 @@ const Edit = ({cms_context, value, onChange, component}) => {
                 draft.display.totalLength = length;
                 draft.display.invalidState = invalidState;
             })
+            onChange(JSON.stringify({...state, lastDataRequest: state.dataRequest, data, totalLength: length}));
             setCurrentPage(newCurrentPage);
             setLoading(false)
         }
-
-        hasLocalFilters ? getFilteredData({currentPage}) : load()
-        return () => {
-            isStale = true;
-        };
+        const timeoutId = setTimeout(() => hasLocalFilters ? getFilteredData({currentPage}) : load(), 300);
+        return () => clearTimeout(timeoutId);
     }, [state.columns.length,
         state.dataRequest,
         state.sourceInfo.source_id,
@@ -408,7 +404,7 @@ const Edit = ({cms_context, value, onChange, component}) => {
     // =========================================== saving settings begin ===============================================
     useEffect(() => {
         if (!isEdit || !isValidState  || isEqual(value, JSON.stringify(state))) return;
-        console.log('saving state')
+
         onChange(JSON.stringify(state));
     }, [state])
     // =========================================== saving settings end =================================================
@@ -514,7 +510,7 @@ const Edit = ({cms_context, value, onChange, component}) => {
     )
 }
 
-const View = ({cms_context, value, component}) => {
+const View = ({cms_context, value, onChange, component}) => {
     const isEdit = false;
     const navigate = useNavigate();
     const {datasources, baseUrl} = useContext(cms_context || CMSContext) || {};
@@ -663,6 +659,8 @@ const View = ({cms_context, value, component}) => {
         if(!isValidState || (!hasLocalFilters && !state.display.readyToLoad && !state.display.allowEditInView)) return;
         // only run when controls or source/view change
         async function load() {
+            if(state.display.preventDuplicateFetch && isEqual(state.dataRequest, state.lastDataRequest)) return;
+
             setLoading(true)
             const newCurrentPage = 0; // for all the deps here, it's okay to fetch from page 1.
 
@@ -674,6 +672,7 @@ const View = ({cms_context, value, component}) => {
                 draft.display.filteredLength = undefined;
                 draft.display.totalLength = length;
             })
+            onChange(JSON.stringify({...state, lastDataRequest: state.dataRequest, data, totalLength: length}));
             setCurrentPage(newCurrentPage);
             setLoading(false)
         }
@@ -864,7 +863,7 @@ const View = ({cms_context, value, component}) => {
     }, [state.sourceInfo, apiUpdate, groupByColumnsLength, setState]);
     // =========================================== util fns end ========================================================
     if(showChangeFormatModal || !isValidState) return <div className={'p-1 text-center'}>Form data not available.</div>;
-    // component.name === 'Spreadsheet' && console.log('dw?', state)
+
     useEffect(() => {
         // set hideSection flag
         if(!state.display.hideIfNull || state.display.allowEditInView){

@@ -3,6 +3,7 @@ import settings from './themeSettings'
 import sideNavTheme from "./components/SideNav.theme";
 import topNavTheme from "./components/TopNav.theme";
 import layoutTheme  from './components/Layout.theme'
+import defaultWidgets from './widgets'
 import { layoutGroupTheme } from './components/LayoutGroup';
 import {tabsTheme} from "./components/Tabs";
 import {buttonTheme} from "./components/Button";
@@ -37,7 +38,6 @@ import {
 import {
     filterTheme
 } from "../patterns/page/components/sections/components/dataWrapper/components/filters/RenderFilters";
-import { registerLayoutWidget } from './components/Layout';
 // ======================================================================================================
 
 
@@ -148,6 +148,7 @@ const components = {
     navigableMenu: navigableMenuTheme,
 }
 const theme = {
+    widgets: defaultWidgets,
     admin: {
         navOptions: {
             "logo": "",
