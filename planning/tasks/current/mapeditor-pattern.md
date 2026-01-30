@@ -147,7 +147,7 @@ patterns/mapeditor → DMS API → dms.data_items table
        └── datamaps/
    ```
 
-6. **Do NOT copy the `components/dms/` subfolder** — that is the old bridge approach. The new pattern replaces it entirely.
+6. **Port the `components/dms/` subfolder** into the pattern as page-embeddable section components (see Phase 7).
 
 ### Phase 3: Replace DAMA Persistence with DMS
 
@@ -218,25 +218,92 @@ This is the core migration. Each file that calls DAMA Falcor paths needs to be r
     - Key format changes from `mapeditor_symbology_${symbology_id}` to `mapeditor_symbology_${dms_id}`
     - Alternatively, leverage DMS's built-in `draft_sections` / `has_changes` / `published` fields for draft management, removing the need for localStorage entirely
 
-### Phase 7: DMS Page Section Integration
+### Phase 7: Page Section Components (components/dms/)
 
-17. **Create a new DMS section type** for embedding maps in pages:
-    - Register a section format type (e.g., `cms-section-map`) that stores:
+The existing `MapEditor/components/dms/` subfolder contains Edit/View components that let maps be embedded as sections inside DMS pages. These should be adapted and brought forward into the pattern, not discarded.
+
+#### How Section Registration Works in DMS
+
+The page pattern has a global mutable component registry:
+
+```js
+// patterns/page/components/sections/section.jsx
+export let RegisteredComponents = ComponentRegistry;
+export const registerComponents = (comps = {}) => {
+    RegisteredComponents = {...RegisteredComponents, ...comps}
+}
+```
+
+Section components are resolved by `element-type` string key. The registry is populated at module load time. Any code that imports and calls `registerComponents()` before `DmsSite` renders will contribute components to the page section type selector.
+
+Each registered component must export:
+```js
+{
+    name: 'Map',
+    type: 'map',
+    useDataSource: false,
+    controls: { more: [...] },     // Settings controls for the section toolbar
+    EditComp: MapEditComponent,    // Rendered in page edit mode
+    ViewComp: MapViewComponent,    // Rendered in page view mode
+}
+```
+
+#### Implementation
+
+17. **Adapt `components/dms/MapComponent.jsx`** into `patterns/mapeditor/components/section/`:
+    ```
+    patterns/mapeditor/components/section/
+    ├── index.jsx              # Component registry entry ({ name, EditComp, ViewComp, controls })
+    ├── MapSectionEdit.jsx     # Edit component (symbology selector, tab/row manager, bounds config)
+    ├── MapSectionView.jsx     # View component (read-only map render)
+    └── MapManager/            # Adapted from dms/MapManager/ (tab/row/symbology selection UI)
+    ```
+
+18. **Update data flow** — the old `dms/MapComponent.jsx` stored symbology ID references in the section value and fetched symbology content from DAMA at render time. The adapted version should:
+    - Store symbology IDs (DMS `data_items` IDs) in the section's `element-data`
+    - Fetch symbology content from DMS via `["dms", "data", "byId", id, ...]` instead of DAMA
+    - Keep the tab/row/visibility state structure in `element-data`:
       ```json
       {
-        "symbology_ids": [123, 456],
-        "tabs": [...],
+        "tabs": [{ "name": "Layers", "rows": [{ "type": "symbology", "symbologyId": 123, "name": "..." }] }],
+        "symbologies": { "123": { "isVisible": true } },
         "initialBounds": { "center": [...], "zoom": 10 },
         "height": "full",
-        "hideControls": false
+        "hideControls": false,
+        "blankBaseMap": false,
+        "zoomPan": true
       }
       ```
-    - The section's Edit/View components render the map using symbology data fetched from DMS (not DAMA)
-    - This replaces `MapEditor/components/dms/MapComponent.jsx`
+
+19. **Register the section component from the pattern's entry point**:
+    ```js
+    // patterns/mapeditor/index.js
+    import siteConfig from './siteConfig'
+    import MapSectionComponent from './components/section'
+    import { registerComponents } from '../page/components/sections/section'
+
+    // When the mapeditor pattern is included in a project,
+    // its map section type becomes available in the page editor
+    registerComponents({ 'Map': MapSectionComponent })
+
+    export default siteConfig
+    ```
+
+    This means: if a project includes the mapeditor pattern, pages automatically gain the ability to embed map sections. If the pattern isn't included, there's no dead code — the `Map` section type simply doesn't appear in the selector.
+
+20. **Optionally extend section attributes** — if the map section needs custom fields on the `cms-section` format, the pattern can declare `additionalSectionAttributes` on its pattern config. The page pattern's siteConfig already supports this:
+    ```js
+    // patterns/page/siteConfig.jsx (existing code)
+    if (pattern?.additionalSectionAttributes?.length) {
+      (format.registerFormats || [])
+        .find(f => f.type.includes('cms-section'))
+        .attributes.push(...pattern.additionalSectionAttributes)
+    }
+    ```
 
 ### Phase 8: Pattern Registration and Routing
 
-18. **Register in `patterns/index.js`**:
+21. **Register in `patterns/index.js`**:
     ```js
     import mapeditorConfig from './mapeditor'
     const patterns = {
@@ -249,7 +316,7 @@ This is the core migration. Each file that calls DAMA Falcor paths needs to be r
     }
     ```
 
-19. **Add to App.jsx site configuration** as a pattern type available in the admin panel
+22. **Add to App.jsx site configuration** as a pattern type available in the admin panel
 
 ## Migration Boundaries
 
@@ -265,9 +332,12 @@ This is the core migration. Each file that calls DAMA Falcor paths needs to be r
 - Actual geospatial data serving (vector tiles, tabular queries)
 - Source/view browsing in SourceSelector
 
+### What gets adapted (not removed)
+- `components/dms/MapComponent.jsx` and `components/dms/MapManager/` — ported into `patterns/mapeditor/components/section/` as page-embeddable section components, with DAMA symbology reads replaced by DMS reads
+- The section components auto-register via `registerComponents()` when the mapeditor pattern is included
+
 ### What gets removed
-- The `components/dms/` bridge subfolder (replaced by the pattern itself)
-- Direct DAMA symbology table dependency
+- Direct DAMA symbology table dependency for CRUD
 - The `pgEnv`-scoped symbology namespace (DMS uses `app+type` namespace instead)
 
 ## Files to Create
@@ -280,6 +350,8 @@ This is the core migration. Each file that calls DAMA Falcor paths needs to be r
 | `patterns/mapeditor/context.jsx` | MapEditorContext provider |
 | `patterns/mapeditor/useMapEditorData.js` | DMS CRUD hooks for symbologies |
 | `patterns/mapeditor/components/` | Ported MapEditor component tree |
+| `patterns/mapeditor/components/section/` | Page-embeddable section components (Edit/View) |
+| `patterns/mapeditor/components/section/MapManager/` | Tab/row/symbology selection UI for page sections |
 
 ## Files to Modify
 
@@ -300,6 +372,9 @@ This is the core migration. Each file that calls DAMA Falcor paths needs to be r
 - [ ] Legend rendering works
 - [ ] Filters (data filters, interactive filters) work
 - [ ] Hover/popover config works
-- [ ] Map section embedding in DMS pages works
+- [ ] Map section type appears in page editor section selector when mapeditor pattern is included
+- [ ] Map section type does NOT appear when mapeditor pattern is not included
+- [ ] Map section edit mode: can select/configure symbologies, set bounds, toggle controls
+- [ ] Map section view mode: renders map with selected symbologies correctly
 - [ ] localStorage draft caching works (or DMS draft system)
 - [ ] Build passes with no errors
