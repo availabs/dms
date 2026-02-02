@@ -313,7 +313,7 @@ const CompWrapper = ({
     const Comp = ColumnTypes[attribute.type]?.[editMode ? 'EditComp' : 'ViewComp'] || DefaultComp;
 
     const options = useMemo(() => {
-        const isDropDownCol = ['select', 'multiselect'].includes(attribute.type);
+        const isDropDownCol = ['select', 'multiselect', 'radio'].includes(attribute.type);
         const optionsContainFilters = (attribute.options || []).some(o => o.filter);
 
         if(!isDropDownCol) return;
@@ -386,6 +386,7 @@ const CompWrapper = ({
                   options={options}
                   meta={optionsMeta}
                   hideControls={attribute.type==='lexical'}
+                  showBorder={attribute.type==='lexical'}
             />
     </div>)
 }

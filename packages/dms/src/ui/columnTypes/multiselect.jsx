@@ -205,7 +205,7 @@ const Edit = ({value = [], loading, onChange, className,placeholder, options = [
 
             {
                 tabular ? null :
-                    <div className={className || (theme?.multiselect?.inputWrapper)} onClick={() => {
+                    <div className={(theme?.multiselect?.inputWrapper)} onClick={() => {
                         setIsSearching(!isSearching)
                         // console.log('ms?', ref.current.top)
                     }}>

@@ -40,13 +40,27 @@ const Edit = ({value = '', onChange, options = [], inline=true}) => {
 
 }
 
-const View = ({className, value}) => {
-    if (!value) return false
-
+const View = ({value = '', options = [], inline=true}) => {
 
     return (
-        <div className={ className || (theme?.text?.view)}>
-            {value}
+        <div className={`flex ${inline ? `flex-row` : `flex-col`}`}>
+            {
+                options.map((o, i) => (
+                    <div key={i} className={theme?.radio?.wrapper || 'p-1 flex'}>
+                        <input id={o.value || o}
+                               className={theme?.radio?.input || 'self-center p-1'}
+                               type="radio" value={o.value || o}
+                               checked={value === (o.value || o)}
+                               disabled={true}
+                        />
+
+                        <label
+                            htmlFor={o.label || o}
+                            className={theme?.radio?.label || 'text-sm font-light p-1 self-center'}
+                        > {o.label || o} </label>
+                    </div>
+                ))
+            }
         </div>
     )
 }

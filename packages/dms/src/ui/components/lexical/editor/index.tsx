@@ -27,7 +27,7 @@ function isLexicalJSON(str) {
     }
 }
 
-export default function Lexicals ({value, hideControls, onChange, bgColor, editable=false, id, theme}) {
+export default function Lexicals ({value, hideControls, showBorder, onChange, bgColor, editable=false, id, theme}) {
   
   const lexicalTheme = merge(cloneDeep(PlaygroundEditorTheme), cloneDeep(theme?.lexical || {}), {tableScrollableWrapper: 'overflow-auto'})
   // console.log(PlaygroundEditorTheme, theme?.lexical, lexicalTheme)
@@ -48,7 +48,7 @@ export default function Lexicals ({value, hideControls, onChange, bgColor, edita
   
   return (
     <LexicalComposer key={id} initialConfig={initialConfig}>
-      <div className={`${lexicalTheme.editorShell}`}>
+      <div className={`${lexicalTheme.editorShell} ${showBorder ? 'border rounded-md' : ''}`}>
         <UpdateEditor
           value={value}
           hideControls={hideControls}
