@@ -113,7 +113,7 @@ const Menu = ({config, title, showTitle=true, open, setOpen, activeStyle}) => {
       Object.values(config)
           .filter(c =>
               (!activeParent ? !c.parent : c.parent === activeParent) &&
-              c.name.toLowerCase().includes(search.toLowerCase())
+              String(c.name ?? "").toLowerCase().includes(search.toLowerCase())
           ), [config, activeParent, search]);
 
   const changeParent = useCallback((parent) => {
