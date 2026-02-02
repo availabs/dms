@@ -75,7 +75,10 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
             name: 'Component', cdn: () => canEditSection, value: currentComponent?.name,
             showValue: true, showSearch: true,
             items: Object.keys(RegisteredComponents)
-                .filter(k => !RegisteredComponents[k].hideInSelector)
+                .filter(k => !RegisteredComponents[k].hideInSelector &&
+                    // don't allow conversion of incompatible components in view mode
+                    (isEdit || (['Spreadsheet', 'Card'].includes(currentComponent?.name) && ['Spreadsheet', 'Card'].includes(k)))
+                )
                 .map(k => (
                     {
                         icon: RegisteredComponents[k].name === currentComponent?.name ? 'CircleCheck' : 'Blank',
