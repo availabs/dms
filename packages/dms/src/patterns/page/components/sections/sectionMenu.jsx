@@ -89,12 +89,14 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
         },
     ]
 
-    const dataset = [
+    const dataset =
         {
             name: 'Dataset', icon: 'Database',
-            cdn: () => currentComponent?.useDataSource && canEditSection,
+            cdn: () => isEdit && currentComponent?.useDataSource && canEditSection,
+            value: sources?.find(s => s.key === activeSource)?.label, showValue: true,
             items: [
                 {name: 'Source', icon: 'Database', showSearch: true, cdn: () => isEdit,
+                    value: sources?.find(s => s.key === activeSource)?.label, showValue: true,
                     items: sources.map(({key, label}) => ({
                         icon: key === activeSource ? 'CircleCheck' : 'Blank',
                         id: crypto.randomUUID(),
@@ -102,27 +104,16 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                         onClick: () => onSourceChange(key)
                     }))},
                 {name: 'Version', icon: 'Database', showSearch: true, cdn: () => isEdit,
+                    value: views?.find(s => s.key === activeView)?.label || activeView, showValue: true,
                     items: views.map(({key, label}) => ({
                         icon: key === activeView ? 'CircleCheck' : 'Blank',
                         id: crypto.randomUUID(),
                         name: label,
                         onClick: () => onViewChange(key)
-                    }))},
-                {
-                    icon: 'Refresh', name: isRefreshingData ? 'Refreshing Data' : 'Refresh Data', cdn: () => !isEdit && canEditSection,
-                    onClick: () => refreshDataBtnRef.current?.refresh({isRefreshingData, setIsRefreshingData})
-                },
-                {
-                    icon: 'Refresh', name: isRefreshingData ? 'Caching Data' : 'Cache Data', cdn: () => !isEdit && canEditSection,
-                    onClick: () => refreshDataBtnRef.current?.refresh({isRefreshingData, setIsRefreshingData, fullDataLoad: true})
-                },
-                {
-                    icon: 'Refresh', name: isRefreshingData ? 'Clearing Cache' : 'Clear Cache', cdn: () => !isEdit && canEditSection,
-                    onClick: () => refreshDataBtnRef.current?.refresh({clearCache: true})
-                },
+                    }))}
             ].filter(item => item.cdn())
         }
-    ]
+
   const columnsToRender = listAllColumns ? [
     ...(state?.columns || []),
     ...(state?.sourceInfo?.columns || [])
@@ -151,6 +142,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                     draft.columns = updatedColumns.map(c => draft.columns.find(draftCol => isEqualColumns(draftCol, c.column))).filter(c => c);
                 })
             },
+            value: (state.columns || []).length, showValue: true,
             items: [
                 {icon: 'GlobalEditing', name: 'Global Controls',
                     type: () => <div className={'flex flex-col gap-1'}>
@@ -220,7 +212,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
     const group = [
         {
             name: 'Group', cdn: () => isEdit && currentComponent?.useDataSource && canEditSection && hasGroupControl,
-            showSearch: true,
+            showSearch: true, value: (state.columns || []).filter(c => c.group).length, showValue: true,
             items:
                 allColumns
                     .map(column => (
@@ -238,11 +230,52 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
         },
     ]
 
+
+    const filter = [
+
+    ]
+
+    const data = [
+        {name: 'data', icon: 'Database', cdn: () => currentComponent?.useDataSource && canEditSection,
+            items: [
+                {
+                    icon: 'Refresh', name: isRefreshingData ? 'Refreshing Data' : 'Refresh Data', cdn: () => canEditSection,
+                    onClick: () => refreshDataBtnRef.current?.refresh({isRefreshingData, setIsRefreshingData})
+                },
+                {
+                    icon: 'Refresh', name: isRefreshingData ? 'Caching Data' : 'Cache Data', cdn: () => canEditSection,
+                    onClick: () => refreshDataBtnRef.current?.refresh({isRefreshingData, setIsRefreshingData, fullDataLoad: true})
+                },
+                {
+                    icon: 'Refresh', name: isRefreshingData ? 'Clearing Cache' : 'Clear Cache', cdn: () => canEditSection,
+                    onClick: () => refreshDataBtnRef.current?.refresh({clearCache: true})
+                },
+                dataset,
+                {name: '# rows', value: state?.display?.totalLength, showValue: true, cdn: () => currentComponent?.useDataSource},
+                ...columns,
+                ...group,
+                ...filter
+            ].filter(item => item.cdn())
+        }
+    ]
+
+    const other =
+        Object.keys(currentComponent?.controls || {})
+            .filter(controlGroup => !['columns', 'more', 'inHeader'].includes(controlGroup) && isEdit && canEditSection)
+            .map(controlGroup => ({
+                name: currentComponent?.controls?.[controlGroup]?.name || controlGroup,
+                items: [
+                    {name: 'component', type: currentComponent?.controls?.[controlGroup]?.type}
+                ]
+            }))
+
     const more = [
         {
-            name: 'More', cdn: () => isEdit && currentComponent?.useDataSource && canEditSection && currentComponent.controls?.more?.length,
+            name: 'More', icon: 'Settings',
+            cdn: () => isEdit && currentComponent?.useDataSource && canEditSection && currentComponent.controls?.more?.length,
             showSearch: true,
-            items: (currentComponent?.controls?.more || [])
+            items: [
+                ...(currentComponent?.controls?.more || [])
                 .filter(({displayCdn}) =>
                     typeof displayCdn === 'function' ? displayCdn({display: state.display}) :
                         typeof displayCdn === 'boolean' ? displayCdn : true)
@@ -267,20 +300,13 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                                 type({value: state.display[key], setValue: newValue => updateDisplayValue(key, newValue, onChange, setState)})
                             : type,
                         inputType
-                        }))
+                        })),
+                ...other
+            ]
 
         },
     ]
 
-    const other =
-        Object.keys(currentComponent?.controls || {})
-            .filter(controlGroup => !['columns', 'more', 'inHeader'].includes(controlGroup) && isEdit && canEditSection)
-            .map(controlGroup => ({
-                name: currentComponent?.controls?.[controlGroup]?.name || controlGroup,
-                items: [
-                    {name: 'component', type: currentComponent?.controls?.[controlGroup]?.type}
-                ]
-            }))
 
     const display = [
         {
@@ -288,6 +314,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
             items: [
                 {
                     name: 'Title',
+                    cdn: () => canEditSection,
                     items: [
                         {
                             name: '',
@@ -302,6 +329,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                 },
                 {
                     name: 'Level',
+                    cdn: () => canEditSection,
                     items: [
                         {
                             name: '',
@@ -317,6 +345,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                 },
                 {
                     name: 'Tags',
+                    cdn: () => canEditSection,
                     items: [
                         {
                             name: '',
@@ -332,6 +361,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                 },
                 {
                     name: 'Info Comp',
+                    cdn: () => canEditSection,
                     type: () => (
                         <div className={'self-start w-full flex justify-between pl-2'}>
                             <label>Info Component</label>
@@ -345,6 +375,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                 },
                 {
                     name: 'Hide Comp',
+                    cdn: () => canEditSection,
                     type: () => (
                         <div className={'self-start w-full flex justify-between pl-2'}>
                             <label>Hide Component</label>
@@ -370,6 +401,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
             items: [
                 {
                     name: 'Style', value: activeStyleName, showValue: true,
+                    cdn: () => canEditSection,
                     items: styles.map((style, idx) => ({
                         icon: idx === activeStyle ? 'CircleCheck' : '',
                         name: style.name || idx,
@@ -378,6 +410,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                 },
                 {
                     icon: 'Column', name: 'Width', value: value?.['size'] || 1, showValue: true,
+                    cdn: () => canEditSection,
                     items: Object.keys(getComponentTheme(theme, 'pages.sectionArray').sizes || {})
                       .sort((a, b) => {
                         const sizes = getComponentTheme(theme, 'pages.sectionArray').sizes
@@ -395,6 +428,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                 },
                 {
                     icon: 'Row', name: 'Rowspan', value: value?.['rowspan'] || 1, showValue: true,
+                    cdn: () => canEditSection,
                     items: Object.keys(theme?.sectionArray?.rowspans || {}).sort((a, b) => {
                         return +a - +b
                     }).map((name, i) => {
@@ -410,6 +444,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                 },
                 {
                     icon: 'Padding', name: 'Offset', value: value?.['offset'] || 16, showValue: true,
+                    cdn: () => canEditSection,
                     items: [
                         {
                             type: 'input',
@@ -423,6 +458,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                 {
                     icon: 'Padding', name: 'padding', value: value?.['padding'] || theme?.sectionArray?.sectionPadding,
                     showValue: true,
+                    cdn: () => canEditSection,
                     items: ['p-0', 'p-1', 'p-2', theme?.sectionArray?.sectionPadding].map((v, i) => {
                         return {
                             icon: v === (value?.['padding'] || theme?.sectionArray?.sectionPadding) ? 'CircleCheck' : 'Blank',
@@ -433,6 +469,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                 },
                 {
                     icon: 'Border', name: 'Border', value: value?.['border'] || 1,
+                    cdn: () => canEditSection,
                     items: [
                         {
                             name: 'border', type: () => {
@@ -459,6 +496,16 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
         },
     ]
 
+    const section = [
+        {
+            name: 'section',
+            items: [
+                ...display[0].items,
+                {type: 'separator'},
+                ...layout[0].items
+            ].filter(item => !item.cdn || item.cdn())
+        }
+    ]
     const permissions = [
         {
             icon: 'AccessControl', name: 'Permissions', cdn: () => canEditSectionPermissions,
@@ -498,13 +545,15 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
             ...moveItems,
             {type: 'separator', cdn: () => !isEdit && canEditPageLayout},
             ...component,
-            ...dataset,
-            ...columns,
-            ...group,
+            ...data,
+            // ...dataset,
+            // ...columns,
+            // ...group,
             ...more,
-            ...other,
-            ...display,
-            ...layout,
+            // ...other,
+            // ...display,
+            // ...layout,
+            ...section,
             ...permissions,
             {type: 'separator'},
             ...remove

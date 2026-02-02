@@ -145,7 +145,7 @@ const Edit = ({cms_context, value, onChange, component}) => {
                     );
 
                     return isTextSearch ?
-                        v1.toString().toLowerCase().includes(filterValue.toLowerCase()) :
+                        (v1 || '').toString().toLowerCase().includes(filterValue.toLowerCase()) :
                         filterValue.some(fv => fv === v1)
                 })
             })
@@ -562,9 +562,8 @@ const View = ({cms_context, value, onChange, component}) => {
                                 v
                     );
 
-                    console.log('isText', isTextSearch, v1, filterValue)
                       return isTextSearch ?
-                          v1.toString().toLowerCase().includes(filterValue.toLowerCase()) :
+                          (v1 || '').toString().toLowerCase().includes(filterValue.toLowerCase()) :
                           filterValue.some(fv => fv === v1)
                 })
             })
