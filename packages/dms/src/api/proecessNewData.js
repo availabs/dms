@@ -41,7 +41,7 @@ export async function processNewData (dataCache, activeIdsIntOrStr, stopFullData
                     }
                     out[attr] = val
                 } else {
-                    console.log('testing', d, col, d[col])
+                    // console.log('testing', d, col, d[col])
                     out[col] = d[col]
                 }
 

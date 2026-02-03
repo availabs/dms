@@ -61,7 +61,7 @@ const adminConfig = ({
         }
     );
 
-    console.log('admin siteconfig API', API_HOST)
+    // console.log('admin siteconfig API', API_HOST)
     // ----------------------
     // update app for all the children formats
     format.registerFormats = updateRegisteredFormats(format.registerFormats, app)
