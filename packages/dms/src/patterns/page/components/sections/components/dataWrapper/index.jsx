@@ -658,7 +658,7 @@ const View = ({cms_context, value, onChange, component}) => {
         if(!isValidState || (!hasLocalFilters && !state.display.readyToLoad && !state.display.allowEditInView)) return;
         // only run when controls or source/view change
         async function load() {
-            if(state.display.preventDuplicateFetch && isEqual(state.dataRequest, state.lastDataRequest)) return;
+            // if(state.display.preventDuplicateFetch && isEqual(state.dataRequest, state.lastDataRequest)) return;
 
             setLoading(true)
             const newCurrentPage = 0; // for all the deps here, it's okay to fetch from page 1.
@@ -671,7 +671,7 @@ const View = ({cms_context, value, onChange, component}) => {
                 draft.display.filteredLength = undefined;
                 draft.display.totalLength = length;
             })
-            onChange(JSON.stringify({...state, lastDataRequest: state.dataRequest, data, totalLength: length}));
+            // onChange(JSON.stringify({...state, lastDataRequest: state.dataRequest, data, totalLength: length}));
             setCurrentPage(newCurrentPage);
             setLoading(false)
         }
