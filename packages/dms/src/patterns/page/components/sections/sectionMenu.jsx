@@ -400,20 +400,20 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                         }
                     ]
                 },
-                {
-                    name: 'Info Comp',
-                    cdn: () => canEditSection,
-                    type: () => (
-                        <div className={'self-start w-full flex justify-between pl-2'}>
-                            <label>Info Component</label>
-                            <Switch
-                                size={'small'}
-                                enabled={value?.['infoComp']}
-                                setEnabled={v => updateAttribute('infoComp', v)}
-                            />
-                        </div>
-                    )
-                },
+                // {
+                //     name: 'Info Comp',
+                //     cdn: () => canEditSection,
+                //     type: () => (
+                //         <div className={'self-start w-full flex justify-between pl-2'}>
+                //             <label>Info Component</label>
+                //             <Switch
+                //                 size={'small'}
+                //                 enabled={value?.['infoComp']}
+                //                 setEnabled={v => updateAttribute('infoComp', v)}
+                //             />
+                //         </div>
+                //     )
+                // },
                 {
                     name: 'Hide Comp',
                     cdn: () => canEditSection,
