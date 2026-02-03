@@ -125,8 +125,9 @@ const theme = {
   },
   
   rtl: "text-right", //'PlaygroundEditorTheme__rtl',
+  tableScrollableWrapper: "PlaygroundEditorTheme__tableScrollableWrapper overflow-x-auto max-w-full my-7", // wrapper for horizontal scroll - marker class needed for TableHoverActionsPlugin
   table:
-    "border-collapse border-spacing-0 max-w-full overflow-y-scroll table-fixed w-[calc(100%-25px)] my-7", //'PlaygroundEditorTheme__table',
+    "border-collapse border-spacing-0 table-fixed w-full", //'PlaygroundEditorTheme__table',
   tableAddColumns:
     "relative top-0 w-[20px] bg-gray-200 h-full right-0 animate-[table-controls_0.2s_ease] border-0 cursor-pointer hover:bg-[#c9dbf0] after:content-[''] after:absolute after:top-0 after:left-0 after:w-full after:h-full after:bg-[url(/images/icons/plus.svg)] after:bg-center after:bg-no-repeat after:bg-contain after:opacity-40", //'PlaygroundEditorTheme__tableAddColumns',
   tableAddRows:
