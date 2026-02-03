@@ -108,13 +108,12 @@ const Edit = ({value, onChange}) => {
     const { state, setState } = useContext(ComponentContext);
     const { ColumnTypes: {lexical: Lexical}} = UI;
 
-    // Get settings from ComponentContext.state.display (managed by controls)
-    const isCard = state?.display?.isCard || '';
-    const bgColor = state?.display?.bgColor || 'rgba(0,0,0,0)';
-    const showToolbar = state?.display?.showToolbar || false;
-
     // Text content is stored separately from display settings
     const cachedData = value && isJson(value) ? JSON.parse(value) : {};
+    // Get settings from ComponentContext.state.display (managed by controls)
+    const isCard = cachedData?.isCard || state?.display?.isCard || '';
+    const bgColor = cachedData?.bgColor || state?.display?.bgColor || 'rgba(0,0,0,0)';
+    const showToolbar = cachedData?.showToolbar || state?.display?.showToolbar || false;
     const [text, setText] = useState(cachedData?.text || (value?.root ? value : ''));
 
     // Sync state.display changes and text to element-data via onChange
@@ -137,13 +136,13 @@ const Edit = ({value, onChange}) => {
         if (cachedData?.isCard !== undefined || cachedData?.bgColor !== undefined || cachedData?.showToolbar !== undefined) {
             setState(draft => {
                 if (!draft.display) draft.display = {};
-                if (cachedData.isCard !== undefined && draft.display.isCard === undefined) {
+                if (cachedData.isCard !== undefined && !draft.display.isCard && cachedData.isCard !== draft.display.isCard) {
                     draft.display.isCard = cachedData.isCard;
                 }
-                if (cachedData.bgColor !== undefined && draft.display.bgColor === undefined) {
+                if (cachedData.bgColor !== undefined && !draft.display.bgColor && cachedData.bgColor !== draft.display.bgColor) {
                     draft.display.bgColor = cachedData.bgColor;
                 }
-                if (cachedData.showToolbar !== undefined && draft.display.showToolbar === undefined) {
+                if (cachedData.showToolbar !== undefined && !draft.display.showToolbar && cachedData.showToolbar !== draft.display.showToolbar) {
                     draft.display.showToolbar = cachedData.showToolbar;
                 }
             });

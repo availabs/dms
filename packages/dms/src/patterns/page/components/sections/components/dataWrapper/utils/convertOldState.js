@@ -10,7 +10,7 @@ const isJson = (str)  => {
 export const convertOldState = (state, initialState) => {
     const oldState = isJson(state) ? JSON.parse(state) : {};
 
-    if (oldState?.symbologies) return oldState; // map
+    if (oldState?.symbologies || oldState?.text) return oldState; // map and richtext
 
     // handle filter structure change
     const oldFilters = oldState?.dataRequest && (oldState.columns || [])

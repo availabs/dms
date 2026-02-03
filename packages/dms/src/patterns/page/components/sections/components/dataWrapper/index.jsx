@@ -490,7 +490,7 @@ const Edit = ({cms_context, value, onChange, component}) => {
                 <div className={'w-full flex items-center place-content-end'}>
                     {loading ? <Icon id={'loading'}
                                      icon={'LoadingHourGlass'}
-                                     className={`text-slate-400 hover:text-blue-500 size-4 transition ease-in-out duration-200`} /> :
+                                     className={`absolute text-slate-400 hover:text-blue-500 size-4 transition ease-in-out duration-200`} /> :
                         state.display.invalidState ? <span className={'text-red-500'}>{state.display.invalidState}</span> : null
                     }
                     <RenderDownload state={state} apiLoad={apiLoad} cms_context={cms_context}/>

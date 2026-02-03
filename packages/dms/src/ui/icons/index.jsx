@@ -58,6 +58,7 @@ const iconList = [
   { icon: "User" },
   { icon: "Tags" },
   { icon: "Copy" },
+  { icon: "Paste" },
   { icon: "PDF" },
   { icon: "Printer" },
   { icon: "Add" },
@@ -88,6 +89,7 @@ const iconList = [
 
   // Page/Document Icons
   { icon: "Section" },
+  { icon: "ListView" },
 
   // Special Icons
   { icon: "GlobalEditing" },
