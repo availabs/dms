@@ -589,15 +589,8 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
             {type: 'separator', cdn: () => !isEdit && canEditPageLayout},
             ...component,
             ...data,
-            // ...dataset,
-            // ...columns,
-            // ...group,
             ...more,
-            // ...other,
-            // ...display,
-            // ...layout,
             ...section,
-            // ...permissions,
             {type: 'separator'},
             ...remove
         ].filter(item => !item.cdn || item.cdn())
