@@ -23,6 +23,8 @@ import {graphTheme} from "./components/graph";
 import {logoTheme} from "./components/Logo";
 import navigableMenuTheme from "./components/navigableMenu/theme";
 import icons from './icons'
+import { lexicalTheme } from "./components/lexical/theme";
+import { textSettingsTheme } from "./themes/textSettings";
 // =========================================
 // Pattern Themes, maybe move registration of these to DMS Site ??
 // =========================================
@@ -72,7 +74,8 @@ const components = {
     table: tableTheme,
 
     // --- component themes
-    lexical : {},
+    lexical: lexicalTheme,
+    textSettings: textSettingsTheme,
     dataCard: dataCardTheme,
     attribution: attributionTheme,
     filters: filterTheme,

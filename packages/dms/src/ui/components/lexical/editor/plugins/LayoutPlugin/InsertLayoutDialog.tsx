@@ -15,7 +15,7 @@ import {useState} from 'react';
 import Button from '../../ui/Button';
 import DropDown, {DropDownItem} from '../../ui/DropDown';
 import {INSERT_LAYOUT_COMMAND} from './LayoutPlugin';
-import theme from "../../themes/PlaygroundEditorTheme";
+import { useLexicalTheme } from '../../../useLexicalTheme';
 
 export const LAYOUTS = [
   {label: '2 columns (equal width)', value: 'grid-cols-1 md:grid-cols-2', count: 2},
@@ -33,6 +33,7 @@ export default function InsertLayoutDialog({
   activeEditor: LexicalEditor;
   onClose: () => void;
 }): JSX.Element {
+  const theme = useLexicalTheme();
   const [layout, setLayout] = useState(LAYOUTS[0].value);
   const buttonLabel = LAYOUTS.find((item) => item.value === layout)?.label;
 
@@ -44,14 +45,14 @@ export default function InsertLayoutDialog({
   return (
     <>
       <DropDown
-        buttonClassName={`${theme.toolbar.toolbarItem.base} block-controls`}
+        buttonClassName={`${theme.toolbar_toolbarItem_base} block-controls`}
         buttonLabel={buttonLabel}>
         {LAYOUTS.map(({label, value}) => (
           <DropDownItem
             key={value}
-            className={`${theme.dropdown.item.base} item`}
+            className={`${theme.dropdown_item_base} item`}
             onClick={() => setLayout(value)}>
-            <span className={`${theme.dropdown.item.text}`}>{label}</span>
+            <span className={`${theme.dropdown_item_text}`}>{label}</span>
           </DropDownItem>
         ))}
       </DropDown>

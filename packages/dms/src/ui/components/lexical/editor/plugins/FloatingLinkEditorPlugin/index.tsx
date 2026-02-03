@@ -31,7 +31,7 @@ import {createPortal} from 'react-dom';
 import {getSelectedNode} from '../../utils/getSelectedNode';
 import {setFloatingElemPositionForLinkEditor} from '../../utils/setFloatingElemPositionForLinkEditor';
 import {sanitizeUrl} from '../../utils/url';
-import theme from '../../themes/PlaygroundEditorTheme';
+import { useLexicalTheme } from '../../../useLexicalTheme';
 import {TOGGLE_LINK_COMMAND} from "../LinkPlugin";
 
 function FloatingLinkEditor({
@@ -49,6 +49,7 @@ function FloatingLinkEditor({
   isLinkEditMode: boolean;
   setIsLinkEditMode: Dispatch<boolean>;
 }): JSX.Element {
+  const theme = useLexicalTheme();
   const editorRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [linkUrl, setLinkUrl] = useState('');
@@ -106,7 +107,7 @@ function FloatingLinkEditor({
         setFloatingElemPositionForLinkEditor(domRect, editorElem, anchorElem);
       }
       setLastSelection(selection);
-    } else if (!activeElement || activeElement.className !== (theme.linkEditor.linkInput.base)) {
+    } else if (!activeElement || activeElement.className !== (theme.linkEditor_linkInput_base)) {
       if (rootElement !== null) {
         setFloatingElemPositionForLinkEditor(null, editorElem, anchorElem);
       }
@@ -214,12 +215,12 @@ function FloatingLinkEditor({
 
 
   return (
-    <div ref={editorRef} className={theme.linkEditor.base || "link-editor z-[50]"}>
+    <div ref={editorRef} className={theme.linkEditor_base || "link-editor z-[50]"}>
       {!isLink ? null : isLinkEditMode ? (
         <>
           <input
             ref={inputRef}
-            className={theme.linkEditor.linkInput.base || "link-input"}
+            className={theme.linkEditor_linkInput_base || "link-input"}
             value={editedLinkUrl}
             onChange={(event) => {
               setEditedLinkUrl(event.target.value);
@@ -229,7 +230,7 @@ function FloatingLinkEditor({
             }}
           />
           <select
-              className={theme.linkEditor.linkInput.base || 'link-input'}
+              className={theme.linkEditor_linkInput_base || 'link-input'}
               value={linkTarget}
               onChange={(event) => {
                 setLinkTarget(event.target.value);
@@ -240,7 +241,7 @@ function FloatingLinkEditor({
           </select>
           <div>
             <div
-              className={theme.linkEditor.div.linkCancel || "link-cancel"}
+              className={theme.linkEditor_div_linkCancel || "link-cancel"}
               role="button"
               tabIndex={0}
               onMouseDown={(event) => event.preventDefault()}
@@ -249,7 +250,7 @@ function FloatingLinkEditor({
               }}
             />
             <div
-              className={theme.linkEditor.div.linkConfirm || "link-confirm"}
+              className={theme.linkEditor_div_linkConfirm || "link-confirm"}
               role="button"
               tabIndex={0}
               onMouseDown={(event) => event.preventDefault()}
@@ -258,16 +259,16 @@ function FloatingLinkEditor({
           </div>
         </>
       ) : (
-        <div className={theme.linkEditor.linkView.base || "link-view"}>
+        <div className={theme.linkEditor_linkView_base || "link-view"}>
           <a
-            className={theme.linkEditor.linkView.a}
+            className={theme.linkEditor_linkView_a}
             href={sanitizeUrl(linkUrl)}
             target="_blank"
             rel="noopener noreferrer">
             {linkUrl}
           </a>
           <div
-            className={theme.linkEditor.div.linkEdit || "link-edit"}
+            className={theme.linkEditor_div_linkEdit || "link-edit"}
             role="button"
             tabIndex={0}
             onMouseDown={(event) => event.preventDefault()}
@@ -277,7 +278,7 @@ function FloatingLinkEditor({
             }}
           />
           <div
-            className={theme.linkEditor.div.linkTrash || "link-trash"}
+            className={theme.linkEditor_div_linkTrash || "link-trash"}
             role="button"
             tabIndex={0}
             onMouseDown={(event) => event.preventDefault()}

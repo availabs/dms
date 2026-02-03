@@ -10,13 +10,12 @@ import {LexicalComposer} from '@lexical/react/LexicalComposer';
 import {OnChangePlugin} from '@lexical/react/LexicalOnChangePlugin';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
 import { $getRoot, $createParagraphNode, $createTextNode } from 'lexical';
-import { merge,cloneDeep } from 'lodash-es'
-
+import { merge, cloneDeep } from 'lodash-es'
 
 import Editor from './editor';
 import PlaygroundNodes from './nodes/PlaygroundNodes';
-import PlaygroundEditorTheme from './themes/PlaygroundEditorTheme';
-// import './lexical.css';
+import { getLexicalTheme, getLexicalInternalTheme } from '../useLexicalTheme';
+import { lexicalTheme as defaultLexicalTheme, buildLexicalInternalTheme } from '../theme';
 
 function isLexicalJSON(str) {
     try {
@@ -28,9 +27,11 @@ function isLexicalJSON(str) {
 }
 
 export default function Lexicals ({value, hideControls, showBorder, onChange, bgColor, editable=false, id, theme}) {
-  
-  const lexicalTheme = merge(cloneDeep(PlaygroundEditorTheme), cloneDeep(theme?.lexical || {}))
-  // console.log(PlaygroundEditorTheme, theme?.lexical, lexicalTheme)
+  // Get the flat theme from DMS context (with textSettings heading overrides)
+  const flatLexicalTheme = theme ? getLexicalTheme(theme) : defaultLexicalTheme.styles[0];
+
+  // Build the nested theme for LexicalComposer
+  const nestedLexicalTheme = buildLexicalInternalTheme(flatLexicalTheme);
 
     const initialConfig = {
         editorState: isLexicalJSON(value) ? value : null,
@@ -42,20 +43,19 @@ export default function Lexicals ({value, hideControls, showBorder, onChange, bg
             // throw error;
             console.error('Error in Rich text:', error)
         },
-        theme: lexicalTheme,
+        theme: nestedLexicalTheme,
     };
 
-  
   return (
     <LexicalComposer key={id} initialConfig={initialConfig}>
-      <div className={`${lexicalTheme.editorShell} ${showBorder ? 'border rounded-md' : ''}`}>
+      <div className={`${nestedLexicalTheme.editorShell} ${showBorder ? 'border rounded-md' : ''}`}>
         <UpdateEditor
           value={value}
           hideControls={hideControls}
           onChange={onChange}
           bgColor={bgColor}
           editable={editable}
-          theme={lexicalTheme}
+          theme={nestedLexicalTheme}
         />
       </div>
     </LexicalComposer>

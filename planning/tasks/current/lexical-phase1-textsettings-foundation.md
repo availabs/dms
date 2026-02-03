@@ -30,14 +30,51 @@ AFTER:  ui/components/lexical/theme.js
 
 This follows the pattern of other themed components (e.g., `navigableMenu/theme.jsx`).
 
-#### 1b. Convert to options/styles Pattern
+#### 1b. Flatten Nested Theme Keys
+
+**IMPORTANT:** The lexical theme must use flat keys, not nested objects, to avoid merge ambiguity.
+
+**Problem:** Nested theme structures cause unpredictable merge behavior. When someone wants to override just `heading.h1`, it's unclear whether the whole `heading` object gets replaced or deep-merged. This makes theme customization unreliable.
+
+**Solution:** Convert nested keys to flat underscore-separated keys:
+
+```js
+// Before (nested - problematic for merges)
+heading: {
+  h1: "text-3xl font-bold",
+  h2: "text-2xl font-semibold",
+  h3: "text-xl font-medium",
+}
+
+// After (flat - predictable merges)
+heading_h1: "text-3xl font-bold",
+heading_h2: "text-2xl font-semibold",
+heading_h3: "text-xl font-medium",
+```
+
+**Guidelines:**
+- Prefer flat keys when nesting would create merge ambiguity
+- Keep structure minimal - organize by naming convention and comments, not deep nesting
+- Only use nesting if there are no conflicts and it genuinely improves clarity
+- Each theme key should be independently overridable
+- When in doubt, use flat keys
+
+**Apply this to all nested structures:**
+- `heading: { h1, h2, ... }` → `heading_h1`, `heading_h2`, ...
+- `text: { bold, italic, ... }` → `text_bold`, `text_italic`, ...
+- `list: { listitem, nested, ... }` → `list_listitem`, `list_nested`, ...
+- `codeHighlight: { atrule, attr, ... }` → `codeHighlight_atrule`, `codeHighlight_attr`, ...
+- etc.
+
+#### 1c. Convert to options/styles Pattern
 Convert to options/styles pattern like other DMS components:
 
 ```js
 // Before (current flat structure)
 const theme = {
   paragraph: "...",
-  heading: { h1: "...", h2: "..." },
+  heading_h1: "...",
+  heading_h2: "...",
   // ...
 }
 
@@ -49,7 +86,8 @@ const lexicalTheme = {
   styles: [{
     name: "default",
     paragraph: "...",
-    heading: { h1: "...", h2: "..." },
+    heading_h1: "...",
+    heading_h2: "...",
     // ...
   }]
 }
@@ -102,20 +140,15 @@ function useLexicalTheme() {
   // Get textSettings (for typography)
   const textSettings = theme?.textSettings || defaultTextSettings;
 
-  // Merge heading styles from textSettings into lexical theme
+  // Merge heading styles from textSettings into lexical theme (flat keys)
   return {
     ...lexicalStyles,
-    heading: {
-      h1: textSettings.h1 || lexicalStyles.heading?.h1,
-      h2: textSettings.h2 || lexicalStyles.heading?.h2,
-      h3: textSettings.h3 || lexicalStyles.heading?.h3,
-      h4: textSettings.h4 || lexicalStyles.heading?.h4,
-      h5: textSettings.h5 || lexicalStyles.heading?.h5,
-      h6: textSettings.h6 || lexicalStyles.heading?.h6,
-    },
-    text: {
-      ...lexicalStyles.text,
-    }
+    heading_h1: textSettings.h1 || lexicalStyles.heading_h1,
+    heading_h2: textSettings.h2 || lexicalStyles.heading_h2,
+    heading_h3: textSettings.h3 || lexicalStyles.heading_h3,
+    heading_h4: textSettings.h4 || lexicalStyles.heading_h4,
+    heading_h5: textSettings.h5 || lexicalStyles.heading_h5,
+    heading_h6: textSettings.h6 || lexicalStyles.heading_h6,
   };
 }
 ```
@@ -124,7 +157,9 @@ function useLexicalTheme() {
 
 ## 4. PlaygroundEditorTheme Structure Analysis
 
-The theme is 636 lines organized into these sections:
+The theme is 636 lines organized into these sections.
+
+**NOTE:** All nested structures below must be flattened per section 1b (e.g., `heading.h1` → `heading_h1`).
 
 ### Core Editor Layout (lines 9-17)
 ```
@@ -250,93 +285,124 @@ Located in `editor/ui/`:
 
 ## 6. textSettings Theme Structure
 
+**NOTE:** This structure aligns with the existing Card theme (`dataCardTheme`) which uses a size + weight naming convention. Lexical and other components should use these shared text styles for consistency.
+
+### Existing Card Theme Text Styles (reference)
+
+The Card theme already defines these text styles:
+```js
+// From dataCardTheme in Card.jsx
+textXS: 'text-xs font-medium',
+textXSReg: 'text-xs font-normal',
+textSM: 'text-sm font-medium',
+textSMReg: 'text-sm font-normal',
+textSMBold: 'text-sm font-normal',      // note: misnamed, should be font-bold
+textSMSemiBold: 'text-sm font-semibold',
+textMD: 'text-md font-medium',
+textMDReg: 'text-md font-normal',
+textMDBold: 'text-md font-bold',
+textMDSemiBold: 'text-md font-semibold',
+textXL: 'text-xl font-medium',
+textXLSemiBold: 'text-xl font-semibold',
+text2XL: 'text-2xl font-medium',
+text2XLReg: 'text-2xl font-regular',
+text3XL: 'text-3xl font-medium',
+text3XLReg: 'text-3xl font-normal',
+text4XL: 'text-4xl font-medium',
+text5XL: 'text-5xl font-medium',
+text6XL: 'text-6xl font-medium',
+text7XL: 'text-7xl font-medium',
+text8XL: 'text-8xl font-medium',
+```
+
+### Proposed textSettings (shared across components)
+
+Rather than duplicating text styles in each component, create a shared `textSettings` that components can reference:
+
 ```js
 textSettings: {
-  // ========== Headings ==========
-  h1: "text-4xl font-bold leading-tight",
-  h2: "text-3xl font-semibold leading-snug",
-  h3: "text-2xl font-semibold leading-snug",
-  h4: "text-xl font-medium leading-normal",
-  h5: "text-lg font-medium leading-normal",
-  h6: "text-base font-medium leading-normal",
+  // ========== Size + Weight Scale ==========
+  // Pattern: text{Size}{Weight?} where Weight defaults to medium
 
-  // ========== Body Text ==========
-  body: "text-base leading-relaxed",
-  bodyLarge: "text-lg leading-relaxed",
-  bodySmall: "text-sm leading-normal",
-  bodyXSmall: "text-xs leading-normal",
+  textXS: 'text-xs font-medium',
+  textXSReg: 'text-xs font-normal',
+  textXSSemiBold: 'text-xs font-semibold',
+  textXSBold: 'text-xs font-bold',
 
-  // ========== Prose / Rich Text ==========
-  prose: "text-base leading-relaxed text-slate-700",
-  proseStrong: "font-bold",
-  proseEmphasis: "italic",
+  textSM: 'text-sm font-medium',
+  textSMReg: 'text-sm font-normal',
+  textSMSemiBold: 'text-sm font-semibold',
+  textSMBold: 'text-sm font-bold',
 
-  // ========== UI Text ==========
-  label: "text-sm font-medium",
-  labelLarge: "text-base font-medium",
-  caption: "text-xs text-gray-500",
-  helper: "text-xs text-gray-400",
-  hint: "text-sm text-gray-400 italic",
+  textMD: 'text-base font-medium',       // text-md → text-base for Tailwind
+  textMDReg: 'text-base font-normal',
+  textMDSemiBold: 'text-base font-semibold',
+  textMDBold: 'text-base font-bold',
 
-  // ========== Interactive ==========
-  link: "text-blue-600 hover:text-blue-800 underline",
-  linkSubtle: "text-blue-600 hover:underline",
+  textLG: 'text-lg font-medium',
+  textLGReg: 'text-lg font-normal',
+  textLGSemiBold: 'text-lg font-semibold',
+  textLGBold: 'text-lg font-bold',
 
-  // ========== Code ==========
-  code: "font-mono text-sm bg-gray-100 px-1 rounded",
-  codeBlock: "font-mono text-sm bg-gray-100 p-3 rounded",
+  textXL: 'text-xl font-medium',
+  textXLReg: 'text-xl font-normal',
+  textXLSemiBold: 'text-xl font-semibold',
+  textXLBold: 'text-xl font-bold',
 
-  // ========== Lists ==========
-  listItem: "text-base leading-relaxed",
-  listItemSmall: "text-sm leading-normal",
+  text2XL: 'text-2xl font-medium',
+  text2XLReg: 'text-2xl font-normal',
+  text2XLSemiBold: 'text-2xl font-semibold',
+  text2XLBold: 'text-2xl font-bold',
 
-  // ========== Table Text ==========
-  tableHeader: "text-sm font-semibold uppercase tracking-wide",
-  tableHeaderSmall: "text-xs font-semibold uppercase tracking-wide",
-  tableCell: "text-sm",
-  tableCellSmall: "text-xs",
+  text3XL: 'text-3xl font-medium',
+  text3XLReg: 'text-3xl font-normal',
+  text3XLSemiBold: 'text-3xl font-semibold',
+  text3XLBold: 'text-3xl font-bold',
 
-  // ========== Form Text ==========
-  inputText: "text-base",
-  inputTextSmall: "text-sm",
-  placeholder: "text-gray-400",
-  errorText: "text-sm text-red-600",
-  successText: "text-sm text-green-600",
+  text4XL: 'text-4xl font-medium',
+  text5XL: 'text-5xl font-medium',
+  text6XL: 'text-6xl font-medium',
+  text7XL: 'text-7xl font-medium',
+  text8XL: 'text-8xl font-medium',
 
-  // ========== Menu Text ==========
-  menuItem: "text-sm",
-  menuItemSmall: "text-xs",
-  menuHeader: "text-sm font-semibold",
+  // ========== Semantic Aliases (optional) ==========
+  // Map semantic names to size/weight combinations
 
-  // ========== Navigation ==========
-  navItem: "text-sm font-medium",
-  navItemActive: "text-sm font-semibold",
-  breadcrumb: "text-sm",
+  h1: 'text-4xl font-bold',              // → text4XLBold (if added)
+  h2: 'text-3xl font-semibold',          // → text3XLSemiBold
+  h3: 'text-2xl font-semibold',          // → text2XLSemiBold
+  h4: 'text-xl font-semibold',           // → textXLSemiBold
+  h5: 'text-lg font-semibold',           // → textLGSemiBold
+  h6: 'text-base font-semibold',         // → textMDSemiBold
 
-  // ========== Cards ==========
-  cardTitle: "text-lg font-semibold",
-  cardSubtitle: "text-sm text-gray-500",
-  cardDescription: "text-sm text-gray-600",
-  cardValue: "text-2xl font-bold",
-  cardValueSmall: "text-lg font-semibold",
-
-  // ========== Buttons ==========
-  buttonText: "text-sm font-medium",
-  buttonTextSmall: "text-xs font-medium",
-  buttonTextLarge: "text-base font-medium",
-
-  // ========== Badges / Tags ==========
-  badge: "text-xs font-medium",
-  tag: "text-xs",
-
-  // ========== Tooltips ==========
-  tooltip: "text-xs",
-
-  // ========== Empty States ==========
-  emptyTitle: "text-lg font-medium text-gray-900",
-  emptyDescription: "text-sm text-gray-500",
+  body: 'text-base font-normal',         // → textMDReg
+  caption: 'text-xs font-normal',        // → textXSReg
+  label: 'text-sm font-medium',          // → textSM
 }
 ```
+
+### Integration with Lexical
+
+Lexical headings should reference textSettings:
+
+```js
+// In useLexicalTheme hook
+heading_h1: textSettings.h1 || 'text-4xl font-bold',
+heading_h2: textSettings.h2 || 'text-3xl font-semibold',
+// etc.
+```
+
+### Integration with Card
+
+Card theme can either:
+1. **Reference textSettings directly** (preferred - single source of truth)
+2. **Continue with local definitions** but ensure naming matches textSettings
+
+### Migration Notes
+
+- Card theme has `textSMBold: 'text-sm font-normal'` which appears to be a bug (should be `font-bold`)
+- Consider adding `textLG*` variants which are missing from Card theme
+- Use `text-base` instead of `text-md` for Tailwind compatibility
 
 ---
 
@@ -427,31 +493,31 @@ export const lexicalSettings = (theme) => {
       label: "Typography - Headings",
       type: 'inline',
       controls: [
-        { label: 'h1', type: 'Textarea', path: `lexical.styles[${activeStyle}].heading.h1` },
-        { label: 'h2', type: 'Textarea', path: `lexical.styles[${activeStyle}].heading.h2` },
-        { label: 'h3', type: 'Textarea', path: `lexical.styles[${activeStyle}].heading.h3` },
-        { label: 'h4', type: 'Textarea', path: `lexical.styles[${activeStyle}].heading.h4` },
-        { label: 'h5', type: 'Textarea', path: `lexical.styles[${activeStyle}].heading.h5` },
-        { label: 'h6', type: 'Textarea', path: `lexical.styles[${activeStyle}].heading.h6` },
+        { label: 'h1', type: 'Textarea', path: `lexical.styles[${activeStyle}].heading_h1` },
+        { label: 'h2', type: 'Textarea', path: `lexical.styles[${activeStyle}].heading_h2` },
+        { label: 'h3', type: 'Textarea', path: `lexical.styles[${activeStyle}].heading_h3` },
+        { label: 'h4', type: 'Textarea', path: `lexical.styles[${activeStyle}].heading_h4` },
+        { label: 'h5', type: 'Textarea', path: `lexical.styles[${activeStyle}].heading_h5` },
+        { label: 'h6', type: 'Textarea', path: `lexical.styles[${activeStyle}].heading_h6` },
       ]
     },
     {
       label: "Typography - Text",
       type: 'inline',
       controls: [
-        { label: 'bold', type: 'Textarea', path: `lexical.styles[${activeStyle}].text.bold` },
-        { label: 'italic', type: 'Textarea', path: `lexical.styles[${activeStyle}].text.italic` },
-        { label: 'underline', type: 'Textarea', path: `lexical.styles[${activeStyle}].text.underline` },
-        { label: 'code', type: 'Textarea', path: `lexical.styles[${activeStyle}].text.code` },
+        { label: 'bold', type: 'Textarea', path: `lexical.styles[${activeStyle}].text_bold` },
+        { label: 'italic', type: 'Textarea', path: `lexical.styles[${activeStyle}].text_italic` },
+        { label: 'underline', type: 'Textarea', path: `lexical.styles[${activeStyle}].text_underline` },
+        { label: 'code', type: 'Textarea', path: `lexical.styles[${activeStyle}].text_code` },
       ]
     },
     {
       label: "Toolbar",
       type: 'inline',
       controls: [
-        { label: 'toolbar base', type: 'Textarea', path: `lexical.styles[${activeStyle}].toolbar.base` },
-        { label: 'toolbar item', type: 'Textarea', path: `lexical.styles[${activeStyle}].toolbar.toolbarItem.base` },
-        { label: 'divider', type: 'Textarea', path: `lexical.styles[${activeStyle}].toolbar.divider` },
+        { label: 'toolbar base', type: 'Textarea', path: `lexical.styles[${activeStyle}].toolbar_base` },
+        { label: 'toolbar item', type: 'Textarea', path: `lexical.styles[${activeStyle}].toolbar_item_base` },
+        { label: 'divider', type: 'Textarea', path: `lexical.styles[${activeStyle}].toolbar_divider` },
       ]
     },
     // ... add more sections as needed for dropdown, tables, etc.
