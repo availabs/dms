@@ -176,7 +176,7 @@ const Edit = ({cms_context, value, onChange, component}) => {
             const isNormalisedColumn = state.columns.filter(col => col.name === column.name && col.filters?.length).length > 1;
 
             (column.filters || [])
-                .filter(({values}) => Array.isArray(values) && values.every(v => typeof v !== 'object'))
+                .filter(({values}) => Array.isArray(values) && values.every(v => typeof v !== 'object') && values.length) // avoid pulling for blank arrays
                 .forEach(({operation, values, fn}) => {
                     // here, operation is filter, exclude, >, >=, <, <=.
                     // normal columns only support filter.
@@ -270,7 +270,8 @@ const Edit = ({cms_context, value, onChange, component}) => {
             setCurrentPage(currentPage)
             getFilteredData({currentPage})
         }else{
-            const hasMore = (currentPage * state.display.pageSize + state.display.pageSize) <= state.display.totalLength;
+            // const hasMore = (currentPage * state.display.pageSize + state.display.pageSize) <= state.display.totalLength; // bugs out for last page
+            const hasMore = (currentPage * state.display.pageSize) - state.display.totalLength <= 0;
             if(!hasMore) return;
 
             setLoading(true)
@@ -293,7 +294,7 @@ const Edit = ({cms_context, value, onChange, component}) => {
         // observer that sets current page on scroll. no data fetching should happen here
         const observer = new IntersectionObserver(
             async (entries) => {
-                const hasMore = (currentPage * state.display.pageSize + state.display.pageSize) <= state.display.totalLength;
+                const hasMore = (currentPage * state.display.pageSize) - state.display.totalLength <= 0;
                 if (state.data.length && entries[0].isIntersecting && hasMore && !isStale) {
                     setCurrentPage(prevPage => prevPage+1)
                     await onPageChange(currentPage + 1)
@@ -588,7 +589,7 @@ const View = ({cms_context, value, onChange, component}) => {
         const isNormalisedColumn = state.columns.filter(col => col.name === column.name && col.filters?.length).length > 1;
 
         (column.filters || [])
-            .filter(({values}) => Array.isArray(values) && values.every(v => typeof v !== 'object'))
+            .filter(({values}) => Array.isArray(values) && values.every(v => typeof v !== 'object') && values.length) // avoid pulling for blank arrays
             .forEach(({operation, values, fn}) => {
                 // here, operation is filter, exclude, >, >=, <, <=.
                 // normal columns only support filter.
@@ -688,7 +689,7 @@ const View = ({cms_context, value, onChange, component}) => {
             setCurrentPage(currentPage)
             getFilteredData({currentPage})
         }else{
-            const hasMore = (currentPage * state.display.pageSize + state.display.pageSize) <= state.display.totalLength;
+            const hasMore = (currentPage * state.display.pageSize) - state.display.totalLength <= 0;
             if(!hasMore) return;
 
             setLoading(true)
