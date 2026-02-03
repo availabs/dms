@@ -57,6 +57,7 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
     }
 
   const TitleEditComp = attributes?.title?.EditComp
+  const TitleViewComp = attributes?.title?.ViewComp
   const LevelComp = attributes?.level?.EditComp
   const HelpComp = attributes?.helpText?.EditComp
   const helpTextArray = getHelpTextArray(value, true)
@@ -76,21 +77,30 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
             isActive: value?.element?.['element-type'] === 'Spreadsheet', activeStyle: value?.activeStyle}}>
             <div className={theme.wrapper}>
                 {/* -------------------top line buttons ----------------------*/}
-                <div className={theme.topBar}>
-                    <div className={theme.topBarSpacer}/>
-                    <div className={theme.topBarButtonsEdit}>
-                        <HelpTextEditPopups
-                            helpTextArray={helpTextArray}
-                            updateAttribute={updateAttribute}
-                            HelpComp={HelpComp}
+                <div id={`#${value?.title?.replace(/ /g, '_')}`}
+                     className={`flex flex-row pb-2 font-display font-medium uppercase scroll-mt-36 items-center`}>
+                    <div className='flex-1'>
+                        <TitleViewComp
+                            className={`w-full ${fullTheme.heading?.[value?.['level']] || fullTheme.heading?.['default']}`}
+                            value={value?.['title']}
                         />
-                        <NavigableMenu
-                            config={sectionMenuItems}
-                            title={'Section Settings'}
-                            btnVisibleOnGroupHover={false}
-                            defaultOpen={true}
-                            preferredPosition={"right"}
-                        />
+                    </div>
+                    <div className={theme.topBar}>
+                        <div className={theme.topBarSpacer}/>
+                        <div className={theme.topBarButtonsEdit}>
+                            <HelpTextEditPopups
+                                helpTextArray={helpTextArray}
+                                updateAttribute={updateAttribute}
+                                HelpComp={HelpComp}
+                            />
+                            <NavigableMenu
+                                config={sectionMenuItems}
+                                title={'Section Settings'}
+                                btnVisibleOnGroupHover={false}
+                                defaultOpen={true}
+                                preferredPosition={"right"}
+                            />
+                        </div>
                     </div>
                 </div>
                 {/* ------------------- Main Content ----------------------*/}

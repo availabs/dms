@@ -7,7 +7,7 @@ export const sectionTheme = {
       name: 'default',
       wrapper: '',
       wrapperHidden: 'hidden',
-      topBar: 'flex w-full',
+      topBar: 'flex',
       topBarSpacer: 'flex-1',
       topBarButtonsEdit: 'flex gap-1 z-10',
       topBarButtonsView: 'z-10',
