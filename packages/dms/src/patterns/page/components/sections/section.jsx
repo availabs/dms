@@ -78,7 +78,7 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
             <div className={theme.wrapper}>
                 {/* -------------------top line buttons ----------------------*/}
                 <div id={`#${value?.title?.replace(/ /g, '_')}`}
-                     className={`flex flex-row pb-2 font-display font-medium uppercase scroll-mt-36 items-center`}>
+                     className={`flex flex-row font-display font-medium uppercase scroll-mt-36 items-center`}>
                     <div className='flex-1'>
                         <TitleViewComp
                             className={`w-full ${fullTheme.heading?.[value?.['level']] || fullTheme.heading?.['default']}`}
@@ -93,13 +93,15 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
                                 updateAttribute={updateAttribute}
                                 HelpComp={HelpComp}
                             />
-                            <NavigableMenu
-                                config={sectionMenuItems}
-                                title={'Section Settings'}
-                                btnVisibleOnGroupHover={false}
-                                defaultOpen={true}
-                                preferredPosition={"right"}
-                            />
+                            <div className={theme.menuPosition}>
+                                <NavigableMenu
+                                    config={sectionMenuItems}
+                                    title={'Section Settings'}
+                                    btnVisibleOnGroupHover={false}
+                                    defaultOpen={true}
+                                    preferredPosition={"right"}
+                                />
+                            </div>
                         </div>
                     </div>
                 </div>
