@@ -1,5 +1,5 @@
 import React from "react";
-import {tableTheme} from "./table";
+//import {tableTheme} from "./table";
 import {getComponentTheme, ThemeContext} from "../useTheme";
 
 export const docs = {
@@ -17,7 +17,7 @@ export default function ({totalLength, filteredLength, pageSize, usePagination,
     const { theme: themeFromContext  = {} } = React.useContext(ThemeContext) || {};
     // const theme = {...themeFromContext, table: {...tableTheme, ...(themeFromContext.table || {})}};
     const theme = getComponentTheme(themeFromContext,'table', activeStyle);
-    
+
     const length = filteredLength || totalLength
     const rangeSize = 5;
     const totalPages=Math.ceil(length / pageSize);

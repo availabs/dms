@@ -1,5 +1,4 @@
 import React from "react"
-import { getAttributes } from '../../dms-manager/_utils'
 import { isEqual } from "lodash-es"
 
 

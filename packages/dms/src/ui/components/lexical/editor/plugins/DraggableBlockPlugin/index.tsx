@@ -28,6 +28,7 @@ import {isHTMLElement} from '../../utils/guard';
 import {Point} from '../../utils/point';
 import {Rect} from '../../utils/rect';
 import { useLexicalTheme } from '../../../useLexicalTheme';
+import { ThemeContext } from '../../../../../useTheme';
 
 const SPACE = 4;
 const TARGET_LINE_HALF_HEIGHT = 2;
@@ -264,7 +265,8 @@ function useDraggableBlockMenu(
   const menuRef = useRef<HTMLDivElement>(null);
   const targetLineRef = useRef<HTMLDivElement>(null);
   const isDraggingBlockRef = useRef<boolean>(false);
-  const theme = useLexicalTheme();
+  const { theme: contextTheme } = React.useContext(ThemeContext) || {};
+  const theme = useLexicalTheme(contextTheme);
   const [draggableBlockElem, setDraggableBlockElem] =
     useState<HTMLElement | null>(null);
 

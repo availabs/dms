@@ -7,8 +7,8 @@ import {
 import {get} from "lodash-es";
 import { getGraphComponent } from "./components";
 import {mapColors} from "./utils";
-import {graphTheme} from "./index";
-import {ThemeContext} from "../../useTheme";
+// import {graphTheme} from "./index";
+// import {ThemeContext} from "../../useTheme";
 
 export const getColorRange = (size, name, reverse=false) => {
   let range = get(mapColors, [name, size], []).slice();

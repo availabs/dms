@@ -15,7 +15,8 @@ import { merge, cloneDeep } from 'lodash-es'
 import Editor from './editor';
 import PlaygroundNodes from './nodes/PlaygroundNodes';
 import { getLexicalTheme, getLexicalInternalTheme } from '../useLexicalTheme';
-import { lexicalTheme as defaultLexicalTheme, buildLexicalInternalTheme } from '../theme';
+import {  buildLexicalInternalTheme } from '../theme';
+import { ThemeContext } from '../../../useTheme';
 
 function isLexicalJSON(str) {
     try {
@@ -26,9 +27,12 @@ function isLexicalJSON(str) {
     }
 }
 
-export default function Lexicals ({value, hideControls, showBorder, onChange, bgColor, editable=false, id, theme}) {
+export default function Lexicals ({value, hideControls, showBorder, onChange, bgColor, editable=false, id}) {
+  // Get theme from ThemeContext
+  const { theme } = React.useContext(ThemeContext) || {};
+
   // Get the flat theme from DMS context (with textSettings heading overrides)
-  const flatLexicalTheme = theme ? getLexicalTheme(theme) : defaultLexicalTheme.styles[0];
+  const flatLexicalTheme =  getLexicalTheme(theme)
 
   // Build the nested theme for LexicalComposer
   const nestedLexicalTheme = buildLexicalInternalTheme(flatLexicalTheme);

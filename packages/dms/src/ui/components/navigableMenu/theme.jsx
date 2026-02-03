@@ -242,3 +242,5 @@ export const navigableMenuSettings = (theme) => {
     }
   ]
 }
+
+export const docs = []

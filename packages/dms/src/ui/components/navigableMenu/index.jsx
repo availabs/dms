@@ -39,7 +39,7 @@ const ColorPickerControl = ({ value, onChange, colors, showColorPicker = false, 
 
 const Comps = {
   input : Input,
-  select: columnTypes.select.EditComp,
+  select: columnTypes?.select?.EditComp,
   toggle: Switch,
   colorpicker: ColorPickerControl,
   link : ({ menuItem, activeStyle }) => {
@@ -187,7 +187,7 @@ const Menu = ({config, title, showTitle=true, open, setOpen, activeStyle}) => {
   )
 }
 
-export const docs = []
+
 
 const flattenConfig = (config, parent) => {
   const flatConfig = {};

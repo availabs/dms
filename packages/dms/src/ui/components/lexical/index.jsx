@@ -25,14 +25,13 @@ function parseValue(value) {
     return null;
 }
 
-const Edit = ({value, onChange, theme,  ...rest}) => {
+const Edit = ({value, onChange,  ...rest}) => {
     // console.log('lexical type edit')
     return (
         <Editor
             value={parseValue(value)}
             onChange={(d) => onChange(d)}
             editable={true}
-            theme={theme}
             {...rest}
         />
     )
@@ -52,7 +51,6 @@ const View = React.memo(({
         <Editor
             value={parsedValue}
             editable={false}
-            theme={theme}
             onChange={noop}
             bgColor={bgColor}
             id={id}

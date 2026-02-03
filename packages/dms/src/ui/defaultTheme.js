@@ -1,4 +1,4 @@
-import docs from './docs';
+// Note: docs is loaded lazily via getter to avoid circular import with navigableMenu -> columnTypes
 import settings from './themeSettings'
 import sideNavTheme from "./components/SideNav.theme";
 import topNavTheme from "./components/TopNav.theme";
@@ -16,15 +16,15 @@ import {popoverTheme} from "./components/Popover";
 import {labelTheme} from "./components/Label";
 import {selectTheme} from "./components/Select";
 import {listboxTheme} from "./components/Listbox";
-import {tableTheme} from "./components/table";
+import {tableTheme} from "./components/table/table.theme";
 import {nestableTheme} from "./components/draggableNav"
-import {dataCardTheme} from "./components/Card";
-import {graphTheme} from "./components/graph";
+import {dataCardTheme} from "./components/card.theme";
+import {graphTheme} from "./components/graph/theme";
 import {logoTheme} from "./components/Logo";
 import navigableMenuTheme from "./components/navigableMenu/theme";
 import icons from './icons'
-import { lexicalTheme } from "./components/lexical/theme";
 import { textSettingsTheme } from "./themes/textSettings";
+import { lexicalTheme } from './components/lexical/theme'
 // =========================================
 // Pattern Themes, maybe move registration of these to DMS Site ??
 // =========================================
@@ -72,9 +72,7 @@ const components = {
     select: selectTheme,
     listbox: listboxTheme,
     table: tableTheme,
-
-    // --- component themes
-    lexical: lexicalTheme,
+    lexical:lexicalTheme,
     textSettings: textSettingsTheme,
     dataCard: dataCardTheme,
     attribution: attributionTheme,
@@ -110,7 +108,6 @@ const theme = {
     //navOptions,
     ...components,
     "Icons":icons,
-    docs,
     settings
 }
 

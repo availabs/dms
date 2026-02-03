@@ -11,6 +11,7 @@ import type {LexicalEditor} from 'lexical';
 import * as React from 'react';
 import {useRef} from 'react';
 import { useLexicalTheme } from '../../useLexicalTheme';
+import { ThemeContext } from '../../../../useTheme';
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
@@ -44,7 +45,8 @@ export default function ImageResizer({
   showCaption: boolean;
   captionsEnabled: boolean;
 }): JSX.Element {
-  const theme = useLexicalTheme();
+  const { theme: contextTheme } = React.useContext(ThemeContext) || {};
+  const theme = useLexicalTheme(contextTheme);
   const controlWrapperRef = useRef<HTMLDivElement>(null);
   const userSelect = useRef({
     priority: '',
