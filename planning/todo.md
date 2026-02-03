@@ -23,6 +23,7 @@
 ### patterns/page
 
 - [x] Fix nav2Level baseUrl bug and move to page pattern
+- [x] Move lexical component inline controls (style, bgColor, showToolbar) to control config
 
 ### patterns/mapeditor
 

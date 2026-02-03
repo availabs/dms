@@ -1,7 +1,7 @@
 import React, {useContext, useEffect, useState} from "react";
-import {merge, cloneDeep} from 'lodash-es';
-import {ColorPickerComp} from "./components/colorPickerComp";
+import {merge, cloneDeep, isEqual} from 'lodash-es';
 import { ThemeContext } from "../../../../../../../ui/useTheme";
+import { ComponentContext } from "../../../../../context";
 
 const isJson = (str)  => {
     try {
@@ -104,74 +104,55 @@ const cardTypes = {
 }
 
 const Edit = ({value, onChange}) => {
-    //const context = useContext(CMSContext);
     const { theme, UI } = useContext(ThemeContext)
-    const {Select, ColumnTypes: {lexical: Lexical}} = UI;
-    const cachedData = value && isJson(value) ? JSON.parse(value) : {}
-    const emptyTextBlock = {text: '', size: '4xl', color: '000000'};
-    const [bgColor, setBgColor] = useState(cachedData?.bgColor || 'rgba(0,0,0,0)');
-    const [isCard, setIsCard] = useState(cachedData?.isCard || '');
+    const { state, setState } = useContext(ComponentContext);
+    const { ColumnTypes: {lexical: Lexical}} = UI;
+
+    // Get settings from ComponentContext.state.display (managed by controls)
+    const isCard = state?.display?.isCard || '';
+    const bgColor = state?.display?.bgColor || 'rgba(0,0,0,0)';
+    const showToolbar = state?.display?.showToolbar || false;
+
+    // Text content is stored separately from display settings
+    const cachedData = value && isJson(value) ? JSON.parse(value) : {};
     const [text, setText] = useState(cachedData?.text || (value?.root ? value : ''));
 
+    // Sync state.display changes and text to element-data via onChange
     useEffect(() => {
+        const newData = {
+            bgColor: state?.display?.bgColor || 'rgba(0,0,0,0)',
+            isCard: state?.display?.isCard || '',
+            showToolbar: state?.display?.showToolbar || false,
+            text
+        };
+        const currentData = value && isJson(value) ? JSON.parse(value) : {};
 
-        onChange(JSON.stringify({bgColor, text, isCard}))
-    }, [bgColor, text, isCard])
+        if (!isEqual(newData, {bgColor: currentData.bgColor, isCard: currentData.isCard, showToolbar: currentData.showToolbar, text: currentData.text})) {
+            onChange(JSON.stringify(newData));
+        }
+    }, [state?.display?.bgColor, state?.display?.isCard, state?.display?.showToolbar, text]);
 
+    // Initialize state.display from saved data on mount
+    useEffect(() => {
+        if (cachedData?.isCard !== undefined || cachedData?.bgColor !== undefined || cachedData?.showToolbar !== undefined) {
+            setState(draft => {
+                if (!draft.display) draft.display = {};
+                if (cachedData.isCard !== undefined && draft.display.isCard === undefined) {
+                    draft.display.isCard = cachedData.isCard;
+                }
+                if (cachedData.bgColor !== undefined && draft.display.bgColor === undefined) {
+                    draft.display.bgColor = cachedData.bgColor;
+                }
+                if (cachedData.showToolbar !== undefined && draft.display.showToolbar === undefined) {
+                    draft.display.showToolbar = cachedData.showToolbar;
+                }
+            });
+        }
+    }, []);
 
-
-    // add is card toggle
     return (
         <div className='w-full'>
             <div className='relative'>
-                <div className={'w-full px-2 py-1 flex flex-row text-sm items-center'}>
-                    <label className={'shrink-0 pr-2 w-1/4'}>Style</label>
-                    <div className={''}>
-                        <Select
-                            options={[
-                              {
-                                label: 'Default Text',
-                                value: ''
-                              },
-                              {
-                                label: 'Inline Guidance',
-                                value: 'Inline Guidance'
-                              },
-                              {
-                                label: 'Dark Text',
-                                value: 'Dark'
-                              },
-                              {
-                                label: 'Annotation Card',
-                                value: 'Annotation'
-                              },
-                               {
-                                label: 'Annotation Image Card',
-                                value: 'Annotation Image Card'
-                              },
-                              {
-                                label: 'Handwritten (Caveat)',
-                                value: 'Handwritten_2'
-                              },
-                              {
-                                label: 'Sitemap',
-                                value: 'sitemap'
-                              }
-                            ]}
-                            value={isCard}
-                            onChange={e => {
-                                e.target.value !== 'Annotation' && setBgColor('rgba(0,0,0,0)')
-                                setIsCard(e.target.value)}
-                            }
-                        />
-                    </div>
-                </div>
-                {
-                    isCard ?
-                        <ColorPickerComp className={'w-full px-2 py-1 flex flex-row text-sm items-center'}
-                                         color={bgColor} setColor={setBgColor} title={'Background'}
-                        /> : null
-                }
                 <div className='flex'>
                     {isCard === 'Handwritten' && <div className='w-[50px]'> {'<---'} </div>}
                     <div className='flex-1'>
@@ -179,6 +160,7 @@ const Edit = ({value, onChange}) => {
                             value={text}
                             onChange={setText}
                             bgColor={bgColor}
+                            hideControls={!showToolbar}
                             theme={{
                                 lexical: isCard ?
                                     merge(cloneDeep(theme.lexical), cloneDeep(cardTypes?.[isCard] || cardTypes?.['Annotation']), {Icons: theme?.Icons || {}}) :
@@ -234,8 +216,65 @@ const View = ({value}) => {
 }
 
 
+const styleOptions = [
+    { label: 'Default Text', value: '' },
+    { label: 'Inline Guidance', value: 'Inline Guidance' },
+    { label: 'Dark Text', value: 'Dark' },
+    { label: 'Annotation Card', value: 'Annotation' },
+    { label: 'Annotation Image Card', value: 'Annotation Image Card' },
+    { label: 'Handwritten (Caveat)', value: 'Handwritten_2' },
+    { label: 'Sitemap', value: 'sitemap' }
+];
+
+const bgColorOptions = [
+    '#FFFFFF',
+    '#F3F8F9',
+    '#FCF6EC',
+    'rgba(0,0,0,0)'
+];
+
 export default {
-    "name": 'Rich Text',
-    "EditComp": Edit,
-    "ViewComp": View
+    name: 'Rich Text',
+    EditComp: Edit,
+    ViewComp: View,
+    defaultState: {
+        display: {
+            isCard: '',
+            bgColor: 'rgba(0,0,0,0)',
+            showToolbar: false
+        }
+    },
+    controls: {
+        appearance: {
+            name: 'Appearance',
+            items: [
+                {
+                    type: 'toggle',
+                    label: 'Show Toolbar',
+                    key: 'showToolbar',
+                    icon: 'Toolbar'
+                },
+                {
+                    type: 'select',
+                    label: 'Style',
+                    key: 'isCard',
+                    options: styleOptions,
+                    onChange: ({key, value, state}) => {
+                        // Reset bgColor when switching away from Annotation
+                        if (value !== 'Annotation' && state.display?.bgColor) {
+                            state.display.bgColor = 'rgba(0,0,0,0)';
+                        }
+                    }
+                },
+                {
+                    type: 'colorpicker',
+                    label: 'Background',
+                    key: 'bgColor',
+                    colors: bgColorOptions,
+                    showColorPicker: false,
+                    displayCdn: ({display}) => !!display?.isCard
+                }
+            ]
+        }
+    }
 }

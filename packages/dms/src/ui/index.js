@@ -14,7 +14,7 @@ import Popover from './components/Popover';
 import Pill from './components/Pill';
 import FieldSet from './components/FieldSet.jsx';
 import Switch from './components/Switch';
-import ColorPicker from "./components/Colorpicker";
+import ColorPicker, { ColorPickerFlat } from "./components/Colorpicker";
 import Tabs from "./components/Tabs";
 import Drawer from "./components/Drawer";
 import Input from "./components/Input"
@@ -71,6 +71,7 @@ const UI = {
   Textarea,
 	Select,
 	ColorPicker,
+	ColorPickerFlat,
 	Tabs,
 	Drawer,
 	Dropdown,

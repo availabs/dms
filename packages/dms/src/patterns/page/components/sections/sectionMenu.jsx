@@ -272,12 +272,117 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
     const other =
         Object.keys(currentComponent?.controls || {})
             .filter(controlGroup => !['columns', 'more', 'inHeader'].includes(controlGroup) && isEdit && canEditSection)
-            .map(controlGroup => ({
-                name: currentComponent?.controls?.[controlGroup]?.name || controlGroup,
-                items: [
-                    {name: 'component', type: currentComponent?.controls?.[controlGroup]?.type}
-                ]
-            }))
+            .map(controlGroup => {
+                const controlConfig = currentComponent?.controls?.[controlGroup];
+
+                // Support declarative items array with nested submenu pattern
+                if (controlConfig?.items?.length) {
+                    return {
+                        name: controlConfig.name || controlGroup,
+                        showSearch: controlConfig.showSearch,
+                        items: controlConfig.items
+                            .filter(({displayCdn}) =>
+                                typeof displayCdn === 'function' ? displayCdn({display: state.display}) :
+                                    typeof displayCdn === 'boolean' ? displayCdn : true)
+                            .map(({type, inputType, label, key, options, onChange, colors, showColorPicker, icon, ...rest}) => {
+                                const currentValue = state.display?.[key];
+
+                                // For select type: create nested submenu with clickable options (like Layout > Width)
+                                if (type === 'select' && options?.length) {
+                                    const selectedOption = options.find(opt => opt.value === currentValue);
+                                    return {
+                                        icon: icon,
+                                        name: label,
+                                        value: selectedOption?.label || currentValue || '',
+                                        showValue: true,
+                                        items: options.map(opt => ({
+                                            icon: opt.value === currentValue ? 'CircleCheck' : 'Blank',
+                                            name: opt.label,
+                                            onClick: () => updateDisplayValue(key, opt.value, onChange, setState)
+                                        }))
+                                    };
+                                }
+
+                                // For colorpicker type: create nested submenu with color picker
+                                if (type === 'colorpicker') {
+                                    return {
+                                        icon: icon,
+                                        name: label,
+                                        value: currentValue || '',
+                                        showValue: false,
+                                        items: [
+                                            {
+                                                name: 'color',
+                                                type: 'colorpicker',
+                                                noHover: true,
+                                                value: currentValue,
+                                                colors: colors,
+                                                showColorPicker: showColorPicker,
+                                                onChange: (newColor) => updateDisplayValue(key, newColor, onChange, setState)
+                                            }
+                                        ]
+                                    };
+                                }
+
+                                // For toggle type
+                                if (type === 'toggle') {
+                                    return {
+                                        icon: icon,
+                                        name: label,
+                                        showLabel: true,
+                                        type: 'toggle',
+                                        enabled: !!currentValue,
+                                        setEnabled: (value) => updateDisplayValue(key, value, onChange, setState)
+                                    };
+                                }
+
+                                // For input type: create nested submenu with input
+                                if (type === 'input') {
+                                    return {
+                                        icon: icon,
+                                        name: label,
+                                        value: currentValue,
+                                        showValue: true,
+                                        items: [
+                                            {
+                                                type: 'input',
+                                                inputType: inputType,
+                                                value: currentValue,
+                                                onChange: (e) => updateDisplayValue(key,
+                                                    inputType === 'number' ? +(e?.target?.value ?? e) : (e?.target?.value ?? e),
+                                                    onChange, setState)
+                                            }
+                                        ]
+                                    };
+                                }
+
+                                // For custom function type
+                                if (typeof type === 'function') {
+                                    return {
+                                        icon: icon,
+                                        name: label,
+                                        type: () => type({
+                                            value: currentValue,
+                                            setValue: newValue => updateDisplayValue(key, newValue, onChange, setState),
+                                            state,
+                                            setState
+                                        })
+                                    };
+                                }
+
+                                return { name: label };
+                            })
+                    };
+                }
+
+                // Legacy support: single type function
+                return {
+                    name: controlConfig?.name || controlGroup,
+                    items: [
+                        {name: 'component', type: controlConfig?.type}
+                    ]
+                };
+            })
 
     const display = [
         {

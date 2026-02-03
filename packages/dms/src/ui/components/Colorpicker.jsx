@@ -330,4 +330,108 @@ function transformColor(
     );
 }
 
+/**
+ * ColorPickerFlat - A flat/inline color picker without popups
+ * Renders color swatches directly inline, suitable for use in menus
+ */
+export function ColorPickerFlat({ color, onChange, colors, showColorPicker = false }) {
+    const [selfColor, setSelfColor] = useState(transformColor('hex', color || '#ffffff'));
+    const colorOptions = useMemo(() => colors || basicColors, [colors]);
+
+    useEffect(() => {
+        if (color === undefined) return;
+        const newColor = transformColor('hex', color);
+        setSelfColor(newColor);
+    }, [color]);
+
+    const handleColorSelect = (selectedColor) => {
+        const newColor = transformColor('hex', selectedColor);
+        setSelfColor(newColor);
+        onChange?.(newColor.hex);
+    };
+
+    return (
+        <div className="px-2 py-1.5">
+            {/* Current color indicator */}
+            <div className="flex items-center gap-2 mb-2">
+                <div
+                    className="w-5 h-5 rounded shadow-sm"
+                    style={{
+                        backgroundColor: selfColor.hex,
+                        border: '1px solid rgba(0,0,0,0.1)'
+                    }}
+                />
+                <span className="text-xs text-slate-500 font-mono">{selfColor.hex}</span>
+            </div>
+            {/* Color swatches */}
+            <div className="flex flex-wrap gap-1.5">
+                {colorOptions.map((basicColor) => (
+                    <button
+                        key={basicColor}
+                        className={`w-6 h-6 rounded cursor-pointer transition-all duration-150 hover:scale-110 ${
+                            basicColor === selfColor.hex
+                                ? 'ring-2 ring-offset-1 ring-blue-500'
+                                : ''
+                        }`}
+                        style={{
+                            backgroundColor: basicColor,
+                            border: '1px solid rgba(0,0,0,0.1)',
+                            boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                        }}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            handleColorSelect(basicColor);
+                        }}
+                    />
+                ))}
+            </div>
+            {/* Optional: Full color picker with saturation/hue */}
+            {showColorPicker && (
+                <div className="mt-3" style={{ width: WIDTH }}>
+                    <MoveWrapper
+                        className={colorPickerStyles['color-picker-saturation']}
+                        style={{ backgroundColor: `hsl(${selfColor.hsv.h}, 100%, 50%)`, height: 100, borderRadius: 4 }}
+                        onChange={({ x, y }) => {
+                            const newHsv = {
+                                ...selfColor.hsv,
+                                s: (x / WIDTH) * 100,
+                                v: 100 - (y / 100) * 100,
+                            };
+                            const newColor = transformColor('hsv', newHsv);
+                            setSelfColor(newColor);
+                            onChange?.(newColor.hex);
+                        }}
+                    >
+                        <div
+                            className={colorPickerStyles['color-picker-saturation_cursor']}
+                            style={{
+                                backgroundColor: selfColor.hex,
+                                left: (selfColor.hsv.s / 100) * WIDTH,
+                                top: ((100 - selfColor.hsv.v) / 100) * 100,
+                            }}
+                        />
+                    </MoveWrapper>
+                    <MoveWrapper
+                        className={colorPickerStyles['color-picker-hue']}
+                        onChange={({ x }) => {
+                            const newHsv = { ...selfColor.hsv, h: (x / WIDTH) * 360 };
+                            const newColor = transformColor('hsv', newHsv);
+                            setSelfColor(newColor);
+                            onChange?.(newColor.hex);
+                        }}
+                    >
+                        <div
+                            className={colorPickerStyles['color-picker-hue_cursor']}
+                            style={{
+                                backgroundColor: `hsl(${selfColor.hsv.h}, 100%, 50%)`,
+                                left: (selfColor.hsv.h / 360) * WIDTH,
+                            }}
+                        />
+                    </MoveWrapper>
+                </div>
+            )}
+        </div>
+    );
+}
+
 export default ColorPicker;

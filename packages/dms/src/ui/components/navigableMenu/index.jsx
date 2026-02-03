@@ -11,6 +11,7 @@ import Input from "../Input";
 import columnTypes from "../../columnTypes";
 import Switch from "../Switch";
 import Popup from "../Popup";
+import { ColorPickerFlat } from "../Colorpicker";
 import defaultTheme from "./theme";
 
 const defaultItems = [
@@ -19,10 +20,28 @@ const defaultItems = [
   { name: 'Export PDF', onClick: '#' },
 ]
 
+// Simple inline color picker control for NavigableMenu
+const ColorPickerControl = ({ value, onChange, colors, showColorPicker = false, menuItem }) => {
+  const color = value || menuItem?.value || 'rgba(0,0,0,0)';
+
+  return (
+    <ColorPickerFlat
+      color={color}
+      onChange={(newColor) => {
+        onChange?.(newColor);
+        menuItem?.onChange?.(newColor);
+      }}
+      colors={colors || menuItem?.colors}
+      showColorPicker={showColorPicker ?? menuItem?.showColorPicker}
+    />
+  );
+};
+
 const Comps = {
   input : Input,
   select: columnTypes.select.EditComp,
   toggle: Switch,
+  colorpicker: ColorPickerControl,
   link : ({ menuItem, activeStyle }) => {
     const { theme: fullTheme = { navigableMenu: defaultTheme } } = React.useContext(ThemeContext) || {};
     const theme = getComponentTheme(fullTheme, 'navigableMenu', activeStyle);
@@ -48,7 +67,7 @@ const MenuItem = ({menuItem, setActiveParent, activeStyle}) => {
   if(Comps[menuItem.type]) {
     const Comp = Comps[menuItem.type];
     return (
-      <div key={menuItem.name} className={`${theme?.menuItem} ${theme?.menuItemHover}`}>
+      <div key={menuItem.name} className={`${theme?.menuItem} ${menuItem.noHover ? '' : theme?.menuItemHover}`}>
         {menuItem.showLabel ? (
             <div className={theme?.menuItemIconLabelWrapper}>
               <Icon className={theme?.menuItemIconWrapper} icon={menuItem?.icon} />
