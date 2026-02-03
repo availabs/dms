@@ -1,4 +1,4 @@
-import React from 'react'
+import React, {useState} from 'react'
 import { handleCopy, handlePaste, TagComponent } from "./section_utils"
 import {
     getColumnLabel, updateColumns, resetColumn,
@@ -13,9 +13,9 @@ import AddCalculatedColumn from "./AddCalculatedColumn";
 // todo move filters here
 export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSource={}, ...rest }) => {
     const { isEdit, value, attributes, i, showDeleteModal, listAllColumns, state } = sectionState
-    const { onEdit, moveItem, updateAttribute, updateElementType, onChange, setKey, setState, setShowDeleteModal, setListAllColumns } = actions
+    const { onEdit, moveItem, updateAttribute, updateElementType, onChange, onCancel, onSave, onAddHelpText, setKey, setState, setShowDeleteModal, setListAllColumns } = actions
     const { user, isUserAuthed, pageAuthPermissions, sectionAuthPermissions, Permissions, AuthAPI } = auth
-    const { Switch, Pill, TitleEditComp, LevelComp, refreshDataBtnRef, isRefreshingData, setIsRefreshingData, theme, RegisteredComponents = {} } = ui
+    const { Switch, Pill, Icon, TitleEditComp, LevelComp, refreshDataBtnRef, isRefreshingData, setIsRefreshingData, theme, RegisteredComponents = {} } = ui
     const { activeSource, activeView, sources, views, onSourceChange, onViewChange } = dataSource;
 
     const canEditSection = isUserAuthed(['edit-section'], sectionAuthPermissions);
@@ -29,50 +29,48 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
     // =================================================================================================================
     const editCopyPaste = [
         {
-            icon: 'PencilSquare',
-            name: 'Edit',
-            cdn: () => !isEdit && canEditSection,
-            onClick: onEdit
-        },
-        {
-            icon: 'Copy',
-            name: 'Copy Section',
-            onClick: (e) => {
-                handleCopy(value)
+            name: 'Main SectionControls',
+            cdn: () => canEditSection || canEditPageLayout,
+            type: () => {
+                const [copied, setCopied] = useState(false);
 
-                const el = e.currentTarget;
-                el.style.color = 'green';
+                return (
+                    <div className={'flex gap-1'}>
+                        {isEdit && canEditSection ?
+                            <Pill color={'orange'} text={<Icon icon={'CancelCircle'} className={'size-6'} />} title={'Cancel'} onClick={onCancel} /> :
+                            <Pill color={'blue'} text={<Icon icon={'PencilSquare'} className={'size-6'} />} title={'Edit'} onClick={onEdit} />
+                        }
+                        {isEdit && canEditSection ? <Pill color={'blue'} text={<Icon icon={'FloppyDisk'} className={'size-6'} />} title={'Save'} onClick={onSave} /> : null}
+                        {isEdit && canEditSection ? <Pill color={'blue'} text={<Icon icon={'InfoSquare'} className={'size-6'} />} title={'Add Help Text'} onClick={onAddHelpText} /> : null}
 
-                setTimeout(() => {
-                    el.style.color = '';
-                }, 2000);
+                        {canEditSection ? <Pill color={copied ? 'green' : 'blue'} text={<Icon icon={'Copy'} className={'size-6'}/>}
+                               title={'Copy Section'}
+                               onClick={(e) => {
+                                   handleCopy(value)
+                                   setCopied(true)
+                                   setTimeout(() => {
+                                       setCopied(false)
+                                   }, 2000);
+                               }}/> : null}
+                        {canEditSection ? <Pill color={'blue'} text={<Icon icon={'Paste'} className={'size-6'}/>} title={'Paste Section'}
+                               onClick={e => handlePaste(e, setKey, setState, value, onChange)}/> : null}
+
+                        {!isEdit && canEditPageLayout ?
+                                <Pill color={'blue'} text={<Icon icon={'ChevronUpSquare'} className={'size-6'} />} title={'Move Up'}
+                                      onClick={() => moveItem(i, -1)} />  : null}
+
+                        {!isEdit && canEditPageLayout ?
+                                <Pill color={'blue'} text={<Icon icon={'ChevronDownSquare'} className={'size-6'} />} title={'Move Down'}
+                                      onClick={() => moveItem(i, 1)} /> : null}
+                    </div>
+                )
             }
-        },
-        {
-            icon: 'Paste',
-            name: 'Paste Section',
-            cdn: () => isEdit && canEditSection,
-            onClick: e => handlePaste(e, setKey, setState, value, onChange)
-        },
-    ]
-
-    const moveItems = [
-        {
-            icon: 'ChevronUpSquare',
-            name: 'Move Up', cdn: () => !isEdit && canEditPageLayout,
-            onClick: () => moveItem(i, -1)
-        },
-        {
-            icon: 'ChevronDownSquare',
-            name: 'Move Down',
-            cdn: () => !isEdit && canEditPageLayout,
-            onClick: () => moveItem(i, 1)
-        },
+        }
     ]
 
     const component = [
         {
-            name: 'Component', cdn: () => canEditSection, value: currentComponent?.name,
+            name: 'Component', icon: 'ListView', cdn: () => canEditSection, value: currentComponent?.name,
             showValue: true, showSearch: true,
             items: Object.keys(RegisteredComponents)
                 .filter(k => !RegisteredComponents[k].hideInSelector &&
@@ -542,7 +540,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
 
     const section = [
         {
-            name: 'Section',
+            name: 'Section', icon: 'Section',
             items: [
                 ...display[0].items,
                 {type: 'separator'},
@@ -584,13 +582,11 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
     return (
         [
             ...editCopyPaste,
-            {type: 'separator'},
-            ...moveItems,
-            {type: 'separator', cdn: () => !isEdit && canEditPageLayout},
-            ...component,
-            ...data,
-            ...more,
+            {type: 'separator', cdn: () => canEditPageLayout || canEditSection},
             ...section,
+            ...component,
+            ...more,
+            ...data,
             {type: 'separator'},
             ...remove
         ].filter(item => !item.cdn || item.cdn())

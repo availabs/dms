@@ -11,6 +11,7 @@ export default function Pill ({color, text, ...rest}) {
     const colors = {
         orange: `bg-orange-500/15 text-orange-700 hover:bg-orange-500/25`,
         blue: `bg-blue-500/15 text-blue-700 hover:bg-blue-500/25`,
+        green: `bg-green-500/15 text-green-700 hover:bg-green-500/25`,
         gray: `text-gray-400`
     };
     return (

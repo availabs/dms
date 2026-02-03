@@ -60,33 +60,15 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
   const LevelComp = attributes?.level?.EditComp
   const HelpComp = attributes?.helpText?.EditComp
   const helpTextArray = getHelpTextArray(value, true)
-
+    const onAddHelpText = () => updateAttribute('helpText', [...helpTextArray, {text: ''}]);
 
   const sectionMenuItems = getSectionMenuItems({
       sectionState: { isEdit, value, attributes, i, showDeleteModal, listAllColumns, state },
-      actions: { moveItem, updateAttribute, updateElementType, onChange, setKey, setState, setShowDeleteModal, setListAllColumns },
+      actions: { moveItem, updateAttribute, updateElementType, onChange, onCancel, onSave, onAddHelpText, setKey, setState, setShowDeleteModal, setListAllColumns },
       auth: { user, isUserAuthed, pageAuthPermissions, sectionAuthPermissions, Permissions, AuthAPI },
-      ui:  { Switch, Pill, TitleEditComp, LevelComp, theme: fullTheme, RegisteredComponents },
+      ui:  { Switch, Pill, Icon, TitleEditComp, LevelComp, theme: fullTheme, RegisteredComponents },
       dataSource: {  activeSource, activeView, sources, views, onSourceChange, onViewChange }
   })
-
-    const editIcons = [
-      {
-        name: 'HelpText',
-        onClick: () => updateAttribute('helpText', [...helpTextArray, {text: ''}]),
-        icon: 'SquarePlus'
-      },
-      {
-        name: 'Cancel',
-        onClick: onCancel,
-        icon: 'CancelCircle'
-      },
-      {
-        name: 'Save',
-        onClick: onSave,
-        icon: 'FloppyDisk'
-      }
-    ]
 
     {/* apiLoad and apiUpdate are passed in ComponentContext as components won't always be in pages pattern. */}
     return (
@@ -102,11 +84,6 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
                             updateAttribute={updateAttribute}
                             HelpComp={HelpComp}
                         />
-                        {editIcons.map(icon =>  (
-                            <Button activeStyle={1} onClick={icon.onClick} altText={icon.name}>
-                                <Icon icon={icon.icon} className={theme.editIcon}/>
-                            </Button>
-                        ))}
                         <NavigableMenu
                             config={sectionMenuItems}
                             title={'Section Settings'}
@@ -153,7 +130,7 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
     const {theme: fullTheme, UI} = React.useContext(ThemeContext);
     const { pageState, apiLoad, apiUpdate } = useContext(PageContext);
 
-    const {NavigableMenu, Switch, Pill, Permissions} = UI;
+    const {NavigableMenu, Switch, Pill, Icon, Permissions} = UI;
     const theme = getComponentTheme(fullTheme, 'pages.section');
 
     const component = RegisteredComponents[get(value, ["element", "element-type"], "lexical")];
@@ -223,7 +200,7 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
         sectionState: { isEdit, value, attributes, i, showDeleteModal, state },
         actions: { onEdit, moveItem, updateAttribute, updateElementType, onChange, setState, setShowDeleteModal },
         auth: { user, isUserAuthed, pageAuthPermissions, sectionAuthPermissions, Permissions, AuthAPI },
-        ui:  { Switch, Pill, TitleEditComp, LevelComp, refreshDataBtnRef, isRefreshingData, setIsRefreshingData, theme: fullTheme, RegisteredComponents },
+        ui:  { Switch, Pill, Icon, TitleEditComp, LevelComp, refreshDataBtnRef, isRefreshingData, setIsRefreshingData, theme: fullTheme, RegisteredComponents },
         dataSource: {  activeSource, activeView, sources, views, onSourceChange, onViewChange }
     })
 
