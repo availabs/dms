@@ -506,6 +506,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                         return {
                             icon: v === (value?.['padding'] || theme?.sectionArray?.sectionPadding) ? 'CircleCheck' : 'Blank',
                             'name': `${v}`,
+                            id: crypto.randomUUID(),
                             'onClick': () => updateAttribute('padding', v)
                         }
                     }),
