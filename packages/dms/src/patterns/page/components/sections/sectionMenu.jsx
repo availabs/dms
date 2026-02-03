@@ -546,30 +546,29 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
             items: [
                 ...display[0].items,
                 {type: 'separator'},
-                ...layout[0].items
+                ...layout[0].items,
+                {type: 'separator'},
+                {
+                    icon: 'AccessControl', name: 'Permissions', cdn: () => canEditSectionPermissions,
+                    items: [
+                        {
+                            name: 'Permissions Comp',
+                            type: () => (
+                                <Permissions
+                                    value={value?.['authPermissions']}
+                                    onChange={v => updateAttribute('authPermissions', v)}
+                                    user={user}
+                                    getUsers={AuthAPI.getUsers}
+                                    getGroups={AuthAPI.getGroups}
+                                    permissionDomain={attributes?.authPermissions?.permissionDomain}
+                                    defaultPermission={attributes?.authPermissions?.defaultPermission}
+                                />
+                            )
+                        }
+                    ]
+                },
             ].filter(item => !item.cdn || item.cdn())
         }
-    ]
-    const permissions = [
-        {
-            icon: 'AccessControl', name: 'Permissions', cdn: () => canEditSectionPermissions,
-            items: [
-                {
-                    name: 'Permissions Comp',
-                    type: () => (
-                        <Permissions
-                            value={value?.['authPermissions']}
-                            onChange={v => updateAttribute('authPermissions', v)}
-                            user={user}
-                            getUsers={AuthAPI.getUsers}
-                            getGroups={AuthAPI.getGroups}
-                            permissionDomain={attributes?.authPermissions?.permissionDomain}
-                            defaultPermission={attributes?.authPermissions?.defaultPermission}
-                        />
-                    )
-                }
-            ]
-        },
     ]
 
     const remove = [
@@ -598,7 +597,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
             // ...display,
             // ...layout,
             ...section,
-            ...permissions,
+            // ...permissions,
             {type: 'separator'},
             ...remove
         ].filter(item => !item.cdn || item.cdn())
