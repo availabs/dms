@@ -29,7 +29,7 @@ function isLexicalJSON(str) {
 
 export default function Lexicals ({value, hideControls, showBorder, onChange, bgColor, editable=false, id, theme}) {
   
-  const lexicalTheme = merge(cloneDeep(PlaygroundEditorTheme), cloneDeep(theme?.lexical || {}), {tableScrollableWrapper: 'overflow-auto'})
+  const lexicalTheme = merge(cloneDeep(PlaygroundEditorTheme), cloneDeep(theme?.lexical || {}))
   // console.log(PlaygroundEditorTheme, theme?.lexical, lexicalTheme)
 
     const initialConfig = {
