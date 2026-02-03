@@ -336,7 +336,7 @@ export const TableCell = memo(function TableCell ({
 
     const options = useMemo(() => {
         if (
-            !['select', 'multiselect'].includes(attribute.type) ||
+            !['select', 'multiselect', 'radio'].includes(attribute.type) ||
             !(attribute.options || []).some(o => o.filter)
         ) {
             return attribute.options;

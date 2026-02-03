@@ -37,7 +37,7 @@ const navigableMenuTheme = {
     "subMenuIcon": "ArrowRight",
     "subMenuIconWrapper": "place-self-center",
     "valueSubmenuIconWrapper": "flex gap-0.5",
-    "valueWrapper": "p-0.5 rounded-md bg-gray-100 text-gray-900 text-sm",
+    "valueWrapper": "p-0.5 rounded-md bg-gray-100 text-gray-900 text-sm whitespace-nowrap overflow-hidden text-ellipsis max-w-[120px]",
 
     // Separator
     "separator": "w-full border-b"

@@ -301,31 +301,41 @@ A render function for custom UI. Receives the menu item as argument.
 
 | Control Group | Storage Location | When Shown | Description |
 |--------------|------------------|------------|-------------|
-| `columns` | `state.columns[i]` | `useDataSource` components in edit mode | Per-column settings in Columns menu |
+| `columns` | `state.columns[i]` | `useDataSource` components in edit mode | Per-column settings in Data > Columns menu |
 | `inHeader` | `state.columns[i]` | `useDataSource` components | Per-column settings in header dropdowns |
-| `more` | `state.display` | `useDataSource` components in edit mode | Global settings in More menu |
-| Custom groups | `state.display` | Always (edit mode) | Custom named menu items |
+| `more` | `state.display` | Edit mode | Global settings in Settings menu |
+| Custom groups | `state.display` | Edit mode | Nested under Settings menu as submenus |
 
-**Important:** The `columns`, `inHeader`, and `more` control groups only appear for components with `useDataSource: true`. For simple components (without data source), use custom control groups with an `items` array for declarative controls.
+**Important:** The `columns` and `inHeader` control groups only appear for components with `useDataSource: true`. For simple components (without data source), use custom control groups with an `items` array for declarative controls. All custom control groups appear as nested submenus under the Settings menu.
 
-### Nested Submenu Pattern (Preferred)
+### Menu Structure
 
-Controls are rendered as **nested submenus** in the NavigableMenu, similar to how `Layout > Width` or `Layout > Rowspan` work. This provides a consistent, navigable UI:
+Custom control groups are rendered inside a **Settings menu** in the section context menu. This groups all component-specific settings together:
 
 ```
 Section Settings
-├── Appearance          ← Custom control group
-│   ├── Style: Default  ← Shows current value, click to open submenu
-│   │   ├── ✓ Default Text    ← Options with checkmark on selected
-│   │   ├── Inline Guidance
-│   │   ├── Annotation Card
-│   │   └── ...
-│   └── Background      ← Only shown when displayCdn returns true
-│       └── [Color Picker]
-└── Layout
-    ├── Width: 1
-    └── ...
+├── Component: Rich Text
+├── Settings (icon)              ← Contains custom controls + more controls
+│   ├── [more controls...]       ← From controls.more array
+│   └── Appearance               ← Custom control group (nested submenu)
+│       ├── Show Toolbar         ← Toggle (inline switch)
+│       ├── Style: Default       ← Shows current value, click for submenu
+│       │   ├── ✓ Default Text   ← Options with checkmark on selected
+│       │   ├── Inline Guidance
+│       │   ├── Annotation Card
+│       │   └── ...
+│       └── Background           ← Only shown when displayCdn returns true
+│           └── [Color Picker]
+├── Section
+│   ├── Title
+│   ├── Layout > Width: 1
+│   └── ...
+└── Delete
 ```
+
+### Nested Submenu Pattern
+
+Controls within custom groups are rendered as **nested submenus**, similar to how `Layout > Width` or `Layout > Rowspan` work. This provides a consistent, navigable UI.
 
 **How control types render as submenus:**
 

@@ -245,9 +245,7 @@ export default {
         }
     },
     controls: {
-        appearance: {
-            name: 'Appearance',
-            items: [
+        default:  [
                 {
                     type: 'toggle',
                     label: 'Show Toolbar',
@@ -275,6 +273,6 @@ export default {
                     displayCdn: ({display}) => !!display?.isCard
                 }
             ]
-        }
+
     }
 }

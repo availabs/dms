@@ -184,7 +184,7 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
     const updateAttribute = (k, v) => {
         const newV = {...value, [k]: v}
         if (!isEqual(value, newV)) {
-            onChange(i, newV)
+            onChange?.(i, newV)
         }
     }
     const updateElementType = (v, k='element-type') => {

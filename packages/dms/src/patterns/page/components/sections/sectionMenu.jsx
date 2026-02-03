@@ -75,7 +75,10 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
             name: 'Component', cdn: () => canEditSection, value: currentComponent?.name,
             showValue: true, showSearch: true,
             items: Object.keys(RegisteredComponents)
-                .filter(k => !RegisteredComponents[k].hideInSelector)
+                .filter(k => !RegisteredComponents[k].hideInSelector &&
+                    // don't allow conversion of incompatible components in view mode
+                    (isEdit || (['Spreadsheet', 'Card'].includes(currentComponent?.name) && ['Spreadsheet', 'Card'].includes(k)))
+                )
                 .map(k => (
                     {
                         icon: RegisteredComponents[k].name === currentComponent?.name ? 'CircleCheck' : 'Blank',
@@ -86,12 +89,14 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
         },
     ]
 
-    const dataset = [
+    const dataset =
         {
             name: 'Dataset', icon: 'Database',
-            cdn: () => currentComponent?.useDataSource && canEditSection,
+            cdn: () => isEdit && currentComponent?.useDataSource && canEditSection,
+            value: sources?.find(s => s.key === activeSource)?.label, showValue: true,
             items: [
                 {name: 'Source', icon: 'Database', showSearch: true, cdn: () => isEdit,
+                    value: sources?.find(s => s.key === activeSource)?.label, showValue: true,
                     items: sources.map(({key, label}) => ({
                         icon: key === activeSource ? 'CircleCheck' : 'Blank',
                         id: crypto.randomUUID(),
@@ -99,27 +104,16 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                         onClick: () => onSourceChange(key)
                     }))},
                 {name: 'Version', icon: 'Database', showSearch: true, cdn: () => isEdit,
+                    value: views?.find(s => s.key === activeView)?.label || activeView, showValue: true,
                     items: views.map(({key, label}) => ({
                         icon: key === activeView ? 'CircleCheck' : 'Blank',
                         id: crypto.randomUUID(),
                         name: label,
                         onClick: () => onViewChange(key)
-                    }))},
-                {
-                    icon: 'Refresh', name: isRefreshingData ? 'Refreshing Data' : 'Refresh Data', cdn: () => !isEdit && canEditSection,
-                    onClick: () => refreshDataBtnRef.current?.refresh({isRefreshingData, setIsRefreshingData})
-                },
-                {
-                    icon: 'Refresh', name: isRefreshingData ? 'Caching Data' : 'Cache Data', cdn: () => !isEdit && canEditSection,
-                    onClick: () => refreshDataBtnRef.current?.refresh({isRefreshingData, setIsRefreshingData, fullDataLoad: true})
-                },
-                {
-                    icon: 'Refresh', name: isRefreshingData ? 'Clearing Cache' : 'Clear Cache', cdn: () => !isEdit && canEditSection,
-                    onClick: () => refreshDataBtnRef.current?.refresh({clearCache: true})
-                },
+                    }))}
             ].filter(item => item.cdn())
         }
-    ]
+
   const columnsToRender = listAllColumns ? [
     ...(state?.columns || []),
     ...(state?.sourceInfo?.columns || [])
@@ -148,6 +142,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                     draft.columns = updatedColumns.map(c => draft.columns.find(draftCol => isEqualColumns(draftCol, c.column))).filter(c => c);
                 })
             },
+            value: (state.columns || []).length, showValue: true,
             items: [
                 {icon: 'GlobalEditing', name: 'Global Controls',
                     type: () => <div className={'flex flex-col gap-1'}>
@@ -217,7 +212,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
     const group = [
         {
             name: 'Group', cdn: () => isEdit && currentComponent?.useDataSource && canEditSection && hasGroupControl,
-            showSearch: true,
+            showSearch: true, value: (state.columns || []).filter(c => c.group).length, showValue: true,
             items:
                 allColumns
                     .map(column => (
@@ -235,154 +230,126 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
         },
     ]
 
-    const more = [
-        {
-            name: 'More', cdn: () => isEdit && currentComponent?.useDataSource && canEditSection && currentComponent.controls?.more?.length,
-            showSearch: true,
-            items: (currentComponent?.controls?.more || [])
-                .filter(({displayCdn}) =>
-                    typeof displayCdn === 'function' ? displayCdn({display: state.display}) :
-                        typeof displayCdn === 'boolean' ? displayCdn : true)
-                    .map(({type, inputType, label, key, options, onChange, ...rest}) => ({
-                        name: label,
-                        value: state.display[key],
-                        options: options,
-                        showLabel: true,
 
-                        // for toggles
-                        enabled: type === 'toggle' ? !!state.display[key] : undefined,
-                        setEnabled: type === 'toggle' ? (value) => updateDisplayValue(key, value, onChange, setState) : undefined,
+    const filter = [
 
-                        onChange:
-                            !['toggle', 'function'].includes(type) ?
-                                e => updateDisplayValue(key,
-                                    inputType === 'number' ?
-                                        +(e?.target?.value ?? e) :
-                                        (e?.target?.value ?? e),
-                                    onChange, setState) : undefined,
-                        type: typeof type === 'function' ? () =>
-                                type({value: state.display[key], setValue: newValue => updateDisplayValue(key, newValue, onChange, setState)})
-                            : type,
-                        inputType
-                        }))
-
-        },
     ]
+
+    const data = [
+        {name: 'data', icon: 'Database', cdn: () => currentComponent?.useDataSource && canEditSection,
+            items: [
+                {
+                    icon: 'Refresh', name: isRefreshingData ? 'Refreshing Data' : 'Refresh Data', cdn: () => canEditSection,
+                    onClick: () => refreshDataBtnRef.current?.refresh({isRefreshingData, setIsRefreshingData})
+                },
+                {
+                    icon: 'Refresh', name: isRefreshingData ? 'Caching Data' : 'Cache Data', cdn: () => canEditSection,
+                    onClick: () => refreshDataBtnRef.current?.refresh({isRefreshingData, setIsRefreshingData, fullDataLoad: true})
+                },
+                {
+                    icon: 'Refresh', name: isRefreshingData ? 'Clearing Cache' : 'Clear Cache', cdn: () => canEditSection,
+                    onClick: () => refreshDataBtnRef.current?.refresh({clearCache: true})
+                },
+                dataset,
+                {name: '# rows', value: state?.display?.totalLength, showValue: true, cdn: () => currentComponent?.useDataSource},
+                ...columns,
+                ...group,
+                ...filter
+            ].filter(item => item.cdn())
+        }
+    ]
+
+    // Registry of control type transformers - all use nested submenu pattern
+    const controlItemTransformers = {
+        select: (item, value) => ({
+            icon: item.icon,
+            name: item.label,
+            value: item.options?.find(opt => opt.value === value)?.label || value || '',
+            showValue: true,
+            items: item.options?.map(opt => ({
+                icon: opt.value === value ? 'CircleCheck' : 'Blank',
+                name: opt.label,
+                onClick: () => updateDisplayValue(item.key, opt.value, item.onChange, setState)
+            }))
+        }),
+        colorpicker: (item, value) => ({
+            icon: item.icon,
+            name: item.label,
+            showValue: false,
+            items: [{
+                id: `${item.key}_colorpicker`,
+                name: `${item.label} color`,
+                type: 'colorpicker', noHover: true,
+                value, colors: item.colors, showColorPicker: item.showColorPicker,
+                onChange: (newColor) => updateDisplayValue(item.key, newColor, item.onChange, setState)
+            }]
+        }),
+        toggle: (item, value) => ({
+            icon: item.icon, name: item.label, showLabel: true, type: 'toggle',
+            enabled: !!value,
+            setEnabled: (v) => updateDisplayValue(item.key, v, item.onChange, setState)
+        }),
+        input: (item, value) => ({
+            icon: item.icon,
+            name: item.label,
+            value,
+            showValue: true,
+            items: [{
+                id: `${item.key}_input`,
+                name: `${item.label} input`,
+                type: 'input', inputType: item.inputType, value,
+                onChange: (e) => updateDisplayValue(item.key,
+                    item.inputType === 'number' ? +(e?.target?.value ?? e) : (e?.target?.value ?? e),
+                    item.onChange, setState)
+            }]
+        }),
+    };
+
+    const transformControlItem = (item) => {
+        const value = state.display?.[item.key] ?? item.defaultValue;
+        if (typeof item.type === 'function') {
+            return {
+                icon: item.icon, name: item.label,
+                type: () => item.type({ value, setValue: v => updateDisplayValue(item.key, v, item.onChange, setState), state, setState })
+            };
+        }
+        return controlItemTransformers[item.type]?.(item, value) || { name: item.label };
+    };
 
     const other =
         Object.keys(currentComponent?.controls || {})
-            .filter(controlGroup => !['columns', 'more', 'inHeader'].includes(controlGroup) && isEdit && canEditSection)
+            .filter(controlGroup => !['columns', 'more', 'inHeader', 'default'].includes(controlGroup) && isEdit && canEditSection)
             .map(controlGroup => {
-                const controlConfig = currentComponent?.controls?.[controlGroup];
-
-                // Support declarative items array with nested submenu pattern
-                if (controlConfig?.items?.length) {
-                    return {
-                        name: controlConfig.name || controlGroup,
-                        showSearch: controlConfig.showSearch,
-                        items: controlConfig.items
-                            .filter(({displayCdn}) =>
-                                typeof displayCdn === 'function' ? displayCdn({display: state.display}) :
-                                    typeof displayCdn === 'boolean' ? displayCdn : true)
-                            .map(({type, inputType, label, key, options, onChange, colors, showColorPicker, icon, ...rest}) => {
-                                const currentValue = state.display?.[key];
-
-                                // For select type: create nested submenu with clickable options (like Layout > Width)
-                                if (type === 'select' && options?.length) {
-                                    const selectedOption = options.find(opt => opt.value === currentValue);
-                                    return {
-                                        icon: icon,
-                                        name: label,
-                                        value: selectedOption?.label || currentValue || '',
-                                        showValue: true,
-                                        items: options.map(opt => ({
-                                            icon: opt.value === currentValue ? 'CircleCheck' : 'Blank',
-                                            name: opt.label,
-                                            onClick: () => updateDisplayValue(key, opt.value, onChange, setState)
-                                        }))
-                                    };
-                                }
-
-                                // For colorpicker type: create nested submenu with color picker
-                                if (type === 'colorpicker') {
-                                    return {
-                                        icon: icon,
-                                        name: label,
-                                        value: currentValue || '',
-                                        showValue: false,
-                                        items: [
-                                            {
-                                                name: 'color',
-                                                type: 'colorpicker',
-                                                noHover: true,
-                                                value: currentValue,
-                                                colors: colors,
-                                                showColorPicker: showColorPicker,
-                                                onChange: (newColor) => updateDisplayValue(key, newColor, onChange, setState)
-                                            }
-                                        ]
-                                    };
-                                }
-
-                                // For toggle type
-                                if (type === 'toggle') {
-                                    return {
-                                        icon: icon,
-                                        name: label,
-                                        showLabel: true,
-                                        type: 'toggle',
-                                        enabled: !!currentValue,
-                                        setEnabled: (value) => updateDisplayValue(key, value, onChange, setState)
-                                    };
-                                }
-
-                                // For input type: create nested submenu with input
-                                if (type === 'input') {
-                                    return {
-                                        icon: icon,
-                                        name: label,
-                                        value: currentValue,
-                                        showValue: true,
-                                        items: [
-                                            {
-                                                type: 'input',
-                                                inputType: inputType,
-                                                value: currentValue,
-                                                onChange: (e) => updateDisplayValue(key,
-                                                    inputType === 'number' ? +(e?.target?.value ?? e) : (e?.target?.value ?? e),
-                                                    onChange, setState)
-                                            }
-                                        ]
-                                    };
-                                }
-
-                                // For custom function type
-                                if (typeof type === 'function') {
-                                    return {
-                                        icon: icon,
-                                        name: label,
-                                        type: () => type({
-                                            value: currentValue,
-                                            setValue: newValue => updateDisplayValue(key, newValue, onChange, setState),
-                                            state,
-                                            setState
-                                        })
-                                    };
-                                }
-
-                                return { name: label };
-                            })
-                    };
+                const config = currentComponent?.controls?.[controlGroup];
+                if (!config?.items?.length) {
+                    return { name: config?.name || controlGroup, items: [{name: 'component', type: config?.type}] };
                 }
-
-                // Legacy support: single type function
                 return {
-                    name: controlConfig?.name || controlGroup,
-                    items: [
-                        {name: 'component', type: controlConfig?.type}
-                    ]
+                    name: config.name || controlGroup,
+                    showSearch: config.showSearch,
+                    items: config.items
+                        .filter(({displayCdn}) => typeof displayCdn === 'function' ? displayCdn({display: state.display}) : displayCdn !== false)
+                        .map(transformControlItem)
                 };
             })
+
+    const more = [
+      {
+        name: 'Component Settings', icon: 'Settings',
+        cdn: () => isEdit && canEditSection,
+        showSearch: true,
+        items: [
+          ...(currentComponent?.controls?.more || [])
+            .filter(({ displayCdn }) => typeof displayCdn === 'function' ? displayCdn({ display: state.display }) : displayCdn !== false)
+            .map(transformControlItem),
+          ...(currentComponent?.controls?.default || [])
+              .filter(({displayCdn}) => typeof displayCdn === 'function' ? displayCdn({display: state.display}) : displayCdn !== false)
+              .map(transformControlItem),
+          ...other
+        ]
+      },
+    ]
+
 
     const display = [
         {
@@ -390,6 +357,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
             items: [
                 {
                     name: 'Title',
+                    cdn: () => canEditSection,
                     items: [
                         {
                             name: '',
@@ -404,6 +372,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                 },
                 {
                     name: 'Level',
+                    cdn: () => canEditSection,
                     items: [
                         {
                             name: '',
@@ -419,6 +388,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                 },
                 {
                     name: 'Tags',
+                    cdn: () => canEditSection,
                     items: [
                         {
                             name: '',
@@ -434,6 +404,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                 },
                 {
                     name: 'Info Comp',
+                    cdn: () => canEditSection,
                     type: () => (
                         <div className={'self-start w-full flex justify-between pl-2'}>
                             <label>Info Component</label>
@@ -447,6 +418,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                 },
                 {
                     name: 'Hide Comp',
+                    cdn: () => canEditSection,
                     type: () => (
                         <div className={'self-start w-full flex justify-between pl-2'}>
                             <label>Hide Component</label>
@@ -472,6 +444,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
             items: [
                 {
                     name: 'Style', value: activeStyleName, showValue: true,
+                    cdn: () => canEditSection,
                     items: styles.map((style, idx) => ({
                         icon: idx === activeStyle ? 'CircleCheck' : '',
                         name: style.name || idx,
@@ -480,6 +453,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                 },
                 {
                     icon: 'Column', name: 'Width', value: value?.['size'] || 1, showValue: true,
+                    cdn: () => canEditSection,
                     items: Object.keys(getComponentTheme(theme, 'pages.sectionArray').sizes || {})
                       .sort((a, b) => {
                         const sizes = getComponentTheme(theme, 'pages.sectionArray').sizes
@@ -497,6 +471,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                 },
                 {
                     icon: 'Row', name: 'Rowspan', value: value?.['rowspan'] || 1, showValue: true,
+                    cdn: () => canEditSection,
                     items: Object.keys(theme?.sectionArray?.rowspans || {}).sort((a, b) => {
                         return +a - +b
                     }).map((name, i) => {
@@ -512,6 +487,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                 },
                 {
                     icon: 'Padding', name: 'Offset', value: value?.['offset'] || 16, showValue: true,
+                    cdn: () => canEditSection,
                     items: [
                         {
                             type: 'input',
@@ -525,6 +501,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                 {
                     icon: 'Padding', name: 'padding', value: value?.['padding'] || theme?.sectionArray?.sectionPadding,
                     showValue: true,
+                    cdn: () => canEditSection,
                     items: ['p-0', 'p-1', 'p-2', theme?.sectionArray?.sectionPadding].map((v, i) => {
                         return {
                             icon: v === (value?.['padding'] || theme?.sectionArray?.sectionPadding) ? 'CircleCheck' : 'Blank',
@@ -535,6 +512,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                 },
                 {
                     icon: 'Border', name: 'Border', value: value?.['border'] || 1,
+                    cdn: () => canEditSection,
                     items: [
                         {
                             name: 'border', type: () => {
@@ -561,6 +539,16 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
         },
     ]
 
+    const section = [
+        {
+            name: 'Section',
+            items: [
+                ...display[0].items,
+                {type: 'separator'},
+                ...layout[0].items
+            ].filter(item => !item.cdn || item.cdn())
+        }
+    ]
     const permissions = [
         {
             icon: 'AccessControl', name: 'Permissions', cdn: () => canEditSectionPermissions,
@@ -600,13 +588,15 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
             ...moveItems,
             {type: 'separator', cdn: () => !isEdit && canEditPageLayout},
             ...component,
-            ...dataset,
-            ...columns,
-            ...group,
+            ...data,
+            // ...dataset,
+            // ...columns,
+            // ...group,
             ...more,
-            ...other,
-            ...display,
-            ...layout,
+            // ...other,
+            // ...display,
+            // ...layout,
+            ...section,
             ...permissions,
             {type: 'separator'},
             ...remove

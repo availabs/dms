@@ -73,7 +73,7 @@ export default function ColumnControls({context, cms_context}) {
     const [search, setSearch] = useState();
 
     const columnsToRender =
-        [...columns, ...(sourceInfo.columns || []).filter(c => !columns.map(c => c.name).includes(c.name))]
+        [...columns, ...(sourceInfo?.columns || []).filter(c => !columns.map(c => c.name).includes(c.name))]
             .filter(attribute => (
                 !search ||
                 getColumnLabel(attribute).toLowerCase().includes(search.toLowerCase()))

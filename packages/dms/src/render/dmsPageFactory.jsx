@@ -38,7 +38,7 @@ export default function dmsPageFactory (
   } = dmsConfig
   const ErrorBoundaryComp = errorElement || ErrorBoundary
   const dmsPath = `${baseUrl}${baseUrl === '/' ? '' : '/'}`
-  console.log('dmspageFactory', API_HOST)
+  // console.log('dmspageFactory', API_HOST)
   const falcor = falcorGraph(API_HOST)
 
   async function loader ({ request, params }) {
