@@ -14,9 +14,10 @@ import { merge, cloneDeep } from 'lodash-es'
 
 import Editor from './editor';
 import PlaygroundNodes from './nodes/PlaygroundNodes';
-import { getLexicalTheme, getLexicalInternalTheme } from '../useLexicalTheme';
-import {  buildLexicalInternalTheme } from '../theme';
-import { ThemeContext } from '../../../useTheme';
+import { getLexicalTheme, LexicalThemeContext } from '../useLexicalTheme';
+import { lexicalTheme as defaultLexicalTheme, buildLexicalInternalTheme } from '../theme';
+// Import ThemeContext from separate file to avoid circular dependency with defaultTheme
+import { ThemeContext } from '../../../themeContext';
 
 function isLexicalJSON(str) {
     try {
@@ -27,12 +28,13 @@ function isLexicalJSON(str) {
     }
 }
 
-export default function Lexicals ({value, hideControls, showBorder, onChange, bgColor, editable=false, id}) {
-  // Get theme from ThemeContext
-  const { theme } = React.useContext(ThemeContext) || {};
+export default function Lexicals ({value, hideControls, showBorder, onChange, bgColor, editable=false, id, theme: themeProp}) {
+  // Get theme from ThemeContext if not passed as prop
+  const { theme: contextTheme } = React.useContext(ThemeContext) || {};
+  const theme = themeProp || contextTheme;
 
   // Get the flat theme from DMS context (with textSettings heading overrides)
-  const flatLexicalTheme =  getLexicalTheme(theme)
+  const flatLexicalTheme = theme ? getLexicalTheme(theme) : defaultLexicalTheme.styles[0];
 
   // Build the nested theme for LexicalComposer
   const nestedLexicalTheme = buildLexicalInternalTheme(flatLexicalTheme);
@@ -51,18 +53,20 @@ export default function Lexicals ({value, hideControls, showBorder, onChange, bg
     };
 
   return (
-    <LexicalComposer key={id} initialConfig={initialConfig}>
-      <div className={`${nestedLexicalTheme.editorShell} ${showBorder ? 'border rounded-md' : ''}`}>
-        <UpdateEditor
-          value={value}
-          hideControls={hideControls}
-          onChange={onChange}
-          bgColor={bgColor}
-          editable={editable}
-          theme={nestedLexicalTheme}
-        />
-      </div>
-    </LexicalComposer>
+    <LexicalThemeContext.Provider value={theme}>
+      <LexicalComposer key={id} initialConfig={initialConfig}>
+        <div className={`${nestedLexicalTheme.editorShell} ${showBorder ? 'border rounded-md' : ''}`}>
+          <UpdateEditor
+            value={value}
+            hideControls={hideControls}
+            onChange={onChange}
+            bgColor={bgColor}
+            editable={editable}
+            theme={nestedLexicalTheme}
+          />
+        </div>
+      </LexicalComposer>
+    </LexicalThemeContext.Provider>
   );
 }
 

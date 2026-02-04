@@ -1,12 +1,21 @@
 /**
  * Lexical Theme Utilities
  *
- * Provides functions to get lexical theme from DMS theme object.
+ * Provides a LexicalThemeContext and hook for accessing the theme within lexical components.
+ * This context is separate from the main ThemeContext to avoid circular imports.
+ *
+ * The editor entry point receives theme as a prop and provides it via LexicalThemeContext.
+ * Plugin components use useLexicalTheme() to access the flat theme.
  */
 
-import { /*lexicalTheme*/ buildLexicalInternalTheme } from './theme';
+import * as React from 'react';
+import { lexicalTheme, buildLexicalInternalTheme } from './theme';
 
-//const buildLexicalInternalTheme = d => d
+/**
+ * Context for providing the DMS theme to lexical components.
+ * This is populated by the editor entry point (index.tsx).
+ */
+export const LexicalThemeContext = React.createContext(null);
 
 /**
  * Helper to get component theme from a theme object
@@ -33,9 +42,9 @@ export function getLexicalTheme(theme) {
   const textStyles = getComponentTheme(theme, 'textSettings', 0);
 
   // If no theme or empty lexical styles, return default
-  // if (!lexicalStyles || Object.keys(lexicalStyles).length === 0) {
-  //   return lexicalTheme.styles[0];
-  // }
+  if (!lexicalStyles || Object.keys(lexicalStyles).length === 0) {
+    return lexicalTheme.styles[0];
+  }
 
   // Merge textSettings headings into lexical theme if available
   const mergedTheme = { ...lexicalStyles };
@@ -65,13 +74,14 @@ export function getLexicalInternalTheme(theme) {
 }
 
 /**
- * Get the flat lexical theme from a DMS theme object.
+ * Hook to get the flat lexical theme from LexicalThemeContext.
+ * Use this in plugin components to access theme styles.
  *
- * @param {Object} theme - The full theme object from ThemeContext
  * @returns {Object} - Flat theme object with underscore-separated keys
  */
-export function useLexicalTheme(theme) {
-  return getLexicalTheme(theme);
+export function useLexicalTheme() {
+  const contextTheme = React.useContext(LexicalThemeContext);
+  return getLexicalTheme(contextTheme);
 }
 
 export default getLexicalTheme;

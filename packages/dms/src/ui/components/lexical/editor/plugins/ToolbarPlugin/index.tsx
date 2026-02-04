@@ -86,7 +86,6 @@ import {INSERT_COLLAPSIBLE_COMMAND} from '../CollapsiblePlugin';
 import {InsertInlineImageDialog} from '../InlineImagePlugin';
 import {InsertTableDialog} from '../TablePlugin';
 import { useLexicalTheme } from '../../../useLexicalTheme';
-import { ThemeContext } from '../../../../../useTheme';
 import {INSERT_PAGE_BREAK} from '../PageBreakPlugin';
 
 export const SKIP_DOM_SELECTION_TAG = 'skip-dom-selection';
@@ -203,8 +202,7 @@ function BlockFormatDropDown({
   editor: LexicalEditor;
   disabled?: boolean;
 }): JSX.Element {
-  const { theme: contextTheme } = React.useContext(ThemeContext) || {};
-  const theme = useLexicalTheme(contextTheme);
+  const theme = useLexicalTheme();
   const formatParagraph = () => {
     editor.update(() => {
       const selection = $getSelection();
@@ -356,8 +354,7 @@ function BlockFormatDropDown({
 }
 
 function Divider(): JSX.Element {
-  const { theme: contextTheme } = React.useContext(ThemeContext) || {};
-  const theme = useLexicalTheme(contextTheme);
+  const theme = useLexicalTheme();
   return <div className={theme.dropdown_divider || "divider"} />;
 }
 
@@ -372,8 +369,7 @@ function FontDropDown({
   style: string;
   disabled?: boolean;
 }): JSX.Element {
-  const { theme: contextTheme } = React.useContext(ThemeContext) || {};
-  const theme = useLexicalTheme(contextTheme);
+  const theme = useLexicalTheme();
   const handleClick = useCallback(
     (option: string) => {
       editor.update(() => {
@@ -429,8 +425,7 @@ function ElementFormatDropdown({
   isRTL: boolean;
   disabled: boolean;
 }) {
-  const { theme: contextTheme } = React.useContext(ThemeContext) || {};
-  const theme = useLexicalTheme(contextTheme);
+  const theme = useLexicalTheme();
   const formatOption = ELEMENT_FORMAT_OPTIONS[value || 'left'];
 
   return (
@@ -523,8 +518,7 @@ export default function ToolbarPlugin({
 }: {
   setIsLinkEditMode: Dispatch<boolean>;
 }): JSX.Element {
-  const { theme: contextTheme } = React.useContext(ThemeContext) || {};
-  const theme = useLexicalTheme(contextTheme);
+  const theme = useLexicalTheme();
   const [editor] = useLexicalComposerContext();
   const [activeEditor, setActiveEditor] = useState(editor);
   const [blockType, setBlockType] =

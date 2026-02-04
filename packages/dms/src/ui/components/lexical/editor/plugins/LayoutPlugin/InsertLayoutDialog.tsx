@@ -16,7 +16,6 @@ import Button from '../../ui/Button';
 import DropDown, {DropDownItem} from '../../ui/DropDown';
 import {INSERT_LAYOUT_COMMAND} from './LayoutPlugin';
 import { useLexicalTheme } from '../../../useLexicalTheme';
-import { ThemeContext } from '../../../../../useTheme';
 
 export const LAYOUTS = [
   {label: '2 columns (equal width)', value: 'grid-cols-1 md:grid-cols-2', count: 2},
@@ -34,8 +33,7 @@ export default function InsertLayoutDialog({
   activeEditor: LexicalEditor;
   onClose: () => void;
 }): JSX.Element {
-  const { theme: contextTheme } = React.useContext(ThemeContext) || {};
-  const theme = useLexicalTheme(contextTheme);
+  const theme = useLexicalTheme();
   const [layout, setLayout] = useState(LAYOUTS[0].value);
   const buttonLabel = LAYOUTS.find((item) => item.value === layout)?.label;
 

@@ -17,7 +17,6 @@ import {
 } from 'react';
 import {createPortal} from 'react-dom';
 import { useLexicalTheme } from '../../useLexicalTheme';
-import { ThemeContext } from '../../../../useTheme';
 
 type DropDownContextType = {
   registerItem: (ref: React.RefObject<HTMLButtonElement>) => void;
@@ -75,8 +74,7 @@ function DropDownItems({
   dropDownRef: React.Ref<HTMLDivElement>;
   onClose: () => void;
 }) {
-  const { theme: contextTheme } = React.useContext(ThemeContext) || {};
-  const theme = useLexicalTheme(contextTheme);
+  const theme = useLexicalTheme();
   const [items, setItems] = useState<React.RefObject<HTMLButtonElement>[]>();
   const [highlightedItem, setHighlightedItem] =
     useState<React.RefObject<HTMLButtonElement>>();
@@ -156,8 +154,7 @@ export default function DropDown({
   children: ReactNode;
   stopCloseOnClickSelf?: boolean;
 }): JSX.Element {
-  const { theme: contextTheme } = React.useContext(ThemeContext) || {};
-  const theme = useLexicalTheme(contextTheme);
+  const theme = useLexicalTheme();
   const dropDownRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [showDropDown, setShowDropDown] = useState(false);

@@ -10,12 +10,10 @@ import {useLexicalComposerContext} from '@lexical/react/LexicalComposerContext';
 import {TreeView} from '@lexical/react/LexicalTreeView';
 import * as React from 'react';
 import { useLexicalTheme } from '../../../useLexicalTheme';
-import { ThemeContext } from '../../../../../useTheme';
 
 export default function TreeViewPlugin(): JSX.Element {
   const [editor] = useLexicalComposerContext();
-  const { theme: contextTheme } = React.useContext(ThemeContext) || {};
-  const theme = useLexicalTheme(contextTheme);
+  const theme = useLexicalTheme();
   return (
     <TreeView
       viewClassName={theme.treeViewOutput || "tree-view-output"}

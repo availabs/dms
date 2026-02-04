@@ -3,7 +3,7 @@ import Text from './text'
 import textarea from './textarea'
 import boolean from './boolean'
 import dmsFormat from './dms-format'
-import Lexical from '../components/lexical'
+import lexical from '../components/lexical'
 import Multiselect from "./multiselect";
 import Radio from "./radio";
 import Checkbox from "./checkbox";
@@ -13,7 +13,7 @@ import Switch from "../components/Switch";
 const columnTypes = {
 	'text': Text,
   'textarea': textarea,
-  'lexical': Lexical,
+  'lexical': lexical,
   'number': {
       EditComp: (props) => <Text.EditComp {...props} type={'number'} />,
       ViewComp: (props) => <Text.ViewComp {...props} type={'number'} />,

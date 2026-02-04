@@ -36,7 +36,6 @@ import {
   SUPPORT_SPEECH_RECOGNITION,
 } from '../SpeechToTextPlugin';
 import { useLexicalTheme } from '../../../useLexicalTheme';
-import { ThemeContext } from '../../../../../useTheme';
 
 async function sendEditorState(editor: LexicalEditor): Promise<void> {
   const stringifiedEditorState = JSON.stringify(editor.getEditorState());
@@ -82,8 +81,7 @@ export default function ActionsPlugin({
   isRichText: boolean;
 }): JSX.Element {
   const [editor] = useLexicalComposerContext();
-  const { theme: contextTheme } = React.useContext(ThemeContext) || {};
-  const theme = useLexicalTheme(contextTheme);
+  const theme = useLexicalTheme();
   const [isEditable, setIsEditable] = useState(() => editor.isEditable());
   const [isSpeechToText, setIsSpeechToText] = useState(false);
   const [connected, setConnected] = useState(false);

@@ -9,7 +9,6 @@
 import * as React from 'react';
 import {useMemo} from 'react';
 import { useLexicalTheme } from '../../useLexicalTheme';
-import { ThemeContext } from '../../../../useTheme';
 
 export default function Switch({
   checked,
@@ -22,8 +21,7 @@ export default function Switch({
   onClick: (e: React.MouseEvent<HTMLButtonElement, MouseEvent>) => void;
   text: string;
 }>): JSX.Element {
-  const { theme: contextTheme } = React.useContext(ThemeContext) || {};
-  const theme = useLexicalTheme(contextTheme);
+  const theme = useLexicalTheme();
   const buttonId = useMemo(() => 'id_' + Math.floor(Math.random() * 10000), []);
   return (
     <div className={theme.switch_base} id={id}>

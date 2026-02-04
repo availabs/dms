@@ -30,7 +30,6 @@ import {getDOMRangeRect} from '../../utils/getDOMRangeRect';
 import {getSelectedNode} from '../../utils/getSelectedNode';
 import {setFloatingElemPosition} from '../../utils/setFloatingElemPosition';
 import { useLexicalTheme } from '../../../useLexicalTheme';
-import { ThemeContext } from '../../../../../useTheme';
 //import {INSERT_INLINE_COMMAND} from '../CommentPlugin';
 
 function TextFormatFloatingToolbar({
@@ -56,8 +55,7 @@ function TextFormatFloatingToolbar({
   isSuperscript: boolean;
   isUnderline: boolean;
 }): JSX.Element {
-  const { theme: contextTheme } = React.useContext(ThemeContext) || {};
-  const theme = useLexicalTheme(contextTheme);
+  const theme = useLexicalTheme();
   const popupCharStylesEditorRef = useRef<HTMLDivElement | null>(null);
 
   const insertLink = useCallback(() => {

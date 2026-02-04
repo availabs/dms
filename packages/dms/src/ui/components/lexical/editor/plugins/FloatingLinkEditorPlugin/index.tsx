@@ -32,7 +32,6 @@ import {getSelectedNode} from '../../utils/getSelectedNode';
 import {setFloatingElemPositionForLinkEditor} from '../../utils/setFloatingElemPositionForLinkEditor';
 import {sanitizeUrl} from '../../utils/url';
 import { useLexicalTheme } from '../../../useLexicalTheme';
-import { ThemeContext } from '../../../../../useTheme';
 import {TOGGLE_LINK_COMMAND} from "../LinkPlugin";
 
 function FloatingLinkEditor({
@@ -50,8 +49,7 @@ function FloatingLinkEditor({
   isLinkEditMode: boolean;
   setIsLinkEditMode: Dispatch<boolean>;
 }): JSX.Element {
-  const { theme: contextTheme } = React.useContext(ThemeContext) || {};
-  const theme = useLexicalTheme(contextTheme);
+  const theme = useLexicalTheme();
   const editorRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [linkUrl, setLinkUrl] = useState('');

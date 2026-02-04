@@ -3,7 +3,8 @@ import defaultTheme from "./defaultTheme"
 import { get, set, merge, cloneDeep, has, isPlainObject } from 'lodash-es'
 export { registerWidget } from './widgets'
 
-export const ThemeContext = React.createContext(defaultTheme);
+// Re-export ThemeContext from separate file to allow imports that don't trigger defaultTheme chain
+export { ThemeContext } from './themeContext';
 
 /**
  * Merge two theme objects, respecting `_replace` declarations.
