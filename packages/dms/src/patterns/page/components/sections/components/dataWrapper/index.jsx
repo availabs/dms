@@ -598,14 +598,14 @@ const View = ({cms_context, value, onChange, component}) => {
         const newDataReq = {
             ...state.dataRequest || {},
             // hen filter options become {}, and old dataRequest has filters / other keys, they're not removed, hence defining individually.
-            filter: filterOptions.filter,
-            exclude: filterOptions.exclude,
-            gt: filterOptions.gt,
-            gte: filterOptions.gte,
-            lt: filterOptions.lt,
-            lte: filterOptions.lte,
-            like: filterOptions.like,
-            filterGroups: filterOptions.filterGroups,
+            filter: filterOptions.filter || {},
+            exclude: filterOptions.exclude || {},
+            gt: filterOptions.gt || {},
+            gte: filterOptions.gte || {},
+            lt: filterOptions.lt || {},
+            lte: filterOptions.lte || {},
+            like: filterOptions.like || {},
+            filterGroups: filterOptions.filterGroups || {},
             ...filterOptions,
             orderBy,
             meta: state.columns.filter(column => column.show &&
@@ -639,7 +639,7 @@ const View = ({cms_context, value, onChange, component}) => {
         // only run when controls or source/view change
         async function load() {
             if(state.display.preventDuplicateFetch && isEqual(state.dataRequest, state.lastDataRequest)) return;
-
+            console.log('????', state.dataRequest, state.lastDataRequest)
             setLoading(true)
             const newCurrentPage = 0; // for all the deps here, it's okay to fetch from page 1.
 
