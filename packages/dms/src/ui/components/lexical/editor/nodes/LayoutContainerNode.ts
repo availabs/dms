@@ -70,7 +70,8 @@ export class LayoutContainerNode extends ElementNode {
 
   exportDOM(): DOMExportOutput {
     const element = document.createElement('div');
-    element.style.gridTemplateColumns = this.__templateColumns;
+    // Include grid base classes + the template columns class
+    element.className = `grid gap-[10px] ${this.__templateColumns}`;
     element.setAttribute('data-lexical-layout-container', 'true');
     return {element};
   }

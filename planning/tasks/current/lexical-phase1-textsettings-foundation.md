@@ -1,5 +1,30 @@
 # Phase 1: Lexical + textSettings Foundation
 
+## Status
+
+### Completed
+- [x] Move theme from `editor/themes/PlaygroundEditorTheme.js` to `lexical/theme.js`
+- [x] Convert theme to flat key structure (e.g., `heading_h1` instead of `heading.h1`)
+- [x] Convert to options/styles pattern
+- [x] Create `useLexicalTheme` hook and `LexicalThemeContext`
+- [x] Update all 17 plugin files to use `useLexicalTheme()` instead of static import
+- [x] Create `themeContext.js` to break circular import dependency
+- [x] Register `lexicalTheme` in `defaultTheme.js`
+- [x] Register `lexicalSettings` in `themeSettings.js`
+- [x] Create `textSettings` theme structure
+- [x] Add SSR support via `ssr.ts` with `getHtml()` function
+
+### Remaining
+- [x] Add 'Dark' style to default lexical theme (from richtext cardTypes)
+- [x] Create mnyv1 theme lexical style overrides (Inline Guidance, Annotation, Annotation Image Card, Handwritten_2, sitemap)
+- [x] Update richtext component to pass `styleName` prop instead of runtime merge
+- [x] Update Lexical entry point to accept `styleName` and look up style by name
+- [x] Fix HTML view mode issues (ButtonNode, LayoutContainerNode, LayoutItemNode exportDOM methods)
+- [ ] Replace custom UI components with standard DMS UI components (Button, Select, etc.)
+- [ ] Complete testing checklist
+
+---
+
 ## Objective
 
 Create the `textSettings` theme object structure, update Lexical to consume both `textSettings` and its own `lexical` theme object via ThemeContext, replace Lexical's custom internal UI components with standard DMS UI components, and modernize Lexical's overall visual appearance.
@@ -585,7 +610,372 @@ const components = {
 
 ---
 
-## 9. References
+## 9. Richtext Component Style Migration
+
+### Current State
+
+The richtext component (`patterns/page/components/sections/components/ComponentRegistry/richtext/index.jsx`) maintains its own `cardTypes` object with theme overrides that are merged at runtime:
+
+```js
+// Current approach - runtime merge
+theme={{
+    lexical: isCard ?
+        merge(cloneDeep(theme.lexical), cloneDeep(cardTypes?.[isCard] || cardTypes?.['Annotation']), {Icons: theme?.Icons || {}}) :
+        merge(theme.lexical,  {Icons: theme?.Icons || {}})
+}}
+```
+
+### Current cardTypes Styles
+
+| Style Name (used as `name` property) | Description | Target Theme |
+|--------------------------------------|-------------|--------------|
+| `'Inline Guidance'` | Dashed orange border on contentEditable | Default theme |
+| `'Dark'` | White text on dark backgrounds, Oswald headings | **Default theme** |
+| `'Annotation'` | Card-like with shadows, special padding, Oswald headings | mnyv1 theme |
+| `'Annotation Image Card'` | Annotation + image offset positioning | mnyv1 theme |
+| `'Handwritten_2'` | Caveat font family | mnyv1 theme |
+| `'sitemap'` | Special link/heading styles for sitemap | mnyv1 theme |
+
+**Important:** The `name` property in each style MUST match the existing `isCard` values exactly (e.g., `'Dark'`, `'Annotation'`) to maintain backward compatibility with saved data.
+
+### Target State
+
+Instead of runtime merges, use the `options.activeStyle` pattern:
+
+1. **Default lexical theme** (`ui/components/lexical/theme.js`) should have:
+   - Style 0: "default" (current default)
+   - Style 1: "Dark" (from cardTypes['Dark'])
+
+2. **mnyv1 theme** should add lexical styles:
+   - Style 0: inherits default
+   - Style 1: "Inline Guidance" (from cardTypes['Inline Guidance'])
+   - Style 2: "Annotation" (from cardTypes['Annotation'])
+   - Style 3: "Annotation Image Card" (from cardTypes['Annotation Image Card'])
+   - Style 4: "Handwritten_2" (from cardTypes['Handwritten_2'])
+   - Style 5: "sitemap" (from cardTypes['sitemap'])
+
+3. **Richtext component** should:
+   - Map `isCard` selection to `activeStyle` index
+   - Pass `activeStyle` instead of merged theme object
+   - Remove the `cardTypes` object and runtime merge logic
+
+### Implementation Steps
+
+#### Step 9a: Add 'Dark' style to default lexical theme
+
+Add as style 1 in `ui/components/lexical/theme.js`. **Note:** The `name` must be `"Dark"` to match the existing `isCard` value:
+
+```js
+// Style 1: Dark text (white on dark backgrounds)
+{
+  name: "Dark",  // MUST match isCard value exactly
+  contentEditable: 'border-none relative [tab-size:1] outline-none',
+  editorScroller: "min-h-[150px] border-0 flex relative outline-0 z-0 resize-y",
+  viewScroller: "border-0 flex relative outline-0 z-0 resize-none",
+  editorContainer: "relative block rounded-[10px] min-h-[50px]",
+  editorShell: "font-['Proxima_Nova'] font-[400] text-[16px] text-white leading-[22.4px]",
+  heading_h1: "pt-[8px] font-[500] text-[64px] text-white leading-[40px] uppercase font-['Oswald'] pb-[12px]",
+  heading_h2: "pt-[8px] font-[500] text-[24px] text-white leading-[24px] scroll-mt-36 font-['Oswald']",
+  heading_h3: "pt-[8px] font-[500] text-[16px] text-white font-['Oswald']",
+  heading_h4: "pt-[8px] font-medium scroll-mt-36 text-white font-display",
+  heading_h5: "scroll-mt-36 font-display",
+  heading_h6: "scroll-mt-36 font-display",
+  // ... inherit other keys from style 0
+}
+```
+
+#### Step 9b: Create mnyv1 lexical theme overrides
+
+In the mnyv1 theme file, add lexical styles for Inline Guidance, Annotation, Handwritten, Sitemap, etc:
+
+```js
+// mnyv1 theme - lexical overrides
+lexical: {
+  options: { activeStyle: 0 },
+  styles: [
+    { name: "default" },  // Inherits from default theme
+    {
+      name: "Inline Guidance",  // MUST match isCard value exactly
+      contentEditable: 'border-3 border-dashed border-[#e7ae48] px-6 py-4 rounded-lg relative [tab-size:1] outline-none',
+      // ... other keys
+    },
+    {
+      name: "Annotation",
+      // ... annotation styles
+    },
+    {
+      name: "Annotation Image Card",
+      // ... annotation image card styles
+    },
+    {
+      name: "Handwritten_2",
+      // ... handwritten styles with Caveat font
+    },
+    {
+      name: "sitemap",
+      // ... sitemap styles
+    }
+  ]
+}
+```
+
+#### Step 9d: Update richtext component
+
+Replace runtime merge with style name lookup:
+
+```js
+// Before - hardcoded runtime merge
+theme={{
+    lexical: isCard ?
+        merge(cloneDeep(theme.lexical), cloneDeep(cardTypes?.[isCard])) :
+        theme.lexical
+}}
+
+// After - lookup style by name, theme-agnostic
+// The `isCard` value (e.g., 'Dark', 'Annotation') matches the style's `name` property
+// If no match found, defaults to style 0
+
+<Lexical.EditComp
+    value={text}
+    onChange={setText}
+    bgColor={bgColor}
+    hideControls={!showToolbar}
+    styleName={isCard}  // Pass the style name, let Lexical find the index
+/>
+```
+
+**Key principle:** The component passes a `styleName` string, and the Lexical entry point looks up the matching style by name. This keeps theme-specific information in the theme files, not hardcoded in components.
+
+#### Step 9d-2: Generate styleOptions dynamically from theme
+
+The current richtext component has hardcoded `styleOptions`:
+
+```js
+// Before - hardcoded options
+const styleOptions = [
+    { label: 'Default Text', value: '' },
+    { label: 'Inline Guidance', value: 'Inline Guidance' },
+    { label: 'Dark Text', value: 'Dark' },
+    { label: 'Annotation Card', value: 'Annotation' },
+    // ...
+];
+```
+
+This should be generated dynamically from the theme's available lexical styles:
+
+```js
+// After - dynamically generated from theme
+const Edit = ({value, onChange}) => {
+    const { theme, UI } = useContext(ThemeContext);
+
+    // Generate style options from theme's lexical styles
+    const styleOptions = useMemo(() => {
+        const styles = theme?.lexical?.styles || [];
+        return [
+            { label: 'Default', value: '' },  // Always include default (style 0)
+            ...styles
+                .filter((s, i) => i > 0 && s.name)  // Skip style 0, require name
+                .map(s => ({
+                    label: s.label || s.name,  // Use label if provided, else name
+                    value: s.name
+                }))
+        ];
+    }, [theme?.lexical?.styles]);
+
+    // ... rest of component
+}
+```
+
+**Update the controls definition** to use dynamic options:
+
+```js
+// Before - static controls export
+export default {
+    controls: {
+        default: [
+            {
+                type: 'select',
+                label: 'Style',
+                key: 'isCard',
+                options: styleOptions,  // Static array
+            },
+            // ...
+        ]
+    }
+}
+
+// After - controls as function receiving theme
+export default {
+    controls: (theme) => ({
+        default: [
+            {
+                type: 'select',
+                label: 'Style',
+                key: 'isCard',
+                options: [
+                    { label: 'Default', value: '' },
+                    ...(theme?.lexical?.styles || [])
+                        .filter((s, i) => i > 0 && s.name)
+                        .map(s => ({ label: s.label || s.name, value: s.name }))
+                ],
+            },
+            // ...
+        ]
+    })
+}
+```
+
+**Benefits:**
+- Different themes show different style options
+- mnyv1 theme shows Annotation, Handwritten, etc.
+- Default theme only shows Dark, Inline Guidance
+- New styles added to a theme automatically appear in the dropdown
+- Each style can have a `label` property for display (separate from `name` used for lookup)
+
+#### Step 9e: Update Lexical to accept styleName prop
+
+The Lexical entry point should accept `styleName` and look up the matching style by name:
+
+```js
+// editor/index.tsx
+export default function Lexicals ({
+  value,
+  hideControls,
+  showBorder,
+  onChange,
+  bgColor,
+  editable = false,
+  id,
+  theme: themeProp,
+  styleName  // NEW: style name to look up (e.g., 'Dark', 'Annotation')
+}) {
+  const { theme: contextTheme } = React.useContext(ThemeContext) || {};
+  const theme = themeProp || contextTheme;
+
+  // Look up style index by name, fallback to theme's default activeStyle, then 0
+  const styles = theme?.lexical?.styles || defaultLexicalTheme.styles;
+  const styleIndex = styleName
+    ? styles.findIndex(s => s.name === styleName)
+    : theme?.lexical?.options?.activeStyle ?? 0;
+
+  // If styleName provided but not found, use style 0
+  const resolvedIndex = styleIndex === -1 ? 0 : styleIndex;
+  const flatLexicalTheme = styles[resolvedIndex] || defaultLexicalTheme.styles[0];
+  // ...
+}
+```
+
+**Benefits of this approach:**
+- Theme-agnostic: Component code doesn't know about specific themes
+- Extensible: New styles can be added to any theme without code changes
+- Backward compatible: If `styleName` not provided, uses `options.activeStyle`
+- Graceful fallback: Unknown style names default to style 0
+
+### Testing Checklist for Style Migration
+
+- [ ] Default style (0) renders same as before
+- [ ] Dark style (1) renders white text correctly
+- [ ] Inline Guidance style (2) shows dashed orange border
+- [ ] mnyv1 Annotation styles render correctly
+- [ ] Style switching works via controls in richtext component
+- [ ] No runtime merge overhead - styles are pre-defined
+- [ ] Backward compatibility: old saved data with `isCard` values still works
+
+---
+
+## 10. HTML View Mode Issues (SSR)
+
+### Problem
+
+The new HTML view mode (via `getHtml()` in `ssr.ts`) works for most nodes but **buttons and column layouts don't render correctly**. This is because their `exportDOM()` methods have bugs.
+
+### Root Causes
+
+#### 10a. ButtonNode (`editor/nodes/ButtonNode.tsx`)
+
+**Problem:** The `exportDOM()` method (lines 149-156) sets `element.className = this.__style`, but `this.__style` is a **key name** (e.g., `'primary'`, `'secondary'`), not the actual CSS class string.
+
+```js
+// Current - BROKEN
+exportDOM(): DOMExportOutput {
+  const element = document.createElement('a');
+  element.setAttribute('href', this.__path);
+  element.setAttribute('data-lexical-button', 'true');
+  element.className = this.__style;  // ❌ Sets class="primary" instead of actual Tailwind classes
+  element.innerText = this.__linkText;
+  return {element};
+}
+```
+
+**Fix:** Look up the actual CSS classes from `BUTTON_STYLES`:
+
+```js
+// Fixed
+exportDOM(): DOMExportOutput {
+  const element = document.createElement('a');
+  element.setAttribute('href', this.__path);
+  element.setAttribute('data-lexical-button', 'true');
+  element.className = BUTTON_STYLES[this.__style] || BUTTON_STYLES['primary'];  // ✅ Use actual classes
+  element.innerText = this.__linkText;
+  return {element};
+}
+```
+
+#### 10b. LayoutContainerNode (`editor/nodes/LayoutContainerNode.ts`)
+
+**Problem:** The `exportDOM()` method (lines 71-76) sets `element.style.gridTemplateColumns = this.__templateColumns`, but `__templateColumns` is a **CSS class name** (used with `addClassNamesToElement` in `createDOM`), not a CSS value.
+
+```js
+// Current - BROKEN
+exportDOM(): DOMExportOutput {
+  const element = document.createElement('div');
+  element.style.gridTemplateColumns = this.__templateColumns;  // ❌ Invalid: sets style to "grid-cols-2"
+  element.setAttribute('data-lexical-layout-container', 'true');
+  return {element};
+}
+```
+
+**Fix:** Set as className instead of inline style:
+
+```js
+// Fixed
+exportDOM(): DOMExportOutput {
+  const element = document.createElement('div');
+  element.className = this.__templateColumns;  // ✅ Apply as CSS class
+  element.setAttribute('data-lexical-layout-container', 'true');
+  return {element};
+}
+```
+
+#### 10c. LayoutItemNode (`editor/nodes/LayoutItemNode.ts`)
+
+**Problem:** Missing `exportDOM()` method entirely. Falls back to default ElementNode behavior which doesn't preserve theme classes or attributes.
+
+**Fix:** Add `exportDOM()` method:
+
+```js
+// Add this method to LayoutItemNode class
+exportDOM(): DOMExportOutput {
+  const element = document.createElement('div');
+  element.setAttribute('data-lexical-layout-item', 'true');
+  // Note: Theme classes from createDOM aren't available here without config
+  // May need to pass a default class or access theme differently
+  return {element};
+}
+```
+
+### Testing Checklist for HTML View Mode
+
+- [ ] ButtonNode exports with correct Tailwind classes
+- [ ] LayoutContainerNode exports with correct grid classes
+- [ ] LayoutItemNode exports with correct attributes
+- [ ] Column layouts render correctly in view mode
+- [ ] Buttons are clickable and styled correctly in view mode
+- [ ] Nested layouts within columns render correctly
+
+---
+
+## 11. References
 
 ### Documentation
 - **THEMING_GUIDE.md** - `ui/THEMING_GUIDE.md` - Complete guide for converting components to use the DMS theming system, including options/styles pattern, ThemeContext usage, and settings registration

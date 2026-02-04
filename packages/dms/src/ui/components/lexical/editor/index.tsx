@@ -6,11 +6,15 @@
  *
  */
 import React from 'react';
-import {LexicalComposer} from '@lexical/react/LexicalComposer';
+import { LexicalComposer } from '@lexical/react/LexicalComposer';
+
 import {OnChangePlugin} from '@lexical/react/LexicalOnChangePlugin';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
 import { $getRoot, $createParagraphNode, $createTextNode } from 'lexical';
-import { merge, cloneDeep } from 'lodash-es'
+// import { merge, cloneDeep } from 'lodash-es'
+
+import { createHeadlessEditor as _createHeadlessEditor } from '@lexical/headless';
+import { htmlConfig } from './htmlConfig';
 
 import Editor from './editor';
 import PlaygroundNodes from './nodes/PlaygroundNodes';
@@ -28,13 +32,36 @@ function isLexicalJSON(str) {
     }
 }
 
-export default function Lexicals ({value, hideControls, showBorder, onChange, bgColor, editable=false, id, theme: themeProp}) {
+export const createHeadlessEditor = ({ namespace }) => {
+  // const { theme: contextTheme } = React.useContext(ThemeContext) || {};
+  // const theme = themeProp || contextTheme;
+
+  // Get the flat theme from DMS context (with textSettings heading overrides)
+  const flatLexicalTheme =  defaultLexicalTheme.styles[0];
+
+  // Build the nested theme for LexicalComposer
+  const nestedLexicalTheme = buildLexicalInternalTheme(flatLexicalTheme);
+  return _createHeadlessEditor({
+    namespace,
+    nodes: [...PlaygroundNodes],
+    theme: nestedLexicalTheme,
+    onError: e => {
+      console.error(e);
+    },
+    html: htmlConfig,
+  });
+};
+
+
+
+export default function Lexicals ({value, hideControls, showBorder, onChange, bgColor, editable=false, id, theme: themeProp, styleName}) {
   // Get theme from ThemeContext if not passed as prop
   const { theme: contextTheme } = React.useContext(ThemeContext) || {};
   const theme = themeProp || contextTheme;
 
   // Get the flat theme from DMS context (with textSettings heading overrides)
-  const flatLexicalTheme = theme ? getLexicalTheme(theme) : defaultLexicalTheme.styles[0];
+  // If styleName is provided, look up the style by name; otherwise use theme's activeStyle
+  const flatLexicalTheme = theme ? getLexicalTheme(theme, styleName) : defaultLexicalTheme.styles[0];
 
   // Build the nested theme for LexicalComposer
   const nestedLexicalTheme = buildLexicalInternalTheme(flatLexicalTheme);

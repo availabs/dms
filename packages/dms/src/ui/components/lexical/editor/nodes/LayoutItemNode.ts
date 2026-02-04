@@ -9,6 +9,7 @@
 import type {
   DOMConversionMap,
   DOMConversionOutput,
+  DOMExportOutput,
   EditorConfig,
   LexicalNode,
   SerializedElementNode
@@ -52,6 +53,14 @@ export class LayoutItemNode extends ElementNode {
 
   updateDOM(): boolean {
     return false;
+  }
+
+  exportDOM(): DOMExportOutput {
+    const element = document.createElement('div');
+    // Include essential layout classes (min-w-0 prevents content overflow in grid)
+    element.className = 'min-w-0 max-w-full';
+    element.setAttribute('data-lexical-layout-item', 'true');
+    return {element};
   }
 
   static importDOM(): DOMConversionMap | null {

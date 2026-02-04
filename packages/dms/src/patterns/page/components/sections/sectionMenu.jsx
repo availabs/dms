@@ -22,6 +22,10 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
     const canEditPageLayout = isUserAuthed(['edit-page-layout'], pageAuthPermissions);
     const canEditSectionPermissions = isUserAuthed(['edit-section-permissions'], sectionAuthPermissions);
     const currentComponent = RegisteredComponents[value?.element?.['element-type'] || 'lexical'];
+    // Resolve controls - may be a function that receives theme, or a static object
+    const resolvedControls = typeof currentComponent?.controls === 'function'
+        ? currentComponent.controls(theme)
+        : currentComponent?.controls;
     const currentComponentStyle = theme[currentComponent?.themeKey || currentComponent?.name];
 
     // =================================================================================================================
@@ -170,8 +174,8 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                                     onChange: e => updateColumns(column, 'customName', e.target.value, undefined, setState)
                                 },
                                 ...[
-                                    ...(currentComponent.controls?.columns || []),
-                                    ...(currentComponent.controls?.inHeader || [])
+                                    ...(resolvedControls?.columns || []),
+                                    ...(resolvedControls?.inHeader || [])
                                 ].map(control => {
                                     const isDisabled = typeof control.disabled === 'function' ? control.disabled({attribute: column}) : control.disabled;
                                     return ({
@@ -205,7 +209,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
         },
     ]
 
-    const groupControl = currentComponent?.controls?.columns?.find(c => c.key === 'group') || {};
+    const groupControl = resolvedControls?.columns?.find(c => c.key === 'group') || {};
     const hasGroupControl = Boolean(groupControl);
     const group = [
         {
@@ -315,10 +319,10 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
     };
 
     const other =
-        Object.keys(currentComponent?.controls || {})
+        Object.keys(resolvedControls || {})
             .filter(controlGroup => !['columns', 'more', 'inHeader', 'default'].includes(controlGroup) && isEdit && canEditSection)
             .map(controlGroup => {
-                const config = currentComponent?.controls?.[controlGroup];
+                const config = resolvedControls?.[controlGroup];
                 if (!config?.items?.length) {
                     return { name: config?.name || controlGroup, items: [{name: 'component', type: config?.type}] };
                 }
@@ -337,10 +341,10 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
         cdn: () => isEdit && canEditSection,
         showSearch: true,
         items: [
-          ...(currentComponent?.controls?.more || [])
+          ...(resolvedControls?.more || [])
             .filter(({ displayCdn }) => typeof displayCdn === 'function' ? displayCdn({ display: state.display }) : displayCdn !== false)
             .map(transformControlItem),
-          ...(currentComponent?.controls?.default || [])
+          ...(resolvedControls?.default || [])
               .filter(({displayCdn}) => typeof displayCdn === 'function' ? displayCdn({display: state.display}) : displayCdn !== false)
               .map(transformControlItem),
           ...other

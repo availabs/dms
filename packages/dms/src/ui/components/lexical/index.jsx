@@ -1,5 +1,8 @@
 import React, {useMemo} from "react"
 import Editor from "./editor"
+import { getHtml } from './ssr';
+import { ThemeContext } from "../../themeContext";
+import getLexicalTheme from "./useLexicalTheme";
 
 function parseValue(value) {
     if (typeof value === 'undefined' || value === null) return null;
@@ -40,21 +43,25 @@ const Edit = ({value, onChange,  ...rest}) => {
 const noop = () => {};
 
 const View = React.memo(({
-                             value, bgColor, id, theme
-                              }) => {
-    const parsedValue = useMemo(
-        () => parseValue(value),
-        [value]
-    );
+  value, bgColor, id, theme, styleName
+}) => {
+  const { theme: contextTheme } = React.useContext(ThemeContext) || {};
+  const resolvedTheme = theme || contextTheme;
+  // Pass styleName to look up the correct style
+  const LexicalTheme = getLexicalTheme(resolvedTheme, styleName);
+  const [html, setHtml] = React.useState('')
+
+  React.useEffect(() => {
+    async function loadHtml() {
+      setHtml(await getHtml(parseValue(value)));
+    }
+    loadHtml()
+  }, [value]);
 
     return (
-        <Editor
-            value={parsedValue}
-            editable={false}
-            onChange={noop}
-            bgColor={bgColor}
-            id={id}
-        />
+      <div className={`${LexicalTheme.editorShell}`}>
+        <div dangerouslySetInnerHTML={{ __html: html }}></div>
+      </div>
     );
 });
 

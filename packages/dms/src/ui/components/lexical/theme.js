@@ -524,6 +524,21 @@ export const lexicalTheme = {
     actions_i_justifyAlign: "bg-[url(/images/icons/justify.svg)]",
     actions_i_disconnect: "bg-[url(/images/icons/plug.svg)]",
     actions_i_connect: "bg-[url(/images/icons/plug-fill.svg)]",
+  },
+  // Style 1: Dark (white text on dark backgrounds)
+  {
+    name: "Dark",
+    contentEditable: 'border-none relative [tab-size:1] outline-none',
+    editorScroller: "min-h-[150px] border-0 flex relative outline-0 z-0 resize-y",
+    viewScroller: "border-0 flex relative outline-0 z-0 resize-none",
+    editorContainer: "relative block rounded-[10px] min-h-[50px]",
+    editorShell: "font-['Proxima_Nova'] font-[400] text-[16px] text-white leading-[22.4px]",
+    heading_h1: "pt-[8px] font-[500] text-[64px] text-white leading-[40px] uppercase font-['Oswald'] pb-[12px]",
+    heading_h2: "pt-[8px] font-[500] text-[24px] text-white leading-[24px] scroll-mt-36 font-['Oswald']",
+    heading_h3: "pt-[8px] font-[500] text-[16px] text-white font-['Oswald']",
+    heading_h4: "pt-[8px] font-medium scroll-mt-36 text-white font-display",
+    heading_h5: "scroll-mt-36 font-display",
+    heading_h6: "scroll-mt-36 font-display",
   }]
 };
 

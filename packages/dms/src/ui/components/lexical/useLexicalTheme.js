@@ -20,14 +20,36 @@ export const LexicalThemeContext = React.createContext(null);
 /**
  * Helper to get component theme from a theme object
  * (same logic as getComponentTheme from useTheme, inlined to avoid circular import)
+ *
+ * @param {Object} theme - The full theme object
+ * @param {string} compType - Component type (e.g., 'lexical')
+ * @param {number|string} activeStyleOrName - Either a numeric index or style name string
+ * @returns {Object} - The resolved style object
  */
-function getComponentTheme(theme, compType, activeStyle) {
+function getComponentTheme(theme, compType, activeStyleOrName) {
   if (!theme || !theme[compType]) return null;
   const componentTheme = theme[compType];
-  const finalActiveStyle = activeStyle ?? componentTheme.options?.activeStyle ?? 0;
-  return componentTheme?.styles
-    ? componentTheme.styles[finalActiveStyle]
-    : componentTheme || {};
+  const styles = componentTheme?.styles;
+
+  if (!styles) {
+    return componentTheme || {};
+  }
+
+  // If styleName is a string, look up by name
+  if (typeof activeStyleOrName === 'string') {
+    const styleIndex = styles.findIndex(s => s.name === activeStyleOrName);
+    // If found, return that style; otherwise fall back to theme's activeStyle or 0
+    if (styleIndex !== -1) {
+      return styles[styleIndex];
+    }
+    // Fall through to use default activeStyle
+  }
+
+  // Use numeric index or theme's default activeStyle
+  const finalActiveStyle = typeof activeStyleOrName === 'number'
+    ? activeStyleOrName
+    : componentTheme.options?.activeStyle ?? 0;
+  return styles[finalActiveStyle] || styles[0] || {};
 }
 
 /**
@@ -35,10 +57,12 @@ function getComponentTheme(theme, compType, activeStyle) {
  * Merges textSettings headings into the lexical theme when available.
  *
  * @param {Object} theme - The full theme object from ThemeContext
+ * @param {string} [styleName] - Optional style name to look up (e.g., 'Dark', 'Annotation')
  * @returns {Object} - Flat theme object with underscore-separated keys
  */
-export function getLexicalTheme(theme) {
-  const lexicalStyles = getComponentTheme(theme, 'lexical', 0);
+export function getLexicalTheme(theme, styleName) {
+  // Pass styleName to look up by name, or undefined to use theme's activeStyle
+  const lexicalStyles = getComponentTheme(theme, 'lexical', styleName);
   const textStyles = getComponentTheme(theme, 'textSettings', 0);
 
   // If no theme or empty lexical styles, return default
@@ -66,10 +90,11 @@ export function getLexicalTheme(theme) {
  * Converts the flat theme to nested format for LexicalComposer.
  *
  * @param {Object} theme - The full theme object from ThemeContext
+ * @param {string} [styleName] - Optional style name to look up
  * @returns {Object} - Nested theme object for LexicalComposer
  */
-export function getLexicalInternalTheme(theme) {
-  const flatTheme = getLexicalTheme(theme);
+export function getLexicalInternalTheme(theme, styleName) {
+  const flatTheme = getLexicalTheme(theme, styleName);
   return buildLexicalInternalTheme(flatTheme);
 }
 
