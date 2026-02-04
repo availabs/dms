@@ -639,7 +639,6 @@ const View = ({cms_context, value, onChange, component}) => {
         // only run when controls or source/view change
         async function load() {
             if(state.display.preventDuplicateFetch && isEqual(state.dataRequest, state.lastDataRequest)) return;
-            console.log('????', state.dataRequest, state.lastDataRequest)
             setLoading(true)
             const newCurrentPage = 0; // for all the deps here, it's okay to fetch from page 1.
 
