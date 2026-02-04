@@ -5,10 +5,10 @@ const navigableMenuTheme = {
   "styles": [{
     "name": "default",
     // Trigger button
-    "button": "px-1 py-0.5",
+    "button": "px-1 py-0.5 hover:cursor-pointer text-gray-500 hover:text-gray-700",
     "buttonHidden": "hidden group-hover:flex",
     "icon": "Menu",
-    "iconWrapper": "size-4",
+    "iconWrapper": "size-6",
 
     // Menu container
     "menuWrapper": "bg-white border w-80 p-1 min-h-[75px] rounded-md shadow-md",

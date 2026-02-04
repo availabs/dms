@@ -89,7 +89,7 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
       ui:  { Switch, Pill, Icon, TitleEditComp, LevelComp, theme: fullTheme, RegisteredComponents },
       dataSource: {  activeSource, activeView, sources, views, onSourceChange, onViewChange }
   })
-
+    const canEditSection = isUserAuthed(['edit-section'], sectionAuthPermissions);
     {/* apiLoad and apiUpdate are passed in ComponentContext as components won't always be in pages pattern. */}
     return (
         <ComponentContext.Provider value={{state, setState, apiLoad, apiUpdate, controls: component?.controls,
@@ -113,12 +113,24 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
                                 HelpComp={HelpComp}
                             />
                             <div className={theme.menuPosition}>
+                                {canEditSection ?
+                                    <div color={'blue'} className={'text-blue-500 hover:text-blue-700 cursor-pointer px-1 py-0.5'}
+                                          title={'Save'} onClick={onSave}>
+                                        <Icon icon={'FloppyDisk'} className={'size-6'}/>
+                                    </div> : null}
+                                {canEditSection ?
+                                    <div className={'text-orange-500 hover:text-orange-700 cursor-pointer px-1 py-0.5'}
+                                          title={'Cancel'} onClick={onCancel}>
+                                        <Icon icon={'CancelCircle'} className={'size-6'} />
+                                    </div>: null
+                                }
                                 <NavigableMenu
                                     config={sectionMenuItems}
                                     title={'Section Settings'}
                                     btnVisibleOnGroupHover={false}
                                     defaultOpen={true}
                                     preferredPosition={"right"}
+                                    preventCloseOnClickOutside={true}
                                 />
                             </div>
                         </div>
@@ -247,7 +259,7 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
         ui:  { Switch, Pill, Icon, TitleEditComp, LevelComp, refreshDataBtnRef, isRefreshingData, setIsRefreshingData, theme: fullTheme, RegisteredComponents },
         dataSource: {  activeSource, activeView, sources, views, onSourceChange, onViewChange }
     })
-
+    const canEditSection = isUserAuthed(['edit-section'], sectionAuthPermissions);
     return (
         <ComponentContext.Provider value={{state, setState, apiLoad, apiUpdate, controls: component?.controls, isActive, activeStyle: value?.activeStyle}}>
             <div className={editPageMode && hideSection ? theme.wrapperHidden : theme.wrapper} style={{pageBreakInside: "avoid"}}>
@@ -258,12 +270,21 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
                     <div className={theme.topBarButtonsView}>
                         <div className={theme.menuPosition}>
                             {(showEditIcons) && (
-                                <NavigableMenu
-                                    config={sectionMenuItems}
-                                    title={'Section Settings'}
-                                    btnVisibleOnGroupHover={true}
-                                    preferredPosition={"right"}
-                                />
+                                <>
+                                    {canEditSection ?
+                                        <div className={'hidden group-hover:flex text-blue-500 hover:text-blue-700 cursor-pointer px-1 py-0.5'}
+                                             title={'Edit'} onClick={onEdit} >
+                                            <Icon icon={'PencilSquare'} className={'size-6'} />
+                                        </div> :
+                                        null}
+
+                                    <NavigableMenu
+                                        config={sectionMenuItems}
+                                        title={'Section Settings'}
+                                        btnVisibleOnGroupHover={true}
+                                        preferredPosition={"right"}
+                                    />
+                                </>
                             )}
                         </div>
                     </div>

@@ -180,7 +180,7 @@ const Edit = ({ value, onChange, attr, group, siteType }) => {
                                 }
                             }}
                         >
-                            <div className={theme?.sectionEditHover} />
+                            <div className={edit.index === i ? theme?.sectionEditing : theme?.sectionEditHover} />
                             {/* add to top */}
                             {
                                 edit?.index === -1 && <div

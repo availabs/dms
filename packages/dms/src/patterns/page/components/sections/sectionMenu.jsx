@@ -36,11 +36,12 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
 
                 return (
                     <div className={'flex gap-1'}>
-                        {isEdit && canEditSection ?
-                            <Pill color={'orange'} text={<Icon icon={'CancelCircle'} className={'size-6'} />} title={'Cancel'} onClick={onCancel} /> :
-                            <Pill color={'blue'} text={<Icon icon={'PencilSquare'} className={'size-6'} />} title={'Edit'} onClick={onEdit} />
-                        }
-                        {isEdit && canEditSection ? <Pill color={'blue'} text={<Icon icon={'FloppyDisk'} className={'size-6'} />} title={'Save'} onClick={onSave} /> : null}
+                        {/*{isEdit ?*/}
+                        {/*    <Pill color={'orange'} text={<Icon icon={'CancelCircle'} className={'size-6'} />} title={'Cancel'} onClick={onCancel} /> :*/}
+                        {/*    canEditSection ?*/}
+                        {/*        <Pill color={'blue'} text={<Icon icon={'PencilSquare'} className={'size-6'} />} title={'Edit'} onClick={onEdit} /> : null*/}
+                        {/*}*/}
+                        {/*{isEdit && canEditSection ? <Pill color={'blue'} text={<Icon icon={'FloppyDisk'} className={'size-6'} />} title={'Save'} onClick={onSave} /> : null}*/}
                         {isEdit && canEditSection ? <Pill color={'blue'} text={<Icon icon={'InfoSquare'} className={'size-6'} />} title={'Add Help Text'} onClick={onAddHelpText} /> : null}
 
                         {canEditSection ? <Pill color={copied ? 'green' : 'blue'} text={<Icon icon={'Copy'} className={'size-6'}/>}
