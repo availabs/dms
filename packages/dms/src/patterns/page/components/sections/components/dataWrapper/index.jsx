@@ -270,7 +270,6 @@ const Edit = ({cms_context, value, onChange, component}) => {
             setCurrentPage(currentPage)
             getFilteredData({currentPage})
         }else{
-            // const hasMore = (currentPage * state.display.pageSize + state.display.pageSize) <= state.display.totalLength; // bugs out for last page
             const hasMore = (currentPage * state.display.pageSize) - state.display.totalLength <= 0;
             if(!hasMore) return;
 
@@ -286,35 +285,6 @@ const Edit = ({cms_context, value, onChange, component}) => {
             setLoading(false)
         }
     }
-    // useInfiniteScroll
-    useEffect(() => {
-        let isStale = false;
-        // infinite scroll watch
-        if(!isValidState || !component.useInfiniteScroll) return;
-        // observer that sets current page on scroll. no data fetching should happen here
-        const observer = new IntersectionObserver(
-            async (entries) => {
-                const hasMore = (currentPage * state.display.pageSize) - state.display.totalLength <= 0;
-                if (state.data.length && entries[0].isIntersecting && hasMore && !isStale) {
-                    setCurrentPage(prevPage => prevPage+1)
-                    await onPageChange(currentPage + 1)
-                }
-            },
-            { threshold: 0 }
-        );
-
-        const target = document.querySelector(`#${state.display.loadMoreId}`);
-
-        if (target && !state.display.usePagination) observer.observe(target);
-        // unobserve if using pagination
-        if (target && state.display.usePagination) observer.unobserve(target);
-        // return () => {
-        //     if (target) observer.unobserve(target);
-        // };
-        return () => {
-            isStale = true;
-        }
-    }, [state.display?.loadMoreId, state.display?.totalLength, state.data?.length, state.display?.usePagination]);
     // // =========================================== get data end ========================================================
 
     // =========================================== get input data ======================================================
@@ -627,6 +597,15 @@ const View = ({cms_context, value, onChange, component}) => {
 
         const newDataReq = {
             ...state.dataRequest || {},
+            // hen filter options become {}, and old dataRequest has filters / other keys, they're not removed, hence defining individually.
+            filter: filterOptions.filter,
+            exclude: filterOptions.exclude,
+            gt: filterOptions.gt,
+            gte: filterOptions.gte,
+            lt: filterOptions.lt,
+            lte: filterOptions.lte,
+            like: filterOptions.like,
+            filterGroups: filterOptions.filterGroups,
             ...filterOptions,
             orderBy,
             meta: state.columns.filter(column => column.show &&
@@ -659,7 +638,7 @@ const View = ({cms_context, value, onChange, component}) => {
         if(!isValidState || (!hasLocalFilters && !state.display.readyToLoad && !state.display.allowEditInView)) return;
         // only run when controls or source/view change
         async function load() {
-            // if(state.display.preventDuplicateFetch && isEqual(state.dataRequest, state.lastDataRequest)) return;
+            if(state.display.preventDuplicateFetch && isEqual(state.dataRequest, state.lastDataRequest)) return;
 
             setLoading(true)
             const newCurrentPage = 0; // for all the deps here, it's okay to fetch from page 1.
@@ -672,7 +651,7 @@ const View = ({cms_context, value, onChange, component}) => {
                 draft.display.filteredLength = undefined;
                 draft.display.totalLength = length;
             })
-            // onChange(JSON.stringify({...state, lastDataRequest: state.dataRequest, data, totalLength: length}));
+            onChange(JSON.stringify({...state, lastDataRequest: state.dataRequest, data, totalLength: length}));
             setCurrentPage(newCurrentPage);
             setLoading(false)
         }
