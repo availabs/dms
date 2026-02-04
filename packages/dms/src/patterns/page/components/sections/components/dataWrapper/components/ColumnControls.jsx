@@ -64,7 +64,7 @@ const gridClasses = {
 
 
 export default function ColumnControls({context, cms_context}) {
-    const {state: {columns=[], sourceInfo, display}, setState, controls= {}} = useContext(context || ComponentContext);
+    const {state: {columns=[], sourceInfo={}, display}, setState, controls= {}} = useContext(context || ComponentContext);
     const { UI } = React.useContext(ThemeContext) || {UI: {Icon: () => <></>, Pill: () => <></>, Switch: () => <></>}}
     if(!controls.columns?.length) return;
     const { Icon, Switch, Pill, Button, Popup } = UI;

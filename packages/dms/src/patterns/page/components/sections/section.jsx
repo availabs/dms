@@ -6,7 +6,14 @@ import {AuthContext} from "../../../auth/context";
 import {CMSContext, PageContext, ComponentContext} from '../../context'
 import {getPageAuthPermissions} from "../../pages/_utils";
 import {getSectionMenuItems} from './sectionMenu'
-import {DeleteModal, getHelpTextArray, handlePaste, HelpTextEditPopups, ViewSectionHeader, initialState} from './section_utils'
+import {
+    DeleteModal,
+    getHelpTextArray,
+    HelpTextEditPopups,
+    ViewSectionHeader,
+    initialState,
+    isJson
+} from './section_utils'
 import {useDataSource} from "./useDataSource";
 import Component from "./components";
 import ComponentRegistry from "./components/ComponentRegistry";
@@ -26,7 +33,7 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
     const {theme: fullTheme, UI} = React.useContext(ThemeContext);
 
     const component = (RegisteredComponents[get(value, ["element", "element-type"], "lexical")] || RegisteredComponents['lexical']);
-    const [state, setState] = useImmer(convertOldState(value?.['element']?.['element-data'] || '', initialState(component.defaultState)));
+    const [state, setState] = useImmer(convertOldState(value?.['element']?.['element-data'] || '', initialState(component.defaultState), component.name));
     const [sectionState, setSectionState] = useImmer({
         showDeleteModal: false,
         key: undefined,
@@ -49,10 +56,22 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
           onChange({...value, [k]: v})
       }
   }
-    const updateElementType = (v, k='element-type') => {
-        const newV = {...value.element, [k]: v}
-        if(!isEqual(value.element, newV)){
-            updateAttribute('element', newV)
+    const updateElementType = (v) => {
+        if(!isEqual(value.element['element-type'], v)){
+            const newComp = RegisteredComponents[v];
+            if(newComp.useDataSource && !state.columns && newComp.defaultState){
+                const elementData = isJson(value.element['element-data']) ? JSON.parse(value.element['element-data']) : {};
+                setState(draft => {
+                    Object.keys(newComp.defaultState)
+                        .forEach(newKey => {
+                            draft[newKey] = newComp.defaultState[newKey];
+                            elementData[newKey] = newComp.defaultState[newKey];
+                        })
+                })
+                updateAttribute('element', {...value, 'element-type': v, 'element-data': JSON.stringify(elementData)})
+            }else{
+                updateAttribute('element', {...value, 'element-type': v})
+            }
         }
     }
 
@@ -146,7 +165,7 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
     const theme = getComponentTheme(fullTheme, 'pages.section');
 
     const component = RegisteredComponents[get(value, ["element", "element-type"], "lexical")];
-    const [state, setState] = useImmer(convertOldState(value?.element?.['element-data'] || '', initialState(component?.defaultState)));
+    const [state, setState] = useImmer(convertOldState(value?.element?.['element-data'] || '', initialState(component?.defaultState), component?.name));
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [isRefreshingData, setIsRefreshingData] = useState(false);
     const [hideSection, setHideSection] = useState(false);
@@ -176,10 +195,22 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
             onChange?.(i, newV)
         }
     }
-    const updateElementType = (v, k='element-type') => {
-        const newV = {...value.element, [k]: v}
-        if(!isEqual(value.element, newV)){
-            updateAttribute('element', newV)
+    const updateElementType = (v) => {
+        if(!isEqual(value.element['element-type'], v)){
+            const newComp = RegisteredComponents[v];
+            if(newComp.useDataSource && !state.columns && newComp.defaultState){
+                const elementData = isJson(value.element['element-data']) ? JSON.parse(value.element['element-data']) : {};
+                setState(draft => {
+                    Object.keys(newComp.defaultState)
+                        .forEach(newKey => {
+                            draft[newKey] = newComp.defaultState[newKey];
+                            elementData[newKey] = newComp.defaultState[newKey];
+                        })
+                })
+                updateAttribute('element', {...value, 'element-type': v, 'element-data': JSON.stringify(elementData)})
+            }else{
+                updateAttribute('element', {...value, 'element-type': v})
+            }
         }
     }
 

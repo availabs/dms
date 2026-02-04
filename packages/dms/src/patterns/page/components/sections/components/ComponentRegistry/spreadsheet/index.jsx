@@ -126,11 +126,19 @@ export default {
     "name": 'Spreadsheet',
     "type": 'table',
     useDataSource: true,
+    useDataWrapper: true,
     useGetDataOnPageChange: true,
     useInfiniteScroll: true,
     showPagination: true,
     keepOriginalValues: true,
     themeKey: 'table',
+    defaultState: {
+        dataRequest: {},
+        display: { usePagination: true, pageSize: 5 },
+        columns: [],
+        data: [],
+        sourceInfo: { columns: []}
+    },
     controls: {
         columns: [
             // settings from columns dropdown are stored in state.columns array, per column

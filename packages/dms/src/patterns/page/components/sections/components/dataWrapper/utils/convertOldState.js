@@ -7,10 +7,13 @@ const isJson = (str)  => {
     return true;
 }
 
-export const convertOldState = (state, initialState) => {
+export const convertOldState = (state, initialState, compName) => {
     const oldState = isJson(state) ? JSON.parse(state) : {};
 
-    if (oldState?.symbologies || oldState?.text) return oldState; // map and richtext
+    if (compName === 'Rich Text' || compName === 'Filter') {
+        return Object.keys(oldState).length ? oldState : initialState;
+    }
+    if (oldState?.symbologies) return oldState; // map
 
     // handle filter structure change
     const oldFilters = oldState?.dataRequest && (oldState.columns || [])
