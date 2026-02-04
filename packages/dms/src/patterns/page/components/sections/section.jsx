@@ -68,9 +68,9 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
                             elementData[newKey] = newComp.defaultState[newKey];
                         })
                 })
-                updateAttribute('element', {...value, 'element-type': v, 'element-data': JSON.stringify(elementData)})
+                updateAttribute('element', {...value.element, 'element-type': v, 'element-data': JSON.stringify(elementData)})
             }else{
-                updateAttribute('element', {...value, 'element-type': v})
+                updateAttribute('element', {...value.element, 'element-type': v})
             }
         }
     }
@@ -202,14 +202,15 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
                 const elementData = isJson(value.element['element-data']) ? JSON.parse(value.element['element-data']) : {};
                 setState(draft => {
                     Object.keys(newComp.defaultState)
+                        .filter(newKey => !draft[newKey])
                         .forEach(newKey => {
                             draft[newKey] = newComp.defaultState[newKey];
                             elementData[newKey] = newComp.defaultState[newKey];
                         })
                 })
-                updateAttribute('element', {...value, 'element-type': v, 'element-data': JSON.stringify(elementData)})
+                updateAttribute('element', {...value.element, 'element-type': v, 'element-data': JSON.stringify(elementData)})
             }else{
-                updateAttribute('element', {...value, 'element-type': v})
+                updateAttribute('element', {...value.element, 'element-type': v})
             }
         }
     }
