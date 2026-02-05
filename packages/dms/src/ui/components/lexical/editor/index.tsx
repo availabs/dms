@@ -32,15 +32,12 @@ function isLexicalJSON(str) {
     }
 }
 
-export const createHeadlessEditor = ({ namespace }) => {
-  // const { theme: contextTheme } = React.useContext(ThemeContext) || {};
-  // const theme = themeProp || contextTheme;
-
-  // Get the flat theme from DMS context (with textSettings heading overrides)
-  const flatLexicalTheme =  defaultLexicalTheme.styles[0];
-
-  // Build the nested theme for LexicalComposer
-  const nestedLexicalTheme = buildLexicalInternalTheme(flatLexicalTheme);
+export const createHeadlessEditor = ({ namespace, flatTheme, icons }) => {
+  const resolvedFlatTheme = flatTheme || defaultLexicalTheme.styles[0];
+  const nestedLexicalTheme = buildLexicalInternalTheme(resolvedFlatTheme);
+  if (icons) {
+    nestedLexicalTheme.Icons = icons;
+  }
   return _createHeadlessEditor({
     namespace,
     nodes: [...PlaygroundNodes],
@@ -65,6 +62,10 @@ export default function Lexicals ({value, hideControls, showBorder, onChange, bg
 
   // Build the nested theme for LexicalComposer
   const nestedLexicalTheme = buildLexicalInternalTheme(flatLexicalTheme);
+  // Pass Icons from the full DMS theme so IconNode.decorate() can access them
+  if (theme?.Icons) {
+    nestedLexicalTheme.Icons = theme.Icons;
+  }
 
     const initialConfig = {
         editorState: isLexicalJSON(value) ? value : null,

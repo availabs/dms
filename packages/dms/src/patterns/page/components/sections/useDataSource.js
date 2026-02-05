@@ -171,9 +171,8 @@ export function useDataSource({ state, setState, sourceTypes = ["external", "int
             const match = sources.find((s) => +s.source_id === +sourceId);
 
             setState((draft) => {
-                draft.columns = [];
-
                 if (!match && typeof sourceId === "string" && sourceId.includes("+")) {
+                    draft.columns = [];
                     const sourceType = sourceId.includes("+sections")
                         ? "sections"
                         : "pages";
@@ -205,6 +204,9 @@ export function useDataSource({ state, setState, sourceTypes = ["external", "int
                 } else if (match) {
                     const { doc_type, ...rest } = match;
                     // Get baseUrl from the matched source's environment
+                    const newColumns = rest.columns;
+                    const newColumnsNames = newColumns.map(c => c.name);
+                    draft.columns = draft.columns.filter(c => newColumnsNames.includes(c.name)).map(c => ({...c, ...newColumns.find(newC => newC.name === c.name)}));
                     const baseUrl = envs[match.srcEnv]?.baseUrl || '';
                     draft.sourceInfo = { ...rest, type: doc_type, baseUrl };
                 }

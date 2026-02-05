@@ -49,6 +49,13 @@ export default {
     "name": 'Filter',
     "type": 'filter',
     "variables": [],
+    useDataSource: true,
+    defaultState: {
+        dataRequest: {},
+        columns:[],
+        display: {},
+        sourceInfo: {}
+    },
     controls: {
         columns: [{type: 'toggle', label: 'Filter', key: 'filters', trueValue: [{type: 'internal', operation: 'filter', values: []}],
         onChange: ({key, value, attribute, state, columnIdx}) => {

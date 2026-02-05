@@ -20,6 +20,10 @@
 - [x] Update richtext component to pass `styleName` prop instead of runtime merge
 - [x] Update Lexical entry point to accept `styleName` and look up style by name
 - [x] Fix HTML view mode issues (ButtonNode, LayoutContainerNode, LayoutItemNode exportDOM methods)
+- [x] Fix bgColor passthrough to Lexical view mode (Option A: inline style)
+- [x] Fix IconNode crash in edit mode and rendering in HTML view mode
+- [x] Fix HTML view to use correct theme style (not just default)
+- [x] Fix height/spacing differences between edit and HTML view for card-styled richtext
 - [ ] Replace custom UI components with standard DMS UI components (Button, Select, etc.)
 - [ ] Complete testing checklist
 
@@ -975,7 +979,142 @@ exportDOM(): DOMExportOutput {
 
 ---
 
-## 11. References
+## 11. Richtext Background Color Passthrough
+
+### Problem
+
+Previously, the richtext component passed `bgColor` to Lexical by merging it into the theme object at runtime (via the old `cardTypes` merge approach). Now that themes always come from ThemeContext, the richtext component no longer has a direct way to inject per-section background color into the Lexical theme.
+
+The `bgColor` prop is already threaded through to both `Lexical.EditComp` and `Lexical.ViewComp`, but the approach needs to be formalized.
+
+### Option A: Props-based approach (simpler)
+
+Keep `bgColor` as a direct prop passed from richtext to Lexical. Apply it as an inline `style` on the container element rather than through the theme.
+
+```jsx
+// richtext Edit/View already passes bgColor as a prop
+<Lexical.EditComp
+    value={text}
+    onChange={setText}
+    bgColor={bgColor}
+    styleName={isCard || undefined}
+/>
+
+// In Lexical editor/index.tsx and lexical/index.jsx View:
+// Apply bgColor as inline style on the wrapper div
+<div className={LexicalTheme.editorShell} style={{ backgroundColor: bgColor }}>
+    ...
+</div>
+```
+
+**Pros:**
+- Simple, explicit, already partially in place
+- No extra context nesting
+- bgColor is a visual concern, not really a "theme" value — inline style is appropriate
+
+**Cons:**
+- Inline style sits outside the theme system
+- If more per-instance overrides are needed in the future, each one requires a new prop
+
+### Option B: Nested ThemeContext wrapper (theme-consistent)
+
+Wrap the Lexical component in a new ThemeContext.Provider inside the richtext component that merges bgColor into the lexical theme.
+
+```jsx
+// In richtext Edit component:
+const { theme: fullTheme } = useContext(ThemeContext);
+
+const overriddenTheme = useMemo(() => ({
+    ...fullTheme,
+    lexical: {
+        ...fullTheme.lexical,
+        styles: fullTheme.lexical.styles.map((s, i) => {
+            // Override the active style's editorShell or add bg class
+            if (s.name === isCard || (!isCard && i === 0)) {
+                return { ...s, editorShell: `${s.editorShell} bg-[${bgColor}]` };
+            }
+            return s;
+        })
+    }
+}), [fullTheme, bgColor, isCard]);
+
+<ThemeContext.Provider value={{ ...themeContextValue, theme: overriddenTheme }}>
+    <Lexical.EditComp ... />
+</ThemeContext.Provider>
+```
+
+**Pros:**
+- Stays within the theme system
+- Lexical doesn't need any special bgColor prop handling
+- Extensible: any per-instance theme override can be done this way
+
+**Cons:**
+- More complex — requires memoized theme merging
+- Creates an extra context provider per richtext section
+- Tailwind arbitrary value classes (`bg-[rgba(0,0,0,0)]`) may not work in all cases vs inline styles
+
+---
+
+## 12. HTML View Height/Spacing Fix (htmlConfig)
+
+### Problem
+
+Card-styled richtext editors (e.g., Annotation) showed different height and spacing between edit mode (live Lexical) and HTML view mode (`getHtml()` → `dangerouslySetInnerHTML`).
+
+### Root Cause
+
+The `htmlConfig.export` Map in `htmlConfig.js` had overrides for HeadingNode, ParagraphNode, QuoteNode, ListNode, ListItemNode, and LinkNode that replaced their `exportDOM()` with a plain `createDOM()` call. This was based on the **incorrect assumption** that the default `exportDOM()` doesn't apply theme classes.
+
+**Actual behavior in Lexical v0.39.0:**
+
+The default `exportDOM()` inheritance chain for standard nodes is:
+
+1. `LexicalNode.exportDOM(editor)` → calls `this.createDOM(editor._config, editor)` → **applies theme classes**
+2. `ElementNode.exportDOM(editor)` → calls super, then adds **indent** (`paddingInlineStart`) and **direction** (`dir` attribute)
+3. `ParagraphNode.exportDOM(editor)` → calls super, then adds **text-align** format and **`<br>` for empty paragraphs**
+4. `HeadingNode.exportDOM(editor)` → calls super, then adds **text-align**, **direction**, and **empty `<br>`**
+
+The `useCreateDOM` override only called `createDOM()`, which:
+- ✅ Applied theme classes (but the default already did this)
+- ❌ Lost indent handling (padding)
+- ❌ Lost direction handling (dir attribute)
+- ❌ Lost text-align format
+- ❌ Lost empty paragraph `<br>` handling
+
+### Fix
+
+Removed all standard node entries from `htmlConfig.export`. Only the CodeNode entry remains (which adds the `data-gutter` attribute not present in the default).
+
+**Before:**
+```js
+export const htmlConfig = {
+  export: new Map([
+    [CodeNode, ...],         // ✅ Keep - adds data-gutter
+    [HeadingNode, useCreateDOM],    // ❌ Remove - default is better
+    [QuoteNode, useCreateDOM],      // ❌ Remove
+    [ParagraphNode, useCreateDOM],  // ❌ Remove
+    [ListNode, useCreateDOM],       // ❌ Remove
+    [ListItemNode, useCreateDOM],   // ❌ Remove
+    [LinkNode, useCreateDOM],       // ❌ Remove
+  ]),
+};
+```
+
+**After:**
+```js
+export const htmlConfig = {
+  export: new Map([
+    [CodeNode, ...],  // Only CodeNode needs override
+  ]),
+};
+```
+
+### Files Changed
+- `editor/htmlConfig.js` — Removed useCreateDOM overrides for standard nodes
+
+---
+
+## 13. References
 
 ### Documentation
 - **THEMING_GUIDE.md** - `ui/THEMING_GUIDE.md` - Complete guide for converting components to use the DMS theming system, including options/styles pattern, ThemeContext usage, and settings registration

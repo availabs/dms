@@ -5,6 +5,7 @@ import {
     getColorRange,
     GraphComponent
 } from "./GraphComponent";
+import { graphTheme } from "./theme";
 //import TableHeaderCell from "../table/components/TableHeaderCell";
 import {strictNaN, fnumIndex} from "./utils";
 

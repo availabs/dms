@@ -61,6 +61,8 @@ function getComponentTheme(theme, compType, activeStyleOrName) {
  * @returns {Object} - Flat theme object with underscore-separated keys
  */
 export function getLexicalTheme(theme, styleName) {
+  // Get the base style (style 0) — all other styles inherit from this
+  const baseStyle = getComponentTheme(theme, 'lexical', 0) || lexicalTheme.styles[0];
   // Pass styleName to look up by name, or undefined to use theme's activeStyle
   const lexicalStyles = getComponentTheme(theme, 'lexical', styleName);
   const textStyles = getComponentTheme(theme, 'textSettings', 0);
@@ -70,16 +72,20 @@ export function getLexicalTheme(theme, styleName) {
     return lexicalTheme.styles[0];
   }
 
-  // Merge textSettings headings into lexical theme if available
-  const mergedTheme = { ...lexicalStyles };
+  // Merge: base style first, then specific style overrides on top.
+  // This replicates the old lodash.merge behavior where sparse styles
+  // (like Annotation) inherit all properties from the default style.
+  const mergedTheme = { ...baseStyle, ...lexicalStyles };
 
+  // Apply textSettings headings only when the specific style doesn't define its own.
+  // Styles like Annotation have carefully designed headings that should not be overridden.
   if (textStyles) {
-    if (textStyles.h1) mergedTheme.heading_h1 = textStyles.h1;
-    if (textStyles.h2) mergedTheme.heading_h2 = textStyles.h2;
-    if (textStyles.h3) mergedTheme.heading_h3 = textStyles.h3;
-    if (textStyles.h4) mergedTheme.heading_h4 = textStyles.h4;
-    if (textStyles.h5) mergedTheme.heading_h5 = textStyles.h5;
-    if (textStyles.h6) mergedTheme.heading_h6 = textStyles.h6;
+    if (textStyles.h1 && !lexicalStyles.heading_h1) mergedTheme.heading_h1 = textStyles.h1;
+    if (textStyles.h2 && !lexicalStyles.heading_h2) mergedTheme.heading_h2 = textStyles.h2;
+    if (textStyles.h3 && !lexicalStyles.heading_h3) mergedTheme.heading_h3 = textStyles.h3;
+    if (textStyles.h4 && !lexicalStyles.heading_h4) mergedTheme.heading_h4 = textStyles.h4;
+    if (textStyles.h5 && !lexicalStyles.heading_h5) mergedTheme.heading_h5 = textStyles.h5;
+    if (textStyles.h6 && !lexicalStyles.heading_h6) mergedTheme.heading_h6 = textStyles.h6;
   }
 
   return mergedTheme;

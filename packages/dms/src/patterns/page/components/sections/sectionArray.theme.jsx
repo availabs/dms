@@ -14,7 +14,8 @@ export const sectionArrayTheme = {
           fullwidth: ''
       },
       sectionEditWrapper: 'relative group',
-      sectionEditHover: 'absolute inset-0 group-hover:border border-blue-300 border-dashed pointer-events-none z-10',
+      sectionEditHover: 'absolute inset-0 border border-transparent group-hover:border-blue-300 border-dashed pointer-events-none z-10 rounded-md',
+      sectionEditing: 'absolute inset-0 border border-orange-300 border-dashed pointer-events-none z-10 rounded-md',
       sectionViewWrapper: 'relative group',
       sectionPadding: 'p-4',
       gridviewGrid: 'z-0 bg-slate-50 h-full',

@@ -1,6 +1,6 @@
 import React, {useMemo} from "react"
 import Editor from "./editor"
-import { getHtml } from './ssr';
+import { getHtml, attachCollapsibleHandlers } from './ssr';
 import { ThemeContext } from "../../themeContext";
 import getLexicalTheme from "./useLexicalTheme";
 
@@ -50,17 +50,29 @@ const View = React.memo(({
   // Pass styleName to look up the correct style
   const LexicalTheme = getLexicalTheme(resolvedTheme, styleName);
   const [html, setHtml] = React.useState('')
+  const containerRef = React.useRef(null);
 
   React.useEffect(() => {
     async function loadHtml() {
-      setHtml(await getHtml(parseValue(value)));
+      setHtml(await getHtml(parseValue(value), LexicalTheme, resolvedTheme?.Icons));
     }
     loadHtml()
-  }, [value]);
+  }, [value, LexicalTheme]);
+
+  React.useEffect(() => {
+    if (!containerRef.current || !html) return;
+    return attachCollapsibleHandlers(containerRef.current);
+  }, [html]);
 
     return (
-      <div className={`${LexicalTheme.editorShell}`}>
-        <div dangerouslySetInnerHTML={{ __html: html }}></div>
+      <div className={`${LexicalTheme.editorShell}`} ref={containerRef}>
+        <div className={LexicalTheme.editorViewContainer || ''} style={bgColor ? { backgroundColor: bgColor } : undefined}>
+          <div className={LexicalTheme.viewScroller || ''}>
+            <div className={LexicalTheme.contentEditable || ''}>
+              <div dangerouslySetInnerHTML={{ __html: html }}></div>
+            </div>
+          </div>
+        </div>
       </div>
     );
 });
