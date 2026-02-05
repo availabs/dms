@@ -186,6 +186,7 @@ const ELEMENT_FORMAT_OPTIONS: {
   },
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function dropDownActiveClass(active: boolean, theme: any) {
   if (active) return `${theme.dropdownItemActive}` || 'active dropdown-item-active';
   else return '';

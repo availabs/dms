@@ -69,6 +69,7 @@ export function attachCollapsibleHandlers(root: HTMLElement): () => void {
  */
 function setupDomForSSR() {
   // Dynamic import to avoid loading linkedom in browser bundles
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { parseHTML } = require('linkedom');
   const { window, document } = parseHTML('<html><body></body></html>');
 
