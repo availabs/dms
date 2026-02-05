@@ -1,4 +1,4 @@
-import React, {useMemo} from "react"
+import React from "react"
 import Editor from "./editor"
 import { getHtml, attachCollapsibleHandlers } from './ssr';
 import { ThemeContext } from "../../themeContext";
