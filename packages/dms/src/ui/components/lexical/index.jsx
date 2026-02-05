@@ -68,7 +68,7 @@ const View = React.memo(({
       <div className={`${LexicalTheme.editorShell}`} ref={containerRef}>
         <div className={LexicalTheme.editorViewContainer || ''} style={bgColor ? { backgroundColor: bgColor } : undefined}>
           <div className={LexicalTheme.viewScroller || ''}>
-            <div className={LexicalTheme.contentEditable || ''}>
+            <div className={`${LexicalTheme.contentEditable || ''} w-full`}>
               <div dangerouslySetInnerHTML={{ __html: html }}></div>
             </div>
           </div>
