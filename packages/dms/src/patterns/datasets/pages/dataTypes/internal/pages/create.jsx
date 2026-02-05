@@ -39,7 +39,7 @@ const CreateInternalDataset = ({
                               setIsAdding(false)
                           }}
                   >cancel</button>
-              </>
+
             </div>
     )
 }
