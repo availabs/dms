@@ -149,12 +149,19 @@ export class InlineImageNode extends DecoratorNode<JSX.Element> {
         this.__position = position;
     }
 
-    exportDOM(): DOMExportOutput {
+    exportDOM(editor?: LexicalEditor): DOMExportOutput {
         const element = document.createElement('img');
         element.setAttribute('src', this.__src);
         element.setAttribute('alt', this.__altText);
-        element.setAttribute('width', this.__width.toString());
-        element.setAttribute('height', this.__height.toString());
+        // Use inline styles to match the live editor's LazyImage rendering.
+        // HTML attributes (width="300") can be overridden by CSS, inline styles cannot.
+        element.style.display = 'block';
+        if (this.__width !== 'inherit') {
+            element.style.width = `${this.__width}px`;
+        }
+        if (this.__height !== 'inherit') {
+            element.style.height = `${this.__height}px`;
+        }
         return {element};
     }
 

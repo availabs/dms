@@ -15,13 +15,15 @@ export const isCalculatedCol = ({ display, type, origin }) => {
     );
 };
 // updates column if present, else adds it with the change the user made.
-export const updateColumns = (originalAttribute, key, value, onChange, setState) => {
+export const updateColumns = (originalAttribute, key, newValue, onChange, setState) => {
     setState(draft => {
         // ======================= default behaviour begin =================================
 
         let idx = draft.columns.findIndex(column => {
             return isEqualColumns(column, originalAttribute)
         });
+
+        const value = key === 'fn' && Array.isArray(newValue) && !newValue.length ? undefined : newValue;
 
         if (idx === -1) {
             draft.columns.push({ ...originalAttribute, [key]: value });
@@ -59,6 +61,14 @@ export const updateColumns = (originalAttribute, key, value, onChange, setState)
         if (key === 'group' && value === false && draft.columns.some(c => !isEqualColumns(c, originalAttribute) && c.group)) {
             // if grouping by other columns, apply fn when removing group for current column
             draft.columns[idx].fn = draft.columns[idx].defaultFn?.toLowerCase() || 'list';
+        }
+
+        if (key === 'group' && value === false && draft.columns.every(c => !c.group) && draft.columns.some(c => c.fn)) {
+            // remove fn from every non-grouped column
+            draft.columns.filter(c => !isEqualColumns(c, originalAttribute) && !c.group && c.fn)
+                .forEach(c => {
+                    c.fn = undefined;
+                })
         }
 
         if(onChange) {

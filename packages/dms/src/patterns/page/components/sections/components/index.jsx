@@ -19,7 +19,7 @@ function EditComp({value, onChange, compKey, component, siteType, pageFormat}) {
         }
     }, []);
 
-    const DataComp = component.useDataSource ? DataWrapper.EditComp : component.EditComp;
+    const DataComp = component.useDataWrapper ? DataWrapper.EditComp : component.EditComp;
 
     return (
         <>
@@ -30,7 +30,7 @@ function EditComp({value, onChange, compKey, component, siteType, pageFormat}) {
                     key={compKey || ''}
                     value={value?.['element-data'] || ''}
                     onChange={v => updateAttribute('element-data', v)}
-                    component={component?.useDataSource ? component : undefined}
+                    component={component?.useDataWrapper ? component : undefined}
                     siteType={siteType}
                     pageFormat={pageFormat}
                 />
@@ -51,7 +51,7 @@ function ViewComp({value, onChange, siteType, pageFormat, refreshDataBtnRef, com
 
     let DataComp =
         !component ? defaultComp :
-            component.useDataSource ? DataWrapper.ViewComp :
+            component.useDataWrapper ? DataWrapper.ViewComp :
                 component.ViewComp;
 
 
@@ -64,7 +64,7 @@ function ViewComp({value, onChange, siteType, pageFormat, refreshDataBtnRef, com
 
         //console.log('refresh component', component)
 
-        const getData = (component.useDataSource ? DataWrapper : component)?.getData;
+        const getData = (component.useDataWrapper ? DataWrapper : component)?.getData;
         if (!getData) return;
         // console.time('fetching data')
         setIsRefreshingData(true);
@@ -90,7 +90,7 @@ function ViewComp({value, onChange, siteType, pageFormat, refreshDataBtnRef, com
             <RenderFilters isEdit={false} defaultOpen={true}/>
             <DataComp value={value?.['element-data'] || ''}
                       onChange={v => updateAttribute('element-data', v)}
-                      component={component?.useDataSource ? component : undefined}
+                      component={component?.useDataWrapper ? component : undefined}
                       siteType={siteType}
                       pageFormat={pageFormat}
             />

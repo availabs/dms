@@ -73,6 +73,7 @@ export default {
     "type": 'Graph',
     "variables": [],
     useDataSource: true,
+    useDataWrapper: true,
     fullDataLoad: true,
     useGetDataOnPageChange: false,
     showPagination: false,

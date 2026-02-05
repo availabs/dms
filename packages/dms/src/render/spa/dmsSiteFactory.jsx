@@ -75,7 +75,7 @@ function pattern2routes (siteData, props) {
     //console.log('patterns2routes',dbThemes)
 
     themes = themes?.default ? { ...themes, ...dbThemes } : { ...themes, ...dbThemes, default: {} }
-    console.log('dmsSiteFactory themes', themes)
+    // console.log('dmsSiteFactory themes', themes)
 
     let dmsConfigUpdated = cloneDeep(dmsConfig);
     dmsConfigUpdated.registerFormats = updateRegisteredFormats(dmsConfigUpdated.registerFormats, dmsConfig.app)
@@ -131,7 +131,7 @@ function pattern2routes (siteData, props) {
       }))
     ];
 
-    console.log('dmssite factory, datasources', datasources)
+    // console.log('dmssite factory, datasources', datasources)
 
     return [
         ...patterns
@@ -177,7 +177,7 @@ function pattern2routes (siteData, props) {
                     PROJECT_NAME,
                     damaDataTypes,
                 });
-                console.log('dmssitefactory Config obj', configObj)
+                // console.log('dmssitefactory Config obj', configObj)
                 return ({
                   ...dmsPageFactory({
                     dmsConfig: configObj,

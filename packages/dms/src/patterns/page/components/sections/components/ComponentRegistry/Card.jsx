@@ -206,11 +206,19 @@ export default {
     "name": 'Card',
     "type": 'card',
     useDataSource: true,
+    useDataWrapper: true,
     useGetDataOnPageChange: true,
     useInfiniteScroll: false,
     showPagination: true,
     keepOriginalValues: true,
     themeKey: 'dataCard',
+    defaultState: {
+        dataRequest: {},
+        display: { usePagination: true, pageSize: 5 },
+        columns: [],
+        data: [],
+        sourceInfo: { columns: []}
+    },
     controls: {
         columns: [
             // settings from columns dropdown are stored in state.columns array, per column

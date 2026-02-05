@@ -16,7 +16,7 @@ import {
   useState,
 } from 'react';
 import {createPortal} from 'react-dom';
-import theme from "./../themes/PlaygroundEditorTheme";
+import { useLexicalTheme } from '../../useLexicalTheme';
 
 type DropDownContextType = {
   registerItem: (ref: React.RefObject<HTMLButtonElement>) => void;
@@ -74,6 +74,7 @@ function DropDownItems({
   dropDownRef: React.Ref<HTMLDivElement>;
   onClose: () => void;
 }) {
+  const theme = useLexicalTheme();
   const [items, setItems] = useState<React.RefObject<HTMLButtonElement>[]>();
   const [highlightedItem, setHighlightedItem] =
     useState<React.RefObject<HTMLButtonElement>>();
@@ -129,7 +130,7 @@ function DropDownItems({
 
   return (
     <DropDownContext.Provider value={contextValue}>
-      <div className={`${theme.dropdown.base} z-30`} ref={dropDownRef} onKeyDown={handleKeyDown}>
+      <div className={`${theme.dropdown_base} z-30`} ref={dropDownRef} onKeyDown={handleKeyDown}>
         {children}
       </div>
     </DropDownContext.Provider>
@@ -153,6 +154,7 @@ export default function DropDown({
   children: ReactNode;
   stopCloseOnClickSelf?: boolean;
 }): JSX.Element {
+  const theme = useLexicalTheme();
   const dropDownRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [showDropDown, setShowDropDown] = useState(false);
@@ -236,7 +238,7 @@ export default function DropDown({
         ref={buttonRef}>
         {buttonIconClassName && <span className={buttonIconClassName} />}
         {buttonLabel && (
-          <span className={`${theme.toolbar.toolbarItem.text} display-none`}>{buttonLabel}</span>
+          <span className={`${theme.toolbar_toolbarItem_text} display-none`}>{buttonLabel}</span>
         )}
         <i className={`${theme.iconChevronDown}`} />
       </button>

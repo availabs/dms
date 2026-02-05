@@ -145,7 +145,7 @@ const Edit = ({cms_context, value, onChange, component}) => {
                     );
 
                     return isTextSearch ?
-                        v1.toString().toLowerCase().includes(filterValue.toLowerCase()) :
+                        (v1 || '').toString().toLowerCase().includes(filterValue.toLowerCase()) :
                         filterValue.some(fv => fv === v1)
                 })
             })
@@ -176,7 +176,7 @@ const Edit = ({cms_context, value, onChange, component}) => {
             const isNormalisedColumn = state.columns.filter(col => col.name === column.name && col.filters?.length).length > 1;
 
             (column.filters || [])
-                .filter(({values}) => Array.isArray(values) && values.every(v => typeof v !== 'object'))
+                .filter(({values}) => Array.isArray(values) && values.every(v => typeof v !== 'object') && values.length) // avoid pulling for blank arrays
                 .forEach(({operation, values, fn}) => {
                     // here, operation is filter, exclude, >, >=, <, <=.
                     // normal columns only support filter.
@@ -270,7 +270,7 @@ const Edit = ({cms_context, value, onChange, component}) => {
             setCurrentPage(currentPage)
             getFilteredData({currentPage})
         }else{
-            const hasMore = (currentPage * state.display.pageSize + state.display.pageSize) <= state.display.totalLength;
+            const hasMore = (currentPage * state.display.pageSize) - state.display.totalLength <= 0;
             if(!hasMore) return;
 
             setLoading(true)
@@ -285,35 +285,6 @@ const Edit = ({cms_context, value, onChange, component}) => {
             setLoading(false)
         }
     }
-    // useInfiniteScroll
-    useEffect(() => {
-        let isStale = false;
-        // infinite scroll watch
-        if(!isValidState || !component.useInfiniteScroll) return;
-        // observer that sets current page on scroll. no data fetching should happen here
-        const observer = new IntersectionObserver(
-            async (entries) => {
-                const hasMore = (currentPage * state.display.pageSize + state.display.pageSize) <= state.display.totalLength;
-                if (state.data.length && entries[0].isIntersecting && hasMore && !isStale) {
-                    setCurrentPage(prevPage => prevPage+1)
-                    await onPageChange(currentPage + 1)
-                }
-            },
-            { threshold: 0 }
-        );
-
-        const target = document.querySelector(`#${state.display.loadMoreId}`);
-
-        if (target && !state.display.usePagination) observer.observe(target);
-        // unobserve if using pagination
-        if (target && state.display.usePagination) observer.unobserve(target);
-        // return () => {
-        //     if (target) observer.unobserve(target);
-        // };
-        return () => {
-            isStale = true;
-        }
-    }, [state.display?.loadMoreId, state.display?.totalLength, state.data?.length, state.display?.usePagination]);
     // // =========================================== get data end ========================================================
 
     // =========================================== get input data ======================================================
@@ -489,7 +460,7 @@ const Edit = ({cms_context, value, onChange, component}) => {
                 <div className={'w-full flex items-center place-content-end'}>
                     {loading ? <Icon id={'loading'}
                                      icon={'LoadingHourGlass'}
-                                     className={`text-slate-400 hover:text-blue-500 size-4 transition ease-in-out duration-200`} /> :
+                                     className={`absolute text-slate-400 hover:text-blue-500 size-4 transition ease-in-out duration-200`} /> :
                         state.display.invalidState ? <span className={'text-red-500'}>{state.display.invalidState}</span> : null
                     }
                     <RenderDownload state={state} apiLoad={apiLoad} cms_context={cms_context}/>
@@ -562,9 +533,8 @@ const View = ({cms_context, value, onChange, component}) => {
                                 v
                     );
 
-                    console.log('isText', isTextSearch, v1, filterValue)
                       return isTextSearch ?
-                          v1.toString().toLowerCase().includes(filterValue.toLowerCase()) :
+                          (v1 || '').toString().toLowerCase().includes(filterValue.toLowerCase()) :
                           filterValue.some(fv => fv === v1)
                 })
             })
@@ -589,7 +559,7 @@ const View = ({cms_context, value, onChange, component}) => {
         const isNormalisedColumn = state.columns.filter(col => col.name === column.name && col.filters?.length).length > 1;
 
         (column.filters || [])
-            .filter(({values}) => Array.isArray(values) && values.every(v => typeof v !== 'object'))
+            .filter(({values}) => Array.isArray(values) && values.every(v => typeof v !== 'object') && values.length) // avoid pulling for blank arrays
             .forEach(({operation, values, fn}) => {
                 // here, operation is filter, exclude, >, >=, <, <=.
                 // normal columns only support filter.
@@ -627,6 +597,15 @@ const View = ({cms_context, value, onChange, component}) => {
 
         const newDataReq = {
             ...state.dataRequest || {},
+            // hen filter options become {}, and old dataRequest has filters / other keys, they're not removed, hence defining individually.
+            filter: filterOptions.filter || {},
+            exclude: filterOptions.exclude || {},
+            gt: filterOptions.gt || {},
+            gte: filterOptions.gte || {},
+            lt: filterOptions.lt || {},
+            lte: filterOptions.lte || {},
+            like: filterOptions.like || {},
+            filterGroups: filterOptions.filterGroups || {},
             ...filterOptions,
             orderBy,
             meta: state.columns.filter(column => column.show &&
@@ -660,7 +639,6 @@ const View = ({cms_context, value, onChange, component}) => {
         // only run when controls or source/view change
         async function load() {
             if(state.display.preventDuplicateFetch && isEqual(state.dataRequest, state.lastDataRequest)) return;
-
             setLoading(true)
             const newCurrentPage = 0; // for all the deps here, it's okay to fetch from page 1.
 
@@ -689,7 +667,7 @@ const View = ({cms_context, value, onChange, component}) => {
             setCurrentPage(currentPage)
             getFilteredData({currentPage})
         }else{
-            const hasMore = (currentPage * state.display.pageSize + state.display.pageSize) <= state.display.totalLength;
+            const hasMore = (currentPage * state.display.pageSize) - state.display.totalLength <= 0;
             if(!hasMore) return;
 
             setLoading(true)

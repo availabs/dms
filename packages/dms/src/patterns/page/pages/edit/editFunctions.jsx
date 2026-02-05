@@ -41,6 +41,7 @@ export const duplicateItem = (item, dataItems, user, apiUpdate) => {
     newItem.index = highestIndex + 1
     newItem.url_slug = getUrlSlug(newItem, dataItems)
     newItem.sections.forEach(s => {
+        // delete s.parent; // todo update this with the new parent id
         delete s.ref
         delete s.id
     })

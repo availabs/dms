@@ -38,6 +38,7 @@ import {getThemeSelector} from '../../utils/getThemeSelector';
 import useDebounce from '../../utils/useDebounce';
 
 const BUTTON_WIDTH_PX = 20;
+const IS_MAC = typeof navigator !== 'undefined' && /^mac/i.test(navigator.platform);
 
 function TableHoverActionsContainer({
   anchorElem,
@@ -142,13 +143,16 @@ function TableHoverActionsContainer({
         if (hoveredRowNode) {
           setShownColumn(false);
           setShownRow(true);
+          // On Mac, overlay scrollbars don't take space, so use smaller offset
+          // On other platforms with visible scrollbars, add larger offset
+          const scrollbarOffset = tableHasScroll && !IS_MAC ? 16 : 5;
           setPosition({
             height: BUTTON_WIDTH_PX,
             left:
               tableHasScroll && parentElement
                 ? parentElement.offsetLeft
                 : tableElemLeft - editorElemLeft,
-            top: tableElemBottom - editorElemY + 5,
+            top: tableElemBottom - editorElemY + scrollbarOffset,
             width:
               tableHasScroll && parentElement
                 ? parentElement.offsetWidth

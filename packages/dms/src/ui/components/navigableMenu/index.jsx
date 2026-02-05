@@ -11,6 +11,7 @@ import Input from "../Input";
 import columnTypes from "../../columnTypes";
 import Switch from "../Switch";
 import Popup from "../Popup";
+import { ColorPickerFlat } from "../Colorpicker";
 import defaultTheme from "./theme";
 
 const defaultItems = [
@@ -19,10 +20,28 @@ const defaultItems = [
   { name: 'Export PDF', onClick: '#' },
 ]
 
+// Simple inline color picker control for NavigableMenu
+const ColorPickerControl = ({ value, onChange, colors, showColorPicker = false, menuItem }) => {
+  const color = value || menuItem?.value || 'rgba(0,0,0,0)';
+
+  return (
+    <ColorPickerFlat
+      color={color}
+      onChange={(newColor) => {
+        onChange?.(newColor);
+        menuItem?.onChange?.(newColor);
+      }}
+      colors={colors || menuItem?.colors}
+      showColorPicker={showColorPicker ?? menuItem?.showColorPicker}
+    />
+  );
+};
+
 const Comps = {
   input : Input,
-  select: columnTypes.select.EditComp,
+  select: columnTypes?.select?.EditComp,
   toggle: Switch,
+  colorpicker: ColorPickerControl,
   link : ({ menuItem, activeStyle }) => {
     const { theme: fullTheme = { navigableMenu: defaultTheme } } = React.useContext(ThemeContext) || {};
     const theme = getComponentTheme(fullTheme, 'navigableMenu', activeStyle);
@@ -48,7 +67,7 @@ const MenuItem = ({menuItem, setActiveParent, activeStyle}) => {
   if(Comps[menuItem.type]) {
     const Comp = Comps[menuItem.type];
     return (
-      <div key={menuItem.name} className={`${theme?.menuItem} ${theme?.menuItemHover}`}>
+      <div key={menuItem.name} className={`${theme?.menuItem} ${menuItem.noHover ? '' : theme?.menuItemHover}`}>
         {menuItem.showLabel ? (
             <div className={theme?.menuItemIconLabelWrapper}>
               <Icon className={theme?.menuItemIconWrapper} icon={menuItem?.icon} />
@@ -113,7 +132,7 @@ const Menu = ({config, title, showTitle=true, open, setOpen, activeStyle}) => {
       Object.values(config)
           .filter(c =>
               (!activeParent ? !c.parent : c.parent === activeParent) &&
-              c.name.toLowerCase().includes(search.toLowerCase())
+              String(c.name ?? "").toLowerCase().includes(search.toLowerCase())
           ), [config, activeParent, search]);
 
   const changeParent = useCallback((parent) => {
@@ -168,7 +187,7 @@ const Menu = ({config, title, showTitle=true, open, setOpen, activeStyle}) => {
   )
 }
 
-export const docs = []
+
 
 const flattenConfig = (config, parent) => {
   const flatConfig = {};
@@ -191,7 +210,7 @@ const flattenConfig = (config, parent) => {
 }
 
 // @params btnVisibleOnGroupHover: hides button until group is hovered. parent needs to have group class.
-export default function NavigableMenu({config=defaultItems, title, showTitle, btnVisibleOnGroupHover, defaultOpen, preferredPosition, activeStyle, children}) {
+export default function NavigableMenu({config=defaultItems, title, showTitle, btnVisibleOnGroupHover, defaultOpen, preferredPosition, activeStyle, preventCloseOnClickOutside, children}) {
   const { theme: fullTheme = { navigableMenu: defaultTheme } } = React.useContext(ThemeContext) || {};
   const theme = getComponentTheme(fullTheme, 'navigableMenu', activeStyle);
   const [configStateFlat, setConfigStateFlat] = useImmer(flattenConfig(config));
@@ -213,6 +232,7 @@ export default function NavigableMenu({config=defaultItems, title, showTitle, bt
       btnVisibleOnGroupHover={btnVisibleOnGroupHover}
       defaultOpen={defaultOpen}
       preferredPosition={preferredPosition}
+      preventCloseOnClickOutside={preventCloseOnClickOutside}
     >
       {
         ({open, setOpen}) => (

@@ -6,17 +6,22 @@
  *
  */
 import React from 'react';
-import {LexicalComposer} from '@lexical/react/LexicalComposer';
+import { LexicalComposer } from '@lexical/react/LexicalComposer';
+
 import {OnChangePlugin} from '@lexical/react/LexicalOnChangePlugin';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
 import { $getRoot, $createParagraphNode, $createTextNode } from 'lexical';
-import { merge,cloneDeep } from 'lodash-es'
+// import { merge, cloneDeep } from 'lodash-es'
 
+import { createHeadlessEditor as _createHeadlessEditor } from '@lexical/headless';
+import { htmlConfig } from './htmlConfig';
 
 import Editor from './editor';
 import PlaygroundNodes from './nodes/PlaygroundNodes';
-import PlaygroundEditorTheme from './themes/PlaygroundEditorTheme';
-// import './lexical.css';
+import { getLexicalTheme, LexicalThemeContext } from '../useLexicalTheme';
+import { lexicalTheme as defaultLexicalTheme, buildLexicalInternalTheme } from '../theme';
+// Import ThemeContext from separate file to avoid circular dependency with defaultTheme
+import { ThemeContext } from '../../../themeContext';
 
 function isLexicalJSON(str) {
     try {
@@ -27,10 +32,40 @@ function isLexicalJSON(str) {
     }
 }
 
-export default function Lexicals ({value, hideControls, onChange, bgColor, editable=false, id, theme}) {
-  
-  const lexicalTheme = merge(cloneDeep(PlaygroundEditorTheme), cloneDeep(theme?.lexical || {}), {tableScrollableWrapper: 'overflow-auto'})
-  // console.log(PlaygroundEditorTheme, theme?.lexical, lexicalTheme)
+export const createHeadlessEditor = ({ namespace, flatTheme, icons }) => {
+  const resolvedFlatTheme = flatTheme || defaultLexicalTheme.styles[0];
+  const nestedLexicalTheme = buildLexicalInternalTheme(resolvedFlatTheme);
+  if (icons) {
+    nestedLexicalTheme.Icons = icons;
+  }
+  return _createHeadlessEditor({
+    namespace,
+    nodes: [...PlaygroundNodes],
+    theme: nestedLexicalTheme,
+    onError: e => {
+      console.error(e);
+    },
+    html: htmlConfig,
+  });
+};
+
+
+
+export default function Lexicals ({value, hideControls, showBorder, onChange, bgColor, editable=false, id, theme: themeProp, styleName}) {
+  // Get theme from ThemeContext if not passed as prop
+  const { theme: contextTheme } = React.useContext(ThemeContext) || {};
+  const theme = themeProp || contextTheme;
+
+  // Get the flat theme from DMS context (with textSettings heading overrides)
+  // If styleName is provided, look up the style by name; otherwise use theme's activeStyle
+  const flatLexicalTheme = theme ? getLexicalTheme(theme, styleName) : defaultLexicalTheme.styles[0];
+
+  // Build the nested theme for LexicalComposer
+  const nestedLexicalTheme = buildLexicalInternalTheme(flatLexicalTheme);
+  // Pass Icons from the full DMS theme so IconNode.decorate() can access them
+  if (theme?.Icons) {
+    nestedLexicalTheme.Icons = theme.Icons;
+  }
 
     const initialConfig = {
         editorState: isLexicalJSON(value) ? value : null,
@@ -42,23 +77,24 @@ export default function Lexicals ({value, hideControls, onChange, bgColor, edita
             // throw error;
             console.error('Error in Rich text:', error)
         },
-        theme: lexicalTheme,
+        theme: nestedLexicalTheme,
     };
 
-  
   return (
-    <LexicalComposer key={id} initialConfig={initialConfig}>
-      <div className={`${lexicalTheme.editorShell}`}>
-        <UpdateEditor
-          value={value}
-          hideControls={hideControls}
-          onChange={onChange}
-          bgColor={bgColor}
-          editable={editable}
-          theme={lexicalTheme}
-        />
-      </div>
-    </LexicalComposer>
+    <LexicalThemeContext.Provider value={theme}>
+      <LexicalComposer key={id} initialConfig={initialConfig}>
+        <div className={`${nestedLexicalTheme.editorShell} ${showBorder ? 'border rounded-md' : ''}`}>
+          <UpdateEditor
+            value={value}
+            hideControls={hideControls}
+            onChange={onChange}
+            bgColor={bgColor}
+            editable={editable}
+            theme={nestedLexicalTheme}
+          />
+        </div>
+      </LexicalComposer>
+    </LexicalThemeContext.Provider>
   );
 }
 

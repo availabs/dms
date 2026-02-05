@@ -1,7 +1,7 @@
-import React, {useContext, useEffect, useState} from "react";
-import {merge, cloneDeep} from 'lodash-es';
-import {ColorPickerComp} from "./components/colorPickerComp";
+import {useContext, useEffect, useState} from "react";
+import {isEqual} from 'lodash-es';
 import { ThemeContext } from "../../../../../../../ui/useTheme";
+import { ComponentContext } from "../../../../../context";
 
 const isJson = (str)  => {
     try {
@@ -12,166 +12,55 @@ const isJson = (str)  => {
     return true;
 }
 
-const cardTypes = {
-    'Inline Guidance': {
-       contentEditable: 'border-3 border-dashed border-[#e7ae48] px-6 py-4 rounded-lg relative [tab-size:1] outline-none ',
-    },
-    'Dark': {
-        contentEditable: 'border-none relative [tab-size:1] outline-none ',
-        editorScroller: "min-h-[150px] border-0 flex relative outline-0 z-0bh resize-y", //'editor-scroller'
-        viewScroller:
-            "border-0 flex relative outline-0 z-0 resize-none", //.view-scroller
-        editorContainer: "relative block rounded-[10px] min-h-[50px]", //'.editor-shell .editor-container'
-        editorShell: "font-['Proxima_Nova'] font-[400] text-[16px] text-white leading-[22.4px]",
-        heading: {
-            h1: "pt-[8px] font-[500] text-[64px] text-white leading-[40px]  font-[500]  uppercase font-['Oswald'] pb-[12px]", //'PlaygroundEditorTheme__h1',
-            h2: "pt-[8px] font-[500] text-[24px] text-white leading-[24px] scroll-mt-36 font-['Oswald']", //'PlaygroundEditorTheme__h2',
-            h3: "pt-[8px] font-[500] text-[16px]  text-white font-['Oswald']", //'PlaygroundEditorTheme__h3',
-            h4: "pt-[8px] font-medium scroll-mt-36 text-white font-display", //'PlaygroundEditorTheme__h4',
-            h5: "scroll-mt-36 font-display", //'PlaygroundEditorTheme__h5',
-            h6: "scroll-mt-36 font-display", //'PlaygroundEditorTheme__h6',
-        },
-
-    },
-   'Annotation' : {
-        contentEditable: 'border-none relative [tab-size:1] outline-none ',
-        editorContainer: "relative block rounded-[12px] min-h-[50px] shadow-[0px_0px_6px_0px_rgba(0,0,0,0.02),0px_2px_4px_0px_rgba(0,0,0,0.08)] overflow-hidden", //'.editor-shell .editor-container'
-        editorViewContainer: "relative block rounded-[12px] shadow-[0px_0px_6px_0px_rgba(0,0,0,0.02),0px_2px_4px_0px_rgba(0,0,0,0.08)] overflow-hidden", // .editor-shell .view-container
-
-        paragraph: "m-0 relative px-[12px]",
-        layoutContainer: 'grid',
-        layoutItem: 'border-b border-slate-300 min-w-0 max-w-full',
-        editor: {
-            inlineImage: {
-              base: "inline-block relative z-10 cursor-default select-none -mx-[12px]"
-            }
-        },
-          heading: {
-            h1: "pl-[16px] pt-[8px] font-[500] text-[34px] text-[#2D3E4C] leading-[40px]  font-[500]  uppercase font-['Oswald'] pb-[12px]", //'PlaygroundEditorTheme__h1',
-            h2: "pl-[16px] pt-[8px] font-[500] text-[24px] text-[#2D3E4C] leading-[24px] scroll-mt-36 font-['Oswald']", //'PlaygroundEditorTheme__h2',
-            h3: "pl-[16px] pt-[8px] font-[500] text-[16px]  text-[#2D3E4C] font-['Oswald']", //'PlaygroundEditorTheme__h3',
-            h4: "pl-[16px] pt-[8px] font-medium scroll-mt-36 text-[#2D3E4C] font-display", //'PlaygroundEditorTheme__h4',
-            h5: "pl-[16px] scroll-mt-36 font-display", //'PlaygroundEditorTheme__h5',
-            h6: "pl-[16px] scroll-mt-36 font-display", //'PlaygroundEditorTheme__h6',
-        },
-    },
-    'Annotation Image Card' : {
-        editorShell: "font-['Proxima_Nova'] font-[400] text-[16px] text-[#37576B] leading-[22.4px] pt-[120px]",
-        contentEditable: 'border-none relative [tab-size:1] outline-none ',
-        editorContainer: "relative block rounded-[12px] min-h-[50px] shadow-[0px_0px_6px_0px_rgba(0,0,0,0.02),0px_2px_4px_0px_rgba(0,0,0,0.08)]", //'.editor-shell .editor-container'
-        editorViewContainer: "relative block rounded-[12px] shadow-[0px_0px_6px_0px_rgba(0,0,0,0.02),0px_2px_4px_0px_rgba(0,0,0,0.08)]", // .editor-shell .view-container
-
-        paragraph: "m-0 relative px-[12px]",
-        layoutContainer: 'grid',
-        layoutItem: 'border-b border-slate-300 min-w-0 max-w-full',
-        editor: {
-            inlineImage: {
-              base: "inline-block relative z-10 cursor-default select-none -mx-[12px]"
-            }
-        },
-          heading: {
-            h1: "pl-[16px] pt-[8px] font-[500] text-[34px] text-[#2D3E4C] leading-[40px]  font-[500]  uppercase font-['Oswald'] pb-[12px]", //'PlaygroundEditorTheme__h1',
-            h2: "pl-[16px] pt-[8px] font-[500] text-[24px] text-[#2D3E4C] leading-[24px] scroll-mt-36 font-['Oswald']", //'PlaygroundEditorTheme__h2',
-            h3: "pl-[16px] pt-[8px] font-[500] text-[16px]  text-[#2D3E4C] font-['Oswald']", //'PlaygroundEditorTheme__h3',
-            h4: "pl-[16px] pt-[8px] font-medium scroll-mt-36 text-[#2D3E4C] font-display", //'PlaygroundEditorTheme__h4',
-            h5: "pl-[16px] scroll-mt-36 font-display", //'PlaygroundEditorTheme__h5',
-            h6: "pl-[16px] scroll-mt-36 font-display", //'PlaygroundEditorTheme__h6',
-        },
-        inlineImage: "inline-block relative z-10 cursor-default select-none mt-[-120px]"
-    },
-    'Handwritten_2': {
-        contentEditable: 'border-none relative [tab-size:1] outline-none ',
-        editorScroller: "min-h-[150px] border-0 flex relative outline-0 z-0bh resize-y", //'editor-scroller'
-        viewScroller:
-            "border-0 flex relative outline-0 z-0 resize-none", //.view-scroller
-        editorContainer: "relative block rounded-[10px] min-h-[50px]", //'.editor-shell .editor-container'
-        editorShell: "font-['Caveat'] font-[600] text-[20px] text-[#37576B] leading-[22.4px]",
-    },
-    'sitemap': {
-        link: "leading-[22.4px] tracking-normal",
-        heading: {
-            h1: "pt-[8px] font-[500] text-[64px] text-white leading-[40px]  font-[500]  uppercase font-['Oswald'] pb-[12px]", //'PlaygroundEditorTheme__h1',
-            h2: "text-[#2D3E4C] no-underline font-[Oswald] font-medium text-[16px] leading-[14px] uppercase tracking-normal", //'PlaygroundEditorTheme__h2',
-            h3: "text-[#2D3E4C] font-[Oswald] font-medium text-[14px] leading-[14px] uppercase tracking-normal", //'PlaygroundEditorTheme__h3',
-            h4: "pt-[8px] font-medium scroll-mt-36 text-white font-display", //'PlaygroundEditorTheme__h4',
-            h5: "scroll-mt-36 font-display", //'PlaygroundEditorTheme__h5',
-            h6: "scroll-mt-36 font-display", //'PlaygroundEditorTheme__h6',
-        },
-
-    },
-
-
-}
-
 const Edit = ({value, onChange}) => {
-    //const context = useContext(CMSContext);
     const { theme, UI } = useContext(ThemeContext)
-    const {Select, ColumnTypes: {lexical: Lexical}} = UI;
-    const cachedData = value && isJson(value) ? JSON.parse(value) : {}
-    const emptyTextBlock = {text: '', size: '4xl', color: '000000'};
-    const [bgColor, setBgColor] = useState(cachedData?.bgColor || 'rgba(0,0,0,0)');
-    const [isCard, setIsCard] = useState(cachedData?.isCard || '');
+    const { state, setState } = useContext(ComponentContext);
+    const { ColumnTypes: {lexical: Lexical}} = UI;
+
+    // Text content is stored separately from display settings
+    const cachedData = value && isJson(value) ? JSON.parse(value) : {};
+    // Get settings from ComponentContext.state.display (managed by controls)
+    const isCard = cachedData?.isCard || state?.display?.isCard || '';
+    const bgColor = cachedData?.bgColor || state?.display?.bgColor || 'rgba(0,0,0,0)';
+    const showToolbar = cachedData?.showToolbar || state?.display?.showToolbar || false;
     const [text, setText] = useState(cachedData?.text || (value?.root ? value : ''));
 
+    // Sync state.display changes and text to element-data via onChange
     useEffect(() => {
+        const newData = {
+            bgColor: state?.display?.bgColor || 'rgba(0,0,0,0)',
+            isCard: state?.display?.isCard || '',
+            showToolbar: state?.display?.showToolbar || false,
+            text
+        };
+        const currentData = value && isJson(value) ? JSON.parse(value) : {};
 
-        onChange(JSON.stringify({bgColor, text, isCard}))
-    }, [bgColor, text, isCard])
+        if (!isEqual(newData, {bgColor: currentData.bgColor, isCard: currentData.isCard, showToolbar: currentData.showToolbar, text: currentData.text})) {
+            onChange(JSON.stringify(newData));
+        }
+    }, [state?.display?.bgColor, state?.display?.isCard, state?.display?.showToolbar, text]);
 
+    // Initialize state.display from saved data on mount
+    useEffect(() => {
+        if (cachedData?.isCard !== undefined || cachedData?.bgColor !== undefined || cachedData?.showToolbar !== undefined) {
+            setState(draft => {
+                if (!draft.display) draft.display = {};
+                if (cachedData.isCard !== undefined && !draft.display.isCard && cachedData.isCard !== draft.display.isCard) {
+                    draft.display.isCard = cachedData.isCard;
+                }
+                if (cachedData.bgColor !== undefined && !draft.display.bgColor && cachedData.bgColor !== draft.display.bgColor) {
+                    draft.display.bgColor = cachedData.bgColor;
+                }
+                if (cachedData.showToolbar !== undefined && !draft.display.showToolbar && cachedData.showToolbar !== draft.display.showToolbar) {
+                    draft.display.showToolbar = cachedData.showToolbar;
+                }
+            });
+        }
+    }, []);
 
-
-    // add is card toggle
     return (
         <div className='w-full'>
             <div className='relative'>
-                <div className={'w-full px-2 py-1 flex flex-row text-sm items-center'}>
-                    <label className={'shrink-0 pr-2 w-1/4'}>Style</label>
-                    <div className={''}>
-                        <Select
-                            options={[
-                              {
-                                label: 'Default Text',
-                                value: ''
-                              },
-                              {
-                                label: 'Inline Guidance',
-                                value: 'Inline Guidance'
-                              },
-                              {
-                                label: 'Dark Text',
-                                value: 'Dark'
-                              },
-                              {
-                                label: 'Annotation Card',
-                                value: 'Annotation'
-                              },
-                               {
-                                label: 'Annotation Image Card',
-                                value: 'Annotation Image Card'
-                              },
-                              {
-                                label: 'Handwritten (Caveat)',
-                                value: 'Handwritten_2'
-                              },
-                              {
-                                label: 'Sitemap',
-                                value: 'sitemap'
-                              }
-                            ]}
-                            value={isCard}
-                            onChange={e => {
-                                e.target.value !== 'Annotation' && setBgColor('rgba(0,0,0,0)')
-                                setIsCard(e.target.value)}
-                            }
-                        />
-                    </div>
-                </div>
-                {
-                    isCard ?
-                        <ColorPickerComp className={'w-full px-2 py-1 flex flex-row text-sm items-center'}
-                                         color={bgColor} setColor={setBgColor} title={'Background'}
-                        /> : null
-                }
                 <div className='flex'>
                     {isCard === 'Handwritten' && <div className='w-[50px]'> {'<---'} </div>}
                     <div className='flex-1'>
@@ -179,11 +68,8 @@ const Edit = ({value, onChange}) => {
                             value={text}
                             onChange={setText}
                             bgColor={bgColor}
-                            theme={{
-                                lexical: isCard ?
-                                    merge(cloneDeep(theme.lexical), cloneDeep(cardTypes?.[isCard] || cardTypes?.['Annotation']), {Icons: theme?.Icons || {}}) :
-                                    merge(theme.lexical,  {Icons: theme?.Icons || {}})
-                            }}
+                            hideControls={!showToolbar}
+                            styleName={isCard || undefined}
                         />
                     </div>
                 </div>
@@ -223,19 +109,78 @@ const View = ({value}) => {
             <Lexical.ViewComp
                 value={dataOrValue}
                 bgColor={data?.bgColor}
-                theme={{
-                    lexical: isCard ?
-                        merge(cloneDeep(theme.lexical), cloneDeep(cardTypes?.[isCard] || cardTypes?.['Annotation']), {Icons: theme?.Icons || {}}) :
-                        merge(theme.lexical,  {Icons: theme?.Icons || {}})
-                }}/>
+                styleName={isCard || undefined}
+            />
             </div>
         </div>
     )
 }
 
 
+const bgColorOptions = [
+    '#FFFFFF',
+    '#F3F8F9',
+    '#FCF6EC',
+    'rgba(0,0,0,0)'
+];
+
+/**
+ * Generate style options dynamically from theme's lexical styles.
+ * Style 0 is always "Default", additional styles are shown if they have a name.
+ */
+const getStyleOptions = (theme) => {
+    const styles = theme?.lexical?.styles || [];
+    return [
+        { label: 'Default', value: '' },  // Style 0 is always default
+        ...styles
+            .filter((s, i) => i > 0 && s.name)  // Skip style 0, require name
+            .map(s => ({
+                label: s.label || s.name,  // Use label if provided, else name
+                value: s.name
+            }))
+    ];
+};
+
 export default {
-    "name": 'Rich Text',
-    "EditComp": Edit,
-    "ViewComp": View
+    name: 'Rich Text',
+    EditComp: Edit,
+    ViewComp: View,
+    defaultState: {
+        display: {
+            isCard: '',
+            bgColor: 'rgba(0,0,0,0)',
+            showToolbar: false
+        }
+    },
+    controls: (theme) => ({
+        default:  [
+                {
+                    type: 'toggle',
+                    label: 'Show Toolbar',
+                    key: 'showToolbar',
+                    icon: 'Toolbar'
+                },
+                {
+                    type: 'select',
+                    label: 'Style',
+                    key: 'isCard',
+                    options: getStyleOptions(theme),
+                    onChange: ({key, value, state}) => {
+                        // Reset bgColor when switching away from Annotation
+                        if (value !== 'Annotation' && state.display?.bgColor) {
+                            state.display.bgColor = 'rgba(0,0,0,0)';
+                        }
+                    }
+                },
+                {
+                    type: 'colorpicker',
+                    label: 'Background',
+                    key: 'bgColor',
+                    colors: bgColorOptions,
+                    showColorPicker: false,
+                    displayCdn: ({display}) => !!display?.isCard
+                }
+            ]
+
+    })
 }

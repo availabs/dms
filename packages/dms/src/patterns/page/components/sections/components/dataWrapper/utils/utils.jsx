@@ -455,7 +455,7 @@ export const getData = async ({
 
       Object.keys(restOfDataRequestOptions).forEach((filterOperation) => {
         const columnsForOperation = Object.keys(
-          restOfDataRequestOptions[filterOperation],
+          restOfDataRequestOptions[filterOperation] || {}
         );
 
         columnsForOperation.forEach((columnName) => {

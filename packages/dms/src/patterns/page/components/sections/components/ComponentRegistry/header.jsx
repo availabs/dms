@@ -1,5 +1,8 @@
-import React, { useMemo, useState, useEffect }from 'react';
-const isJson = (str)  => {
+import React, { useMemo, useContext, useEffect } from 'react';
+import { ComponentContext } from '../../../../context';
+import { isEqual } from 'lodash-es';
+
+const isJson = (str) => {
     try {
         JSON.parse(str);
     } catch (e) {
@@ -8,10 +11,21 @@ const isJson = (str)  => {
     return true;
 }
 
-export function Header ({position = 'above',bgImg = '', logo = '', title = 'Title', bgClass='', subTitle='subTitle', note='note', height=300}) {
-  
+// Default gradient as inline style (Tailwind classes get purged when dynamic)
+const DEFAULT_GRADIENT = 'linear-gradient(to bottom right, #0f172a, #1e293b, #1e3a8a)';
+
+export function Header ({position = 'above', bgImg = '', logo = '', title = 'Title', bgClass='', subTitle='subTitle', note='note', height=300}) {
+  // Determine background: image takes priority, then bgClass, then default gradient
+  const backgroundStyle = bgImg
+    ? { backgroundImage: `url("${bgImg}")` }
+    : bgClass
+      ? {}  // Use bgClass via className
+      : { background: DEFAULT_GRADIENT };
+
   return (
-    <div className={` bg-fit bg-center w-full flex ${bgClass}`} style={{ backgroundImage: `url("${bgImg}")`, height }}>
+    <div
+      className={`bg-cover bg-center w-full flex ${bgClass}`}
+      style={{ ...backgroundStyle, height }}>
       <div className='p-2'>
         {logo && <img src={logo} alt="NYS Logo" />}
       </div>
@@ -46,92 +60,83 @@ const getData = ({position='above',bgImg='/img/header.png', logo='/img/nygov-log
   })
 }
 
-const Edit = ({value, onChange, size}) => {
-    
-    let cachedData = useMemo(() => {
+const Edit = ({value, onChange}) => {
+    const { state, setState } = useContext(ComponentContext);
+
+    const cachedData = useMemo(() => {
         return value && isJson(value) ? JSON.parse(value) : {}
     }, [value]);
 
-    //console.log('Edit: value,', size)
-   
-    const baseUrl = '/';
+    // Get settings from ComponentContext.state.display (with defaults)
+    const title = state?.display?.title || 'MitigateNY';
+    const subTitle = state?.display?.subTitle || 'New York State Hazard Mitigation Plan';
+    const note = state?.display?.note || '2023 Update';
+    const bgClass = state?.display?.bgClass || '';
+    const bgImg = state?.display?.bgImg || '';
+    const logo = state?.display?.logo || '';
+    const height = state?.display?.height || 300;
 
-    const ealSourceId = 343;
-    const [loading, setLoading] = useState(true);
-    const [status, setStatus] = useState('');
-    const [compData, setCompData] = useState({
-        bgImg: cachedData.bgImg || '',//'/img/header.png', 
-        logo: cachedData.logo || '',//'/img/nygov-logo.png', 
-        title: cachedData.title || 'Title', 
-        subTitle: cachedData.subTitle || 'subTitle', 
-        note: cachedData.note || 'note',
-        bgClass: cachedData.bgClass || '',
-        height: 300
-    })
-
+    // Sync state.display changes to element-data via onChange
     useEffect(() => {
-      if(value !== JSON.stringify(compData)) {
-        onChange(JSON.stringify(compData))
-      }
-    },[compData])
+        const newData = {
+            title: state?.display?.title ?? 'MitigateNY',
+            subTitle: state?.display?.subTitle ?? 'New York State Hazard Mitigation Plan',
+            note: state?.display?.note ?? '2023 Update',
+            bgClass: state?.display?.bgClass ?? '',
+            bgImg: state?.display?.bgImg ?? '',
+            logo: state?.display?.logo ?? '',
+            height: state?.display?.height ?? 300
+        };
+        const currentData = value && isJson(value) ? JSON.parse(value) : {};
+
+        if (!isEqual(newData, currentData)) {
+            onChange(JSON.stringify(newData));
+        }
+    }, [state?.display?.title, state?.display?.subTitle, state?.display?.note, state?.display?.bgClass, state?.display?.bgImg, state?.display?.logo, state?.display?.height]);
+
+    // Initialize state.display from saved data on mount
+    useEffect(() => {
+        if (Object.keys(cachedData).length > 0) {
+            setState(draft => {
+                if (!draft.display) draft.display = {};
+                if (cachedData.title !== undefined && draft.display.title === undefined) {
+                    draft.display.title = cachedData.title;
+                }
+                if (cachedData.subTitle !== undefined && draft.display.subTitle === undefined) {
+                    draft.display.subTitle = cachedData.subTitle;
+                }
+                if (cachedData.note !== undefined && draft.display.note === undefined) {
+                    draft.display.note = cachedData.note;
+                }
+                if (cachedData.bgClass !== undefined && draft.display.bgClass === undefined) {
+                    draft.display.bgClass = cachedData.bgClass;
+                }
+                if (cachedData.bgImg !== undefined && draft.display.bgImg === undefined) {
+                    draft.display.bgImg = cachedData.bgImg;
+                }
+                if (cachedData.logo !== undefined && draft.display.logo === undefined) {
+                    draft.display.logo = cachedData.logo;
+                }
+                if (cachedData.height !== undefined && draft.display.height === undefined) {
+                    draft.display.height = cachedData.height;
+                }
+            });
+        }
+    }, []);
 
     return (
-      <div className='w-full'>
-        <div className='relative'>
-          <div className={'border rounded-md border-blue-500 bg-blue-50 p-2 m-1'}>
-            <div className={'flex flex-row flex-wrap justify-between'}>
-              <label className={'shrink-0 pr-2 py-1 my-1 w-1/4'}>Title:</label>
-              <div className={`flex flex row w-3/4 shrink my-1`}>
-                <input type='text' value={compData.title} onChange={(e) => setCompData({...compData, title: e.target.value})} />
-              </div>
-            </div>
-
-            <div className={'flex flex-row flex-wrap justify-between'}>
-              <label className={'shrink-0 pr-2 py-1 my-1 w-1/4'}>subTitle:</label>
-              <div className={`flex flex row w-3/4 shrink my-1`}>
-                <input type='text' value={compData.subTitle} onChange={(e) => setCompData({...compData, subTitle: e.target.value})} />
-              </div>
-            </div>
-
-            <div className={'flex flex-row flex-wrap justify-between'}>
-              <label className={'shrink-0 pr-2 py-1 my-1 w-1/4'}>Note:</label>
-              <div className={`flex flex row w-3/4 shrink my-1`}>
-                <input type='text' value={compData.note} onChange={(e) => setCompData({...compData, note: e.target.value})} />
-              </div>
-            </div>
-
-            <div className={'flex flex-row flex-wrap justify-between'}>
-              <label className={'shrink-0 pr-2 py-1 my-1 w-1/4'}>Bg Class:</label>
-              <div className={`flex flex row w-3/4 shrink my-1`}>
-                <input type='text' value={compData.bgClass} onChange={(e) => setCompData({...compData, bgClass: e.target.value})} />
-              </div>
-            </div>
-
-            <div className={'flex flex-row flex-wrap justify-between'}>
-              <label className={'shrink-0 pr-2 py-1 my-1 w-1/4'}>bgImg:</label>
-              <div className={`flex flex row w-3/4 shrink my-1`}>
-                <input type='text' value={compData.bgImg} onChange={(e) => setCompData({...compData, bgImg: e.target.value})} />
-              </div>
-            </div>
-
-            <div className={'flex flex-row flex-wrap justify-between'}>
-              <label className={'shrink-0 pr-2 py-1 my-1 w-1/4'}>logo:</label>
-              <div className={`flex flex row w-3/4 shrink my-1`}>
-                <input type='text' value={compData.logo} onChange={(e) => setCompData({...compData, logo: e.target.value})} />
-              </div>
-            </div>
-             <div className={'flex flex-row flex-wrap justify-between'}>
-              <label className={'shrink-0 pr-2 py-1 my-1 w-1/4'}>height:</label>
-              <div className={`flex flex row w-3/4 shrink my-1`}>
-                <input type='text' value={compData.logo} onChange={(e) => setCompData({...compData, height: e.target.value})} />
-              </div>
-            </div>
-          </div>
-          <Header {...compData}/>
+        <div className='w-full'>
+            <Header
+                title={title}
+                subTitle={subTitle}
+                note={note}
+                bgClass={bgClass}
+                bgImg={bgImg}
+                logo={logo}
+                height={height}
+            />
         </div>
-      </div>
-    ) 
-
+    );
 }
 
 const View = ({value}) => {
@@ -154,31 +159,53 @@ export default {
     "name": 'Header: Default',
     "type": 'Header',
     "variables": [
-        { 
+        {
           name:'bgImg',
           default: '/img/header.png',
         },
-        { 
+        {
           name:'logo',
           default: '/img/nygov-logo.png',
         },
-        { 
+        {
           name:'title',
           default: 'MitigateNY',
         },
-        { 
+        {
           name: 'subTitle',
           default: 'New York State Hazard Mitigation Plan',
         },
-        { 
+        {
           name: 'bgClass',
           default: '',
         },
-        { 
+        {
           name:'note',
           default: '2023 Update',
         }
     ],
+    defaultState: {
+        display: {
+            title: 'MitigateNY',
+            subTitle: 'New York State Hazard Mitigation Plan',
+            note: '2023 Update',
+            bgClass: '',
+            bgImg: '',
+            logo: '',
+            height: 300
+        }
+    },
+    controls: {
+        default: [
+            { type: 'input', label: 'Title', key: 'title', defaultValue: 'MitigateNY' },
+            { type: 'input', label: 'Subtitle', key: 'subTitle', defaultValue: 'New York State Hazard Mitigation Plan' },
+            { type: 'input', label: 'Note', key: 'note', defaultValue: '2023 Update' },
+            { type: 'input', label: 'Background Class', key: 'bgClass', defaultValue: '' },
+            { type: 'input', label: 'Background Image', key: 'bgImg', defaultValue: '' },
+            { type: 'input', label: 'Logo', key: 'logo', defaultValue: '' },
+            { type: 'input', inputType: 'number', label: 'Height', key: 'height', defaultValue: 300 }
+        ]
+    },
     getData,
     "EditComp": Edit,
     "ViewComp": View
