@@ -399,19 +399,14 @@ This requires: site → pattern list → for each page pattern: page list → fo
 
 **Design note**: Test suite runs against a fresh SQLite database via dms-server subprocess. Each run deletes the old database, starts the server with `DMS_DB_ENV=cli-test`, seeds via Falcor HTTP calls, runs all CLI commands via `execSync`, and verifies output. Tests the full HTTP path end-to-end.
 
-### Phase 4: Documentation
+### Phase 4: Documentation — DONE
 
-- `docs/README.md` — Installation, configuration, command reference
-- `docs/TYPES.md` — Content type reference (fields, relationships, type strings)
-- `docs/EXAMPLES.md` — Cookbook for common workflows:
-  - Dump all pages to files for review
-  - Bulk-update section element-types
-  - Export a page with sections → edit locally → push back
-  - Script a new page with sections
-  - Query and filter datasets
-- In-CLI help (`dms --help`, `dms page --help`, etc.)
+- [x] `docs/README.md` — Installation, configuration (.dmsrc, env vars, flags), global options, full command reference (site, pattern, page, section, dataset, raw), output formats, data input methods, testing, error handling
+- [x] `docs/TYPES.md` — Content type reference with type string format, all 7 content types (site, pattern, page, section, dataset source, dataset view, data rows), field tables, relationship diagram, type resolution chain, raw access, deep merge behavior
+- [x] `docs/EXAMPLES.md` — Cookbook for common workflows: inspect site structure, export/backup, create content, update content, publish workflow, delete content, datasets, raw access, piping/automation, multiple patterns, output formats
+- [x] In-CLI help (`dms --help`, `dms page --help`, etc.) — Commander.js descriptions on all commands and options (done in Phase 1-3)
 
-Documentation should be written for two audiences:
+Documentation written for two audiences:
 1. **Developers/operators** who want to automate DMS workflows
 2. **AI agents** that need structured reference for tool use (clear field names, type strings, expected inputs/outputs)
 

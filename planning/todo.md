@@ -2,7 +2,7 @@
 
 ## cli
 
-- [ ] DMS CLI tool (`packages/dms/cli/`) — terminal access to DMS data via shared API code and Falcor protocol (sites, patterns, pages, sections, datasets)
+- [x] DMS CLI tool (`packages/dms/cli/`) — terminal access to DMS data via shared API code and Falcor protocol (sites, patterns, pages, sections, datasets)
 
 ## api
 
@@ -24,6 +24,7 @@
 - [x] Move widgets to top-level theme (out of layout.options)
 - [x] Redesign widget system (key/value format, combine definitions + components, additive merge)
 - [x] Theme merging issues — styles arrays merge by index causing cross-contamination (e.g., Dark style bleeds into Inline Guidance in mnyv1 lexical)
+- [x] Standardize component theme default fill-in — move sparse style expansion to `getComponentTheme()` (see `ui/UI_PROGRESS.md`)
 
 ### ui/lexical-textsettings
 
