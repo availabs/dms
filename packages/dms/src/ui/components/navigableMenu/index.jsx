@@ -199,10 +199,27 @@ const flattenConfig = (config, parent) => {
 
     if(item.items){
       const obj = flattenConfig(item.items, itemId);
+      const keyRemap = {};
+      const mergedKeys = [];
+
       Object.entries(obj).forEach(([key, val]) => {
         const itemKey = flatConfig[key] ? crypto.randomUUID() : key;
-        flatConfig[itemKey] = val
+        if (itemKey !== key) {
+          keyRemap[key] = itemKey;
+          val = {...val, id: itemKey};
+        }
+        flatConfig[itemKey] = val;
+        mergedKeys.push(itemKey);
       })
+
+      // Fix parent references for items whose parent was remapped
+      if (Object.keys(keyRemap).length) {
+        mergedKeys.forEach(k => {
+          if (keyRemap[flatConfig[k].parent]) {
+            flatConfig[k].parent = keyRemap[flatConfig[k].parent];
+          }
+        });
+      }
     }
   })
 

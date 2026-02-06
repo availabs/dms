@@ -1,10 +1,10 @@
 import React from "react"
 import {Link} from "react-router";
-import { merge } from "lodash-es"
-import { cloneDeep } from "lodash-es"
+import { merge, cloneDeep } from "lodash-es"
 import {DatasetsContext} from "./context";
 import datasetsFormat, {source} from "./datasets.format";
 import { ThemeContext, getPatternTheme } from "../../ui/useTheme";
+import { initializePatternFormat } from "../../dms-manager/_utils";
 import defaultTheme from "../../ui/defaultTheme";
 import UI from "../../ui"
 import ErrorPage from "./pages/dataTypes/default/error";
@@ -38,11 +38,7 @@ const adminConfig = ({
 
   const theme = getPatternTheme(themes, pattern)
   baseUrl = baseUrl === '/' ? '' : baseUrl
-  const patternFormat = cloneDeep(datasetsFormat);
-  patternFormat.app = app
-  patternFormat.type = type
-  patternFormat.registerFormats = updateRegisteredFormats(patternFormat.registerFormats, app, type) // update app for all the children formats. this works, but dms stops providing attributes to patternList
-  patternFormat.attributes = updateAttributes(patternFormat.attributes, app, type) // update app for all the children formats. this works, but dms stops providing attributes to patternList
+  const patternFormat = initializePatternFormat(datasetsFormat, app, type);
     // console.log('formsAdminConfig', patternFormat)
   return {
     siteType,
@@ -134,12 +130,7 @@ const externalSourceConfig = ({
 
     baseUrl = baseUrl === '/' ? '' : baseUrl
 
-    const patternFormat = cloneDeep(source);
-    const newType = `${type}|source`;
-    patternFormat.app = app
-    patternFormat.type = newType
-    patternFormat.registerFormats = updateRegisteredFormats(patternFormat.registerFormats, app, newType) // update app for all the children formats. this works, but dms stops providing attributes to patternList
-    patternFormat.attributes = updateAttributes(patternFormat.attributes, app, newType) // update app for all the children formats. this works, but dms stops providing attributes to patternList
+    const patternFormat = initializePatternFormat(source, app, `${type}|source`);
 
     // console.log('formsAdminConfig', patternFormat)
     return {
@@ -228,13 +219,7 @@ const internalSourceConfig = ({
 
     baseUrl = baseUrl === '/' ? '' : baseUrl
 
-
-    const patternFormat = cloneDeep(source);
-    const newType = `${type}|source`;
-    patternFormat.app = app
-    patternFormat.type = newType
-    patternFormat.registerFormats = updateRegisteredFormats(patternFormat.registerFormats, app, newType) // update app for all the children formats. this works, but dms stops providing attributes to patternList
-    patternFormat.attributes = updateAttributes(patternFormat.attributes, app, newType) // update app for all the children formats. this works, but dms stops providing attributes to patternList
+    const patternFormat = initializePatternFormat(source, app, `${type}|source`);
 
     // console.log('formsAdminConfig', patternFormat)
     return {
@@ -307,28 +292,3 @@ export default [
     internalSourceConfig
 
 ];
-
-const updateRegisteredFormats = (registerFormats, app, type) => {
-    if(Array.isArray(registerFormats)){
-        registerFormats = registerFormats.map(rFormat => {
-            const newType = `${type}|${rFormat.type}`
-            rFormat.app = app;
-            rFormat.type = newType
-            rFormat.registerFormats = updateRegisteredFormats(rFormat.registerFormats, app, newType); // provide updated type here
-            rFormat.attributes = updateAttributes(rFormat.attributes, app, newType); // provide updated type here
-            return rFormat;
-        })
-    }
-    return registerFormats;
-}
-
-const updateAttributes = (attributes, app, type) => {
-    if(Array.isArray(attributes)){
-        attributes = attributes.map(attr => {
-            attr.format = attr.format ? `${app}+${type}|${attr.format.split('+')[1]}`: undefined;
-            return updateRegisteredFormats(attr, app, type);
-        })
-        //console.log('attr', attributes)
-    }
-    return attributes;
-}

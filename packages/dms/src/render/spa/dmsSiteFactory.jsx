@@ -6,7 +6,7 @@ import { cloneDeep } from "lodash-es"
 import { dmsDataLoader, dmsPageFactory } from '../../'
 
 import patternTypes from '../../patterns'
-import { updateAttributes, updateRegisteredFormats } from "../../patterns/admin/siteConfig";
+import { updateAttributes, updateRegisteredFormats } from "../../dms-manager/_utils";
 
 import { withAuth, authProvider } from '../../patterns/auth/context';
 import { parseIfJSON } from '../../patterns/page/pages/_utils';

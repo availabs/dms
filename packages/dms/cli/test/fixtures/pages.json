@@ -1,0 +1,23 @@
+[
+  {
+    "title": "Home",
+    "url_slug": "home",
+    "index": "0",
+    "published": "published",
+    "parent": null
+  },
+  {
+    "title": "About",
+    "url_slug": "about",
+    "index": "1",
+    "published": "draft",
+    "parent": null
+  },
+  {
+    "title": "Getting Started",
+    "url_slug": "getting-started",
+    "index": "0",
+    "published": "draft",
+    "parent": "__ABOUT_ID__"
+  }
+]
