@@ -1,8 +1,14 @@
 # DMS Todo
 
+## cli
+
+- [ ] DMS CLI tool (`packages/dms/cli/`) — terminal access to DMS data via shared API code and Falcor protocol (sites, patterns, pages, sections, datasets)
+
 ## api
 
 ## dms-manager
+
+- [x] Centralize format initialization (`updateAttributes`/`updateRegisteredFormats`) — remove duplicated definitions from patterns, add `initializePatternFormat` helper
 
 ## dms-server
 
@@ -17,6 +23,7 @@
 - [x] Fix theme merge for array fields (replace instead of deep merge)
 - [x] Move widgets to top-level theme (out of layout.options)
 - [x] Redesign widget system (key/value format, combine definitions + components, additive merge)
+- [x] Theme merging issues — styles arrays merge by index causing cross-contamination (e.g., Dark style bleeds into Inline Guidance in mnyv1 lexical)
 
 ### ui/lexical-textsettings
 
@@ -31,6 +38,7 @@
 
 - [x] Fix nav2Level baseUrl bug and move to page pattern
 - [x] Move lexical component inline controls (style, bgColor, showToolbar) to control config
+- [x] Theme-based component registration (allow themes to declare `pageComponents` that auto-register to page pattern)
 
 ### patterns/mapeditor
 

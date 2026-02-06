@@ -1,9 +1,9 @@
 // import { falcor } from '~/index'
 //import getActiveConfig  from '../dms-manager/getActiveConfig.js'
 import { get } from "lodash-es"
-import {createRequest, getIdPath} from './createRequest'
-import processNewData from "./proecessNewData";
-import updateDMSAttrs from "./updateDMSAttrs";
+import {createRequest, getIdPath} from './createRequest.js'
+import processNewData from "./proecessNewData.js";
+import updateDMSAttrs from "./updateDMSAttrs.js";
 // import * as DmsManagerUtils from '../dms-manager/_utils.js'
 // const { getActiveConfig } = DmsManagerUtils
 //console.log('hola')
@@ -46,7 +46,7 @@ export async function dmsDataLoader (falcor, config, path='/') {
 	const { app , type, view_id, env, /*defaultSearch,*/ attributes = {} } = format
 
 
-	const { getActiveConfig } = await import('../dms-manager/_utils')
+	const { getActiveConfig } = await import('../dms-manager/_utils-core.js')
 	const activeConfigs = getActiveConfig(config.children, path)
 	// console.log('------------dmsDataLoader-------------')
 	const dmsAttrsConfigs = (Object.values(attributes))

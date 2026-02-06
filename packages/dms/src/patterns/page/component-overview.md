@@ -17,22 +17,26 @@ Section (section.jsx)
 
 | File | Role |
 |------|------|
+| `components/sections/componentRegistry.js` | Central registry module. Exports `registerComponents()`, `getRegisteredComponents()`, `registerComponent()` |
 | `components/sections/section.jsx` | Section container. Creates `ComponentContext`, resolves component from registry, renders edit/view shells |
 | `components/sections/components/index.jsx` | Component wrapper. Routes to DataWrapper or directly to your component based on `useDataSource` |
 | `components/sections/components/dataWrapper/index.jsx` | DataWrapper. Handles data fetching, pagination, CRUD, filtering for data-driven components |
-| `components/sections/components/ComponentRegistry/index.jsx` | Registry. Maps component names to their definition objects |
+| `components/sections/components/ComponentRegistry/index.jsx` | Built-in defaults. Maps component names to their definition objects |
 | `context.js` | Defines `CMSContext`, `PageContext`, `ComponentContext` |
 
 ## How It Works
 
 ### 1. Section resolves the component
 
-When a section renders, it reads `value.element['element-type']` (e.g. `"Spreadsheet"`, `"Graph"`, `"lexical"`) and looks it up in `RegisteredComponents`:
+When a section renders, it reads `value.element['element-type']` (e.g. `"Spreadsheet"`, `"Graph"`, `"lexical"`) and looks it up in the component registry:
 
 ```js
-// section.jsx:28
+// section.jsx
+const RegisteredComponents = getRegisteredComponents();
 const component = RegisteredComponents[get(value, ["element", "element-type"], "lexical")];
 ```
+
+The registry is a module-level mutable object in `componentRegistry.js`. It starts with built-in components from `ComponentRegistry/index.jsx` and can be extended via `registerComponents()` (imperative) or `theme.pageComponents` (declarative).
 
 The section creates a `ComponentContext.Provider` with:
 - `state` / `setState` — component state managed via `useImmer`, initialized from saved data via `convertOldState()`
@@ -491,7 +495,7 @@ const Edit = ({ value, onChange }) => {
 
 const View = ({ value }) => {
     if (!value) return null;
-    const parsed = typeof value === 'object' ? value['element-data'] : JSON.parse(value);
+    const parsed = JSON.parse(value);
     return <div>{parsed?.content}</div>;
 };
 
@@ -503,9 +507,9 @@ export default {
 ```
 
 **Key points:**
-- `EditComp` receives `value` (string) and `onChange` (function).
-- `onChange` should be called with a JSON string.
-- `ViewComp` receives `value` which may be a string or object with `element-data`.
+- Both `EditComp` and `ViewComp` receive `value` as the `element-data` string (the Component wrapper in `components/index.jsx` extracts it from the full element object).
+- `onChange` should be called with a JSON string to update `element-data`.
+- For components with `defaultState`, note that `convertOldState()` returns `initialState` for simple components (those without `dataRequest` or `attributes` in their saved data). This means the mount `useEffect` must unconditionally restore from the saved `value` — do not guard with `=== undefined` checks against fields that have defaults.
 - No `useDataSource` property means the DataWrapper is bypassed entirely.
 
 ### Pattern B: Data-driven (with data source)
@@ -607,23 +611,37 @@ To receive these props for a custom component, your component `name` would need 
 
 ### Step 3: Register the component
 
-Add your component to the registry:
+There are three ways to register a component, from most to least recommended:
 
-```jsx
-// ComponentRegistry/index.jsx
-import MyDataComponent from './MyDataComponent';
+#### Option A: Theme-based registration (recommended)
 
-const ComponentRegistry = {
-    // ... existing components
-    "My Data Component": MyDataComponent,
-};
+Add a `pageComponents` key to your theme. Components declared here are automatically registered when the page pattern initializes via `siteConfig.jsx`:
+
+```js
+// themes/my-theme/theme.js
+import MyDataComponent from './components/MyDataComponent'
+
+const myTheme = {
+    pageComponents: {
+        "My Data Component": MyDataComponent,
+    },
+    // ... rest of theme
+}
 ```
 
-The key you use here is what appears in the component type selector and what gets stored as `element-type`. You can use a namespaced format like `"Category: Component Name"` for organization (e.g. `"Header: Default Header"`).
+This is the recommended approach because it keeps components co-located with the theme that uses them and requires no app-level wiring. The `pageComponents` value can also be an array, where each item must have a `key` or `name` property.
 
-### Step 4: External registration (optional)
+Registration happens in `patterns/page/siteConfig.jsx` after theme resolution:
 
-Components can also be registered at runtime from outside the DMS library:
+```js
+if (theme.pageComponents) {
+    registerComponents(theme.pageComponents)
+}
+```
+
+#### Option B: Imperative registration (app-level)
+
+Register components at runtime from outside the DMS library:
 
 ```js
 import { registerComponents } from '@availabs/dms';
@@ -633,7 +651,26 @@ registerComponents({
 });
 ```
 
-This calls `registerComponents()` in `section.jsx` which merges into the registry.
+This merges into the registry via `componentRegistry.js`. Useful when components are not tied to a specific theme.
+
+#### Option C: Built-in registry (library-level)
+
+Add the component directly to `ComponentRegistry/index.jsx`:
+
+```jsx
+import MyDataComponent from './MyDataComponent';
+
+const ComponentRegistry = {
+    // ... existing components
+    "My Data Component": MyDataComponent,
+};
+```
+
+This is for components that ship as part of the DMS library itself.
+
+#### Registry key naming
+
+The key you use is what appears in the component type selector and what gets stored as `element-type`. You can use a namespaced format like `"Category: Component Name"` for organization (e.g. `"Header: Default Header"`).
 
 ## State Shape Reference
 
