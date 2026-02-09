@@ -202,6 +202,7 @@ const Edit = ({cms_context, value, onChange, component}) => {
         const newDataReq = {
             // visibleColumns: state.columns.filter(column => column.show),
             ...filterOptions,
+            filterGroups: state.dataRequest?.filterGroups,
             ...state.display?.filterRelation && {filterRelation: state.display.filterRelation},
             groupBy: state.columns.filter(column => column.group).map(column => column.name),
             orderBy: state.columns.filter(column => column.sort).reduce((acc, column) => ({...acc, [column.name]: column.sort}), {}),
@@ -226,7 +227,7 @@ const Edit = ({cms_context, value, onChange, component}) => {
         return () => {
             isStale = true;
         }
-    }, [state?.columns, state?.display?.filterRelation, isValidState])
+    }, [state?.columns, state.dataRequest?.filterGroups, state?.display?.filterRelation, isValidState])
 
     // // ========================================== get data begin =======================================================
     // uweGetDataOnSettingsChange
@@ -375,7 +376,7 @@ const Edit = ({cms_context, value, onChange, component}) => {
     // =========================================== saving settings begin ===============================================
     useEffect(() => {
         if (!isEdit || !isValidState  || isEqual(value, JSON.stringify(state))) return;
-
+        console.log('save', state)
         onChange(JSON.stringify(state));
     }, [state])
     // =========================================== saving settings end =================================================
@@ -605,7 +606,7 @@ const View = ({cms_context, value, onChange, component}) => {
             lt: filterOptions.lt || {},
             lte: filterOptions.lte || {},
             like: filterOptions.like || {},
-            filterGroups: filterOptions.filterGroups || {},
+            filterGroups: state.dataRequest?.filterGroups || {},
             ...filterOptions,
             orderBy,
             meta: state.columns.filter(column => column.show &&
@@ -650,7 +651,7 @@ const View = ({cms_context, value, onChange, component}) => {
                 draft.display.filteredLength = undefined;
                 draft.display.totalLength = length;
             })
-            onChange(JSON.stringify({...state, lastDataRequest: state.dataRequest, data, totalLength: length}));
+            state.display.preventDuplicateFetch && onChange(JSON.stringify({...state, lastDataRequest: state.dataRequest, data, totalLength: length}));
             setCurrentPage(newCurrentPage);
             setLoading(false)
         }
