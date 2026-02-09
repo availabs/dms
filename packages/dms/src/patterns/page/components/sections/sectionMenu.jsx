@@ -236,8 +236,10 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
 
 
     const filter = [
-        {name: 'Filters', icon: 'Filter', cdn: () => /*isEdit &&*/ currentComponent?.useDataSource && canEditSection,
-            type: () => <ComplexFilters state={state} setState={setState} />}
+        {name: 'Filters', icon: 'Filter', cdn: () => isEdit && currentComponent?.useDataSource && canEditSection,
+            items: [
+                {name: 'Filter Groups Component', type: () => <ComplexFilters state={state} setState={setState} />}
+            ]}
     ]
 
     const data = [
@@ -588,7 +590,6 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
 
     return (
         [
-            ...filter,
             ...editCopyPaste,
             {type: 'separator', cdn: () => canEditPageLayout || canEditSection},
             ...section,
