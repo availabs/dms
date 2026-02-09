@@ -88,14 +88,24 @@ export const getComponentTheme = (theme, compType, activeStyle) => {
   const finalActiveStyle = activeStyle || activeStyle === 0
     ? activeStyle
     : componentTheme.options?.activeStyle || 0
-  return componentTheme?.styles
-    ? componentTheme.styles[finalActiveStyle]
-    : componentTheme || {}
+
+  if (!componentTheme?.styles) return componentTheme || {}
+
+  const style = componentTheme.styles[finalActiveStyle]
+  if (!style) return componentTheme.styles[0] || {}
+
+  // Non-default styles inherit missing keys from default (styles[0])
+  if (finalActiveStyle !== 0) {
+    const defaultStyle = componentTheme.styles[0] || {}
+    return { ...defaultStyle, ...style }
+  }
+  return style
 }
 ```
 
 - Takes the full theme object, component type key, and optional activeStyle override
-- Returns the resolved style object from `styles[activeStyle]`
+- For the default style (index 0): returns it directly
+- For non-default styles (index 1+): spreads `styles[0]` underneath, so sparse styles inherit all missing keys from the default
 - Falls back to the component theme directly if no `styles` array exists (backward compatibility)
 
 ### Step 3: Register Theme in defaultTheme.js
@@ -355,29 +365,122 @@ export default (theme) => {
 
 **Important:** The key in the returned object (`myComponent`) should match your component's theme key for consistency, though it's used as the admin UI section identifier.
 
+## Style Inheritance
+
+### How Styles Inherit from the Default
+
+The `styles` array in a component theme uses **index 0 as the complete default**. All other styles are **sparse overrides** that only need to define the keys they change. `getComponentTheme` automatically fills in missing keys from `styles[0]`.
+
+```javascript
+const myComponentTheme = {
+  options: { activeStyle: 0 },
+  styles: [
+    {
+      name: "default",
+      wrapper: "flex flex-col p-4 bg-white",
+      title: "text-lg font-semibold text-gray-900",
+      content: "mt-2 text-sm text-gray-600",
+      button: "px-3 py-2 bg-blue-500 text-white rounded-md",
+    },
+    {
+      name: "Dark",
+      // Only override what changes — wrapper, title, content inherit from default
+      wrapper: "flex flex-col p-4 bg-gray-900",
+      title: "text-lg font-semibold text-white",
+    },
+  ]
+}
+```
+
+When `getComponentTheme(theme, 'myComponent', 1)` is called for the "Dark" style, it returns:
+```javascript
+{
+  name: "Dark",
+  wrapper: "flex flex-col p-4 bg-gray-900",   // from Dark
+  title: "text-lg font-semibold text-white",   // from Dark
+  content: "mt-2 text-sm text-gray-600",       // inherited from default
+  button: "px-3 py-2 bg-blue-500 text-white rounded-md",  // inherited from default
+}
+```
+
+### Convention
+
+- **`styles[0]`** is always the **complete default style** — every CSS class key must be defined here
+- **`styles[1..n]`** are **sparse overrides** — only define keys that differ from default
+- **`getComponentTheme()`** is the **only way** to read a style for rendering — it handles default fill-in automatically
+- **Direct `theme[comp].styles[index]` access** is for **introspection only** (e.g., checking what a style explicitly overrode vs what was inherited)
+
+### Cross-Theme Merging
+
+When two themes both define styles for the same component (e.g., `defaultTheme.lexical` and `mnyTheme.lexical`), `mergeTheme()` handles them specially:
+
+1. **Default styles (index 0)** are deep-merged — the override theme's default inherits from the base theme's default
+2. **Non-default styles (index 1+)** come wholesale from the override theme — no index-based cross-contamination
+
+This prevents bugs where base theme's "Dark" style at index 1 would bleed into the override theme's unrelated style at index 1.
+
+```
+Base theme:      [default, Dark]
+Override theme:  [default, "Inline Guidance", Annotation, ...]
+Merged result:   [merged-default, "Inline Guidance", Annotation, ...]
+                  ↑ deep merge     ↑ from override only
+```
+
+### Raw Style Access
+
+If a component needs to know what a style **explicitly set** (as opposed to what it inherited from default), access the styles array directly:
+
+```javascript
+// Expanded style (with defaults filled in) — use for rendering
+const theme = getComponentTheme(fullTheme, 'myComponent', activeStyle);
+
+// Raw style (only what was explicitly set) — use for introspection
+const rawStyle = fullTheme.myComponent?.styles?.[activeStyle];
+const isExplicitlySet = rawStyle?.heading_h1 !== undefined;
+```
+
+This is useful for features like textSettings where you want to apply a global override only when a style didn't explicitly define its own value.
+
 ## Best Practices
 
-1. **Naming conventions:**
+1. **`styles[0]` must be complete:**
+   - Define every CSS class key in the default style (index 0)
+   - Non-default styles can be sparse — they inherit from the default automatically
+   - This is enforced by `getComponentTheme`, not by convention alone
+
+2. **Always use `getComponentTheme` for rendering:**
+   - Never read `theme[comp].styles[index]` directly for rendering purposes
+   - `getComponentTheme` handles default fill-in, activeStyle resolution, and backward compatibility
+   - Direct styles array access is only for introspection (checking what was explicitly set)
+
+3. **Naming conventions:**
    - Use camelCase for theme keys
    - Use descriptive names that match component structure
    - Suffix active states with `Active` (e.g., `navitem`, `navitemActive`)
    - Use `_level_N` suffix for depth-specific styles
 
-2. **Fallback handling:**
+4. **Fallback handling:**
    - Always use optional chaining: `theme?.wrapper`
    - Provide inline defaults where critical: `theme?.wrapper || ''`
 
-3. **Keep styles atomic:**
+5. **Keep styles atomic:**
    - Each key should style one element
    - Don't combine unrelated elements in one key
 
-4. **Icons:**
+6. **Icons:**
    - Store icon names as strings (e.g., `"Menu"`, `"ChevronDown"`)
    - Use the Icon component to render: `<Icon icon={theme?.icon} />`
 
-5. **Backward compatibility:**
+7. **Backward compatibility:**
    - The system supports both old flat format and new options/styles format
    - `getComponentTheme` handles both automatically
+
+8. **Co-locate theme files with their components:**
+   - Theme files should live in the same directory as the component they theme
+   - Example: `pages/DatasetsList/datasetsList.theme.js` next to `pages/DatasetsList/index.jsx`
+   - Example: `components/MetadataComp/metadataComp.theme.js` next to `components/MetadataComp/index.jsx`
+   - Shared/cross-cutting themes (e.g., a table theme used by many components) can live in a common directory
+   - The pattern's `defaultTheme.js` imports from these co-located paths and registers them under the pattern namespace
 
 ## Troubleshooting
 
@@ -387,9 +490,14 @@ export default (theme) => {
 - Confirm `activeStyle` index exists in the `styles` array
 
 **Custom theme not overriding:**
-- Custom themes are merged with defaultTheme via lodash `merge()`
+- Custom themes are merged with defaultTheme via `mergeTheme()` (not raw lodash merge)
+- For component styles arrays: only `styles[0]` is deep-merged across themes; `styles[1+]` come from the override theme wholesale
 - Ensure the key structure matches exactly
 - Check for typos in key names
+
+**Non-default style missing properties:**
+- Ensure `styles[0]` has all keys defined — non-default styles inherit from it
+- If you're reading `theme[comp].styles[index]` directly, use `getComponentTheme` instead
 
 **Styles flashing on load:**
 - Ensure fallback theme is imported in component

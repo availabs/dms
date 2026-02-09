@@ -5,8 +5,9 @@
  * These work with any app+type combination.
  */
 
+import { merge, cloneDeep } from 'lodash-es';
 import { createFalcorClient } from '../client.js';
-import { readFileOrJson } from '../utils/data.js';
+import { readFileOrJson, fetchById, parseData } from '../utils/data.js';
 import { output, outputError } from '../utils/output.js';
 
 /**
@@ -228,9 +229,21 @@ export async function update(id, config, options = {}) {
       return;
     }
 
-    await falcor.call(['dms', 'data', 'edit'], [parseInt(id, 10), data]);
+    const numId = parseInt(id, 10);
 
-    output({ id: parseInt(id, 10), updated: data, message: 'Item updated' }, options);
+    // When --set is used, do read-modify-write: fetch current data, deep-merge
+    // client-side, send complete result. This avoids the server's shallow merge
+    // which replaces entire nested objects when you set a deep path.
+    // When only --data is used, send as-is (for full replacements/restores).
+    if (options.set) {
+      const current = await fetchById(falcor, numId, ['id', 'data']);
+      const currentData = current ? parseData(current.data) : {};
+      data = merge(cloneDeep(currentData), data);
+    }
+
+    await falcor.call(['dms', 'data', 'edit'], [numId, data]);
+
+    output({ id: numId, updated: options.set ? Object.fromEntries(Object.entries(data).filter(([k]) => !k.startsWith('_'))) : data, message: 'Item updated' }, options);
   } catch (error) {
     outputError(error);
   }

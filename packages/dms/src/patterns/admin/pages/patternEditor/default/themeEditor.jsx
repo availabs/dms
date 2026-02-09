@@ -8,6 +8,7 @@ import {ThemeContext, mergeTheme} from "../../../../../ui/useTheme";
 import {AdminContext} from "../../../context";
 import {parseIfJSON} from '../../../../page/pages/_utils';
 import defaultTheme from '../../../../../ui/defaultTheme'
+import componentDocs from '../../../../../ui/docs'
 
 
 const DefaultComp = () => <div>Component not registered.</div>
@@ -212,9 +213,9 @@ export function PatternThemeEditor({
                         <Select value={currentComponentPropsIdx}
                                 onChange={e => setCurrentComponentPropsIdx(e.target.value)}
                                 options={
-                                    (Array.isArray(defaultTheme?.docs?.[currentComponent]) ?
-                                            defaultTheme?.docs?.[currentComponent] :
-                                            [defaultTheme?.docs?.[currentComponent]]
+                                    (Array.isArray(componentDocs?.[currentComponent]) ?
+                                            componentDocs?.[currentComponent] :
+                                            [componentDocs?.[currentComponent]]
                                     )
                                         .map((o, i) => ({label: o?.doc_name || `Example ${i + 1}`, value: i}))
                                 }
@@ -263,15 +264,15 @@ export function PatternThemeEditor({
                         <ThemeContext.Provider value={{theme: currentTheme, UI}}>
                             <ComponentRenderer
                                 Component={
-                                    defaultTheme?.docs?.[currentComponent]?.component ||
-                                    defaultTheme?.docs?.[currentComponent]?.[currentComponentPropsIdx]?.component ||
+                                    componentDocs?.[currentComponent]?.component ||
+                                    componentDocs?.[currentComponent]?.[currentComponentPropsIdx]?.component ||
                                     UI[currentComponent]
                                 }
                                 props={
-                                    defaultTheme?.docs?.[currentComponent][currentComponentPropsIdx]?.props ||
-                                    defaultTheme?.docs?.[currentComponent][currentComponentPropsIdx] ||
-                                    defaultTheme?.docs?.[currentComponent]?.props ||
-                                    defaultTheme?.docs?.[currentComponent]
+                                    componentDocs?.[currentComponent]?.[currentComponentPropsIdx]?.props ||
+                                    componentDocs?.[currentComponent]?.[currentComponentPropsIdx] ||
+                                    componentDocs?.[currentComponent]?.props ||
+                                    componentDocs?.[currentComponent]
                                 }
                             />
                         </ThemeContext.Provider>

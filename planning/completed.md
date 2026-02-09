@@ -1,5 +1,9 @@
 # DMS Completed Tasks
 
+## cli
+
+- [dms-cli.md](./tasks/completed/dms-cli.md) - DMS CLI tool: Falcor HTTP client, raw CRUD, site/pattern/page/section/dataset commands, tree formatter, stdin support, 21 integration tests, docs (2026-02-09)
+
 ## api
 
 ## dms-manager
@@ -17,6 +21,8 @@
 - [move-widgets-to-top-level-theme.md](./tasks/completed/move-widgets-to-top-level-theme.md) - Moved widgets from layout.options to top-level theme property (2026-01-29)
 - [redesign-widget-system.md](./tasks/completed/redesign-widget-system.md) - Redesigned widget system: key/value format, combined definitions + components in `ui/widgets/index.jsx`, additive merge, bridge for runtime registration (2026-01-29)
 - [lexical-phase0-analysis-cleanup.md](./tasks/completed/lexical-phase0-analysis-cleanup.md) - Lexical Phase 0: dead code cleanup (~28 files), upstream comparison, table plugin updates (hover feedback, Mac scrollbar handling) (2026-02-03)
+- [lexical-plaintext-normalize.md](./tasks/completed/lexical-plaintext-normalize.md) - Moved plaintext-to-Lexical-JSON conversion into shared `parseValue()` so both editor and HTML view paths handle plaintext input (2026-02-08)
+- [lexical-sync-html-render.md](./tasks/completed/lexical-sync-html-render.md) - Eliminated Lexical View jitter: added sync `getHtmlSync()` using `editorState.read()`, switched View from `useEffect+useState` to `useMemo`, restored collapsible handlers (2026-02-08)
 
 ## patterns
 
@@ -30,6 +36,9 @@
 ### patterns/datasets
 
 - [datasets-datasources-migration.md](./tasks/completed/datasets-datasources-migration.md) - Migrated datasets pattern to use unified `datasources` array from context instead of `pgEnv`/`damaBaseUrl` (2026-01-23)
+- [datasets-pattern-modernize.md](./tasks/completed/datasets-pattern-modernize.md) - Modernized datasets pattern: combined 3 configs, defaultTheme, context-only wrapper, per-page Layout, LayoutGroup + Breadcrumbs, UI components in DatasetsList, dead code cleanup, MetadataComp/ValidateComp theming (2026-02-07)
+- [datasets-list-style-cleanup.md](./tasks/completed/datasets-list-style-cleanup.md) - DatasetsList style cleanup: transparent container, theme-driven card/sidebar styling, sticky header+sidebar, full-height layout, design pass, module-level sources cache, React.memo + useMemo performance (2026-02-08)
+- [fix-internal-source-blank-page.md](./tasks/completed/fix-internal-source-blank-page.md) - Fixed blank page on internal_source pages where UDA `source_id` attribute was unset; `getSourceData` now falls back to URL param ID (2026-02-09)
 
 ### patterns/forms
 

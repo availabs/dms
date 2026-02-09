@@ -28,7 +28,10 @@ function mergeComponentStyles(baseStyles, overrideStyles) {
     cloneDeep(baseStyles[0] || {}),
     cloneDeep(overrideStyles[0] || {})
   );
-  return [mergedDefault, ...overrideStyles.slice(1).map(s => cloneDeep(s))];
+  return [
+    mergedDefault,
+    ...overrideStyles.slice(1).map(s => cloneDeep(s)),
+  ];
 }
 
 /**
@@ -108,7 +111,16 @@ export const getPatternTheme = (themes, pattern) => {
 export const getComponentTheme = (theme, compType, activeStyle) => {
   const componentTheme = get(theme, compType, {})
   const finalActiveStyle = activeStyle || activeStyle === 0 ?  activeStyle : componentTheme.options?.activeStyle || 0
-  return componentTheme?.styles ?
-    componentTheme.styles[finalActiveStyle] :
-    componentTheme || {}
+
+  if (!componentTheme?.styles) return componentTheme || {}
+
+  const style = componentTheme.styles[finalActiveStyle]
+  if (!style) return componentTheme.styles[0] || {}
+
+  // Non-default styles inherit missing keys from default (styles[0])
+  if (finalActiveStyle !== 0) {
+    const defaultStyle = componentTheme.styles[0] || {}
+    return { ...defaultStyle, ...style }
+  }
+  return style
 }

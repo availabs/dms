@@ -4,6 +4,7 @@
  * List, show, dump, create, update, publish, unpublish, and delete pages.
  */
 
+import { merge, cloneDeep } from 'lodash-es';
 import {
   makeClient, fetchAll, fetchById, fetchByIds,
   resolveIdOrSlug, getPageType, parseData, parseSetPairs, readFileOrJson,
@@ -225,6 +226,16 @@ export async function update(idOrSlug, config, options = {}) {
     if (Object.keys(data).length === 0) {
       outputError('No data to update. Use --data, --set, --title, or --slug');
       return;
+    }
+
+    // When --set/--title/--slug is used, do read-modify-write: fetch current data,
+    // deep-merge client-side, send complete result. This avoids the server's shallow
+    // merge which replaces entire nested objects when you set a deep path.
+    // When only --data is used, send as-is (for full replacements/restores).
+    if (options.set || options.title || options.slug) {
+      const current = await fetchById(falcor, id, ['id', 'data']);
+      const currentData = current ? parseData(current.data) : {};
+      data = merge(cloneDeep(currentData), data);
     }
 
     await falcor.call(['dms', 'data', 'edit'], [id, data]);

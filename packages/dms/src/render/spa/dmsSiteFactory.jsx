@@ -292,34 +292,36 @@ export function DmsSite (config) {
     }, []);
 
 
-    const PageNotFoundRoute = {
+    const PageNotFoundRoute = React.useMemo(() => ({
         path: "/*",
-        Component: () => loading ?
-            <div className={'w-screen h-screen mx-auto flex items-center justify-center'}>loading...</div>
-        : <div className={'w-screen h-screen mx-auto flex items-center justify-center'}>404</div>
-    }
+        Component: () =>
+            <div className={'w-screen h-screen mx-auto flex items-center justify-center'}>404</div>
+    }), []);
 
-    const routesWithErrorBoundary = routes.map(c => {
+    const routesWithErrorBoundary = React.useMemo(() => routes.map(c => {
         if (!c.errorElement) {
             c.errorElement = <RootErrorBoundary />
         }
         return c
-    });
+    }), [routes]);
 
-    const AuthedRouteProvider = authProvider(
-      RouterProvider,
-      { AUTH_HOST, PROJECT_NAME:CurrentProjectName }
+    const AuthedRouteProvider = React.useMemo(
+      () => authProvider(RouterProvider, { AUTH_HOST, PROJECT_NAME:CurrentProjectName }),
+      [AUTH_HOST, CurrentProjectName]
+    );
+
+    const router = React.useMemo(
+      () => createBrowserRouter([
+          ...dynamicRoutes,
+          ...routesWithErrorBoundary,
+          PageNotFoundRoute
+      ]),
+      [dynamicRoutes, routesWithErrorBoundary, PageNotFoundRoute]
     );
 
     return (
       <AuthedRouteProvider
-        router={createBrowserRouter(
-          [
-            ...dynamicRoutes,
-            ...routesWithErrorBoundary,
-            PageNotFoundRoute
-          ]
-        )}
+        router={router}
       />
     )
 }

@@ -85,6 +85,25 @@ function setupDomForSSR() {
   };
 }
 
+export function getHtmlSync(serializedEditorState: string, flatTheme?: object, icons?: object): string {
+  if (!serializedEditorState) return '';
+
+  try {
+    const editor = createHeadlessEditor({ namespace: 'html-renderer', flatTheme, icons });
+    const editorState = editor.parseEditorState(serializedEditorState);
+    editor.setEditorState(editorState);
+
+    let html = '';
+    editorState.read(() => {
+      html = $generateHtmlFromNodes(editor, null);
+    });
+    return html;
+  } catch (e) {
+    console.error('Error generating HTML:', e);
+    return '';
+  }
+}
+
 export async function getHtml(serializedEditorState: string, flatTheme?: object, icons?: object): Promise<string> {
   if (!serializedEditorState) {
     return '';

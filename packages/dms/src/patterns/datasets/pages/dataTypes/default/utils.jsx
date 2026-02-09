@@ -39,7 +39,7 @@ export async function getSourceData ({pgEnv, falcor, source_id, setSource}) {
         const firstView = views?.[0];
         const lastView = views?.[views?.length - 1];
         console.log('source', res)
-        setSource({...res, views, created_at: firstView?.created_at, updated_at: lastView?.updated_at });
+        setSource({...res, source_id: res.source_id ?? +source_id, views, created_at: firstView?.created_at, updated_at: lastView?.updated_at });
     }catch (e) {
         throw Error(`Error fetching source: ${e}`);
     }
