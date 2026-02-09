@@ -199,6 +199,23 @@ export const getLength = async ({ options, state, apiLoad }) => {
 const getFullColumn = (columnName, columns) =>
   columns.find((col) => col.name === columnName);
 
+// Recursively maps filterGroups col names to refNames for the API
+const mapFilterGroupCols = (node, getColumn) => {
+  if (!node) return node;
+  if (node.groups && Array.isArray(node.groups)) {
+    return {
+      ...node,
+      groups: node.groups.map(child => mapFilterGroupCols(child, getColumn)),
+    };
+  }
+  // condition node: map col to refName
+  const col = getColumn(node.col);
+  return {
+    ...node,
+    col: col?.refName || node.col,
+  };
+};
+
 export const getColumnLabel = (column) =>
   column.customName || column.display_name || column.name;
 
@@ -415,7 +432,7 @@ export const getData = async ({
     keepOriginalValues,
     filterRelation,
     serverFn,
-    filterGroups,
+    filterGroups: mapFilterGroupCols(filterGroups, getFullColumnFromColumnsWithSettings),
     groupBy: groupBy.map(
       (columnName) => getFullColumnFromColumnsWithSettings(columnName)?.refName,
     ),

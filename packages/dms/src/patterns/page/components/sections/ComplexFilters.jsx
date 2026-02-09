@@ -1,4 +1,4 @@
-import react, {useContext, useState} from "react";
+import React, {useContext} from "react";
 import {useImmer} from "use-immer";
 import {ThemeContext} from "../../../../ui/useTheme";
 import {getColumnLabel} from "./controls_utils";
@@ -40,8 +40,7 @@ const emptyCondition = (columns) => ({
 // only in edit mode
 export const ComplexFilters = ({ state, setState }) => {
     const { UI } = useContext(ThemeContext);
-    const { Pill, Button, ColumnTypes: {select} } = UI;
-    const Select = select.EditComp;
+    const { Pill, Icon, ColumnTypes: {select} } = UI;
 
     const columns = state.sourceInfo.columns;
 
@@ -75,27 +74,41 @@ export const ComplexFilters = ({ state, setState }) => {
         });
     };
 
+    const removeAtPath = (path) => {
+        if (!path.length) return; // can't remove root
+        updateFilterGroups(draft => {
+            let cursor = draft;
+            for (let i = 0; i < path.length - 1; i++) {
+                cursor = cursor.groups[path[i]];
+            }
+            cursor.groups.splice(path[path.length - 1], 1);
+        });
+    };
+
     const renderNode = (node, path = []) => {
         if (isGroup(node)) {
             return (
                 <div key={path.join('.')} className="border rounded-lg p-2 ml-2">
                     {/* AND / OR */}
-                    <div className="flex items-center gap-2 mb-1">
-                        <span>(</span>
+                    <div className={'flex gap-1'}>
+                        {path.length > 0 && <Pill color={'orange'} text={<Icon icon={'TrashCan'} className={'size-4'} />} onClick={() => removeAtPath(path)} />}
+                        <div className="flex items-center gap-2 mb-1">
+                            <span>(</span>
 
-                        <select
-                            value={node.op}
-                            onChange={e =>
-                                updateNodeAtPath(path, n => {
-                                    n.op = e.target.value;
-                                })
-                            }
-                        >
-                            <option value="AND">AND</option>
-                            <option value="OR">OR</option>
-                        </select>
+                            <select
+                                value={node.op}
+                                onChange={e =>
+                                    updateNodeAtPath(path, n => {
+                                        n.op = e.target.value;
+                                    })
+                                }
+                            >
+                                <option value="AND">AND</option>
+                                <option value="OR">OR</option>
+                            </select>
 
-                        <span>)</span>
+                            <span>)</span>
+                        </div>
                     </div>
 
                     <div className="ml-4 space-y-2">
@@ -126,6 +139,7 @@ export const ComplexFilters = ({ state, setState }) => {
         return (
             <div key={path.join('.')} className="w-full flex gap-2 items-center ml-4">
                 {/* column selector */}
+                <Pill color={'orange'} text={<Icon icon={'TrashCan'} className={'size-4'} />} onClick={() => removeAtPath(path)} />
                 <select
                     className={'max-w-1/4'}
                     value={node.col}
@@ -157,9 +171,13 @@ export const ComplexFilters = ({ state, setState }) => {
                         });
                     }}
                 >
-                    {['filter','exclude','gt','gte','lt','lte','like'].map(op => (
-                        <option key={op} value={op}>{op}</option>
-                    ))}
+                    <option key="filter" value="filter">include</option>
+                    <option key="exclude" value="exclude">exclude</option>
+                    <option key="like" value="like">text</option>
+                    <option key="gt" value="gt"> {">"} </option>
+                    <option key="gte" value="gte"> {">="} </option>
+                    <option key="lt" value="lt"> {"<"} </option>
+                    <option key="lte" value="lte"> {"<="} </option>
                 </select>
 
                 <ConditionValueInput
@@ -190,7 +208,7 @@ export const ComplexFilters = ({ state, setState }) => {
             </div>
 
             {renderNode(filterGroups)}
-            <Button onClick={save}>save</Button>
+            <Pill color={'blue'} text={'save'} onClick={save} />
         </div>
     );
 };
