@@ -106,42 +106,50 @@ dms section create home --element-type Card --data '{"title": "Feature Card", "e
 
 ## Update Content
 
-### Update a page title
+### Partial updates with `--set` (safe for nested data)
+
+`--set` does a **read-modify-write**: fetches current data, deep-merges your changes, sends the complete result. Sibling keys are never lost.
 
 ```bash
+# Update a single field
 dms page update home --title "Welcome Home"
-```
 
-### Update page data with a JSON file
+# Set a deeply nested value without clobbering siblings
+dms raw update 42 --set theme.layout.options.topNav.size=full
 
-```bash
-# Edit the exported file
-vim home-backup.json
+# Multiple --set flags in one command
+dms raw update 42 --set theme.selectedTheme=mnyv1 --set theme.layout.options.widgets='[{"label":"Logo","value":"Logo"}]'
 
-# Push it back
-dms page update home --data ./home-backup.json
-```
-
-### Update a section from stdin (pipe from another tool)
-
-```bash
-# Transform section data with jq, then push back
-dms section dump 20 | jq '.data' | dms section update 20 --data -
-```
-
-### Bulk-update a field across pages
-
-```bash
+# Bulk-update a field across pages
 for id in $(dms page list --compact | jq -r '.items[].id'); do
   dms page update "$id" --set config.showSidebar=true
 done
 ```
 
-### Set nested fields with dot notation
+### Full replacement with `--data` (restore / overwrite)
+
+`--data` sends data **as-is** to the server. Use for restores or when you have the complete data object.
 
 ```bash
-dms page update home --set theme.layout.sidebar=true
-dms raw update 42 --set data.config.columns=3
+# Restore from backup file
+dms page update home --data ./home-backup.json
+
+# Restore from stdin
+cat backup.json | dms raw update 42 --data -
+
+# Edit-and-push workflow
+dms section dump 20 --output /tmp/section.json
+vim /tmp/section.json
+dms section update 20 --data /tmp/section.json
+```
+
+**Warning:** The server's shallow merge replaces entire nested objects at the first nesting level. If you send partial nested data via `--data`, sibling keys at the same nesting level will be lost. Use `--set` for partial updates instead.
+
+### Transform and push via pipe
+
+```bash
+# Transform section data with jq, then push back (full replacement)
+dms section dump 20 | jq '.data' | dms section update 20 --data -
 ```
 
 ## Publish Workflow

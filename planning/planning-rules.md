@@ -79,13 +79,14 @@ Changes to pattern implementations, organized by pattern:
 
 1. New tasks are added to `todo.md` under the appropriate topic
 2. When starting work on a task, create a detailed task file in `tasks/current/`
-3. **IMPORTANT — Update the task document as you work (not just at the end):**
+3. **CRITICAL — Update the task document as you work (not just at the end):**
    - Convert plain list items (`-`) to checklists (`- [x]` / `- [ ]`) as items are completed
    - Add brief evidence or notes next to completed items (file paths, key decisions)
    - Record design decisions that deviated from the original spec with a **Design note**
    - Mark phase/section headers with status (e.g., `### Phase 1: Foundation — DONE`)
    - Update testing checklists to distinguish verified items from those still needing live testing
    - The task document is the **source of truth** for implementation status, not just the original plan
+   - **After completing each phase or finishing a work session, update the task file BEFORE moving on.** This is non-negotiable — skipping this step causes duplicate work in future sessions.
 4. When work is completed:
    - Move the task file to `tasks/completed/`
    - Move the task entry from `todo.md` to `completed.md` with the completion date

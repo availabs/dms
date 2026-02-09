@@ -94,9 +94,9 @@ rawCmd
 
 rawCmd
   .command('update <id>')
-  .description('Update an item (deep merge)')
-  .option('--data <json>', 'JSON data to merge')
-  .option('--set <key=value>', 'Set a specific field (repeatable)', collectSet)
+  .description('Update an item')
+  .option('--data <json>', 'JSON data (sent as-is for full replacement)')
+  .option('--set <key=value>', 'Set a field with read-modify-write (repeatable)', collectSet)
   .action(async (id, options, cmd) => {
     const config = getConfig(cmd);
     validateConfig(config);
@@ -243,10 +243,10 @@ pageCmd
   .command('update <id-or-slug>')
   .description('Update a page')
   .option('--pattern <name-or-id>', 'Use a specific pattern for doc_type resolution')
-  .option('--title <title>', 'New title')
-  .option('--slug <slug>', 'New URL slug')
-  .option('--data <json>', 'Full JSON data to merge')
-  .option('--set <key=value>', 'Set a specific field (repeatable)', collectSet)
+  .option('--title <title>', 'New title (triggers read-modify-write)')
+  .option('--slug <slug>', 'New URL slug (triggers read-modify-write)')
+  .option('--data <json>', 'JSON data (sent as-is for full replacement)')
+  .option('--set <key=value>', 'Set a field with read-modify-write (repeatable)', collectSet)
   .action(async (idOrSlug, options, cmd) => {
     const config = getConfig(cmd);
     validateConfig(config, ['host', 'app', 'type']);
@@ -337,8 +337,8 @@ sectionCmd
 sectionCmd
   .command('update <section-id>')
   .description('Update a section')
-  .option('--data <json>', 'Full JSON data to merge')
-  .option('--set <key=value>', 'Set a specific field (repeatable)', collectSet)
+  .option('--data <json>', 'JSON data (sent as-is for full replacement)')
+  .option('--set <key=value>', 'Set a field with read-modify-write (repeatable)', collectSet)
   .action(async (sectionId, options, cmd) => {
     const config = getConfig(cmd);
     validateConfig(config);

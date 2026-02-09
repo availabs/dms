@@ -226,19 +226,38 @@ dms raw get 42 --attrs id,data,created_at
 
 ## The `data` Column
 
-All content fields live inside a JSON `data` column. The server's edit route performs a **deep merge** with existing data, so partial updates work:
+All content fields live inside a JSON `data` column. The server's edit route performs a **shallow merge** — it replaces entire nested objects at the first nesting level rather than deep-merging them.
+
+### `--set` Does Client-Side Deep Merge
+
+To safely update nested fields, use `--set`. The CLI fetches the current data, deep-merges your changes with lodash `merge`, and sends the complete result:
 
 ```bash
-# This only updates the title — all other fields are preserved
+# Safe: fetches current data, merges title in, sends everything back
 dms page update home --set title="Updated Title"
 
-# Equivalent to:
-dms raw update <id> --data '{"title": "Updated Title"}'
+# Safe: deep-merges into nested path without clobbering siblings
+dms raw update <id> --set theme.layout.options.topNav.size=full
 ```
 
-The `--set` flag with dot notation creates nested objects:
+Dot notation creates nested objects:
 
 ```bash
 dms raw update <id> --set config.sidebar.enabled=true
-# Merges: { "config": { "sidebar": { "enabled": true } } }
+# Builds: { "config": { "sidebar": { "enabled": true } } }
+# Then merges into existing data before sending
 ```
+
+### `--data` Sends As-Is
+
+The `--data` flag sends data directly to the server without fetching first. Use this for full replacements or restoring from backup:
+
+```bash
+# Replaces — server shallow-merges this into the item
+dms raw update <id> --data '{"title": "New Title"}'
+
+# Restore from backup file
+dms raw update <id> --data ./backup.json
+```
+
+**Caution:** If the item has `{"theme": {"layout": {...}, "navOptions": {...}}}` and you send `--data '{"theme": {"layout": {"new": 1}}}'`, the server replaces the entire `theme` key — `navOptions` will be lost.

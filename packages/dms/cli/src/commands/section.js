@@ -4,6 +4,7 @@
  * List, show, dump, create, update, and delete sections within pages.
  */
 
+import { merge, cloneDeep } from 'lodash-es';
 import {
   makeClient, fetchById, fetchByIds,
   resolveIdOrSlug, getPageType, parseData, parseSetPairs, readFileOrJson,
@@ -51,7 +52,7 @@ export async function list(pageIdOrSlug, config, options = {}) {
         id: s.id,
         title: sd.title || '(untitled)',
         level: sd.level || null,
-        'element-type': sd['element-type'] || sd.element_type || '?',
+        'element-type': sd['element-type'] || sd.element_type || sd.element?.['element-type'] || '?',
       };
     });
 
@@ -85,7 +86,7 @@ export async function show(sectionId, config, options = {}) {
       id: section.id,
       title: d.title || '(untitled)',
       level: d.level || null,
-      'element-type': d['element-type'] || d.element_type || '?',
+      'element-type': d['element-type'] || d.element_type || d.element?.['element-type'] || '?',
       tags: d.tags || [],
     };
 
@@ -212,9 +213,21 @@ export async function update(sectionId, config, options = {}) {
       return;
     }
 
-    await falcor.call(['dms', 'data', 'edit'], [parseInt(sectionId, 10), data]);
+    // When --set is used, do read-modify-write: fetch current data, deep-merge
+    // client-side, send complete result. This avoids the server's shallow merge
+    // which replaces entire nested objects when you set a deep path.
+    // When only --data is used, send as-is (for full replacements/restores).
+    const numId = parseInt(sectionId, 10);
 
-    output({ id: parseInt(sectionId, 10), updated: data, message: 'Section updated' }, options);
+    if (options.set) {
+      const current = await fetchById(falcor, numId, ['id', 'data']);
+      const currentData = current ? parseData(current.data) : {};
+      data = merge(cloneDeep(currentData), data);
+    }
+
+    await falcor.call(['dms', 'data', 'edit'], [numId, data]);
+
+    output({ id: numId, updated: data, message: 'Section updated' }, options);
   } catch (error) {
     outputError(error);
   }

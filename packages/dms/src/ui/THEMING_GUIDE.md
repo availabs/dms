@@ -475,6 +475,13 @@ This is useful for features like textSettings where you want to apply a global o
    - The system supports both old flat format and new options/styles format
    - `getComponentTheme` handles both automatically
 
+8. **Co-locate theme files with their components:**
+   - Theme files should live in the same directory as the component they theme
+   - Example: `pages/DatasetsList/datasetsList.theme.js` next to `pages/DatasetsList/index.jsx`
+   - Example: `components/MetadataComp/metadataComp.theme.js` next to `components/MetadataComp/index.jsx`
+   - Shared/cross-cutting themes (e.g., a table theme used by many components) can live in a common directory
+   - The pattern's `defaultTheme.js` imports from these co-located paths and registers them under the pattern namespace
+
 ## Troubleshooting
 
 **Theme not applying:**

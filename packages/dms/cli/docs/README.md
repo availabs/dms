@@ -203,11 +203,12 @@ dms raw list <app+type> [--limit 20] [--offset 0]
 # Create a raw item
 dms raw create <app> <type> [--data '{"key": "value"}']
 
-# Update a raw item (deep merge)
-dms raw update <id> --data '{"key": "new-value"}'
-dms raw update <id> --set key=value
-dms raw update <id> --set nested.key=value
-dms raw update <id> --data -    # read from stdin
+# Update a raw item
+dms raw update <id> --set key=value          # partial update (read-modify-write)
+dms raw update <id> --set nested.key=value   # dot-notation for deep keys
+dms raw update <id> --data '{"key": "val"}'  # full replacement (sent as-is)
+dms raw update <id> --data ./backup.json     # restore from file
+dms raw update <id> --data -                 # read from stdin
 
 # Delete a raw item
 dms raw delete <app> <type> <id>
@@ -252,36 +253,48 @@ dms page dump home --sections --output page-backup.json
 
 ## Data Input
 
-Commands that accept data (`create`, `update`) support three input methods:
+Commands that accept data (`create`, `update`) support multiple input methods.
 
-### Inline JSON
+### `--set` (Partial Updates — Read-Modify-Write)
 
-```bash
-dms page update home --data '{"title": "Updated Home"}'
-```
-
-### File Path
-
-```bash
-dms section update 42 --data ./section-data.json
-```
-
-### Stdin
-
-```bash
-echo '{"title": "From stdin"}' | dms page update home --data -
-cat section.json | dms section update 42 --data -
-```
-
-### Key=Value Pairs
+The `--set` flag is for **partial updates**. The CLI fetches the current data from the server, deep-merges your changes client-side, and sends the complete result. This prevents the server's shallow merge from clobbering sibling keys in nested objects.
 
 ```bash
 dms page update home --set title="New Title"
 dms page update home --set config.sidebar=true
-dms raw update 42 --set data.status=active
+dms raw update 42 --set theme.layout.options.topNav.size=full
 ```
 
-Dot notation creates nested objects. Values are parsed as JSON when possible, otherwise treated as strings.
+Dot notation creates nested objects. Values are parsed as JSON when possible, otherwise treated as strings. Repeatable — use multiple `--set` flags in one command.
+
+For `page update`, the `--title` and `--slug` convenience flags also trigger read-modify-write.
+
+### `--data` (Full Replacement — Sent As-Is)
+
+The `--data` flag sends data **directly to the server** without fetching current data first. Use this for full replacements or restores from backup.
+
+```bash
+# Inline JSON
+dms page update home --data '{"title": "Updated Home"}'
+
+# File path
+dms section update 42 --data ./section-data.json
+
+# Stdin
+echo '{"title": "From stdin"}' | dms page update home --data -
+cat backup.json | dms raw update 42 --data -
+```
+
+**Warning:** With `--data` alone, the server's shallow merge replaces entire nested objects at the first nesting level. If the item has `{"theme": {"layout": {...}, "navOptions": {...}}}` and you send `{"theme": {"layout": {"newKey": 1}}}`, the server will replace the entire `theme` object — `navOptions` will be lost.
+
+### Combining `--data` and `--set`
+
+When both are used, `--set` takes precedence: the CLI does a read-modify-write with the combined data.
+
+```bash
+# Reads current data, merges file contents + set overrides, sends complete result
+dms page update home --data ./partial.json --set title="Override Title"
+```
 
 ## Testing
 

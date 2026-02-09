@@ -1,4 +1,6 @@
-// Note: docs is loaded lazily via getter to avoid circular import with navigableMenu -> columnTypes
+// Note: component docs (ui/docs.js) are NOT imported here to avoid circular import:
+// defaultTheme -> docs -> view.doc -> view -> useTheme -> defaultTheme
+// Consumers that need docs should import ui/docs.js directly (see themeEditor.jsx).
 import settings from './themeSettings'
 import sideNavTheme from "./components/SideNav.theme";
 import topNavTheme from "./components/TopNav.theme";
@@ -29,6 +31,7 @@ import { lexicalTheme } from './components/lexical/theme'
 // Pattern Themes, maybe move registration of these to DMS Site ??
 // =========================================
 import pagesTheme from "../patterns/page/defaultTheme"
+import datasetsTheme from "../patterns/datasets/defaultTheme"
 
 
 // =====================================================================================================
@@ -45,6 +48,7 @@ import {
 
 const components = {
     pages: pagesTheme,
+    datasets: datasetsTheme,
     "compatibility": "border-[#191919] pt-[41px]",
 
     "heading": {
@@ -81,7 +85,7 @@ const components = {
     navigableMenu: navigableMenuTheme,
 }
 const theme = {
-    widgets: defaultWidgets,
+
     admin: {
         navOptions: {
             "logo": "",
@@ -107,8 +111,10 @@ const theme = {
     },
     //navOptions,
     ...components,
+
     "Icons":icons,
-    settings
+    settings,
+    widgets: defaultWidgets
 }
 
 export default theme
