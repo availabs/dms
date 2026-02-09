@@ -8,6 +8,7 @@ import {
 import { getComponentTheme } from "../../../../ui/useTheme";
 import AddFormulaColumn from "./AddFormulaColumn";
 import AddCalculatedColumn from "./AddCalculatedColumn";
+import {ComplexFilters} from "./ComplexFilters";
 
 
 // todo move filters here
@@ -235,7 +236,8 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
 
 
     const filter = [
-
+        {name: 'Filters', icon: 'Filter', cdn: () => /*isEdit &&*/ currentComponent?.useDataSource && canEditSection,
+            type: () => <ComplexFilters state={state} setState={setState} />}
     ]
 
     const data = [
@@ -586,6 +588,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
 
     return (
         [
+            ...filter,
             ...editCopyPaste,
             {type: 'separator', cdn: () => canEditPageLayout || canEditSection},
             ...section,
