@@ -5,6 +5,8 @@ import { metadataCompTheme } from './components/MetadataComp/metadataComp.theme'
 import { validateCompTheme } from './components/validateComp.theme'
 import { sourceOverviewTheme } from './pages/dataTypes/default/sourceOverview.theme'
 import { sourcePageTheme } from './pages/sourcePage.theme'
+import { createPageTheme } from './pages/createPage.theme'
+import { settingsPageTheme } from './pages/settingsPage.theme'
 
 export default {
     breadcrumbs: breadcrumbsTheme,
@@ -14,4 +16,6 @@ export default {
     validateComp: validateCompTheme,
     sourceOverview: sourceOverviewTheme,
     sourcePage: sourcePageTheme,
+    createPage: createPageTheme,
+    settingsPage: settingsPageTheme,
 }

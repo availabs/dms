@@ -3,8 +3,7 @@ import {get} from "lodash-es";
 import {Link, useSearchParams} from "react-router";
 import {DatasetsContext} from "../../context";
 import {ThemeContext} from "../../../../ui/useTheme";
-import { cloneDeep } from "lodash-es";
-import { buildEnvsForListing } from "../../utils/datasources";
+import { buildEnvsForListing, getExternalEnv } from "../../utils/datasources";
 import Breadcrumbs from "../../components/Breadcrumbs";
 
 export const isJson = (str)  => {
@@ -97,72 +96,8 @@ const SourceThumb = React.memo(({ source={}, format }) => {
     );
 });
 
-const RenderAddPattern = ({isAdding, setIsAdding, updateData, sources=[], type, damaDataTypes}) => {
-    const {UI} = useContext(DatasetsContext);
-    const {Modal, Select, Input, Button} = UI;
-    const [data, setData] = useState({name: ''});
-    const ExternalComp = damaDataTypes[data?.type]?.sourceCreate?.component;
-
-    const selectOptions = [
-        {label: 'Create new', value: ''},
-        ...(sources || []).filter(s => s.doc_type).map(s => ({label: `${s.name} (${s.doc_type})`, value: s.id})),
-        ...Object.keys(damaDataTypes).map(k => ({label: k, value: k})),
-    ];
-
-    return (
-        <Modal open={isAdding} setOpen={setIsAdding}>
-            <Select
-                options={selectOptions}
-                value={data.id || ''}
-                onChange={e => {
-                    const val = e.target.value;
-                    const matchingSource = sources.find(s => s.id === val);
-                    if(matchingSource) {
-                        const numMatchingDocTypes = sources.filter(s => s.doc_type.includes(`${matchingSource.doc_type}_copy_`)).length;
-                        const clone = cloneDeep(matchingSource);
-                        clone.name = `${clone.name} copy (${numMatchingDocTypes+1})`
-                        setData(clone)
-                    }else if(damaDataTypes[val]){
-                        setData({...data, type: val})
-                    }else{
-                        setData({name: ''})
-                    }
-                }}
-            />
-            <Input
-                value={data.name}
-                placeholder={'Name'}
-                onChange={e => setData({...data, name: e.target.value})}
-            />
-            {
-                !damaDataTypes[data?.type] || !ExternalComp ? (
-                    <div className="flex gap-2 mt-2">
-                        <Button
-                            disabled={!data.name}
-                            onClick={async () => {
-                                const clonedData = cloneDeep(data);
-                                delete clonedData.id;
-                                delete clonedData.views;
-                                clonedData.doc_type = crypto.randomUUID();
-                                await updateData({sources: [...(sources || []).filter(s => s.type === `${type}|source`), clonedData]})
-                                window.location.reload()
-                            }}
-                        >add</Button>
-                        <Button
-                            type="plain"
-                            onClick={() => {
-                                setData({name: ''})
-                                setIsAdding(false)
-                            }}
-                        >cancel</Button>
-                    </div>
-                ) : <ExternalComp context={DatasetsContext} source={data} />
-            }
-        </Modal>
-    )
-}
 export default function ({attributes, item, dataItems, apiLoad, apiUpdate, updateAttribute, format, submit, ...r}) {
-    const {baseUrl, user, parent, falcor, siteType, type, damaDataTypes, datasources, UI} = useContext(DatasetsContext);
+    const {baseUrl, user, falcor, siteType, type, datasources, UI} = useContext(DatasetsContext);
     const {theme} = useContext(ThemeContext) || {};
     const t = theme?.datasets?.datasetsList || {};
     const {Layout, Icon, Button, Input} = UI;
@@ -171,14 +106,11 @@ export default function ({attributes, item, dataItems, apiLoad, apiUpdate, updat
     const [layerSearch, setLayerSearch] = useState("");
     const [searchParams] = useSearchParams();
     const [sort, setSort] = useState('asc');
-    const [isAdding, setIsAdding] = useState(false);
     const cat1 = searchParams.get('cat');
     const envs = useMemo(() => buildEnvsForListing(datasources, format), [datasources, format]);
-
-    const updateData = (data) => {
-        console.log('updating data', parent, data, format)
-        return apiUpdate({data: {...parent, ...data}, config: {format}})
-    }
+    const pgEnv = getExternalEnv(datasources);
+    const [filteredCategories, setFilteredCategories] = useState([]);
+    const [isListAll, setIsListAll] = useState(false);
 
     useEffect(() => {
         getSources({envs, falcor, apiLoad, user}).then(data => {
@@ -187,24 +119,73 @@ export default function ({attributes, item, dataItems, apiLoad, apiUpdate, updat
         });
     }, [format?.app, siteType]);
 
+    useEffect(() => {
+        if (!pgEnv) return;
+        falcor.get(["dama-info", pgEnv, "settings"]).then(res => {
+            const settings = get(res, ["json", "dama-info", pgEnv, "settings"]);
+            const parsed = typeof settings === 'string' ? JSON.parse(settings || '{}') : (settings || {});
+            setFilteredCategories(parsed.filtered_categories || []);
+        });
+    }, [pgEnv]);
+
+    const isSearching = layerSearch.length > 2;
+
+    const visibleSources = useMemo(() => {
+        if (isListAll || isSearching) return sources || [];
+        return (sources || []).filter(source => {
+            const cats = (Array.isArray(source?.categories) ? source.categories : []).map(c => c[0]);
+            if (!cats.length) return false;
+            if (!filteredCategories.length) return true;
+            return !cats.every(c => filteredCategories.includes(c));
+        });
+    }, [sources, filteredCategories, isListAll, isSearching]);
+
     const categories = useMemo(() => [...new Set(
-        (sources || [])
-            .reduce((acc, s) => [...acc, ...((Array.isArray(s?.categories) ? s?.categories : [])?.map(s1 => s1[0]) || [])], []))].sort(),
-    [sources]);
+        (visibleSources || [])
+            .reduce((acc, s) => [...acc, ...((Array.isArray(s?.categories) ? s?.categories : [])?.map(s1 => s1[0]) || [])], []))]
+            .filter(c => isListAll || !filteredCategories.includes(c))
+            .sort(),
+    [visibleSources, filteredCategories, isListAll]);
 
     const categoriesCount = useMemo(() => categories.reduce((acc, cat) => {
-        acc[cat] = (sources || []).filter(p => p?.categories).filter(pattern => {
+        acc[cat] = (visibleSources || []).filter(p => p?.categories).filter(pattern => {
             return (Array.isArray(pattern?.categories) ? pattern?.categories : [pattern?.categories])
                 ?.find(category => category.includes(cat))
         })?.length
         return acc;
-    }, {}), [sources, categories]);
+    }, {}), [visibleSources, categories]);
+
+    const catParts = useMemo(() => cat1 ? cat1.split('/') : [], [cat1]);
+    const activeTopCat = catParts[0] || null;
+
+    const subCategories = useMemo(() => {
+        if (!activeTopCat) return [];
+        return [...new Set(
+            (visibleSources || [])
+                .flatMap(s => (Array.isArray(s?.categories) ? s.categories : []))
+                .filter(cat => cat[0] === activeTopCat && cat.length > 1)
+                .map(cat => cat[1])
+        )].sort();
+    }, [visibleSources, activeTopCat]);
+
+    const breadcrumbItems = useMemo(() => {
+        const items = [{icon: 'Database', href: baseUrl}];
+        if (cat1) {
+            catParts.forEach((part, i) => {
+                items.push({
+                    name: part,
+                    ...(i < catParts.length - 1 ? {href: `${baseUrl}?cat=${catParts.slice(0, i + 1).join('/')}`} : {}),
+                });
+            });
+        }
+        return items;
+    }, [cat1, catParts, baseUrl]);
 
     return (
         <Layout navItems={[]}>
           <div className={t.pageWrapper}>
             <div className={t.header}>
-                <Breadcrumbs items={[{icon: 'Database', href: baseUrl}]} />
+                <Breadcrumbs items={breadcrumbItems} />
                 <div className={t.toolbar}>
                     <div className={t.toolbarSearch}>
                         <Input
@@ -222,15 +203,28 @@ export default function ({attributes, item, dataItems, apiLoad, apiUpdate, updat
                         <Icon icon={sort === 'asc' ? 'SortDesc' : 'SortAsc'} className="size-5"/>
                     </Button>
 
-                    {
-                        user?.authed &&
+                    {filteredCategories.length > 0 &&
                         <Button
                             type="plain"
-                            title={'Add'}
-                            onClick={() => setIsAdding(!isAdding)}
+                            title={isListAll ? 'Show filtered' : 'Show all'}
+                            onClick={() => setIsListAll(!isListAll)}
                         >
-                            <Icon icon="CirclePlus" className="size-5"/>
+                            <Icon icon={isListAll ? 'FilterX' : 'Filter'} className="size-5"/>
                         </Button>
+                    }
+
+                    {
+                        user?.authed &&
+                        <Link to={`${baseUrl}/settings`} title={'Settings'}>
+                            <Icon icon="Settings" className="size-5"/>
+                        </Link>
+                    }
+
+                    {
+                        user?.authed &&
+                        <Link to={`${baseUrl}/create`} title={'Add'}>
+                            <Icon icon="CirclePlus" className="size-5"/>
+                        </Link>
                     }
 
                 </div>
@@ -240,33 +234,37 @@ export default function ({attributes, item, dataItems, apiLoad, apiUpdate, updat
                     {(categories || [])
                         .sort((a,b) => a.localeCompare(b))
                         .map(cat => (
-                            <Link
-                                key={cat}
-                                className={cat1 === cat ? t.sidebarItemActive : t.sidebarItem}
-                                to={`?cat=${cat}`}
-                            >
-                                <i className={'fa fa-category'} /> <span className={t.sidebarItemText}>{cat}</span>
-                                <div className={t.sidebarBadge}>{categoriesCount[cat]}</div>
-                            </Link>
+                            <React.Fragment key={cat}>
+                                <Link
+                                    className={activeTopCat === cat ? t.sidebarItemActive : t.sidebarItem}
+                                    to={`?cat=${cat}`}
+                                >
+                                    <span className={t.sidebarItemText}>{cat}</span>
+                                    <div className={t.sidebarBadge}>{categoriesCount[cat]}</div>
+                                </Link>
+                                {activeTopCat === cat && subCategories.map(sub => {
+                                    const subPath = `${cat}/${sub}`;
+                                    return (
+                                        <Link
+                                            key={sub}
+                                            className={cat1 === subPath ? t.sidebarSubItemActive : t.sidebarSubItem}
+                                            to={`?cat=${subPath}`}
+                                        >
+                                            <span className={t.sidebarItemText}>{sub}</span>
+                                        </Link>
+                                    );
+                                })}
+                            </React.Fragment>
                         ))
                     }
                 </div>
                 <div className={t.sourceList}>
-                  <RenderAddPattern
-                    sources={sources}
-                    damaDataTypes={damaDataTypes}
-                    updateData={updateData}
-                    isAdding={isAdding}
-                    setIsAdding={setIsAdding}
-                    submit={submit}
-                    type={type}
-                  />
                     {
-                        (sources || [])
+                        (visibleSources || [])
                             .filter(source => {
                                 if (!cat1) return true;
                                 return (Array.isArray(source?.categories) ? source?.categories : [])
-                                    .some(site => site[0] === cat1);
+                                    .some(cat => catParts.every((p, i) => cat[i] === p));
                             })
                             .filter(source => {
                                 let searchTerm = ((source?.name || source?.doc_type) + " " + (

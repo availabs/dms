@@ -10,6 +10,8 @@ import UI from "../../ui"
 // pages
 import ErrorPage from "./pages/dataTypes/default/error";
 import DatasetsList from "./pages/DatasetsList"
+import CreatePage from "./pages/CreatePage";
+import SettingsPage from "./pages/SettingsPage";
 import SourcePage from "./pages/SourcePage";
 import Tasks from "./pages/dataTypes/default/Tasks/";
 import TaskPage from "./pages/dataTypes/default/Tasks/TaskPage";
@@ -78,6 +80,16 @@ const datasetsConfig = ({
                     {
                         type: props => <DatasetsList {...props} />,
                         path: "",
+                        action: "view"
+                    },
+                    {
+                        type: props => <CreatePage {...props} />,
+                        path: "create",
+                        action: "edit"
+                    },
+                    {
+                        type: props => <SettingsPage {...props} />,
+                        path: "settings",
                         action: "view"
                     },
                     {

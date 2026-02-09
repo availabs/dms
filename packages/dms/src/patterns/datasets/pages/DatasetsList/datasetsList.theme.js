@@ -12,6 +12,8 @@ export const datasetsListTheme = {
     sidebarItemActive: 'bg-blue-100 text-blue-800 px-3 py-2 rounded-lg flex items-center min-w-0 text-sm font-medium transition-colors',
     sidebarItemText: 'flex-1 min-w-0 truncate',
     sidebarBadge: 'bg-blue-100 text-blue-600 text-xs w-5 h-5 ml-auto shrink-0 grow-0 rounded-full flex items-center justify-center',
+    sidebarSubItem: 'bg-white hover:bg-blue-50 pl-6 pr-3 py-1.5 rounded-lg flex items-center min-w-0 text-sm text-gray-600 transition-colors',
+    sidebarSubItemActive: 'bg-blue-100 text-blue-800 pl-6 pr-3 py-1.5 rounded-lg flex items-center min-w-0 text-sm font-medium transition-colors',
 
     // Source list (main area)
     sourceList: 'w-3/4 flex flex-col gap-2',

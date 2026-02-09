@@ -23,6 +23,7 @@
 - [lexical-phase0-analysis-cleanup.md](./tasks/completed/lexical-phase0-analysis-cleanup.md) - Lexical Phase 0: dead code cleanup (~28 files), upstream comparison, table plugin updates (hover feedback, Mac scrollbar handling) (2026-02-03)
 - [lexical-plaintext-normalize.md](./tasks/completed/lexical-plaintext-normalize.md) - Moved plaintext-to-Lexical-JSON conversion into shared `parseValue()` so both editor and HTML view paths handle plaintext input (2026-02-08)
 - [lexical-sync-html-render.md](./tasks/completed/lexical-sync-html-render.md) - Eliminated Lexical View jitter: added sync `getHtmlSync()` using `editorState.read()`, switched View from `useEffect+useState` to `useMemo`, restored collapsible handlers (2026-02-08)
+- [theme-merging-issues.md](./tasks/completed/theme-merging-issues.md) - Fixed styles array cross-contamination, standardized component theme default fill-in via `getComponentTheme()` (2026-02-09)
 
 ## patterns
 
@@ -39,6 +40,9 @@
 - [datasets-pattern-modernize.md](./tasks/completed/datasets-pattern-modernize.md) - Modernized datasets pattern: combined 3 configs, defaultTheme, context-only wrapper, per-page Layout, LayoutGroup + Breadcrumbs, UI components in DatasetsList, dead code cleanup, MetadataComp/ValidateComp theming (2026-02-07)
 - [datasets-list-style-cleanup.md](./tasks/completed/datasets-list-style-cleanup.md) - DatasetsList style cleanup: transparent container, theme-driven card/sidebar styling, sticky header+sidebar, full-height layout, design pass, module-level sources cache, React.memo + useMemo performance (2026-02-08)
 - [fix-internal-source-blank-page.md](./tasks/completed/fix-internal-source-blank-page.md) - Fixed blank page on internal_source pages where UDA `source_id` attribute was unset; `getSourceData` now falls back to URL param ID (2026-02-09)
+- [source-overview-cleanup.md](./tasks/completed/source-overview-cleanup.md) - Source overview cleanup: theme-driven styling (sourceOverview + sourcePage themes), tab jitter/active state fix, loading flash fix, width constraint, column display_name + name, versions table with downloads, SourcePage rename + theme split (2026-02-09)
+- [datasets-create-page.md](./tasks/completed/datasets-create-page.md) - Datasets create page: extracted modal create flow into dedicated `/create` route with Layout/Breadcrumbs, type selector, external create component support, clone flow; replaced Add button with Link on DatasetsList (2026-02-09)
+- [datasets-settings-page.md](./tasks/completed/datasets-settings-page.md) - Datasets settings page: category visibility settings with two-column toggle, filtered/all toggle on list page, settings gear link for authed users, category breadcrumbs + sub-category nesting in sidebar, no-category sources filtered (2026-02-09)
 
 ### patterns/forms
 
