@@ -650,6 +650,7 @@ const View = ({cms_context, value, onChange, component}) => {
                 draft.localFilteredData = undefined;
                 draft.display.filteredLength = undefined;
                 draft.display.totalLength = length;
+                draft.lastDataRequest = state.dataRequest;
             })
             state.display.preventDuplicateFetch && onChange(JSON.stringify({...state, lastDataRequest: state.dataRequest, data, totalLength: length}));
             setCurrentPage(newCurrentPage);
