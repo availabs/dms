@@ -213,9 +213,17 @@ const mapFilterGroupCols = async (node, getColumn, { isDms, apiLoad, sourceInfo 
   }
   // condition node: map col to refName
   const col = getColumn(node.col);
+  const refName = attributeAccessorStr(
+      col.name,
+      isDms,
+      isCalculatedCol(col),
+      col.systemCol,
+  );
+
   const mapped = {
     ...node,
-    col: col?.refName || node.col,
+    value: node.op === 'like' && node.value ? `%${node.value}%` :  node.value,
+    col: refName || node.col,
   };
 
   // for multiselect columns with filter/exclude, resolve values to matched DB options
@@ -226,7 +234,7 @@ const mapFilterGroupCols = async (node, getColumn, { isDms, apiLoad, sourceInfo 
       .filter(o => o);
 
     if (selectedValues.length) {
-      const { name, display, meta, refName } = col;
+      const { name, display, meta } = col;
       const reqName = getColAccessor({ ...col, fn: undefined }, isDms);
       try {
         const options = await getFilterData({
@@ -319,6 +327,8 @@ export const getData = async ({
     const sourceColumnsByName = new Map(
         state.sourceInfo.columns.map(col => [col.name, col]),
     );
+    const getSourceColumnsByName = name => sourceColumnsByName.get(name);
+
     const duplicatedColumnNames = new Set(
         state.columns
             .filter(col => col.isDuplicate)
@@ -479,7 +489,7 @@ export const getData = async ({
     keepOriginalValues,
     filterRelation,
     serverFn,
-    filterGroups: await mapFilterGroupCols(filterGroups, getFullColumnFromColumnsWithSettings, { isDms, apiLoad, sourceInfo: state.sourceInfo }),
+    filterGroups: await mapFilterGroupCols(filterGroups, getSourceColumnsByName, { isDms, apiLoad, sourceInfo: state.sourceInfo }),
     groupBy: groupBy.map(
       (columnName) => getFullColumnFromColumnsWithSettings(columnName)?.refName,
     ),
