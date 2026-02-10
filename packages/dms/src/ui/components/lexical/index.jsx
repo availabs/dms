@@ -56,48 +56,48 @@ const Edit = ({value, onChange,  ...rest}) => {
     )
 }
 
-// const View = React.memo(({value, onChange,  ...rest}) => {
-//     // console.log('lexical type edit')
-//     return (
-//         <Editor
-//             value={parseValue(value)}
-//             onChange={(d) => {}}
-//             editable={false}
-//             {...rest}
-//         />
-//     )
-// })
+const View = React.memo(({value, onChange,  ...rest}) => {
+    // console.log('lexical type edit')
+    return (
+        <Editor
+            value={parseValue(value)}
+            onChange={(d) => {}}
+            editable={false}
+            {...rest}
+        />
+    )
+})
 
-const View = React.memo(({
-  value, bgColor, id, theme, styleName
-}) => {
-  const { theme: contextTheme } = React.useContext(ThemeContext) || {};
-  const resolvedTheme = theme || contextTheme;
-  const LexicalTheme = getLexicalTheme(resolvedTheme, styleName);
-  const containerRef = React.useRef(null);
+// const View = React.memo(({
+//   value, bgColor, id, theme, styleName
+// }) => {
+//   const { theme: contextTheme } = React.useContext(ThemeContext) || {};
+//   const resolvedTheme = theme || contextTheme;
+//   const LexicalTheme = getLexicalTheme(resolvedTheme, styleName);
+//   const containerRef = React.useRef(null);
 
-  const html = React.useMemo(
-    () => getHtmlSync(parseValue(value), LexicalTheme, resolvedTheme?.Icons),
-    [value, LexicalTheme]
-  );
+//   const html = React.useMemo(
+//     () => getHtmlSync(parseValue(value), LexicalTheme, resolvedTheme?.Icons),
+//     [value, LexicalTheme]
+//   );
 
-  React.useEffect(() => {
-    if (!containerRef.current || !html) return;
-    return attachCollapsibleHandlers(containerRef.current);
-  }, [html]);
+//   React.useEffect(() => {
+//     if (!containerRef.current || !html) return;
+//     return attachCollapsibleHandlers(containerRef.current);
+//   }, [html]);
 
-  return (
-    <div className={`${LexicalTheme.editorShell}`} ref={containerRef}>
-      <div className={LexicalTheme.editorViewContainer || ''} style={bgColor ? { backgroundColor: bgColor } : undefined}>
-        <div className={LexicalTheme.viewScroller || ''}>
-          <div className={`${LexicalTheme.contentEditable || ''} w-full`}>
-            <div dangerouslySetInnerHTML={{ __html: html }}></div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-});
+//   return (
+//     <div className={`${LexicalTheme.editorShell}`} ref={containerRef}>
+//       <div className={LexicalTheme.editorViewContainer || ''} style={bgColor ? { backgroundColor: bgColor } : undefined}>
+//         <div className={LexicalTheme.viewScroller || ''}>
+//           <div className={`${LexicalTheme.contentEditable || ''} w-full`}>
+//             <div dangerouslySetInnerHTML={{ __html: html }}></div>
+//           </div>
+//         </div>
+//       </div>
+//     </div>
+//   );
+// });
 
 export default {
     "EditComp": Edit,
