@@ -141,7 +141,7 @@ const CompWrapper = ({
                   options={options}
                   meta={optionsMeta}
                   hideControls={attribute.type==='lexical'}
-                  showBorder={attribute.type==='lexical'}
+                  showBorder={attribute.type==='lexical' && editMode}
             />
     </div>)
 }

@@ -199,6 +199,70 @@ export const getLength = async ({ options, state, apiLoad }) => {
 const getFullColumn = (columnName, columns) =>
   columns.find((col) => col.name === columnName);
 
+// Recursively maps filterGroups col names to refNames for the API,
+// and resolves multiselect column values to matched DB options.
+const mapFilterGroupCols = async (node, getColumn, { isDms, apiLoad, sourceInfo }) => {
+  if (!node) return node;
+  if (node.groups && Array.isArray(node.groups)) {
+    return {
+      ...node,
+      groups: await Promise.all(
+        node.groups.map(child => mapFilterGroupCols(child, getColumn, { isDms, apiLoad, sourceInfo })),
+      ),
+    };
+  }
+  // condition node: map col to refName
+  const col = getColumn(node.col);
+  const mapped = {
+    ...node,
+    col: col?.refName || node.col,
+  };
+
+  // for multiselect columns with filter/exclude, resolve values to matched DB options
+  if (col?.type === 'multiselect' && ['filter', 'exclude'].includes(node.op)) {
+    const selectedValues = (Array.isArray(node.value) ? node.value : [node.value])
+      .map(o => o?.value || o)
+      .map(o => o === null ? 'null' : o)
+      .filter(o => o);
+
+    if (selectedValues.length) {
+      const { name, display, meta, refName } = col;
+      const reqName = getColAccessor({ ...col, fn: undefined }, isDms);
+      try {
+        const options = await getFilterData({
+          reqName,
+          refName,
+          allAttributes: [{ name, display, meta }],
+          apiLoad,
+          format: sourceInfo,
+        });
+
+        const matchedOptions = options
+          .map(row => {
+            const option = row[reqName]?.value || row[reqName];
+            const parsedOption =
+              isJson(option) && Array.isArray(JSON.parse(option))
+                ? JSON.parse(option)
+                : Array.isArray(option)
+                  ? option
+                  : typeof option === 'string'
+                    ? [option]
+                    : [];
+            return parsedOption.find(o => selectedValues.includes(o)) ? option : null;
+          })
+          .filter(option => option);
+
+        if (selectedValues.includes('null')) matchedOptions.push('null');
+        mapped.value = matchedOptions;
+      } catch (e) {
+        console.error('mapFilterGroupCols: could not resolve multiselect for', node.col, e);
+      }
+    }
+  }
+
+  return mapped;
+};
+
 export const getColumnLabel = (column) =>
   column.customName || column.display_name || column.name;
 
@@ -242,6 +306,7 @@ export const getData = async ({
     fn = {},
     exclude = {},
     meta = {},
+    filterGroups={},
     filterRelation,
     serverFn = {},
     ...restOfDataRequestOptions
@@ -414,6 +479,7 @@ export const getData = async ({
     keepOriginalValues,
     filterRelation,
     serverFn,
+    filterGroups: await mapFilterGroupCols(filterGroups, getFullColumnFromColumnsWithSettings, { isDms, apiLoad, sourceInfo: state.sourceInfo }),
     groupBy: groupBy.map(
       (columnName) => getFullColumnFromColumnsWithSettings(columnName)?.refName,
     ),
@@ -503,51 +569,6 @@ export const getData = async ({
         ...(having.length > 0 && { having }),
       };
     })(),
-    // // when not grouping, numeric filters can directly go in the request
-    // ...(!groupBy.length || true) && Object.keys(restOfDataRequestOptions).reduce((acc, filterOperation) => {
-    //     const columnsForOperation = Object.keys(restOfDataRequestOptions[filterOperation]);
-    //     acc[filterOperation] =
-    //         columnsForOperation.reduce((acc, columnName) => {
-    //             const {refName, reqName, fn} = getFullColumnFromColumnsWithSettings(columnName);
-    //             const reqNameWithoutAS = splitColNameOnAS(reqName)[0];
-    //             // if grouping by and fn is applied, use fn name.
-    //             const columnNameToFilterBy = refName;
-    //             const currOperationValues = restOfDataRequestOptions[filterOperation][columnName];
-    //
-    //             acc[columnNameToFilterBy] = Array.isArray(currOperationValues) ? currOperationValues[0] : currOperationValues;
-    //             return acc;
-    //         }, {});
-    //     return acc;
-    // }, {}),
-    // // if grouping, apply numeric filters as HAVING clause
-    // ...groupBy.length && {
-    //     having: Object.keys(restOfDataRequestOptions).reduce((acc, filterOperation) => {
-    //         const columnsForOperation = Object.keys(restOfDataRequestOptions[filterOperation]);
-    //
-    //         const conditions = columnsForOperation.map((columnName) => {
-    //                 const {reqName, fn, filters, ...restCol} = getFullColumnFromColumnsWithSettings(columnName);
-    //                 // assuming one filter per column:
-    //                 const fullFilter = filters[0];
-    //                 const filterFn = fullFilter?.fn;
-    //
-    //                 const reqNameWithoutAS = splitColNameOnAS(reqName)[0];
-    //
-    //                 const reqNameWithFn = fn ? reqNameWithoutAS :
-    //                     applyFn(
-    //                         {...restCol, fn: filterFn},
-    //                         isDms);
-    //                 const reqNameWithFnWithoutAS = splitColNameOnAS(reqNameWithFn)[0];
-    //                 // if grouping by and fn is applied, use fn name.
-    //                 const currOperationValues = restOfDataRequestOptions[filterOperation][columnName];
-    //                 const valueToFilterBy = Array.isArray(currOperationValues) ? currOperationValues[0] : currOperationValues;
-    //                 if(!valueToFilterBy) return null
-    //             return `${reqNameWithFnWithoutAS} ${operationsStr[filterOperation]} ${valueToFilterBy}`;
-    //             }).filter(c => c);
-    //
-    //         acc.push(...conditions)
-    //         return acc;
-    //     }, [])
-    // }
   };
     debugTime && console.timeEnd('build options')
     debug &&

@@ -9,7 +9,7 @@ const falcorJsonGraph = require("falcor-json-graph"),
 */
 // Default routes using default controller (backward compatible)
 const dbOptions = ['dms-sqlite', 'dms-postgres']
-const controller = createController(dbOptions[1])
+const controller = createController(process.env.DMS_DB_ENV || dbOptions[1])
 
 
 /**

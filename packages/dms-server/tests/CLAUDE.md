@@ -4,11 +4,12 @@
 
 Tests should catch real bugs, not just exercise code for coverage metrics. Focus on:
 
-1. **Integration tests with real databases** — Use SQLite for fast, isolated tests that verify actual SQL behavior
+1. **Integration tests with real databases** — Use SQLite for fast local tests and PostgreSQL via Docker for cross-DB verification
 2. **Test via Falcor routes** — Use the graph harness to call routes like a real client would
 3. **Workflow tests** — Simulate real user journeys (create site → add patterns → create pages → add sections)
-4. **Regression tests** — Every bug fixed gets a test to prevent recurrence
-5. **Boundary tests** — Where data crosses systems (client→server, PostgreSQL↔SQLite differences)
+4. **Auth tests** — Full HTTP integration tests covering all 45 auth endpoints
+5. **Regression tests** — Every bug fixed gets a test to prevent recurrence
+6. **Boundary tests** — Where data crosses systems (client→server, PostgreSQL↔SQLite differences)
 
 Avoid:
 - Mocking everything (you end up testing the mocks, not the code)
@@ -21,22 +22,67 @@ Avoid:
 ```
 tests/
   graph.js              # Test graph harness - call Falcor routes directly
+  postgres-docker.js    # Docker PostgreSQL lifecycle (start/stop/run/reset)
   replay.js             # Replay recorded browser requests
   test-sqlite.js        # SQLite adapter compatibility tests
-  test-controller.js    # Controller function tests with real SQLite
-  test-graph.js         # Graph harness sanity tests
-  test-workflow.js      # Full DMS workflow via Falcor routes
+  test-controller.js    # Controller function tests with real SQLite (SQLite-only)
+  test-graph.js         # Graph harness sanity tests (SQLite or PostgreSQL)
+  test-workflow.js      # Full DMS workflow via Falcor routes (SQLite or PostgreSQL)
+  test-auth.js          # Auth system integration tests - 103 tests via HTTP (SQLite or PostgreSQL)
 ```
 
 ## Running Tests
 
+### SQLite (default)
+
 ```bash
-npm test                  # Run all tests
+npm test                  # Run core tests (sqlite, controller, graph, workflow)
 npm run test:sqlite       # SQLite adapter only
-npm run test:controller   # Controller tests only
+npm run test:controller   # Controller tests only (SQLite-specific raw SQL)
 npm run test:graph        # Graph harness tests
 npm run test:workflow     # Full workflow test
+npm run test:auth         # Auth integration tests (103 tests)
 ```
+
+### PostgreSQL (via Docker)
+
+Requires Docker. Spins up a `postgres:17-alpine` container on port 5499, runs tests, tears down.
+
+```bash
+npm run test:pg           # Start container, run graph + workflow + auth, stop container
+npm run test:pg:auth      # Start container, run auth tests only, stop container
+npm run test:pg:start     # Start container (manual control)
+npm run test:pg:stop      # Stop and remove container (manual control)
+npm run test:all          # Run all SQLite tests, then all PostgreSQL tests
+```
+
+The `test:pg` script handles cleanup even on test failure (try/finally). If Docker is not installed, it exits with a clear error message.
+
+### Database selection via environment variables
+
+Tests that support both databases read these env vars (defaulting to SQLite):
+
+| Variable | Default | Used by |
+|----------|---------|---------|
+| `DMS_TEST_DB` | `dms-sqlite` | test-graph.js, test-workflow.js, test-auth.js |
+| `DMS_AUTH_DB_ENV` | `auth-sqlite` | test-auth.js (auth database) |
+| `DMS_DB_ENV` | `dms-sqlite` | test-auth.js (DMS database for Falcor /graph) |
+
+Example: run graph tests against PostgreSQL manually (container must be running):
+
+```bash
+DMS_TEST_DB=dms-postgres-test node tests/test-graph.js
+```
+
+### Which tests run on which databases
+
+| Test file | SQLite | PostgreSQL | Notes |
+|-----------|--------|------------|-------|
+| test-sqlite.js | Yes | No | Tests the SQLite adapter directly |
+| test-controller.js | Yes | No | Raw SQLite SQL (json_patch, etc.) |
+| test-graph.js | Yes | Yes | Via `DMS_TEST_DB` env var |
+| test-workflow.js | Yes | Yes | Via `DMS_TEST_DB` env var |
+| test-auth.js | Yes | Yes | Via `DMS_AUTH_DB_ENV` + `DMS_DB_ENV` env vars |
 
 ## Test Graph Harness
 
@@ -45,8 +91,12 @@ The `graph.js` module provides a harness to call Falcor routes directly without 
 ```js
 const { createTestGraph } = require('./graph');
 
-// Create a test graph (uses SQLite by default)
-const graph = createTestGraph('dms-sqlite');
+// Create a test graph — pass database config name
+const graph = createTestGraph('dms-sqlite');       // SQLite (default)
+const graph = createTestGraph('dms-postgres-test'); // PostgreSQL
+
+// Database info
+console.log(graph.dbType); // 'sqlite' or 'postgres'
 
 // GET request - query data
 const result = await graph.getAsync([
@@ -79,6 +129,41 @@ graph.call(callPath, args, (error, result) => { ... });
 // respond() for replaying recorded requests
 graph.respond({ queryStringParameters: { method: 'get', paths: '...' } }, callback);
 ```
+
+## Docker PostgreSQL Helper
+
+The `postgres-docker.js` module manages a disposable PostgreSQL container for testing.
+
+**Container config:**
+- Image: `postgres:17-alpine`
+- Port: 5499 (host) → 5432 (container)
+- Database/user/password: `dms_test`
+- Container name: `dms-test-postgres`
+
+**CLI usage:**
+```bash
+node tests/postgres-docker.js start   # Start container, wait for ready
+node tests/postgres-docker.js stop    # Stop and remove container
+node tests/postgres-docker.js run     # Start, run all PG tests, stop (even on failure)
+node tests/postgres-docker.js run tests/test-auth.js  # Run specific test
+node tests/postgres-docker.js reset   # Drop and reinitialize schemas
+```
+
+**Programmatic usage:**
+```js
+const { start, stop, waitReady, resetDb, hasDocker } = require('./postgres-docker');
+
+start();           // docker run ...
+await waitReady(); // pg_isready poll (30s timeout, survives PG restart cycle)
+resetDb();         // DROP + re-run dms.sql and auth_tables.sql
+stop();            // docker stop + rm
+```
+
+**Database configs** for the Docker container:
+- `src/db/configs/dms-postgres-test.config.json` — DMS tables (role: dms)
+- `src/db/configs/auth-postgres-test.config.json` — Auth tables (role: auth)
+
+Both point at `localhost:5499` / `dms_test`.
 
 ## Recording & Replaying Browser Requests
 
@@ -114,7 +199,8 @@ DB_NAME=dms-sqlite STOP_ON_ERROR=1 node tests/replay.js <file>
 
 **Good** - Test through the Falcor routes like a real client:
 ```js
-const graph = createTestGraph('dms-sqlite');
+const DB_NAME = process.env.DMS_TEST_DB || 'dms-sqlite';
+const graph = createTestGraph(DB_NAME);
 
 // Create via route
 const result = await graph.callAsync(['dms', 'data', 'create'], ['myapp', 'mytype']);
@@ -151,11 +237,12 @@ Simulate how the client actually uses the feature:
 **Setup:**
 ```js
 const { createTestGraph } = require('./graph');
+const DB_NAME = process.env.DMS_TEST_DB || 'dms-sqlite';
 const TEST_APP = 'my-test-' + Date.now();
 let graph = null;
 
 async function setup() {
-  graph = createTestGraph('dms-sqlite');
+  graph = createTestGraph(DB_NAME);
 }
 ```
 
@@ -171,13 +258,26 @@ if (result.jsonGraph?.dms?.data?.byId?.[id]?.app !== TEST_APP) {
 await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, type, ...ids]);
 ```
 
-## Database
+## Cross-Database Gotchas
 
-Tests use `src/db/data/dms-test.sqlite`. This file is gitignored. Each test run may leave data behind; tests should clean up after themselves or be tolerant of existing data.
+When writing tests that run on both SQLite and PostgreSQL, watch for:
+
+- **COUNT returns string on PostgreSQL** — `pg` driver returns `bigint` as string; the controller normalizes this but raw queries won't
+- **Boolean columns** — Use `TRUE`/`FALSE` keywords, not `1`/`0` (PostgreSQL has real booleans, SQLite treats booleans as integers)
+- **JSON operators** — PostgreSQL uses `->>` natively; SQLite uses `json_extract()` with the adapter translating `->>` syntax
+- **Timestamps** — PostgreSQL returns timezone-aware timestamps; SQLite returns plain strings
+- **Type coercion** — PostgreSQL `->>` always returns text; SQLite `->>` can return integers (e.g., `0` instead of `"0"`)
+
+## Databases
+
+**SQLite:** Tests use files in `src/db/data/` (gitignored). Files persist between runs; tests should clean up or be tolerant of existing data. Auth tests delete and recreate `auth.sqlite` (plus `-shm` and `-wal` journal files) on each run.
+
+**PostgreSQL:** The Docker container provides a fresh database. `resetDb()` drops and recreates all schemas from the SQL files before each test run.
 
 ## Adding New Test Files
 
 1. Create `test-<name>.js` in this folder
 2. Add to `package.json` scripts if needed
-3. Use the graph harness for route testing, or import adapters for low-level tests
-4. Follow the pattern in existing test files
+3. Read `DMS_TEST_DB` env var to support both databases (default to `'dms-sqlite'`)
+4. Use the graph harness for route testing, or import adapters for low-level tests
+5. Follow the pattern in existing test files

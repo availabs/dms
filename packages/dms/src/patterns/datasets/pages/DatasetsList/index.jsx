@@ -1,12 +1,10 @@
-import React, {useMemo, useState, useEffect, useRef, useContext} from 'react'
-import {useParams, useLocation} from "react-router"
-import {get, isEqual} from "lodash-es";
+import React, {useState, useEffect, useContext, useMemo} from 'react'
+import {get} from "lodash-es";
 import {Link, useSearchParams} from "react-router";
-import SourcesLayout from "../layout";
 import {DatasetsContext} from "../../context";
-import {Modal} from "../../ui";
-import { cloneDeep } from "lodash-es";
-import { buildEnvsForListing } from "../../utils/datasources";
+import {ThemeContext} from "../../../../ui/useTheme";
+import { buildEnvsForListing, getExternalEnv } from "../../utils/datasources";
+import Breadcrumbs from "../../components/Breadcrumbs";
 
 export const isJson = (str)  => {
     try {
@@ -18,6 +16,8 @@ export const isJson = (str)  => {
 }
 
 const range = (start, end) => Array.from({length: (end + 1 - start)}, (v, k) => k + start);
+
+const sourcesCache = new Map();
 
 const getSources = async ({envs, falcor, parent, user}) => {
     if(!envs || !Object.keys(envs)) return [];
@@ -64,8 +64,10 @@ const getSources = async ({envs, falcor, parent, user}) => {
 }
 
 
-const SourceThumb = ({ source={}, format }) => {
+const SourceThumb = React.memo(({ source={}, format }) => {
     const {UI} = useContext(DatasetsContext);
+    const {theme} = useContext(ThemeContext) || {};
+    const t = theme?.datasets?.datasetsList || {};
     const {ColumnTypes} = UI;
     const Lexical = ColumnTypes.lexical.ViewComp;
     const source_id = source.id || source.source_id;
@@ -73,223 +75,196 @@ const SourceThumb = ({ source={}, format }) => {
     const icon = isDms ? (format.registerFormats || []).find(f => f?.type?.includes('|source'))?.type === source.type ? 'Datasets' : 'Forms' : 'External';
 
     return (
-        <div className="w-full p-4 bg-white hover:bg-blue-50 border shadow flex">
+        <div className={t.sourceCard}>
             <div>
-                <Link to={`${isDms ? 'internal_source' : 'source'}/${source_id}`} className="text-xl font-medium w-full block">
-                    <span>{source?.name || source?.doc_type}</span> <span className={'text-sm text-gray-900 italic'}>{icon}</span>
+                <Link to={`${isDms ? 'internal_source' : 'source'}/${source_id}`} className={t.sourceTitle}>
+                    <span>{source?.name || source?.doc_type}</span> <span className={t.sourceTypeLabel}>{icon}</span>
                 </Link>
                 <div>
                     {(Array.isArray(source?.categories) ? source?.categories : [])
                         .map(cat => (typeof cat === 'string' ? [cat] : cat).map((s, i) => (
                             <Link key={i} to={`?cat=${i > 0 ? cat[i - 1] + "/" : ""}${s}`}
-                                  className="text-xs p-1 px-2 bg-blue-200 text-blue-600 mr-2">{s}</Link>
+                                  className={t.sourceCategoryBadge}>{s}</Link>
                         )))
                     }
                 </div>
-                <Link to={`${isDms ? 'internal_source' : 'source'}/${source_id}`} className="py-2 block">
-
+                <div className={t.sourceDescription}>
                     <Lexical value={source?.description}/>
-                </Link>
+                </div>
             </div>
-
-
         </div>
     );
-};
+});
 
-const RenderAddPattern = ({isAdding, setIsAdding, updateData, sources=[], type, damaDataTypes}) => {
-    const [data, setData] = useState({name: ''});
-    const ExternalComp = damaDataTypes[data?.type]?.sourceCreate?.component;
-    return (
-        <Modal open={isAdding} setOpen={setIsAdding} className={'w-full p-4 bg-white hover:bg-blue-50 border shadow flex items-center'}>
-            <select className={'w-full p-1 rounded-md border bg-white'}
-                    value={data.id}
-                    onChange={e => {
-                        const matchingSource = sources.find(s => s.id === e.target.value);
-                        if(matchingSource) {
-                            const numMatchingDocTypes = sources.filter(s => s.doc_type.includes(`${matchingSource.doc_type}_copy_`)).length;
-                            const clone = cloneDeep(matchingSource);
-                            // delete clone.id; remove on btn click since it's used to ID in select.
-                            clone.name = `${clone.name} copy (${numMatchingDocTypes+1})`
-                            setData(clone)
-                        }else if(damaDataTypes[e.target.value]){
-                            setData({...data, type: e.target.value})
-                        }else{
-                            setData({name: ''})
-                        }
-                    }}>
-                <option key={'create-new'} value={undefined}>Create new</option>
-                {
-                    (sources || []).filter(s => s.doc_type).map(source => <option key={source.id} value={source.id}>{source.name} ({source.doc_type})</option> )
-                }
-                {
-                    Object.keys(damaDataTypes).map(source => (<option key={source} value={source}>{source}</option>))
-                }
-            </select>
-            <input className={'p-1 mx-1 text-sm font-light w-full block'}
-                   key={'new-form-name'}
-                   value={data.name}
-                   placeholder={'Name'}
-                   onChange={e => setData({...data, name: e.target.value})}
-            />
-            {
-                !damaDataTypes[data?.type] || !ExternalComp ? (
-                    <>
-                        <button className={'p-1 mx-1 bg-blue-300 hover:bg-blue-500 text-white'}
-                                disabled={!data.name}
-                                onClick={async () => {
-                                    const clonedData = cloneDeep(data);
-                                    delete clonedData.id;
-                                    delete clonedData.views;
-                                    clonedData.doc_type = crypto.randomUUID();
-                                    await updateData({sources: [...(sources || []).filter(s => s.type === `${type}|source`), clonedData]})
-                                    window.location.reload()
-                                }}
-                        >add</button>
-                        <button className={'p-1 mx-1 bg-red-300 hover:bg-red-500 text-white'}
-                                onClick={() => {
-                                    setData({name: ''})
-                                    setIsAdding(false)
-                                }}
-                        >cancel</button>
-                    </>
-                ) : <ExternalComp context={DatasetsContext} source={data} />
-            }
-        </Modal>
-    )
-}
 export default function ({attributes, item, dataItems, apiLoad, apiUpdate, updateAttribute, format, submit, ...r}) {
-    const {baseUrl, user, parent, falcor, siteType, type, damaDataTypes, datasources} = useContext(DatasetsContext);
-    const [sources, setSources] = useState([]);
+    const {baseUrl, user, falcor, siteType, type, datasources, UI} = useContext(DatasetsContext);
+    const {theme} = useContext(ThemeContext) || {};
+    const t = theme?.datasets?.datasetsList || {};
+    const {Layout, Icon, Button, Input} = UI;
+    const cacheKey = `${format?.app}-${siteType}`;
+    const [sources, setSources] = useState(() => sourcesCache.get(cacheKey) || []);
     const [layerSearch, setLayerSearch] = useState("");
-    const {...rest } = useParams();
-    const [searchParams, setSearchParams] = useSearchParams();
+    const [searchParams] = useSearchParams();
     const [sort, setSort] = useState('asc');
-    const [isAdding, setIsAdding] = useState(false);
-    const actionButtonClassName = 'bg-transparent hover:bg-blue-100 rounded-sm p-2 ml-0.5 border-2';
-    const isListAll = false;
-    const filteredCategories = []; // categories you want to exclude from landing list page.
     const cat1 = searchParams.get('cat');
-    const cat2 = undefined;
-    const envs = buildEnvsForListing(datasources, format);
-
-    const updateData = (data) => {
-        console.log('updating data', parent, data, format)
-        return apiUpdate({data: {...parent, ...data}, config: {format}})
-    }
+    const envs = useMemo(() => buildEnvsForListing(datasources, format), [datasources, format]);
+    const pgEnv = getExternalEnv(datasources);
+    const [filteredCategories, setFilteredCategories] = useState([]);
+    const [isListAll, setIsListAll] = useState(false);
 
     useEffect(() => {
-        let isStale = false;
         getSources({envs, falcor, apiLoad, user}).then(data => {
-            setSources(data)
+            setSources(data);
+            sourcesCache.set(cacheKey, data);
         });
-
-        return () => {
-            isStale = true;
-        }
     }, [format?.app, siteType]);
 
-    const categories = [...new Set(
-        (sources || [])
-            .filter(source => {
-                return isListAll || (
-                    // we're not listing all sources
-                    !isListAll &&
-                    !(Array.isArray(source?.categories) ? source?.categories : []).find(cat =>
-                        // find if current category $cat includes any of filtered categories
-                        filteredCategories.find(filteredCategory => cat.includes(filteredCategory))))
-            })
-            .reduce((acc, s) => [...acc, ...((Array.isArray(s?.categories) ? s?.categories : [])?.map(s1 => s1[0]) || [])], []))].sort()
+    useEffect(() => {
+        if (!pgEnv) return;
+        falcor.get(["dama-info", pgEnv, "settings"]).then(res => {
+            const settings = get(res, ["json", "dama-info", pgEnv, "settings"]);
+            const parsed = typeof settings === 'string' ? JSON.parse(settings || '{}') : (settings || {});
+            setFilteredCategories(parsed.filtered_categories || []);
+        });
+    }, [pgEnv]);
 
+    const isSearching = layerSearch.length > 2;
 
-      const categoriesCount = categories.reduce((acc, cat) => {
-        acc[cat] = (sources || []).filter(p => p?.categories).filter(pattern => {
+    const visibleSources = useMemo(() => {
+        if (isListAll || isSearching) return sources || [];
+        return (sources || []).filter(source => {
+            const cats = (Array.isArray(source?.categories) ? source.categories : []).map(c => c[0]);
+            if (!cats.length) return false;
+            if (!filteredCategories.length) return true;
+            return !cats.every(c => filteredCategories.includes(c));
+        });
+    }, [sources, filteredCategories, isListAll, isSearching]);
+
+    const categories = useMemo(() => [...new Set(
+        (visibleSources || [])
+            .reduce((acc, s) => [...acc, ...((Array.isArray(s?.categories) ? s?.categories : [])?.map(s1 => s1[0]) || [])], []))]
+            .filter(c => isListAll || !filteredCategories.includes(c))
+            .sort(),
+    [visibleSources, filteredCategories, isListAll]);
+
+    const categoriesCount = useMemo(() => categories.reduce((acc, cat) => {
+        acc[cat] = (visibleSources || []).filter(p => p?.categories).filter(pattern => {
             return (Array.isArray(pattern?.categories) ? pattern?.categories : [pattern?.categories])
                 ?.find(category => category.includes(cat))
         })?.length
         return acc;
-    }, {})
+    }, {}), [visibleSources, categories]);
+
+    const catParts = useMemo(() => cat1 ? cat1.split('/') : [], [cat1]);
+    const activeTopCat = catParts[0] || null;
+
+    const subCategories = useMemo(() => {
+        if (!activeTopCat) return [];
+        return [...new Set(
+            (visibleSources || [])
+                .flatMap(s => (Array.isArray(s?.categories) ? s.categories : []))
+                .filter(cat => cat[0] === activeTopCat && cat.length > 1)
+                .map(cat => cat[1])
+        )].sort();
+    }, [visibleSources, activeTopCat]);
+
+    const breadcrumbItems = useMemo(() => {
+        const items = [{icon: 'Database', href: baseUrl}];
+        if (cat1) {
+            catParts.forEach((part, i) => {
+                items.push({
+                    name: part,
+                    ...(i < catParts.length - 1 ? {href: `${baseUrl}?cat=${catParts.slice(0, i + 1).join('/')}`} : {}),
+                });
+            });
+        }
+        return items;
+    }, [cat1, catParts, baseUrl]);
 
     return (
-        <SourcesLayout fullWidth={true} isListAll={false} hideBreadcrumbs={false} hideNav={true}
-                       baseUrl={`${baseUrl}/${rest['*']}`} page={cat1 ? {name: cat1, href: `?cat=${cat1}`} : {}} >
-            <div className="flex flex-rows items-center">
-                <input
-                    className="w-full text-lg p-2 border border-gray-300 "
-                    placeholder="Search datasources"
-                    value={layerSearch}
-                    onChange={(e) => setLayerSearch(e.target.value)}
-                />
+        <Layout navItems={[]}>
+          <div className={t.pageWrapper}>
+            <div className={t.header}>
+                <Breadcrumbs items={breadcrumbItems} />
+                <div className={t.toolbar}>
+                    <div className={t.toolbarSearch}>
+                        <Input
+                            placeholder="Search datasources"
+                            value={layerSearch}
+                            onChange={(e) => setLayerSearch(e.target.value)}
+                        />
+                    </div>
 
-                <button
-                    className={actionButtonClassName}
-                    title={'Toggle Sort'}
-                    onClick={() => setSort(sort === 'asc' ? 'desc' : 'asc')}
-                >
-                    <i className={`fa-solid ${sort === 'asc' ? `fa-arrow-down-z-a` : `fa-arrow-down-a-z`} text-xl text-blue-400`}/>
-                </button>
-
-                {
-                    user?.authed &&
-                    <button
-                        className={actionButtonClassName} title={'Add'}
-                        onClick={() => setIsAdding(!isAdding)}
+                    <Button
+                        type="plain"
+                        title={'Toggle Sort'}
+                        onClick={() => setSort(sort === 'asc' ? 'desc' : 'asc')}
                     >
-                        <i className={`fa-solid fa-add text-xl text-blue-400`}/>
-                    </button>
-                }
+                        <Icon icon={sort === 'asc' ? 'SortDesc' : 'SortAsc'} className="size-5"/>
+                    </Button>
 
+                    {filteredCategories.length > 0 &&
+                        <Button
+                            type="plain"
+                            title={isListAll ? 'Show filtered' : 'Show all'}
+                            onClick={() => setIsListAll(!isListAll)}
+                        >
+                            <Icon icon={isListAll ? 'FilterX' : 'Filter'} className="size-5"/>
+                        </Button>
+                    }
+
+                    {
+                        user?.authed &&
+                        <Link to={`${baseUrl}/settings`} title={'Settings'}>
+                            <Icon icon="Settings" className="size-5"/>
+                        </Link>
+                    }
+
+                    {
+                        user?.authed &&
+                        <Link to={`${baseUrl}/create`} title={'Add'}>
+                            <Icon icon="CirclePlus" className="size-5"/>
+                        </Link>
+                    }
+
+                </div>
             </div>
-            <div className={'flex flex-row'}>
-                <div className={'w-1/4 flex flex-col space-y-1.5 max-h-[80dvh] overflow-auto scrollbar-sm'}>
+            <div className={t.body}>
+                <div className={t.sidebar}>
                     {(categories || [])
-                        // .filter(cat => cat !== sourceDataCat) // should be already filtered out. if not, fix categories logic.
                         .sort((a,b) => a.localeCompare(b))
                         .map(cat => (
-                            <Link
-                                key={cat}
-                                className={`${cat1 === cat || cat2 === cat ? `bg-blue-100` : `bg-white`} hover:bg-blue-50 p-2 rounded-md flex items-center`}
-                                to={`${isListAll ? `/listall` : ``}?cat=${cat}`}
-                            >
-                                <i className={'fa fa-category'} /> {cat}
-                                <div className={'bg-blue-200 text-blue-600 text-xs w-5 h-5 ml-2 shrink-0 grow-0 rounded-lg flex items-center justify-center border border-blue-300'}>{categoriesCount[cat]}</div>
-                            </Link>
+                            <React.Fragment key={cat}>
+                                <Link
+                                    className={activeTopCat === cat ? t.sidebarItemActive : t.sidebarItem}
+                                    to={`?cat=${cat}`}
+                                >
+                                    <span className={t.sidebarItemText}>{cat}</span>
+                                    <div className={t.sidebarBadge}>{categoriesCount[cat]}</div>
+                                </Link>
+                                {activeTopCat === cat && subCategories.map(sub => {
+                                    const subPath = `${cat}/${sub}`;
+                                    return (
+                                        <Link
+                                            key={sub}
+                                            className={cat1 === subPath ? t.sidebarSubItemActive : t.sidebarSubItem}
+                                            to={`?cat=${subPath}`}
+                                        >
+                                            <span className={t.sidebarItemText}>{sub}</span>
+                                        </Link>
+                                    );
+                                })}
+                            </React.Fragment>
                         ))
                     }
                 </div>
-                <div className={'w-3/4 flex flex-col space-y-1.5 ml-1.5 max-h-[80dvh] overflow-auto scrollbar-sm'}>
-                  <RenderAddPattern
-                    sources={sources}
-                    setSources={setSources}
-                    damaDataTypes={damaDataTypes}
-                    updateData={updateData}
-                    isAdding={isAdding}
-                    setIsAdding={setIsAdding}
-                    submit={submit}
-                    type={type}
-                  />
+                <div className={t.sourceList}>
                     {
-                        (sources || [])
+                        (visibleSources || [])
                             .filter(source => {
-                                return isListAll || (
-                                    // we're not listing all sources
-                                    !isListAll &&
-                                    !(Array.isArray(source?.categories) ? source?.categories : [])?.find(cat =>
-                                        // find if current category $cat includes any of filtered categories
-                                        filteredCategories.find(filteredCategory => cat.includes(filteredCategory))))
-                            })
-                            .filter(source => {
-                                let output = true;
-                                if (cat1) {
-                                    output = false;
-                                    (Array.isArray(source?.categories) ? source?.categories : [])
-                                        .forEach(site => {
-                                            if (site[0] === cat1 && (!cat2 || site[1] === cat2)) {
-                                                output = true;
-                                            }
-                                        });
-                                }
-                                return output;
+                                if (!cat1) return true;
+                                return (Array.isArray(source?.categories) ? source?.categories : [])
+                                    .some(cat => catParts.every((p, i) => cat[i] === p));
                             })
                             .filter(source => {
                                 let searchTerm = ((source?.name || source?.doc_type) + " " + (
@@ -297,17 +272,18 @@ export default function ({attributes, item, dataItems, apiLoad, apiUpdate, updat
                                     .reduce((out,cat) => {
                                         out += Array.isArray(cat) ? cat.join(' ') : typeof cat === 'string' ? cat : '';
                                         return out
-                                    },'')) //get(source, "categories[0]", []).join(" "));
+                                    },''));
                                 return !layerSearch.length > 2 || searchTerm.toLowerCase().includes(layerSearch.toLowerCase());
                             })
                             .sort((a,b) => {
                                 const m = sort === 'asc' ? 1 : -1;
                                 return m * a?.doc_type?.localeCompare(b?.doc_type)
                             })
-                            .map((s, i) => <SourceThumb key={i} source={s} baseUrl={baseUrl} format={format} />)
+                            .map((s, i) => <SourceThumb key={s.source_id || s.id || i} source={s} baseUrl={baseUrl} format={format} />)
                     }
                 </div>
             </div>
-        </SourcesLayout>
+          </div>
+        </Layout>
     )
 }

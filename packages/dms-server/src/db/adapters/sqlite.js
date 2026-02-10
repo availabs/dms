@@ -122,7 +122,6 @@ class SqliteAdapter {
     });
 
     // Handle remaining non-array parameters
-    let paramCount = 0;
     newSql = newSql.replace(/\$(\d+)/g, (match, num) => {
       const pgIndex = parseInt(num) - 1;
       // Skip if this param was already handled as part of ANY()
@@ -194,8 +193,15 @@ class SqliteAdapter {
       let queryText = typeof sql === "object" ? sql.text : sql;
       let queryValues = typeof sql === "object" ? sql.values : values;
 
+      // Strip PostgreSQL ::TYPE casts (e.g. ::INTEGER, ::TEXT, ::numeric, ::INT[])
+      let cleanedSql = queryText.replace(/::\w+(\[\])?/g, '');
+
       // Convert PostgreSQL syntax to SQLite
-      const converted = this._convertParams(queryText, queryValues || []);
+      // Use _convertArraySyntax for ANY() → IN() conversion (also handles $N → ?)
+      // Fall back to _convertParams for simple $N → ? conversion
+      const converted = (cleanedSql || '').includes('ANY(')
+        ? this._convertArraySyntax(cleanedSql, queryValues || [])
+        : this._convertParams(cleanedSql, queryValues || []);
 
       // Convert object values to JSON strings for SQLite
       converted.values = this._convertValues(converted.values);

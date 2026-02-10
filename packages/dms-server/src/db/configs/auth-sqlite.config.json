@@ -1,0 +1,5 @@
+{
+  "type": "sqlite",
+  "role": "auth",
+  "filename": "../data/auth.sqlite"
+}

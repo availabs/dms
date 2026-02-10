@@ -16,14 +16,10 @@ import {
 } from './section_utils'
 import {useDataSource} from "./useDataSource";
 import Component from "./components";
-import ComponentRegistry from "./components/ComponentRegistry";
 import {useImmer} from "use-immer";
 import {convertOldState} from "./components/dataWrapper/utils/convertOldState";
-export let RegisteredComponents = ComponentRegistry;
-
-export const registerComponents = (comps = {}) => {
-    RegisteredComponents = {...RegisteredComponents, ...comps}
-}
+import { getRegisteredComponents } from './componentRegistry'
+export { registerComponents, getRegisteredComponents } from './componentRegistry'
 
 export function SectionEdit({ i, value, attributes, siteType, format, onChange, onRemove, moveItem, onCancel, onSave }) {
     const isEdit = true;
@@ -32,6 +28,7 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
     const { pageState, apiLoad, apiUpdate } = useContext(PageContext);
     const {theme: fullTheme, UI} = React.useContext(ThemeContext);
 
+    const RegisteredComponents = getRegisteredComponents();
     const component = (RegisteredComponents[get(value, ["element", "element-type"], "lexical")] || RegisteredComponents['lexical']);
     const [state, setState] = useImmer(convertOldState(value?.['element']?.['element-data'] || '', initialState(component.defaultState), component.name));
     const [sectionState, setSectionState] = useImmer({
@@ -181,6 +178,7 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
     const {NavigableMenu, Switch, Pill, Icon, Permissions} = UI;
     const theme = getComponentTheme(fullTheme, 'pages.section');
 
+    const RegisteredComponents = getRegisteredComponents();
     const component = RegisteredComponents[get(value, ["element", "element-type"], "lexical")];
     const [state, setState] = useImmer(convertOldState(value?.element?.['element-data'] || '', initialState(component?.defaultState), component?.name));
     const [showDeleteModal, setShowDeleteModal] = useState(false);

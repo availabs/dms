@@ -1,10 +1,7 @@
 import React from "react";
-import { merge, cloneDeep } from "lodash-es";
-import {
-  parseIfJSON,
-  updateRegisteredFormats,
-  updateAttributes,
-} from "./pages/_utils";
+import { merge } from "lodash-es";
+import { parseIfJSON } from "./pages/_utils";
+import { initializePatternFormat } from "../../dms-manager/_utils";
 
 // components
 import cmsFormat from "./page.format.js";
@@ -13,6 +10,7 @@ import { isUserAuthed } from "./auth.js";
 import UI from "../../ui";
 import { ThemeContext, getPatternTheme } from "../../ui/useTheme.js";
 import { registerWidget } from "../../ui/widgets";
+import { registerComponents } from './components/sections/componentRegistry';
 import SearchButton from "./components/search/index";
 import DefaultMenu from "./components/userMenu";
 
@@ -38,23 +36,26 @@ const pagesConfig = ({
   API_HOST
 }) => {
   const theme = getPatternTheme(themes, pattern)
-  //---------------------------------------------------------------------
-  // Update format and attributes for things to work correctly
-  // This should probable be moved to DMS Manager
-  // Or at least re-thought so it doesn't need to be in all site configs
-  // --------------------------------------------------------------------
+
+  // Auto-register theme-provided page components
+  if (theme.pageComponents) {
+    const comps = theme.pageComponents
+    if (Array.isArray(comps)) {
+      const obj = {}
+      comps.forEach(c => { obj[c.key || c.name] = c })
+      registerComponents(obj)
+    } else {
+      registerComponents(comps)
+    }
+  }
+
   baseUrl = baseUrl === "/" ? "" : baseUrl;
-  const format = cloneDeep(cmsFormat);
-  format.app = app;
-  format.type = type;
-  updateRegisteredFormats(format.registerFormats, app, type);
-  updateAttributes(format.attributes, app, type);
+  const format = initializePatternFormat(cmsFormat, app, type);
   if(pattern?.additionalSectionAttributes?.length){
       (format.registerFormats || [])
         .find(f => f.type.includes('cms-section'))
         .attributes.push(...pattern.additionalSectionAttributes)
   }
-  //----------End Format Initialization ----------------------------------
 
   const patternFilters = parseIfJSON(pattern?.filters, []);
   // const rightMenuWithSearch = rightMenu; // for live site

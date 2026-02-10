@@ -371,7 +371,10 @@ export const initialState = defaultState => {
             showAttribution: true,
         },
         // wrapper controlled part
-        dataRequest: {},
+        dataRequest: {
+        //     filter, exclude, gt, gte, lt, lte, filterGroups
+        },
+        // lastDataRequest: {},
         data: [],
         sourceInfo: {
             columns: [],
