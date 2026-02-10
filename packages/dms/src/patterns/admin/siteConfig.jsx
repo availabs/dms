@@ -1,6 +1,7 @@
 import React from 'react'
 // import {useLocation} from 'react-router'
 
+import { cloneDeep } from "lodash-es"
 import {ThemeContext, mergeTheme} from '../../ui/useTheme'
 import {AdminContext} from "./context";
 import UI from "../../ui"
@@ -39,7 +40,17 @@ const adminConfig = ({
   authPath = '/auth',
   themes = {},
 }) => {
-    const format = initializePatternFormat(adminFormat, app, type)
+    const format = cloneDeep(adminFormat)
+    format.app = app
+    format.type = type
+    // Only update app on registerFormats — admin types stay as-is ('pattern', 'theme')
+    // to match how existing records are stored in the database.
+    // Unlike page/forms/datasets patterns which prefix child types, the admin format
+    // stores patterns and themes with their original type names.
+    format.registerFormats?.forEach(rf => { rf.app = app })
+    format.attributes?.forEach(attr => {
+        if (attr.format) attr.format = `${app}+${attr.format.split('+')[1]}`
+    })
     baseUrl = baseUrl === '/' ? '' : baseUrl
 
     //console.log('defaultTheme', theme)
@@ -134,7 +145,7 @@ const patternConfig = ({
   themes = {},
   rightMenu = <DefaultMenu/>,
 }) => {
-    const format = initializePatternFormat(pattern, app, `${type}|pattern`)
+    const format = initializePatternFormat(pattern, app, 'pattern')
     const parentBaseUrl = baseUrl === '/' ? '' : baseUrl;
 
     baseUrl = `${parentBaseUrl}/manage_pattern`
