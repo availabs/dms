@@ -13,7 +13,7 @@ export default function NewSite ({app, apiUpdate}) {
 	const [status, setStatus] = React.useState('');
 	const [newSite, setNewSite] = React.useState({
 		site_name: '',
-		patterns: [{pattern_type: 'auth', name: 'Auth', base_url: 'dms_auth', authPermissions: JSON.stringify({[`${PROJECT_NAME} Admin`]: ['*']})}]
+		patterns: [{pattern_type: 'auth', name: 'Auth', base_url: 'auth', authPermissions: JSON.stringify({[`${PROJECT_NAME} Admin`]: ['*']})}]
 	})
 
 	async function createSite () {
