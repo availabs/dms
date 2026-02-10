@@ -38,7 +38,7 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
         if(!gridRef.current || !display.autoResize) return;
 
         const columnsWithSizeLength = visibleAttrsWithoutOpenOut.filter(({size}) => size).length;
-        const gridWidth = gridRef.current.offsetWidth - numColSize - gutterColSize - (allowEdit ? actionColumns.length * actionsColSize : 0);
+        const gridWidth = gridRef.current.offsetWidth - numColSize - gutterColSize - (allowEdit && actionColumns.length ? actionsColSize : 0);
         const currUsedWidth = visibleAttrsWithoutOpenOut.reduce((acc, {size}) => acc + +(size || 0), 0);
         if (
             !columnsWithSizeLength ||

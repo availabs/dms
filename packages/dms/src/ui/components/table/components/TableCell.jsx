@@ -3,7 +3,7 @@ import {isEqual} from "lodash-es";
 import Icon from "../../Icon";
 import DataTypes from "../../../columnTypes";
 import {formatFunctions} from "../../../../patterns/page/components/sections/components/dataWrapper/utils/utils";
-import { RenderAction } from "./RenderActions";
+import { RenderAction, RenderActionsPopup } from "./RenderActions";
 import {TableCellContext} from "../index";
 import {handleMouseDown, handleMouseMove, handleMouseUp} from "../utils/mouse";
 
@@ -242,6 +242,8 @@ export const TableCell = memo(function TableCell ({
         isCellEditing && allowEdit ? 'EditComp' : 'ViewComp';
 
     const Comp = useMemo(() =>
+        attribute._isActionsColumn ?
+            (props) => <RenderActionsPopup actionColumns={attribute.actionColumns} newItem={newItem} removeItem={removeItem} columns={columns} /> :
         compType === 'ui' ? (attribute.Comp || DisplayCalculatedCell) :
             renderTextBox ? DataTypes.textarea.EditComp :
                 attribute.isLink || attribute.actionType ?
@@ -406,7 +408,7 @@ export const TableCell = memo(function TableCell ({
         };
     }, [ attribute.openOut, openOutTitle, attribute.size, isSelected, renderTextBox, edge ]);
 
-    const disableCellEvents = attribute.isLink || attribute.actionType;
+    const disableCellEvents = attribute.isLink || attribute.actionType || attribute._isActionsColumn;
     const cellEvents = useMemo(
         () =>
             disableCellEvents
