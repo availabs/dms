@@ -150,7 +150,7 @@ export class ButtonNode extends DecoratorNode {
     const element = document.createElement('a');
     element.setAttribute('href', this.__path);
     element.setAttribute('data-lexical-button', 'true');
-    element.className = this.__style;
+    element.className = BUTTON_STYLES[this.__style] || BUTTON_STYLES['primary'];
     element.innerText = this.__linkText;
     return {element};
   }

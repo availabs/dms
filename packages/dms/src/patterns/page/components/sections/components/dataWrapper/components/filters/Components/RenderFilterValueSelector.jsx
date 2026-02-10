@@ -27,7 +27,7 @@ const RenderSearchKeySelector = ({filter, pageState, onChange}) => {
             />
             {
                 open ? (
-                    <div ref={menuRef} className={'absolute w-full bg-white p-1 text-xs rounded-md shadow-md'}>
+                    <div ref={menuRef} className={'absolute w-full bg-white p-1 text-xs rounded-md shadow-md z-1'}>
                         {
                             text ? (
                                 <div className={optionsClass}

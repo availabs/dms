@@ -3,8 +3,6 @@ import { configMatcher, getActiveConfig } from './_utils'
 import { defaultCheck, defaultCheckAuth } from './_auth'
 import Wrapper from './wrapper.jsx'
 
-let childKey = 0
-
 const DmsManager = (props) => {
 	const {
 		config,
@@ -26,7 +24,7 @@ const DmsManager = (props) => {
 
 		// get the component for the active config
 		// or the default component
-		return activeConfigs.map(activeConfig => {
+		return activeConfigs.map((activeConfig, i) => {
 			const comp = activeConfig.type //|| DefaultComponent
 
 			// get the wrapper for the config, or the default wrapper
@@ -45,10 +43,11 @@ const DmsManager = (props) => {
 				)
 			}
 			// JSX version: deprecated
+			const stableKey = `${depth}-${activeConfig.path || ''}-${i}`
 			return <Wrapper
 				Component={comp}
 				format={format}
-				key={childKey++}
+				key={stableKey}
 				{...activeConfig}
 				children={children}
 				user={user}

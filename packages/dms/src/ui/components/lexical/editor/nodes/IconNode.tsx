@@ -1,4 +1,11 @@
 import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import type {
+    DOMExportOutput,
+    EditorConfig,
+    LexicalEditor,
+    NodeKey,
+} from 'lexical';
 import {
     DecoratorNode,
 } from 'lexical';
@@ -43,9 +50,25 @@ export class IconNode extends DecoratorNode<JSX.Element> {
         return false;
     }
 
+    exportDOM(editor: LexicalEditor): DOMExportOutput {
+        const element = document.createElement('span');
+        element.className = 'inline-block align-middle mr-1';
+        element.setAttribute('data-lexical-icon', this.__iconName);
+        const Icon = editor._config?.theme?.Icons?.[this.__iconName];
+        if (Icon) {
+            try {
+                element.innerHTML = renderToStaticMarkup(
+                    React.createElement(Icon, { className: 'w-[1.5em] h-[1.5em] -mt-[5px]' })
+                );
+            } catch {
+                // Fallback if rendering fails
+            }
+        }
+        return {element};
+    }
+
     decorate(editor: LexicalEditor, config: EditorConfig): JSX.Element {
-        //console.log('config in decorate', config.theme)
-        const Icon = config?.theme?.Icons[this.__iconName];
+        const Icon = config?.theme?.Icons?.[this.__iconName];
         if (!Icon) {
             return <span>Icon not found</span>;
         }

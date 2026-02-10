@@ -35,7 +35,7 @@ import {
   SPEECH_TO_TEXT_COMMAND,
   SUPPORT_SPEECH_RECOGNITION,
 } from '../SpeechToTextPlugin';
-import theme from '../../themes/PlaygroundEditorTheme';
+import { useLexicalTheme } from '../../../useLexicalTheme';
 
 async function sendEditorState(editor: LexicalEditor): Promise<void> {
   const stringifiedEditorState = JSON.stringify(editor.getEditorState());
@@ -81,6 +81,7 @@ export default function ActionsPlugin({
   isRichText: boolean;
 }): JSX.Element {
   const [editor] = useLexicalComposerContext();
+  const theme = useLexicalTheme();
   const [isEditable, setIsEditable] = useState(() => editor.isEditable());
   const [isSpeechToText, setIsSpeechToText] = useState(false);
   const [connected, setConnected] = useState(false);
@@ -159,7 +160,7 @@ export default function ActionsPlugin({
   // }, [editor]);
 
   return (
-    <div className={`${theme.actions.base}` || "actions"}>
+    <div className={`${theme.actions_base}` || "actions"}>
       {SUPPORT_SPEECH_RECOGNITION && (
         <button
           onClick={() => {
@@ -168,7 +169,7 @@ export default function ActionsPlugin({
           }}
           // action-button-mic not added to theme
           className={
-            `${theme.actionButton} action-button-mic ` + (isSpeechToText ? 'active' : '')
+            `${theme.actionButton_base} action-button-mic ` + (isSpeechToText ? 'active' : '')
           }
           title="Speech To Text"
           aria-label={`${
@@ -178,14 +179,14 @@ export default function ActionsPlugin({
         </button>
       )}
       <button
-        className={`${theme.actionButton.base} import`}
+        className={`${theme.actionButton_base} import`}
         onClick={() => importFile(editor)}
         title="Import"
         aria-label="Import editor state from JSON">
-        <i className={theme.icon.import || "import"} />
+        <i className={theme.icon_import || "import"} />
       </button>
       <button
-        className={`${theme.actionButton.base} export`}
+        className={`${theme.actionButton_base} export`}
         onClick={() =>
           exportFile(editor, {
             fileName: `Playground ${new Date().toISOString()}`,
@@ -194,10 +195,10 @@ export default function ActionsPlugin({
         }
         title="Export"
         aria-label="Export editor state to JSON">
-        <i className={theme.icon.export || "export"} />
+        <i className={theme.icon_export || "export"} />
       </button>
       <button
-        className={`${theme.actionButton.base} clear`}
+        className={`${theme.actionButton_base} clear`}
         disabled={isEditorEmpty}
         onClick={() => {
           showModal('Clear editor', (onClose) => (
@@ -206,10 +207,10 @@ export default function ActionsPlugin({
         }}
         title="Clear"
         aria-label="Clear editor contents">
-        <i className={theme.icon.clear || "clear"} />
+        <i className={theme.icon_clear || "clear"} />
       </button>
       <button
-        className={`${theme.actionButton.base} ${!isEditable ? 'unlock' : 'lock'}`}
+        className={`${theme.actionButton_base} ${!isEditable ? 'unlock' : 'lock'}`}
         onClick={() => {
           // Send latest editor state to commenting validation server
           if (isEditable) {
@@ -222,11 +223,11 @@ export default function ActionsPlugin({
         <i className={!isEditable ? 'unlock' : 'lock'} />
       </button>
       <button
-        className={`${theme.actionButton.base}` }
+        className={`${theme.actionButton_base}` }
         onClick={handleMarkdownToggle}
         title="Convert From Markdown"
         aria-label="Convert from markdown">
-        <i className={theme.icon.markdown} />
+        <i className={theme.icon_markdown} />
       </button>
       {/*isCollabActive && (
         <button

@@ -4,6 +4,8 @@ import {cloneDeep} from "lodash-es";
 import {RenderField} from "./components/RenderField";
 import {RenderAddField} from "./components/RenderAddField";
 import {DatasetsContext} from "../../context";
+import {ThemeContext} from "../../../../ui/useTheme";
+import {metadataCompTheme} from "./metadataComp.theme";
 
 const parseJson = value => {
     try {
@@ -16,7 +18,8 @@ const parseJson = value => {
 export default ({isDms, value = '{}', accessKey, onChange, className, apiLoad, format}) => {
     const {UI} = useContext(DatasetsContext)
     const {Input, Icon} = UI;
-    const theme = {}//useTheme()
+    const {theme} = useContext(ThemeContext) || {};
+    const t = theme?.datasets?.metadataComp || metadataCompTheme;
     const [item, setItem] = useState(parseJson(value))
     const [search, setSearch] = useState('');
     const dragItem = useRef();
@@ -74,18 +77,18 @@ export default ({isDms, value = '{}', accessKey, onChange, className, apiLoad, f
     }
 
     return (
-        <div className={'p-2'}>
-            <div className={'w-full'}>
+        <div className={t.container}>
+            <div className={t.searchWrapper}>
                 <Input value={search} onChange={e => setSearch(e.target.value)} placeHolder={'search...'}/>
                 {
                     item.is_dirty ?
-                        <div className={'flex text-sm italic items-center'}>
-                            <Icon icon={'Alert'} className={'text-yellow-600 cursor-pointer mx-1 size-6'}/>
+                        <div className={t.dirtyWarning}>
+                            <Icon icon={'Alert'} className={t.dirtyWarningIcon}/>
                             <span>Metadata has changed since last data validation. Please re-run validate to ensure accuracy.</span>
                         </div> : null
                 }
             </div>
-            <div className={'max-h-[74dvh] overflow-auto scrollbar-sm'}>
+            <div className={t.fieldListScroll}>
                 {
                     (item?.[accessKey] || [])
                         .filter(attribute =>
@@ -98,7 +101,7 @@ export default ({isDms, value = '{}', accessKey, onChange, className, apiLoad, f
                                 <RenderField i={i} item={attribute} id={`field-comp-${i}`} key={`field-comp-${i}`}
                                              attribute={attribute?.name}
                                              attributeList={(item[accessKey] || []).map(a => a.name)}
-                                             theme={theme} updateAttribute={updateAttribute}
+                                             updateAttribute={updateAttribute}
                                              removeAttribute={removeAttribute} apiLoad={apiLoad} format={format}
                                              dragStart={dragStart} dragEnter={dragEnter} dragOver={dragOver} drop={drop}
                                              isDms={isDms}
@@ -108,8 +111,8 @@ export default ({isDms, value = '{}', accessKey, onChange, className, apiLoad, f
                 }
             </div>
 
-            <div className={'w-full p-2'}>
-                <RenderAddField attributes={item[accessKey]} placeHolder={'New field name...'} theme={theme}
+            <div className={t.addFieldWrapper}>
+                <RenderAddField attributes={item[accessKey]} placeHolder={'New field name...'}
                           className={className} addAttribute={addAttribute}/>
             </div>
         </div>

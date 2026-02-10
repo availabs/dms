@@ -11,8 +11,16 @@ import {
     getData as getFilterData
 } from "../../page/components/sections/components/dataWrapper/components/filters/utils";
 import Spreadsheet from "../../page/components/sections/components/ComponentRegistry/spreadsheet";
-import {Filter, FilterRemove} from "../ui/icons";
 import {Controls} from "../../page/components/sections/components/dataWrapper/components/Controls";
+import {ThemeContext} from "../../../ui/useTheme";
+import {validateCompTheme} from "./validateComp.theme";
+
+const FilterRemoveIcon = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={24} height={24} color={"#000000"} fill={"none"} {...props}>
+        <path d="M20.9987 4.5C20.9869 4.06504 20.8956 3.75346 20.672 3.5074C20.2111 3 19.396 3 17.7657 3H6.23433C4.60404 3 3.7889 3 3.32795 3.5074C2.86701 4.0148 2.96811 4.8008 3.17033 6.3728C3.22938 6.8319 3.3276 7.09253 3.62734 7.44867C4.59564 8.59915 6.36901 10.6456 8.85746 12.5061C9.08486 12.6761 9.23409 12.9539 9.25927 13.2614C9.53961 16.6864 9.79643 19.0261 9.93278 20.1778C10.0043 20.782 10.6741 21.2466 11.226 20.8563C12.1532 20.2006 13.8853 19.4657 14.1141 18.2442C14.1986 17.7934 14.3136 17.0803 14.445 16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M21 7L15 13M21 13L15 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+);
 import {
     RenderFilters
 } from "../../page/components/sections/components/dataWrapper/components/filters/RenderFilters";
@@ -161,7 +169,9 @@ const updateCall = async ({column, app, type, maps, falcor, user, setUpdating, s
 const RenderMassUpdater = ({sourceInfo, open, setOpen, falcor, columns, data, user, updating, setUpdating, cms_context}) => {
     if(!open) return;
     const {UI} = useContext(cms_context);
-    const {Icon, ColumnTypes} = UI;
+    const {theme} = useContext(ThemeContext) || {};
+    const t = theme?.datasets?.validateComp || validateCompTheme;
+    const {Icon, Button, ColumnTypes} = UI;
     const [maps, setMaps] = useState([]);
     const [loadingAfterUpdate, setLoadingAfterUpdate] = useState(false);
     const currColumn = columns.find(col => col.name === open);
@@ -182,20 +192,20 @@ const RenderMassUpdater = ({sourceInfo, open, setOpen, falcor, columns, data, us
         [invalidValues]);
 
     return (
-        <div className={'fixed inset-0 h-full w-full z-[100] content-center'} style={{backgroundColor: '#00000066'}} onClick={() => setOpen(false)}>
-            <div className={'w-3/4 h-1/2 overflow-auto scrollbar-sm flex flex-col gap-[12px] p-[16px] bg-white place-self-center rounded-md'} onClick={e => e.stopPropagation()}>
-                <div className={'w-full flex justify-end'}>
-                    <div className={'w-fit h-fit p-[8px] text-[#37576B] border border-[#E0EBF0] rounded-full cursor-pointer'}
+        <div className={t.modalBackdrop} onClick={() => setOpen(false)}>
+            <div className={t.modalPanel} onClick={e => e.stopPropagation()}>
+                <div className={t.modalCloseRow}>
+                    <div className={t.modalCloseButton}
                          onClick={() => setOpen(false)}
                     >
                         <Icon icon={'XMark'} height={16} width={16}/>
                     </div>
                 </div>
 
-                <div className={'text-lg'}>{currColumn.display_name || currColumn.name}</div>
+                <div className={t.modalTitle}>{currColumn.display_name || currColumn.name}</div>
 
-                <div className={'max-h-3/4 overflow-auto scrollbar-sm border rounded-md p-4'}>
-                    <div className={'grid grid-cols-3'}>
+                <div className={t.modalBody}>
+                    <div className={t.modalGridHeader}>
                         <div>Invalid Values</div>
                         <div>Valid Values</div>
                         <div></div>
@@ -206,12 +216,12 @@ const RenderMassUpdater = ({sourceInfo, open, setOpen, falcor, columns, data, us
                                 const value = maps.find(map => isEqual(map.invalidValue, invalidValue))?.validValue;
                                 return (
                                     <div key={invalidValue}
-                                         className={`group grid grid-cols-3 items-center gap-y-1 ${i % 2 ? 'bg-gray-50' : ''} rounded-md `}>
+                                         className={`${t.modalGridRow} ${i % 2 ? t.modalGridRowOdd : ''}`}>
                                         <div>
                                             {
                                                 Array.isArray(invalidValue) ? invalidValue.join(', ') :
                                                     typeof invalidValue === 'object' ? JSON.stringify(invalidValue) : invalidValue}
-                                            <span className={'mx-1 px-1 py-0.5 text-sm bg-red-50 text-red-500'}>
+                                            <span className={t.modalInvalidBadge}>
                                                 {data[`${currColumn.shortName}_invalid_values`].filter(val => isEqual(val, invalidValue)).length}
                                             </span>
                                         </div>
@@ -241,17 +251,17 @@ const RenderMassUpdater = ({sourceInfo, open, setOpen, falcor, columns, data, us
                                                     }
                                                 }}/>
                                         </div>
-                                        <button
+                                        <Button type="plain"
                                             onClick={() => setMaps(maps.filter(map => map.invalidValue !== invalidValue))}>reset
-                                        </button>
+                                        </Button>
                                     </div>
                                 )
                             })
                     }
                 </div>
-                <button className={'px-2 py-1 bg-blue-500/15 text-blue-700 hover:bg-blue-500/25'}
+                <Button className={t.modalUpdateButton}
                         onClick={() => updateCall({column: currColumn, app, type, maps, falcor, user, updating, setUpdating, setOpen, setLoadingAfterUpdate})}>
-                    {updating ? 'updating...' : loadingAfterUpdate ? 'loading updates...' : 'update'}</button>
+                    {updating ? 'updating...' : loadingAfterUpdate ? 'loading updates...' : 'update'}</Button>
             </div>
         </div>
     )
@@ -260,6 +270,10 @@ export default function Validate ({
     API_HOST, pageBaseUrl, user, falcor, item,
     apiLoad, apiUpdate, cms_context
               }) {
+    const {UI} = useContext(cms_context);
+    const {theme} = useContext(ThemeContext) || {};
+    const t = theme?.datasets?.validateComp || validateCompTheme;
+    const {Icon, Button} = UI;
     const navigate = useNavigate();
     const [data, setData] = useState({});
     const [lengths, setLengths] = useState({});
@@ -456,7 +470,7 @@ export default function Validate ({
 
             if(!invalidValues?.length){
                 return (
-                    <span className={'truncate select-none'}
+                    <span className={t.columnHeader}
                           title={column.customName || column.display_name || column.name}>
                                     {column.customName || column.display_name || column.name}
                     </span>
@@ -465,13 +479,13 @@ export default function Validate ({
 
             return (
                 <>
-                    <span className={'truncate select-none min-w-[15px]'}
+                    <span className={t.columnHeaderWithErrors}
                           title={column.customName || column.display_name || column.name}>
                                     {column.customName || column.display_name || column.name}
                     </span>
 
-                    <span className={'flex ml-1 gap-0.5 font-light'}>
-                        <span className={'flex px-1 py-0.5 text-xs bg-red-50 text-red-500 rounded-sm'}
+                    <span className={t.errorBadgeGroup}>
+                        <span className={t.errorCount}
                               onClick={e => {
                                   e.stopPropagation();
                                   setMassUpdateColumn(column.name)
@@ -480,7 +494,7 @@ export default function Validate ({
                         </span>
 
                         <span
-                            className={'flex place-items-center px-1 py-0.5 text-sm bg-blue-50 rounded-sm'}
+                            className={t.filterToggle}
                             onClick={e => {
                                 e.stopPropagation();
 
@@ -503,7 +517,7 @@ export default function Validate ({
                                 setValue((tmpValue))
                                 setSSKey(`${Date.now()}`);
                             }}>
-                            {isFilterOn ? <FilterRemove className={'text-blue-500'} height={14} width={14} /> : <Filter className={'text-blue-500'} height={14} width={14} />}
+                            {isFilterOn ? <FilterRemoveIcon className={'text-blue-500'} height={14} width={14} /> : <Icon icon="Filter" className={'text-blue-500'} height={14} width={14} />}
                         </span>
                     </span>
                 </>
@@ -511,19 +525,17 @@ export default function Validate ({
         }
     }
     return (
-            <div
-                className={'flex flex-1 w-full flex-col shadow bg-white relative text-md font-light leading-7 p-4'}>
-                <div className='w-full max-w-7xl mx-auto'>
-                    <div
-                        className={'flex justify-between w-full'}>
+            <div className={t.container}>
+                <div className={t.innerWrapper}>
+                    <div className={t.headerRow}>
                         {/* stat boxes */}
-                        <div className={'flex gap-2 text-gray-500'}>
-                            <div className={'bg-gray-100 rounded-md px-2 py-1'}>Total Rows: <span className={'text-gray-900'}>{(lengths.validLength || 0) + (lengths.invalidLength || 0)}</span></div>
-                            <div className={'bg-gray-100 rounded-md px-2 py-1'}>Invalid Rows: <span className={'text-gray-900'}>{(lengths.invalidLength || 0)}</span></div>
-                            <div className={'bg-gray-100 rounded-md px-2 py-1'}>Valid Rows: <span className={'text-gray-900'}>{(lengths.validLength || 0)}</span></div>
+                        <div className={t.statGroup}>
+                            <div className={t.statBox}>Total Rows: <span className={t.statValue}>{(lengths.validLength || 0) + (lengths.invalidLength || 0)}</span></div>
+                            <div className={t.statBox}>Invalid Rows: <span className={t.statValue}>{(lengths.invalidLength || 0)}</span></div>
+                            <div className={t.statBox}>Valid Rows: <span className={t.statValue}>{(lengths.validLength || 0)}</span></div>
                         </div>
-                        <button
-                            className={`px-2 py-1 text-sm ${error ? `bg-red-300 hover:bg-red-600 text-white` : `bg-blue-500/15 text-blue-700 hover:bg-blue-500/25`} rounded-md`}
+                        <Button
+                            className={error ? t.revalidateButtonError : t.revalidateButton}
                             onClick={() =>
                                 reValidate({
                                     app, type: value.sourceInfo.type,
@@ -531,7 +543,7 @@ export default function Validate ({
                                 })}
                         >
                             {error ? JSON.stringify(error) : validating ? 'Validating' : 'Re - Validate'}
-                        </button>
+                        </Button>
                     </div>
 
                     {/* Mass Update Modal */}
@@ -551,8 +563,7 @@ export default function Validate ({
                     {/* invalid rows */}
                     {
                         columns.find(col => data[`${col.shortName}_error`]) || loading ?
-                            <div
-                                className={'w-full flex items-center justify-between px-2 py-1 text-gray-500 bg-gray-100 rounded-md my-2'}>
+                            <div className={t.sectionHeader}>
                                 {loading ? 'loading' : ''} Invalid Rows
                             </div> : null
                     }

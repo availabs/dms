@@ -39,7 +39,7 @@ const ColorPickerControl = ({ value, onChange, colors, showColorPicker = false, 
 
 const Comps = {
   input : Input,
-  select: columnTypes.select.EditComp,
+  select: columnTypes?.select?.EditComp,
   toggle: Switch,
   colorpicker: ColorPickerControl,
   link : ({ menuItem, activeStyle }) => {
@@ -187,7 +187,7 @@ const Menu = ({config, title, showTitle=true, open, setOpen, activeStyle}) => {
   )
 }
 
-export const docs = []
+
 
 const flattenConfig = (config, parent) => {
   const flatConfig = {};
@@ -199,10 +199,27 @@ const flattenConfig = (config, parent) => {
 
     if(item.items){
       const obj = flattenConfig(item.items, itemId);
+      const keyRemap = {};
+      const mergedKeys = [];
+
       Object.entries(obj).forEach(([key, val]) => {
         const itemKey = flatConfig[key] ? crypto.randomUUID() : key;
-        flatConfig[itemKey] = val
+        if (itemKey !== key) {
+          keyRemap[key] = itemKey;
+          val = {...val, id: itemKey};
+        }
+        flatConfig[itemKey] = val;
+        mergedKeys.push(itemKey);
       })
+
+      // Fix parent references for items whose parent was remapped
+      if (Object.keys(keyRemap).length) {
+        mergedKeys.forEach(k => {
+          if (keyRemap[flatConfig[k].parent]) {
+            flatConfig[k].parent = keyRemap[flatConfig[k].parent];
+          }
+        });
+      }
     }
   })
 
@@ -210,7 +227,7 @@ const flattenConfig = (config, parent) => {
 }
 
 // @params btnVisibleOnGroupHover: hides button until group is hovered. parent needs to have group class.
-export default function NavigableMenu({config=defaultItems, title, showTitle, btnVisibleOnGroupHover, defaultOpen, preferredPosition, activeStyle, children}) {
+export default function NavigableMenu({config=defaultItems, title, showTitle, btnVisibleOnGroupHover, defaultOpen, preferredPosition, activeStyle, preventCloseOnClickOutside, children}) {
   const { theme: fullTheme = { navigableMenu: defaultTheme } } = React.useContext(ThemeContext) || {};
   const theme = getComponentTheme(fullTheme, 'navigableMenu', activeStyle);
   const [configStateFlat, setConfigStateFlat] = useImmer(flattenConfig(config));
@@ -232,6 +249,7 @@ export default function NavigableMenu({config=defaultItems, title, showTitle, bt
       btnVisibleOnGroupHover={btnVisibleOnGroupHover}
       defaultOpen={defaultOpen}
       preferredPosition={preferredPosition}
+      preventCloseOnClickOutside={preventCloseOnClickOutside}
     >
       {
         ({open, setOpen}) => (

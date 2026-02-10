@@ -1,4 +1,6 @@
-import docs from './docs';
+// Note: component docs (ui/docs.js) are NOT imported here to avoid circular import:
+// defaultTheme -> docs -> view.doc -> view -> useTheme -> defaultTheme
+// Consumers that need docs should import ui/docs.js directly (see themeEditor.jsx).
 import settings from './themeSettings'
 import sideNavTheme from "./components/SideNav.theme";
 import topNavTheme from "./components/TopNav.theme";
@@ -16,17 +18,20 @@ import {popoverTheme} from "./components/Popover";
 import {labelTheme} from "./components/Label";
 import {selectTheme} from "./components/Select";
 import {listboxTheme} from "./components/Listbox";
-import {tableTheme} from "./components/table";
+import {tableTheme} from "./components/table/table.theme";
 import {nestableTheme} from "./components/draggableNav"
-import {dataCardTheme} from "./components/Card";
-import {graphTheme} from "./components/graph";
+import {dataCardTheme} from "./components/card.theme";
+import {graphTheme} from "./components/graph/theme";
 import {logoTheme} from "./components/Logo";
 import navigableMenuTheme from "./components/navigableMenu/theme";
 import icons from './icons'
+import { textSettingsTheme } from "./themes/textSettings";
+import { lexicalTheme } from './components/lexical/theme'
 // =========================================
 // Pattern Themes, maybe move registration of these to DMS Site ??
 // =========================================
 import pagesTheme from "../patterns/page/defaultTheme"
+import datasetsTheme from "../patterns/datasets/defaultTheme"
 
 
 // =====================================================================================================
@@ -43,6 +48,7 @@ import {
 
 const components = {
     pages: pagesTheme,
+    datasets: datasetsTheme,
     "compatibility": "border-[#191919] pt-[41px]",
 
     "heading": {
@@ -70,9 +76,8 @@ const components = {
     select: selectTheme,
     listbox: listboxTheme,
     table: tableTheme,
-
-    // --- component themes
-    lexical : {},
+    lexical:lexicalTheme,
+    textSettings: textSettingsTheme,
     dataCard: dataCardTheme,
     attribution: attributionTheme,
     filters: filterTheme,
@@ -80,7 +85,7 @@ const components = {
     navigableMenu: navigableMenuTheme,
 }
 const theme = {
-    widgets: defaultWidgets,
+
     admin: {
         navOptions: {
             "logo": "",
@@ -106,9 +111,10 @@ const theme = {
     },
     //navOptions,
     ...components,
+
     "Icons":icons,
-    docs,
-    settings
+    settings,
+    widgets: defaultWidgets
 }
 
 export default theme

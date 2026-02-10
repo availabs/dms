@@ -1,50 +1,29 @@
-import { matchRoutes } from 'react-router'
 import { get, cloneDeep } from 'lodash-es'
 import dmsColumnTypes from '../ui/columnTypes'
-import Array from "../ui/columnTypes/array";
+//import Array from "../ui/columnTypes/array";
 import React from "react";
 
-// import Wrappers from '../wrappers' //comment this out and it breaks, why?!?!
-// import Components from '../components'
+// Re-export Node-safe functions from _utils-core.js
+export { configMatcher, getActiveConfig } from './_utils-core'
 
 
-export function configMatcher (config, path ) {
-	// matchRoutes picks best from all available routes in config
-	const matches = matchRoutes(config.map(d => ({path:d.path, ...d})), {pathname:path}) || []
-
-	// hash matches by route path
-	let matchHash = matches.reduce((out,c) => {
-		out[c.route.path] = c
-		return out
-	},{})
-
-	// return fitlered configs for best matches
-	// and add extracted params from matchRoutes
-	return config.filter((d,i) => {
-		let match = matchHash?.[d.path] || false
-		if(match){
-			d.params = match.params
-		}
-		return match
-	})
-}
-
-export function getActiveConfig (config=[], path='/', depth = 0) {
-
-	let configs = cloneDeep(configMatcher(config,path, depth))
-
-	let childConfigs = configs
-		.reduce((out,conf) => {
-			let childConf = conf.children?.length ? getActiveConfig(conf.children, path, depth+1) : [];
-			if(childConf.length) {
-				return [...out, ...childConf]
-			}
-			return out
-		},[])
-
-    //console.log(childConfigs)
-
-	return [...configs,...childConfigs]
+/**
+ * Initialize a pattern format with app/type namespacing.
+ * Clones the base format, sets app/type, and recursively updates
+ * all nested registerFormats and attributes.
+ *
+ * @param {Object} baseFormat - The pattern's base format definition
+ * @param {string} app - The app namespace (e.g., 'my-site')
+ * @param {string} type - The type identifier (e.g., 'docs-page')
+ * @returns {Object} - Cloned and namespaced format
+ */
+export function initializePatternFormat(baseFormat, app, type) {
+  const format = cloneDeep(baseFormat)
+  format.app = app
+  format.type = type
+  format.registerFormats = updateRegisteredFormats(format.registerFormats, app, type)
+  format.attributes = updateAttributes(format.attributes, app, type)
+  return format
 }
 
 
@@ -123,14 +102,15 @@ export function filterParams (data, params,format) {
 export const updateRegisteredFormats = (registerFormats, app, type) => {
 	if (Array.isArray(registerFormats)) {
 	  registerFormats = registerFormats.map((rFormat) => {
+		const newType = `${type}|${rFormat.type}`;
 		rFormat.app = app;
-		rFormat.type = `${type}|${rFormat.type}`;
+		rFormat.type = newType;
 		rFormat.registerFormats = updateRegisteredFormats(
 		  rFormat.registerFormats,
 		  app,
-		  type
+		  newType
 		);
-		rFormat.attributes = updateAttributes(rFormat.attributes, app, type);
+		rFormat.attributes = updateAttributes(rFormat.attributes, app, newType);
 		return rFormat;
 	  });
 	}

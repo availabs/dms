@@ -1,7 +1,7 @@
 import React, {useContext, useEffect, useState} from "react";
 import { DatasetsContext } from '../../../../context';
 import { getExternalEnv } from '../../../../utils/datasources';
-import SourcesLayout from "../../../layout";
+
 import Upload from "../../../../components/upload";
 import {ThemeContext} from "../../../../../../ui/useTheme";
 import {getSourceData} from "../../default/utils";
@@ -20,7 +20,7 @@ const CreateInternalDataset = ({
     const {theme} = useContext(ThemeContext) || {};
     if(!isDms) return <></>
     return (
-            <div className={`${theme?.page?.wrapper1}`}>
+            <div>
 
                   <button className={'p-1 mx-1 bg-blue-300 hover:bg-blue-500 text-white'}
                           disabled={!data.name}

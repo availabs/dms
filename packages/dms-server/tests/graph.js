@@ -22,6 +22,7 @@
 const Router = require('../src/utils/falcor-router/src/Router');
 const { createRoutes } = require('../src/routes/dms/dms.route');
 const { createController } = require('../src/routes/dms/dms.controller');
+const udaRoutes = require('../src/routes/uda/uda.route');
 
 /**
  * Create a test graph with configurable database
@@ -32,7 +33,8 @@ const { createController } = require('../src/routes/dms/dms.controller');
  */
 function createTestGraph(dbName = 'dms-sqlite', options = {}) {
   const controller = createController(dbName);
-  const routes = createRoutes(controller);
+  const dmsRoutes = createRoutes(controller);
+  const routes = [...dmsRoutes, ...udaRoutes];
 
   const BaseRouter = Router.createClass(routes);
 

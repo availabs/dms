@@ -11,7 +11,7 @@ export const sectionTheme = {
       topBarSpacer: 'flex-1',
       topBarButtonsEdit: 'flex gap-1 z-10',
       topBarButtonsView: 'z-10',
-      menuPosition: 'absolute top-[-10px] right-[-10px] items-center',
+      menuPosition: 'absolute top-[5px] right-[5px] items-center flex gap-0.5',
       editIcon: 'hover:text-blue-500 size-6',
       contentWrapper: 'h-full'
     }

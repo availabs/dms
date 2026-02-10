@@ -8,3 +8,7 @@ dist
 
 # Request log files
 **/logs/*.jsonl
+
+# Environment files (use .env.example as template)
+.env
+**/.env

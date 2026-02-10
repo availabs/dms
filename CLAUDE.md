@@ -69,8 +69,15 @@ Tasks are organized under these topics in todo.md:
 
 ### Important
 
+**Before implementing any task, read `planning/planning-rules.md`** — it defines the full workflow including how to track progress in task files during implementation.
+
 When asked to create a task or plan work:
 1. Always create the task file in `planning/tasks/current/`
 2. Always add a todo entry to `planning/todo.md`
 3. Keep the todo list updated as work progresses
 4. Move completed tasks to `planning/tasks/completed/` and update `completed.md`
+
+When implementing a task:
+1. Read the task file in `planning/tasks/current/` before starting
+2. **Update the task file as you complete each phase/step** — mark items `[x]`, add status to phase headers, note deviations
+3. The task file is the **source of truth** for what has been done and what remains — future sessions depend on it

@@ -9,14 +9,14 @@ import ActionControls from "./controls/ActionControls";
 import {ComponentContext} from '../../../../../context'
 import {ThemeContext} from "../../../../../../../ui/useTheme"
 import {isEqualColumns} from "../../dataWrapper/utils/utils";
-import {tableTheme} from "../../../../../../../ui/components/table";
+//import {tableTheme} from "../../../../../../../ui/components/table/theme";
 
 const frozenCols = [0,1] // testing
 const frozenColClass = '' // testing
 
 export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addItem, newItem, setNewItem, loading, allowEdit,
                                 currentPage, infiniteScrollFetchData}) => {
-    const { UI, theme = { table: tableTheme } } = React.useContext(ThemeContext) || {}
+    const { UI, theme = { table } } = React.useContext(ThemeContext) || {}
     const {Table} = UI;
     const {state:{columns, sourceInfo, display, data, localFilteredData, fullData}, setState, controls={}, isActive, activeStyle} = useContext(ComponentContext);
     const gridRef = useRef(null);

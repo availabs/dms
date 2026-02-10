@@ -1,0 +1,5 @@
+{
+  "type": "sqlite",
+  "role": "dms",
+  "filename": "../data/cli-test.sqlite"
+}

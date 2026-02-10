@@ -1,6 +1,5 @@
 import React, {useContext, useEffect, useState} from "react";
 import { DatasetsContext } from "../../../context";
-import { ThemeContext } from "../../../../../ui/useTheme";
 import { AuthContext } from "../../../../auth/context"
 import { cloneDeep } from "lodash-es";
 import {useNavigate, Link} from "react-router";
@@ -122,7 +121,6 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params, isDms })
     const {id} = params;
     const {app, API_HOST, baseUrl, pageBaseUrl, user, parent, UI, falcor, damaDataTypes, datasources} = React.useContext(DatasetsContext) || {};
     const pgEnv = getExternalEnv(datasources);
-    const {theme} = React.useContext(ThemeContext) || {};
     const {AuthAPI, ...restAuth} = React.useContext(AuthContext) || {};
     const [users, setUsers] = React.useState([]);
     const [groups, setGroups] = React.useState([]);
@@ -147,7 +145,7 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params, isDms })
     // todo add setAuth feature for internal and external sources.
     // use statistics column. make a route to update sources.
     return (
-            <div className={`${theme?.page?.wrapper1} p-2`}>
+            <div className={'p-2'}>
                 <div className={'flex gap-12'}>
                     <div className={'w-3/4'}>
                         <div className={'shadow-md rounded-md place-content-center p-4 w-full'}>

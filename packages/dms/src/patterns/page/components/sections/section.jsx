@@ -16,14 +16,10 @@ import {
 } from './section_utils'
 import {useDataSource} from "./useDataSource";
 import Component from "./components";
-import ComponentRegistry from "./components/ComponentRegistry";
 import {useImmer} from "use-immer";
 import {convertOldState} from "./components/dataWrapper/utils/convertOldState";
-export let RegisteredComponents = ComponentRegistry;
-
-export const registerComponents = (comps = {}) => {
-    RegisteredComponents = {...RegisteredComponents, ...comps}
-}
+import { getRegisteredComponents } from './componentRegistry'
+export { registerComponents, getRegisteredComponents } from './componentRegistry'
 
 export function SectionEdit({ i, value, attributes, siteType, format, onChange, onRemove, moveItem, onCancel, onSave }) {
     const isEdit = true;
@@ -32,6 +28,7 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
     const { pageState, apiLoad, apiUpdate } = useContext(PageContext);
     const {theme: fullTheme, UI} = React.useContext(ThemeContext);
 
+    const RegisteredComponents = getRegisteredComponents();
     const component = (RegisteredComponents[get(value, ["element", "element-type"], "lexical")] || RegisteredComponents['lexical']);
     const [state, setState] = useImmer(convertOldState(value?.['element']?.['element-data'] || '', initialState(component.defaultState), component.name));
     const [sectionState, setSectionState] = useImmer({
@@ -68,9 +65,9 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
                             elementData[newKey] = newComp.defaultState[newKey];
                         })
                 })
-                updateAttribute('element', {...value, 'element-type': v, 'element-data': JSON.stringify(elementData)})
+                updateAttribute('element', {...value.element, 'element-type': v, 'element-data': JSON.stringify(elementData)})
             }else{
-                updateAttribute('element', {...value, 'element-type': v})
+                updateAttribute('element', {...value.element, 'element-type': v})
             }
         }
     }
@@ -89,10 +86,15 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
       ui:  { Switch, Pill, Icon, TitleEditComp, LevelComp, theme: fullTheme, RegisteredComponents },
       dataSource: {  activeSource, activeView, sources, views, onSourceChange, onViewChange }
   })
-
+    const canEditSection = isUserAuthed(['edit-section'], sectionAuthPermissions);
     {/* apiLoad and apiUpdate are passed in ComponentContext as components won't always be in pages pattern. */}
+    // Resolve controls - may be a function that receives theme, or a static object
+    const resolvedControls = typeof component?.controls === 'function'
+        ? component.controls(fullTheme)
+        : component?.controls;
+
     return (
-        <ComponentContext.Provider value={{state, setState, apiLoad, apiUpdate, controls: component?.controls,
+        <ComponentContext.Provider value={{state, setState, apiLoad, apiUpdate, controls: resolvedControls,
             isActive: value?.element?.['element-type'] === 'Spreadsheet', activeStyle: value?.activeStyle}}>
             <div className={theme.wrapper}>
                 {/* -------------------top line buttons ----------------------*/}
@@ -113,12 +115,24 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
                                 HelpComp={HelpComp}
                             />
                             <div className={theme.menuPosition}>
+                                {canEditSection ?
+                                    <div color={'blue'} className={'text-blue-500 hover:text-blue-700 cursor-pointer px-1 py-0.5'}
+                                          title={'Save'} onClick={onSave}>
+                                        <Icon icon={'FloppyDisk'} className={'size-6'}/>
+                                    </div> : null}
+                                {canEditSection ?
+                                    <div className={'text-orange-500 hover:text-orange-700 cursor-pointer px-1 py-0.5'}
+                                          title={'Cancel'} onClick={onCancel}>
+                                        <Icon icon={'CancelCircle'} className={'size-6'} />
+                                    </div>: null
+                                }
                                 <NavigableMenu
                                     config={sectionMenuItems}
                                     title={'Section Settings'}
                                     btnVisibleOnGroupHover={false}
                                     defaultOpen={true}
                                     preferredPosition={"right"}
+                                    preventCloseOnClickOutside={true}
                                 />
                             </div>
                         </div>
@@ -164,6 +178,7 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
     const {NavigableMenu, Switch, Pill, Icon, Permissions} = UI;
     const theme = getComponentTheme(fullTheme, 'pages.section');
 
+    const RegisteredComponents = getRegisteredComponents();
     const component = RegisteredComponents[get(value, ["element", "element-type"], "lexical")];
     const [state, setState] = useImmer(convertOldState(value?.element?.['element-data'] || '', initialState(component?.defaultState), component?.name));
     const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -192,7 +207,7 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
     const updateAttribute = (k, v) => {
         const newV = {...value, [k]: v}
         if (!isEqual(value, newV)) {
-            onChange?.(i, newV)
+            onChange?.(i, newV) // pageView doesn't pass onChange
         }
     }
     const updateElementType = (v) => {
@@ -202,14 +217,15 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
                 const elementData = isJson(value.element['element-data']) ? JSON.parse(value.element['element-data']) : {};
                 setState(draft => {
                     Object.keys(newComp.defaultState)
+                        .filter(newKey => !draft[newKey])
                         .forEach(newKey => {
                             draft[newKey] = newComp.defaultState[newKey];
                             elementData[newKey] = newComp.defaultState[newKey];
                         })
                 })
-                updateAttribute('element', {...value, 'element-type': v, 'element-data': JSON.stringify(elementData)})
+                updateAttribute('element', {...value.element, 'element-type': v, 'element-data': JSON.stringify(elementData)})
             }else{
-                updateAttribute('element', {...value, 'element-type': v})
+                updateAttribute('element', {...value.element, 'element-type': v})
             }
         }
     }
@@ -247,8 +263,15 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
         dataSource: {  activeSource, activeView, sources, views, onSourceChange, onViewChange }
     })
 
+    // Resolve controls - may be a function that receives theme, or a static object
+    const resolvedControls = typeof component?.controls === 'function'
+        ? component.controls(fullTheme)
+        : component?.controls;
+
+    const canEditSection = isUserAuthed(['edit-section'], sectionAuthPermissions);
+
     return (
-        <ComponentContext.Provider value={{state, setState, apiLoad, apiUpdate, controls: component?.controls, isActive, activeStyle: value?.activeStyle}}>
+        <ComponentContext.Provider value={{state, setState, apiLoad, apiUpdate, controls: resolvedControls, isActive, activeStyle: value?.activeStyle}}>
             <div className={editPageMode && hideSection ? theme.wrapperHidden : theme.wrapper} style={{pageBreakInside: "avoid"}}>
 
                 {/* -------------------top line buttons ----------------------*/}
@@ -257,12 +280,21 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
                     <div className={theme.topBarButtonsView}>
                         <div className={theme.menuPosition}>
                             {(showEditIcons) && (
-                                <NavigableMenu
-                                    config={sectionMenuItems}
-                                    title={'Section Settings'}
-                                    btnVisibleOnGroupHover={true}
-                                    preferredPosition={"right"}
-                                />
+                                <>
+                                    {canEditSection ?
+                                        <div className={'hidden group-hover:flex text-blue-500 hover:text-blue-700 cursor-pointer px-1 py-0.5'}
+                                             title={'Edit'} onClick={onEdit} >
+                                            <Icon icon={'PencilSquare'} className={'size-6'} />
+                                        </div> :
+                                        null}
+
+                                    <NavigableMenu
+                                        config={sectionMenuItems}
+                                        title={'Section Settings'}
+                                        btnVisibleOnGroupHover={true}
+                                        preferredPosition={"right"}
+                                    />
+                                </>
                             )}
                         </div>
                     </div>

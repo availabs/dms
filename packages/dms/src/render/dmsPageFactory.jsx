@@ -65,7 +65,7 @@ export default function dmsPageFactory (
     const params = useParams();
     const location = useLocation();
     const navigate = useNavigate();
-    const AuthedManager = authWrapper(DmsManager)
+    const AuthedManager = React.useMemo(() => authWrapper(DmsManager), [])
 
     return React.useMemo(() => (
       <FalcorProvider falcor={falcor}>
