@@ -3,7 +3,6 @@
   "version": "0.1.9",
   "description": "AVAIL Data Management System - Client",
   "main": "dist/index.js",
-  "private": false,
   "scripts": {
     "test": "node test.js",
     "build": "npx eslint src && babel src -d dist --extensions '.ts,.tsx,.js,.jsx'",
