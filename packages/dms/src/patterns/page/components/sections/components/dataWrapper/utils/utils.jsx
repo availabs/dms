@@ -152,11 +152,11 @@ export const applyFn = (col = {}, isDms = false) => {
     isCalculatedCol,
     col.systemCol,
   );
-  const colNameAfterAS = (
+  const colNameAfterAS = ((
     isCalculatedCol ? // get response name for calculated columns
         splitColNameOnAS(col.name)[1] :
         col.name
-  ).toLowerCase();
+  ) || '').toLowerCase();
 
   const functions = {
     [undefined]: !isDms && !isCalculatedCol ? colNameWithAccessor : `${colNameWithAccessor} as ${colNameAfterAS}`,
