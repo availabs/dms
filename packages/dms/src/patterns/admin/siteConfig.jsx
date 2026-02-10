@@ -134,7 +134,7 @@ const patternConfig = ({
   themes = {},
   rightMenu = <DefaultMenu/>,
 }) => {
-    const format = initializePatternFormat(pattern, app, 'pattern')
+    const format = initializePatternFormat(pattern, app, `${type}|pattern`)
     const parentBaseUrl = baseUrl === '/' ? '' : baseUrl;
 
     baseUrl = `${parentBaseUrl}/manage_pattern`

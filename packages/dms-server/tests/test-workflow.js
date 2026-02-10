@@ -14,6 +14,8 @@
 
 const { createTestGraph } = require('./graph');
 
+const DB_NAME = process.env.DMS_TEST_DB || 'dms-sqlite';
+
 // Test app name - unique to avoid conflicts
 const TEST_APP = 'workflow-test-' + Date.now();
 
@@ -24,7 +26,8 @@ let graph = null;
  */
 async function setup() {
   console.log('Setting up test graph...');
-  graph = createTestGraph('dms-sqlite');
+  graph = createTestGraph(DB_NAME);
+  console.log(`Database: ${DB_NAME} (${graph.dbType})`);
   console.log(`Test app: ${TEST_APP}\n`);
   return graph;
 }

@@ -14,6 +14,8 @@
 
 - [fix-createData-drops-data.md](./tasks/completed/fix-createData-drops-data.md) - Fixed createData ignoring data argument, causing sections to have empty data (2026-01-28)
 - [fix-sqlite-pages-missing-index.md](./tasks/completed/fix-sqlite-pages-missing-index.md) - Fixed searchOne returning null for root page: `||` dropping falsy `0` + SQLite `->>` type mismatch (2026-01-28)
+- [dms-server-auth.md](./tasks/completed/dms-server-auth.md) - Implemented full auth system: JWT middleware, 45 endpoints (auth/user/group/project/message/preferences), cross-DB queries, authority checks, created_by/updated_by pipeline, 103 integration tests (2026-02-09)
+- [dms-server-postgres-tests.md](./tasks/completed/dms-server-postgres-tests.md) - PostgreSQL test support: Docker lifecycle helper, parameterized test-graph/test-workflow/test-auth for dual DB, npm scripts (test:pg, test:all), fixed COUNT bigint + boolean cross-DB bugs (2026-02-09)
 
 ## ui
 

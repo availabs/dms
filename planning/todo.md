@@ -16,8 +16,10 @@
 - [x] Add SQLite compatibility
 - [x] Fix createData dropping data argument (draft_sections bug)
 - [x] Fix SQLite searchOne returning null for root page (falsy `||` + `->>` type mismatch)
-- [ ] Implement `uda` routes in dms-server
-- [ ] Implement auth in dms-server
+- [x] Implement `uda` routes in dms-server — UDA Falcor routes (sources, views, filtered data queries) for DMS and DAMA databases, based on avail-falcor reference, PostgreSQL only (no ClickHouse)
+- [x] Implement auth in dms-server — JWT middleware, auth/user/group/project/message/preferences endpoints, cross-DB queries, authority checks, compatible with avail-falcor auth API
+- [x] PostgreSQL test support — Docker-managed PostgreSQL, parameterize all test suites, `npm run test:pg` / `test:all`
+- [ ] Fix auth DB init race condition — `getDb()` returns before async init completes, causing "no such table: users"; add `awaitReady()`, support multi-role configs
 
 ## ui
 

@@ -94,6 +94,8 @@ function createController(dbName = 'dms-sqlite') {
       )
       return Promise.all(promises)
         .then(data => [].concat(...data))
+        // PostgreSQL COUNT returns bigint (string); normalize to number
+        .then(rows => rows.map(r => ({ ...r, length: Number(r.length) })))
     },
 
     dataSearch: (appKeys, searchkeys) => {
@@ -213,6 +215,8 @@ function createController(dbName = 'dms-sqlite') {
       })
       return Promise.all(promises)
         .then(data => [].concat(...data))
+        // PostgreSQL COUNT returns bigint (string); normalize to number
+        .then(rows => rows.map(r => ({ ...r, length: Number(r.length) })))
     },
 
     filteredDataByIndex: (appKeys, indices, options = '{}', attributes = ['data']) => {

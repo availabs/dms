@@ -3,6 +3,8 @@ const compression = require('compression')
 const falcorExpress = require('./utils/falcor-express');
 const falcorRoutes = require('./routes');
 const { createRequestLogger } = require('./middleware/request-logger');
+const { createJwtMiddleware } = require('./auth/jwt');
+const { registerAuthRoutes } = require('./auth');
 
 const app = express();
 app.use(compression())
@@ -44,12 +46,19 @@ app.get('/', (req, res) => {
 // Request logging middleware (enable with DMS_LOG_REQUESTS=1)
 app.use(createRequestLogger());
 
+// Auth routes — registered BEFORE JWT middleware (login/signup don't need auth)
+const authDbEnv = process.env.DMS_AUTH_DB_ENV || 'auth-sqlite';
+const { getDb, awaitReady } = require('./db');
+registerAuthRoutes(app, getDb(authDbEnv));
+
+// JWT auth middleware — validates Authorization header, attaches req.availAuthContext
+app.use(createJwtMiddleware(authDbEnv));
+
 app.use(
   '/graph',
   falcorExpress.dataSourceRoute(function (req, res) {
     try {
-      //const { user = null } = req.availAuthContext || {};
-      const user = null;
+      const { user = null } = req.availAuthContext || {};
       return falcorRoutes({ user });
     } catch (e) {
       console.log('graph error')
@@ -61,6 +70,18 @@ app.use((req, res, next) => {
   res.status(404).send("Invalid Request.");
 });
 
-app.listen(PORT, () => {
-  console.log(`DMS Server running on port ${PORT}`);
+awaitReady().then(() => {
+  app.listen(PORT, () => {
+    console.log(`DMS Server running on port ${PORT}`);
+    const envEntries = Object.entries(process.env)
+      .filter(([key]) => key.startsWith('DMS'));
+
+    if (envEntries.length) {
+      console.log('\nEnvironment:');
+      for (const [key, value] of envEntries) {
+        console.log(`  ${key}=${value}`);
+      }
+    }
+    console.log('');
+  });
 });
