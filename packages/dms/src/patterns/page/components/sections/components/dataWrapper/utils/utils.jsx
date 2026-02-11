@@ -202,7 +202,7 @@ const getFullColumn = (columnName, columns) =>
 // Recursively maps filterGroups col names to refNames for the API,
 // and resolves multiselect column values to matched DB options.
 const mapFilterGroupCols = async (node, getColumn, { isDms, apiLoad, sourceInfo }) => {
-  if (!node) return node;
+  if (!node || !Object.keys(node).length) return node;
   if (node.groups && Array.isArray(node.groups)) {
     return {
       ...node,

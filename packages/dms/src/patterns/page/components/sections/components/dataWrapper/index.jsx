@@ -176,7 +176,7 @@ const Edit = ({cms_context, value, onChange, component}) => {
         // walk tree, check if any page-synced condition needs updating
         const needsUpdate = (node) => {
             if (isGroup(node)) return node.groups.some(needsUpdate);
-            if (!node.usePageFilters) return false;
+            if (!node?.usePageFilters) return false;
             const key = node.searchParamKey || node.col;
             const pageValues = pageFilters[key];
             if (!pageValues) return false;
@@ -192,7 +192,7 @@ const Edit = ({cms_context, value, onChange, component}) => {
                     node.groups.forEach(update);
                     return;
                 }
-                if (!node.usePageFilters) return;
+                if (!node?.usePageFilters) return;
                 const key = node.searchParamKey || node.col;
                 const pageValues = pageFilters[key];
                 if (!pageValues) return;
@@ -607,7 +607,7 @@ const View = ({cms_context, value, onChange, component}) => {
         // walk tree, check if any page-synced condition needs updating
         const needsUpdate = (node) => {
             if (isGroup(node)) return node.groups.some(needsUpdate);
-            if (!node.usePageFilters) return false;
+            if (!node?.usePageFilters) return false;
             const key = node.searchParamKey || node.col;
             const pageValues = pageFilters[key];
             if (!pageValues) return false;
@@ -623,7 +623,7 @@ const View = ({cms_context, value, onChange, component}) => {
                     node.groups.forEach(update);
                     return;
                 }
-                if (!node.usePageFilters) return;
+                if (!node?.usePageFilters) return;
                 const key = node.searchParamKey || node.col;
                 const pageValues = pageFilters[key];
                 if (!pageValues) return;
