@@ -26,7 +26,7 @@ const complexFilterStructure = {
     ]
 }
 
-const isGroup = node => node?.groups && Array.isArray(node.groups);
+export const isGroup = node => node?.groups && Array.isArray(node.groups);
 
 const emptyGroup = () => ({
     op: 'AND',
@@ -87,7 +87,6 @@ export const ComplexFilters = ({ state, setState }) => {
                 const normalized = Array.isArray(pageValues) ? pageValues : [pageValues];
                 if (!isEqual(node.value, normalized)) {
                     node.value = normalized;
-                    console.log('assigning', normalized)
                 }
             };
             update(draft);

@@ -10,6 +10,7 @@ import {useCopy, usePaste, getLocation} from "./utils/hooks";
 import {isEqualColumns, parseIfJson} from "./utils";
 import {handleKeyDown} from "./utils/keyboard";
 import {cloneDeep} from "lodash-es";
+import {tableTheme} from "./table.theme";
 
 const defaultNumColSize = 0;
 const defColSize = 250;
@@ -83,7 +84,8 @@ const AddNew = ({allowAdddNew,
     const addNewButtonWidth = 20;
 
     const attrsToRender = visibleAttrsWithoutOpenOut
-        .slice(startCol, endCol + 1);
+        .slice(startCol, endCol + 1)
+        .filter(attr => !attr._isActionsColumn);
 
     const slicedGridTemplateColumns = useMemo(() => {
         const cols = attrsToRender
@@ -192,9 +194,14 @@ export default function ({
 
     const [defaultColumnSize, setDefaultColumnSize] = React.useState(defColSize);
 
+    const actionsColSize = 50;
     const structureValues = useMemo(() => {
-        const visibleAttributes = columns.filter(c => c.show).map(c => ({...c, size: c.size || defaultColumnSize}));
-        const visibleAttrsWithoutOpenOut = visibleAttributes.filter(c => !c.openOut || c.actionType);
+        const visibleAttributes = columns.filter(c => c.show && !c.actionType).map(c => ({...c, size: c.size || defaultColumnSize}));
+        const actionColumns = columns.filter(c => c.show && c.actionType && (c.display === 'both' || isEdit)).map(c => ({...c, size: c.size || defaultColumnSize}));
+        const regularAttrsWithoutOpenOut = visibleAttributes.filter(c => !c.openOut);
+        const visibleAttrsWithoutOpenOut = actionColumns.length
+            ? [{ _isActionsColumn: true, name: '_actions', display_name: ' ', actionColumns, size: actionsColSize }, ...regularAttrsWithoutOpenOut]
+            : regularAttrsWithoutOpenOut;
         const openOutAttributes = visibleAttributes.filter(c => c.openOut);
 
         const columnSizes = visibleAttrsWithoutOpenOut.map(v => v.size);

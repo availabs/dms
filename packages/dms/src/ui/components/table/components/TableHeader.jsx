@@ -45,15 +45,18 @@ export const Header = memo(function Header ({
                                         ${tableTheme.headerCellContainer}
                                         ${selectedCols.includes(i) ? tableTheme.headerCellContainerBgSelected : tableTheme.headerCellContainerBg}`}
                                 >
-                                    <TableHeaderCell attribute={attribute}
-                                                     isEdit={isEdit}
-                                                     columns={columns}
-                                                     display={display}
-                                                     controls={controls}
-                                                     setState={setState}
-                                                     localFilterData={localFilterData}
-                                                     activeStyle={activeStyle}
-                                    />
+                                    {
+                                        attribute._isActionsColumn ? null :
+                                        <TableHeaderCell attribute={attribute}
+                                                      isEdit={isEdit}
+                                                      columns={columns}
+                                                      display={display}
+                                                      controls={controls}
+                                                      setState={setState}
+                                                      localFilterData={localFilterData}
+                                                      activeStyle={activeStyle}
+                                        />
+                                    }
                                 </div>
 
                                 <div
