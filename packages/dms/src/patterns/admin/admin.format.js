@@ -31,11 +31,12 @@ export const pattern = {
       required: true,
       default: "page",
         options: [
-        {value: 'auth', label: 'Auth'},
-        {value: 'page', label: 'Page'},
-        {value: 'forms', label: 'Forms'},
-        {value: 'datasets', label: 'Datasets'}
-      ],
+          {value: 'auth', label: 'Auth'},
+          {value: 'page', label: 'Page'},
+          {value: 'forms', label: 'Forms'},
+          {value: 'datasets', label: 'Datasets'},
+          {value: 'mapeditor', label: 'Map Editor'}
+        ],
     },
     // doc_type: uuid string to identify pattern entries in db
     { key: "name",
