@@ -2,13 +2,14 @@ import React, {useState, useEffect, useMemo, useRef, useCallback, useContext} fr
 import {useNavigate} from "react-router";
 import writeXlsxFile from 'write-excel-file';
 import { isEqual } from "lodash-es";
-import { CMSContext, ComponentContext } from "../../../../context";
+import {CMSContext, ComponentContext, PageContext} from "../../../../context";
 import { ThemeContext } from '../../../../../../ui/useTheme';
 import { convertOldState } from "./utils/convertOldState";
 import {useHandleClickOutside, getData, isCalculatedCol} from "./utils/utils";
 import { Attribution } from "./components/Attribution";
 import { Pagination } from "./components/Pagination";
 import { getExternalEnv } from "../../../../pages/_utils/datasources";
+import {isGroup} from "../../ComplexFilters";
 
 const getCurrDate = () => {
     const options = {
@@ -107,6 +108,7 @@ const RenderDownload = ({state, apiLoad, cms_context}) => {
 const Edit = ({cms_context, value, onChange, component}) => {
     const isEdit = Boolean(onChange);
     const { UI } = useContext(ThemeContext)
+    const { pageState } = useContext(PageContext) || {}; // is this safe for datasets pages table and view?
     const {datasources} = useContext(cms_context || CMSContext);
     const pgEnv = getExternalEnv(datasources);
     const {Icon} = UI;
@@ -164,6 +166,44 @@ const Edit = ({cms_context, value, onChange, component}) => {
 
     }, [localFilters, hasLocalFilters, currentPage, setState])
 
+    useEffect(() => {
+        const pageFilters = (pageState?.filters || []).reduce(
+            (acc, curr) => ({...acc, [curr.searchKey]: curr.values}), {}
+        );
+
+        if (!Object.keys(pageFilters).length) return;
+
+        // walk tree, check if any page-synced condition needs updating
+        const needsUpdate = (node) => {
+            if (isGroup(node)) return node.groups.some(needsUpdate);
+            if (!node.usePageFilters) return false;
+            const key = node.searchParamKey || node.col;
+            const pageValues = pageFilters[key];
+            if (!pageValues) return false;
+            const normalized = Array.isArray(pageValues) ? pageValues : [pageValues];
+            return !isEqual(node.value, normalized);
+        };
+
+        if (!needsUpdate(state.dataRequest?.filterGroups)) return;
+
+        setState(draft => {
+            const update = (node) => {
+                if (isGroup(node)) {
+                    node.groups.forEach(update);
+                    return;
+                }
+                if (!node.usePageFilters) return;
+                const key = node.searchParamKey || node.col;
+                const pageValues = pageFilters[key];
+                if (!pageValues) return;
+                const normalized = Array.isArray(pageValues) ? pageValues : [pageValues];
+                if (!isEqual(node.value, normalized)) {
+                    node.value = normalized;
+                }
+            };
+            update(draft.dataRequest?.filterGroups);
+        });
+    }, [pageState?.filters]);
     // ========================================= init comp begin =======================================================
     // useSetDataRequest
     useEffect(() => {
@@ -485,6 +525,7 @@ const Edit = ({cms_context, value, onChange, component}) => {
 const View = ({cms_context, value, onChange, component}) => {
     const isEdit = false;
     const navigate = useNavigate();
+    const { pageState } = useContext(PageContext) || {}; // is this safe for datasets pages table and view?
     const {datasources, baseUrl} = useContext(cms_context || CMSContext) || {};
     const pgEnv = getExternalEnv(datasources);
     const { UI } = useContext(ThemeContext)
@@ -556,6 +597,44 @@ const View = ({cms_context, value, onChange, component}) => {
     // ====================================== data fetch triggers begin ================================================
     // filters, sort, page change, draft.readyToFetch
     // builds an object with filter, exclude, gt, gte, lt, lte, like as keys. columnName: [values] as values
+    useEffect(() => {
+        const pageFilters = (pageState?.filters || []).reduce(
+            (acc, curr) => ({...acc, [curr.searchKey]: curr.values}), {}
+        );
+
+        if (!Object.keys(pageFilters).length) return;
+
+        // walk tree, check if any page-synced condition needs updating
+        const needsUpdate = (node) => {
+            if (isGroup(node)) return node.groups.some(needsUpdate);
+            if (!node.usePageFilters) return false;
+            const key = node.searchParamKey || node.col;
+            const pageValues = pageFilters[key];
+            if (!pageValues) return false;
+            const normalized = Array.isArray(pageValues) ? pageValues : [pageValues];
+            return !isEqual(node.value, normalized);
+        };
+
+        if (!needsUpdate(state.dataRequest?.filterGroups)) return;
+
+        setState(draft => {
+            const update = (node) => {
+                if (isGroup(node)) {
+                    node.groups.forEach(update);
+                    return;
+                }
+                if (!node.usePageFilters) return;
+                const key = node.searchParamKey || node.col;
+                const pageValues = pageFilters[key];
+                if (!pageValues) return;
+                const normalized = Array.isArray(pageValues) ? pageValues : [pageValues];
+                if (!isEqual(node.value, normalized)) {
+                    node.value = normalized;
+                }
+            };
+            update(draft.dataRequest?.filterGroups);
+        });
+    }, [pageState?.filters]);
     const filterOptions = useMemo(() => state.columns.reduce((acc, column) => {
         const isNormalisedColumn = state.columns.filter(col => col.name === column.name && col.filters?.length).length > 1;
 
@@ -624,7 +703,7 @@ const View = ({cms_context, value, onChange, component}) => {
         return () => {
             isStale = true;
         }
-    }, [filterOptions, orderBy, isValidState, state.display.readyToLoad, state.display.allowEditInView])
+    }, [filterOptions, state.dataRequest?.filterGroups, orderBy, isValidState, state.display.readyToLoad, state.display.allowEditInView])
 
     // uweGetDataOnSettingsChange
     useEffect(() => {

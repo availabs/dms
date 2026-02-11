@@ -236,7 +236,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
 
 
     const filter = [
-        {name: 'Filters', icon: 'Filter', cdn: () => isEdit && currentComponent?.useDataSource && canEditSection,
+        {name: 'Filters', icon: 'Filter', cdn: () => currentComponent?.useDataSource && canEditSection,
             items: [
                 {name: 'Filter Groups Component', type: () => <ComplexFilters state={state} setState={setState} />}
             ]}
