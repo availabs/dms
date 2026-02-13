@@ -67,6 +67,7 @@ export const convertOldState = (state, initialState, compName) => {
                 if (f.searchParamKey) condition.searchParamKey = f.searchParamKey;
                 if (f.isMulti) condition.isMulti = true;
                 if (f.fn) condition.fn = f.fn;
+                if (f.display) condition.display = f.display;
 
                 convertedConditions.push(condition);
             });

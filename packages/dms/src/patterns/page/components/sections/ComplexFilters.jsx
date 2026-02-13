@@ -45,6 +45,7 @@ export const ComplexFilters = ({ state, setState }) => {
     const { Pill, Icon, Popup, Switch, ColumnTypes: {select} } = UI;
 
     const columns = state.sourceInfo?.columns || [];
+    const isGrouping = (state.columns || []).some(c => c.group);
 
     const [filterGroups, updateFilterGroups] = useImmer(
         Object.entries(state?.dataRequest?.filterGroups || {}).length ?
@@ -187,11 +188,12 @@ export const ComplexFilters = ({ state, setState }) => {
         }
 
         // condition
-        console.log('node', node)
+        const isStale = node.col && !columns.find(c => c.name === node.col);
         return (
-            <div key={path.join('.')} className="w-full flex flex-col gap-1 items-center ml-2 p-2 border border-dashed rounded-md hover:bg-blue-50">
+            <div key={path.join('.')} className={`w-full flex flex-col gap-1 items-center ml-2 p-2 border border-dashed rounded-md ${isStale ? 'border-red-300 bg-red-50' : 'hover:bg-blue-50'}`}>
                 {/* column selector */}
                 <div className={'w-full flex gap-1'}>
+                    {isStale && <span className={'text-red-500 text-xs'}>stale</span>}
                     <select
                         className={'max-w-1/4'}
                         value={node.col}
@@ -250,6 +252,23 @@ export const ComplexFilters = ({ state, setState }) => {
                                                 size={'xs'}
                                         />
                                     </div>
+                                    {isGrouping && (
+                                        <div className={'flex items-center gap-1'}>
+                                            <Icon icon={'Filter'} className={'size-4'} />
+                                            <label>Aggregate fn:</label>
+                                            <select
+                                                className={'text-xs rounded-md border px-1'}
+                                                value={node.fn || ''}
+                                                onChange={e => updateNodeAtPath(path, n => { n.fn = e.target.value || undefined; })}
+                                            >
+                                                <option value="">none</option>
+                                                <option value="sum">sum</option>
+                                                <option value="count">count</option>
+                                                <option value="max">max</option>
+                                                <option value="list">list</option>
+                                            </select>
+                                        </div>
+                                    )}
                                     <div className={'flex items-center gap-1'}>
                                         <Icon icon={'Filter'} className={'size-4'} />
                                         <label className={''}>Use Page Filters:</label>
@@ -271,6 +290,30 @@ export const ComplexFilters = ({ state, setState }) => {
                                             onChange={e => updateNodeAtPath(path, n => { n.searchParamKey = e.target.value; })}
                                         />
                                     </div>
+                                    <div className={'flex items-center gap-1'}>
+                                        <Icon icon={'Filter'} className={'size-4'} />
+                                        <label>External:</label>
+                                        <Switch label={'External'}
+                                                enabled={node.isExternal}
+                                                setEnabled={value => updateNodeAtPath(path, n => { n.isExternal = value; })}
+                                                size={'xs'}
+                                        />
+                                    </div>
+                                    {node.isExternal && (
+                                        <div className={'flex items-center gap-1'}>
+                                            <Icon icon={'Filter'} className={'size-4'} />
+                                            <label>Display:</label>
+                                            <select
+                                                className={'text-xs rounded-md border px-1'}
+                                                value={node.display || ''}
+                                                onChange={e => updateNodeAtPath(path, n => { n.display = e.target.value || undefined; })}
+                                            >
+                                                <option value="">compact</option>
+                                                <option value="expanded">expanded</option>
+                                                <option value="tabular">tabular</option>
+                                            </select>
+                                        </div>
+                                    )}
                                     <div className={'flex gap-1 text-red-500 hover:text-red-700 cursor-pointer'} onClick={() => removeAtPath(path)}>
                                         <Icon icon={'TrashCan'} className={'size-4'} /> Remove
                                     </div>

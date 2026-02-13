@@ -5,6 +5,7 @@ import {Controls} from "./dataWrapper/components/Controls";
 import {RenderFilters} from "./dataWrapper/components/filters/RenderFilters";
 import {PageContext, ComponentContext} from '../../../context'
 import {ComplexFilters} from "../ComplexFilters";
+import {ExternalFilters} from "../ExternalFilters";
 
 function EditComp({value, onChange, compKey, component, siteType, pageFormat}) {
     const { state, setState } = React.useContext(ComponentContext);
@@ -91,7 +92,7 @@ function ViewComp({value, onChange, siteType, pageFormat, refreshDataBtnRef, com
     return (
         <>
             <RenderFilters isEdit={false} defaultOpen={true}/>
-            <ComplexFilters state={state} setState={setState} />
+            <ExternalFilters defaultOpen={true} />
             <DataComp value={value?.['element-data'] || ''}
                       onChange={v => updateAttribute('element-data', v)}
                       component={component?.useDataWrapper ? component : undefined}

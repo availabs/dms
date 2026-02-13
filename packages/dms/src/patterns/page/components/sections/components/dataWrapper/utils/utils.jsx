@@ -226,6 +226,18 @@ const mapFilterGroupCols = async (node, getColumn, { isDms, apiLoad, sourceInfo 
     col: refName || node.col,
   };
 
+  // If condition has an aggregate fn, compute the HAVING expression
+  if (node.fn) {
+    const fnExpr = splitColNameOnAS(
+        applyFn({ ...col, fn: node.fn }, isDms)
+    )[0];
+    const opExpr = operationToExpressionMap[node.op];
+    const val = Array.isArray(mapped.value) ? mapped.value[0] : mapped.value;
+    if (fnExpr && opExpr && val != null) {
+      mapped.havingExpr = `${fnExpr} ${opExpr} ${val}`;
+    }
+  }
+
   // for multiselect columns with filter/exclude, resolve values to matched DB options
   if (col?.type === 'multiselect' && ['filter', 'exclude'].includes(node.op)) {
     const selectedValues = (Array.isArray(node.value) ? node.value : [node.value])
@@ -273,6 +285,25 @@ const mapFilterGroupCols = async (node, getColumn, { isDms, apiLoad, sourceInfo 
 
 export const getColumnLabel = (column) =>
   column.customName || column.display_name || column.name;
+
+// Extracts conditions with havingExpr from a mapped filterGroups tree.
+// Returns { filterGroups: cleaned tree, having: string[] }
+const extractHavingFromFilterGroups = (node) => {
+  if (!node || !Object.keys(node).length) return { filterGroups: node, having: [] };
+  if (!node.groups) {
+    // leaf condition
+    if (node.havingExpr) return { filterGroups: null, having: [node.havingExpr] };
+    return { filterGroups: node, having: [] };
+  }
+  const having = [];
+  const keptGroups = [];
+  for (const child of node.groups) {
+    const result = extractHavingFromFilterGroups(child);
+    having.push(...result.having);
+    if (result.filterGroups) keptGroups.push(result.filterGroups);
+  }
+  return { filterGroups: { ...node, groups: keptGroups }, having };
+};
 
 const evaluateAST = (node, values) => {
   if (node.type === "variable") {
@@ -485,11 +516,13 @@ export const getData = async ({
 
   // should this be saved in state directly?
     debugTime && console.time('build options')
+  const mappedFilterGroups = await mapFilterGroupCols(filterGroups, getSourceColumnsByName, { isDms, apiLoad, sourceInfo: state.sourceInfo });
+  const { filterGroups: cleanedFilterGroups, having: filterGroupHaving } = extractHavingFromFilterGroups(mappedFilterGroups);
   const options = {
     keepOriginalValues,
     filterRelation,
     serverFn,
-    filterGroups: await mapFilterGroupCols(filterGroups, getSourceColumnsByName, { isDms, apiLoad, sourceInfo: state.sourceInfo }),
+    filterGroups: cleanedFilterGroups,
     groupBy: groupBy.map(
       (columnName) => getFullColumnFromColumnsWithSettings(columnName)?.refName,
     ),
@@ -574,9 +607,10 @@ export const getData = async ({
         });
       });
 
+      const allHaving = [...having, ...filterGroupHaving];
       return {
         ...(Object.keys(where).length > 0 && where),
-        ...(having.length > 0 && { having }),
+        ...(allHaving.length > 0 && { having: allHaving }),
       };
     })(),
   };
